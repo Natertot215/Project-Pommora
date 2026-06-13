@@ -57,6 +57,15 @@ enum FilterEvaluator {
             return evaluateList(ids, op: op, value: rule.value)
         }
 
+        // The reserved "Last edited" column resolves its date from the dedicated
+        // `modifiedAt` stamp (with `createdAt` fallback), NOT from `fm.properties`
+        // — it's never a stored property key (mirrors `ViewSortComparator`'s
+        // modified-stamp handling). Route it straight through the date matrix.
+        if rule.propertyID == ReservedPropertyID.modifiedAt {
+            return evaluateDate(
+                .date(fm.modifiedAt ?? fm.createdAt), op: op, expected: rule.value)
+        }
+
         // A rule for a property the schema doesn't know about can't be evaluated
         // meaningfully → no-op pass.
         guard let def = schema.first(where: { $0.id == rule.propertyID }) else { return true }

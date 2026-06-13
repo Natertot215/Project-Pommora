@@ -97,18 +97,7 @@ struct ViewsDropdownButton: View {
 
     private var activeView: SavedView? {
         guard let cid = containerID else { return nil }
-        let views: [SavedView]
-        if let t = pageTypeManager.types.first(where: { $0.id == cid }) {
-            views = t.views
-        } else if let c = pageTypeManager.pageCollectionsByType.values
-            .flatMap({ $0 }).first(where: { $0.id == cid })
-        {
-            views = c.views
-        } else {
-            return nil
-        }
-        let stored = activeViewStore.activeViewID(for: cid)
-        return views.first(where: { $0.id == stored }) ?? views.first
+        return activeViewStore.resolvedActiveView(in: cid, manager: pageTypeManager)
     }
 
     private func setStyle(_ newStyle: ViewsButtonStyle) {

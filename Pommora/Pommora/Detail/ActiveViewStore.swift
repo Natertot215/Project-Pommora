@@ -23,4 +23,15 @@ final class ActiveViewStore {
         activeViews[containerID] = viewID
         try? OrderPersister.setActiveView(viewID, forContainer: containerID, in: nexus)
     }
+
+    /// The container's active `SavedView`: the stored active id matched against
+    /// the container's live views (via `manager.views(in:)`), falling back to the
+    /// first view when the store has no record yet. The single source for the
+    /// `activeViewID → first(where:) ?? first` resolution the panes + Views
+    /// dropdown all repeat.
+    func resolvedActiveView(in containerID: String, manager: PageTypeManager) -> SavedView? {
+        let views = manager.views(in: containerID)
+        let activeID = activeViewID(for: containerID)
+        return views.first(where: { $0.id == activeID }) ?? views.first
+    }
 }

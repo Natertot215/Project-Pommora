@@ -128,8 +128,8 @@ struct PageCollectionDetailView: View {
         if let nexus = nexusManager.currentNexus {
             ContainerBannerView(
                 containerID: liveCollection.id,
-                entityID: liveCollection.id,
                 bannerPath: liveCollection.banner,
+                isVisible: activeView?.showBanner ?? true,
                 nexus: nexus)
         }
     }
@@ -160,8 +160,7 @@ struct PageCollectionDetailView: View {
     /// per-container last-active view persisted across sessions), falling back
     /// to the first view when the store has no record yet.
     private var activeView: SavedView? {
-        let activeID = activeViewStore.activeViewID(for: liveCollection.id)
-        return liveCollection.views.first(where: { $0.id == activeID }) ?? liveCollection.views.first
+        activeViewStore.resolvedActiveView(in: liveCollection.id, manager: pageTypeManager)
     }
 
     /// The FULL ordered column set (hidden columns included). The table hides via

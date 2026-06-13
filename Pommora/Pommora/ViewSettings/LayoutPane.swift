@@ -214,20 +214,11 @@ struct LayoutPane: View {
 
     // MARK: - Lookups (re-query live off the manager by stable ID)
 
-    /// Resolves the ACTIVE view (`activeViewStore.activeViewID(for:)` →
-    /// `first(where:) ?? first`) — edits whichever view the user is viewing.
+    /// Resolves the ACTIVE view via the shared resolver — edits whichever view
+    /// the user is viewing.
     private func currentView() -> SavedView? {
         guard let cid = containerID() else { return nil }
-        let activeID = activeViewStore.activeViewID(for: cid)
-        if let t = pageTypeManager.types.first(where: { $0.id == cid }) {
-            return t.views.first(where: { $0.id == activeID }) ?? t.views.first
-        }
-        for cols in pageTypeManager.pageCollectionsByType.values {
-            if let c = cols.first(where: { $0.id == cid }) {
-                return c.views.first(where: { $0.id == activeID }) ?? c.views.first
-            }
-        }
-        return nil
+        return activeViewStore.resolvedActiveView(in: cid, manager: pageTypeManager)
     }
 
     /// The full toggleable column set: user properties + tier relations +

@@ -3,15 +3,16 @@ import Testing
 
 @testable import Pommora
 
-/// Covers `TableSelectionModel`'s pure selection / range / move math — the
-/// row-selection core the native `Table` gave for free. No SwiftUI: every test
-/// seeds a flattened `order` and asserts the resulting `selection` / `anchor`.
-@Suite("TableSelectionModelTests")
+/// Covers `ViewSelectionModel`'s pure selection / range / move math — the
+/// renderer row-selection core (single / ⌘-toggle / ⇧-range / arrow nav /
+/// type-select). No SwiftUI: every test seeds a flattened `order` and asserts
+/// the resulting `selection` / `anchor`.
+@Suite("ViewSelectionModelTests")
 @MainActor
-struct TableSelectionModelTests {
+struct ViewSelectionModelTests {
 
-    private func model(_ order: [String] = ["a", "b", "c", "d", "e"]) -> TableSelectionModel {
-        let m = TableSelectionModel()
+    private func model(_ order: [String] = ["a", "b", "c", "d", "e"]) -> ViewSelectionModel {
+        let m = ViewSelectionModel()
         m.order = order
         return m
     }

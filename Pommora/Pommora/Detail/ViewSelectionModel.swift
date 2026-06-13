@@ -1,19 +1,23 @@
 import Foundation
 
-/// Selection + keyboard-navigation state for the custom table — the row-selection
-/// machinery the native `Table` gave for free (single / ⌘-toggle / ⇧-range, arrow
-/// nav, type-select). Pure value math (range/anchor, move, type-select target)
-/// lives in side-effect-free methods so `TableSelectionModelTests` can exercise
-/// them without SwiftUI.
+/// Selection + keyboard-navigation state for the view renderers (single /
+/// ⌘-toggle / ⇧-range, arrow nav, type-select). Pure value math (range/anchor,
+/// move, type-select target) lives in side-effect-free methods so
+/// `ViewSelectionModelTests` can exercise them without SwiftUI.
+///
+/// The Gallery renderer currently drives only single-select off this model; the
+/// keyboard/range engine is retained for the renderers that wire it. (The
+/// wrapped outline table owns its own native selection, so it does not consume
+/// this model.)
 ///
 /// `order` is the FLATTENED visible row order — the linear sequence of page ids
-/// exactly as the table renders them (groups in resolved order, items within a
+/// exactly as the renderer draws them (groups in resolved order, items within a
 /// group, then each child group's items for vault scope). The renderer keeps it
 /// in sync from the same `[ResolvedGroup]` it draws. ⇧-range and arrow nav both
 /// walk this list, so they always match what's on screen.
 @MainActor
 @Observable
-final class TableSelectionModel {
+final class ViewSelectionModel {
     /// Currently-selected page ids.
     private(set) var selection: Set<String> = []
 

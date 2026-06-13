@@ -159,22 +159,12 @@ struct FilterPane: View {
 
     // MARK: - Lookups (re-query live off the manager by stable ID)
 
-    /// Resolves the ACTIVE view (the same resolution the detail views use:
-    /// `activeViewStore.activeViewID(for:)` → `first(where:) ?? first`), so the
-    /// pane edits whichever view the user is currently viewing rather than the
-    /// container's first view.
+    /// Resolves the ACTIVE view via the shared resolver, so the pane edits
+    /// whichever view the user is currently viewing rather than the container's
+    /// first view.
     private func currentView() -> SavedView? {
         guard let cid = containerID() else { return nil }
-        let activeID = activeViewStore.activeViewID(for: cid)
-        if let t = pageTypeManager.types.first(where: { $0.id == cid }) {
-            return t.views.first(where: { $0.id == activeID }) ?? t.views.first
-        }
-        for cols in pageTypeManager.pageCollectionsByType.values {
-            if let c = cols.first(where: { $0.id == cid }) {
-                return c.views.first(where: { $0.id == activeID }) ?? c.views.first
-            }
-        }
-        return nil
+        return activeViewStore.resolvedActiveView(in: cid, manager: pageTypeManager)
     }
 
     private func containerID() -> String? {
@@ -206,7 +196,7 @@ enum ViewSettingsProperties {
         tierConfig: TierConfig
     ) -> [PropertyDefinition] {
         schema(scope: scope, manager: manager, tierConfig: tierConfig).filter { def in
-            guard def.id != coverID else { return false }
+            guard def.id != ReservedPropertyID.cover else { return false }
             return def.type != .lastEditedTime || def.id == ReservedPropertyID.modifiedAt
         }
     }
@@ -220,7 +210,7 @@ enum ViewSettingsProperties {
         tierConfig: TierConfig
     ) -> [PropertyDefinition] {
         schema(scope: scope, manager: manager, tierConfig: tierConfig).filter { def in
-            def.id != coverID && isGroupable(def.type)
+            def.id != ReservedPropertyID.cover && isGroupable(def.type)
         }
     }
 
@@ -272,10 +262,6 @@ enum ViewSettingsProperties {
     }
 
     // MARK: - Internals
-
-    /// The Cover sentinel — mirrors `TableColumnResolver.coverID`; never a
-    /// filterable or groupable property.
-    private static let coverID = "cover"
 
     private static func isGroupable(_ type: PropertyType) -> Bool {
         switch type {

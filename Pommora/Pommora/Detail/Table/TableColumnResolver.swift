@@ -44,10 +44,6 @@ struct ResolvedColumn: Equatable, Hashable, Sendable, Identifiable {
 ///     (defensive stale-reference tolerance), EXCEPT the reserved `_title` /
 ///     `_modified_at` which render without a schema def.
 enum TableColumnResolver {
-    /// The cover sentinel — excluded unconditionally. Not a reserved column id;
-    /// just a guard so no cover column can ever appear.
-    private static let coverID = "cover"
-
     static func resolve(view: SavedView, schema: [PropertyDefinition]) -> [ResolvedColumn] {
         let hiddenSet = Set(view.hiddenProperties)
         var emittedIDs = Set<String>()
@@ -60,34 +56,17 @@ enum TableColumnResolver {
             result.append(column)
         }
 
-        // Pass 1 — the saved order, VERBATIM.
-        for propID in view.propertyOrder {
-            // Cover never yields a column.
-            guard propID != coverID else { continue }
-            // `_title` is never hidden; everything else respects hiddenProperties.
-            if propID != ReservedPropertyID.title, hiddenSet.contains(propID) { continue }
-
-            switch propID {
-            case ReservedPropertyID.title, ReservedPropertyID.modifiedAt:
-                // Reserved columns render without a schema def.
-                append(id: propID, def: nil)
-            default:
-                // User properties + tiers need a schema def; a stale reference
-                // (deleted property) is silently skipped.
-                guard let def = schema.first(where: { $0.id == propID }) else { continue }
-                append(id: propID, def: def)
-            }
-        }
-
-        // Pass 2 — unaccounted schema properties (not in the order, not hidden),
-        // appended visible at the end. Reserved IDs never become user columns.
-        for def in schema
-        where !emittedIDs.contains(def.id)
-            && !hiddenSet.contains(def.id)
-            && !ReservedPropertyID.isReserved(def.id)
-            && def.id != coverID
-        {
-            append(id: def.id, def: def)
+        // Pass 1 + Pass 2 — the shared visible-property skeleton resolves the
+        // ordered ids (saved order verbatim, then unaccounted schema props). The
+        // table renders `_title` / `_modified_at` WITHOUT a schema def, and keeps
+        // tiers + Modified out of Pass 2 (they're supplied default-on by Pass 3
+        // below), so Pass 2 excludes all reserved ids.
+        let orderedIDs = VisiblePropertyOrder.resolve(
+            view: view, schema: schema,
+            defLessReserved: [ReservedPropertyID.title, ReservedPropertyID.modifiedAt],
+            pass2ExcludesReserved: true)
+        for id in orderedIDs {
+            append(id: id, def: schema.first(where: { $0.id == id }))
         }
 
         // Pass 3 — the hideable reserved columns (tier links + Modified) are shown

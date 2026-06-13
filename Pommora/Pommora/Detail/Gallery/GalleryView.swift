@@ -16,8 +16,8 @@ import SwiftUI
 /// Cards join the Task-14 drag machinery: each is `draggable` with the same
 /// `ViewRowDragPayload`, and `dropDestination` routes through the SAME
 /// `dragCoordinator` + `buildDropContext` the table uses (reflow when the active
-/// view's sort is manual). Selection is a self-contained `TableSelectionModel`
-/// (page-id set), mirroring the table — sidebar selection is untouched.
+/// view's sort is manual). Selection is a self-contained `ViewSelectionModel`
+/// (page-id set) — sidebar selection is untouched.
 struct GalleryView: View {
     let groups: [ResolvedGroup]
     let view: SavedView
@@ -46,7 +46,7 @@ struct GalleryView: View {
         ) -> RowDragCoordinator.DropContext?
 
     @State private var collapsed: Set<String> = []
-    @State private var selection = TableSelectionModel()
+    @State private var selection = ViewSelectionModel()
 
     private var cardSize: CardSize { view.cardSize ?? .medium }
 
@@ -189,7 +189,7 @@ struct GalleryView: View {
     private func dragPreview(for item: ViewItem) -> some View {
         let ids = dragIDs(for: item)
         return HStack(spacing: PUI.Spacing.sm) {
-            Image(systemName: item.page.frontmatter.icon ?? "doc.text")
+            PageIconGlyph(icon: item.page.frontmatter.icon)
             Text(item.page.title).lineLimit(1)
             if ids.count > 1 {
                 Text("\(ids.count)")
@@ -222,14 +222,17 @@ struct GalleryView: View {
     private func handleDrop(_ payloads: [ViewRowDragPayload], onto group: ResolvedGroup, at insertionIndex: Int) -> Bool
     {
         guard let payload = payloads.first else { return false }
+        // Resolve the dragged items across ALL groups (parity with the table's
+        // `acceptDrop`), so a CROSS-group drop sees a genuine source group — never
+        // the whole target group substituted in, which would corrupt row order.
+        let draggedItems = groups.flatMap(\.flattenedItems).filter { payload.pageIDs.contains($0.id) }
+        guard !draggedItems.isEmpty else { return false }
         let items = group.flattenedItems
-        let draggedItems = items.filter { payload.pageIDs.contains($0.id) }
         guard
             let context = buildDropContext(
-                draggedItems.isEmpty ? items : draggedItems,
-                group, insertionIndex, anchorID(in: items, at: insertionIndex))
+                draggedItems, group, insertionIndex, anchorID(in: items, at: insertionIndex))
         else { return false }
-        return dragCoordinator.drop(payload: payload, context: context)
+        return dragCoordinator.drop(context: context)
     }
 
     /// The page id a drop at `index` within the group's flattened `items` lands
@@ -279,11 +282,16 @@ struct GalleryView: View {
                 GalleryDropGeometry.insertionIndex(location: location, cards: cards)
                 ?? items.count
         }
-        let dragged = items.filter { draggedIDs.contains($0.id) }
+        // Resolve the dragged items across ALL groups (mirror of `handleDrop`), so
+        // a cross-group hover sees the genuine source group and the planner shows a
+        // move-highlight instead of an insertion line. An unresolvable drag clears.
+        let dragged = groups.flatMap(\.flattenedItems).filter { draggedIDs.contains($0.id) }
+        guard !dragged.isEmpty else {
+            dragCoordinator.update(nil)
+            return
+        }
         dragCoordinator.update(
-            buildDropContext(
-                dragged.isEmpty ? items : dragged, group, index,
-                anchorID(in: items, at: index)))
+            buildDropContext(dragged, group, index, anchorID(in: items, at: index)))
     }
 
     /// The captured card frames for a group's flattened items, in flow order —
@@ -327,12 +335,5 @@ struct GalleryView: View {
             .fill(.tint)
             .frame(width: 3)
             .padding(.vertical, PUI.Spacing.xs)
-    }
-}
-
-extension Array {
-    /// Bounds-safe subscript — nil rather than a trap for an out-of-range index.
-    fileprivate subscript(safe index: Int) -> Element? {
-        indices.contains(index) ? self[index] : nil
     }
 }

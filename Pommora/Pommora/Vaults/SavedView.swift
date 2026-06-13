@@ -1,40 +1,34 @@
 // Pommora/Pommora/Vaults/SavedView.swift
 import Foundation
 
-/// A saved view configuration on a PageType / PageCollection.
-/// v0.3.1 ships the Table-only single-saved-view case; the
-/// multi-saved-view tabs row + non-Table renderers (board / list / cards /
-/// gallery) land at v0.5.0.
+/// A saved view configuration on a PageType / PageCollection. A container holds
+/// MULTIPLE saved views (the Views dropdown switches + manages them); Table and
+/// Gallery are the rendered types, and `sort` / `filter` / `group` are live (the
+/// Sort / Filter / Group panes + the view pipeline).
 ///
-/// Identity is the stored `id` ("view_<ULID>") so the View Settings popover
-/// can bind `views[0]` (or future `views[i]`) without index drift across
-/// saves.
+/// Identity is the stored `id` ("view_<ULID>") so the View Settings popover and
+/// the active-view store bind a view by id without index drift across saves.
 ///
 /// Per-view config touches:
 ///   - `propertyOrder` / `hiddenProperties` — drives the Layout pane's eye-list
-///     + `TableColumnResolver`. `propertyOrder` always leads with the
-///     reserved `_title` id. Legacy `visible_properties` sidecars are decoded
-///     one-time into `["_title"] + legacy`; the key is never re-encoded.
-///   - `columnWidths` / `collapsedGroups` / `cardSize` / `showCover` — layout
-///     state for the Table / Board / Cards renderers (all optional).
-///   - `type` — only `.table` is rendered; other cases mute in the Layout pane.
+///     + `TableColumnResolver` / `GalleryCardZones`. `propertyOrder` always
+///     leads with the reserved `_title` id. Legacy `visible_properties` sidecars
+///     are decoded one-time into `["_title"] + legacy`; the key is never re-encoded.
+///   - `columnWidths` / `collapsedGroups` / `cardSize` / `showCover` /
+///     `showBanner` — layout state for the Table / Gallery renderers (all optional).
+///   - `sort` / `filter` / `group` — the view pipeline's ordering / filtering /
+///     grouping config.
+///   - `type` — Table + Gallery render; the remaining cases mute in the Layout pane.
 ///
-/// `sort` / `filter` / `group` are reserved Codable stubs at v0.3.1 — fields
-/// land in the schema today so v0.3.1.x follow-up patches don't break decode
-/// of v0.3.1-era sidecars when they wire the real UI:
-///   - `sort`  → v0.3.1.2 Sort pane
-///   - `filter` → v0.3.1.3 Filter pane
-///   - `group`  → v0.3.1.4 Group pane (may defer to v0.5.0)
-///
-/// Decode is defensive: every field flows through `decodeIfPresent` with a
-/// safe default so a stale empty `{}` from the pre-v0.3.1 stub decodes as a
-/// sane placeholder. `loadAll`'s default-view migration replaces any container
-/// whose `views` is empty with a freshly-minted Table view.
+/// Decode is defensive: every field flows through `decodeIfPresent` with a safe
+/// default so a stale empty `{}` decodes as a sane placeholder. `loadAll`'s
+/// default-view migration replaces any container whose `views` is empty with a
+/// freshly-minted Table view.
 struct SavedView: Codable, Equatable, Hashable, Identifiable, Sendable {
     var id: String  // "view_<ULID>"
     var name: String  // "Table" default
     var icon: String?  // SF Symbol; default "tablecells" when minted by ensureDefaultView
-    var type: ViewType  // .table at v0.3.1; others muted
+    var type: ViewType  // Table + Gallery render; other cases mute
     var propertyOrder: [String]  // ordered property IDs (always leads with `_title`)
     var hiddenProperties: [String]  // muted-strikethrough in Property Visibility pane
 
@@ -49,10 +43,10 @@ struct SavedView: Codable, Equatable, Hashable, Identifiable, Sendable {
     // banner is only renderable when the container actually has one.
     var showBanner: Bool?
 
-    // Reserved Codable stubs — not consumed at v0.3.1:
-    var sort: [SortCriterion]?  // v0.3.1.2
-    var filter: FilterGroup?  // v0.3.1.3
-    var group: GroupConfig?  // v0.3.1.4
+    // View pipeline config (Sort / Filter / Group panes; absent on legacy sidecars):
+    var sort: [SortCriterion]?  // ordering criteria (priority = array order)
+    var filter: FilterGroup?  // filter rules + match mode
+    var group: GroupConfig?  // group-by mode (structural / property / flat)
 
     init(
         id: String,
@@ -144,16 +138,6 @@ struct SavedView: Codable, Equatable, Hashable, Identifiable, Sendable {
         try c.encodeIfPresent(group, forKey: .group)
     }
 
-    /// Default Table view minted by `loadAll` migrations when a container's
-    /// `views` array is empty — defensive on load (idempotent, best-effort).
-    /// `visiblePropertyIDs` carries the parent Type's `properties.map(\.id)`
-    /// so every user-defined column is visible by default; the migration
-    /// gives users a sensible starting view they can then customize.
-    ///
-    /// `defaultSort` folds the parent Type's legacy `default_sort` sidecar
-    /// field into the minted view's `sort` so the previously-persisted default
-    /// ordering carries forward. `PageType.defaultSort` keeps DECODING but is
-    /// never written again — the SavedView's `sort` is now authoritative.
     /// Muted right-aligned type label for the Views dropdown row:
     /// `"Table"` for non-gallery views; `"Gallery | Medium"` for gallery views
     /// (pipe + capitalized CardSize word). Single source for the row label so
@@ -167,6 +151,16 @@ struct SavedView: Codable, Equatable, Hashable, Identifiable, Sendable {
         }
     }
 
+    /// Default Table view minted by `loadAll` migrations when a container's
+    /// `views` array is empty — defensive on load (idempotent, best-effort).
+    /// `visiblePropertyIDs` carries the parent Type's `properties.map(\.id)`
+    /// so every user-defined column is visible by default; the migration
+    /// gives users a sensible starting view they can then customize.
+    ///
+    /// `defaultSort` folds the parent Type's legacy `default_sort` sidecar
+    /// field into the minted view's `sort` so the previously-persisted default
+    /// ordering carries forward. `PageType.defaultSort` keeps DECODING but is
+    /// never written again — the SavedView's `sort` is now authoritative.
     static func defaultTable(
         visiblePropertyIDs: [String],
         defaultSort: DefaultSortConfig? = nil
@@ -207,9 +201,9 @@ enum CardSize: String, Codable, Equatable, Hashable, Sendable {
     }
 }
 
-/// View renderer kind. Only `.table` is wired at v0.3.1; the remaining cases
-/// are forward-declared so future-view sidecars don't break v0.3.1 decodes
-/// and so the Layout pane can render them as muted/placeholder rows today.
+/// View renderer kind. Table + Gallery are rendered; the remaining cases are
+/// forward-declared so future-view sidecars decode cleanly and so the inline
+/// type-switch / Layout pane can render them as muted/placeholder rows today.
 enum ViewType: String, Codable, Equatable, Hashable, CaseIterable, Sendable {
     case table
     case board
@@ -262,10 +256,10 @@ extension CardSize {
     }
 }
 
-// MARK: - Reserved Codable stubs (v0.3.1.x follow-up patches consume these)
+// MARK: - View pipeline config types
 
 /// Single sort criterion. Multi-criterion ordering lives in `SavedView.sort`
-/// as `[SortCriterion]` (priority = array order). Wires up at v0.3.1.2.
+/// as `[SortCriterion]` (priority = array order).
 struct SortCriterion: Codable, Equatable, Hashable, Sendable {
     var propertyID: String
     var direction: SortDirection
@@ -280,20 +274,19 @@ struct SortCriterion: Codable, Equatable, Hashable, Sendable {
 // (shared with the index-query layer); we extended its conformance list with
 // Codable + Equatable + Hashable so it can serve both surfaces without redeclaring.
 
-/// Group of filter rules combined by `match` (all = AND, any = OR). AND-only
-/// at v0.3.1.3 ship; OR-mode promised at v0.5.0.
+/// Group of filter rules combined by `match` (all = AND, any = OR).
 struct FilterGroup: Codable, Equatable, Hashable, Sendable {
     var match: MatchMode
     var rules: [FilterRule]
 }
 
-/// One filter rule. `op` + `value` are serialized as raw strings at v0.3.1 so
-/// the schema is forward-compatible with the v0.3.1.3 operator-enum + value-
-/// union without breaking existing decodes.
+/// One filter rule. `op` + `value` are serialized as raw strings so the schema
+/// stays forward-compatible with a future operator-enum + value-union without
+/// breaking existing decodes; `FilterEvaluator` + `FilterPane` map them.
 struct FilterRule: Codable, Equatable, Hashable, Sendable {
     var propertyID: String
-    var op: String  // serialized operator name — full enum lands v0.3.1.3
-    var value: String?  // serialized payload — full union lands v0.3.1.3
+    var op: String  // serialized operator name (mapped to FilterOperator)
+    var value: String?  // serialized payload
 
     enum CodingKeys: String, CodingKey {
         case propertyID = "property_id"

@@ -111,6 +111,40 @@ struct FilterEvaluatorTests {
                 fm, group: group(.all, rule("prop_d", "on_or_before", "2026-06-11T00:00:00Z")), schema: schema))
     }
 
+    // MARK: - Reserved "Last edited" (_modified_at) date filtering
+
+    @Test func modifiedAtFiltersOnTheModifiedStamp() {
+        // `_modified_at` resolves from `fm.modifiedAt`, NOT `fm.properties`, and
+        // is NOT in the schema — so a working filter proves the reserved special-
+        // case fires (an empty schema would otherwise no-op pass).
+        let fm = VPFixture.frontmatter(
+            id: "p1", modifiedAt: VPFixture.date("2026-06-10T00:00:00Z"))
+        let id = ReservedPropertyID.modifiedAt
+        #expect(
+            FilterEvaluator.matches(
+                fm, group: group(.all, rule(id, "on_or_after", "2026-06-10T00:00:00Z")), schema: []))
+        #expect(
+            !FilterEvaluator.matches(
+                fm, group: group(.all, rule(id, "on_or_after", "2026-06-11T00:00:00Z")), schema: []))
+        #expect(
+            FilterEvaluator.matches(
+                fm, group: group(.all, rule(id, "on_or_before", "2026-06-11T00:00:00Z")), schema: []))
+    }
+
+    @Test func modifiedAtFallsBackToCreatedAtWhenNil() {
+        // No modifiedAt → the stamp falls back to createdAt (mirrors the sort
+        // comparator), so the filter compares against creation time.
+        let fm = VPFixture.frontmatter(
+            id: "p1", createdAt: VPFixture.date("2026-06-09T00:00:00Z"), modifiedAt: nil)
+        let id = ReservedPropertyID.modifiedAt
+        #expect(
+            FilterEvaluator.matches(
+                fm, group: group(.all, rule(id, "on_or_before", "2026-06-09T00:00:00Z")), schema: []))
+        #expect(
+            !FilterEvaluator.matches(
+                fm, group: group(.all, rule(id, "on_or_after", "2026-06-10T00:00:00Z")), schema: []))
+    }
+
     // MARK: - Checkbox operators
 
     @Test func checkboxIsAndIsNot() {

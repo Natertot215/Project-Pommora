@@ -95,18 +95,11 @@ struct ViewsPanel: View {
     // MARK: - Live container resolution
 
     private var views: [SavedView] {
-        if let t = pageTypeManager.types.first(where: { $0.id == containerID }) {
-            return t.views
-        }
-        for cols in pageTypeManager.pageCollectionsByType.values {
-            if let c = cols.first(where: { $0.id == containerID }) { return c.views }
-        }
-        return []
+        pageTypeManager.views(in: containerID)
     }
 
     private var activeID: String? {
-        let stored = activeViewStore.activeViewID(for: containerID)
-        return views.first(where: { $0.id == stored })?.id ?? views.first?.id
+        activeViewStore.resolvedActiveView(in: containerID, manager: pageTypeManager)?.id
     }
 
     /// Wraps the in-flight icon-picker view ID as the `Identifiable`

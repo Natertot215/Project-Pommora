@@ -7,10 +7,11 @@ import Foundation
 /// `hiddenProperties`, and ALWAYS excluding the `cover` field (covers render in
 /// the card's image area, never as a property zone).
 ///
-/// Mirrors `TableColumnResolver`'s visible-property resolution (order verbatim →
-/// unaccounted-append), minus the `_title` column (the card renders title in its
-/// header) and minus `_modified_at`-as-a-column (Modified flows into the meta
-/// zone like any other timestamp via its schema def when present).
+/// Visible-property resolution is the shared `VisiblePropertyOrder.resolve`
+/// skeleton (order verbatim → unaccounted-append) that `TableColumnResolver`
+/// also consumes — here minus the `_title` column (the card renders title in its
+/// header), with `_modified_at` flowing into the meta zone like any other
+/// timestamp via its schema def when present.
 ///
 /// No SwiftUI, no disk — a pure value transform, exhaustively tested.
 enum GalleryCardZones {
@@ -22,9 +23,6 @@ enum GalleryCardZones {
         case meta
         case links
     }
-
-    /// The cover sentinel — excluded unconditionally from every zone.
-    private static let coverID = "cover"
 
     /// Maps a property type to its gallery zone.
     static func zone(for type: PropertyType) -> Zone {
@@ -49,36 +47,17 @@ enum GalleryCardZones {
     static func visibleProperties(
         view: SavedView, schema: [PropertyDefinition]
     ) -> [PropertyDefinition] {
-        let hiddenSet = Set(view.hiddenProperties)
-        var emitted = Set<String>()
-        var result: [PropertyDefinition] = []
-
-        func append(_ def: PropertyDefinition) {
-            guard !emitted.contains(def.id) else { return }
-            emitted.insert(def.id)
-            result.append(def)
-        }
-
-        // Pass 1 — saved order, verbatim. Cover + Title never yield a property;
-        // everything else respects `hiddenProperties`.
-        for propID in view.propertyOrder {
-            guard propID != coverID, propID != ReservedPropertyID.title else { continue }
-            guard !hiddenSet.contains(propID) else { continue }
-            guard let def = schema.first(where: { $0.id == propID }) else { continue }
-            append(def)
-        }
-
-        // Pass 2 — unaccounted, not-hidden schema properties append at the end.
-        for def in schema
-        where !emitted.contains(def.id)
-            && !hiddenSet.contains(def.id)
-            && def.id != coverID
-            && def.id != ReservedPropertyID.title
-        {
-            append(def)
-        }
-
-        return result
+        // The shared visible-property skeleton resolves the ordered ids (saved
+        // order verbatim, then unaccounted schema props). The card renders the
+        // title in its header (so `_title` is excluded) and requires a schema def
+        // for every zone (no def-less reserved), but keeps tiers + Modified as
+        // ordinary zone properties — so Pass 2 excludes only `_title`.
+        VisiblePropertyOrder.resolve(
+            view: view, schema: schema,
+            pass1Exclude: [ReservedPropertyID.title],
+            pass2ExcludesReserved: false
+        )
+        .compactMap { id in schema.first(where: { $0.id == id }) }
     }
 
     /// The visible properties partitioned into the three zones, each keeping the

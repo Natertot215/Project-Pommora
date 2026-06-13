@@ -111,8 +111,8 @@ struct PageTypeDetailView: View {
         if let nexus = nexusManager.currentNexus {
             ContainerBannerView(
                 containerID: livePageType.id,
-                entityID: livePageType.id,
                 bannerPath: livePageType.banner,
+                isVisible: activeView?.showBanner ?? true,
                 nexus: nexus)
         }
     }
@@ -138,8 +138,7 @@ struct PageTypeDetailView: View {
     /// per-container last-active view persisted across sessions), falling back
     /// to the first view when the store has no record yet.
     private var activeView: SavedView? {
-        let activeID = activeViewStore.activeViewID(for: livePageType.id)
-        return livePageType.views.first(where: { $0.id == activeID }) ?? livePageType.views.first
+        activeViewStore.resolvedActiveView(in: livePageType.id, manager: pageTypeManager)
     }
 
     /// The FULL ordered column set (hidden columns included). The table hides via

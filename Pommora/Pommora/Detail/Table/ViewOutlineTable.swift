@@ -513,8 +513,7 @@ struct ViewOutlineTable: NSViewRepresentable {
                 let context = parent.buildDropContext(
                     dragged, target.group, target.insertionIndex, target.anchorID)
             else { return false }
-            return parent.dragCoordinator.drop(
-                payload: ViewRowDragPayload(pageIDs: ids), context: context)
+            return parent.dragCoordinator.drop(context: context)
         }
 
         /// The page ids carried on the drag pasteboard (one per dragged row).

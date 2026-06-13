@@ -6,11 +6,13 @@ import SwiftUI
 ///
 ///   - `update(_:)` — receives a resolved `DropContext` on hover and updates
 ///     `insertion` / `highlightedGroupID` for the view to render live feedback.
-///   - `drop(payload:context:)` — runs `GroupDropPlanner` on commit and
-///     dispatches the resulting plan to the injected commit closures.
+///   - `drop(context:)` — runs `GroupDropPlanner` on commit and dispatches the
+///     resulting plan to the injected commit closures, reading the moving ids
+///     from `context.source.pageIDs`.
 ///
-/// Page rows use `.draggable` + `dropDestination`; the payload is ID-only so
-/// all structural context is resolved by the view and passed in via `DropContext`.
+/// Page rows use `.draggable` + `dropDestination`; the `ViewRowDragPayload` is
+/// the ID-only transfer carrier, and all structural context (including the
+/// resolved moving ids) is built by the view and passed in via `DropContext`.
 @MainActor
 @Observable
 final class RowDragCoordinator {
@@ -112,22 +114,28 @@ final class RowDragCoordinator {
     // MARK: - Commit
 
     /// Plan + dispatch a completed drop. Returns whether anything committed.
+    ///
+    /// All three plan branches commit the SAME canonical id list —
+    /// `context.source.pageIDs` (the resolved, render-ordered ids the view built
+    /// in `makeContext`). The drag's on-the-wire `ViewRowDragPayload` is the
+    /// transfer carrier only; the commit path never reads it.
     @discardableResult
-    func drop(payload: ViewRowDragPayload, context: DropContext) -> Bool {
+    func drop(context: DropContext) -> Bool {
         defer { clear() }
+        let pageIDs = context.source.pageIDs
         switch plan(for: context) {
         case .reorder:
             // The planner's offsets index the group SUBSET; route the moving ids
             // + anchor through the id-based reorder commit, which resolves the
             // manager's stored-array offsets (correct under property-grouping /
             // an active filter where the subset ≠ the full container).
-            reorder(context.source.pageIDs, context.anchorID, context.source.parent)
+            reorder(pageIDs, context.anchorID, context.source.parent)
             return true
         case .move(let destination):
-            move(payload.pageIDs, context.source.parent, destination)
+            move(pageIDs, context.source.parent, destination)
             return true
         case .rewriteProperty(let id, let value):
-            rewriteProperty(payload.pageIDs, id, value)
+            rewriteProperty(pageIDs, id, value)
             return true
         case .none:
             return false

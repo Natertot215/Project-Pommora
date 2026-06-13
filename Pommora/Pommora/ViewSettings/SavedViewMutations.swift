@@ -66,12 +66,6 @@ enum SavedViewMutations {
         view.columnWidths?.removeValue(forKey: propertyID)
     }
 
-    /// The Cover sentinel — mirrors `TableColumnResolver.coverID` /
-    /// `ViewSettingsProperties.coverID`; cover is never listed in the
-    /// visibility eye-list (it's toggled by the Display Banner / cover affordances,
-    /// not the column-visibility list).
-    static let coverID = "cover"
-
     /// The per-view visibility-list columns: every resolved schema property
     /// (user properties + the three tier relations) plus the reserved Modified
     /// column, with Cover excluded. `_title` is included (rendered pinned +
@@ -86,6 +80,6 @@ enum SavedViewMutations {
             type: .lastEditedTime,
             icon: "clock.arrow.circlepath"
         )
-        return (resolved + [modified]).filter { $0.id != coverID }
+        return (resolved + [modified]).filter { $0.id != ReservedPropertyID.cover }
     }
 }

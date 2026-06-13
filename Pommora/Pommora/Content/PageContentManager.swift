@@ -199,14 +199,10 @@ final class PageContentManager {
                     frontmatter: pf.frontmatter
                 )
             }
-            // Re-read page_order from the sidecar (canonical) so a re-entry resolve
-            // reflects a drag-reorder that wrote straight to disk without updating
-            // the in-memory PageCollection snapshot — see the vault-root note above.
-            let freshOrder =
-                (try? PageCollection.load(
-                    from: collection.folderURL.appendingPathComponent(
-                        NexusPaths.pageCollectionSidecarFilename)
-                ))?.pageOrder ?? collection.pageOrder
+            let freshOrder = Self.freshPageOrder(
+                from: collection.folderURL.appendingPathComponent(
+                    NexusPaths.pageCollectionSidecarFilename),
+                as: PageCollection.self, fallback: collection.pageOrder)
             let pageMetas = OrderResolver.resolve(
                 unsortedPages,
                 persistedOrder: freshOrder,
@@ -242,13 +238,9 @@ final class PageContentManager {
                     frontmatter: pf.frontmatter
                 )
             }
-            // Re-read page_order from the sidecar (canonical) so a re-entry resolve
-            // reflects a drag-reorder that wrote straight to disk without updating
-            // the in-memory PageSet snapshot — see the vault-root note above.
-            let freshOrder =
-                (try? PageSet.load(
-                    from: set.folderURL.appendingPathComponent(NexusPaths.pageSetSidecarFilename)
-                ))?.pageOrder ?? set.pageOrder
+            let freshOrder = Self.freshPageOrder(
+                from: set.folderURL.appendingPathComponent(NexusPaths.pageSetSidecarFilename),
+                as: PageSet.self, fallback: set.pageOrder)
             let pageMetas = OrderResolver.resolve(
                 unsortedPages,
                 persistedOrder: freshOrder,
@@ -308,10 +300,9 @@ final class PageContentManager {
             // without updating the in-memory PageType. Re-read the sidecar so a
             // re-entry resolve reflects the persisted order instead of reverting to
             // the stale snapshot. Files are canonical.
-            let freshOrder =
-                (try? PageType.load(
-                    from: folder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename)
-                ))?.pageOrder ?? pageType.pageOrder
+            let freshOrder = Self.freshPageOrder(
+                from: folder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename),
+                as: PageType.self, fallback: pageType.pageOrder)
             let pageMetas = OrderResolver.resolve(
                 unsortedPages,
                 persistedOrder: freshOrder,
@@ -324,6 +315,18 @@ final class PageContentManager {
             pagesByTypeRoot[pageType.id] = []
             pendingError = error
         }
+    }
+
+    /// Re-reads the canonical `page_order` from a container sidecar so a
+    /// re-entry resolve reflects a drag-reorder that wrote straight to disk
+    /// without updating the in-memory snapshot (files are canonical). Falls back
+    /// to `fallback` when the sidecar can't be read. One source for the three
+    /// `loadAll` loaders (Collection / Set / Type) — see the WRITE-side
+    /// `writeStoredPages` PageParent switch for the mirror.
+    private static func freshPageOrder<S: PageOrderSidecar>(
+        from sidecarURL: URL, as: S.Type, fallback: [String]?
+    ) -> [String]? {
+        (try? S.load(from: sidecarURL))?.pageOrder ?? fallback
     }
 
     // MARK: - Reorder (v0.2.8.0)

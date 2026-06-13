@@ -1,4 +1,3 @@
-import AppKit
 import SwiftUI
 
 /// SwiftUI content for one cell of the wrapped `NSOutlineView` table, mounted in
@@ -34,7 +33,7 @@ struct ViewTableCellContent: View {
                     .lineLimit(1)
                     .truncationMode(.tail)
             } icon: {
-                CellIconGlyph(icon: item.page.frontmatter.icon)
+                PageIconGlyph(icon: item.page.frontmatter.icon)
                     .foregroundStyle(.secondary)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -101,36 +100,6 @@ struct ViewGroupHeaderCell: View {
     }
 }
 
-// MARK: - Page icon glyph
-
-/// Renders a page's frontmatter icon, tolerating BOTH SF Symbol names and
-/// arbitrary glyph strings (emoji / custom text). `Image(systemName:)` draws a
-/// broken placeholder for a non-symbol value, so a string that isn't a valid SF
-/// Symbol falls back to a plain `Text` glyph; a nil icon uses `doc.text`.
-private struct CellIconGlyph: View {
-    let icon: String?
-
-    var body: some View {
-        switch resolved {
-        case .symbol(let name): Image(systemName: name)
-        case .glyph(let text): Text(text)
-        }
-    }
-
-    private enum Resolved {
-        case symbol(String)
-        case glyph(String)
-    }
-
-    private var resolved: Resolved {
-        guard let icon, !icon.isEmpty else { return .symbol("doc.text") }
-        if NSImage(systemSymbolName: icon, accessibilityDescription: nil) != nil {
-            return .symbol(icon)
-        }
-        return .glyph(icon)
-    }
-}
-
 // MARK: - Property / tier cell host
 
 /// Hosts `PropertyCellEditor` (editor-on-demand, popover commit-on-dismiss) as an
@@ -147,20 +116,12 @@ private struct CellPropertyHost: View {
         if let definition {
             PropertyCellEditor(
                 definition: definition,
-                value: cellValue(definition),
+                value: item.page.frontmatter.cellValue(for: definition),
                 relationResolver: relationResolver,
                 commit: { newValue in commit(definition, newValue) },
                 index: index)
         } else {
             Color.clear
         }
-    }
-
-    private func cellValue(_ definition: PropertyDefinition) -> PropertyValue? {
-        let fm = item.page.frontmatter
-        if definition.type == .relation {
-            return .relation(fm.relationIDs(forPropertyID: definition.id))
-        }
-        return fm.properties[definition.id]
     }
 }

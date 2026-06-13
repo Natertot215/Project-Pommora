@@ -112,7 +112,7 @@ struct GalleryCard: View {
             Button {
                 onEditIcon()
             } label: {
-                Image(systemName: item.page.frontmatter.icon ?? "doc.text")
+                PageIconGlyph(icon: item.page.frontmatter.icon)
                     .foregroundStyle(.secondary)
             }
             .buttonStyle(.plain)
@@ -176,20 +176,12 @@ private struct GalleryZoneCell: View {
                 .frame(width: 14)
             PropertyCellEditor(
                 definition: definition,
-                value: cellValue,
+                value: item.page.frontmatter.cellValue(for: definition),
                 relationResolver: relationResolver,
                 commit: { commit(definition, $0) },
                 index: index
             )
         }
         .font(.caption)
-    }
-
-    private var cellValue: PropertyValue? {
-        let fm = item.page.frontmatter
-        if definition.type == .relation {
-            return .relation(fm.relationIDs(forPropertyID: definition.id))
-        }
-        return fm.properties[definition.id]
     }
 }
