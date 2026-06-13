@@ -18,19 +18,12 @@ struct ViewsPanel: View {
     @Environment(PageTypeManager.self) private var pageTypeManager
     @Environment(ActiveViewStore.self) private var activeViewStore
 
-    @State private var expandedTypeViewID: String?
-    @State private var iconPickerViewID: String?
     @State private var commitError: String?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             ForEach(views) { view in
                 viewRow(view)
-                if expandedTypeViewID == view.id {
-                    ViewTypeSwitchRow(current: view.type) { newType in
-                        Task { await switchType(view.id, to: newType) }
-                    }
-                }
             }
 
             Divider().padding(.vertical, 4)
@@ -63,11 +56,6 @@ struct ViewsPanel: View {
         .focusable()
         .onMoveCommand { direction in stepActive(direction) }
         .chipDropdownPanel()
-        .sheet(item: iconPickerSheet) { sheet in
-            if case .editIcon(let target) = sheet {
-                IconPickerSheet(target: target)
-            }
-        }
     }
 
     @ViewBuilder
@@ -75,15 +63,12 @@ struct ViewsPanel: View {
         ViewsPanelRow(
             view: view,
             isActive: view.id == activeID,
-            isTypeExpanded: expandedTypeViewID == view.id,
             onSelect: {
                 activeViewStore.setActive(view.id, for: containerID)
                 onDismiss()
             },
-            onToggleType: {
-                expandedTypeViewID = expandedTypeViewID == view.id ? nil : view.id
-            },
-            onPickIcon: { iconPickerViewID = view.id },
+            onSwitchType: { type in Task { await switchType(view.id, to: type) } },
+            onPickIcon: { icon in Task { await setIcon(view.id, to: icon) } },
             onRename: { name in Task { await rename(view.id, to: name) } },
             onDuplicate: { Task { await duplicate(view.id) } },
             onDelete: { Task { await delete(view.id) } },
@@ -100,21 +85,6 @@ struct ViewsPanel: View {
 
     private var activeID: String? {
         activeViewStore.resolvedActiveView(in: containerID, manager: pageTypeManager)?.id
-    }
-
-    /// Wraps the in-flight icon-picker view ID as the `Identifiable`
-    /// `SidebarSheet` the icon picker is presented through.
-    private var iconPickerSheet: Binding<SidebarSheet?> {
-        Binding(
-            get: {
-                iconPickerViewID.map {
-                    .editIcon(.savedView(viewID: $0, containerID: containerID))
-                }
-            },
-            set: { newValue in
-                if newValue == nil { iconPickerViewID = nil }
-            }
-        )
     }
 
     /// Up/down arrow moves the active view to the previous/next row.
@@ -157,8 +127,15 @@ struct ViewsPanel: View {
         }
     }
 
+    private func setIcon(_ viewID: String, to icon: String) async {
+        do {
+            try await pageTypeManager.updateView(viewID, in: containerID) { $0.icon = icon }
+        } catch {
+            commitError = PropertyEditorErrorMessage.string(for: error)
+        }
+    }
+
     private func switchType(_ viewID: String, to type: ViewType) async {
-        expandedTypeViewID = nil
         do {
             try await pageTypeManager.updateView(viewID, in: containerID) { v in
                 v.type = type
@@ -171,34 +148,4 @@ struct ViewsPanel: View {
     }
 }
 
-// MARK: - Inline type switch
-
-/// Inline expansion under a view row offering the renderer types. Implemented
-/// types (Table / Gallery) are active; the rest render muted/disabled. Modeled
-/// over `ViewType.allCases` so every case is compiler-enforced.
-private struct ViewTypeSwitchRow: View {
-    let current: ViewType
-    let onSelect: (ViewType) -> Void
-
-    var body: some View {
-        HStack(spacing: 6) {
-            ForEach(ViewType.allCases, id: \.self) { type in
-                Button(action: { onSelect(type) }) {
-                    Label(type.displayName, systemImage: type.defaultIcon)
-                        .labelStyle(.iconOnly)
-                        .font(PUI.Icon.leading)
-                        .frame(width: 28, height: 24)
-                        .foregroundStyle(type == current ? AnyShapeStyle(.tint) : AnyShapeStyle(.primary))
-                        .opacity(type.isImplemented ? 1 : 0.35)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .disabled(!type.isImplemented)
-                .help(type.displayName)
-            }
-            Spacer()
-        }
-        .padding(.horizontal, PUI.Row.paddingHorizontal)
-        .padding(.vertical, 4)
-    }
-}
+// MARK: - (Type switching now lives in each row's chevron menu — see ViewsPanelRow.)

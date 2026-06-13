@@ -133,12 +133,8 @@ struct ContentView: View {
     private func detailViewControls(_ env: NexusEnvironment) -> some View {
         if showsViewControls {
             HStack(spacing: 8) {
-                ViewsDropdownButton(
-                    scope: currentViewSettingsScope,
-                    pageTypeManager: env.vaultManager,
-                    activeViewStore: env.activeViewStore
-                )
-                .glassEffect()
+                ViewsDropdownButton(scope: currentViewSettingsScope)
+                    .glassEffect()
                 ViewSettingsButton(
                     scope: currentViewSettingsScope,
                     pageTypeManager: env.vaultManager,
