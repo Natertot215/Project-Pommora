@@ -91,8 +91,9 @@ Page Types live as siblings at the nexus root — no `Pages/` wrapper folder. Di
   ],
   "schema_version": 2,
   "default_sort": { "property_id": "_modified_at", "direction": "descending" },
+  "banner": ".nexus/assets/01HPAGETYPEID.../cover.jpg",
   "views": [
-    /* per-view saved configurations (table / board / list / cards / gallery) — deferred */
+    /* SavedView v2 configs — full schema → [[Views]] */
   ],
   "collection_order": [],
   "page_order": [],
@@ -100,7 +101,7 @@ Page Types live as siblings at the nexus root — no `Pages/` wrapper folder. Di
 }
 ```
 
-Title = folder name. The schema applies to every Page inside (each Page's frontmatter must conform). `default_sort` is the per-Type default sort. `collection_order` and `page_order` carry the user-arranged sequence of child Page Collections and root-level Pages respectively (the parent holds its children's order — a Collection's sidecar likewise carries `set_order` for its Sets). An optional `open_in` field carries the vault's open-in mode (§ "Open-in mode" below). Per-property and per-panel visibility hide-lists are a post-v1 deferral (the inspector renders all schema properties today).
+Title = folder name. The schema applies to every Page inside (each Page's frontmatter must conform). `default_sort` is the per-Type default sort. `collection_order` and `page_order` carry the user-arranged sequence of child Page Collections and root-level Pages respectively (the parent holds its children's order — a Collection's sidecar likewise carries `set_order` for its Sets). An optional `open_in` field carries the vault's open-in mode (§ "Open-in mode" below). An optional `banner` field holds a nexus-relative image path for the container banner (full-width image above the title, per view; spec → [[Views]]). `views[]` holds the container's SavedView v2 configs (per-view property order + hidden set, sort, filter, group, column widths, collapsed groups, card size, cover/banner display toggles — full schema → [[Views]]).
 
 **Tier relation values are always multi-valued.** The built-in `_tier1` / `_tier2` / `_tier3` properties hold an array of tagged Context IDs — `[{"$rel": "<ULID>"}]` — one entry per linked Context (a single target is a one-element array). Values render as the target's **icon + title in plain styled colored text** (never chips/pills), resolved live from the target entity.
 
@@ -123,7 +124,7 @@ The schema-editor sheet opens from the **Page Type row right-click → "Vault Se
 | **Edit Properties** | Add / rename / delete / reorder properties. Per-property icon (`IconPicker`). Per-type config (options, tier reverse name + icon, status groups, etc.). |
 | **Templates** | Empty wiring — placeholder anchor for future content templates. Reserved post-v1. |
 
-Per-view configuration (Sort / Group By / Filter / Layout / Property Visibility) lives in **Vault / Type View Settings** (deferred — see [[Framework]]). A per-Type default sort persists on `_pagetype.json.default_sort` as a fallback before saved views ship.
+Per-view configuration (Sort / Filter / Group / Layout, plus schema-only Edit Properties) lives in the active-view-scoped **View Settings** popover off the window toolbar; views switch via the toolbar Views dropdown → [[Views]]. A per-Type `default_sort` persists on `_pagetype.json` and folds into the minted default view's sort.
 
 ##### Properties section detail
 
@@ -135,7 +136,7 @@ Save-required + concurrent-open forbidden (only one Type's Settings sheet open a
 
 ##### Settings JSON shape
 
-Page Type Settings reads/writes the `properties` and `default_sort` fields of `_pagetype.json` (full shape above). Saved views (with their own filter / group_by / layout / property_visibility) live in `views[]`, populated when the saved-views system ships.
+Page Type Settings reads/writes the `properties` and `default_sort` fields of `_pagetype.json` (full shape above). Saved views (with their own sort / filter / group / layout / property order + hidden set) live in `views[]` as SavedView v2 → [[Views]].
 
 ---
 
@@ -167,6 +168,7 @@ Filesystem folders inside a Page Type with a minimal sidecar. They inherit the p
   "type_id": "01H...",
   "schema_version": 1,
   "icon": "folder",
+  "banner": ".nexus/assets/01H.../cover.jpg",
   "page_order": [],
   "set_order": [],
   "views": [],
@@ -174,7 +176,7 @@ Filesystem folders inside a Page Type with a minimal sidecar. They inherit the p
 }
 ```
 
-Page Collections don't carry their own `properties` — the property schema is inherited from the parent Page Type. The sidecar carries `id`, `type_id` (parent Page Type reference), `schema_version`, `icon` (optional per-Collection SF Symbol, mirrored into SQLite for the context picker), `page_order` (user-arranged collection-root Pages — pages inside a Set order via that Set's own `page_order`), `set_order` (user-arranged child Page Sets), `views` (independent saved-view configs), and `modified_at`. An explicit on-disk `type_id` keeps external query tools from inferring it via filesystem nesting and gives Collections stable portable IDs across renames (vs SHA-256 path-hash fallback).
+Page Collections don't carry their own `properties` — the property schema is inherited from the parent Page Type. The sidecar carries `id`, `type_id` (parent Page Type reference), `schema_version`, `icon` (optional per-Collection SF Symbol, mirrored into SQLite for the context picker), an optional `banner` image path, `page_order` (user-arranged collection-root Pages — pages inside a Set order via that Set's own `page_order`), `set_order` (user-arranged child Page Sets), `views` (independent SavedView v2 configs → [[Views]]), and `modified_at`. An explicit on-disk `type_id` keeps external query tools from inferring it via filesystem nesting and gives Collections stable portable IDs across renames (vs SHA-256 path-hash fallback).
 
 - Title = folder name; create = sub-folder + `_pagecollection.json`; rename = folder rename (id/type_id/modified_at preserved); delete = folder delete (warn-and-confirm if non-empty); moving a Page anywhere within the same Page Type (between Collections, Sets, and the Type root) = pure filesystem move, properties unchanged.
 
@@ -191,8 +193,8 @@ Page Sets subdivide a Collection one level further — schema-less, view-less, s
 - **A Page Collection's disclosure children**: its Page Sets (`folder`; expandable, never selectable) + its Pages (`doc.text`)
 - **A Page Set's disclosure children**: its Pages (`doc.text`)
 - **Agenda Tasks and Agenda Events do NOT appear in the sidebar** — they surface via the Calendar pin entry
-- Clicking a Page Type opens `PageTypeDetailView` — hierarchical Finder-style Table over Collections (expandable for contained Pages)
-- Clicking a Page Collection opens `PageCollectionDetailView` — flat Table of Pages (root pages + each Set's pages concatenated; structural grouping ships with the Views cluster). Page Sets have no detail view of their own
+- Clicking a Page Type opens `PageTypeDetailView` — the active saved view (custom Table or Gallery), vault-scoped, grouped by Collection with Sets nested by default (→ [[Views]])
+- Clicking a Page Collection opens `PageCollectionDetailView` — the active saved view, collection-scoped, grouped by Set + an ungrouped root band by default. Page Sets have no detail view of their own
 - Clicking a Page opens it in the main detail pane via the TextKit-2 editor (spec → [[PageEditor]])
 - A new Page Type is created from the "+" button in the Pages section header. Right-clicking a Page Type row creates its children — "New Collection" / "New Page"; right-clicking a Page Collection gives "New Page" / "New Set"; right-clicking a Page Set gives "New Page". See [[Sidebar]] for the full table.
 
@@ -200,15 +202,13 @@ Page Sets subdivide a Collection one level further — schema-less, view-less, s
 
 #### View types
 
-Five view types: **Table** (sortable columns, inline cell edit), **Board** (kanban grouped by a property's options), **List** (plain list with title + selected inline properties), **Gallery** (grid with cover image), **Cards** (grid without cover-first emphasis).
+Five view types carry through the data model; **Table** and **Gallery** render today (custom renderers, full spec → [[Views]]); **Board** / **List** / **Cards** are muted until later passes.
 
 Table views carry **pre-configured tier columns** — rendered left-to-right as Project / Topic / Area (`tier3` / `tier2` / `tier1`) — at the rightmost content positions, between the last user-property column and the trailing Last Edited Time column. Each is a relation column rendering target icon + title, default-visible and individually hideable.
 
 **Every storage container has view surfaces** — not just the schema-bearing Types. Page Types AND Page Collections both carry `views[]`. The property schema is inherited from the Type, but each container's saved view configuration is independent — a Page Collection can show a Board filtered to a subset of its Pages while the parent Page Type shows a Table.
 
-Saved views persist in each container's sidecar `views[]` (`_pagetype.json` / `_pagecollection.json`). Embedded view widgets in Context pages or Homepage reference by ID and apply local overrides without modifying the saved views.
-
-**Row ordering (interim).** Page Type / Page Collection detail tables are display-only for row order — they mirror the sidebar's file-level order (empty-state default = creation order via the ULID id; manual order persists in `page_order` / `collection_order`). Vault/type-level drag-reorder, per-view `order`, group-by and sort are deferred to the saved-views system. Flat reorder inside a Page Collection's own detail view is unaffected.
+Saved views persist in each container's sidecar `views[]` (`_pagetype.json` / `_pagecollection.json`) as SavedView v2 — full schema, the renderers, the view pipeline, sort/filter/group/layout config, drag semantics, and covers/banners → [[Views]]. Embedded view widgets in Context pages or Homepage reference by ID and apply local overrides without modifying the saved views (deferred).
 
 ---
 

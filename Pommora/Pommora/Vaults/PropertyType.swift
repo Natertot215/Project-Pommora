@@ -14,4 +14,21 @@ enum PropertyType: String, Codable, CaseIterable, Hashable, Sendable {
     case relation  // points to another entity by ID; tier-only tolerance; retired from user creation
     case lastEditedTime = "last_edited_time"  // auto-managed timestamp
     case file  // file attachment(s)
+
+    /// Whether a column of this type offers a meaningful ordering in the Sort
+    /// pane. Relations (ID pointers) and file attachments have no natural sort.
+    /// `.lastEditedTime` is excluded too: it's a virtual case carrying no stored
+    /// Date, so a USER property of this type would route through `dateOf` to
+    /// `.distantPast` and silently no-op. (The reserved Modified column still
+    /// sorts — it's special-cased by ID `_modified_at` in SortComparator, not by
+    /// this type.)
+    var isSortable: Bool {
+        switch self {
+        case .number, .checkbox, .date, .datetime, .select, .multiSelect,
+            .status, .url:
+            return true
+        case .relation, .file, .lastEditedTime:
+            return false
+        }
+    }
 }

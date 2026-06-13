@@ -5,9 +5,8 @@ import SwiftUI
 ///
 /// Mirrors Notion's view-settings dropdown shape — header (icon + title,
 /// both inline-editable for both storage scopes) + a stack of pane
-/// rows. Two rows are ACTIVE at v0.3.1 (Edit Properties + Property
-/// Visibility); the remaining placeholder rows (Templates / Layout / Filter /
-/// Sort / Group) render muted, pointing at later patches.
+/// rows. Active rows: Edit Properties + Layout + Group + Filter + Sort; the
+/// Templates row renders muted, pointing at a later patch.
 ///
 /// Header inline edits (both storage scopes — Types and Collections
 /// alike; Collections carry their own icon since #45 and rename via the
@@ -48,14 +47,26 @@ struct StorageMenuRoot: View {
                     route: .editProperties
                 )
                 activeRow(
-                    icon: "eye",
-                    title: "Property Visibility",
-                    route: .propertyVisibility
+                    icon: "rectangle.3.group",
+                    title: "Layout",
+                    route: .layout
                 )
                 mutedRow(icon: "doc.on.doc", title: "Templates")
-                mutedRow(icon: "square.stack.3d.down.right", title: "Group")
-                mutedRow(icon: "line.3.horizontal.decrease.circle", title: "Filter")
-                mutedRow(icon: "arrow.up.arrow.down", title: "Sort")
+                activeRow(
+                    icon: "square.stack.3d.down.right",
+                    title: "Group",
+                    route: .group
+                )
+                activeRow(
+                    icon: "line.3.horizontal.decrease.circle",
+                    title: "Filter",
+                    route: .filter
+                )
+                activeRow(
+                    icon: "arrow.up.arrow.down",
+                    title: "Sort",
+                    route: .sort
+                )
             }
             .padding(.vertical, PUI.Spacing.xs)
         } footer: {
@@ -63,21 +74,22 @@ struct StorageMenuRoot: View {
         }
     }
 
-    /// Pinned open-in footer (vault-scoped, decision #2): a `Layout` selector
-    /// below a trailing divider, rendered as the shared `LabeledMenuSelector`
-    /// (label left, value-dropdown right) so it reads identically to the
-    /// Edit-Property "Display As" picker. Writes `PageType.open_in` via
-    /// `setOpenIn`. Labels are structural — NOT user-renameable.
+    /// Pinned open-in footer (vault-scoped, decision #2): an `Open Pages In`
+    /// selector below a trailing divider, rendered as the shared
+    /// `LabeledMenuSelector` (label left, value-dropdown right) so it reads
+    /// identically to the Edit-Property "Display As" picker. Writes
+    /// `PageType.open_in` via `setOpenIn`. Labels are structural — NOT
+    /// user-renameable. (The "Layout" name now belongs to the Layout pane row.)
     @ViewBuilder
     private var openInFooter: some View {
         if case .pageType(let liveVault) = liveScope {
             Divider()
             LabeledMenuSelector(
-                title: "Layout",
+                title: "Open Pages In",
                 value: (liveVault.openIn ?? .window).displayLabel
             ) {
                 Picker(
-                    "Layout",
+                    "Open Pages In",
                     selection: Binding(
                         get: { liveVault.openIn ?? .window },
                         set: { mode in
@@ -290,15 +302,15 @@ struct StorageMenuRoot: View {
 }
 
 #if DEBUG
-    #Preview("Storage menu — PageType") {
-        StorageMenuRoot(
-            scope: .pageType(
-                PageType(
-                    id: "01HPT", title: "Notes", icon: "note.text",
-                    properties: [], views: [], modifiedAt: Date()
-                )
-            ),
-            path: .constant([])
-        )
-    }
+#Preview("Storage menu — PageType") {
+    StorageMenuRoot(
+        scope: .pageType(
+            PageType(
+                id: "01HPT", title: "Notes", icon: "note.text",
+                properties: [], views: [], modifiedAt: Date()
+            )
+        ),
+        path: .constant([])
+    )
+}
 #endif

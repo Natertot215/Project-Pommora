@@ -1,9 +1,9 @@
 import SwiftUI
 
-/// Per-type read-side cell renderer for property values inside the four
-/// storage detail-view Tables (Phase G — Tasks 17/18).
+/// Read-side cell renderer for property values in the detail-view table and
+/// gallery.
 ///
-/// Render shape per type (locked decisions):
+/// Render shape per type:
 /// - Chip-family (4 types):
 ///     - Select / MultiSelect → `PropertyChip(.pill)` in option color
 ///     - Status → switches on `definition.displayAs` (default `.select`
@@ -19,13 +19,12 @@ import SwiftUI
 ///     - File → multiple `FileChip` in a FlowLayout
 ///     - LastEditedTime → relative-date Text
 ///
-/// Empty values render as a blank cell (full-area clickable wrapping lands
-/// in Task 19's PropertyCellEditor).
+/// Empty values render as a blank cell.
 ///
-/// Relation target resolution: the cell receives a `RelationResolver`
-/// closure from the call site (Tasks 17/18) so this view stays pure of
-/// IndexQuery / manager dependencies. The resolver returns (icon, title)
-/// for a ULID or `nil` if the target is missing.
+/// Relation target resolution: the cell receives a `RelationResolver` closure
+/// from the call site so this view stays pure of IndexQuery / manager
+/// dependencies. The resolver returns (icon, title) for a ULID or `nil` if
+/// the target is missing.
 struct PropertyCellDisplay: View {
     let definition: PropertyDefinition
     let value: PropertyValue?
@@ -313,13 +312,9 @@ struct PropertyCellDisplay: View {
     private var lastEditedCell: some View {
         // The cell receives the resolved Date via the value parameter as a
         // `.datetime` (call sites adapt the file's modified_at into a
-        // PropertyValue.datetime so the dispatcher renders uniformly).
-        if case .datetime(let d) = value {
-            Text(relativeText(d))
-                .font(.system(size: 12))
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-        } else if case .date(let d) = value {
+        // PropertyValue.datetime so the dispatcher renders uniformly); a `.date`
+        // value renders identically.
+        if let d = dateValue {
             Text(relativeText(d))
                 .font(.system(size: 12))
                 .foregroundStyle(.secondary)
@@ -387,8 +382,8 @@ struct PropertyCellDisplay: View {
 // MARK: - File cell chip (per-ref, value-isolated)
 
 /// Single-file chip for the read-side File cell. Isolated as a plain value-typed
-/// sub-view (quirk #12) so the per-ref image-vs-generic decision lives outside
-/// the parent's `@ViewBuilder`. Image files under `thumbnail`/`banner` get a
+/// sub-view so the per-ref image-vs-generic decision lives outside the parent's
+/// `@ViewBuilder`. Image files under `thumbnail`/`banner` get a
 /// photo-glyph chip; everything else falls back to the generic `FileChip`.
 private struct FileCellChip: View {
     let ref: FileRef

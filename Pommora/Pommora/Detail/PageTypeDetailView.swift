@@ -20,30 +20,48 @@ struct PageTypeDetailView: View {
     @Environment(NexusManager.self) private var nexusManager
     @Environment(TierConfigManager.self) private var tierConfigManager
     @Environment(ContextDisplayResolver.self) private var contextDisplay
-
-    @State private var expanded: Set<String> = []  // collection row IDs that are disclosed
+    @Environment(ActiveViewStore.self) private var activeViewStore
 
     // Rename alert state.
-    @State private var renameTarget: DetailRow?
+    @State private var renameTarget: RowTarget?
     @State private var renameDraft: String = ""
-    /// Container-delete confirmation target — set only from a Collection row's
+    /// Owns the row-drag mechanic + insertion/highlight state.
+    @State private var dragCoordinator = RowDragCoordinator()
+    /// Container-delete confirmation target — set only from a Collection group's
     /// menu. Page deletes stay direct (no confirmation); only the container
     /// case routes here, mirroring the sidebar's delete guard.
-    @State private var deleteTarget: DetailRow?
+    @State private var deleteTarget: RowTarget?
+    /// The page whose cover is being set/changed via the gallery cover menu.
+    @State private var coverTarget: ViewItem?
+    @State private var isPickingCover: Bool = false
+
+    /// Bridge between the renderer's `ViewItem` + `ResolvedGroup` currency and
+    /// this view's create/rename/delete logic. Private to the detail view.
+    private enum RowTarget: Hashable {
+        case page(ViewItem)
+        case collection(PageCollection)
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
+            banner
             header
             Divider()
-            table
+            content
             Divider()
             footer
         }
+        .background { coverPickerHost }
         .task(id: pageType.id) {
-            // Load Page-Type-root Pages + every PageCollection's content
+            // Load Page-Type-root Pages + every PageCollection's content + every
+            // Set's pages — vault scope now nests Sets under their Collection in
+            // the table, so their caches must be warm too.
             await contentManager.loadAll(for: pageType)
             for coll in pageTypeManager.pageCollections(in: pageType) {
                 await contentManager.loadAll(for: coll)
+                for set in pageSetManager.pageSets(in: coll) {
+                    await contentManager.loadAll(for: set)
+                }
             }
         }
         .alert("Rename", isPresented: renameAlertBinding) {
@@ -51,8 +69,8 @@ struct PageTypeDetailView: View {
             Button("Rename") { commitRename() }
             Button("Cancel", role: .cancel) { renameTarget = nil }
         } message: {
-            if let row = renameTarget {
-                Text("Rename \(row.kindLabel.lowercased()) “\(row.title)”")
+            if let target = renameTarget {
+                Text("Rename \(renameKindLabel(target).lowercased()) “\(renameTitle(target))”")
             }
         }
         .confirmationDialog(
@@ -60,9 +78,9 @@ struct PageTypeDetailView: View {
             isPresented: deleteConfirmationBinding,
             titleVisibility: .visible,
             presenting: deleteTarget
-        ) { row in
+        ) { target in
             Button("Delete", role: .destructive) {
-                Task { await delete(row) }
+                Task { await delete(target) }
                 deleteTarget = nil
             }
             Button("Cancel", role: .cancel) { deleteTarget = nil }
@@ -86,6 +104,19 @@ struct PageTypeDetailView: View {
         .padding()
     }
 
+    /// Container banner — absent unless set, with a floating Add Banner
+    /// affordance in the no-banner state (handled by `ContainerBannerView`).
+    @ViewBuilder
+    private var banner: some View {
+        if let nexus = nexusManager.currentNexus {
+            ContainerBannerView(
+                containerID: livePageType.id,
+                bannerPath: livePageType.banner,
+                isVisible: activeView?.showBanner ?? true,
+                nexus: nexus)
+        }
+    }
+
     // MARK: - Table
 
     /// The live Type from the `@Observable` manager (by id), so schema/view edits
@@ -97,138 +128,251 @@ struct PageTypeDetailView: View {
         pageTypeManager.types.first { $0.id == pageType.id } ?? pageType
     }
 
-    /// User-defined property columns derived from `livePageType.views[0]` +
-    /// schema. Empty when the active SavedView has no visibleProperties
-    /// configured — collapses to the legacy Title/Kind/Modified shape.
-    private var userPropertyColumns: [PropertyDefinition] {
-        guard let view = livePageType.views.first else { return [] }
-        let cols = PropertyColumnBuilder.columns(
-            view: view,
-            schema: livePageType.resolvedProperties(tierConfig: tierConfigManager.config)
-        )
-        return cols.compactMap { col in
-            if case .userProperty(let def) = col.kind { return def }
-            return nil
-        }
+    /// Merged property schema (user properties + tier columns) for both the
+    /// column resolver and the pipeline's filter / group / sort stages.
+    private var schema: [PropertyDefinition] {
+        livePageType.resolvedProperties(tierConfig: tierConfigManager.config)
     }
 
-    /// Relation + tier target IDs across every visible Page row — drives the
-    /// resolver warm so cells render icon + title instead of "(missing)".
+    /// The active SavedView — resolved through `ActiveViewStore` (the
+    /// per-container last-active view persisted across sessions), falling back
+    /// to the first view when the store has no record yet.
+    private var activeView: SavedView? {
+        activeViewStore.resolvedActiveView(in: livePageType.id, manager: pageTypeManager)
+    }
+
+    /// The FULL ordered column set (hidden columns included). The table hides via
+    /// native `isHidden` rather than dropping a column, so a hidden column keeps its
+    /// width + position — resolve with an empty hidden set to get every column; the
+    /// real hidden set travels separately as `hiddenColumnIDs`.
+    private var columns: [ResolvedColumn] {
+        guard var view = activeView else { return [] }
+        view.hiddenProperties = []
+        return TableColumnResolver.resolve(view: view, schema: schema)
+    }
+
+    /// The active view's hidden column ids — applied as `isHidden` by the table.
+    private var hiddenColumnIDs: Set<String> {
+        Set(activeView?.hiddenProperties ?? [])
+    }
+
+    /// SwiftUI identity for the table, unique per (vault, view). On a vault/view
+    /// switch the `.id` changes, so the outline is rebuilt and `ensureColumns`
+    /// re-applies THAT view's saved order/width from its sidecar — a single reused
+    /// outline would otherwise keep the previous view's column arrangement.
+    private var tableIdentity: String {
+        "viewoutline.\(livePageType.id).\(activeView?.id ?? "default")"
+    }
+
+    /// The full pipeline output, recomputed on every observed cache change so the
+    /// table reflects edits instantly: source → filter → group → sort-in-group.
+    private var resolvedGroups: [ResolvedGroup] {
+        let items = ViewItemSource.items(
+            for: .vault(livePageType),
+            content: contentManager,
+            sets: pageSetManager,
+            collections: { pageTypeManager.pageCollections(in: $0) }
+        )
+        let filtered: [ViewItem] = {
+            guard let filter = activeView?.filter else { return items }
+            return items.filter { FilterEvaluator.matches($0.page.frontmatter, group: filter, schema: schema) }
+        }()
+        return GroupResolver.resolve(
+            items: filtered,
+            config: activeView?.group,
+            scope: .vault,
+            sort: activeView?.sort?.first,
+            schema: schema,
+            collapsed: Set(activeView?.collapsedGroups ?? [])
+        )
+    }
+
+    /// Relation + tier target IDs across every visible Page — drives the resolver
+    /// warm so cells render icon + title instead of "(missing)".
     private var visibleContextLinkIDs: [String] {
-        let relationColumns = userPropertyColumns.filter { $0.type == .relation }
-        return rows.flatMap { row -> [String] in
-            guard case .page(let pageMeta) = row.kind else { return [] }
-            let fm = pageMeta.frontmatter
+        let relationColumns = columns.filter { $0.kind == .property }
+            .compactMap { col in schema.first(where: { $0.id == col.id }) }
+            .filter { $0.type == .relation }
+        return resolvedGroups.flatMap(\.flattenedItems).flatMap { item -> [String] in
+            let fm = item.page.frontmatter
             let tiers = fm.tier1 + fm.tier2 + fm.tier3
             let props = relationColumns.flatMap { fm.relationIDs(forPropertyID: $0.id) }
             return tiers + props
         }
     }
 
-    private var table: some View {
-        Table(of: DetailRow.self) {
-            TableColumn("Title") { row in
-                Label {
-                    Text(row.title)
-                } icon: {
-                    Image(systemName: row.iconName)
-                        .foregroundStyle(.secondary)
-                }
-                .contentShape(Rectangle())
-                // simultaneousGesture (not onTapGesture) so double-click-to-open
-                // coexists with the row's built-in single-click selection.
-                .simultaneousGesture(TapGesture(count: 2).onEnded { handleDoubleTap(row) })
-                .contextMenu { menuItems(for: row) }
-            }
-            TableColumnForEach(userPropertyColumns, id: \.id) { def in
-                TableColumn(def.name) { row in
-                    if case .page(let pageMeta) = row.kind {
-                        let parentCollection = collectionContaining(pageID: pageMeta.id)
-                        PropertyCellEditor(
-                            definition: def,
-                            value: def.type == .relation
-                                ? .relation(pageMeta.frontmatter.relationIDs(forPropertyID: def.id))
-                                : pageMeta.frontmatter.properties[def.id],
-                            relationResolver: { contextDisplay.resolve($0) },
-                            commit: { newValue in
-                                Task {
-                                    try? await contentManager.updatePageProperty(
-                                        pageMeta,
-                                        propertyID: def.id,
-                                        newValue: newValue,
-                                        vault: pageType,
-                                        collection: parentCollection
-                                    )
-                                }
-                            },
-                            index: nexusManager.currentIndex
-                        )
-                    } else {
-                        PropertyCellDisplay(
-                            definition: def,
-                            value: nil,
-                            relationResolver: { contextDisplay.resolve($0) }
-                        )
-                    }
-                }
-                .width(min: 90, ideal: 120, max: 220)
-            }
-            TableColumn("Modified") { row in
-                Text(row.modifiedAt.formatted(date: .abbreviated, time: .shortened))
-                    .foregroundStyle(.secondary)
-            }
-            .width(min: 140, ideal: 180, max: 240)
-        } rows: {
-            // Display-only ordering (interim): vault-level reorder is deferred — vault
-            // tables mirror the sidebar's file-level order via the shared managers.
-            // Reorder lives in the sidebar (file-level) and in each collection's own view.
-            // See Planning/2026-05-31-vault-table-displayonly-interim.md.
-            ForEach(rows) { row in
-                if let kids = row.children, !kids.isEmpty {
-                    DisclosureTableRow(row, isExpanded: expandedBinding(for: row.id)) {
-                        ForEach(kids) { kid in
-                            TableRow(kid)
-                        }
-                    }
-                } else {
-                    TableRow(row)
-                }
-            }
+    /// Render switch on the active view's renderer kind.
+    @ViewBuilder
+    private var content: some View {
+        switch activeView?.type ?? .table {
+        case .table:
+            table
+        case .gallery:
+            galleryView
+        case .board, .list, .cards:
+            ContentUnavailableView(
+                "View not available",
+                systemImage: "rectangle.on.rectangle.slash",
+                description: Text("This view type isn't rendered yet."))
         }
+    }
+
+    private var galleryView: some View {
+        GalleryView(
+            groups: resolvedGroups,
+            view: activeView ?? SavedView(id: "view_fallback", type: .gallery),
+            schema: schema,
+            nexus: nexusManager.currentNexus ?? Nexus(id: "", rootURL: URL(fileURLWithPath: "/")),
+            index: nexusManager.currentIndex,
+            relationResolver: { contextDisplay.resolve($0) },
+            onDoubleTap: handleDoubleTap,
+            commit: { item, def, newValue in commitCell(item, def, newValue) },
+            onRename: { beginRename(.page($0)) },
+            onEditIcon: { item in
+                presentedSheet = .editIcon(
+                    .page(
+                        item.page, vault: pageType,
+                        collection: item.parent.collection, set: item.parent.set))
+            },
+            pageMenu: { AnyView(menuItems(for: .page($0))) },
+            groupMenu: { AnyView(groupMenuItems(for: $0)) },
+            coverMenu: { AnyView(coverMenuItems(for: $0)) },
+            persistCollapsed: { ids in editView { $0.collapsedGroups = ids.isEmpty ? nil : ids } },
+            dragCoordinator: dragCoordinator,
+            buildDropContext: buildDropContext
+        )
+        .task(id: visibleContextLinkIDs) { await contextDisplay.warm(visibleContextLinkIDs) }
+        .task { wireDragCommits() }
+    }
+
+    private var table: some View {
+        ViewOutlineTable(
+            groups: resolvedGroups,
+            columns: columns,
+            schema: schema,
+            index: nexusManager.currentIndex,
+            relationResolver: { contextDisplay.resolve($0) },
+            onDoubleTap: handleDoubleTap,
+            commit: { item, def, newValue in commitCell(item, def, newValue) },
+            pageMenu: { AnyView(menuItems(for: .page($0))) },
+            groupMenu: { AnyView(groupMenuItems(for: $0)) },
+            persistWidth: { colID, width in
+                editView {
+                    var widths = $0.columnWidths ?? [:]
+                    widths[colID] = width
+                    $0.columnWidths = widths
+                }
+            },
+            persistOrder: { newOrder in editView { $0.propertyOrder = newOrder } },
+            hiddenColumnIDs: hiddenColumnIDs,
+            hideColumn: { colID in
+                editView { if !$0.hiddenProperties.contains(colID) { $0.hiddenProperties.append(colID) } }
+            },
+            persistCollapsed: { ids in editView { $0.collapsedGroups = ids.isEmpty ? nil : ids } },
+            dragCoordinator: dragCoordinator,
+            buildDropContext: buildDropContext
+        )
+        .id(tableIdentity)
         .task(id: visibleContextLinkIDs) {
             await contextDisplay.warm(visibleContextLinkIDs)
         }
+        .task { wireDragCommits() }
     }
 
-    /// Resolve the PropertyValue for a row + propertyID. Pages carry their
-    /// frontmatter.properties; Collections don't surface property values in
-    /// this PageType view.
-    private func propertyValue(for row: DetailRow, propertyID: String) -> PropertyValue? {
-        guard case .page(let pageMeta) = row.kind else { return nil }
-        return pageMeta.frontmatter.properties[propertyID]
+    /// Resolves the planner `DropContext` for a drop — shared by the table and
+    /// gallery renderers (identical inputs, single source). Folds in the active
+    /// view's group config + manual-sort flag, which only this view knows.
+    private func buildDropContext(
+        _ dragged: [ViewItem], _ targetGroup: ResolvedGroup, _ insertionIndex: Int,
+        _ anchorID: String?
+    ) -> RowDragCoordinator.DropContext? {
+        RowDragCoordinator.makeContext(
+            draggedItems: dragged,
+            targetGroup: targetGroup,
+            insertionIndex: insertionIndex,
+            anchorID: anchorID,
+            group: activeView?.group,
+            sortIsManual: activeView?.sort == nil,
+            structuralParent: structuralParent)
     }
 
-    /// Find the PageCollection (if any) that contains the page with the
-    /// given ID. Returns nil for Page-Type-root pages (which is the correct
-    /// `collection: nil` argument for updatePageProperty).
-    private func collectionContaining(pageID: String) -> PageCollection? {
-        for coll in pageTypeManager.pageCollections(in: pageType) {
-            if contentManager.pages(in: coll).contains(where: { $0.id == pageID }) {
-                return coll
-            }
+    /// Maps a structural `ResolvedGroup` to its `PageParent` in vault scope —
+    /// Collection groups map straight; Set groups resolve their owning Collection
+    /// by `collectionID` among the vault's Collections.
+    private func structuralParent(_ group: ResolvedGroup) -> PageParent? {
+        switch group.kind {
+        case .structuralCollection(let coll):
+            return .collection(coll, vault: pageType)
+        case .structuralSet(let set):
+            guard
+                let coll = pageTypeManager.pageCollections(in: livePageType)
+                    .first(where: { $0.id == set.collectionID })
+            else { return nil }
+            return .set(set, collection: coll, vault: pageType)
+        default:
+            return nil
         }
-        return nil
     }
 
-    /// Stable per-row disclosure binding so a Collection's expanded state
-    /// survives the frequent `rows` recomputes (every manager change).
-    private func expandedBinding(for id: String) -> Binding<Bool> {
-        Binding(
-            get: { expanded.contains(id) },
-            set: { isOn in
-                if isOn { expanded.insert(id) } else { expanded.remove(id) }
-            }
-        )
+    /// Wire the coordinator's commit closures to the live managers.
+    private func wireDragCommits() {
+        dragCoordinator.reorder = { movingIDs, anchorID, parent in
+            contentManager.reorderPages(in: parent, movingIDs: movingIDs, before: anchorID)
+        }
+        dragCoordinator.move = { pageIDs, source, destination in
+            Task { await moveDraggedPages(pageIDs, from: source, to: destination) }
+        }
+        dragCoordinator.rewriteProperty = { pageIDs, propertyID, value in
+            Task { await rewriteDraggedProperty(pageIDs, propertyID: propertyID, value: value) }
+        }
+    }
+
+    private func moveDraggedPages(_ pageIDs: [String], from source: PageParent, to destination: PageParent) async {
+        for id in pageIDs {
+            guard let page = itemInScope(id)?.page else { continue }
+            do { try await contentManager.movePage(page, from: source, to: destination) } catch {}
+        }
+    }
+
+    private func rewriteDraggedProperty(_ pageIDs: [String], propertyID: String, value: String?) async {
+        let newValue = BucketValueDecoder.propertyValue(
+            bucket: value, propertyID: propertyID, schema: schema)
+        for id in pageIDs {
+            guard let item = itemInScope(id) else { continue }
+            do {
+                try await contentManager.updatePageProperty(
+                    item.page, propertyID: propertyID, newValue: newValue,
+                    vault: pageType, collection: item.parent.collection, set: item.parent.set)
+            } catch {}
+        }
+    }
+
+    private func itemInScope(_ id: String) -> ViewItem? {
+        resolvedGroups.flatMap(\.flattenedItems).first { $0.id == id }
+    }
+
+    /// Applies a `SavedView` transform to the active view on this vault's
+    /// sidecar via the disk-safe `updateView`. The container is the
+    /// live PageType; the active view is `activeView` (single-view today).
+    private func editView(_ transform: @escaping (inout SavedView) -> Void) {
+        guard let viewID = activeView?.id else { return }
+        let containerID = livePageType.id
+        Task { try? await pageTypeManager.updateView(viewID, in: containerID, transform: transform) }
+    }
+
+    /// Persists a single property edit. The page's collection comes from its
+    /// stamped parent — no re-lookup needed.
+    private func commitCell(_ item: ViewItem, _ def: PropertyDefinition, _ newValue: PropertyValue?) {
+        Task {
+            try? await contentManager.updatePageProperty(
+                item.page,
+                propertyID: def.id,
+                newValue: newValue,
+                vault: pageType,
+                collection: item.parent.collection,
+                set: item.parent.set
+            )
+        }
     }
 
     // MARK: - Footer
@@ -307,95 +451,98 @@ struct PageTypeDetailView: View {
         }
     }
 
-    // MARK: - Row construction
-
-    private var rows: [DetailRow] {
-        // Page-Type-root Pages appear as top-level rows alongside Collections.
-        let rootRows: [DetailRow] = contentManager.pages(in: pageType).map(DetailRow.pageRow)
-        let collectionRows: [DetailRow] = pageTypeManager.pageCollections(in: pageType).map { coll in
-            DetailRow(
-                id: "collection-\(coll.id)",
-                title: coll.title,
-                kind: .collection(coll),
-                iconName: "folder",
-                modifiedAt: coll.modifiedAt,
-                children: contentManager.pages(in: coll).map(DetailRow.pageRow)
-            )
-        }
-        return rootRows + collectionRows
-    }
-
     // MARK: - Interaction
 
-    private func handleDoubleTap(_ row: DetailRow) {
-        switch row.kind {
-        case .set:
-            break  // Set rows never appear in vault tables
-        case .collection(let c):
-            selection = .collection(c)
-        case .page(let p):
-            // Open-in routing: rows here mix vault-root and collection
-            // pages, so the parent-resolving variant picks the right ref.
-            PageOpenRouter.routeOpen(
-                p, selection: &selection,
-                content: contentManager, vaultManager: pageTypeManager,
-                setManager: pageSetManager,
-                openPreview: { openPagePreview($0) })
+    private func handleDoubleTap(_ item: ViewItem) {
+        // Open-in routing: rows here mix vault-root, collection, and set pages.
+        // The item's stamped parent carries the exact ref, so route directly.
+        PageOpenRouter.routeOpen(
+            item.page, vault: item.parent.vault,
+            collection: item.parent.collection, set: item.parent.set,
+            selection: &selection,
+            openPreview: { openPagePreview($0) })
+    }
+
+    // MARK: - Cover
+
+    @ViewBuilder
+    private var coverPickerHost: some View {
+        if let item = coverTarget, let nexus = nexusManager.currentNexus {
+            CoverPicker(
+                page: item.page, vault: pageType,
+                collection: item.parent.collection, set: item.parent.set,
+                nexus: nexus, isPresenting: $isPickingCover)
         }
     }
 
-    // MARK: - Context menu
-
+    /// Cover-area context menu (gallery) — Set / Change / Remove Cover.
     @ViewBuilder
-    private func menuItems(for row: DetailRow) -> some View {
-        switch row.kind {
-        case .page(let meta):
-            Button("Edit Title") { beginRename(row) }
+    private func coverMenuItems(for item: ViewItem) -> some View {
+        let hasCover = item.page.frontmatter.cover != nil
+        Button(hasCover ? "Change Cover" : "Set Cover") {
+            coverTarget = item
+            isPickingCover = true
+        }
+        if hasCover {
+            Button("Remove Cover", role: .destructive) { removeCover(item) }
+        }
+    }
+
+    private func removeCover(_ item: ViewItem) {
+        let previousCover = item.page.frontmatter.cover
+        var fm = item.page.frontmatter
+        fm.cover = nil
+        Task {
+            do {
+                try await contentManager.updatePageFrontmatter(
+                    item.page, frontmatter: fm, vault: pageType,
+                    collection: item.parent.collection, set: item.parent.set)
+                // Delete the cleared cover file ONLY AFTER the `cover = nil`
+                // write succeeds, so a failed write never leaves `cover`
+                // pointing at a deleted file.
+                if let nexus = nexusManager.currentNexus {
+                    CoverAssetStore().delete(relativePath: previousCover, for: item.page.id, in: nexus)
+                }
+            } catch {}
+        }
+    }
+
+    // MARK: - Context menus
+
+    /// Page (Title-cell) menu — Edit Title / Edit Icon / Pin / Delete.
+    @ViewBuilder
+    private func menuItems(for target: RowTarget) -> some View {
+        if case .page(let item) = target {
+            let pinned = item.page.isPinned
+            Button("Edit Title") { beginRename(target) }
             Button("Edit Icon") {
-                presentedSheet = .editIcon(.page(meta, vault: pageType, collection: nil, set: nil))
+                presentedSheet = .editIcon(
+                    .page(item.page, vault: pageType, collection: item.parent.collection, set: item.parent.set))
             }
-            Button(row.isPinned ? "Unpin \(row.kindLabel)" : "Pin \(row.kindLabel)") {
-                row.togglePin()
-            }
+            Button(pinned ? "Unpin Page" : "Pin Page") { item.page.togglePin() }
             Divider()
             Button("Delete", role: .destructive) {
-                Task { await delete(row) }
+                Task { await delete(target) }
             }
-        case .collection(let coll):
+        }
+    }
+
+    /// Group (disclosure-row) menu. Vault scope: Collection groups carry the
+    /// migrated container menu; nested Set groups never appear here (vault scope
+    /// nests Sets but their container actions live in collection scope), and the
+    /// headerless root band renders no group row.
+    @ViewBuilder
+    private func groupMenuItems(for group: ResolvedGroup) -> some View {
+        if case .structuralCollection(let coll) = group.kind {
             // No Pin: containers aren't pinnable from detail views today.
-            Button("Open") { handleDoubleTap(row) }
-            Button("Edit Title") { beginRename(row) }
-            Button("Edit Icon") {
-                presentedSheet = .editIcon(.pageCollection(coll))
-            }
+            Button("Open") { selection = .collection(coll) }
+            Button("Edit Title") { beginRename(.collection(coll)) }
+            Button("Edit Icon") { presentedSheet = .editIcon(.pageCollection(coll)) }
             Divider()
             // Container delete is guarded — route through the confirmation
             // dialog (mirrors the sidebar). Page deletes stay direct.
-            Button("Delete", role: .destructive) {
-                deleteTarget = row
-            }
-        case .set:
-            EmptyView()  // Set rows never appear in vault tables
+            Button("Delete", role: .destructive) { deleteTarget = .collection(coll) }
         }
-    }
-
-    // MARK: - Parent lookup
-    //
-    // O(collections × content) — fine for v0.2.7.2.1; SQLite in v0.4.0 makes
-    // this O(1). Called only on context-menu actions, not in render.
-
-    private func parent(for row: DetailRow) -> PageParent? {
-        guard case .page(let p) = row.kind else { return nil }
-        // Page-Type-root first.
-        if contentManager.pages(in: pageType).contains(where: { $0.id == p.id }) {
-            return .vaultRoot(pageType)
-        }
-        // Then every collection.
-        for coll in pageTypeManager.pageCollections(in: pageType)
-        where contentManager.pages(in: coll).contains(where: { $0.id == p.id }) {
-            return .collection(coll, vault: pageType)
-        }
-        return nil
     }
 
     // MARK: - Rename
@@ -407,35 +554,47 @@ struct PageTypeDetailView: View {
         )
     }
 
-    private func beginRename(_ row: DetailRow) {
-        renameDraft = row.title
-        renameTarget = row
+    private func renameTitle(_ target: RowTarget) -> String {
+        switch target {
+        case .page(let item): return item.page.title
+        case .collection(let coll): return coll.title
+        }
+    }
+
+    private func renameKindLabel(_ target: RowTarget) -> String {
+        switch target {
+        case .page: return "Page"
+        case .collection: return "Collection"
+        }
+    }
+
+    private func beginRename(_ target: RowTarget) {
+        renameDraft = renameTitle(target)
+        renameTarget = target
     }
 
     private func commitRename() {
-        guard let row = renameTarget else { return }
+        guard let target = renameTarget else { return }
         let newName = renameDraft
         renameTarget = nil
-        guard !newName.isEmpty, newName != row.title else { return }
+        guard !newName.isEmpty, newName != renameTitle(target) else { return }
         Task {
             do {
-                switch row.kind {
-                case .collection(let c):
+                switch target {
+                case .collection(let coll):
                     // Collections rename via the manager directly — no parent
                     // lookup needed (the manager resolves the on-disk folder).
-                    try await pageTypeManager.renamePageCollection(c, to: newName)
-                case .page(let p):
-                    guard let parent = parent(for: row) else { return }
-                    switch parent {
+                    try await pageTypeManager.renamePageCollection(coll, to: newName)
+                case .page(let item):
+                    switch item.parent {
                     case .collection(let coll, let t):
-                        try await contentManager.renamePage(p, to: newName, in: coll, vault: t)
+                        try await contentManager.renamePage(item.page, to: newName, in: coll, vault: t)
                     case .set(let set, let coll, let t):
-                        try await contentManager.renamePage(p, to: newName, in: set, collection: coll, vault: t)
+                        try await contentManager.renamePage(
+                            item.page, to: newName, in: set, collection: coll, vault: t)
                     case .vaultRoot(let t):
-                        try await contentManager.renamePage(p, to: newName, inVaultRoot: t)
+                        try await contentManager.renamePage(item.page, to: newName, inVaultRoot: t)
                     }
-                case .set:
-                    break  // Set rows never appear in vault tables
                 }
             } catch {
                 // pendingError set by manager; toast surfaces.
@@ -448,9 +607,9 @@ struct PageTypeDetailView: View {
     /// Title for the container-delete confirmation. Mirrors the sidebar's
     /// `confirmationTitle` — uses the configured Collection label.
     private var deleteConfirmationTitle: String {
-        guard let row = deleteTarget else { return "" }
+        guard let target = deleteTarget else { return "" }
         let label = settingsManager.settings.labels.pageCollection.singular
-        return "Delete \(label) \"\(row.title)\"?"
+        return "Delete \(label) \"\(renameTitle(target))\"?"
     }
 
     private var deleteConfirmationBinding: Binding<Bool> {
@@ -460,23 +619,20 @@ struct PageTypeDetailView: View {
         )
     }
 
-    private func delete(_ row: DetailRow) async {
+    private func delete(_ target: RowTarget) async {
         do {
-            switch row.kind {
-            case .collection(let c):
-                try await pageTypeManager.deletePageCollection(c)
-            case .page(let p):
-                guard let parent = parent(for: row) else { return }
-                switch parent {
+            switch target {
+            case .collection(let coll):
+                try await pageTypeManager.deletePageCollection(coll)
+            case .page(let item):
+                switch item.parent {
                 case .collection(let coll, _):
-                    try await contentManager.deletePage(p, in: coll)
+                    try await contentManager.deletePage(item.page, in: coll)
                 case .set(let set, _, _):
-                    try await contentManager.deletePage(p, in: set)
+                    try await contentManager.deletePage(item.page, in: set)
                 case .vaultRoot(let t):
-                    try await contentManager.deletePage(p, inVaultRoot: t)
+                    try await contentManager.deletePage(item.page, inVaultRoot: t)
                 }
-            case .set:
-                break  // Set rows never appear in vault tables
             }
         } catch {
             // pendingError set by manager; toast surfaces.

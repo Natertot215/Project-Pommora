@@ -39,11 +39,11 @@ struct SelectOptionsEditor: View {
                             },
                             onDelete: {
                                 options.removeAll { $0.value == option.value }
+                            },
+                            onDrop: { droppedValues in
+                                handleDrop(of: droppedValues, onto: option.value)
                             }
                         )
-                        .dropDestination(for: String.self) { droppedValues, _ in
-                            handleDrop(of: droppedValues, onto: option.value)
-                        }
                     }
                 }
             }
@@ -78,7 +78,7 @@ struct SelectOptionsEditor: View {
         guard let droppedValue = droppedValues.first, droppedValue != targetValue else { return false }
         var newOptions = options
         guard let srcIdx = newOptions.firstIndex(where: { $0.value == droppedValue }),
-              let dstIdx = newOptions.firstIndex(where: { $0.value == targetValue })
+            let dstIdx = newOptions.firstIndex(where: { $0.value == targetValue })
         else { return false }
         let item = newOptions.remove(at: srcIdx)
         // Removing the source first shifts everything after it left by one, so
@@ -96,8 +96,10 @@ private struct SelectOptionsRow: View {
     let onUpdateLabel: (String) -> Void
     let onUpdateColor: (PropertyChipColor?) -> Void
     let onDelete: () -> Void
+    let onDrop: ([String]) -> Bool
 
     @State private var showingPopover: Bool = false
+    @State private var isDropTargeted: Bool = false
 
     var body: some View {
         HStack(spacing: PUI.Row.interSpacing) {
@@ -123,6 +125,12 @@ private struct SelectOptionsRow: View {
                 .help("Drag to reorder")
         }
         .contentShape(Rectangle())
+        .dropDestination(for: String.self) { droppedValues, _ in
+            onDrop(droppedValues)
+        } isTargeted: {
+            isDropTargeted = $0
+        }
+        .optionRowInsertionLine(isActive: isDropTargeted)
         .onTapGesture(count: 2) {
             showingPopover = true
         }

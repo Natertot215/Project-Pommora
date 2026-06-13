@@ -32,9 +32,12 @@ struct PageType: Codable, Equatable, Identifiable, Hashable, Sendable {
     /// or `.window` (main detail pane). Absent on legacy sidecars
     /// (decodeIfPresent → nil); callers default at read time.
     var openIn: OpenInMode?
+    /// Nexus-relative POSIX path (`.nexus/assets/<id>/<file>`) of this Type's
+    /// banner image. Nil/missing = no banner. Copied in by `CoverAssetStore`.
+    var banner: String?
 
     enum CodingKeys: String, CodingKey {
-        case id, icon, properties, views
+        case id, icon, properties, views, banner
         case modifiedAt = "modified_at"
         case schemaVersion = "schema_version"
         case collectionOrder = "collection_order"
@@ -50,7 +53,8 @@ struct PageType: Codable, Equatable, Identifiable, Hashable, Sendable {
         collectionOrder: [String]? = nil,
         pageOrder: [String]? = nil,
         defaultSort: DefaultSortConfig? = nil,
-        openIn: OpenInMode? = nil
+        openIn: OpenInMode? = nil,
+        banner: String? = nil
     ) {
         self.id = id
         self.title = title
@@ -63,6 +67,7 @@ struct PageType: Codable, Equatable, Identifiable, Hashable, Sendable {
         self.pageOrder = pageOrder
         self.defaultSort = defaultSort
         self.openIn = openIn
+        self.banner = banner
     }
 
     init(from decoder: any Decoder) throws {
@@ -79,6 +84,7 @@ struct PageType: Codable, Equatable, Identifiable, Hashable, Sendable {
         self.pageOrder = try c.decodeIfPresent([String].self, forKey: .pageOrder)
         self.defaultSort = try c.decodeIfPresent(DefaultSortConfig.self, forKey: .defaultSort)
         self.openIn = try c.decodeIfPresent(OpenInMode.self, forKey: .openIn)
+        self.banner = try c.decodeIfPresent(String.self, forKey: .banner)
     }
 
     func encode(to encoder: any Encoder) throws {
@@ -93,6 +99,7 @@ struct PageType: Codable, Equatable, Identifiable, Hashable, Sendable {
         try c.encodeIfPresent(pageOrder, forKey: .pageOrder)
         try c.encodeIfPresent(defaultSort, forKey: .defaultSort)
         try c.encodeIfPresent(openIn, forKey: .openIn)
+        try c.encodeIfPresent(banner, forKey: .banner)
     }
 }
 

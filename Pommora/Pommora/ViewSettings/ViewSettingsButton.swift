@@ -28,7 +28,7 @@ struct ViewSettingsButton: View {
     /// `@Environment(X.self)`. We inject the FULL Nexus environment via
     /// `.injectNexusEnvironment(_:)` (sourced from `AppGlobals.current`, the
     /// live env) rather than hand-injecting a partial subset — a missing manager
-    /// SIGTRAPs a `.task`-bearing view (quirk #15). The full inject is a
+    /// SIGTRAPs a `.task`-bearing view (macOS popover env-chain detachment). The full inject is a
     /// superset of every pane's needs, so it's safe. These params are still
     /// threaded in because the toolbar lives OUTSIDE ContentView's
     /// `.environment(...)` chain; they remain available for any future
@@ -58,7 +58,7 @@ struct ViewSettingsButton: View {
         }
     }
 
-    /// Popover content with the FULL Nexus environment injected (quirk #15).
+    /// Popover content with the FULL Nexus environment injected.
     /// `AppGlobals.current` is non-nil whenever a Nexus is open, which is always
     /// true when the popover is reachable; if it's somehow absent we fall back to
     /// the bare popover (no panes that need managers can be reached anyway).

@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// Shared header used at the top of every View Settings sub-pane
-/// (PropertiesListPane / PropertyVisibilityPane / PropertyTypePickerPane /
+/// (PropertiesListPane / LayoutPane / PropertyTypePickerPane /
 /// EditPropertyPane).
 ///
 /// **Why this exists:** on macOS, `.navigationTitle(_:)` inside a

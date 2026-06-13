@@ -197,6 +197,18 @@ enum NexusPaths {
             .appendingPathComponent(entityID, isDirectory: true)
     }
 
+    // MARK: - Assets (per-entity cover / banner images)
+
+    /// `<nexus>/.nexus/assets/<entityID>/` — per-entity asset folder for cover
+    /// and banner images. The directory is created lazily by `CoverAssetStore`;
+    /// this helper only computes the URL.
+    static func assetsDir(for entityID: String, in nexus: Nexus) -> URL {
+        nexus.rootURL
+            .appendingPathComponent(".nexus", isDirectory: true)
+            .appendingPathComponent("assets", isDirectory: true)
+            .appendingPathComponent(entityID, isDirectory: true)
+    }
+
     // MARK: - Trash (per-nexus recoverable deletes)
 
     /// Per-nexus trash folder at `<nexus-root>/.trash/`.

@@ -11,10 +11,10 @@ import Testing
 /// and `resolveParent` must return the Set for a Set page on both the index
 /// path and the URL fallback.
 ///
-/// Also covers the v0.4.1 live-testing fixes: `DetailRow.collectionRows`
-/// (Set rows with disclosure children above root pages — an empty Set must
-/// be visible) and the identity-only `SelectionTag.set` (never matches,
-/// never resolves — the sidebar selection-bleed fix).
+/// Also covers the v0.4.1 live-testing fix for the identity-only
+/// `SelectionTag.set` (never matches, never resolves — the sidebar
+/// selection-bleed fix). Structural set/root grouping is covered by
+/// `GroupResolverTests`.
 ///
 /// Fixtures mirror `PageSetContentTests`.
 @MainActor
@@ -146,42 +146,6 @@ struct PageSetDetailTests {
         #expect(result?.set?.id == set.id)
     }
 
-    // MARK: - Collection detail rows (v0.4.1 — empty Set invisible)
-
-    @Test("collectionRows: Set rows (pages as children) precede root pages; an empty Set is a visible leaf")
-    func collectionRowsOrderAndChildren() {
-        let setA = bareSet(titled: "Drafts")
-        let setB = bareSet(titled: "Empty")
-        let inA = barePage(titled: "Inside")
-        let root1 = barePage(titled: "Root One")
-        let root2 = barePage(titled: "Root Two")
-
-        let rows = DetailRow.collectionRows(
-            sets: [(setA, [inA]), (setB, [])],
-            rootPages: [root1, root2]
-        )
-
-        #expect(
-            rows.map(\.id) == [
-                "set-\(setA.id)", "set-\(setB.id)", "page-\(root1.id)", "page-\(root2.id)",
-            ])
-        #expect(rows[0].children?.map(\.id) == ["page-\(inA.id)"])
-        #expect(rows[1].children == [])  // empty Set still produces a row
-        #expect(rows[2].children == nil)  // root pages stay leaves
-        #expect(rows[0].kindLabel == "Set")
-        #expect(rows[0].iconName == "folder")  // default when set.icon is nil
-    }
-
-    @Test("Set rows aren't pinnable — stateRef is nil; page rows keep theirs")
-    func setRowStateRefNil() {
-        let rows = DetailRow.collectionRows(
-            sets: [(bareSet(titled: "Drafts"), [])],
-            rootPages: [barePage(titled: "Doc")]
-        )
-        #expect(rows[0].stateRef == nil)
-        #expect(rows[1].stateRef != nil)
-    }
-
     // MARK: - SelectionTag.set (v0.4.1 — sidebar selection bleed)
 
     @Test(".set tag matches NO selection — even a collection or page selection carrying the same id")
@@ -228,23 +192,6 @@ struct PageSetDetailTests {
     }
 
     // MARK: - Fixtures (mirror PageSetContentTests)
-
-    /// In-memory PageSet — no disk, for pure row-construction tests.
-    private func bareSet(titled title: String) -> PageSet {
-        PageSet(
-            id: ULID.generate(), collectionID: ULID.generate(), title: title,
-            folderURL: URL(fileURLWithPath: "/"), modifiedAt: Date()
-        )
-    }
-
-    /// In-memory PageMeta — no disk, for pure row-construction tests.
-    private func barePage(titled title: String) -> PageMeta {
-        let id = ULID.generate()
-        let fm = PageFrontmatter(
-            id: id, icon: nil, tier1: [], tier2: [], tier3: [],
-            properties: [:], createdAt: Date())
-        return PageMeta(id: id, title: title, url: URL(fileURLWithPath: "/"), frontmatter: fm)
-    }
 
     @discardableResult
     private func makePageType(

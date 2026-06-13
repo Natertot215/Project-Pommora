@@ -94,31 +94,40 @@ struct ContentView: View {
                 topic: env.topicManager,
                 project: env.projectManager
             )
-            HStack(spacing: 0) {
-                ViewSettingsButton(
+            HStack(spacing: 8) {
+                ViewsDropdownButton(
                     scope: currentViewSettingsScope,
                     pageTypeManager: vaultMgr,
-                    tierConfigManager: tierConfigMgr,
-                    pageContentManager: contentMgr
+                    activeViewStore: env.activeViewStore
                 )
-                NavDropdownButton(asSegment: true, lookup: lookup) { sel in
-                    sidebarSelection = sel
-                }
+                .glassEffect()
 
-                Button {
-                    withAnimation(.smooth(duration: 0.25)) {
-                        inspectorPresented.toggle()
+                HStack(spacing: 0) {
+                    ViewSettingsButton(
+                        scope: currentViewSettingsScope,
+                        pageTypeManager: vaultMgr,
+                        tierConfigManager: tierConfigMgr,
+                        pageContentManager: contentMgr
+                    )
+                    NavDropdownButton(asSegment: true, lookup: lookup) { sel in
+                        sidebarSelection = sel
                     }
-                } label: {
-                    Image(systemName: "sidebar.trailing")
-                        .font(.system(size: 12, weight: .medium))
-                        .frame(width: 22, height: 16)
-                        .contentShape(Rectangle())
+
+                    Button {
+                        withAnimation(.smooth(duration: 0.25)) {
+                            inspectorPresented.toggle()
+                        }
+                    } label: {
+                        Image(systemName: "sidebar.trailing")
+                            .font(.system(size: 12, weight: .medium))
+                            .frame(width: 22, height: 16)
+                            .contentShape(Rectangle())
+                    }
+                    .keyboardShortcut("0", modifiers: [.option, .command])
+                    .help("Toggle Inspector (⌥⌘0)")
                 }
-                .keyboardShortcut("0", modifiers: [.option, .command])
-                .help("Toggle Inspector (⌥⌘0)")
+                .glassEffect()
             }
-            .glassEffect()
         }
     }
 

@@ -43,4 +43,15 @@ extension TierRelationCarrying {
         default: properties[id] = ids.isEmpty ? nil : .relation(ids)
         }
     }
+
+    /// The current cell value a property editor reads for `definition`: a
+    /// relation property wraps its (tier-aware) id list as `.relation`, any other
+    /// type passes through the stored `properties` value. Single source for the
+    /// relation-vs-scalar read shared by the table + gallery cell renderers.
+    func cellValue(for definition: PropertyDefinition) -> PropertyValue? {
+        if definition.type == .relation {
+            return .relation(relationIDs(forPropertyID: definition.id))
+        }
+        return properties[definition.id]
+    }
 }

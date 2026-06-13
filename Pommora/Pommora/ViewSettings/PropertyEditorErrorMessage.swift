@@ -49,6 +49,8 @@ enum PropertyEditorErrorMessage {
             return "Changing this type drops existing values — confirm first."
         case .indexOutOfBounds:
             return "Couldn't move the property to that position."
+        case .cannotDeleteLastView:
+            return "A container must keep at least one view."
         }
     }
 }

@@ -8,12 +8,12 @@ Plans are named `MM-DD-<slug>.md` (earlier files retain their `YYYY-MM-DD-` name
 
 #### Active
 
-- `06-11-Views-Spec.md` — **ratified spec** for the Views cluster (Table + Gallery renderers, SavedView v2 schema, view pipeline, system-DnD drag engine, Views dropdown, covers/banners). Ratified 2026-06-11 after the interview + research pass; implementation plan pending.
 - `06-05-Connections-Plan.md` — the Connections implementation plan. Page-level work shipped at v0.3.5 (`History.md` § "Connections — page-level complete"); retained at top level pending the post-v0.4.0 connection-model layer it also scopes.
 - `Contextv2.md` — the Drop-Relations→Contexts refactor plan. Shipped 2026-06-04 (registry decision #16); retained at top level pending archival review.
 
 #### Superseded
 
+- `Superseded/06-11-Views-Spec.md` + `Superseded/06-11-Views-Plan.md` — the Views cluster: SavedView v2, the pure view pipeline, the custom Table + Gallery renderers, system-DnD drag engine, Views dropdown + multi-view CRUD, covers/banners. **COMPLETE at v0.5.0** (2026-06-12); the Plan carries the full Deviation Log. Record → `History.md` § "Views"; decision → registry #20; spec → `Features/Views.md`.
 - `Superseded/06-11-Sets-Spec.md` + `Superseded/06-11-Sets-Plan.md` — the Sets third tier: Vault → Collection → Set (optional) → Pages, `PageSetManager`, schema v14, depth-2 adoption, ULID-collision healing. **COMPLETE at v0.4.1** (2026-06-11). Record → `History.md` § "Sets"; decision → registry #19; spec → `Features/Sets.md`.
 - `Superseded/PagePreviewWindow.md` — the V9 real-window PagePreview rebuild (WindowGroup + restriction pass + shared compact inspector). **COMPLETE at v0.4.0** (987 tests green). Record → `History.md` § "v0.4.0".
 - `Superseded/06-10-Contexts-Decoupling-Spec.md` + `Superseded/06-10-Contexts-Decoupling-Plan.md` — the Contexts Decoupling: free-standing Areas / Topics / Projects, Space→Area rename, ContextsSection, schema v12→v13. **COMPLETE 2026-06-10** (994 tests green): P1–P6 executed subagent-driven on `main`; the Plan carries the full per-task execution log. Record → `History.md` § "Contexts Decoupling"; decision → registry #18.

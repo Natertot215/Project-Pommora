@@ -32,8 +32,13 @@ struct PageCollection: Codable, Equatable, Identifiable, Hashable, Sendable {
     /// migration mints a fresh Table view when empty.
     var views: [SavedView] = []
 
+    /// Nexus-relative POSIX path (`.nexus/assets/<id>/<file>`) of this
+    /// Collection's banner image. Nil/missing = no banner. Copied in by
+    /// `CoverAssetStore`.
+    var banner: String?
+
     enum CodingKeys: String, CodingKey {
-        case id, views, icon
+        case id, views, icon, banner
         case typeID = "type_id"
         case modifiedAt = "modified_at"
         case schemaVersion = "schema_version"
@@ -56,7 +61,8 @@ struct PageCollection: Codable, Equatable, Identifiable, Hashable, Sendable {
         icon: String? = nil,
         pageOrder: [String]? = nil,
         setOrder: [String]? = nil,
-        views: [SavedView] = []
+        views: [SavedView] = [],
+        banner: String? = nil
     ) {
         self.id = id
         self.typeID = typeID
@@ -68,6 +74,7 @@ struct PageCollection: Codable, Equatable, Identifiable, Hashable, Sendable {
         self.pageOrder = pageOrder
         self.setOrder = setOrder
         self.views = views
+        self.banner = banner
     }
 
     init(from decoder: any Decoder) throws {
@@ -89,6 +96,7 @@ struct PageCollection: Codable, Equatable, Identifiable, Hashable, Sendable {
         self.pageOrder = try c.decodeIfPresent([String].self, forKey: .pageOrder)
         self.setOrder = try c.decodeIfPresent([String].self, forKey: .setOrder)
         self.views = try c.decodeIfPresent([SavedView].self, forKey: .views) ?? []
+        self.banner = try c.decodeIfPresent(String.self, forKey: .banner)
     }
 
     func encode(to encoder: any Encoder) throws {
@@ -101,6 +109,7 @@ struct PageCollection: Codable, Equatable, Identifiable, Hashable, Sendable {
         try c.encodeIfPresent(pageOrder, forKey: .pageOrder)
         try c.encodeIfPresent(setOrder, forKey: .setOrder)
         try c.encode(views, forKey: .views)
+        try c.encodeIfPresent(banner, forKey: .banner)
     }
 }
 

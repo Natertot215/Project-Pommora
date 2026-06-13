@@ -13,20 +13,29 @@ enum ReservedPropertyID {
     // (schema editor / validators) and nonisolated contexts (the index layer's
     // off-actor GRDB-write closures — e.g. IndexBuilder's tier-relations emit).
     // The project default isolation is @MainActor, so these opt out explicitly.
-    nonisolated static let id          = "_id"
-    nonisolated static let createdAt   = "_created_at"
-    nonisolated static let modifiedAt  = "_modified_at"
-    nonisolated static let status      = "_status"
-    nonisolated static let type        = "_type"
-    nonisolated static let tier1       = "_tier1"
-    nonisolated static let tier2       = "_tier2"
-    nonisolated static let tier3       = "_tier3"
+    nonisolated static let id = "_id"
+    nonisolated static let title = "_title"
+    nonisolated static let createdAt = "_created_at"
+    nonisolated static let modifiedAt = "_modified_at"
+    nonisolated static let status = "_status"
+    nonisolated static let type = "_type"
+    nonisolated static let tier1 = "_tier1"
+    nonisolated static let tier2 = "_tier2"
+    nonisolated static let tier3 = "_tier3"
+
+    /// The cover sentinel — the property-order entry that routes a Page's cover
+    /// image into the card/banner area. Deliberately NOT a reserved id (absent
+    /// from `all` / `isReserved`): it's only ever a guard so no cover column or
+    /// filter/group/visibility entry can appear. Single source for the literal,
+    /// shared by the table column resolver, gallery zones, and the view panes.
+    nonisolated static let cover = "cover"
 
     // MARK: - Catalog
 
-    /// All reserved IDs Pommora knows about as of v0.3.0.
+    /// All reserved IDs Pommora knows about. (The `cover` sentinel is excluded by
+    /// design — it's a guard literal, not a reserved property id.)
     nonisolated static let all: Set<String> = [
-        id, createdAt, modifiedAt,
+        id, title, createdAt, modifiedAt,
         status,
         type,
         tier1, tier2, tier3,

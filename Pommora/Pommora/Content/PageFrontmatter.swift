@@ -26,9 +26,13 @@ struct PageFrontmatter: Codable, Equatable, Hashable, Sendable {
     /// `.claude/Features/Pages.md` "Foldable headings" and
     /// `.claude/Guidelines/Markdown.md` §9.x for the rationale.
     var foldedHeadings: [String]?
+    /// Nexus-relative POSIX path (`.nexus/assets/<id>/<file>`) of this Page's
+    /// cover image. Nil/missing = no cover. Copied in by `CoverAssetStore`;
+    /// surfaced by the cover gallery (Views cluster).
+    var cover: String?
 
     enum CodingKeys: String, CodingKey, CaseIterable {
-        case id, icon, tier1, tier2, tier3, properties
+        case id, icon, tier1, tier2, tier3, properties, cover
         case createdAt = "created_at"
         case modifiedAt = "modified_at"
         case foldedHeadings = "folded_headings"
@@ -47,7 +51,8 @@ struct PageFrontmatter: Codable, Equatable, Hashable, Sendable {
         properties: [String: PropertyValue],
         createdAt: Date,
         modifiedAt: Date? = nil,
-        foldedHeadings: [String]? = nil
+        foldedHeadings: [String]? = nil,
+        cover: String? = nil
     ) {
         self.id = id
         self.icon = icon
@@ -58,6 +63,7 @@ struct PageFrontmatter: Codable, Equatable, Hashable, Sendable {
         self.createdAt = createdAt
         self.modifiedAt = modifiedAt
         self.foldedHeadings = foldedHeadings
+        self.cover = cover
     }
 
     init(from decoder: any Decoder) throws {
@@ -74,6 +80,7 @@ struct PageFrontmatter: Codable, Equatable, Hashable, Sendable {
         self.createdAt = try c.decodeIfPresent(Date.self, forKey: .createdAt) ?? Date(timeIntervalSince1970: 0)
         self.modifiedAt = try c.decodeIfPresent(Date.self, forKey: .modifiedAt)
         self.foldedHeadings = try c.decodeIfPresent([String].self, forKey: .foldedHeadings)
+        self.cover = try c.decodeIfPresent(String.self, forKey: .cover)
     }
 
     func encode(to encoder: any Encoder) throws {
@@ -86,6 +93,7 @@ struct PageFrontmatter: Codable, Equatable, Hashable, Sendable {
         try c.encode(properties, forKey: .properties)
         try c.encode(createdAt, forKey: .createdAt)
         try c.encodeIfPresent(modifiedAt, forKey: .modifiedAt)
+        try c.encodeIfPresent(cover, forKey: .cover)
         // Encode-if-present-and-non-empty so an empty array doesn't pollute the
         // YAML with `folded_headings: []`. The editor caller is expected to set
         // the field to nil when emptied, but defending in depth here is cheap.

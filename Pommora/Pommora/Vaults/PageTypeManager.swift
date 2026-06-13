@@ -37,6 +37,19 @@ final class PageTypeManager {
         pageCollectionsByType[pageType.id] ?? []
     }
 
+    /// The saved views on a view-bearing container, looked up by id across BOTH
+    /// PageTypes and PageCollections. The single source for the dual-container
+    /// `[SavedView]` lookup the View Settings panes + Views dropdown all need;
+    /// `ActiveViewStore.resolvedActiveView(in:manager:)` builds on it to resolve
+    /// the active view. Empty when the id matches no container.
+    func views(in containerID: String) -> [SavedView] {
+        if let t = types.first(where: { $0.id == containerID }) { return t.views }
+        for cols in pageCollectionsByType.values {
+            if let c = cols.first(where: { $0.id == containerID }) { return c.views }
+        }
+        return []
+    }
+
     /// Reloads a single PageType from disk into the in-memory `types` array by ID.
     /// No-op if the ID isn't one of this manager's types (the cross-manager router
     /// only dispatches IDs it has already matched to this manager). Best-effort: a
@@ -77,16 +90,17 @@ final class PageTypeManager {
                     var pageType = try? PageType.load(from: metaURL)
                 else { continue }
 
-                // Default-view migration (Task 5, Phase A — v0.3.1). If the
-                // PageType has no saved views, mint a Table view that exposes
-                // every user-defined property as a column. Idempotent — the
-                // `views.isEmpty` gate is the only mutation trigger. Best-
-                // effort save: failures fall through and the next loadAll
-                // tries again (no user data lost; matches quirk #15's
-                // defensive-on-load pattern).
+                // Default-view migration: if the PageType has no saved views,
+                // mint a Table view exposing every user-defined property as a
+                // column. Idempotent — the `views.isEmpty` gate is the only
+                // mutation trigger. Best-effort: failures fall through and the
+                // next loadAll retries (no user data lost).
                 if pageType.views.isEmpty {
                     pageType.views = [
-                        SavedView.defaultTable(visiblePropertyIDs: pageType.properties.map(\.id))
+                        SavedView.defaultTable(
+                            visiblePropertyIDs: pageType.properties.map(\.id),
+                            defaultSort: pageType.defaultSort
+                        )
                     ]
                     try? pageType.save(to: metaURL)
                 }
@@ -153,7 +167,10 @@ final class PageTypeManager {
                         // visible-property ordering as the starting set.
                         if collection.views.isEmpty {
                             collection.views = [
-                                SavedView.defaultTable(visiblePropertyIDs: parentPropertyIDs)
+                                SavedView.defaultTable(
+                                    visiblePropertyIDs: parentPropertyIDs,
+                                    defaultSort: pageType.defaultSort
+                                )
                             ]
                             try? collection.save(to: collMetaURL)
                         }
@@ -541,6 +558,50 @@ final class PageTypeManager {
         types[i] = updated
     }
 
+    // MARK: - Banner
+
+    /// Persists a container's banner image path (`banner` on the `_pagetype.json`
+    /// or `_pagecollection.json` sidecar). `path` is the nexus-relative path
+    /// returned by `CoverAssetStore` (or nil to clear the banner). No SQLite
+    /// upsert — `banner` is not indexed.
+    ///
+    /// Uses the Task-3 disk read-modify-write pattern (load the sidecar FRESH,
+    /// set `banner`, save, re-sync the in-memory cache) — NOT setOpenIn's
+    /// in-memory-first save — so a concurrent sibling-order write to the same
+    /// sidecar isn't clobbered. Handles BOTH container kinds, like `updateView`.
+    func setBanner(_ path: String?, forContainer containerID: String) async throws {
+        do {
+            // PageType first.
+            if let i = types.firstIndex(where: { $0.id == containerID }) {
+                let meta = NexusPaths.vaultMetadataURL(forTitle: types[i].title, in: nexus)
+                var updated = try PageType.load(from: meta)
+                updated.banner = path
+                updated.modifiedAt = Date()
+                try updated.save(to: meta)
+                types[i] = updated
+                return
+            }
+            // Else PageCollection lookup.
+            for (typeID, cols) in pageCollectionsByType {
+                if let ci = cols.firstIndex(where: { $0.id == containerID }) {
+                    let meta = cols[ci].folderURL.appendingPathComponent(
+                        NexusPaths.pageCollectionSidecarFilename
+                    )
+                    var coll = try PageCollection.load(from: meta)
+                    coll.banner = path
+                    coll.modifiedAt = Date()
+                    try coll.save(to: meta)
+                    pageCollectionsByType[typeID]?[ci] = coll
+                    return
+                }
+            }
+            throw PageTypeManagerError.typeNotFound
+        } catch {
+            self.pendingError = error
+            throw error
+        }
+    }
+
     /// Reads the persisted Page Type sibling order from `.nexus/state.json`. Returns
     /// nil if no state.json exists or no `vault_order` has been recorded — the
     /// resolver falls back to alphabetic in that case.
@@ -559,6 +620,7 @@ enum PageTypeManagerError: Error, Equatable {
     case propertyNotFound
     case lossyChangeRequiresConfirmation
     case indexOutOfBounds
+    case cannotDeleteLastView
 }
 
 /// Human-readable text so these errors render as a friendly sentence instead of
@@ -605,8 +667,8 @@ extension PageTypeManager {
     /// Apply a transform to a SavedView on a PageType or PageCollection
     /// container (looked up by container ID), then persist the parent
     /// sidecar atomically. Used by the View Settings Property Visibility
-    /// pane (Task 12) to write the visibleProperties / hiddenProperties
-    /// edits live as the user toggles + drag-reorders rows.
+    /// pane to write the propertyOrder / hiddenProperties edits live as
+    /// the user toggles + drag-reorders rows.
     ///
     /// `containerID` may be either a PageType.id or a PageCollection.id —
     /// we search both. Throws if neither resolves or the view isn't found.
@@ -615,41 +677,121 @@ extension PageTypeManager {
         in containerID: String,
         transform: (inout SavedView) -> Void
     ) async throws {
+        // The single-view case of `mutateViews` — same fresh-from-disk
+        // read-modify-atomic-write (never clobbers a concurrent `page_order`
+        // sidecar write) and the same dual-container resolution, with the view
+        // located by id inside the mutation. A missing view throws BEFORE any
+        // save, so nothing is written.
+        try await mutateViews(in: containerID) { views in
+            guard let vi = views.firstIndex(where: { $0.id == viewID }) else {
+                throw PageTypeManagerError.propertyNotFound
+            }
+            transform(&views[vi])
+        }
+    }
+
+    // MARK: - View CRUD (add / duplicate / delete / rename)
+
+    /// Read-modify-write the WHOLE `views` array on a PageType or
+    /// PageCollection container (looked up by container ID), mirroring
+    /// `updateView`'s fresh-from-disk disk pattern so a concurrent
+    /// sidecar write (e.g. a drag-reorder's `page_order`) is never clobbered.
+    ///
+    /// `transform` receives the freshly-loaded `views` array `inout` and may
+    /// throw (the guard cases — e.g. deleting the last view — surface here);
+    /// it returns an arbitrary value handed back to the caller (the newly
+    /// minted / duplicated view). When `transform` throws, nothing is written.
+    private func mutateViews<Result>(
+        in containerID: String,
+        transform: (inout [SavedView]) throws -> Result
+    ) async throws -> Result {
         do {
-            // Try PageType first.
             if let i = types.firstIndex(where: { $0.id == containerID }) {
-                guard let vi = types[i].views.firstIndex(where: { $0.id == viewID }) else {
-                    throw PageTypeManagerError.propertyNotFound
-                }
-                var updated = types[i]
-                transform(&updated.views[vi])
+                let meta = NexusPaths.vaultMetadataURL(forTitle: types[i].title, in: nexus)
+                var updated = try PageType.load(from: meta)
+                let result = try transform(&updated.views)
                 updated.modifiedAt = Date()
-                let meta = NexusPaths.vaultMetadataURL(forTitle: updated.title, in: nexus)
                 try updated.save(to: meta)
                 types[i] = updated
-                return
+                return result
             }
-            // Else PageCollection lookup.
             for (typeID, cols) in pageCollectionsByType {
                 if let ci = cols.firstIndex(where: { $0.id == containerID }) {
-                    var coll = cols[ci]
-                    guard let vi = coll.views.firstIndex(where: { $0.id == viewID }) else {
-                        throw PageTypeManagerError.propertyNotFound
-                    }
-                    transform(&coll.views[vi])
+                    let meta = cols[ci].folderURL.appendingPathComponent(
+                        NexusPaths.pageCollectionSidecarFilename)
+                    var coll = try PageCollection.load(from: meta)
+                    let result = try transform(&coll.views)
                     coll.modifiedAt = Date()
-                    let meta = coll.folderURL.appendingPathComponent(
-                        NexusPaths.pageCollectionSidecarFilename
-                    )
                     try coll.save(to: meta)
                     pageCollectionsByType[typeID]?[ci] = coll
-                    return
+                    return result
                 }
             }
             throw PageTypeManagerError.typeNotFound
         } catch {
             self.pendingError = error
             throw error
+        }
+    }
+
+    /// Appends a new view of `type` named "Untitled View". A `.gallery` view
+    /// mints `cardSize: .medium` (the Gallery renderer's default density) with
+    /// `showCover` left nil (covers hidden by default). Returns the minted view.
+    @discardableResult
+    func addView(type: ViewType, to containerID: String) async throws -> SavedView {
+        let isGallery = type == .gallery
+        let view = SavedView(
+            id: "view_\(ULID.generate())",
+            name: "Untitled View",
+            icon: type.defaultIcon,
+            type: type,
+            cardSize: isGallery ? .medium : nil,
+            showCover: nil)
+        return try await mutateViews(in: containerID) { views in
+            views.append(view)
+            return view
+        }
+    }
+
+    /// Deep-copies `viewID` with a FRESH id, carrying every v2 field forward,
+    /// and appends it. Returns the new view.
+    @discardableResult
+    func duplicateView(_ viewID: String, in containerID: String) async throws -> SavedView {
+        try await mutateViews(in: containerID) { views in
+            guard let source = views.first(where: { $0.id == viewID }) else {
+                throw PageTypeManagerError.propertyNotFound
+            }
+            var copy = source
+            copy.id = "view_\(ULID.generate())"
+            views.append(copy)
+            return copy
+        }
+    }
+
+    /// Removes `viewID`, guarding the ≥1-view invariant: deleting the last
+    /// remaining view throws `.cannotDeleteLastView` and writes nothing.
+    func deleteView(_ viewID: String, in containerID: String) async throws {
+        try await mutateViews(in: containerID) { views in
+            guard views.count > 1 else {
+                throw PageTypeManagerError.cannotDeleteLastView
+            }
+            guard let idx = views.firstIndex(where: { $0.id == viewID }) else {
+                throw PageTypeManagerError.propertyNotFound
+            }
+            views.remove(at: idx)
+        }
+    }
+
+    /// Renames `viewID` in place (filename-as-title doesn't apply to views —
+    /// the name lives in the sidecar's `views[i].name`).
+    func renameView(_ viewID: String, in containerID: String, to newName: String) async throws {
+        let trimmed = newName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        try await mutateViews(in: containerID) { views in
+            guard let idx = views.firstIndex(where: { $0.id == viewID }) else {
+                throw PageTypeManagerError.propertyNotFound
+            }
+            views[idx].name = trimmed
         }
     }
 
@@ -704,9 +846,9 @@ extension PageTypeManager {
     /// Apply an in-place transform to a PropertyDefinition's per-config
     /// fields. Validates against the rest of the schema, persists the
     /// parent PageType sidecar atomically, and upserts into the SQLite
-    /// index. Used by the View Settings Edit Property pane (Task 11) to
-    /// live-save option-list / displayAs / dateFormat / numberFormat /
-    /// accept / icon changes without bespoke per-field manager methods.
+    /// index. Used by the View Settings Edit Property pane to live-save
+    /// option-list / displayAs / dateFormat / numberFormat / accept / icon
+    /// changes without bespoke per-field manager methods.
     func updateProperty(
         id propertyID: String,
         in typeID: String,
@@ -754,6 +896,15 @@ extension PageTypeManager {
         do { try PerTypeSchemaService.deleteProperty(id: propertyID, in: typeID, on: schemaAdapter) } catch {
             self.pendingError = error
             throw error
+        }
+        // Scrub the now-dangling property id from every SavedView of this
+        // container so a view grouped/sorted by it doesn't collapse into one
+        // "No Value" bucket or silently un-sort. Disk-safe: routes through the
+        // same fresh-from-disk read-modify-write as the other view mutations.
+        try await mutateViews(in: typeID) { views in
+            for i in views.indices {
+                SavedViewMutations.scrubDeletedProperty(&views[i], propertyID: propertyID)
+            }
         }
     }
 
