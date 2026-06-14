@@ -3,7 +3,7 @@ import SwiftUI
 /// Toolbar button that opens the View Settings popover.
 ///
 /// Statically positioned at ContentView level (NOT per-detail-view) inside
-/// the existing primary-action HStack so it shares the Liquid Glass capsule
+/// the primary-action cluster's trio pill, sharing one Liquid Glass capsule
 /// with NavDropdown + Inspector toggle.
 ///
 /// The `scope` parameter is reactive: when ContentView's selection changes,
@@ -11,8 +11,8 @@ import SwiftUI
 /// the open popover (if any) to re-render its content against the new scope.
 /// The button itself never moves.
 ///
-/// Sizing matches the Inspector toggle next to it (same 22x16 icon frame)
-/// so the three-button capsule reads as a uniform segmented group.
+/// Width-22 icon (matching the trio buttons); height is system-owned via the
+/// default toolbar button style, so the three buttons read as a uniform pill.
 struct ViewSettingsButton: View {
     let scope: ViewSettingsScope
 

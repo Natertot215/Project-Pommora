@@ -189,14 +189,12 @@ struct ContentView: View {
                 .navigationSplitViewColumnWidth(min: 180, ideal: 240, max: 330)
         } detail: {
             detail
-                // Toolbar HOSTED ON THE DETAIL column — not the split-view root.
-                // On macOS, `.primaryAction` resolves leading-relative to its HOST:
-                // on the split-view root it anchored to the narrow sidebar (primary)
-                // column and folded the cluster into the » overflow. On the detail it
-                // resolves to the detail's region. NOT the inspector (that owns the
-                // toolbar context and re-glues the buttons / leaks the views button
-                // inside). [TEST of the host-anchoring hypothesis — confirm via
-                // screenshot before establishing as root cause.]
+                // Toolbar hosted on the DETAIL column — not the split-view root and
+                // not the inspector. On the split-view root, `.primaryAction` anchors
+                // to the narrow sidebar (primary) column and folds the cluster into
+                // the » overflow; on the inspector, the inspector owns the toolbar
+                // context and re-glues / leaks the buttons. The detail host resolves
+                // `.primaryAction` to the detail's region — confirmed correct.
                 .toolbar { mainToolbar }
         }
         .tint(currentAccent)
@@ -231,7 +229,6 @@ struct ContentView: View {
                 inspectorPresented = AppState.pageInspectorOpen(pageID: p.id)
             } else {
                 inspectorPresented = false
-
             }
 
         }

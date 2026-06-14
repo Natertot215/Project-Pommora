@@ -86,9 +86,8 @@ struct ViewSurface<Scope: DetailScope>: View {
     // MARK: - Header
 
     /// Banner + title region. With a banner active the title overlays the banner
-    /// (bottom-leading) carrying the inside-stroke treatment for legibility over
-    /// the image; otherwise the banner area (Add Banner affordance) sits above a
-    /// plain, larger title in normal chrome.
+    /// (bottom-leading); otherwise the banner area (Add Banner affordance) sits
+    /// above a plain, larger title in normal chrome.
     @ViewBuilder
     private var headerRegion: some View {
         if bannerActive {
@@ -130,7 +129,7 @@ struct ViewSurface<Scope: DetailScope>: View {
     }
 
     /// True when this container has a banner image AND the active view shows it —
-    /// the only state where the title overlays the banner and gets the stroke.
+    /// the only state where the title overlays the banner.
     private var bannerActive: Bool {
         scope.containerBanner(pageTypeManager) != nil && (activeView?.showBanner ?? true)
     }

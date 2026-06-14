@@ -3,10 +3,10 @@ import SwiftUI
 /// Fixed-width, icon-only button that opens the Views dropdown popover (switch /
 /// manage the container's saved views).
 ///
-/// Rendered as an in-content overlay control (see `ContentView.detailViewControls`),
-/// NOT an `NSToolbar` item — so it carries no system "Icon & Text" toggle. The
-/// popover content gets the full Nexus environment injected at its boundary
-/// (`AppGlobals.current`), since the overlay sits outside the injected env chain.
+/// Hosted as a toolbar item — the leading pill of the trailing primary-action
+/// cluster (see `ContentView.primaryActionCapsule`). The popover content gets the
+/// full Nexus environment injected at its boundary (`AppGlobals.current`), since
+/// the toolbar lives outside ContentView's injected env chain.
 struct ViewsDropdownButton: View {
     let scope: ViewSettingsScope
     /// Threaded explicitly — the toolbar lives outside ContentView's environment
