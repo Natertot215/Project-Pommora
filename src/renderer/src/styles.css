@@ -51,11 +51,17 @@ body {
   width: 264px;
   z-index: 1;
   border-radius: var(--glass-radius);
-  background: transparent;
-  backdrop-filter: blur(24px) saturate(160%) brightness(1.45);
-  -webkit-backdrop-filter: blur(24px) saturate(160%) brightness(1.45);
-  border: 0.5px solid rgba(255, 255, 255, 0.08);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  /* Liquid glass over dark content: stay the same dark tone — presence comes
+     from the specular edge + refraction, NOT a brightness lift. The whisper
+     sheen (~3%) just gives it a hair of material; blur/saturate refract real
+     content once it sits behind the panel. */
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(30px) saturate(150%);
+  -webkit-backdrop-filter: blur(30px) saturate(150%);
+  border: 0.5px solid rgba(255, 255, 255, 0.09);
+  box-shadow:
+    inset 0 0.5px 0 rgba(255, 255, 255, 0.18),
+    inset 0 0 24px rgba(255, 255, 255, 0.02);
   overflow: hidden;
   -webkit-app-region: drag;
 }
