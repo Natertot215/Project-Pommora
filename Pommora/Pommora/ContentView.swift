@@ -10,10 +10,6 @@ struct ContentView: View {
     @Environment(NexusManager.self) private var nexusManager
     @State private var sidebarSelection: SidebarSelection = .none
     @State private var presentedSheet: SidebarSheet?
-    /// Keeps the views capsule + the settings/nav/inspector capsule as DISTINCT
-    /// Liquid-Glass shapes (different `glassEffectUnion` ids) while their gap stays
-    /// tight — same id merges, different ids stay separate even when close.
-    @Namespace private var glassNamespace
 
     // Inline-rename + stub-and-edit CRUD state. Lifted to ContentView (was
     // SidebarView-local pre-F.0) so detail-view footer "+" triggers can flip
@@ -95,22 +91,23 @@ struct ContentView: View {
                 topic: env.topicManager,
                 project: env.projectManager
             )
-            // The views capsule + the settings / nav / inspector capsule, kept as
-            // two DISTINCT glass shapes via different `glassEffectUnion` ids (same
-            // id merges, different ids stay separate even when close — Apple docs),
-            // so the inter-capsule gap can be tight (the HStack spacing) without
-            // them morphing into one. Capsule stays right-most.
-            GlassEffectContainer(spacing: 8) {
-                HStack(spacing: 8) {
-                    if showsViewControls {
+            // The views capsule + the settings / nav / inspector capsule each get
+            // their OWN GlassEffectContainer, so there is no shared morph context
+            // between them — they render as independent shapes with NO Liquid-Glass
+            // "reaching" toward each other. The gap is just the outer HStack spacing.
+            // Capsule stays right-most.
+            HStack(spacing: 8) {
+                if showsViewControls {
+                    GlassEffectContainer {
                         ViewsDropdownButton(
                             scope: currentViewSettingsScope,
                             pageTypeManager: env.vaultManager,
                             activeViewStore: env.activeViewStore
                         )
                         .glassEffect()
-                        .glassEffectUnion(id: "views", namespace: glassNamespace)
                     }
+                }
+                GlassEffectContainer {
                     HStack(spacing: 0) {
                         ViewSettingsButton(
                             scope: currentViewSettingsScope,
@@ -135,7 +132,6 @@ struct ContentView: View {
                         .help("Toggle Inspector (⌥⌘0)")
                     }
                     .glassEffect()
-                    .glassEffectUnion(id: "controls", namespace: glassNamespace)
                 }
             }
         }
