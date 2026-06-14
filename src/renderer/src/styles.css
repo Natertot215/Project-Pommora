@@ -1,16 +1,9 @@
 :root {
   --row-h: 26px;
-  --text: rgba(0, 0, 0, 0.82);
-  --text-dim: rgba(0, 0, 0, 0.5);
-  --hover: rgba(0, 0, 0, 0.05);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --text: rgba(255, 255, 255, 0.9);
-    --text-dim: rgba(255, 255, 255, 0.5);
-    --hover: rgba(255, 255, 255, 0.07);
-  }
+  --text: rgba(255, 255, 255, 0.9);
+  --text-dim: rgba(255, 255, 255, 0.5);
+  --hover: rgba(255, 255, 255, 0.07);
+  --main-bg: #1c1c1f;
 }
 
 * {
@@ -27,7 +20,7 @@ body,
 body {
   font: 13px/1.4 -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
   color: var(--text);
-  background: transparent; /* let the window vibrancy + glass show through */
+  background: transparent; /* let the native window vibrancy show through */
   -webkit-font-smoothing: antialiased;
 }
 
@@ -36,39 +29,37 @@ body {
   height: 100vh;
 }
 
-.sidebar-pane {
-  width: 264px;
+/* Sidebar = glass, NO fill: a rounded panel (inset 2px, 26px radius) revealing
+   the native macOS vibrancy. The #1C1C1F frame around it (and the main pane)
+   are one continuous dark; the panel is a "hole" punched via a large spread
+   shadow, clipped to the column so it never bleeds into the main pane. */
+.sidebar-col {
   flex: 0 0 264px;
-  height: 100%;
-  -webkit-app-region: drag; /* the sidebar is a window-drag region */
+  width: 264px;
+  position: relative;
+  overflow: hidden;
+}
+
+.surface-glass {
+  position: absolute;
+  inset: 2px;
+  border-radius: 26px;
+  background: transparent;
+  box-shadow: 0 0 0 9999px var(--main-bg);
+  overflow: hidden;
+  -webkit-app-region: drag;
 }
 
 .content-pane {
   flex: 1;
   height: 100%;
-  background: transparent;
+  background: var(--main-bg);
 }
 
-/* The swappable glass seam (Surface). Full-height edge-to-edge pane glass via
-   CSS backdrop-filter, layered over the native window vibrancy. */
-.surface-glass {
-  background: rgba(255, 255, 255, 0.4);
-  backdrop-filter: saturate(180%) blur(20px);
-  -webkit-backdrop-filter: saturate(180%) blur(20px);
-  border-right: 0.5px solid rgba(0, 0, 0, 0.12);
-}
-
-@media (prefers-color-scheme: dark) {
-  .surface-glass {
-    background: rgba(28, 28, 30, 0.45);
-    border-right: 0.5px solid rgba(255, 255, 255, 0.1);
-  }
-}
-
-/* sidebar content sits on top of the glass; rows are interactive */
+/* --- sidebar content (empty in the Phase-1 glass mockup) --- */
 .sidebar {
   -webkit-app-region: no-drag;
-  padding: 38px 8px 12px; /* clear the hidden-inset titlebar */
+  padding: 38px 10px 12px;
   overflow-y: auto;
   height: 100%;
 }
@@ -83,7 +74,6 @@ body {
   letter-spacing: 0.02em;
   color: var(--text-dim);
   padding: 4px 10px;
-  text-transform: none;
 }
 
 .row {
@@ -158,7 +148,7 @@ body {
 }
 
 .state-error {
-  color: #ff3b30;
+  color: #ff453a;
 }
 
 .state-detail {

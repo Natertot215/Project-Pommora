@@ -12,7 +12,7 @@ export function App(): React.JSX.Element {
 
   return (
     <div className="shell">
-      <Surface className="sidebar-pane">
+      <Surface>
         {status === 'loading' && <div className="state">Loading nexus…</div>}
         {status === 'error' && (
           <div className="state state-error">
