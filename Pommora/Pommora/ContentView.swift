@@ -77,55 +77,75 @@ struct ContentView: View {
         Self.viewSettingsScope(for: sidebarSelection)
     }
 
-    /// Toolbar primary-action capsule (ViewSettings + NavDropdown + Inspector
-    /// toggle). Extracted to a separate ViewBuilder so the compound nil-guards
-    /// don't blow up SwiftUI's @ViewBuilder type-checker inside the toolbar
-    /// closure. Renders nothing until the managers it needs are non-nil.
+    /// Shared sidebar lookup bundle — built from the live Nexus environment and
+    /// reused by the toolbar controls that resolve selection (Back/Forward,
+    /// NavDropdown). Nil until the environment is ready.
+    private var sidebarLookup: SidebarLookupBundle? {
+        guard let env = nexusEnvironment else { return nil }
+        return SidebarLookupBundle(
+            content: env.contentManager,
+            pageType: env.vaultManager,
+            area: env.areaManager,
+            topic: env.topicManager,
+            project: env.projectManager
+        )
+    }
+
+    /// Inspector show/hide toggle — the trailing member of the settings segment.
+    private var inspectorToggleButton: some View {
+        Button {
+            withAnimation(.smooth(duration: 0.25)) {
+                inspectorPresented.toggle()
+            }
+        } label: {
+            Image(systemName: "sidebar.trailing")
+                .font(.system(size: 12, weight: .medium))
+                .frame(width: 22)
+                .contentShape(Rectangle())
+        }
+        .keyboardShortcut("0", modifiers: [.option, .command])
+        .help("Toggle Inspector (⌥⌘0)")
+    }
+
+    /// The trailing primary-action cluster — two Liquid Glass capsules
+    /// (Views | settings·nav·inspector) at a tight 8pt gap, per the Figma.
+    ///
+    /// Each capsule is glassed EXACTLY ONCE via `.glassEffect` — the two
+    /// `.glassEffect` lines are two distinct pills, NOT a doubled layer. The
+    /// `GlassEffectContainer(spacing: 8)` only coordinates a shared sampling
+    /// region (matched to the `HStack` spacing); per Apple's docs it adds no
+    /// glass of its own. The system's own toolbar-item glass is suppressed by
+    /// `.sharedBackgroundVisibility(.hidden)` on the ToolbarItem, so there is no
+    /// second layer. A tighter gap than `ToolbarSpacer(.fixed)`'s system size —
+    /// the chosen tradeoff for Figma fidelity over a purely native gap.
     @ViewBuilder
     private var primaryActionCapsule: some View {
         if let env = nexusEnvironment {
-            let lookup = SidebarLookupBundle(
-                content: env.contentManager,
-                pageType: env.vaultManager,
-                area: env.areaManager,
-                topic: env.topicManager,
-                project: env.projectManager
-            )
-            // NO GlassEffectContainer — that is the Liquid-Glass MORPH primitive
-            // (its whole purpose is to let the glass inside it blend/reach). Two
-            // bare `.glassEffect()` capsules are independent and do NOT morph toward
-            // each other, so they read as two distinct pills at the tight HStack gap.
-            // Capsule stays right-most.
-            HStack(spacing: 8) {
-                if showsViewControls {
-                    ViewsDropdownButton(
-                        scope: currentViewSettingsScope,
-                        pageTypeManager: env.vaultManager,
-                        activeViewStore: env.activeViewStore
-                    )
-                }
-                HStack(spacing: 0) {
-                    ViewSettingsButton(
-                        scope: currentViewSettingsScope,
-                        pageTypeManager: env.vaultManager,
-                        tierConfigManager: env.tierConfigManager,
-                        pageContentManager: env.contentManager
-                    )
-                    NavDropdownButton(asSegment: true, lookup: lookup) { sel in
-                        sidebarSelection = sel
+            GlassEffectContainer(spacing: 8) {
+                HStack(spacing: 8) {
+                    if showsViewControls {
+                        ViewsDropdownButton(
+                            scope: currentViewSettingsScope,
+                            pageTypeManager: env.vaultManager,
+                            activeViewStore: env.activeViewStore
+                        )
+                        .glassEffect(.regular.interactive(), in: .capsule)
                     }
-                    Button {
-                        withAnimation(.smooth(duration: 0.25)) {
-                            inspectorPresented.toggle()
+                    HStack(spacing: 0) {
+                        ViewSettingsButton(
+                            scope: currentViewSettingsScope,
+                            pageTypeManager: env.vaultManager,
+                            tierConfigManager: env.tierConfigManager,
+                            pageContentManager: env.contentManager
+                        )
+                        if let lookup = sidebarLookup {
+                            NavDropdownButton(asSegment: true, lookup: lookup) { sel in
+                                sidebarSelection = sel
+                            }
                         }
-                    } label: {
-                        Image(systemName: "sidebar.trailing")
-                            .font(.system(size: 12, weight: .medium))
-                            .frame(width: 22, height: 16)
-                            .contentShape(Rectangle())
+                        inspectorToggleButton
                     }
-                    .keyboardShortcut("0", modifiers: [.option, .command])
-                    .help("Toggle Inspector (⌥⌘0)")
+                    .glassEffect(.regular.interactive(), in: .capsule)
                 }
             }
         }
@@ -141,27 +161,28 @@ struct ContentView: View {
     }
 
     /// The window toolbar — extracted into its own `@ToolbarContentBuilder` so the
-    /// `body` modifier chain stays under the Swift type-checker's inference budget
-    /// (adding `.visibilityPriority` tipped the inline version into a type-check
-    /// timeout).
+    /// `body` modifier chain stays under the Swift type-checker's inference budget.
+    ///
+    /// Back/Forward sit in the leading `.navigation` group; a `.flexible` spacer
+    /// pushes `primaryActionCapsule` (the two glass segments) to the trailing edge
+    /// (macOS 26 has no native trailing placement). The toolbar is hosted on the
+    /// detail column, off the inspector — the reaching fix.
     @ToolbarContentBuilder
     private var mainToolbar: some ToolbarContent {
-        // Back/Forward navigation arrows in the leading toolbar area.
         ToolbarItemGroup(placement: .navigation) {
-            if let env = nexusEnvironment {
-                BackForwardButtons(
-                    lookup: SidebarLookupBundle(
-                        content: env.contentManager,
-                        pageType: env.vaultManager,
-                        area: env.areaManager,
-                        topic: env.topicManager,
-                        project: env.projectManager
-                    ))
+            if let lookup = sidebarLookup {
+                BackForwardButtons(lookup: lookup)
             }
         }
-        ToolbarItem(placement: .primaryAction) {
+        ToolbarSpacer(.flexible)
+        ToolbarItem {
             primaryActionCapsule
         }
+        // Suppress the system's shared glass background for this item — the
+        // capsule supplies its own two `.glassEffect()` pills, so the system pill
+        // would otherwise wrap both and bridge them (the "reaching"). Hiding it
+        // leaves only the custom capsules at the tight 8pt gap.
+        .sharedBackgroundVisibility(.hidden)
     }
 
     var body: some View {
@@ -172,15 +193,19 @@ struct ContentView: View {
                 .navigationSplitViewColumnWidth(min: 180, ideal: 240, max: 330)
         } detail: {
             detail
+                // Toolbar HOSTED ON THE DETAIL column — not the split-view root.
+                // On macOS, `.primaryAction` resolves leading-relative to its HOST:
+                // on the split-view root it anchored to the narrow sidebar (primary)
+                // column and folded the cluster into the » overflow. On the detail it
+                // resolves to the detail's region. NOT the inspector (that owns the
+                // toolbar context and re-glues the buttons / leaks the views button
+                // inside). [TEST of the host-anchoring hypothesis — confirm via
+                // screenshot before establishing as root cause.]
+                .toolbar { mainToolbar }
         }
         .tint(currentAccent)
         .environment(\.nexusAccent, currentAccent)
-        // Window toolbar lives on the MAIN split view — NOT on the inspector
-        // content, which otherwise owns the toolbar context, folds the four buttons
-        // into the inspector's primary-action group (gluing them together), and
-        // surfaces the views button inside the inspector when it opens.
         .toolbarBackground(.hidden, for: .windowToolbar)
-        .toolbar { mainToolbar }
         .sheet(
             item: $bindableNexusManager.pendingAdoption,
             onDismiss: {

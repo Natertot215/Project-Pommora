@@ -76,7 +76,7 @@ struct NavDropdownButton: View {
             } label: {
                 Image(systemName: "square.on.square")
                     .font(.system(size: 12, weight: .medium))
-                    .frame(width: 22, height: 16)
+                    .frame(width: 22)
                     .contentShape(Rectangle())
             }
         } else {

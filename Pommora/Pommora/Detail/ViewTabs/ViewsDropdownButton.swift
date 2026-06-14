@@ -23,12 +23,9 @@ struct ViewsDropdownButton: View {
         } label: {
             Image(systemName: buttonIcon)
                 .font(.system(size: 12, weight: .medium))
-                // 24, not 36 — a 36pt item exceeds the toolbar's content height,
-                // which can shove the whole primary-action group into the » overflow.
-                .frame(width: 64, height: 24)
+                .frame(width: 38)
                 .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
         .help("Views")
         .popover(isPresented: $isPresented, arrowEdge: .bottom) {
             popoverContent

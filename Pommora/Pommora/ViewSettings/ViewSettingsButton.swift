@@ -49,7 +49,7 @@ struct ViewSettingsButton: View {
         } label: {
             Image(systemName: "slider.horizontal.3")
                 .font(.system(size: 12, weight: .medium))
-                .frame(width: 22, height: 16)
+                .frame(width: 22)
                 .contentShape(Rectangle())
         }
         .help("View Settings")
