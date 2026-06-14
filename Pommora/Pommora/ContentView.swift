@@ -108,45 +108,41 @@ struct ContentView: View {
     }
 
     /// The trailing primary-action cluster — two Liquid Glass capsules
-    /// (Views | settings·nav·inspector) at a tight 8pt gap, per the Figma.
-    ///
-    /// Each capsule is glassed EXACTLY ONCE via `.glassEffect` — the two
-    /// `.glassEffect` lines are two distinct pills, NOT a doubled layer. The
-    /// `GlassEffectContainer(spacing: 8)` only coordinates a shared sampling
-    /// region (matched to the `HStack` spacing); per Apple's docs it adds no
-    /// glass of its own. The system's own toolbar-item glass is suppressed by
-    /// `.sharedBackgroundVisibility(.hidden)` on the ToolbarItem, so there is no
-    /// second layer. A tighter gap than `ToolbarSpacer(.fixed)`'s system size —
-    /// the chosen tradeoff for Figma fidelity over a purely native gap.
+    /// (Views | settings·nav·inspector) at a tight `PUI.Spacing.md` gap, per the
+    /// Figma. Each capsule is glassed once via `.glassEffect`; the system's own
+    /// toolbar-item glass (which would otherwise wrap both into one pill and
+    /// bridge them — the "reaching") is suppressed by
+    /// `.sharedBackgroundVisibility(.hidden)` on the ToolbarItem. A tighter gap
+    /// than `ToolbarSpacer(.fixed)`'s system size — the deliberate, SDK-confirmed
+    /// tradeoff for the Figma's tight gap (native toolbar items can't express a
+    /// custom-width gap).
     @ViewBuilder
     private var primaryActionCapsule: some View {
         if let env = nexusEnvironment {
-            GlassEffectContainer(spacing: 8) {
-                HStack(spacing: 8) {
-                    if showsViewControls {
-                        ViewsDropdownButton(
-                            scope: currentViewSettingsScope,
-                            pageTypeManager: env.vaultManager,
-                            activeViewStore: env.activeViewStore
-                        )
-                        .glassEffect(.regular.interactive(), in: .capsule)
-                    }
-                    HStack(spacing: 0) {
-                        ViewSettingsButton(
-                            scope: currentViewSettingsScope,
-                            pageTypeManager: env.vaultManager,
-                            tierConfigManager: env.tierConfigManager,
-                            pageContentManager: env.contentManager
-                        )
-                        if let lookup = sidebarLookup {
-                            NavDropdownButton(lookup: lookup) { sel in
-                                sidebarSelection = sel
-                            }
-                        }
-                        inspectorToggleButton
-                    }
+            HStack(spacing: PUI.Spacing.md) {
+                if showsViewControls {
+                    ViewsDropdownButton(
+                        scope: currentViewSettingsScope,
+                        pageTypeManager: env.vaultManager,
+                        activeViewStore: env.activeViewStore
+                    )
                     .glassEffect(.regular.interactive(), in: .capsule)
                 }
+                HStack(spacing: 0) {
+                    ViewSettingsButton(
+                        scope: currentViewSettingsScope,
+                        pageTypeManager: env.vaultManager,
+                        tierConfigManager: env.tierConfigManager,
+                        pageContentManager: env.contentManager
+                    )
+                    if let lookup = sidebarLookup {
+                        NavDropdownButton(lookup: lookup) { sel in
+                            sidebarSelection = sel
+                        }
+                    }
+                    inspectorToggleButton
+                }
+                .glassEffect(.regular.interactive(), in: .capsule)
             }
         }
     }
