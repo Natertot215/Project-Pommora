@@ -153,6 +153,29 @@ struct ContentView: View {
         }
         .tint(currentAccent)
         .environment(\.nexusAccent, currentAccent)
+        // Window toolbar lives on the MAIN split view — NOT on the inspector
+        // content, which otherwise owns the toolbar context, folds the four buttons
+        // into the inspector's primary-action group (gluing them together), and
+        // surfaces the views button inside the inspector when it opens.
+        .toolbarBackground(.hidden, for: .windowToolbar)
+        .toolbar {
+            // Back/Forward navigation arrows in the leading toolbar area.
+            ToolbarItemGroup(placement: .navigation) {
+                if let env = nexusEnvironment {
+                    BackForwardButtons(
+                        lookup: SidebarLookupBundle(
+                            content: env.contentManager,
+                            pageType: env.vaultManager,
+                            area: env.areaManager,
+                            topic: env.topicManager,
+                            project: env.projectManager
+                        ))
+                }
+            }
+            ToolbarItem(placement: .primaryAction) {
+                primaryActionCapsule
+            }
+        }
         .sheet(
             item: $bindableNexusManager.pendingAdoption,
             onDismiss: {
@@ -174,30 +197,6 @@ struct ContentView: View {
         .inspector(isPresented: $inspectorPresented) {
             inspectorContent
                 .inspectorColumnWidth(min: 240, ideal: 320, max: 480)
-
-                .toolbarBackground(.hidden, for: .windowToolbar)
-                .toolbar {
-                    // Back/Forward navigation arrows in the leading toolbar area.
-                    ToolbarItemGroup(placement: .navigation) {
-                        if let env = nexusEnvironment {
-                            BackForwardButtons(
-                                lookup: SidebarLookupBundle(
-                                    content: env.contentManager,
-                                    pageType: env.vaultManager,
-                                    area: env.areaManager,
-                                    topic: env.topicManager,
-                                    project: env.projectManager
-                                ))
-                        }
-                    }
-                    // Segmented pair: NavDropdown (left) + Inspector toggle
-                    // (right). One .glassEffect on the outer HStack — the
-                    // segment buttons inside are plain so the background
-                    // glass isn't doubled by per-button glass.
-                    ToolbarItem(placement: .primaryAction) {
-                        primaryActionCapsule
-                    }
-                }
         }
         .onChange(of: sidebarSelection) { _, newValue in
             // Per-Page inspector state: when a Page becomes selected, restore
