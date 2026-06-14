@@ -71,7 +71,7 @@ Full record → `Planning/2026-06-03-Folder-Exclusion-Plan.md`; on-disk + behavi
 
 The vendored `swift-markdown-engine` folded into the Pommora-owned **`MarkdownPM`** package (`External/MarkdownPM/`) and reassembled cleaner behind a characterization net (branch `markdownpm-rehome`; package 119 tests / app 1166, 0 failures). Shipped: ONE cached Apple-AST parse spine per edit (`ParsedDocument` holds `appleDocument` + `lineIndex` — the #9 caret-stutter fix); the 173-line hand-rolled asterisk-only emphasis parser DELETED, emphasis now located on the Apple `swift-markdown` AST (underscore adopted; intra-word underscore + emphasis-inside-code / wikilinks / link-destinations suppressed; CommonMark rule-of-3 + cross-line); the two divergent heading detectors unified to one CommonMark rule; the dual styler collapsed into one owned `MarkdownPMStyler` + the theme merged into one `MarkdownPMTheme`; new heading scale `[2.0,1.75,1.5,1.25,1.15,1.0]` (H6 = body). Runtime TextKit / OS-bug workarounds preserved verbatim. Every behavior divergence logged (D-EMPH-1..7 / D-CODE-1 / D-HEAD-1/2 / #9).
 
-Full record → `Planning/2026-06-02-MarkdownPM-Plan.md` (Execution Record) + `Planning/MarkdownPM-Divergence-Ledger.md`; editor internals → `Features/PageEditor.md`; markdown behavior → `rules/Markdown.md`.
+Full record → `Planning/2026-06-02-MarkdownPM-Plan.md` (Execution Record) + `Planning/MarkdownPM-Divergence-Ledger.md`; editor internals → `Features/PageEditor.md`; markdown behavior → `rules/MarkdownPM.md`.
 
 #### Date property redesign + View Settings dynamic sizing (2026-06-02)
 

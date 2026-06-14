@@ -31,7 +31,7 @@ A Page is one Markdown file inside a [[PageTypes|Page Type]] — the only operat
 
 Pages support everything in standard Markdown — paragraphs, headings (H1–H6; H5/H6 render at body size), bulleted / numbered / task lists, fenced + inline code, images, GFM tables, blockquotes, horizontal rules. Standard Markdown round-trips natively to any external tool.
 
-**Headings are foldable** by default; fold state persists per-Page in frontmatter as `folded_headings: [...]` (ordinal-disambiguated keys; orphan entries reconciled on save). The Markdown body itself stays untouched. Implementation + visual spec → [[PageEditor]]; architecture rationale → `// rules//Markdown.md` §9.11.
+**Headings are foldable** by default; fold state persists per-Page in frontmatter as `folded_headings: [...]` (ordinal-disambiguated keys; orphan entries reconciled on save). The Markdown body itself stays untouched. Implementation + visual spec → [[PageEditor]]; architecture rationale → `// rules//MarkdownPM.md` §9.11.
 
 **Task lists** are GFM (`- [ ]` / `- [x]`) on disk. Pommora's `-[]` / `-[x]` shorthand is an input convenience that **canonicalizes to GFM on the space that starts the content** — so checkboxes stay portable (render in Obsidian/GitHub/pandoc too). Render + canonicalization + click-to-toggle spec → [[PageEditor]].
 
@@ -53,7 +53,7 @@ Inline embedded views (live editable embeds of other entities) are a **Contexts 
 
 #### Editor surface
 
-The editor's **WYSIWYG prose** experience — what the user sees and types — is a **dynamic-syntax** render: markers shrink near-invisible when the caret leaves an AST node, reveal when the caret enters (Bear / iA Writer pattern). Raw Markdown source is only visible in an external tool (`vim`, Obsidian source mode). Full surface, save pipeline, library, and hot-swap layer → [[PageEditor]]. Architecture, anti-patterns, and Nathan-locked editor decisions → `// rules//Markdown.md`.
+The editor's **WYSIWYG prose** experience — what the user sees and types — is a **dynamic-syntax** render: markers shrink near-invisible when the caret leaves an AST node, reveal when the caret enters (Bear / iA Writer pattern). Raw Markdown source is only visible in an external tool (`vim`, Obsidian source mode). Full surface, save pipeline, library, and hot-swap layer → [[PageEditor]]. Architecture, anti-patterns, and Nathan-locked editor decisions → `// rules//MarkdownPM.md`.
 
 The `.md` file format is the architectural firewall — Pages on disk are identical under any future editor swap. Frontmatter never reaches the editor canvas; the property surface is separate from the page body (see § "Properties surface" below).
 

@@ -2,7 +2,7 @@
 
 Pommora's body editor for Pages — what the user sees and types into when they click a Page row in the sidebar. Data-model concerns (on-disk shape, frontmatter, opening behavior, sidebar disclosure) live in [`Pages.md`](Pages.md); this file covers the editor surface itself.
 
-The editor runs on a native TextKit-2 stack. **HOW the editor's constructs are built** — the dynamic-syntax architecture, detection rules, state-mutation guards, anti-patterns, engine quirks, and every Nathan-locked editor decision (date-stamped) — is the contract in [`// rules//Markdown.md`](../rules/Markdown.md); read it first when implementing any construct. This spec records only WHAT the editor currently ships and its visible surface.
+The editor runs on a native TextKit-2 stack. **HOW the editor's constructs are built** — the dynamic-syntax architecture, detection rules, state-mutation guards, anti-patterns, engine quirks, and every Nathan-locked editor decision (date-stamped) — is the contract in [`// rules//MarkdownPM.md`](../rules/MarkdownPM.md); read it first when implementing any construct. This spec records only WHAT the editor currently ships and its visible surface.
 
 ---
 
@@ -16,7 +16,7 @@ The editor runs on a native TextKit-2 stack. **HOW the editor's constructs are b
 | **Apple-AST supplemental styling** | Pommora-side `AppleASTSupplementalStyler` — the caret-unaware AST pass for BlockQuote / Strikethrough / Table / ThematicBreak, composed LAST (last-writer-wins) after the owned `MarkdownPMStyler`'s primary per-construct pass. |
 | **Domain wiring** | `PageRef`, `PageFile`, `PageContentManager.updatePage`, `PageEditorViewModel`, `PageEditorHost`, `AppGlobals`, inspector + sidebar wiring — editor-library-agnostic. |
 
-Engine vendoring rationale + per-file modification log → `// rules//Markdown.md` §1.2 + `External/MarkdownPM/NOTICE.md`.
+Engine vendoring rationale + per-file modification log → `// rules//MarkdownPM.md` §1.2 + `External/MarkdownPM/NOTICE.md`.
 
 ---
 
@@ -99,7 +99,7 @@ Apple-Notes-style inline-grid tables (drag-resize columns, double-click popover 
 
 **Current ship:** GFM `| col | col |` syntax parses and renders with monospace + faint background + hidden pipes + hidden separator row. No grid alignment, no editing affordances, no drag-resize.
 
-**Open question — inline-column alignment.** Laid out as inline text in TextKit 2, cells don't visually align unless source is padded to equal column widths. `NSTextTable` is rejected — it forfeits Writing Tools / Look Up / dynamic-color and forces a TextKit-1 downgrade. The direction (`// rules//Markdown.md` §9.2 + §9.6): source on disk stays uniformly padded via `Markup.format()`, column widths live in frontmatter, the render layer applies overrides — making *inline* layout honor custom widths is the unsolved part. The popover cell editor and structural context menu don't depend on this and can land independently. Full design → `// rules//Markdown.md` §1.3 + §6.10.
+**Open question — inline-column alignment.** Laid out as inline text in TextKit 2, cells don't visually align unless source is padded to equal column widths. `NSTextTable` is rejected — it forfeits Writing Tools / Look Up / dynamic-color and forces a TextKit-1 downgrade. The direction (`// rules//MarkdownPM.md` §9.2 + §9.6): source on disk stays uniformly padded via `Markup.format()`, column widths live in frontmatter, the render layer applies overrides — making *inline* layout honor custom widths is the unsolved part. The popover cell editor and structural context menu don't depend on this and can land independently. Full design → `// rules//MarkdownPM.md` §1.3 + §6.10.
 
 > The `pommora_table_widths` frontmatter key is grandfathered (CLAUDE.md); rename when Tables ship.
 

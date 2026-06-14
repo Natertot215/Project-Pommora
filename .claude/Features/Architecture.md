@@ -180,4 +180,4 @@ No enforced layer separation. Patterns that keep the data layer tractable:
 - `// Features//Domain-Model.md` — 2-layer model + PARA mapping + linking model.
 - `// Features//Properties.md` — per-Type property catalog; tier-relation (context-link) properties; move-strip semantics.
 - `// Guidelines//CRUD-Patterns.md` — per-entity CRUD UI patterns + atomic-write discipline.
-- `// rules//Markdown.md` — editor architecture (dynamic-syntax, anti-patterns, save pipeline).
+- `// rules//MarkdownPM.md` — editor architecture (dynamic-syntax, anti-patterns, save pipeline).
