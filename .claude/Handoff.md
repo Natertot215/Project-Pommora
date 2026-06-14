@@ -6,50 +6,41 @@
 >
 > *"This whole session started because I'm sick of one pattern: you claim something is true, write a plan around that claim, then later review it and find the claim was never true — and we thrash for hours. **That stops. You do NOT guess, you LOOK, you ASK. You open the file and LOOK AT THE CODE before you assert anything. You ASK ME when unsure.** A plan built on an unverified claim is a liability, not progress. Treat every doc, every `file:line`, every "it works like X" as a hypothesis until you've read the code that proves it."* ASK ME when you're unsure! Honesty is key; confidence must be earned through evidence.
 
-#### Session Summary (0.4.2 Views UIX fixes, pre-0.5 — Fix 1 closed, Fix 2 advanced to a working point, toolbar `»` overflow unresolved)
+#### Session Summary (toolbar `»`-overflow saga CLOSED + finalized · full `bb6817a..HEAD` review · `.claude/rules/` introduced)
 
-**Fix 1 closed (views dropdown + toolbar).** The views/settings buttons were gluing together and the views button was leaking into the inspector. Root cause: the `.toolbar` was attached to `inspectorContent`, so the inspector owned the `primaryAction` context. Fix: move the toolbar onto the `NavigationSplitView` (commit `bb6817a`); recorded in `// Guidelines //Design.md`.
+**Where it started.** The prior handoff left the toolbar `»` overflow as the open headline — macOS-26's primary-action cluster folding into the `»` menu, with host-anchoring an *unconfirmed* hypothesis and a freshly-committed Fix-2 banner working point. Working tree was the 0.4.2 Views-UIX line on `main`.
 
-**Fix 2 advanced to a working point (banner + revised titles), IN PROGRESS.** Nathan set the current uncommitted point on `main` manually — treat it as the baseline; nothing is "fixed" beyond it. Landed: detail title → 22pt (`.title` bold) via new `PUI.DetailHeader` tokens; the title overlays the banner bottom-leading when a banner is active, plain chrome otherwise (`ViewSurface`); the banner now bleeds edge-to-edge under the sidebar/inspector via Apple's `backgroundExtensionEffect()` (macOS 26 Liquid Glass — the Landmarks-sample pattern); banner height 140 → 180 (`ContainerBannerView`); the title is a plain `Label` (an inside-stroke via Core Text was explored, then dropped).
+**Key moments.** The saga closed. The "squished Views button" resolved to one line: `.buttonStyle(.plain)` on `ViewsDropdownButton` was stripping the default toolbar sizing — *removing* it (not adding frames/padding, which "fought the system") was the fix; height is system-owned for native toolbar buttons, only width is explicit. Final design: two Liquid Glass capsules (**Views** pill | **settings·nav·inspector** trio) at a tight `PUI.Spacing.md` gap, hosted on the **detail column** (host-anchoring now CONFIRMED — `.primaryAction` is leading-edge, so on the split-view root it measured against the sidebar's narrow budget and folded), with `.sharedBackgroundVisibility(.hidden)` killing the "reaching." Nathan blessed the baseline (`ced9dd3`), then directed a full teardown: `3a70f14` (dead scaffolding incl. the dormant `views_button_style` persistence), `70fe2b1` (redundant `GlassEffectContainer` dropped, gap tokenized), `fc613ca` (comment/doc truth-up). A `bb6817a..HEAD` review — two convergent passes (first-party + an independent agent) — came back **merge-quality, zero bugs**; its one DRY finding (the toolbar-glyph triple copy-pasted across 5 buttons) shipped as the `.toolbarGlyph(width:)` modifier + `PUI.Icon.toolbar*` tokens (`b958cbd`). Confirmed unchanged via a render-neutral diff + a non-disruptive live window capture.
 
-**The toolbar `»`-overflow saga (unresolved).** macOS 26's toolbar collapses the primary-action controls (views/settings/nav/inspector) into the `»` overflow menu. I tried many angles — removing the glass, a height reduction, restructuring into a `ToolbarItemGroup`, attaching the toolbar to the detail column, and building logic on the nonexistent `visibilityPriority(_:)` — none landed cleanly. The **`NSGlassContainerView` story was REFUTED** (06-14 investigation): that's a private *event-handling* toolbar subview (it swallows clicks), NOT the layout/overflow mechanism. The **leading hypothesis — NOT yet confirmed; confirm via the host-move fix + screenshots:** `.primaryAction` is the leading edge on macOS and the `.toolbar` is on the `NavigationSplitView` root, so it resolves to the sidebar (primary column) and is measured against the *sidebar's* narrow width budget (~180–330pt), not the window — which would explain the fold, the sidebar-landing, and the overflow-even-maximized. macOS has NO trailing placement; `visibilityPriority` isn't in the 26.5 SDK; `ToolbarSpacer` is. Highest-value test (untested to completion — it was reverted mid-flight for a clean revert, not because it failed): host the `.toolbar` on the detail.
+**Then a docs-infra thread.** Created `.claude/rules/` (Claude Code natively auto-loads it) and migrated two guideline docs — `Review-Discipline.md` (no frontmatter → always-on) and the page-editor rulebook (renamed `Markdown.md` → `MarkdownPM.md`, `paths: ["**/MarkdownPM/**"]` → loads only near the editor). Commits `8f7b32e` + `9ae4b58`; refs repointed, README updated, Paradigm-Decisions left in Guidelines per Nathan. The `~/.claude/scripts/cross-file-mirroring` launchd script (the Nexus mirror) was made frontmatter-aware — it now preserves each side's own frontmatter and syncs body-only, so the rules mirror to the Nexus `II. Rules` folder without stripping the `paths:` scoping. Daemon restarted clean; vault orphans cleaned.
 
-**Nathan's process note (carry forward).** When told to revert, I kept trying new fixes instead — he flagged it directly ("Stop — i told you to REVERT"). He also caught the banner blurring into the toolbar, which was the clue that the macOS 26 toolbar glass container is the locus of the overflow problem.
+**Nathan's voice.** Hands-on through the mirror wiring — corrected me twice when I hunted in the wrong place ("No, the mirror is a python script"; "it's at the desktop level"), then "oh it mirrors to II. Rules, not Rules" (the `II.` prefix convention), and "keep it only body area, just like the others" (the body-only-but-frontmatter-preserved reconcile). On scope he was tight: "the rest can stay in guidelines where I manually point where relevant."
 
-**Left off:** the Fix 2 working point on `main` (uncommitted, baseline), with the toolbar `»` overflow still open. PENDING Fix 2 polish: the title text baseline should sit on the icon's bottom edge — a plain `Label` centers them, floating the text high — NOT yet applied.
+**Where it left off.** Clean HEAD `9ae4b58` on `main`, my work fully committed. Working tree carries a **parallel session's** uncommitted `Planning/06-14-React-Rebuild-Roadmap.md` + its `Planning/README.md` index entry (surfaced, NOT bundled), plus my `06-13-Views-UIX-Fixes.md` checkoff (committed alongside this handoff). Immediate next action is Nathan's direction call — see Next Session.
 
 #### Lessons Learned
 
-- **The toolbar `»` overflow is NOT `NSGlassContainerView`** — that attribution was REFUTED (it's a private event-handling toolbar subview that swallows clicks, not a layout mechanism). Leading hypothesis (UNCONFIRMED, pending screenshots): host-anchoring — `.primaryAction` is leading-edge on macOS, so with the `.toolbar` on the `NavigationSplitView` root it resolves to the sidebar column and is measured against the *sidebar's* narrow width budget. **→ candidate CLAUDE.md quirk once confirmed.**
-- **`.primaryAction` is overflow-eligible AND host-relative** — it resolves against the toolbar's host, so on a `NavigationSplitView` root it maps to the sidebar / primary column, not the detail's trailing edge.
-- **A single custom-`HStack` `ToolbarItem` overflows whole** — wrapping multiple controls in one item makes the whole group spill into `»`; a `ToolbarItemGroup` of standard items renders but, on the split-view root, lands on the sidebar.
-- **Verify a context7-sourced API actually compiles before building logic on it** — `visibilityPriority(_:)` is documented but NOT in the installed SDK; context7's Apple docs ran ahead of the toolchain.
-- **When the user says REVERT, revert** — don't keep iterating on new fixes; go back to baseline first, then reassess.
+- **Toolbar host-anchoring CONFIRMED** (was unconfirmed): `.primaryAction` resolves leading-relative to its host — split-view root → anchors to the narrow sidebar → folds into `»`; the **detail column** is the correct host. **→ candidate CLAUDE.md quirk.**
+- **The "squish" was `.buttonStyle(.plain)`** stripping default toolbar sizing — for native toolbar buttons height is system-owned; explicit `.frame(height:)`/padding fights the system.
+- **Trust `xcodebuild`, not SourceKit** (reaffirmed): a wave of "Cannot find 'PUI'" / "Image has no member 'toolbarGlyph'" false positives during the modifier extraction; the build was green.
+- **`.claude/rules/` frontmatter is `paths:`-only** (no `description`/`alwaysApply` — that's Cursor): no frontmatter = always-loaded; `paths:` globs = loads only when a matching file is read. Keep each rule < 200 lines; for heavy task-specific content prefer a skill.
+- **The Nexus mirror strips frontmatter toward `.claude/`** by design — any `.claude/` file that NEEDS frontmatter (a rule's `paths:`) requires the reconcile to preserve it, or it's silently stripped on the next 1s pass.
 
 #### Next Session
 
-1. **Cross-view tweaks FIRST (menus + banners).** Finish the shared UIX before Gallery — the toolbar `»` overflow troubleshoot (the headline task for next session), menus interaction, banner behavior.
-2. **Then build Gallery.** Comes AFTER Fix 2 is settled.
-3. **Re-do grouping + sorting UIX** (after Gallery) — currently rudimentary + incomplete, many issues.
-4. **Rework the View Settings "Layout" stub (= Fix 3)** — AFTER BOTH views (table + gallery) are visually perfect.
+> ⚠️ **Direction call first.** A parallel session has made `Planning/06-14-React-Rebuild-Roadmap.md` the top Active plan — an *exploratory* post-v1 React+Electron rebuild (SwiftUI left behind). It's a scoped option, not committed work, but it could reprioritize the SwiftUI tactical items below. Confirm whether the next push is SwiftUI Views continuation or the React exploration before picking these up.
+
+1. **Menus interaction** — the remaining "cross-view UIX" now that the toolbar half is closed; then build **Gallery**.
+2. **Re-do grouping + sorting UIX** — rudimentary + incomplete; after Gallery.
+3. **Fix 3 — View Settings "Layout" pane rework** — only after both table + gallery are visually perfect.
 
 #### Pending Focuses
 
-- **Toolbar `»` overflow** (Next Session #1, headline) — troubleshoot the macOS 26 glass-container collapse; carry the findings above.
-- **Title baseline-on-icon** (Fix 2 remainder) — the title text baseline should rest on the icon's bottom edge; a plain `Label` centers them. Not yet applied.
-- **Grouping / sorting UIX rework** — rudimentary + incomplete; revisit AFTER Gallery.
-- **Fix 3 — Layout-pane rework** — the View Settings "Layout" stub; AFTER both views are visually perfect.
+- **[carried from 06-14]** Menus → Gallery → grouping/sorting → Fix 3 — the tactical Views UIX sequence; the toolbar half of "cross-view UIX" closed this session. Contingent on the direction call above.
+- **[carried from 06-14]** Title baseline-on-icon (Fix 2 polish) — the detail title text should baseline on the icon's bottom edge; a plain `Label` centers them. Not yet applied.
 
 #### Fix Log
 
-**OPEN:**
-- ⏳ **Toolbar `»` overflow** — macOS 26 folds the primary-action controls (views/settings/nav/inspector) into the `»` overflow menu. `NSGlassContainerView` REFUTED (private event-handling view). Leading hypothesis (UNCONFIRMED — confirm via screenshots): `.primaryAction` is leading-edge on macOS + the `.toolbar` is on the `NavigationSplitView` root → resolves to the sidebar column / narrow width budget; the single custom-`HStack` item amplifies. macOS has no trailing placement; `visibilityPriority` not in the SDK; `ToolbarSpacer` is. Testing the fix lever: host the toolbar on the detail + decompose.
-
-**SHIPPED THIS SESSION:**
-- ✅ **Fix 1 — views dropdown + toolbar** — the toolbar was on `inspectorContent` (inspector owned `primaryAction`), gluing the buttons + leaking the views button into the inspector; moved the toolbar onto the `NavigationSplitView` (`bb6817a`). Recorded in `// Guidelines //Design.md`.
-- ✅ **Fix 2 (in progress) — banner + revised titles** — detail title 22pt `.title` bold (`PUI.DetailHeader`); title overlays banner bottom-leading when active, plain chrome otherwise (`ViewSurface`); banner bleeds edge-to-edge via `backgroundExtensionEffect()`; banner height 140 → 180 (`ContainerBannerView`); plain-`Label` title (Core Text inside-stroke dropped). Baseline-on-icon polish still pending.
-
-**Carried (pre-existing, unrelated to the Views work):**
 - **Inline-edit lag** — property-value inline edit has a noticeable commit buffer.
 - **Stale property options** — newly-added Select/Status options aren't selectable until restart; needs a running-build repro to pin the picker path.
 - **Backspace on checkbox / list item** should auto-delete the syntax — UNIMPLEMENTED (feature-add).
@@ -66,4 +57,4 @@
 #### Document pointers
 
 - Roadmap → `Framework.md` · ship log → `History.md` · PRD → `PommoraPRD.md` · branch quirks + hard rules → `CLAUDE.md`
-- Views spec-as-fact → `Features/Views.md` · per-entity specs → `Features/*.md`
+- Auto-loaded rules → `// rules//` (`MarkdownPM.md` scoped to the editor; `Review-Discipline.md` always-on) · Views spec-as-fact → `Features/Views.md` · per-entity specs → `Features/*.md`

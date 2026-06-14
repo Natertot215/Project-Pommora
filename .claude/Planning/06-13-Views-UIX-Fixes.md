@@ -20,6 +20,10 @@ macOS 26 folded the primary-action controls (views / settings / nav / inspector)
 - **SDK ceiling (verified vs `MacOSX26.5.sdk`):** macOS has NO trailing action placement (`topBarTrailing` is `@available(macOS, unavailable)`); `visibilityPriority` / `topBarPinnedTrailing` / `toolbarOverflowMenu` are absent; `ToolbarSpacer` is present but has no custom-width sizing — so a tight gap between two *native* pills is impossible, which is why the cluster uses two custom `.glassEffect()` capsules.
 - **REFUTED (confirmed false):** the earlier `NSGlassContainerView` attribution — a *private event-handling* toolbar subview (it swallows mouse clicks; workaround `.buttonStyle(.borderless)`), NOT a layout/overflow mechanism. Also ruled out: a merging second toolbar (none exists in the main tree) and the banner / `backgroundExtensionEffect` (the overflow predated it by ~17 days).
 
+### Toolbar cluster — FINALIZED (06-14 teardown + review)
+
+The primary-action cluster is conclusively done — two Liquid Glass capsules (**Views** pill | **settings·nav·inspector** trio) at a tight `PUI.Spacing.md` gap, hosted on the **detail column**, with `.sharedBackgroundVisibility(.hidden)` killing the "reaching" and **system-owned height** (the squish was caused by `.buttonStyle(.plain)` on the Views button stripping the default toolbar sizing — removing it was the fix). Baseline `ced9dd3`; teardown `3a70f14` (dead scaffolding) + `70fe2b1` (redundant `GlassEffectContainer` dropped, gap tokenized) + `fc613ca` (comment/doc truth-up). A full `bb6817a..HEAD` review came back merge-quality; its one DRY finding shipped as the `.toolbarGlyph(width:)` modifier + `PUI.Icon.toolbar*` tokens (`b958cbd`). Glass/height/host claims verified against `MacOSX26.5.sdk` and a live capture. Spec → `// Guidelines //Design.md` "Chrome animation" + "Liquid Glass continuity".
+
 ### Fix 1b — Column / page-row "Edit Icon" → IconPicker popover — NEEDS NATHAN'S PICK
 
 Replace the screen-takeover (`IconPickerSheet`) with the left-flying `IconPicker` popover (the approach used in the views dropdown). Open question — WHICH rows: table/gallery page rows (routed via `ViewSurface` → the global `.sheet`; rows need a per-row anchor, more involved) or sidebar entity rows (Vaults / Areas / Topics / Projects / Sets). (Property rows in Edit Properties already use `iconPickerPopover`.)
@@ -45,6 +49,6 @@ Current working point on `main` (Nathan set it manually — the baseline; nothin
 
 ### Cleanup / bookkeeping
 
-- Dormant "Show View Title" persistence (`views_button_style` field + `OrderPersister.setViewsButtonStyle`) — remove in a persistence pass.
+- **DONE (06-14, `3a70f14`)** — Dormant "Show View Title" persistence (`views_button_style` field + `OrderPersister.setViewsButtonStyle`) removed in the toolbar teardown; zero readers confirmed.
 - `.savedView` `SidebarSheet.IconTarget` case may be dead (views Edit Icon moved to the popover) — verify + remove.
 - Glass rendering / flyout directions / banner bleed / toolbar placement are NOT CI-verifiable — each needs Nathan's physical pass; CI only guarantees compile + tests green.
