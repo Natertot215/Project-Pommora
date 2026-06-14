@@ -99,9 +99,7 @@ struct ContentView: View {
             }
         } label: {
             Image(systemName: "sidebar.trailing")
-                .font(.system(size: 12, weight: .medium))
-                .frame(width: 22)
-                .contentShape(Rectangle())
+                .toolbarGlyph(width: PUI.Icon.toolbarActionFrame)
         }
         .keyboardShortcut("0", modifiers: [.option, .command])
         .help("Toggle Inspector (⌥⌘0)")

@@ -22,9 +22,7 @@ struct ViewsDropdownButton: View {
             isPresented.toggle()
         } label: {
             Image(systemName: buttonIcon)
-                .font(.system(size: 12, weight: .medium))
-                .frame(width: 38)
-                .contentShape(Rectangle())
+                .toolbarGlyph(width: PUI.Icon.toolbarViewsFrame)
         }
         .help("Views")
         .popover(isPresented: $isPresented, arrowEdge: .bottom) {

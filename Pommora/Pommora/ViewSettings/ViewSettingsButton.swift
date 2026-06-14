@@ -48,9 +48,7 @@ struct ViewSettingsButton: View {
             isPresented.toggle()
         } label: {
             Image(systemName: "slider.horizontal.3")
-                .font(.system(size: 12, weight: .medium))
-                .frame(width: 22)
-                .contentShape(Rectangle())
+                .toolbarGlyph(width: PUI.Icon.toolbarActionFrame)
         }
         .help("View Settings")
         .popover(isPresented: $isPresented, arrowEdge: .top) {

@@ -60,9 +60,7 @@ struct BackForwardButtons: View {
     ) -> some View {
         Button(action: action) {
             Image(systemName: systemImage)
-                .font(.system(size: 12, weight: .medium))
-                .frame(width: 22)
-                .contentShape(Rectangle())
+                .toolbarGlyph(width: PUI.Icon.toolbarActionFrame)
         }
         .disabled(disabled)
         .help(help)

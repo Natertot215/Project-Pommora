@@ -128,6 +128,19 @@ enum PUI {
 
         /// Visibility eye / eye-slash on rows.
         static let visibility: Font = .system(size: 11)
+
+        // Toolbar-action glyphs (window-toolbar primary-action + navigation
+        // buttons). Height is system-owned by the default toolbar button style;
+        // only width is set, via the `.toolbarGlyph(width:)` modifier.
+
+        /// Toolbar-action glyph font — every primary-action / navigation toolbar
+        /// button icon (Views, settings, nav, inspector, Back / Forward).
+        static let toolbarAction: Font = .system(size: 12, weight: .medium)
+        /// Standard toolbar-action hit-target width — the settings · nav ·
+        /// inspector trio segments and the Back / Forward buttons.
+        static let toolbarActionFrame: CGFloat = 22
+        /// Wider Views pill — the single-icon Views button, balanced as its own capsule.
+        static let toolbarViewsFrame: CGFloat = 38
     }
 
     // MARK: - Typography
