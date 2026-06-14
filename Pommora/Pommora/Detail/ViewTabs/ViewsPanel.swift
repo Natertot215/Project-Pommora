@@ -55,6 +55,8 @@ struct ViewsPanel: View {
         .frame(width: 280)
         .focusable()
         .onMoveCommand { direction in stepActive(direction) }
+        // Keep arrow-key nav but drop the blue focus ring/selection wash.
+        .focusEffectDisabled()
     }
 
     @ViewBuilder
