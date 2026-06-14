@@ -16,12 +16,11 @@ function createWindow(): void {
     vibrancy: 'sidebar', // native macOS material under the CSS glass layer
     backgroundColor: '#00000000',
     webPreferences: {
-      preload: join(__dirname, '../preload/index.mjs'),
-      // sandbox must be false for an ESM preload (electron-vite emits .mjs).
-      // Security still holds: contextIsolation on + nodeIntegration off, and the
-      // preload exposes only the narrow nexus read API. Restoring sandbox later
-      // would require emitting a CommonJS preload.
-      sandbox: false,
+      preload: join(__dirname, '../preload/index.js'),
+      // CommonJS preload (package is not type:module) → sandbox can stay ON.
+      // Plus contextIsolation on + nodeIntegration off; the preload exposes only
+      // the narrow nexus read API.
+      sandbox: true,
       contextIsolation: true,
       nodeIntegration: false
     }
