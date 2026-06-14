@@ -61,7 +61,7 @@ struct BackForwardButtons: View {
         Button(action: action) {
             Image(systemName: systemImage)
                 .font(.system(size: 12, weight: .medium))
-                .frame(width: 22, height: 16)
+                .frame(width: 22)
                 .contentShape(Rectangle())
         }
         .disabled(disabled)

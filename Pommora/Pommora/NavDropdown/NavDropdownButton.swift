@@ -9,11 +9,6 @@ enum PanelMode: String, CaseIterable, Identifiable {
 
 @MainActor
 struct NavDropdownButton: View {
-    /// When `true`, the trigger button renders as a plain segment (no outer
-    /// glass chrome) for embedding inside a shared Liquid Glass pill.
-    /// When `false` (default), renders as a standalone Liquid Glass capsule.
-    let asSegment: Bool
-
     /// Managers passed in as explicit params (NOT @Environment) because the
     /// toolbar where this lives is OUTSIDE ContentView's `.detail { ... }`
     /// closure's `.environment(...)` chain. Same pattern as ViewSettingsButton
@@ -27,16 +22,6 @@ struct NavDropdownButton: View {
     /// through MainWindowRouter, which doesn't propagate reliably from the
     /// popover view host.
     let onOpen: (SidebarSelection) -> Void
-
-    init(
-        asSegment: Bool = false,
-        lookup: SidebarLookupBundle,
-        onOpen: @escaping (SidebarSelection) -> Void
-    ) {
-        self.asSegment = asSegment
-        self.lookup = lookup
-        self.onOpen = onOpen
-    }
 
     @State private var isPresented = false
     @State private var mode: PanelMode = .pinned
@@ -66,27 +51,16 @@ struct NavDropdownButton: View {
         pinnedSnapshot = AppGlobals.pinnedManager?.entries ?? []
     }
 
-    @ViewBuilder
     private var triggerButton: some View {
-        if asSegment {
-            // Segment style — no .buttonStyle here; the parent pill's
-            // .glassEffect carries the background. Avoids doubling.
-            Button {
-                isPresented.toggle()
-            } label: {
-                Image(systemName: "square.on.square")
-                    .font(.system(size: 12, weight: .medium))
-                    .frame(width: 22)
-                    .contentShape(Rectangle())
-            }
-        } else {
-            // Standalone style — Liquid Glass capsule.
-            Button {
-                isPresented.toggle()
-            } label: {
-                Image(systemName: "square.on.square")
-            }
-
+        // Plain segment — the parent pill's `.glassEffect` carries the
+        // background; this button adds no chrome of its own.
+        Button {
+            isPresented.toggle()
+        } label: {
+            Image(systemName: "square.on.square")
+                .font(.system(size: 12, weight: .medium))
+                .frame(width: 22)
+                .contentShape(Rectangle())
         }
     }
 

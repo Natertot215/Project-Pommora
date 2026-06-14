@@ -139,7 +139,7 @@ struct ContentView: View {
                             pageContentManager: env.contentManager
                         )
                         if let lookup = sidebarLookup {
-                            NavDropdownButton(asSegment: true, lookup: lookup) { sel in
+                            NavDropdownButton(lookup: lookup) { sel in
                                 sidebarSelection = sel
                             }
                         }

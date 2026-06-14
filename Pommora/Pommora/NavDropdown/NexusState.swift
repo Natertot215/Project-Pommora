@@ -29,10 +29,6 @@ struct NexusState: Codable, Equatable, Sendable {
     // churns the sidecar's `modified_at` or its diff.
     var activeViews: [String: String] = [:]
 
-    // Display mode for the toolbar Views button ("icon" | "title"). Nil until
-    // the user toggles "Show View Title"; the button defaults to icon-only.
-    var viewsButtonStyle: String?
-
     init() {}
 
     private enum CodingKeys: String, CodingKey {
@@ -46,7 +42,6 @@ struct NexusState: Codable, Equatable, Sendable {
         case projectOrder = "project_order"
         case vaultOrder = "vault_order"
         case activeViews = "active_views"
-        case viewsButtonStyle = "views_button_style"
     }
 
     init(from decoder: any Decoder) throws {
@@ -63,7 +58,6 @@ struct NexusState: Codable, Equatable, Sendable {
         self.projectOrder = try c.decodeIfPresent([String].self, forKey: .projectOrder)
         self.vaultOrder = try c.decodeIfPresent([String].self, forKey: .vaultOrder)
         self.activeViews = try c.decodeIfPresent([String: String].self, forKey: .activeViews) ?? [:]
-        self.viewsButtonStyle = try c.decodeIfPresent(String.self, forKey: .viewsButtonStyle)
     }
 
     func encode(to encoder: any Encoder) throws {
@@ -79,6 +73,5 @@ struct NexusState: Codable, Equatable, Sendable {
         if !activeViews.isEmpty {
             try c.encode(activeViews, forKey: .activeViews)
         }
-        try c.encodeIfPresent(viewsButtonStyle, forKey: .viewsButtonStyle)
     }
 }
