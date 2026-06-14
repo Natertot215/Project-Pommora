@@ -91,33 +91,47 @@ struct ContentView: View {
                 topic: env.topicManager,
                 project: env.projectManager
             )
-            // Settings + nav-dropdown + inspector — one segment. The views button
-            // is a SEPARATE toolbar item (see `.toolbar`), so the two glass capsules
-            // don't morph into one Liquid-Glass segment.
-            HStack(spacing: 0) {
-                ViewSettingsButton(
-                    scope: currentViewSettingsScope,
-                    pageTypeManager: env.vaultManager,
-                    tierConfigManager: env.tierConfigManager,
-                    pageContentManager: env.contentManager
-                )
-                NavDropdownButton(asSegment: true, lookup: lookup) { sel in
-                    sidebarSelection = sel
-                }
-                Button {
-                    withAnimation(.smooth(duration: 0.25)) {
-                        inspectorPresented.toggle()
+            // The views button (its own glass capsule) + the settings / nav /
+            // inspector capsule. A GlassEffectContainer with a small spacing keeps
+            // the two glass shapes from morphing into one segment while keeping the
+            // gap tight (ToolbarSpacer's fixed gap was too wide). Capsule stays
+            // right-most.
+            GlassEffectContainer(spacing: 4) {
+                HStack(spacing: 10) {
+                    if showsViewControls {
+                        ViewsDropdownButton(
+                            scope: currentViewSettingsScope,
+                            pageTypeManager: env.vaultManager,
+                            activeViewStore: env.activeViewStore
+                        )
+                        .glassEffect()
                     }
-                } label: {
-                    Image(systemName: "sidebar.trailing")
-                        .font(.system(size: 12, weight: .medium))
-                        .frame(width: 22, height: 16)
-                        .contentShape(Rectangle())
+                    HStack(spacing: 0) {
+                        ViewSettingsButton(
+                            scope: currentViewSettingsScope,
+                            pageTypeManager: env.vaultManager,
+                            tierConfigManager: env.tierConfigManager,
+                            pageContentManager: env.contentManager
+                        )
+                        NavDropdownButton(asSegment: true, lookup: lookup) { sel in
+                            sidebarSelection = sel
+                        }
+                        Button {
+                            withAnimation(.smooth(duration: 0.25)) {
+                                inspectorPresented.toggle()
+                            }
+                        } label: {
+                            Image(systemName: "sidebar.trailing")
+                                .font(.system(size: 12, weight: .medium))
+                                .frame(width: 22, height: 16)
+                                .contentShape(Rectangle())
+                        }
+                        .keyboardShortcut("0", modifiers: [.option, .command])
+                        .help("Toggle Inspector (⌥⌘0)")
+                    }
+                    .glassEffect()
                 }
-                .keyboardShortcut("0", modifiers: [.option, .command])
-                .help("Toggle Inspector (⌥⌘0)")
             }
-            .glassEffect()
         }
     }
 
@@ -182,14 +196,6 @@ struct ContentView: View {
                     // (right). One .glassEffect on the outer HStack — the
                     // segment buttons inside are plain so the background
                     // glass isn't doubled by per-button glass.
-                    // Views button — its OWN toolbar item (a distinct Liquid-Glass
-                    // segment), surfaced only for the two view-bearing containers.
-                    if showsViewControls {
-                        ToolbarItem(placement: .primaryAction) {
-                            ViewsDropdownButton(scope: currentViewSettingsScope)
-                                .glassEffect()
-                        }
-                    }
                     ToolbarItem(placement: .primaryAction) {
                         primaryActionCapsule
                     }
