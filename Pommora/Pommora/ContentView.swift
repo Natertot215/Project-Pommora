@@ -91,12 +91,16 @@ struct ContentView: View {
                 topic: env.topicManager,
                 project: env.projectManager
             )
-            // Views + view-settings buttons are deliberately NOT here. They're
-            // container-specific (vault / collection only) and render as an
-            // in-content overlay on the detail (`detailViewControls`) — out of the
-            // NSToolbar so they carry no system "Icon & Text" toggle. Nav-dropdown
-            // + inspector stay global toolbar items.
+            // Settings + nav-dropdown + inspector — one segment. The views button
+            // is a SEPARATE toolbar item (see `.toolbar`), so the two glass capsules
+            // don't morph into one Liquid-Glass segment.
             HStack(spacing: 0) {
+                ViewSettingsButton(
+                    scope: currentViewSettingsScope,
+                    pageTypeManager: env.vaultManager,
+                    tierConfigManager: env.tierConfigManager,
+                    pageContentManager: env.contentManager
+                )
                 NavDropdownButton(asSegment: true, lookup: lookup) { sel in
                     sidebarSelection = sel
                 }
@@ -117,34 +121,12 @@ struct ContentView: View {
         }
     }
 
-    /// Whether the per-view controls (views dropdown + view-settings) should
-    /// surface — only for the two container detail views that own SavedViews.
+    /// Whether the views button surfaces — only for the two container detail
+    /// views that own SavedViews.
     private var showsViewControls: Bool {
         switch currentViewSettingsScope {
         case .pageType, .pageCollection: return true
         default: return false
-        }
-    }
-
-    /// The detached, container-gated view controls — rendered as an in-content
-    /// overlay at the detail's top-trailing rather than as NSToolbar items (no
-    /// system "Icon & Text" toggle; ready to sit under the banner in a later pass).
-    @ViewBuilder
-    private func detailViewControls(_ env: NexusEnvironment) -> some View {
-        if showsViewControls {
-            HStack(spacing: 8) {
-                ViewsDropdownButton(scope: currentViewSettingsScope)
-                    .glassEffect()
-                ViewSettingsButton(
-                    scope: currentViewSettingsScope,
-                    pageTypeManager: env.vaultManager,
-                    tierConfigManager: env.tierConfigManager,
-                    pageContentManager: env.contentManager
-                )
-                .glassEffect()
-            }
-            .padding(.top, 8)
-            .padding(.trailing, 12)
         }
     }
 
@@ -200,6 +182,14 @@ struct ContentView: View {
                     // (right). One .glassEffect on the outer HStack — the
                     // segment buttons inside are plain so the background
                     // glass isn't doubled by per-button glass.
+                    // Views button — its OWN toolbar item (a distinct Liquid-Glass
+                    // segment), surfaced only for the two view-bearing containers.
+                    if showsViewControls {
+                        ToolbarItem(placement: .primaryAction) {
+                            ViewsDropdownButton(scope: currentViewSettingsScope)
+                                .glassEffect()
+                        }
+                    }
                     ToolbarItem(placement: .primaryAction) {
                         primaryActionCapsule
                     }
@@ -328,9 +318,6 @@ struct ContentView: View {
                 justCreatedID: $justCreatedID
             )
             .injectNexusEnvironment(env)
-            .overlay(alignment: .topTrailing) {
-                detailViewControls(env)
-            }
         } else {
             Color.clear
         }

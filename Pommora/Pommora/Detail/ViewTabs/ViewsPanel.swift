@@ -55,7 +55,6 @@ struct ViewsPanel: View {
         .frame(width: 280)
         .focusable()
         .onMoveCommand { direction in stepActive(direction) }
-        .chipDropdownPanel()
     }
 
     @ViewBuilder
@@ -74,7 +73,6 @@ struct ViewsPanel: View {
             onDelete: { Task { await delete(view.id) } },
             canDelete: views.count > 1
         )
-        .focusable()
     }
 
     // MARK: - Live container resolution
@@ -127,7 +125,7 @@ struct ViewsPanel: View {
         }
     }
 
-    private func setIcon(_ viewID: String, to icon: String) async {
+    private func setIcon(_ viewID: String, to icon: String?) async {
         do {
             try await pageTypeManager.updateView(viewID, in: containerID) { $0.icon = icon }
         } catch {

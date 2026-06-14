@@ -31,6 +31,8 @@ struct ViewsDropdownButton: View {
     @ViewBuilder
     private var popoverContent: some View {
         if let env = AppGlobals.current, let cid = containerID {
+            // No background modifier — a toolbar-anchored popover gets Apple's
+            // Liquid-Glass chrome automatically (matches the settings popover).
             ViewsPanel(containerID: cid, onDismiss: { isPresented = false })
                 .injectNexusEnvironment(env)
         } else {
