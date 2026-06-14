@@ -1,3 +1,8 @@
+---
+paths:
+  - "**/MarkdownPM/**"
+---
+
 ### Markdown Editor — Rules + Reference
 
 The canonical playbook for any agent touching Pommora's page editor — the Pommora-owned `MarkdownPM` package at `External/MarkdownPM/` (originally vendored from `swift-markdown-engine`, now maintained in-tree), Pommora's customizations on top of it, the Apple `swift-markdown` parser, and the TextKit 2 substrate. Every rule below is grounded in either (a) shipped engine code, (b) Apple-source documentation, or (c) a paradigm decision Nathan has locked. Anything written from intuition or speculation is flagged as such.
