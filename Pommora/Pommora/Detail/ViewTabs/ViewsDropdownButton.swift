@@ -23,7 +23,9 @@ struct ViewsDropdownButton: View {
         } label: {
             Image(systemName: buttonIcon)
                 .font(.system(size: 12, weight: .medium))
-                .frame(width: 64, height: 36)
+                // 24, not 36 — a 36pt item exceeds the toolbar's content height,
+                // which can shove the whole primary-action group into the » overflow.
+                .frame(width: 64, height: 24)
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)

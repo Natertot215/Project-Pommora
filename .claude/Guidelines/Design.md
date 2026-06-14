@@ -84,7 +84,9 @@ Surfaces hosted inside `.popover(...)` and toolbar-anchored panels sit inside Ap
 
 Apple's native chrome animations (`NSSplitView` collapse, toolbar reflow, inspector reveal) are gold standard. **Don't replace system chrome with custom equivalents.**
 
-`.inspector(isPresented:)` is the exception — panel reveal isn't routed through SwiftUI's animation transaction, so wrap toggles in `withAnimation(.smooth(duration: 0.25))`. Inspector toolbar content belongs **inside the `.inspector(...) { content }` closure** to anchor to the inspector's toolbar segment.
+`.inspector(isPresented:)` is the exception — panel reveal isn't routed through SwiftUI's animation transaction, so wrap toggles in `withAnimation(.smooth(duration: 0.25))`.
+
+**A `.toolbar { }` is owned by whichever container hosts the view it attaches to.** Put toolbar content inside `.inspector(...) { content }` ONLY for items that belong to the inspector's own toolbar segment. The main window's `ToolbarItem(.primaryAction)` capsules (views / settings / nav / inspector) must attach to the `NavigationSplitView` — never the inspector closure. **Root cause (Fix 1, `bb6817a`):** the whole-window toolbar was attached to `inspectorContent`, so the inspector captured the `primaryAction` context — which (a) merged the separate `.glassEffect()` capsules into one reaching blob and (b) surfaced the views button *inside* the inspector panel when it opened. No `GlassEffectContainer` / `ToolbarSpacer` / `glassEffectUnion` tuning separates capsules whose toolbar is mis-anchored. **To avoid:** if toolbar items glue together or leak into the inspector, check the `.toolbar`'s host view before touching the glass.
 
 ---
 

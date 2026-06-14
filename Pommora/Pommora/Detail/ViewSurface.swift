@@ -50,8 +50,7 @@ struct ViewSurface<Scope: DetailScope>: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            banner
-            header
+            headerRegion
             Divider()
             content
             Divider()
@@ -86,17 +85,54 @@ struct ViewSurface<Scope: DetailScope>: View {
 
     // MARK: - Header
 
+    /// Banner + title region. With a banner active the title overlays the banner
+    /// (bottom-leading) carrying the inside-stroke treatment for legibility over
+    /// the image; otherwise the banner area (Add Banner affordance) sits above a
+    /// plain, larger title in normal chrome.
+    @ViewBuilder
+    private var headerRegion: some View {
+        if bannerActive {
+            // `backgroundExtensionEffect()` is Apple's Liquid-Glass modifier that
+            // extends + blurs the banner under the sidebar / inspector / toolbar
+            // for a full edge-to-edge header (the Landmarks-sample pattern); the
+            // title rides at its bottom-leading and stays out of the side panels.
+            banner
+                .backgroundExtensionEffect()
+                .overlay(alignment: .bottomLeading) {
+                    titleLabel
+                        .padding(.horizontal, PUI.DetailHeader.paddingHorizontal)
+                        .padding(.bottom, PUI.DetailHeader.overlayInset)
+                }
+        } else {
+            banner
+            header
+        }
+    }
+
     private var header: some View {
         HStack {
-            Label {
-                Text(scope.headerTitle)
-            } icon: {
-                Image(systemName: scope.headerIcon)
-            }
-            .font(.title2.bold())
+            titleLabel
             Spacer()
         }
-        .padding()
+        .padding(.horizontal, PUI.DetailHeader.paddingHorizontal)
+        .padding(.vertical, PUI.DetailHeader.paddingVertical)
+    }
+
+    /// The detail title — icon + title at the detail-header font. Rides over the
+    /// banner (bottom-leading) when one is active, plain chrome otherwise.
+    private var titleLabel: some View {
+        Label {
+            Text(scope.headerTitle)
+        } icon: {
+            Image(systemName: scope.headerIcon)
+        }
+        .font(PUI.DetailHeader.titleFont)
+    }
+
+    /// True when this container has a banner image AND the active view shows it —
+    /// the only state where the title overlays the banner and gets the stroke.
+    private var bannerActive: Bool {
+        scope.containerBanner(pageTypeManager) != nil && (activeView?.showBanner ?? true)
     }
 
     /// Container banner — absent unless set, with a floating Add Banner

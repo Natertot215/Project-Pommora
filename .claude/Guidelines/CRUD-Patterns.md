@@ -165,6 +165,15 @@ func create(name: String, parents: [String]) async throws {
 
 Renames that touch two filesystem ops (folder/file rename + metadata save) follow one uniform pattern across every `rename*` site: **rename the folder/file first → write metadata → if the metadata write fails, roll the rename back → if the rollback ALSO fails, throw `RenameAtomicityError`** (`AtomicIO/RenameAtomicityError.swift`, a `LocalizedError` carrying both the save error and the revert error). The managers set `pendingError` on the unrecoverable case before rethrowing. Same shape in `SpaceManager.rename`, `TopicManager.renameTopic` + `renameProject` + `moveProject`, `PageTypeManager.renamePageType` + `renamePageCollection`, `PageContentManager.renamePage`, `AgendaTaskManager.renameTask`, `AgendaEventManager.renameEvent`. The remaining gap is the rare double-failure (both rename and rollback fail) — surfaced to the user via `RenameAtomicityError` rather than silently leaving divergent on-disk state.
 
+##### Cover + banner assets — copy-then-write, delete-AFTER-write
+
+Page `cover` and container `banner` are the same asset-CRUD shape — a nexus-relative path string on the entity (`cover` on Page frontmatter; `banner` on the `_pagetype.json` / `_pagecollection.json` sidecar). The image lives at `.nexus//assets//<entityID>//<file>`; both flows share `CoverAssetStore` (collision-safe naming via `-2` / `-3` suffixes + a 500 MB hard-cap size guard) and `AssetURLResolver` for path→URL (DRY).
+
+- **Container banner CRUD routes through `PageTypeManager.setBanner(_:forContainer:)`** (handles both container kinds; Task-3 fresh read-modify-write of the sidecar, no SQLite upsert — `banner` isn't indexed). Page covers persist via `PageContentManager.updatePageFrontmatter`.
+- **Set / Change — copy first, then write the field.** `CoverAssetStore.storeSync` copies the source into the entity's asset folder **inside the security-scoped window** (the synchronous copy completes before the `defer` closes the scope; only the field-persist hops to a `Task`). The returned relative path is written to `cover` / `banner` only after the copy succeeds.
+- **Delete-AFTER-write discipline.** On Change or Remove, the new path (or `nil`) is written FIRST, and `CoverAssetStore.delete` removes the previously-referenced asset **only after that write succeeds** — so a failed write never leaves the field pointing at a deleted file, and never orphans the old file before the new one commits. `delete` is containment-guarded (only removes files under the entity's own `assetsDir`) and no-ops on nil/missing.
+- **UI mirror.** `ContainerBannerView` shows a hover-revealed "Add Banner" affordance in the empty state and a Change / Remove context menu when set — mirroring the page-level cover Set / Change / Remove flow (`CoverPicker`). Copy failures surface via the manager's `pendingError` → `SidebarToast`.
+
 ---
 
 #### Validation — pure functions per entity

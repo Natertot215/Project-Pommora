@@ -49,7 +49,6 @@ struct BackForwardButtons: View {
             )
             .keyboardShortcut("]", modifiers: [.command])
         }
-        .glassEffect()
     }
 
     @ViewBuilder

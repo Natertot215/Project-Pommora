@@ -378,9 +378,15 @@ Sidebar (default 240px) / main (flex) / inspector (default 280px). Both side pan
 | **Page in main window** | Target: NavDropdown-style pulldown at top of content (lazy properties); today the editor's `.inspector` (`FrontmatterInspector`) until the pulldown ships |
 | **PagePreview window** | The shared `FrontmatterInspector` mounted compact (defaults open) |
 
-**Window chrome — macOS unified title bar.** No separate Pommora title bar. Traffic-lights render OS-rendered in the sidebar pane's column. A single unified toolbar (`.windowToolbarStyle(.unified(showsTitle: false))`) holds sidebar toggle, back/forward arrows, NavDropdown trigger, and inspector toggle, all in the same row as traffic-lights. No second toolbar row. Pattern: Mail / Notes / Finder.
+**Window chrome — macOS unified title bar.** No separate Pommora title bar. Traffic-lights render OS-rendered in the sidebar pane's column. A single unified toolbar (`.windowToolbarStyle(.unified(showsTitle: false))`) holds sidebar toggle, back/forward arrows, NavDropdown trigger, and inspector toggle, all in the same row as traffic-lights. No second toolbar row. Pattern: Mail / Notes / Finder. (Open issue: under macOS 26's Liquid Glass toolbar, the detail view's primary-action controls are collapsing into the `»` overflow menu — under troubleshooting.)
 
 Built on SwiftUI's two-column `NavigationSplitView(sidebar:detail:)` with inspector attached via `.inspector(isPresented:)` (macOS 14+) — Apple's idiomatic pattern (Mail, Notes, Pages). Width via `.inspectorColumnWidth(min:ideal:max:)`; toolbar toggle via `InspectorCommands`. The three-column `NavigationSplitView` variant was rejected — that column is for selection drill-down (Mail's list → message-list → message), not a contextual supplementary panel.
+
+##### Detail Header + Container Banner
+
+The detail pane opens every entity under a consistent header. The title renders at 22pt bold (`.title`); when the container carries a banner it **overlays** the banner at the bottom-leading corner, otherwise it sits as plain chrome above the content.
+
+Containers (Page Types + Page Collections) can set an optional **banner** image, stored as a `banner` field on the container sidecar (`_pagetype.json` / `_pagecollection.json`); the image asset is copied into `.nexus//assets//<containerID>//`. The banner is 180pt tall and bleeds **edge-to-edge under the sidebar and inspector** via Apple's `backgroundExtensionEffect()` (macOS 26 Liquid Glass). When unset, a hover-revealed "Add Banner" affordance occupies the empty state; once set, a Change / Remove menu manages it.
 
 ##### Nav Dropdown
 

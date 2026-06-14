@@ -83,6 +83,22 @@ enum PUI {
         }
     }
 
+    // MARK: - Detail header (storage-view title + icon region)
+
+    enum DetailHeader {
+        /// Title + icon font for the storage detail header (Vault / Collection).
+        /// `.title` ≈ 22 pt on macOS; bumped from `.title2` (17 pt) 2026-06-13 per
+        /// Nathan's "increase the title-bar size across all views".
+        static let titleFont: Font = .title.bold()
+        /// Header horizontal padding (and the title's inset from the banner's
+        /// leading edge when overlaid).
+        static let paddingHorizontal: CGFloat = Spacing.xxl
+        /// Header vertical padding in the no-banner (plain chrome) layout.
+        static let paddingVertical: CGFloat = Spacing.xxl
+        /// Title inset up from the banner's bottom edge when overlaid.
+        static let overlayInset: CGFloat = Spacing.xxl
+    }
+
     // MARK: - Icons (Font + frame per role)
 
     enum Icon {

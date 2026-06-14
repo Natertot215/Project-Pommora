@@ -103,7 +103,6 @@ struct ContentView: View {
                         pageTypeManager: env.vaultManager,
                         activeViewStore: env.activeViewStore
                     )
-                    .glassEffect()
                 }
                 HStack(spacing: 0) {
                     ViewSettingsButton(
@@ -128,7 +127,6 @@ struct ContentView: View {
                     .keyboardShortcut("0", modifiers: [.option, .command])
                     .help("Toggle Inspector (⌥⌘0)")
                 }
-                .glassEffect()
             }
         }
     }
@@ -139,6 +137,30 @@ struct ContentView: View {
         switch currentViewSettingsScope {
         case .pageType, .pageCollection: return true
         default: return false
+        }
+    }
+
+    /// The window toolbar — extracted into its own `@ToolbarContentBuilder` so the
+    /// `body` modifier chain stays under the Swift type-checker's inference budget
+    /// (adding `.visibilityPriority` tipped the inline version into a type-check
+    /// timeout).
+    @ToolbarContentBuilder
+    private var mainToolbar: some ToolbarContent {
+        // Back/Forward navigation arrows in the leading toolbar area.
+        ToolbarItemGroup(placement: .navigation) {
+            if let env = nexusEnvironment {
+                BackForwardButtons(
+                    lookup: SidebarLookupBundle(
+                        content: env.contentManager,
+                        pageType: env.vaultManager,
+                        area: env.areaManager,
+                        topic: env.topicManager,
+                        project: env.projectManager
+                    ))
+            }
+        }
+        ToolbarItem(placement: .primaryAction) {
+            primaryActionCapsule
         }
     }
 
@@ -158,24 +180,7 @@ struct ContentView: View {
         // into the inspector's primary-action group (gluing them together), and
         // surfaces the views button inside the inspector when it opens.
         .toolbarBackground(.hidden, for: .windowToolbar)
-        .toolbar {
-            // Back/Forward navigation arrows in the leading toolbar area.
-            ToolbarItemGroup(placement: .navigation) {
-                if let env = nexusEnvironment {
-                    BackForwardButtons(
-                        lookup: SidebarLookupBundle(
-                            content: env.contentManager,
-                            pageType: env.vaultManager,
-                            area: env.areaManager,
-                            topic: env.topicManager,
-                            project: env.projectManager
-                        ))
-                }
-            }
-            ToolbarItem(placement: .primaryAction) {
-                primaryActionCapsule
-            }
-        }
+        .toolbar { mainToolbar }
         .sheet(
             item: $bindableNexusManager.pendingAdoption,
             onDismiss: {

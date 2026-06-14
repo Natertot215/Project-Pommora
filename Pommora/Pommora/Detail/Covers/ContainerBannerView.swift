@@ -28,7 +28,7 @@ struct ContainerBannerView: View {
     @State private var isImporting: Bool = false
     @State private var isHovering: Bool = false
 
-    private static let bannerHeight: CGFloat = 140
+    private static let bannerHeight: CGFloat = 180
 
     var body: some View {
         Group {
