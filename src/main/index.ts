@@ -13,8 +13,9 @@ function createWindow(): void {
     height: 832,
     show: false,
     titleBarStyle: 'hiddenInset',
-    vibrancy: 'sidebar', // native macOS material under the CSS glass layer
-    backgroundColor: '#00000000',
+    // Opaque window — no native vibrancy, so the sidebar glass samples the main
+    // view (CSS backdrop-filter), never the desktop wallpaper.
+    backgroundColor: '#1C1C1F',
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       // CommonJS preload (package is not type:module) → sandbox can stay ON.

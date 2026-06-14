@@ -12,6 +12,7 @@ export function App(): React.JSX.Element {
 
   return (
     <div className="shell">
+      <main className="content-pane" />
       <Surface>
         {status === 'loading' && <div className="state">Loading nexus…</div>}
         {status === 'error' && (
@@ -22,7 +23,6 @@ export function App(): React.JSX.Element {
         )}
         {status === 'ready' && tree && <Sidebar tree={tree} />}
       </Surface>
-      <main className="content-pane" />
     </div>
   )
 }
