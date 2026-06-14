@@ -12,15 +12,17 @@ Dropdown redesigned: fixed-width single-icon **views button** (icon = active vie
 
 **Root cause (closed):** the buttons were gluing together and the views button was leaking into the inspector because the `.toolbar` was attached to `inspectorContent` — so the inspector owned the `primaryAction` context. Moved the toolbar onto the `NavigationSplitView` (commit `bb6817a`); recorded in `// Guidelines //Design.md`.
 
-### Toolbar `»` overflow — UNRESOLVED (next-session headline)
+### Toolbar `»` overflow — leading hypothesis (UNCONFIRMED, pending screenshots)
 
-macOS 26's toolbar (the new `NSGlassContainerView`) collapses the primary-action controls (views / settings / nav / inspector) into the `»` overflow menu. Findings to carry into troubleshooting:
+macOS 26 folds the primary-action controls (views / settings / nav / inspector) into the `»` overflow menu. An all-opus investigation (code + the macOS 26.5 SDK + Apple docs, 06-14) produced a **leading hypothesis — NOT yet confirmed; we confirm via the host-move fix + screenshots before calling it the root cause:**
 
-- `.primaryAction` is overflow-eligible (Apple docs) AND resolves against the toolbar's **host**: on the `NavigationSplitView` root it maps to the **sidebar** (primary column) — a `ToolbarItemGroup` of standard items renders but lands on the sidebar, not the detail's trailing edge.
-- A single `ToolbarItem` wrapping a custom `HStack` can't be placed and overflows **whole** into `»`.
-- `visibilityPriority(_:)` / `ToolbarItemVisibilityPriority` is documented but **NOT in the installed SDK** — context7's Apple docs ran ahead of the toolchain; don't build on it.
-- Attaching the toolbar to the **detail column** (so `.primaryAction` resolves to the detail's trailing edge) was tried, then reverted on Nathan's call to revert cleanly. Worth revisiting deliberately.
-- The banner blurring into the toolbar is the visual tell that the glass container is active in that region.
+- **Host-anchoring (leading hypothesis).** `.primaryAction` is the **leading edge** on macOS (Apple doc, verbatim), and the `.toolbar` is attached to the `NavigationSplitView` **root** — so `.primaryAction` resolves to the **sidebar** (primary column), and the overflow pass would measure the cluster against the *sidebar's* narrow width budget (~180–330pt), not the window. That would explain the fold into `»`, the `ToolbarItemGroup` landing over the sidebar, and the overflow-even-maximized. (`.navigation` back/forward are immune — a non-overflow leading slot.)
+- **Single-blob packing (suspected amplifier).** All four controls sit in one atomic `ToolbarItem(.primaryAction)` wrapping a custom `HStack`.
+- **Empty-when-nil (suspected confound).** The capsule renders empty while `nexusEnvironment` is nil (`ContentView.swift:86`) — a zero/variable-size item biases toward overflow.
+- **SDK ceiling (verified vs `MacOSX26.5.sdk`):** macOS has NO trailing action placement (`topBarTrailing` is `@available(macOS, unavailable)`); `visibilityPriority` / `topBarPinnedTrailing` / `toolbarOverflowMenu` are absent; `ToolbarSpacer` is present.
+- **REFUTED (confirmed false):** the earlier `NSGlassContainerView` attribution — that's a *private event-handling* toolbar subview (it swallows mouse clicks; workaround `.buttonStyle(.borderless)`), NOT a layout/overflow mechanism. Also ruled out: a merging second toolbar (none exists in the main tree) and the banner / `backgroundExtensionEffect` (the overflow predates it by ~17 days).
+
+**Test in progress:** host the `.toolbar` on the **detail** (so `.primaryAction` leaves the narrow sidebar column) + decompose the single item; keep the existing buttons + liquid-glass placement. Confirm via screenshots BEFORE establishing the root cause.
 
 ### Fix 1b — Column / page-row "Edit Icon" → IconPicker popover — NEEDS NATHAN'S PICK
 
