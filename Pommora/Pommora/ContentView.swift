@@ -91,47 +91,34 @@ struct ContentView: View {
                 topic: env.topicManager,
                 project: env.projectManager
             )
-            // The views button (its own glass capsule) + the settings / nav /
-            // inspector capsule. A GlassEffectContainer with a small spacing keeps
-            // the two glass shapes from morphing into one segment while keeping the
-            // gap tight (ToolbarSpacer's fixed gap was too wide). Capsule stays
-            // right-most.
-            GlassEffectContainer(spacing: 4) {
-                HStack(spacing: 10) {
-                    if showsViewControls {
-                        ViewsDropdownButton(
-                            scope: currentViewSettingsScope,
-                            pageTypeManager: env.vaultManager,
-                            activeViewStore: env.activeViewStore
-                        )
-                        .glassEffect()
-                    }
-                    HStack(spacing: 0) {
-                        ViewSettingsButton(
-                            scope: currentViewSettingsScope,
-                            pageTypeManager: env.vaultManager,
-                            tierConfigManager: env.tierConfigManager,
-                            pageContentManager: env.contentManager
-                        )
-                        NavDropdownButton(asSegment: true, lookup: lookup) { sel in
-                            sidebarSelection = sel
-                        }
-                        Button {
-                            withAnimation(.smooth(duration: 0.25)) {
-                                inspectorPresented.toggle()
-                            }
-                        } label: {
-                            Image(systemName: "sidebar.trailing")
-                                .font(.system(size: 12, weight: .medium))
-                                .frame(width: 22, height: 16)
-                                .contentShape(Rectangle())
-                        }
-                        .keyboardShortcut("0", modifiers: [.option, .command])
-                        .help("Toggle Inspector (⌥⌘0)")
-                    }
-                    .glassEffect()
+            // Settings + nav-dropdown + inspector — one segment. The views button
+            // is a SEPARATE toolbar item (see `.toolbar`), held apart by a
+            // ToolbarSpacer so Liquid Glass doesn't morph the two capsules into one
+            // shape. The capsule stays the right-most group.
+            HStack(spacing: 0) {
+                ViewSettingsButton(
+                    scope: currentViewSettingsScope,
+                    pageTypeManager: env.vaultManager,
+                    tierConfigManager: env.tierConfigManager,
+                    pageContentManager: env.contentManager
+                )
+                NavDropdownButton(asSegment: true, lookup: lookup) { sel in
+                    sidebarSelection = sel
                 }
+                Button {
+                    withAnimation(.smooth(duration: 0.25)) {
+                        inspectorPresented.toggle()
+                    }
+                } label: {
+                    Image(systemName: "sidebar.trailing")
+                        .font(.system(size: 12, weight: .medium))
+                        .frame(width: 22, height: 16)
+                        .contentShape(Rectangle())
+                }
+                .keyboardShortcut("0", modifiers: [.option, .command])
+                .help("Toggle Inspector (⌥⌘0)")
             }
+            .glassEffect()
         }
     }
 
@@ -196,6 +183,20 @@ struct ContentView: View {
                     // (right). One .glassEffect on the outer HStack — the
                     // segment buttons inside are plain so the background
                     // glass isn't doubled by per-button glass.
+                    // Views button — its OWN toolbar item, held apart from the
+                    // settings/nav/inspector capsule by a ToolbarSpacer (Liquid
+                    // Glass otherwise morphs the two capsules into one shape).
+                    if showsViewControls, let env = nexusEnvironment {
+                        ToolbarItem(placement: .primaryAction) {
+                            ViewsDropdownButton(
+                                scope: currentViewSettingsScope,
+                                pageTypeManager: env.vaultManager,
+                                activeViewStore: env.activeViewStore
+                            )
+                            .glassEffect()
+                        }
+                        ToolbarSpacer(.fixed, placement: .primaryAction)
+                    }
                     ToolbarItem(placement: .primaryAction) {
                         primaryActionCapsule
                     }
