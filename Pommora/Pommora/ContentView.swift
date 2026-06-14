@@ -91,48 +91,44 @@ struct ContentView: View {
                 topic: env.topicManager,
                 project: env.projectManager
             )
-            // The views capsule + the settings / nav / inspector capsule each get
-            // their OWN GlassEffectContainer, so there is no shared morph context
-            // between them — they render as independent shapes with NO Liquid-Glass
-            // "reaching" toward each other. The gap is just the outer HStack spacing.
+            // NO GlassEffectContainer — that is the Liquid-Glass MORPH primitive
+            // (its whole purpose is to let the glass inside it blend/reach). Two
+            // bare `.glassEffect()` capsules are independent and do NOT morph toward
+            // each other, so they read as two distinct pills at the tight HStack gap.
             // Capsule stays right-most.
             HStack(spacing: 8) {
                 if showsViewControls {
-                    GlassEffectContainer {
-                        ViewsDropdownButton(
-                            scope: currentViewSettingsScope,
-                            pageTypeManager: env.vaultManager,
-                            activeViewStore: env.activeViewStore
-                        )
-                        .glassEffect()
-                    }
-                }
-                GlassEffectContainer {
-                    HStack(spacing: 0) {
-                        ViewSettingsButton(
-                            scope: currentViewSettingsScope,
-                            pageTypeManager: env.vaultManager,
-                            tierConfigManager: env.tierConfigManager,
-                            pageContentManager: env.contentManager
-                        )
-                        NavDropdownButton(asSegment: true, lookup: lookup) { sel in
-                            sidebarSelection = sel
-                        }
-                        Button {
-                            withAnimation(.smooth(duration: 0.25)) {
-                                inspectorPresented.toggle()
-                            }
-                        } label: {
-                            Image(systemName: "sidebar.trailing")
-                                .font(.system(size: 12, weight: .medium))
-                                .frame(width: 22, height: 16)
-                                .contentShape(Rectangle())
-                        }
-                        .keyboardShortcut("0", modifiers: [.option, .command])
-                        .help("Toggle Inspector (⌥⌘0)")
-                    }
+                    ViewsDropdownButton(
+                        scope: currentViewSettingsScope,
+                        pageTypeManager: env.vaultManager,
+                        activeViewStore: env.activeViewStore
+                    )
                     .glassEffect()
                 }
+                HStack(spacing: 0) {
+                    ViewSettingsButton(
+                        scope: currentViewSettingsScope,
+                        pageTypeManager: env.vaultManager,
+                        tierConfigManager: env.tierConfigManager,
+                        pageContentManager: env.contentManager
+                    )
+                    NavDropdownButton(asSegment: true, lookup: lookup) { sel in
+                        sidebarSelection = sel
+                    }
+                    Button {
+                        withAnimation(.smooth(duration: 0.25)) {
+                            inspectorPresented.toggle()
+                        }
+                    } label: {
+                        Image(systemName: "sidebar.trailing")
+                            .font(.system(size: 12, weight: .medium))
+                            .frame(width: 22, height: 16)
+                            .contentShape(Rectangle())
+                    }
+                    .keyboardShortcut("0", modifiers: [.option, .command])
+                    .help("Toggle Inspector (⌥⌘0)")
+                }
+                .glassEffect()
             }
         }
     }
