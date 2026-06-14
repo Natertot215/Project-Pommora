@@ -1,0 +1,169 @@
+:root {
+  --row-h: 26px;
+  --text: rgba(0, 0, 0, 0.82);
+  --text-dim: rgba(0, 0, 0, 0.5);
+  --hover: rgba(0, 0, 0, 0.05);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --text: rgba(255, 255, 255, 0.9);
+    --text-dim: rgba(255, 255, 255, 0.5);
+    --hover: rgba(255, 255, 255, 0.07);
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font: 13px/1.4 -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
+  color: var(--text);
+  background: transparent; /* let the window vibrancy + glass show through */
+  -webkit-font-smoothing: antialiased;
+}
+
+.shell {
+  display: flex;
+  height: 100vh;
+}
+
+.sidebar-pane {
+  width: 264px;
+  flex: 0 0 264px;
+  height: 100%;
+  -webkit-app-region: drag; /* the sidebar is a window-drag region */
+}
+
+.content-pane {
+  flex: 1;
+  height: 100%;
+  background: transparent;
+}
+
+/* The swappable glass seam (Surface). Full-height edge-to-edge pane glass via
+   CSS backdrop-filter, layered over the native window vibrancy. */
+.surface-glass {
+  background: rgba(255, 255, 255, 0.4);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  border-right: 0.5px solid rgba(0, 0, 0, 0.12);
+}
+
+@media (prefers-color-scheme: dark) {
+  .surface-glass {
+    background: rgba(28, 28, 30, 0.45);
+    border-right: 0.5px solid rgba(255, 255, 255, 0.1);
+  }
+}
+
+/* sidebar content sits on top of the glass; rows are interactive */
+.sidebar {
+  -webkit-app-region: no-drag;
+  padding: 38px 8px 12px; /* clear the hidden-inset titlebar */
+  overflow-y: auto;
+  height: 100%;
+}
+
+.section {
+  margin-bottom: 14px;
+}
+
+.section-header {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--text-dim);
+  padding: 4px 10px;
+  text-transform: none;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: var(--row-h);
+  padding-right: 8px;
+  border-radius: 6px;
+  cursor: default;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.row:hover {
+  background: var(--hover);
+}
+
+.row-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.row-icon {
+  color: var(--text-dim);
+  flex: 0 0 auto;
+}
+
+.twisty {
+  display: inline-block;
+  width: 12px;
+  font-size: 9px;
+  color: var(--text-dim);
+  transition: transform 0.12s ease;
+  flex: 0 0 auto;
+  text-align: center;
+}
+
+.twisty.open {
+  transform: rotate(90deg);
+}
+
+.twisty-spacer {
+  display: inline-block;
+  width: 12px;
+  flex: 0 0 auto;
+}
+
+.swatch {
+  width: 11px;
+  height: 11px;
+  border-radius: 3px;
+  flex: 0 0 auto;
+  background: var(--text-dim);
+}
+
+.swatch[data-color='gray'] { background: #8e8e93; }
+.swatch[data-color='brown'] { background: #a2845e; }
+.swatch[data-color='orange'] { background: #ff9500; }
+.swatch[data-color='yellow'] { background: #ffcc00; }
+.swatch[data-color='green'] { background: #34c759; }
+.swatch[data-color='blue'] { background: #007aff; }
+.swatch[data-color='purple'] { background: #af52de; }
+.swatch[data-color='pink'] { background: #ff2d55; }
+.swatch[data-color='red'] { background: #ff3b30; }
+.swatch[data-color='accent'] { background: #007aff; }
+
+.state {
+  padding: 48px 16px;
+  text-align: center;
+  color: var(--text-dim);
+}
+
+.state-error {
+  color: #ff3b30;
+}
+
+.state-detail {
+  display: block;
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--text-dim);
+}
