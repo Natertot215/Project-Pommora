@@ -8,6 +8,7 @@ Plans are named `MM-DD-<slug>.md` (earlier files retain their `YYYY-MM-DD-` name
 
 #### Active
 
+- `06-14-React-Rebuild-Roadmap.md` — **exploratory** program-level roadmap for a post-v1 React + TypeScript + Electron rebuild (behavior-identical to the PRD, SwiftUI left behind). Phase-sequenced; each phase becomes its own task-plan when greenlit. Backed by two research workflows (Swift→React portability assessment + library/toolkit dual-look). Not committed work — a scoped option.
 - `06-05-Connections-Plan.md` — the Connections implementation plan. Page-level work shipped at v0.3.5 (`History.md` § "Connections — page-level complete"); retained at top level pending the post-v0.4.0 connection-model layer it also scopes.
 - `Contextv2.md` — the Drop-Relations→Contexts refactor plan. Shipped 2026-06-04 (registry decision #16); retained at top level pending archival review.
 

@@ -8,6 +8,8 @@
 
 #### Session Summary (toolbar `»`-overflow saga CLOSED + finalized · full `bb6817a..HEAD` review · `.claude/rules/` introduced)
 
+> ⚠️ **Update (06-14, later — supersedes the "finalized" claim above).** The toolbar / Views-button / banner area has been **REOPENED as actively-changing**; "finalized" was over-confident. The Views dropdown only **"looks" good** — we do not know **at what cost**, nor whether it was achieved through the **best (or even correct) methods**. It carries unresolved quirks (it follows into the inspector when toggled — Apple-native apps don't) and **assumed-but-unmapped side effects** on the rest of the toolbar. A "Icon Only / Icon + Text" right-click menu surfaces across the *entire* toolbar region — an exhaustive grep found **no app code that creates it**, so its mechanism is unresolved. The docs were truthed-up to flux framing: `Features/Views.md`, `// Planning//06-13-Views-UIX-Fixes.md`, `Guidelines/Design.md` "Chrome animation". Nothing about the toolbar/banner is settled truth for the future.
+
 **Where it started.** The prior handoff left the toolbar `»` overflow as the open headline — macOS-26's primary-action cluster folding into the `»` menu, with host-anchoring an *unconfirmed* hypothesis and a freshly-committed Fix-2 banner working point. Working tree was the 0.4.2 Views-UIX line on `main`.
 
 **Key moments.** The saga closed. The "squished Views button" resolved to one line: `.buttonStyle(.plain)` on `ViewsDropdownButton` was stripping the default toolbar sizing — *removing* it (not adding frames/padding, which "fought the system") was the fix; height is system-owned for native toolbar buttons, only width is explicit. Final design: two Liquid Glass capsules (**Views** pill | **settings·nav·inspector** trio) at a tight `PUI.Spacing.md` gap, hosted on the **detail column** (host-anchoring now CONFIRMED — `.primaryAction` is leading-edge, so on the split-view root it measured against the sidebar's narrow budget and folded), with `.sharedBackgroundVisibility(.hidden)` killing the "reaching." Nathan blessed the baseline (`ced9dd3`), then directed a full teardown: `3a70f14` (dead scaffolding incl. the dormant `views_button_style` persistence), `70fe2b1` (redundant `GlassEffectContainer` dropped, gap tokenized), `fc613ca` (comment/doc truth-up). A `bb6817a..HEAD` review — two convergent passes (first-party + an independent agent) — came back **merge-quality, zero bugs**; its one DRY finding (the toolbar-glyph triple copy-pasted across 5 buttons) shipped as the `.toolbarGlyph(width:)` modifier + `PUI.Icon.toolbar*` tokens (`b958cbd`). Confirmed unchanged via a render-neutral diff + a non-disruptive live window capture.
@@ -28,19 +30,23 @@
 
 #### Next Session
 
-> ⚠️ **Direction call first.** A parallel session has made `Planning/06-14-React-Rebuild-Roadmap.md` the top Active plan — an *exploratory* post-v1 React+Electron rebuild (SwiftUI left behind). It's a scoped option, not committed work, but it could reprioritize the SwiftUI tactical items below. Confirm whether the next push is SwiftUI Views continuation or the React exploration before picking these up.
+> ⚠️ **Direction call first.** A parallel session is actively exploring a **React + TS rebuild** (`Planning/06-14-React-Rebuild-Roadmap.md`) per the contingency — Nathan has a full Pommora-React Figma library and has scaffolded part of the app. The two-days-on-a-button toolbar/banner cost is a live motivator. The SwiftUI items below stand only if the next push stays SwiftUI; confirm direction before picking them up.
 
-1. **Menus interaction** — the remaining "cross-view UIX" now that the toolbar half is closed; then build **Gallery**.
-2. **Re-do grouping + sorting UIX** — rudimentary + incomplete; after Gallery.
-3. **Fix 3 — View Settings "Layout" pane rework** — only after both table + gallery are visually perfect.
+If SwiftUI continues, the toolbar/banner area is **reopened as actively-changing** — resolve it before resuming Views proper:
+
+1. **Finish the remaining UIX-fixes log** (`// Planning//06-13-Views-UIX-Fixes.md`).
+2. **Identify + remove the toolbar-wide "Icon / Icon + Text" right-click menu** — appears across every toolbar button + the empty title-bar space; an exhaustive grep found NO app code creating it, so the mechanism is unresolved (native NSToolbar display-mode menu vs. a leaked app menu). Settle with a live right-click test first.
+3. **Resolve the underlying toolbar uncertainties** — the Views button "looks" good but we don't know at what cost or whether the methods are right: the inspector-adoption deviation, the unmapped blast radius of the Views-button chrome choices, and the untested banner↔toolbar bleed interaction.
+4. **Then** resume Views: menus → Gallery → grouping/sorting UIX → Fix 3 (Layout pane).
 
 #### Pending Focuses
 
-- **[carried from 06-14]** Menus → Gallery → grouping/sorting → Fix 3 — the tactical Views UIX sequence; the toolbar half of "cross-view UIX" closed this session. Contingent on the direction call above.
+- **[carried from 06-14]** Toolbar / Views-button / banner area is **reopened as actively-changing** (NOT closed): the Views button "looks" good but at unknown cost via unknown-if-best methods, the toolbar-wide right-click menu (no app code found) is unresolved, the inspector-adoption deviation persists, and the banner↔toolbar bleed is untested. Settle these before resuming the tactical sequence (menus → Gallery → grouping/sorting → Fix 3). Contingent on the direction call above.
 - **[carried from 06-14]** Title baseline-on-icon (Fix 2 polish) — the detail title text should baseline on the icon's bottom edge; a plain `Label` centers them. Not yet applied.
 
 #### Fix Log
 
+- **Toolbar-wide right-click menu** — a "Icon Only / Icon + Text" display-mode menu surfaces on every toolbar button + the empty title-bar area, not just the Views button; an exhaustive grep found no app code that creates it, mechanism unresolved. → `// Planning//06-13-Views-UIX-Fixes.md`.
 - **Inline-edit lag** — property-value inline edit has a noticeable commit buffer.
 - **Stale property options** — newly-added Select/Status options aren't selectable until restart; needs a running-build repro to pin the picker path.
 - **Backspace on checkbox / list item** should auto-delete the syntax — UNIMPLEMENTED (feature-add).
