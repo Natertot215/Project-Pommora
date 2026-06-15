@@ -9,6 +9,7 @@ import { join } from 'node:path'
 import { readNexus } from '../readNexus'
 import { splitFrontmatter } from '../readNexus'
 import { splitEnvelope } from '../io/pageFile'
+import { readJsonObject } from '../io/atomicWrite'
 import { readSidecar } from '../sidecarIO'
 import { pageTypeSidecar, pageCollectionSidecar, pageSetSidecar } from '@shared/schemas'
 import { SIDECAR_FILENAME } from '../paths'
@@ -243,12 +244,7 @@ async function collectAgenda(nexusRoot: string): Promise<AgendaData> {
     if (!isTask && !isEvent) continue
 
     const configFile = join(folder, isTask ? SIDECAR_FILENAME.taskConfig : SIDECAR_FILENAME.eventConfig)
-    let configRaw: Record<string, unknown> = {}
-    try {
-      configRaw = JSON.parse(await readFile(configFile, 'utf8'))
-    } catch {
-      /* unreadable config — index zero defs for it */
-    }
+    const configRaw = (await readJsonObject(configFile)) ?? {} // unreadable config → zero defs
     configs.push({
       owningTypeId: isTask ? 'agenda_tasks' : 'agenda_events',
       owningTypeKind: isTask ? 'agenda_task_schema' : 'agenda_event_schema',

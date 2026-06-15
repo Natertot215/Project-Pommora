@@ -35,12 +35,14 @@ const YMD = /^\d{4}-\d{2}-\d{2}$/
 // (no fractional seconds; a TZ is required, else the string falls through to select).
 const ISO_DATETIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:Z|[+-]\d{2}:\d{2})$/
 
-function isObject(v: unknown): v is Record<string, unknown> {
+/** True for a plain (non-null, non-array) object. The one shared shape guard for JSON /
+ *  frontmatter records across the data layer. */
+export function isPlainObject(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null && !Array.isArray(v)
 }
 
 function isFileRef(v: unknown): v is FileRef {
-  return isObject(v) && typeof v.path === 'string'
+  return isPlainObject(v) && typeof v.path === 'string'
 }
 
 /**
@@ -56,7 +58,7 @@ export function parsePropertyValue(raw: unknown): PropertyValue {
   if (typeof raw === 'number') return { kind: 'number', value: raw }
 
   if (Array.isArray(raw)) {
-    if (raw.length > 0 && raw.every((x) => isObject(x) && typeof x.$rel === 'string')) {
+    if (raw.length > 0 && raw.every((x) => isPlainObject(x) && typeof x.$rel === 'string')) {
       return { kind: 'relation', value: raw.map((x) => (x as { $rel: string }).$rel) }
     }
     if (raw.length > 0 && raw.every(isFileRef)) {
@@ -70,7 +72,7 @@ export function parsePropertyValue(raw: unknown): PropertyValue {
     throw new Error('PropertyValue: unrecognised array shape')
   }
 
-  if (isObject(raw)) {
+  if (isPlainObject(raw)) {
     const keys = Object.keys(raw)
     if (keys.length === 1) {
       if (typeof raw.$rel === 'string') return { kind: 'relation', value: [raw.$rel] }
@@ -119,4 +121,18 @@ export function encodePropertyValue(value: PropertyValue): unknown {
         'PropertyValue.lastEditedTime is virtual and must not be persisted; derive from modified_at at read time.'
       )
   }
+}
+
+/** Set or clear one property on a (possibly malformed) properties record, returning the next
+ *  record. A null value (or the `null` kind) clears the key; anything else encodes via the
+ *  codec. The single owner of the page + agenda property set/clear rule. */
+export function applyPropertyValue(
+  current: unknown,
+  propertyId: string,
+  value: PropertyValue | null
+): Record<string, unknown> {
+  const next: Record<string, unknown> = isPlainObject(current) ? { ...current } : {}
+  if (value === null || value.kind === 'null') delete next[propertyId]
+  else next[propertyId] = encodePropertyValue(value)
+  return next
 }

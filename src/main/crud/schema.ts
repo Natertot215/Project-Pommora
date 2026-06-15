@@ -11,11 +11,8 @@ import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { z } from 'zod'
 import { pageTypeSidecar, agendaConfigSidecar } from '@shared/schemas'
-import {
-  defaultStatusSeed,
-  type PropertyDefinition,
-  type PropertyType
-} from '@shared/properties'
+import { defaultStatusSeed, type PropertyDefinition, type PropertyType } from '@shared/properties'
+import { isPlainObject } from '@shared/propertyValue'
 import { AGENDA_SUFFIX, type AgendaKind } from '@shared/agenda'
 import { mintPropertyId } from '../ids'
 import { readSidecar, writeSidecar } from '../sidecarIO'
@@ -45,10 +42,8 @@ interface SchemaTarget {
 
 function stripPageMember(content: string, propertyId: string): string | null {
   const props = splitFrontmatter(content).properties
-  if (props === null || typeof props !== 'object' || Array.isArray(props)) return null
-  const rec = props as Sidecar
-  if (!(propertyId in rec)) return null
-  const next = { ...rec }
+  if (!isPlainObject(props) || !(propertyId in props)) return null
+  const next = { ...props }
   delete next[propertyId]
   const body = splitEnvelope(content).body
   return mergeFrontmatter(content, { properties: next, modified_at: nowIso() }, ['properties', 'modified_at'], body)
@@ -61,15 +56,12 @@ function stripAgendaMember(content: string, propertyId: string): string | null {
   } catch {
     return null
   }
-  if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) return null
-  const obj = raw as Sidecar
-  const props = obj.properties
-  if (props === null || typeof props !== 'object' || Array.isArray(props)) return null
-  const rec = props as Sidecar
-  if (!(propertyId in rec)) return null
-  const next = { ...rec }
+  if (!isPlainObject(raw)) return null
+  const props = raw.properties
+  if (!isPlainObject(props) || !(propertyId in props)) return null
+  const next = { ...props }
   delete next[propertyId]
-  return serializeJson({ ...obj, properties: next, modified_at: nowIso() })
+  return serializeJson({ ...raw, properties: next, modified_at: nowIso() })
 }
 
 const PAGE_TARGET: SchemaTarget = {

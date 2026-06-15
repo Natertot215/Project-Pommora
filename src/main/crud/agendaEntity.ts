@@ -7,24 +7,15 @@
 // agenda-specific folder code here.
 
 import { join, dirname } from 'node:path'
-import { rename, readFile } from 'node:fs/promises'
+import { rename } from 'node:fs/promises'
 import { newId } from '../ids'
-import { writeJson, trashWithTimestamp } from '../io/atomicWrite'
-import { encodePropertyValue, type PropertyValue } from '@shared/propertyValue'
+import { writeJson, trashWithTimestamp, readJsonObject } from '../io/atomicWrite'
+import { applyPropertyValue, type PropertyValue } from '@shared/propertyValue'
 import { AGENDA_SUFFIX, agendaKindOf, type AgendaKind } from '@shared/agenda'
 import { pathExists, invalidName, nowIso } from './util'
 import { ok, fail, type Result } from '@shared/result'
 
 type Raw = Record<string, unknown>
-
-async function readRaw(absFile: string): Promise<Raw | null> {
-  try {
-    const v = JSON.parse(await readFile(absFile, 'utf8'))
-    return v !== null && typeof v === 'object' && !Array.isArray(v) ? (v as Raw) : null
-  } catch {
-    return null
-  }
-}
 
 /** Create an agenda item with a fresh ULID + the kind's required defaults. An Event
  *  requires `start_at` + `end_at` in `fields`. Optional EventKit fields ride via `fields`. */
@@ -82,7 +73,7 @@ export async function deleteAgendaItem(nexusRoot: string, absFile: string): Prom
 /** Merge `patch` over the item's governed fields, preserving foreign keys + bumping
  *  modified_at. Additive (a patched field is set; it never deletes other fields). */
 export async function updateAgendaItem(absFile: string, patch: Raw): Promise<Result<null>> {
-  const raw = await readRaw(absFile)
+  const raw = await readJsonObject(absFile)
   if (!raw) return fail('not-found', 'Agenda item not found.', 'agenda')
   await writeJson(absFile, { ...raw, ...patch, modified_at: nowIso() })
   return ok(null)
@@ -95,12 +86,9 @@ export async function updateAgendaProperty(
   propertyId: string,
   value: PropertyValue | null
 ): Promise<Result<null>> {
-  const raw = await readRaw(absFile)
+  const raw = await readJsonObject(absFile)
   if (!raw) return fail('not-found', 'Agenda item not found.', 'agenda')
-  const cur = raw.properties
-  const props: Raw = cur !== null && typeof cur === 'object' && !Array.isArray(cur) ? { ...(cur as Raw) } : {}
-  if (value === null || value.kind === 'null') delete props[propertyId]
-  else props[propertyId] = encodePropertyValue(value)
+  const props = applyPropertyValue(raw.properties, propertyId, value)
   await writeJson(absFile, { ...raw, properties: props, modified_at: nowIso() })
   return ok(null)
 }
@@ -108,7 +96,7 @@ export async function updateAgendaProperty(
 /** Set an agenda item's tier-N context links (bare ULID array at the root). tier 1–3. */
 export async function setAgendaTier(absFile: string, tier: number, contextIds: string[]): Promise<Result<null>> {
   if (tier < 1 || tier > 3) return fail('invalid-tier', `Tier ${tier} is not 1–3.`, 'agenda')
-  const raw = await readRaw(absFile)
+  const raw = await readJsonObject(absFile)
   if (!raw) return fail('not-found', 'Agenda item not found.', 'agenda')
   await writeJson(absFile, { ...raw, [`tier${tier}`]: contextIds, modified_at: nowIso() })
   return ok(null)

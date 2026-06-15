@@ -6,6 +6,7 @@
 import writeFileAtomic from 'write-file-atomic'
 import { readFile, rename, mkdir, stat } from 'node:fs/promises'
 import { join, basename } from 'node:path'
+import { isPlainObject } from '@shared/propertyValue'
 
 /** Atomically write a UTF-8 string to `filePath`. */
 export async function atomicWriteFile(filePath: string, data: string): Promise<void> {
@@ -44,6 +45,18 @@ export async function mutateJson<T>(
   const next = mutate(current)
   await writeJson(filePath, next)
   return next
+}
+
+/** Read + JSON-parse a file to a plain object, or null if missing / unreadable / not an
+ *  object. The one owner of "parse a JSON file to a record" — used by sidecar, agenda, and
+ *  index reads (the JSON-side analog of pageFile's mergeFrontmatter). */
+export async function readJsonObject(absPath: string): Promise<Record<string, unknown> | null> {
+  try {
+    const v: unknown = JSON.parse(await readFile(absPath, 'utf8'))
+    return isPlainObject(v) ? v : null
+  } catch {
+    return null
+  }
 }
 
 /** Deterministic JSON: object keys sorted recursively, 2-space indent. Byte-stable

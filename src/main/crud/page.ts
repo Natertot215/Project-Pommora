@@ -9,7 +9,7 @@ import { newId } from '../ids'
 import { writePageFile, mergeFrontmatter, splitEnvelope } from '../io/pageFile'
 import { atomicWriteFile, trashWithTimestamp } from '../io/atomicWrite'
 import { splitFrontmatter } from '../readNexus'
-import { encodePropertyValue, type PropertyValue } from '@shared/propertyValue'
+import { applyPropertyValue, type PropertyValue } from '@shared/propertyValue'
 import { PAGE_MODELED_KEYS } from '@shared/schemas'
 import { ok, fail, type Result } from '@shared/result'
 import { pathExists, invalidName, nowIso } from './util'
@@ -89,17 +89,7 @@ export async function updatePageProperty(
 ): Promise<Result<null>> {
   if (!(await pathExists(absFile))) return fail('not-found', 'Page not found.', 'page')
   const existing = await readFile(absFile, 'utf8')
-  const fm = splitFrontmatter(existing)
-  const current = fm.properties
-  const props: Record<string, unknown> =
-    current !== null && typeof current === 'object' && !Array.isArray(current)
-      ? { ...(current as Record<string, unknown>) }
-      : {}
-  if (value === null || value.kind === 'null') {
-    delete props[propertyId]
-  } else {
-    props[propertyId] = encodePropertyValue(value)
-  }
+  const props = applyPropertyValue(splitFrontmatter(existing).properties, propertyId, value)
   const body = splitEnvelope(existing).body
   const content = mergeFrontmatter(
     existing,
