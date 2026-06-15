@@ -33,10 +33,10 @@ Rules: components reference **semantic tokens only** (never raw hex); one folder
 
 Chip color is a Figma **variable-mode picker**: the `Color` collection has **10 modes** (Blue, Green, Purple, Lavender, Cyan, Light Blue, Orange, Yellow, Grey, Default — **no red**), each holding a single `Base` (the solid, aliased). Selecting a mode recolors the whole chip. The **unified tint is the base at three opacities** — no custom colors, no lightening:
 
-- **Soft (default):** surface = base @ **15%** (Fill) · outline = base @ **50%** · label = base @ **100%**.
+- **Soft (default):** surface = base @ **60%** (Fill) · outline = base @ **25%** · label = `label-primary` + base @ **10%** (white with a faint color tint).
 - **Solid:** surface = base @ **100%** · label = `label-primary` (white) · no outline.
 
-The Figma showcase master shows a representative color (Blue); a chip's neutral fallback is the **Default** mode, applied as the React `Chip` component's default (Figma's collection default mode is read-only, and setting the master to Default greys the showcase). In code, the React `Chip` just applies these three opacities to one base color — no per-color values, no `color-mix`. Pending.
+The Figma showcase master shows a representative color (Blue); a chip's neutral fallback is the **Default** mode, applied as the React `Chip` component's default (Figma's collection default mode is read-only, and setting the master to Default greys the showcase). In code: surface + outline are the base at opacity; the label is `label-primary` mixed ~10% with the base (a `color-mix`). Pending.
 
 #### Accent
 

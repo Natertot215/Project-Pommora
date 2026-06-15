@@ -14,7 +14,7 @@ Two foundations are down; the UI is next.
 
 - **Verify usages — fills AND strokes — before deleting a Figma variable.** A fills-only sweep left 12 stroke bindings on `label-on-color`, so deleting it left dangling refs. Same lesson as the data layer's `target_kind`: a claim is a hypothesis until checked against the real thing.
 - **Figma constraints are real:** variable modes cap at **10** per collection (Pro); `defaultModeId` is read-only (no reorder). The chip picker fit in exactly 10 modes; since `defaultModeId` is read-only, "a fresh chip = Default" belongs in the React component's default (setting the Figma master to Default just greys the showcase).
-- **The unified chip tint is just the base at three opacities** — surface 15% / outline 50% / label 100%, no per-color values or lightening; the React `Chip` applies them to one base color (no `color-mix`).
+- **The unified chip tint:** surface = base @ 60% · outline = base @ 25% · label = `label-primary` + base @ 10%. Surface/outline are base-at-opacity; the label is a 10% base tint over `label-primary` (a `color-mix` in code).
 - (Data layer) Keep greenfield multi-agent stages sequential + self-verified green; `ELECTRON_RUN_AS_NODE=1` breaks GUI launches (strip it); CommonJS main/preload.
 
 ### Next session
