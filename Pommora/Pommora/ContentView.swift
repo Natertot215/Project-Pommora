@@ -216,6 +216,9 @@ struct ContentView: View {
         .tint(currentAccent)
         .environment(\.nexusAccent, currentAccent)
         .toolbarBackground(.hidden, for: .windowToolbar)
+        // Suppress the native NSToolbar right-click display-mode menu
+        // ("Icon Only / Icon and Text") — see WindowToolbarConfigurator.
+        .background(WindowToolbarConfigurator())
         .sheet(
             item: $bindableNexusManager.pendingAdoption,
             onDismiss: {
