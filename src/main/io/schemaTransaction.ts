@@ -56,8 +56,11 @@ export class SchemaTransaction {
     // Phase 2: rename each temp over its target, backing up any existing target.
     const renamed: { target: string; backup: string | null }[] = []
     for (const w of this.pending) {
+      // `backup` is hoisted so the catch can restore THIS entry too: if the target was
+      // already moved aside but the temp→target rename then failed, the original lives
+      // only in `backup` and isn't in `renamed` yet — without this it would be lost.
+      let backup: string | null = null
       try {
-        let backup: string | null = null
         if (await pathExists(w.target)) {
           backup = `${w.target}.bak-${newId()}`
           await rename(w.target, backup)
@@ -65,7 +68,9 @@ export class SchemaTransaction {
         await rename(w.temp, w.target)
         renamed.push({ target: w.target, backup })
       } catch (e) {
-        // Roll back: restore backups (reverse order), delete any remaining temps.
+        // Roll back: restore THIS entry's backup first, then the already-renamed ones
+        // (reverse order), then delete any remaining temps.
+        if (backup) await rename(backup, w.target).catch(() => {})
         for (const r of [...renamed].reverse()) {
           await unlink(r.target).catch(() => {})
           if (r.backup) await rename(r.backup, r.target).catch(() => {})
@@ -80,8 +85,12 @@ export class SchemaTransaction {
     this.pending = []
   }
 
-  /** Sweep every staged target's parent dir for `*.txn-*` / `*.bak-*` siblings left by a
-   *  previous crashed commit and delete them (they have no value across processes). */
+  /** Sweep every staged target's parent dir for stale `*.txn-*` temps left by a previous
+   *  crashed commit (a temp is uncommitted, so it's always safe to delete). `*.bak-*` files
+   *  are deliberately NOT swept: a leftover backup is the ORIGINAL content of a target whose
+   *  commit crashed after the move-aside but before the temp landed — it may be the only
+   *  copy, and a concurrent transaction's live backups would also be hit. Successful commits
+   *  delete their own backups in phase 3; a crashed one's backup is left for recovery. */
   private async cleanStaleTemps(): Promise<void> {
     const dirs = new Set(this.pending.map((p) => dirname(p.target)))
     for (const dir of dirs) {
@@ -92,9 +101,7 @@ export class SchemaTransaction {
         continue
       }
       for (const name of entries) {
-        if (name.includes('.txn-') || name.includes('.bak-')) {
-          await unlink(join(dir, name)).catch(() => {})
-        }
+        if (name.includes('.txn-')) await unlink(join(dir, name)).catch(() => {})
       }
     }
   }

@@ -46,15 +46,17 @@ describe('SchemaTransaction', () => {
     expect(await siblings()).toEqual([]) // staged temp cleaned up
   })
 
-  it('sweeps stale .txn-/.bak- siblings from a prior crashed commit', async () => {
+  it('sweeps stale .txn- temps but preserves .bak- backups for recovery', async () => {
     await writeFile(join(root, 'a.json.txn-OLD'), 'junk', 'utf8')
-    await writeFile(join(root, 'a.json.bak-OLD'), 'junk', 'utf8')
+    await writeFile(join(root, 'a.json.bak-OLD'), 'recoverable original', 'utf8')
 
     const tx = new SchemaTransaction()
     tx.stage(join(root, 'a.json'), 'clean')
     await tx.commit()
 
-    expect(await siblings()).toEqual([])
+    const left = await siblings()
+    expect(left.some((n) => n.includes('.txn-'))).toBe(false) // uncommitted temp swept
+    expect(left).toContain('a.json.bak-OLD') // recovery backup left intact
     expect(await readFile(join(root, 'a.json'), 'utf8')).toBe('clean')
   })
 
