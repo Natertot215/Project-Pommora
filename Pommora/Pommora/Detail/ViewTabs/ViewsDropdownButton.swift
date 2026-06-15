@@ -4,7 +4,7 @@ import SwiftUI
 /// manage the container's saved views).
 ///
 /// Hosted as a toolbar item — the leading pill of the trailing primary-action
-/// cluster (see `ContentView.primaryActionCapsule`). The popover content gets the
+/// cluster (see `ContentView.viewsButtonCapsule`). The popover content gets the
 /// full Nexus environment injected at its boundary (`AppGlobals.current`), since
 /// the toolbar lives outside ContentView's injected env chain.
 struct ViewsDropdownButton: View {

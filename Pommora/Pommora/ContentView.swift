@@ -105,43 +105,46 @@ struct ContentView: View {
         .help("Toggle Inspector (⌥⌘0)")
     }
 
-    /// The trailing primary-action cluster — two Liquid Glass capsules
-    /// (Views | settings·nav·inspector) at a tight `PUI.Spacing.md` gap, per the
-    /// Figma. Each capsule is glassed once via `.glassEffect`; the system's own
-    /// toolbar-item glass (which would otherwise wrap both into one pill and
-    /// bridge them — the "reaching") is suppressed by
-    /// `.sharedBackgroundVisibility(.hidden)` on the ToolbarItem. A tighter gap
-    /// than `ToolbarSpacer(.fixed)`'s system size — the deliberate, SDK-confirmed
-    /// tradeoff for the Figma's tight gap (native toolbar items can't express a
-    /// custom-width gap).
+    /// The **Views** pill — a standalone toolbar item, kept OUT of the
+    /// `.primaryAction` trio (see `mainToolbar`). Welding it into the trio's item
+    /// made the trio's rendered width depend on whether the Views pill was present,
+    /// condensing the trio on the container views where Views appears. Standalone,
+    /// the trio's width is fully decoupled and stable.
     @ViewBuilder
-    private var primaryActionCapsule: some View {
+    private var viewsButtonCapsule: some View {
         if let env = nexusEnvironment {
-            HStack(spacing: PUI.Spacing.md) {
-                if showsViewControls {
-                    ViewsDropdownButton(
-                        scope: currentViewSettingsScope,
-                        pageTypeManager: env.vaultManager,
-                        activeViewStore: env.activeViewStore
-                    )
-                    .glassEffect(.regular.interactive(), in: .capsule)
-                }
-                HStack(spacing: 0) {
-                    ViewSettingsButton(
-                        scope: currentViewSettingsScope,
-                        pageTypeManager: env.vaultManager,
-                        tierConfigManager: env.tierConfigManager,
-                        pageContentManager: env.contentManager
-                    )
-                    if let lookup = sidebarLookup {
-                        NavDropdownButton(lookup: lookup) { sel in
-                            sidebarSelection = sel
-                        }
+            ViewsDropdownButton(
+                scope: currentViewSettingsScope,
+                pageTypeManager: env.vaultManager,
+                activeViewStore: env.activeViewStore
+            )
+            .glassEffect(.regular.interactive(), in: .capsule)
+        }
+    }
+
+    /// The settings·nav·inspector **trio** — the `.primaryAction` item the
+    /// inspector folds. Isolated from the Views pill so its width is identical
+    /// whether or not the Views button is present (the welded version condensed
+    /// here). Glassed once via `.glassEffect`; the system's shared toolbar glass is
+    /// suppressed per-item in `mainToolbar` via `.sharedBackgroundVisibility`.
+    @ViewBuilder
+    private var trioCapsule: some View {
+        if let env = nexusEnvironment {
+            HStack(spacing: 0) {
+                ViewSettingsButton(
+                    scope: currentViewSettingsScope,
+                    pageTypeManager: env.vaultManager,
+                    tierConfigManager: env.tierConfigManager,
+                    pageContentManager: env.contentManager
+                )
+                if let lookup = sidebarLookup {
+                    NavDropdownButton(lookup: lookup) { sel in
+                        sidebarSelection = sel
                     }
-                    inspectorToggleButton
                 }
-                .glassEffect(.regular.interactive(), in: .capsule)
+                inspectorToggleButton
             }
+            .glassEffect(.regular.interactive(), in: .capsule)
         }
     }
 
@@ -157,10 +160,20 @@ struct ContentView: View {
     /// The window toolbar — extracted into its own `@ToolbarContentBuilder` so the
     /// `body` modifier chain stays under the Swift type-checker's inference budget.
     ///
-    /// Back/Forward sit in the leading `.navigation` group; a `.flexible` spacer
-    /// pushes `primaryActionCapsule` (the two glass segments) to the trailing edge
-    /// (macOS 26 has no native trailing placement). The toolbar is hosted on the
-    /// detail column, off the inspector — the reaching fix.
+    /// Back/Forward lead in the `.navigation` group; a `.flexible` spacer pushes
+    /// the trailing cluster over (macOS 26 has no native trailing placement). The
+    /// cluster is TWO independent items — the Views pill and the
+    /// settings·nav·inspector trio (`.primaryAction`) — kept separate ON PURPOSE:
+    /// welding them made the trio's width track the Views pill's presence and
+    /// condensed it on container views. Hosted on the detail column;
+    /// `.sharedBackgroundVisibility(.hidden)` on each item suppresses the system's
+    /// shared glass so only the custom `.glassEffect` pills render.
+    ///
+    /// KNOWN QUIRK: both items live in the trailing region, which the inspector
+    /// adopts — so toggling the inspector folds the Views pill in alongside the
+    /// trio (it does not stay in the main window). macOS exposes no
+    /// content-trailing slot to pin it outside the adopted region; accepted as the
+    /// tradeoff for the stable, un-condensed trio. See `// Guidelines //Design.md`.
     @ToolbarContentBuilder
     private var mainToolbar: some ToolbarContent {
         ToolbarItemGroup(placement: .navigation) {
@@ -169,13 +182,18 @@ struct ContentView: View {
             }
         }
         ToolbarSpacer(.flexible)
-        ToolbarItem {
-            primaryActionCapsule
+        // Views pill — its own item, so the trio's width never depends on it.
+        if showsViewControls {
+            ToolbarItem {
+                viewsButtonCapsule
+            }
+            .sharedBackgroundVisibility(.hidden)
         }
-        // Suppress the system's shared glass background for this item — the
-        // capsule supplies its own two `.glassEffect()` pills, so the system pill
-        // would otherwise wrap both and bridge them (the "reaching"). Hiding it
-        // leaves only the custom capsules at the tight 8pt gap.
+        // The trio — the `.primaryAction` the inspector folds; standalone, its
+        // width is identical with or without the Views pill present.
+        ToolbarItem(placement: .primaryAction) {
+            trioCapsule
+        }
         .sharedBackgroundVisibility(.hidden)
     }
 
