@@ -59,6 +59,16 @@ export type TopicSidecar = z.infer<typeof topicSidecar>
 export type ProjectSidecar = z.infer<typeof projectSidecar>
 export type AreaSidecar = z.infer<typeof areaSidecar>
 
+/** Agenda config sidecar (`_taskconfig.json` / `_eventconfig.json`) — a property schema
+ *  for its agenda items. property_definitions stay loose (per-def codec is parseDefinitions),
+ *  matching pageTypeSidecar; views + default_sort ride through untouched. */
+export const agendaConfigSidecar = baseSidecar.extend({
+  property_definitions: z.array(z.looseObject({})).optional(),
+  views: z.array(z.looseObject({})).optional(),
+  default_sort: z.looseObject({}).optional()
+})
+export type AgendaConfigSidecar = z.infer<typeof agendaConfigSidecar>
+
 /** Page (.md) frontmatter. tier1/2/3 are BARE ULID arrays at the root (NOT $rel-tagged
  *  — that shape is only for user/agenda properties); `properties` maps property-id to
  *  an encoded PropertyValue. Loose ⇒ foreign keys ride through. */
