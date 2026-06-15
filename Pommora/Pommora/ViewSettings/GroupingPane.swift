@@ -57,7 +57,6 @@ struct GroupingPane: View {
 
     @ViewBuilder
     private func paneRows(model: GroupingPaneModel) -> some View {
-        @Bindable var m = model
         let grouping = model.grouping
         let props = ViewSettingsProperties.groupable(
             scope: scope, manager: pageTypeManager, tierConfig: tierConfigManager.config)
