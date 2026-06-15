@@ -4,7 +4,7 @@ Lean current-state snapshot. Read first at session start.
 
 ### Session summary
 
-The **headless data layer** is underway and building cleanly. After a 20-agent dual-research pass (Swift bloat × TS-native recreation; synthesis in `Planning/Data-Layer-Design.md`, load-bearing claims verified against real Swift — which caught + fixed a tier-shape doc bug in the Swift project's CLAUDE.md), shipped data-layer **Phases 0–5** as green commits: contracts + value codec + atomic I/O → page file engine (foreign-preserving) → sidecar schemas/kind/IO → folder + page CRUD + reorder → **properties (value write + schema CRUD + tier synthesis + SchemaTransaction)** → **connections & tier relations (scan/rewrite/resolve/edges, pure-Map engine + renameCascade + unlinkTier + setPageTier)**. **195 tests; typecheck + build green.** Tests-only, zero UI wired (per directive). Earlier this session also landed the navigation spine (`80e210e`). Per-phase record + all ⚐ review flags in `Planning/Data-Layer-Build-Log.md`.
+The **headless data layer** is built through Phase 6. After a 20-agent dual-research pass (Swift bloat × TS-native recreation; synthesis in `Planning/Data-Layer-Design.md`, load-bearing claims verified against real Swift — which caught + fixed a tier-shape doc bug in the Swift project's CLAUDE.md), shipped data-layer **Phases 0–6** as green commits: contracts + value codec + atomic I/O → page file engine (foreign-preserving) → sidecar schemas/kind/IO → folder + page CRUD + reorder → properties (value + schema CRUD + tier synthesis + SchemaTransaction) → connections & tier relations (pure-Map engine + renameCascade + unlinkTier + setPageTier) → **SQLite index (better-sqlite3 behind db.ts; byte-compatible 11-table schema + version handshake + per-entity upserts + cold build)**. **209 tests; typecheck + build green.** Tests-only, zero UI wired (per directive). Earlier this session also landed the navigation spine (`80e210e`). Per-phase record + all ⚐ review flags in `Planning/Data-Layer-Build-Log.md`. **Remaining catch-up:** Agenda CRUD (the last data-layer subsystem).
 
 ### Lessons learned
 
@@ -12,12 +12,12 @@ The **headless data layer** is underway and building cleanly. After a 20-agent d
 - `ELECTRON_RUN_AS_NODE=1` in this env breaks every GUI launch — strip it. Electron's ESM `require('electron')` fails → CommonJS main/preload.
 - Greenfield multi-agent builds: keep stages **sequential + self-verified green** to stay coherent; parallel only for independent reads/reviews.
 
-### Next session (continue the data layer)
+### Next session (finish catch-up, then measure)
 
-1. **Phase 6 — SQLite index** — `index/*` with verbatim 11-table DDL + `better-sqlite3` behind `db.ts` + version handshake + `electron-rebuild`/`asarUnpack` (native module — first build-pipeline friction of the rebuild; surface it); best-effort upserts wired into `crud/*` (swallowed); off the read path, degrade-to-files on load failure. Port `loadAll-sync-parents`.
-2. **Agenda CRUD** — folds in via an `agendaEntity` factory reusing `folderEntity` + the value codec; agenda config-schema CRUD reuses `properties/schema.ts` + a JSON member-strip + the existing `SchemaTransaction`.
-3. **Deferred polish:** (a) wire the pure connection engine into the read path — extend the `readNexus` walk to collect `linkIndex.byTitle` + `contextsById` (engine exists, no consumer yet); (b) DRY-refactor `readNexus` onto `sidecarIO`/`kind`/schemas once singleton schemas land — verify against the read-engine tests. `mutate:*` IPC + preload bridge + cascade orchestration stay deferred until UI (no-routing directive).
-4. **After all phases:** the Swift-vs-React data-layer line-count diff (non-comment, shared-functionality-only) — see Pending focuses.
+1. **Agenda CRUD — the last data-layer subsystem.** `shared/` task/event/recurrence zod schemas (EventKit-shaped JSON); an `agendaEntity` factory (create/rename/delete + value write) reusing the value codec + `pageFile`-style foreign preservation but for `.task.json`/`.event.json`; agenda config-schema CRUD reusing `properties/schema.ts` + a JSON member-strip + `SchemaTransaction`; index population for `agenda_tasks`/`agenda_events` in `build.ts`. Then the data layer is fully caught up to Swift.
+2. **Then: the Swift-vs-React line-count diff** (non-comment, shared-functionality-only) — the deliverable in Pending focuses. Run it once agenda lands so the comparison is complete.
+3. **Deferred until UI (no-routing directive):** `mutate:*`/`index:*` IPC + preload bridge; incremental index upserts wired into the IPC handler (+ `electron-rebuild`/`asarUnpack` packaging, `loadAll-sync-parents`); cascade orchestration (renamePage→renameCascade revert-on-throw; Context-delete→unlinkTier).
+4. **Deferred polish:** wire the pure connection engine into the `readNexus` walk (`linkIndex.byTitle` + `contextsById`); DRY-refactor `readNexus` onto `sidecarIO`/`kind`/schemas + have `build.ts` consume node-exposed `modified_at`/defs instead of re-reading sidecars.
 
 ### Pending focuses
 

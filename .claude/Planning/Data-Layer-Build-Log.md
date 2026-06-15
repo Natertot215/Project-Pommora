@@ -116,3 +116,20 @@ Convention: everything is headless (tests-only, no UI wired); every commit is gr
 - `setPageTier` / cascade: tier ids + connection targets are **not existence-checked** (a stale/garbage id is stored/kept) — same as reorder's no-validation flag.
 - `shared/connections.ts`: `normalizeTitle` uses JS `trim()`+`toLowerCase()` vs Swift `.whitespacesAndNewlines`+`.lowercased()` — equivalent for ASCII; exotic-Unicode case-folding may differ marginally. *Confirm acceptable.*
 - `connections/resolve.ts`: a page that links its own title resolves to **itself** (self-edge) — not filtered. *Confirm benign.*
+
+### Phase 6 — SQLite index · `f54f869` seam+schema · `d99d89f` open · `2f4b49f` upsert · `7a85c4a` build
+
+**What.** The regeneratable index accelerator, behind `db.ts`. `index/db.ts` (better-sqlite3 seam: `openDb` degrades to null → file-only reads; `transact`). `index/schema.ts` (the 10 entity tables copied byte-compatibly from Swift's `IndexSchema` + the `meta` table + 14 indexes; `SCHEMA_VERSION=14`). `index/open.ts` (`openIndex` — version handshake: reuse at current version, else delete DB+WAL/SHM and recreate; `needsRebuild`). `index/upsert.ts` (generic INSERT OR REPLACE + typed wrappers; replace-by-source for connections + context_links). `index/build.ts` (`buildIndex` collect-then-transact; `rebuildIndex` open→build→stamp-on-success).
+
+**Why.** Cross-cutting queries (filter/sort/group by property, by tier, the connection graph) that a file walk can't answer cheaply. Off the read path: `readNexus`/`readPage` stay the only content path; a failed index degrades to files.
+
+**Swift delta + why.** GRDB + its `*Snapshot` mirror structs + the `String`-overload workarounds + the two-phase MainActor index walk collapse to hand-written parametrized SQL behind one sync driver. The DDL is **byte-compatible** (ids match the sidecars), so a Swift- and a React-built `index.db` are interchangeable. The defining win is positional, not LOC: because Phase-5 resolution is pure-Map, the index is a **pure accelerator** here — Swift *needs* it for connection resolution; React doesn't. better-sqlite3 installed from a **prebuilt binary** (no native compile; `electron-rebuild`/`asarUnpack` only matter once main loads it in a packaged build — deferred with the no-UI wiring). ~1,742 Swift index LOC → ~430 TS.
+
+**⚐ Review flags.**
+- **Not wired to anything.** `rebuildIndex` exists but nothing calls it, and incremental upserts are **not** wired into CRUD (the integration point is the IPC handler, deferred until UI). So after a mutation the index is stale until the next `rebuildIndex`. The biggest deferred item — with `electron-rebuild`/`asarUnpack` (packaging) + the `loadAll-sync-parents` incremental path. *Wire at the IPC layer when UI lands.*
+- `index/build.ts` **re-reads** type/collection/set sidecars that `readNexus` already parsed (folder paths reconstructed from titles). Folds into the readNexus refactor (expose `modified_at`/`schema_version`/`property_definitions` on nodes). *Perf + DRY.*
+- `index/build.ts` synthesizes **deterministic** ids for `context_links` (`<pageId>:_tierN:<ctxId>`) + `connections` (`<pageId>:<normalizedTitle>`) — differ from Swift's (likely ULIDs), but link-row ids are internal to the regeneratable index; interchange rides on the entity ids (page/context/title). *Confirm interchange unaffected.*
+- `index/build.ts` indexes `parseDefinitions(...)` as stored (incl. a reserved `_tierN` override entry if present) **without** `droppingUserRelations`. *Confirm parity with Swift's IndexBuilder (whether a retired user-relation def should be excluded from the index like the runtime schema).*
+- Container `modified_at` falls back to EPOCH when the sidecar lacks it; page `modified_at` → `created_at` → EPOCH. *Confirm acceptable (regeneratable; rarely the container sort key).*
+- `agenda_tasks` / `agenda_events` tables exist but the build **doesn't populate** them (no agenda CRUD yet) — folds in with agenda.
+- `index/db.ts` sets WAL + `foreign_keys=ON` per connection (build inserts in FK-safe order). 3 npm-audit high advisories are in `prebuild-install` (dev tooling, not shipped runtime).
