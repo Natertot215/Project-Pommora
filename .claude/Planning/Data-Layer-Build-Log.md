@@ -66,7 +66,9 @@ Convention: everything is headless (tests-only, no UI wired); every commit is gr
 - `crud/folderEntity.ts` and `crud/page.ts` each re-implement `exists`, `invalidName`, `nowIso`. **Small DRY duplication** — candidate to hoist into a shared crud util.
 - `reorder.ts` persists whatever id list it's given — it does **not** validate the ids exist. Harmless on read (`resolveOrder` ignores unknown ids), but a garbage/stale id silently lands in the order array. *Confirm no existence check is needed, or add one.*
 
-### Phase 4 — properties write path · in progress (value write this commit)
+### Phase 4 — properties (value write + schema CRUD)
+
+#### 4a — property value write · `ab43e49`
 
 **What.** `crud/page.ts` `updatePageProperty(absFile, propertyId, value | null)`: set/clear one property value, encoded via the Phase-0 codec; governs only `properties` + `modified_at`, so sibling properties and all other frontmatter survive; null/`null`-kind removes the key.
 
@@ -77,4 +79,23 @@ Convention: everything is headless (tests-only, no UI wired); every commit is gr
 **⚐ Review flags.**
 - **"Omit empty" is partial:** a null/`null`-kind value deletes the key, but an empty array (e.g. `multiSelect []`) writes `[]`. The design says user relations omit when empty. *Decide whether empty arrays should also delete the key.*
 - `updatePageProperty` parses the frontmatter **twice** (`splitFrontmatter` to read current props, `mergeFrontmatter` to write). Minor; could read the Document once.
-- **No schema awareness yet:** it writes any `propertyId` with any value-kind without checking the type's `property_definitions` (wrong-type value or unknown property id is accepted). Phase-4 schema CRUD + validation will close this.
+- **No schema awareness yet:** it writes any `propertyId` with any value-kind without checking the type's `property_definitions` (wrong-type value or unknown property id is accepted). 4b builds the schema side but the value-write path is still not cross-checked against it.
+
+#### 4b — property-schema CRUD + tier synthesis · `df91fb1` util · `18c0b69` model · `681dc97` transforms · `1bdd555` txn · `b3193e6` schema CRUD
+
+**What.** The schema (definition) side, in dependency order. `crud/util.ts` (hoisted `pathExists`/`invalidName`/`nowIso`; folderEntity + page refactored onto it). `shared/properties.ts` (the `PropertyDefinition` zod model + `PropertyType` + reserved-ID catalog + `defaultStatusSeed`; `mintPropertyId` added to `ids.ts`). `properties/schema.ts` (pure `normalizeDefinition` + `parseDefinitions` + `droppingUserRelations` + `validate{Name,Definition}`). `properties/tiers.ts` (`mergeTierProperties` — `_tier1/2/3` synthesis). `io/schemaTransaction.ts` (atomic multi-file commit). `crud/schema.ts` (the five ops: add/rename/reorder = sidecar-only; delete + lossy `changeType` = sidecar + member-strip via the transaction).
+
+**Why.** Completes "properties are editable" — value write (4a) + schema write (4b). The transaction is the one new primitive: a delete / lossy-retype must rewrite the type sidecar **and** strip the property from every member page together-or-not-at-all.
+
+**Swift delta + why.** ~1,400 Swift lines (PropertyDefinition 334 + PerTypeSchemaService 353 incl. its 96-line adapter protocol + the duplicate SingletonSchemaService 334 + SchemaTransaction 153 + validator 44 + ReservedPropertyID 79 + BuiltInContextLinkProperties 65 + MemberFileStrip 40) collapse to ~620 TS lines. Gone: the `PerTypeSchemaAdapter` DI protocol (built for the @MainActor manager), the duplicated singleton service (one parameterized path here), the index-on-write upserts (Phase 6), the `pendingError` toast sink, and the ~117-line PropertyDefinition Codable. The model is one zod schema; the five ops are plain async functions returning `Result`. Resilience is parity (Swift is per-def tolerant via `try?`; here it's `parseDefinitions` per-element) but simpler. A design refinement landed mid-phase (the "re-assess between green commits" rule): `pageTypeSidecar.property_definitions` stays a **loose array** (one bad def can't sink the type) with `parseDefinitions` as the per-def codec, rather than `z.array(propertyDefinition)` (all-or-nothing) wired in 4b-i.
+
+**⚐ Review flags.**
+- `shared/properties.ts`: `selectColor` / `statusGroupId` are **strict** zod enums inside a def — an unknown color in `select_options`/`status_groups` fails the def parse, so `parseDefinitions` **drops the whole def** (resilient skip). Lossier than Area `color` (lenient string, Phase-2 flag). *Decide: `.catch()` the color enum to match the lenient ethos.*
+- `shared/properties.ts`: pure display config (`number_format`, `date_format`, `time_format`, `display_as`, `date_includes_time`) is **not modeled** — rides as foreign keys (round-trips, unvalidated) until a UI reads it. Intentional (catch-up). *Confirm.*
+- `properties/schema.ts`: `parseDefinitions` **silently drops** an unparseable def; `normalizeDefinition` rewrites `.date`→`.datetime` + folds `relation_scope` on every def, so any schema op **persists** that migration on next write. Faithful to Swift, but both are silent data-shape effects. *Confirm.*
+- `properties/schema.ts`: rename validates name-uniqueness only (not the renamed def's select-option rules, unlike Swift's `validate(renamedDef…)`). Equivalent for already-valid defs. *Confirm the narrowing.*
+- `properties/tiers.ts`: the `tierPlural` resolver isn't wired to `tier-config.json` (singleton unmodeled) → tier names are always "Tier N" until singletons land. *Phase debt, not a bug.*
+- `io/schemaTransaction.ts`: the **phase-2 (rename) rollback** path isn't directly unit-tested — no portable way to force a mid-commit rename failure; covered by reading + the symmetric stage-failure test. Rollback is best-effort (no fs transaction); a crash mid-commit relies on the next commit's stale sweep (same surface as Swift). *Confirm acceptable.*
+- `crud/schema.ts`: member strip **bumps each stripped page's `modified_at`** (the page changed). *Confirm parity with Swift's strip.*
+- `crud/schema.ts`: `readSidecar` still returns null if the **whole** sidecar is structurally invalid (a corrupt non-def field blocks every schema op), even though `property_definitions` is now per-def resilient. Same Phase-2 readSidecar-lossiness flag.
+- `crud/schema.ts`: **no agenda config-schema CRUD** (`_taskconfig`/`_eventconfig`) yet — folds in via the agendaEntity factory (reuses these transforms + a JSON member strip). **No index upsert** on schema mutation (Phase 6).
