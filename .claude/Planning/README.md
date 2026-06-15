@@ -1,25 +1,21 @@
 ## Planning — Index
 
-Active plan documents live here at the top level; the `Superseded/` sub-folder archives plans whose work has shipped or whose direction was abandoned. Per Studio convention, a completed plan is logged in `History.md` and then either moved to `Superseded/` or removed (git history preserves removed plans); never leave a stale plan presenting as active.
+Active plan documents live at the top level; `Reference/` holds **non-implemented** approaches kept for their research value; `Superseded/` archives plans whose work has shipped or whose direction was abandoned. Per Studio convention, a completed plan is logged in `History.md` and then either moved to `Superseded/` or removed (git history preserves removed plans); never leave a stale plan presenting as active.
 
 Plans are named `MM-DD-<slug>.md` (earlier files retain their `YYYY-MM-DD-` names). They scope a single feature or refactor into phases and steps (never dates) — `Framework.md` carries the long-term roadmap; planning isolates one body of work.
 
-`Assets/` holds plan-referenced artifacts (currently `PagePreview-Figma-V8.jpg`, the confirmed PagePreview design frame referenced by the archived PagesV2 plan).
-
 #### Active
 
-- `06-14-React-Rebuild-Roadmap.md` — **exploratory** program-level roadmap for a post-v1 React + TypeScript + Electron rebuild (behavior-identical to the PRD, SwiftUI left behind). Phase-sequenced; each phase becomes its own task-plan when greenlit. Backed by two research workflows (Swift→React portability assessment + library/toolkit dual-look). Not committed work — a scoped option.
-- `06-05-Connections-Plan.md` — the Connections implementation plan. Page-level work shipped at v0.3.5 (`History.md` § "Connections — page-level complete"); retained at top level pending the post-v0.4.0 connection-model layer it also scopes.
-- `Contextv2.md` — the Drop-Relations→Contexts refactor plan. Shipped 2026-06-04 (registry decision #16); retained at top level pending archival review.
+- `06-13-Views-UIX-Fixes.md` — the sequenced Views/toolbar UIX fixes. **The toolbar, Views button, and banner chrome are actively changing** — the doc's flux note is load-bearing; nothing in those sections is settled truth. Covers the toolbar cluster, banner + titles, the banner-menu confinement + per-button menus (next), Gallery, grouping/sorting, and the Layout-pane rework.
+- `06-14-React-Rebuild-Roadmap.md` — **exploratory** program-level roadmap for a post-v1 React + TypeScript + Electron rebuild (behavior-identical to the PRD). Phase-sequenced; each phase becomes its own task-plan when greenlit. Backed by two research workflows. A scoped option, not committed work.
+
+#### Reference
+
+- `Reference/06-12-Views-V2-Plan.md` — a **non-implemented** approach: the detailed NSOutlineView-table rebuild plan written during the v0.5.0 Views push, when the SwiftUI custom table failed render review and NSOutlineView looked like the only viable path. It was **never executed as written** — the working detail table (`ViewOutlineTable`, in the app today) instead came out of a short throwaway session that succeeded, and we've built on that since. Kept for its pipeline/port analysis, cross-group-drag design, and task breakdown if the table is ever revisited.
 
 #### Superseded
 
-- `Superseded/06-11-Views-Spec.md` + `Superseded/06-11-Views-Plan.md` — the Views cluster: SavedView v2, the pure view pipeline, the custom Table + Gallery renderers, system-DnD drag engine, Views dropdown + multi-view CRUD, covers/banners. **COMPLETE at v0.5.0** (2026-06-12); the Plan carries the full Deviation Log. Record → `History.md` § "Views"; decision → registry #20; spec → `Features/Views.md`.
-- `Superseded/06-11-Sets-Spec.md` + `Superseded/06-11-Sets-Plan.md` — the Sets third tier: Vault → Collection → Set (optional) → Pages, `PageSetManager`, schema v14, depth-2 adoption, ULID-collision healing. **COMPLETE at v0.4.1** (2026-06-11). Record → `History.md` § "Sets"; decision → registry #19; spec → `Features/Sets.md`.
-- `Superseded/PagePreviewWindow.md` — the V9 real-window PagePreview rebuild (WindowGroup + restriction pass + shared compact inspector). **COMPLETE at v0.4.0** (987 tests green). Record → `History.md` § "v0.4.0".
-- `Superseded/06-10-Contexts-Decoupling-Spec.md` + `Superseded/06-10-Contexts-Decoupling-Plan.md` — the Contexts Decoupling: free-standing Areas / Topics / Projects, Space→Area rename, ContextsSection, schema v12→v13. **COMPLETE 2026-06-10** (994 tests green): P1–P6 executed subagent-driven on `main`; the Plan carries the full per-task execution log. Record → `History.md` § "Contexts Decoupling"; decision → registry #18.
-- `Superseded/PagesV2.md` — the PagesV2 implementation plan (11 phases, P0–P10). **COMPLETE as of `c7f48c7`** (986 tests green): the one-entity collapse — `Item*` deleted, `[[` sole syntax, `PageType.open_in`, the in-window `PagePreview` card (rebuilt next morning as a real window — see `PagePreviewWindow.md`), band-3 user sidebar sections, index schema v11, and this doc sweep. Record → `History.md` § "PagesV2"; decision → registry #17.
-- `Superseded/06-09-Items-Strip-Spec.md` — the zero-assumption spec that fed `PagesV2.md`.
-- `Superseded/06-09-Items-Pages-Collapse-Evaluation.md` — the 6-agent evaluation behind the collapse decision (ratified 2026-06-09).
-- The three ItemsV2 plan files (`06-07-ItemsV2-Plan-V3.md`, `06-07-ItemsV2-Spec-V5.md`, `06-03-ItemsV2-Implemented.md`) were superseded by PagesV2 and deleted in `caa236b` — git history preserves them.
-- Older shipped plans (MarkdownPM rebuild, Items-as-Markdown, Folder Exclusion, display-only vault tables, View Settings, etc.) were removed from the tree in earlier doc sweeps (e.g. `1cf347f`) — git history preserves them; their ship records live in `History.md`.
+- `Superseded/06-11-Views-Spec.md` — the v0.5.0 Views cluster spec (SavedView v2, the pure view pipeline, Table + Gallery, Views dropdown, covers/banners). **COMPLETE at v0.5.0**; spec-as-fact → `Features/Views.md`.
+- Other shipped/abandoned plans (Sets, PagesV2, Contexts-Decoupling, PagePreviewWindow, ItemsV2, and earlier sweeps) were removed from the tree — git history preserves them; their ship records live in `History.md`.
+
+`Contextv2.md` (the Drop-Relations→Contexts refactor, shipped 2026-06-04, registry #16) still sits at the top level pending archival review.
