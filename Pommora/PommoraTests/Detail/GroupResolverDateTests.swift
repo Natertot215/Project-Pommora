@@ -25,10 +25,12 @@ import Testing
             order: nil,
             dateGranularity: .month
         )
+        let dateDef = VPFixture.dateDef("prop_due", name: "Due")
         let groups = GroupResolver.resolve(
             items: items,
             config: .property(grouping),
-            scope: .collection
+            scope: .collection,
+            schema: [dateDef]
         )
 
         // Expect "2026-06" (p1+p2) and "2026-07" (p3).
@@ -55,10 +57,12 @@ import Testing
             order: nil,
             dateGranularity: .month
         )
+        let dateDef = VPFixture.dateDef("prop_due", name: "Due")
         let groups = GroupResolver.resolve(
             items: items,
             config: .property(grouping),
-            scope: .collection
+            scope: .collection,
+            schema: [dateDef]
         )
         let bucketIDs = groups.filter { $0.id != GroupResolver.ungroupedID }.map(\.id)
         #expect(bucketIDs.contains("2026-03"))
@@ -79,10 +83,12 @@ import Testing
             order: nil,
             dateGranularity: .month
         )
+        let dateDef = VPFixture.dateDef("prop_due", name: "Due")
         let groups = GroupResolver.resolve(
             items: items,
             config: .property(grouping),
-            scope: .collection
+            scope: .collection,
+            schema: [dateDef]
         )
         let ungrouped = groups.first(where: { $0.id == GroupResolver.ungroupedID })
         #expect(ungrouped != nil)

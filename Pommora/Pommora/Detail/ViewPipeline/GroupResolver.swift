@@ -28,6 +28,9 @@ enum GroupResolver {
         case .none, .some(.structural):
             return structural(items, scope: scope, comparator: comparator, collapsed: collapsed)
         case .some(.property(let grouping)):
+            guard schema.contains(where: { $0.id == grouping.propertyID }) else {
+                return structural(items, scope: scope, comparator: comparator, collapsed: collapsed)
+            }
             return property(
                 items, grouping: grouping, schema: schema,
                 comparator: comparator, collapsed: collapsed)
@@ -230,8 +233,9 @@ enum GroupResolver {
 
     // MARK: - Property buckets
 
-    /// Flat buckets in schema-option order (applying the `order` override when
-    /// present) + a trailing `_ungrouped` bucket (value nil) titled "No <Property>".
+    /// Flat buckets ordered by `grouping.orderMode` + a no-value bucket (titled
+    /// "No <Property>") placed per `emptyPlacement`. Checkbox nil values route to
+    /// the "false" (Unchecked) bucket — no no-value bucket emitted for checkbox.
     private static func property(
         _ items: [ViewItem],
         grouping: PropertyGrouping,
@@ -240,12 +244,15 @@ enum GroupResolver {
         collapsed: Set<String>
     ) -> [ResolvedGroup] {
         let def = schema.first(where: { $0.id == grouping.propertyID })
+        let isCheckbox = def?.type == .checkbox
 
         var buckets: [String: [ViewItem]] = [:]
         var noValue: [ViewItem] = []
         for item in items {
             if let key = bucketKey(item, grouping: grouping) {
                 buckets[key, default: []].append(item)
+            } else if isCheckbox {
+                buckets["false", default: []].append(item)
             } else {
                 noValue.append(item)
             }
@@ -264,15 +271,20 @@ enum GroupResolver {
             )
         }
 
-        if !noValue.isEmpty {
-            groups.append(
-                ResolvedGroup(
-                    id: ungroupedID,
-                    title: "No \(def?.name ?? "Value")",
-                    kind: .propertyBucket(value: nil),
-                    items: sorted(noValue, comparator),
-                    isCollapsed: collapsed.contains(ungroupedID)
-                ))
+        // No-value ("No <Property>") bucket — inert for checkbox.
+        if !isCheckbox && !noValue.isEmpty && !grouping.hideEmptyGroups {
+            let noValueGroup = ResolvedGroup(
+                id: ungroupedID,
+                title: "No \(def?.name ?? "Value")",
+                kind: .propertyBucket(value: nil),
+                items: sorted(noValue, comparator),
+                isCollapsed: collapsed.contains(ungroupedID)
+            )
+            if grouping.emptyPlacement == .top {
+                groups.insert(noValueGroup, at: 0)
+            } else {
+                groups.append(noValueGroup)
+            }
         }
         return groups
     }
@@ -291,24 +303,42 @@ enum GroupResolver {
         }
     }
 
-    /// Bucket display order: explicit `order` override → schema option order →
-    /// (checkbox) true/false → otherwise present keys sorted lexicographically.
+    /// Bucket display order driven by `grouping.orderMode`:
+    ///   - `.manual`    — explicit `order` list first, then any remaining keys sorted
+    ///   - `.configured` — schema option order, then checkbox false→true, else lexicographic
+    ///   - `.reversed`  — `.configured` base order reversed
     /// Always filtered to keys that actually have items (compactMap upstream).
     private static func bucketOrder(
         grouping: PropertyGrouping, def: PropertyDefinition?, present: Set<String>
     ) -> [String] {
-        if let override = grouping.order, !override.isEmpty {
-            let tail = present.subtracting(override).sorted()
-            return override + tail
+        switch grouping.orderMode {
+        case .manual:
+            let order = grouping.order ?? []
+            let tail = present.subtracting(order).sorted()
+            return order + tail
+
+        case .configured:
+            if let schemaOrder = schemaOptionOrder(def) {
+                let tail = present.subtracting(schemaOrder).sorted()
+                return schemaOrder + tail
+            }
+            if def?.type == .checkbox {
+                return ["false", "true"]
+            }
+            return present.sorted()
+
+        case .reversed:
+            let base: [String]
+            if let schemaOrder = schemaOptionOrder(def) {
+                let tail = present.subtracting(schemaOrder).sorted()
+                base = schemaOrder + tail
+            } else if def?.type == .checkbox {
+                base = ["false", "true"]
+            } else {
+                base = present.sorted()
+            }
+            return base.reversed()
         }
-        if let schemaOrder = schemaOptionOrder(def) {
-            let tail = present.subtracting(schemaOrder).sorted()
-            return schemaOrder + tail
-        }
-        if def?.type == .checkbox {
-            return ["true", "false"]
-        }
-        return present.sorted()
     }
 
     private static func schemaOptionOrder(_ def: PropertyDefinition?) -> [String]? {
