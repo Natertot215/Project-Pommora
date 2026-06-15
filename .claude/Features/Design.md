@@ -31,12 +31,12 @@ Rules: components reference **semantic tokens only** (never raw hex); one folder
 
 #### Chips — one mode-driven component + a unified tint
 
-Chip color is a Figma **variable-mode picker**: the `Color` collection has **10 modes** (Blue, Green, Purple, Lavender, Cyan, Light Blue, Orange, Yellow, Grey, Default — **no red**), each holding `Base` (the solid, aliased) + `Label` (the base auto-lightened ~70%). Selecting a mode recolors the whole chip. The **unified tint** (one rule, any base):
+Chip color is a Figma **variable-mode picker**: the `Color` collection has **10 modes** (Blue, Green, Purple, Lavender, Cyan, Light Blue, Orange, Yellow, Grey, Default — **no red**), each holding a single `Base` (the solid, aliased). Selecting a mode recolors the whole chip. The **unified tint is the base at three opacities** — no custom colors, no lightening:
 
-- **Soft:** surface = base @ **70%** · outline = base @ **25%** (2px) · label = **lightened** base.
+- **Soft (default):** surface = base @ **15%** (Fill) · outline = base @ **50%** · label = base @ **100%**.
 - **Solid:** surface = base @ **100%** · label = `label-primary` (white) · no outline.
 
-The Figma showcase master shows a representative color (Blue); a chip's neutral fallback is the **Default** mode, applied as the React `Chip` component's default (Figma's collection default mode is read-only, and setting the master to Default greys the showcase). Figma can't lighten an arbitrary base, so the **canonical tint derivation belongs in the React `Chip` component** (`color-mix` + opacity off one base) — pending; Figma is the visual reference.
+The Figma showcase master shows a representative color (Blue); a chip's neutral fallback is the **Default** mode, applied as the React `Chip` component's default (Figma's collection default mode is read-only, and setting the master to Default greys the showcase). In code, the React `Chip` just applies these three opacities to one base color — no per-color values, no `color-mix`. Pending.
 
 #### Accent
 
