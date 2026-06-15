@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { mkdtemp, rm, mkdir, stat, readFile, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { createPage, renamePage, deletePage, updatePageBody, movePage, updatePageProperty } from './page'
+import { createPage, renamePage, deletePage, updatePageBody, movePage, updatePageProperty, setPageTier } from './page'
 import { splitEnvelope, assembleEnvelope } from '../io/pageFile'
 import { splitFrontmatter } from '../readNexus'
 import { isUlid } from '../ids'
@@ -144,5 +144,24 @@ describe('updatePageProperty', () => {
   it('errors when the page is missing', async () => {
     const r = await updatePageProperty(join(typeDir, 'nope.md'), 'p', { kind: 'status', value: 'x' })
     expect(r.ok).toBe(false)
+  })
+})
+
+describe('setPageTier', () => {
+  it('writes a bare ULID array to the tier root field, preserving the other tiers + id', async () => {
+    const c = await createPage(typeDir, 'Tiered', { body: 'x' })
+    if (!c.ok) throw new Error('setup failed')
+    expect((await setPageTier(c.value.path, 1, ['ctxA', 'ctxB'])).ok).toBe(true)
+    const fm = splitFrontmatter(await readFile(c.value.path, 'utf8'))
+    expect(fm.tier1).toEqual(['ctxA', 'ctxB'])
+    expect(fm.tier2).toEqual([])
+    expect(fm.id).toBe(c.value.id)
+  })
+
+  it('rejects an out-of-range tier and a missing page', async () => {
+    const c = await createPage(typeDir, 'T2')
+    if (!c.ok) throw new Error('setup failed')
+    expect((await setPageTier(c.value.path, 4, [])).ok).toBe(false)
+    expect((await setPageTier(join(typeDir, 'nope.md'), 1, [])).ok).toBe(false)
   })
 })

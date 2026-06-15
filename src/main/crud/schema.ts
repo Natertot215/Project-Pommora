@@ -9,7 +9,7 @@
 // Agenda config-schema CRUD (`_taskconfig.json` / `_eventconfig.json`) folds in later
 // via the agendaEntity factory, reusing these pure transforms with a JSON member strip.
 
-import { readFile, readdir } from 'node:fs/promises'
+import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { pageTypeSidecar } from '@shared/schemas'
 import {
@@ -23,6 +23,7 @@ import { SIDECAR_FILENAME } from '../paths'
 import { splitFrontmatter } from '../readNexus'
 import { splitEnvelope, mergeFrontmatter } from '../io/pageFile'
 import { serializeJson } from '../io/atomicWrite'
+import { listMarkdownFiles } from '../io/walk'
 import { SchemaTransaction } from '../io/schemaTransaction'
 import {
   parseDefinitions,
@@ -139,24 +140,12 @@ export async function changePropertyType(
 
 // MARK: - Member-file strip
 
-/** All member `.md` pages under a Type folder (pages live directly or nested in
- *  Collections/Sets). */
-async function memberPageFiles(typeFolder: string): Promise<string[]> {
-  let rels: string[]
-  try {
-    rels = await readdir(typeFolder, { recursive: true })
-  } catch {
-    return []
-  }
-  return rels.filter((r) => r.endsWith('.md')).map((r) => join(typeFolder, r))
-}
-
 /** Stage a property-value strip for every member that carries `propertyId`, preserving
  *  the body + sibling properties + foreign keys. Resilient (mirrors MemberFileStrip): a
  *  member that's unreadable or doesn't carry the property is skipped (a file we can't
  *  read can't hold the value, so skipping is lossless). */
 async function stageMemberStrips(tx: SchemaTransaction, typeFolder: string, propertyId: string): Promise<void> {
-  for (const file of await memberPageFiles(typeFolder)) {
+  for (const file of await listMarkdownFiles(typeFolder)) {
     let content: string
     try {
       content = await readFile(file, 'utf8')

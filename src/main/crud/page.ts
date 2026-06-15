@@ -110,3 +110,25 @@ export async function updatePageProperty(
   await atomicWriteFile(absFile, content)
   return ok(null)
 }
+
+/**
+ * Set a page's tier-N context links — a **bare** ULID array at the frontmatter root
+ * (`tier1`/`tier2`/`tier3`, NOT a `$rel`-tagged property). Governs only that tier field +
+ * `modified_at`, so all other frontmatter survives. The array is always written (even
+ * empty). `tier` must be 1–3. Ids are stored as given (existence is not checked here).
+ */
+export async function setPageTier(absFile: string, tier: number, contextIds: string[]): Promise<Result<null>> {
+  if (tier < 1 || tier > 3) return fail('invalid-tier', `Tier ${tier} is not 1–3.`, 'page')
+  if (!(await pathExists(absFile))) return fail('not-found', 'Page not found.', 'page')
+  const field = `tier${tier}`
+  const existing = await readFile(absFile, 'utf8')
+  const body = splitEnvelope(existing).body
+  const content = mergeFrontmatter(
+    existing,
+    { [field]: contextIds, modified_at: nowIso() },
+    [field, 'modified_at'],
+    body
+  )
+  await atomicWriteFile(absFile, content)
+  return ok(null)
+}
