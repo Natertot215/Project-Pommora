@@ -3,6 +3,11 @@
 // (_tier1/2/3). Pure — mirrors Swift's BuiltInContextLinkProperties.merge. The tiers are
 // synthesized at read time, never stored; only a user's reverse-name/icon override
 // persists as a reserved `_tierN` entry in the sidecar.
+//
+// NOT YET WIRED: this computes the effective schema for the property panel / view config,
+// which has no consumer until that UI lands. It's a verified port kept ready, not dead
+// infrastructure — the index synthesizes tier *links* directly from the raw tierN arrays
+// (build.ts), independent of this effective-schema view.
 
 import { RESERVED_PROPERTY_ID, isReservedPropertyId, type PropertyDefinition } from '@shared/properties'
 

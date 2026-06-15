@@ -13,6 +13,7 @@ import { SchemaTransaction } from '../io/schemaTransaction'
 import { scanConnections } from '../connections/scan'
 import { rewriteConnections } from '../connections/rewrite'
 import { normalizeTitle } from '@shared/connections'
+import { tierFieldName } from '@shared/properties'
 import { nowIso } from './util'
 import { ok, fail, type Result } from '@shared/result'
 
@@ -59,7 +60,7 @@ export async function unlinkTier(
   tier: number
 ): Promise<Result<{ touched: string[] }>> {
   if (tier < 1 || tier > 3) return fail('invalid-tier', `Tier ${tier} is not 1–3.`)
-  const field = `tier${tier}`
+  const field = tierFieldName(tier)
   const tx = new SchemaTransaction()
   const touched: string[] = []
   for (const file of await listMarkdownFiles(nexusRoot, { skipTopLevel: SKIP_TOP_LEVEL })) {

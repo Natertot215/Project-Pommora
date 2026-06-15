@@ -15,6 +15,7 @@ import { pageTypeSidecar, pageCollectionSidecar, pageSetSidecar } from '@shared/
 import { SIDECAR_FILENAME } from '../paths'
 import { agendaTask, agendaEvent, AGENDA_SUFFIX } from '@shared/agenda'
 import { parseDefinitions } from '../properties/schema'
+import { TIER_LEVELS, tierFieldName, tierPropertyId } from '@shared/properties'
 import { buildLinkIndex } from '../connections/resolve'
 import { connectionEdges } from '../connections/edges'
 import { normalizeTitle } from '@shared/connections'
@@ -166,7 +167,7 @@ async function readPageData(
     icon: page.icon,
     properties: fm.properties ?? {},
     modifiedAt: str(fm.modified_at) || str(fm.created_at) || EPOCH,
-    tiers: { 1: strArr(fm.tier1), 2: strArr(fm.tier2), 3: strArr(fm.tier3) },
+    tiers: readTiers(fm),
     body: splitEnvelope(content).body
   }
 }
@@ -210,15 +211,22 @@ interface AgendaData {
  *  relation_target *config* discriminant, NOT this column — the column is the tier entity. */
 const TIER_TARGET_KIND: Record<number, string> = { 1: 'area', 2: 'topic', 3: 'project' }
 
+/** A page/agenda item's tier links read off its frontmatter as `{ level: ids }`. */
+function readTiers(fm: Record<string, unknown>): Record<number, string[]> {
+  const tiers: Record<number, string[]> = {}
+  for (const level of TIER_LEVELS) tiers[level] = strArr(fm[tierFieldName(level)])
+  return tiers
+}
+
 /** One context_links row per tier value — shared by pages + agenda items. */
 function tierLinks(sourceId: string, sourceKind: string, tiers: Record<number, string[]>, modifiedAt: string) {
-  return [1, 2, 3].flatMap((tier) =>
+  return TIER_LEVELS.flatMap((tier) =>
     tiers[tier].map((targetId) => ({
-      id: `${sourceId}:_tier${tier}:${targetId}`,
+      id: `${sourceId}:${tierPropertyId(tier)}:${targetId}`,
       sourceKind,
       targetId,
       targetKind: TIER_TARGET_KIND[tier] ?? 'context',
-      propertyId: `_tier${tier}`,
+      propertyId: tierPropertyId(tier),
       modifiedAt
     }))
   )
@@ -275,7 +283,7 @@ async function collectAgenda(nexusRoot: string): Promise<AgendaData> {
         icon: typeof item.icon === 'string' ? item.icon : undefined,
         properties: item.properties ?? {},
         modifiedAt: str(item.modified_at) || str(item.created_at) || EPOCH,
-        tiers: { 1: strArr(item.tier1), 2: strArr(item.tier2), 3: strArr(item.tier3) }
+        tiers: readTiers(item)
       }
       if (isTask) tasks.push({ ...common, dueAt: typeof item.due_at === 'string' ? item.due_at : undefined })
       else events.push({ ...common, startAt: str(item.start_at) || EPOCH, endAt: str(item.end_at) || EPOCH })

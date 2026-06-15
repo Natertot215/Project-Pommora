@@ -10,6 +10,7 @@ import { writePageFile, mergeFrontmatter, splitEnvelope } from '../io/pageFile'
 import { atomicWriteFile, trashWithTimestamp } from '../io/atomicWrite'
 import { splitFrontmatter } from '../readNexus'
 import { applyPropertyValue, type PropertyValue } from '@shared/propertyValue'
+import { tierFieldName } from '@shared/properties'
 import { PAGE_MODELED_KEYS } from '@shared/schemas'
 import { ok, fail, type Result } from '@shared/result'
 import { pathExists, invalidName, nowIso } from './util'
@@ -110,7 +111,7 @@ export async function updatePageProperty(
 export async function setPageTier(absFile: string, tier: number, contextIds: string[]): Promise<Result<null>> {
   if (tier < 1 || tier > 3) return fail('invalid-tier', `Tier ${tier} is not 1–3.`, 'page')
   if (!(await pathExists(absFile))) return fail('not-found', 'Page not found.', 'page')
-  const field = `tier${tier}`
+  const field = tierFieldName(tier)
   const existing = await readFile(absFile, 'utf8')
   const body = splitEnvelope(existing).body
   const content = mergeFrontmatter(

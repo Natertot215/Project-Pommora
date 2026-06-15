@@ -116,33 +116,19 @@ export function isReservedPropertyId(id: string): boolean {
   return RESERVED_SET.has(id)
 }
 
-/** Tier level (1/2/3) → its reserved `_tierN` id; null for any other level. The single
- *  source for the `tier → _tierN` mapping used by the Context-delete cascade. */
-export function tierPropertyId(level: number): string | null {
-  switch (level) {
-    case 1:
-      return RESERVED_PROPERTY_ID.tier1
-    case 2:
-      return RESERVED_PROPERTY_ID.tier2
-    case 3:
-      return RESERVED_PROPERTY_ID.tier3
-    default:
-      return null
-  }
+/** The context tier levels. The one source for iterating tiers (1 = Area, 2 = Topic,
+ *  3 = Project). Callers validate the 1–3 bound at the CRUD boundary. */
+export const TIER_LEVELS = [1, 2, 3] as const
+
+/** Tier level → the BARE frontmatter-root array field (`tier1`/`tier2`/`tier3`). */
+export function tierFieldName(level: number): string {
+  return `tier${level}`
 }
 
-/** Inverse of `tierPropertyId`: a reserved `_tierN` id → its level; null otherwise. */
-export function tierNumberForId(id: string): number | null {
-  switch (id) {
-    case RESERVED_PROPERTY_ID.tier1:
-      return 1
-    case RESERVED_PROPERTY_ID.tier2:
-      return 2
-    case RESERVED_PROPERTY_ID.tier3:
-      return 3
-    default:
-      return null
-  }
+/** Tier level → the RESERVED property id (`_tier1`/`_tier2`/`_tier3`) used in the schema +
+ *  context_links.property_id. Distinct from the bare root field (tierFieldName). */
+export function tierPropertyId(level: number): string {
+  return `_tier${level}`
 }
 
 /** Default 3-group seed written when a Status property is first added. Mirrors Swift

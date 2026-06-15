@@ -11,6 +11,7 @@ import { rename } from 'node:fs/promises'
 import { newId } from '../ids'
 import { writeJson, trashWithTimestamp, readJsonObject } from '../io/atomicWrite'
 import { applyPropertyValue, type PropertyValue } from '@shared/propertyValue'
+import { tierFieldName } from '@shared/properties'
 import { AGENDA_SUFFIX, agendaKindOf, type AgendaKind } from '@shared/agenda'
 import { pathExists, invalidName, nowIso } from './util'
 import { ok, fail, type Result } from '@shared/result'
@@ -98,6 +99,6 @@ export async function setAgendaTier(absFile: string, tier: number, contextIds: s
   if (tier < 1 || tier > 3) return fail('invalid-tier', `Tier ${tier} is not 1–3.`, 'agenda')
   const raw = await readJsonObject(absFile)
   if (!raw) return fail('not-found', 'Agenda item not found.', 'agenda')
-  await writeJson(absFile, { ...raw, [`tier${tier}`]: contextIds, modified_at: nowIso() })
+  await writeJson(absFile, { ...raw, [tierFieldName(tier)]: contextIds, modified_at: nowIso() })
   return ok(null)
 }
