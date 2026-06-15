@@ -4,7 +4,7 @@ Lean current-state snapshot. Read first at session start.
 
 ### Session summary
 
-Stood up the React/TS/Electron rebuild from scratch: Phase 1 (read-only window + glass sidebar reading `~/test`) shipped, reviewed, committed. Iterated the sidebar glass to an Apple-Regular CSS recipe (edge-defined; `liquid-dom` evaluated + shelled as experimental). Wrote the full `.claude` folder. Dispatched the Phase 2 build workflow (navigation function + Table/Gallery + page render).
+The **headless data layer** is underway and building cleanly. After a 20-agent dual-research pass (Swift bloat × TS-native recreation; synthesis in `Planning/Data-Layer-Design.md`, load-bearing claims verified against real Swift — which caught + fixed a tier-shape doc bug in the Swift project's CLAUDE.md), shipped data-layer **Phases 0–3** as green commits: contracts + value codec + atomic I/O → page file engine (foreign-preserving) → sidecar schemas/kind/IO → folder + page CRUD. **130 tests; typecheck + build green.** Tests-only, zero UI wired (per directive). Earlier this session also landed the navigation spine (`80e210e`).
 
 ### Lessons learned
 
@@ -12,11 +12,14 @@ Stood up the React/TS/Electron rebuild from scratch: Phase 1 (read-only window +
 - `ELECTRON_RUN_AS_NODE=1` in this env breaks every GUI launch — strip it. Electron's ESM `require('electron')` fails → CommonJS main/preload.
 - Greenfield multi-agent builds: keep stages **sequential + self-verified green** to stay coherent; parallel only for independent reads/reviews.
 
-### Next session
+### Next session (continue the data layer)
 
-1. **Land Phase 2** — review the build workflow's output (selection→detail, view pipeline, Table + Gallery, page render); run it in the GUI (`env -u ELECTRON_RUN_AS_NODE …`); confirm Table renders `~/test` vaults; commit.
-2. **Phase 3 — write path** — atomic write + order-preserving frontmatter merge (`eemeli/yaml` Document API + a byte-stable round-trip test — the one real silent-corruption footgun); create/rename/move page.
-3. **Phase 4 — properties & connections**, then **Phase 5 — CodeMirror editor**.
+1. **Finish Phase 3** — `crud/reorder.ts` (id-list reorder persisted to `state.json` via `mutateJson`) + wire `mutate:*` IPC handlers in `main/index.ts` + the preload bridge (renderer methods stay typed **stubs** — no UI). Test the handlers directly.
+2. **Phase 4 — properties** — `properties/{schema,tiers}.ts`, `encodeValue` into page/agenda writes, per-property save + schema CRUD (schema-mutation atomicity via a `schemaTransaction`).
+3. **Phase 5 — connections** (pure Map-based resolve + rename cascade), then **Phase 6 — SQLite index** (`better-sqlite3` behind `db.ts`).
+4. **Deferred polish:** DRY-refactor `readNexus` onto `sidecarIO`/`kind`/schemas (net code removal) once singleton schemas land — verify against the read-engine tests.
+
+Agenda CRUD folds into Phases 3–4 via an `agendaEntity` factory reusing `folderEntity` + `encodeValue`.
 
 ### Pending focuses
 
