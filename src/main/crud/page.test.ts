@@ -37,6 +37,7 @@ describe('createPage', () => {
     await createPage(typeDir, 'Dup')
     expect((await createPage(typeDir, 'Dup')).ok).toBe(false)
     expect((await createPage(typeDir, 'a/b')).ok).toBe(false)
+    expect((await createPage(typeDir, 'Note.md')).ok).toBe(false) // would yield Note.md.md
   })
 })
 

@@ -12,6 +12,7 @@
 //    can never drift (Swift maintained the struct and the Codable impl separately).
 
 import { z } from 'zod'
+import { AREA_COLORS } from './types'
 
 const ulidList = z.array(z.string()).optional()
 
@@ -54,7 +55,11 @@ const contextBase = baseSidecar.extend({
 })
 export const topicSidecar = contextBase
 export const projectSidecar = contextBase
-export const areaSidecar = contextBase.extend({ color: z.string().optional() })
+// color validates against the shared AreaColor palette but degrades to undefined on an
+// unknown value (lenient — an unrecognized color never fails the whole sidecar).
+export const areaSidecar = contextBase.extend({
+  color: z.enum(AREA_COLORS).optional().catch(undefined)
+})
 export type TopicSidecar = z.infer<typeof topicSidecar>
 export type ProjectSidecar = z.infer<typeof projectSidecar>
 export type AreaSidecar = z.infer<typeof areaSidecar>

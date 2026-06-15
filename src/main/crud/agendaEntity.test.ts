@@ -59,6 +59,7 @@ describe('createAgendaItem', () => {
     await createAgendaItem(tasks, 'task', 'Dup')
     expect((await createAgendaItem(tasks, 'task', 'Dup')).ok).toBe(false)
     expect((await createAgendaItem(tasks, 'task', 'a/b')).ok).toBe(false)
+    expect((await createAgendaItem(tasks, 'task', 'Buy.task.json')).ok).toBe(false) // double suffix
   })
 })
 

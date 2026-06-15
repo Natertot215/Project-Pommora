@@ -45,7 +45,8 @@ export const selectColor = z.enum([
 const selectOption = z.looseObject({
   value: z.string(),
   label: z.string(),
-  color: selectColor.optional()
+  // Lenient: an unknown color degrades to undefined rather than failing the whole def parse.
+  color: selectColor.optional().catch(undefined)
 })
 
 /** Three fixed status-group slots — a fourth breaks EventKit sync mapping. */
@@ -55,14 +56,15 @@ export type StatusGroupId = z.infer<typeof statusGroupId>
 const statusOption = z.looseObject({
   value: z.string(),
   label: z.string(),
-  color: selectColor.optional(),
+  color: selectColor.optional().catch(undefined),
   group_id: statusGroupId
 })
 
 const statusGroup = z.looseObject({
   id: statusGroupId,
   label: z.string(),
-  color: selectColor,
+  // Required, but an unknown color falls back rather than dropping the group.
+  color: selectColor.catch('gray'),
   options: z.array(statusOption)
 })
 export type StatusGroup = z.infer<typeof statusGroup>

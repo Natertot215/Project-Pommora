@@ -11,19 +11,22 @@ export type NodeKind =
   | 'set'
   | 'page'
 
-// Contexts tier-1 (Area) color palette — 10 cases. KEEP DISTINCT from the
-// Settings accent palette (a separate 8-case enum) — do not conflate.
-export type AreaColor =
-  | 'gray'
-  | 'brown'
-  | 'orange'
-  | 'yellow'
-  | 'green'
-  | 'blue'
-  | 'purple'
-  | 'pink'
-  | 'red'
-  | 'accent'
+// Contexts tier-1 (Area) color palette — 10 cases, written once as the single source for
+// both the type and the runtime membership check (the reader + the areaSidecar schema both
+// derive from this). KEEP DISTINCT from the Settings accent palette (a separate 8-case enum).
+export const AREA_COLORS = [
+  'gray',
+  'brown',
+  'orange',
+  'yellow',
+  'green',
+  'blue',
+  'purple',
+  'pink',
+  'red',
+  'accent'
+] as const
+export type AreaColor = (typeof AREA_COLORS)[number]
 
 export interface BaseNode {
   id: string

@@ -4,10 +4,20 @@
 
 export { pathExists } from '../io/atomicWrite'
 
-/** A name usable as a file/folder basename (filename = title). Rejects path separators
- *  and dot dirs. Single source for the rule across page + folder + schema CRUD. */
+/** A name usable as a file/folder basename (filename = title). Rejects path separators,
+ *  dot dirs, and a trailing managed extension (which the writers append themselves — a name
+ *  like "Note.md" would otherwise yield "Note.md.md", breaking the filename = title invariant).
+ *  Single source for the rule across page + folder + agenda CRUD. */
 export function invalidName(name: string): boolean {
-  return !name.trim() || name.includes('/') || name.includes('\\') || name === '.' || name === '..'
+  const trimmed = name.trim()
+  return (
+    !trimmed ||
+    name.includes('/') ||
+    name.includes('\\') ||
+    name === '.' ||
+    name === '..' ||
+    /\.(md|task\.json|event\.json)$/i.test(trimmed)
+  )
 }
 
 /** The ISO-8601 timestamp written to governance fields (`created_at` / `modified_at`). */

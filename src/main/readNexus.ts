@@ -19,7 +19,7 @@ import type {
   TopicNode,
   UserSection
 } from '@shared/types'
-import { DEFAULT_LABELS } from '@shared/types'
+import { AREA_COLORS, DEFAULT_LABELS } from '@shared/types'
 import { adoptedId } from './ids'
 import { shouldSkipDir } from './exclusion'
 import { resolveOrder } from './order'
@@ -45,18 +45,7 @@ async function readJson(p: string): Promise<Json | null> {
   }
 }
 
-const AREA_COLORS = new Set<AreaColor>([
-  'gray',
-  'brown',
-  'orange',
-  'yellow',
-  'green',
-  'blue',
-  'purple',
-  'pink',
-  'red',
-  'accent'
-])
+const AREA_COLOR_SET = new Set<AreaColor>(AREA_COLORS)
 
 async function pathExists(p: string): Promise<boolean> {
   try {
@@ -265,7 +254,7 @@ async function readTier<T extends AreaNode | TopicNode | ProjectNode>(
     if (kind === 'area') {
       const c = sc?.color
       ;(node as AreaNode).color =
-        typeof c === 'string' && AREA_COLORS.has(c as AreaColor) ? (c as AreaColor) : undefined
+        typeof c === 'string' && AREA_COLOR_SET.has(c as AreaColor) ? (c as AreaColor) : undefined
     }
     nodes.push(node)
   }
