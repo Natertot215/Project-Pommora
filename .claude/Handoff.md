@@ -4,7 +4,7 @@ Lean current-state snapshot. Read first at session start.
 
 ### Session summary
 
-The **headless data layer** is underway and building cleanly. After a 20-agent dual-research pass (Swift bloat × TS-native recreation; synthesis in `Planning/Data-Layer-Design.md`, load-bearing claims verified against real Swift — which caught + fixed a tier-shape doc bug in the Swift project's CLAUDE.md), shipped data-layer **Phases 0–4** as green commits: contracts + value codec + atomic I/O → page file engine (foreign-preserving) → sidecar schemas/kind/IO → folder + page CRUD + reorder → **properties (4a value write, 4b schema CRUD + tier synthesis + SchemaTransaction)**. **173 tests; typecheck + build green.** Tests-only, zero UI wired (per directive). Earlier this session also landed the navigation spine (`80e210e`). Per-phase record + all ⚐ review flags in `Planning/Data-Layer-Build-Log.md`.
+The **headless data layer** is underway and building cleanly. After a 20-agent dual-research pass (Swift bloat × TS-native recreation; synthesis in `Planning/Data-Layer-Design.md`, load-bearing claims verified against real Swift — which caught + fixed a tier-shape doc bug in the Swift project's CLAUDE.md), shipped data-layer **Phases 0–5** as green commits: contracts + value codec + atomic I/O → page file engine (foreign-preserving) → sidecar schemas/kind/IO → folder + page CRUD + reorder → **properties (value write + schema CRUD + tier synthesis + SchemaTransaction)** → **connections & tier relations (scan/rewrite/resolve/edges, pure-Map engine + renameCascade + unlinkTier + setPageTier)**. **195 tests; typecheck + build green.** Tests-only, zero UI wired (per directive). Earlier this session also landed the navigation spine (`80e210e`). Per-phase record + all ⚐ review flags in `Planning/Data-Layer-Build-Log.md`.
 
 ### Lessons learned
 
@@ -14,11 +14,10 @@ The **headless data layer** is underway and building cleanly. After a 20-agent d
 
 ### Next session (continue the data layer)
 
-1. **Phase 5 — connections & tier relations** — `connections/*` (pure Map-based `[[Title]]` resolve, nexus-wide title uniqueness, title-only no IDs) + `crud/cascade.ts` (rename cascade rewrites inbound `[[links]]`; revert on fail) + `unlinkTier` (Context-delete cascade strips `_tierN` from members, using `tierPropertyId`). Extend the `readNexus` walk to collect `linkIndex.byTitle` + `contextsById`.
-2. **Phase 6 — SQLite index** — `index/*` with verbatim 11-table DDL + `better-sqlite3` behind `db.ts` + version handshake + `electron-rebuild`/`asarUnpack`; best-effort upserts wired into `crud/*` (swallowed); off the read path, degrade-to-files on load failure.
-3. **Agenda CRUD** — folds into the above via an `agendaEntity` factory reusing `folderEntity` + the value codec; agenda config-schema CRUD reuses `properties/schema.ts` + a JSON member-strip.
-4. **Deferred polish:** DRY-refactor `readNexus` onto `sidecarIO`/`kind`/schemas (net code removal) once singleton schemas land — verify against the read-engine tests. `mutate:*` IPC + preload bridge stay deferred until UI (no-routing directive).
-5. **After all phases:** the Swift-vs-React data-layer line-count diff (non-comment, shared-functionality-only) — see Pending focuses.
+1. **Phase 6 — SQLite index** — `index/*` with verbatim 11-table DDL + `better-sqlite3` behind `db.ts` + version handshake + `electron-rebuild`/`asarUnpack` (native module — first build-pipeline friction of the rebuild; surface it); best-effort upserts wired into `crud/*` (swallowed); off the read path, degrade-to-files on load failure. Port `loadAll-sync-parents`.
+2. **Agenda CRUD** — folds in via an `agendaEntity` factory reusing `folderEntity` + the value codec; agenda config-schema CRUD reuses `properties/schema.ts` + a JSON member-strip + the existing `SchemaTransaction`.
+3. **Deferred polish:** (a) wire the pure connection engine into the read path — extend the `readNexus` walk to collect `linkIndex.byTitle` + `contextsById` (engine exists, no consumer yet); (b) DRY-refactor `readNexus` onto `sidecarIO`/`kind`/schemas once singleton schemas land — verify against the read-engine tests. `mutate:*` IPC + preload bridge + cascade orchestration stay deferred until UI (no-routing directive).
+4. **After all phases:** the Swift-vs-React data-layer line-count diff (non-comment, shared-functionality-only) — see Pending focuses.
 
 ### Pending focuses
 
