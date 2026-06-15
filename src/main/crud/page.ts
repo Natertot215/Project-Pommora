@@ -4,10 +4,12 @@
 // never disturb other frontmatter.
 
 import { join, dirname, basename } from 'node:path'
-import { rename, stat } from 'node:fs/promises'
+import { rename, stat, readFile } from 'node:fs/promises'
 import { newId } from '../ids'
-import { writePageFile } from '../io/pageFile'
-import { trashWithTimestamp } from '../io/atomicWrite'
+import { writePageFile, mergeFrontmatter, splitEnvelope } from '../io/pageFile'
+import { atomicWriteFile, trashWithTimestamp } from '../io/atomicWrite'
+import { splitFrontmatter } from '../readNexus'
+import { encodePropertyValue, type PropertyValue } from '@shared/propertyValue'
 import { PAGE_MODELED_KEYS } from '@shared/schemas'
 import { ok, fail, type Result } from '@shared/result'
 
@@ -88,4 +90,39 @@ export async function movePage(absFile: string, newParentDir: string): Promise<R
   if (await exists(target)) return fail('exists', `A page named "${basename(absFile)}" already exists there.`, 'page')
   await rename(absFile, target)
   return ok({ path: target })
+}
+
+/**
+ * Set or clear one property value on a page. Governs only `properties` + `modified_at`,
+ * so all other frontmatter (id, tiers, foreign keys, comments) is preserved. A null
+ * value (or the `null` kind) removes the key; otherwise the value is encoded to its
+ * on-disk shape via the codec. Sibling properties are untouched.
+ */
+export async function updatePageProperty(
+  absFile: string,
+  propertyId: string,
+  value: PropertyValue | null
+): Promise<Result<null>> {
+  if (!(await exists(absFile))) return fail('not-found', 'Page not found.', 'page')
+  const existing = await readFile(absFile, 'utf8')
+  const fm = splitFrontmatter(existing)
+  const current = fm.properties
+  const props: Record<string, unknown> =
+    current !== null && typeof current === 'object' && !Array.isArray(current)
+      ? { ...(current as Record<string, unknown>) }
+      : {}
+  if (value === null || value.kind === 'null') {
+    delete props[propertyId]
+  } else {
+    props[propertyId] = encodePropertyValue(value)
+  }
+  const body = splitEnvelope(existing).body
+  const content = mergeFrontmatter(
+    existing,
+    { properties: props, modified_at: nowIso() },
+    ['properties', 'modified_at'],
+    body
+  )
+  await atomicWriteFile(absFile, content)
+  return ok(null)
 }

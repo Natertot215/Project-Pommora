@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { mkdtemp, rm, mkdir, stat, readFile, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { createPage, renamePage, deletePage, updatePageBody, movePage } from './page'
+import { createPage, renamePage, deletePage, updatePageBody, movePage, updatePageProperty } from './page'
 import { splitEnvelope, assembleEnvelope } from '../io/pageFile'
 import { splitFrontmatter } from '../readNexus'
 import { isUlid } from '../ids'
@@ -110,5 +110,39 @@ describe('deletePage / movePage', () => {
     await createPage(other, 'Clash', { body: 'b' })
     if (!a.ok) throw new Error('setup failed')
     expect((await movePage(a.value.path, other)).ok).toBe(false)
+  })
+})
+
+describe('updatePageProperty', () => {
+  it('sets, replaces, and clears values; preserves siblings + other frontmatter', async () => {
+    const c = await createPage(typeDir, 'Props', { body: 'x' })
+    if (!c.ok) throw new Error('setup failed')
+    const f = c.value.path
+    const props = async (): Promise<Record<string, unknown>> =>
+      (splitFrontmatter(await readFile(f, 'utf8')).properties ?? {}) as Record<string, unknown>
+
+    await updatePageProperty(f, 'prop_status', { kind: 'status', value: 'todo' })
+    await updatePageProperty(f, 'prop_tags', { kind: 'multiSelect', value: ['a', 'b'] })
+    expect(await props()).toEqual({ prop_status: { $status: 'todo' }, prop_tags: ['a', 'b'] })
+    expect(splitFrontmatter(await readFile(f, 'utf8')).id).toBe(c.value.id)
+
+    await updatePageProperty(f, 'prop_status', { kind: 'status', value: 'done' })
+    expect((await props()).prop_status).toEqual({ $status: 'done' })
+
+    await updatePageProperty(f, 'prop_status', null)
+    expect(await props()).toEqual({ prop_tags: ['a', 'b'] })
+  })
+
+  it('encodes a relation as a tagged array', async () => {
+    const c = await createPage(typeDir, 'Rel', { body: 'x' })
+    if (!c.ok) throw new Error('setup failed')
+    await updatePageProperty(c.value.path, 'prop_link', { kind: 'relation', value: ['01H', '01J'] })
+    const fm = splitFrontmatter(await readFile(c.value.path, 'utf8'))
+    expect((fm.properties as Record<string, unknown>).prop_link).toEqual([{ $rel: '01H' }, { $rel: '01J' }])
+  })
+
+  it('errors when the page is missing', async () => {
+    const r = await updatePageProperty(join(typeDir, 'nope.md'), 'p', { kind: 'status', value: 'x' })
+    expect(r.ok).toBe(false)
   })
 })

@@ -65,3 +65,16 @@ Convention: everything is headless (tests-only, no UI wired); every commit is gr
 - Name safety is minimal: rejects `/`, `\`, `.`/`..`, blank. It does **not** strip a trailing `.md` (title `"Note.md"` → file `Note.md.md`), nor guard OS-illegal chars (`:`), trailing spaces, or reserved names. *Reviewer: harden name validation centrally (a shared `validateName`).*
 - `crud/folderEntity.ts` and `crud/page.ts` each re-implement `exists`, `invalidName`, `nowIso`. **Small DRY duplication** — candidate to hoist into a shared crud util.
 - `reorder.ts` persists whatever id list it's given — it does **not** validate the ids exist. Harmless on read (`resolveOrder` ignores unknown ids), but a garbage/stale id silently lands in the order array. *Confirm no existence check is needed, or add one.*
+
+### Phase 4 — properties write path · in progress (value write this commit)
+
+**What.** `crud/page.ts` `updatePageProperty(absFile, propertyId, value | null)`: set/clear one property value, encoded via the Phase-0 codec; governs only `properties` + `modified_at`, so sibling properties and all other frontmatter survive; null/`null`-kind removes the key.
+
+**Why.** Wires the value codec into the write path — the core of "properties are editable." (Property-schema CRUD on the type sidecar + tier synthesis are the next Phase-4 increments.)
+
+**Swift delta + why.** Swift ran every value through the `PropertyValue` `Codable` on each save; here one `encodePropertyValue` emits the on-disk shape and the Document merge preserves the rest of the page untouched — the codec is the only property-specific code on the write path.
+
+**⚐ Review flags.**
+- **"Omit empty" is partial:** a null/`null`-kind value deletes the key, but an empty array (e.g. `multiSelect []`) writes `[]`. The design says user relations omit when empty. *Decide whether empty arrays should also delete the key.*
+- `updatePageProperty` parses the frontmatter **twice** (`splitFrontmatter` to read current props, `mergeFrontmatter` to write). Minor; could read the Document once.
+- **No schema awareness yet:** it writes any `propertyId` with any value-kind without checking the type's `property_definitions` (wrong-type value or unknown property id is accepted). Phase-4 schema CRUD + validation will close this.
