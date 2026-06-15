@@ -10,28 +10,32 @@ Pommora's type system. **Source of truth: the Figma "Pommora - React" library** 
 | Title 1 | 22 / 26 | Regular | Bold | |
 | Title 2 | 17 / 22 | Regular | Bold | |
 | Title 3 | 15 / 20 | Regular | Bold | section headers |
-| Headline | 14 / 18 | **Medium 500** | Bold 700 | emphasized heading, distinct from Body |
+| Headline | 13 / 16 | **Medium 500** | **Semibold 600** | menu section headers; body-size heading |
 | Body | 13 / 16 | Regular | Bold | paragraph / default UI text |
 | Callout | 12 / 15 | Regular | **Bold** | in-text quotes |
 | Control | 12 / 15 | Regular | **Semibold 600** | chips, labels, UI controls |
 | Caption | 11 / 14 | Regular | Semibold | secondary captions |
 | Footnote | 10 / 13 | Regular | Semibold | smallest text |
 
-Derived from the macOS AppKit text scale (drawn in Inter), with deliberate edits: Headline bumped to 14 / Medium so it reads distinctly from Body; **Callout** repurposed for in-text quotes (Bold emphasis) and **Control** added for chips/labels (Semibold emphasis); Caption 1 + 2 merged into one **Caption**; Subheadline dropped. Standard weight is **Regular** for every style except Headline (**Medium**).
+Derived from the macOS AppKit text scale (drawn in Inter), with deliberate edits: **Headline** sits at body size (13) with Medium / Semibold weights — distinct from Body by weight, used for menu section headers; **Callout** repurposed for in-text quotes and menu item titles (Bold emphasis) and **Control** added for chips / labels / buttons (Semibold emphasis); Caption 1 + 2 merged into one **Caption**; Subheadline dropped. Standard weight is **Regular** for every style except Headline (**Medium**).
 
 ### Weights
 
-Four Inter weights: **Regular 400** (all Standard except Headline) · **Medium 500** (Headline Standard) · **Semibold 600** (Emphasized of Callout-range → Footnote) · **Bold 700** (Emphasized of Large Title → Body, plus Callout). Emphasis is **role-driven**, not a blanket size rule.
+Four Inter weights: **Regular 400** (all Standard except Headline) · **Medium 500** (Headline Standard) · **Semibold 600** (Headline Emphasized + Control / Caption / Footnote Emphasized) · **Bold 700** (Emphasized of Large Title → Body, plus Callout). Emphasis is **role-driven**, not a blanket size rule.
 
 ### Where each style goes
 
 - **Sidebar items** → Body (13).
-- **Menu / dropdown items** → Control (12); active row → Control Emphasized.
+- **Menu / dropdown item titles** → Callout / Standard (12) — every state (no weight change on hover / selected).
+- **Menu section headers** (Menu Heading) → Headline (13 / Semibold).
+- **Labels** → Control / Emphasized (12 Semibold).
+- **Buttons** → Control / Emphasized (12 Semibold).
 - **Chips** → Control / Emphasized (12 Semibold).
-- **Headings** → Title 3 / Title 2 / … / Large Title by level; **Headline** for an emphasized heading at body scale.
+- **Sub-label** → Caption / Standard (11); **Detail** → Footnote / Emphasized (10).
+- **Headings** → Title 3 / Title 2 / … / Large Title by level.
 - **Page body** → Body; **quotes** → Callout.
 
-(Grounded in the Swift app's usage: sidebar 14, `Typography.row = .callout` (12), `chip = .callout.semibold`.)
+(Every component title / label / content text is bound to a **live Figma text style** — editing the style propagates to all variants and gallery instances. SF Pro icon glyphs keep their font; only their size is set.)
 
 ### Label colors
 

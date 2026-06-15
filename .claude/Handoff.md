@@ -7,7 +7,7 @@ Lean current-state snapshot. Read first at session start. Deep docs: data layer 
 Two foundations are down; the UI is next.
 
 - **Headless data layer — done** (branch `main`). Phases 0–7 + a 7-agent foundation review; **220 tests, typecheck + build green**, tests-only / no UI wired. The complete write/mutation side caught up to Swift (CRUD, properties, connections, SQLite index, Agenda). Full record: `Planning/Data-Layer-Handoff.md` + `…Build-Log.md`. Swift→React LOC ≈ 8,552 → 2,383 (~72%).
-- **Design system — established this session** (branch `design-system`, `404a1d7` + Figma). The Figma "Pommora - React" library is the source of design and is now fully unified: typography ramp finalized; **one mode-driven chip** with a unified tint; semantic accent; **per-color tint variables removed (54 deleted)**. The React token layer is started — vanilla-extract + Inter wired, `color.css.ts` with the 11 solid spectrum tokens. Spec: `Features/Design.md` + `Features/Typography.md`.
+- **Design system — established this session** (branch `design-system`, `404a1d7` + Figma). The Figma "Pommora - React" library is the source of design and is now fully unified: typography ramp finalized **and wired to live text styles** across Menu Item / Menu Heading / Label / Button (+ Segmented) and every gallery card (menu titles → Callout · labels / buttons → Control Emphasized · Headline repurposed to 13 / Semibold for menu headers); **one mode-driven chip** with a unified tint; semantic accent; **per-color tint variables removed (54 deleted)**. The React token layer is started — vanilla-extract + Inter wired, `color.css.ts` with the 11 solid spectrum tokens. Spec: `Features/Design.md` + `Features/Typography.md`.
 - **App shell — designed, paused.** First-pass spec (window-drag fix + resizable / collapsible sidebar at 1440×900, Swift-matched sidebar sizing) is approved but unbuilt, awaiting a desktop GUI verification. Branch `app-shell` (empty placeholder).
 
 ### Lessons learned
@@ -15,6 +15,7 @@ Two foundations are down; the UI is next.
 - **Verify usages — fills AND strokes — before deleting a Figma variable.** A fills-only sweep left 12 stroke bindings on `label-on-color`, so deleting it left dangling refs. Same lesson as the data layer's `target_kind`: a claim is a hypothesis until checked against the real thing.
 - **Figma constraints are real:** variable modes cap at **10** per collection (Pro); `defaultModeId` is read-only (no reorder). The chip picker fit in exactly 10 modes; since `defaultModeId` is read-only, "a fresh chip = Default" belongs in the React component's default (setting the Figma master to Default just greys the showcase).
 - **The unified chip tint:** surface = base @ 60% · outline = base @ 25% · label = `label-primary` + base @ 10%. Surface/outline are base-at-opacity; the label is a 10% base tint over `label-primary` (a `color-mix` in code).
+- **Gallery instances can carry local text-style overrides that survive a component edit.** After wiring the components, 4 menu-gallery instances kept stale overrides (raw / Body / Footnote) and had to be swept directly. Verify galleries at the *instance* level, not just the component — and bind real type text to a live style (never leave `NONE/MIXED`). SF Pro icon glyphs are the exception: size only, never bind an Inter style or they turn to tofu.
 - (Data layer) Keep greenfield multi-agent stages sequential + self-verified green; `ELECTRON_RUN_AS_NODE=1` breaks GUI launches (strip it); CommonJS main/preload.
 
 ### Next session
@@ -29,6 +30,8 @@ Two foundations are down; the UI is next.
 - **Glass / Surface** — Apple-Regular CSS default; `Surface` is the swappable seam; `--glass-radius` (12px) — eyeball window concentricity. `liquid-dom` shelved.
 - **Contexts in `~/test`** — no `.nexus/` / contexts in the fixture, so the sidebar shows Vaults only; add a few Areas / Topics / Projects to exercise it.
 - **`red` is in the solid spectrum but not a chip color** (excluded by design; the mode cap is 10). `grey-default` kept as the `Default` chip color's source.
+- **Menu Heading icon is still 14pt** while its title is now 13 / Semibold — decide whether the icon drops to 13 to match (you scoped the 13pt change to menu *items*, which were already 13).
+- **Sub-label → Caption/Standard (11) and Detail → Footnote/Emphasized (10)** were my calls (you specified only the primary title/label/content slots) — confirm or redirect.
 
 ### Fix log
 
