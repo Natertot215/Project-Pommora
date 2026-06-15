@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { mkdtemp, rm, readFile, writeFile } from 'node:fs/promises'
+import { mkdtemp, rm, readFile, writeFile, stat } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { atomicWriteFile, writeJson, mutateJson, stableStringify } from './atomicWrite'
+import { atomicWriteFile, writeJson, mutateJson, stableStringify, trashWithTimestamp } from './atomicWrite'
 
 let dir: string
 beforeEach(async () => {
@@ -78,5 +78,16 @@ describe('mutateJson', () => {
       (cur) => ({ n: cur.n + 1 })
     )
     expect(result).toEqual({ n: 10 })
+  })
+})
+
+describe('trashWithTimestamp', () => {
+  it('moves a file into .trash and removes the original', async () => {
+    const p = join(dir, 'doomed.md')
+    await atomicWriteFile(p, 'bye')
+    const dest = await trashWithTimestamp(dir, p)
+    expect(dest).toContain('.trash')
+    expect(await readFile(dest, 'utf8')).toBe('bye')
+    await expect(stat(p)).rejects.toThrow()
   })
 })

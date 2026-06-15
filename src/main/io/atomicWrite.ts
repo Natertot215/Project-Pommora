@@ -4,7 +4,8 @@
 // the SAME volume only — temps are siblings of the target, so a nexus stays intact.
 
 import writeFileAtomic from 'write-file-atomic'
-import { readFile } from 'node:fs/promises'
+import { readFile, rename, mkdir, stat } from 'node:fs/promises'
+import { join, basename } from 'node:path'
 
 /** Atomically write a UTF-8 string to `filePath`. */
 export async function atomicWriteFile(filePath: string, data: string): Promise<void> {
@@ -53,4 +54,29 @@ function sortKeys(value: unknown): unknown {
     return out
   }
   return value
+}
+
+async function pathExists(p: string): Promise<boolean> {
+  try {
+    await stat(p)
+    return true
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Move a file/folder into the nexus-local `.trash/`, timestamped and de-collided.
+ * Files stay canonical and recoverable (in-nexus, not OS trash). Returns the
+ * destination path. The original's relative layout is not preserved.
+ */
+export async function trashWithTimestamp(nexusRoot: string, absPath: string): Promise<string> {
+  const trash = join(nexusRoot, '.trash')
+  await mkdir(trash, { recursive: true })
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-')
+  const base = basename(absPath)
+  let dest = join(trash, `${stamp}__${base}`)
+  for (let n = 1; await pathExists(dest); n++) dest = join(trash, `${stamp}__${n}__${base}`)
+  await rename(absPath, dest)
+  return dest
 }
