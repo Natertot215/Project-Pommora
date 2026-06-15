@@ -54,11 +54,19 @@ body {
   /* Apple Liquid Glass leans almost fully CLEAR — no saturation, no milky fill,
      just a light blur and a faint specular edge. The body stays transparent
      (reads as the main tone); presence is the thin edge highlight only. */
+  /* Apple Regular glass (WWDC25 spec), minus the body brighteners: NO
+     brightness() filter and NO white fill — transparent body so it stays the
+     main tone. Character comes from the two-part edge (bright top rim + dark
+     containment edge) + a soft inner specular. Low blur, minimal saturation. */
   background: transparent;
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  border: 0.5px solid rgba(255, 255, 255, 0.06);
-  box-shadow: inset 0 0.5px 0 rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(3px) saturate(110%);
+  -webkit-backdrop-filter: blur(3px) saturate(110%);
+  border: 0.5px solid rgba(255, 255, 255, 0.12);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.22), /* bright top specular rim */
+    inset 0 0 18px -6px rgba(255, 255, 255, 0.3), /* soft inner specular */
+    inset 0 0 0 0.5px rgba(0, 0, 0, 0.2), /* dark containment edge */
+    0 4px 20px rgba(0, 0, 0, 0.18); /* soft drop shadow */
   overflow: hidden;
   -webkit-app-region: drag;
 }
