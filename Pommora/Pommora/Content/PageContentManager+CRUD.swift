@@ -962,42 +962,20 @@ extension PageContentManager {
         collection: PageCollection?,
         set: PageSet? = nil
     ) async throws {
-        do {
-            let pageFile = try PageFile.load(from: page.url)
-            var fm = pageFile.frontmatter
-            if case .relation(let ids)? = newValue {
-                fm.setRelationIDs(ids, forPropertyID: propertyID)  // tier→root, user→properties, empty→omit
-            } else if let newValue {
-                fm.properties[propertyID] = newValue
-            } else {
-                fm.properties.removeValue(forKey: propertyID)
-            }
-            fm.modifiedAt = Date()
-
-            let updatedFile = PageFile(frontmatter: fm, body: pageFile.body, title: page.title)
-            try updatedFile.save(to: page.url)
-
-            var updatedMeta = page
-            updatedMeta.frontmatter = fm
-
-            refreshFrontmatterCache(updatedMeta, vault: vault, collection: collection, set: set)
-
-            if let updater = indexUpdater {
-                do {
-                    try updater.upsertPage(
-                        updatedMeta,
-                        pageTypeID: vault.id,
-                        pageCollectionID: collection?.id,
-                        pageSetID: set?.id
-                    )
-                } catch {
-                    self.pendingError = error
-                }
-            }
-        } catch {
-            self.pendingError = error
-            throw error
+        // Build the new frontmatter from the IN-MEMORY model — the value the
+        // cells render needs no disk read. (The on-disk body is reloaded only for
+        // the write, inside `applyAndPersist`.)
+        var fm = page.frontmatter
+        if case .relation(let ids)? = newValue {
+            fm.setRelationIDs(ids, forPropertyID: propertyID)  // tier→root, user→properties, empty→omit
+        } else if let newValue {
+            fm.properties[propertyID] = newValue
+        } else {
+            fm.properties.removeValue(forKey: propertyID)
         }
+        fm.modifiedAt = Date()
+
+        try await applyAndPersist(fm, for: page, vault: vault, collection: collection, set: set)
     }
 
     /// Persists a wholesale frontmatter replacement for a page (all properties +
@@ -1012,18 +990,39 @@ extension PageContentManager {
         collection: PageCollection?,
         set: PageSet? = nil
     ) async throws {
+        var fm = frontmatter
+        fm.modifiedAt = Date()
+        try await applyAndPersist(fm, for: page, vault: vault, collection: collection, set: set)
+    }
+
+    /// Optimistic-write core shared by the per-property and whole-frontmatter
+    /// edit paths. Refreshes the in-memory cache from the already-built
+    /// frontmatter FIRST — so the editing surfaces (table / gallery cells)
+    /// reflect the edit immediately — then yields the render turn and persists
+    /// the page file + index. This ordering is the fix for the inline-edit
+    /// commit lag: the cache refresh used to sit BEHIND a synchronous disk load
+    /// + atomic write, so a committed cell showed its old value until that I/O
+    /// finished. The body is reloaded only for the write; the preserving save
+    /// keeps foreign (plugin) frontmatter, and the modeled values come from `fm`.
+    private func applyAndPersist(
+        _ fm: PageFrontmatter,
+        for page: PageMeta,
+        vault: PageType,
+        collection: PageCollection?,
+        set: PageSet?
+    ) async throws {
+        var updatedMeta = page
+        updatedMeta.frontmatter = fm
+        refreshFrontmatterCache(updatedMeta, vault: vault, collection: collection, set: set)
+
+        // Hand the runloop a turn so SwiftUI paints the optimistic value before
+        // the disk write occupies the main actor, not after it.
+        await Task.yield()
+
         do {
-            let pageFile = try PageFile.load(from: page.url)
-            var fm = frontmatter
-            fm.modifiedAt = Date()
-
-            let updatedFile = PageFile(frontmatter: fm, body: pageFile.body, title: page.title)
+            let existing = try PageFile.load(from: page.url)
+            let updatedFile = PageFile(frontmatter: fm, body: existing.body, title: page.title)
             try updatedFile.save(to: page.url)
-
-            var updatedMeta = page
-            updatedMeta.frontmatter = fm
-
-            refreshFrontmatterCache(updatedMeta, vault: vault, collection: collection, set: set)
 
             if let updater = indexUpdater {
                 do {

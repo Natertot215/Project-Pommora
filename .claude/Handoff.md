@@ -43,7 +43,6 @@ The React thread continues in parallel as the contingency exploration.
 
 #### Fix Log
 
-- **Inline-edit lag** — property-value inline edit has a noticeable commit buffer.
 - **Stale property options** — newly-added Select/Status options aren't selectable until restart; needs a running-build repro to pin the picker path.
 - **Backspace on checkbox / list item** should auto-delete the syntax — UNIMPLEMENTED (feature-add).
 - **In-line code doesn't render color** within a textblock; italics/bolds don't auto-pair.
