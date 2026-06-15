@@ -56,7 +56,8 @@ function sortKeys(value: unknown): unknown {
   return value
 }
 
-async function pathExists(p: string): Promise<boolean> {
+/** True when a path exists. The one owner of the stat-as-existence check. */
+export async function pathExists(p: string): Promise<boolean> {
   try {
     await stat(p)
     return true

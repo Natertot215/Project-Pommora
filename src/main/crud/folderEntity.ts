@@ -6,28 +6,15 @@
 // ULID; delete moves to the in-nexus .trash. Foreign sidecar keys are preserved on
 // update (readSidecar retains them via looseObject, and we spread the read object).
 
-import { mkdir, rename, stat } from 'node:fs/promises'
+import { mkdir, rename } from 'node:fs/promises'
 import { join, dirname } from 'node:path'
 import type { z } from 'zod'
 import { newId } from '../ids'
 import { readSidecar, writeSidecar } from '../sidecarIO'
 import { trashWithTimestamp } from '../io/atomicWrite'
+import { pathExists, invalidName } from './util'
 import type { SidecarKind } from '../paths'
 import { ok, fail, type Result } from '@shared/result'
-
-async function exists(p: string): Promise<boolean> {
-  try {
-    await stat(p)
-    return true
-  } catch {
-    return false
-  }
-}
-
-/** A name usable as a folder basename (filename = title). Rejects separators + dot dirs. */
-function invalidName(name: string): boolean {
-  return !name.trim() || name.includes('/') || name.includes('\\') || name === '.' || name === '..'
-}
 
 /** Create a folder entity: make the folder + write its sidecar with a fresh ULID and
  *  `extra` fields (e.g. `{ tier }` for a context, `{ color }` for an area). */
@@ -39,7 +26,7 @@ export async function createFolderEntity(
 ): Promise<Result<{ id: string; path: string }>> {
   if (invalidName(name)) return fail('invalid-name', `"${name}" is not a valid name.`, kind)
   const folder = join(parentDir, name)
-  if (await exists(folder)) return fail('exists', `"${name}" already exists.`, kind)
+  if (await pathExists(folder)) return fail('exists', `"${name}" already exists.`, kind)
   const id = newId()
   await mkdir(folder, { recursive: true })
   await writeSidecar(folder, kind, { id, ...extra })
@@ -54,7 +41,7 @@ export async function renameFolderEntity(
   if (invalidName(newName)) return fail('invalid-name', `"${newName}" is not a valid name.`)
   const target = join(dirname(absFolder), newName)
   if (target === absFolder) return ok({ path: absFolder })
-  if (await exists(target)) return fail('exists', `"${newName}" already exists.`)
+  if (await pathExists(target)) return fail('exists', `"${newName}" already exists.`)
   await rename(absFolder, target)
   return ok({ path: target })
 }
@@ -64,7 +51,7 @@ export async function deleteFolderEntity(
   nexusRoot: string,
   absFolder: string
 ): Promise<Result<{ trashedTo: string }>> {
-  if (!(await exists(absFolder))) return fail('not-found', 'Nothing to delete.')
+  if (!(await pathExists(absFolder))) return fail('not-found', 'Nothing to delete.')
   return ok({ trashedTo: await trashWithTimestamp(nexusRoot, absFolder) })
 }
 

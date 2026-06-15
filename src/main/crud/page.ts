@@ -4,7 +4,7 @@
 // never disturb other frontmatter.
 
 import { join, dirname, basename } from 'node:path'
-import { rename, stat, readFile } from 'node:fs/promises'
+import { rename, readFile } from 'node:fs/promises'
 import { newId } from '../ids'
 import { writePageFile, mergeFrontmatter, splitEnvelope } from '../io/pageFile'
 import { atomicWriteFile, trashWithTimestamp } from '../io/atomicWrite'
@@ -12,25 +12,9 @@ import { splitFrontmatter } from '../readNexus'
 import { encodePropertyValue, type PropertyValue } from '@shared/propertyValue'
 import { PAGE_MODELED_KEYS } from '@shared/schemas'
 import { ok, fail, type Result } from '@shared/result'
+import { pathExists, invalidName, nowIso } from './util'
 
 const MD = '.md'
-
-function nowIso(): string {
-  return new Date().toISOString()
-}
-
-async function exists(p: string): Promise<boolean> {
-  try {
-    await stat(p)
-    return true
-  } catch {
-    return false
-  }
-}
-
-function invalidName(name: string): boolean {
-  return !name.trim() || name.includes('/') || name.includes('\\') || name === '.' || name === '..'
-}
 
 /** Create a `.md` page in `parentDir` with a fresh ULID, empty tiers/properties, and
  *  created/modified timestamps. Optional icon + initial body. */
@@ -41,7 +25,7 @@ export async function createPage(
 ): Promise<Result<{ id: string; path: string }>> {
   if (invalidName(name)) return fail('invalid-name', `"${name}" is not a valid name.`, 'page')
   const file = join(parentDir, name + MD)
-  if (await exists(file)) return fail('exists', `"${name}" already exists.`, 'page')
+  if (await pathExists(file)) return fail('exists', `"${name}" already exists.`, 'page')
   const id = newId()
   const now = nowIso()
   const modeled: Record<string, unknown> = {
@@ -63,21 +47,21 @@ export async function renamePage(absFile: string, newName: string): Promise<Resu
   if (invalidName(newName)) return fail('invalid-name', `"${newName}" is not a valid name.`, 'page')
   const target = join(dirname(absFile), newName + MD)
   if (target === absFile) return ok({ path: absFile })
-  if (await exists(target)) return fail('exists', `"${newName}" already exists.`, 'page')
+  if (await pathExists(target)) return fail('exists', `"${newName}" already exists.`, 'page')
   await rename(absFile, target)
   return ok({ path: target })
 }
 
 /** Delete a page by moving it to the nexus-local .trash (recoverable). */
 export async function deletePage(nexusRoot: string, absFile: string): Promise<Result<{ trashedTo: string }>> {
-  if (!(await exists(absFile))) return fail('not-found', 'Nothing to delete.', 'page')
+  if (!(await pathExists(absFile))) return fail('not-found', 'Nothing to delete.', 'page')
   return ok({ trashedTo: await trashWithTimestamp(nexusRoot, absFile) })
 }
 
 /** Replace the body, bumping modified_at. Governs only modified_at, so all other
  *  frontmatter (id, tiers, properties, foreign keys, comments) is preserved. */
 export async function updatePageBody(absFile: string, body: string): Promise<Result<null>> {
-  if (!(await exists(absFile))) return fail('not-found', 'Page not found.', 'page')
+  if (!(await pathExists(absFile))) return fail('not-found', 'Page not found.', 'page')
   await writePageFile(absFile, { modified_at: nowIso() }, ['modified_at'], body)
   return ok(null)
 }
@@ -87,7 +71,7 @@ export async function updatePageBody(absFile: string, body: string): Promise<Res
 export async function movePage(absFile: string, newParentDir: string): Promise<Result<{ path: string }>> {
   const target = join(newParentDir, basename(absFile))
   if (target === absFile) return ok({ path: absFile })
-  if (await exists(target)) return fail('exists', `A page named "${basename(absFile)}" already exists there.`, 'page')
+  if (await pathExists(target)) return fail('exists', `A page named "${basename(absFile)}" already exists there.`, 'page')
   await rename(absFile, target)
   return ok({ path: target })
 }
@@ -103,7 +87,7 @@ export async function updatePageProperty(
   propertyId: string,
   value: PropertyValue | null
 ): Promise<Result<null>> {
-  if (!(await exists(absFile))) return fail('not-found', 'Page not found.', 'page')
+  if (!(await pathExists(absFile))) return fail('not-found', 'Page not found.', 'page')
   const existing = await readFile(absFile, 'utf8')
   const fm = splitFrontmatter(existing)
   const current = fm.properties
