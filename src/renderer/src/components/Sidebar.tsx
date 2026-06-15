@@ -18,10 +18,12 @@ import type {
   PageNode,
   PageTypeNode,
   SavedNode,
+  SelectionState,
   SetNode,
   TopicNode,
   ProjectNode
 } from '@shared/types'
+import { useSession } from '../store'
 
 type IconCmp = ComponentType<IconProps>
 
@@ -31,21 +33,39 @@ const savedIcon: Record<SavedNode['key'], IconCmp> = {
   recents: Clock
 }
 
+// --- selection helpers ----------------------------------------------------
+
+function isVaultSelected(sel: SelectionState, id: string): boolean {
+  return sel.kind === 'vault' && sel.id === id
+}
+
+function isPageSelected(sel: SelectionState, id: string): boolean {
+  return sel.kind === 'page' && sel.id === id
+}
+
 // --- primitive rows -------------------------------------------------------
 
 function Leaf({
   Icon,
   title,
   depth,
-  swatch
+  swatch,
+  selected = false,
+  onSelect
 }: {
   Icon: IconCmp
   title: string
   depth: number
   swatch?: string
+  selected?: boolean
+  onSelect?: () => void
 }): React.JSX.Element {
   return (
-    <div className="row" style={{ paddingLeft: 10 + depth * 14 }}>
+    <div
+      className={`row${selected ? ' selected' : ''}`}
+      style={{ paddingLeft: 10 + depth * 14 }}
+      onClick={onSelect}
+    >
       <span className="twisty-spacer" />
       {swatch ? (
         <span className="swatch" data-color={swatch} />
@@ -63,6 +83,8 @@ function Disclosure({
   depth,
   swatch,
   defaultOpen = true,
+  selected = false,
+  onSelect,
   children
 }: {
   Icon: IconCmp
@@ -70,12 +92,21 @@ function Disclosure({
   depth: number
   swatch?: string
   defaultOpen?: boolean
+  selected?: boolean
+  onSelect?: () => void
   children: React.ReactNode
 }): React.JSX.Element {
   const [open, setOpen] = useState(defaultOpen)
   return (
     <>
-      <div className="row" style={{ paddingLeft: 10 + depth * 14 }} onClick={() => setOpen((o) => !o)}>
+      <div
+        className={`row${selected ? ' selected' : ''}`}
+        style={{ paddingLeft: 10 + depth * 14 }}
+        onClick={() => {
+          setOpen((o) => !o)
+          onSelect?.()
+        }}
+      >
         <span className={`twisty ${open ? 'open' : ''}`}>▸</span>
         {swatch ? (
           <span className="swatch" data-color={swatch} />
@@ -91,41 +122,98 @@ function Disclosure({
 
 // --- node renderers (typed arrays -> structural order) --------------------
 
-function PageRow({ page, depth }: { page: PageNode; depth: number }): React.JSX.Element {
-  return <Leaf Icon={FileText} title={page.title} depth={depth} />
+function PageRow({
+  page,
+  depth,
+  selection,
+  onSelectPage
+}: {
+  page: PageNode
+  depth: number
+  selection: SelectionState
+  onSelectPage: (page: PageNode) => void
+}): React.JSX.Element {
+  return (
+    <Leaf
+      Icon={FileText}
+      title={page.title}
+      depth={depth}
+      selected={isPageSelected(selection, page.id)}
+      onSelect={() => onSelectPage(page)}
+    />
+  )
 }
 
-function SetRow({ set, depth }: { set: SetNode; depth: number }): React.JSX.Element {
+function SetRow({
+  set,
+  depth,
+  selection,
+  onSelectPage
+}: {
+  set: SetNode
+  depth: number
+  selection: SelectionState
+  onSelectPage: (page: PageNode) => void
+}): React.JSX.Element {
   return (
     <Disclosure Icon={FolderSimple} title={set.title} depth={depth} defaultOpen={false}>
       {set.pages.map((p) => (
-        <PageRow key={p.id} page={p} depth={depth + 1} />
+        <PageRow key={p.id} page={p} depth={depth + 1} selection={selection} onSelectPage={onSelectPage} />
       ))}
     </Disclosure>
   )
 }
 
-function CollectionRow({ col, depth }: { col: CollectionNode; depth: number }): React.JSX.Element {
+function CollectionRow({
+  col,
+  depth,
+  selection,
+  onSelectPage
+}: {
+  col: CollectionNode
+  depth: number
+  selection: SelectionState
+  onSelectPage: (page: PageNode) => void
+}): React.JSX.Element {
   return (
     <Disclosure Icon={Folder} title={col.title} depth={depth} defaultOpen={false}>
       {col.sets.map((s) => (
-        <SetRow key={s.id} set={s} depth={depth + 1} />
+        <SetRow key={s.id} set={s} depth={depth + 1} selection={selection} onSelectPage={onSelectPage} />
       ))}
       {col.pages.map((p) => (
-        <PageRow key={p.id} page={p} depth={depth + 1} />
+        <PageRow key={p.id} page={p} depth={depth + 1} selection={selection} onSelectPage={onSelectPage} />
       ))}
     </Disclosure>
   )
 }
 
-function VaultRow({ vault, depth }: { vault: PageTypeNode; depth: number }): React.JSX.Element {
+function VaultRow({
+  vault,
+  depth,
+  selection,
+  onSelectVault,
+  onSelectPage
+}: {
+  vault: PageTypeNode
+  depth: number
+  selection: SelectionState
+  onSelectVault: (vault: PageTypeNode) => void
+  onSelectPage: (page: PageNode) => void
+}): React.JSX.Element {
   return (
-    <Disclosure Icon={Stack} title={vault.title} depth={depth} defaultOpen={false}>
+    <Disclosure
+      Icon={Stack}
+      title={vault.title}
+      depth={depth}
+      defaultOpen={false}
+      selected={isVaultSelected(selection, vault.id)}
+      onSelect={() => onSelectVault(vault)}
+    >
       {vault.collections.map((c) => (
-        <CollectionRow key={c.id} col={c} depth={depth + 1} />
+        <CollectionRow key={c.id} col={c} depth={depth + 1} selection={selection} onSelectPage={onSelectPage} />
       ))}
       {vault.pages.map((p) => (
-        <PageRow key={p.id} page={p} depth={depth + 1} />
+        <PageRow key={p.id} page={p} depth={depth + 1} selection={selection} onSelectPage={onSelectPage} />
       ))}
     </Disclosure>
   )
@@ -138,6 +226,16 @@ function SectionHeader({ label }: { label: string }): React.JSX.Element {
 }
 
 export function Sidebar({ tree }: { tree: NexusTree }): React.JSX.Element {
+  const selection = useSession((s) => s.selection)
+  const select = useSession((s) => s.select)
+
+  const onSelectVault = (vault: PageTypeNode): void => {
+    void select({ kind: 'vault', id: vault.id })
+  }
+  const onSelectPage = (page: PageNode): void => {
+    void select({ kind: 'page', id: page.id, path: page.path })
+  }
+
   const hasContexts =
     tree.contexts.projects.length + tree.contexts.topics.length + tree.contexts.areas.length > 0
 
@@ -169,7 +267,14 @@ export function Sidebar({ tree }: { tree: NexusTree }): React.JSX.Element {
       <div className="section">
         <SectionHeader label={tree.labels.vaults} />
         {tree.vaults.map((v) => (
-          <VaultRow key={v.id} vault={v} depth={0} />
+          <VaultRow
+            key={v.id}
+            vault={v}
+            depth={0}
+            selection={selection}
+            onSelectVault={onSelectVault}
+            onSelectPage={onSelectPage}
+          />
         ))}
       </div>
 
@@ -178,7 +283,14 @@ export function Sidebar({ tree }: { tree: NexusTree }): React.JSX.Element {
         <div className="section" key={sec.id}>
           <SectionHeader label={sec.label} />
           {sec.vaults.map((v) => (
-            <VaultRow key={v.id} vault={v} depth={0} />
+            <VaultRow
+              key={v.id}
+              vault={v}
+              depth={0}
+              selection={selection}
+              onSelectVault={onSelectVault}
+              onSelectPage={onSelectPage}
+            />
           ))}
         </div>
       ))}

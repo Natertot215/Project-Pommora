@@ -87,6 +87,7 @@ describe('readNexus — structure mode (raw, like ~/test)', () => {
     const pb = ca.pages.find((p) => p.title === 'Page B')!
     expect(pa.id).toBe('page-a')
     expect(pa.icon).toBe('star')
+    expect(pa.path).toBe('Vault A/Collection A/Page A.md')
     expect(pb.id.startsWith('adopted-')).toBe(true)
   })
 })

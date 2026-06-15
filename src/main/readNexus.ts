@@ -114,7 +114,8 @@ async function readPage(absFile: string, relFile: string): Promise<PageNode> {
     kind: 'page',
     id: asString(fm.id) ?? adoptedId(relFile),
     title: basenameNoMd(basename(absFile)),
-    icon: asString(fm.icon)
+    icon: asString(fm.icon),
+    path: relFile
   }
 }
 

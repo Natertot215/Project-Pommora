@@ -27,9 +27,13 @@
   },
   "dependencies": {
     "@phosphor-icons/react": "^2.1.10",
+    "@tanstack/react-table": "^8.21.3",
+    "@tanstack/react-virtual": "^3.14.2",
     "liquid-glass-react": "^1.1.1",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
+    "react-markdown": "^10.1.0",
+    "remark-gfm": "^4.0.1",
     "yaml": "^2.9.0",
     "zustand": "^5.0.14"
   }

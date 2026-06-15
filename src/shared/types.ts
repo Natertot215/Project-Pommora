@@ -56,6 +56,8 @@ export interface ProjectNode extends BaseNode {
 export interface PageNode extends BaseNode {
   kind: 'page'
   /** frontmatter id, or a synthesized `adopted-<hash>` when absent. */
+  /** Nexus-relative POSIX path to the `.md` file (forward slashes). */
+  path: string
 }
 
 export interface SetNode extends BaseNode {
@@ -108,6 +110,96 @@ export interface NexusTree {
 export type OpenResult =
   | { ok: true; tree: NexusTree }
   | { ok: false; error: string }
+
+/** On-demand single-page read result envelope — never throws across the boundary. */
+export type PageResult =
+  | { ok: true; page: PageDetail }
+  | { ok: false; error: string }
+
+/** What the renderer currently has open: a container, a page, or nothing. */
+export type SelectionState =
+  | { kind: 'none' }
+  | { kind: 'vault'; id: string }
+  | { kind: 'page'; id: string; path: string }
+
+/** A single page's full content, read on demand for the detail view. */
+export interface PageDetail {
+  id: string
+  title: string
+  /** Nexus-relative POSIX path to the `.md` file (forward slashes). */
+  path: string
+  frontmatter: Record<string, unknown>
+  body: string
+}
+
+/** How a vault's pages are laid out in the detail pane. */
+export type ViewMode = 'table' | 'gallery'
+
+// ---------- View pipeline (filter → group → sort) ----------
+
+/**
+ * One row fed to the view pipeline. Carries the intrinsic PageNode fields the
+ * sidebar already loads, plus an OPTIONAL `frontmatter` bag for frontmatter-keyed
+ * columns. Today the loaded NexusTree only supplies the intrinsic fields, so
+ * frontmatter is absent and frontmatter-keyed fields resolve to `undefined`
+ * (rows still sort/group/filter on the intrinsic fields). When a later stage
+ * fetches per-page frontmatter, populating `frontmatter` lights up richer
+ * columns with NO pipeline change. Pure data — no fs, no React.
+ */
+export interface ViewRow {
+  id: string
+  title: string
+  icon?: string
+  path: string
+  frontmatter?: Record<string, unknown>
+}
+
+/**
+ * Names an addressable value on a ViewRow. `title` | `icon` | `path` read the
+ * intrinsic field; any other string reads `frontmatter[field]` (undefined when
+ * frontmatter is absent or lacks the key).
+ */
+export type ViewField = 'title' | 'icon' | 'path' | (string & {})
+
+export type SortDirection = 'asc' | 'desc'
+
+export interface SortSpec {
+  field: ViewField
+  direction: SortDirection
+}
+
+/** Comparison operators for a single filter rule (string-oriented, case-insensitive). */
+export type FilterOperator = 'equals' | 'notEquals' | 'contains' | 'isEmpty' | 'isNotEmpty'
+
+export interface FilterRule {
+  field: ViewField
+  operator: FilterOperator
+  /** Ignored by isEmpty / isNotEmpty. */
+  value?: string
+}
+
+/** A full view definition the pipeline resolves against a set of rows. */
+export interface ViewSpec {
+  /** All rules must pass (AND). Empty / omitted ⇒ no filtering. */
+  filters?: FilterRule[]
+  /** Field to group by. Omitted ⇒ a single implicit group. */
+  groupBy?: ViewField
+  /** Sort applied WITHIN each group. Omitted ⇒ original order preserved. */
+  sort?: SortSpec
+}
+
+/** A resolved bucket of rows produced by the pipeline. */
+export interface ResolvedGroup {
+  /**
+   * The group's identity. The grouped field's value as a string, `''` for the
+   * empty/absent bucket, or `'__all__'` for the single implicit group when no
+   * `groupBy` is set.
+   */
+  key: string
+  /** Human label for the group header (`key`, or 'All' / 'Empty' for sentinels). */
+  label: string
+  rows: ViewRow[]
+}
 
 export const DEFAULT_LABELS: NexusLabels = {
   vaults: 'Vaults',

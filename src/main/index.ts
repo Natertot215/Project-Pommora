@@ -1,8 +1,9 @@
 import { app, BrowserWindow, ipcMain } from 'electron'
-import { join } from 'node:path'
+import { isAbsolute, join, relative, resolve, sep } from 'node:path'
 import { homedir } from 'node:os'
-import type { OpenResult } from '@shared/types'
+import type { OpenResult, PageResult } from '@shared/types'
 import { readNexus } from './readNexus'
+import { readPage } from './readPage'
 
 // Phase 1: the test nexus path is config, not a picker. Override with TEST_NEXUS_PATH.
 const TEST_NEXUS_PATH = process.env.TEST_NEXUS_PATH || join(homedir(), 'test')
@@ -49,6 +50,30 @@ ipcMain.handle('nexus:open', async (): Promise<OpenResult> => {
   try {
     const tree = await readNexus(TEST_NEXUS_PATH)
     return { ok: true, tree }
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) }
+  }
+})
+
+// On-demand page read. The renderer passes a nexus-relative path (PageNode.path);
+// we resolve it under the root and reject anything that escapes (traversal, absolute).
+ipcMain.handle('page:open', async (_e, relPath: unknown): Promise<PageResult> => {
+  try {
+    if (typeof relPath !== 'string' || relPath.length === 0) {
+      return { ok: false, error: 'A page path is required.' }
+    }
+    if (isAbsolute(relPath)) {
+      return { ok: false, error: 'Absolute paths are not allowed.' }
+    }
+    const root = resolve(TEST_NEXUS_PATH)
+    const target = resolve(root, relPath)
+    const rel = relative(root, target)
+    // Escapes the root if the relative path climbs out (`..`) or stays absolute.
+    if (rel === '..' || rel.startsWith('..' + sep) || isAbsolute(rel)) {
+      return { ok: false, error: 'Path escapes the nexus root.' }
+    }
+    const page = await readPage(root, relPath)
+    return { ok: true, page }
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : String(e) }
   }

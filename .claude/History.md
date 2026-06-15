@@ -21,6 +21,15 @@ Key commits: `823ee65` skeleton · `50e37c5` CommonJS main/preload + sandbox + R
 - **Vite 7 + plugin-react 5 pin** (newer plugin-react needs Vite 8, unsupported by electron-vite 5).
 - **Glass:** Apple-Regular CSS, edge-defined (no body brightness/white fill). `liquid-dom` (WebGPU) evaluated and shelved (experimental flag + invasive).
 
-### Phase 2 — Navigation function + views 🔬 in progress
+### Phase 2 — Navigation spine + view pipeline ✅ (renderers stubbed)
 
-Build workflow (sequential, self-verified): page-open IPC (path-traversal-guarded) · selection → detail routing · pure view pipeline · Table (TanStack) + Gallery renderers · read-only page render (react-markdown) · view switcher. Read-only; write/CRUD/editor/properties/connections deferred. (Update with the landing commit + outcome.)
+The build workflow shipped the **tested logic spine**, deliberately leaving the visual renderers as honest placeholders:
+
+- **`page:open` IPC** (`src/main/index.ts`) — path-traversal-guarded (rejects non-string/empty/absolute/`..`-climbing via `resolve`/`relative`/`sep`); never throws across the boundary.
+- **`readPage`** (`src/main/readPage.ts`) — on-demand single-page read: lenient frontmatter split + body extraction, stable `adopted-<sha256>` id.
+- **Pure view pipeline** (`src/renderer/src/views/pipeline.ts`) — side-effect-free `filter (AND) → group → sort` over `ViewRow[]`; empties sort last; `ViewRow.frontmatter` is optional so frontmatter-keyed columns light up later with no pipeline change.
+- **Selection → detail routing** (`DetailPane.tsx` + store `pageStatus`/`pageDetail`) — real wiring; the vault (Table/Gallery) and page-render branches are **placeholders** ("coming next").
+
+Read-only; write/CRUD/editor/properties/connections deferred. **Not yet built:** the Table (TanStack) + Gallery renderers and the react-markdown page render (deps installed, unused). 20 vitest tests; typecheck + build green.
+
+Landing commit: _(this commit)_

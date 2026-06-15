@@ -3,6 +3,7 @@
   --text: rgba(255, 255, 255, 0.9);
   --text-dim: rgba(255, 255, 255, 0.5);
   --hover: rgba(255, 255, 255, 0.07);
+  --selected: rgba(255, 255, 255, 0.14);
   --main-bg: #1c1c1f;
   --glass-inset: 5px; /* gap from the window edges */
   --glass-radius: 12px; /* matched to the macOS window corner (≈ window radius − inset) */
@@ -107,6 +108,13 @@ body {
   background: var(--hover);
 }
 
+/* Selected-row chrome — a touch stronger than hover, same white-alpha language.
+   Stays put under :hover so a selected row doesn't lighten further on pointer. */
+.row.selected,
+.row.selected:hover {
+  background: var(--selected);
+}
+
 .row-title {
   overflow: hidden;
   text-overflow: ellipsis;
@@ -155,6 +163,36 @@ body {
 .swatch[data-color='pink'] { background: #ff2d55; }
 .swatch[data-color='red'] { background: #ff3b30; }
 .swatch[data-color='accent'] { background: #007aff; }
+
+/* --- detail pane (lives inside .content-pane, offset past the glass sidebar) --- */
+.detail {
+  height: 100%;
+  /* Clear the floating glass sidebar: its width (264px) + inset (5px) + gap. */
+  padding: 38px 28px 28px 300px;
+  overflow-y: auto;
+}
+
+.detail-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-dim);
+}
+
+.detail-placeholder {
+  color: var(--text-dim);
+}
+
+.detail-error {
+  color: #ff453a;
+}
+
+.detail-detail {
+  display: block;
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--text-dim);
+}
 
 .state {
   padding: 48px 16px;
