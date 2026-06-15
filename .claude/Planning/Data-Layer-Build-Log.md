@@ -149,4 +149,4 @@ Convention: everything is headless (tests-only, no UI wired); every commit is gr
 - Recurrence + EventKit fields (alarms, `calendar_id`, `eventkit_uuid`) ride **loosely** (round-tripped, not deeply modeled) — catch-up; deep recurrence editing is a UI concern.
 - `writeJson` sorts keys, so a Swift-written agenda file re-saved in React **reorders keys** (cosmetic, data-identical) — same first-write-styling flag as pages.
 - `collectAgenda` scans the **nexus root only** for agenda folders (Swift's default Tasks/Events live at root); a nested agenda folder wouldn't be indexed. *Confirm root-only is the model.*
-- Reconciled while wiring agenda: tier `context_links.target_kind` `'context'` → `'context_tier'` (was wrong in the 6d page build) — now matches Swift's `insertTierContextLinkRows`.
+- Reconciled while wiring agenda: tier `context_links.target_kind` was `'context'`. **(Foundation-review correction:** it is now `'area'`/`'topic'`/`'project'` per tier — matching Swift's `RelationTargetKind.string(from: .contextTier(n))`. An intermediate `'context_tier'` value was wrong — that string is the relation_target *config* discriminant, not this column.)

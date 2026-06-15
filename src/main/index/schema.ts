@@ -1,9 +1,10 @@
-// The index schema — the 11 tables copied byte-compatibly from Swift's IndexSchema (10
-// entity tables) + the `meta` table (Swift's PommoraIndex.bootstrapMeta), so a Swift-
-// built and a React-built index are interchangeable. SCHEMA_VERSION mirrors Swift's
-// PommoraIndex.currentSchemaVersion; an index at a different version holds no user data
-// and is dropped + rebuilt. The version is stamped only AFTER a successful build, so a
-// half-built index never sticks (open sees an absent version and retries).
+// The index schema — the 10 entity tables transcribed from Swift's IndexSchema + the `meta`
+// table (Swift's PommoraIndex.bootstrapMeta). The DDL + SCHEMA_VERSION are structurally
+// identical to Swift's, so either app can open and query the other's index; the index is
+// regeneratable, so exact row bytes (e.g. synthesized link ids) need not match. SCHEMA_VERSION
+// mirrors Swift's PommoraIndex.currentSchemaVersion; an index at a different version holds no
+// user data and is dropped + rebuilt. The version is stamped only AFTER a successful build,
+// so a half-built index never sticks (open sees an absent version and retries).
 
 import type { Db } from './db'
 

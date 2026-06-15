@@ -16,6 +16,7 @@ import { agendaTask, agendaEvent, AGENDA_SUFFIX } from '@shared/agenda'
 import { parseDefinitions } from '../properties/schema'
 import { buildLinkIndex } from '../connections/resolve'
 import { connectionEdges } from '../connections/edges'
+import { normalizeTitle } from '@shared/connections'
 import { pathExists } from './../crud/util'
 import type { PropertyDefinition } from '@shared/properties'
 import type { PageTypeNode } from '@shared/types'
@@ -203,15 +204,19 @@ interface AgendaData {
   configs: AgendaConfig[]
 }
 
-/** One context_links row per tier value — shared by pages + agenda items. target_kind is
- *  the relation_target kind string ("context_tier"), matching Swift's insertTierContextLinkRows. */
+/** tier level → the coarse entity-kind string stored in context_links.target_kind, matching
+ *  Swift's RelationTargetKind.string(from: .contextTier(n)). NOTE: "context_tier" is the
+ *  relation_target *config* discriminant, NOT this column — the column is the tier entity. */
+const TIER_TARGET_KIND: Record<number, string> = { 1: 'area', 2: 'topic', 3: 'project' }
+
+/** One context_links row per tier value — shared by pages + agenda items. */
 function tierLinks(sourceId: string, sourceKind: string, tiers: Record<number, string[]>, modifiedAt: string) {
   return [1, 2, 3].flatMap((tier) =>
     tiers[tier].map((targetId) => ({
       id: `${sourceId}:_tier${tier}:${targetId}`,
       sourceKind,
       targetId,
-      targetKind: 'context_tier',
+      targetKind: TIER_TARGET_KIND[tier] ?? 'context',
       propertyId: `_tier${tier}`,
       modifiedAt
     }))
@@ -312,14 +317,18 @@ export async function buildIndex(db: Db, nexusRoot: string): Promise<void> {
     for (const p of data.pages) {
       upsertPage(db, p)
       replaceContextLinks(db, p.id, tierLinks(p.id, 'page', p.tiers, p.modifiedAt))
-      const conns = connectionEdges(p.id, p.body, linkIndex).map((e) => ({
-        id: `${p.id}:${e.normalizedTitle}`,
-        targetId: e.targetId,
-        targetTitle: e.normalizedTitle,
-        multiplicity: e.multiplicity,
-        resolved: e.status === 'resolved',
-        modifiedAt: p.modifiedAt
-      }))
+      // Skip self-links (a page linking its own title) — matches Swift's insertConnections.
+      const selfKey = normalizeTitle(p.title)
+      const conns = connectionEdges(p.id, p.body, linkIndex)
+        .filter((e) => e.normalizedTitle !== selfKey)
+        .map((e) => ({
+          id: `${p.id}:${e.normalizedTitle}`,
+          targetId: e.targetId,
+          targetTitle: e.normalizedTitle,
+          multiplicity: e.multiplicity,
+          resolved: e.status === 'resolved',
+          modifiedAt: p.modifiedAt
+        }))
       replaceConnections(db, p.id, conns)
     }
 

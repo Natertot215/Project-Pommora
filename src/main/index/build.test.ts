@@ -28,7 +28,7 @@ beforeEach(async () => {
   if (!score.ok) throw new Error('setup: prop')
   ids.score = score.value.id
 
-  const a = await createPage(type.value.path, 'PageA', { body: 'see [[PageB]]' })
+  const a = await createPage(type.value.path, 'PageA', { body: 'see [[PageB]] and [[PageA]]' })
   const b = await createPage(type.value.path, 'PageB')
   if (!a.ok || !b.ok) throw new Error('setup: pages')
   ids.a = a.value.id
@@ -79,13 +79,14 @@ describe('rebuildIndex (cold build)', () => {
     // Context (tier 1)
     expect(get(db, 'SELECT tier, title FROM contexts WHERE id = ?', ids.work)).toMatchObject({ tier: 1, title: 'Work' })
 
-    // Resolved connection PageA → PageB
-    const conn = get(db, 'SELECT * FROM connections WHERE source_id = ?', ids.a)
-    expect(conn).toMatchObject({ target_title: 'pageb', target_id: ids.b, resolved: 1 })
+    // Resolved connection PageA → PageB; the self-link [[PageA]] is skipped (Swift parity)
+    const conns = db.prepare('SELECT * FROM connections WHERE source_id = ?').all(ids.a) as Record<string, unknown>[]
+    expect(conns).toHaveLength(1)
+    expect(conns[0]).toMatchObject({ target_title: 'pageb', target_id: ids.b, resolved: 1 })
 
-    // Tier context link PageA → Work (target_kind matches Swift's "context_tier")
+    // Tier context link PageA → Work (target_kind is the tier entity, "area", per RelationTargetKind)
     const link = get(db, 'SELECT * FROM context_links WHERE source_id = ?', ids.a)
-    expect(link).toMatchObject({ target_id: ids.work, property_id: '_tier1', target_kind: 'context_tier' })
+    expect(link).toMatchObject({ target_id: ids.work, property_id: '_tier1', target_kind: 'area' })
 
     // Agenda: the task row + its status property + tier link + schema def
     const task = get(db, 'SELECT * FROM agenda_tasks WHERE id = ?', ids.task)
