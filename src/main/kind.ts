@@ -6,25 +6,16 @@
 // by an @Observable manager singleton holding decoded sidecars — no injection graph,
 // no SIGTRAP-on-missing-injection footgun.
 
-import { stat } from 'node:fs/promises'
 import { join } from 'node:path'
 import { SIDECAR_FILENAME, type SidecarKind } from './paths'
+import { pathExists } from './io/atomicWrite'
 
 const KINDS = Object.keys(SIDECAR_FILENAME) as SidecarKind[]
-
-async function exists(p: string): Promise<boolean> {
-  try {
-    await stat(p)
-    return true
-  } catch {
-    return false
-  }
-}
 
 /** The folder's kind by sidecar presence, or null for an un-adopted/raw folder. */
 export async function resolveKind(absFolder: string): Promise<SidecarKind | null> {
   for (const kind of KINDS) {
-    if (await exists(join(absFolder, SIDECAR_FILENAME[kind]))) return kind
+    if (await pathExists(join(absFolder, SIDECAR_FILENAME[kind]))) return kind
   }
   return null
 }

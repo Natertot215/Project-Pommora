@@ -3,7 +3,7 @@
 // the structure-classification path (raw/un-adopted folders, e.g. ~/test).
 // No file is ever opened for writing.
 
-import { readdir, readFile, stat } from 'node:fs/promises'
+import { readdir, readFile } from 'node:fs/promises'
 import { basename, join } from 'node:path'
 import { parse as parseYaml } from 'yaml'
 import type {
@@ -21,6 +21,8 @@ import type {
 } from '@shared/types'
 import { AREA_COLORS, DEFAULT_LABELS } from '@shared/types'
 import { adoptedId } from './ids'
+import { pathExists, readJsonObject } from './io/atomicWrite'
+import { asString, asStringArray, basenameNoMd } from './coerce'
 import { shouldSkipDir } from './exclusion'
 import { resolveOrder } from './order'
 import {
@@ -36,25 +38,7 @@ type Fallback = 'id' | 'title'
 
 // ---------- low-level helpers ----------
 
-async function readJson(p: string): Promise<Json | null> {
-  try {
-    const parsed = JSON.parse(await readFile(p, 'utf8'))
-    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? (parsed as Json) : null
-  } catch {
-    return null
-  }
-}
-
 const AREA_COLOR_SET = new Set<AreaColor>(AREA_COLORS)
-
-async function pathExists(p: string): Promise<boolean> {
-  try {
-    await stat(p)
-    return true
-  } catch {
-    return false
-  }
-}
 
 async function listEntries(dir: string): Promise<import('node:fs').Dirent[]> {
   try {
@@ -62,18 +46,6 @@ async function listEntries(dir: string): Promise<import('node:fs').Dirent[]> {
   } catch {
     return []
   }
-}
-
-function basenameNoMd(name: string): string {
-  return name.replace(/\.md$/i, '')
-}
-
-function asString(v: unknown): string | undefined {
-  return typeof v === 'string' && v.length > 0 ? v : undefined
-}
-
-function asStringArray(v: unknown): string[] | undefined {
-  return Array.isArray(v) && v.every((x) => typeof x === 'string') ? (v as string[]) : undefined
 }
 
 /** Lenient frontmatter split — mirrors AtomicYAMLMarkdown read semantics. */
@@ -142,7 +114,7 @@ async function readSet(
   excluded: string[],
   fb: Fallback
 ): Promise<SetNode> {
-  const meta = sidecarMode ? ((await readJson(join(absDir, SIDECAR_FILENAME.set))) ?? {}) : {}
+  const meta = sidecarMode ? ((await readJsonObject(join(absDir, SIDECAR_FILENAME.set))) ?? {}) : {}
   // A set is the depth cap: its own .md + any deeper folders roll up.
   const pages = await collectMdDeep(absDir, relDir, excluded)
   return {
@@ -164,7 +136,7 @@ async function readCollection(
   fb: Fallback
 ): Promise<CollectionNode> {
   const meta = sidecarMode
-    ? ((await readJson(join(absDir, SIDECAR_FILENAME.collection))) ?? {})
+    ? ((await readJsonObject(join(absDir, SIDECAR_FILENAME.collection))) ?? {})
     : {}
   const sets: SetNode[] = []
   const rollup: { abs: string; rel: string }[] = []
@@ -199,7 +171,7 @@ async function readPageType(
   fb: Fallback
 ): Promise<PageTypeNode> {
   const meta = sidecarMode
-    ? ((await readJson(join(absDir, SIDECAR_FILENAME.pageType))) ?? {})
+    ? ((await readJsonObject(join(absDir, SIDECAR_FILENAME.pageType))) ?? {})
     : {}
   const collections: CollectionNode[] = []
   const rollup: { abs: string; rel: string }[] = []
@@ -243,7 +215,7 @@ async function readTier<T extends AreaNode | TopicNode | ProjectNode>(
   for (const e of await listEntries(dir)) {
     if (!e.isDirectory()) continue
     if (shouldSkipDir(e.name, e.name, excluded)) continue
-    const sc = await readJson(join(dir, e.name, sidecar))
+    const sc = await readJsonObject(join(dir, e.name, sidecar))
     if (sidecarMode && !sc) continue // tier entry must carry its sidecar
     const node = {
       kind,
@@ -266,21 +238,21 @@ async function readTier<T extends AreaNode | TopicNode | ProjectNode>(
 export async function readNexus(root: string): Promise<NexusTree> {
   if (!(await pathExists(root))) throw new Error(`Nexus root not found: ${root}`)
 
-  const identity = await readJson(nexusConfig(root, NEXUS_CONFIG_FILES.identity))
+  const identity = await readJsonObject(nexusConfig(root, NEXUS_CONFIG_FILES.identity))
   const sidecarMode = !!asString(identity?.id)
   const id = sidecarMode ? (identity!.id as string) : adoptedId(root)
   const fb: Fallback = sidecarMode ? 'id' : 'title'
 
-  const settings = (await readJson(nexusConfig(root, NEXUS_CONFIG_FILES.settings))) ?? {}
+  const settings = (await readJsonObject(nexusConfig(root, NEXUS_CONFIG_FILES.settings))) ?? {}
   const excluded = asStringArray(settings.excluded_folders) ?? []
   const userLabels =
     settings.labels && typeof settings.labels === 'object' && !Array.isArray(settings.labels)
       ? (settings.labels as Record<string, string>)
       : {}
   const labels = { ...DEFAULT_LABELS, ...userLabels }
-  const state = (await readJson(nexusConfig(root, NEXUS_CONFIG_FILES.state))) ?? {}
-  const savedConfig = (await readJson(nexusConfig(root, NEXUS_CONFIG_FILES.savedConfig))) ?? {}
-  const sectionsConfig = (await readJson(nexusConfig(root, NEXUS_CONFIG_FILES.sidebarSections))) ?? {}
+  const state = (await readJsonObject(nexusConfig(root, NEXUS_CONFIG_FILES.state))) ?? {}
+  const savedConfig = (await readJsonObject(nexusConfig(root, NEXUS_CONFIG_FILES.savedConfig))) ?? {}
+  const sectionsConfig = (await readJsonObject(nexusConfig(root, NEXUS_CONFIG_FILES.sidebarSections))) ?? {}
 
   // Saved strip — 3 fixed, code-keyed rows (inert in Phase 1).
   const savedLabels = (savedConfig.labels as Record<string, string>) ?? {}

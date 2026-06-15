@@ -6,23 +6,9 @@ import { readFile } from 'node:fs/promises'
 import { basename, join } from 'node:path'
 import type { PageDetail } from '@shared/types'
 import { splitFrontmatter } from './readNexus'
+import { splitEnvelope } from './io/pageFile'
+import { asString, basenameNoMd } from './coerce'
 import { adoptedId } from './ids'
-
-function basenameNoMd(name: string): string {
-  return name.replace(/\.md$/i, '')
-}
-
-function asString(v: unknown): string | undefined {
-  return typeof v === 'string' && v.length > 0 ? v : undefined
-}
-
-/** Body = file content after the closing frontmatter fence (lenient, mirrors the split). */
-function splitBody(content: string): string {
-  if (!content.startsWith('---')) return content
-  const m = content.match(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/)
-  if (!m) return content // opening fence with no close -> whole file is body
-  return content.slice(m[0].length)
-}
 
 /**
  * Read one page's full content. `relPath` is nexus-relative POSIX (as carried on
@@ -38,6 +24,6 @@ export async function readPage(rootPath: string, relPath: string): Promise<PageD
     title: basenameNoMd(basename(relPath)),
     path: relPath,
     frontmatter,
-    body: splitBody(content)
+    body: splitEnvelope(content).body
   }
 }
