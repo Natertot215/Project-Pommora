@@ -12,9 +12,16 @@ export async function atomicWriteFile(filePath: string, data: string): Promise<v
   await writeFileAtomic(filePath, data, { encoding: 'utf8' })
 }
 
+/** The canonical on-disk JSON bytes: stable, sorted keys + a trailing newline. The one
+ *  source of the sidecar serialization shape — used by writeJson and by SchemaTransaction
+ *  when it stages a sidecar alongside member-file rewrites. */
+export function serializeJson(value: unknown): string {
+  return stableStringify(value) + '\n'
+}
+
 /** Atomically write a JSON value with stable, sorted keys + a trailing newline. */
 export async function writeJson(filePath: string, value: unknown): Promise<void> {
-  await atomicWriteFile(filePath, stableStringify(value) + '\n')
+  await atomicWriteFile(filePath, serializeJson(value))
 }
 
 /**
