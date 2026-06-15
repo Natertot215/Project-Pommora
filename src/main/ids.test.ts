@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { newId, isUlid, adoptedId } from './ids'
+import { newId, isUlid, adoptedId, mintPropertyId } from './ids'
 
 describe('newId / isUlid', () => {
   it('mints valid, unique ULIDs', () => {
@@ -33,5 +33,17 @@ describe('adoptedId', () => {
 
   it('is the adopted-<16 hex> shape', () => {
     expect(adoptedId('x')).toMatch(/^adopted-[0-9a-f]{16}$/)
+  })
+})
+
+describe('mintPropertyId', () => {
+  it('mints a prop_<ulid> id whose suffix is a valid ULID', () => {
+    const id = mintPropertyId()
+    expect(id.startsWith('prop_')).toBe(true)
+    expect(isUlid(id.slice('prop_'.length))).toBe(true)
+  })
+
+  it('mints unique ids', () => {
+    expect(mintPropertyId()).not.toBe(mintPropertyId())
   })
 })

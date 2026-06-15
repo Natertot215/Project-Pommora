@@ -18,6 +18,12 @@ export function isUlid(value: string): boolean {
   return isValid(value)
 }
 
+/** Mint a fresh user-defined property id (`prop_<ulid>`). Built-in property ids are the
+ *  reserved `_`-prefixed constants in shared/properties.ts; this mints the user form. */
+export function mintPropertyId(): string {
+  return 'prop_' + newId()
+}
+
 /**
  * Stable synthetic id for an entity read from a raw/un-adopted folder with no
  * persisted id. Derived from the nexus-relative POSIX path, so the same file always
