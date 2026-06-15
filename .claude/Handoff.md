@@ -37,6 +37,7 @@ The React thread continues in parallel as the contingency exploration.
 
 - **Toolbar / Views-button / banner chrome is actively-changing** (flux docs: `Features/Views.md`, `Planning/06-13-Views-UIX-Fixes.md`, `Guidelines/Design.md`): the Views button "looks" good at unknown cost via unknown-if-best methods; the inspector-adoption deviation; the untested banner↔toolbar bleed interaction.
 - **Button-specific toolbar menus + banner-menu confinement** — the next-session task above.
+- **Rest of the Views build (per `06-13-Views-UIX-Fixes.md`):** build out **Gallery** properly; re-do the **grouping + sorting UIX** (rudimentary + incomplete today); **Fix 3 — Layout-pane revision + type dual-write** (lands after both Table + Gallery are visually perfect); **Fix 1b — Edit Icon → IconPicker popover** (needs Nathan's pick on which rows). Resumes after the toolbar/banner chrome work.
 - **Views-button display toggle — DEFERRED** ("Display as Icon Only / Icon + Title"); this is the intended content for the future Views-button right-click menu, blocked until the per-button menu pattern is settled.
 - **Title baseline-on-icon (Fix 2 polish)** — the detail title text should baseline on the icon's bottom edge; a plain `Label` centers them. Not yet applied.
 
