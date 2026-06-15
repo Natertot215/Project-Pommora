@@ -258,7 +258,9 @@ struct ViewOutlineTable: NSViewRepresentable {
             // re-renders this view. The column hash is folded in so a property
             // rename / type change (same row structure) still forces `reloadData()`,
             // re-creating each cell's hosted content with the new schema + editor.
-            let signature = Self.signature(of: parent.groups) + "|" + Self.columnSignature(of: parent.columns)
+            // The schema options hash catches select/status option additions so
+            // ChipDropdown popovers see the new options without a restart.
+            let signature = Self.signature(of: parent.groups) + "|" + Self.columnSignature(of: parent.columns) + "|" + tableSchemaOptionsSignature(of: parent.schema)
             guard signature != lastSignature else { return }
             lastSignature = signature
 
@@ -321,7 +323,8 @@ struct ViewOutlineTable: NSViewRepresentable {
         /// (it persists silently and re-applies on rebuild); order is excluded so a
         /// user column-reorder (handled natively) doesn't either. A property add /
         /// delete (id-set), rename (title), or type change (kind) DOES change it —
-        /// the trigger to refresh stale headers + cell editors.
+        /// the trigger to refresh stale headers + cell editors. Select options and
+        /// status groups are tracked separately via `tableSchemaOptionsSignature`.
         private static func columnSignature(of columns: [ResolvedColumn]) -> String {
             var hasher = Hasher()
             for column in columns.sorted(by: { $0.id < $1.id }) {
@@ -658,6 +661,32 @@ private final class OutlineNode {
         self.payload = payload
         self.children = children
     }
+}
+
+// MARK: - Schema options signature
+
+/// A hash of the option-set content for Select, MultiSelect, and Status properties
+/// in the current schema — id-sorted for stability. Folded into the table's reload
+/// signature so adding a new option forces `NSOutlineView.reloadData()`, which
+/// re-creates each `HostingCell`'s root view with the updated schema and makes
+/// new options immediately selectable in ChipDropdown without a restart.
+///
+/// `internal` (not `private`) so `PommoraTests` can verify the signature changes
+/// when options are mutated (via `@testable import`).
+func tableSchemaOptionsSignature(of schema: [PropertyDefinition]) -> String {
+    var hasher = Hasher()
+    for def in schema.sorted(by: { $0.id < $1.id }) {
+        hasher.combine(def.id)
+        if let opts = def.selectOptions {
+            for opt in opts { hasher.combine(opt.value) }
+        }
+        if let groups = def.statusGroups {
+            for group in groups {
+                for opt in group.options { hasher.combine(opt.value) }
+            }
+        }
+    }
+    return String(hasher.finalize())
 }
 
 // MARK: - Hosting cell
