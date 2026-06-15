@@ -89,6 +89,35 @@ export function upsertContext(
   upsertRow(db, 'contexts', { id: r.id, tier: r.tier, title: r.title, icon: r.icon ?? null })
 }
 
+export function upsertAgendaTask(
+  db: Db,
+  r: { id: string; title: string; icon?: string; dueAt?: string; properties?: unknown; modifiedAt: string }
+): void {
+  upsertRow(db, 'agenda_tasks', {
+    id: r.id,
+    title: r.title,
+    icon: r.icon ?? null,
+    due_at: r.dueAt ?? null,
+    properties: json(r.properties),
+    modified_at: r.modifiedAt
+  })
+}
+
+export function upsertAgendaEvent(
+  db: Db,
+  r: { id: string; title: string; icon?: string; startAt: string; endAt: string; properties?: unknown; modifiedAt: string }
+): void {
+  upsertRow(db, 'agenda_events', {
+    id: r.id,
+    title: r.title,
+    icon: r.icon ?? null,
+    start_at: r.startAt,
+    end_at: r.endAt,
+    properties: json(r.properties),
+    modified_at: r.modifiedAt
+  })
+}
+
 export function upsertPropertyDefinition(
   db: Db,
   r: {

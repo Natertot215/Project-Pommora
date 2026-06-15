@@ -4,19 +4,21 @@
 // happens first (collect), then the sync upserts run inside transact(). Mirrors Swift's
 // IndexBuilder.populate; ids match the sidecars so a React- and Swift-built index agree.
 
-import { readFile } from 'node:fs/promises'
+import { readFile, readdir } from 'node:fs/promises'
 import { join } from 'node:path'
 import { readNexus } from '../readNexus'
 import { splitFrontmatter } from '../readNexus'
 import { splitEnvelope } from '../io/pageFile'
 import { readSidecar } from '../sidecarIO'
 import { pageTypeSidecar, pageCollectionSidecar, pageSetSidecar } from '@shared/schemas'
-import { contextTierDir } from '../paths'
+import { SIDECAR_FILENAME } from '../paths'
+import { agendaTask, agendaEvent, AGENDA_SUFFIX } from '@shared/agenda'
 import { parseDefinitions } from '../properties/schema'
 import { buildLinkIndex } from '../connections/resolve'
 import { connectionEdges } from '../connections/edges'
+import { pathExists } from './../crud/util'
 import type { PropertyDefinition } from '@shared/properties'
-import type { PageTypeNode, CollectionNode } from '@shared/types'
+import type { PageTypeNode } from '@shared/types'
 import { openIndex } from './open'
 import { stampSchemaVersion } from './schema'
 import { transact, type Db } from './db'
@@ -27,6 +29,8 @@ import {
   upsertPage,
   upsertContext,
   upsertPropertyDefinition,
+  upsertAgendaTask,
+  upsertAgendaEvent,
   replaceContextLinks,
   replaceConnections
 } from './upsert'
@@ -176,10 +180,114 @@ function configOf(def: PropertyDefinition): Record<string, unknown> {
   return c
 }
 
+interface AgendaItemData {
+  id: string
+  title: string
+  icon?: string
+  dueAt?: string
+  startAt?: string
+  endAt?: string
+  properties: unknown
+  modifiedAt: string
+  tiers: Record<number, string[]>
+}
+interface AgendaConfig {
+  owningTypeId: 'agenda_tasks' | 'agenda_events'
+  owningTypeKind: 'agenda_task_schema' | 'agenda_event_schema'
+  modifiedAt: string
+  defs: PropertyDefinition[]
+}
+interface AgendaData {
+  tasks: AgendaItemData[]
+  events: AgendaItemData[]
+  configs: AgendaConfig[]
+}
+
+/** One context_links row per tier value — shared by pages + agenda items. target_kind is
+ *  the relation_target kind string ("context_tier"), matching Swift's insertTierContextLinkRows. */
+function tierLinks(sourceId: string, sourceKind: string, tiers: Record<number, string[]>, modifiedAt: string) {
+  return [1, 2, 3].flatMap((tier) =>
+    tiers[tier].map((targetId) => ({
+      id: `${sourceId}:_tier${tier}:${targetId}`,
+      sourceKind,
+      targetId,
+      targetKind: 'context_tier',
+      propertyId: `_tier${tier}`,
+      modifiedAt
+    }))
+  )
+}
+
+/** Read agenda items + config schemas. Agenda folders are discovered at the nexus root by
+ *  the presence of `_taskconfig.json` / `_eventconfig.json` (readNexus discovers but does
+ *  not surface them, so the index walks them directly). */
+async function collectAgenda(nexusRoot: string): Promise<AgendaData> {
+  const tasks: AgendaItemData[] = []
+  const events: AgendaItemData[] = []
+  const configs: AgendaConfig[] = []
+  let dirs: string[]
+  try {
+    dirs = (await readdir(nexusRoot, { withFileTypes: true })).filter((e) => e.isDirectory()).map((e) => e.name)
+  } catch {
+    return { tasks, events, configs }
+  }
+  for (const name of dirs) {
+    const folder = join(nexusRoot, name)
+    const isTask = await pathExists(join(folder, SIDECAR_FILENAME.taskConfig))
+    const isEvent = !isTask && (await pathExists(join(folder, SIDECAR_FILENAME.eventConfig)))
+    if (!isTask && !isEvent) continue
+
+    const configFile = join(folder, isTask ? SIDECAR_FILENAME.taskConfig : SIDECAR_FILENAME.eventConfig)
+    let configRaw: Record<string, unknown> = {}
+    try {
+      configRaw = JSON.parse(await readFile(configFile, 'utf8'))
+    } catch {
+      /* unreadable config — index zero defs for it */
+    }
+    configs.push({
+      owningTypeId: isTask ? 'agenda_tasks' : 'agenda_events',
+      owningTypeKind: isTask ? 'agenda_task_schema' : 'agenda_event_schema',
+      modifiedAt: str(configRaw.modified_at) || EPOCH,
+      defs: parseDefinitions(configRaw.property_definitions)
+    })
+
+    const suffix = isTask ? AGENDA_SUFFIX.task : AGENDA_SUFFIX.event
+    let files: string[]
+    try {
+      files = (await readdir(folder)).filter((f) => f.endsWith(suffix))
+    } catch {
+      continue
+    }
+    for (const f of files) {
+      let content = ''
+      try {
+        content = await readFile(join(folder, f), 'utf8')
+      } catch {
+        continue
+      }
+      const parsed = (isTask ? agendaTask : agendaEvent).safeParse(JSON.parse(content || '{}'))
+      if (!parsed.success) continue
+      const item = parsed.data as Record<string, unknown>
+      const common = {
+        id: str(item.id),
+        title: f.slice(0, -suffix.length),
+        icon: typeof item.icon === 'string' ? item.icon : undefined,
+        properties: item.properties ?? {},
+        modifiedAt: str(item.modified_at) || str(item.created_at) || EPOCH,
+        tiers: { 1: strArr(item.tier1), 2: strArr(item.tier2), 3: strArr(item.tier3) }
+      }
+      if (isTask) tasks.push({ ...common, dueAt: typeof item.due_at === 'string' ? item.due_at : undefined })
+      else events.push({ ...common, startAt: str(item.start_at) || EPOCH, endAt: str(item.end_at) || EPOCH })
+    }
+  }
+  return { tasks, events, configs }
+}
+
 /** Populate `db` from the nexus (does NOT stamp the version — the caller stamps only after
  *  this resolves successfully, so a failed build never marks the index current). */
 export async function buildIndex(db: Db, nexusRoot: string): Promise<void> {
   const data = await collectNexusData(nexusRoot)
+  const agenda = await collectAgenda(nexusRoot)
   const linkIndex = buildLinkIndex(data.pages.map((p) => ({ id: p.id, title: p.title })))
 
   transact(db, () => {
@@ -203,17 +311,7 @@ export async function buildIndex(db: Db, nexusRoot: string): Promise<void> {
     for (const s of data.sets) upsertSet(db, { ...s, collectionId: s.parentId })
     for (const p of data.pages) {
       upsertPage(db, p)
-      const links = [1, 2, 3].flatMap((tier) =>
-        p.tiers[tier].map((targetId) => ({
-          id: `${p.id}:_tier${tier}:${targetId}`,
-          sourceKind: 'page',
-          targetId,
-          targetKind: 'context',
-          propertyId: `_tier${tier}`,
-          modifiedAt: p.modifiedAt
-        }))
-      )
-      replaceContextLinks(db, p.id, links)
+      replaceContextLinks(db, p.id, tierLinks(p.id, 'page', p.tiers, p.modifiedAt))
       const conns = connectionEdges(p.id, p.body, linkIndex).map((e) => ({
         id: `${p.id}:${e.normalizedTitle}`,
         targetId: e.targetId,
@@ -223,6 +321,29 @@ export async function buildIndex(db: Db, nexusRoot: string): Promise<void> {
         modifiedAt: p.modifiedAt
       }))
       replaceConnections(db, p.id, conns)
+    }
+
+    for (const cfg of agenda.configs) {
+      cfg.defs.forEach((def, position) =>
+        upsertPropertyDefinition(db, {
+          id: def.id,
+          owningTypeId: cfg.owningTypeId,
+          owningTypeKind: cfg.owningTypeKind,
+          name: def.name,
+          type: def.type,
+          config: configOf(def),
+          position,
+          modifiedAt: cfg.modifiedAt
+        })
+      )
+    }
+    for (const t of agenda.tasks) {
+      upsertAgendaTask(db, t)
+      replaceContextLinks(db, t.id, tierLinks(t.id, 'agenda_task', t.tiers, t.modifiedAt))
+    }
+    for (const ev of agenda.events) {
+      upsertAgendaEvent(db, { ...ev, startAt: ev.startAt ?? EPOCH, endAt: ev.endAt ?? EPOCH })
+      replaceContextLinks(db, ev.id, tierLinks(ev.id, 'agenda_event', ev.tiers, ev.modifiedAt))
     }
   })
 }

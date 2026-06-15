@@ -8,11 +8,12 @@ import { nexusDir, nexusConfig, NEXUS_CONFIG_FILES, contextTierDir } from '../pa
 import { createFolderEntity } from '../crud/folderEntity'
 import { addProperty } from '../crud/schema'
 import { createPage, updatePageProperty, setPageTier } from '../crud/page'
+import { createAgendaItem, setAgendaTier, updateAgendaProperty } from '../crud/agendaEntity'
+import { defaultStatusSeed, type PropertyDefinition } from '@shared/properties'
 import type { Db } from './db'
-import type { PropertyDefinition } from '@shared/properties'
 
 let root: string
-const ids: { type?: string; score?: string; a?: string; b?: string; work?: string } = {}
+const ids: { type?: string; score?: string; a?: string; b?: string; work?: string; task?: string } = {}
 
 beforeEach(async () => {
   root = await mkdtemp(join(tmpdir(), 'pom-index-build-'))
@@ -38,6 +39,18 @@ beforeEach(async () => {
   if (!work.ok) throw new Error('setup: area')
   ids.work = work.value.id
   await setPageTier(a.value.path, 1, [ids.work])
+
+  // Agenda: a Tasks folder (config seeded with built-in _status) + one task.
+  const tasksCfg = await createFolderEntity(root, 'taskConfig', 'Tasks', {
+    property_definitions: [{ id: '_status', name: 'Status', type: 'status', status_groups: defaultStatusSeed() }],
+    schema_version: 1
+  })
+  if (!tasksCfg.ok) throw new Error('setup: taskconfig')
+  const task = await createAgendaItem(tasksCfg.value.path, 'task', 'Buy milk', { due_at: '2026-06-20T00:00:00.000Z' })
+  if (!task.ok) throw new Error('setup: task')
+  ids.task = task.value.id
+  await updateAgendaProperty(task.value.path, '_status', { kind: 'status', value: 'not_started' })
+  await setAgendaTier(task.value.path, 1, [ids.work])
 })
 afterEach(async () => {
   await rm(root, { recursive: true, force: true })
@@ -70,9 +83,18 @@ describe('rebuildIndex (cold build)', () => {
     const conn = get(db, 'SELECT * FROM connections WHERE source_id = ?', ids.a)
     expect(conn).toMatchObject({ target_title: 'pageb', target_id: ids.b, resolved: 1 })
 
-    // Tier context link PageA → Work
+    // Tier context link PageA → Work (target_kind matches Swift's "context_tier")
     const link = get(db, 'SELECT * FROM context_links WHERE source_id = ?', ids.a)
-    expect(link).toMatchObject({ target_id: ids.work, property_id: '_tier1' })
+    expect(link).toMatchObject({ target_id: ids.work, property_id: '_tier1', target_kind: 'context_tier' })
+
+    // Agenda: the task row + its status property + tier link + schema def
+    const task = get(db, 'SELECT * FROM agenda_tasks WHERE id = ?', ids.task)
+    expect(task).toMatchObject({ title: 'Buy milk', due_at: '2026-06-20T00:00:00.000Z' })
+    expect(JSON.parse(task?.properties as string)._status).toEqual({ $status: 'not_started' })
+    const taskLink = get(db, 'SELECT * FROM context_links WHERE source_id = ?', ids.task)
+    expect(taskLink).toMatchObject({ source_kind: 'agenda_task', target_id: ids.work })
+    const agendaDef = get(db, "SELECT * FROM property_definitions WHERE owning_type_kind = 'agenda_task_schema'")
+    expect(agendaDef).toMatchObject({ id: '_status', owning_type_id: 'agenda_tasks' })
 
     db.close()
   })
