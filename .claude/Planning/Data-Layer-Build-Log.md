@@ -133,3 +133,20 @@ Convention: everything is headless (tests-only, no UI wired); every commit is gr
 - Container `modified_at` falls back to EPOCH when the sidecar lacks it; page `modified_at` → `created_at` → EPOCH. *Confirm acceptable (regeneratable; rarely the container sort key).*
 - `agenda_tasks` / `agenda_events` tables exist but the build **doesn't populate** them (no agenda CRUD yet) — folds in with agenda.
 - `index/db.ts` sets WAL + `foreign_keys=ON` per connection (build inserts in FK-safe order). 3 npm-audit high advisories are in `prebuild-install` (dev tooling, not shipped runtime).
+
+### Phase 7 — Agenda CRUD · `0f87383` items · `db47125` index pop · `5caf60b` config-schema CRUD
+
+**What.** The last data-layer subsystem. `shared/agenda.ts` (agendaTask/agendaEvent zod models + suffix/kind helpers). `crud/agendaEntity.ts` (one factory for both kinds: create/rename/delete/updateItem/updateProperty/setTier). Index pop: `upsertAgendaTask`/`upsertAgendaEvent` + `collectAgenda` in `build.ts` (discovers agenda folders by sidecar, indexes items + tier links + config defs). Agenda config-schema CRUD by **generalizing `crud/schema.ts`** over a `SchemaTarget` (page vs agenda) — one five-op core, page exports unchanged, new `addAgendaProperty`/etc. with a JSON member strip. Config folders reuse `createFolderEntity` (kind `taskConfig`/`eventConfig`).
+
+**Why.** Swift ships Tasks (EKReminder) + Events (EKEvent) at the data level; catch-up requires them. The generalization is the DRY payoff: Swift's `PerTypeSchemaService` + `SingletonSchemaService` (≈690 LOC, near-duplicate) become one parameterized path.
+
+**Swift delta + why.** Agenda items are pure JSON (no envelope), so the factory is simpler than `page.ts` — read-merge-write with raw-spread foreign preservation, no Yams/Document. The ~117-line `PropertyValue` Codable + the per-manager `addProperty`/`changeType`/`unlinkTier` ladders across `AgendaTaskManager` + `AgendaEventManager` (≈660 LOC) collapse into the shared codec + the generalized schema ops + the existing `unlinkTier`. ~1,000 Swift agenda LOC (models + 2 managers + 2 schemas, excl. EventKit-sync + UI) → ~260 TS.
+
+**⚐ Review flags.**
+- `crud/agendaEntity.ts`: `createAgendaItem` requires an event's `start_at` + `end_at` but does **not** enforce `end_at ≥ start_at` (Swift's invariant). *Decide whether to validate.*
+- Dates are opaque ISO **strings** (round-tripped, not validated) — an invalid date string survives. Schema is lenient; EventKit sync / UI would validate. *Confirm.*
+- `updateAgendaItem` is an **additive merge** (no field-deletion semantics, unlike page `mergeFrontmatter`'s set-or-delete); field removal is only via `updateAgendaProperty`. *Confirm sufficient for the field set.*
+- Recurrence + EventKit fields (alarms, `calendar_id`, `eventkit_uuid`) ride **loosely** (round-tripped, not deeply modeled) — catch-up; deep recurrence editing is a UI concern.
+- `writeJson` sorts keys, so a Swift-written agenda file re-saved in React **reorders keys** (cosmetic, data-identical) — same first-write-styling flag as pages.
+- `collectAgenda` scans the **nexus root only** for agenda folders (Swift's default Tasks/Events live at root); a nested agenda folder wouldn't be indexed. *Confirm root-only is the model.*
+- Reconciled while wiring agenda: tier `context_links.target_kind` `'context'` → `'context_tier'` (was wrong in the 6d page build) — now matches Swift's `insertTierContextLinkRows`.
