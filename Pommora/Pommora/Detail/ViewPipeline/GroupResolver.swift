@@ -244,7 +244,7 @@ enum GroupResolver {
         var buckets: [String: [ViewItem]] = [:]
         var noValue: [ViewItem] = []
         for item in items {
-            if let key = bucketKey(item, propertyID: grouping.propertyID) {
+            if let key = bucketKey(item, grouping: grouping) {
                 buckets[key, default: []].append(item)
             } else {
                 noValue.append(item)
@@ -280,10 +280,12 @@ enum GroupResolver {
     /// The single grouping key for an item's value (nil = no value → ungrouped).
     /// Shared with `RowDragCoordinator` so a drag's source-bucket resolution and
     /// group membership stay one source of truth.
-    static func bucketKey(_ item: ViewItem, propertyID: String) -> String? {
-        switch item.page.frontmatter.properties[propertyID] {
+    static func bucketKey(_ item: ViewItem, grouping: PropertyGrouping) -> String? {
+        let granularity = grouping.dateGranularity ?? .month
+        switch item.page.frontmatter.properties[grouping.propertyID] {
         case .select(let s), .status(let s): return s
         case .checkbox(let b): return b ? "true" : "false"
+        case .date(let d), .datetime(let d): return DateBucket.key(for: d, granularity: granularity)
         case .none, .some(.null): return nil
         default: return nil
         }
