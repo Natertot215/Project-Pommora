@@ -17,7 +17,9 @@ The **Figma "Pommora - React"** file is canonical for design *values*; this repo
 ```
 design/
 ├─ tokens/          the variables — edit here → propagates app-wide
-│   └─ color.css.ts   ← solid spectrum authored; more token files to come
+│   ├─ color.css.ts        ← solid spectrum
+│   ├─ typography.css.ts   ← font primitives + composed text styles
+│   └─ index.ts            ← unified `vars` + `text`
 └─ components/      reusable pieces (mirror the Figma components) — stubs
 ```
 
@@ -57,8 +59,8 @@ Per-color tint variables (`-fill` / `-soft` / `-text` / `-soft-border` / `-soft-
 
 ### In code — established vs planned
 
-- **Established:** `color.css.ts` → `vars.color.solid.*` (11 solids). vanilla-extract + Inter wired (`404a1d7`).
-- **Planned:** the remaining color tokens (labels, accent, backgrounds, fills, states, separators) + the chip-tint rule + the typography tokens, each as a `design/tokens/*.css.ts` file.
+- **Established:** `color.css.ts` → `vars.color.solid.*` (11 solids); `typography.css.ts` → `font` primitives + `text.*` composed styles (full ramp — see `Typography.md`); unified in `index.ts`. vanilla-extract + Inter wired; build green.
+- **Planned:** the remaining color tokens (labels, accent, backgrounds, fills, states, separators) + the chip-tint rule, each as a `design/tokens/*.css.ts` file.
 
 ### Components — stub
 

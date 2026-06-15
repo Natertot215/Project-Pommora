@@ -41,9 +41,13 @@ Four Inter weights: **Regular 400** (all Standard except Headline) · **Medium 5
 
 Text color is separate from the type ramp. Three label tones on one base `#F1F1F1`: **primary** 100% · **secondary** 65% · **tertiary** 35%. Catalogued in `Design.md` → Colors.
 
-### In code — planned
+### In code — authored
 
-Not yet authored. Plan: `design/tokens/typography.css.ts` (vanilla-extract) exposing each style as `{family, size, lineHeight}` + its two weights, referenced as `vars.font.<style>`. Inter is already loaded (`@fontsource-variable/inter`, family `Inter Variable`) and set as the app font — see `Design.md` → Tooling.
+`design/tokens/typography.css.ts` (vanilla-extract), two layers:
+- **`font` primitives** (`createGlobalTheme`) — `font.family`, `font.weight.{regular, medium, semibold, bold}` (400 / 500 / 600 / 700), and `font.scale.<style>.{size, line}` for all ten styles. The single source — edit a value and it propagates.
+- **`text` composed classes** — `text.<style>.{standard, emphasized}` apply a whole style: `className={text.headline.emphasized}`.
+
+Unified in `index.ts` (`import { vars, text } from '@renderer/design/tokens'`; primitives read as `vars.font.*`). Inter loads via `@fontsource-variable/inter` (family `Inter Variable`). The build extracts the CSS green.
 
 ### Not yet established — stubs
 

@@ -21,12 +21,12 @@ Two foundations are down; the UI is next.
 ### Next session
 
 1. **App shell** — verify the paused first-pass on desktop, then build it (the "general app functionality" pass: window drag, resizable / collapsible sidebar).
-2. **Design system → code** — author the remaining tokens (labels, accent, backgrounds, fills, states, the chip-tint rule, typography) as `design/tokens/*.css.ts`; then build the first components (Button, Chip, …) from the library, the **Chip owning the unified-tint derivation**.
+2. **Design system → code** — typography tokens authored (`typography.css.ts` + `index.ts`, build green). Remaining: color tokens (labels, accent, backgrounds, fills, states, separators) + the chip-tint rule as `design/tokens/*.css.ts`; then build the first components (Button, Chip, …) from the library, the **Chip owning the unified-tint derivation**.
 3. **Data layer → UI** (the long-standing UI-gated work): `mutate:*` / `index:*` IPC + preload bridge; incremental index upserts (+ `electron-rebuild` / `asarUnpack`); cascade orchestration. See `Planning/Data-Layer-Handoff.md`.
 
 ### Pending focuses
 
-- **`@/design` alias** — add to `tsconfig` + Vite when the first component imports tokens.
+- **Token import alias** — the existing `@renderer` alias covers tokens (`@renderer/design/tokens`); no separate `@/design` alias needed.
 - **Glass / Surface** — Apple-Regular CSS default; `Surface` is the swappable seam; `--glass-radius` (12px) — eyeball window concentricity. `liquid-dom` shelved.
 - **Contexts in `~/test`** — no `.nexus/` / contexts in the fixture, so the sidebar shows Vaults only; add a few Areas / Topics / Projects to exercise it.
 - **`red` is in the solid spectrum but not a chip color** (excluded by design; the mode cap is 10). `grey-default` kept as the `Default` chip color's source.
