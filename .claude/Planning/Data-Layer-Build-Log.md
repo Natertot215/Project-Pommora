@@ -49,9 +49,9 @@ Convention: everything is headless (tests-only, no UI wired); every commit is gr
 - `resolveKind` returns the **first** matching sidecar; a folder carrying two sidecars (shouldn't happen) is silently disambiguated by iteration order, and it does up to 8 `stat`s per folder. *Reviewer: detect-ambiguity? read the dir once instead?*
 - `readSidecar` returns `null` on validation failure (e.g. missing `id`) — discarding any foreign data on a malformed sidecar. Swift was more lenient. *Confirm null-on-invalid isn't too lossy.*
 
-### Phase 3 — CRUD lifecycle · `18cda71` (folder), `d55dc5a` (page)
+### Phase 3 — CRUD lifecycle · `18cda71` folder · `d55dc5a` page · reorder (this commit)
 
-**What.** `crud/folderEntity.ts` (one `create`/`rename`/`delete`/`updateSidecar` for all six folder entities) + `crud/page.ts` (`create`/`rename`/`delete`/`updatePageBody`/`move`). `trashWithTimestamp` added to `atomicWrite.ts`.
+**What.** `crud/folderEntity.ts` (one `create`/`rename`/`delete`/`updateSidecar` for all six folder entities) + `crud/page.ts` (`create`/`rename`/`delete`/`updatePageBody`/`move`) + `crud/reorder.ts` (`setStateOrder` → state.json for vaults/tiers; `setContainerOrder` → sidecar for collections/sets/pages). `trashWithTimestamp` added to `atomicWrite.ts`. The operation set is now complete: create/rename/delete/update/move/reorder.
 
 **Why.** The actual mutation capability — the spine of the app. The folder factory is the big DRY win (Swift copy-pasted these ladders across managers).
 
@@ -64,3 +64,4 @@ Convention: everything is headless (tests-only, no UI wired); every commit is gr
 - `movePage` does **not** strip cross-type properties (a page moved to a type with a different schema keeps stale property keys). Deferred to Phase 4 (needs the schema-aware property layer). *Known gap.*
 - Name safety is minimal: rejects `/`, `\`, `.`/`..`, blank. It does **not** strip a trailing `.md` (title `"Note.md"` → file `Note.md.md`), nor guard OS-illegal chars (`:`), trailing spaces, or reserved names. *Reviewer: harden name validation centrally (a shared `validateName`).*
 - `crud/folderEntity.ts` and `crud/page.ts` each re-implement `exists`, `invalidName`, `nowIso`. **Small DRY duplication** — candidate to hoist into a shared crud util.
+- `reorder.ts` persists whatever id list it's given — it does **not** validate the ids exist. Harmless on read (`resolveOrder` ignores unknown ids), but a garbage/stale id silently lands in the order array. *Confirm no existence check is needed, or add one.*
