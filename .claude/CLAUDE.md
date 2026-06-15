@@ -7,9 +7,11 @@ A React + TypeScript + Electron rebuild of Pommora ("a simpler Notion that's als
 - **Product truth** lives in the Swift project: `// Projects // Project Pommora // .claude // PommoraPRD.md` (+ its `Features/*`). Don't re-document the domain model here — reference it.
 - **This project is the rebuild.** Its docs cover the React/TS/Electron *how* and the build's state.
 
-### Stack (locked)
+### Stack (current — swappable, not locked)
 
-electron-vite · Electron 42 · React 19 · TypeScript 6 · Vite 7 + `@vitejs/plugin-react` 5 (pinned — newer plugin-react requires Vite 8, which electron-vite doesn't support yet) · Zustand · TanStack Table/Virtual · `react-markdown` + `remark-gfm` · `eemeli/yaml` · `@phosphor-icons/react` · Vitest. Editor (deferred): **CodeMirror 6**.
+electron-vite · Electron 42 · React 19 · TypeScript 6 · Vite 7 + `@vitejs/plugin-react` 5 (compat pin — newer plugin-react requires Vite 8, which electron-vite doesn't support yet) · Zustand · TanStack Table/Virtual · `react-markdown` + `remark-gfm` · `eemeli/yaml` · `@phosphor-icons/react` · Vitest. Editor (deferred): a web editor — **CodeMirror 6 is a candidate, not mandated**.
+
+**No dependency lock-in.** Every library sits behind a thin seam (SQLite behind `db.ts`, YAML behind `pageFile.ts`, IDs behind `ids.ts`, glass behind `Surface`) so it's swappable without touching callers. Version numbers are compatibility pins, not endorsements; nothing above is a permanent commitment.
 
 ### HARD RULES
 

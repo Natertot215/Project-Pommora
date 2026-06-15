@@ -153,11 +153,13 @@ index.ts              — EXTEND IPC host: mutate:* / index:* handlers, path-gua
 - **Phase 6 — SQLite index.** `index/*` with verbatim DDL + `better-sqlite3` wrapper + version handshake + `electron-rebuild`/`asarUnpack` pipeline. Best-effort upserts wired into `crud/*` (swallowed). Port `loadAll-sync-parents`. *(deps: 2, 4, 5)*
 - **Agenda CRUD** folds into Phases 3–4 via the `agendaEntity` factory (reuses `folderEntity` + `encodeValue`).
 
-#### Throwaway wired UIX (organized like the Swift tree; visuals deferred)
+#### Verification — tests only, no UI
 
-Each phase gets a minimal renderer harness driving the real IPC bridge so the data layer is exercised end-to-end without polished UI — deliberately ugly, single-purpose, replaced by the Component Library later: Phase 1-2 a debug tree/JSON dump · Phase 3 plain create/rename/delete/reorder buttons + a textarea page editor (rename = file move, guard visible) · Phase 4 an unstyled FrontmatterInspector listing every schema property · Phase 5 a remark plugin rendering `[[links]]` as plain anchors (resolved vs inert) + a raw backlinks list · Phase 6 a query console firing `index:*`.
+This phase wires **nothing** to the renderer. Every phase is proven by headless `vitest` specs against the modules and the IPC handlers directly (call the handler, assert the `{ ok, … }` envelope + the on-disk result). Renderer touch-points stay typed **stubs** in the preload bridge — never wired surfaces. The real UI is rebuilt later from the Figma Component Library. Per-phase acceptance: typecheck + build + the phase's vitest suite green.
 
 ### Library stack
+
+No hard lock-in — each dependency sits behind a thin seam (the SQLite driver behind `db.ts`, the YAML engine behind `pageFile.ts`, ID minting behind `ids.ts`) and is swappable without touching callers. Version constraints are compatibility pins, not endorsements. The editor (a later phase) is **not** mandated to any library.
 
 - **`yaml` ^2.9** (installed) — frontmatter; use the **Document API** (`parseDocument`/`set`/`delete`/`toString`) on write to preserve foreign keys, order, comments. JSON sidecars use native `JSON`.
 - **`zod` v4** — one schema per entity = the codec (`.default()`/`.catch()` lenient backfills, `z.looseObject` foreign-key retention, `.partial()` lenient adoption, `z.discriminatedUnion` for Recurrence.end). `z.infer` is the single source of truth for types.
