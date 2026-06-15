@@ -48,7 +48,7 @@ Locked to **SwiftUI**. **Editor = TextKit 2 + Apple `swift-markdown` + the Pommo
 
 - **Connections render as styled colored inline text** (Obsidian wikilink-style), not Notion-style chips.
 
-- **Context-tier links stored by ID, displayed by icon + title.** Always multi-value — frontmatter holds an array of target IDs (`[{"$rel": "<ULID>"}]`, rename-safe); each renders as the target's current icon + title in styled colored text. Tiers are the sole relation-type connection: `tier1` / `tier2` / `tier3` are pre-configured relation properties (merged via `BuiltInContextLinkProperties`), stored at frontmatter root, edited inline. Full catalog → `// Features//Properties.md`.
+- **Context-tier links stored by ID, displayed by icon + title.** Always multi-value — `tier1` / `tier2` / `tier3` hold **bare ULID string arrays at the frontmatter root** (`tier1: ["<ULID>", …]`, rename-safe); each renders as the target's current icon + title in styled colored text. Tiers are the sole relation-type connection: pre-configured relation properties merged via `BuiltInContextLinkProperties`, edited inline. The `$rel`-tagged shape (`[{"$rel": "<ULID>"}]`) is **only** for user relation properties inside `properties` (and Agenda properties), NOT the tier root fields — verified against `PageFrontmatter.swift`. Full catalog → `// Features//Properties.md`.
 
 - **"Pommora" prohibited in on-disk schemas + Swift namespace qualifications.** Brand name reserved for the module name (`Pommora` Swift module), app branding, and documentation. NOT allowed in:
   - On-disk JSON field names (no `pommora_*` keys)
