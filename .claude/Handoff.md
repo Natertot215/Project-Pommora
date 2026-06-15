@@ -1,6 +1,6 @@
 ## Handoff — Pommora React
 
-Lean current-state snapshot. Read first at session start.
+Lean current-state snapshot. Read first at session start. **For the full continuation guide** (file map, invariants, Swift-fidelity map, deferred work, and step-by-step "how to continue with the UI/IPC phase"), see `Planning/Data-Layer-Handoff.md`.
 
 ### Session summary
 
