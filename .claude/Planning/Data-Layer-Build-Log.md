@@ -150,3 +150,29 @@ Convention: everything is headless (tests-only, no UI wired); every commit is gr
 - `writeJson` sorts keys, so a Swift-written agenda file re-saved in React **reorders keys** (cosmetic, data-identical) — same first-write-styling flag as pages.
 - `collectAgenda` scans the **nexus root only** for agenda folders (Swift's default Tasks/Events live at root); a nested agenda folder wouldn't be indexed. *Confirm root-only is the model.*
 - Reconciled while wiring agenda: tier `context_links.target_kind` was `'context'`. **(Foundation-review correction:** it is now `'area'`/`'topic'`/`'project'` per tier — matching Swift's `RelationTargetKind.string(from: .contextTier(n))`. An intermediate `'context_tier'` value was wrong — that string is the relation_target *config* discriminant, not this column.)
+
+### Foundation Review — full code review + hard DRY pass (review-certified)
+
+A 7-agent adversarial review (4 cleanup angles: reuse / simplification / efficiency / altitude + 3 correctness reviewers over shared / crud+io / index+connections) ran against the whole data layer. Every load-bearing finding was **re-verified against real Swift/code before acting** — which flipped one of my own earlier conclusions. Fixes shipped as green commits; the ⚐ flags above are now adjudicated below.
+
+**Correctness fixed.**
+- `d712999` — `SchemaTransaction`: (1) phase-2 rollback never restored the *failing* entry's backup → a target could be lost on a mid-commit rename failure; now restored first. (2) `cleanStaleTemps` swept `.bak-` files, which can be the only copy of a target whose commit crashed (and would race a concurrent txn's live backups) → now sweeps only `.txn-`.
+- `8309e20` — index `context_links.target_kind` was `'context_tier'` (a bug I introduced in 7b); it is the tier *entity* kind `area`/`topic`/`project` (verified `RelationTargetKind.swift`). The test that had locked in the wrong value was corrected. Also: skip self-links at index time (Swift `IndexBuilder` parity). Softened `schema.ts`'s "interchangeable" claim to the accurate "structurally identical DDL, regeneratable rows".
+- `4f15ba8` — unknown colors now degrade (`.catch`) instead of dropping a whole property def; `ErrorCode` is a closed union (typo = compile error); `invalidName` rejects `.md`/`.task.json`/`.event.json` (filename = title); `AreaColor` palette single-sourced.
+
+**DRY pass.**
+- `f3737b0` — hoisted `isPlainObject` (was open-coded ~9×), `applyPropertyValue` (page/agenda property set/clear was duplicated), `readJsonObject` (parse-a-JSON-file primitive).
+- `aa2a1d1` — read-layer: one `pathExists` (was 3 copies), one `coerce.ts` (`asString`/`asStringArray`/`basenameNoMd`, was 2 copies), `readNexus.readJson` → `readJsonObject`, `readPage.splitBody` → `splitEnvelope` (also fixes a stray leading-newline in the body).
+- `e8f8364` — one owner for tier `tierN` / `_tierN` construction (`tierFieldName`/`tierPropertyId` + `TIER_LEVELS`); removed dead `tierNumberForId`; corrected `tiers.ts`'s false "used by" header (it's a verified-but-not-yet-wired effective-schema port).
+
+**Adjudicated KEEP (correct by design, verified).** PropertyValue decode-precedence + throw-on-unrecognized (Swift parity); ISO-datetime regex *rejects* fractional seconds (Swift's `.withInternetDateTime` does too — Agent 5's "Swift accepts them" was wrong); `parseDefinitions` silent-drop (Swift `try?` parity); `mergeFrontmatter` set-or-delete footgun (callers pass deliberate governed sets); `readSidecar` null-on-invalid; first-write YAML styling; the `SchemaTarget` + `folderEntity` generalizations (clean, not over-fit); the cascade's file-walk (decoupled from the index); `normalizeTitle` ASCII parity; agenda dates as opaque strings; the two parsers concern was moot (`readNexus` uses the same `yaml` package, not js-yaml).
+
+**Adjudicated DEFER (with reasons, not bugs).**
+- `mutateJson` same-file race → serialize at the IPC layer when it lands (Swift relies on `@MainActor`; documented).
+- **build re-reads container sidecars `readNexus` already parsed** → consciously NOT "fixed" the listed way: putting sidecar fields (esp. `property_definitions`) on the display nodes would bloat the renderer's IPC payload with data the sidebar never uses. The clean fix is a side-channel sidecar read (`readNexus({ collectSidecars })`), best done when the index is wired into the mutation path. Cold-path-only (rebuild), self-documented in code.
+- Cascade orchestration (rename→cascade→revert-on-throw) + connection-engine read-path wiring → these are UI/IPC wiring, deferred by the no-routing directive (doing them now is "going ahead").
+- `end_at ≥ start_at`, `readdir` symlink recursion, agenda config nested-folder discovery → low-risk, revisit with UI.
+
+**Refuted as a refactor.** The Handoff's "DRY-refactor `readNexus` onto `sidecarIO`/`kind`/schemas" would be a *regression* — it would couple the lenient display read to the typed write contract (forcing the read engine to import every entity schema), violating one-file-one-thing. The real duplication there was only the micro-helpers, now deduped. The typed (`sidecarIO`) and lenient (`readNexus`) read paths are deliberately separate.
+
+**State:** 220 tests green; typecheck + build clean across all 9 review commits. No catch-up scope remains; the foundation is review-certified.
