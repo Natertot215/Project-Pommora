@@ -5,7 +5,6 @@
 
 import { readdir, readFile, stat } from 'node:fs/promises'
 import { basename, join } from 'node:path'
-import { createHash } from 'node:crypto'
 import { parse as parseYaml } from 'yaml'
 import type {
   AreaColor,
@@ -21,6 +20,7 @@ import type {
   UserSection
 } from '@shared/types'
 import { DEFAULT_LABELS } from '@shared/types'
+import { adoptedId } from './ids'
 import { shouldSkipDir } from './exclusion'
 import { resolveOrder } from './order'
 import {
@@ -73,10 +73,6 @@ async function listEntries(dir: string): Promise<import('node:fs').Dirent[]> {
   } catch {
     return []
   }
-}
-
-function adoptedId(relPath: string): string {
-  return 'adopted-' + createHash('sha256').update(relPath).digest('hex').slice(0, 16)
 }
 
 function basenameNoMd(name: string): string {

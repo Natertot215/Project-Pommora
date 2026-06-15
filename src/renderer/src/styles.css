@@ -194,6 +194,55 @@ body {
   color: var(--text-dim);
 }
 
+/* --- table view (vault selection) --- */
+.table-view {
+  width: 100%;
+}
+
+.table-empty {
+  color: var(--text-dim);
+  padding: 24px 0;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.data-table th {
+  text-align: left;
+  font-weight: 600;
+  color: var(--text-dim);
+  padding: 6px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  white-space: nowrap;
+  user-select: none;
+}
+
+.data-table td {
+  color: var(--text);
+  padding: 6px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 320px;
+}
+
+.data-row {
+  cursor: default;
+}
+
+.data-row:hover {
+  background: var(--hover);
+}
+
+.data-row.selected,
+.data-row.selected:hover {
+  background: var(--selected);
+}
+
 .state {
   padding: 48px 16px;
   text-align: center;

@@ -4,9 +4,9 @@
 
 import { readFile } from 'node:fs/promises'
 import { basename, join } from 'node:path'
-import { createHash } from 'node:crypto'
 import type { PageDetail } from '@shared/types'
 import { splitFrontmatter } from './readNexus'
+import { adoptedId } from './ids'
 
 function basenameNoMd(name: string): string {
   return name.replace(/\.md$/i, '')
@@ -14,10 +14,6 @@ function basenameNoMd(name: string): string {
 
 function asString(v: unknown): string | undefined {
   return typeof v === 'string' && v.length > 0 ? v : undefined
-}
-
-function adoptedId(relPath: string): string {
-  return 'adopted-' + createHash('sha256').update(relPath).digest('hex').slice(0, 16)
 }
 
 /** Body = file content after the closing frontmatter fence (lenient, mirrors the split). */
