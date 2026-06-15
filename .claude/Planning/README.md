@@ -11,7 +11,7 @@ Plans are named `MM-DD-<slug>.md` (earlier files retain their `YYYY-MM-DD-` name
 
 #### Reference
 
-- `Reference/06-12-Views-V2-Plan.md` — a **non-implemented** approach: the detailed NSOutlineView-table rebuild plan written during the v0.5.0 Views push, when the SwiftUI custom table failed render review and NSOutlineView looked like the only viable path. It was **never executed as written** — the working detail table (`ViewOutlineTable`, in the app today) instead came out of a short throwaway session that succeeded, and we've built on that since. Kept for its pipeline/port analysis, cross-group-drag design, and task breakdown if the table is ever revisited.
+- `Reference/06-12-Views-V2-Plan.md` — a **non-implemented** approach: the detailed NSOutlineView-table rebuild plan written during the v0.5.0 Views push, when the SwiftUI custom table failed render review and NSOutlineView looked like the only viable path. It was **never executed as written** — the working detail table (`ViewOutlineTable`, in the app today) instead came out of a short throwaway session that attempted the same thing via NSOutlineView but without extensive planning, suprisingly it succeeded, and we've built on that since. Kept because it's planning around doing the same thing, and building the same result as our tables have currently, but through a more researched approach, that while un-implemented, may prove useful in the future.
 
 #### Superseded
 

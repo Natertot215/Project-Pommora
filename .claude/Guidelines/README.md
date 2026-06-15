@@ -11,6 +11,6 @@ Behavioral rules and constraints grouped by domain. Add new entries to prevent m
 
 #### Moved to `// rules//`
 
-The page-editor rulebook (`MarkdownPM.md`, `paths:`-scoped to MarkdownPM files) and `Review-Discipline.md` (always-on) now live in `.claude/rules/`, which Claude Code auto-loads — so they apply automatically instead of only on manual reference.
+The page-editor rulebook (`MarkdownPM.md`, `paths:`-scoped to MarkdownPM files) lives in `.claude/rules/`, which Claude Code auto-loads — so it applies automatically instead of only on manual reference. `Review-Discipline.md` moved up to the Studio-level `.claude/rules/` — it now applies across all projects, not just Pommora.
 
 > Note: `// ReactInfo//Symbols-guide.md` is the React-side icon-role-indirection counterpart; SwiftUI uses SF Symbols natively with no indirection layer needed — the registry pattern in `Symbols.md` above is Pommora's Swift-side equivalent.

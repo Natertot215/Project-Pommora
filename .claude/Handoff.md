@@ -12,11 +12,11 @@ Two threads of work are live: **(1) the Views + toolbar UIX** (SwiftUI — the f
 
 On the Views/toolbar thread, the toolbar/banner docs were first truthed-up to reflect that the toolbar, Views button, and banner are **actively-changing, not settled**. The Views button only *"looks"* good — at unknown cost, via methods we're not sure are best or even correct; the inspector folds the Views pill in when toggled (a deviation from Apple-native), the blast radius of the Views-button chrome choices on the rest of the toolbar is unmapped, and whether the banner's edge-to-edge bleed interacts with the toolbar is untested. Reframed `Features/Views.md`, `Planning/06-13-Views-UIX-Fixes.md`, and `Guidelines/Design.md` "Chrome animation"; committed as `283865b`.
 
-The toolbar-wide **"Icon Only / Icon and Text" right-click menu was then found and suppressed.** A live `NSToolbar` introspection probe confirmed it is the **native macOS toolbar display-mode menu** — a stock `NSToolbar` with `allowsDisplayModeCustomization == true` — not app code (an exhaustive grep found zero; Mail and Finder show the same menu with extra items). It was never ours; it surfaced more once the toolbar moved off the default-closed inspector. Suppressed via `WindowToolbarConfigurator`, which sets `allowsDisplayModeCustomization = false` once the toolbar exists and re-asserts on toolbar rebuilds (navigation adds/removes the conditional Views pill, rebuilding the `NSToolbar` and resetting the property). **Confirmed working in production.** The fix is uncommitted — `WindowToolbarConfigurator.swift` (new) + the one-line `ContentView` wiring.
+The toolbar-wide **"Icon Only / Icon and Text" right-click menu was then found and suppressed.** A live `NSToolbar` introspection probe confirmed it is the **native macOS toolbar display-mode menu** — a stock `NSToolbar` with `allowsDisplayModeCustomization == true` — not app code (an exhaustive grep found zero; Mail and Finder show the same menu with extra items). It was never ours; it surfaced more once the toolbar moved off the default-closed inspector. Suppressed via `WindowToolbarConfigurator`, which sets `allowsDisplayModeCustomization = false` once the toolbar exists and re-asserts on toolbar rebuilds (navigation adds/removes the conditional Views pill, rebuilding the `NSToolbar` and resetting the property). **Confirmed working in production** and committed (`eecdf9f`) — `WindowToolbarConfigurator.swift` + the one-line `ContentView` wiring.
 
 With the native menu gone, the open thread is **button-specific menus in the toolbar.** Right now the banner's "Change Banner / Remove Banner" `.contextMenu` fires when right-clicking toolbar buttons — the banner's `backgroundExtensionEffect()` bleeds it (with its menu) under the toolbar, and the buttons consume only left-clicks, so right-clicks fall through. We're exploring a workaround using the codebase's frame-bound `SecondaryClickMenu` / `onSecondaryClick` overlays (`DesignSystem/SecondaryClickCatcher.swift`): swallow right-clicks on the toolbar buttons so the banner menu fires only on the banner, and use the same overlays to give specific buttons (e.g. the Views button) their own menus. To be wired + validated next session.
 
-**Where it left off.** HEAD on `main` carries this handoff + the Planning-docs reorganization (intentional cleanup: shipped `Superseded/` plans removed, `06-12-Views-V2-Plan.md` reclassified to `Reference/`). The only uncommitted work is the confirmed menu fix (Swift — `WindowToolbarConfigurator.swift` + the `ContentView` wiring), held for the next session. The current detail table in the app is `ViewOutlineTable` (`Detail/Table/`).
+**Where it left off.** `main` is clean — the menu fix (`eecdf9f`), the factual doc rewrite, and the Planning-docs reorganization (shipped `Superseded/` plans removed, `06-12-Views-V2-Plan.md` reclassified to `Reference/`) are all committed. The current detail table in the app is `ViewOutlineTable` (`Detail/Table/`).
 
 #### Lessons Learned
 
@@ -27,7 +27,7 @@ With the native menu gone, the open thread is **button-specific menus in the too
 
 #### Next Session — ViewsV2 continuation
 
-1. Commit the confirmed `WindowToolbarConfigurator` menu fix; mark the menu **RESOLVED** in `06-13-Views-UIX-Fixes.md`.
+1. Mark the toolbar menu **RESOLVED** in `06-13-Views-UIX-Fixes.md` (the fix shipped as `eecdf9f`).
 2. **Button-specific toolbar menus:** confine the banner menu to the banner — swallow right-clicks on the toolbar buttons (Views pill, trio, back-forward) via the frame-bound overlays — and establish the per-button menu pattern (Views button as the example; its menu *content* is the deferred display-toggle feature). Validate live.
 3. Continue the `06-13` Views/toolbar UIX sequence — the in-flux toolbar/banner items, then Gallery, grouping/sorting, the Layout-pane rework.
 
@@ -58,4 +58,4 @@ The React thread continues in parallel as the contingency exploration.
 #### Document pointers
 
 - Roadmap → `Framework.md` · ship log → `History.md` · PRD → `PommoraPRD.md` · branch quirks + hard rules → `CLAUDE.md`
-- Auto-loaded rules → `// rules//` (`MarkdownPM.md` scoped to the editor; `Review-Discipline.md` always-on) · Views spec-as-fact (toolbar/banner sections in flux) → `Features/Views.md` · per-entity specs → `Features/*.md`
+- Auto-loaded rules → `// rules//` (`MarkdownPM.md` scoped to the editor); `Review-Discipline.md` moved up to the Studio-level `// The Studio //.claude//rules//` — applies across all projects · Views spec-as-fact (toolbar/banner sections in flux) → `Features/Views.md` · per-entity specs → `Features/*.md`
