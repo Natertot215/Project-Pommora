@@ -21,7 +21,7 @@ body,
 }
 
 body {
-  font: 13px/1.4 -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
+  font: 13px/1.4 'Inter Variable', -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
   color: var(--text);
   background: transparent; /* let the native window vibrancy show through */
   -webkit-font-smoothing: antialiased;

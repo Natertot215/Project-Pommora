@@ -17,4 +17,4 @@ The variables. **Edit here → propagates everywhere.** Authored with vanilla-ex
 
 ### Status
 
-Files are created as the agreed vocabulary is settled. Names are Nathan's to define; values come from the Figma library. Nothing authored yet.
+First slice authored — `color.css.ts` holds the **solid color spectrum** (10 hues from the Figma `Colors` collection; solids only — `fill` / `text` / `soft` variants to follow). Tooling is wired: the vanilla-extract Vite plugin compiles `.css.ts`, and Inter loads via `@fontsource-variable/inter`. Typography + label / background / fill tokens come next.
