@@ -1,40 +1,37 @@
 ## Handoff — Pommora React
 
-Lean current-state snapshot. Read first at session start. **For the full continuation guide** (file map, invariants, Swift-fidelity map, deferred work, and step-by-step "how to continue with the UI/IPC phase"), see `Planning/Data-Layer-Handoff.md`.
+Lean current-state snapshot. Read first at session start. Deep docs: data layer → `Planning/Data-Layer-Handoff.md`; design system → `Features/Design.md` + `Features/Typography.md`.
 
-### Session summary
+### Where the project is
 
-The **headless data layer is fully caught up to Swift.** After a 20-agent dual-research pass (Swift bloat × TS-native recreation; synthesis in `Planning/Data-Layer-Design.md`, load-bearing claims verified against real Swift — which caught + fixed a tier-shape doc bug in the Swift project's CLAUDE.md), shipped **Phases 0–7** as green commits: contracts + value codec + atomic I/O → page file engine (foreign-preserving) → sidecar schemas/kind/IO → folder + page CRUD + reorder → properties (value + schema CRUD + tier synthesis + SchemaTransaction) → connections & tier relations (pure-Map engine + renameCascade + unlinkTier + setPageTier) → SQLite index (better-sqlite3 behind db.ts; byte-compatible 11-table schema + version handshake + upserts + cold build) → **Agenda CRUD (Tasks + Events: item factory + index pop + config-schema CRUD via a generalized schema-target)**. **220 tests; typecheck + build green.** Tests-only, zero UI wired (per directive). Earlier this session also landed the navigation spine (`80e210e`).
+Two foundations are down; the UI is next.
 
-Then a **full foundation code review + hard DRY pass (review-certified)** — a 7-agent adversarial review, every load-bearing finding re-verified against source, fixed across 9 green commits: criticals (a `SchemaTransaction` rollback hole + dangerous backup-sweep; a tier `target_kind` bug; lenient colors; a typed `ErrorCode` union; the `.md`/`.task.json` name guard) and a hard DRY pass collapsing duplicated helpers to single owners (`isPlainObject`, `applyPropertyValue`, `readJsonObject`, `pathExists`, `coerce.ts`, tier field/id construction). Full record + flag adjudication (Fixed / Kept-by-design / Deferred-with-reason) in `Planning/Data-Layer-Build-Log.md` § Foundation Review. Everything outstanding is **deferred-until-UI** (IPC/incremental-upsert wiring) — no catch-up scope and no open correctness flags remain.
+- **Headless data layer — done** (branch `main`). Phases 0–7 + a 7-agent foundation review; **220 tests, typecheck + build green**, tests-only / no UI wired. The complete write/mutation side caught up to Swift (CRUD, properties, connections, SQLite index, Agenda). Full record: `Planning/Data-Layer-Handoff.md` + `…Build-Log.md`. Swift→React LOC ≈ 8,552 → 2,383 (~72%).
+- **Design system — established this session** (branch `design-system`, `404a1d7` + Figma). The Figma "Pommora - React" library is the source of design and is now fully unified: typography ramp finalized; **one mode-driven chip** with a unified tint; semantic accent; **per-color tint variables removed (54 deleted)**. The React token layer is started — vanilla-extract + Inter wired, `color.css.ts` with the 11 solid spectrum tokens. Spec: `Features/Design.md` + `Features/Typography.md`.
+- **App shell — designed, paused.** First-pass spec (window-drag fix + resizable / collapsible sidebar at 1440×900, Swift-matched sidebar sizing) is approved but unbuilt, awaiting a desktop GUI verification. Branch `app-shell` (empty placeholder).
 
 ### Lessons learned
 
-- Apple Liquid Glass over flat dark reads dark + edge-defined — never a brightened/white-tinted panel. Stop iterating a cosmetic detail when it blocks momentum; set it aside and build.
-- `ELECTRON_RUN_AS_NODE=1` in this env breaks every GUI launch — strip it. Electron's ESM `require('electron')` fails → CommonJS main/preload.
-- Greenfield multi-agent builds: keep stages **sequential + self-verified green** to stay coherent; parallel only for independent reads/reviews.
-- **Verify review findings against source before acting** — the foundation review's headline critical (tier `target_kind`) flipped my own earlier 7b conclusion; an agent's "Swift accepts fractional seconds" was also wrong on inspection. Both directions caught only by reading the real Swift. Treat every finding (mine or an agent's) as a hypothesis until the code proves it.
+- **Verify usages — fills AND strokes — before deleting a Figma variable.** A fills-only sweep left 12 stroke bindings on `label-on-color`, so deleting it left dangling refs. Same lesson as the data layer's `target_kind`: a claim is a hypothesis until checked against the real thing.
+- **Figma constraints are real:** variable modes cap at **10** per collection (Pro); `defaultModeId` is read-only (no reorder). The chip picker fit in exactly 10 modes; "auto = Default" was done by setting the chip master's mode, not the collection default.
+- **The unified chip tint is a *code* derivation** — Figma can't lighten an arbitrary base, so the exact lightened label lives in the React `Chip` component (`color-mix`), with Figma as the visual reference.
+- (Data layer) Keep greenfield multi-agent stages sequential + self-verified green; `ELECTRON_RUN_AS_NODE=1` breaks GUI launches (strip it); CommonJS main/preload.
 
-### Next session (the data layer is done — what's left is UI-gated + polish)
+### Next session
 
-The foundation is review-certified; what remains is wiring it to a UI, not more data-layer logic.
-
-1. **Deferred until UI (no-routing directive):** `mutate:*`/`index:*` IPC handlers + the preload bridge (renderer methods are typed stubs today); incremental index upserts wired into the IPC handler after each mutation (+ `electron-rebuild`/`asarUnpack` packaging so main can load better-sqlite3, + `loadAll-sync-parents`); cascade orchestration (renamePage→renameCascade revert-on-throw; Context-delete→unlinkTier before removing the folder).
-2. **Deferred-with-reason (see build log § Foundation Review):** (a) `build.ts` re-reads container sidecars `readNexus` already parsed — the clean fix is a side-channel `readNexus({ collectSidecars })` (NOT sidecar fields on display nodes, which bloat the renderer payload); do it when the index is wired. (b) Wire the pure connection engine into the `readNexus` walk (`linkIndex.byTitle` + `contextsById`) once a consumer exists. *(The old "refactor readNexus onto sidecarIO/schemas" item is **refuted** — it would couple the lenient display read to the typed write contract; the real dup there is already deduped.)*
-3. **Real UI** — rebuild from the Figma Component Library; that's when the IPC wiring above lands.
+1. **App shell** — verify the paused first-pass on desktop, then build it (the "general app functionality" pass: window drag, resizable / collapsible sidebar).
+2. **Design system → code** — author the remaining tokens (labels, accent, backgrounds, fills, states, the chip-tint rule, typography) as `design/tokens/*.css.ts`; then build the first components (Button, Chip, …) from the library, the **Chip owning the unified-tint derivation**.
+3. **Data layer → UI** (the long-standing UI-gated work): `mutate:*` / `index:*` IPC + preload bridge; incremental index upserts (+ `electron-rebuild` / `asarUnpack`); cascade orchestration. See `Planning/Data-Layer-Handoff.md`.
 
 ### Pending focuses
 
-- **Glass:** Apple-Regular CSS is the working default; revisit `liquid-dom` only when HTML-in-Canvas ships unflagged. `Surface` is the swappable seam.
-- **Window corner radius** (`--glass-radius`, currently 12px) — eyeball against the actual macOS window for concentricity (window radius − 5px inset).
-- **Contexts in `~/test`:** the test nexus has no `.nexus/`/contexts, so the sidebar shows Vaults only. Add a couple of Areas/Topics/Projects to the fixture to exercise the Contexts section.
-- **Glass Lab** at `glass-lab/index.html` (served via `python3 -m http.server 8765`) — 12-variant comparison page; keep for future glass tuning.
-- **Line-count diff — DELIVERED.** Swift vs React data layer, non-comment/non-blank, shared-functionality-only (UI / MarkdownPM / DI / adoption-flow / the deferred query surface excluded both sides): **Swift 8,552 → React 2,383 SLOC, ~72% reduction.** The −92% on CRUD managers (factory consolidation) is the bulk; connections is the one area React is slightly larger (pure-Map resolve vs Swift's SQLite-backed). Counter at `/tmp/sloc.mjs` (throwaway).
+- **`@/design` alias** — add to `tsconfig` + Vite when the first component imports tokens.
+- **Glass / Surface** — Apple-Regular CSS default; `Surface` is the swappable seam; `--glass-radius` (12px) — eyeball window concentricity. `liquid-dom` shelved.
+- **Contexts in `~/test`** — no `.nexus/` / contexts in the fixture, so the sidebar shows Vaults only; add a few Areas / Topics / Projects to exercise it.
+- **`red` is in the solid spectrum but not a chip color** (excluded by design; the mode cap is 10). `grey-default` kept as the `Default` chip color's source.
 
 ### Fix log
 
-- Sidebar `resolveOrder` ignored its fallback param → adopted ids sorted by hash, not title. Fixed (title fallback for structure mode).
-- Sandboxed ESM preload + `__dirname` in ESM main → switched to CommonJS; `sandbox: true` restored.
-- Glass: removed `brightness()` + white fill (read too bright over flat dark) → edge-defined Apple-Regular recipe.
-- Foundation review: `SchemaTransaction` rollback could lose a target on a mid-commit rename failure (failing entry's backup wasn't restored); `.bak-` sweep could delete the only copy. Fixed (`d712999`).
-- Foundation review: index `context_links.target_kind` was `'context_tier'` (wrong); it's `area`/`topic`/`project` per `RelationTargetKind.swift`. Fixed + test corrected (`8309e20`).
+- `label-on-color` removal: first sweep was fills-only → 12 stroke bindings missed + the variable left dangling. Re-swept fills + strokes (12 vectors → `label-primary`), then deleted.
+- Per-color cleanup: usage-check first showed **all 55 in use** (lavender = accent, 100+ uses) → migrated (accent → semantic tokens; gallery → modes; spectrum → solids) before deleting **54** tint variables.
+- (Data layer) `SchemaTransaction` rollback hole + `.bak-` sweep (`d712999`); index `target_kind` = `area`/`topic`/`project`, not `context_tier` (`8309e20`).
