@@ -12,7 +12,6 @@
 //    can never drift (Swift maintained the struct and the Codable impl separately).
 
 import { z } from 'zod'
-import { propertyDefinition } from './properties'
 
 const ulidList = z.array(z.string()).optional()
 
@@ -27,8 +26,10 @@ const baseSidecar = z.looseObject({
 export const pageTypeSidecar = baseSidecar.extend({
   collection_order: ulidList,
   page_order: ulidList,
-  // Modeled in shared/properties.ts (loose ⇒ display config + foreign keys ride through).
-  property_definitions: z.array(propertyDefinition).optional()
+  // Loose at the sidecar level so one malformed def never sinks the whole type read;
+  // the per-def codec + normalization is `parseDefinitions` (main/properties/schema.ts),
+  // and the authoritative model is `propertyDefinition` (shared/properties.ts).
+  property_definitions: z.array(z.looseObject({})).optional()
 })
 export type PageTypeSidecar = z.infer<typeof pageTypeSidecar>
 
