@@ -57,3 +57,35 @@ export const areaSidecar = contextBase.extend({ color: z.string().optional() })
 export type TopicSidecar = z.infer<typeof topicSidecar>
 export type ProjectSidecar = z.infer<typeof projectSidecar>
 export type AreaSidecar = z.infer<typeof areaSidecar>
+
+/** Page (.md) frontmatter. tier1/2/3 are BARE ULID arrays at the root (NOT $rel-tagged
+ *  — that shape is only for user/agenda properties); `properties` maps property-id to
+ *  an encoded PropertyValue. Loose ⇒ foreign keys ride through. */
+export const pageFrontmatter = z.looseObject({
+  id: z.string(),
+  icon: z.string().optional(),
+  tier1: z.array(z.string()).optional(),
+  tier2: z.array(z.string()).optional(),
+  tier3: z.array(z.string()).optional(),
+  properties: z.record(z.string(), z.unknown()).optional(),
+  created_at: z.string().optional(),
+  modified_at: z.string().optional(),
+  folded_headings: z.array(z.string()).optional(),
+  cover: z.string().optional()
+})
+export type PageFrontmatter = z.infer<typeof pageFrontmatter>
+
+/** The modeled top-level page keys a FULL page rewrite governs (set if present, else
+ *  delete). Partial updates pass a narrower key set so they touch nothing else. */
+export const PAGE_MODELED_KEYS = [
+  'id',
+  'icon',
+  'tier1',
+  'tier2',
+  'tier3',
+  'properties',
+  'created_at',
+  'modified_at',
+  'folded_headings',
+  'cover'
+] as const
