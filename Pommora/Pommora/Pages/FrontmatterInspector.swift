@@ -3,7 +3,8 @@ import SwiftUI
 // MARK: - FrontmatterInspectorViewModel
 
 /// View-model for FrontmatterInspector. Holds draft frontmatter state and fires
-/// debounced-save via `onSave`. Testable without SwiftUI rendering (J.5 pattern).
+/// `onSave` — immediately for discrete pickers, debounced for free-text edits
+/// (Properties.md contract). Testable without SwiftUI rendering (J.5 pattern).
 @Observable
 @MainActor
 final class FrontmatterInspectorViewModel {
@@ -33,7 +34,21 @@ final class FrontmatterInspectorViewModel {
 
     func handlePropertyChange(_ propertyID: String, _ newValue: PropertyValue) {
         draftProperties[propertyID] = newValue
-        scheduleSave()
+        // Properties.md contract: pickers commit on click; only text inputs
+        // (number / url) debounce to coalesce a keystroke burst. A discrete pick
+        // has nothing to coalesce, so debouncing it is pure latency to persist +
+        // cross-surface propagation — commit it now.
+        if isTextStreamEdit(propertyID) { scheduleSave() } else { flushNow() }
+    }
+
+    /// True only for the property types edited via a free-text `TextField`
+    /// (number, url) — those stream keystrokes and must debounce. Every other
+    /// type commits through a single discrete pick.
+    private func isTextStreamEdit(_ propertyID: String) -> Bool {
+        switch schemaProperties.first(where: { $0.id == propertyID })?.type {
+        case .number, .url: return true
+        default: return false
+        }
     }
 
     func handleTierChange(_ tier: Int, _ newIDs: [String]) {
@@ -43,7 +58,8 @@ final class FrontmatterInspectorViewModel {
         case 3: draftTier3 = newIDs
         default: break
         }
-        scheduleSave()
+        // Tiers are pickers (ContextValueEditor) — commit on pick, no debounce.
+        flushNow()
     }
 
     // MARK: - Debounced save
@@ -83,7 +99,8 @@ final class FrontmatterInspectorViewModel {
 ///
 /// v0.3.0 Properties (Phase J.14): every property row is now a live editor
 /// backed by `PropertyEditorRow` — no more "Coming v0.3.0" placeholders.
-/// Edits debounce 300ms before triggering `onSave` with the mutated frontmatter.
+/// Picker edits commit immediately; free-text edits (number / url) debounce
+/// 300ms before triggering `onSave` with the mutated frontmatter.
 ///
 /// `onSave` is optional so the inspector can be previewed / tested without a
 /// live `PageContentManager`. The host (ContentView → PageEditorHost) supplies

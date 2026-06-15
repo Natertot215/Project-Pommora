@@ -227,4 +227,61 @@ struct FrontmatterInspectorTests {
         #expect(vm.schemaProperties.count == 2)
         #expect(vm.schemaProperties[0].id == "p1")
     }
+
+    // MARK: - Test 6: pickers commit on click; text inputs debounce (Properties.md contract)
+
+    /// Discrete pickers (select / status / checkbox / date / relation / multi-select)
+    /// commit through a single tap — there is no keystroke stream to coalesce, so they
+    /// must save IMMEDIATELY (no 300ms debounce). Encoded as: `handlePropertyChange`
+    /// alone (no explicit `flushNow`) calls `onSave` once.
+
+    @Test("select pick saves immediately — no debounce")
+    func selectPickCommitsImmediately() {
+        let (vm, saved) = makeVM(vaultProps: [makeDef(id: "prop_cat", name: "Category", type: .select)])
+        vm.handlePropertyChange("prop_cat", .select("urgent"))
+        #expect(saved().count == 1)
+        #expect(saved().last?.properties["prop_cat"] == .select("urgent"))
+    }
+
+    @Test("status pick saves immediately — no debounce")
+    func statusPickCommitsImmediately() {
+        let (vm, saved) = makeVM(vaultProps: [makeDef(id: "prop_st", name: "Status", type: .status)])
+        vm.handlePropertyChange("prop_st", .status("done"))
+        #expect(saved().count == 1)
+    }
+
+    @Test("checkbox toggle saves immediately — no debounce")
+    func checkboxToggleCommitsImmediately() {
+        let (vm, saved) = makeVM(vaultProps: [makeDef(id: "prop_done", name: "Done", type: .checkbox)])
+        vm.handlePropertyChange("prop_done", .checkbox(true))
+        #expect(saved().count == 1)
+    }
+
+    /// Text fields (number / url) stream keystrokes → they MUST still debounce so a
+    /// burst of typing coalesces into one write. `handlePropertyChange` alone does
+    /// not call `onSave`; only the debounce expiry (here `flushNow`) does.
+
+    @Test("number edit debounces — no immediate save")
+    func numberEditDebounces() {
+        let (vm, saved) = makeVM(vaultProps: [makeDef(id: "prop_n", name: "N", type: .number)])
+        vm.handlePropertyChange("prop_n", .number(12))
+        #expect(saved().isEmpty)
+        _ = vm
+    }
+
+    @Test("url edit debounces — no immediate save")
+    func urlEditDebounces() {
+        let (vm, saved) = makeVM(vaultProps: [makeDef(id: "prop_u", name: "U", type: .url)])
+        vm.handlePropertyChange("prop_u", .url(URL(string: "https://a.com")!))
+        #expect(saved().isEmpty)
+        _ = vm
+    }
+
+    @Test("tier pick saves immediately — no debounce")
+    func tierPickCommitsImmediately() {
+        let (vm, saved) = makeVM()
+        vm.handleTierChange(1, ["01AREA"])
+        #expect(saved().count == 1)
+        #expect(saved().last?.tier1 == ["01AREA"])
+    }
 }
