@@ -36,7 +36,7 @@ Chip color is a Figma **variable-mode picker**: the `Color` collection has **10 
 - **Soft:** surface = base @ **70%** · outline = base @ **25%** (2px) · label = **lightened** base.
 - **Solid:** surface = base @ **100%** · label = `label-primary` (white) · no outline.
 
-Master defaults to **Default** (an uncolored / "auto" chip is grey). Figma can't lighten an arbitrary base, so the **canonical derivation belongs in the React `Chip` component** (`color-mix` + opacity off one base) — pending; Figma is the visual reference.
+The Figma showcase master shows a representative color (Blue); a chip's neutral fallback is the **Default** mode, applied as the React `Chip` component's default (Figma's collection default mode is read-only, and setting the master to Default greys the showcase). Figma can't lighten an arbitrary base, so the **canonical tint derivation belongs in the React `Chip` component** (`color-mix` + opacity off one base) — pending; Figma is the visual reference.
 
 #### Accent
 
