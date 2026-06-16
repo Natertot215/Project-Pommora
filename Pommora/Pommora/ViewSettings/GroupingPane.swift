@@ -64,7 +64,8 @@ struct GroupingPane: View {
                         isOn: Binding(
                             get: { grouping.hideEmptyGroups },
                             set: { hide in model.update { $0.hideEmptyGroups = hide } }
-                        )
+                        ),
+                        secondary: true
                     )
 
                     if !grouping.hideEmptyGroups {
@@ -72,7 +73,8 @@ struct GroupingPane: View {
                             placement: Binding(
                                 get: { grouping.emptyPlacement },
                                 set: { p in model.update { $0.emptyPlacement = p } }
-                            )
+                            ),
+                            secondary: true
                         )
                     }
                 }
@@ -214,12 +216,13 @@ struct GroupingPane: View {
 private struct GroupingToggleRow: View {
     var label: String = "Grouping"
     @Binding var isOn: Bool
+    var secondary: Bool = false
 
     var body: some View {
         HStack(spacing: PUI.Row.interSpacing) {
             Text(label)
-                .font(PUI.Typography.row)
-                .foregroundStyle(.primary)
+                .font(secondary ? .subheadline : PUI.Typography.row)
+                .foregroundStyle(secondary ? AnyShapeStyle(.secondary) : AnyShapeStyle(.primary))
             Spacer(minLength: 0)
             Toggle("", isOn: $isOn)
                 .toggleStyle(.switch)
@@ -722,13 +725,14 @@ private struct StatusPreviewRow: View {
 /// Top / Bottom selection for empty group placement.
 private struct EmptyGroupRow: View {
     @Binding var placement: EmptyPlacement
+    var secondary: Bool = false
     @State private var popoverOpen: Bool = false
 
     var body: some View {
         HStack(spacing: PUI.Row.interSpacing) {
             Text("Empty group")
-                .font(PUI.Typography.row)
-                .foregroundStyle(.primary)
+                .font(secondary ? .subheadline : PUI.Typography.row)
+                .foregroundStyle(secondary ? AnyShapeStyle(.secondary) : AnyShapeStyle(.primary))
             Spacer(minLength: 0)
             Button { popoverOpen = true } label: {
                 HStack(spacing: PUI.Row.interSpacing) {
