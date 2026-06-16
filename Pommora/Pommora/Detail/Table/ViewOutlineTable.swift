@@ -707,6 +707,23 @@ struct ViewOutlineTable: NSViewRepresentable {
 /// gutter to the native triangle — now passes across the whole row.
 private final class ChevronlessOutlineView: NSOutlineView {
     override func frameOfOutlineCell(atRow row: Int) -> NSRect { .zero }
+
+    /// Reclaim the indent the hidden triangle reserved — but only on group-header
+    /// rows, in the outline column. The native triangle drew *inside* that reserved
+    /// gutter; the custom chevron draws in the cell content, which begins *after*
+    /// it, so without this the header sat one level too far right. Item rows are
+    /// untouched, keeping their child indentation beneath the group.
+    override func frameOfCell(atColumn column: Int, row: Int) -> NSRect {
+        var frame = super.frameOfCell(atColumn: column, row: row)
+        guard tableColumns.indices.contains(column),
+            tableColumns[column] === outlineTableColumn,
+            let node = item(atRow: row) as? OutlineNode,
+            case .group = node.payload
+        else { return frame }
+        frame.origin.x -= indentationPerLevel
+        frame.size.width += indentationPerLevel
+        return frame
+    }
 }
 
 private final class OutlineNode {
