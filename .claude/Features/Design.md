@@ -66,13 +66,13 @@ Per-color tint variables (`-fill` / `-soft` / `-text` / `-soft-border` / `-soft-
 
 ### Components — stub
 
-From the Figma library, **not yet built in React**: **Button · Label · Chip · Menu · Menu Header · Separator** (+ the Symbol / icon system). Each consumes semantic tokens; the **Chip** owns the unified-tint derivation. Built one at a time into `design/components/`.
+From the Figma library, **not yet built in React**: **Button · Label · Menu · Menu Header · Separator**. Each consumes semantic tokens; the **Chip** tint already ships (`chip.css.ts`) and the **icon** system is established (Lucide, above). Built one at a time into `design/components/`.
 
 ### Not yet established — stubs
 
 - **Semantic color tokens** beyond labels — `surface-background`, `surface-raised`, `text-primary` / `-dim`, `border`, …
 - **Spacing scale** · **Radius scale** · **Shadow / elevation** · **Motion** (durations, easings) · **Z-index layers**.
-- **Icon system** — SF Symbols (Swift) ↔ Phosphor (current React); mapping + sizing.
+- **Icon system — established (Lucide).** Curated registry at `design/icons/` — `import { Icon } from '@renderer/design/icons'` → `<Icon name="folder" size={15} />`. Driven by `design/icons/Symbols.md`: add an icon's lucide.dev name there and it gets imported (only listed icons bundle — tree-shaken). SF Symbols stay the Figma design reference only; they can't ship on web.
 - **Theming** — light/dark; per-nexus accent (from Settings). vanilla-extract `createThemeContract` is the seam.
 - **Glass / Surface** — the sidebar glass recipe (Apple-Regular CSS); the `Surface` swappable seam (see `Handoff.md`).
 - **`@/design` import alias** — add to `tsconfig` + Vite when the first component imports tokens.

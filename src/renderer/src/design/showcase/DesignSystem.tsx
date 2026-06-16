@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Check, Circle } from '@phosphor-icons/react'
+import { Icon } from '@renderer/design/icons'
 import { vars, text, chip, chipColor, chipCheckbox } from '@renderer/design/tokens'
 
 // --- Colors: swatch background comes from the live token var; the hex label is
@@ -127,7 +127,7 @@ export function DesignSystem() {
             <div className="ds-chip-rowlabel">Select</div>
             {CHIP_COLORS.map(([n, k]) => (
               <span key={k} className={`${chip} ${chipColor[k]}`} title={n}>
-                <Circle size={14} weight="bold" />
+                <Icon name="circle" size={13} />
               </span>
             ))}
           </div>
@@ -135,7 +135,7 @@ export function DesignSystem() {
             <div className="ds-chip-rowlabel">Checkbox</div>
             {CHIP_COLORS.map(([n, k]) => (
               <span key={k} className={`${chip} ${chipColor[k]} ${chipCheckbox}`} title={n}>
-                <Check size={11} weight="bold" />
+                <Icon name="check" size={12} strokeWidth={3} />
               </span>
             ))}
           </div>

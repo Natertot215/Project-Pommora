@@ -1,16 +1,5 @@
 import { useState } from 'react'
-import type { ComponentType } from 'react'
-import {
-  House,
-  CalendarBlank,
-  Clock,
-  Stack,
-  Folder,
-  FolderSimple,
-  FileText,
-  SquaresFour,
-  type IconProps
-} from '@phosphor-icons/react'
+import { Icon, type IconName } from '@renderer/design/icons'
 import type {
   AreaNode,
   CollectionNode,
@@ -25,12 +14,10 @@ import type {
 } from '@shared/types'
 import { useSession } from '../store'
 
-type IconCmp = ComponentType<IconProps>
-
-const savedIcon: Record<SavedNode['key'], IconCmp> = {
-  homepage: House,
-  calendar: CalendarBlank,
-  recents: Clock
+const savedIcon: Record<SavedNode['key'], IconName> = {
+  homepage: 'house',
+  calendar: 'calendar',
+  recents: 'clock'
 }
 
 // --- selection helpers ----------------------------------------------------
@@ -46,14 +33,14 @@ function isPageSelected(sel: SelectionState, id: string): boolean {
 // --- primitive rows -------------------------------------------------------
 
 function Leaf({
-  Icon,
+  icon,
   title,
   depth,
   swatch,
   selected = false,
   onSelect
 }: {
-  Icon: IconCmp
+  icon: IconName
   title: string
   depth: number
   swatch?: string
@@ -70,7 +57,7 @@ function Leaf({
       {swatch ? (
         <span className="swatch" data-color={swatch} />
       ) : (
-        <Icon size={15} weight="regular" className="row-icon" />
+        <Icon name={icon} size={15} className="row-icon" />
       )}
       <span className="row-title">{title}</span>
     </div>
@@ -78,7 +65,7 @@ function Leaf({
 }
 
 function Disclosure({
-  Icon,
+  icon,
   title,
   depth,
   swatch,
@@ -87,7 +74,7 @@ function Disclosure({
   onSelect,
   children
 }: {
-  Icon: IconCmp
+  icon: IconName
   title: string
   depth: number
   swatch?: string
@@ -111,7 +98,7 @@ function Disclosure({
         {swatch ? (
           <span className="swatch" data-color={swatch} />
         ) : (
-          <Icon size={15} weight="regular" className="row-icon" />
+          <Icon name={icon} size={15} className="row-icon" />
         )}
         <span className="row-title">{title}</span>
       </div>
@@ -135,7 +122,7 @@ function PageRow({
 }): React.JSX.Element {
   return (
     <Leaf
-      Icon={FileText}
+      icon="file-text"
       title={page.title}
       depth={depth}
       selected={isPageSelected(selection, page.id)}
@@ -156,7 +143,7 @@ function SetRow({
   onSelectPage: (page: PageNode) => void
 }): React.JSX.Element {
   return (
-    <Disclosure Icon={FolderSimple} title={set.title} depth={depth} defaultOpen={false}>
+    <Disclosure icon="folder-closed" title={set.title} depth={depth} defaultOpen={false}>
       {set.pages.map((p) => (
         <PageRow key={p.id} page={p} depth={depth + 1} selection={selection} onSelectPage={onSelectPage} />
       ))}
@@ -176,7 +163,7 @@ function CollectionRow({
   onSelectPage: (page: PageNode) => void
 }): React.JSX.Element {
   return (
-    <Disclosure Icon={Folder} title={col.title} depth={depth} defaultOpen={false}>
+    <Disclosure icon="folder" title={col.title} depth={depth} defaultOpen={false}>
       {col.sets.map((s) => (
         <SetRow key={s.id} set={s} depth={depth + 1} selection={selection} onSelectPage={onSelectPage} />
       ))}
@@ -202,7 +189,7 @@ function VaultRow({
 }): React.JSX.Element {
   return (
     <Disclosure
-      Icon={Stack}
+      icon="layers"
       title={vault.title}
       depth={depth}
       defaultOpen={false}
@@ -244,7 +231,7 @@ export function Sidebar({ tree }: { tree: NexusTree }): React.JSX.Element {
       {/* Saved strip — inert in Phase 1 (proves section order) */}
       <div className="section">
         {tree.saved.map((s) => (
-          <Leaf key={s.id} Icon={savedIcon[s.key]} title={s.title} depth={0} />
+          <Leaf key={s.id} icon={savedIcon[s.key]} title={s.title} depth={0} />
         ))}
       </div>
 
@@ -252,13 +239,13 @@ export function Sidebar({ tree }: { tree: NexusTree }): React.JSX.Element {
       {hasContexts && (
         <div className="section">
           {tree.contexts.projects.map((p: ProjectNode) => (
-            <Leaf key={p.id} Icon={SquaresFour} title={p.title} depth={0} />
+            <Leaf key={p.id} icon="layout-grid" title={p.title} depth={0} />
           ))}
           {tree.contexts.topics.map((t: TopicNode) => (
-            <Leaf key={t.id} Icon={SquaresFour} title={t.title} depth={0} />
+            <Leaf key={t.id} icon="layout-grid" title={t.title} depth={0} />
           ))}
           {tree.contexts.areas.map((a: AreaNode) => (
-            <Leaf key={a.id} Icon={SquaresFour} title={a.title} depth={0} swatch={a.color} />
+            <Leaf key={a.id} icon="layout-grid" title={a.title} depth={0} swatch={a.color} />
           ))}
         </div>
       )}
