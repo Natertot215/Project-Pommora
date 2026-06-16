@@ -9,7 +9,7 @@ A React + TypeScript + Electron rebuild of Pommora ("a simpler Notion that's als
 
 ### Stack (current — swappable, not locked)
 
-electron-vite · Electron 42 · React 19 · TypeScript 6 · Vite 7 + `@vitejs/plugin-react` 5 (compat pin — newer plugin-react requires Vite 8, which electron-vite doesn't support yet) · Zustand · TanStack Table/Virtual · `react-markdown` + `remark-gfm` · `eemeli/yaml` · `@phosphor-icons/react` · Vitest. Editor (deferred): a web editor — **CodeMirror 6 is a candidate, not mandated**.
+electron-vite · Electron 42 · React 19 · TypeScript 6 · Vite 7 + `@vitejs/plugin-react` 5 (compat pin — newer plugin-react requires Vite 8, which electron-vite doesn't support yet) · Zustand · TanStack Table/Virtual · `react-markdown` + `remark-gfm` · `eemeli/yaml` · `lucide-react` · Vitest. Editor (deferred): a web editor — **CodeMirror 6 is a candidate, not mandated**.
 
 **No dependency lock-in.** Every library sits behind a thin seam (SQLite behind `db.ts`, YAML behind `pageFile.ts`, IDs behind `ids.ts`, glass behind `Surface`) so it's swappable without touching callers. Version numbers are compatibility pins, not endorsements; nothing above is a permanent commitment.
 
@@ -29,7 +29,7 @@ electron-vite · Electron 42 · React 19 · TypeScript 6 · Vite 7 + `@vitejs/pl
 - **`sandbox: true` + `contextIsolation: true` + `nodeIntegration: false`.**
 - **Single-window now, multi-window-ready seams** — data is main-owned + Query/store-cached per renderer; the live-refresh bus is a swappable transport; windows identified by serializable refs. No global singleton holding shared mutable client state.
 - **Modernized TS-native on-disk format** (tagged PropertyValue, zod-validated) — built/tested against a dedicated **test nexus at `~/test`** (override via `TEST_NEXUS_PATH`).
-- **Glass:** Apple-Regular CSS (edge-defined: specular rim + dark containment edge, no body brightness/white fill). `liquid-dom` (WebGPU) evaluated and **shelved** (experimental HTML-in-Canvas flag + invasive scene-graph). See `Guidelines/`.
+- **Glass:** liquidGL "Tinted Lens" at zero tint (`backdrop-filter: blur(5px) brightness(90%)`), authored as a Material (`design-system/materials/` — `GlassSurface` / `GlassControls`) and wired into `Surface`. `liquid-dom` (WebGPU) evaluated and **shelved** (experimental HTML-in-Canvas flag + invasive scene-graph); compare 6 approaches at `/glass-lab.html`. See `Guidelines/` + `Features/Design.md`.
 
 ### Run gotcha (read before launching)
 

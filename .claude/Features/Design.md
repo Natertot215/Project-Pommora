@@ -64,7 +64,7 @@ Per-color tint variables (`-fill` / `-soft` / `-text` / `-soft-border` / `-soft-
 
 ### In code — established vs planned
 
-- **Established:** `color.css.ts` → `vars.color.solid.*` (11 solids) + `vars.color.label.*`; `typography.css.ts` → `font` primitives + `text.*` composed styles; `chip.css.ts` → the unified chip tint (`chip` + `chipColor.*` + `chipCheckbox`); unified in `index.ts`. vanilla-extract + Inter wired; build green. A **data-driven** showcase at `design-system/showcase/` (`npm run showcase`) — colors / type / chips / icons / materials each iterate their registry, so new entries appear with no showcase edit.
+- **Established:** `color.css.ts` → `vars.color.solid.*` (11 solids) + `vars.color.label.*`; `typography.css.ts` → `font` primitives + `text.*` composed styles; `chip.css.ts` → the unified chip tint (`chip` + `chipColor.*` + `chipCheckbox`); unified in `index.ts`. vanilla-extract + Inter wired; build green. A **data-driven** showcase at `design-system/showcase/` (`npm run showcase`) — colors / type / chips / icons / materials each iterate their registry, so new entries appear with no showcase edit. It also builds to a static site (`npm run build:showcase` → `dist/`, multi-page) with a repo-tracked `vercel.json`, ready to host.
 - **Planned:** the remaining color tokens (accent, backgrounds, fills, states, separators) as `design-system/tokens/*.css.ts`.
 
 ### Components — stub
