@@ -111,7 +111,7 @@ struct ViewGroupHeaderCell: View {
         if case .propertyBucket(let value) = group.kind, let def = groupingProperty,
             let chip = GroupHeaderChip.resolve(value: value, grouping: def)
         {
-            PropertyChip(label: chip.label, color: chip.color, size: .header)
+            PropertyChip(label: chip.label, color: chip.color, size: .compact)
         } else {
             Label {
                 Text(group.title)

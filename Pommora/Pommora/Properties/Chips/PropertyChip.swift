@@ -22,55 +22,28 @@ struct PropertyChip: View {
     var size: Size = .standard
 
     /// Context sizing. `.standard` is the Figma spec (panel, dropdown);
-    /// `.compact` fits a `Table` row without inflating it; `.header` scales the
-    /// pill up to a table group-header's typography (above the in-row chip).
+    /// `.compact` fits a `Table` row without inflating it (also used by table
+    /// group-header pills, which match the in-row chip).
     enum Size: Sendable {
         case standard
         case compact
-        case header
 
         var pillFont: Font {
             switch self {
             case .standard: .system(size: 12, weight: .semibold)
             case .compact: .system(size: 11, weight: .semibold)
-            case .header: .system(size: 13, weight: .semibold)
             }
         }
         var iconFont: Font {
             switch self {
             case .standard: .system(size: 11, weight: .semibold)
             case .compact: .system(size: 10, weight: .semibold)
-            case .header: .system(size: 12, weight: .semibold)
             }
         }
-        var pillMinWidth: CGFloat {
-            switch self {
-            case .standard: 50
-            case .compact: 40
-            case .header: 44
-            }
-        }
-        var minHeight: CGFloat {
-            switch self {
-            case .standard: 20
-            case .compact: 16
-            case .header: 22
-            }
-        }
-        var iconMinWidth: CGFloat {
-            switch self {
-            case .standard: 32
-            case .compact: 26
-            case .header: 30
-            }
-        }
-        var hPadding: CGFloat {
-            switch self {
-            case .standard: 6
-            case .compact: 5
-            case .header: 7
-            }
-        }
+        var pillMinWidth: CGFloat { self == .standard ? 50 : 40 }
+        var minHeight: CGFloat { self == .standard ? 20 : 16 }
+        var iconMinWidth: CGFloat { self == .standard ? 32 : 26 }
+        var hPadding: CGFloat { self == .standard ? 6 : 5 }
     }
 
     /// Discriminated content — `.pill` carries a text Label, `.chip` carries an
