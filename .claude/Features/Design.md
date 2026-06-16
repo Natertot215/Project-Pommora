@@ -38,6 +38,7 @@ Rules: components reference **semantic tokens only** (never raw hex); one folder
 Chip color is a Figma **variable-mode picker**: the `Color` collection has **10 modes** (Blue, Green, Purple, Lavender, Cyan, Light Blue, Orange, Yellow, Grey, Default — **no red**), each holding a single `Base` (the solid, aliased). Selecting a mode recolors the whole chip. The **unified tint is the base at three opacities** — no custom colors, no lightening:
 
 - **Fill** = base @ **60%** · **stroke** = base @ **40%** (2px; **1.5px** for Checkbox) · **text** = `label-primary` + base @ **10%** (near-white with a faint color tint).
+- **Shapes:** Pill (text) and Select (icon-only) are **h20 pills** (radius 10); **Checkbox** is a **17×17 square** (radius 5.5) holding a checkmark.
 
 Soft only — no Solid variant. The Figma showcase master shows a representative color (Blue); a chip's neutral fallback is the **Default** mode (Figma's collection default mode is read-only, so setting the master to Default just greys the showcase — the neutral default lives in the React component). In code (`chip.css.ts`): one `tint(base)` formula generates `chipColor.*` via `color-mix` — fill / stroke are the base at alpha, the text mixes 10% base into `label-primary`.
 
@@ -60,7 +61,7 @@ Per-color tint variables (`-fill` / `-soft` / `-text` / `-soft-border` / `-soft-
 
 ### In code — established vs planned
 
-- **Established:** `color.css.ts` → `vars.color.solid.*` (11 solids) + `vars.color.label.*`; `typography.css.ts` → `font` primitives + `text.*` composed styles; `chip.css.ts` → the unified chip tint (`chip` + `chipColor.*` + `chipSquare` / `chipCheckbox`); unified in `index.ts`. vanilla-extract + Inter wired; build green. A live showcase at `design/showcase/` (`npm run showcase` → localhost).
+- **Established:** `color.css.ts` → `vars.color.solid.*` (11 solids) + `vars.color.label.*`; `typography.css.ts` → `font` primitives + `text.*` composed styles; `chip.css.ts` → the unified chip tint (`chip` + `chipColor.*` + `chipCheckbox`); unified in `index.ts`. vanilla-extract + Inter wired; build green. A live showcase at `design/showcase/` (`npm run showcase` → localhost).
 - **Planned:** the remaining color tokens (accent, backgrounds, fills, states, separators) as `design/tokens/*.css.ts`.
 
 ### Components — stub

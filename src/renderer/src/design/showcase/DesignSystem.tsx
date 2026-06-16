@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { vars, text, chip, chipColor, chipSquare, chipCheckbox } from '@renderer/design/tokens'
+import { Check, Circle } from '@phosphor-icons/react'
+import { vars, text, chip, chipColor, chipCheckbox } from '@renderer/design/tokens'
 
 // --- Colors: swatch background comes from the live token var; the hex label is
 //     read back from the rendered color so it can't drift from the token. ---
@@ -125,16 +126,16 @@ export function DesignSystem() {
           <div className="ds-chip-row">
             <div className="ds-chip-rowlabel">Select</div>
             {CHIP_COLORS.map(([n, k]) => (
-              <span key={k} className={`${chip} ${chipColor[k]} ${chipSquare}`}>
-                {n}
+              <span key={k} className={`${chip} ${chipColor[k]}`} title={n}>
+                <Circle size={14} weight="bold" />
               </span>
             ))}
           </div>
           <div className="ds-chip-row">
             <div className="ds-chip-rowlabel">Checkbox</div>
             {CHIP_COLORS.map(([n, k]) => (
-              <span key={k} className={`${chip} ${chipColor[k]} ${chipSquare} ${chipCheckbox}`}>
-                ✓&nbsp;{n}
+              <span key={k} className={`${chip} ${chipColor[k]} ${chipCheckbox}`} title={n}>
+                <Check size={11} weight="bold" />
               </span>
             ))}
           </div>

@@ -17,4 +17,4 @@ The variables. **Edit here → propagates everywhere.** Authored with vanilla-ex
 
 ### Status
 
-`color.css.ts` holds the **solid spectrum** (11 hues) + **label tones** (`label.primary` / `secondary` / `tertiary`). `typography.css.ts` — `font` primitives + composed `text.*` classes. `chip.css.ts` — the unified chip tint (`chip` + `chipColor.*` + `chipSquare` / `chipCheckbox`), one `color-mix` formula over the solids. `index.ts` unifies all three. A live showcase renders them at `design/showcase/` (`npm run showcase` → localhost). Tooling wired (vanilla-extract + Inter); build green. Accent / background / fill / state tokens come next.
+`color.css.ts` holds the **solid spectrum** (11 hues) + **label tones** (`label.primary` / `secondary` / `tertiary`). `typography.css.ts` — `font` primitives + composed `text.*` classes. `chip.css.ts` — the unified chip tint (`chip` + `chipColor.*` + `chipCheckbox`), one `color-mix` formula over the solids. `index.ts` unifies all three. A live showcase renders them at `design/showcase/` (`npm run showcase` → localhost). Tooling wired (vanilla-extract + Inter); build green. Accent / background / fill / state tokens come next.

@@ -13,10 +13,12 @@ const labelPrimary = colorVars.color.label.primary
 export const chip = style({
   display: 'inline-flex',
   alignItems: 'center',
+  justifyContent: 'center',
   gap: '4px',
   boxSizing: 'border-box',
-  padding: '2px 10px',
-  borderRadius: '999px',
+  height: '20px',
+  padding: '0 6px',
+  borderRadius: '10px',
   borderStyle: 'solid',
   borderWidth: '2px',
   whiteSpace: 'nowrap',
@@ -53,8 +55,15 @@ export const chipColor = styleVariants({
   default: tint(solid.greyDefault)
 })
 
-/** Square / Select shape — rounded-rect instead of a pill. */
-export const chipSquare = style({ borderRadius: '7px' })
-
-/** Checkbox chip — thinner 1.5px stroke (per spec). */
-export const chipCheckbox = style({ borderWidth: '1.5px' })
+/**
+ * Checkbox chip — a fixed 17×17 rounded square (radius 5.5) with a 1.5px stroke;
+ * holds only a checkmark. Pill = a text `chip`; Select = a `chip` with an icon
+ * (both are pills — no shape modifier needed).
+ */
+export const chipCheckbox = style({
+  width: '17px',
+  height: '17px',
+  padding: 0,
+  borderRadius: '5.5px',
+  borderWidth: '1.5px'
+})
