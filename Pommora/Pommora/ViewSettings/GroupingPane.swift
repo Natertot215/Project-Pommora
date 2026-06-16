@@ -35,9 +35,49 @@ struct GroupingPane: View {
             PaneHeader(path: $path)
         } content: {
             content
+        } footer: {
+            emptyGroupFooter
         }
         .navigationBarBackButtonHidden(true)
         .onAppear { buildModel() }
+    }
+
+    // MARK: - Footer
+
+    /// Pinned footer: "Hide empty groups" toggle + "Empty group" placement row.
+    /// Visible only when a property is actively grouped AND the type has a nil
+    /// bucket (i.e. not Checkbox). Empty when grouping is off or not applicable.
+    @ViewBuilder
+    private var emptyGroupFooter: some View {
+        if let model {
+            let grouping = model.grouping
+            let props = ViewSettingsProperties.groupable(
+                scope: scope, manager: pageTypeManager, tierConfig: tierConfigManager.config)
+            let activeDef = grouping.flatMap { g in props.first(where: { $0.id == g.propertyID }) }
+
+            if let grouping, let def = activeDef, def.type != .checkbox {
+                VStack(spacing: 0) {
+                    PaneDivider()
+
+                    GroupingToggleRow(
+                        label: "Hide empty groups",
+                        isOn: Binding(
+                            get: { grouping.hideEmptyGroups },
+                            set: { hide in model.update { $0.hideEmptyGroups = hide } }
+                        )
+                    )
+
+                    if !grouping.hideEmptyGroups {
+                        EmptyGroupRow(
+                            placement: Binding(
+                                get: { grouping.emptyPlacement },
+                                set: { p in model.update { $0.emptyPlacement = p } }
+                            )
+                        )
+                    }
+                }
+            }
+        }
     }
 
     // MARK: - Content
@@ -120,25 +160,6 @@ struct GroupingPane: View {
 
                 // Options area — Select + Status only, only when options exist
                 OptionsSection(def: def, grouping: grouping, model: model)
-
-                // Hide empty groups toggle
-                GroupingToggleRow(
-                    label: "Hide empty groups",
-                    isOn: Binding(
-                        get: { grouping.hideEmptyGroups },
-                        set: { hide in model.update { $0.hideEmptyGroups = hide } }
-                    )
-                )
-
-                // Empty group placement — hidden when hideEmptyGroups is on
-                if !grouping.hideEmptyGroups {
-                    EmptyGroupRow(
-                        placement: Binding(
-                            get: { grouping.emptyPlacement },
-                            set: { p in model.update { $0.emptyPlacement = p } }
-                        )
-                    )
-                }
             }
 
             if let err = commitError {
