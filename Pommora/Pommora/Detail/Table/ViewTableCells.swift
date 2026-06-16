@@ -66,22 +66,40 @@ struct ViewTableCellContent: View {
 
 // MARK: - Group header cell
 
+/// The reactive expansion state backing a group header's `DisclosureChevron`.
+/// Owned by the table coordinator (one per group id, reused across reloads) and
+/// flipped in lockstep with the native fold so the chevron animates rather than
+/// snapping. A reference type so the value-typed `ViewGroupHeaderCell` observes it
+/// live without the cell being re-hosted on every toggle.
+@MainActor @Observable
+final class GroupDisclosureState {
+    var isExpanded: Bool
+    init(isExpanded: Bool) { self.isExpanded = isExpanded }
+}
+
 /// The disclosure-row content for a structural / property group, hosted in the
-/// outline column. The disclosure triangle + indentation are drawn by the outline
-/// view itself; this supplies the folder icon + slightly-bold title (native
-/// disclosure-row language) plus the group's context menu.
+/// outline column. The native triangle is suppressed (`ChevronlessOutlineView`);
+/// this draws the shared `DisclosureChevron` in its place — matched to the
+/// sidebar's native chevron — plus the folder icon + slightly-bold title and the
+/// group's context menu.
 struct ViewGroupHeaderCell: View {
     let group: ResolvedGroup
+    let disclosure: GroupDisclosureState
     let menu: (ResolvedGroup) -> AnyView
 
     var body: some View {
-        Label {
-            Text(group.title)
-                .lineLimit(1)
-                .truncationMode(.tail)
-        } icon: {
-            Image(systemName: icon)
-                .foregroundStyle(.secondary)
+        HStack(spacing: PUI.Spacing.xs) {
+            // Fixed gutter so the title doesn't shift as the chevron rotates.
+            DisclosureChevron(isExpanded: disclosure.isExpanded)
+                .frame(width: 12)
+            Label {
+                Text(group.title)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+            } icon: {
+                Image(systemName: icon)
+                    .foregroundStyle(.secondary)
+            }
         }
         .padding(.horizontal, PUI.Spacing.md)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)

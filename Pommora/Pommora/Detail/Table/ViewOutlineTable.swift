@@ -60,7 +60,7 @@ struct ViewOutlineTable: NSViewRepresentable {
 
     func makeNSView(context: Context) -> NSScrollView {
         let coordinator = context.coordinator
-        let outline = NSOutlineView()
+        let outline = ChevronlessOutlineView()
         outline.style = .inset
         outline.usesAlternatingRowBackgroundColors = true
         outline.allowsColumnReordering = true
@@ -137,6 +137,20 @@ struct ViewOutlineTable: NSViewRepresentable {
         /// nodes by reference, so the value-typed groups/items are wrapped in
         /// reference-typed `OutlineNode`s.
         private var nodes: [OutlineNode] = []
+
+        /// Reactive chevron state per group id, reused across reloads so a toggle
+        /// animates the rotation rather than snapping. Authoritatively seeded from
+        /// each group's persisted collapse state in `applyExpansion`, then flipped
+        /// in `handleSingleClick` alongside the native fold.
+        private var disclosureStates: [String: GroupDisclosureState] = [:]
+
+        /// The chevron state for a group — created on first sight, reused after.
+        private func disclosureState(for group: ResolvedGroup) -> GroupDisclosureState {
+            if let existing = disclosureStates[group.id] { return existing }
+            let state = GroupDisclosureState(isExpanded: !group.isCollapsed)
+            disclosureStates[group.id] = state
+            return state
+        }
 
         /// Hash of the last-loaded row structure + content + column layout
         /// (EXCLUDING collapse state) — guards `reload` from re-running `reloadData`
@@ -260,7 +274,9 @@ struct ViewOutlineTable: NSViewRepresentable {
             // re-creating each cell's hosted content with the new schema + editor.
             // The schema options hash catches select/status option additions so
             // ChipDropdown popovers see the new options without a restart.
-            let signature = Self.signature(of: parent.groups) + "|" + Self.columnSignature(of: parent.columns) + "|" + tableSchemaOptionsSignature(of: parent.schema)
+            let signature =
+                Self.signature(of: parent.groups) + "|" + Self.columnSignature(of: parent.columns) + "|"
+                + tableSchemaOptionsSignature(of: parent.schema)
             guard signature != lastSignature else { return }
             lastSignature = signature
 
@@ -340,7 +356,11 @@ struct ViewOutlineTable: NSViewRepresentable {
         private func applyExpansion(_ outline: NSOutlineView, nodes: [OutlineNode]) {
             for node in nodes {
                 guard case .group(let group) = node.payload else { continue }
-                if !group.isCollapsed { outline.expandItem(node) }
+                let expanded = !group.isCollapsed
+                // Authoritative seed: the cell is re-hosted on reload, so setting
+                // the final value here renders statically (no value-change to animate).
+                disclosureState(for: group).isExpanded = expanded
+                if expanded { outline.expandItem(node) }
                 applyExpansion(outline, nodes: node.children)
             }
         }
@@ -383,7 +403,13 @@ struct ViewOutlineTable: NSViewRepresentable {
                 // Only the outline (Title) column carries the group label; the
                 // rest are blank, like a native folder row.
                 if column.kind == .title {
-                    cell.host(AnyView(ViewGroupHeaderCell(group: group, menu: parent.groupMenu).id(group.id)))
+                    cell.host(
+                        AnyView(
+                            ViewGroupHeaderCell(
+                                group: group,
+                                disclosure: disclosureState(for: group),
+                                menu: parent.groupMenu
+                            ).id(group.id)))
                 } else {
                     cell.host(AnyView(Color.clear))
                 }
@@ -413,8 +439,24 @@ struct ViewOutlineTable: NSViewRepresentable {
             false
         }
 
-        func outlineViewItemDidExpand(_ notification: Notification) { persistCollapsedState() }
-        func outlineViewItemDidCollapse(_ notification: Notification) { persistCollapsedState() }
+        func outlineViewItemDidExpand(_ notification: Notification) {
+            syncDisclosureState(notification, expanded: true)
+            persistCollapsedState()
+        }
+        func outlineViewItemDidCollapse(_ notification: Notification) {
+            syncDisclosureState(notification, expanded: false)
+            persistCollapsedState()
+        }
+
+        /// Defensive chevron sync for any expansion path other than a row click
+        /// (keyboard, programmatic). `handleSingleClick` already set the value, so
+        /// this is a no-op there; for other paths it keeps the chevron truthful.
+        private func syncDisclosureState(_ notification: Notification, expanded: Bool) {
+            guard let node = notification.userInfo?["NSObject"] as? OutlineNode,
+                case .group(let group) = node.payload
+            else { return }
+            disclosureStates[group.id]?.isExpanded = expanded
+        }
 
         /// Gathers the currently-collapsed group ids (raw `ResolvedGroup.id`, the
         /// sidecar's `collapsed_groups` vocabulary) and persists the full set.
@@ -448,10 +490,17 @@ struct ViewOutlineTable: NSViewRepresentable {
             let point = outline.convert(
                 outline.window?.mouseLocationOutsideOfEventStream ?? .zero, from: nil)
             guard point.x > outline.frameOfOutlineCell(atRow: row).maxX else { return }
-            if outline.isItemExpanded(node) {
-                outline.animator().collapseItem(node)
-            } else {
+            // Flip the chevron state first so its rotation animates concurrently
+            // with the native fold (both ~0.2s); the native triangle is suppressed,
+            // so the chevron is the only disclosure indicator.
+            let willExpand = !outline.isItemExpanded(node)
+            if case .group(let group) = node.payload {
+                disclosureState(for: group).isExpanded = willExpand
+            }
+            if willExpand {
                 outline.animator().expandItem(node)
+            } else {
+                outline.animator().collapseItem(node)
             }
         }
 
@@ -556,7 +605,9 @@ struct ViewOutlineTable: NSViewRepresentable {
         /// destination `ResolvedGroup`, the insertion index WITHIN its `items`, and
         /// the anchor page id the drop lands before (nil = append). Returns nil for a
         /// position with no valid page slot (e.g. between collection headers).
-        private func dropTarget(proposedItem item: Any?, childIndex index: Int)
+        private func dropTarget(
+            proposedItem item: Any?, childIndex index: Int
+        )
             -> (group: ResolvedGroup, insertionIndex: Int, anchorID: String?)?
         {
             if let node = item as? OutlineNode {
@@ -648,6 +699,16 @@ struct ViewOutlineTable: NSViewRepresentable {
 /// Reference-typed wrapper so `NSOutlineView` (which holds items by reference and
 /// tracks expansion by reference identity) can carry the value-typed
 /// `ResolvedGroup` / `ViewItem`. Rebuilt on each reload.
+/// Suppresses `NSOutlineView`'s native disclosure triangle so the group-header
+/// cell can draw the shared `DisclosureChevron` (matched to the sidebar's native
+/// chevron) in its place. Zeroing the outline-cell frame also lets
+/// `handleSingleClick` toggle on any in-row click: its
+/// `point.x > frameOfOutlineCell.maxX` guard — which used to defer the leading
+/// gutter to the native triangle — now passes across the whole row.
+private final class ChevronlessOutlineView: NSOutlineView {
+    override func frameOfOutlineCell(atRow row: Int) -> NSRect { .zero }
+}
+
 private final class OutlineNode {
     enum Payload {
         case group(ResolvedGroup)

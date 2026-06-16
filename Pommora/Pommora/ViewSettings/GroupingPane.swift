@@ -276,11 +276,7 @@ private struct GroupByRow: View {
                             .foregroundStyle(.secondary)
                     }
                     if showChevron {
-                        Image(systemName: "chevron.right")
-                            .font(PUI.Icon.chevron)
-                            .foregroundStyle(.tertiary)
-                            .rotationEffect(.degrees(pickerExpanded ? 90 : 0))
-                            .animation(.easeInOut(duration: 0.2), value: pickerExpanded)
+                        DisclosureChevron(isExpanded: pickerExpanded)
                     }
                 }
                 .padding(.horizontal, PUI.Row.paddingHorizontal)
@@ -348,7 +344,9 @@ private struct DateByRow: View {
                 .font(PUI.Typography.row)
                 .foregroundStyle(.primary)
             Spacer(minLength: 0)
-            Button { popoverOpen = true } label: {
+            Button {
+                popoverOpen = true
+            } label: {
                 HStack(spacing: PUI.Row.interSpacing) {
                     Text(granularity.displayLabel)
                         .font(PUI.Typography.row)
@@ -405,7 +403,9 @@ private struct OrderRow: View {
                 .font(PUI.Typography.row)
                 .foregroundStyle(.primary)
             Spacer(minLength: 0)
-            Button { popoverOpen = true } label: {
+            Button {
+                popoverOpen = true
+            } label: {
                 HStack(spacing: PUI.Row.interSpacing) {
                     Text(orderLabel(for: orderMode, type: propertyType))
                         .font(PUI.Typography.row)
@@ -734,7 +734,9 @@ private struct EmptyGroupRow: View {
                 .font(secondary ? .subheadline : PUI.Typography.row)
                 .foregroundStyle(secondary ? AnyShapeStyle(.secondary) : AnyShapeStyle(.primary))
             Spacer(minLength: 0)
-            Button { popoverOpen = true } label: {
+            Button {
+                popoverOpen = true
+            } label: {
                 HStack(spacing: PUI.Row.interSpacing) {
                     Text(placement.displayLabel)
                         .font(PUI.Typography.row)
@@ -796,4 +798,3 @@ extension EmptyPlacement {
         }
     }
 }
-
