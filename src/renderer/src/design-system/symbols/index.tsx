@@ -25,6 +25,10 @@ import {
   Copy,
   ArrowLeftRight,
   ArrowUpDown,
+  LogIn,
+  KeyRound,
+  Lock,
+  SquarePlus,
   type LucideIcon,
   type LucideProps
 } from 'lucide-react'
@@ -61,7 +65,11 @@ export const icons = {
   'circle-x': CircleX,
   copy: Copy,
   'arrow-left-right': ArrowLeftRight,
-  'arrow-up-down': ArrowUpDown
+  'arrow-up-down': ArrowUpDown,
+  'log-in': LogIn,
+  'key-round': KeyRound,
+  lock: Lock,
+  'square-plus': SquarePlus
 } satisfies Record<string, LucideIcon>
 
 export type IconName = keyof typeof icons
