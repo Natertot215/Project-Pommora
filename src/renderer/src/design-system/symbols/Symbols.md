@@ -30,3 +30,7 @@ Pommora's React icons come from **Lucide** ([lucide.dev/icons](https://lucide.de
 - `tag`
 - `panel-left` (Needs Editing)
 - `square-dashed` (Needs Editing)
+- `circle-x`
+- `copy`
+- `arrow-left-right`
+- `arrow-up-down`

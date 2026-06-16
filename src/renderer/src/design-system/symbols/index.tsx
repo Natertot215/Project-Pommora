@@ -21,6 +21,10 @@ import {
   Tag,
   PanelLeft,
   SquareDashed,
+  CircleX,
+  Copy,
+  ArrowLeftRight,
+  ArrowUpDown,
   type LucideIcon,
   type LucideProps
 } from 'lucide-react'
@@ -53,7 +57,11 @@ export const icons = {
   'ellipsis-vertical': EllipsisVertical,
   tag: Tag,
   'panel-left': PanelLeft,
-  'square-dashed': SquareDashed
+  'square-dashed': SquareDashed,
+  'circle-x': CircleX,
+  copy: Copy,
+  'arrow-left-right': ArrowLeftRight,
+  'arrow-up-down': ArrowUpDown
 } satisfies Record<string, LucideIcon>
 
 export type IconName = keyof typeof icons
