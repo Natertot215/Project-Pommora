@@ -1,6 +1,6 @@
 ## Design System
 
-The Pommora design system — the **code mirror of the Figma "Pommora - React" library**. Two-tier tokens (raw **primitives** → meaningful **semantic** aliases); components reference semantic tokens only. Lives in `src/renderer/src/design/`. Typography has its own spec: `Typography.md`.
+The Pommora design system — the **code mirror of the Figma "Pommora - React" library**. Two-tier tokens (raw **primitives** → meaningful **semantic** aliases); components reference semantic tokens only. Lives in `src/renderer/src/design-system/`. Typography has its own spec: `Typography.md`.
 
 ### Source of truth
 
@@ -15,13 +15,16 @@ The **Figma "Pommora - React"** file is canonical for design *values*; this repo
 ### Folder
 
 ```
-design/
+design-system/
 ├─ tokens/          the variables — edit here → propagates app-wide
 │   ├─ color.css.ts        ← solid spectrum + label tones
 │   ├─ typography.css.ts   ← font primitives + composed text styles
 │   ├─ chip.css.ts         ← unified chip tint (fill/stroke/text recipe)
 │   └─ index.ts            ← unified `vars` + `text` + chip exports
-├─ showcase/        live design-system page (`npm run showcase` → localhost)
+├─ symbols/         curated Lucide icon registry (index.tsx) + Symbols.md manifest
+├─ materials/       glass-surface.tsx + glass-controls.tsx (the glass material)
+├─ showcase/        the data-driven design-system site (`npm run showcase`)
+├─ glass-lab/       6-approach liquid-glass comparison (`/glass-lab.html`)
 └─ components/      reusable pieces (mirror the Figma components) — stubs
 ```
 
@@ -61,18 +64,17 @@ Per-color tint variables (`-fill` / `-soft` / `-text` / `-soft-border` / `-soft-
 
 ### In code — established vs planned
 
-- **Established:** `color.css.ts` → `vars.color.solid.*` (11 solids) + `vars.color.label.*`; `typography.css.ts` → `font` primitives + `text.*` composed styles; `chip.css.ts` → the unified chip tint (`chip` + `chipColor.*` + `chipCheckbox`); unified in `index.ts`. vanilla-extract + Inter wired; build green. A live showcase at `design/showcase/` (`npm run showcase` → localhost).
-- **Planned:** the remaining color tokens (accent, backgrounds, fills, states, separators) as `design/tokens/*.css.ts`.
+- **Established:** `color.css.ts` → `vars.color.solid.*` (11 solids) + `vars.color.label.*`; `typography.css.ts` → `font` primitives + `text.*` composed styles; `chip.css.ts` → the unified chip tint (`chip` + `chipColor.*` + `chipCheckbox`); unified in `index.ts`. vanilla-extract + Inter wired; build green. A **data-driven** showcase at `design-system/showcase/` (`npm run showcase`) — colors / type / chips / icons / materials each iterate their registry, so new entries appear with no showcase edit.
+- **Planned:** the remaining color tokens (accent, backgrounds, fills, states, separators) as `design-system/tokens/*.css.ts`.
 
 ### Components — stub
 
-From the Figma library, **not yet built in React**: **Button · Label · Menu · Menu Header · Separator**. Each consumes semantic tokens; the **Chip** tint already ships (`chip.css.ts`) and the **icon** system is established (Lucide, above). Built one at a time into `design/components/`.
+From the Figma library, **not yet built in React**: **Button · Label · Menu · Menu Header · Separator**. Each consumes semantic tokens; the **Chip** tint already ships (`chip.css.ts`) and the **icon** system is established (Lucide, above). Built one at a time into `design-system/components/`.
 
 ### Not yet established — stubs
 
 - **Semantic color tokens** beyond labels — `surface-background`, `surface-raised`, `text-primary` / `-dim`, `border`, …
 - **Spacing scale** · **Radius scale** · **Shadow / elevation** · **Motion** (durations, easings) · **Z-index layers**.
-- **Icon system — established (Lucide).** Curated registry at `design/icons/` — `import { Icon } from '@renderer/design/icons'` → `<Icon name="folder" size={15} />`. Driven by `design/icons/Symbols.md`: add an icon's lucide.dev name there and it gets imported (only listed icons bundle — tree-shaken). SF Symbols stay the Figma design reference only; they can't ship on web.
-- **Theming** — light/dark; per-nexus accent (from Settings). vanilla-extract `createThemeContract` is the seam.
-- **Glass / Surface** — the sidebar glass recipe (Apple-Regular CSS); the `Surface` swappable seam (see `Handoff.md`).
-- **`@/design` import alias** — add to `tsconfig` + Vite when the first component imports tokens.
+- **Icon system — established (Lucide).** Curated registry at `design-system/symbols/` — `import { Icon } from '@renderer/design-system/symbols'` → `<Icon name="folder" size={15} />`. Driven by `design-system/symbols/Symbols.md`: add an icon's lucide.dev name there and it gets imported (only listed icons bundle — tree-shaken). SF Symbols stay the Figma design reference only; they can't ship on web.
+- **Glass — established (Materials).** `design-system/materials/glass-surface.tsx` (`GlassSurface`) + `glass-controls.tsx` (`GlassControls`) hold the glass material — liquidGL "Tinted Lens" at zero tint (blur 5 · brightness 90%), identical for now, separable later. `Surface` consumes `GlassSurface`; compare 6 approaches at `/glass-lab.html`.
+- **Theming light/dark + per-nexus accent** (from Settings) — `createThemeContract` is the seam.

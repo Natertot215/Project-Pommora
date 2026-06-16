@@ -43,11 +43,11 @@ Text color is separate from the type ramp. Three label tones on one base `#F1F1F
 
 ### In code — authored
 
-`design/tokens/typography.css.ts` (vanilla-extract), two layers:
+`design-system/tokens/typography.css.ts` (vanilla-extract), two layers:
 - **`font` primitives** (`createGlobalTheme`) — `font.family`, `font.weight.{regular, medium, semibold, bold}` (400 / 500 / 600 / 700), and `font.scale.<style>.{size, line}` for all ten styles. The single source — edit a value and it propagates.
 - **`text` composed classes** — `text.<style>.{standard, emphasized}` apply a whole style: `className={text.headline.emphasized}`.
 
-Unified in `index.ts` (`import { vars, text } from '@renderer/design/tokens'`; primitives read as `vars.font.*`). Inter loads via `@fontsource-variable/inter` (family `Inter Variable`). The build extracts the CSS green.
+Unified in `index.ts` (`import { vars, text } from '@renderer/design-system/tokens'`; primitives read as `vars.font.*`). Inter loads via `@fontsource-variable/inter` (family `Inter Variable`). The build extracts the CSS green.
 
 ### Not yet established — stubs
 
