@@ -1,33 +1,32 @@
 import { style, styleVariants } from '@vanilla-extract/css'
 import { vars as colorVars } from './color.css'
-import { font } from './typography.css'
+import { text } from './typography.css'
 
 const solid = colorVars.color.solid
 const labelPrimary = colorVars.color.label.primary
 
 /**
- * Base chip — layout, a 2px stroke, and Control / Emphasized type. Color is
- * supplied by `chipColor.*`; adjust shape/stroke with `chipSquare` /
- * `chipCheckbox`. Compose: `${chip} ${chipColor.blue}`.
+ * Base chip — layout + a 2px stroke, composing the Control / Emphasized text
+ * style (the one source for that ramp — never re-state size / line / weight).
+ * Color is supplied by `chipColor.*`; shape via `chipCheckbox`. Compose:
+ * `${chip} ${chipColor.blue}`.
  */
-export const chip = style({
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  gap: '4px',
-  boxSizing: 'border-box',
-  height: '20px',
-  padding: '0 6px',
-  borderRadius: '10px',
-  borderStyle: 'solid',
-  borderWidth: '2px',
-  whiteSpace: 'nowrap',
-  fontFamily: font.family,
-  fontSize: font.scale.control.size,
-  lineHeight: font.scale.control.line,
-  fontWeight: font.weight.semibold,
-  letterSpacing: 0
-})
+export const chip = style([
+  text.control.emphasized,
+  {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '4px',
+    boxSizing: 'border-box',
+    height: '20px',
+    padding: '0 6px',
+    borderRadius: '10px',
+    borderStyle: 'solid',
+    borderWidth: '2px',
+    whiteSpace: 'nowrap'
+  }
+])
 
 /**
  * The unified chip tint — one formula applied per base color:
@@ -41,8 +40,9 @@ const tint = (base: string): { background: string; borderColor: string; color: s
   color: `color-mix(in srgb, ${base} 10%, ${labelPrimary})`
 })
 
-/** One class per chip color — compose with `chip`. No red (excluded by design). */
+/** One class per chip color — compose with `chip`. (Figma's mode picker caps at 10, so red lives only here in code.) */
 export const chipColor = styleVariants({
+  red: tint(solid.red),
   blue: tint(solid.blue),
   green: tint(solid.green),
   purple: tint(solid.purple),
