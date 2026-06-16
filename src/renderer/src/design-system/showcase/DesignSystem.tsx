@@ -28,7 +28,7 @@ function rgbToHex(rgb: string): string {
 type RampStyle = { standard: string; emphasized: string }
 
 // Read a value back from a rendered node on mount — so the showcase shows the
-// real computed value and can't drift from the token. Shared by Swatch + TypeRow.
+// real computed value and can't drift from the token. Shared by Swatch + TypeEntry.
 function useComputedStyleText<T extends HTMLElement>(
   read: (cs: CSSStyleDeclaration) => string
 ): [RefObject<T | null>, string] {
@@ -53,22 +53,37 @@ function Swatch({ name, color }: { name: string; color: string }) {
   )
 }
 
-function TypeRow({ name, t }: { name: string; t: RampStyle }) {
+function TypeEntry({ name, t }: { name: string; t: RampStyle }) {
   const [ref, meta] = useComputedStyleText<HTMLSpanElement>(
-    (cs) => `${parseFloat(cs.fontSize)} / ${cs.fontWeight}`
+    (cs) => `${parseFloat(cs.fontSize)}px · ${cs.fontWeight}`
   )
   return (
-    <div className="ds-type-row">
-      <div className="ds-type-label">
+    <div className="ds-type-entry">
+      <div className="ds-type-entry-label">
         {name}
-        <span className="ds-type-meta">{meta}</span>
+        <span className="ds-type-entry-meta">{meta}</span>
       </div>
-      <div className="ds-type-samples">
-        <span ref={ref} className={t.standard}>
-          {name}
-        </span>
+      <div className="ds-type-entry-samples">
+        <span ref={ref} className={t.standard}>{name}</span>
         <span className={t.emphasized}>{name}</span>
       </div>
+    </div>
+  )
+}
+
+const TYPE_COLUMNS: Array<{ label: string; keys: Array<keyof typeof text> }> = [
+  { label: 'Primary', keys: ['largeTitle', 'title1', 'title2', 'title3'] },
+  { label: 'Secondary', keys: ['headline', 'body', 'callout', 'control'] },
+  { label: 'Tertiary', keys: ['caption', 'footnote'] }
+]
+
+function TypeColumn({ label, keys }: { label: string; keys: Array<keyof typeof text> }) {
+  return (
+    <div className="ds-type-col">
+      <div className="ds-type-col-header">{label}</div>
+      {keys.map((key) => (
+        <TypeEntry key={key} name={humanize(key)} t={text[key]} />
+      ))}
     </div>
   )
 }
@@ -91,19 +106,13 @@ const PENDING = [
 
 export function DesignSystem() {
   const solids = Object.entries(vars.color.solid)
-  const labels = Object.entries(vars.color.label)
-  const ramp = Object.entries(text) as Array<[string, { standard: string; emphasized: string }]>
   const chipColors = Object.keys(chipColor) as Array<keyof typeof chipColor>
   const iconNames = Object.keys(icons) as Array<keyof typeof icons>
 
   return (
     <div className="ds-wrap">
       <header>
-        <div className="ds-head">Pommora — Design System</div>
-        <div className="ds-sub">
-          Live from the source — every section reads the tokens / registries directly, so new colors,
-          type styles, chips, and icons appear here automatically. <code>npm run showcase</code>.
-        </div>
+        <div className="ds-head">Pommora Design System</div>
       </header>
 
       <section className="ds-section">
@@ -113,19 +122,15 @@ export function DesignSystem() {
             <Swatch key={n} name={humanize(n)} color={c} />
           ))}
         </div>
-        <h2 style={{ marginTop: 28 }}>Color · Label tones</h2>
-        <div className="ds-swatches">
-          {labels.map(([n, c]) => (
-            <Swatch key={n} name={humanize(n)} color={c} />
-          ))}
-        </div>
       </section>
 
       <section className="ds-section">
         <h2>Typography · Inter</h2>
-        {ramp.map(([n, t]) => (
-          <TypeRow key={n} name={humanize(n)} t={t} />
-        ))}
+        <div className="ds-type-grid">
+          {TYPE_COLUMNS.map((col) => (
+            <TypeColumn key={col.label} label={col.label} keys={col.keys} />
+          ))}
+        </div>
       </section>
 
       <section className="ds-section">
@@ -149,7 +154,7 @@ export function DesignSystem() {
       </section>
 
       <section className="ds-section">
-        <h2>Icons · Lucide ({iconNames.length}) — auto from the symbols registry</h2>
+        <h2>Icons · Lucide ({iconNames.length})</h2>
         <div className="ds-icon-grid">
           {iconNames.map((n) => (
             <div className="ds-icon-cell" key={n} title={n}>
@@ -164,15 +169,13 @@ export function DesignSystem() {
         <h2>Materials · Glass</h2>
         <GlassStage />
         <div className="ds-mat-note">
-          liquidGL "Tinted Lens" — blur 5 · brightness 90%. <b>Drag the glass anywhere</b> on the
-          page — it starts over the middle (forest) surface and snaps back there on reload.{' '}
-          <code>GlassSurface</code> and <code>GlassControls</code> are the same material for now,
-          separable later.
+          <b>Drag the glass anywhere</b> on the page — it starts over the middle surface and snaps
+          back on reload.
         </div>
       </section>
 
       <section className="ds-section">
-        <h2>Components · pending React build (in Figma)</h2>
+        <h2>Components</h2>
         <div className="ds-pending">
           {PENDING.map((x) => (
             <span key={x}>{x}</span>

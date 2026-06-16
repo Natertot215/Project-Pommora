@@ -78,32 +78,46 @@ code {
   margin-top: 2px;
 }
 
-/* Typography */
-.ds-type-row {
+/* Typography — 3 columns */
+.ds-type-grid {
   display: grid;
-  grid-template-columns: 200px 1fr;
-  gap: 24px;
-  align-items: baseline;
-  padding: 14px 0;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0 32px;
+}
+@media (max-width: 640px) {
+  .ds-type-grid {
+    grid-template-columns: 1fr;
+  }
+}
+.ds-type-col-header {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(241, 241, 241, 0.4);
+  font-weight: 600;
+  padding-bottom: 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  margin-bottom: 4px;
+}
+.ds-type-entry {
+  padding: 12px 0;
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
-.ds-type-label {
-  font-size: 12px;
-  font-weight: 600;
-  color: rgba(241, 241, 241, 0.85);
-}
-.ds-type-meta {
-  display: block;
-  font-weight: 400;
+.ds-type-entry-label {
   font-size: 11px;
   color: rgba(241, 241, 241, 0.45);
-  margin-top: 3px;
+  margin-bottom: 8px;
 }
-.ds-type-samples {
+.ds-type-entry-meta {
+  display: block;
+  font-size: 10px;
+  color: rgba(241, 241, 241, 0.3);
+  margin-top: 2px;
+}
+.ds-type-entry-samples {
   display: flex;
-  gap: 36px;
-  align-items: baseline;
-  flex-wrap: wrap;
+  flex-direction: column;
+  gap: 6px;
 }
 
 /* Chips */
