@@ -55,7 +55,7 @@ struct GroupingPane: View {
                 scope: scope, manager: pageTypeManager, tierConfig: tierConfigManager.config)
             let activeDef = grouping.flatMap { g in props.first(where: { $0.id == g.propertyID }) }
 
-            if let grouping, let def = activeDef, def.type != .checkbox {
+            if let grouping, let def = activeDef, def.type != .checkbox, !pickerExpanded {
                 VStack(spacing: 0) {
                     PaneDivider()
 
@@ -137,10 +137,9 @@ struct GroupingPane: View {
                 }
             )
 
-            // --- Contextual rows (only when a property is actively selected) ---
-            if let grouping, let def = activeDef {
-
-                PaneDivider()
+            // --- Contextual rows: the property-specific menu. Hidden while the
+            // picker is open so re-clicking Group By returns to the property list.
+            if let grouping, let def = activeDef, !pickerExpanded {
 
                 // Date By — only for date/datetime types
                 if def.type == .date || def.type == .datetime {
@@ -288,7 +287,6 @@ private struct GroupByRow: View {
             .buttonStyle(.plain)
 
             if pickerExpanded {
-                PaneDivider()
                 VStack(spacing: 0) {
                     ForEach(props, id: \.id) { def in
                         PropertyPickerRow(def: def, isActive: selectedDef?.id == def.id) {
@@ -297,7 +295,6 @@ private struct GroupByRow: View {
                     }
                 }
                 .transition(.opacity.combined(with: .move(edge: .top)))
-                PaneDivider()
             }
         }
     }
