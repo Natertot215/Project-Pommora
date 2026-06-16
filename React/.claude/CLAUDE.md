@@ -6,6 +6,7 @@ A React + TypeScript + Electron rebuild of Pommora ("a simpler Notion that's als
 
 - **Product truth** lives in the Swift project: `// Projects // Project Pommora // .claude // PommoraPRD.md` (+ its `Features/*`). Don't re-document the domain model here — reference it.
 - **This project is the rebuild.** Its docs cover the React/TS/Electron *how* and the build's state.
+- **Live design-system showcase:** https://pommora-design-system.vercel.app — Vercel, deploys from the `React/` folder of the `Project-Pommora` monorepo on `main`.
 
 ### Stack (current — swappable, not locked)
 
@@ -29,7 +30,7 @@ electron-vite · Electron 42 · React 19 · TypeScript 6 · Vite 7 + `@vitejs/pl
 - **`sandbox: true` + `contextIsolation: true` + `nodeIntegration: false`.**
 - **Single-window now, multi-window-ready seams** — data is main-owned + Query/store-cached per renderer; the live-refresh bus is a swappable transport; windows identified by serializable refs. No global singleton holding shared mutable client state.
 - **Modernized TS-native on-disk format** (tagged PropertyValue, zod-validated) — built/tested against a dedicated **test nexus at `~/test`** (override via `TEST_NEXUS_PATH`).
-- **Glass:** liquidGL "Tinted Lens" at zero tint (`backdrop-filter: blur(5px) brightness(90%)`), authored as a Material (`design-system/materials/` — `GlassSurface` / `GlassControls`) and wired into `Surface`. `liquid-dom` (WebGPU) evaluated and **shelved** (experimental HTML-in-Canvas flag + invasive scene-graph); compare 6 approaches at `/glass-lab.html`. See `Guidelines/` + `Features/Design.md`.
+- **Glass:** liquidGL "Tinted Lens" at zero tint (`backdrop-filter: blur(5px) brightness(90%)`), authored as a Material (`design-system/materials/` — `GlassSurface` / `GlassControls`) and wired into `Surface`. `liquid-dom` (WebGPU) evaluated and **shelved** (experimental HTML-in-Canvas flag + invasive scene-graph); the selection lab was removed once the glass was chosen. See `Guidelines/` + `Features/Design.md`.
 
 ### Run gotcha (read before launching)
 

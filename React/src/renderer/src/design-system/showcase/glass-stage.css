@@ -1,0 +1,55 @@
+/* Three side-by-side surfaces (rainbow · aerial forest · Pommora window) with a
+   draggable glass layer over them — the Materials section's interactive demo. */
+.gl-stage {
+  position: relative;
+  height: 220px;
+  overflow: hidden;
+  border-radius: 14px;
+}
+.gl-bg {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 33.34%;
+}
+.gl-bg-rainbow {
+  left: 0;
+  background: linear-gradient(160deg, #ff453a, #ff9f0a, #ffd60a, #32d74b, #0a84ff, #bf5af2);
+}
+.gl-bg-forest {
+  left: 33.33%;
+  background:
+    url('https://loremflickr.com/800/440/forest?lock=33') center / cover no-repeat,
+    linear-gradient(160deg, #1f6b3a, #2e8b57);
+}
+.gl-bg-window {
+  left: 66.66%;
+  background: #1c1c1f;
+}
+.gl-drag {
+  position: absolute;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+.gl-drag:active {
+  cursor: grabbing;
+}
+/* The drag layer is the sole pointer target — the glass renders but never
+   swallows the grab. */
+.gl-drag * {
+  pointer-events: none;
+}
+.gl-panel {
+  width: 200px;
+  height: 110px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.gl-panel-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
