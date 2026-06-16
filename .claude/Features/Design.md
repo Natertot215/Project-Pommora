@@ -17,10 +17,12 @@ The **Figma "Pommora - React"** file is canonical for design *values*; this repo
 ```
 design-system/
 ├─ tokens/          the variables — edit here → propagates app-wide
-│   ├─ color.css.ts        ← solid spectrum + label tones
+│   ├─ color.css.ts        ← solids · labels · background · surface · fills · states · separators
 │   ├─ typography.css.ts   ← font primitives + composed text styles
 │   ├─ chip.css.ts         ← unified chip tint (fill/stroke/text recipe)
+│   ├─ theme-vars.css.ts   ← bridge: tokens → stable var(--…) names (incl. --accent)
 │   └─ index.ts            ← unified `vars` + `text` + chip exports
+├─ accent.ts        runtime accent: applyAccent / accentValue / readCssAccentColor
 ├─ symbols/         curated Lucide icon registry (index.tsx) + Symbols.md manifest
 ├─ materials/       glass-surface.tsx + glass-controls.tsx (the glass material)
 ├─ showcase/        the data-driven design-system site + draggable glass demo (`npm run showcase`)
@@ -44,29 +46,29 @@ Chip color is a Figma **variable-mode picker**: the `Color` collection has **10 
 
 Soft only — no Solid variant. The Figma showcase master shows a representative color (Blue); a chip's neutral fallback is the **Default** mode (Figma's collection default mode is read-only, so setting the master to Default just greys the showcase — the neutral default lives in the React component). In code (`chip.css.ts`): one `tint(base)` formula generates `chipColor.*` via `color-mix` — fill / stroke are the base at alpha, the text mixes 10% base into `label-primary`. Code includes **red** too (11 colors) — the 10-mode cap is a Figma-only limit.
 
-#### Accent
+#### Accent — one swappable token
 
-Accent = **lavender**. Semantic tints: `accent-fill` (lavender @ 15%) + `accent-text` (lavender lightened). These replaced the old literal `lavender-fill` / `-text` across Buttons + Labels.
+The accent is a **single runtime token** (`--accent`), defaulting to **lavender**. `--accent-fill` and `--accent-text` are **`color-mix` derivations** of it (`var(--accent)` @ 15%; lightened ~30% toward white), so swapping `--accent` alone recolors every accented surface. The per-Nexus choice — any spectrum solid, or **`system`** (the OS accent) — lives in `.nexus/settings.json` (`accent`), read + validated in `readNexus`, applied on load by `applyAccent` (`accent.ts`). `system` resolves via Electron `systemPreferences.getAccentColor()` in the app, or the CSS `AccentColor` system color in the web showcase. Components reference `var(--accent)` / `var(--accent-fill)` / `var(--accent-text)`, never lavender directly. (macOS has no live accent-change event, so `system` is read at load.)
 
 #### Labels
 
 Text colors on `#F1F1F1`: `label-primary` 100% · `label-secondary` 65% · `label-tertiary` 35%. (Also in `Typography.md`.)
 
-#### Backgrounds · Fills · States · Accent · Separators — tokenized
+#### Background · Surface · Fills · States · Separators — tokenized
 
 Mirrored from Figma into `color.css.ts` (`vars.color.*`):
 
-- **Backgrounds** (`background.*`): `window #1A1A1B`, `primary #222225`, `secondary #252528`, `tertiary #333336`.
+- **Background** (`background.window` `#1A1A1B`): the app substrate — the base the surfaces sit on.
+- **Surface** (`surface.*`): content layers on the window — `primary #222225`, `secondary #252528`, `tertiary #333336`. (Figma `Surface/sf-*`; bridge `--surface-*`.)
 - **Fills** (`fill.*`): base `#71717A` at 22.5 / 15 / 10 / 6 / 4% — `primary` → `quinary` (overlay fills over a surface).
-- **States** (`state.*`): `hover`, `selected`.
-- **Accent** (`accent.*`): `base` (lavender), `fill` (lavender 15%), `text` (lavender lightened).
+- **States** (`state.*`): `hover` (grey `#8E8E93` @ ~2%), `selected` (@ ~8%).
 - **Separators** (`separator.*`): `line`, `border`, `segment`.
 
-Per-color tint variables (`-fill` / `-soft` / `-text` / …) were **removed** — the unified chip tint + these semantic tokens replace them. `grey-default` is kept (the `Default` chip color's source).
+The **accent** (above) is its own swappable runtime token, not a static entry here. Per-color tint variables (`-fill` / `-soft` / `-text` / …) were **removed** — the unified chip tint + these semantic tokens replace them. `grey-default` is kept (the `Default` chip color's source).
 
 ### In code — established vs planned
 
-- **Established:** `color.css.ts` → `vars.color.solid.*` (11 solids) + `label` / `background` / `fill` / `state` / `accent` / `separator` (mirrored from Figma); a `theme-vars.css.ts` bridge re-exports these as stable `var(--…)` names so plain CSS (showcase chrome) references them, not hardcoded values; `typography.css.ts` → `font` primitives + `text.*` composed styles; `chip.css.ts` → the unified chip tint (`chip` + `chipColor.*` incl. red + `chipCheckbox`); unified in `index.ts`. vanilla-extract + Inter wired; build + typecheck green. A **data-driven** showcase at `design-system/showcase/` (`npm run showcase`) — colors / type / chips / icons / materials each iterate their registry, so new entries appear with no showcase edit. It also builds to a static site (`npm run build:showcase` → `dist/`) with a repo-tracked `vercel.json`, **live at https://pommora-design-system.vercel.app**.
+- **Established:** `color.css.ts` → `vars.color.solid.*` (11 solids) + `label` / `background` (window) / `surface` / `fill` / `state` / `separator` (mirrored from Figma); the **accent** is a runtime token (`accent.ts` → `applyAccent`, config-driven) seeded from `accent.base`; a `theme-vars.css.ts` bridge re-exports these as stable `var(--…)` names (incl. `--surface-*`, `--accent` + derived `--accent-fill` / `--accent-text`) so plain CSS references them, not hardcoded values; `typography.css.ts` → `font` primitives + `text.*` composed styles; `chip.css.ts` → the unified chip tint (`chip` + `chipColor.*` incl. red + `chipCheckbox`); unified in `index.ts`. vanilla-extract + Inter wired; build + typecheck green. A **data-driven** showcase at `design-system/showcase/` (`npm run showcase`) — the color groups, type, chips, icons, and materials each iterate their registry (a new token group appears by adding one line to `COLOR_GROUPS`), plus a **live accent picker**. It also builds to a static site (`npm run build:showcase` → `dist/`) with a repo-tracked `vercel.json`, **live at https://pommora-design-system.vercel.app**.
 - **Planned:** a **radius** + **spacing** token scale — corners + spacing are currently ad-hoc literals (**OKAY FOR NOW**, to be formalized from Figma); plus shadow / motion / z-index scales.
 
 ### Components — stub
@@ -78,4 +80,4 @@ From the Figma library, **not yet built in React**: **Button · Label · Menu ·
 - **Spacing scale** · **Radius scale** · **Shadow / elevation** · **Motion** (durations, easings) · **Z-index layers** — none built yet; **corners + spacing are OKAY FOR NOW (ad-hoc literals), to be formalized as tokens from Figma.**
 - **Icon system — established (Lucide).** Curated registry at `design-system/symbols/` — `import { Icon } from '@renderer/design-system/symbols'` → `<Icon name="folder" size={15} />`. Driven by `design-system/symbols/Symbols.md`: add an icon's lucide.dev name there and it gets imported (only listed icons bundle — tree-shaken). SF Symbols stay the Figma design reference only; they can't ship on web.
 - **Glass — established (Materials).** `design-system/materials/` — `glass-material.ts` holds the **shared** recipe (liquidGL "Tinted Lens" at zero tint: blur 5 · brightness 90%); `GlassSurface` + `GlassControls` both spread it (identical now, separable later). Import via the `materials/index.ts` barrel. `Surface` consumes `GlassSurface`; a draggable demo (glass over 3 photo surfaces — philly · forest · mac) lives in the showcase **Materials** section.
-- **Theming light/dark + per-nexus accent** (from Settings) — `createThemeContract` is the seam.
+- **Per-Nexus accent — shipped** (swappable `--accent` + `system`, config-driven via `.nexus/settings.json`; see Accent above). The Settings editing UI is deferred — for now the control surface is the config file. **Light/dark theming** is still a stub — `createThemeContract` is the seam.
