@@ -52,19 +52,22 @@ Accent = **lavender**. Semantic tints: `accent-fill` (lavender @ 15%) + `accent-
 
 Text colors on `#F1F1F1`: `label-primary` 100% · `label-secondary` 65% · `label-tertiary` 35%. (Also in `Typography.md`.)
 
-#### Backgrounds · Fills · States · Separators
+#### Backgrounds · Fills · States · Accent · Separators — tokenized
 
-- **Backgrounds:** `bg-window #1C1C1F`, `bg-primary`, `bg-secondary`, `bg-tertiary`, `bg-quaternary`, `bg-quinary`.
-- **Fills:** base `#747480` at 22.5 / 15 / 10 / 6 / 4% (overlay fills, over a surface).
-- **States:** `state-hover`, `state-selected`.
-- **Separators:** `separator`, `border`, `segment`.
+Mirrored from Figma into `color.css.ts` (`vars.color.*`):
 
-Per-color tint variables (`-fill` / `-soft` / `-text` / `-soft-border` / `-soft-text`) have been **removed** — the unified chip tint + the semantic tokens above replace them. `grey-default` is kept (it's the `Default` chip color's source).
+- **Backgrounds** (`background.*`): `window #1A1A1B`, `primary #222225`, `secondary #252528`, `tertiary #333336`.
+- **Fills** (`fill.*`): base `#71717A` at 22.5 / 15 / 10 / 6 / 4% — `primary` → `quinary` (overlay fills over a surface).
+- **States** (`state.*`): `hover`, `selected`.
+- **Accent** (`accent.*`): `base` (lavender), `fill` (lavender 15%), `text` (lavender lightened).
+- **Separators** (`separator.*`): `line`, `border`, `segment`.
+
+Per-color tint variables (`-fill` / `-soft` / `-text` / …) were **removed** — the unified chip tint + these semantic tokens replace them. `grey-default` is kept (the `Default` chip color's source).
 
 ### In code — established vs planned
 
-- **Established:** `color.css.ts` → `vars.color.solid.*` (11 solids) + `vars.color.label.*`; `typography.css.ts` → `font` primitives + `text.*` composed styles; `chip.css.ts` → the unified chip tint (`chip` + `chipColor.*` + `chipCheckbox`); unified in `index.ts`. vanilla-extract + Inter wired; build green. A **data-driven** showcase at `design-system/showcase/` (`npm run showcase`) — colors / type / chips / icons / materials each iterate their registry, so new entries appear with no showcase edit. It also builds to a static site (`npm run build:showcase` → `dist/`) with a repo-tracked `vercel.json`, **live at https://pommora-design-system.vercel.app**.
-- **Planned:** the remaining color tokens (accent, backgrounds, fills, states, separators) as `design-system/tokens/*.css.ts`.
+- **Established:** `color.css.ts` → `vars.color.solid.*` (11 solids) + `label` / `background` / `fill` / `state` / `accent` / `separator` (mirrored from Figma); a `theme-vars.css.ts` bridge re-exports these as stable `var(--…)` names so plain CSS (showcase chrome) references them, not hardcoded values; `typography.css.ts` → `font` primitives + `text.*` composed styles; `chip.css.ts` → the unified chip tint (`chip` + `chipColor.*` incl. red + `chipCheckbox`); unified in `index.ts`. vanilla-extract + Inter wired; build + typecheck green. A **data-driven** showcase at `design-system/showcase/` (`npm run showcase`) — colors / type / chips / icons / materials each iterate their registry, so new entries appear with no showcase edit. It also builds to a static site (`npm run build:showcase` → `dist/`) with a repo-tracked `vercel.json`, **live at https://pommora-design-system.vercel.app**.
+- **Planned:** a **radius** + **spacing** token scale — corners + spacing are currently ad-hoc literals (**OKAY FOR NOW**, to be formalized from Figma); plus shadow / motion / z-index scales.
 
 ### Components — stub
 
@@ -72,8 +75,7 @@ From the Figma library, **not yet built in React**: **Button · Label · Menu ·
 
 ### Not yet established — stubs
 
-- **Semantic color tokens** beyond labels — `surface-background`, `surface-raised`, `text-primary` / `-dim`, `border`, …
-- **Spacing scale** · **Radius scale** · **Shadow / elevation** · **Motion** (durations, easings) · **Z-index layers**.
+- **Spacing scale** · **Radius scale** · **Shadow / elevation** · **Motion** (durations, easings) · **Z-index layers** — none built yet; **corners + spacing are OKAY FOR NOW (ad-hoc literals), to be formalized as tokens from Figma.**
 - **Icon system — established (Lucide).** Curated registry at `design-system/symbols/` — `import { Icon } from '@renderer/design-system/symbols'` → `<Icon name="folder" size={15} />`. Driven by `design-system/symbols/Symbols.md`: add an icon's lucide.dev name there and it gets imported (only listed icons bundle — tree-shaken). SF Symbols stay the Figma design reference only; they can't ship on web.
-- **Glass — established (Materials).** `design-system/materials/glass-surface.tsx` (`GlassSurface`) + `glass-controls.tsx` (`GlassControls`) hold the glass material — liquidGL "Tinted Lens" at zero tint (blur 5 · brightness 90%), identical for now, separable later. `Surface` consumes `GlassSurface`; a draggable demo (the glass across 3 fields) lives in the showcase **Materials** section.
+- **Glass — established (Materials).** `design-system/materials/` — `glass-material.ts` holds the **shared** recipe (liquidGL "Tinted Lens" at zero tint: blur 5 · brightness 90%); `GlassSurface` + `GlassControls` both spread it (identical now, separable later). Import via the `materials/index.ts` barrel. `Surface` consumes `GlassSurface`; a draggable demo (glass over 3 photo surfaces — philly · forest · mac) lives in the showcase **Materials** section.
 - **Theming light/dark + per-nexus accent** (from Settings) — `createThemeContract` is the seam.
