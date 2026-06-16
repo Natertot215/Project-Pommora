@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { vars, text, chip, chipColor, chipCheckbox } from '@renderer/design-system/tokens'
 import { Icon, icons } from '@renderer/design-system/symbols'
 import { GlassSurface } from '@renderer/design-system/materials/glass-surface'
-import { GlassControls } from '@renderer/design-system/materials/glass-controls'
+import { GlassStage } from './GlassStage'
 
 // camelCase / kebab-case key -> "Title Case" label.
 function humanize(key: string): string {
@@ -163,17 +163,16 @@ export function DesignSystem() {
 
       <section className="ds-section">
         <h2>Materials · Glass</h2>
-        <div className="ds-mat-stage">
-          <GlassSurface className="ds-mat-panel" style={{ borderRadius: 16 }}>
-            <span className="ds-mat-label">GlassSurface</span>
+        <GlassStage>
+          <GlassSurface className="gl-panel" style={{ borderRadius: 16 }}>
+            <span className="gl-panel-label">Pommora Glass</span>
           </GlassSurface>
-          <GlassControls className="ds-mat-panel" style={{ borderRadius: 16 }}>
-            <span className="ds-mat-label">GlassControls</span>
-          </GlassControls>
-        </div>
+        </GlassStage>
         <div className="ds-mat-note">
-          liquidGL "Tinted Lens" — blur 5 · brightness 90%. Identical for now, separable later. Full
-          comparison at <code>/glass-lab.html</code>.
+          liquidGL "Tinted Lens" — blur 5 · brightness 90%. <b>Drag the glass</b> across the three
+          fields — rainbow · aerial forest · Pommora window background — to see it over different
+          content. <code>GlassSurface</code> and <code>GlassControls</code> are the same material for
+          now, separable later.
         </div>
       </section>
 
