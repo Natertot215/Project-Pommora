@@ -7,6 +7,7 @@ A React + TypeScript + Electron rebuild of Pommora ("a simpler Notion that's als
 - **Product truth** lives in the Swift project: `// Projects // Project Pommora // .claude // PommoraPRD.md` (+ its `Features/*`). Don't re-document the domain model here — reference it.
 - **This project is the rebuild.** Its docs cover the React/TS/Electron *how* and the build's state.
 - **Live design-system showcase:** https://pommora-design-system.vercel.app — Vercel, deploys from the `React/` folder of the `Project-Pommora` monorepo on `main`.
+- **Figma library (source of design):** https://www.figma.com/file/fYZ5oiK7stC3diRhaBHl1r — canonical design values; mirror changes here into the tokens.
 
 ### Stack (current — swappable, not locked)
 

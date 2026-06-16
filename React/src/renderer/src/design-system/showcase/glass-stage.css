@@ -1,48 +1,42 @@
-/* Three side-by-side surfaces (rainbow · aerial forest · Pommora window) with a
-   draggable glass layer over them — the Materials section's interactive demo. */
+/* Materials demo: three stacked landscape surfaces (philly · forest · mac) in a
+   slightly-bordered frame, with a Pommora-glass panel that floats over the whole
+   page (.gl-float, portaled to <body>). Corners + spacing here are OKAY FOR NOW —
+   to be formalized as radius/space tokens via Figma. */
 .gl-stage {
-  position: relative;
-  height: 220px;
-  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  max-width: 480px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: 14px;
+  overflow: hidden;
 }
 .gl-bg {
+  width: 100%;
+  aspect-ratio: 1024 / 705; /* same as the mac photo */
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+/* The floating glass lens — absolute in document space, drags anywhere. */
+.gl-float {
   position: absolute;
-  top: 0;
-  bottom: 0;
-  width: 33.34%;
-}
-.gl-bg-rainbow {
-  left: 0;
-  background: linear-gradient(160deg, #ff453a, #ff9f0a, #ffd60a, #32d74b, #0a84ff, #bf5af2);
-}
-.gl-bg-forest {
-  left: 33.33%;
-  background:
-    url('https://loremflickr.com/800/440/forest?lock=33') center / cover no-repeat,
-    linear-gradient(160deg, #1f6b3a, #2e8b57);
-}
-.gl-bg-window {
-  left: 66.66%;
-  background: #1c1c1f;
-}
-.gl-drag {
-  position: absolute;
+  z-index: 9999;
   cursor: grab;
   touch-action: none;
   user-select: none;
 }
-.gl-drag:active {
+.gl-float:active {
   cursor: grabbing;
 }
 /* The drag layer is the sole pointer target — the glass renders but never
    swallows the grab. */
-.gl-drag * {
+.gl-float * {
   pointer-events: none;
 }
 .gl-panel {
-  width: 200px;
-  height: 110px;
+  width: 100%;
+  height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
