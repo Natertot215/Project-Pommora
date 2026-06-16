@@ -171,7 +171,7 @@ struct PropertyCellDisplay: View {
         if case .select(let optionValue) = value,
             let opt = definition.selectOptions?.first(where: { $0.value == optionValue })
         {
-            PropertyChip(label: opt.label, color: chipColor(from: opt.color), size: .compact)
+            PropertyChip(label: opt.label, color: PropertyChipColor(selectColor: opt.color), size: .compact)
         } else {
             emptyCell
         }
@@ -183,7 +183,7 @@ struct PropertyCellDisplay: View {
             HStack(spacing: 4) {
                 ForEach(ids, id: \.self) { id in
                     if let opt = definition.selectOptions?.first(where: { $0.value == id }) {
-                        PropertyChip(label: opt.label, color: chipColor(from: opt.color), size: .compact)
+                        PropertyChip(label: opt.label, color: PropertyChipColor(selectColor: opt.color), size: .compact)
                     }
                 }
             }
@@ -206,7 +206,7 @@ struct PropertyCellDisplay: View {
         } else if let optionValue = statusValue,
             let (option, group) = definition.statusOption(for: optionValue)
         {
-            let color = chipColor(from: option.color ?? group.color)
+            let color = PropertyChipColor(selectColor: option.color ?? group.color)
             if variant == .chip {
                 PropertyChip(icon: "square.dashed", color: color, size: .compact)
             } else {
@@ -314,27 +314,6 @@ struct PropertyCellDisplay: View {
         let formatter = RelativeDateTimeFormatter()
         formatter.unitsStyle = .abbreviated
         return formatter.localizedString(for: date, relativeTo: Date())
-    }
-
-    // MARK: - Color bridge
-
-    /// Map persistence-layer SelectColor (or nil) to the UI PropertyChipColor
-    /// — same bridge as EditOptionPane. `.gray` (SelectColor) → `.default`.
-    private func chipColor(from select: PropertyDefinition.SelectColor?) -> PropertyChipColor {
-        guard let select else { return .default }
-        switch select {
-        case .gray: return .default
-        case .brown: return .brown
-        case .orange: return .orange
-        case .yellow: return .yellow
-        case .green: return .green
-        case .blue: return .blue
-        case .purple: return .purple
-        case .pink: return .pink
-        case .red: return .red
-        case .teal: return .teal
-        case .indigo: return .indigo
-        }
     }
 
     // MARK: - Shared placeholder string

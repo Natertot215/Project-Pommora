@@ -426,34 +426,30 @@ private struct OrderRow: View {
     }
 
     private func orderLabel(for mode: GroupOrderMode, type: PropertyType) -> String {
+        GroupOrderOptions.label(for: mode, type: type)
+    }
+}
+
+/// The per-type Order-popout options — the single source for both the picker rows
+/// and the Order row's trailing label, so the two can never drift. A mode the type
+/// doesn't expose (e.g. Select has no `.reversed`) falls back to the type's first
+/// option's label, preserving the prior defensive mapping.
+private enum GroupOrderOptions {
+    static func entries(for type: PropertyType) -> [(mode: GroupOrderMode, label: String)] {
         switch type {
-        case .select:
-            switch mode {
-            case .configured: return "Default"
-            case .manual: return "Manual"
-            case .reversed: return "Default"
-            }
-        case .status:
-            switch mode {
-            case .configured: return "Ascending"
-            case .reversed: return "Descending"
-            case .manual: return "Manual"
-            }
-        case .date, .datetime:
-            switch mode {
-            case .configured: return "Ascending"
-            case .reversed: return "Descending"
-            case .manual: return "Ascending"
-            }
-        case .checkbox:
-            switch mode {
-            case .configured: return "Off"
-            case .reversed: return "On"
-            case .manual: return "Off"
-            }
-        default:
-            return mode.displayLabel
+        case .select: return [(.configured, "Default"), (.manual, "Manual")]
+        case .status: return [(.configured, "Ascending"), (.reversed, "Descending"), (.manual, "Manual")]
+        case .date, .datetime: return [(.configured, "Ascending"), (.reversed, "Descending")]
+        case .checkbox: return [(.configured, "Off"), (.reversed, "On")]
+        default: return []
         }
+    }
+
+    static func label(for mode: GroupOrderMode, type: PropertyType) -> String {
+        let options = entries(for: type)
+        return options.first(where: { $0.mode == mode })?.label
+            ?? options.first?.label
+            ?? mode.displayLabel
     }
 }
 
@@ -468,30 +464,8 @@ private struct OrderModePicker: View {
     }
 
     private var entries: [ModeEntry] {
-        switch propertyType {
-        case .select:
-            return [
-                ModeEntry(id: "configured", mode: .configured, label: "Default"),
-                ModeEntry(id: "manual", mode: .manual, label: "Manual"),
-            ]
-        case .status:
-            return [
-                ModeEntry(id: "configured", mode: .configured, label: "Ascending"),
-                ModeEntry(id: "reversed", mode: .reversed, label: "Descending"),
-                ModeEntry(id: "manual", mode: .manual, label: "Manual"),
-            ]
-        case .date, .datetime:
-            return [
-                ModeEntry(id: "configured", mode: .configured, label: "Ascending"),
-                ModeEntry(id: "reversed", mode: .reversed, label: "Descending"),
-            ]
-        case .checkbox:
-            return [
-                ModeEntry(id: "configured", mode: .configured, label: "Off"),
-                ModeEntry(id: "reversed", mode: .reversed, label: "On"),
-            ]
-        default:
-            return []
+        GroupOrderOptions.entries(for: propertyType).map {
+            ModeEntry(id: $0.mode.rawValue, mode: $0.mode, label: $0.label)
         }
     }
 

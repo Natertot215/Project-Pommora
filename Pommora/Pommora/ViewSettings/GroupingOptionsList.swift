@@ -32,15 +32,11 @@ struct GroupingOptionsList: View {
     }
 
     private func handleDrop(_ droppedIDs: [String], onto targetID: String) -> Bool {
-        guard let droppedID = droppedIDs.first, droppedID != targetID else { return false }
-        var ids = chips.map(\.id)
-        guard let srcIdx = ids.firstIndex(of: droppedID),
-              let dstIdx = ids.firstIndex(of: targetID)
-        else { return false }
-        ids.remove(at: srcIdx)
-        let adjusted = srcIdx < dstIdx ? dstIdx - 1 : dstIdx
-        ids.insert(droppedID, at: min(max(adjusted, 0), ids.count))
-        onReorder(ids)
+        guard let droppedID = droppedIDs.first else { return false }
+        let ids = chips.map(\.id)
+        let reordered = PropertyIDReorder.move(ids, moving: droppedID, onto: targetID)
+        guard reordered != ids else { return false }
+        onReorder(reordered)
         return true
     }
 }
@@ -82,9 +78,9 @@ private struct GroupingOptionsRow: View {
 
 // MARK: - View+if helper
 
-private extension View {
+extension View {
     @ViewBuilder
-    func `if`<Content: View>(_ condition: Bool, transform: (Self) -> Content) -> some View {
+    fileprivate func `if`<Content: View>(_ condition: Bool, transform: (Self) -> Content) -> some View {
         if condition {
             transform(self)
         } else {
