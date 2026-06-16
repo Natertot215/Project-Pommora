@@ -230,7 +230,7 @@ private struct GroupingToggleRow: View {
                 .labelsHidden()
         }
         .padding(.horizontal, PUI.Row.paddingHorizontal)
-        .padding(.vertical, PUI.Row.paddingVertical)
+        .padding(.vertical, secondary ? PUI.Spacing.xs : PUI.Row.paddingVertical)
     }
 }
 
@@ -760,7 +760,7 @@ private struct EmptyGroupRow: View {
             }
         }
         .padding(.horizontal, PUI.Row.paddingHorizontal)
-        .padding(.vertical, PUI.Row.paddingVertical)
+        .padding(.vertical, secondary ? PUI.Spacing.xs : PUI.Row.paddingVertical)
         .contentShape(Rectangle())
     }
 }
