@@ -110,9 +110,14 @@ struct GroupingPane: View {
                 isOn: Binding(
                     get: { model.groupingEnabled },
                     set: { newValue in
-                        model.setGroupingEnabled(newValue)
-                        withAnimation(.easeInOut(duration: 0.2)) {
-                            pickerExpanded = newValue
+                        if newValue {
+                            model.setGroupingEnabled(true)
+                            if model.grouping == nil {
+                                withAnimation(.easeInOut(duration: 0.2)) { pickerExpanded = true }
+                            }
+                        } else {
+                            model.setGroupingEnabled(false)
+                            withAnimation(.easeInOut(duration: 0.2)) { pickerExpanded = false }
                         }
                     }
                 )
@@ -338,27 +343,29 @@ private struct DateByRow: View {
     @State private var popoverOpen: Bool = false
 
     var body: some View {
-        Button { popoverOpen = true } label: {
-            HStack(spacing: PUI.Row.interSpacing) {
-                Text("Date By")
-                    .font(PUI.Typography.row)
-                    .foregroundStyle(.primary)
-                Spacer(minLength: 0)
-                Text(granularity.displayLabel)
-                    .font(PUI.Typography.row)
-                    .foregroundStyle(.secondary)
-                Image(systemName: "chevron.right")
-                    .font(PUI.Icon.chevron)
-                    .foregroundStyle(.tertiary)
+        HStack(spacing: PUI.Row.interSpacing) {
+            Text("Date By")
+                .font(PUI.Typography.row)
+                .foregroundStyle(.primary)
+            Spacer(minLength: 0)
+            Button { popoverOpen = true } label: {
+                HStack(spacing: PUI.Row.interSpacing) {
+                    Text(granularity.displayLabel)
+                        .font(PUI.Typography.row)
+                        .foregroundStyle(.secondary)
+                    Image(systemName: "chevron.right")
+                        .font(PUI.Icon.chevron)
+                        .foregroundStyle(.tertiary)
+                }
             }
-            .padding(.horizontal, PUI.Row.paddingHorizontal)
-            .padding(.vertical, PUI.Row.paddingVertical)
-            .contentShape(Rectangle())
+            .buttonStyle(.plain)
+            .popover(isPresented: $popoverOpen, arrowEdge: .bottom) {
+                DateGranularityPicker(selected: $granularity)
+            }
         }
-        .buttonStyle(.plain)
-        .popover(isPresented: $popoverOpen, arrowEdge: .bottom) {
-            DateGranularityPicker(selected: $granularity)
-        }
+        .padding(.horizontal, PUI.Row.paddingHorizontal)
+        .padding(.vertical, PUI.Row.paddingVertical)
+        .contentShape(Rectangle())
     }
 }
 
@@ -393,27 +400,29 @@ private struct OrderRow: View {
     @State private var popoverOpen: Bool = false
 
     var body: some View {
-        Button { popoverOpen = true } label: {
-            HStack(spacing: PUI.Row.interSpacing) {
-                Text("Order")
-                    .font(PUI.Typography.row)
-                    .foregroundStyle(.primary)
-                Spacer(minLength: 0)
-                Text(orderLabel(for: orderMode, type: propertyType))
-                    .font(PUI.Typography.row)
-                    .foregroundStyle(.secondary)
-                Image(systemName: "chevron.right")
-                    .font(PUI.Icon.chevron)
-                    .foregroundStyle(.tertiary)
+        HStack(spacing: PUI.Row.interSpacing) {
+            Text("Order")
+                .font(PUI.Typography.row)
+                .foregroundStyle(.primary)
+            Spacer(minLength: 0)
+            Button { popoverOpen = true } label: {
+                HStack(spacing: PUI.Row.interSpacing) {
+                    Text(orderLabel(for: orderMode, type: propertyType))
+                        .font(PUI.Typography.row)
+                        .foregroundStyle(.secondary)
+                    Image(systemName: "chevron.right")
+                        .font(PUI.Icon.chevron)
+                        .foregroundStyle(.tertiary)
+                }
             }
-            .padding(.horizontal, PUI.Row.paddingHorizontal)
-            .padding(.vertical, PUI.Row.paddingVertical)
-            .contentShape(Rectangle())
+            .buttonStyle(.plain)
+            .popover(isPresented: $popoverOpen, arrowEdge: .bottom) {
+                OrderModePicker(propertyType: propertyType, selected: $orderMode)
+            }
         }
-        .buttonStyle(.plain)
-        .popover(isPresented: $popoverOpen, arrowEdge: .bottom) {
-            OrderModePicker(propertyType: propertyType, selected: $orderMode)
-        }
+        .padding(.horizontal, PUI.Row.paddingHorizontal)
+        .padding(.vertical, PUI.Row.paddingVertical)
+        .contentShape(Rectangle())
     }
 
     private func orderLabel(for mode: GroupOrderMode, type: PropertyType) -> String {
@@ -719,37 +728,39 @@ private struct EmptyGroupRow: View {
     @State private var popoverOpen: Bool = false
 
     var body: some View {
-        Button { popoverOpen = true } label: {
-            HStack(spacing: PUI.Row.interSpacing) {
-                Text("Empty group")
-                    .font(PUI.Typography.row)
-                    .foregroundStyle(.primary)
-                Spacer(minLength: 0)
-                Text(placement.displayLabel)
-                    .font(PUI.Typography.row)
-                    .foregroundStyle(.secondary)
-                Image(systemName: "chevron.right")
-                    .font(PUI.Icon.chevron)
-                    .foregroundStyle(.tertiary)
-            }
-            .padding(.horizontal, PUI.Row.paddingHorizontal)
-            .padding(.vertical, PUI.Row.paddingVertical)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .popover(isPresented: $popoverOpen, arrowEdge: .bottom) {
-            VStack(alignment: .leading, spacing: 0) {
-                ForEach([EmptyPlacement.top, EmptyPlacement.bottom], id: \.self) { p in
-                    DisclosureOptionRow(
-                        label: p.displayLabel,
-                        isActive: placement == p,
-                        onSelect: { placement = p }
-                    )
+        HStack(spacing: PUI.Row.interSpacing) {
+            Text("Empty group")
+                .font(PUI.Typography.row)
+                .foregroundStyle(.primary)
+            Spacer(minLength: 0)
+            Button { popoverOpen = true } label: {
+                HStack(spacing: PUI.Row.interSpacing) {
+                    Text(placement.displayLabel)
+                        .font(PUI.Typography.row)
+                        .foregroundStyle(.secondary)
+                    Image(systemName: "chevron.right")
+                        .font(PUI.Icon.chevron)
+                        .foregroundStyle(.tertiary)
                 }
             }
-            .padding(.vertical, PUI.Spacing.xs)
-            .fixedSize(horizontal: true, vertical: true)
+            .buttonStyle(.plain)
+            .popover(isPresented: $popoverOpen, arrowEdge: .bottom) {
+                VStack(alignment: .leading, spacing: 0) {
+                    ForEach([EmptyPlacement.top, EmptyPlacement.bottom], id: \.self) { p in
+                        DisclosureOptionRow(
+                            label: p.displayLabel,
+                            isActive: placement == p,
+                            onSelect: { placement = p }
+                        )
+                    }
+                }
+                .padding(.vertical, PUI.Spacing.xs)
+                .fixedSize(horizontal: true, vertical: true)
+            }
         }
+        .padding(.horizontal, PUI.Row.paddingHorizontal)
+        .padding(.vertical, PUI.Row.paddingVertical)
+        .contentShape(Rectangle())
     }
 }
 
