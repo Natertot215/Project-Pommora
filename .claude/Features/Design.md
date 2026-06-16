@@ -17,9 +17,11 @@ The **Figma "Pommora - React"** file is canonical for design *values*; this repo
 ```
 design/
 ├─ tokens/          the variables — edit here → propagates app-wide
-│   ├─ color.css.ts        ← solid spectrum
+│   ├─ color.css.ts        ← solid spectrum + label tones
 │   ├─ typography.css.ts   ← font primitives + composed text styles
-│   └─ index.ts            ← unified `vars` + `text`
+│   ├─ chip.css.ts         ← unified chip tint (fill/stroke/text recipe)
+│   └─ index.ts            ← unified `vars` + `text` + chip exports
+├─ showcase/        live design-system page (`npm run showcase` → localhost)
 └─ components/      reusable pieces (mirror the Figma components) — stubs
 ```
 
@@ -35,10 +37,9 @@ Rules: components reference **semantic tokens only** (never raw hex); one folder
 
 Chip color is a Figma **variable-mode picker**: the `Color` collection has **10 modes** (Blue, Green, Purple, Lavender, Cyan, Light Blue, Orange, Yellow, Grey, Default — **no red**), each holding a single `Base` (the solid, aliased). Selecting a mode recolors the whole chip. The **unified tint is the base at three opacities** — no custom colors, no lightening:
 
-- **Soft (default):** surface = base @ **60%** (Fill) · outline = base @ **25%** · label = `label-primary` + base @ **10%** (white with a faint color tint).
-- **Solid:** surface = base @ **100%** · label = `label-primary` (white) · no outline.
+- **Fill** = base @ **60%** · **stroke** = base @ **40%** (2px; **1.5px** for Checkbox) · **text** = `label-primary` + base @ **10%** (near-white with a faint color tint).
 
-The Figma showcase master shows a representative color (Blue); a chip's neutral fallback is the **Default** mode, applied as the React `Chip` component's default (Figma's collection default mode is read-only, and setting the master to Default greys the showcase). In code: surface + outline are the base at opacity; the label is `label-primary` mixed ~10% with the base (a `color-mix`). Pending.
+Soft only — no Solid variant. The Figma showcase master shows a representative color (Blue); a chip's neutral fallback is the **Default** mode (Figma's collection default mode is read-only, so setting the master to Default just greys the showcase — the neutral default lives in the React component). In code (`chip.css.ts`): one `tint(base)` formula generates `chipColor.*` via `color-mix` — fill / stroke are the base at alpha, the text mixes 10% base into `label-primary`.
 
 #### Accent
 
@@ -59,8 +60,8 @@ Per-color tint variables (`-fill` / `-soft` / `-text` / `-soft-border` / `-soft-
 
 ### In code — established vs planned
 
-- **Established:** `color.css.ts` → `vars.color.solid.*` (11 solids); `typography.css.ts` → `font` primitives + `text.*` composed styles (full ramp — see `Typography.md`); unified in `index.ts`. vanilla-extract + Inter wired; build green.
-- **Planned:** the remaining color tokens (labels, accent, backgrounds, fills, states, separators) + the chip-tint rule, each as a `design/tokens/*.css.ts` file.
+- **Established:** `color.css.ts` → `vars.color.solid.*` (11 solids) + `vars.color.label.*`; `typography.css.ts` → `font` primitives + `text.*` composed styles; `chip.css.ts` → the unified chip tint (`chip` + `chipColor.*` + `chipSquare` / `chipCheckbox`); unified in `index.ts`. vanilla-extract + Inter wired; build green. A live showcase at `design/showcase/` (`npm run showcase` → localhost).
+- **Planned:** the remaining color tokens (accent, backgrounds, fills, states, separators) as `design/tokens/*.css.ts`.
 
 ### Components — stub
 

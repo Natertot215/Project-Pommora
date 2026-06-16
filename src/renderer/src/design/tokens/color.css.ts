@@ -1,8 +1,8 @@
 import { createGlobalTheme } from '@vanilla-extract/css'
 
-// Solid spectrum — the chip/color hues from the Figma "Colors" collection.
-// Solids only; fill / text / soft variants are added later. Values pulled from
-// source, with the aliased cyan + lavender resolved.
+// Color tokens from the Figma "Colors" collection: the solid spectrum + label
+// tones. Per-component soft tints (e.g. chips) are derived from the solids —
+// see chip.css.ts. Aliased cyan + lavender resolved to their solids.
 export const vars = createGlobalTheme(':root', {
   color: {
     solid: {
@@ -17,6 +17,12 @@ export const vars = createGlobalTheme(':root', {
       lavender: '#A78BCC',
       grey: '#8E8E93',
       greyDefault: '#48484A'
+    },
+    // Label tones on #F1F1F1 — text colors, separate from the type ramp.
+    label: {
+      primary: '#F1F1F1',
+      secondary: 'rgba(241, 241, 241, 0.65)',
+      tertiary: 'rgba(241, 241, 241, 0.35)'
     }
   }
 })

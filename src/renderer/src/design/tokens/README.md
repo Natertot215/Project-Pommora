@@ -17,4 +17,4 @@ The variables. **Edit here → propagates everywhere.** Authored with vanilla-ex
 
 ### Status
 
-`color.css.ts` holds the **solid color spectrum** (11 hues; solids only — `fill` / `text` / `soft` variants to follow). `typography.css.ts` is authored — `font` primitives (family, four weights, the 10-style size / line scale) plus the composed `text.*` style classes, mirroring the Figma ramp; `index.ts` unifies them. Tooling is wired (vanilla-extract Vite plugin + Inter via `@fontsource-variable/inter`) and the build extracts the CSS green. Label / background / fill / state color tokens come next.
+`color.css.ts` holds the **solid spectrum** (11 hues) + **label tones** (`label.primary` / `secondary` / `tertiary`). `typography.css.ts` — `font` primitives + composed `text.*` classes. `chip.css.ts` — the unified chip tint (`chip` + `chipColor.*` + `chipSquare` / `chipCheckbox`), one `color-mix` formula over the solids. `index.ts` unifies all three. A live showcase renders them at `design/showcase/` (`npm run showcase` → localhost). Tooling wired (vanilla-extract + Inter); build green. Accent / background / fill / state tokens come next.
