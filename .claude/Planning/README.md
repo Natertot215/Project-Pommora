@@ -6,6 +6,7 @@ Plans are named `MM-DD-<slug>.md` (earlier files retain their `YYYY-MM-DD-` name
 
 #### Active
 
+- `06-15-Grouping-Redesign.md` (spec) + `06-15-Grouping-Plan.md` (plan) — the Grouping redesign. **Interface SHIPPED** on branch `grouping-redesign` (schema + resolver + the Grouping pane, through a full UIX-review pass); **remaining** is the *view-side* — group-header manual-drag reorder + the table disclosure-chevron animation (Plan Phase 3–4). The spec/plan status banners carry the done-vs-remaining split.
 - `06-13-Views-UIX-Fixes.md` — the sequenced Views/toolbar UIX fixes. **The toolbar, Views button, and banner chrome are actively changing** — the doc's flux note is load-bearing; nothing in those sections is settled truth. Covers the toolbar cluster, banner + titles, the banner-menu confinement + per-button menus (next), Gallery, grouping/sorting, and the Layout-pane rework.
 - `06-14-React-Rebuild-Roadmap.md` — **exploratory** program-level roadmap for a post-v1 React + TypeScript + Electron rebuild (behavior-identical to the PRD). Phase-sequenced; each phase becomes its own task-plan when greenlit. Backed by two research workflows. A scoped option, not committed work.
 

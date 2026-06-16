@@ -8,6 +8,8 @@
 
 #### Session Summary
 
+**Grouping (interface) is done** — shipped on the `grouping-redesign` branch: the extended `PropertyGrouping` schema (order modes + date bucketing + empty-group placement + checkbox-nil), the `GroupResolver` work, and the redesigned Grouping pane (toggle → inline property picker → Order / Date-By / Options + a secondary empty-group footer), through a full UIX-review pass with Nathan. **Remaining:** how grouping *renders + drags on the views themselves* — group-header manual-reorder + the table disclosure-chevron animation (tracked in `Planning/06-15-Grouping-Plan.md`, spec `Planning/06-15-Grouping-Redesign.md`). Earlier in the same stretch, the inline-edit commit lag, the stale-property-options reload, and the inspector picker-debounce were fixed on `main`. The broader toolbar/Views context below still stands.
+
 Two threads of work are live: **(1) the Views + toolbar UIX** (SwiftUI — the focus of this session) and **(2) the React + TypeScript rebuild** (the exploratory contingency — `Planning/06-14-React-Rebuild-Roadmap.md`, backed by a Pommora-React Figma library and a partial app scaffold).
 
 On the Views/toolbar thread, the toolbar/banner docs were first truthed-up to reflect that the toolbar, Views button, and banner are **actively-changing, not settled**. The Views button only *"looks"* good — at unknown cost, via methods we're not sure are best or even correct; the inspector folds the Views pill in when toggled (a deviation from Apple-native), the blast radius of the Views-button chrome choices on the rest of the toolbar is unmapped, and whether the banner's edge-to-edge bleed interacts with the toolbar is untested. Reframed `Features/Views.md`, `Planning/06-13-Views-UIX-Fixes.md`, and `Guidelines/Design.md` "Chrome animation"; committed as `283865b`.
@@ -37,13 +39,12 @@ The React thread continues in parallel as the contingency exploration.
 
 - **Toolbar / Views-button / banner chrome is actively-changing** (flux docs: `Features/Views.md`, `Planning/06-13-Views-UIX-Fixes.md`, `Guidelines/Design.md`): the Views button "looks" good at unknown cost via unknown-if-best methods; the inspector-adoption deviation; the untested banner↔toolbar bleed interaction.
 - **Button-specific toolbar menus + banner-menu confinement** — the next-session task above.
-- **Rest of the Views build (per `06-13-Views-UIX-Fixes.md`):** build out **Gallery** properly; re-do the **grouping + sorting UIX** (rudimentary + incomplete today); **Fix 3 — Layout-pane revision + type dual-write** (lands after both Table + Gallery are visually perfect); **Fix 1b — Edit Icon → IconPicker popover** (needs Nathan's pick on which rows). Resumes after the toolbar/banner chrome work.
+- **Rest of the Views build (per `06-13-Views-UIX-Fixes.md`):** build out **Gallery** properly; **grouping UIX is done** (the pane interface shipped on `grouping-redesign`; remaining is its *view-side* rendering + group-header drag, tracked in `Planning/06-15-Grouping-Plan.md`); **sorting UIX** still to do; **Fix 3 — Layout-pane revision + type dual-write**; **Fix 1b — Edit Icon → IconPicker popover** (needs Nathan's pick on which rows).
 - **Views-button display toggle — DEFERRED** ("Display as Icon Only / Icon + Title"); this is the intended content for the future Views-button right-click menu, blocked until the per-button menu pattern is settled.
 - **Title baseline-on-icon (Fix 2 polish)** — the detail title text should baseline on the icon's bottom edge; a plain `Label` centers them. Not yet applied.
 
 #### Fix Log
 
-- **Stale property options** — newly-added Select/Status options aren't selectable until restart; needs a running-build repro to pin the picker path.
 - **Backspace on checkbox / list item** should auto-delete the syntax — UNIMPLEMENTED (feature-add).
 - **In-line code doesn't render color** within a textblock; italics/bolds don't auto-pair.
 - **Agenda doc mismatches** — `AgendaEventManagerError._status` doc-vs-guard; description-cap (specs say 1000, validators enforce none).
