@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { vars, text, chip, chipColor, chipCheckbox } from '@renderer/design-system/tokens'
 import { Icon, icons } from '@renderer/design-system/symbols'
-import { GlassSurface } from '@renderer/design-system/materials/glass-surface'
 import { GlassStage } from './GlassStage'
 
 // camelCase / kebab-case key -> "Title Case" label.
@@ -163,16 +162,12 @@ export function DesignSystem() {
 
       <section className="ds-section">
         <h2>Materials · Glass</h2>
-        <GlassStage>
-          <GlassSurface className="gl-panel" style={{ borderRadius: 16 }}>
-            <span className="gl-panel-label">Pommora Glass</span>
-          </GlassSurface>
-        </GlassStage>
+        <GlassStage />
         <div className="ds-mat-note">
-          liquidGL "Tinted Lens" — blur 5 · brightness 90%. <b>Drag the glass</b> across the three
-          fields — rainbow · aerial forest · Pommora window background — to see it over different
-          content. <code>GlassSurface</code> and <code>GlassControls</code> are the same material for
-          now, separable later.
+          liquidGL "Tinted Lens" — blur 5 · brightness 90%. <b>Drag the glass anywhere</b> on the
+          page — it starts over the middle (forest) surface and snaps back there on reload.{' '}
+          <code>GlassSurface</code> and <code>GlassControls</code> are the same material for now,
+          separable later.
         </div>
       </section>
 
