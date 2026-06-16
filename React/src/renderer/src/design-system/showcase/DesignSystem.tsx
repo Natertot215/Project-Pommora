@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode, type RefObject } from 'react'
 import { vars, text, chip, chipColor, chipCheckbox } from '@renderer/design-system/tokens'
 import { Icon, icons } from '@renderer/design-system/symbols'
 import { GlassStage } from './GlassStage'
@@ -25,13 +25,23 @@ function rgbToHex(rgb: string): string {
   )
 }
 
-// Swatch reads its hex back from the rendered color, so it can't drift from the token.
-function Swatch({ name, color }: { name: string; color: string }) {
-  const ref = useRef<HTMLDivElement>(null)
-  const [hex, setHex] = useState('')
+type RampStyle = { standard: string; emphasized: string }
+
+// Read a value back from a rendered node on mount — so the showcase shows the
+// real computed value and can't drift from the token. Shared by Swatch + TypeRow.
+function useComputedStyleText<T extends HTMLElement>(
+  read: (cs: CSSStyleDeclaration) => string
+): [RefObject<T | null>, string] {
+  const ref = useRef<T>(null)
+  const [value, setValue] = useState('')
   useEffect(() => {
-    if (ref.current) setHex(rgbToHex(getComputedStyle(ref.current).backgroundColor))
-  }, [])
+    if (ref.current) setValue(read(getComputedStyle(ref.current)))
+  }, [read])
+  return [ref, value]
+}
+
+function Swatch({ name, color }: { name: string; color: string }) {
+  const [ref, hex] = useComputedStyleText<HTMLDivElement>((cs) => rgbToHex(cs.backgroundColor))
   return (
     <div className="ds-swatch">
       <div ref={ref} className="ds-swatch-chip" style={{ background: color }} />
@@ -43,16 +53,10 @@ function Swatch({ name, color }: { name: string; color: string }) {
   )
 }
 
-// TypeRow reads size/weight back from the rendered sample (data-driven, no drift).
-function TypeRow({ name, t }: { name: string; t: { standard: string; emphasized: string } }) {
-  const ref = useRef<HTMLSpanElement>(null)
-  const [meta, setMeta] = useState('')
-  useEffect(() => {
-    if (ref.current) {
-      const cs = getComputedStyle(ref.current)
-      setMeta(`${parseFloat(cs.fontSize)} / ${cs.fontWeight}`)
-    }
-  }, [])
+function TypeRow({ name, t }: { name: string; t: RampStyle }) {
+  const [ref, meta] = useComputedStyleText<HTMLSpanElement>(
+    (cs) => `${parseFloat(cs.fontSize)} / ${cs.fontWeight}`
+  )
   return (
     <div className="ds-type-row">
       <div className="ds-type-label">
@@ -69,14 +73,10 @@ function TypeRow({ name, t }: { name: string; t: { standard: string; emphasized:
   )
 }
 
-const CHIP_SHAPES: Array<{ label: string; extra: string; content: (name: string) => ReactNode }> = [
-  { label: 'Pill', extra: '', content: (n) => n },
-  { label: 'Select', extra: '', content: () => <Icon name="circle-dashed" size={13} /> },
-  {
-    label: 'Checkbox',
-    extra: chipCheckbox,
-    content: () => <Icon name="check" size={12} strokeWidth={3} />
-  }
+const CHIP_SHAPES: Array<{ label: string; extra?: string; content: (name: string) => ReactNode }> = [
+  { label: 'Pill', content: (n) => n },
+  { label: 'Select', content: () => <Icon name="circle-dashed" size={13} /> },
+  { label: 'Checkbox', extra: chipCheckbox, content: () => <Icon name="check" size={12} strokeWidth={3} /> }
 ]
 
 const PENDING = [
@@ -137,7 +137,7 @@ export function DesignSystem() {
               {chipColors.map((k) => (
                 <span
                   key={k}
-                  className={`${chip} ${chipColor[k]}${shape.extra ? ' ' + shape.extra : ''}`}
+                  className={[chip, chipColor[k], shape.extra].filter(Boolean).join(' ')}
                   title={k}
                 >
                   {shape.content(humanize(k))}

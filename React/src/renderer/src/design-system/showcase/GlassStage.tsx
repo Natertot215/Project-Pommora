@@ -6,7 +6,7 @@ import {
   type RefObject
 } from 'react'
 import { createPortal } from 'react-dom'
-import { GlassSurface } from '@renderer/design-system/materials/glass-surface'
+import { GlassSurface } from '@renderer/design-system/materials'
 import './glass-stage.css'
 
 // The glass panel's box — the single source for both its rendered size and the
