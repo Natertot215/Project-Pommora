@@ -69,7 +69,12 @@ struct GroupingPane: View {
             GroupingToggleRow(
                 isOn: Binding(
                     get: { model.groupingEnabled },
-                    set: { model.setGroupingEnabled($0) }
+                    set: { newValue in
+                        model.setGroupingEnabled(newValue)
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            pickerExpanded = newValue
+                        }
+                    }
                 )
             )
 
@@ -81,7 +86,9 @@ struct GroupingPane: View {
                 pickerExpanded: $pickerExpanded,
                 onSelect: { id in
                     model.selectProperty(id)
-                    pickerExpanded = false
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        pickerExpanded = false
+                    }
                 }
             )
 
@@ -203,7 +210,8 @@ private struct GroupingToggleRow: View {
 
 /// Inline-expand property picker. Tapping the row reveals the
 /// `ViewSettingsProperties.groupable` list (schema order, checkmark on active);
-/// picking collapses the list and fires `onSelect`.
+/// picking collapses the list and fires `onSelect`. Chevron is only shown when a
+/// property is selected; "None" is only shown when enabled but no property chosen.
 private struct GroupByRow: View {
     let isEnabled: Bool
     let selectedDef: PropertyDefinition?
@@ -211,25 +219,35 @@ private struct GroupByRow: View {
     @Binding var pickerExpanded: Bool
     let onSelect: (String) -> Void
 
+    /// Trailing value label: property name when one is selected; "None" when
+    /// enabled but nothing chosen; empty string when grouping is disabled.
     private var valueLabel: String {
-        guard isEnabled else { return "None" }
-        return selectedDef?.name ?? "None"
+        if let def = selectedDef { return def.name }
+        return isEnabled ? "None" : ""
     }
+
+    /// Chevron only appears when a property is actively selected.
+    private var showChevron: Bool { selectedDef != nil }
 
     var body: some View {
         VStack(spacing: 0) {
             Button {
-                if isEnabled { pickerExpanded.toggle() }
+                guard isEnabled else { return }
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    pickerExpanded.toggle()
+                }
             } label: {
                 HStack(spacing: PUI.Row.interSpacing) {
                     Text("Group By")
                         .font(PUI.Typography.row)
                         .foregroundStyle(.primary)
                     Spacer(minLength: 0)
-                    Text(valueLabel)
-                        .font(PUI.Typography.row)
-                        .foregroundStyle(.secondary)
-                    if isEnabled {
+                    if !valueLabel.isEmpty {
+                        Text(valueLabel)
+                            .font(PUI.Typography.row)
+                            .foregroundStyle(.secondary)
+                    }
+                    if showChevron {
                         Image(systemName: "chevron.right")
                             .font(PUI.Icon.chevron)
                             .foregroundStyle(.tertiary)
@@ -252,6 +270,7 @@ private struct GroupByRow: View {
                         }
                     }
                 }
+                .transition(.opacity.combined(with: .move(edge: .top)))
                 PaneDivider()
             }
         }
