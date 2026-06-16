@@ -1,0 +1,176 @@
+:root {
+  color-scheme: dark;
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  background: #0e0e10;
+  color: #f1f1f1;
+  font-family: 'Inter Variable', -apple-system, BlinkMacSystemFont, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.gl-wrap {
+  max-width: 1340px;
+  margin: 0 auto;
+  padding: 48px 32px 96px;
+}
+.gl-title {
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.gl-sub {
+  color: rgba(241, 241, 241, 0.6);
+  font-size: 13px;
+  margin-top: 8px;
+  max-width: 700px;
+  line-height: 18px;
+}
+
+.gl-grid {
+  margin-top: 36px;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 22px;
+}
+@media (max-width: 880px) {
+  .gl-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.gl-card {
+  background: #18181b;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  overflow: hidden;
+}
+.gl-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+}
+.gl-card-title {
+  font-size: 14px;
+  font-weight: 600;
+}
+.gl-card-blurb {
+  font-size: 11px;
+  color: rgba(241, 241, 241, 0.5);
+  margin-top: 2px;
+}
+.gl-card-src {
+  font-size: 11px;
+  color: #7eb6ff;
+  text-decoration: none;
+  white-space: nowrap;
+  flex: none;
+}
+.gl-card-src:hover {
+  text-decoration: underline;
+}
+
+/* The multi-color field — sharp conic sectors + fine diagonal lines so the
+   refraction/displacement effects have hard edges to bend. */
+.gl-stage {
+  position: relative;
+  height: 220px;
+  overflow: hidden;
+}
+.gl-bg {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 33.34%;
+}
+.gl-bg-rainbow {
+  left: 0;
+  background: linear-gradient(160deg, #ff453a, #ff9f0a, #ffd60a, #32d74b, #0a84ff, #bf5af2);
+}
+.gl-bg-forest {
+  left: 33.33%;
+  background:
+    url('https://loremflickr.com/800/440/forest?lock=33') center / cover no-repeat,
+    linear-gradient(160deg, #1f6b3a, #2e8b57);
+}
+.gl-bg-window {
+  left: 66.66%;
+  background: #1c1c1f;
+}
+.gl-drag {
+  position: absolute;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+.gl-drag:active {
+  cursor: grabbing;
+}
+/* The drag layer is the sole pointer target — the glass renders but never
+   swallows the grab (matters for liquid-glass-react's own handlers). */
+.gl-drag * {
+  pointer-events: none;
+}
+.gl-panel,
+.gl-panel-fixed {
+  width: 200px;
+  height: 110px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.gl-panel-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+.gl-svg-defs {
+  position: absolute;
+  width: 0;
+  height: 0;
+}
+
+.gl-controls {
+  padding: 14px 16px 16px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 9px 18px;
+}
+.gl-ctrl {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+}
+.gl-ctrl-label {
+  color: rgba(241, 241, 241, 0.6);
+  width: 78px;
+  flex: none;
+}
+.gl-ctrl input[type='range'] {
+  flex: 1;
+  accent-color: #0a84ff;
+  min-width: 0;
+}
+.gl-ctrl select {
+  flex: 1;
+  background: #2a2a2e;
+  color: #f1f1f1;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  padding: 2px 6px;
+  font-size: 11px;
+}
+.gl-ctrl-val {
+  width: 52px;
+  flex: none;
+  text-align: right;
+  color: rgba(241, 241, 241, 0.85);
+  font-variant-numeric: tabular-nums;
+}
