@@ -23,8 +23,7 @@ design-system/
 │   └─ index.ts            ← unified `vars` + `text` + chip exports
 ├─ symbols/         curated Lucide icon registry (index.tsx) + Symbols.md manifest
 ├─ materials/       glass-surface.tsx + glass-controls.tsx (the glass material)
-├─ showcase/        the data-driven design-system site (`npm run showcase`)
-├─ glass-lab/       6-approach liquid-glass comparison (`/glass-lab.html`)
+├─ showcase/        the data-driven design-system site + draggable glass demo (`npm run showcase`)
 └─ components/      reusable pieces (mirror the Figma components) — stubs
 ```
 
@@ -43,7 +42,7 @@ Chip color is a Figma **variable-mode picker**: the `Color` collection has **10 
 - **Fill** = base @ **60%** · **stroke** = base @ **40%** (2px; **1.5px** for Checkbox) · **text** = `label-primary` + base @ **10%** (near-white with a faint color tint).
 - **Shapes:** Pill (text) and Select (icon-only) are **h20 pills** (radius 10); **Checkbox** is a **17×17 square** (radius 5.5) holding a checkmark.
 
-Soft only — no Solid variant. The Figma showcase master shows a representative color (Blue); a chip's neutral fallback is the **Default** mode (Figma's collection default mode is read-only, so setting the master to Default just greys the showcase — the neutral default lives in the React component). In code (`chip.css.ts`): one `tint(base)` formula generates `chipColor.*` via `color-mix` — fill / stroke are the base at alpha, the text mixes 10% base into `label-primary`.
+Soft only — no Solid variant. The Figma showcase master shows a representative color (Blue); a chip's neutral fallback is the **Default** mode (Figma's collection default mode is read-only, so setting the master to Default just greys the showcase — the neutral default lives in the React component). In code (`chip.css.ts`): one `tint(base)` formula generates `chipColor.*` via `color-mix` — fill / stroke are the base at alpha, the text mixes 10% base into `label-primary`. Code includes **red** too (11 colors) — the 10-mode cap is a Figma-only limit.
 
 #### Accent
 
@@ -64,7 +63,7 @@ Per-color tint variables (`-fill` / `-soft` / `-text` / `-soft-border` / `-soft-
 
 ### In code — established vs planned
 
-- **Established:** `color.css.ts` → `vars.color.solid.*` (11 solids) + `vars.color.label.*`; `typography.css.ts` → `font` primitives + `text.*` composed styles; `chip.css.ts` → the unified chip tint (`chip` + `chipColor.*` + `chipCheckbox`); unified in `index.ts`. vanilla-extract + Inter wired; build green. A **data-driven** showcase at `design-system/showcase/` (`npm run showcase`) — colors / type / chips / icons / materials each iterate their registry, so new entries appear with no showcase edit. It also builds to a static site (`npm run build:showcase` → `dist/`, multi-page) with a repo-tracked `vercel.json`, ready to host.
+- **Established:** `color.css.ts` → `vars.color.solid.*` (11 solids) + `vars.color.label.*`; `typography.css.ts` → `font` primitives + `text.*` composed styles; `chip.css.ts` → the unified chip tint (`chip` + `chipColor.*` + `chipCheckbox`); unified in `index.ts`. vanilla-extract + Inter wired; build green. A **data-driven** showcase at `design-system/showcase/` (`npm run showcase`) — colors / type / chips / icons / materials each iterate their registry, so new entries appear with no showcase edit. It also builds to a static site (`npm run build:showcase` → `dist/`) with a repo-tracked `vercel.json`, **live at https://pommora-design-system.vercel.app**.
 - **Planned:** the remaining color tokens (accent, backgrounds, fills, states, separators) as `design-system/tokens/*.css.ts`.
 
 ### Components — stub
@@ -76,5 +75,5 @@ From the Figma library, **not yet built in React**: **Button · Label · Menu ·
 - **Semantic color tokens** beyond labels — `surface-background`, `surface-raised`, `text-primary` / `-dim`, `border`, …
 - **Spacing scale** · **Radius scale** · **Shadow / elevation** · **Motion** (durations, easings) · **Z-index layers**.
 - **Icon system — established (Lucide).** Curated registry at `design-system/symbols/` — `import { Icon } from '@renderer/design-system/symbols'` → `<Icon name="folder" size={15} />`. Driven by `design-system/symbols/Symbols.md`: add an icon's lucide.dev name there and it gets imported (only listed icons bundle — tree-shaken). SF Symbols stay the Figma design reference only; they can't ship on web.
-- **Glass — established (Materials).** `design-system/materials/glass-surface.tsx` (`GlassSurface`) + `glass-controls.tsx` (`GlassControls`) hold the glass material — liquidGL "Tinted Lens" at zero tint (blur 5 · brightness 90%), identical for now, separable later. `Surface` consumes `GlassSurface`; compare 6 approaches at `/glass-lab.html`.
+- **Glass — established (Materials).** `design-system/materials/glass-surface.tsx` (`GlassSurface`) + `glass-controls.tsx` (`GlassControls`) hold the glass material — liquidGL "Tinted Lens" at zero tint (blur 5 · brightness 90%), identical for now, separable later. `Surface` consumes `GlassSurface`; a draggable demo (the glass across 3 fields) lives in the showcase **Materials** section.
 - **Theming light/dark + per-nexus accent** (from Settings) — `createThemeContract` is the seam.
