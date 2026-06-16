@@ -68,6 +68,11 @@ struct ViewOutlineTable: NSViewRepresentable {
         outline.allowsMultipleSelection = false
         outline.allowsEmptySelection = true
         outline.columnAutoresizingStyle = .noColumnAutoresizing
+        // Don't widen the Title (outline) column on expand/collapse — it defaults
+        // to auto-fitting disclosed content, which churns the user's column width
+        // every time a folder opens. Titles truncate (ellipsis) within the fixed
+        // width instead.
+        outline.autoresizesOutlineColumn = false
         // Selection is disabled this pass — it competes with row dragging, and
         // multi-select is deferred (it conflicts with drag CRUD). Rows still open
         // on double-click and drag from any row regardless of selection.
