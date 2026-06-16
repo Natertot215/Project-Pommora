@@ -85,6 +85,9 @@ final class GroupDisclosureState {
 struct ViewGroupHeaderCell: View {
     let group: ResolvedGroup
     let disclosure: GroupDisclosureState
+    /// The active grouping property (nil for structural / no grouping) — drives
+    /// the Select / Status pill and supplies the property icon for Date / Checkbox.
+    let groupingProperty: PropertyDefinition?
     let menu: (ResolvedGroup) -> AnyView
 
     var body: some View {
@@ -92,6 +95,24 @@ struct ViewGroupHeaderCell: View {
             // Fixed gutter so the title doesn't shift as the chevron rotates.
             DisclosureChevron(isExpanded: disclosure.isExpanded)
                 .frame(width: 12)
+            header
+        }
+        .padding(.horizontal, PUI.Spacing.md)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+        .contentShape(Rectangle())
+        .contextMenu { menu(group) }
+    }
+
+    /// Select / Status buckets render their actual variant pill, sized up to the
+    /// header. Everything else — structural folders, Date / Checkbox buckets, and
+    /// empty buckets — renders a matching-weight icon + medium-weight title.
+    @ViewBuilder
+    private var header: some View {
+        if case .propertyBucket(let value) = group.kind, let def = groupingProperty,
+            let chip = GroupHeaderChip.resolve(value: value, grouping: def)
+        {
+            PropertyChip(label: chip.label, color: chip.color, size: .header)
+        } else {
             Label {
                 Text(group.title)
                     .lineLimit(1)
@@ -100,19 +121,18 @@ struct ViewGroupHeaderCell: View {
                 Image(systemName: icon)
                     .foregroundStyle(.secondary)
             }
+            // Medium weight; the SF Symbol inherits it (Design.md icon-weight rule).
+            .font(.system(size: 13, weight: .medium))
         }
-        .padding(.horizontal, PUI.Spacing.md)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-        .contentShape(Rectangle())
-        .contextMenu { menu(group) }
     }
 
-    /// SF Symbol per group kind — folders for structural containers, a tag for a
-    /// property bucket, a tray for the ungrouped band.
+    /// SF Symbol per group: folders for structural containers, the grouping
+    /// property's own icon for a Date / Checkbox bucket, a tray for the ungrouped
+    /// band. (Select / Status buckets never reach here — they render a pill.)
     private var icon: String {
         switch group.kind {
         case .structuralCollection, .structuralSet: return "folder"
-        case .propertyBucket: return "tag"
+        case .propertyBucket: return groupingProperty?.displayIcon ?? "tag"
         case .ungrouped: return "tray"
         }
     }

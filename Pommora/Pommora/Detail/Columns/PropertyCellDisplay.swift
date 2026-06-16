@@ -204,7 +204,7 @@ struct PropertyCellDisplay: View {
             // unset); the group→state mapping lives in StatusCheckbox.
             StatusCheckbox(value: statusValue, groups: definition.statusGroups ?? [])
         } else if let optionValue = statusValue,
-            let (option, group) = findStatusOption(value: optionValue)
+            let (option, group) = definition.statusOption(for: optionValue)
         {
             let color = chipColor(from: option.color ?? group.color)
             if variant == .chip {
@@ -219,20 +219,6 @@ struct PropertyCellDisplay: View {
 
     private var statusValue: String? {
         if case .status(let v) = value { return v }
-        return nil
-    }
-
-    private func findStatusOption(
-        value: String
-    ) -> (
-        PropertyDefinition.StatusOption, PropertyDefinition.StatusGroup
-    )? {
-        guard let groups = definition.statusGroups else { return nil }
-        for g in groups {
-            if let opt = g.options.first(where: { $0.value == value }) {
-                return (opt, g)
-            }
-        }
         return nil
     }
 

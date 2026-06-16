@@ -184,6 +184,13 @@ struct ViewSurface<Scope: DetailScope>: View {
         Set(activeView?.hiddenProperties ?? [])
     }
 
+    /// The active grouping property, when the view groups by a property (nil for
+    /// structural / flat / no grouping). Drives the group-header pill + icon.
+    private var groupingProperty: PropertyDefinition? {
+        guard case .property(let grouping)? = activeView?.group else { return nil }
+        return schema.first(where: { $0.id == grouping.propertyID })
+    }
+
     /// SwiftUI identity for the table, unique per (container, view). On a
     /// container/view switch the `.id` changes, so the outline is rebuilt and
     /// `ensureColumns` re-applies THAT view's saved order/width from its sidecar — a
@@ -279,6 +286,7 @@ struct ViewSurface<Scope: DetailScope>: View {
             groups: resolvedGroups,
             columns: columns,
             schema: schema,
+            groupingProperty: groupingProperty,
             index: nexusManager.currentIndex,
             relationResolver: { contextDisplay.resolve($0) },
             onDoubleTap: handleDoubleTap,

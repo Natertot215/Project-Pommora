@@ -21,6 +21,9 @@ struct ViewOutlineTable: NSViewRepresentable {
     let groups: [ResolvedGroup]
     let columns: [ResolvedColumn]
     let schema: [PropertyDefinition]
+    /// The active grouping property (nil for structural / no grouping) — passed to
+    /// the group-header cell so Select / Status buckets render their variant pill.
+    let groupingProperty: PropertyDefinition?
 
     let index: PommoraIndex?
     let relationResolver: (String) -> (icon: String, title: String)?
@@ -413,6 +416,7 @@ struct ViewOutlineTable: NSViewRepresentable {
                             ViewGroupHeaderCell(
                                 group: group,
                                 disclosure: disclosureState(for: group),
+                                groupingProperty: parent.groupingProperty,
                                 menu: parent.groupMenu
                             ).id(group.id)))
                 } else {
