@@ -428,14 +428,19 @@ struct ViewOutlineTable: NSViewRepresentable {
                 // normally, Status while grouping by Status); the rest are blank,
                 // like a native folder row.
                 if column.id == parent.outlineColumnID {
+                    // Status headers overflow the narrow Status column; the rest of
+                    // the row is empty, so the pill spills over it without clipping.
+                    let overflow = isStatusGrouping
                     cell.host(
                         AnyView(
                             ViewGroupHeaderCell(
                                 group: group,
                                 disclosure: disclosureState(for: group),
                                 groupingProperty: parent.groupingProperty,
+                                allowOverflow: overflow,
                                 menu: parent.groupMenu
-                            ).id(group.id)))
+                            ).id(group.id)),
+                        overflowing: overflow)
                 } else {
                     cell.host(AnyView(Color.clear))
                 }
@@ -812,6 +817,8 @@ func tableSchemaOptionsSignature(of schema: [PropertyDefinition]) -> String {
 /// hosting view is transparent, so the table's alternating row fill shows through.
 private final class HostingCell: NSTableCellView {
     private var hosting: NSHostingView<AnyView>?
+    private var edgeConstraints: [NSLayoutConstraint] = []
+    private var isOverflowing = false
 
     init(identifier: NSUserInterfaceItemIdentifier) {
         super.init(frame: .zero)
@@ -821,21 +828,37 @@ private final class HostingCell: NSTableCellView {
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError("init(coder:) is unavailable") }
 
-    func host(_ view: AnyView) {
+    /// Hosts the SwiftUI content. `overflowing` drops the trailing pin so the
+    /// content sizes to its intrinsic width and spills past the (narrow) column —
+    /// used for Status group headers whose pill must not clip; the rest of that row
+    /// is empty. The table doesn't clip horizontally, so the pill draws over the
+    /// transparent neighbouring cells.
+    func host(_ view: AnyView, overflowing: Bool = false) {
         if let hosting {
             hosting.rootView = view
+            if overflowing != isOverflowing { applyEdgeConstraints(to: hosting, overflowing: overflowing) }
             return
         }
         let hostingView = NSHostingView(rootView: view)
         hostingView.translatesAutoresizingMaskIntoConstraints = false
         addSubview(hostingView)
-        NSLayoutConstraint.activate([
-            hostingView.leadingAnchor.constraint(equalTo: leadingAnchor),
-            hostingView.trailingAnchor.constraint(equalTo: trailingAnchor),
-            hostingView.topAnchor.constraint(equalTo: topAnchor),
-            hostingView.bottomAnchor.constraint(equalTo: bottomAnchor),
-        ])
+        applyEdgeConstraints(to: hostingView, overflowing: overflowing)
         hosting = hostingView
+    }
+
+    private func applyEdgeConstraints(to hosting: NSHostingView<AnyView>, overflowing: Bool) {
+        NSLayoutConstraint.deactivate(edgeConstraints)
+        var constraints = [
+            hosting.leadingAnchor.constraint(equalTo: leadingAnchor),
+            hosting.topAnchor.constraint(equalTo: topAnchor),
+            hosting.bottomAnchor.constraint(equalTo: bottomAnchor),
+        ]
+        if !overflowing {
+            constraints.append(hosting.trailingAnchor.constraint(equalTo: trailingAnchor))
+        }
+        NSLayoutConstraint.activate(constraints)
+        edgeConstraints = constraints
+        isOverflowing = overflowing
     }
 }
 

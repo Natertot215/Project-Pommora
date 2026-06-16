@@ -88,6 +88,10 @@ struct ViewGroupHeaderCell: View {
     /// The active grouping property (nil for structural / no grouping) — drives
     /// the Select / Status pill and supplies the property icon for Date / Checkbox.
     let groupingProperty: PropertyDefinition?
+    /// When true the header hugs its content (intrinsic width) instead of filling
+    /// the column — lets a Status group-header pill overflow a narrow Status column
+    /// into the empty rest of the row. See `HostingCell.host(_:overflowing:)`.
+    let allowOverflow: Bool
     let menu: (ResolvedGroup) -> AnyView
 
     var body: some View {
@@ -98,7 +102,8 @@ struct ViewGroupHeaderCell: View {
             header
         }
         .padding(.horizontal, PUI.Spacing.md)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+        .frame(maxWidth: allowOverflow ? nil : .infinity, maxHeight: .infinity, alignment: .leading)
+        .fixedSize(horizontal: allowOverflow, vertical: false)
         .contentShape(Rectangle())
         .contextMenu { menu(group) }
     }
