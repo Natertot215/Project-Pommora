@@ -176,12 +176,41 @@ struct ViewSurface<Scope: DetailScope>: View {
     private var columns: [ResolvedColumn] {
         guard var view = activeView else { return [] }
         view.hiddenProperties = []
-        return TableColumnResolver.resolve(view: view, schema: schema)
+        var resolved = TableColumnResolver.resolve(view: view, schema: schema)
+        // Status grouping moves the Status column first (transient — the saved
+        // column order is untouched; it returns when grouping changes).
+        if isStatusGrouping, let statusID = groupingProperty?.id,
+            let idx = resolved.firstIndex(where: { $0.id == statusID })
+        {
+            resolved.insert(resolved.remove(at: idx), at: 0)
+        }
+        return resolved
     }
 
     /// The active view's hidden column ids — applied as `isHidden` by the table.
+    /// While grouping by Status the Status column is force-shown (the disclosure
+    /// lives there), regardless of its saved hidden state.
     private var hiddenColumnIDs: Set<String> {
-        Set(activeView?.hiddenProperties ?? [])
+        var hidden = Set(activeView?.hiddenProperties ?? [])
+        if isStatusGrouping, let statusID = groupingProperty?.id { hidden.remove(statusID) }
+        return hidden
+    }
+
+    /// The active grouping property, when the view groups by a property (nil for
+    /// structural / flat / no grouping). Drives the group-header pill + icon.
+    private var groupingProperty: PropertyDefinition? {
+        guard case .property(let grouping)? = activeView?.group else { return nil }
+        return schema.first(where: { $0.id == grouping.propertyID })
+    }
+
+    /// Grouping by a Status property gets the special arrangement: the Status
+    /// column moves first, becomes the disclosure column, and force-shows.
+    private var isStatusGrouping: Bool { groupingProperty?.type == .status }
+
+    /// The column that carries the disclosure + group headers — the Status column
+    /// while grouping by Status, the Title column otherwise.
+    private var outlineColumnID: String {
+        isStatusGrouping ? (groupingProperty?.id ?? ReservedPropertyID.title) : ReservedPropertyID.title
     }
 
     /// SwiftUI identity for the table, unique per (container, view). On a
@@ -189,7 +218,9 @@ struct ViewSurface<Scope: DetailScope>: View {
     /// `ensureColumns` re-applies THAT view's saved order/width from its sidecar — a
     /// single reused outline would otherwise keep the previous view's arrangement.
     private var tableIdentity: String {
-        "viewoutline.\(scope.containerID(pageTypeManager)).\(activeView?.id ?? "default")"
+        // The disclosure column is folded in: switching it (Title ⇄ Status) rebuilds
+        // the outline so columns re-add in the new order with the right outline column.
+        "viewoutline.\(scope.containerID(pageTypeManager)).\(activeView?.id ?? "default").\(outlineColumnID)"
     }
 
     /// The full pipeline output, recomputed on every observed cache change so the
@@ -279,6 +310,8 @@ struct ViewSurface<Scope: DetailScope>: View {
             groups: resolvedGroups,
             columns: columns,
             schema: schema,
+            groupingProperty: groupingProperty,
+            outlineColumnID: outlineColumnID,
             index: nexusManager.currentIndex,
             relationResolver: { contextDisplay.resolve($0) },
             onDoubleTap: handleDoubleTap,

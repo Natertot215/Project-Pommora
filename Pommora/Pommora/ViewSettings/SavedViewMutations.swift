@@ -6,17 +6,19 @@ import Foundation
 /// candidate columns via `visibilityColumns`. Keeping the logic here (rather
 /// than inlined in a view) makes it directly unit-testable and DRY.
 enum SavedViewMutations {
-    /// Moves `propertyID` between `propertyOrder` and `hiddenProperties`.
+    /// Toggles `propertyID` in `hiddenProperties` — visibility is membership
+    /// only; `propertyOrder` is never touched.
     ///
     /// - `_title` is pinned and never toggleable — the call is a no-op.
-    /// - Hide (`currentlyVisible == true`): remove from `propertyOrder`,
-    ///   append to `hiddenProperties`.
-    /// - Un-hide (`currentlyVisible == false`): remove from
-    ///   `hiddenProperties`, re-insert into `propertyOrder` right after the
-    ///   reserved `_title` lead so it reappears as the leading user column.
+    /// - Hide (`currentlyVisible == true`): append to `hiddenProperties` (if
+    ///   not already present). `propertyOrder` is left intact so the row keeps
+    ///   its position in the single ordered list.
+    /// - Un-hide (`currentlyVisible == false`): remove from `hiddenProperties`.
+    ///   Position in `propertyOrder` is preserved automatically.
     ///
-    /// `_modified_at` IS toggleable here (closes the "Modified not hideable"
-    /// bug) — only `_title` is exempt.
+    /// If a property being hidden is not yet in `propertyOrder`, no insertion
+    /// is made — the caller's drag-reorder owns `propertyOrder` mutations.
+    /// `_modified_at` IS toggleable — only `_title` is exempt.
     static func applyToggle(
         _ view: inout SavedView,
         propertyID: String,
@@ -25,16 +27,11 @@ enum SavedViewMutations {
         guard propertyID != ReservedPropertyID.title else { return }
 
         if currentlyVisible {
-            view.propertyOrder.removeAll { $0 == propertyID }
             if !view.hiddenProperties.contains(propertyID) {
                 view.hiddenProperties.append(propertyID)
             }
         } else {
             view.hiddenProperties.removeAll { $0 == propertyID }
-            if !view.propertyOrder.contains(propertyID) {
-                let insertAt = view.propertyOrder.first == ReservedPropertyID.title ? 1 : 0
-                view.propertyOrder.insert(propertyID, at: min(insertAt, view.propertyOrder.count))
-            }
         }
     }
 

@@ -130,7 +130,7 @@ struct GroupResolverTests {
         // Override reverses to low-first.
         let groups = GroupResolver.resolve(
             items: items,
-            config: .property(PropertyGrouping(propertyID: "prop_p", order: ["low", "medium", "high"])),
+            config: .property(PropertyGrouping(propertyID: "prop_p", orderMode: .manual, order: ["low", "medium", "high"])),
             scope: .collection, schema: [def])
         #expect(groups.map(\.id) == ["low", "high"])  // medium skipped (empty)
     }

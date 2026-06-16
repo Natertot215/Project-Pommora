@@ -1,6 +1,8 @@
 # Grouping Redesign — Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax. Ground every `file:line` against real code before editing — the anchors below were confirmed 2026-06-15 but verify on touch. Spec: `// Planning//06-15-Grouping-Redesign.md`.
+> **PROGRESS (2026-06-15, branch `grouping-redesign`):** Phase 0 (schema), Phase 1 (resolver), and Phase 2 (the Grouping pane) are **DONE + green**, plus a full UIX-review pass with Nathan (chevron animation, order-reverses-chips, flush picker list, disclosure interaction, button-anchored popouts, footer styling, property-visibility list fix). **REMAINING (next session):** Phase 3 — view-level group-header **manual drag** (table + gallery) + mutual exclusion with page-drag, AND the table **disclosure-chevron animation** (deferred from Phase 2 — the table uses NSOutlineView's native triangle, so this needs a custom chevron wired into the outline view's expand/collapse). Phase 4 — polish + finish branch.
+>
+> **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` to implement the remaining phases task-by-task. Steps use checkbox (`- [ ]`) syntax. Ground every `file:line` against real code before editing — the anchors below were confirmed 2026-06-15 but verify on touch. Spec: `// Planning//06-15-Grouping-Redesign.md`.
 
 **Goal:** Replace the radio-list grouping pane with a Notion-style Grouping pane (toggle → group-by property → per-type order + manual reorder), backed by an extended `PropertyGrouping` schema, date bucketing, and view-level group-header drag.
 

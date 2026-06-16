@@ -3,13 +3,9 @@ import SwiftUI
 /// View Settings → Edit Properties → + New Property → type picker pane.
 ///
 /// Wraps the existing `PropertyTypePicker` for pushed-pane mode + handles
-/// the type-aware routing:
-///   - Select / MultiSelect / Status → commit a default property of that type
-///     AND push .editProperty(propertyID:) onto the path so the user lands in
-///     the configuration editor immediately (these types need post-create
-///     setup).
-///   - Number / Checkbox / Date / DateTime / URL / File / Relation → commit a
-///     default property of that type AND pop back to the Properties list.
+/// routing: every type commits a default property AND pushes
+/// `.editProperty(propertyID:)` so the user lands in the configuration
+/// editor immediately after creation.
 ///
 /// Commits via PageTypeManager addProperty. Schema lives on the Type
 /// (Collections inherit), so Collection-scope adds route to the parent
@@ -69,22 +65,12 @@ struct PropertyTypePickerPane: View {
             return
         }
 
-        // Type-aware routing.
-        if PropertyTypePickerPane.requiresOptionConfig(type) {
-            // Replace .propertyTypePicker on the stack with .editProperty so
-            // back-tap from the editor lands on Properties, not the type
-            // picker we just left.
-            if path.last == .propertyTypePicker {
-                path.removeLast()
-            }
-            path.append(.editProperty(propertyID: definition.id))
-        } else {
-            // Pop back to Properties list. Drop the .propertyTypePicker frame
-            // we're rendering inside.
-            if path.last == .propertyTypePicker {
-                path.removeLast()
-            }
+        // Replace .propertyTypePicker on the stack with .editProperty so
+        // back-tap from the editor lands on Properties, not the type picker.
+        if path.last == .propertyTypePicker {
+            path.removeLast()
         }
+        path.append(.editProperty(propertyID: definition.id))
     }
 
     /// The Type schema that owns this scope's properties (Collections inherit
@@ -97,18 +83,6 @@ struct PropertyTypePickerPane: View {
             return c.typeID
         default:
             return nil  // non-storage scopes shouldn't reach this pane
-        }
-    }
-
-    /// Types that ship empty configuration on creation and demand the user
-    /// fill in options before the property is useful — auto-routes to
-    /// `EditPropertyPane` in edit mode.
-    static func requiresOptionConfig(_ type: PropertyType) -> Bool {
-        switch type {
-        case .select, .multiSelect, .status:
-            return true
-        default:
-            return false
         }
     }
 

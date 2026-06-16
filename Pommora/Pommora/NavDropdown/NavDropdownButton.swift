@@ -57,7 +57,7 @@ struct NavDropdownButton: View {
         Button {
             isPresented.toggle()
         } label: {
-            Image(systemName: "square.on.square")
+            Image(systemName: "map")
                 .toolbarGlyph(width: PUI.Icon.toolbarActionFrame)
         }
     }

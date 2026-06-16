@@ -304,11 +304,47 @@ enum MatchMode: String, Codable, Equatable, Hashable, Sendable {
 /// Date; etc.); omitted on encode when nil.
 struct PropertyGrouping: Codable, Equatable, Hashable, Sendable {
     var propertyID: String
+    var orderMode: GroupOrderMode = .configured
     var order: [String]?
+    var dateGranularity: DateGranularity?
+    var emptyPlacement: EmptyPlacement = .bottom
+    var hideEmptyGroups: Bool = false
+
+    init(propertyID: String, orderMode: GroupOrderMode = .configured, order: [String]? = nil,
+         dateGranularity: DateGranularity? = nil, emptyPlacement: EmptyPlacement = .bottom,
+         hideEmptyGroups: Bool = false) {
+        self.propertyID = propertyID; self.orderMode = orderMode; self.order = order
+        self.dateGranularity = dateGranularity; self.emptyPlacement = emptyPlacement
+        self.hideEmptyGroups = hideEmptyGroups
+    }
 
     enum CodingKeys: String, CodingKey {
         case propertyID = "property_id"
+        case orderMode = "order_mode"
         case order
+        case dateGranularity = "date_granularity"
+        case emptyPlacement = "empty_placement"
+        case hideEmptyGroups = "hide_empty_groups"
+    }
+
+    init(from decoder: any Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        propertyID = try c.decode(String.self, forKey: .propertyID)
+        orderMode = try c.decodeIfPresent(GroupOrderMode.self, forKey: .orderMode) ?? .configured
+        order = try c.decodeIfPresent([String].self, forKey: .order)
+        dateGranularity = try c.decodeIfPresent(DateGranularity.self, forKey: .dateGranularity)
+        emptyPlacement = try c.decodeIfPresent(EmptyPlacement.self, forKey: .emptyPlacement) ?? .bottom
+        hideEmptyGroups = try c.decodeIfPresent(Bool.self, forKey: .hideEmptyGroups) ?? false
+    }
+
+    func encode(to encoder: any Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(propertyID, forKey: .propertyID)
+        try c.encode(orderMode, forKey: .orderMode)
+        try c.encodeIfPresent(order, forKey: .order)
+        try c.encodeIfPresent(dateGranularity, forKey: .dateGranularity)
+        try c.encode(emptyPlacement, forKey: .emptyPlacement)
+        try c.encode(hideEmptyGroups, forKey: .hideEmptyGroups)
     }
 }
 
@@ -332,7 +368,11 @@ enum GroupConfig: Codable, Equatable, Hashable, Sendable {
     private enum CodingKeys: String, CodingKey {
         case kind
         case propertyID = "property_id"
+        case orderMode = "order_mode"
         case order
+        case dateGranularity = "date_granularity"
+        case emptyPlacement = "empty_placement"
+        case hideEmptyGroups = "hide_empty_groups"
     }
 
     init(from decoder: any Decoder) throws {
@@ -362,8 +402,14 @@ enum GroupConfig: Codable, Equatable, Hashable, Sendable {
         from c: KeyedDecodingContainer<CodingKeys>
     ) -> PropertyGrouping {
         let propertyID = (try? c.decode(String.self, forKey: .propertyID)) ?? ""
-        let order = try? c.decodeIfPresent([String].self, forKey: .order)
-        return PropertyGrouping(propertyID: propertyID, order: order ?? nil)
+        let orderMode = (try? c.decodeIfPresent(GroupOrderMode.self, forKey: .orderMode)) ?? .configured
+        let order = (try? c.decodeIfPresent([String].self, forKey: .order)) ?? nil
+        let dateGranularity = (try? c.decodeIfPresent(DateGranularity.self, forKey: .dateGranularity)) ?? nil
+        let emptyPlacement = (try? c.decodeIfPresent(EmptyPlacement.self, forKey: .emptyPlacement)) ?? .bottom
+        let hideEmptyGroups = (try? c.decodeIfPresent(Bool.self, forKey: .hideEmptyGroups)) ?? false
+        return PropertyGrouping(propertyID: propertyID, orderMode: orderMode, order: order,
+                                dateGranularity: dateGranularity, emptyPlacement: emptyPlacement,
+                                hideEmptyGroups: hideEmptyGroups)
     }
 
     func encode(to encoder: any Encoder) throws {
@@ -376,7 +422,11 @@ enum GroupConfig: Codable, Equatable, Hashable, Sendable {
         case .property(let grouping):
             try c.encode("property", forKey: .kind)
             try c.encode(grouping.propertyID, forKey: .propertyID)
+            try c.encode(grouping.orderMode, forKey: .orderMode)
             try c.encodeIfPresent(grouping.order, forKey: .order)
+            try c.encodeIfPresent(grouping.dateGranularity, forKey: .dateGranularity)
+            try c.encode(grouping.emptyPlacement, forKey: .emptyPlacement)
+            try c.encode(grouping.hideEmptyGroups, forKey: .hideEmptyGroups)
         }
     }
 }

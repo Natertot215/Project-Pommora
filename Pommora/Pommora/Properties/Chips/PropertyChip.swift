@@ -22,7 +22,8 @@ struct PropertyChip: View {
     var size: Size = .standard
 
     /// Context sizing. `.standard` is the Figma spec (panel, dropdown);
-    /// `.compact` fits a `Table` row without inflating it.
+    /// `.compact` fits a `Table` row without inflating it (also used by table
+    /// group-header pills, which match the in-row chip).
     enum Size: Sendable {
         case standard
         case compact
@@ -30,13 +31,13 @@ struct PropertyChip: View {
         var pillFont: Font {
             switch self {
             case .standard: .system(size: 12, weight: .semibold)
-            case .compact:  .system(size: 11, weight: .semibold)
+            case .compact: .system(size: 11, weight: .semibold)
             }
         }
         var iconFont: Font {
             switch self {
             case .standard: .system(size: 11, weight: .semibold)
-            case .compact:  .system(size: 10, weight: .semibold)
+            case .compact: .system(size: 10, weight: .semibold)
             }
         }
         var pillMinWidth: CGFloat { self == .standard ? 50 : 40 }

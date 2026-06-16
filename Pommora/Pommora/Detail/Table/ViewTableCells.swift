@@ -66,35 +66,78 @@ struct ViewTableCellContent: View {
 
 // MARK: - Group header cell
 
+/// The reactive expansion state backing a group header's `DisclosureChevron`.
+/// Owned by the table coordinator (one per group id, reused across reloads) and
+/// flipped in lockstep with the native fold so the chevron animates rather than
+/// snapping. A reference type so the value-typed `ViewGroupHeaderCell` observes it
+/// live without the cell being re-hosted on every toggle.
+@MainActor @Observable
+final class GroupDisclosureState {
+    var isExpanded: Bool
+    init(isExpanded: Bool) { self.isExpanded = isExpanded }
+}
+
 /// The disclosure-row content for a structural / property group, hosted in the
-/// outline column. The disclosure triangle + indentation are drawn by the outline
-/// view itself; this supplies the folder icon + slightly-bold title (native
-/// disclosure-row language) plus the group's context menu.
+/// outline column. The native triangle is suppressed (`ChevronlessOutlineView`);
+/// this draws the shared `DisclosureChevron` in its place — matched to the
+/// sidebar's native chevron — plus the folder icon + slightly-bold title and the
+/// group's context menu.
 struct ViewGroupHeaderCell: View {
     let group: ResolvedGroup
+    let disclosure: GroupDisclosureState
+    /// The active grouping property (nil for structural / no grouping) — drives
+    /// the Select / Status pill and supplies the property icon for Date / Checkbox.
+    let groupingProperty: PropertyDefinition?
+    /// When true the header hugs its content (intrinsic width) instead of filling
+    /// the column — lets a Status group-header pill overflow a narrow Status column
+    /// into the empty rest of the row. See `HostingCell.host(_:overflowing:)`.
+    let allowOverflow: Bool
     let menu: (ResolvedGroup) -> AnyView
 
     var body: some View {
-        Label {
-            Text(group.title)
-                .lineLimit(1)
-                .truncationMode(.tail)
-        } icon: {
-            Image(systemName: icon)
-                .foregroundStyle(.secondary)
+        HStack(spacing: PUI.Spacing.xs) {
+            // Fixed gutter so the title doesn't shift as the chevron rotates.
+            DisclosureChevron(isExpanded: disclosure.isExpanded)
+                .frame(width: 12)
+            header
         }
         .padding(.horizontal, PUI.Spacing.md)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+        .frame(maxWidth: allowOverflow ? nil : .infinity, maxHeight: .infinity, alignment: .leading)
+        .fixedSize(horizontal: allowOverflow, vertical: false)
         .contentShape(Rectangle())
         .contextMenu { menu(group) }
     }
 
-    /// SF Symbol per group kind — folders for structural containers, a tag for a
-    /// property bucket, a tray for the ungrouped band.
+    /// Select / Status buckets render their actual variant pill, sized up to the
+    /// header. Everything else — structural folders, Date / Checkbox buckets, and
+    /// empty buckets — renders a matching-weight icon + medium-weight title.
+    @ViewBuilder
+    private var header: some View {
+        if case .propertyBucket(let value) = group.kind, let def = groupingProperty,
+            let chip = GroupHeaderChip.resolve(value: value, grouping: def)
+        {
+            PropertyChip(label: chip.label, color: chip.color, size: .compact)
+        } else {
+            Label {
+                Text(group.title)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+            } icon: {
+                Image(systemName: icon)
+                    .foregroundStyle(.secondary)
+            }
+            // Medium weight; the SF Symbol inherits it (Design.md icon-weight rule).
+            .font(.system(size: 13, weight: .medium))
+        }
+    }
+
+    /// SF Symbol per group: folders for structural containers, the grouping
+    /// property's own icon for a Date / Checkbox bucket, a tray for the ungrouped
+    /// band. (Select / Status buckets never reach here — they render a pill.)
     private var icon: String {
         switch group.kind {
         case .structuralCollection, .structuralSet: return "folder"
-        case .propertyBucket: return "tag"
+        case .propertyBucket: return groupingProperty?.displayIcon ?? "tag"
         case .ungrouped: return "tray"
         }
     }

@@ -21,6 +21,13 @@ struct ViewOutlineTable: NSViewRepresentable {
     let groups: [ResolvedGroup]
     let columns: [ResolvedColumn]
     let schema: [PropertyDefinition]
+    /// The active grouping property (nil for structural / no grouping) — passed to
+    /// the group-header cell so Select / Status buckets render their variant pill.
+    let groupingProperty: PropertyDefinition?
+    /// The column id that carries the disclosure + group headers. The Title column
+    /// normally; the Status column when grouping by Status (it's moved first +
+    /// force-shown upstream, and the header pill renders in it).
+    let outlineColumnID: String
 
     let index: PommoraIndex?
     let relationResolver: (String) -> (icon: String, title: String)?
@@ -60,7 +67,7 @@ struct ViewOutlineTable: NSViewRepresentable {
 
     func makeNSView(context: Context) -> NSScrollView {
         let coordinator = context.coordinator
-        let outline = NSOutlineView()
+        let outline = ChevronlessOutlineView()
         outline.style = .inset
         outline.usesAlternatingRowBackgroundColors = true
         outline.allowsColumnReordering = true
@@ -68,6 +75,11 @@ struct ViewOutlineTable: NSViewRepresentable {
         outline.allowsMultipleSelection = false
         outline.allowsEmptySelection = true
         outline.columnAutoresizingStyle = .noColumnAutoresizing
+        // Don't widen the Title (outline) column on expand/collapse — it defaults
+        // to auto-fitting disclosed content, which churns the user's column width
+        // every time a folder opens. Titles truncate (ellipsis) within the fixed
+        // width instead.
+        outline.autoresizesOutlineColumn = false
         // Selection is disabled this pass — it competes with row dragging, and
         // multi-select is deferred (it conflicts with drag CRUD). Rows still open
         // on double-click and drag from any row regardless of selection.
@@ -137,6 +149,25 @@ struct ViewOutlineTable: NSViewRepresentable {
         /// nodes by reference, so the value-typed groups/items are wrapped in
         /// reference-typed `OutlineNode`s.
         private var nodes: [OutlineNode] = []
+
+        /// Reactive chevron state per group id, reused across reloads so a toggle
+        /// animates the rotation rather than snapping. Authoritatively seeded from
+        /// each group's persisted collapse state in `applyExpansion`, then flipped
+        /// in `handleSingleClick` alongside the native fold.
+        private var disclosureStates: [String: GroupDisclosureState] = [:]
+
+        /// True while the view groups by a Status property — the Status column is
+        /// then pinned first (no column may move before it) and its forced position
+        /// is transient (never written back to the sidecar's column order).
+        private var isStatusGrouping: Bool { parent.groupingProperty?.type == .status }
+
+        /// The chevron state for a group — created on first sight, reused after.
+        private func disclosureState(for group: ResolvedGroup) -> GroupDisclosureState {
+            if let existing = disclosureStates[group.id] { return existing }
+            let state = GroupDisclosureState(isExpanded: !group.isCollapsed)
+            disclosureStates[group.id] = state
+            return state
+        }
 
         /// Hash of the last-loaded row structure + content + column layout
         /// (EXCLUDING collapse state) — guards `reload` from re-running `reloadData`
@@ -212,11 +243,14 @@ struct ViewOutlineTable: NSViewRepresentable {
                     outline.addTableColumn(column)
                 }
             }
-            // The disclosure column is the Title column (always present).
-            if let titleColumn = outline.tableColumns.first(where: {
-                self.column(for: $0)?.kind == .title
-            }) {
-                outline.outlineTableColumn = titleColumn
+            // The disclosure column carries the group headers — the Title column
+            // normally, the Status column while grouping by Status. Fall back to
+            // Title if the id isn't resolvable (the Title is always present).
+            let outlineColumn =
+                outline.tableColumns.first(where: { $0.identifier.rawValue == parent.outlineColumnID })
+                ?? outline.tableColumns.first(where: { self.column(for: $0)?.kind == .title })
+            if let outlineColumn {
+                outline.outlineTableColumn = outlineColumn
             }
             // A column change must force the next reload (the signature guard would
             // otherwise skip it when only the row structure is unchanged), and record
@@ -234,8 +268,12 @@ struct ViewOutlineTable: NSViewRepresentable {
         func applyColumnVisibility(_ outline: NSOutlineView) {
             var changed = false
             for column in outline.tableColumns {
-                let isTitle = self.column(for: column)?.kind == .title
-                let hidden = !isTitle && parent.hiddenColumnIDs.contains(column.identifier.rawValue)
+                // Never hide the Title (never hideable) nor the disclosure column
+                // (the headers live there while grouping by Status).
+                let isProtected =
+                    self.column(for: column)?.kind == .title
+                    || column.identifier.rawValue == parent.outlineColumnID
+                let hidden = !isProtected && parent.hiddenColumnIDs.contains(column.identifier.rawValue)
                 if column.isHidden != hidden {
                     column.isHidden = hidden
                     changed = true
@@ -260,7 +298,9 @@ struct ViewOutlineTable: NSViewRepresentable {
             // re-creating each cell's hosted content with the new schema + editor.
             // The schema options hash catches select/status option additions so
             // ChipDropdown popovers see the new options without a restart.
-            let signature = Self.signature(of: parent.groups) + "|" + Self.columnSignature(of: parent.columns) + "|" + tableSchemaOptionsSignature(of: parent.schema)
+            let signature =
+                Self.signature(of: parent.groups) + "|" + Self.columnSignature(of: parent.columns) + "|"
+                + tableSchemaOptionsSignature(of: parent.schema)
             guard signature != lastSignature else { return }
             lastSignature = signature
 
@@ -340,7 +380,11 @@ struct ViewOutlineTable: NSViewRepresentable {
         private func applyExpansion(_ outline: NSOutlineView, nodes: [OutlineNode]) {
             for node in nodes {
                 guard case .group(let group) = node.payload else { continue }
-                if !group.isCollapsed { outline.expandItem(node) }
+                let expanded = !group.isCollapsed
+                // Authoritative seed: the cell is re-hosted on reload, so setting
+                // the final value here renders statically (no value-change to animate).
+                disclosureState(for: group).isExpanded = expanded
+                if expanded { outline.expandItem(node) }
                 applyExpansion(outline, nodes: node.children)
             }
         }
@@ -380,10 +424,23 @@ struct ViewOutlineTable: NSViewRepresentable {
 
             switch node.payload {
             case .group(let group):
-                // Only the outline (Title) column carries the group label; the
-                // rest are blank, like a native folder row.
-                if column.kind == .title {
-                    cell.host(AnyView(ViewGroupHeaderCell(group: group, menu: parent.groupMenu).id(group.id)))
+                // Only the disclosure column carries the group header (Title
+                // normally, Status while grouping by Status); the rest are blank,
+                // like a native folder row.
+                if column.id == parent.outlineColumnID {
+                    // Status headers overflow the narrow Status column; the rest of
+                    // the row is empty, so the pill spills over it without clipping.
+                    let overflow = isStatusGrouping
+                    cell.host(
+                        AnyView(
+                            ViewGroupHeaderCell(
+                                group: group,
+                                disclosure: disclosureState(for: group),
+                                groupingProperty: parent.groupingProperty,
+                                allowOverflow: overflow,
+                                menu: parent.groupMenu
+                            ).id(group.id)),
+                        overflowing: overflow)
                 } else {
                     cell.host(AnyView(Color.clear))
                 }
@@ -413,8 +470,33 @@ struct ViewOutlineTable: NSViewRepresentable {
             false
         }
 
-        func outlineViewItemDidExpand(_ notification: Notification) { persistCollapsedState() }
-        func outlineViewItemDidCollapse(_ notification: Notification) { persistCollapsedState() }
+        /// Pins the disclosure (Status) column at index 0 while grouping by Status:
+        /// the Status column itself can't be dragged, and nothing may land before it.
+        func tableView(
+            _ tableView: NSTableView, shouldReorderColumn columnIndex: Int, toColumn newColumnIndex: Int
+        ) -> Bool {
+            guard isStatusGrouping else { return true }
+            return columnIndex != 0 && newColumnIndex != 0
+        }
+
+        func outlineViewItemDidExpand(_ notification: Notification) {
+            syncDisclosureState(notification, expanded: true)
+            persistCollapsedState()
+        }
+        func outlineViewItemDidCollapse(_ notification: Notification) {
+            syncDisclosureState(notification, expanded: false)
+            persistCollapsedState()
+        }
+
+        /// Defensive chevron sync for any expansion path other than a row click
+        /// (keyboard, programmatic). `handleSingleClick` already set the value, so
+        /// this is a no-op there; for other paths it keeps the chevron truthful.
+        private func syncDisclosureState(_ notification: Notification, expanded: Bool) {
+            guard let node = notification.userInfo?["NSObject"] as? OutlineNode,
+                case .group(let group) = node.payload
+            else { return }
+            disclosureStates[group.id]?.isExpanded = expanded
+        }
 
         /// Gathers the currently-collapsed group ids (raw `ResolvedGroup.id`, the
         /// sidecar's `collapsed_groups` vocabulary) and persists the full set.
@@ -448,10 +530,17 @@ struct ViewOutlineTable: NSViewRepresentable {
             let point = outline.convert(
                 outline.window?.mouseLocationOutsideOfEventStream ?? .zero, from: nil)
             guard point.x > outline.frameOfOutlineCell(atRow: row).maxX else { return }
-            if outline.isItemExpanded(node) {
-                outline.animator().collapseItem(node)
-            } else {
+            // Flip the chevron state first so its rotation animates concurrently
+            // with the native fold (both ~0.2s); the native triangle is suppressed,
+            // so the chevron is the only disclosure indicator.
+            let willExpand = !outline.isItemExpanded(node)
+            if case .group(let group) = node.payload {
+                disclosureState(for: group).isExpanded = willExpand
+            }
+            if willExpand {
                 outline.animator().expandItem(node)
+            } else {
+                outline.animator().collapseItem(node)
             }
         }
 
@@ -477,6 +566,9 @@ struct ViewOutlineTable: NSViewRepresentable {
         /// header view calls this directly once its modal drag-tracking loop returns.
         func persistLiveColumnOrder() {
             guard !isApplyingUpdate, let outline = outlineView else { return }
+            // While grouping by Status the column order is transient (Status forced
+            // first) — never write it back to the sidecar.
+            guard !isStatusGrouping else { return }
             let newOrder = outline.tableColumns.map { $0.identifier.rawValue }
             guard newOrder != parent.columns.map(\.id) else { return }
             parent.persistOrder(newOrder)
@@ -556,7 +648,9 @@ struct ViewOutlineTable: NSViewRepresentable {
         /// destination `ResolvedGroup`, the insertion index WITHIN its `items`, and
         /// the anchor page id the drop lands before (nil = append). Returns nil for a
         /// position with no valid page slot (e.g. between collection headers).
-        private func dropTarget(proposedItem item: Any?, childIndex index: Int)
+        private func dropTarget(
+            proposedItem item: Any?, childIndex index: Int
+        )
             -> (group: ResolvedGroup, insertionIndex: Int, anchorID: String?)?
         {
             if let node = item as? OutlineNode {
@@ -648,6 +742,33 @@ struct ViewOutlineTable: NSViewRepresentable {
 /// Reference-typed wrapper so `NSOutlineView` (which holds items by reference and
 /// tracks expansion by reference identity) can carry the value-typed
 /// `ResolvedGroup` / `ViewItem`. Rebuilt on each reload.
+/// Suppresses `NSOutlineView`'s native disclosure triangle so the group-header
+/// cell can draw the shared `DisclosureChevron` (matched to the sidebar's native
+/// chevron) in its place. Zeroing the outline-cell frame also lets
+/// `handleSingleClick` toggle on any in-row click: its
+/// `point.x > frameOfOutlineCell.maxX` guard — which used to defer the leading
+/// gutter to the native triangle — now passes across the whole row.
+private final class ChevronlessOutlineView: NSOutlineView {
+    override func frameOfOutlineCell(atRow row: Int) -> NSRect { .zero }
+
+    /// Reclaim the indent the hidden triangle reserved — but only on group-header
+    /// rows, in the outline column. The native triangle drew *inside* that reserved
+    /// gutter; the custom chevron draws in the cell content, which begins *after*
+    /// it, so without this the header sat one level too far right. Item rows are
+    /// untouched, keeping their child indentation beneath the group.
+    override func frameOfCell(atColumn column: Int, row: Int) -> NSRect {
+        var frame = super.frameOfCell(atColumn: column, row: row)
+        guard tableColumns.indices.contains(column),
+            tableColumns[column] === outlineTableColumn,
+            let node = item(atRow: row) as? OutlineNode,
+            case .group = node.payload
+        else { return frame }
+        frame.origin.x -= indentationPerLevel
+        frame.size.width += indentationPerLevel
+        return frame
+    }
+}
+
 private final class OutlineNode {
     enum Payload {
         case group(ResolvedGroup)
@@ -696,6 +817,8 @@ func tableSchemaOptionsSignature(of schema: [PropertyDefinition]) -> String {
 /// hosting view is transparent, so the table's alternating row fill shows through.
 private final class HostingCell: NSTableCellView {
     private var hosting: NSHostingView<AnyView>?
+    private var edgeConstraints: [NSLayoutConstraint] = []
+    private var isOverflowing = false
 
     init(identifier: NSUserInterfaceItemIdentifier) {
         super.init(frame: .zero)
@@ -705,21 +828,37 @@ private final class HostingCell: NSTableCellView {
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError("init(coder:) is unavailable") }
 
-    func host(_ view: AnyView) {
+    /// Hosts the SwiftUI content. `overflowing` drops the trailing pin so the
+    /// content sizes to its intrinsic width and spills past the (narrow) column —
+    /// used for Status group headers whose pill must not clip; the rest of that row
+    /// is empty. The table doesn't clip horizontally, so the pill draws over the
+    /// transparent neighbouring cells.
+    func host(_ view: AnyView, overflowing: Bool = false) {
         if let hosting {
             hosting.rootView = view
+            if overflowing != isOverflowing { applyEdgeConstraints(to: hosting, overflowing: overflowing) }
             return
         }
         let hostingView = NSHostingView(rootView: view)
         hostingView.translatesAutoresizingMaskIntoConstraints = false
         addSubview(hostingView)
-        NSLayoutConstraint.activate([
-            hostingView.leadingAnchor.constraint(equalTo: leadingAnchor),
-            hostingView.trailingAnchor.constraint(equalTo: trailingAnchor),
-            hostingView.topAnchor.constraint(equalTo: topAnchor),
-            hostingView.bottomAnchor.constraint(equalTo: bottomAnchor),
-        ])
+        applyEdgeConstraints(to: hostingView, overflowing: overflowing)
         hosting = hostingView
+    }
+
+    private func applyEdgeConstraints(to hosting: NSHostingView<AnyView>, overflowing: Bool) {
+        NSLayoutConstraint.deactivate(edgeConstraints)
+        var constraints = [
+            hosting.leadingAnchor.constraint(equalTo: leadingAnchor),
+            hosting.topAnchor.constraint(equalTo: topAnchor),
+            hosting.bottomAnchor.constraint(equalTo: bottomAnchor),
+        ]
+        if !overflowing {
+            constraints.append(hosting.trailingAnchor.constraint(equalTo: trailingAnchor))
+        }
+        NSLayoutConstraint.activate(constraints)
+        edgeConstraints = constraints
+        isOverflowing = overflowing
     }
 }
 

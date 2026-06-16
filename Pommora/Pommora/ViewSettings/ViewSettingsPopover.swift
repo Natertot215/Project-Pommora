@@ -75,7 +75,7 @@ struct ViewSettingsPopover: View {
         case .filter:
             FilterPane(scope: scope, path: $path)
         case .group:
-            GroupPane(scope: scope, path: $path)
+            GroupingPane(scope: scope, path: $path)
         }
     }
 }

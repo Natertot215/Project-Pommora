@@ -263,9 +263,9 @@ enum ViewSettingsProperties {
 
     // MARK: - Internals
 
-    private static func isGroupable(_ type: PropertyType) -> Bool {
+    static func isGroupable(_ type: PropertyType) -> Bool {
         switch type {
-        case .select, .status, .checkbox: return true
+        case .select, .status, .checkbox, .date, .datetime: return true
         default: return false
         }
     }

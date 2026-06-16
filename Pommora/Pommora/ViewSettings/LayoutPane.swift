@@ -9,11 +9,13 @@ import SwiftUI
 ///     container has no banner (nothing to show/hide).
 ///   - **Card Size** (Gallery only) — S/M/L segmented control, shown only when
 ///     the active view's `type == .gallery`; writes `cardSize`.
-///   - **Property Visibility** — the per-view eye-list over ALL columns (user
-///     properties + tier relations + Modified, Cover excluded). `_title` renders
-///     pinned + non-hideable. Drag-reorders the visible section; eye toggles
-///     hidden/visible via `SavedViewMutations.applyToggle`. This replaces the
-///     retired standalone property-visibility pane.
+///   - **Property Visibility** — ONE ordered list of ALL columns (user
+///     properties + tier relations + Modified, Cover excluded), ordered by
+///     `propertyOrder`. `_title` renders pinned + non-hideable at the front.
+///     Each row carries a `≡` drag handle to reorder `propertyOrder` and an eye
+///     toggle that flips `hiddenProperties` membership in place — the row never
+///     moves on hide/un-hide. This replaces the retired two-section
+///     (visible/hidden) layout.
 ///   - **Wrap Text** — muted placeholder (table only; functional wrapping is a
 ///     later pass).
 ///
@@ -89,46 +91,40 @@ struct LayoutPane: View {
 
     // MARK: - Property Visibility eye-list
 
+    /// Single ordered list by `propertyOrder`. Unaccounted columns (not yet in
+    /// `propertyOrder`) append at the end. Visibility is `hiddenProperties`
+    /// membership only — the row never moves on hide/un-hide.
     @ViewBuilder
     private func visibilityList(for view: SavedView) -> some View {
         let columns = SavedViewMutations.visibilityColumns(resolved: resolvedProperties())
-        let hiddenSet = Set(view.hiddenProperties)
-        // Visible section: explicit order first, then any column not yet
-        // accounted for in propertyOrder/hidden (rendered as visible).
-        let visibleOrdered = view.propertyOrder.compactMap { id in
+        let orderedDefs = view.propertyOrder.compactMap { id in
             columns.first(where: { $0.id == id })
         }
-        let unaccounted = columns.filter {
-            !view.propertyOrder.contains($0.id) && !hiddenSet.contains($0.id)
+        let unaccounted = columns.filter { def in
+            !view.propertyOrder.contains(def.id)
         }
-        let reorderable = visibleOrdered + unaccounted
-        let hiddenOrdered = columns.filter { hiddenSet.contains($0.id) }
+        let allOrdered = orderedDefs + unaccounted
+        let hiddenSet = Set(view.hiddenProperties)
 
-        ForEach(reorderable, id: \.id) { def in
-            reorderableRow(def, in: reorderable)
-        }
-        ForEach(hiddenOrdered, id: \.id) { def in
-            VisibilityRow(
-                definition: def,
-                isVisible: false,
-                onToggle: { Task { await toggle(def.id, currentlyVisible: false) } }
-            )
+        ForEach(allOrdered, id: \.id) { def in
+            visibilityRow(def, allOrdered: allOrdered, hiddenSet: hiddenSet)
         }
     }
 
-    /// One visible-section row. The pinned Title row is locked — it gets no
-    /// drag handle and nothing may drop onto it (the reorder helper keeps
-    /// `_title` front-pinned, so a drop here would be a no-op affordance). All
-    /// other rows carry the full drag + drop reorder modifiers.
+    /// One row in the single ordered list. The pinned `_title` row carries no
+    /// drag handle and accepts no drops. All other rows carry a `≡` grip and
+    /// full drag + drop reorder modifiers.
     @ViewBuilder
-    private func reorderableRow(
+    private func visibilityRow(
         _ def: PropertyDefinition,
-        in reorderable: [PropertyDefinition]
+        allOrdered: [PropertyDefinition],
+        hiddenSet: Set<String>
     ) -> some View {
+        let isVisible = !hiddenSet.contains(def.id)
         let row = VisibilityRow(
             definition: def,
-            isVisible: true,
-            onToggle: { Task { await toggle(def.id, currentlyVisible: true) } }
+            isVisible: isVisible,
+            onToggle: { Task { await toggle(def.id, currentlyVisible: isVisible) } }
         )
         if def.id == ReservedPropertyID.title {
             row
@@ -138,7 +134,7 @@ struct LayoutPane: View {
                 .dropDestination(for: String.self) { droppedIDs, _ in
                     guard let droppedID = droppedIDs.first else { return false }
                     return reorder(
-                        currentOrder: reorderable.map(\.id),
+                        currentOrder: allOrdered.map(\.id),
                         droppedID: droppedID,
                         ontoTargetID: def.id
                     )
@@ -181,9 +177,9 @@ struct LayoutPane: View {
         }
     }
 
-    /// Reorders the visible-section property IDs by moving `droppedID` onto
-    /// `ontoTargetID`, then persists. The reserved `_title` lead is kept at the
-    /// front of `propertyOrder`; the reordered set replaces the rest.
+    /// Reorders `propertyOrder` by moving `droppedID` onto `ontoTargetID`,
+    /// then persists. `_title` is always kept front-pinned: if the incoming
+    /// order places it elsewhere, it is hoisted to index 0.
     private func reorder(
         currentOrder: [String],
         droppedID: String,
@@ -328,8 +324,10 @@ private struct CardSizeRow: View {
     }
 }
 
-/// One column-visibility row — icon + name + an eye affordance. `_title` is
-/// pinned (lock badge, disabled). Hidden rows mute + strike through.
+/// One column-visibility row — `≡` drag handle + icon + name + eye affordance.
+/// `_title` is pinned: lock badge, muted grip, non-interactable. All other rows
+/// render a full secondary-color grip; drag + drop wiring is applied by the
+/// caller. Hidden rows mute + strike through the label.
 private struct VisibilityRow: View {
     let definition: PropertyDefinition
     let isVisible: Bool
@@ -340,37 +338,49 @@ private struct VisibilityRow: View {
     }
 
     var body: some View {
-        Button(action: onToggle) {
-            HStack(spacing: PUI.Row.interSpacing) {
-                Image(systemName: definition.displayIcon)
-                    .font(PUI.Icon.leading)
-                    .foregroundStyle(isVisible ? .primary : .tertiary)
-                    .frame(width: PUI.Icon.leadingFrame)
+        HStack(spacing: PUI.Row.interSpacing) {
+            gripHandle
 
-                Text(definition.name)
-                    .font(PUI.Typography.row)
-                    .foregroundStyle(isVisible ? .primary : .tertiary)
-                    .strikethrough(!isVisible, color: .secondary)
-                    .lineLimit(1)
+            Button(action: onToggle) {
+                HStack(spacing: PUI.Row.interSpacing) {
+                    Image(systemName: definition.displayIcon)
+                        .font(PUI.Icon.leading)
+                        .foregroundStyle(isVisible ? .primary : .tertiary)
+                        .frame(width: PUI.Icon.leadingFrame)
 
-                Spacer()
+                    Text(definition.name)
+                        .font(PUI.Typography.row)
+                        .foregroundStyle(isVisible ? .primary : .tertiary)
+                        .strikethrough(!isVisible, color: .secondary)
+                        .lineLimit(1)
 
-                if isPinned {
-                    Image(systemName: "lock.fill")
-                        .font(PUI.Icon.lock)
-                        .foregroundStyle(.tertiary)
-                        .help("Always visible — the title column is pinned")
-                } else {
-                    Image(systemName: isVisible ? "eye" : "eye.slash")
-                        .font(PUI.Icon.visibility)
-                        .foregroundStyle(.tertiary)
+                    Spacer()
+
+                    if isPinned {
+                        Image(systemName: "lock.fill")
+                            .font(PUI.Icon.lock)
+                            .foregroundStyle(.tertiary)
+                            .help("Always visible — the title column is pinned")
+                    } else {
+                        Image(systemName: isVisible ? "eye" : "eye.slash")
+                            .font(PUI.Icon.visibility)
+                            .foregroundStyle(.tertiary)
+                    }
                 }
+                .contentShape(Rectangle())
             }
-            .padding(.horizontal, PUI.Row.paddingHorizontal)
-            .padding(.vertical, PUI.Row.paddingVertical)
-            .contentShape(Rectangle())
+            .buttonStyle(.plain)
+            .disabled(isPinned)
         }
-        .buttonStyle(.plain)
-        .disabled(isPinned)
+        .padding(.horizontal, PUI.Row.paddingHorizontal)
+        .padding(.vertical, PUI.Row.paddingVertical)
+    }
+
+    @ViewBuilder
+    private var gripHandle: some View {
+        Image(systemName: "line.3.horizontal")
+            .font(PUI.Typography.chip)
+            .foregroundStyle(isPinned ? AnyShapeStyle(.quaternary) : AnyShapeStyle(.secondary))
+            .help(isPinned ? "Title is always first" : "Drag to reorder")
     }
 }

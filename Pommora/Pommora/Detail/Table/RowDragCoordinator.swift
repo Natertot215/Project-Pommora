@@ -204,7 +204,7 @@ final class RowDragCoordinator {
         for item: ViewItem, group: GroupConfig?
     ) -> GroupDropPlanner.GroupContext? {
         if case .property(let grouping)? = group {
-            return .property(value: GroupResolver.bucketKey(item, propertyID: grouping.propertyID))
+            return .property(value: GroupResolver.bucketKey(item, grouping: grouping))
         }
         return .structural(item.parent)
     }

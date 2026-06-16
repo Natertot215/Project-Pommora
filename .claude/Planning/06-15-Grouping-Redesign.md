@@ -1,6 +1,6 @@
 ## Grouping Redesign — Spec
 
-> **Status: written, review-certified (V2).** Design ratified with Nathan via interview (2026-06-15); code claims grounded against source and a logic/coverage round folded in (V2). Pending Nathan's read before the implementation plan.
+> **Status: interface SHIPPED (2026-06-15, branch `grouping-redesign`); view-side rendering + group-header drag PENDING.** The schema, resolver, and the Grouping pane (with a full UIX-review pass) are built + green. What remains of this spec is the *view-side*: how groups render in the table/gallery and the group-header manual-drag reorder + the table disclosure-chevron animation — see `06-15-Grouping-Plan.md` Phase 3–4. (Design ratified via interview; V2 review-certified before build.)
 
 Redesigns the **Grouping** pane and grouping behavior. Item-sorting (ordering rows *within* a group) is a separate follow-up and is untouched here. Grouping orders the group **headers**; sorting orders the **items** — the pipeline already keeps these independent and this spec preserves that split. The Options chip-list in the pane reorders *group headers*, never items.
 

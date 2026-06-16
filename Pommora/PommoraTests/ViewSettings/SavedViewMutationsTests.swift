@@ -3,9 +3,14 @@ import Testing
 
 @testable import Pommora
 
-/// Coverage for the ported per-view visibility-toggle semantics and the
+/// Coverage for the per-view visibility-toggle semantics and the
 /// visibility-list builder (`SavedViewMutations`), plus the `show_banner`
 /// round-trip on `SavedView`.
+///
+/// Toggle semantics (new, single-list model):
+///   - Hide: append to `hiddenProperties`; `propertyOrder` is UNCHANGED.
+///   - Un-hide: remove from `hiddenProperties`; `propertyOrder` is UNCHANGED.
+///   Row positions are preserved — un-hiding never moves a property to the top.
 @Suite struct SavedViewMutationsTests {
     private func makeView() -> SavedView {
         SavedView(
@@ -17,32 +22,37 @@ import Testing
 
     // MARK: - applyToggle
 
-    @Test func hideRemovesFromOrderAndAppendsHidden() {
+    @Test func hideAppendsToHiddenLeavesOrderIntact() {
         var view = makeView()
         SavedViewMutations.applyToggle(&view, propertyID: "prop_a", currentlyVisible: true)
-        #expect(view.propertyOrder == ["_title", "prop_b"])
+        // propertyOrder is unchanged — the row keeps its position in the list.
+        #expect(view.propertyOrder == ["_title", "prop_a", "prop_b"])
         #expect(view.hiddenProperties == ["prop_a"])
     }
 
-    @Test func unhideReinsertsAfterTitle() {
+    @Test func unhideRemovesFromHiddenLeavesOrderIntact() {
+        var view = SavedView(
+            id: "view_01HVIEW",
+            propertyOrder: ["_title", "prop_a", "prop_b"],
+            hiddenProperties: ["prop_a"]
+        )
+        SavedViewMutations.applyToggle(&view, propertyID: "prop_a", currentlyVisible: false)
+        // Position preserved — prop_a stays between _title and prop_b.
+        #expect(view.propertyOrder == ["_title", "prop_a", "prop_b"])
+        #expect(view.hiddenProperties == [])
+    }
+
+    @Test func unhideWhenNotInOrderLeavesOrderUntouched() {
+        // A property absent from propertyOrder (stale/unaccounted) still only
+        // has its hiddenProperties entry removed; no insertion into propertyOrder.
         var view = SavedView(
             id: "view_01HVIEW",
             propertyOrder: ["_title", "prop_b"],
             hiddenProperties: ["prop_a"]
         )
         SavedViewMutations.applyToggle(&view, propertyID: "prop_a", currentlyVisible: false)
-        #expect(view.propertyOrder == ["_title", "prop_a", "prop_b"])
+        #expect(view.propertyOrder == ["_title", "prop_b"])
         #expect(view.hiddenProperties == [])
-    }
-
-    @Test func unhideWithoutTitleLeadInsertsAtFront() {
-        var view = SavedView(
-            id: "view_01HVIEW",
-            propertyOrder: ["prop_b"],
-            hiddenProperties: ["prop_a"]
-        )
-        SavedViewMutations.applyToggle(&view, propertyID: "prop_a", currentlyVisible: false)
-        #expect(view.propertyOrder == ["prop_a", "prop_b"])
     }
 
     @Test func modifiedAtIsToggleable() {
@@ -51,12 +61,12 @@ import Testing
             propertyOrder: ["_title", ReservedPropertyID.modifiedAt],
             hiddenProperties: []
         )
-        // Hide it.
+        // Hide it — propertyOrder stays the same.
         SavedViewMutations.applyToggle(
             &view, propertyID: ReservedPropertyID.modifiedAt, currentlyVisible: true)
-        #expect(view.propertyOrder == ["_title"])
+        #expect(view.propertyOrder == ["_title", ReservedPropertyID.modifiedAt])
         #expect(view.hiddenProperties == [ReservedPropertyID.modifiedAt])
-        // Un-hide it.
+        // Un-hide it — propertyOrder still the same.
         SavedViewMutations.applyToggle(
             &view, propertyID: ReservedPropertyID.modifiedAt, currentlyVisible: false)
         #expect(view.propertyOrder == ["_title", ReservedPropertyID.modifiedAt])
