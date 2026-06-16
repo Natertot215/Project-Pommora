@@ -6,7 +6,7 @@ import { chip, chipColor, chipCheckbox } from './chip.css'
  * The single token object. Read scalar values as `vars.color.*` and
  * `vars.font.*` (e.g. `vars.color.solid.blue`, `vars.color.label.primary`,
  * `vars.font.weight.semibold`, `vars.font.scale.body.size`). One import:
- *   import { vars, text, chip, chipColor } from '@renderer/design/tokens'
+ *   import { vars, text, chip, chipColor } from '@renderer/design-system/tokens'
  */
 export const vars = {
   ...colorVars,

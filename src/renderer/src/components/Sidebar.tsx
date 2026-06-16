@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Icon, type IconName } from '@renderer/design/icons'
+import { Icon, type IconName } from '@renderer/design-system/symbols'
 import type {
   AreaNode,
   CollectionNode,

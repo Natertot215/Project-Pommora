@@ -40,10 +40,9 @@ body {
   background: var(--main-bg);
 }
 
-/* Sidebar = glass OVERLAY on top of the main view (no fill). Its backdrop-filter
-   samples the app content behind it — never the desktop. Inset 5px, rounded to
-   match the window corner. The brightness lift gives a frosted read even over an
-   empty dark main; blur/saturation come alive once the main has content. */
+/* Sidebar glass = LAYOUT only — a floating overlay inset from the window edge.
+   The glass MATERIAL (blur / brightness / edge / shadow) now lives in the
+   GlassSurface component (design-system/materials/glass-surface.tsx). */
 .surface-glass {
   position: absolute;
   top: var(--glass-inset);
@@ -52,21 +51,6 @@ body {
   width: 264px;
   z-index: 1;
   border-radius: var(--glass-radius);
-  /* Apple Liquid Glass leans almost fully CLEAR — no saturation, no milky fill,
-     just a light blur and a faint specular edge. The body stays transparent
-     (reads as the main tone); presence is the thin edge highlight only. */
-  /* Apple Regular glass (WWDC25 spec), minus the body brighteners: NO
-     brightness() filter and NO white fill — transparent body so it stays the
-     main tone. Character comes from the two-part edge (bright top rim + dark
-     containment edge) + a soft inner specular. Low blur, minimal saturation. */
-  background: transparent;
-  /* Adopted: liquidGL "Tinted Lens" at zero tint — a clear, darkened frost. */
-  backdrop-filter: blur(5px) brightness(90%);
-  -webkit-backdrop-filter: blur(5px) brightness(90%);
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.25), /* top specular */
-    0 8px 26px rgba(0, 0, 0, 0.28); /* soft drop shadow */
   overflow: hidden;
   -webkit-app-region: drag;
 }

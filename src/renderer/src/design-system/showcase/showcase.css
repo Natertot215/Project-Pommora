@@ -139,3 +139,59 @@ code {
   color: rgba(241, 241, 241, 0.6);
   border: 1px solid rgba(255, 255, 255, 0.08);
 }
+
+/* Icons — auto from the symbols registry */
+.ds-icon-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(94px, 1fr));
+  gap: 10px;
+}
+.ds-icon-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 8px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  color: #f1f1f1;
+}
+.ds-icon-name {
+  font-size: 10px;
+  color: rgba(241, 241, 241, 0.5);
+  text-align: center;
+  word-break: break-word;
+}
+
+/* Materials — glass over a colorful field */
+.ds-mat-stage {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+  padding: 28px;
+  border-radius: 14px;
+  background:
+    radial-gradient(circle at 25% 30%, #bf5af2, transparent 45%),
+    radial-gradient(circle at 80% 25%, #0a84ff, transparent 45%),
+    radial-gradient(circle at 60% 82%, #ff9f0a, transparent 48%),
+    #1c1c1f;
+}
+.ds-mat-panel {
+  width: 220px;
+  height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.ds-mat-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+.ds-mat-note {
+  font-size: 12px;
+  color: rgba(241, 241, 241, 0.5);
+  margin-top: 10px;
+}

@@ -13,7 +13,7 @@ The variables. **Edit here → propagates everywhere.** Authored with vanilla-ex
 
 ### One import everywhere
 
-`index.ts` exposes a single `vars` object plus `text`. Every consumer does `import { vars, text } from '@renderer/design/tokens'` — read scalars as `vars.color.solid.blue` / `vars.font.weight.semibold` / `vars.font.scale.body.size`, and apply a whole text style with `className={text.headline.emphasized}`.
+`index.ts` exposes a single `vars` object plus `text`. Every consumer does `import { vars, text } from '@renderer/design-system/tokens'` — read scalars as `vars.color.solid.blue` / `vars.font.weight.semibold` / `vars.font.scale.body.size`, and apply a whole text style with `className={text.headline.emphasized}`.
 
 ### Status
 

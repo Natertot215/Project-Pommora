@@ -17,7 +17,7 @@ Pommora's React icons come from **Lucide** ([lucide.dev/icons](https://lucide.de
 | `circle-dashed` | Select chip (placeholder) |
 | `sliders-horizontal` | Trio Button, Settings |
 
-**To add one:** drop a row here with the name as it appears on lucide.dev and what it's for. **To use one in code:** `import { Icon } from '@renderer/design/icons'` → `<Icon name="folder" size={15} />`.
+**To add one:** drop a row here with the name as it appears on lucide.dev and what it's for. **To use one in code:** `import { Icon } from '@renderer/design-system/symbols'` → `<Icon name="folder" size={15} />`.
 
 - `chevron-left`
 - `chevron-right` 
