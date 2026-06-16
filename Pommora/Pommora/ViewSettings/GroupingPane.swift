@@ -230,9 +230,11 @@ private struct GroupByRow: View {
                         .font(PUI.Typography.row)
                         .foregroundStyle(.secondary)
                     if isEnabled {
-                        Image(systemName: pickerExpanded ? "chevron.up" : "chevron.down")
+                        Image(systemName: "chevron.right")
                             .font(PUI.Icon.chevron)
                             .foregroundStyle(.tertiary)
+                            .rotationEffect(.degrees(pickerExpanded ? 90 : 0))
+                            .animation(.easeInOut(duration: 0.2), value: pickerExpanded)
                     }
                 }
                 .padding(.horizontal, PUI.Row.paddingHorizontal)
@@ -537,7 +539,8 @@ private struct OptionsSection: View {
         if !allOpts.isEmpty {
             VStack(spacing: 0) {
                 PaneDivider()
-                if grouping.orderMode == .manual {
+                switch grouping.orderMode {
+                case .manual:
                     GroupingOptionsList(
                         chips: orderedStatusChips(groups),
                         isDraggable: true,
@@ -545,19 +548,32 @@ private struct OptionsSection: View {
                             model.update { $0.order = newOrder }
                         }
                     )
-                } else {
+                case .reversed:
+                    // Flat reversed chip list — mirrors what the view renders.
+                    GroupingOptionsList(
+                        chips: flatStatusChips(groups).reversed(),
+                        isDraggable: false,
+                        onReorder: { _ in }
+                    )
+                case .configured:
                     GroupingStatusGroupedPreview(groups: groups)
                 }
             }
         }
     }
 
-    /// Chips in order: use `grouping.order` if set and in manual mode; else schema order.
+    /// Chips ordered by active `orderMode`:
+    /// `.configured` → schema order; `.reversed` → schema reversed;
+    /// `.manual` → `grouping.order` first, remaining in schema order.
     private func orderedSelectChips(
         _ opts: [PropertyDefinition.SelectOption]
     ) -> [PropertyChipOption] {
         let chips = opts.map { $0.asChipOption() }
-        if grouping.orderMode == .manual, let order = grouping.order {
+        switch grouping.orderMode {
+        case .reversed:
+            return chips.reversed()
+        case .manual:
+            guard let order = grouping.order else { return chips }
             var result: [PropertyChipOption] = []
             for id in order {
                 if let chip = chips.first(where: { $0.id == id }) {
@@ -568,11 +584,13 @@ private struct OptionsSection: View {
                 result.append(chip)
             }
             return result
+        case .configured:
+            return chips
         }
-        return chips
     }
 
     /// Flat status options for manual-mode drag list.
+    /// `grouping.order` first, remaining appended in schema order.
     private func orderedStatusChips(
         _ groups: [PropertyDefinition.StatusGroup]
     ) -> [PropertyChipOption] {
@@ -581,21 +599,28 @@ private struct OptionsSection: View {
                 opt.asChipOption(groupColor: group.color)
             }
         }
-        if let order = grouping.order {
-            var result: [PropertyChipOption] = []
-            for id in order {
-                if let chip = allChips.first(where: { $0.id == id }) {
-                    result.append(chip)
-                }
+        guard let order = grouping.order else { return allChips }
+        var result: [PropertyChipOption] = []
+        for id in order {
+            if let chip = allChips.first(where: { $0.id == id }) {
+                result.append(chip)
             }
-            for chip in allChips {
-                if !result.contains(where: { $0.id == chip.id }) {
-                    result.append(chip)
-                }
-            }
-            return result
         }
-        return allChips
+        for chip in allChips where !result.contains(where: { $0.id == chip.id }) {
+            result.append(chip)
+        }
+        return result
+    }
+
+    /// Flat schema-ordered chips for `.configured` and `.reversed` non-manual previews.
+    private func flatStatusChips(
+        _ groups: [PropertyDefinition.StatusGroup]
+    ) -> [PropertyChipOption] {
+        groups.flatMap { group in
+            group.options.map { opt in
+                opt.asChipOption(groupColor: group.color)
+            }
+        }
     }
 }
 
