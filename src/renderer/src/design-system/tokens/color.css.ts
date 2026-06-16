@@ -1,9 +1,10 @@
 import { createGlobalTheme } from '@vanilla-extract/css'
 
 // Color tokens mirrored from the Figma color collection: the solid spectrum,
-// label tones, backgrounds, overlay fills, interaction states, accent, and
-// separators. Per-component soft tints (e.g. chips) derive from the solids —
-// see chip.css.ts.
+// label tones, the window background, content surfaces, overlay fills,
+// interaction states, the accent seed, and separators. Per-component soft tints
+// (e.g. chips) and the accent's -fill / -text derive from these — see
+// chip.css.ts and theme-vars.css.ts.
 export const vars = createGlobalTheme(':root', {
   color: {
     solid: {
@@ -25,12 +26,15 @@ export const vars = createGlobalTheme(':root', {
       secondary: 'rgba(241, 241, 241, 0.65)',
       tertiary: 'rgba(241, 241, 241, 0.35)'
     },
-    // Window + surface backgrounds (Figma "Background").
+    // The app substrate — the base background (Figma "Background").
     background: {
+      window: '#1A1A1B'
+    },
+    // Content surfaces layered on the window (Figma "Surface").
+    surface: {
       primary: '#222225',
       secondary: '#252528',
-      tertiary: '#333336',
-      window: '#1A1A1B'
+      tertiary: '#333336'
     },
     // Overlay fills over a surface — base #71717A at five alphas (Figma "Fills").
     fill: {
@@ -45,11 +49,11 @@ export const vars = createGlobalTheme(':root', {
       hover: '#8E8E9305',
       selected: '#8E8E9314'
     },
-    // Accent = lavender (Figma "Accent").
+    // Accent seed — the default accent (Figma "Accent/accent" → lavender). The
+    // live accent is swappable at runtime via --accent; its -fill / -text DERIVE
+    // from it (theme-vars.css.ts), so one property swap recolors everything.
     accent: {
-      base: '#A78BCC',
-      fill: '#A78BCC26',
-      text: '#C0AEDD'
+      base: '#A78BCC'
     },
     // Hairlines (Figma "Separator").
     separator: {

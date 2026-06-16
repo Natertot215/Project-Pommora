@@ -184,3 +184,66 @@ code {
   color: rgba(241, 241, 241, 0.5);
   margin-top: 10px;
 }
+
+/* Accent — live picker (sets --accent on :root; -fill / -text derive) */
+.ds-accent {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.ds-accent-swatches {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.ds-accent-chip {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  outline: none;
+  transition: transform 80ms ease;
+}
+.ds-accent-chip:hover {
+  transform: scale(1.08);
+}
+.ds-accent-chip.is-active {
+  box-shadow:
+    0 0 0 2px var(--bg-window),
+    0 0 0 4px var(--label-primary);
+}
+.ds-accent-chip.is-system {
+  border-style: dashed;
+  border-color: rgba(255, 255, 255, 0.5);
+}
+.ds-accent-samples {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.ds-accent-btn {
+  background: var(--accent);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 7px 14px;
+  border-radius: 8px;
+}
+.ds-accent-pill {
+  background: var(--accent-fill);
+  color: var(--accent-text);
+  border: 1px solid var(--accent);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 12px;
+  border-radius: 999px;
+}
+.ds-accent-link {
+  color: var(--accent-text);
+  font-size: 13px;
+  font-weight: 600;
+}

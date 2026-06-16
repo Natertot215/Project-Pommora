@@ -112,3 +112,29 @@ describe('readNexus — real test nexus (optional smoke)', () => {
     expect(Array.isArray(t.vaults)).toBe(true)
   })
 })
+
+describe('readNexus — accent setting', () => {
+  const roots: string[] = []
+  const mk = (settings: object): string => {
+    const root = mkdtempSync(join(tmpdir(), 'pom-accent-'))
+    roots.push(root)
+    d(join(root, '.nexus'))
+    w(join(root, '.nexus', 'nexus.json'), JSON.stringify({ schemaVersion: 1, id: 'nxa', createdAt: '2026' }))
+    w(join(root, '.nexus', 'settings.json'), JSON.stringify(settings))
+    return root
+  }
+  afterAll(() => roots.forEach((r) => rmSync(r, { recursive: true, force: true })))
+
+  it('reads a valid spectrum accent', async () => {
+    expect((await readNexus(mk({ accent: 'blue' }))).accent).toBe('blue')
+  })
+  it('passes through system', async () => {
+    expect((await readNexus(mk({ accent: 'system' }))).accent).toBe('system')
+  })
+  it('defaults when the accent is invalid', async () => {
+    expect((await readNexus(mk({ accent: 'chartreuse' }))).accent).toBe('lavender')
+  })
+  it('defaults when the accent is absent', async () => {
+    expect((await readNexus(mk({}))).accent).toBe('lavender')
+  })
+})

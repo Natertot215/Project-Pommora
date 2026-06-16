@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import type { NexusTree, PageDetail, SelectionState } from '@shared/types'
+import { applyAccent } from './design-system/accent'
 
 /** What a sidebar row hands to `select` — mirrors the selectable SelectionState cases. */
 export type SelectTarget =
@@ -30,8 +31,11 @@ export const useSession = create<SessionState>((set) => ({
     set({ status: 'loading', error: undefined })
     try {
       const res = await window.nexus.open()
-      if (res.ok) set({ status: 'ready', tree: res.tree })
-      else set({ status: 'error', error: res.error })
+      if (res.ok) {
+        set({ status: 'ready', tree: res.tree })
+        const systemColor = res.tree.accent === 'system' ? await window.nexus.systemAccent() : null
+        applyAccent(res.tree.accent, systemColor)
+      } else set({ status: 'error', error: res.error })
     } catch (e) {
       // ipcRenderer.invoke rejects if the bridge/handler is absent — route it
       // to the designed error state instead of hanging on 'loading'.

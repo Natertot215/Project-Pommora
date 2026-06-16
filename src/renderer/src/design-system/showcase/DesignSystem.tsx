@@ -1,7 +1,9 @@
-import { useEffect, useRef, useState, type ReactNode, type RefObject } from 'react'
+import { Fragment, useEffect, useRef, useState, type ReactNode, type RefObject } from 'react'
 import { vars, text, chip, chipColor, chipCheckbox } from '@renderer/design-system/tokens'
 import { Icon, icons } from '@renderer/design-system/symbols'
 import { GlassStage } from './GlassStage'
+import { applyAccent, readCssAccentColor } from '../accent'
+import { ACCENT_COLORS, type AccentSetting } from '@shared/types'
 
 // camelCase / kebab-case key -> "Title Case" label.
 function humanize(key: string): string {
@@ -15,14 +17,10 @@ function humanize(key: string): string {
 function rgbToHex(rgb: string): string {
   const m = rgb.match(/\d+(\.\d+)?/g)
   if (!m || m.length < 3) return rgb
-  return (
-    '#' +
-    m
-      .slice(0, 3)
-      .map((n) => Math.round(Number(n)).toString(16).padStart(2, '0'))
-      .join('')
-      .toUpperCase()
-  )
+  const ch = (n: string): string => Math.round(Number(n)).toString(16).padStart(2, '0')
+  const a = m.length >= 4 ? Number(m[3]) : 1
+  const alpha = a < 1 ? Math.round(a * 255).toString(16).padStart(2, '0') : ''
+  return ('#' + m.slice(0, 3).map(ch).join('') + alpha).toUpperCase()
 }
 
 type RampStyle = { standard: string; emphasized: string }
@@ -53,17 +51,18 @@ function Swatch({ name, color }: { name: string; color: string }) {
   )
 }
 
-function TypeEntry({ name, t }: { name: string; t: RampStyle }) {
+function TypeEntry({ name, t, colorVar }: { name: string; t: RampStyle; colorVar: string }) {
   const [ref, meta] = useComputedStyleText<HTMLSpanElement>(
     (cs) => `${parseFloat(cs.fontSize)}px · ${cs.fontWeight}`
   )
+  const color = `var(${colorVar})`
   return (
     <div className="ds-type-entry">
       <div className="ds-type-entry-label">
         {name}
         <span className="ds-type-entry-meta">{meta}</span>
       </div>
-      <div className="ds-type-entry-samples">
+      <div className="ds-type-entry-samples" style={{ color }}>
         <span ref={ref} className={t.standard}>{name}</span>
         <span className={t.emphasized}>{name}</span>
       </div>
@@ -71,22 +70,79 @@ function TypeEntry({ name, t }: { name: string; t: RampStyle }) {
   )
 }
 
-const TYPE_COLUMNS: Array<{ label: string; keys: Array<keyof typeof text> }> = [
-  { label: 'Primary', keys: ['largeTitle', 'title1', 'title2', 'title3'] },
-  { label: 'Secondary', keys: ['headline', 'body', 'callout', 'control'] },
-  { label: 'Tertiary', keys: ['caption', 'footnote'] }
+const ALL_TYPE_KEYS: Array<keyof typeof text> = [
+  'largeTitle', 'title1', 'title2', 'title3',
+  'headline', 'body', 'callout', 'control',
+  'caption', 'footnote'
 ]
 
-function TypeColumn({ label, keys }: { label: string; keys: Array<keyof typeof text> }) {
+const TYPE_COLUMNS: Array<{ label: string; colorVar: string }> = [
+  { label: 'Primary', colorVar: '--label-primary' },
+  { label: 'Secondary', colorVar: '--label-secondary' },
+  { label: 'Tertiary', colorVar: '--label-tertiary' }
+]
+
+function TypeColumn({ label, colorVar }: { label: string; colorVar: string }) {
   return (
     <div className="ds-type-col">
       <div className="ds-type-col-header">{label}</div>
-      {keys.map((key) => (
-        <TypeEntry key={key} name={humanize(key)} t={text[key]} />
+      {ALL_TYPE_KEYS.map((key) => (
+        <TypeEntry key={key} name={humanize(key)} t={text[key]} colorVar={colorVar} />
       ))}
     </div>
   )
 }
+
+const ACCENT_OPTIONS: AccentSetting[] = [...ACCENT_COLORS, 'system']
+
+// Live accent picker: sets --accent on :root (fill/text derive). The samples
+// read the CSS vars, so they recolor in place. Resets to the bridge default
+// (lavender) on reload — the swap is ephemeral, like the glass demo.
+function AccentDemo() {
+  const [active, setActive] = useState<AccentSetting>('lavender')
+  const [systemColor] = useState(() => readCssAccentColor())
+  const pick = (a: AccentSetting): void => {
+    setActive(a)
+    applyAccent(a, a === 'system' ? systemColor : null)
+  }
+  return (
+    <div className="ds-accent">
+      <div className="ds-accent-swatches">
+        {ACCENT_OPTIONS.map((a) => (
+          <button
+            key={a}
+            type="button"
+            className={
+              'ds-accent-chip' +
+              (a === active ? ' is-active' : '') +
+              (a === 'system' ? ' is-system' : '')
+            }
+            style={{ background: a === 'system' ? systemColor ?? '#7d7d82' : vars.color.solid[a] }}
+            onClick={() => pick(a)}
+            title={a}
+            aria-label={a}
+          />
+        ))}
+      </div>
+      <div className="ds-accent-samples">
+        <span className="ds-accent-btn">Accent button</span>
+        <span className="ds-accent-pill">Accent fill</span>
+        <span className="ds-accent-link">Accent text</span>
+      </div>
+    </div>
+  )
+}
+
+// Static color-token groups → labeled swatch grids. Accent is excluded; it has
+// its own live picker section.
+const COLOR_GROUPS: Array<[string, Record<string, string>]> = [
+  ['Solid spectrum', vars.color.solid],
+  ['Background', vars.color.background],
+  ['Surface', vars.color.surface],
+  ['Fills', vars.color.fill],
+  ['States', vars.color.state],
+  ['Separators', vars.color.separator]
+]
 
 const CHIP_SHAPES: Array<{ label: string; extra?: string; content: (name: string) => ReactNode }> = [
   { label: 'Pill', content: (n) => n },
@@ -105,7 +161,6 @@ const PENDING = [
 ]
 
 export function DesignSystem() {
-  const solids = Object.entries(vars.color.solid)
   const chipColors = Object.keys(chipColor) as Array<keyof typeof chipColor>
   const iconNames = Object.keys(icons) as Array<keyof typeof icons>
 
@@ -116,11 +171,27 @@ export function DesignSystem() {
       </header>
 
       <section className="ds-section">
-        <h2>Color · Solid spectrum</h2>
-        <div className="ds-swatches">
-          {solids.map(([n, c]) => (
-            <Swatch key={n} name={humanize(n)} color={c} />
-          ))}
+        {COLOR_GROUPS.map(([label, group], i) => (
+          <Fragment key={label}>
+            <h2 style={i > 0 ? { marginTop: 28 } : undefined}>{`Color · ${label}`}</h2>
+            <div className="ds-swatches">
+              {Object.entries(group).map(([n, c]) => (
+                <Swatch key={n} name={humanize(n)} color={c} />
+              ))}
+            </div>
+          </Fragment>
+        ))}
+      </section>
+
+      <section className="ds-section">
+        <h2>Color · Accent — live</h2>
+        <AccentDemo />
+        <div className="ds-mat-note">
+          The accent is a single swappable token — pick a spectrum solid or <b>System</b>{' '}
+          (your Mac&apos;s accent). <code>--accent-fill</code> and <code>--accent-text</code>{' '}
+          derive from it, so one swap recolors everything. In the app it&apos;s driven by{' '}
+          <code>accent</code> in <code>.nexus/settings.json</code>; here it resets to lavender
+          on reload.
         </div>
       </section>
 
@@ -128,7 +199,7 @@ export function DesignSystem() {
         <h2>Typography · Inter</h2>
         <div className="ds-type-grid">
           {TYPE_COLUMNS.map((col) => (
-            <TypeColumn key={col.label} label={col.label} keys={col.keys} />
+            <TypeColumn key={col.label} label={col.label} colorVar={col.colorVar} />
           ))}
         </div>
       </section>

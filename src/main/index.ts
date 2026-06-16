@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain } from 'electron'
+import { app, BrowserWindow, ipcMain, systemPreferences } from 'electron'
 import { isAbsolute, join, relative, resolve, sep } from 'node:path'
 import { homedir } from 'node:os'
 import type { OpenResult, PageResult } from '@shared/types'
@@ -76,6 +76,17 @@ ipcMain.handle('page:open', async (_e, relPath: unknown): Promise<PageResult> =>
     return { ok: true, page }
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : String(e) }
+  }
+})
+
+// The OS accent (macOS 10.14+), for accent === 'system'. Electron returns
+// RRGGBBAA; surface just the RGB as '#RRGGBB'. null when unsupported/unavailable.
+ipcMain.handle('theme:systemAccent', (): string | null => {
+  try {
+    const c = systemPreferences.getAccentColor?.()
+    return c ? `#${c.slice(0, 6)}` : null
+  } catch {
+    return null
   }
 })
 

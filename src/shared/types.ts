@@ -13,7 +13,7 @@ export type NodeKind =
 
 // Contexts tier-1 (Area) color palette — 10 cases, written once as the single source for
 // both the type and the runtime membership check (the reader + the areaSidecar schema both
-// derive from this). KEEP DISTINCT from the Settings accent palette (a separate 8-case enum).
+// derive from this). KEEP DISTINCT from the Settings accent palette (ACCENT_COLORS below).
 export const AREA_COLORS = [
   'gray',
   'brown',
@@ -27,6 +27,30 @@ export const AREA_COLORS = [
   'accent'
 ] as const
 export type AreaColor = (typeof AREA_COLORS)[number]
+
+// Settings accent palette — the spectrum solids usable as the app accent, plus
+// `system` (follow the OS accent). Names mirror the renderer's vars.color.solid
+// keys (color.css.ts); greyDefault is excluded (it's the chip "Default" neutral,
+// not an accent). resolveAccent (renderer) maps each name to its hex.
+export const ACCENT_COLORS = [
+  'red',
+  'orange',
+  'yellow',
+  'green',
+  'lightBlue',
+  'cyan',
+  'blue',
+  'purple',
+  'lavender',
+  'grey'
+] as const
+export type AccentColor = (typeof ACCENT_COLORS)[number]
+
+/** The `accent` value in .nexus/settings.json: a spectrum solid, or follow-the-OS. */
+export type AccentSetting = AccentColor | 'system'
+
+/** Default accent when settings.json omits or has an invalid `accent`. */
+export const DEFAULT_ACCENT: AccentSetting = 'lavender'
 
 export interface BaseNode {
   id: string
@@ -107,6 +131,8 @@ export interface NexusTree {
   vaults: PageTypeNode[]
   userSections: UserSection[]
   labels: NexusLabels
+  /** Resolved app accent from .nexus/settings.json (defaults to DEFAULT_ACCENT). */
+  accent: AccentSetting
 }
 
 /** Single IPC read result envelope — never throws across the boundary. */
