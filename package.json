@@ -13,7 +13,8 @@
     "typecheck:web": "tsc --noEmit -p tsconfig.web.json",
     "typecheck": "npm run typecheck:node && npm run typecheck:web",
     "test": "vitest run",
-    "showcase": "vite"
+    "showcase": "vite",
+    "build:showcase": "vite build"
   },
   "devDependencies": {
     "@types/node": "^25.9.3",
