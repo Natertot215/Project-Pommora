@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { GlassSurface } from '@renderer/design-system/materials/glass-surface'
+import { GlassSurface } from '@renderer/design-system/materials'
 
 // The sidebar's glass seam. Phase 1: a floating glass overlay on top of the
 // main view (z-index), so its backdrop-filter samples the app content — never
