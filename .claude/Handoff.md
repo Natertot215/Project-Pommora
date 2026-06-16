@@ -27,7 +27,7 @@ Two foundations are down; the UI is next.
 ### Pending focuses
 
 - **Token import alias** — the existing `@renderer` alias covers tokens (`@renderer/design/tokens`); no separate `@/design` alias needed.
-- **Glass — comparison lab** at `/glass-lab.html` (`npm run showcase` → localhost root has a landing): 6 approaches with live sliders, each draggable (2D, full pane) across 3 fields (rainbow / forest / window-bg) — liquid-glass-react (installed lib), SVG displacement, frost, glassmorphism, specular, tinted lens. `Surface.tsx` is the swappable seam; pick a winner then wire it there. `liquid-dom` shelved.
+- **Glass — decided: liquidGL "Tinted Lens" at zero tint** (blur 5 · brightness 90%, transparent), wired into `.surface-glass` / `Surface.tsx`. Comparison lab remains at `/glass-lab.html` (`npm run showcase`) — 6 approaches, draggable across 3 fields — for revisiting. `liquid-dom` shelved.
 - **Contexts in `~/test`** — no `.nexus/` / contexts in the fixture, so the sidebar shows Vaults only; add a few Areas / Topics / Projects to exercise it.
 - **`red` is in the solid spectrum but not a chip color** (excluded by design; the mode cap is 10). `grey-default` kept as the `Default` chip color's source.
 - **Menu Heading icon is still 14pt** while its title is now 13 / Semibold — decide whether the icon drops to 13 to match (you scoped the 13pt change to menu *items*, which were already 13).

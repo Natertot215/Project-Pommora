@@ -379,10 +379,10 @@ function PanelSpecular() {
 // --- 6. Tinted Lens (liquidGL / shader-style) -----------------------------
 
 function PanelTintedLens() {
-  const [blur, setBlur] = useState(4)
+  const [blur, setBlur] = useState(5)
   const [hue, setHue] = useState(210)
-  const [strength, setStrength] = useState(26)
-  const [bright, setBright] = useState(112)
+  const [strength, setStrength] = useState(0)
+  const [bright, setBright] = useState(90)
   const [radius, setRadius] = useState(24)
   return (
     <GlassCard
