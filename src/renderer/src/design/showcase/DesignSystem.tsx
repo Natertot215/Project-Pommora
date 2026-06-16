@@ -127,7 +127,7 @@ export function DesignSystem() {
             <div className="ds-chip-rowlabel">Select</div>
             {CHIP_COLORS.map(([n, k]) => (
               <span key={k} className={`${chip} ${chipColor[k]}`} title={n}>
-                <Icon name="circle" size={13} />
+                <Icon name="circle-dashed" size={13} />
               </span>
             ))}
           </div>

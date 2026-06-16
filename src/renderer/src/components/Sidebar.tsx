@@ -66,6 +66,7 @@ function Leaf({
 
 function Disclosure({
   icon,
+  openIcon,
   title,
   depth,
   swatch,
@@ -75,6 +76,7 @@ function Disclosure({
   children
 }: {
   icon: IconName
+  openIcon?: IconName
   title: string
   depth: number
   swatch?: string
@@ -98,7 +100,7 @@ function Disclosure({
         {swatch ? (
           <span className="swatch" data-color={swatch} />
         ) : (
-          <Icon name={icon} size={15} className="row-icon" />
+          <Icon name={open && openIcon ? openIcon : icon} size={15} className="row-icon" />
         )}
         <span className="row-title">{title}</span>
       </div>
@@ -143,7 +145,7 @@ function SetRow({
   onSelectPage: (page: PageNode) => void
 }): React.JSX.Element {
   return (
-    <Disclosure icon="folder-closed" title={set.title} depth={depth} defaultOpen={false}>
+    <Disclosure icon="folder-closed" openIcon="folder-open" title={set.title} depth={depth} defaultOpen={false}>
       {set.pages.map((p) => (
         <PageRow key={p.id} page={p} depth={depth + 1} selection={selection} onSelectPage={onSelectPage} />
       ))}
@@ -163,7 +165,7 @@ function CollectionRow({
   onSelectPage: (page: PageNode) => void
 }): React.JSX.Element {
   return (
-    <Disclosure icon="folder" title={col.title} depth={depth} defaultOpen={false}>
+    <Disclosure icon="folder-closed" openIcon="folder-open" title={col.title} depth={depth} defaultOpen={false}>
       {col.sets.map((s) => (
         <SetRow key={s.id} set={s} depth={depth + 1} selection={selection} onSelectPage={onSelectPage} />
       ))}
@@ -189,7 +191,8 @@ function VaultRow({
 }): React.JSX.Element {
   return (
     <Disclosure
-      icon="layers"
+      icon="gallery-vertical-end"
+      openIcon="folder-open"
       title={vault.title}
       depth={depth}
       defaultOpen={false}
