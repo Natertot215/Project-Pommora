@@ -1,6 +1,7 @@
 import { vars as colorVars } from './color.css'
 import { font, text } from './typography.css'
 import { chip, chipColor, chipCheckbox } from './chip.css'
+import './theme-vars.css' // bridges tokens → stable CSS vars for plain-CSS consumers
 
 /**
  * The single token object. Read scalar values as `vars.color.*` and

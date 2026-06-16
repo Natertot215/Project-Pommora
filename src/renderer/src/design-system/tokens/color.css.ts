@@ -1,8 +1,9 @@
 import { createGlobalTheme } from '@vanilla-extract/css'
 
-// Color tokens from the Figma "Colors" collection: the solid spectrum + label
-// tones. Per-component soft tints (e.g. chips) are derived from the solids —
-// see chip.css.ts. Aliased cyan + lavender resolved to their solids.
+// Color tokens mirrored from the Figma color collection: the solid spectrum,
+// label tones, backgrounds, overlay fills, interaction states, accent, and
+// separators. Per-component soft tints (e.g. chips) derive from the solids —
+// see chip.css.ts.
 export const vars = createGlobalTheme(':root', {
   color: {
     solid: {
@@ -23,6 +24,38 @@ export const vars = createGlobalTheme(':root', {
       primary: '#F1F1F1',
       secondary: 'rgba(241, 241, 241, 0.65)',
       tertiary: 'rgba(241, 241, 241, 0.35)'
+    },
+    // Window + surface backgrounds (Figma "Background").
+    background: {
+      primary: '#222225',
+      secondary: '#252528',
+      tertiary: '#333336',
+      window: '#1A1A1B'
+    },
+    // Overlay fills over a surface — base #71717A at five alphas (Figma "Fills").
+    fill: {
+      primary: '#71717A39',
+      secondary: '#71717A26',
+      tertiary: '#71717A1A',
+      quaternary: '#71717A0F',
+      quinary: '#71717A0A'
+    },
+    // Interaction states (Figma "States").
+    state: {
+      hover: '#8E8E9305',
+      selected: '#8E8E9314'
+    },
+    // Accent = lavender (Figma "Accent").
+    accent: {
+      base: '#A78BCC',
+      fill: '#A78BCC26',
+      text: '#C0AEDD'
+    },
+    // Hairlines (Figma "Separator").
+    separator: {
+      line: '#FFFFFF1F',
+      border: '#FFFFFF29',
+      segment: '#FFFFFF0F'
     }
   }
 })
