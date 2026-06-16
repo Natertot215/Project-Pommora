@@ -316,7 +316,7 @@ private struct DateByRow: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .popover(isPresented: $popoverOpen, arrowEdge: .trailing) {
+        .popover(isPresented: $popoverOpen, arrowEdge: .bottom) {
             DateGranularityPicker(selected: $granularity)
         }
     }
@@ -371,7 +371,7 @@ private struct OrderRow: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .popover(isPresented: $popoverOpen, arrowEdge: .trailing) {
+        .popover(isPresented: $popoverOpen, arrowEdge: .bottom) {
             OrderModePicker(propertyType: propertyType, selected: $orderMode)
         }
     }
@@ -697,7 +697,7 @@ private struct EmptyGroupRow: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .popover(isPresented: $popoverOpen, arrowEdge: .trailing) {
+        .popover(isPresented: $popoverOpen, arrowEdge: .bottom) {
             VStack(alignment: .leading, spacing: 0) {
                 ForEach([EmptyPlacement.top, EmptyPlacement.bottom], id: \.self) { p in
                     DisclosureOptionRow(
