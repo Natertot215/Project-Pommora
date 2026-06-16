@@ -24,6 +24,10 @@ struct ViewOutlineTable: NSViewRepresentable {
     /// The active grouping property (nil for structural / no grouping) — passed to
     /// the group-header cell so Select / Status buckets render their variant pill.
     let groupingProperty: PropertyDefinition?
+    /// The column id that carries the disclosure + group headers. The Title column
+    /// normally; the Status column when grouping by Status (it's moved first +
+    /// force-shown upstream, and the header pill renders in it).
+    let outlineColumnID: String
 
     let index: PommoraIndex?
     let relationResolver: (String) -> (icon: String, title: String)?
@@ -152,6 +156,11 @@ struct ViewOutlineTable: NSViewRepresentable {
         /// in `handleSingleClick` alongside the native fold.
         private var disclosureStates: [String: GroupDisclosureState] = [:]
 
+        /// True while the view groups by a Status property — the Status column is
+        /// then pinned first (no column may move before it) and its forced position
+        /// is transient (never written back to the sidecar's column order).
+        private var isStatusGrouping: Bool { parent.groupingProperty?.type == .status }
+
         /// The chevron state for a group — created on first sight, reused after.
         private func disclosureState(for group: ResolvedGroup) -> GroupDisclosureState {
             if let existing = disclosureStates[group.id] { return existing }
@@ -234,11 +243,14 @@ struct ViewOutlineTable: NSViewRepresentable {
                     outline.addTableColumn(column)
                 }
             }
-            // The disclosure column is the Title column (always present).
-            if let titleColumn = outline.tableColumns.first(where: {
-                self.column(for: $0)?.kind == .title
-            }) {
-                outline.outlineTableColumn = titleColumn
+            // The disclosure column carries the group headers — the Title column
+            // normally, the Status column while grouping by Status. Fall back to
+            // Title if the id isn't resolvable (the Title is always present).
+            let outlineColumn =
+                outline.tableColumns.first(where: { $0.identifier.rawValue == parent.outlineColumnID })
+                ?? outline.tableColumns.first(where: { self.column(for: $0)?.kind == .title })
+            if let outlineColumn {
+                outline.outlineTableColumn = outlineColumn
             }
             // A column change must force the next reload (the signature guard would
             // otherwise skip it when only the row structure is unchanged), and record
@@ -256,8 +268,12 @@ struct ViewOutlineTable: NSViewRepresentable {
         func applyColumnVisibility(_ outline: NSOutlineView) {
             var changed = false
             for column in outline.tableColumns {
-                let isTitle = self.column(for: column)?.kind == .title
-                let hidden = !isTitle && parent.hiddenColumnIDs.contains(column.identifier.rawValue)
+                // Never hide the Title (never hideable) nor the disclosure column
+                // (the headers live there while grouping by Status).
+                let isProtected =
+                    self.column(for: column)?.kind == .title
+                    || column.identifier.rawValue == parent.outlineColumnID
+                let hidden = !isProtected && parent.hiddenColumnIDs.contains(column.identifier.rawValue)
                 if column.isHidden != hidden {
                     column.isHidden = hidden
                     changed = true
@@ -408,9 +424,10 @@ struct ViewOutlineTable: NSViewRepresentable {
 
             switch node.payload {
             case .group(let group):
-                // Only the outline (Title) column carries the group label; the
-                // rest are blank, like a native folder row.
-                if column.kind == .title {
+                // Only the disclosure column carries the group header (Title
+                // normally, Status while grouping by Status); the rest are blank,
+                // like a native folder row.
+                if column.id == parent.outlineColumnID {
                     cell.host(
                         AnyView(
                             ViewGroupHeaderCell(
@@ -446,6 +463,15 @@ struct ViewOutlineTable: NSViewRepresentable {
         /// is deferred). Rows still open on double-click and drag from any row.
         func outlineView(_ outlineView: NSOutlineView, shouldSelectItem _: Any) -> Bool {
             false
+        }
+
+        /// Pins the disclosure (Status) column at index 0 while grouping by Status:
+        /// the Status column itself can't be dragged, and nothing may land before it.
+        func tableView(
+            _ tableView: NSTableView, shouldReorderColumn columnIndex: Int, toColumn newColumnIndex: Int
+        ) -> Bool {
+            guard isStatusGrouping else { return true }
+            return columnIndex != 0 && newColumnIndex != 0
         }
 
         func outlineViewItemDidExpand(_ notification: Notification) {
@@ -535,6 +561,9 @@ struct ViewOutlineTable: NSViewRepresentable {
         /// header view calls this directly once its modal drag-tracking loop returns.
         func persistLiveColumnOrder() {
             guard !isApplyingUpdate, let outline = outlineView else { return }
+            // While grouping by Status the column order is transient (Status forced
+            // first) — never write it back to the sidecar.
+            guard !isStatusGrouping else { return }
             let newOrder = outline.tableColumns.map { $0.identifier.rawValue }
             guard newOrder != parent.columns.map(\.id) else { return }
             parent.persistOrder(newOrder)
