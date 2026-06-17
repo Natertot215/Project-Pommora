@@ -8,13 +8,13 @@ SwiftUI patterns for per-entity CRUD UI — file format → sidebar UI → valid
 
 "Open in preview" is a generic affordance backed by **one shared primitive** — the `PagePreview` child panel opened via the preview-open path (spec → `Features/Pages.md` § "Opening behavior") — not a per-feature one.
 
-**Rule:** for any entity kind (Page, Page Type, Page Collection, and each Context tier, Agenda Task, Agenda Event), preview support for that kind ships on the shared primitive **before** any "open in preview" UI is wired for it. CRUD may land independently; the preview affordance waits. Half-wired feature-specific window plumbing rots when requirements shift — one project-wide primitive, bolt feature surfaces onto it. Today only Pages have preview support, routed per-vault via `open_in`.
+**Rule:** for any entity kind (Page, Page Type, Page Collection, and each Context tier, Task, Event), preview support for that kind ships on the shared primitive **before** any "open in preview" UI is wired for it. CRUD may land independently; the preview affordance waits. Half-wired feature-specific window plumbing rots when requirements shift — one project-wide primitive, bolt feature surfaces onto it. Today only Pages have preview support, routed per-vault via `open_in`.
 
 ---
 
 #### Manager pattern — per entity, `@MainActor @Observable`
 
-Every new entity (each Context tier, Page Type, Page Collection, Page, Agenda Task, Agenda Event, Homepage, Settings, …) gets its own `@MainActor @Observable final class` manager mirroring `NexusManager`'s shape. Per-entity, not one unified store — this narrows state-driven updates so changing one entity doesn't re-evaluate unrelated sidebar sections.
+Every new entity (each Context tier, Page Type, Page Collection, Page, Task, Event, Homepage, Settings, …) gets its own `@MainActor @Observable final class` manager mirroring `NexusManager`'s shape. Per-entity, not one unified store — this narrows state-driven updates so changing one entity doesn't re-evaluate unrelated sidebar sections.
 
 The shape: a `private(set)` array of the entity, a `pendingError: (any Error)?`, an injected `Nexus`, and `async`/`async throws` methods for `loadAll`, `create` (`@discardableResult`, returns the new entity), `rename`, `update*`, and `delete`.
 
@@ -22,7 +22,7 @@ Inject the active Nexus at construction; **the init does NOT kick its own load**
 
 **`pendingError` scope:** set from `loadAll`/`load` AND from every CRUD method — each catch block assigns `self.pendingError = error` before rethrowing. A sidebar-level toast (`SidebarToast`) surfaces it transiently, so failed context-menu renames/deletes are never silent. Sheet-level forms additionally use a per-view error-message `@State` for inline display at the point of edit.
 
-**Property-schema mutation is shared, not per-manager.** The five schema methods — add / rename / delete / reorder property + change type — are NOT reimplemented per manager. They live in two shared `@MainActor` services: a per-type schema service (Page Type, keyed by type ID) and a singleton schema service (Agenda Task / Event, single schema). Each manager supplies a small per-side adapter (metadata URL, concrete error enum, member-file strip, index owning-kind) and keeps its exact public signatures + concrete error enum + the `pendingError`-set-then-rethrow wrapper via a one-line delegator. Entity-level CRUD (create/rename/delete the Type or Collection itself) stays per-manager.
+**Property-schema mutation is shared, not per-manager.** The five schema methods — add / rename / delete / reorder property + change type — are NOT reimplemented per manager. They live in two shared `@MainActor` services: a per-type schema service (Page Type, keyed by type ID) and a singleton schema service (Task / Event, single schema). Each manager supplies a small per-side adapter (metadata URL, concrete error enum, member-file strip, index owning-kind) and keeps its exact public signatures + concrete error enum + the `pendingError`-set-then-rethrow wrapper via a one-line delegator. Entity-level CRUD (create/rename/delete the Type or Collection itself) stays per-manager.
 
 ---
 
@@ -124,7 +124,7 @@ Pommora's own `IconPicker` (`Properties/IconPicker/`) is the icon chooser everyw
 Every embedded view (Context page, Homepage) is **a live, fully-editable view of its source** — not a snapshot.
 
 - The block stores the **reference** (source entity ID + view config + filters), not a snapshot.
-- Edits route through the source entity's manager (e.g. checking off a Task in an embed calls the Agenda Task manager's toggle).
+- Edits route through the source entity's manager (e.g. checking off a Task in an embed calls the Task manager's toggle).
 - The manager atomically writes the source file.
 - The file watcher catches the change → SQLite re-indexes → all embedded views refresh live.
 

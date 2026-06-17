@@ -8,7 +8,7 @@ The dynamics of Pommora's data layer — the on-disk Nexus, the manager + cache 
 
 Every architectural choice below traces back to one of these.
 
-1. **Files are canonical (≠ everything is Markdown).** Only Pages are Markdown; Agenda, sidecars, Contexts, Homepage, and Settings stay JSON. On-disk layout + per-kind sidecars below. SQLite is regeneratable scaffolding, never source of truth — no user data is trapped in it.
+1. **Files are canonical (≠ everything is Markdown).** Only Pages are Markdown; Tasks, Events, sidecars, Contexts, Homepage, and Settings stay JSON. On-disk layout + per-kind sidecars below. SQLite is regeneratable scaffolding, never source of truth — no user data is trapped in it.
 
 2. **Agent legibility.** External agents (Claude via MCP, any filesystem tool, vim, Obsidian) read Pommora's entire structured graph — Pages, schemas, relations, properties — directly from files without tool-call round-trips. This differentiates from Notion-via-MCP (tool-mediated, opaque) and Obsidian (locally legible but unstructured). Any choice that trades file-canonical legibility for app-internal convenience violates this principle.
 
@@ -30,11 +30,11 @@ A Nexus is a single folder. Pommora opens it via picker (security-scoped bookmar
       <Page>.md                         ← Page at Collection root
     <Page>.md                           ← Page directly in Page Type
 
-  <Tasks>/                              ← AgendaTask singleton (folder + _taskconfig.json)
+  <Tasks>/                              ← Tasks singleton (folder + _taskconfig.json)
     _taskconfig.json
     <title>.task.json
 
-  <Events>/                             ← AgendaEvent singleton (folder + _eventconfig.json)
+  <Events>/                             ← Events singleton (folder + _eventconfig.json)
     _eventconfig.json
     <title>.event.json
 
@@ -70,7 +70,7 @@ A Nexus is a single folder. Pommora opens it via picker (security-scoped bookmar
 
 #### Manager + cache layer
 
-One per-entity manager per kind owns the in-memory cache for that kind: it loads files at app start, mirrors to the SQLite index, and writes atomically on every mutation. There is a manager for each operational + organization kind (Page Types + Collections, Page Sets, Page content, Agenda Tasks, Agenda Events, the three Context tiers) plus the Homepage and Settings singletons; each is sourced from its corresponding files/sidecars on disk.
+One per-entity manager per kind owns the in-memory cache for that kind: it loads files at app start, mirrors to the SQLite index, and writes atomically on every mutation. There is a manager for each operational + organization kind (Page Types + Collections, Page Sets, Page content, Tasks, Events, the three Context tiers) plus the Homepage and Settings singletons; each is sourced from its corresponding files/sidecars on disk.
 
 Managers are `@MainActor` `@Observable`; SwiftUI views observe them directly via `@Environment`. Heavy services (the SQLite index, parsers) stay in DI to avoid re-init on view rebuild. Manager ownership + injection is centralized — see CLAUDE.md branch quirk #15.
 
@@ -100,8 +100,8 @@ The index lives at `<nexus>/.nexus/index.db`, travelling with the Nexus so a mov
 
 Every file write goes through one of three atomic paths, all via temp-file + rename (POSIX rename is atomic on the same filesystem, so a crash mid-write leaves either the whole old file or the whole new file — never a half-written one):
 
-- **YAML+Markdown write** — Pages. Composes `---\n<yaml>\n---\n\n<body>`. The preserving path re-reads the overwritten file and merges by value: it re-serializes only the type's own *modeled* keys and **preserves every foreign frontmatter key by value** (plugin / Obsidian / external keys never culled). YAML round-trips by value — flow reflows to block style, comments/anchors drop — but no key/value is lost.
-- **JSON write** — sidecars, Agenda Tasks / Events, Contexts, Settings, Homepage.
+- **YAML+Markdown write** — Pages. Composes `---\n<yaml>\n---\n\n<body>`, re-serializing only modeled keys and preserving every foreign frontmatter key by value. The preserving-merge mechanics are canonical in `// Guidelines//CRUD-Patterns.md` § "YAML frontmatter + body".
+- **JSON write** — sidecars, Tasks / Events, Contexts, Settings, Homepage.
 - **Schema transaction** — multi-file commits that must succeed-or-fail as a unit (e.g. a move that strips properties across types). Validates the full set, then applies in dependency order with rollback on failure.
 
 **Page save contract.** The editor binds only to `body`; frontmatter is held as a typed struct and re-serialized on save, so the editor can't destroy frontmatter. Edits debounce then write atomically and update the index, flushing on context loss. Full pipeline → `// Features//PageEditor.md` § "Save pipeline".

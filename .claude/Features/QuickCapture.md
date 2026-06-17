@@ -1,12 +1,12 @@
 ### Quick Capture
 
-> A lightweight surface for adding **Pages, Agenda Tasks, and Agenda Events** from outside the main window — a menu-bar pane on the Mac, optionally fed by a web-clip route. Concept + architecture doc, not a wiring plan; roadmap slot in `Framework.md`.
+> A lightweight surface for adding **Pages, Tasks, and Events** from outside the main window — a menu-bar pane on the Mac, optionally fed by a web-clip route. Concept + architecture doc, not a wiring plan; roadmap slot in `Framework.md`.
 
 #### What it is
 
 A small single-pane entry point — think Things 3 / Drafts / a web clipper — that creates an operational entity directly into the nexus without opening the full app. It is **another entry point on the existing data layer, not a new feature stack**: it reuses the same create operations and property-assignment UI as the main app.
 
-Three capture kinds: **Page** (scoped to a Vault, optionally a Collection), **Agenda Task**, **Agenda Event**. Tasks and Events are top-level (no container to pick). Capture is title + properties first — not a body editor; prose continues in the main window.
+Three capture kinds: **Page** (scoped to a Vault, optionally a Collection), **Task**, **Event**. Tasks and Events are top-level (no container to pick). Capture is title + properties first — not a body editor; prose continues in the main window.
 
 #### Foundational principle — single-owner nexus access
 

@@ -38,28 +38,25 @@ On-disk shape, sidebar, validation, and tier config → `Contexts.md`.
 
 #### Operational layer — Pages
 
-| Entity | Role | On disk | Default UI label |
-|---|---|---|---|
-| **Page Type** | Schema-bearing container for Pages | `<nexus>/<Title>/_pagetype.json` | **"Vault"** |
-| **Page Collection** | Organizational sub-folder inside a Page Type | `<nexus>/<Type>/<Title>/_pagecollection.json` | "Collection" |
-| **Page Set** | Optional schema-less sub-folder inside a Page Collection; identity + icon only, everything else inherits from the Collection | `<nexus>/<Type>/<Collection>/<Title>/_pageset.json` | "Set" |
-| **Page** | Markdown document with prose + frontmatter | `<nexus>/<Type>/<Collection>/<Set>/Page.md` | "Page" |
+| Entity | Role | Default UI label |
+|---|---|---|
+| **Page Type** | Schema-bearing container for Pages | **"Vault"** |
+| **Page Collection** | Organizational sub-folder inside a Page Type | "Collection" |
+| **Page Set** | Optional schema-less sub-folder inside a Page Collection; identity + icon only, everything else inherits from the Collection | "Set" |
+| **Page** | Markdown document with prose + frontmatter | "Page" |
+
+The Page Type's property schema applies to every Page inside it — Collections and Sets both inherit it. Collections own their saved `views`; Sets carry no schema or settings. On-disk shapes → [[Architecture]]; Type/Collection detail → [[PageTypes]]; Set mechanics → [[Sets]]; the page document → [[Pages]].
 
 #### Operational layer — Agenda
 
-| Entity | Role | On disk | Default UI label |
-|---|---|---|---|
-| **Agenda Task** | EKReminder-shaped: due date, completion, priority | Tasks singleton (root folder carrying `_taskconfig.json`) + `<title>.task.json` | "Task" |
-| **Agenda Event** | EKEvent-shaped: start + end, location | Events singleton (root folder carrying `_eventconfig.json`) + `<title>.event.json` | "Event" |
+Agenda is the parent schema holding two separate kinds, each with its own property schema:
 
-**Rules:**
-- The Page Type's schema applies to every Page inside it, including Pages in Collections and Sets — both inherit it.
-- Page Collections **inherit only** the parent Type's property schema but **own** their saved `views` (groups, visibility, sorts) and an optional `icon`. Page Sets carry no schema, views, or settings — identity + icon + page order only.
-- Hierarchy is strictly three levels (depth-2 folder = Set; deeper folders are sidecar-less, rolling up into the nearest Set).
-- Move between Page Types strips properties absent from the destination schema (Notion-style, with confirm); within the same Type — no strip, schema is shared.
-- Agenda Tasks and Agenda Events are separate kinds with separate schemas.
+| Entity | Role | Default UI label |
+|---|---|---|
+| **Task** | EKReminder-shaped: due date, completion, priority | "Task" |
+| **Event** | EKEvent-shaped: start + end, location | "Event" |
 
-Detail → `PageTypes.md` / `Sets.md` / `Pages.md` / `Agenda.md` / `Properties.md`.
+Detail → [[Agenda]]; the property catalog across all kinds → [[Properties]].
 
 #### Naming convention — three layers
 
@@ -81,15 +78,7 @@ Detail → `Homepage.md`.
 
 #### Cross-layer relations
 
-Operational entities (Pages, Agenda Tasks, Agenda Events) tag Contexts via **per-tier multi-relation fields** at the frontmatter / JSON root, as bare ULID arrays:
-
-```yaml
-tier1: [<area-id>, ...]
-tier2: [<topic-id>, ...]
-tier3: [<project-id>, ...]
-```
-
-Each tier is filled independently — no requirement to fill all three. The three tiers are the **only** relation-type connection (pre-configured properties merged onto every Type's schema, edited inline); they stay one-way, since Contexts carry no `properties[]` schema and reverse lookups resolve through the index. Catalog + rendering → `// Features//Properties.md`.
+Operational entities (Pages, Tasks, Events) tag Contexts via **per-tier multi-relation fields** (`tier1` / `tier2` / `tier3`) at the frontmatter / JSON root, each a bare ULID array filled independently. The three tiers are the **only** relation-type connection — one-way, since Contexts carry no `properties[]` schema and reverse lookups resolve through the index. On-disk shape, rendering, and catalog → [[Properties]] (tier mechanics also in [[Contexts]]).
 
 ---
 
@@ -108,14 +97,12 @@ Each tier is filled independently — no requirement to fill all three. The thre
 
 | Link | Stored as | Purpose |
 |---|---|---|
-| Page → Page (`[[ ]]` connection) | plain `[[Title]]` in body; resolved by globally-unique title, indexed in SQLite — see [[Connections]] | Inline reference |
-| Page → Context (tier N) | `tierN: [<id>, ...]` in frontmatter | Categorical assignment |
-| Agenda Task → Context (tier N) | `tierN: [<id>, ...]` in `.task.json` | Categorical assignment |
-| Agenda Event → Context (tier N) | `tierN: [<id>, ...]` in `.event.json` | Categorical assignment |
+| Page → Page (`[[ ]]` connection) | plain `[[Title]]` in body, resolved by globally-unique title — see [[Connections]] | Inline reference |
+| Operational entity → Context (tier N) | `tierN: [<id>, ...]` at the frontmatter / JSON root | Categorical assignment |
 | Context → Context | None — tiers are free-standing; context→context relations are deferred | — |
 | Page → Page Type / Page Collection / Page Set | Implicit by file location | Membership |
 
-Relations are stored by ID (rename-safe); body connections are plain `[[Title]]` on disk, resolved by globally-unique title with rename-safety via cascade — see [[Connections]].
+Tier relations are stored by ID (rename-safe); body connections are plain `[[Title]]` on disk, rename-safe via cascade — full rules in [[Connections]].
 
 ---
 
@@ -130,7 +117,7 @@ Four top-level groups (three carry a heading; labels renameable via the Settings
 
 There are no wrapper folders on disk — Page Types and the Agenda singletons live as siblings at the nexus root; the section headings are pure UI groupings with no on-disk counterpart.
 
-Agenda has **no** sidebar section. Agenda Tasks + Agenda Events surface via the Calendar entry in the Pinned section (Calendar UI ships in a follow-up plan) — they do **not** appear as sidebar leaves.
+Agenda has **no** sidebar section. Tasks + Events surface via the Calendar entry in the Pinned section (Calendar UI ships in a follow-up plan) — they do **not** appear as sidebar leaves.
 
 No always-visible "+ New" — creation via **right-click context menus, scoped by cursor location**. Detail → `Sidebar.md`.
 
@@ -144,4 +131,4 @@ Every embedded view inside a composed-blocks surface (Context, Homepage) is **a 
 
 #### Properties
 
-Schemas live in per-kind sidecars on each typed container — `_pagetype.json` on a Page Type, `_taskconfig.json` on the Tasks singleton, `_eventconfig.json` on the Events singleton. Page Collections carry their own sidecar (`_pagecollection.json`) for id, ordering, `icon`, and their own `views`; only the property **schema** inherits from the parent Type. The same property catalog applies across Pages, Agenda Tasks, and Agenda Events. Status is first-class with EventKit-aligned fixed groups — a required built-in on both Agenda schemas, not auto-seeded on Page Types. The three context-tier relations (`tier1` / `tier2` / `tier3`) are the only relation-type connections — no user-creatable Relation properties. Schema editing centralizes in the Page Type Settings sheet. Full catalog → `// Features//Properties.md`.
+Property schemas live in per-kind sidecars on each typed container; the same catalog applies across Pages, Tasks, and Events, with the three context-tier relations as the only relation-type connection. Full catalog, sidecar map, and Status semantics → [[Properties]].

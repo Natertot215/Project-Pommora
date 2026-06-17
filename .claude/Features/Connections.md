@@ -18,7 +18,7 @@ The Connection **system is Pommora's own code**: the grammar, the parser, the re
 
 `[[Title]]` targets a **Page**; the source is any Page body.
 
-**Not connection targets:** Contexts (Areas / Topics / Projects) are reached only through tier relations, never inline. Agenda Tasks / Events are excluded (a future "Tasks" / "Events" property mechanism covers them).
+**Not connection targets:** Contexts (Areas / Topics / Projects) are reached only through tier relations, never inline. Tasks / Events are excluded (a future "Tasks" / "Events" property mechanism covers them).
 
 **Authored in Markdown bodies only.** Context and Homepage block surfaces (JSON, not Markdown) are not connection sources — inline connections inside composed-block surfaces are deferred.
 
@@ -117,4 +117,4 @@ The Markdown engine is the render + input surface; Pommora supplies all link sem
 
 ### Deferred
 
-Aliases · id-scoping for duplicate titles (with in-line candidate selection) · the backlinks / connections **display panel** (edge data captured now) · Page preview-on-click · connections inside Context / Homepage composed-block surfaces · Agenda entities as connection targets · heading / block anchors (`#`, `#^`) · transclusion (`![[ ]]`).
+Aliases · id-scoping for duplicate titles (with in-line candidate selection) · the backlinks / connections **display panel** (edge data captured now) · Page preview-on-click · connections inside Context / Homepage composed-block surfaces · Tasks / Events as connection targets · heading / block anchors (`#`, `#^`) · transclusion (`![[ ]]`).

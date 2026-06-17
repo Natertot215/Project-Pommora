@@ -92,7 +92,7 @@ Pages live at three depths inside a Page Type: the Type root, a Page Collection 
 
 #### Sidebar visibility
 
-Pages are the only operational entity with sidebar leaf visibility — they appear as `doc.text` leaf rows under their parent Page Type (root), Page Collection, or Page Set. **Agenda Tasks and Agenda Events do NOT appear in the sidebar** — they surface via the Calendar pin entry. A Page row is a leaf — v1 has no sub-pages. Disclosure structure → [[PageTypes]] § "Sidebar treatment".
+Pages are the only operational entity with sidebar leaf visibility — they appear as `doc.text` leaf rows under their parent Page Type (root), Page Collection, or Page Set. **Tasks and Events do NOT appear in the sidebar** — they surface via the Calendar pin entry. A Page row is a leaf — v1 has no sub-pages. Disclosure structure → [[PageTypes]] § "Sidebar treatment".
 
 Right-click on a Page row in the sidebar gives Rename / Delete; right-click in a Page Type or Page Collection detail view gives Rename / Pin (or Unpin) / Delete. For full sidebar layout + creation affordances → [[Sidebar]].
 
@@ -100,6 +100,4 @@ Right-click on a Page row in the sidebar gives Rename / Delete; right-click in a
 
 #### Connections
 
-A Page's body can hold inline `[[Page Name]]` connections — plain Obsidian-compatible wikilinks that render as styled colored inline text in the prose flow. Canonical spec → [[Connections]].
-
-**Connections vs context-link properties** are two distinct linking mechanisms in two different places: a **connection** lives inline in the Markdown body and renders as colored inline text in the prose; a **context-link property** is a frontmatter `tier1` / `tier2` / `tier3` value that renders as the target's icon + title in the property surface — never a chip. Both resolve by ID and stay rename-safe, but they never share a surface. Property detail → [[Properties]].
+A Page's body can hold inline `[[Page Name]]` connections — Obsidian-compatible wikilinks that render as styled colored inline text in the prose flow (never a chip). Canonical spec → [[Connections]]; the frontmatter `tier1` / `tier2` / `tier3` context-link counterpart → [[Properties]].

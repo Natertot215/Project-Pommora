@@ -1,6 +1,6 @@
 ### Properties
 
-Pommora's property system. The same property type catalog applies to Pages, Agenda Tasks, and Agenda Events. Schemas live on each Type's per-kind sidecar; values live on each member entity. The on-disk file is canonical; SQLite mirrors it for fast queries.
+Pommora's property system. The same property type catalog applies to Pages, Tasks, and Events. Schemas live on each Type's per-kind sidecar; values live on each member entity. The on-disk file is canonical; SQLite mirrors it for fast queries.
 
 This document is the source of truth for **what** Properties are and **how they behave**. Implementation strategy + phasing live in a separate plan document.
 
@@ -11,8 +11,8 @@ This document is the source of truth for **what** Properties are and **how they 
 A **property** is a typed field defined on a Type's schema and populated on individual entities of that Type. Properties live on:
 
 - **Pages** (`.md` files) — frontmatter
-- **Agenda Tasks** (`.task.json` files) — `properties` JSON object
-- **Agenda Events** (`.event.json` files) — `properties` JSON object
+- **Tasks** (`.task.json` files) — `properties` JSON object
+- **Events** (`.event.json` files) — `properties` JSON object
 
 Each entity belongs to one Type. Every Type carries a schema in its per-kind sidecar:
 
@@ -96,7 +96,7 @@ prop_01HSEL...: "in_review"                # display name: "Stage" (Select stays
 prop_01HREL...: [{ $rel: 01HTARGET... }]   # display name: "Project" (Relation — always an array)
 ```
 
-Pages carry property values in `.md` frontmatter. Agenda Tasks / Events keep a `properties` JSON object:
+Pages carry property values in `.md` frontmatter. Tasks / Events keep a `properties` JSON object:
 
 ```json
 // Agenda JSON — properties block keyed by property ID (Tasks / Events stay JSON)
@@ -130,7 +130,7 @@ Canonical rule → [[Domain-Model]] § "Entity identity vs title". Connection di
 
 #### Per-tier relations
 
-Operational entities (Pages, Agenda Tasks, Agenda Events) each carry three tier relation properties pointing to Contexts. They store at the frontmatter / JSON root (not under `properties`) as ID arrays:
+Operational entities (Pages, Tasks, Events) each carry three tier relation properties pointing to Contexts. They store at the frontmatter / JSON root (not under `properties`) as ID arrays:
 
 ```yaml
 tier1: [<area-id>, ...]    # Areas (Context tier 1)
@@ -263,7 +263,7 @@ Moving a Page across Page Types strips properties not in the destination schema.
 
 #### Auto-managed properties
 
-On every Page (frontmatter), Agenda Task (JSON), and Agenda Event (JSON), not user-creatable:
+On every Page (frontmatter), Task (JSON), and Event (JSON), not user-creatable:
 
 - `id` — ULID assigned at creation, never changes (stored at frontmatter root, not under `properties`)
 - `created_at`, `modified_at` — ISO-8601 timestamps maintained by Pommora (frontmatter root)
@@ -272,7 +272,7 @@ Title is NOT a property surface entry. The filename plays the title role — edi
 
 Auto-managed properties sit at the bottom of every property surface, in a separate section divided by a horizontal divider. The bottom section holds `id` and `created_at` (read-only, collapsed by default). `modified_at` is exposed alongside user-defined properties at the top of the surface as Last Edited Time for sortability — same value, two surfacings.
 
-Agenda Tasks and Agenda Events also carry a built-in `description` — a plain-text JSON field (Agenda stays JSON). Not markdown.
+Tasks and Events also carry a built-in `description` — a plain-text JSON field (Agenda stays JSON). Not markdown.
 
 ##### `modified_at` trigger semantics
 

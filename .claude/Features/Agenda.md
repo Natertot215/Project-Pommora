@@ -1,11 +1,11 @@
 ### Agenda
 
-The operational layer's calendar-anchored side. Two peer entity types, mirroring EventKit:
+The operational layer's calendar-anchored side. Agenda is the parent schema holding two peer entity types, mirroring EventKit:
 
-- **Agenda Tasks** — EKReminder-aligned: optional due date, completion flag, priority (0–9), optional start ("not before") date. Stored as `.task.json` in the Tasks singleton folder.
-- **Agenda Events** — EKEvent-aligned: required start + end, location, all-day flag. Stored as `.event.json` in the Events singleton folder.
+- **Tasks** — EKReminder-aligned: optional due date, completion flag, priority (0–9), optional start ("not before") date. Stored as `.task.json` in the Tasks singleton folder.
+- **Events** — EKEvent-aligned: required start + end, location, all-day flag. Stored as `.event.json` in the Events singleton folder.
 
-Both carry the shared property catalog and `tier1` / `tier2` / `tier3` Context relations, with the same property mechanics as Pages — multi-relations, user properties, sort/filter. The only distinction is on-disk shape and the EventKit target. `EKEvent` and `EKReminder` are peer types (separate APIs, separate apps), so the disk layout uses two sibling singleton folders rather than an `Agenda/` wrapper. UI labels default to "Task" / "Event" (renameable via Settings).
+Both carry the shared property catalog and `tier1` / `tier2` / `tier3` Context relations, with the same property mechanics as Pages — multi-relations, user properties, sort/filter (catalog → [[Properties]]). The only distinction is on-disk shape and the EventKit target. `EKEvent` and `EKReminder` are peer types (separate APIs, separate apps), so the disk layout uses two sibling singleton folders rather than an `Agenda/` wrapper. UI labels default to "Task" / "Event" (renameable via Settings).
 
 ---
 
@@ -13,11 +13,11 @@ Both carry the shared property catalog and `tier1` / `tier2` / `tier3` Context r
 
 ```
 <nexus-root>/
-  Tasks/                                    ← AgendaTask singleton (folder name renameable; discovered by sidecar)
-    _taskconfig.json                        ← AgendaTask schema
+  Tasks/                                    ← Tasks singleton (folder name renameable; discovered by sidecar)
+    _taskconfig.json                        ← Task schema
     Submit grant proposal.task.json
-  Events/                                   ← AgendaEvent singleton (folder name renameable; discovered by sidecar)
-    _eventconfig.json                       ← AgendaEvent schema
+  Events/                                   ← Events singleton (folder name renameable; discovered by sidecar)
+    _eventconfig.json                       ← Event schema
     Team standup.event.json
 ```
 
@@ -41,9 +41,9 @@ The `_status` structure (3 fixed EventKit-aligned groups — Upcoming / In Progr
 
 EventKit-shaped fields live at the root of each `.task.json` / `.event.json` file, NOT in the sidecar. `tier1` / `tier2` / `tier3` store there too, as bare ID arrays.
 
-**Agenda Task:** `due_at` (`EKReminder.dueDateComponents`), `due_floating` (no timezone), `due_all_day`, `start_at` ("not before"), `completed` (`isCompleted`), `completed_at`, `priority` (0–9), `recurrence`, `alarm_offsets` (negative = before due), `calendar_id` + `eventkit_uuid` (sync state). All optional.
+**Task:** `due_at` (`EKReminder.dueDateComponents`), `due_floating` (no timezone), `due_all_day`, `start_at` ("not before"), `completed` (`isCompleted`), `completed_at`, `priority` (0–9), `recurrence`, `alarm_offsets` (negative = before due), `calendar_id` + `eventkit_uuid` (sync state). All optional.
 
-**Agenda Event:** `start_at` + `end_at` (required, `startDate` / `endDate`), `all_day`, `location`, `recurrence`, `alarm_offsets`, `alarm_absolute` (fixed-time alarms), `calendar_id` + `eventkit_uuid` (sync state).
+**Event:** `start_at` + `end_at` (required, `startDate` / `endDate`), `all_day`, `location`, `recurrence`, `alarm_offsets`, `alarm_absolute` (fixed-time alarms), `calendar_id` + `eventkit_uuid` (sync state).
 
 ---
 
@@ -62,13 +62,13 @@ Sync state lives in `calendar_id` + `eventkit_uuid`. Entitlements: `.calendars` 
 
 #### Sidebar treatment
 
-Agenda has no sidebar section. Tasks and Events surface via the **Calendar pin entry** at the top of the sidebar, which opens a placeholder two-section list (Tasks above, Events below); the calendar grid and EventKit-mirrored content are planned. Right-click → "New Task" / "New Event" stubs an entity. Also reachable from a Context's composed-blocks surface (planned) or in Finder.
+Agenda has no sidebar section — Tasks and Events surface via the Calendar pin entry, detailed in [[Sidebar]]. Also reachable from a Context's composed-blocks surface (planned) or in Finder.
 
 ---
 
 #### Opening Tasks + Events
 
-Tasks and Events open in a compact panel — title + properties + description (a JSON field on the entity), not a full-frame surface. Not yet wired: the list rows aren't clickable and the hosting surface is undecided. Planned per-side detail: an AgendaTask whose `start_at` and `due_at` match collapses to a single **"When?"** input, expanding to two for asymmetric values (both persist separately); AgendaEvent always shows separate start/end inputs.
+Tasks and Events open in a compact panel — title + properties + description (a JSON field on the entity), not a full-frame surface. Not yet wired: the list rows aren't clickable and the hosting surface is undecided. Planned per-side detail: a Task whose `start_at` and `due_at` match collapses to a single **"When?"** input, expanding to two for asymmetric values (both persist separately); an Event always shows separate start/end inputs.
 
 ---
 

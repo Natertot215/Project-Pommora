@@ -13,7 +13,7 @@ Per-entity routing rules → [[Domain-Model]]; CRUD UI patterns → `// Guidelin
 - **Vaults** — chevron disclosure of Page Types (UI label "Vault"); each Vault discloses its root Pages plus its Page Collections (label "Collection"); each Collection discloses its Page Sets (label "Set") plus its Pages; each Set discloses its Pages. Pages show their frontmatter icon or the default page glyph; Collections and Sets use a folder glyph (per-Set icon overridable). All three labels rename via Settings; the Vaults header default is "Vaults".
 - **User sections** — user-created sibling sections after Vaults, each grouping Vaults the user moved into it; labels rename inline.
 
-Agenda Tasks and Agenda Events surface through the Calendar pin, not a dedicated heading. The Calendar pin opens the Calendar detail surface (Tasks above, Events below); right-clicking it offers New Task / New Event for quick capture.
+Tasks and Events surface through the Calendar pin, not a dedicated heading. The Calendar pin opens the Calendar detail surface (Tasks above, Events below); right-clicking it offers New Task / New Event for quick capture.
 
 No always-visible "New" buttons — creation is right-click first, complemented by a hover-only "+" on section and tier headings (hidden at rest). A fuller discoverability layer arrives separately via quick-capture.
 

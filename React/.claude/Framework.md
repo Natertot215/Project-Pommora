@@ -6,7 +6,7 @@ The full program roadmap (with rationale, the two research workflows behind it, 
 
 The initial rebuild is the proven back half + the two shipped renderers + editor + navigation — **the "core 7"**, nothing from the spec-only frontier:
 
-1. Data layer (incl. Agenda Task/Event entities — schema only, no surfacing)
+1. Data layer (incl. Task/Event entities — schema only, no surfacing)
 2. Properties
 3. Connections
 4. Markdown editor (a web editor — CodeMirror 6 is a candidate)

@@ -16,8 +16,8 @@ A future per-Nexus icon config mirrors this table — an in-app **Symbol Setting
 | Areas | `rectangle.3.group` (or per-area override) |
 | Topics | `folder` (or per-topic override) |
 | Projects | `folder` (or per-project override) |
-| Agenda Tasks | `checkmark.circle` (or per-task override) |
-| Agenda Events | `calendar.badge.clock` (or per-event override) |
+| Tasks | `checkmark.circle` (or per-task override) |
+| Events | `calendar.badge.clock` (or per-event override) |
 | Homepage (Pinned section) | `house` |
 | Calendar (Pinned section) | `calendar` |
 | Recents (Pinned section) | *(TBD — leave blank for now)* |
@@ -32,7 +32,7 @@ A future per-Nexus icon config mirrors this table — an in-app **Symbol Setting
 #### Conventions
 
 - **Filled / outlined choice** follows Apple's HIG default for each symbol — outlined for nav, filled for status. Don't toggle unless there's a reason.
-- **User-overridable per entity** — Pages, Page Types, Page Collections, Areas, Topics, Projects, Agenda Tasks, and Agenda Events all carry an optional `icon` field on disk. The defaults above are fallbacks when the field is unset.
+- **User-overridable per entity** — Pages, Page Types, Page Collections, Areas, Topics, Projects, Tasks, and Events all carry an optional `icon` field on disk. The defaults above are fallbacks when the field is unset.
 - **Per-property icons** — every property in a Type's schema can carry an icon; chosen via Pommora's native **`IconPicker`** (compact Liquid-Glass picker over the full SF Symbols catalog, with search + Saved/favorites).
 - **No raw `Image(systemName:)` literals scattered across views** for entity defaults — wrap through a single resolver so this table is the only place to change a default.
 

@@ -9,7 +9,7 @@ A Markdown-canonical, SQLite-indexed personal management platform combining Obsi
 - **Organization layer — Contexts** (Areas / Topics / Projects, 3 tiers) — composed-blocks surfaces
 - **Operational layer:**
   - **Pages** — Page Types → Page Collections → Page Sets (optional) → Pages (`.md`). UI labels default to "Vault" + "Collection" + "Set"
-  - **Agenda** — Agenda Tasks (`.task.json`, EKReminder-aligned) + Agenda Events (`.event.json`, EKEvent-aligned)
+  - **Agenda** — Tasks (`.task.json`, EKReminder-aligned) + Events (`.event.json`, EKEvent-aligned)
 - **Singleton — Homepage** (`.nexus/homepage.json`)
 - **Settings scaffold** (`.nexus/settings.json`) — per-Nexus user-overridable UI labels + accent color
 
@@ -97,11 +97,11 @@ The **Gallery** renderer (cards over the per-container `SavedView` storage) and 
 - **(infra)** FSEventStream **file watcher** — external changes update SQLite + sidebar live, per-file reconcile on touch, lost-update protection on mtime drift; **FTS5 tables wired** (schema only — the `⌘K` search UI ships v0.7.0); broken-link warning surface for connections.
 
 ##### v0.6.0 — EventKit + Agenda UIX + Calendar
-EventKit bridge (sandbox entitlement + Info.plist + modern `requestFullAccessTo*` APIs; opt-in via Settings; bidirectional mirroring). Agenda Task / Agenda Event compact panels (title + properties + description; hosting surface decided here). Calendar view over Agenda; the Saved-section Calendar fills in with the EventKit mirror.
+EventKit bridge (sandbox entitlement + Info.plist + modern `requestFullAccessTo*` APIs; opt-in via Settings; bidirectional mirroring). Task / Event compact panels (title + properties + description; hosting surface decided here). Calendar view over Agenda; the Saved-section Calendar fills in with the EventKit mirror.
 
 ##### v0.7.0 — Settings + Quick Capture + LLM Interface + global search
 - **Settings Panel.** Full Settings editing UI — accent color picker (swatch grid + custom well, live preview), label rename forms (Vault / Collection / Task / Event + section + tier labels), and tier-config consolidation (folds `.nexus/tier-config.json` into the same surface). Replaces hand-editing `.nexus/settings.json`.
-- **Quick Capture.** Global `⌘⇧N` / menu-bar popover creating Pages / Agenda Tasks / Agenda Events from anywhere in the OS; defaults to a configured inbox Vault; optional Tier / Vault override fields; Enter submits, Esc dismisses.
+- **Quick Capture.** Global `⌘⇧N` / menu-bar popover creating Pages / Tasks / Events from anywhere in the OS; defaults to a configured inbox Vault; optional Tier / Vault override fields; Enter submits, Esc dismisses.
 - **LLM Interface.** The main-window inspector slot becomes the Claude chat (CLI subprocess bridge — frontend to Nathan's local CLI, not API integration). Properties never live in the main-window inspector under the locked direction.
 - **(folded) Global search.** `⌘K` command palette + FTS5 search over Page bodies, Agenda titles, and frontmatter / properties (over the FTS5 tables wired at v0.5.0). Natural pairing with Quick Capture — both are global invocation surfaces.
 - **(folded) Recents full-frame view.** The Saved-section `Recents` pin opens a full-frame view of the Recents store (up to 500, with sort + filter) — the same data the NavDropdown shows as its top 100.

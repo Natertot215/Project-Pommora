@@ -12,7 +12,7 @@
 
 The initial rebuild is the proven back half + the two shipped renderers + editor + navigation — **nothing from the spec-only frontier.**
 
-**In scope (the 7):** data layer (incl. Agenda Task/Event entities — schema only, no surfacing) · properties · connections · markdown editor (CodeMirror 6) · navigation (shell + sidebar + nav dropdown) · Table view · Gallery view.
+**In scope (the 7):** data layer (incl. Task/Event entities — schema only, no surfacing) · properties · connections · markdown editor (CodeMirror 6) · navigation (shell + sidebar + nav dropdown) · Table view · Gallery view.
 
 **Deferred (post-rebuild frontier):** block editor (Contexts-as-blocks + Homepage) · Agenda surfacing + any calendar sync · Board / List / Cards renderers · Settings editing UI · global search · LLM-chat inspector · type-to-find · OS integrations (menu-bar / Quick Capture / Spotlight / Share — Electron's own `Tray` covers basic menu-bar; a thin native Swift helper only if deeper hooks are ever wanted).
 

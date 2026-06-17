@@ -60,7 +60,7 @@ tier2: [<topic-id>, ...]
 tier3: [<project-id>, ...]
 ```
 
-Each tier is a multi-value relation, filled independently. **Context-tier links are stored by ID** (bare ULID arrays in `tier1` / `tier2` / `tier3`, rename-safe) **and render as the target's current icon + title in a minimal grey chip** on every property surface. The `context_tier` target is internal-only — it backs the three built-in tier relations, which are the sole relation-type connection; no user-creatable relation properties exist. Full catalog → [[Properties]].
+Each tier is a multi-value relation, filled independently. **Context-tier links are stored by ID** (bare ULID arrays in `tier1` / `tier2` / `tier3`, rename-safe) **and render as the target's current icon + title in a minimal grey chip** on every property surface. The tiers are the sole relation-type connection. Property catalog + the internal `context_tier` target → [[Properties]].
 
 A tier relation is a **dual surface**:
 
@@ -73,7 +73,7 @@ This cross-layer relation is the one connection contexts have today: the tiers d
 
 #### Linked-from
 
-A Context surfaces every operational entity whose tier relation points at it, in a **Linked-from dropdown** on the Context surface. Each linked entity renders as its icon + title, grouped by kind (Pages / Agenda Tasks / Agenda Events).
+A Context surfaces every operational entity whose tier relation points at it, in a **Linked-from dropdown** on the Context surface. Each linked entity renders as its icon + title, grouped by kind (Pages / Tasks / Events).
 
 The dropdown is a reverse index query: it reads the `context_links` table for every row whose `target_id` is the Context's ID and resolves each source's current title from its owning table. The reverse view is entirely SQLite-derived — Contexts store no inbound list on disk.
 

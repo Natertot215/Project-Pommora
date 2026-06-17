@@ -44,9 +44,7 @@ Page Types live as siblings at the nexus root — no `Pages/` wrapper folder. Di
 
 Fields: `id`, `icon`, `properties` (the schema — every Page's frontmatter must conform), `default_sort` (per-Type default sort), an optional `banner` (nexus-relative image path for the container banner → [[Views]]), `views` (the container's SavedView configs → [[Views]]), `collection_order` + `page_order` (user-arranged sequence of child Collections and root-level Pages — the parent holds its children's order), an optional `open_in` (§ "Open-in mode"), and `modified_at`. Title is the folder name, not a field.
 
-**Property schema** carries each property's `name`, `type`, and per-type config (Select/Multi-select options, Status groups, etc.). Full property-type catalog, relation targets, and Status-group shape → [[Properties]].
-
-**Tier relation values are always multi-valued.** The built-in `tier1` / `tier2` / `tier3` properties hold a **bare array of Context ULIDs** at the frontmatter root (`tier1: ["<ULID>", …]`) — one entry per linked Context, a single target being a one-element array. These root tier fields are **never** `$rel`-tagged; the `$rel` shape applies only to user relation properties inside `properties`. Each value renders as the target's **icon + title in styled colored text** (never chips/pills), resolved live from the target entity.
+**Property schema** carries each property's `name`, `type`, and per-type config (Select/Multi-select options, Status groups, etc.). Full property-type catalog, relation targets, Status-group shape, and the built-in `tier1` / `tier2` / `tier3` shape → [[Properties]].
 
 #### Open-in mode
 
@@ -99,7 +97,7 @@ Page Sets subdivide a Collection one level further — schema-less, view-less, s
 - **A Page Type's disclosure children**: Pages directly in the Type's root (`doc.text`) + Page Collection sub-folders (`folder`).
 - **A Page Collection's disclosure children**: its Page Sets (`folder`; expandable, never selectable) + its Pages (`doc.text`).
 - **A Page Set's disclosure children**: its Pages (`doc.text`).
-- **Agenda Tasks and Events do NOT appear in the sidebar** — they surface via the Calendar pin entry.
+- **Tasks and Events do NOT appear in the sidebar** — they surface via the Calendar pin entry.
 - Clicking a Page Type opens its active saved view, vault-scoped, grouped by Collection with Sets nested by default (→ [[Views]]). Clicking a Page Collection opens its active saved view, collection-scoped, grouped by Set plus an ungrouped root band by default. Page Sets have no detail view of their own. Clicking a Page opens it in the main detail pane via the TextKit-2 editor (→ [[PageEditor]]).
 - A new Page Type is created from the "+" in the Pages section header. Right-clicking a Page Type row offers "New Collection" / "New Page"; a Page Collection offers "New Page" / "New Set"; a Page Set offers "New Page". Full table → [[Sidebar]].
 
@@ -123,7 +121,7 @@ Pages carry `tier1` / `tier2` / `tier3` multi-relations to Contexts. Queryable b
 
 #### Move-strip rule
 
-Moving a Page to another Page Type strips properties not in the destination schema (Notion-style, no quarantine); a confirmation warning lists what's stripped. Within the same Page Type (between Collections, Sets, and the Type root) there is no strip — shared schema, and Sets carry none of their own.
+Moving a Page to another Page Type strips properties not in the destination schema (Notion-style, no quarantine); a confirmation warning lists what's stripped. Within the same Page Type (between Collections, Sets, and the Type root) there is no strip — shared schema, and Sets carry none of their own. Strip mechanics + foreign-key preservation → [[Properties]].
 
 ---
 
