@@ -23,7 +23,7 @@ Seeded on first launch with empty `blocks`. Not user-deletable (regenerates if r
   "schemaVersion": 1,
   "icon": "house",
   "blocks": [ /* composed-blocks tree — types below */ ],
-  "modified_at": 1716480000
+  "modified_at": <epoch-seconds>
 }
 ```
 
@@ -33,15 +33,15 @@ No `id` / `tier` / `parents` (the file location is the identity), and no `title`
 
 #### Composition surface
 
-The block catalog (shared with Contexts; `ContextBlock` is an empty placeholder until the composed-blocks editor ships v0.9):
+The planned block catalog (shared with Contexts; the block tree is an empty placeholder until the composed-blocks editor ships):
 
 - Text: paragraph, heading, list, callout, code, quote, divider, columns
 - Widgets:
   - `embedded-collection-view` — a saved Type/Collection view, rendered inline
   - `embedded-context-view` — auto-collected linked content from a Context
-  - `linked-pages` — entities linked to a specified Context, resolved via `IndexQuery.incomingContextLinks(targetID:)`
+  - `linked-pages` — entities linked to a specified Context, resolved live from the index
   - `link-list` — manually curated links
-  - `mini-calendar` — small Agenda view (ships v0.7.0)
+  - `mini-calendar` — small Agenda view
 
 Every widget is a **live, fully-editable view of its source**, never a read-only snapshot; edits flow to source files via atomic write (inline-editing principle → [[Domain-Model]]).
 
@@ -59,7 +59,7 @@ The pinned section at the top of the sidebar holds the `Homepage` entry that ope
 
 - **Create**: Seeded on first launch — no user-creation action (Homepage is a singleton)
 - **Read**: Top of sidebar → Homepage opens in the main detail pane
-- **Update**: composed-blocks editor (ships v0.9); inline-edit any embedded widget per the inline-editing principle
+- **Update**: composed-blocks editor (planned); inline-edit any embedded widget per the inline-editing principle
 - **Delete**: Not user-deletable; regenerates if removed externally
 
 ---

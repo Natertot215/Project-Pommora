@@ -10,13 +10,13 @@ Per-entity routing rules → [[Domain-Model]]; CRUD UI patterns → `// Guidelin
 
 Top-level groups, plus user sections:
 - **Pinned (heading-less, at top)** — Homepage / Calendar / Recents
-- **Contexts** — one section headed "Contexts" holding three `square.grid.2x2` disclosure rows: Areas (tier 1) / Topics (tier 2) / Projects (tier 3). Each tier row expands to its entities as flat leaf rows.
+- **Contexts** — one section headed "Contexts" holding three disclosure rows: Areas / Topics / Projects. Each tier row expands to its entities as flat leaf rows.
 - **Vaults** — chevron-disclosure showing Page Types (UI label "Vault"); each Vault discloses Pages + Page Collections (UI label "Collection"); each Collection discloses Page Sets (UI label "Set") + Pages.
 - **User sections** — user-created sibling sections after Vaults, each grouping Vaults the user moved into it (§ "User vault sections" below).
 
-The **Contexts** section header is a fixed `Contexts` label. Its three tier rows read their labels from the renameable tier config — `Areas` / `Topics` from `SidebarSectionLabels`, `Projects` from the Project label pair. The Vaults section header default comes from `SidebarSectionLabels.defaults()` (`Vaults`); user-section labels rename inline.
+The **Contexts** section header is a fixed `Contexts` label. Its three tier rows read their labels from the renameable per-tier config. The Vaults section header default is `Vaults`; user-section labels rename inline.
 
-Agenda Tasks + Agenda Events surface via the Calendar entry in the Pinned section, not via a dedicated sidebar heading. The Calendar pin opens `CalendarDetailView` (Tasks list above, Events list below); right-click → "New Task" / "New Event" for quick capture.
+Agenda Tasks + Agenda Events surface via the Calendar entry in the Pinned section, not via a dedicated sidebar heading. The Calendar pin opens the Calendar detail surface (Tasks list above, Events list below); right-click → "New Task" / "New Event" for quick capture.
 
 ```
 [Sidebar]
@@ -67,60 +67,47 @@ The sidecar is the **kind authority** — it, not the folder name, decides the g
 
 ##### Pinned (top — no heading)
 
-Three fixed entries — `Homepage`, `Calendar`, `Recents` — render at the top **without a heading**. The underlying `Section` wrapper persists for the future user-pinning feature (gains the "Saved" header when that ships).
+Three fixed entries — `Homepage`, `Calendar`, `Recents` — render at the top **without a heading**. The underlying section wrapper persists for the future user-pinning feature (gains the "Saved" header when that ships).
 
-Stored in `.nexus/saved-config.json`:
-
-```json
-{
-  "schemaVersion": 1,
-  "items": [
-    { "key": "homepage", "label": "Homepage" },
-    { "key": "calendar", "label": "Calendar" },
-    { "key": "recents",  "label": "Recents" }
-  ]
-}
-```
-
-Each entry's `key` is fixed in code; `label` is user-renamable via Settings → Saved Section.
+Persisted in a pinned-section sidecar under `.nexus/` — an ordered list of items, each with a code-fixed `key` and a user-renamable `label`. Labels rename via Settings → Saved Section.
 
 - `homepage` opens the Homepage singleton (see [[Homepage]])
-- `calendar` opens `CalendarDetailView` — Tasks list above, Events list below (see [[Agenda]]). Right-click the pin entry → "New Task" / "New Event" for quick capture. EventKit-mirrored entries appear once sync opt-in ships at v0.5.0.
-- `recents` shows the NavDropdown's Recents store as a full-frame view; ships at v0.6.0 per [[NavDropdown]]
+- `calendar` opens the Calendar detail surface — Tasks list above, Events list below (see [[Agenda]]). Right-click the pin entry → "New Task" / "New Event" for quick capture. EventKit-mirrored entries appear once sync opt-in ships.
+- `recents` shows the NavDropdown's Recents store as a full-frame view (see [[NavDropdown]])
 
 **User-pinning of arbitrary entities is post-v1** — section gets its "Saved" heading + "+" affordance then; the three defaults become movable / removable.
 
 ##### Contexts
 
-One `Section` headed **"Contexts"** (a fixed label) holding exactly three `square.grid.2x2` **tier disclosure rows** — Areas, Topics, Projects — homogeneous siblings (quirk #8). The three tiers are free-standing: no containment, no parents, no cross-tier nesting (see [[Contexts]]).
+One section headed **"Contexts"** (a fixed label) holding exactly three **tier disclosure rows** — Areas, Topics, Projects — as homogeneous siblings. The three tiers are free-standing: no containment, no parents, no cross-tier nesting (see [[Contexts]]).
 
-- **Tier rows** are expand/collapse only. A tier row carries no selection tag — clicking anywhere toggles its disclosure. Its label reads from the tier config; creation is via the row's hover `+` or right-click "New <Tier>".
+- **Tier rows** are expand/collapse only. A tier row carries no selection — clicking anywhere toggles its disclosure. Its label reads from the tier config; creation is via the row's hover `+` or right-click "New <Tier>".
 - **Entity rows** render as **flat leaf rows** inside the disclosure:
-  - **Area rows** carry a `color` (the `AreaColor` palette — see [[Contexts]]) and optional `icon`.
-  - **Topic rows** and **Project rows** are bare leaf rows (icon + title). Topics no longer inherit any parent indicator — the parent-Area tagging died with containment.
+  - **Area rows** carry a color (the Area palette — see [[Contexts]]) and an optional icon.
+  - **Topic rows** and **Project rows** are bare leaf rows (icon + title) — no parent indicator, since the tiers don't nest.
 
-Per-tier drag-reorder (`.onMove`) persists sibling order to `.nexus/state.json` (`area_order` / `topic_order` / `project_order`). Clicking an entity opens its detail surface. Selection chrome stays at row-file level (§ "Selection language"); the tier rows mirror the proven `Section { … } header:` disclosure shape used by Vaults.
+Per-tier drag-reorder persists sibling order per Nexus. Clicking an entity opens its detail surface. Selection chrome stays at row level (§ "Selection language"); the tier rows mirror the same disclosure shape used by Vaults.
 
 ##### Vaults (default label)
 
-Chevron-disclosure rows. **Each Page Type discloses both Pages (in the Page Type root) AND Page Collection sub-folders** as children. Each Page Collection discloses its Page Sets + its Pages; each Page Set discloses its Pages. Pages show their frontmatter `icon` if set, else the `doc.text` default; Page Collections and Page Sets use `folder` (per-Set icon overridable). The default UI label for Page Type rows is **"Vault"**; for Page Collection rows "Collection"; for Page Set rows "Set" (all renameable via Settings).
+Chevron-disclosure rows. **Each Page Type discloses both Pages (in the Page Type root) AND Page Collection sub-folders** as children. Each Page Collection discloses its Page Sets + its Pages; each Page Set discloses its Pages. Pages show their frontmatter icon if set, else the default page glyph; Page Collections and Page Sets use a folder glyph (per-Set icon overridable). The default UI label for Page Type rows is **"Vault"**; for Page Collection rows "Collection"; for Page Set rows "Set" (all renameable via Settings).
 
-**Page Set rows are expandable, never selectable** — no `SelectionTag`, no selection chrome; clicking toggles the disclosure only (Sets have no detail view). Drag-reorder inside a Collection's disclosure is **two-zone**: Sets reorder among Sets, Pages among Pages; cross-zone drags are rejected. Order persists parent-side — `set_order` on the Collection's sidecar, each Set's child Pages in that Set's own `page_order`.
+**Page Set rows are expandable, never selectable** — no selection chrome; clicking toggles the disclosure only (Sets have no detail view). Drag-reorder inside a Collection's disclosure is **two-zone**: Sets reorder among Sets, Pages among Pages; cross-zone drags are rejected. Order persists parent-side — Set order on the Collection's sidecar, each Set's child Pages in that Set's own order.
 
-Page Types don't display tagging (operational, not categorical). Clicking a Page Type opens its hierarchical Table; clicking a Page Collection opens a scoped view; clicking a Page routes per the vault's `open_in` mode — main detail pane (`window`, the default) or a PagePreview window (`compact`); see [[Pages]] § "Opening behavior".
+Page Types don't display tagging (operational, not categorical). Clicking a Page Type opens its hierarchical Table; clicking a Page Collection opens a scoped view; clicking a Page routes per the vault's open-in mode — main detail pane (the default) or a preview window; see [[Pages]] § "Opening behavior".
 
 ##### User vault sections (navigation-only grouping)
 
-User-creatable sections that group Vaults below the default Vaults section. Persisted at `.nexus/sidebar-sections.json`, owned by `SidebarSectionsManager` (mirrors the `SavedConfigManager` pattern: `load()` seeds + first-writes, `save()` writes atomically, failures land in `pendingError` for the sidebar toast).
+User-creatable sections that group Vaults below the default Vaults section. Persisted in a sidebar-sections sidecar under `.nexus/`; writes are atomic and failures surface as a sidebar toast.
 
 - **Navigation-only** — grouping never moves a vault folder on disk; membership lives solely in the config.
 - **Single-membership** — a vault sits in at most one user section; moving it strips it from every other section in the same config write.
 - **Ungrouped vaults stay in the default Vaults section**; deleting a section ungroups its vaults back to it (no vault data touched).
-- **Empty sections render header-only** — never a placeholder row (quirk #8: a `Section`'s rows stay homogeneous).
+- **Empty sections render header-only** — never a placeholder row (a section's rows stay homogeneous; see § "Constraints").
 - **Dangling vault IDs** (vault deleted after grouping) stay in the config and skip-render; the config is not self-healed.
-- **Render shape** — each user section is a sibling `Section(isExpanded:) { PageTypeRow… } header:` identical to the default Vaults section, reusing `PageTypeRow` unchanged.
+- **Render shape** — each user section renders the identical disclosure shape as the default Vaults section, reusing the same Page-Type row.
 
-Affordances: **"Add Section"** in the Vaults section-header context menu (stub-and-inline-rename via `CreateWithInlineEdit`); **"Move to Section" / "Remove from Section"** in a vault row's context menu (the menu appears once at least one section exists); **Rename Section / Delete Section** in the user-section header's context menu.
+Affordances: **"Add Section"** in the Vaults section-header context menu (stub then inline-rename); **"Move to Section" / "Remove from Section"** in a vault row's context menu (the menu appears once at least one section exists); **Rename Section / Delete Section** in the user-section header's context menu.
 
 ---
 
@@ -157,27 +144,20 @@ Fuller global creation path lands via **quick-capture** (Cmd+Shift+N or menu-bar
 
 #### Selection language
 
-- Fill: `Color(nsColor: .quaternarySystemFill)`, 6pt continuous corner radius, inset **11pt horizontal + 2pt vertical** (`.flat`); the `.disclosure` style drops the leading inset to 0 so the fill covers the chevron gutter
-- Foreground: selected icon + text shift to `Color.accentColor`
-- **Text** gets `.brightness(0.10)`; **icon** gets no brightness modifier
-- Row content insets: **1pt vertical, 0 horizontal** (`.listRowInsets`)
-- Icons use `.symbolRenderingMode(.monochrome)` so `.foregroundStyle(.accentColor)` applies
-- Chrome is applied at each row file's body root via `.listRowBackground(SelectionChrome(...))`, deriving `isSelected` from `SelectionTag.X(entity.id).matches(selection)`. `SelectableRow` itself is pure content — no chrome. Implementation in `Pommora/Pommora/Sidebar/SidebarView.swift` + `Pommora/Pommora/Sidebar/ContextsSection.swift`.
+Finder-style selection — a subtle quaternary-fill rounded pill at the row level. The fill is applied via the list-row background (not an in-content background), so it spans the full row including the disclosure-chevron gutter rather than stopping at the content's leading edge. On selection the row's icon and text shift to the accent color, and the text brightens slightly so the selected row reads as active without a heavy highlight.
 
 ---
 
-#### Indentation mechanisms (working vocabulary)
+#### Constraints
 
-When adjusting sidebar geometry, the mechanism depends on what's being adjusted — NOT interchangeable:
+Two load-bearing rules govern the sidebar's structure; breaking either has regressed a launch crash in the list-diffing layer:
 
-- **Row leading indent** — `.padding(.leading, N)` or `.listRowInsets(EdgeInsets(...))`. Use for nesting/grouping.
-- **Chevron-to-icon gap on a custom disclosure row** — `HStack(spacing: N)` between chevron and `Label`. Only when the chevron is hand-rolled.
-- **Icon-to-text gap inside a row** — internal to `Label`; controlled by a custom `LabelStyle` or by writing the row as `HStack { Image; Text }`. Outer `HStack(spacing:)` does NOT control this.
-- **Chevron-column reservation across flat rows** — implicit from `DisclosureGroup` in a `.listStyle(.sidebar)` List. Only suppressible by hand-rolling expansion.
+- **Selection chrome lives at row level, never in-content.** Each row derives its own selected state and applies the selection pill through the list-row background. Row content stays pure — it carries no chrome of its own. An untagged row inside a tagged container inherits that container's selection, so a deliberately non-selectable row (e.g. a Set row) needs its own distinct non-selecting tag plus selection explicitly disabled on its label.
+- **Every section's rows stay homogeneous.** Don't mix flat-leaf rows and disclosure rows inside the same section, and don't substitute a placeholder leaf for an empty section (an empty user section renders header-only). The list coordinator can crash on that asymmetry.
 
 ---
 
 #### Section ordering
 
-Initial-boot order: Pinned (heading-less) / Contexts / Vaults / user sections. Order persists per Nexus in `.nexus/state.json`.
+Initial-boot order: Pinned (heading-less) / Contexts / Vaults / user sections. Order persists per Nexus.
 

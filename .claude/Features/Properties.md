@@ -28,20 +28,20 @@ Page Collections do not carry their own property schemas — they inherit from t
 
 ---
 
-#### Property type catalog (8 user-creatable types)
+#### Property type catalog
 
-*The `PropertyType` enum keeps a retired `.date` case for backward decode only, and a substrate `.relation` case (tier-only, not user-creatable) — both excluded from the picker, so the user-creatable catalog is 8.*
+The type picker offers the user-creatable property types below. Two types exist but are excluded from the picker: **Relation** (tier-only, not user-creatable) and **Last Edited Time** (auto-managed, derived). A legacy date-only type folds into the unified **Date** type on read.
 
 | Type | Value shape (keyed by property ID) | Config | UI behavior |
 |---|---|---|---|
 | **Number** | `42` or `3.14` | `{ "number_format": "integer" \| "decimal" \| "percent" \| "currency" }` | Numeric input; rendered with the chosen format. |
 | **Checkbox** | `true` / `false` | `{}` | Toggle. |
-| **Date** | `"2026-06-15"` (date-only) or `"2026-06-15T14:30:00Z"` (with time) | `{ "date_format": …, "time_format": … }` | Native `.compact` date/time picker; date-only vs with-time chosen by the **Display Time** setting. UTC-anchored on disk. |
+| **Date** | `"2026-06-15"` (date-only) or `"2026-06-15T14:30:00Z"` (with time) | `{ "date_format": …, "time_format": … }` | Native compact date/time picker; date-only vs with-time chosen by the **Display Time** setting. UTC-anchored on disk. |
 | **Select** | `"<option value>"` | `{ "select_options": [{ "value", "label", "color" }, ...] }` | Single-pick colored pill. Option `value` immutable post-create; `label` renameable. Option order defines sort. Options are NOT created by typing into the value picker. |
 | **Multi-select** | `["<value>", ...]` | `{ "select_options": [...] }` (same shape as Select) | Tag-style multi-pick. Each chip in its option's color. Option order defines sort. Options NOT created by typing. |
 | **Status** | `{"$status": "<option value>"}` (tagged object) | `{ "status_groups": [{ "id", "label", "color", "options" }, ...] }` (3 fixed groups: `upcoming` / `in_progress` / `done`) | Grouped picker popover, 3 sections, single-pick. Pill color resolves option override > group default. Group labels renameable; 3 group slots fixed. Sort = group position first, then option order. Options NOT created by typing. Stored as tagged object (mirrors `$rel` pattern) so external agents can identify status values from any file without consulting the schema; bare-string would shape-collide with Select. |
 | **URL** | `"https://..."` | `{}` | URL input; clickable link with favicon. |
-| **Relation** | `[{"$rel": "01HXYZ..."}, ...]` (always an array; a single value is a 1-element array) | `{ "relation_target": { "kind": "context_tier", "tier": N } }` | Tier-only tolerance; retired from user creation. The only user-visible relation properties are the three built-in tier properties (`_tier1` / `_tier2` / `_tier3`), each targeting a `context_tier`. Stored as tagged JSON objects so external agents can identify cross-entity edges from any file without consulting schema. Each value renders as the target's icon + current title in plain styled colored text (connection look). Renames update automatically. |
+| **Relation** | `[{"$rel": "01HXYZ..."}, ...]` (always an array; a single value is a 1-element array) | `{ "relation_target": { "kind": "context_tier", "tier": N } }` | Tier-only; not user-creatable. The only relation properties are the three built-in tier properties (`_tier1` / `_tier2` / `_tier3`), each targeting a `context_tier`. Stored as tagged JSON objects so external agents can identify cross-entity edges from any file without consulting schema. Each value renders as the target's current icon + title. Renames update automatically. |
 | **Last Edited Time** | *(not stored — derived from `modified_at`)* | `{}` | Read-only, sortable. Default sort, descending. |
 | **File / Attachment** | `[{ "path": "<nexus-relative>", "original_name", "added_at", "mime_type" }, ...]` (array; multi-file) | `{ "accept": ["pdf", "image/*"]? }` | Drag-drop + click-to-pick + thumbnail strip. Files copy into `<nexus>/.nexus/attachments/<entity-id>/<original-filename>` on attach; property stores nexus-relative paths. |
 
@@ -66,10 +66,10 @@ This split is **partially wired**: the PagePreview window mounts the property pa
 |---|---|---|
 | **Page** (main pane) | Properties dropdown | Planned — currently the property panel in the editor's `.inspector` (`FrontmatterInspector`); migrating to free the inspector for the LLM |
 | **Context / storage view** | Properties dropdown | Planned (same migration) |
-| **PagePreview window** | Property panel in the window's inspector pane | Shipped — the shared `FrontmatterInspector` mounted `compact: true` (defaults open): no section headings, rows at `.subheadline`, action affordances a typographic step below (`.caption`), small `controlSize`, cards flush at uniform ~10pt insets |
+| **PagePreview window** | Property panel in the window's inspector pane | Shipped — the shared `FrontmatterInspector` mounted in compact mode (defaults open): no section headings, condensed rows, action affordances a typographic step below, small control size, cards flush at uniform insets |
 | **Agenda entry** | Property panel | — |
 
-Property-panel surfaces render **eager**: all schema properties show regardless of fill state (empty ones as void inputs), edited inline through `PropertyEditorRow`. Title is excluded everywhere (filename plays that role). On both `FrontmatterInspector` mounts there is no meta section (Title / ID / Created / Icon) — the page ID renders as a bottom-pinned pane footer (`ID: <ulid>`, caption2, middle-truncated) — and an **Add Property** affordance (plus + label as one button) opens the established `PropertyTypePicker` in a popover, committing through the shared `PropertyCreation` enum (the same default-definition factory the View Settings type-picker pane uses). On `PropertyPanel` / `PropertiesPulldown`, auto-managed `id` + `created_at` + `modified_at` collapse to a bottom meta section; `modified_at` surfaces as **Last Edited Time** for sortability.
+Property-panel surfaces render **eager**: all schema properties show regardless of fill state (empty ones as void inputs), edited inline through `PropertyEditorRow`. Title is excluded everywhere (filename plays that role). On both `FrontmatterInspector` mounts there is no meta section (Title / ID / Created / Icon) — the page ID renders as a bottom-pinned, middle-truncated pane footer (`ID: <ulid>`) — and an **Add Property** affordance (plus + label as one button) opens the `PropertyTypePicker` in a popover, committing through the shared `PropertyCreation` enum (the same default-definition factory the View Settings type-picker pane uses). On `PropertyPanel` / `PropertiesPulldown`, auto-managed `id` + `created_at` + `modified_at` collapse to a bottom meta section; `modified_at` surfaces as **Last Edited Time** for sortability.
 
 ---
 
@@ -330,24 +330,23 @@ The popover is active-view-scoped (resolved via `ActiveViewStore`). Full pane sp
 | **Filter** | Per-view flat rule list + Match All/Any, conservative per-type operators. |
 | **Group** | Per-view — Default (structural) / property picker / Remove Grouping. |
 
-The standalone Property Visibility pane was retired into Layout (registry decision #20).
+The standalone Property Visibility pane is folded into Layout.
 
 **Schema fields beyond the catalog basics** (on `PropertyDefinition` unless noted):
 
-- `displayAs: DisplayVariant?` (Status-only) — `.box` / `.select` / `.chip` rendering variant. `.box` = colored dot + label (default); `.select` = colored chip + label (same as Select); `.chip` = icon-only chip using a hardcoded `square.dashed` placeholder (final per-group icons + Settings config are a Prospect). Other property types ignore this field.
-- `dateFormat: DateFormat?` (Date only) — date-portion display, picker-labelled by format-type name (no "Default" row): `short` ("Short Date" → "March 1st") / `full` ("Full Date" → "Wednesday, March 1st 2026") / `dayMonthYear` ("DD/MM/YYYY" → "01/03/2026") / `monthDayYear` ("MM/DD/YYYY" → "03/01/2026"). Default `.full`. Legacy v0.3.1 values (`monthDayYearLong`, `numericLong`, `iso`, …) migrate on decode.
-- `timeFormat: TimeFormat?` (Date only) — time-portion display ("Display Time"): `none` (date only, default) / `twelveHour` ("3:45 PM") / `twentyFourHour` ("15:45"). `.none` stores a date-only value; `12h`/`24h` store a with-time value.
+- `displayAs: DisplayVariant?` (Status-only) — rendering variant: `.box` = colored dot + label (default); `.select` = colored chip + label (same as Select); `.chip` = icon-only chip using a placeholder icon (final per-group icons + Settings config are a Prospect). Other property types ignore this field.
+- `dateFormat: DateFormat?` (Date only) — date-portion display, picker-labelled by format-type name (no "Default" row): a short date, a full weekday-and-year date, and the two numeric `DD/MM/YYYY` / `MM/DD/YYYY` orderings. Defaults to the full date. Legacy date-format values migrate on decode.
+- `timeFormat: TimeFormat?` (Date only) — time-portion display ("Display Time"): none (date only, default), 12-hour, or 24-hour. None stores a date-only value; 12h/24h store a with-time value.
 - `views: [SavedView]` (on `PageType` / `PageCollection`) — each Collection's view config is independent of its parent Type's.
 
 **Chip primitives** (`Pommora/Properties/Chips/`):
 
-- `ContextChip` — the single rendering primitive for context-link (tier relation) property values across every surface (Table cells, property panel, page-editor inspector, value picker rows). Renders the **target object's icon + current title in plain styled colored text** — no pill, box, or chrome. Both icon and title resolve from the linked target entity, never from the home-side property. Resolution happens at the consumer (via `IndexQuery` against the SQLite `context_links` table); the chip receives pre-resolved strings and is purely visual — the file holds only the target's `$rel` ID, and a chip that renders blank or `(missing)` means the index lookup missed (stale/unbuilt row), not that the on-disk value is gone. A dedicated chip visual (boxed, colored) is a future design.
-- `FileChip` — quaternary fill, `link` SF Symbol, filename truncated 13 chars.
-- `LinkChip` — pure accent-blue text, strips `https://` prefix, truncates 15 chars (no chip chrome, lives in Chips folder for naming consistency).
-- `OptionColorPicker` — 5×2 grid of 10 selectable colors + "No color" affordance.
+- `ContextChip` — the single rendering primitive for context-link (tier relation) property values across every surface (Table cells, property panel, page-editor inspector, value picker rows). **Context-tier links render as minimal grey chips — the target's current icon + title.** Both icon and title resolve from the linked target entity, never from the home-side property. Resolution happens at the consumer (via `IndexQuery` against the SQLite `context_links` table); the chip receives pre-resolved strings and is purely visual — the file holds only the target's `$rel` ID, and a chip that renders blank or `(missing)` means the index lookup missed (stale/unbuilt row), not that the on-disk value is gone.
+- `FileChip` — quaternary fill, file SF Symbol, long filenames truncate.
+- `LinkChip` — pure accent-blue text, strips the `https://` prefix, long URLs truncate (no chip chrome, lives in Chips folder for naming consistency).
 - `ChipLink` — **intentionally dormant design asset**: the chip-link visual, wired to nothing in production (showcased in the Component Library explorer only). Context → [[Connections]] § "Scope".
 
-**Option color palette** — `SelectColor` (9 cases; disk persistence) maps to `PropertyChipColor` (12 cases; render layer) via `PropertyChipColor(selectColor:)` (`gray` → `.default`, lossy). `OptionColorPicker` exposes 10 `selectablePalette` cases (excludes `.default` + `.accent`). Flat palette.
+**Option color palette** — disk persistence keeps a fixed colour set; the render layer maps it onto a fixed chip palette (`gray` maps to the default colour, lossy). The option-edit popover's colour-swatch grid exposes the selectable palette (excluding the default + accent colours) plus a "No color" affordance. Flat palette.
 
 A per-Type default sort lives on the Type sidecar (`default_sort: { property_id, direction }`) as a fallback before per-view sort rules land.
 

@@ -1,17 +1,11 @@
 ### Agenda
 
-The operational layer's calendar-anchored side. Splits into two distinct entity types:
+The operational layer's calendar-anchored side. Two peer entity types, mirroring EventKit:
 
-- **Agenda Tasks** — EKReminder-aligned: due date (optional), completion flag, priority (0–9), optional start ("not before") date. Stored as `.task.json` inside the Tasks singleton folder at the nexus root.
-- **Agenda Events** — EKEvent-aligned: required start + end, location, all-day flag. Stored as `.event.json` inside the Events singleton folder at the nexus root.
+- **Agenda Tasks** — EKReminder-aligned: optional due date, completion flag, priority (0–9), optional start ("not before") date. Stored as `.task.json` in the Tasks singleton folder.
+- **Agenda Events** — EKEvent-aligned: required start + end, location, all-day flag. Stored as `.event.json` in the Events singleton folder.
 
-Both share the property catalog used elsewhere (Number / Select / Status / etc.) and both carry `tier1` / `tier2` / `tier3` Context relations.
-
-The split mirrors EventKit: `EKEvent` and `EKReminder` are peer types (separate `EKEntityType` buckets, separate access APIs, separate apps — Calendar.app vs Reminders.app), so the disk layout uses two sibling singleton folders at the nexus root rather than an `Agenda/` wrapper. EventKit sync (v0.5.0) maps each side cleanly: Agenda Task → EKReminder, Agenda Event → EKEvent.
-
-In code, the Swift types are `AgendaTask` and `AgendaEvent` (prefixed to avoid `Task` / `Event` Swift stdlib collisions). UI labels remain "Task" and "Event" by default (renameable via Settings).
-
-UX-wise both entities carry the same property mechanics as Pages — tier1/2/3 multi-relations, user properties, sort/filter. Distinction is on-disk shape + EventKit-facing only.
+Both carry the shared property catalog and `tier1` / `tier2` / `tier3` Context relations, with the same property mechanics as Pages — multi-relations, user properties, sort/filter. The only distinction is on-disk shape and the EventKit target. `EKEvent` and `EKReminder` are peer types (separate APIs, separate apps), so the disk layout uses two sibling singleton folders rather than an `Agenda/` wrapper. UI labels default to "Task" / "Event" (renameable via Settings).
 
 ---
 
@@ -27,11 +21,9 @@ UX-wise both entities carry the same property mechanics as Pages — tier1/2/3 m
     Team standup.event.json
 ```
 
-Both folders sit at the nexus root as siblings of Page Types — no `Agenda/` wrapper. Discovery is sidecar-driven: the Tasks singleton is whichever root folder carries `_taskconfig.json`; the Events singleton is whichever root folder carries `_eventconfig.json`. Renaming the folder in Finder Just Works. If multiple folders carry the same sidecar (pathological), first-found wins with a warning logged.
+Discovery is sidecar-driven: the Tasks/Events singleton is whichever root folder carries `_taskconfig.json` / `_eventconfig.json`, so renaming the folder in Finder Just Works (first-found wins if duplicated). The `config` suffix avoids clashing with the `.task.json` / `.event.json` entity extensions, which let indexes and external agents identify the kind without opening the file.
 
-The sidecars carry the `config` suffix (vs the un-suffixed `_pagetype.json`) so they don't clash with the `.task.json` / `.event.json` entity extensions. Those per-entity extensions let indexes and external agents identify the kind without opening the file.
-
-Both singleton folders are **eagerly created on launch**: `AgendaTaskManager.loadAll` / `AgendaEventManager.loadAll` ensure the folder exists and seed the sidecar if absent, so a fresh Nexus shows both folders even when empty. Multiple Task / Event types per Nexus remain a post-v1 Prospect.
+Both folders are eagerly created on launch — `loadAll` ensures the folder exists and seeds the sidecar if absent, so a fresh Nexus shows both even when empty. Multiple Task / Event types per Nexus is a Prospect.
 
 ---
 
@@ -42,7 +34,7 @@ Both singleton folders are **eagerly created on launch**: `AgendaTaskManager.loa
 The `_status` Status structure (3 fixed EventKit-aligned groups — Upcoming / In Progress / Done — renameable labels, user-editable options, default seed, the 3-slot rule, the `EKReminder.isCompleted` mapping) is canonical in [[Properties]] § "Status property type". Agenda-specific notes:
 
 - Group IDs (`upcoming` / `in_progress` / `done`) map onto EventKit semantics directly, so the sync layer needs no translation logic.
-- `_status` is user-set, decoupled from any date math — it tracks engagement ("Upcoming" before, "In Progress" during, "Done" after). EKEvent's own `.tentative` / `.confirmed` status is a separate EventKit concept; how sync bridges to it is an open sync-layer question.
+- `_status` is user-set, decoupled from any date math — it tracks engagement ("Upcoming" before, "In Progress" during, "Done" after). EKEvent's own status is a separate EventKit concept; how sync bridges to it is an open sync-layer question.
 - Neither kind ships a built-in `type` field — `_status` is the sole built-in workflow indicator. A `type` taxonomy can be added via the schema editor like any other Select.
 
 #### Entity fields (per-entity file)
@@ -70,7 +62,7 @@ Sync state stored as `calendar_id` + `eventkit_uuid` on each entity. Required en
 
 #### Sidebar treatment
 
-**Agenda has no sidebar section.** Tasks and Events surface via the **Calendar pin entry** at the top of the sidebar. The Calendar row opens `CalendarDetailView` — currently a placeholder two-section list (Tasks above, Events below); the calendar grid and EventKit-mirrored content ship v0.5.0. Right-click the Calendar pin → "New Task" / "New Event" stubs an entity (`createTask` / `createEvent`). Also reachable from a Context's composed-blocks surface (embedded linked-agenda view; v0.7.0+) or directly in Finder.
+**Agenda has no sidebar section.** Tasks and Events surface via the **Calendar pin entry** at the top of the sidebar. The Calendar row opens a placeholder two-section list (Tasks above, Events below); the calendar grid and EventKit-mirrored content are planned. Right-click the Calendar pin → "New Task" / "New Event" stubs an entity. Also reachable from a Context's composed-blocks surface (embedded linked-agenda view, planned) or directly in Finder.
 
 ---
 
@@ -82,11 +74,11 @@ Tasks and Events open in a compact panel surface — title + properties + descri
 
 #### Validation
 
-Enforced at every file write:
+The schema-CRUD layer guards `_status` non-removability (its options stay editable); per-entity shape rules apply on each entity write.
 
-**AgendaTask (`.task.json`):** conforms to `_taskconfig.json` (`_status` non-removable; options editable); `due_at` and `start_at` optional; `due_all_day` meaningful only when `due_at` set; `completed_at` meaningful only when `completed`; filename = title.
+**AgendaTask (`.task.json`):** conforms to `_taskconfig.json`; `due_at` and `start_at` optional; `due_all_day` meaningful only when `due_at` set; filename = title.
 
-**AgendaEvent (`.event.json`):** conforms to `_eventconfig.json` (`_status` non-removable); `start_at` + `end_at` both required, `end_at >= start_at`; filename = title.
+**AgendaEvent (`.event.json`):** conforms to `_eventconfig.json`; `start_at` + `end_at` both required, `end_at >= start_at`; filename = title.
 
 ---
 

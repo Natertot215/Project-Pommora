@@ -22,10 +22,10 @@ Labels are stored per-Nexus (singular + plural, Capacities convention); tier *nu
 
 All three tiers are **folders with a config sidecar** — the same idiom as Page Types (folder + `_pagetype.json`). Each entity carries:
 
-- `id` (ULID), `tier` (1/2/3), `icon` (SF Symbol, optional)
+- `id` (ULID), `tier` (1/2/3), `icon` (optional)
 - `blocks` — an array reserved for a future composed-blocks surface; **currently always empty**
 - `modified_at`
-- Tier-1 (Area) additionally carries `color` — the `AreaColor` palette (the 9 Notion-palette colors plus `accent`; `nil` = no tint)
+- Tier-1 (Area) additionally carries `color` — a fixed palette; `nil` = no tint
 
 There is no `parents`, no containment field, and no cross-context link property. The folder name is the title; there is no `title` field on disk. Renaming in the UI renames the folder.
 
@@ -40,13 +40,13 @@ There is no `parents`, no containment field, and no cross-context link property.
   projects/<Title>/_project.json  id, tier 3, icon, blocks, modified_at
 ```
 
-Each tier has its own sibling manager — `AreaManager` / `TopicManager` / `ProjectManager` — with identical folder CRUD: create (folder + sidecar via `Filesystem.createFolderWithMetadata`), rename (folder rename with atomic save-or-rollback), delete (move folder to trash), reorder (sibling order persisted to `.nexus/state.json` as `area_order` / `topic_order` / `project_order`). Each manager defensively re-syncs its rows into the SQLite `contexts` index on `loadAll`.
+Each tier has its own sibling manager with identical folder CRUD: create (folder + sidecar), rename (folder rename with atomic save-or-rollback), delete (move folder to trash), reorder (sibling order persisted to `.nexus/state.json` as `area_order` / `topic_order` / `project_order`). Each manager defensively re-syncs its rows into the SQLite `contexts` index on load.
 
 ---
 
 #### Sidebar
 
-The three tiers share one **Contexts** section: a `Section` headed "Contexts" containing three `square.grid.2x2` disclosure rows (Areas / Topics / Projects). A tier row toggles its own disclosure only — it is never selectable; its entities are created via the row's hover "+" or right-click "New <Tier>". Each tier's entities render as flat leaf rows inside their disclosure. Full spec → [[Sidebar]].
+The three tiers share one **Contexts** section: a section headed "Contexts" containing one disclosure row per tier. A tier row toggles its own disclosure only — it is never selectable; its entities are created via the row's hover "+" or right-click "New <Tier>". Each tier's entities render as flat leaf rows inside their disclosure. Full spec → [[Sidebar]].
 
 ---
 
@@ -60,22 +60,22 @@ tier2: [<topic-id>, ...]
 tier3: [<project-id>, ...]
 ```
 
-Each tier is a multi-value relation, filled independently. Each renders as its own value-row in the property surface (`tierRow` in `PropertyPanel` / `PropertiesPulldown`; also surfaced by `FrontmatterInspector`); each value displays as the target Context's **icon + title in styled colored text** — the relation-value rendering shared across every surface, not a chip or pill. The `context_tier` target is internal-only — it backs the three built-in tier relations, which are the sole relation-type connection. No user-creatable relation properties exist; `EditPropertyPane` renders a tier target read-only.
+Each tier is a multi-value relation, filled independently. **Context-tier links are stored by ID** (bare ULID arrays in `tier1` / `tier2` / `tier3`, rename-safe) **and render as the target's current icon + title in a minimal grey chip** on every property surface. The `context_tier` target is internal-only — it backs the three built-in tier relations, which are the sole relation-type connection; no user-creatable relation properties exist. Full catalog → [[Properties]].
 
 A tier relation is a **dual surface**:
 
 - **Outbound (entity → Context).** The operational entity tags the Context by holding its ID in `tier1` / `tier2` / `tier3`. This is the writable side — the value lives in the entity's frontmatter; the Context carries no `properties[]` schema and no reverse field.
 - **Inbound (Context → entities).** The Context reads back every entity that tags it. Because tier values emit one row each into the SQLite `context_links` table (`property_id` = the reserved tier ID), the inbound view is a pure index query — no reverse property to maintain.
 
-This cross-layer relation is the one connection contexts have today. It is unaffected by the decoupling: the tiers stop relating to *each other*, but Pages/Agenda still tag them.
+This cross-layer relation is the one connection contexts have today: the tiers don't relate to *each other*, but Pages/Agenda tag them.
 
 ---
 
 #### Linked-from
 
-A Context surfaces every operational entity whose tier relation points at it, in a **Linked-from dropdown** on the Context surface. Each linked entity renders as its **icon + title in styled colored text**, grouped by kind (Pages / Agenda Tasks / Agenda Events).
+A Context surfaces every operational entity whose tier relation points at it, in a **Linked-from dropdown** on the Context surface. Each linked entity renders as its icon + title, grouped by kind (Pages / Agenda Tasks / Agenda Events).
 
-The dropdown is powered by `IndexQuery.incomingContextLinks(targetID:)`, which reads the `context_links` table for every row whose `target_id` is the Context's ID and resolves each source's current title from its owning table. The reverse view is entirely SQLite-derived — Contexts store no inbound list on disk.
+The dropdown is a reverse index query: it reads the `context_links` table for every row whose `target_id` is the Context's ID and resolves each source's current title from its owning table. The reverse view is entirely SQLite-derived — Contexts store no inbound list on disk.
 
 ---
 
@@ -93,17 +93,10 @@ There is no parent, containment, or tier-relation validation — the tiers are f
 
 #### Tier config
 
-Per-Nexus labels at `.nexus/tier-config.json` (defaults):
-
-```json
-{ "level": 1, "singular": "Area",    "plural": "Areas",    "exposed": true },
-{ "level": 2, "singular": "Topic",   "plural": "Topics",   "exposed": true },
-{ "level": 3, "singular": "Project", "plural": "Projects", "exposed": true }
-```
+Per-Nexus tier labels live at `.nexus/tier-config.json` — one entry per tier carrying `level`, `singular`, `plural`, and `exposed`:
 
 - `singular` / `plural` — separate inputs; the UI picks one by context.
 - `exposed: false` hides a tier from CRUD/UI without breaking the schema.
-- `tagging_style` (`color` | `symbol` | `both`) is currently **vestigial** — it controlled the parent-Area indicator on Topic rows, which was removed with containment. It stays inert pending the future relation/tagging design.
 
 ---
 

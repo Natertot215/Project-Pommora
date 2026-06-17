@@ -2,7 +2,7 @@
 
 A **Connection** is an inline `[[Title]]` link in a Page's Markdown **body** that points to another Page (Obsidian-compatible). `[[` is the **sole** connection syntax.
 
-Connections are Pommora's in-prose linking mechanism, distinct from context-link properties (the `tier1` / `tier2` / `tier3` frontmatter values that bind entities to Contexts). This spec defines **what** Connections are and how they behave; implementation sequencing is out of scope.
+Connections are Pommora's in-prose linking mechanism, distinct from context-link properties (the `tier1` / `tier2` / `tier3` frontmatter values that bind entities to Contexts).
 
 Related: [[Pages]] · [[PageEditor]] · [[Properties]] (context-link properties — the frontmatter counterpart) · [[Architecture]] (portability).
 
@@ -18,11 +18,11 @@ The Connection **system is Pommora's own code**: the grammar, the parser, the re
 
 `[[Title]]` targets a **Page**; the source is any Page body.
 
-**Not connection targets:** Contexts (Areas / Topics / Projects) are reached only through tier relations, never inline. Agenda Tasks / Events are excluded in v1 (a future "Tasks" / "Events" property mechanism will cover them).
+**Not connection targets:** Contexts (Areas / Topics / Projects) are reached only through tier relations, never inline. Agenda Tasks / Events are excluded (a future "Tasks" / "Events" property mechanism covers them).
 
-**Authored in Markdown bodies only.** Context and Homepage block surfaces (JSON, not Markdown) are not connection sources in v1 — inline connections inside composed-block surfaces are deferred.
+**Authored in Markdown bodies only.** Context and Homepage block surfaces (JSON, not Markdown) are not connection sources — inline connections inside composed-block surfaces are deferred.
 
-`{{Title}}` is **not** a syntax — Pommora gives it no meaning, and the editor renders it as ordinary plain text. (The chip visual once designed for it survives as a single dormant Component Library design file, `Properties/Chips/ChipLink.swift` — wired to nothing, kept browsable in case a chip-style render is ever wanted again.)
+`{{Title}}` is **not** a syntax — Pommora gives it no meaning, and the editor renders it as ordinary plain text.
 
 ---
 
@@ -32,9 +32,9 @@ The Connection **system is Pommora's own code**: the grammar, the parser, the re
 - On disk a connection is **just the bracketed title** — `[[Title]]`. No piped form, no embedded id, no alias.
 - Resolution is `title → the unique target Page → that Page's own ULID`. The target's identity is its existing frontmatter `id`; the connection itself never carries one.
 
-> **Why ban duplicates.** Title-only on disk is what keeps `[[ ]]` links readable as ordinary Obsidian wikilinks. Global uniqueness makes a bare title an unambiguous reference. Aliases and id-scoping for duplicate titles are deferred (post-v1); when they land, duplicates become tolerable and the id rides in the index, not the body.
+> **Why ban duplicates.** Title-only on disk is what keeps `[[ ]]` links readable as ordinary Obsidian wikilinks. Global uniqueness makes a bare title an unambiguous reference. Aliases and id-scoping for duplicate titles are deferred; when they land, duplicates become tolerable and the id rides in the index, not the body.
 
-Uniqueness is enforced at create / rename: naming a Page a title any other Page already holds (nexus-wide) is rejected. (Today `NameCollisionValidator` enforces this per-container; Connections widen it to nexus-wide.) Duplicates can therefore only *pre-exist* via adoption of an external nexus — never created in Pommora. While a duplicate persists, a connection to that title is ambiguous and stays unresolved until one side is renamed; surfacing the candidates for in-line selection (backed by the ID index) rides with the post-v1 id-scoping work.
+Uniqueness is enforced nexus-wide at create / rename: naming a Page a title any other Page already holds is rejected. Duplicates can therefore only *pre-exist* via adoption of an external nexus — never created in Pommora. While a duplicate persists, a connection to that title is ambiguous and stays unresolved until one side is renamed; surfacing the candidates for in-line selection rides with the deferred id-scoping work.
 
 ---
 
@@ -59,7 +59,7 @@ Because identity is the title and the body carries no id, **a rename cascades**:
 
 ### Resolution + lifecycle
 
-**Live visibility (non-negotiable).** A connection created or removed *inside Pommora* is reflected immediately on every user-facing surface — the editor, graph view, and any future connections panel or query — with no relaunch and no manual refresh. It registers the moment it resolves (its target exists) and deactivates the moment its target is gone. (A connection created or removed by an *external* tool reflects once Pommora sees the file — the file-watcher's job, [[Architecture]] § "File-watcher contract".) *How* the index and open views stay in lockstep is left to the plan.
+**Live visibility (non-negotiable).** A connection created or removed *inside Pommora* is reflected immediately on every user-facing surface — the editor, graph view, and any future connections panel or query — with no relaunch and no manual refresh. It registers the moment it resolves (its target exists) and deactivates the moment its target is gone. (A connection created or removed by an *external* tool reflects once Pommora sees the file — the file-watcher's job, [[Architecture]] "File-watcher contract".)
 
 - **Resolved** — the title matches an existing Page → the connection is live (rendered + navigable).
 - **Unresolved** — the title matches nothing → the connection renders as **plain prose with the brackets visible** (`[[Foo]]` shown literally) and is inert. No muted styling, no navigation.
@@ -75,7 +75,7 @@ Title matching — for both uniqueness enforcement and connection resolution —
 
 ### Rendering
 
-A resolved `[[ ]]` renders as **styled colored inline text** (Obsidian-style hyperlink) in the prose flow — never a pill or chip. Single-click navigates (opens the Page in the detail pane). Unresolved connections render as inert literal text (brackets visible). Page preview-on-click is deferred — navigation-first now.
+A resolved `[[ ]]` renders as **styled colored inline text** (Obsidian-style hyperlink) in the prose flow — never a pill or chip. Single-click navigates (opens the Page in the detail pane). Unresolved connections render as inert literal text (brackets visible). Page preview-on-click is deferred — navigation-first.
 
 ---
 
@@ -89,21 +89,17 @@ Typing `[[` opens a small search-filter popup above the caret listing Pages nexu
 
 The **body is the sole source of truth** — a connection exists because `[[ ]]` sits in the text. SQLite holds only a **derived, regeneratable index**, rebuilt by scanning bodies; it is never authoritative, and discarding it loses nothing the bodies don't already hold.
 
-Connections are recorded in a single **`connections`** table, kept **separate** from `context_links` (the tier-relation store). Each connection is **one directed edge**:
-
-`(id, source_id, source_kind, target_id, target_kind, target_title, surface, multiplicity, weight, resolved, modified_at)`
-
-`source_kind` / `target_kind` are always `"page"` and `surface` is always `"page_body"` — connections are page-only; the discriminator columns keep per-type weighting and filtering possible later.
+Connections live in their own index table, **separate** from the tier-relation store. Each connection is **one directed edge** keyed by source, target, the target's normalized title, multiplicity, weight, and a resolved flag (full schema → `PommoraPRD.md`). Connections are page-only; discriminator columns keep per-type weighting and filtering possible later.
 
 - **Live updates, no relaunch** — every in-app create / edit / delete / rename updates the index in the same operation as the file write, so links, backlinks, and the graph reflect the change immediately. The full body-scan is only the cold-start bootstrap (and the rebuild-from-scratch recovery path); changes made outside Pommora reconcile via the file watcher while running, and via the scan on next launch.
-- **One edge, both directions** — outgoing = `source_id = ?`; incoming / backlinks = `target_id = ?`. The same rows queried in reverse — there is no separate "incoming" store. (The pattern `IndexQuery.incomingContextLinks` already uses for contexts; the `target_id` index keeps the reverse query cheap.)
-- **Resolved + phantom** — unresolved connections are recorded by normalized title (no `target_id` yet) so they activate when the title appears.
+- **One edge, both directions** — outgoing reads source, incoming / backlinks reads target. The same rows queried in reverse — there is no separate "incoming" store; an index on the target keeps the reverse query cheap.
+- **Resolved + phantom** — unresolved connections are recorded by normalized title (no resolved target yet) so they activate when the title appears.
 - **Multiplicity** — repeated links from one source to the same target increment a counter (the natural seed for graph weight).
-- **Both directions captured for every Page**, so a future surfacing (a backlinks / connections panel) reads them straight from the index. The display surface itself is deferred.
+- **Both directions captured for every Page**, so a future backlinks / connections panel reads them straight from the index. The display surface itself is deferred.
 
 #### Weights
 
-The `weight` column exists so per-edge-type weighting is **possible**; v1 ships uniform weight and no tuning UI. In a node-graph, size follows degree — Contexts naturally accumulate the most edges and read as the largest cores, which is correct, not a distortion. Weight is the escape hatch: if the organizational skeleton ever buries the associative web, tier edges can be down-weighted at query time to surface idea-to-idea links. Carried, not used.
+Per-edge weight is carried so per-edge-type weighting is **possible**; v1 ships uniform weight and no tuning UI. It is the escape hatch — if tier edges ever bury the idea-to-idea web in a node-graph, they can be down-weighted at query time. Carried, not used.
 
 ---
 
@@ -113,12 +109,12 @@ The `weight` column exists so per-edge-type weighting is **possible**; v1 ships 
 
 ---
 
-### Editor (MarkdownPM)
+### Editor
 
-The Markdown engine is the render + input surface; Pommora supplies all link semantics. The engine handles `[[ ]]` via `WikiLinkService`. Replacing the engine touches only this adapter.
+The Markdown engine is the render + input surface; Pommora supplies all link semantics. The engine handles `[[ ]]` through a thin adapter; replacing the engine touches only that adapter.
 
 ---
 
-### Deferred (post-v1)
+### Deferred
 
 Aliases · id-scoping for duplicate titles (with in-line candidate selection) · the backlinks / connections **display panel** (edge data captured now) · Page preview-on-click · connections inside Context / Homepage composed-block surfaces · Agenda entities as connection targets · heading / block anchors (`#`, `#^`) · transclusion (`![[ ]]`).

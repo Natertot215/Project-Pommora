@@ -25,6 +25,7 @@ electron-vite · Electron 42 · React 19 · TypeScript 6 · Vite 7 + `@vitejs/pl
 - **Catch up to Swift, don't go ahead.** Build only what Swift has actually shipped at the data/feature level. Net-new subsystems Swift hasn't built (block-editing, file-version history, …) are out of scope until Swift's behavior is matched — we're porting, not extending. Reserved-but-empty Swift fields (`blocks: []`) round-trip untouched; they aren't activated here.
 - **Condensed control flow / DRY / simplicity-first** — model finite states as unions + switch; hoist shared logic; don't add unrequested complexity.
 - **Colors are authored as hex** — `#RRGGBB`, or `#RRGGBBAA` (8-digit) for alpha — never `rgb()` / `rgba()`. The token layer (`design-system/tokens/`) is the source; platform-returned values (e.g. `getComputedStyle`) are the only exception. Detail: `design-system/tokens/README.md`.
+- **Docs name; code holds exacts.** These docs describe the *system* and reference product truth (root `PommoraPRD.md` + `Features/`) — they never restate exact code values. Name the token and its treatment ("the red solid at a low opacity"), never the literal `#hex` / `%` / line-for-line code; exacts live in `design-system/tokens/` + Figma.
 
 ### Locked decisions
 

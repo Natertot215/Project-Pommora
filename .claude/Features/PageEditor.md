@@ -1,121 +1,86 @@
 ### Page Editor
 
-Pommora's body editor for Pages — what the user sees and types into when they click a Page row in the sidebar. Data-model concerns (on-disk shape, frontmatter, opening behavior, sidebar disclosure) live in [`Pages.md`](Pages.md); this file covers the editor surface itself.
-
-The editor runs on a native TextKit-2 stack. **HOW the editor's constructs are built** — the dynamic-syntax architecture, detection rules, state-mutation guards, anti-patterns, engine quirks, and every Nathan-locked editor decision (date-stamped) — is the contract in [`// rules//MarkdownPM.md`](../rules/MarkdownPM.md); read it first when implementing any construct. This spec records only WHAT the editor currently ships and its visible surface.
+Pommora's body editor for Pages — what the user sees and types into when they open a Page. Data-model concerns (on-disk shape, frontmatter, opening behavior, sidebar disclosure) live in [[Pages]]; this file covers the editor surface. The construct-level contract — dynamic-syntax architecture, detection rules, state-mutation guards, anti-patterns, engine quirks, and every locked editor decision — lives in [[MarkdownPM]]; read it first when implementing any construct. This spec records WHAT the editor ships and its visible surface.
 
 ---
 
-#### Library
+#### Architecture
 
-| Layer | Source |
-|---|---|
-| **Parser** | Apple **`swift-markdown`** 0.8.0 (`swiftlang/swift-markdown`) — full GFM AST. |
-| **Renderer** | Apple **`NSAttributedString` + `NSTextView` + `NSTextLayoutManager`** — font/color/paragraph styling, link rendering, selection, find, native context menu, Writing Tools (15.1+), spell-check, autocorrect, IME, drag-select all free. |
-| **Live-preview chassis** | **`MarkdownPM`** (Pommora-owned Swift Package at [`External/MarkdownPM/`](../../External/MarkdownPM/); originally vendored from `nodes-app/swift-markdown-engine`, Apache 2.0, now owned + maintained in-tree). Contributes the two features Apple's bare NSTextView lacks: **dynamic syntax** (markers shrink when the caret leaves an AST node, expand when entered) + **Markdown-aware typing helpers** (list continuation; block auto-wrap; Pommora-side character-pair auto-pair). |
-| **Apple-AST supplemental styling** | Pommora-side `AppleASTSupplementalStyler` — the caret-unaware AST pass for BlockQuote / Strikethrough / Table / ThematicBreak, composed LAST (last-writer-wins) after the owned `MarkdownPMStyler`'s primary per-construct pass. |
-| **Domain wiring** | `PageRef`, `PageFile`, `PageContentManager.updatePage`, `PageEditorViewModel`, `PageEditorHost`, `AppGlobals`, inspector + sidebar wiring — editor-library-agnostic. |
+The editor is a native TextKit-2 stack with a clear division of labor, each layer hot-swappable behind a stable boundary:
 
-Engine vendoring rationale + per-file modification log → `// rules//MarkdownPM.md` §1.2 + `External/MarkdownPM/NOTICE.md`.
+- **Parser** — Apple's `swift-markdown` contributes a full GFM AST.
+- **Renderer** — Apple's `NSTextView` on TextKit 2, styling an `NSAttributedString`. Selection, find, native context menu, Writing Tools, spell-check, autocorrect, IME, and drag-select all come for free from the system text view.
+- **Live-preview chassis** — `MarkdownPM`, the Pommora-owned Swift package maintained in-tree, supplies the two things a bare text view lacks: **dynamic syntax** (a construct's markers shrink when the caret leaves its AST node and expand when it enters) and **Markdown-aware typing helpers** (list continuation, block auto-wrap, character-pair auto-pairing).
+- **Supplemental styling** — a caret-unaware AST pass styles the constructs the primary per-construct pass doesn't own, composed last so it wins on overlap.
+- **Domain wiring** — page references, file model, content-manager update path, editor view-model and host, inspector and sidebar wiring — all editor-library-agnostic.
+
+**Hot-swap boundary.** The swap surface is the editor call site plus the Pommora customizations inside `MarkdownPM` (the supplemental styler and the input-handler / layout / context-menu extensions). The `.md` format, the view-model-to-content-manager chain, and the atomic-write contract are all library-agnostic — replacing the editor engine touches none of them.
 
 ---
 
 #### Layout
 
-`PageEditorView` ([Pommora/Pommora/Pages/PageEditorView.swift](../../Pommora/Pommora/Pages/PageEditorView.swift)) is a `ZStack(alignment: .topLeading)` of two layers:
+The view stacks two top-leading-aligned layers:
 
-1. **Body `MarkdownPMEditor`** (bottom layer) — the `MarkdownPM` package's `NSViewRepresentable` front door. `textInsets` apply 24pt horizontal (so body text aligns under the title's padding) + a 90pt vertical inset that reserves a scrollable empty zone at the top of the text container for the title overlay.
-2. **Title + divider overlay** (top layer) — a 28pt-bold plain `TextField` matched to macOS Notes' large title line, above a 1pt system-separator divider. The overlay tracks body scroll via `.offset` so the title scrolls in sync with the body and moves off-screen once scrolled past. Pressing Enter commits the rename and hands focus to the body editor. **Page icon:** when the per-Nexus `showPageIcon` setting is on (default OFF), the page's `frontmatter.icon` renders inline to the left of the title on the text baseline (tap → `IconPicker` to change/remove); with no icon set, hovering the row reveals a faint tertiary `plus.app` "Add Icon" affordance on the right. Off or unset → nothing leads the title (flush-left, zero reserved indent). The same icon propagates to the sidebar row + NavDropdown (a custom icon overrides the per-kind outline default).
+1. **Body editor** (bottom) — the `MarkdownPM` front-door view. Horizontal text inset aligns body text under the title's padding; a larger top inset reserves a scrollable empty zone for the title overlay.
+2. **Title + divider overlay** (top) — a large-bold plain title field matched to macOS Notes, above a hairline separator. The overlay tracks body scroll, so the title scrolls in sync and moves off-screen once scrolled past. Enter commits the rename and hands focus to the body.
 
-The inspector + its toolbar toggle live in `ContentView`, not here — so the inspector renders at the window's trailing edge rather than inside this sub-view. A cover-image / banner drops into the same overlay VStack above the title with no engine changes.
+**Page icon.** When the per-Nexus show-page-icon setting is on (default off), the frontmatter icon renders inline to the left of the title on the baseline (tap to change or remove); with no icon set, hovering reveals a faint "Add Icon" affordance. Off or unset leaves the title flush-left with no reserved indent. The same icon propagates to the sidebar row and NavDropdown, overriding the per-kind default.
 
-The Page-editor titlebar carries no properties pulldown — page properties surface via the pop-out inspector pane (`FrontmatterInspector`, the only inspector content today). A Claude chat interface in the inspector is a [`Prospect`](Prospects.md).
-
----
-
-#### Save pipeline (load-bearing — preserves "files are canonical")
-
-Keystroke → `viewModel.body` `didSet` → `scheduleSave()` 300ms debounce → `PageContentManager.updatePage(_:body:in:vault:)` (or `inVaultRoot:`) → reconstructs `PageFile(frontmatter:body:title:)` → `AtomicYAMLMarkdown.write(frontmatter:body:to:)` (atomic temp-file + rename) → in-memory cache updates.
-
-**Flush on context loss:** page-switch (`PageEditorHost` awaits `old.close()`), window-close (`PageEditorView.onDisappear`), `NSApplication.willResignActiveNotification`, `willTerminateNotification`, `⌘S` (`explicitSave`).
-
-**Frontmatter preservation rule:** the editor binds ONLY to `body` (pure Markdown — YAML stripped by `AtomicYAMLMarkdown.load` before reaching the editor). Frontmatter is held in `viewModel.page.frontmatter` and re-serialized on save from the typed struct, never from a string-prefix. **The user cannot destroy frontmatter via the editor; YAML is never visible.**
-
-**Failure handling:** the `pendingError` alert in `PageEditorView.body` (Retry / OK); draft body preserved; retry re-schedules.
+The inspector and its toolbar toggle live in `ContentView`, so the inspector renders at the window's trailing edge rather than inside this sub-view. A cover or banner drops into the overlay stack above the title with no engine changes. The titlebar carries no properties pulldown — page properties surface through the pop-out inspector (frontmatter properties are its only content today). A Claude chat interface in the inspector is a [[Prospects|Prospect]].
 
 ---
 
-#### Editable title flow
+#### Save pipeline (preserves "files are canonical")
 
-The title `TextField` is structurally separate from the body editor. On Enter:
+Keystroke → body change → short debounce → content-manager update path → reconstruct the page file (frontmatter + body + title) → atomic write (temp-file then rename) → in-memory cache update. The pipeline flushes on every context loss: page-switch (the host awaits the outgoing page's close), window-close, app resign-active, app terminate, and explicit save.
 
-1. `titleFocused = false` — drops the title's first-responder claim cleanly (otherwise NSTextField's default Enter behavior selects-all + stays focused).
-2. `focusBodyEditor()` — walks `NSApp.keyWindow.contentView` for the first `NSTextView` (the sidebar uses `NSTextField`, so this is safe) and makes it first responder.
-3. `Task { await commitRename() }` — async in parallel: `PageContentManager.renamePage` → on-disk `.md` file move → `PageMeta` cache refresh → `viewModel.page = updated`. Doesn't block the focus shift.
+**Frontmatter preservation.** The editor binds ONLY to the body — pure Markdown, with YAML stripped on load before it reaches the editor. Frontmatter is held on the view model and re-serialized on save from the typed struct, never from a string prefix. The user cannot destroy frontmatter through the editor, and YAML is never visible.
 
-If `commitRename` fails (e.g. name collision), `pendingError` fires the alert and the title draft reverts to the previous value.
+**Failure handling.** A pending-error alert (Retry / OK) preserves the draft body; retry re-schedules the write.
+
+**Editable title.** The title field is structurally separate from the body. On Enter it drops its first-responder claim cleanly (otherwise the field selects-all and stays focused), moves focus to the body's text view, and commits the rename asynchronously in parallel — an on-disk file move plus cache refresh — without blocking the focus shift. A failed rename (e.g. a name collision) fires the pending-error alert and reverts the title draft.
 
 ---
 
 #### Current editor surface
 
-What the editor renders and supports today.
+**Inline marks** (emphasis locates on the AST, other constructs on regex; caret-aware marker-shrink): bold, italic, bold-italic, inline code; standard Markdown links; image embeds (render hook present, image provider deferred). Connections (`[[Name]]` / `{{Name}}`) are a **body construct** — inline styled colored text in the Markdown stream, click resolution pending the Pommora-side resolver; distinct from context-link properties (see [[Pages]]).
 
-**Inline marks** (hybrid tokenizer — emphasis locates on the Apple `swift-markdown` AST, other constructs on regex; caret-aware marker-shrink):
-- Bold (`**` / `__`), italic (`*` / `_`), bold-italic (`***`), inline code (`` ` ``)
-- Connections (`[[Name]]` / `{{Name}}`) — a **body construct**: inline styled colored text in the Markdown stream; click resolution lands with the Pommora-side resolver (see Deferred). Distinct from context-link properties → [[Pages]] § "Connections vs context-link properties".
-- Standard Markdown links (`[text](url)`)
-- Image embeds (`![[name]]`) — render hook present; Pommora-side image provider deferred
+**Block constructs** (engine + supplemental):
+- **Headings** on a Pommora scale descending from a large H1 to body size at H6 (nothing renders below body size); only H1–H4 are offered in the right-click menu. **Foldable** — hovering a heading reveals a gutter chevron that collapses the section to the next equal-or-higher heading (or document end); fold state persists per-Page in frontmatter.
+- **Lists** — bullet and ordered, with portable CommonMark source; a bullet glyph renders over the source dash while disk source stays portable.
+- **Task checkboxes** — GFM source. The fast no-space shorthand is canonicalized to GFM on input the moment the content-starting space is typed (caret lands after the trailing space so typing flows on), keeping the quick entry while writing portable, Obsidian-renderable source. A symbol glyph draws in place of the bracket marker; clicking it toggles the source.
+- **Fenced code blocks.**
+- **LaTeX** (inline and block) — marker-shrink ships; math rendering deferred.
+- **Blockquote** — grey-tint rounded card with a continuous accent bar; multi-paragraph quotes join contiguously. Enter continues, Shift+Enter exits.
+- **Strikethrough.**
+- **Table** — GFM source parses and styles (monospace, faint background, pipes and separator row hidden); the rich inline-grid editing UX is paused (see below).
+- **Thematic break** — renders as a rule when the caret is off the line and reverts to literal source for editing when entered; the Setext-heading interpretation is rejected.
 
-**Block constructs** (engine + Apple-AST supplemental):
-- Headings (`#`–`######`) on the Pommora scale `[2.0, 1.75, 1.5, 1.25, 1.15, 1.0]` (H6 = body size; no heading below body). H5/H6 are omitted from the right-click menu (only H1–H4 are offered). **Foldable** — hover a heading line to reveal a gutter chevron; click toggles a zero-height collapse of the section down to the next equal-or-higher heading (or document end). Fold state persists per-Page in frontmatter (`folded_headings`).
-- Bullet + ordered lists, with portable CommonMark source (`- entry`). A `•` glyph renders over the `-` marker; source on disk stays `-` for portability.
-- **Task-list checkboxes** — GFM `- [ ]` / `- [x]`. The fast Pommora shorthand `-[ ]` / `-[x]` (no space after the bullet) is **canonicalized to GFM on input**: typing `-[]` / `-[ ]` / `-[x]` then the space that starts the content rewrites the line to `- [ ] ` / `- [x] ` (caret lands after the trailing space, so typing flows straight on). This keeps the quick shorthand but writes portable, Obsidian-renderable source — matching Enter-continuation. The bare empty `-[]` is a transient marker shown as literal text (not a checkbox) until that space canonicalizes it; `[ ]` / `[x]` with an inner char render as a checkbox immediately. An SF Symbol glyph draws in place of the bracket marker; clicking it toggles the source.
-- Fenced code blocks (` ``` `)
-- Inline + block LaTeX (`$..$` / `$$..$$`) — marker-shrink behavior ships; math rendering deferred.
-- **Blockquote** (`>`) — grey-tint rounded card + continuous vertical accent bar; multi-paragraph quotes join into one contiguous block. Plain Enter continues the quote; Shift+Enter exits.
-- **Strikethrough** (`~~text~~`)
-- **Table** (GFM `| col | col |`) — parsed and styled (monospace + faint background; pipes hidden; separator row hidden). The rich Apple-Notes-style inline grid + cell-editing UX is **paused** (see "Tables" below).
-- **Thematic break / HR** (`---` on its own line) — renders as a horizontal line when the caret is off the line; the literal `---` becomes visible for editing when the caret enters it. Pommora rejects the Setext-H2 interpretation of `---`.
+**Typing helpers:** list continuation (Enter auto-fills the next marker, preserving indent and checkbox); block auto-wrap (block constructs stay on their own line); character-pair auto-pair and auto-delete (single bracket only auto-pairs at whitespace or line start so the checkbox shorthand flows); bracket-skip on Enter; dash and arrow auto-format (input-time only — paste preserves literal text).
 
-**Typing helpers:**
-- List continuation (Enter at the end of a `-` line auto-fills the next marker, preserving indent + checkbox).
-- Block auto-wrap (typing adjacent to `$$..$$` / `![[..]]` keeps the block on its own line).
-- Character-pair auto-pair + auto-delete for `**` / `__` / `[[` / `` ` `` (single `[` only auto-pairs at whitespace / line start so `-[]` flows cleanly).
-- Bracket-skip on Enter (caret between a matched pair jumps past the closer).
-- Dash auto-format (`--` → em-dash, ` - ` → en-dash; en→em promotion) and arrow auto-format (`<-` → `←`, `<->` → `↔`), input-time only — paste preserves the literal text.
+**Right-click menu** (engine base + Pommora extensions): the standard system entries plus Format, Heading (H1–H4), Lists, and Block submenus.
 
-**Right-click menu** (engine base + Pommora extensions): standard system entries (Cut/Copy/Paste, Spelling, Substitutions, Speech, Look Up, Translate, Writing Tools on 15.1+) plus Format (Bold/Italic/Strikethrough/Inline Code/Link), Heading (H1–H4), Lists (Bullet/Numbered), and Block (Blockquote/Code Block/Table/Horizontal Rule) submenus.
+**System integration** (free via the text view): Writing Tools, Look Up, Translate, spell/grammar/autocorrect with per-token suppression for code and LaTeX, IME, dynamic light/dark colors, drag-to-select. The find-highlighting bus is present; the Pommora-side find palette is deferred.
 
-**System integration** (free via NSTextView): Writing Tools (15.1+), Look Up, Translate, spell/grammar/autocorrect with per-token suppression for code/LaTeX, IME, dynamic light/dark colors, drag-to-select. Find-in-document highlighting bus is present; the Pommora-side find palette is deferred.
-
-**Stats footer:** a hover-revealed chevron at the editor's bottom-right toggles a thin bottom bar — `Vault › Collection › Page` breadcrumb (Finder-style `›` separators) on the left, `Lines · Words · Characters` on the right. Lines count raw source lines; words + characters count *rendered prose* (Markdown syntax stripped via the engine's `MarkdownPlainText` walker; characters exclude structural block-separator newlines). Counts compute only while open, debounced. Open/closed state persists globally via `@AppStorage` (not per-Page). The chevron is `chevron.compact.up`/`down`, shown for 3 s on open then hover-only. Clickable breadcrumb navigation was tried and dropped (it routed into detail surfaces where the editor isn't wired).
+**Stats footer:** a hover-revealed chevron at the bottom-right toggles a thin bar — a Finder-style `Vault › Collection › Page` breadcrumb on the left, line/word/character counts on the right. Lines count raw source; words and characters count rendered prose (syntax stripped, structural separators excluded). Counts compute only while open, debounced. Open state persists globally. Clickable breadcrumb navigation was tried and dropped (it routed into detail surfaces where the editor isn't wired).
 
 ---
 
 #### Tables — to be implemented
 
-Apple-Notes-style inline-grid tables (drag-resize columns, double-click popover cell editor, structural context menu for add/delete row/column + cell alignment) are a named roadmap deliverable.
+Apple-Notes-style inline-grid tables — drag-resize columns, a double-click popover cell editor, and a structural context menu for add/delete row-column plus cell alignment — are a named roadmap deliverable. Today GFM source parses and renders styled, with no grid alignment or editing affordances.
 
-**Current ship:** GFM `| col | col |` syntax parses and renders with monospace + faint background + hidden pipes + hidden separator row. No grid alignment, no editing affordances, no drag-resize.
-
-**Open question — inline-column alignment.** Laid out as inline text in TextKit 2, cells don't visually align unless source is padded to equal column widths. `NSTextTable` is rejected — it forfeits Writing Tools / Look Up / dynamic-color and forces a TextKit-1 downgrade. The direction (`// rules//MarkdownPM.md` §9.2 + §9.6): source on disk stays uniformly padded via `Markup.format()`, column widths live in frontmatter, the render layer applies overrides — making *inline* layout honor custom widths is the unsolved part. The popover cell editor and structural context menu don't depend on this and can land independently. Full design → `// rules//MarkdownPM.md` §1.3 + §6.10.
-
-> The `pommora_table_widths` frontmatter key is grandfathered (CLAUDE.md); rename when Tables ship.
+**Open question — inline-column alignment.** Laid out as inline text, cells don't visually align unless the source is padded to equal column widths. A dedicated text-table primitive is rejected — it forfeits Writing Tools, Look Up, and dynamic color and forces a TextKit-1 downgrade. The intended direction keeps disk source uniformly padded, stores column widths in frontmatter, and has the render layer apply overrides; making inline layout honor custom widths is the unsolved part. The popover editor and structural menu don't depend on it and can land independently. The table-widths frontmatter key is grandfathered and renames when Tables ship.
 
 ---
 
 #### Deferred
 
-- **`PommoraWikiLinkResolver`** — unblocks wikilink click routing + rename cascade.
-- **`:::callout` + `@Columns` directives** + **slash menu** — via Apple `BlockDirective`.
-- **HighlighterSwift bridge** (syntax highlighting) + **SwiftMath bridge** (LaTeX rendering) — no-op service defaults ship; both opt-in.
-- **Image embed provider** — `EmbeddedImageProvider` for `![[name]]`.
-- **Find-in-document UI** — Pommora-side find palette over the existing find bus.
-- **Auto-pair polish** — selection-wrap + auto-exit-on-whitespace.
-
----
-
-#### Hot-swap surface
-
-Swap boundary: `MarkdownPMEditor` call site in `PageEditorView.swift` (~10 lines) + Pommora customizations inside `MarkdownPM` (`AppleASTSupplementalStyler.swift` + extensions to `MarkdownInputHandler.swift`, `MarkdownTextLayoutFragment.swift`, `ContextMenu.swift`). The `.md` format, `PageEditorViewModel ↔ PageContentManager` chain, and `AtomicYAMLMarkdown` contract are all editor-library-agnostic.
+- **Wikilink resolver** — unblocks click routing and rename cascade.
+- **Callout and column directives + slash menu** — via Apple block directives.
+- **Syntax-highlighting and LaTeX-rendering bridges** — no-op defaults ship; both opt-in.
+- **Image embed provider.**
+- **Find-in-document UI** — over the existing find bus.
+- **Auto-pair polish** — selection-wrap and auto-exit-on-whitespace.

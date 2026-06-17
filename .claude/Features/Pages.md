@@ -13,13 +13,13 @@ A Page is one Markdown file inside a [[PageTypes|Page Type]] — the only operat
 - Move a Page between Page Types → properties not in the destination Page Type's schema are stripped (Notion-style; confirm prompt warns the user). Move it anywhere within the same Page Type (between Sets, Collection roots, and the Type root) → no strip; schema is shared and Sets carry none of their own.
 
 - YAML frontmatter for identity (`id`), icon, **per-tier multi-relations** (`tier1` / `tier2` / `tier3` pointing to Contexts), and property values from the Page Type's schema. **No `page_type` field needed** — membership is by location. **No `title` field either** — the Page's title is its filename (minus `.md`); renaming the title in the UI renames the file on disk. (Independent UI titles → [[Prospects]].)
-- **Title is NOT the same thing as ID.** The Page's `id` (ULID in frontmatter) is its stable identity; the filename is its renameable display title. Cross-references (connections, context-link tier values) resolve via `id`, never by filename. Two Pages in the same Page Type / Page Collection cannot share a title — a colliding create or rename is rejected (canonical rule → [[Domain-Model]] § "Entity identity vs title").
+- **Title is NOT the same thing as ID.** The Page's `id` (ULID in frontmatter) is its stable identity; the filename is its renameable display title. Cross-references (connections, context-link tier values) resolve via `id`, never by filename. Page titles are globally unique nexus-wide — a colliding create or rename is rejected (canonical rule → [[Domain-Model]] "Entity identity vs title").
 
 - Properties on a Page must conform to the Page Type's schema. **Ad-hoc properties (page-local fields not in the schema) are out of v1 scope** — the only "outside the schema" things are sidebar ordering / sorting, which are UI state, not file content. (Ad-hoc properties → [[Prospects]].)
 
 - Markdown body for prose.
 
-- **Adopted `.md` files load leniently.** Markdown files without Pommora frontmatter open via `PageFile.loadLenient(from:nexusRoot:)`. Missing `id` is synthesized as `"adopted-" + sha256(relativePath).prefix(16)` (stable across launches, path-relative to the Nexus root); missing `created_at` falls back to the file's `creationDate`; tier and properties default to empty. The loader **never mutates** the on-disk file — frontmatter is written only when the user edits and saves through the editor, so opening a folder that's also an Obsidian vault leaves notes byte-identical until touched. Both sidebar discovery and the editor use the lenient path, so anything that surfaces also opens.
+- **Adopted `.md` files load leniently.** Markdown files without Pommora frontmatter still open. A missing `id` is synthesized from a hash of the file's nexus-relative path (stable across launches); a missing creation date falls back to the file's own; tier and properties default to empty. The loader **never mutates** the on-disk file — frontmatter is written only when the user edits and saves through the editor, so opening a folder that's also an Obsidian vault leaves notes byte-identical until touched. Both sidebar discovery and the editor use the lenient path, so anything that surfaces also opens.
 
 
 
@@ -63,31 +63,24 @@ The `.md` file format is the architectural firewall — Pages on disk are identi
 
 #### Properties surface
 
-Currently, a Page's properties surface as the **property panel** in the editor's pop-out **inspector** (`FrontmatterInspector`, a SwiftUI `.inspector` at the window's trailing edge — not inside the page body), rendering every schema property as a fillable row. This **will move to a dedicated properties dropdown** (`PropertiesPulldown`) to free the inspector for the planned LLM / CLI interface. The inspector has no meta section (Title / ID / Created / Icon) — the filename is the title, the page ID renders as a bottom-pinned pane footer, and an **Add Property** affordance beneath the rows commits through the shared `PropertyCreation` path. Canonical architecture: [[Properties]] § "Where Properties Live".
+A Page's properties surface as the **property panel** in the editor's pop-out **inspector** at the window's trailing edge — not inside the page body — rendering every schema property as a fillable row. This **moves to a dedicated properties dropdown** to free the inspector for the LLM / CLI interface. The inspector has no meta section (Title / ID / Created / Icon) — the filename is the title, the page ID renders as a bottom-pinned pane footer, and an **Add Property** affordance beneath the rows commits through the shared property-creation path. Canonical architecture: [[Properties]] "Where Properties Live".
 
 ---
 
 #### Opening behavior
 
-**Routing is per-vault via `open_in`** (`compact` | `window` on the `_pagetype.json` sidecar; absent = `window`). The vault's footer toggle sets it (→ [[PageTypes]] § "Open-in mode"). `PageOpenRouter` (`Preview/PageOpenRouting.swift`) is the single open-path — `destination(for:page:currentSelection:)` plus `routeOpen` overloads taking an `openPreview: (PageRef) -> Void` closure. Sidebar single-click, `PageTypeDetailView` / `PageCollectionDetailView` double-click, and the Component Library all route through it. Pages inside a Page Set route identically — `PageRef` carries an optional set ID (legacy refs decode), and the editor / preview / inspector write paths are set-aware (a save never re-points `page_set_id`).
-
-**Routing is per-vault** — `open_in` on `_pagetype.json` (`compact` | `window`; absent = `window`) determines whether a page-tap opens in the main detail pane or a PagePreview window. `PageOpenRouter` (`Preview/PageOpenRouting.swift`) is the single open-path shared by sidebar single-click and detail-table double-click.
+**Routing is per-vault.** Each vault declares an open mode on its `_pagetype.json` sidecar (`compact` | `window`; absent = `window`), set by the vault's footer toggle (→ [[PageTypes]] "Open-in mode"). One shared open-path resolves every page-tap — sidebar single-click, detail-table double-click, and the Component Library all route through it — and decides whether the tap lands in the main detail pane or an in-window preview card. Pages inside a Page Set route identically; a save never re-points a page's set.
 
 **`window` (default) — detail pane (single Page at a time).** Clicking a Page row in the sidebar opens the Page in the existing detail pane, replacing the Page Collection / Page Type / Context detail view for that selection. Only one Page is open at a time in the main window; switching to a different Page closes the previous one (its body is already auto-saved by the editor's debounce loop).
 
-**`compact` — PagePreview window.** The Page opens in **PagePreview** — a dedicated preview window owned by `PreviewTarget` as a custom `NSPanel` (`PreviewPanel`, `Preview/PreviewTarget.swift`); one reusable panel that retargets when you peek another Page. It's restricted to never act as its own app window:
+**`compact` — preview card.** The Page opens in a **preview card**: one reusable, resizable panel that retargets when you peek another Page. The panel is **child-attached to the main window** and **never acts as a main app window** — clicking it from another app refocuses Pommora, but it never demotes or dims the main window, so preview and main read as a single focus unit. It rides main-window moves, hides with the main window, and closes with it and on Nexus switch; it never floats over other apps and has no Dock, Window-menu, or fullscreen presence. Chrome is minimal: a renameable proxy title (double-click to edit; filename = title), a proxy icon, a footer breadcrumb + lock, and two capsule buttons (close, inspector). The body is the shared editor, read-only on open.
 
-- **Uniform focus (why a panel, not a `WindowGroup`).** A regular `NSPanel` activates the app when clicked — so clicking the preview from another app refocuses Pommora — but can *never* become the **main** window, so it never demotes/dims the main Pommora window: preview + main read as one focus unit. No SwiftUI scene type is both "activating" and "never-main", and reclassing SwiftUI's own window to force it crashes — hence owning the window directly.
-- **Child-attached above the main window** at normal level — rides main-window moves, never floats over other apps, hides with the main window, and closes with it and on Nexus switch. Traffic lights hidden; no title text; no Dock minimize, no Window menu / Mission Control presence, no fullscreen Space (`PreviewWindowConfigurator.restrict`).
-- **Standard `windowBackground` material** — not glass; the only glass is the two `WindowCapsuleButton` capsules (✕ close, inspector toggle).
-- **Chrome:** a **proxy title** — a plain label that's part of the draggable title bar; a double-click swaps in a focused field to rename (filename = title; Enter or click-away commits, then reverts to the label) — beside an 18pt proxy icon; uniform-inset hairlines; footer = breadcrumb + lock. The body is the shared `MarkdownPMEditor` at 13pt; its leading inset aligns the first character with the close-button's "X" glyph (reserving the heading-fold chevron gutter), and the scrollbar is hidden.
-- **Drag from anywhere non-interactive.** The window moves when dragged from any non-interactive point — the header gaps, footer, and inspector empty areas (`WindowDragGesture`) and the locked read-only body (`NSWindow.performDrag`) — but not the title field, the capsule buttons, or the editable body.
-- **Opens locked** (read-only) with the inspector open. The footer lock toggles editing; unlocking reveals an **Open** button. Promote the Page to the main detail pane via `Ctrl-Cmd-F` or the footer **Open** (a title double-click renames, it does not promote).
-- **Inspector** — the shared `FrontmatterInspector` mounted `compact: true`, natively resizable (180–400pt, ideal 210) (→ [[Properties]] § "Where Properties Live").
-- **Sizing:** default 840×540; content minimum 420 body + the inspector pane.
+- **Drag from anywhere non-interactive** — the header gaps, footer, inspector empty areas, and the locked body all move the window; the title field, capsule buttons, and editable body do not.
+- **Opens locked** (read-only) with the inspector open. The footer lock toggles editing; unlocking reveals an **Open** button that promotes the Page to the main detail pane (a title double-click renames, it does not promote).
+- **Inspector** — the shared property inspector mounted compact, natively resizable (→ [[Properties]] "Where Properties Live").
 - **Edit conflicts are structurally unreachable** — a Page currently shown in the main detail pane never opens as a preview (the tap is suppressed).
 
-**From the NavDropdown — single-click select / double-click open.** Clicking a Page row in the dropdown's Pinned or Recents list updates the dropdown's selection (no action); double-clicking opens the Page in the main detail pane via a direct `SidebarSelection` closure. Full mechanics live in `NavDropdown.md`.
+**From the NavDropdown — single-click select / double-click open.** Clicking a Page row in the dropdown's Pinned or Recents list updates the dropdown's selection (no action); double-clicking opens the Page in the main detail pane. Full mechanics → [[NavDropdown]].
 
 ---
 
@@ -107,17 +100,6 @@ Right-click on a Page row in the sidebar gives Rename / Delete; right-click in a
 
 #### Connections
 
-Canonical spec → [[Connections]]; the on-disk form is ratified by blessed decision D1 (`// Planning//2026-06-02-MarkdownPM-Decisions.md`). A deeper connection-model layer (per-shape tables, weight-at-query) is planned but not yet slotted on the roadmap.
+A Page's body can hold inline `[[Page Name]]` connections — plain Obsidian-compatible wikilinks that render as styled colored inline text in the prose flow. Canonical spec → [[Connections]].
 
-- **Disk format: plain `[[Page Name]]`** (Obsidian-compatible) — Pommora never writes a piped `[[Title|<id>]]` form to disk, and there is no frontmatter mirror. Rename-safety comes from cascade: every referencing body is rewritten when the target is renamed.
-- **Resolution is by globally-unique title** — every Page title is unique nexus-wide, so a bare `[[Page Name]]` resolves to exactly one Page. A name matching nothing renders as inert literal text until that Page exists.
-- Connections render as styled colored inline text (Obsidian-style hyperlink), not as Notion-style chips/pills.
-
-**Connections vs context-link properties.** These are two distinct linking mechanisms, in two different places:
-
-| | Where it lives | How it renders |
-|---|---|---|
-| **Connection** | inline in the Markdown **body** (plain `[[Page Name]]`) | styled colored inline text, in the prose flow |
-| **Context-link property** | a **frontmatter** property value — the pre-configured `tier1` / `tier2` / `tier3` arrays (tagged target IDs) | the target's **icon + title in styled colored text**, in the property surface — never a chip/pill |
-
-A connection is body content the editor renders in place; a context-link property is a pre-configured tier property whose value is shown in the inspector, resolved from the target's current icon + title. Both resolve their target by ID and stay rename-safe, but they never share a surface — connections never appear in the property surface, context-link values never appear inline in the body.
+**Connections vs context-link properties** are two distinct linking mechanisms in two different places: a **connection** lives inline in the Markdown body and renders as colored inline text in the prose; a **context-link property** is a frontmatter `tier1` / `tier2` / `tier3` value that renders as the target's icon + title in the property surface — never a chip. Both resolve by ID and stay rename-safe, but they never share a surface. Property detail → [[Properties]].

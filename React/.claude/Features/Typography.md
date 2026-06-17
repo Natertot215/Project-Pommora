@@ -1,38 +1,38 @@
 ## Typography
 
-Pommora's type system. **Source of truth: the Figma "Pommora - React" library** (text styles); this doc is its on-disk spec. Family is **Inter** (variable), letter-spacing **0** throughout. Every style carries two weights — **Standard** and **Emphasized**.
+Pommora's type system. Source of truth: the Figma "Pommora - React" library (text styles); this doc is its on-disk spec. Family is **Inter** (variable), letter-spacing **0** throughout. Every style carries two weights — **Standard** and **Emphasized**. The literal sizes and line heights live in the token file.
 
-### The ramp (established in Figma)
+### The ramp
 
-| Style       | Size / line | Standard       | Emphasized       | Role                                    |
-| ----------- | ----------- | -------------- | ---------------- | --------------------------------------- |
-| Large Title | 26 / 32     | Regular 400    | Bold 700         | top-level titles                        |
-| Title 1     | 22 / 26     | Regular        | Bold             |                                         |
-| Title 2     | 17 / 22     | Regular        | Bold             |                                         |
-| Title 3     | 15 / 20     | Regular        | Bold             | section headers                         |
-| Headline    | 13 / 16     | **Medium 500** | **Semibold 600** | menu section headers; body-size heading |
-| Body        | 13 / 16     | Regular        | Bold             | paragraph / default UI text             |
-| Callout     | 12 / 15     | Regular        | **Bold**         | in-text quotes                          |
-| Control     | 12 / 15     | Regular        | **Semibold 600** | chips, labels, UI controls              |
-| Caption     | 11 / 14     | Regular        | Semibold         | secondary captions                      |
-| Footnote    | 10 / 13     | Regular        | Semibold         | smallest text                           |
+| Style       | Standard       | Emphasized       | Role                                    |
+| ----------- | -------------- | ---------------- | --------------------------------------- |
+| Large Title | Regular        | Bold             | top-level titles                        |
+| Title 1     | Regular        | Bold             |                                         |
+| Title 2     | Regular        | Bold             |                                         |
+| Title 3     | Regular        | Bold             | section headers                         |
+| Headline    | **Medium**     | **Semibold**     | menu section headers; body-size heading |
+| Body        | Regular        | Bold             | paragraph / default UI text             |
+| Callout     | Regular        | **Bold**         | in-text quotes                          |
+| Control     | Regular        | **Semibold**     | chips, labels, UI controls              |
+| Caption     | Regular        | Semibold         | secondary captions                      |
+| Footnote    | Regular        | Semibold         | smallest text                           |
 
-Derived from the macOS AppKit text scale (drawn in Inter), with deliberate edits: **Headline** sits at body size (13) with Medium / Semibold weights — distinct from Body by weight, used for menu section headers; **Callout** repurposed for in-text quotes and menu item titles (Bold emphasis) and **Control** added for chips / labels / buttons (Semibold emphasis); Caption 1 + 2 merged into one **Caption**; Subheadline dropped. Standard weight is **Regular** for every style except Headline (**Medium**).
+Derived from the macOS AppKit text scale drawn in Inter, with deliberate edits: **Headline** sits at body size with Medium / Semibold weights — distinct from Body by weight, used for menu section headers; **Callout** carries in-text quotes and menu item titles (Bold emphasis); **Control** drives chips / labels / buttons (Semibold emphasis). Standard weight is **Regular** for every style except Headline (**Medium**).
 
 ### Weights
 
-Four Inter weights: **Regular 400** (all Standard except Headline) · **Medium 500** (Headline Standard) · **Semibold 600** (Headline Emphasized + Control / Caption / Footnote Emphasized) · **Bold 700** (Emphasized of Large Title → Body, plus Callout). Emphasis is **role-driven**, not a blanket size rule.
+Four Inter weights: **Regular** (all Standard except Headline) · **Medium** (Headline Standard) · **Semibold** (Headline Emphasized + Control / Caption / Footnote Emphasized) · **Bold** (Emphasized of Large Title → Body, plus Callout). Emphasis is **role-driven**, not a blanket size rule.
 
 ### Where each style goes
 
-- **Sidebar items** → Body (13).
-- **Menu / dropdown item titles** → Callout / Standard (12)).
-- **Menu Headings** → Headline (13 / Standard).
-- **Labels** → Control / Emphasized (12 Semibold).
-- **Buttons** → Control / Emphasized (12 Semibold).
-- **Chips** → Control / Emphasized (12 Semibold).
-- **Sub-label** → Caption / Standard (11).
-- **Detail** → Footnote / Emphasized (10).
+- **Sidebar items** → Body.
+- **Menu / dropdown item titles** → Callout / Standard.
+- **Menu Headings** → Headline / Standard.
+- **Labels** → Control / Emphasized.
+- **Buttons** → Control / Emphasized.
+- **Chips** → Control / Emphasized.
+- **Sub-label** → Caption / Standard.
+- **Detail** → Footnote / Emphasized.
 - **Headings** → Title 3 / Title 2 / … / Large Title by level.
 - **Page body** → Body; **quotes** → Callout.
 
@@ -40,15 +40,11 @@ Four Inter weights: **Regular 400** (all Standard except Headline) · **Medium 5
 
 ### Label colors
 
-Text color is separate from the type ramp. Three label tones on one base `#F1F1F1`: **primary** 100% · **secondary** 65% · **tertiary** 35%. Catalogued in `Design.md` → Colors.
+Text color is separate from the type ramp. Three label tones on one near-white base at descending opacities — **primary · secondary · tertiary**. Catalogued in `Design.md` → Color.
 
-### In code — authored
+### In code
 
-`design-system/tokens/typography.css.ts` (vanilla-extract), two layers:
-- **`font` primitives** (`createGlobalTheme`) — `font.family`, `font.weight.{regular, medium, semibold, bold}` (400 / 500 / 600 / 700), and `font.scale.<style>.{size, line}` for all ten styles. The single source — edit a value and it propagates.
-- **`text` composed classes** — `text.<style>.{standard, emphasized}` apply a whole style: `className={text.headline.emphasized}`.
-
-Unified in `index.ts` (`import { vars, text } from '@renderer/design-system/tokens'`; primitives read as `vars.font.*`). Inter loads via `@fontsource-variable/inter` (family `Inter Variable`). The build extracts the CSS green.
+The type tokens are authored in vanilla-extract in two layers: **font primitives** (family, the four weights, and a size/line scale per style) as the single source, and **composed text classes** (`text.<style>.{standard, emphasized}`) that apply a whole style to a component. Inter loads as a variable font; the build extracts the CSS.
 
 ### Not yet established — stubs
 

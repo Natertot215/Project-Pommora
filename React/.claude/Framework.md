@@ -9,21 +9,23 @@ The initial rebuild is the proven back half + the two shipped renderers + editor
 1. Data layer (incl. Agenda Task/Event entities — schema only, no surfacing)
 2. Properties
 3. Connections
-4. Markdown editor (**CodeMirror 6**)
+4. Markdown editor (a web editor — CodeMirror 6 is a candidate)
 5. Navigation (shell + sidebar + nav dropdown)
 6. Table view
 7. Gallery view
 
 **Deferred frontier** (post-core): block editor (Contexts-as-blocks + Homepage), Agenda surfacing + calendar sync, Board/List/Cards renderers, Settings editing UI, global search, LLM-chat inspector, type-to-find, OS integrations (Electron `Tray` covers basic menu-bar; a thin native Swift helper only if deeper hooks are wanted).
 
-### Phase status
+### Phases
 
-- **Phase 1 — Window + glass sidebar (read-only skeleton):** ✅ shipped. Window + glass sidebar reading `~/test` via `readNexus` → IPC → store → recursive sidebar. No function. (See `Planning/Phase-1-Window-Sidebar-Scaffold.md`.)
-- **Phase 2 — Navigation function + views (read-only):** 🔬 in progress (build workflow). Selection → detail; page open + render (read-only); pure view pipeline; Table + Gallery; view switcher.
-- **Phase 3 — Write path:** ⬜ next. Atomic write + order-preserving frontmatter merge; create/rename/move; the careful, tested write half.
-- **Phase 4 — Properties & Connections:** ⬜ discriminated property types + cell editors; `[[ ]]` links + rename cascade.
-- **Phase 5 — Page editor (CodeMirror 6):** ⬜ controlled component, frontmatter↔body, debounced save, wikilink/embed decorations.
-- **Phase 6 — Contexts, settings, the frontier:** ⬜ deferred.
+Live phase status lives in `Handoff.md`. These are the phase definitions.
+
+- **Phase 1 — Window + glass sidebar (read-only skeleton):** Window + glass sidebar reading the test nexus via `readNexus` → IPC → store → recursive sidebar. No function.
+- **Phase 2 — Navigation function + views (read-only):** Selection → detail; page open + render (read-only); pure view pipeline; Table view; view switcher.
+- **Phase 3 — Write path:** Atomic write + order-preserving frontmatter merge; create/rename/move; the careful, tested write half.
+- **Phase 4 — Properties & Connections:** Discriminated property types + cell editors; `[[ ]]` links + rename cascade.
+- **Phase 5 — Page editor:** Controlled component, frontmatter↔body, debounced save, wikilink/embed decorations.
+- **Phase 6 — Contexts, settings, the frontier:** Deferred.
 
 ### Gates carried forward
 

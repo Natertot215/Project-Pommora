@@ -14,9 +14,9 @@ One eager walk → one IPC → one immutable tree → one store. No parallel cac
 A single recursive, **read-only** walk (`src/main/readNexus.ts`). Supports two modes:
 
 - **Sidecar-driven** — when `.nexus/nexus.json` exists: identity + config from `.nexus/`, folders gated by their sidecars (`_pagetype.json` / `_pagecollection.json` / `_pageset.json`, contexts under `.nexus/{areas,topics,projects}`).
-- **Structure-classification** — raw/un-adopted folders (the `~/test` case): no sidecars, so classify by structure (root folder → Vault, subfolder → Collection, deeper → Set, `.md` → Page) with synthesized stable `adopted-<sha256(relPath)>` ids.
+- **Structure-classification** — raw/un-adopted folders (the test-nexus case): no sidecars, so classify by structure (root folder → Vault, subfolder → Collection, deeper → Set, `.md` → Page) with synthesized stable ids hashed from the relative path.
 
-Supporting pure modules: `paths.ts` (layout), `exclusion.ts` (`shouldSkipDir` — dot/underscore/node_modules + user `excluded_folders`, NFC + case-fold segment-prefix), `order.ts` (`resolveOrder` — persisted order then title/id fallback; **title fallback for adopted entities** whose ids are non-meaningful hashes).
+Supporting pure modules: `paths.ts` (layout), `exclusion.ts` (skip dot/underscore/node_modules + user-excluded folders, NFC + case-fold segment-prefix), `order.ts` (persisted order then title/id fallback; **title fallback for adopted entities** whose ids are non-meaningful hashes).
 
 Load-bearing behaviors: lenient frontmatter (no fence → all body; unterminated → graceful empty); the **roll-up rule** (loose `.md` in non-container subfolders rolls up; Collection/Set folders load as nodes) with a 3-level depth cap (pageType → collection → set); agenda singletons (`Tasks`/`Events`/`Agenda`) discovered but **not surfaced** (a `_pagetype.json` outranks the conventional name); `path` (nexus-relative POSIX) on every `PageNode` so pages can be opened.
 

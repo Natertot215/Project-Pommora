@@ -7,7 +7,6 @@ Behavioral rules and constraints grouped by domain. Add new entries to prevent m
 - `Design.md` — SwiftUI + AppKit design philosophy, brand-value placement, component conventions, AppKit interop guidance.
 - `Symbols.md` — SF Symbol registry. Application ↔ Symbol table; the canonical source for what symbol goes where in the app. Spec for the future in-app Symbol Settings surface.
 - `CRUD-Patterns.md` — SwiftUI patterns for per-entity CRUD UI, atomic-write discipline, manager pattern, PreviewWindow prerequisite.
-- `Paradigm-Decisions.md` — Confirmation protocol for paradigm-solidifying code (on-disk schemas, wire encodings, defaults that lock once data exists) + registry of confirmed decisions.
 
 #### Moved to `// rules//`
 

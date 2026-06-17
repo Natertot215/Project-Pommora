@@ -1,80 +1,68 @@
 ## Design System
 
-The Pommora design system — the **code mirror of the Figma "Pommora - React" library**. Two-tier tokens (raw **primitives** → meaningful **semantic** aliases); components reference semantic tokens only. Lives in `src/renderer/src/design-system/`. Typography has its own spec: `Typography.md`.
+The Pommora design system — the code mirror of the Figma "Pommora - React" library. Two-tier tokens (raw **primitives** → meaningful **semantic** aliases); components reference semantic tokens only. Typography has its own spec: `Typography.md`.
 
 ### Source of truth
 
-The **Figma "Pommora - React"** file is canonical for design *values*; this repo mirrors them as tokens. Values change in Figma first, then sync to the tokens here. The Figma file is also the visual reference for components.
+The Figma library is canonical for design *values*; this repo mirrors them as tokens. Values change in Figma first, then sync here. Figma is also the visual reference for components.
 
-### Tooling — established
+### Tooling
 
-- **vanilla-extract** (`@vanilla-extract/css` + `@vanilla-extract/vite-plugin`) — token files are `*.css.ts`; `createGlobalTheme(':root', …)` emits real CSS variables **and** a typed `vars` object (autocomplete; a mistyped token is a compile error). Plugin wired into the renderer Vite config.
-- **Inter** (`@fontsource-variable/inter`) — variable font, family `Inter Variable`, covering Regular / Medium / Semibold / Bold; imported in `main.tsx` and set as the app font.
-- Committed `404a1d7` (branch `design-system`).
+- **vanilla-extract** — token files are `*.css.ts`; the theme primitives emit real CSS variables **and** a typed `vars` object, so a mistyped token is a compile error. The plugin is wired into the renderer Vite config.
+- **Inter** (variable font) covers the four weights the type ramp uses and is set as the app font.
 
-### Folder
+The design system lives in `src/renderer/src/design-system/`. The `tokens/` folder holds the variables (color, typography, the chip tint, and a bridge that re-exports tokens as stable `var(--…)` names including `--accent`); a runtime accent module applies the per-Nexus accent; `symbols/` is the curated icon registry; `materials/` is the glass material; `showcase/` is the data-driven design-system site; `components/` holds the reusable pieces that mirror the Figma components.
 
-```
-design-system/
-├─ tokens/          the variables — edit here → propagates app-wide
-│   ├─ color.css.ts        ← solids · labels · background · surface · fills · states · separators
-│   ├─ typography.css.ts   ← font primitives + composed text styles
-│   ├─ chip.css.ts         ← unified chip tint (fill/stroke/text recipe)
-│   ├─ theme-vars.css.ts   ← bridge: tokens → stable var(--…) names (incl. --accent)
-│   └─ index.ts            ← unified `vars` + `text` + chip exports
-├─ accent.ts        runtime accent: applyAccent / accentValue / readCssAccentColor
-├─ symbols/         curated Lucide icon registry (index.tsx) + Symbols.md manifest
-├─ materials/       glass-surface.tsx + glass-controls.tsx (the glass material)
-├─ showcase/        the data-driven design-system site + draggable glass demo (`npm run showcase`)
-└─ components/      reusable pieces (mirror the Figma components) — stubs
-```
+Rule: components reference **semantic tokens only**, never raw values; one folder per component.
 
-Rules: components reference **semantic tokens only** (never raw hex); one folder per component.
+### Color
 
-### Color — established (Figma)
+The dark surface system is built from **one neutral base** rendered at descending opacities. Fills, states, and separators are all that same single base at fixed opacities — never separate colors. The relationship is ordered by visual weight: **fills are the heaviest, strokes lighter, text-washes lightest**. Holding one base means the whole interior reads as one consistent material.
 
-#### Solid spectrum (11)
+#### Semantic surface roles
 
-`red #FF453A · orange #FF9F0A · yellow #FFD60A · green #32D74B · light-blue #7EC8E3 · cyan #41959F · blue #0A84FF · purple #BF5AF2 · lavender #A78BCC · grey #8E8E93 · grey-default #48484A`. Authored in `color.css.ts` as `vars.color.solid.*`.
+Surfaces are addressed by **role**, not by literal shade. The window is the app substrate that everything sits on; **primary / secondary / tertiary** surfaces are progressively-lifted content layers above it. Components reference the role; the shade behind each role lives in the token files.
 
-#### Chips — one mode-driven component + a unified tint
+#### Fills, states, separators
 
-Chip color is a Figma **variable-mode picker**: the `Color` collection has **11 modes** (Red, Blue, Green, Purple, Lavender, Cyan, Light Blue, Orange, Yellow, Grey, Default ). The **unified tint is the base color at three opacities** — no custom colors, no lightening:
+All derived from the single neutral base at fixed opacities:
 
-- **Fill** = base @ **60%** · **stroke** = base @ **40%** (2px; **1.5px** for Checkbox) · **text** = `label-primary` + base @ **15%** (near-white with a faint color tint).
-- **Shapes:** Pill (text) and Select (icon-only) are **h20 pills** (radius 10); **Checkbox** is a **17×17 square** (radius 5.5) holding a checkmark.
-#### Accent — one swappable token
+- **Fills** — overlay fills over a surface, in a five-step ramp from most to least present.
+- **States** — `hover` and `selected` are the same base at low opacities; selection sits slightly above hover.
+- **Separators** — lines, borders, and segment dividers, again the same base, at their own fixed opacities.
 
-The accent is a **single runtime token** (`--accent`), defaulting to **lavender**. `--accent-fill` is a **`color-mix` derivation** (`var(--accent)` @ 15%, transparent) and `--accent-text` **is** `var(--accent)` itself, so swapping `--accent` alone recolors every accented surface. The per-Nexus choice — any spectrum solid, or **`system`** (the OS accent) — lives in `.nexus/settings.json` (`accent`), read + validated in `readNexus`, applied on load by `applyAccent` (`accent.ts`). `system` resolves via Electron `systemPreferences.getAccentColor()` in the app, or the CSS `AccentColor` system color in the web showcase. Components reference `var(--accent)` / `var(--accent-fill)` / `var(--accent-text)`, never lavender directly. (macOS has no live accent-change event, so `system` is read at load.)
+#### Solid spectrum
+
+A fixed palette of named solids (red, orange, yellow, green, light-blue, cyan, blue, purple, lavender, grey, plus a neutral default). These are the source colors for accents and chips. The exact values live in the token files / Figma.
+
+#### Accent
+
+The accent is a **single user value**. Components reference one accent token plus two derivations: a **fixed-opacity tint** for accented fills, and the accent itself for accented text — so changing the accent recolors every accented surface at once. The per-Nexus choice is any spectrum solid or **`system`** (the OS accent), stored in `.nexus/settings.json`, validated on read, and applied on load. `system` resolves to the OS accent color (via Electron in the app, the CSS system-accent color in the web showcase); macOS has no live accent-change event, so it's read at load.
+
+#### Chips
+
+A chip's color is the picked base solid at fixed opacities — a heavier fill, a lighter stroke, and a near-white text wash with a faint tint of the base. No custom colors and no lightening; one tint recipe drives every chip color. **Chips are pills** (text or icon-only); the **checkbox is a small square** holding a checkmark. The opacities and dimensions live in the token files / Figma.
 
 #### Labels
 
-Text colors on `#F1F1F1`: `label-primary` 100% · `label-secondary` 65% · `label-tertiary` 35%. (Also in `Typography.md`.)
+Text color is separate from surface color: three label tones — primary, secondary, tertiary — are one near-white base at descending opacities. (Also in `Typography.md`.)
 
-#### Background · Surface · Fills · States · Separators — tokenized
+### Glass
 
-Mirrored from Figma into `color.css.ts` (`vars.color.*`):
+Glass is **blur plus a slight dimming** of what's behind it — a single shared material recipe spread by both the surface and control variants (identical now, separable later). `Surface` consumes it, and a draggable demo over photo backdrops lives in the showcase Materials section.
 
-- **Background** (`background.window` `#1A1A1B`): the app substrate — the base the surfaces sit on.
-- **Surface** (`surface.*`): content layers on the window — `primary #1E1E20`, `secondary #222224`, `tertiary #2C2C2F`. (Figma `Surface/sf-*`; bridge `--surface-*`.)
-- **Fills** (`fill.*`): base `#71717A` at ~22 / 15 / 10 / 6 / 4% — `primary` → `quinary` (overlay fills over a surface).
-- **States** (`state.*`): the **same `#71717A` fill base** — `hover` @ ~2.5%, `selected` @ ~5%.
-- **Separators** (`separator.*`): the **same `#71717A` fill base** — `line`/`border` @ 25%, `segment` @ 20%.
+### Icons
 
-The **accent** (above) is its own swappable runtime token, not a static entry here. Per-color tint variables (`-fill` / `-soft` / `-text` / …) were **removed** — the unified chip tint + these semantic tokens replace them. `grey-default` is kept (the `Default` chip color's source).
+A curated icon registry: an icon is listed by name in the registry manifest and only listed icons bundle (tree-shaken). Used as `<Icon name="…" />`. SF Symbols remain the Figma design reference only — they can't ship on web.
 
-### In code — established vs planned
+### Showcase
 
-- **Established:** `color.css.ts` → `vars.color.solid.*` (11 solids) + `label` / `background` (window) / `surface` / `fill` / `state` / `separator` (mirrored from Figma); the **accent** is a runtime token (`accent.ts` → `applyAccent`, config-driven) seeded from `accent.base`; a `theme-vars.css.ts` bridge re-exports these as stable `var(--…)` names (incl. `--surface-*`, `--accent` + derived `--accent-fill` / `--accent-text`) so plain CSS references them, not hardcoded values; `typography.css.ts` → `font` primitives + `text.*` composed styles; `chip.css.ts` → the unified chip tint (`chip` + `chipColor.*` incl. red + `chipCheckbox`); unified in `index.ts`. vanilla-extract + Inter wired; build + typecheck green. A **data-driven** showcase at `design-system/showcase/` (`npm run showcase`) — the color groups, type, chips, icons, and materials each iterate their registry (a new token group appears by adding one line to `COLOR_GROUPS`), plus a **live accent picker**. It also builds to a static site (`npm run build:showcase` → `dist/`) with a repo-tracked `vercel.json`, **live at https://pommora-design-system.vercel.app**.
-- **Planned:** a **radius** + **spacing** token scale — corners + spacing are currently ad-hoc literals (**OKAY FOR NOW**, to be formalized from Figma); plus shadow / motion / z-index scales.
+A data-driven design-system site (`npm run showcase`): color groups, type, chips, icons, and materials each iterate their registry, so a new token group appears by adding one line. It includes a live accent picker and builds to a static site deployed at https://pommora-design-system.vercel.app.
 
-### Components — stub
+### Components
 
-From the Figma library, **not yet built in React**: **Button · Label · Menu · Menu Header · Separator**. Each consumes semantic tokens; the **Chip** tint already ships (`chip.css.ts`) and the **icon** system is established (Lucide, above). Built one at a time into `design-system/components/`.
+The reusable pieces mirror the Figma library — **Button · Label · Menu · Menu Header · Separator** — each consuming semantic tokens, built one at a time. The **Chip** tint and the **icon** system already ship.
 
-### Not yet established — stubs
+### Not yet tokenized
 
-- **Spacing scale** · **Radius scale** · **Shadow / elevation** · **Motion** (durations, easings) · **Z-index layers** — none built yet; **corners + spacing are OKAY FOR NOW (ad-hoc literals), to be formalized as tokens from Figma.**
-- **Icon system — established (Lucide).** Curated registry at `design-system/symbols/` — `import { Icon } from '@renderer/design-system/symbols'` → `<Icon name="folder" size={15} />`. Driven by `design-system/symbols/Symbols.md`: add an icon's lucide.dev name there and it gets imported (only listed icons bundle — tree-shaken). SF Symbols stay the Figma design reference only; they can't ship on web.
-- **Glass — established (Materials).** `design-system/materials/` — `glass-material.ts` holds the **shared** recipe (liquidGL "Tinted Lens" at zero tint: blur 5 · brightness 90%); `GlassSurface` + `GlassControls` both spread it (identical now, separable later). Import via the `materials/index.ts` barrel. `Surface` consumes `GlassSurface`; a draggable demo (glass over 3 photo surfaces — philly · forest · mac) lives in the showcase **Materials** section.
-- **Per-Nexus accent — shipped** (swappable `--accent` + `system`, config-driven via `.nexus/settings.json`; see Accent above). The Settings editing UI is deferred — for now the control surface is the config file. **Light/dark theming** is still a stub — `createThemeContract` is the seam.
+**Spacing · radius · shadow/elevation · motion · z-index** scales are not yet formalized — corners and spacing are ad-hoc literals for now, to be lifted into tokens from Figma. **Light/dark theming** is a future seam (the theme contract is the hook); today the system is dark only. The Settings editing UI for the accent is deferred — for now the control surface is the config file.

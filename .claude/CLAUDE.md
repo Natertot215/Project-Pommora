@@ -74,7 +74,6 @@ Locked to **SwiftUI**. **Editor = TextKit 2 + Apple `swift-markdown` + the Pommo
 - `// Features//` — Feature specs; consult the relevant doc before claiming functionality, and cross-check with code before treating docs as factual. Most files are topic-named; two aren't obvious — `Connections.md` (canonical wikilink/connection-system spec) and `PommoraUIX.md` (debug component-explorer spec).
 - `// Guidelines//` — Domain-specific guidelines; add relevant entries when feedback is given about behavior you must not repeat when both cause and fix are identified. You MUST reference the relevant file before planning around a topic to which the guidelines relate.
 - `// Planning//` — active plans + `Superseded/` archive; index at `// Planning//README.md`
-- `// ReactInfo//` — React+Electron contingency reference (translation methodology + topic files + preserved v0.0 spec)
 
 ##### Active branch quirks (carry forward to every subagent dispatch)
 

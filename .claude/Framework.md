@@ -24,74 +24,59 @@ Mac-first for v1, always open-source. Domain spec → [[Domain-Model]].
 #### Shipped versions (earliest → latest)
 
 ##### v0.0.0 — Shell opens
-Toolchain proof. macOS 26+ (Tahoe). Three-pane shell — sidebar (240) / main (flex) / pop-out inspector (280, default closed) — on SwiftUI's two-column `NavigationSplitView(sidebar:detail:)` with `.inspector(isPresented:)`. Both side panes drag-resizable; widths persist. Default 1200×800; min 960×560.
+Toolchain proof on macOS 26+ (Tahoe). Three-pane shell (sidebar / main / pop-out inspector, inspector default closed) on SwiftUI's two-column `NavigationSplitView` + `.inspector(isPresented:)`. Both side panes drag-resizable; widths persist.
 
 ##### v0.1.0 — Nexus Foundation
-Sandboxed picker, security-scoped bookmark persistence, `.nexus/` init flow, per-nexus App Support subdir keyed by ULID. Sidebar mirrors picked folder showing `.md` + `.json`. File menu → Open Nexus; Debug menu → Reset Bookmark. 25 unit tests pass.
+Sandboxed folder picker, security-scoped bookmark persistence, `.nexus/` init flow, per-nexus App Support subdir keyed by ULID. Sidebar mirrors the picked folder. File menu → Open Nexus; Debug menu → Reset Bookmark.
 
 ##### v0.2.0 — Paradigm scaffolding + sidebar UX
-Single 69-commit branch that scaffolded the full locked paradigm. Every entity is CRUD-able end-to-end via sidebar + sheets + detail pane. Areas / Topics / Vaults sections in the sidebar with Pages disclosed under Vaults/Collections; Agenda lives in detail-pane Tables. 177 unit tests at merge.
+Scaffolded the full locked paradigm: every entity CRUD-able end-to-end via sidebar + sheets + detail pane. Areas / Topics / Vaults sidebar sections with Pages disclosed under Vaults/Collections; Agenda in detail-pane Tables.
 
 ##### v0.2.1–v0.2.6 — Infrastructure baseline
-Parallel-session sidebar UX tweaks, CodeRabbit tightening, GitHub Actions CI (`runs-on: macos-26`), `swift-format` baseline + `.swift-format` config + CI lint step, `.trash//` data foundation (5 new APIs + 10 manager delete-site swaps; deletes recoverable from disk; in-app Trash window slot at v0.4.0).
+Sidebar UX tweaks, GitHub Actions CI (`macos-26`), `swift-format` baseline + config + CI lint step, and the `.trash//` data foundation (disk-recoverable deletes; the in-app Trash window surface lands later).
 
 ##### v0.2.7.0 — Pages editor (TextKit 2)
-Native NSTextView + Apple `swift-markdown` 0.8.0 + the Pommora-owned `MarkdownPM` package (Apache 2.0, `External/MarkdownPM/`; originally vendored from `swift-markdown-engine`, now owned + maintained in-tree, rebuilt 2026-06-03). Writing Tools (15.1+), Look Up, spell-check, IME, dynamic system colors free. One owned `MarkdownPMStyler` walks the cached AST once; its `AppleASTSupplementalStyler` helper covers BlockQuote / Strikethrough / Table (HR is sole-written by the HR-visibility service, not the styler). `.md` is the architectural firewall — Pages survive any future editor swap.
+Native NSTextView + Apple `swift-markdown` + the Pommora-owned `MarkdownPM` package. Writing Tools, Look Up, spell-check, IME, and dynamic system colors come free. One styler walks the cached AST once. `.md` is the architectural firewall — Pages survive any future editor swap. Spec → `Features/PageEditor.md`.
 
 ##### v0.2.7.1 — NavDropdown
-Liquid Glass dropdown navigation surface — Pinned + Recents tabs. Single-click select / double-click open in main detail pane. `⌘T` opens dropdown; `⌘[` / `⌘]` walk Recents. State in `<nexus>/.nexus/state.json`. Recents store cap 500; dropdown shows top 100. Replaces the earlier tab-strip navigation model.
+Liquid Glass dropdown navigation surface — Pinned + Recents tabs, single-click select / double-click open. `⌘T` opens; `⌘[` / `⌘]` walk Recents. Replaces the earlier tab-strip navigation model.
 
-##### v0.2.7.2 — Editor patches (partial)
-HR + Lists rewritten via the dynamic-syntax architecture (markers shrink when caret leaves the AST node, Bear/Notion pattern). Blockquote + Tables deferred. Locked architecture rules for paragraph-level constructs at `Features/PageEditor.md`.
-
-##### v0.2.7.4 — Editor polish bundle
-HR jitter fix (layout-constant; only foreground color toggles). Bullet glyph substitution (`-` → `•`). Task-list shorthand `-[]` / `-[x]`. Bracket auto-pair guard. Arrow auto-format. Code-block colors via system semantics (`NSColor.systemRed.withAlphaComponent(0.85)` text / `NSColor.quaternaryLabelColor` background).
-
-##### v0.2.7.5 — Blockquote
-Always-show overlay; renderer-drawn rounded card with continuous vertical pill accent bar (Notion/Obsidian-style). Per-fragment corner-rounding for multi-line visual continuity. Activation `> ` (marker + space); plain Enter continues, Shift+Enter exits. `>` marker hidden in-editor; on disk standard CommonMark.
+##### v0.2.7.2–v0.2.7.5 — Editor construct passes
+HR, Lists, code blocks, and Blockquote rewritten through the dynamic-syntax architecture (markers shrink when the caret leaves the AST node, Bear/Notion pattern; on disk standard CommonMark). Bullet glyph substitution, task-list shorthand, bracket auto-pair, and arrow auto-format land alongside. Locked construct rules → `Features/PageEditor.md`.
 
 ##### v0.2.8 — Sidebar drag-to-reorder
-Phase 1 persistence shipped (`OrderResolver` + `OrderPersister` + per-sidecar order fields). Phase 2 UX shipped on Pages-side + Contexts rows (PageType / Topic / Area / Page / PageCollection / Project). NavDropdown Pinned reorder + cross-container drag + detail-pane Table reorder remain queued.
+Order persistence (per-sidecar order fields) plus drag-to-reorder UX on the Pages-side and Contexts rows. NavDropdown Pinned reorder, cross-container drag, and detail-pane Table reorder remain queued.
 
 ##### v0.3.0 — Properties (data layer + SQLite + placeholder UI)
-The data-layer chapter. 71 commits across 11 phases A–K, merged to main 2026-05-25.
-- **Data layer (full):** 10 property types · `PropertyDefinition` with stable ULID `id` · `SchemaTransaction` atomic multi-file commit · `PropertyIDMigration` runs every nexus open (preview before commit) · schema CRUD on all 4 schema-bearing managers · `PropertyDefinitionValidator` (8 rules) · `SchemaConflictDialog` drift defense · paired-relation lifecycle (`DualRelationCoordinator`) · `_status` built-in on AgendaTask + AgendaEvent · move-strip primitive (name-matched, since IDs are globally unique) · file attachments (copy-on-attach, 50/500 MB caps, cascade-delete) · Settings auto-migration scaffold (`defaultsVersion` + `Settings.migrate`).
-- **SQLite index (live end-to-end):** GRDB.swift · per-nexus `<nexus>/.nexus/index.db` · 12-table schema · `IndexBuilder` two-phase populate · `IndexUpdater` wired into all 6 managers · `IndexQuery` Notion-style filter/sort/broken-links. Mid-session mutations propagate.
-- **Placeholder UI (every interaction has a working path):** PropertyEditorRow dispatcher · StatusPicker · ContextPicker · FileAttachmentEditor · RelationPropertyWizard · PropertyTypePicker · VaultSettingsSheet · MoveStripConfirmationDialog · PropertyPanel (eager) · PropertiesPulldown (lazy, mounted in PageEditorView) · FrontmatterInspector live editors · column-header click-to-sort · CalendarDetailView + Calendar pin right-click create · UI labels threaded from `SettingsManager`.
-
-Full ship summary → [[History]] § "v0.3.0 Properties — FEATURE-COMPLETE".
+The data-layer chapter. Full property data layer (10 property types, stable-ULID definitions, atomic multi-file schema commits, an every-open ID migration with preview, schema CRUD on all schema-bearing managers, validation + drift defense, file attachments with size caps + cascade-delete, Settings auto-migration scaffold). A live end-to-end SQLite index (GRDB, per-nexus `index.db`, two-phase populate, wired into every manager, Notion-style filter/sort/broken-links; mid-session mutations propagate). Placeholder UI gives every interaction a working path. Full summary → [[History]].
 
 ##### v0.3.1 — Properties end-to-end (View Settings editor)
-21 commits (`627e972`→`0d5aa16`, 2026-05-26). The `slider.horizontal.3` View Settings popover goes live. Schema CRUD through the Edit Properties pane (Notion-format, per-type editors, Duplicate/Delete footer); dynamic property-value columns in the storage detail-view Tables; click-to-edit cell popovers for every property type; Property Visibility pane. Data-layer additions: `DisplayVariant` + `DateFormat` enums · real `SavedView` fields + `views[]` on Collections + default-view migration · flat 12-case `PropertyChipColor`. Three chip primitives — `ContextChip` / `FileChip` / `LinkChip`. Full record → [[History]].
+The View Settings popover goes live: schema CRUD through an Edit Properties pane, dynamic property-value columns in detail-view Tables, click-to-edit cell popovers per property type, and a Property Visibility pane. Adds saved-view fields + a default-view migration and the chip-color palette. Full record → [[History]].
 
 ##### v0.3.2 — View Settings editor rebuild + nav/detail fixes
-Tagged 2026-05-27. The per-property editor rebuilt to the Figma — PaneDivider rail standard, pinned destructive footers, Subheadline / Callout type ramp, plain-`Menu` inline selectors; the popover-family UIX lessons folded into `Guidelines/Design.md` (standalone `UIX-Baseline.md` retired). A Pages-side third tier (Folders) was built and **reverted the same cycle** — it duplicated Collections' role and collided with the planned view-organization system; kept its system-wide stub-and-inline-rename CRUD (`CreateWithInlineEdit` + `DefaultTitleResolver`), the sidebar menu tweaks, and `NexusAdopter.autoTagMissingSidecars`. Nav/detail bug fixes landed alongside.
-
+The per-property editor rebuilt to the Figma; popover-family UIX lessons folded into `Guidelines/Design.md` (standalone `UIX-Baseline.md` retired). A Pages-side Folders tier was built and **reverted the same cycle** — it duplicated Collections' role — keeping only its stub-and-inline-rename CRUD primitives and sidebar tweaks. Nav/detail bug fixes landed alongside.
 
 ##### v0.3.4 — Relations made real + manager de-dup + Pages stats footer
-Tagged 2026-05-31; the big consolidation release (**v0.3.3 was skipped** — the relations work folded forward into this tag). Marketing version bumped `0.2.6` → `0.3.4` at release.
-- **Relations unified (since superseded — see Contextv2 below).** `tier1/2/3` and relation properties shared a single pipeline; the `tier_links` table retired (one reverse-lookup path). Relations are always-multi (`[{"$rel": "<ULID>"}]`); a single-pane editor set home side + reverse name + reverse icon. Context-delete cascades the tier reference out of every operational entity. Entity `icon` denormalized into the SQLite index. Index resilience hardened (per-row insert, version-stamp-after-populate) + `MemberFileStrip.forEach` tolerates frontmatter-less member files.
-- **Native IconPicker.** Pommora's own SF Symbols 6 picker (`IconCatalog`, 6,195 names + `IconFavorites`) replaces the third-party `SymbolPicker`; one `.iconPickerPopover` modifier at every icon-edit entry.
-- **Manager de-dup.** The 5 schema-mutation methods duplicated across the schema-bearing managers collapsed behind two shared `@MainActor` services — `PerTypeSchemaService` + `SingletonSchemaService` (Agenda). ~590 lines of copy-paste removed, fully behavior-preserving.
-- **Vault-table display-only + creation-order.** *Type* detail tables are display-only for row order (mirror the sidebar live); Collection tables keep flat reorder; empty-state default order changed alphabetical → **creation order** (ULID-id ascending). The full per-view ordering system ships v0.5.0.
-- **Pages stats footer + editor polish.** Footer with live line / word / character counts (toggle) + plain-text Finder-style breadcrumb (the clickable `NSPathControl` variant was tried and reverted). Code-block syntax-hide now ignores inline code spans and fires inside headings; bullet gap / indent tuning; `-[]` / `-[x]` checkbox shorthand continues + toggles on Enter.
+The big consolidation release (**v0.3.3 skipped** — relations folded forward).
+- **Relations unified (since superseded — see Contextv2 below).** Tiers and relation properties shared one pipeline with a single reverse-lookup path; context-delete cascades the tier reference out of every operational entity.
+- **Native IconPicker.** Pommora's own SF Symbols picker over the full catalog replaces the third-party dependency, behind one icon-edit modifier.
+- **Manager de-dup.** The duplicated schema-mutation methods collapsed behind two shared `@MainActor` services, fully behavior-preserving.
+- **Vault-table display-only + creation-order.** Type detail tables are display-only for row order (mirror the sidebar); empty-state default order changed alphabetical → creation order. The full per-view ordering system ships later.
+- **Pages stats footer + editor polish.** Live line / word / character counts (toggle) + a plain-text breadcrumb; code-block and bullet rendering refinements.
 
 ##### v0.3.5 — Connections (page-level) + Contextv2 + MarkdownPM perf
-Tagged 2026-06-07. 231 commits since v0.3.4.
+- **Connections page-level.** `[[Page Title]]` syntax, inline render as styled colored text, Liquid Glass autocomplete, click navigation, atomic rename cascade, nexus-wide title uniqueness, a live-refresh bus, and a `connections` index table. Spec → `Features/Connections.md`.
+- **Contextv2.** User-creatable relation properties retired; the three tiers are now the sole relation connection. The paired-relation coordinator was deleted; all `Relation*` symbols renamed `Context*`; the substrate kept.
+- **MarkdownPM performance.** Heading / HR / blockquote / bullet reads served from token/construct caches; scroll lag eliminated.
+- **Index hardening + page icon.** Conflict-safe parent upserts, a lenient launch scan with file-level exclusions, and an in-editor page-header icon with an "Add Icon" hover affordance (toggle, default off).
 
-- **Connections page-level.** `[[Page Title]]` syntax, inline render (styled colored text), Liquid Glass autocomplete popup, click navigation, atomic rename cascade, nexus-wide title uniqueness, `connectionsChanged` live-refresh bus, `connections` SQLite table (schema v8+). Spec → `Features/Connections.md`.
-- **Contextv2.** User-creatable relation properties retired; `tier1`/`tier2`/`tier3` are now the sole relation connection. `DualRelationCoordinator` deleted (~1.4k LOC). All `Relation*` symbols renamed `Context*`; `relations` → `context_links` table. Substrate (`$rel`, `PropertyValue.relation`, `RelationTarget.contextTier`, `PropertyType.relation`) kept.
-- **MarkdownPM performance.** `constructLineStarts` precomputed; heading/HR/blockquote/bullet reads from token/construct caches; `blockCodeTokens` DRY. Scroll lag eliminated.
-- **Index hardening.** Parent upserts use `ON CONFLICT DO UPDATE`; launch scan lenient + `excluded_folders` at file level; schema 9 → 10.
-- **Page icon.** In-editor page-header icon + "Add Icon" hover affordance; `showPageIcon` toggle (default OFF).
+Full ship detail → [[History]].
 
-Full ship detail → [[History]] § "Connections — page-level complete".
+##### v0.4.0 — Pages unification + PagePreview window
+The second operational side deleted, not migrated — Page is the only operational entity beside Agenda. `[[` is the sole connection syntax; per-vault `open_in` routes page-taps to **PagePreview** (a real `NSPanel` — AppKit is required for no-dim child-window behavior with no traffic-light / Dock / Window-menu presence, child-attached above the main window, mounting the shared inspector at compact scale) or the main detail pane. User-creatable sidebar sections group Vaults (navigation-only). Launch/state hardening alongside. Full record → [[History]].
 
-##### v0.4.0 — Pages unification + PagePreview window (2026-06-09/10)
-The second operational side deleted, not migrated — Page is the only operational entity beside Agenda. `[[` is the sole connection syntax; per-vault `open_in` (`compact` | `window`) routes page-taps to **PagePreview** — a real `NSPanel` (not a SwiftUI `WindowGroup`; AppKit is required for no-dim child-window behavior with no traffic lights / Dock / Window-menu presence; child-attached above the main window; mounts the shared `FrontmatterInspector` at a compact scale) — or the main detail pane; user-creatable sidebar sections group Vaults (navigation-only); index schema v10 → v11 (legacy tables dropped, delete-and-rebuild). Launch/state hardening: XCTest app-state isolation, launch-panel abort retry. Full record + retrospective pointers → [[History]] § "v0.4.0" + § "PagesV2".
-
-##### v0.4.1 — Sets (2026-06-11)
-The third operational tier: Vault → Collection → **Set** (optional) → Pages. A Set is a schema-less folder inside a Collection (`_pageset.json` — identity + icon + `page_order` only; views / settings / open-in all inherit from the Collection). Strict three levels — deeper folders stay sidecar-less and roll up into the nearest Set. Dedicated `PageSetManager`; index schema v13 → v14 (`page_sets` table + nullable `pages.page_set_id`); in-vault page moves are strip-free everywhere; whole-Set moves between Collections; adoption auto-tags depth-2 folders. Bundled hardening: `ContainerIDHealer` mints fresh ULIDs for Finder-duplicated container sidecars (Collections + Sets). Spec → [[Sets]].
+##### v0.4.1 — Sets
+The third operational tier: Vault → Collection → **Set** (optional) → Pages. A Set is a schema-less folder inside a Collection (identity + icon + order only; views / settings / open-in all inherit from the Collection). Strict three levels — deeper folders stay sidecar-less and roll up into the nearest Set. In-vault page moves are strip-free; whole-Set moves between Collections; adoption auto-tags. Bundled hardening mints fresh ULIDs for Finder-duplicated container sidecars. Spec → [[Sets]].
 
 ---
 
@@ -100,7 +85,7 @@ The third operational tier: Vault → Collection → **Set** (optional) → Page
 > **Version buckets + priority follow Nathan's own [[Pommora Tasks]] doc** (the working intent ledger); Framework keeps the implementation detail under each. Entries Framework tracks that the Tasks doc doesn't name are *folded into their nearest bucket* and marked **(infra)** / **(folded)**. **The view system ships incrementally** — UIX fixes at **v0.4.2**, Gallery + Layout settings at **v0.4.3**, feature-complete (with the Sort / Filter / Group panes + multi-saved-view config) at **v0.5.0**.
 
 ##### v0.4.2 — Views UIX fixes (in progress)
-Cross-view polish on the Vault + Collection views: the toolbar **Views dropdown** (create / switch / type-switch — done); the detail **header + container banners** (22pt title overlaying an edge-to-edge banner via `backgroundExtensionEffect`); and the shared **menus + toolbar** behavior. Open item: the macOS 26 toolbar `»`-overflow. Active plan → `Planning//06-13-Views-UIX-Fixes.md`.
+Cross-view polish on the Vault + Collection views: the toolbar **Views dropdown** (create / switch / type-switch — done); the detail **header + container banners** (a title overlaying an edge-to-edge banner); and the shared **menus + toolbar** behavior. Open item: the macOS 26 toolbar `»`-overflow. Active plan → `Planning//06-13-Views-UIX-Fixes.md`.
 
 ##### v0.4.3 — Gallery + Layout settings
 The **Gallery** renderer (cards over the per-container `SavedView` storage) and the View Settings **Layout** pane rework (format-dependent Table/Gallery options + per-view Open-In + type dual-write). The grouping + sorting UIX rework lands in this window.

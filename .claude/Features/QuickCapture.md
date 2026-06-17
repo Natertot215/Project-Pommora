@@ -1,6 +1,6 @@
 ### Quick Capture
 
-> A lightweight surface for adding **Pages, Agenda Tasks, and Agenda Events** to the nexus from outside the main window — a menu-bar pane on the Mac, optionally fed by a browser/web-clip route. This is a concept + architecture doc, not a wiring plan. Roadmap slot lives in `Framework.md`. Brainstormed as a quick idea on 5-31 in the post-compact 0.3.4 session.
+> A lightweight surface for adding **Pages, Agenda Tasks, and Agenda Events** to the nexus from outside the main window — a menu-bar pane on the Mac, optionally fed by a browser/web-clip route. This is a concept + architecture doc, not a wiring plan. Roadmap slot lives in `Framework.md`.
 
 #### What it is
 
@@ -30,7 +30,7 @@ This keeps the "files are canonical, one process owns the index" model intact an
 
 **Compact-schema display.** A Type can carry many properties; showing all of them would bury the fast-capture intent. The pane shows a compact subset first, with a small `…` affordance beneath the list to **"show all"** — revealing the full schema only on demand. What defines the subset is open: the original design leaned on a property-pinning mechanism that no longer exists (→ [[Prospects]] § "Pinned-property zone for the PagePreview card"); declaration order is the fallback.
 
-Title + Icon would be displayed before a Page, Task, or Event designation is given since those are universal across all three; the specific location + properties would be displayed as fill-ins once a selection is made. Capture could also omit Tasks + Events for an even cleaner UIX flow, capturing Pages only. — Direction via Nathan (recorded pre-collapse; vocabulary updated).
+Title + Icon display before a Page, Task, or Event designation is given since those are universal across all three; the specific location + properties display as fill-ins once a selection is made. Capture could also omit Tasks + Events for an even cleaner flow, capturing Pages only.
 
 #### Web capture (browser / share sheet)
 
