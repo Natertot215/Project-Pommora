@@ -63,7 +63,7 @@ export function App(): React.JSX.Element {
           {status === 'loading' && <div className="state">Loading Nexus…</div>}
           {status === 'empty' && (
             <div className="state">
-              No nexus open
+              No Nexus Open
               <button className="open-btn" onClick={() => void choose()}>
                 Open Folder…
               </button>
