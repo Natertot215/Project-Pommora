@@ -16,6 +16,8 @@ Hard-won environment/toolchain traps. Add entries when a mistake is worth never 
 - **Version pins: Vite 7 + `@vitejs/plugin-react` 5.** Newer plugin-react majors require Vite 8, which electron-vite 5 doesn't peer-support yet. Keep the pin until electron-vite supports Vite 8.
 - **TS 6 deprecated `baseUrl`** — use `paths` with `./`-relative targets (no `baseUrl`).
 - **Renderer CSS side-effect imports** need `/// <reference types="vite/client" />` (in `src/renderer/src/env.d.ts`).
+- **vanilla-extract `*.css.ts` files may ONLY export serializable values** (styles, `styleVariants`, vars). It serializes every export into a virtual CSS module, so exporting a plain **function** throws `serializeVanillaModule` / `stringifyExports` and breaks `build` + `build:showcase`. **typecheck + vitest don't run that serialization**, so it passes the test gate and fails only at build. Put shared helpers (e.g. the chip `tint` recipe) in a plain `.ts` beside the `.css.ts` (`chip-tint.ts`).
+- **Verify the gate with `&&`; don't `| tail` the final step.** A `;`-chained gate or `cmd | tail` masks the real exit code (tail exits 0 even when `cmd` failed). Run `typecheck && vitest run && build && build:showcase` and confirm `✓ built in` on every step — exit 0 alone is not proof.
 
 ### Glass / Liquid Glass
 
