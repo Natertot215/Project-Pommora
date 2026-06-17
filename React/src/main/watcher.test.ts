@@ -6,14 +6,20 @@ import { ignoredUnder } from './watcher'
 describe('ignoredUnder', () => {
   const ignored = ignoredUnder('/nexus')
 
-  it('keeps the root itself and normal entities (incl. _underscore sidecars)', () => {
+  it('watches normal entities, _underscore sidecars, AND .nexus contexts/settings', () => {
     expect(ignored('/nexus')).toBe(false)
     expect(ignored('/nexus/Notes/Page.md')).toBe(false)
     expect(ignored('/nexus/Areas/Work/_area.json')).toBe(false)
+    // .nexus holds user-meaningful config — Contexts + settings must auto-refresh externally.
+    expect(ignored('/nexus/.nexus/areas/Work/_area.json')).toBe(false)
+    expect(ignored('/nexus/.nexus/settings.json')).toBe(false)
+    expect(ignored('/nexus/.nexus/state.json')).toBe(false)
   })
 
-  it('ignores .nexus, .trash, and dotfiles anywhere below the root', () => {
+  it('ignores the churning index, the trash, and dotfile cruft', () => {
     expect(ignored('/nexus/.nexus/index.db')).toBe(true)
+    expect(ignored('/nexus/.nexus/index.db-wal')).toBe(true)
+    expect(ignored('/nexus/.nexus/index.db-shm')).toBe(true)
     expect(ignored('/nexus/.trash/old.md')).toBe(true)
     expect(ignored('/nexus/.DS_Store')).toBe(true)
     expect(ignored('/nexus/Notes/.hidden/x.md')).toBe(true)
@@ -26,6 +32,7 @@ describe('ignoredUnder', () => {
   it('works when the root path itself contains a dot-segment', () => {
     const underDot = ignoredUnder('/Users/me/.config/nexus')
     expect(underDot('/Users/me/.config/nexus/Notes/Page.md')).toBe(false)
+    expect(underDot('/Users/me/.config/nexus/.nexus/settings.json')).toBe(false)
     expect(underDot('/Users/me/.config/nexus/.trash/x.md')).toBe(true)
   })
 })

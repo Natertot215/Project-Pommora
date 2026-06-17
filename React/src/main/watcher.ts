@@ -15,15 +15,22 @@ const SETTLE_MS = 200
 let watcher: FSWatcher | null = null
 let debounce: ReturnType<typeof setTimeout> | null = null
 
-// Ignore the config / index / trash internals + dotfiles — they aren't part of
-// the tree the renderer shows and they churn on every mutation. Checks only the
-// path BELOW the root, so a dot-segment in the root's own absolute path (e.g. a
-// nexus under ~/.something) can't blank the whole watch.
+// Ignore only what ISN'T user-meaningful tree content: the SQLite index (index.db*,
+// which thrashes on every mutation via WAL), the .trash, and OS/editor dotfile cruft.
+// Crucially we DO watch .nexus/ — Contexts (.nexus/<tier>/) and settings/state (accent,
+// labels, ordering) live there, so external edits to them must auto-refresh. Checks only
+// the path BELOW the root, so a dot-segment in the root's own absolute path (e.g. a nexus
+// under ~/.something) can't blank the whole watch.
 export function ignoredUnder(root: string): (path: string) => boolean {
   return (path) => {
     const rel = relative(root, path)
     if (!rel || rel.startsWith('..')) return false // the root itself / outside root
-    return rel.split(sep).some((seg) => seg === '.nexus' || seg === '.trash' || seg.startsWith('.'))
+    return rel.split(sep).some(
+      (seg) =>
+        seg === '.trash' || // deleted items — not part of the tree
+        seg.startsWith('index.db') || // SQLite index + its WAL/SHM — churns on every mutation
+        (seg.startsWith('.') && seg !== '.nexus') // dotfile cruft, but .nexus holds contexts + settings
+    )
   }
 }
 
@@ -47,6 +54,10 @@ export function startWatcher(root: string, win: BrowserWindow): void {
     .on('unlink', onEvent)
     .on('addDir', onEvent)
     .on('unlinkDir', onEvent)
+    // An unhandled 'error' on an EventEmitter is RE-THROWN → it would crash the main
+    // process (EMFILE/ENOSPC from fd/inotify-watch exhaustion, EPERM, a watched dir
+    // vanishing). Log + no-op; the tree stays as last-read and ⌘R Reload recovers.
+    .on('error', (error: unknown) => console.error('Nexus watcher error (non-fatal):', error))
 }
 
 /** Stop watching + cancel any pending push. Safe to call when not watching. */

@@ -18,8 +18,10 @@ export function App(): React.JSX.Element {
   }, [beginRename])
 
   // The live filesystem watcher pushed a fresh tree (external change) → swap it in place.
+  // Single-window v1: main guards stale pushes by session root; on an in-window nexus
+  // switch a rare in-flight push self-heals (the switch's own load() applies last).
   useEffect(() => {
-    return window.nexus.onNexusChanged((tree) => void applyTree(tree))
+    return window.nexus.onNexusChanged((next) => void applyTree(next))
   }, [applyTree])
 
   // Native-menu actions reuse the store's existing behaviors (the menu is a second
