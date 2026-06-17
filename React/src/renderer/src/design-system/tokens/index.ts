@@ -1,6 +1,7 @@
 import { vars as colorVars } from './color.css'
 import { font, text } from './typography.css'
-import { chip, chipColor, chipCheckbox, tint } from './chip.css'
+import { chip, chipColor, chipCheckbox } from './chip.css'
+import { tint } from './chip-tint'
 import './theme-vars.css' // bridges tokens → stable CSS vars for plain-CSS consumers
 
 /**
