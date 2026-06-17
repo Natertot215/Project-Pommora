@@ -117,7 +117,7 @@ function AccentDemo() {
               (a === active ? ' is-active' : '') +
               (a === 'system' ? ' is-system' : '')
             }
-            style={{ background: a === 'system' ? systemColor ?? '#7d7d82' : vars.color.solid[a] }}
+            style={{ background: a === 'system' ? systemColor ?? vars.color.solid.grey : vars.color.solid[a] }}
             onClick={() => pick(a)}
             title={a}
             aria-label={a}
