@@ -5,7 +5,7 @@ import { Sidebar } from './components/Sidebar'
 import { DetailPane } from './components/DetailPane'
 
 export function App(): React.JSX.Element {
-  const { status, tree, error, sidebarVisible, load, choose, openDropped, toggleSidebar, newPage, beginRename } =
+  const { status, tree, error, sidebarVisible, load, applyTree, choose, openDropped, toggleSidebar, newPage, beginRename } =
     useSession()
 
   useEffect(() => {
@@ -16,6 +16,11 @@ export function App(): React.JSX.Element {
   useEffect(() => {
     return window.nexus.onBeginRename((path) => beginRename(path))
   }, [beginRename])
+
+  // The live filesystem watcher pushed a fresh tree (external change) → swap it in place.
+  useEffect(() => {
+    return window.nexus.onNexusChanged((tree) => void applyTree(tree))
+  }, [applyTree])
 
   // Native-menu actions reuse the store's existing behaviors (the menu is a second
   // trigger, not a second implementation).

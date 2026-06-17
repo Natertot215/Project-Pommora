@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import type { IpcRendererEvent } from 'electron'
-import type { NexusState, PageResult } from '@shared/types'
+import type { NexusState, NexusTree, PageResult } from '@shared/types'
 import type { MutateRequest, MutateResult, ContextTarget } from '@shared/mutate'
 
 // The ONLY API the renderer can see. Narrow read surface; no fs, no Node.
@@ -37,6 +37,14 @@ const api = {
     ipcRenderer.on('begin-rename', listener)
     return () => {
       ipcRenderer.removeListener('begin-rename', listener)
+    }
+  },
+  // The live watcher pushed a fresh tree (external FS change) — swap it in place; returns an unsubscribe.
+  onNexusChanged: (cb: (tree: NexusTree) => void): (() => void) => {
+    const listener = (_e: IpcRendererEvent, tree: NexusTree): void => cb(tree)
+    ipcRenderer.on('nexus:changed', listener)
+    return () => {
+      ipcRenderer.removeListener('nexus:changed', listener)
     }
   }
 }

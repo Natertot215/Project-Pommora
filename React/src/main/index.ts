@@ -9,6 +9,7 @@ import { readPage } from './readPage'
 import { readAppConfig, writeAppConfig, addRecent, DEFAULT_TRASH_MODE } from './appConfig'
 import { sessionRoot, openSession, resolveRestorePath, isExistingDir } from './session'
 import { openSessionIndex, closeSessionIndex } from './sessionIndex'
+import { startWatcher, stopWatcher } from './watcher'
 import { resolveUnderRoot } from './pathSafety'
 import { handleMutate, type MutateDeps } from './mutate'
 import { showContextMenu } from './contextMenu'
@@ -128,6 +129,10 @@ async function adoptNexus(path: string): Promise<void> {
   // path — the renderer's tree comes from readNexus, so a null index just means no live
   // query acceleration until the next rebuild. Replaces any prior session's handle.
   await openSessionIndex(path)
+  // Live-watch the new nexus (startWatcher replaces any prior session's watcher).
+  // A user-initiated open always has a window; launch-restore starts its watcher
+  // after createWindow below.
+  if (mainWindow) startWatcher(path, mainWindow)
   // Persistence (last-opened + recents + OS list) is best-effort: a config-write
   // failure must not block opening the folder this session, nor leave a half-open
   // "ghost" session the renderer never re-reads.
@@ -291,8 +296,16 @@ app
     registerRendererProtocol()
     createWindow()
     refreshMenu()
+    // A restored nexus opened before the window existed — start its watcher now.
+    const restored = sessionRoot()
+    if (restored && mainWindow) startWatcher(restored, mainWindow)
     app.on('activate', () => {
-      if (BrowserWindow.getAllWindows().length === 0) createWindow()
+      if (BrowserWindow.getAllWindows().length === 0) {
+        createWindow()
+        // Re-attach the watcher to the fresh window (the session stays open across a close).
+        const root = sessionRoot()
+        if (root && mainWindow) startWatcher(root, mainWindow)
+      }
     })
   })
   .catch((e) => {
@@ -306,4 +319,7 @@ app.on('window-all-closed', () => {
 
 // Release the index handle on quit (regeneratable, so a clean close isn't required —
 // just tidy + frees the WAL files).
-app.on('before-quit', () => closeSessionIndex())
+app.on('before-quit', () => {
+  stopWatcher()
+  closeSessionIndex()
+})

@@ -24,6 +24,8 @@ interface SessionState {
   error?: string
   sidebarVisible: boolean
   load: () => Promise<void>
+  /** Swap in a freshly-read tree (from load() or the live watcher): set it, reconcile the selection, re-apply accent. */
+  applyTree: (tree: NexusTree) => Promise<void>
   choose: () => Promise<void>
   openDropped: (file: File) => Promise<void>
   toggleSidebar: () => void
@@ -76,24 +78,9 @@ export const useSession = create<SessionState>((set, get) => {
       try {
         const res = await window.nexus.state()
         switch (res.status) {
-          case 'open': {
-            set({ status: 'ready', tree: res.tree })
-            // A mutation may have deleted/renamed/moved the selected entity — reconcile so the
-            // detail pane never strands on a gone page (delete) or a stale path (rename/move).
-            const prev = get().selection
-            const next = reconcileSelection(res.tree, prev)
-            if (next !== prev) {
-              if (next.kind === 'none') {
-                set({ selection: next, pageStatus: 'idle', pageDetail: null, pageError: undefined })
-              } else if (next.kind === 'page') {
-                void get().select(next) // refetch the detail at the page's new path
-              }
-            }
-            const systemColor =
-              res.tree.accent === 'system' ? await window.nexus.systemAccent() : null
-            applyAccent(res.tree.accent, systemColor)
+          case 'open':
+            await get().applyTree(res.tree)
             break
-          }
           case 'empty':
             set({ status: 'empty', tree: null })
             break
@@ -106,6 +93,24 @@ export const useSession = create<SessionState>((set, get) => {
         // to the designed error state instead of hanging on 'loading'.
         set({ status: 'error', error: e instanceof Error ? e.message : String(e) })
       }
+    },
+
+    // Swap in a freshly-read tree (load() after a fetch, or the live watcher's push).
+    // No 'loading' flash — the tree's already on screen — and the selection reconciles
+    // so the detail pane never strands on a gone page (delete) or stale path (rename/move).
+    applyTree: async (tree) => {
+      set({ status: 'ready', tree })
+      const prev = get().selection
+      const next = reconcileSelection(tree, prev)
+      if (next !== prev) {
+        if (next.kind === 'none') {
+          set({ selection: next, pageStatus: 'idle', pageDetail: null, pageError: undefined })
+        } else if (next.kind === 'page') {
+          void get().select(next) // refetch the detail at the page's new path
+        }
+      }
+      const systemColor = tree.accent === 'system' ? await window.nexus.systemAccent() : null
+      applyAccent(tree.accent, systemColor)
     },
 
     // Native folder picker; on a pick, the session changed → re-read.
