@@ -611,7 +611,6 @@ The auto-formatted `–` is a *typographically correct* substitution for ` - ` r
 |---|---|
 | [`// Features//PageEditor.md`](.claude/Features/PageEditor.md) | Editor implementation spec. Shipped v0.2.7.0 feature surface + "Tables — to be implemented" deferred-work spec. "Dynamic-syntax pattern" section is the locked architecture statement. |
 | [`// Features//Pages.md`](.claude/Features/Pages.md) | On-disk page format, Markdown features in v1, opening behavior, sidebar visibility, connections. |
-| [`// Guidelines//Paradigm-Decisions.md`](.claude/Guidelines/Paradigm-Decisions.md) | Confirmation protocol + registry. Editor architecture decision recorded here (superseding the dead WKWebView entry). |
 | `Handoff.md` | Live session state. Most recent lessons (Session 12 HR + Session 13 Lists) preserved in the entry headers. |
 | `History.md` | Locked decision log. Brief — the canonical detail lives in the feature docs. |
 | `External/MarkdownPM/NOTICE.md` | Per-file modification log for Pommora's edits to the vendored engine. |

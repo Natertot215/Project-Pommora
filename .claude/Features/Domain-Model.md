@@ -24,20 +24,15 @@ PARA's "Projects" maps to Pommora tier-3 "Projects" — same word, intentional a
 
 #### Organization layer — Contexts
 
-Three **free-standing** tiers — Areas (1), Topics (2), Projects (3). Per-tier labels are user-configurable; tier *numbers* are load-bearing in code. None of the tiers contains, parents, or is restricted to another — a Project is not "inside" a Topic; a Topic does not belong to an Area. Each tier is stored in its own sibling folder under `.nexus/`.
+Three **free-standing** tiers — Areas (1), Topics (2), Projects (3). Per-tier labels are user-configurable; tier *numbers* are load-bearing in code. None contains, parents, or is restricted to another — a Project is not "inside" a Topic; a Topic does not belong to an Area. Pages/Agenda tag any tiers independently — a page can relate to a Topic without relating to an Area.
 
-| Tier | Default label | Role | On disk |
-|---|---|---|---|
-| 1 | Areas | Broad life domains (Personal, Academics, Work) | `.nexus/areas/<Title>/_area.json` |
-| 2 | Topics | Subject areas (Productivity, Side Projects, Reading List) | `.nexus/topics/<Title>/_topic.json` |
-| 3 | Projects | Specifics (CS 161, Pommora, "Atomic Habits") | `.nexus/projects/<Title>/_project.json` |
+| Tier | Default label | Role |
+|---|---|---|
+| 1 | Areas | Broad life domains (Personal, Academics, Work) |
+| 2 | Topics | Subject areas (Productivity, Side Projects, Reading List) |
+| 3 | Projects | Specifics (CS 161, Pommora, "Atomic Habits") |
 
-**Rules:**
-- No containment, no `parents` field, no `project_links` property — tiers are independent
-- No tier-parent requirement — Pages/Agenda tag any tiers independently; a page can relate to a Topic without relating to an Area
-- All three tiers are composed-blocks surfaces (same `blocks` field as Homepage; currently always empty pending the blocks surface)
-
-Detail → `Contexts.md`.
+On-disk shape, sidebar, validation, and tier config → `Contexts.md`.
 
 ---
 
@@ -58,25 +53,21 @@ Detail → `Contexts.md`.
 | **Agenda Event** | EKEvent-shaped: start + end, location | Events singleton (root folder carrying `_eventconfig.json`) + `<title>.event.json` | "Event" |
 
 **Rules:**
-- Page Type schema applies to all Pages inside (including Pages in Page Collections and Page Sets — both inherit the parent Type's schema)
-- Page Sets carry no schema, views, or settings — `_pageset.json` holds identity, icon, and `page_order` only; the hierarchy is strictly three levels (depth-2 folder = Set; deeper folders are sidecar-less, their pages roll up into the nearest Set). Canonical detail → `Sets.md`
-- Page Collections are **not** storage-only. They **inherit only the parent Type's property schema** (collection-local schema overrides remain a post-v1 Prospect), but **own** their saved `views` — and the groups, visibility, and sorts configured inside them — persisted in their sidecar (`_pagecollection.json`). Titles are the folder name (filename = title). Each Collection also carries an optional `icon` in its sidecar (source of truth), mirrored into a SQLite column so the context picker can query it. Canonical detail → `PageTypes.md` / `Properties.md`
-- Move between Page Types strips properties not in destination schema (Notion-style, with confirm); within the same Type (between Collections, Sets, and the Type root), no strip — schema is shared
-- Agenda Tasks and Agenda Events are separate kinds with separate schemas
+- The Page Type's schema applies to every Page inside it, including Pages in Collections and Sets — both inherit it.
+- Page Collections **inherit only** the parent Type's property schema but **own** their saved `views` (groups, visibility, sorts) and an optional `icon`. Page Sets carry no schema, views, or settings — identity + icon + page order only.
+- Hierarchy is strictly three levels (depth-2 folder = Set; deeper folders are sidecar-less, rolling up into the nearest Set).
+- Move between Page Types strips properties absent from the destination schema (Notion-style, with confirm); within the same Type — no strip, schema is shared.
+- Agenda Tasks and Agenda Events are separate kinds with separate schemas.
+
+Detail → `PageTypes.md` / `Sets.md` / `Pages.md` / `Agenda.md` / `Properties.md`.
 
 #### Naming convention — three layers
 
-Pommora's domain model has three layers of naming that intentionally diverge:
-
 | Layer | Use |
 |---|---|
-| **Code + data** | `PageType` / `PageCollection` / `PageSet` — always exact, unambiguous. JSON keys, sidecar fields, file references all use these literal names. |
+| **Code + data** | `PageType` / `PageCollection` / `PageSet` — exact literal names in JSON keys, sidecar fields, file references. |
 | **Docs prose** | "Page Type" / "Page Collection" / "Page Set" (or "Type" / "Collection" / "Set" where unambiguous) |
-| **UI label (default)** | **"Vault"** + "Collection" + "Set". All labels user-renameable via the Settings scaffold (full editing UI deferred). |
-
-Every typed container has a per-kind sidecar whose filename is the kind discriminator — canonical detail in `Architecture.md`.
-
-Detail → `PageTypes.md` + `Pages.md` + `Agenda.md`.
+| **UI label (default)** | **"Vault"** + "Collection" + "Set", all user-renameable via Settings. |
 
 ---
 
@@ -90,7 +81,7 @@ Detail → `Homepage.md`.
 
 #### Cross-layer relations
 
-Operational-layer entities (Pages, Agenda Tasks, Agenda Events) carry **per-tier multi-relation fields** pointing to Contexts, stored at the frontmatter / JSON root as ID arrays:
+Operational entities (Pages, Agenda Tasks, Agenda Events) tag Contexts via **per-tier multi-relation fields** at the frontmatter / JSON root, as bare ULID arrays:
 
 ```yaml
 tier1: [<area-id>, ...]
@@ -98,22 +89,18 @@ tier2: [<topic-id>, ...]
 tier3: [<project-id>, ...]
 ```
 
-Each tier filled independently. An Agenda Task can link to an Area, a Topic, and a Project independently — no requirement to fill all three.
-
-**Tier values ARE relations.** Areas / Topics / Projects (`tier1` / `tier2` / `tier3`) are pre-configured context-link properties merged onto every Type's schema. They edit inline through the normal property-editing row, and render as the target Context's icon + title. They stay one-way — no reverse property, since Contexts carry no `properties[]` schema; reverse lookups resolve through the index. Full rendering + column behavior → `// Features//Properties.md`.
+Each tier is filled independently — no requirement to fill all three. The three tiers are the **only** relation-type connection (pre-configured properties merged onto every Type's schema, edited inline); they stay one-way, since Contexts carry no `properties[]` schema and reverse lookups resolve through the index. Catalog + rendering → `// Features//Properties.md`.
 
 ---
 
 #### Entity identity vs title
 
-Every entity carries two independent identifiers:
+- **`id`** — stable ULID in frontmatter / JSON, assigned at creation, never changes. Every cross-reference (connections, relation values, tier links, the index) is ID-keyed.
+- **Title** — display name carried as the filename (minus extension), freely renameable. Renames are pure filesystem renames; ID-keyed cross-references resolve to the current title at render time and are never rewritten.
 
-- **`id`** — stable ULID stored in frontmatter / JSON. Assigned at creation, never changes. This is the identity used by every cross-reference (connections, relation values, tier links, the SQLite index).
-- **Title** — the entity's display name, carried as the filename (minus extension). User-renameable freely; renames are filesystem renames + nothing else. Cross-references are NOT rewritten on rename — they're ID-keyed and resolve to the current title at render time.
+**Duplicate titles are rejected within the same container** (case-insensitive) — refused, not auto-renamed. The rejection guards only the on-disk filename slot (`filename = title`); the same title in *different* containers is fine, and recasing an entity's own title is allowed.
 
-**Duplicate titles are rejected within the same container** — creating, renaming, or moving any entity (Page, Agenda Task/Event, or a Context/container) to a title a sibling already holds (case-insensitive) is refused, not auto-renamed. Identity is the ULID, not the title; the rejection guards only the on-disk filename slot, since `filename = title` and a folder can't hold two files with the same name. The same title in *different* containers is fine, and recasing an entity's own title is allowed. (Truly independent duplicate titles would need a separate title field — see [[Prospects]].)
-
-Full mechanic for `[[ ]]` connections → [[Connections]].
+`[[ ]]` connection mechanic → [[Connections]].
 
 ---
 

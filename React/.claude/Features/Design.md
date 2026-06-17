@@ -2,6 +2,12 @@
 
 The Pommora design system — the code mirror of the Figma "Pommora - React" library. Two-tier tokens (raw **primitives** → meaningful **semantic** aliases); components reference semantic tokens only. Typography has its own spec: `Typography.md`.
 
+### Design philosophy
+
+The React build follows its Swift counterpart closely — **near-identical by intent**. Apple's design language, and **macOS Tahoe** in particular, is the north star: restraint, depth through material over ornament, quiet precision. We mirror that feel rather than reinvent it.
+
+Where React opens doors the native build couldn't — richer motion, interaction, and layout — we treat them as **additive prospects**, adopted only when they deepen the Apple-grade minimalism, never when they clutter it. Simplicity is the constraint, not the compromise.
+
 ### Source of truth
 
 The Figma library is canonical for design *values*; this repo mirrors them as tokens. Values change in Figma first, then sync here. Figma is also the visual reference for components.

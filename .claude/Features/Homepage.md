@@ -12,7 +12,7 @@ Pommora's **singleton dashboard entity** — one per Nexus, fixed location, no `
     homepage.json          ← singleton; fixed location
 ```
 
-Seeded on first launch with empty `blocks`. Not user-deletable (regenerates if removed externally).
+Seeded on first launch with empty `blocks`; not user-deletable (regenerates if removed externally).
 
 ---
 

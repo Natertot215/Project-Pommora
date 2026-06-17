@@ -80,91 +80,71 @@ Managers are `@MainActor` `@Observable`; SwiftUI views observe them directly via
 
 #### SQLite index — regeneratable scaffolding
 
-The index lives at `<nexus>/.nexus/index.db`. It travels with the Nexus, so a moved or renamed Nexus keeps its index without re-pathing. It holds titles / properties / links / relations — **never** Page bodies (the `pages` table has no body column; full-text search reads files directly).
+The index lives at `<nexus>/.nexus/index.db`, travelling with the Nexus so a moved or renamed Nexus keeps it without re-pathing. It holds titles / properties / links / relations — **never** Page bodies; full-text search reads files directly. DDL is canonical in PRD § SQLite Schema. Tier relations live in the `context_links` table (no separate tier table); body connections in a page-only `connections` table.
 
-**Fully regeneratable.** The index file is stamped with a `schema_version`; on open, a mismatch against the code's current version force-deletes + rebuilds the whole DB — no per-user data migration. No user data is trapped — losing the index file just means a rebuild on next open.
+**Fully regeneratable.** The index is stamped with a `schema_version`; on open a mismatch force-deletes + rebuilds the whole DB — no per-user data migration. Losing the file just means a rebuild on next open.
 
-**Launch-tail indexing contract.** On launch, the index rebuilds **only** when the schema-version mismatch flags a rebuild — there is no unconditional launch scan. The version is stamped only *after* the rebuild succeeds, so a failed rebuild retries next launch instead of locking in an empty index. Consequence: a page Finder-dropped *after* the index is current-stamped enters the index via CRUD upserts (or a forced rebuild), **not** via the launch path.
+**Launch-tail indexing contract.** On launch the index rebuilds **only** when the schema-version mismatch flags it — there is no unconditional launch scan. The version is stamped only *after* a rebuild succeeds, so a failed rebuild retries next launch instead of locking in an empty index. Consequence: a page Finder-dropped after the index is current-stamped enters via CRUD upserts (or a forced rebuild), not via the launch path.
 
-**Data tables** (DDL canonical in PRD § SQLite Schema): `page_types`, `page_collections`, `page_sets`, `pages`, `agenda_tasks`, `agenda_events`, `contexts`, `context_links`, `connections`, `property_definitions`, plus an internal `meta(key, value)` table holding the `schema_version`. Tier relations use the `context_links` table — there is no separate tier table; body connections use the `connections` table (page-only).
+**Query surface.** The query facade composes Notion-style filter/sort/group/broken-links SQL — reaching the `properties` JSON column via JSON1, and `context_links` for tier lookups. Embedded views in Contexts / Homepage flow through it. The UI is therefore one hop removed from the canonical file (file → index → query → view); a wrong, empty, or `(missing)` surface localizes to the query/render hop, not by itself to the file — see CLAUDE.md branch quirk #17.
 
-**Query surface.** The query facade composes Notion-style filter/sort/group/broken-links SQL — reaching into the `properties` JSON column via SQLite's JSON1 extension, and reading the `context_links` table for tier-relation lookups. Embedded views in Contexts / Homepage flow through it. So the UI is one hop removed from the canonical file: it renders what the **store → query → render** chain hands it (file → index → query → view), never the file directly. A wrong, empty, or `(missing)` surface therefore localizes to the query/render hop — stale or unbuilt index rows, a load-timing or layout fault in the view — and is not by itself evidence that the canonical file is wrong; confirm the data at the relevant hop (read the file, run the query) before attributing a fault to the store.
+**Reverse query (Context Linked-from).** Reads `context_links` for every row whose `target_id` equals a Context ID, resolving each source's current title from its owning table — powering a Context's Linked-from surface. Each `tier1` / `tier2` / `tier3` value emits one row (`target_kind` = `area` / `topic` / `project`).
 
-**Reverse-view query (Context-side Linked-from).** A reverse query reads the `context_links` table for every row whose `target_id` equals a given Context ID, resolving each source's current title from its owning kind table. It powers a Context's Linked-from surface — every operational entity that tags that Context. Each `tier1` / `tier2` / `tier3` value emits one row into `context_links` (`property_id` = the reserved tier ID, `target_kind` = the coarse `area` / `topic` / `project`).
+**Update path.** Every manager mutation upserts to the DB immediately after its atomic file write succeeds — mid-session changes never wait for a restart.
 
-**Update path.** Per-entity content + type managers (Pages, Page Types, Agenda Tasks, Agenda Events) plus Contexts and property definitions propagate mid-session mutations to the DB without waiting for a restart. Pattern: every manager mutation runs after the atomic file write succeeds.
-
-**Delete behavior.** Deleting a parent cascades its descendants in the index, except that deleting a Collection or Set does **not** delete its child Pages — they move up a level in the index until the next full reconcile.
+**Delete behavior.** Deleting a parent cascades its descendants in the index, except that deleting a Collection or Set does **not** delete its child Pages — they move up a level until the next full reconcile.
 
 ---
 
 #### Atomic-write contract
 
-Every file write goes through one of three atomic-write paths:
+Every file write goes through one of three atomic paths, all via temp-file + rename (POSIX rename is atomic on the same filesystem, so a crash mid-write leaves either the whole old file or the whole new file — never a half-written one):
 
-- **YAML+Markdown write** — Pages. Composes `---\n<yaml>\n---\n\n<body>` via temp-file + rename. The preserving path re-reads the file it's overwriting and merges by value: it re-serializes only the type's own *modeled* keys and **preserves every foreign frontmatter key by value** (plugin / Obsidian / external keys are never culled). YAML round-trips by value — flow style reflows to block style and comments/anchors are dropped — but no key/value is lost. Each frontmatter type declares which keys it owns; everything else passes through.
-- **JSON write** — sidecars, Agenda Tasks / Events, Contexts, Settings, Homepage. Encodes then writes via temp-file + rename.
-- **Schema transaction** — multi-file commits for schema operations that must succeed-or-fail as a unit (e.g. a move that strips properties across types). Validates the full set, then applies temp-file + rename in dependency order with rollback on failure.
+- **YAML+Markdown write** — Pages. Composes `---\n<yaml>\n---\n\n<body>`. The preserving path re-reads the overwritten file and merges by value: it re-serializes only the type's own *modeled* keys and **preserves every foreign frontmatter key by value** (plugin / Obsidian / external keys never culled). YAML round-trips by value — flow reflows to block style, comments/anchors drop — but no key/value is lost.
+- **JSON write** — sidecars, Agenda Tasks / Events, Contexts, Settings, Homepage.
+- **Schema transaction** — multi-file commits that must succeed-or-fail as a unit (e.g. a move that strips properties across types). Validates the full set, then applies in dependency order with rollback on failure.
 
-**Why temp-file + rename, not in-place write.** POSIX rename is atomic on the same filesystem. A crash mid-write leaves either the old file (rename never happened) or the new file (rename completed) — never a half-written file. macOS / APFS preserves this guarantee.
-
-**Page save contract.** The editor binds only to `body`; frontmatter is held as a typed struct and re-serialized on save, so the user can't destroy frontmatter via the editor. Edits debounce, then write atomically and update the index; a flush forces on context loss (page-switch, window-close, app background/terminate, `⌘S`). Full pipeline → `// Features//PageEditor.md` § "Save pipeline".
+**Page save contract.** The editor binds only to `body`; frontmatter is held as a typed struct and re-serialized on save, so the editor can't destroy frontmatter. Edits debounce then write atomically and update the index, flushing on context loss. Full pipeline → `// Features//PageEditor.md` § "Save pipeline".
 
 ---
 
 #### File-watcher contract (deferred)
 
-External edits (Obsidian / vim / Finder rename / cloud-sync mtime drift) must propagate to the SQLite index + in-memory caches + sidebar without a restart. A recursive filesystem watch on the Nexus root, with self-write filtering (debounce by path + outbound mtime tracking) and lost-update protection (mtime compare before overwriting). The atomic-write discipline + index-update path already support this — the watcher is a wiring task, not an architectural change.
+External edits (Obsidian / vim / Finder rename / cloud-sync mtime drift) propagate to the index + in-memory caches + sidebar without a restart, via a recursive filesystem watch on the Nexus root — with self-write filtering (debounce by path + outbound mtime tracking) and lost-update protection (mtime compare before overwriting). The atomic-write discipline + index-update path already support this; the watcher is a wiring task, not an architectural change.
 
 ---
 
 #### Adoption — opening any folder as a Nexus
 
-When a folder is first opened as a Nexus, the adopter classifies each root folder independently: fresh (no recognized sidecar → content-sniff always picks a Page Type), an unrecognized sidecar (auto-tagged as a Page Type), or already flat (no-op). Idempotent; per-folder atomicity (no two-phase transaction across folders); safe to re-run on partial state. Hidden folders (leading `.` or `_`) skipped. Preview-before-commit shows per-Type counts + warnings; fully-flat Nexuses skip the sheet silently. Full per-shape detail → `// Features//PageTypes.md` § "Adopting existing folders".
+When a folder is first opened as a Nexus, the adopter classifies each root folder independently: fresh (no recognized sidecar → content-sniff picks a Page Type), unrecognized sidecar (auto-tagged as a Page Type, the foreign sidecar staying **inert on disk**), or already flat (no-op). Idempotent, per-folder atomic, safe to re-run on partial state; hidden folders skipped. Preview-before-commit shows per-Type counts + warnings; fully-flat Nexuses skip the sheet silently. Full per-shape detail → `// Features//PageTypes.md` § "Adopting existing folders".
 
-An unrecognized sidecar (a name Pommora doesn't own) classifies the folder as **sidecar-less** — adoption auto-tags it with a fresh `_pagetype.json`, the foreign sidecar stays **inert on disk**, and the folder's members index as pages.
-
-**Kind authority = the folder sidecar, not the extension.** A `.md` file's kind comes from its parent folder's sidecar (`_pagetype.json` → Page), never from a frontmatter field. There is no kind stamp in frontmatter — any kind-like frontmatter key is treated as preserved foreign frontmatter (carried by value, never written by Pommora).
+**Kind authority = the folder sidecar, not the extension.** A `.md` file's kind comes from its parent folder's sidecar (`_pagetype.json` → Page), never from frontmatter. Any kind-like frontmatter key is treated as preserved foreign frontmatter — carried by value, never written by Pommora.
 
 ---
 
 #### Migration — schema versioning + property-ID rewrites
 
-Pommora carries two migration mechanisms:
+**Index-side** — covered above: a version mismatch deletes + rebuilds the index, no per-user migration.
 
-**1. Index-side schema version** — covered above (a version mismatch deletes + rebuilds the index, no per-user migration).
+**File-side** — each Pommora-written Type sidecar carries a `schema_version` (missing = 0). A property migration runs on every Nexus open: mints stable ULID `id`s for name-keyed properties, normalizes relation shapes, and rewrites entity files to reference properties by ID. Two-phase (scan / apply), idempotent, lossless.
 
-**2. File-side schema version + property migration.** Each Pommora-written Type sidecar carries a `schema_version`; a missing version decodes as 0. A property migration runs on every Nexus open: it mints stable ULID `id`s for name-keyed properties, normalizes relation shapes, and rewrites entity files to reference properties by ID. Two-phase (scan / apply), idempotent, lossless. User-relation definitions are stripped at decode time before the scan runs; orphaned relation member values are cleared opportunistically during the migration.
-
-**Settings auto-migration.** Settings carry a `defaultsVersion` and a step-function migrate scaffold, applied after decode and re-persisted only when something changed (mtime stays stable on no-op launches). Bump the version + add a step when defaults change.
+**Settings** — carry a `defaultsVersion` + step-function migrate scaffold, applied after decode and re-persisted only on change. Bump the version + add a step when defaults change.
 
 ---
 
 #### What this data layer leaves to the OS
 
-File-canonicality's payoffs (external-editor compatibility, agent legibility, cloud-sync-for-free) are the two load-bearing principles above. What's deliberately *not* built:
+Deliberately *not* built:
 
-- **Versioning / file history / backup** — Time Machine, `git` on the Nexus, filesystem snapshots. No internal version store, no auto-commit; in-session undo is free from the editor.
-- **Cross-device sync (v1)** — user picks the Nexus location; placing it in a synced folder gives device-to-device sync. Real cloud sync is a long-term Prospect.
-
----
-
-#### Discipline (not enforcement)
-
-No enforced layer separation. Patterns that keep the data layer tractable:
-
-- **Per-Type schemas live in JSON sidecars** (canonical), not code; Page frontmatter lives inline in each `.md` file.
-- **Foreign frontmatter is preserved by value** on every Page write path — an external tool's frontmatter keys survive Pommora's saves (mechanism in the atomic-write contract above).
-- **View specs are data** (filter / sort / group / shown-properties on each storage container's `views[]`).
-- **File renames + connection resolution as algorithm.** Connections resolve by title at render time (backed by index-based ID lookup); renames are pure filesystem renames followed by a cascade body-rewrite of all referencing files.
-- **Agent-legibility check per decision** — would an external file-only agent still see this? If no, revisit.
+- **Versioning / file history / backup** — left to Time Machine, `git` on the Nexus, filesystem snapshots. No internal version store; in-session undo is free from the editor.
+- **Cross-device sync (v1)** — placing the Nexus in a synced folder gives device-to-device sync. Real cloud sync is a long-term Prospect.
 
 ---
 
 #### Reference
 
-- `PommoraPRD.md` — high-altitude product spec; storage model overview; SQLite DDL.
+- `PommoraPRD.md` — high-altitude product spec; storage model; SQLite DDL.
 - `// Features//Domain-Model.md` — 2-layer model + PARA mapping + linking model.
-- `// Features//Properties.md` — per-Type property catalog; tier-relation (context-link) properties; move-strip semantics.
-- `// Guidelines//CRUD-Patterns.md` — per-entity CRUD UI patterns + atomic-write discipline.
-- `// rules//MarkdownPM.md` — editor architecture (dynamic-syntax, anti-patterns, save pipeline).
+- `// Features//Properties.md` — property catalog; tier-relation properties; move-strip semantics.
+- `// Guidelines//CRUD-Patterns.md` — per-entity CRUD UI patterns.
+- `// rules//MarkdownPM.md` — editor architecture + save pipeline.

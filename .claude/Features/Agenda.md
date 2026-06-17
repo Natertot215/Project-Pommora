@@ -29,56 +29,57 @@ Both folders are eagerly created on launch — `loadAll` ensures the folder exis
 
 #### Schema (config sidecar)
 
-`_taskconfig.json` and `_eventconfig.json` each carry `properties: [PropertyDefinition]` — the same property shape as Page Types. The default seed is exactly one built-in, non-deletable property: `_status` (Status type); every other property is user-defined. The three tier relations (`tier1` / `tier2` / `tier3`) merge in via `BuiltInContextLinkProperties` for surfaces that show them.
+Each sidecar carries `properties` — the same shape as Page Types. The default seed is exactly one built-in, non-deletable property: `_status` (Status type); everything else is user-defined. Tier relations merge in via `BuiltInContextLinkProperties` for surfaces that show them.
 
-The `_status` Status structure (3 fixed EventKit-aligned groups — Upcoming / In Progress / Done — renameable labels, user-editable options, default seed, the 3-slot rule, the `EKReminder.isCompleted` mapping) is canonical in [[Properties]] § "Status property type". Agenda-specific notes:
+The `_status` structure (3 fixed EventKit-aligned groups — Upcoming / In Progress / Done — renameable labels, the 3-slot rule, `EKReminder.isCompleted` mapping) is canonical in [[Properties]] § "Status property type". Agenda-specific:
 
-- Group IDs (`upcoming` / `in_progress` / `done`) map onto EventKit semantics directly, so the sync layer needs no translation logic.
-- `_status` is user-set, decoupled from any date math — it tracks engagement ("Upcoming" before, "In Progress" during, "Done" after). EKEvent's own status is a separate EventKit concept; how sync bridges to it is an open sync-layer question.
-- Neither kind ships a built-in `type` field — `_status` is the sole built-in workflow indicator. A `type` taxonomy can be added via the schema editor like any other Select.
+- Group IDs (`upcoming` / `in_progress` / `done`) map onto EventKit semantics directly — no sync translation needed.
+- `_status` is user-set, decoupled from date math — it tracks engagement. EKEvent's own status is a separate concept; how sync bridges to it is an open question.
+- Neither kind ships a built-in `type` field; `_status` is the sole built-in workflow indicator. A `type` taxonomy can be added as any other Select.
 
 #### Entity fields (per-entity file)
 
-The EventKit-shaped fields live at the root of each `.task.json` / `.event.json` file (on the `AgendaTask` / `AgendaEvent` struct), NOT in the config sidecar. `tier1` / `tier2` / `tier3` store there too, as bare ID arrays.
+EventKit-shaped fields live at the root of each `.task.json` / `.event.json` file, NOT in the sidecar. `tier1` / `tier2` / `tier3` store there too, as bare ID arrays.
 
-**Agenda Task (`.task.json`):** `due_at` (optional, `EKReminder.dueDateComponents`), `due_floating` (Bool — true = no timezone), `due_all_day` (Bool), `start_at` (optional, "not before"), `completed` (`EKReminder.isCompleted`), `completed_at`, `priority` (Int 0–9), `recurrence`, `alarm_offsets` (`[TimeInterval]`, negative = before due), `calendar_id` + `eventkit_uuid` (sync state).
+**Agenda Task:** `due_at` (`EKReminder.dueDateComponents`), `due_floating` (no timezone), `due_all_day`, `start_at` ("not before"), `completed` (`isCompleted`), `completed_at`, `priority` (0–9), `recurrence`, `alarm_offsets` (negative = before due), `calendar_id` + `eventkit_uuid` (sync state). All optional.
 
-**Agenda Event (`.event.json`):** `start_at` (required, `EKEvent.startDate`), `end_at` (required, `EKEvent.endDate`), `all_day` (Bool), `location`, `recurrence`, `alarm_offsets` (`[TimeInterval]`), `alarm_absolute` (`[Date]` — fixed-time alarms), `calendar_id` + `eventkit_uuid` (sync state).
+**Agenda Event:** `start_at` + `end_at` (required, `startDate` / `endDate`), `all_day`, `location`, `recurrence`, `alarm_offsets`, `alarm_absolute` (fixed-time alarms), `calendar_id` + `eventkit_uuid` (sync state).
 
 ---
 
 #### EventKit sync (deferred)
 
-Opt-in (Settings → Agenda); on-disk fields exist now so opt-in is purely additive. Each side maps to one EventKit entity by file extension:
+Opt-in (Settings → Agenda); the on-disk fields exist now so opt-in is purely additive. Each side maps to one EventKit entity by extension:
 
-| File extension | EventKit target | Key field mapping |
+| Extension | Target | Key mapping |
 |---|---|---|
 | `.task.json` | `EKReminder` | `due_at` → `dueDateComponents`; `completed` → `isCompleted`; `priority` → `priority` |
 | `.event.json` | `EKEvent` | `start_at` → `startDate`; `end_at` → `endDate`; `all_day` → `isAllDay` |
 
-Sync state stored as `calendar_id` + `eventkit_uuid` on each entity. Required entitlements: `com.apple.security.personal-information.calendars` + `.reminders`; APIs: `requestFullAccessToEvents` / `requestFullAccessToReminders` (macOS 14+). Change observation via `.EKEventStoreChanged` with last-write-wins reconciliation.
+Sync state lives in `calendar_id` + `eventkit_uuid`. Entitlements: `.calendars` + `.reminders`; access via `requestFullAccessToEvents` / `requestFullAccessToReminders`. Change observation via `.EKEventStoreChanged`, last-write-wins.
 
 ---
 
 #### Sidebar treatment
 
-**Agenda has no sidebar section.** Tasks and Events surface via the **Calendar pin entry** at the top of the sidebar. The Calendar row opens a placeholder two-section list (Tasks above, Events below); the calendar grid and EventKit-mirrored content are planned. Right-click the Calendar pin → "New Task" / "New Event" stubs an entity. Also reachable from a Context's composed-blocks surface (embedded linked-agenda view, planned) or directly in Finder.
+Agenda has no sidebar section. Tasks and Events surface via the **Calendar pin entry** at the top of the sidebar, which opens a placeholder two-section list (Tasks above, Events below); the calendar grid and EventKit-mirrored content are planned. Right-click → "New Task" / "New Event" stubs an entity. Also reachable from a Context's composed-blocks surface (planned) or in Finder.
 
 ---
 
-#### UI: opening Tasks + Events
+#### Opening Tasks + Events
 
-Tasks and Events open in a compact panel surface — title + properties + description, not a full-frame surface (the description stays a JSON field on `.task.json` / `.event.json`). **Not yet wired** — rows in the placeholder Calendar list aren't yet clickable, and the hosting surface is undecided. Planned per-side detail: when an AgendaTask's `start_at` and `due_at` carry the same value, the panel collapses to a single **"When?"** input, expanding to two for asymmetric values (both persist separately on disk); AgendaEvent always shows separate start/end inputs since both are required.
+Tasks and Events open in a compact panel — title + properties + description (a JSON field on the entity), not a full-frame surface. Not yet wired: the list rows aren't clickable and the hosting surface is undecided. Planned per-side detail: an AgendaTask whose `start_at` and `due_at` match collapses to a single **"When?"** input, expanding to two for asymmetric values (both persist separately); AgendaEvent always shows separate start/end inputs.
 
 ---
 
 #### Validation
 
-The schema-CRUD layer guards `_status` non-removability (its options stay editable); per-entity shape rules apply on each entity write.
+`_status` is non-removable (options stay editable); per-entity shape rules apply on each write.
 
-**AgendaTask (`.task.json`):** conforms to `_taskconfig.json`; `due_at` and `start_at` optional; `due_all_day` meaningful only when `due_at` set; filename = title.
+- **Task:** conforms to `_taskconfig.json`; `due_at` / `start_at` optional; `due_all_day` meaningful only with `due_at` set.
+- **Event:** conforms to `_eventconfig.json`; `start_at` + `end_at` required, `end_at >= start_at`.
 
-**AgendaEvent (`.event.json`):** conforms to `_eventconfig.json`; `start_at` + `end_at` both required, `end_at >= start_at`; filename = title.
+Filename = title for both.
 
 ---
 
