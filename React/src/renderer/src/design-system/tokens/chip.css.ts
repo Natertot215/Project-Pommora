@@ -34,7 +34,7 @@ export const chip = style([
  * `color-mix(… X%, transparent)` = the base at X% alpha; the text mixes 15% base
  * into label-primary (matching Figma's Tint/Quinary 15% wash over the label).
  */
-const tint = (base: string): { background: string; borderColor: string; color: string } => ({
+export const tint = (base: string): { background: string; borderColor: string; color: string } => ({
   background: `color-mix(in srgb, ${base} 60%, transparent)`,
   borderColor: `color-mix(in srgb, ${base} 40%, transparent)`,
   color: `color-mix(in srgb, ${base} 15%, ${labelPrimary})`

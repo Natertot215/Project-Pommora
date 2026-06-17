@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useRef, useState, type ReactNode, type RefObject } from 'react'
-import { vars, text, chip, chipColor, chipCheckbox } from '@renderer/design-system/tokens'
+import { vars, text, chip, chipColor, chipCheckbox, tint } from '@renderer/design-system/tokens'
 import { Icon, icons } from '@renderer/design-system/symbols'
 import { GlassStage } from './GlassStage'
 import { applyAccent, readCssAccentColor } from '../accent'
@@ -14,13 +14,15 @@ function humanize(key: string): string {
     .replace(/\b\w/g, (c) => c.toUpperCase())
 }
 
-function rgbToHex(rgb: string): string {
+// Read back the rendered color → "#RRGGBB", or "#RRGGBB · NN%" when it carries an alpha
+// (the opacity tokens), so the gallery shows base + percent, never an opaque A## byte.
+function formatColor(rgb: string): string {
   const m = rgb.match(/\d+(\.\d+)?/g)
   if (!m || m.length < 3) return rgb
   const ch = (n: string): string => Math.round(Number(n)).toString(16).padStart(2, '0')
+  const hex = ('#' + m.slice(0, 3).map(ch).join('')).toUpperCase()
   const a = m.length >= 4 ? Number(m[3]) : 1
-  const alpha = a < 1 ? Math.round(a * 255).toString(16).padStart(2, '0') : ''
-  return ('#' + m.slice(0, 3).map(ch).join('') + alpha).toUpperCase()
+  return a < 1 ? `${hex} · ${Math.round(a * 100)}%` : hex
 }
 
 type RampStyle = { standard: string; emphasized: string }
@@ -39,7 +41,7 @@ function useComputedStyleText<T extends HTMLElement>(
 }
 
 function Swatch({ name, color }: { name: string; color: string }) {
-  const [ref, hex] = useComputedStyleText<HTMLDivElement>((cs) => rgbToHex(cs.backgroundColor))
+  const [ref, hex] = useComputedStyleText<HTMLDivElement>((cs) => formatColor(cs.backgroundColor))
   return (
     <div className="ds-swatch">
       <div ref={ref} className="ds-swatch-chip" style={{ background: color }} />
@@ -126,7 +128,7 @@ function AccentDemo() {
       </div>
       <div className="ds-accent-samples">
         <span className="ds-accent-btn">Accent button</span>
-        <span className="ds-accent-pill">Accent fill</span>
+        <span className={chip} style={tint('var(--accent)')}>Accent</span>
         <span className="ds-accent-link">Accent text</span>
       </div>
     </div>
@@ -184,15 +186,8 @@ export function DesignSystem() {
       </section>
 
       <section className="ds-section">
-        <h2>Color · Accent — live</h2>
+        <h2>Color · Accent</h2>
         <AccentDemo />
-        <div className="ds-mat-note">
-          The accent is a single swappable pointer — pick a spectrum solid or <b>System</b>{' '}
-          (your Mac&apos;s accent). It&apos;s not a color of its own: <code>--accent-fill</code> is a
-          15% tint of <code>--accent</code> and accent text <i>is</i> <code>--accent</code>, so one
-          swap recolors everything. In the app it&apos;s driven by <code>accent</code> in{' '}
-          <code>.nexus/settings.json</code>; here it resets to the default solid on reload.
-        </div>
       </section>
 
       <section className="ds-section">
@@ -205,7 +200,7 @@ export function DesignSystem() {
       </section>
 
       <section className="ds-section">
-        <h2>Chips · fill 60 · stroke 40 (2px, checkbox 1.5px) · text label-primary + 10%</h2>
+        <h2>Chips</h2>
         <div className="ds-chip-grid">
           {CHIP_SHAPES.map((shape) => (
             <div className="ds-chip-row" key={shape.label}>
@@ -239,10 +234,6 @@ export function DesignSystem() {
       <section className="ds-section">
         <h2>Materials · Glass</h2>
         <GlassStage />
-        <div className="ds-mat-note">
-          <b>Drag the glass anywhere</b> on the page — it starts over the middle surface and snaps
-          back on reload.
-        </div>
       </section>
 
       <section className="ds-section">

@@ -41,11 +41,11 @@ Rules: components reference **semantic tokens only** (never raw hex); one folder
 
 Chip color is a Figma **variable-mode picker**: the `Color` collection has **11 modes** (Red, Blue, Green, Purple, Lavender, Cyan, Light Blue, Orange, Yellow, Grey, Default ). The **unified tint is the base color at three opacities** — no custom colors, no lightening:
 
-- **Fill** = base @ **60%** · **stroke** = base @ **40%** (2px; **1.5px** for Checkbox) · **text** = `label-primary` + base @ **10%** (near-white with a faint color tint).
+- **Fill** = base @ **60%** · **stroke** = base @ **40%** (2px; **1.5px** for Checkbox) · **text** = `label-primary` + base @ **15%** (near-white with a faint color tint).
 - **Shapes:** Pill (text) and Select (icon-only) are **h20 pills** (radius 10); **Checkbox** is a **17×17 square** (radius 5.5) holding a checkmark.
 #### Accent — one swappable token
 
-The accent is a **single runtime token** (`--accent`), defaulting to **lavender**. `--accent-fill` and `--accent-text` are **`color-mix` derivations** of it (`var(--accent)` @ 15%; lightened ~30% toward white), so swapping `--accent` alone recolors every accented surface. The per-Nexus choice — any spectrum solid, or **`system`** (the OS accent) — lives in `.nexus/settings.json` (`accent`), read + validated in `readNexus`, applied on load by `applyAccent` (`accent.ts`). `system` resolves via Electron `systemPreferences.getAccentColor()` in the app, or the CSS `AccentColor` system color in the web showcase. Components reference `var(--accent)` / `var(--accent-fill)` / `var(--accent-text)`, never lavender directly. (macOS has no live accent-change event, so `system` is read at load.)
+The accent is a **single runtime token** (`--accent`), defaulting to **lavender**. `--accent-fill` is a **`color-mix` derivation** (`var(--accent)` @ 15%, transparent) and `--accent-text` **is** `var(--accent)` itself, so swapping `--accent` alone recolors every accented surface. The per-Nexus choice — any spectrum solid, or **`system`** (the OS accent) — lives in `.nexus/settings.json` (`accent`), read + validated in `readNexus`, applied on load by `applyAccent` (`accent.ts`). `system` resolves via Electron `systemPreferences.getAccentColor()` in the app, or the CSS `AccentColor` system color in the web showcase. Components reference `var(--accent)` / `var(--accent-fill)` / `var(--accent-text)`, never lavender directly. (macOS has no live accent-change event, so `system` is read at load.)
 
 #### Labels
 
@@ -56,10 +56,10 @@ Text colors on `#F1F1F1`: `label-primary` 100% · `label-secondary` 65% · `labe
 Mirrored from Figma into `color.css.ts` (`vars.color.*`):
 
 - **Background** (`background.window` `#1A1A1B`): the app substrate — the base the surfaces sit on.
-- **Surface** (`surface.*`): content layers on the window — `primary #222225`, `secondary #252528`, `tertiary #333336`. (Figma `Surface/sf-*`; bridge `--surface-*`.)
-- **Fills** (`fill.*`): base `#71717A` at 22.5 / 15 / 10 / 6 / 4% — `primary` → `quinary` (overlay fills over a surface).
-- **States** (`state.*`): `hover` (grey `#8E8E93` @ ~2%), `selected` (@ ~8%).
-- **Separators** (`separator.*`): `line`, `border`, `segment`.
+- **Surface** (`surface.*`): content layers on the window — `primary #1E1E20`, `secondary #222224`, `tertiary #2C2C2F`. (Figma `Surface/sf-*`; bridge `--surface-*`.)
+- **Fills** (`fill.*`): base `#71717A` at ~22 / 15 / 10 / 6 / 4% — `primary` → `quinary` (overlay fills over a surface).
+- **States** (`state.*`): the **same `#71717A` fill base** — `hover` @ ~2.5%, `selected` @ ~5%.
+- **Separators** (`separator.*`): the **same `#71717A` fill base** — `line`/`border` @ 25%, `segment` @ 20%.
 
 The **accent** (above) is its own swappable runtime token, not a static entry here. Per-color tint variables (`-fill` / `-soft` / `-text` / …) were **removed** — the unified chip tint + these semantic tokens replace them. `grey-default` is kept (the `Default` chip color's source).
 
