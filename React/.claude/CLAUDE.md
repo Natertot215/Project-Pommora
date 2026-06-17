@@ -24,6 +24,7 @@ electron-vite · Electron 42 · React 19 · TypeScript 6 · Vite 7 + `@vitejs/pl
 - **Read and write are cleanly separable.** The read path is read-only by construction; mutations are additive, never woven into reads.
 - **Catch up to Swift, don't go ahead.** Build only what Swift has actually shipped at the data/feature level. Net-new subsystems Swift hasn't built (block-editing, file-version history, …) are out of scope until Swift's behavior is matched — we're porting, not extending. Reserved-but-empty Swift fields (`blocks: []`) round-trip untouched; they aren't activated here.
 - **Condensed control flow / DRY / simplicity-first** — model finite states as unions + switch; hoist shared logic; don't add unrequested complexity.
+- **Colors are authored as hex** — `#RRGGBB`, or `#RRGGBBAA` (8-digit) for alpha — never `rgb()` / `rgba()`. The token layer (`design-system/tokens/`) is the source; platform-returned values (e.g. `getComputedStyle`) are the only exception. Detail: `design-system/tokens/README.md`.
 
 ### Locked decisions
 

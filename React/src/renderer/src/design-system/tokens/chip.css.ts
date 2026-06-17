@@ -30,17 +30,17 @@ export const chip = style([
 
 /**
  * The unified chip tint — one formula applied per base color:
- *   fill = base @ 60%  ·  stroke = base @ 40%  ·  text = label-primary + base @ 10%.
- * `color-mix(… X%, transparent)` = the base at X% alpha; the text mixes 10% base
- * into label-primary (matching the Figma label-primary + base-10% stack).
+ *   fill = base @ 60%  ·  stroke = base @ 40%  ·  text = label-primary + base @ 15%.
+ * `color-mix(… X%, transparent)` = the base at X% alpha; the text mixes 15% base
+ * into label-primary (matching Figma's Tint/Quinary 15% wash over the label).
  */
 const tint = (base: string): { background: string; borderColor: string; color: string } => ({
   background: `color-mix(in srgb, ${base} 60%, transparent)`,
   borderColor: `color-mix(in srgb, ${base} 40%, transparent)`,
-  color: `color-mix(in srgb, ${base} 10%, ${labelPrimary})`
+  color: `color-mix(in srgb, ${base} 15%, ${labelPrimary})`
 })
 
-/** One class per chip color — compose with `chip`. (Figma's mode picker caps at 10, so red lives only here in code.) */
+/** One class per spectrum color — compose with `chip`. Mirrors the 11 Figma chip color variants. */
 export const chipColor = styleVariants({
   red: tint(solid.red),
   blue: tint(solid.blue),

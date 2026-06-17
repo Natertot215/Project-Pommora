@@ -1,4 +1,5 @@
 import { globalStyle } from '@vanilla-extract/css'
+import { DEFAULT_ACCENT } from '@shared/types'
 import { vars as colorVars } from './color.css'
 import { font } from './typography.css'
 
@@ -15,12 +16,16 @@ globalStyle(':root', {
     '--surface-secondary': colorVars.color.surface.secondary,
     '--surface-tertiary': colorVars.color.surface.tertiary,
     '--separator-border': colorVars.color.separator.border,
-    // Accent: the seed defaults to lavender but is swappable at runtime
-    // (applyAccent sets --accent on :root from the nexus config). -fill / -text
-    // are color-mix derivations, so swapping --accent alone recolors everything.
-    '--accent': colorVars.color.accent.base,
+    // Interaction states (Figma "States") — fills base #71717A at hover 2.5% / selected 5%.
+    '--state-hover': colorVars.color.state.hover,
+    '--state-selected': colorVars.color.state.selected,
+    // Accent: a pointer, never a baked color. The static seed is the default
+    // spectrum solid (DEFAULT_ACCENT); applyAccent overrides --accent at runtime
+    // from settings — any spectrum color, or the OS accent. -fill is a 15% tint
+    // of whatever --accent currently is; tinted accent text IS --accent itself.
+    '--accent': colorVars.color.solid[DEFAULT_ACCENT],
     '--accent-fill': 'color-mix(in srgb, var(--accent) 15%, transparent)',
-    '--accent-text': 'color-mix(in srgb, var(--accent) 70%, white)',
+    '--accent-text': 'var(--accent)',
     '--font-family': font.family
   }
 })

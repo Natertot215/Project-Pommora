@@ -7,11 +7,13 @@ export type ErrorCode =
   | 'not-found'
   | 'exists'
   | 'invalid-name'
+  | 'invalid-path'
   | 'invalid-property'
   | 'invalid-tier'
   | 'invalid-event'
   | 'not-agenda'
   | 'lossy-change-requires-confirmation'
+  | 'operation-failed'
 
 /** A structured, serializable error. `scope` names the entity/kind domain (free-form: an
  *  entity name like "page"/"agenda" or a SidecarKind), used for message context only. */

@@ -112,3 +112,64 @@ describe('readNexus — real test nexus (optional smoke)', () => {
     expect(Array.isArray(t.vaults)).toBe(true)
   })
 })
+
+describe('readNexus — accent setting', () => {
+  const roots: string[] = []
+  const mk = (settings: object): string => {
+    const root = mkdtempSync(join(tmpdir(), 'pom-accent-'))
+    roots.push(root)
+    d(join(root, '.nexus'))
+    w(join(root, '.nexus', 'nexus.json'), JSON.stringify({ schemaVersion: 1, id: 'nxa', createdAt: '2026' }))
+    w(join(root, '.nexus', 'settings.json'), JSON.stringify(settings))
+    return root
+  }
+  afterAll(() => roots.forEach((r) => rmSync(r, { recursive: true, force: true })))
+
+  it('reads a valid spectrum accent', async () => {
+    expect((await readNexus(mk({ accent: 'blue' }))).accent).toBe('blue')
+  })
+  it('passes through system', async () => {
+    expect((await readNexus(mk({ accent: 'system' }))).accent).toBe('system')
+  })
+  it('defaults when the accent is invalid', async () => {
+    expect((await readNexus(mk({ accent: 'chartreuse' }))).accent).toBe('lavender')
+  })
+  it('defaults when the accent is absent', async () => {
+    expect((await readNexus(mk({}))).accent).toBe('lavender')
+  })
+})
+
+describe('readNexus — container paths (nexus-relative, for mutation addressing)', () => {
+  let root: string
+  beforeAll(() => {
+    root = mkdtempSync(join(tmpdir(), 'pom-paths-'))
+    // Contexts (one per tier, under .nexus/<tier>/).
+    d(join(root, '.nexus', 'areas', 'Work'))
+    d(join(root, '.nexus', 'topics', 'Health'))
+    d(join(root, '.nexus', 'projects', 'Launch'))
+    // Type -> Collection -> Set -> Page.
+    d(join(root, 'Notes', 'Daily', 'Morning'))
+    w(join(root, '.nexus', 'nexus.json'), JSON.stringify({ schemaVersion: 1, id: 'nxp', createdAt: '2026' }))
+    w(join(root, '.nexus', 'settings.json'), '{}')
+    w(join(root, '.nexus', 'areas', 'Work', '_area.json'), JSON.stringify({ id: 'a1' }))
+    w(join(root, '.nexus', 'topics', 'Health', '_topic.json'), JSON.stringify({ id: 't1' }))
+    w(join(root, '.nexus', 'projects', 'Launch', '_project.json'), JSON.stringify({ id: 'p1' }))
+    w(join(root, 'Notes', '_pagetype.json'), JSON.stringify({ id: 'pt1' }))
+    w(join(root, 'Notes', 'Daily', '_pagecollection.json'), JSON.stringify({ id: 'c1' }))
+    w(join(root, 'Notes', 'Daily', 'Morning', '_pageset.json'), JSON.stringify({ id: 's1' }))
+    w(join(root, 'Notes', 'Daily', 'Morning', 'Entry.md'), '---\nid: e1\n---\n')
+  })
+  afterAll(() => rmSync(root, { recursive: true, force: true }))
+
+  it('carries each container + context path, POSIX-relative to the root', async () => {
+    const t = await readNexus(root)
+    expect(t.contexts.areas[0].path).toBe('.nexus/areas/Work')
+    expect(t.contexts.topics[0].path).toBe('.nexus/topics/Health')
+    expect(t.contexts.projects[0].path).toBe('.nexus/projects/Launch')
+    const notes = t.vaults[0]
+    expect(notes.path).toBe('Notes')
+    expect(notes.collections[0].path).toBe('Notes/Daily')
+    expect(notes.collections[0].sets[0].path).toBe('Notes/Daily/Morning')
+    expect(notes.collections[0].sets[0].pages[0].path).toBe('Notes/Daily/Morning/Entry.md')
+  })
+})

@@ -1,9 +1,10 @@
 import { createGlobalTheme } from '@vanilla-extract/css'
 
 // Color tokens mirrored from the Figma color collection: the solid spectrum,
-// label tones, backgrounds, overlay fills, interaction states, accent, and
-// separators. Per-component soft tints (e.g. chips) derive from the solids —
-// see chip.css.ts.
+// label tones, the window background, content surfaces, overlay fills,
+// interaction states, and separators. Per-component soft tints (e.g. chips) and
+// the runtime accent (a pointer to one of these solids) derive from these —
+// see chip.css.ts and theme-vars.css.ts.
 export const vars = createGlobalTheme(':root', {
   color: {
     solid: {
@@ -22,15 +23,18 @@ export const vars = createGlobalTheme(':root', {
     // Label tones on #F1F1F1 — text colors, separate from the type ramp.
     label: {
       primary: '#F1F1F1',
-      secondary: 'rgba(241, 241, 241, 0.65)',
-      tertiary: 'rgba(241, 241, 241, 0.35)'
+      secondary: '#F1F1F1A6',
+      tertiary: '#F1F1F159'
     },
-    // Window + surface backgrounds (Figma "Background").
+    // The app substrate — the base background (Figma "Background").
     background: {
+      window: '#1A1A1B'
+    },
+    // Content surfaces layered on the window (Figma "Surface").
+    surface: {
       primary: '#1E1E20',
       secondary: '#222224',
-      tertiary: '#2C2C2F',
-      window: '#1A1A1B'
+      tertiary: '#2C2C2F'
     },
     // Overlay fills over a surface — base #71717A at five alphas (Figma "Fills").
     fill: {
@@ -40,22 +44,16 @@ export const vars = createGlobalTheme(':root', {
       quaternary: '#71717A0F',
       quinary: '#71717A0A'
     },
-    // Interaction states (Figma "States").
+    // Interaction states (Figma "States") — fills base #71717A at hover 2.5% / selected 5%.
     state: {
-      hover: '#8E8E9305',
-      selected: '#8E8E9314'
+      hover: '#71717A06',
+      selected: '#71717A0D'
     },
-    // Accent = lavender (Figma "Accent").
-    accent: {
-      base: '#A78BCC',
-      fill: '#A78BCC26',
-      text: '#C0AEDD'
-    },
-    // Hairlines (Figma "Separator").
+    // Hairlines (Figma "Separator") — fills base #71717A at line/border 25% / segment 20%.
     separator: {
-      line: '#FFFFFF1F',
-      border: '#FFFFFF29',
-      segment: '#FFFFFF0F'
+      line: '#71717A40',
+      border: '#71717A40',
+      segment: '#71717A33'
     }
   }
 })

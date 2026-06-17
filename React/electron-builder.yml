@@ -1,0 +1,18 @@
+appId: com.pommora.app
+productName: Pommora
+directories:
+  output: release
+  buildResources: build
+files:
+  - out/**/*
+  - package.json
+# better-sqlite3 is a native module loaded in the Electron main (the live index).
+# Rebuild it against Electron's ABI on package, and keep the .node binary outside
+# the asar archive (dlopen can't load a native module from inside an asar).
+npmRebuild: true
+asarUnpack:
+  - '**/*.node'
+mac:
+  target: dir
+  identity: null # unsigned/ad-hoc — local preview build (right-click → Open first time)
+  category: public.app-category.productivity

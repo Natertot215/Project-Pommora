@@ -10,6 +10,6 @@ export const glassMaterial: CSSProperties = {
   background: 'transparent',
   backdropFilter: 'blur(5px) brightness(90%)',
   WebkitBackdropFilter: 'blur(5px) brightness(90%)',
-  border: '1px solid rgba(255, 255, 255, 0.16)',
-  boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.25), 0 8px 26px rgba(0, 0, 0, 0.28)'
+  border: '1px solid #FFFFFF29',
+  boxShadow: 'inset 0 1px 0 #FFFFFF40, 0 8px 26px #00000047'
 }

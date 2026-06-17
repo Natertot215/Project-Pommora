@@ -7,6 +7,7 @@ import { readdir, readFile } from 'node:fs/promises'
 import { basename, join } from 'node:path'
 import { parse as parseYaml } from 'yaml'
 import type {
+  AccentSetting,
   AreaColor,
   AreaNode,
   CollectionNode,
@@ -19,7 +20,7 @@ import type {
   TopicNode,
   UserSection
 } from '@shared/types'
-import { AREA_COLORS, DEFAULT_LABELS } from '@shared/types'
+import { ACCENT_COLORS, AREA_COLORS, DEFAULT_ACCENT, DEFAULT_LABELS } from '@shared/types'
 import { adoptedId } from './ids'
 import { pathExists, readJsonObject } from './io/atomicWrite'
 import { asString, asStringArray, basenameNoMd } from './coerce'
@@ -35,6 +36,8 @@ import {
 
 type Json = Record<string, unknown>
 type Fallback = 'id' | 'title'
+
+const ACCENT_COLOR_SET = new Set<string>(ACCENT_COLORS)
 
 // ---------- low-level helpers ----------
 
@@ -123,6 +126,7 @@ async function readSet(
     id: asString(meta.id) ?? adoptedId(relDir),
     title: name,
     icon: asString(meta.icon),
+    path: relDir,
     pages: resolveOrder(pages, asStringArray(meta.page_order), fb)
   }
 }
@@ -157,6 +161,7 @@ async function readCollection(
     id: asString(meta.id) ?? adoptedId(relDir),
     title: name,
     icon: asString(meta.icon),
+    path: relDir,
     sets: resolveOrder(sets, asStringArray(meta.set_order), fb),
     pages: resolveOrder(pages, asStringArray(meta.page_order), fb)
   }
@@ -193,6 +198,7 @@ async function readPageType(
     id: asString(meta.id) ?? adoptedId(relDir),
     title: name,
     icon: asString(meta.icon),
+    path: relDir,
     collections: resolveOrder(collections, asStringArray(meta.collection_order), fb),
     pages: resolveOrder(pages, asStringArray(meta.page_order), fb)
   }
@@ -221,7 +227,10 @@ async function readTier<T extends AreaNode | TopicNode | ProjectNode>(
       kind,
       id: asString(sc?.id) ?? adoptedId(`${tier}/${e.name}`),
       title: e.name,
-      icon: asString(sc?.icon)
+      icon: asString(sc?.icon),
+      // Contexts live under .nexus/<tier>/ — the real on-disk path a mutation resolves
+      // (distinct from the adoptedId seed above, which is layout-agnostic by design).
+      path: `.nexus/${tier}/${e.name}`
     } as T
     if (kind === 'area') {
       const c = sc?.color
@@ -250,6 +259,11 @@ export async function readNexus(root: string): Promise<NexusTree> {
       ? (settings.labels as Record<string, string>)
       : {}
   const labels = { ...DEFAULT_LABELS, ...userLabels }
+  const accentRaw = asString(settings.accent)
+  const accent: AccentSetting =
+    accentRaw === 'system' || (accentRaw != null && ACCENT_COLOR_SET.has(accentRaw))
+      ? (accentRaw as AccentSetting)
+      : DEFAULT_ACCENT
   const state = (await readJsonObject(nexusConfig(root, NEXUS_CONFIG_FILES.state))) ?? {}
   const savedConfig = (await readJsonObject(nexusConfig(root, NEXUS_CONFIG_FILES.savedConfig))) ?? {}
   const sectionsConfig = (await readJsonObject(nexusConfig(root, NEXUS_CONFIG_FILES.sidebarSections))) ?? {}
@@ -316,6 +330,7 @@ export async function readNexus(root: string): Promise<NexusTree> {
     contexts,
     vaults,
     userSections,
-    labels
+    labels,
+    accent
   }
 }

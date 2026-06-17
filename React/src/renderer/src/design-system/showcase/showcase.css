@@ -14,7 +14,7 @@ body {
 code {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 0.9em;
-  background: rgba(255, 255, 255, 0.06);
+  background: #FFFFFF0F;
   padding: 1px 5px;
   border-radius: 4px;
 }
@@ -30,7 +30,7 @@ code {
   letter-spacing: -0.01em;
 }
 .ds-sub {
-  color: rgba(241, 241, 241, 0.6);
+  color: #F1F1F199;
   margin-top: 8px;
   font-size: 13px;
 }
@@ -42,11 +42,11 @@ code {
   font-size: 11px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: rgba(241, 241, 241, 0.5);
+  color: #F1F1F180;
   font-weight: 600;
   margin: 0 0 20px;
   padding-bottom: 8px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid #FFFFFF14;
 }
 
 /* Colors */
@@ -58,8 +58,8 @@ code {
 .ds-swatch {
   border-radius: 10px;
   overflow: hidden;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: #FFFFFF08;
+  border: 1px solid #FFFFFF0F;
 }
 .ds-swatch-chip {
   height: 64px;
@@ -73,7 +73,7 @@ code {
 }
 .ds-swatch-hex {
   font-size: 11px;
-  color: rgba(241, 241, 241, 0.5);
+  color: #F1F1F180;
   font-variant-numeric: tabular-nums;
   margin-top: 2px;
 }
@@ -93,25 +93,25 @@ code {
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: rgba(241, 241, 241, 0.4);
+  color: #F1F1F166;
   font-weight: 600;
   padding-bottom: 14px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid #FFFFFF14;
   margin-bottom: 4px;
 }
 .ds-type-entry {
   padding: 12px 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid #FFFFFF0D;
 }
 .ds-type-entry-label {
   font-size: 11px;
-  color: rgba(241, 241, 241, 0.45);
+  color: #F1F1F173;
   margin-bottom: 8px;
 }
 .ds-type-entry-meta {
   display: block;
   font-size: 10px;
-  color: rgba(241, 241, 241, 0.3);
+  color: #F1F1F14D;
   margin-top: 2px;
 }
 .ds-type-entry-samples {
@@ -136,7 +136,7 @@ code {
   width: 84px;
   flex: none;
   font-size: 12px;
-  color: rgba(241, 241, 241, 0.5);
+  color: #F1F1F180;
 }
 
 /* Pending */
@@ -149,9 +149,9 @@ code {
   font-size: 12px;
   padding: 5px 11px;
   border-radius: 6px;
-  background: rgba(255, 255, 255, 0.05);
-  color: rgba(241, 241, 241, 0.6);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: #FFFFFF0D;
+  color: #F1F1F199;
+  border: 1px solid #FFFFFF14;
 }
 
 /* Icons — auto from the symbols registry */
@@ -167,13 +167,13 @@ code {
   gap: 8px;
   padding: 14px 8px;
   border-radius: 10px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: #FFFFFF08;
+  border: 1px solid #FFFFFF0F;
   color: var(--label-primary);
 }
 .ds-icon-name {
   font-size: 10px;
-  color: rgba(241, 241, 241, 0.5);
+  color: #F1F1F180;
   text-align: center;
   word-break: break-word;
 }
@@ -181,6 +181,69 @@ code {
 /* Materials — Pommora glass, draggable across three fields (see GlassStage) */
 .ds-mat-note {
   font-size: 12px;
-  color: rgba(241, 241, 241, 0.5);
+  color: #F1F1F180;
   margin-top: 10px;
+}
+
+/* Accent — live picker (sets --accent on :root; -fill / -text derive) */
+.ds-accent {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.ds-accent-swatches {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.ds-accent-chip {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  outline: none;
+  transition: transform 80ms ease;
+}
+.ds-accent-chip:hover {
+  transform: scale(1.08);
+}
+.ds-accent-chip.is-active {
+  box-shadow:
+    0 0 0 2px var(--bg-window),
+    0 0 0 4px var(--label-primary);
+}
+.ds-accent-chip.is-system {
+  border-style: dashed;
+  border-color: #FFFFFF80;
+}
+.ds-accent-samples {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.ds-accent-btn {
+  background: var(--accent);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 7px 14px;
+  border-radius: 8px;
+}
+.ds-accent-pill {
+  background: var(--accent-fill);
+  color: var(--accent-text);
+  border: 1px solid var(--accent);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 12px;
+  border-radius: 999px;
+}
+.ds-accent-link {
+  color: var(--accent-text);
+  font-size: 13px;
+  font-weight: 600;
 }

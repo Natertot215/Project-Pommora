@@ -18,7 +18,7 @@ Components reference **only** semantic tokens — never a raw hex or px. Re-skin
 
 ### The two rules
 
-1. **Components reference semantic tokens only** — `vars.color.accent`, never `#007AFF`.
+1. **Components reference semantic tokens only** — `vars.color.solid.cyan`, never `#007AFF`.
 2. **One folder per component** — the component, its styles, and its states live together.
 
 ### Tooling (planned — not yet wired)

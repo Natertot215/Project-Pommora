@@ -14,6 +14,7 @@ export function invalidName(name: string): boolean {
     !trimmed ||
     name.includes('/') ||
     name.includes('\\') ||
+    name.includes('\0') || // a NUL byte throws in fs calls — reject as a clean invalid-name
     name === '.' ||
     name === '..' ||
     /\.(md|task\.json|event\.json)$/i.test(trimmed)

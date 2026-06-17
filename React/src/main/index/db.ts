@@ -4,14 +4,19 @@
 // open failure returns null and the app degrades to file-only reads — the DB never blocks
 // anything (it's a pure accelerator, off the read path).
 
-import Database from 'better-sqlite3'
+import type DatabaseT from 'better-sqlite3'
 
-export type Db = Database.Database
+export type Db = DatabaseT.Database
 
 /** Open (creating if needed) a SQLite database at `path` — or null if it can't be opened
- *  (corrupt / locked / native-load failure). The caller degrades to file-only reads. */
+ *  (corrupt / locked / native-load failure). The caller degrades to file-only reads. The
+ *  module is required LAZILY (not a top-level import) so an ABI mismatch — e.g. a packaged
+ *  binary built for the wrong runtime — degrades to null here instead of throwing at module
+ *  load and crashing the app. Honors "the DB never blocks anything". */
 export function openDb(path: string): Db | null {
   try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const Database: typeof DatabaseT = require('better-sqlite3')
     const db = new Database(path)
     db.pragma('journal_mode = WAL')
     db.pragma('foreign_keys = ON')

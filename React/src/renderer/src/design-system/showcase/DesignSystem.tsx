@@ -187,11 +187,11 @@ export function DesignSystem() {
         <h2>Color · Accent — live</h2>
         <AccentDemo />
         <div className="ds-mat-note">
-          The accent is a single swappable token — pick a spectrum solid or <b>System</b>{' '}
-          (your Mac&apos;s accent). <code>--accent-fill</code> and <code>--accent-text</code>{' '}
-          derive from it, so one swap recolors everything. In the app it&apos;s driven by{' '}
-          <code>accent</code> in <code>.nexus/settings.json</code>; here it resets to lavender
-          on reload.
+          The accent is a single swappable pointer — pick a spectrum solid or <b>System</b>{' '}
+          (your Mac&apos;s accent). It&apos;s not a color of its own: <code>--accent-fill</code> is a
+          15% tint of <code>--accent</code> and accent text <i>is</i> <code>--accent</code>, so one
+          swap recolors everything. In the app it&apos;s driven by <code>accent</code> in{' '}
+          <code>.nexus/settings.json</code>; here it resets to the default solid on reload.
         </div>
       </section>
 

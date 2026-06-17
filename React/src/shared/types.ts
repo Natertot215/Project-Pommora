@@ -13,7 +13,7 @@ export type NodeKind =
 
 // Contexts tier-1 (Area) color palette — 10 cases, written once as the single source for
 // both the type and the runtime membership check (the reader + the areaSidecar schema both
-// derive from this). KEEP DISTINCT from the Settings accent palette (a separate 8-case enum).
+// derive from this). KEEP DISTINCT from the Settings accent palette (ACCENT_COLORS below).
 export const AREA_COLORS = [
   'gray',
   'brown',
@@ -28,6 +28,34 @@ export const AREA_COLORS = [
 ] as const
 export type AreaColor = (typeof AREA_COLORS)[number]
 
+// Settings accent palette — the spectrum solids usable as the app accent, plus
+// `system` (follow the OS accent). Names mirror the renderer's vars.color.solid
+// keys (color.css.ts); greyDefault is excluded (it's the chip "Default" neutral,
+// not an accent). resolveAccent (renderer) maps each name to its hex.
+export const ACCENT_COLORS = [
+  'red',
+  'orange',
+  'yellow',
+  'green',
+  'lightBlue',
+  'cyan',
+  'blue',
+  'purple',
+  'lavender',
+  'grey'
+] as const
+export type AccentColor = (typeof ACCENT_COLORS)[number]
+
+/** The `accent` value in .nexus/settings.json: a spectrum solid, or follow-the-OS. */
+export type AccentSetting = AccentColor | 'system'
+
+/**
+ * Default accent when settings.json omits or has an invalid `accent`. A concrete
+ * spectrum color (never `system`) so it always resolves to a hex and can seed the
+ * static `--accent`. Users opt into `system` explicitly.
+ */
+export const DEFAULT_ACCENT: AccentColor = 'lavender'
+
 export interface BaseNode {
   id: string
   kind: NodeKind
@@ -37,45 +65,54 @@ export interface BaseNode {
   icon?: string
 }
 
+/**
+ * A node backed by a real file or folder on disk, carrying its nexus-relative
+ * POSIX path so a mutation can address it: the renderer sends `path` back and
+ * main resolves it under the session root (the renderer must never reconstruct
+ * the on-disk path — that layout is main's to know). Pages + every container are
+ * PathNodes; only the code-keyed SavedNode (homepage/calendar/recents) is not.
+ */
+export interface PathNode extends BaseNode {
+  /** Nexus-relative POSIX path to the entity on disk (forward slashes). */
+  path: string
+}
+
 export interface SavedNode extends BaseNode {
   kind: 'saved'
   /** Code-fixed identity; label is renameable, key is not. */
   key: 'homepage' | 'calendar' | 'recents'
 }
 
-export interface AreaNode extends BaseNode {
+export interface AreaNode extends PathNode {
   kind: 'area'
   color?: AreaColor
 }
 
-export interface TopicNode extends BaseNode {
+export interface TopicNode extends PathNode {
   kind: 'topic'
 }
 
-export interface ProjectNode extends BaseNode {
+export interface ProjectNode extends PathNode {
   kind: 'project'
 }
 
-export interface PageNode extends BaseNode {
+export interface PageNode extends PathNode {
   kind: 'page'
-  /** frontmatter id, or a synthesized `adopted-<hash>` when absent. */
-  /** Nexus-relative POSIX path to the `.md` file (forward slashes). */
-  path: string
 }
 
-export interface SetNode extends BaseNode {
+export interface SetNode extends PathNode {
   kind: 'set'
   selectable: false
   pages: PageNode[]
 }
 
-export interface CollectionNode extends BaseNode {
+export interface CollectionNode extends PathNode {
   kind: 'collection'
   sets: SetNode[] // rendered before pages
   pages: PageNode[]
 }
 
-export interface PageTypeNode extends BaseNode {
+export interface PageTypeNode extends PathNode {
   kind: 'pageType'
   collections: CollectionNode[] // rendered before pages
   pages: PageNode[]
@@ -107,12 +144,19 @@ export interface NexusTree {
   vaults: PageTypeNode[]
   userSections: UserSection[]
   labels: NexusLabels
+  /** Resolved app accent from .nexus/settings.json (defaults to DEFAULT_ACCENT). */
+  accent: AccentSetting
 }
 
-/** Single IPC read result envelope — never throws across the boundary. */
-export type OpenResult =
-  | { ok: true; tree: NexusTree }
-  | { ok: false; error: string }
+/**
+ * The renderer's view of what's open, from the `nexus:state` read. `empty` = no
+ * nexus open (show the empty state, not an error); `open` = open + read OK;
+ * `error` = a nexus is open but its tree couldn't be read. Never throws across IPC.
+ */
+export type NexusState =
+  | { status: 'empty' }
+  | { status: 'open'; tree: NexusTree }
+  | { status: 'error'; error: string }
 
 /** On-demand single-page read result envelope — never throws across the boundary. */
 export type PageResult =
