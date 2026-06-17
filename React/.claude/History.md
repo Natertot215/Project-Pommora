@@ -14,6 +14,7 @@ Key commits: `823ee65` skeleton · `50e37c5` CommonJS main/preload + sandbox + R
 
 ### Locked decisions
 
+- **One repo, one `main` (2026-06-16).** React is a sub-project of Project Pommora under `React/` — the *same app* as the Swift build, built differently. The earlier standalone `Pommora - React` checkout (React-at-root, subtree-merged into the monorepo) was **retired**: its full Phase 0–3 write path + tokenized design system resynced into `React/` and committed on `main`, byte-identical, with manual `main` tweaks preserved. No more two-repo / subtree sync.
 - **CommonJS main/preload** (not `type: module`) — ESM `require('electron')` named imports fail at runtime; CJS also keeps the preload sandboxable.
 - **`sandbox: true` + `contextIsolation: true` + `nodeIntegration: false`.**
 - **No SQLite on the read path** — a single fs walk is the source (proven against the Swift sidebar's own behavior); SQLite returns later only as a regeneratable query accelerator.

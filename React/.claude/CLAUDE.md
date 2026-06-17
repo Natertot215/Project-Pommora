@@ -5,7 +5,7 @@
 A React + TypeScript + Electron rebuild of Pommora ("a simpler Notion that's also a more capable Obsidian"), **behavior-identical to the PRD** — SwiftUI is left behind. The product spec, domain model, and on-disk paradigm are the same as the Swift app; only the "how" changes.
 
 - **Product truth** lives in the Swift project: `// Projects // Project Pommora // .claude // PommoraPRD.md` (+ its `Features/*`). Don't re-document the domain model here — reference it.
-- **This project is the rebuild.** Its docs cover the React/TS/Electron *how* and the build's state.
+- **This is a sub-project of Project Pommora** — the React + Electron rebuild, living at `React/` on the monorepo `main` (one repo, one `main`). It's the *same app* as the Swift build, just built differently. These docs (`React/.claude/`) cover the React/TS/Electron *how* and the build's state; shared product truth lives at the repo root. The former standalone `Pommora - React` checkout is **retired** — all React work happens here.
 - **Live design-system showcase:** https://pommora-design-system.vercel.app — Vercel, deploys from the `React/` folder of the `Project-Pommora` monorepo on `main`.
 - **Figma library (source of design):** https://www.figma.com/file/fYZ5oiK7stC3diRhaBHl1r — canonical design values; mirror changes here into the tokens.
 
