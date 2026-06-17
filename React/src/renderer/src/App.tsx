@@ -17,10 +17,10 @@ export function App(): React.JSX.Element {
         <DetailPane />
       </main>
       <Surface>
-        {status === 'loading' && <div className="state">Loading nexus…</div>}
+        {status === 'loading' && <div className="state">Loading Nexus…</div>}
         {status === 'error' && (
           <div className="state state-error">
-            Couldn’t open nexus
+            Couldn’t Open Nexus
             <span className="state-detail">{error}</span>
           </div>
         )}

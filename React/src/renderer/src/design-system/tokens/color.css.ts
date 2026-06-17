@@ -27,9 +27,9 @@ export const vars = createGlobalTheme(':root', {
     },
     // Window + surface backgrounds (Figma "Background").
     background: {
-      primary: '#222225',
-      secondary: '#252528',
-      tertiary: '#333336',
+      primary: '#1E1E20',
+      secondary: '#222224',
+      tertiary: '#2C2C2F',
       window: '#1A1A1B'
     },
     // Overlay fills over a surface — base #71717A at five alphas (Figma "Fills").

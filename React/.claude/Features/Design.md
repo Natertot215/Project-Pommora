@@ -37,12 +37,10 @@ Rules: components reference **semantic tokens only** (never raw hex); one folder
 
 #### Chips — one mode-driven component + a unified tint
 
-Chip color is a Figma **variable-mode picker**: the `Color` collection has **10 modes** (Blue, Green, Purple, Lavender, Cyan, Light Blue, Orange, Yellow, Grey, Default — **no red**), each holding a single `Base` (the solid, aliased). Selecting a mode recolors the whole chip. The **unified tint is the base at three opacities** — no custom colors, no lightening:
+Chip color is a Figma **variable-mode picker**: the `Color` collection has **11 modes** (Red, Blue, Green, Purple, Lavender, Cyan, Light Blue, Orange, Yellow, Grey, Default ), selecting a mode recolors the whole chip. The **unified tint is the base color at three opacities** — no custom colors, no lightening:
 
 - **Fill** = base @ **60%** · **stroke** = base @ **40%** (2px; **1.5px** for Checkbox) · **text** = `label-primary` + base @ **10%** (near-white with a faint color tint).
 - **Shapes:** Pill (text) and Select (icon-only) are **h20 pills** (radius 10); **Checkbox** is a **17×17 square** (radius 5.5) holding a checkmark.
-
-Soft only — no Solid variant. The Figma showcase master shows a representative color (Blue); a chip's neutral fallback is the **Default** mode (Figma's collection default mode is read-only, so setting the master to Default just greys the showcase — the neutral default lives in the React component). In code (`chip.css.ts`): one `tint(base)` formula generates `chipColor.*` via `color-mix` — fill / stroke are the base at alpha, the text mixes 10% base into `label-primary`. Code includes **red** too (11 colors) — the 10-mode cap is a Figma-only limit.
 
 #### Accent
 
