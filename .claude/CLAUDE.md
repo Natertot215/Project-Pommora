@@ -56,7 +56,7 @@ Locked to **SwiftUI**. **Editor = TextKit 2 + Apple `swift-markdown` + the Pommo
 
 - **"Pommora" prohibited in on-disk schemas + Swift namespace qualifications.** Brand name reserved for the module name (`Pommora` Swift module), app branding, and documentation. NOT allowed in:
   - On-disk JSON field names (no `pommora_*` keys)
-  - Swift type qualifications used as a discriminator pattern (no `Pommora.X` workarounds for stdlib collisions; use side-prefixed names like `AgendaTask` instead of `Pommora.Task`)
+  - Swift type qualifications used as a discriminator pattern (no `Pommora.X` workarounds for stdlib collisions; use side-prefixed names like `AgendaTask` instead of `Pommora.Task`). The canonical entity names are **Task** and **Event**; `AgendaTask` / `AgendaEvent` are the collision-safe code-type forms only (the `Agenda` prefix dodges Swift's `Task`) — never the product name.
 
   Existing `pommora_table_widths` (page editor) is grandfathered for v0.3.0; rename when Tables ship.
 

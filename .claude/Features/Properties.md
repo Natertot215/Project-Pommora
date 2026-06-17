@@ -19,8 +19,8 @@ Each entity belongs to one Type. Every Type carries a schema in its per-kind sid
 | Type | Schema sidecar |
 |---|---|
 | Page Type | `<Type>/_pagetype.json` |
-| AgendaTask (singleton) | `<Tasks>/_taskconfig.json` |
-| AgendaEvent (singleton) | `<Events>/_eventconfig.json` |
+| Task (singleton) | `<Tasks>/_taskconfig.json` |
+| Event (singleton) | `<Events>/_eventconfig.json` |
 
 Schemas declare which properties exist on the Type, what type each property is, and any per-type config (option lists, relation targets, etc.). Member entities store property VALUES conforming to that schema.
 
@@ -185,11 +185,11 @@ Group position first (`upcoming < in_progress < done` ascending), then option or
 
 | Schema | Status built-in? | Notes |
 |---|---|---|
-| **AgendaTask** (`_taskconfig.json`) | **Yes** — required, non-deletable. | Default seed includes the 3 groups with one starter option each. EventKit sync (deferred) maps the 3 groups to `EKReminder.isCompleted`: `upcoming` / `in_progress` → `false`; `done` → `true`. |
-| **AgendaEvent** (`_eventconfig.json`) | **Yes** — required, non-deletable. | Same 3 EventKit-aligned groups as AgendaTask. User-set (decoupled from `start_at` / `end_at` date math — the user marks status to track their own engagement with the event). EventKit mapping deferred. |
+| **Task** (`_taskconfig.json`) | **Yes** — required, non-deletable. | Default seed includes the 3 groups with one starter option each. EventKit sync (deferred) maps the 3 groups to `EKReminder.isCompleted`: `upcoming` / `in_progress` → `false`; `done` → `true`. |
+| **Event** (`_eventconfig.json`) | **Yes** — required, non-deletable. | Same 3 EventKit-aligned groups as Task. User-set (decoupled from `start_at` / `end_at` date math — the user marks status to track their own engagement with the event). EventKit mapping deferred. |
 | **Page Types** | **No.** | Not auto-seeded. Users add manually via Vault Settings. When added, the same 3-group structure applies. |
 
-Reserved property ID `_status` on both AgendaTask and AgendaEvent schemas. Users cannot delete it via the schema editor.
+Reserved property ID `_status` on both the Task and Event schemas. Users cannot delete it via the schema editor.
 
 ---
 
@@ -291,7 +291,7 @@ Enforced at every write to a Type's per-kind sidecar (schema-level) and to each 
 3. Property `id` uniqueness within the Type.
 4. Reserved property IDs are blocked from user-defined properties (canonical list in § Property identity vs name).
 5. Select / Multi-select: at least one option; option `value` uniqueness within property.
-6. Built-in `_status` on the AgendaTask and AgendaEvent schemas is non-deletable.
+6. Built-in `_status` on the Task and Event schemas is non-deletable.
 
 **Value-level:**
 
@@ -434,7 +434,7 @@ The full property data layer (all 10 types, ID-truth identity, schema CRUD on al
 
 - [[Domain-Model]] — 2-layer domain model overview
 - [[PageTypes]] — Page Type + Page Collection container layer
-- [[Agenda]] — AgendaTask + AgendaEvent split; per-side schemas
+- [[Agenda]] — Task + Event split; per-side schemas
 - [[Contexts]] — Areas / Topics / Projects tier system
 - [[Pages]] — on-disk shape, connection mechanics
 - [[Prospects]] — post-v1 deferrals

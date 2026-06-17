@@ -69,7 +69,7 @@ Per-view configuration (Sort / Filter / Group / Layout) lives in the active-view
 
 #### No Page Type templates
 
-Page Type creation does NOT seed default properties — name + icon only. Users add Status (or anything else) manually via Page Type Settings → Edit Properties. Status is built-in on AgendaTask and AgendaEvent (where EventKit needs it); on user-created Page Types it is opt-in. Content-level templates (Notion-style pre-fill at creation) are not part of v1.
+Page Type creation does NOT seed default properties — name + icon only. Users add Status (or anything else) manually via Page Type Settings → Edit Properties. Status is built-in on Tasks and Events (where EventKit needs it); on user-created Page Types it is opt-in. Content-level templates (Notion-style pre-fill at creation) are not part of v1.
 
 ---
 
