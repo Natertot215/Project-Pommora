@@ -47,3 +47,4 @@ The GUI only launches with `ELECTRON_RUN_AS_NODE` **unset** (this env has it set
 - `Features/Architecture.md` — the data/read/IPC architecture.
 - `Guidelines/` — build gotchas + decisions not to repeat.
 - `Planning/` — active plans (Phase specs).
+- `Deployment.md` — Vercel showcase deploy (where to point + settings).

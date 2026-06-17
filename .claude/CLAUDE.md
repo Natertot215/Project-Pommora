@@ -13,7 +13,7 @@ A simpler Notion that's also a more capable Obsidian. **2-layer PARA-aligned dom
 
 A second operational entity ("Items") existed until the 2026-06 PagesV2 collapse into Pages — see `History.md` + the `PommoraPRD.md` retrospective.
 
-**Two builds, one app.** Project Pommora is the umbrella for the *same product* built two ways — the **Swift / SwiftUI** native app (repo root; this `.claude/`) and the **React + Electron** rebuild (sub-project under `React/`, with its own `React/.claude/`). Same PRD, domain model, and on-disk paradigm; only the implementation differs. Both live in **one repo on one `main`** — there is no separate React checkout.
+**Two builds, one app.** Project Pommora is the umbrella for the *same product* built two ways — the **Swift / SwiftUI** native app (repo root; this `.claude/`) and the **React + Electron** rebuild (sub-project under `React/`, with its own `React/.claude/`). Same PRD, domain model, and on-disk paradigm; only the implementation differs. Both live in **one repo on one `main`** — there is no separate React checkout. **When working on React, `React/.claude/` is authoritative** (start at `React/.claude/Handoff.md`); the root `.claude/` governs the Swift build + shared product truth.
 
 #### Stack
 
