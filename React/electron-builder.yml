@@ -10,6 +10,20 @@ files:
 # Rebuild it against Electron's ABI on package, and keep the .node binary outside
 # the asar archive (dlopen can't load a native module from inside an asar).
 npmRebuild: true
+# Strip non-en locale packs from the bundled Electron framework (~0.5 MB on macOS).
+electronLanguages:
+  - en
+# Release hardening — disable Electron's Node-surface back-doors in the PACKAGED
+# binary only (the dev node_modules binary is untouched, so the GUI launch + the
+# better-sqlite3 ABI check still work). resetAdHocDarwinSignature re-seals the
+# fuse-flipped Mach-O so an Apple-Silicon ad-hoc build still launches. The asar-
+# integrity + onlyLoadAppFromAsar fuses are deferred to Developer-ID signing
+# (bypassable + crash-prone on an ad-hoc build).
+electronFuses:
+  runAsNode: false
+  enableNodeOptionsEnvironmentVariable: false
+  enableNodeCliInspectArguments: false
+  resetAdHocDarwinSignature: true
 asarUnpack:
   - '**/*.node'
 mac:
