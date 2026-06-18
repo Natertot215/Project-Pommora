@@ -11,16 +11,13 @@ import {
 } from 'react'
 import { createPortal } from 'react-dom'
 import { useFeel } from './feel'
-import type { Box, DragItem, DropState } from './engine'
+import { ACTIVATION, SETTLE_FALLBACK, px, toBox, type Box, type DragItem, type DropState } from './shared'
 
 // Cross-list drag (the board). A DragGroup owns the one active drag across its zones. No
 // array churn: the lifted card is hidden in its source column and rendered as a portal overlay
 // under the cursor; every column just shifts its items by one slot-pitch to show where the card
 // would land. The move commits once, on drop (decide-then-animate). Each zone's rects are frozen
 // the first time the drag enters it (measured before any shift), mirroring the single-zone engine.
-
-const ACTIVATION = 5
-const SETTLE_FALLBACK = 80
 
 type ZoneReg = { ids: string[]; els: Map<string, HTMLElement>; container: HTMLElement | null }
 type ActiveDrag = { id: string; zone: string; srcIdx: number; pitch: number; rect: Box }
@@ -111,8 +108,7 @@ export function DragGroup({ onCommit, renderOverlay, children }: DragGroupProps)
     for (const id of z.ids) {
       const el = z.els.get(id)
       if (!el) continue
-      const r = el.getBoundingClientRect()
-      out.push({ left: r.left, top: r.top, width: r.width, height: r.height, cx: r.left + r.width / 2, cy: r.top + r.height / 2 })
+      out.push(toBox(el))
     }
     return out
   }
@@ -304,7 +300,7 @@ export function DragGroup({ onCommit, renderOverlay, children }: DragGroupProps)
       na = oi - 1
     }
     if (zoneId === overZone && na >= overIndex) dy += active.pitch
-    return { transform: `translate3d(0, ${dy.toFixed(1)}px, 0)`, hidden: false, animate: dropState !== 'idle' }
+    return { transform: `translate3d(0, ${px(dy)}, 0)`, hidden: false, animate: dropState !== 'idle' }
   }
 
   // Unmount mid-drag (navigate away while dragging): pull the captured-pointer listeners and
@@ -334,8 +330,8 @@ export function DragGroup({ onCommit, renderOverlay, children }: DragGroupProps)
           height: active.rect.height,
           transform:
             dropState === 'dropping' && dropTarget
-              ? `translate3d(${dropTarget.x.toFixed(1)}px, ${dropTarget.y.toFixed(1)}px, 0)`
-              : `translate3d(${delta.x.toFixed(1)}px, ${delta.y.toFixed(1)}px, 0)`,
+              ? `translate3d(${px(dropTarget.x)}, ${px(dropTarget.y)}, 0)`
+              : `translate3d(${px(delta.x)}, ${px(delta.y)}, 0)`,
           transition: dropState === 'dropping' ? `transform ${feel.duration}ms ${feel.easing}` : 'none',
           pointerEvents: 'none',
           zIndex: 1000

@@ -5,7 +5,6 @@ import {
   useMemo,
   useRef,
   useState,
-  type CSSProperties,
   type KeyboardEvent as ReactKeyboardEvent,
   type PointerEvent as ReactPointerEvent,
   type ReactNode
@@ -14,6 +13,7 @@ import { useFeel, type Feel } from './feel'
 import { autoScroll, findScroller } from './autoscroll'
 import { announce, ensureInstructions, INSTRUCTIONS_ID } from './a11y'
 import { ARROW_DIRS, keyboardNext } from './keyboard'
+import { ACTIVATION, HYSTERESIS, SETTLE_FALLBACK, px, toBox, type Box, type DragItem, type DragNotify, type DropState, type Modifier } from './shared'
 
 // The single-zone drag engine. Replaces dnd-kit behind the seam for every standalone
 // surface (list, grid, table, each tree level). Principles, grounded in the dnd-kit dissection:
@@ -29,24 +29,6 @@ import { ARROW_DIRS, keyboardNext } from './keyboard'
 //   • Constraints are inline options: `axis` lock, `bounds` clamp, plus a `modifiers` escape hatch.
 //   • Auto-scroll: rAF loop scrolls the nearest container at the edges, compensated into the drag.
 //   • Accessible: focusable handle + assertive live-region announcements + restored focus on drop.
-
-export type Box = { left: number; top: number; width: number; height: number; cx: number; cy: number }
-export type DropState = 'idle' | 'dragging' | 'dropping' | 'pending'
-export type Modifier = (t: { x: number; y: number }, ctx: { activeRect: Box; bounds: Box | null }) => { x: number; y: number }
-
-export type DragNotify = {
-  onDragStart?: (e: { activeId: string }) => void
-  onDragOver?: (e: { activeId: string; overId: string | null }) => void
-  onDragEnd?: (e: { activeId: string; overId: string | null }) => void
-  onDragCancel?: (e: { activeId: string }) => void
-}
-
-export type DragItem = {
-  setNodeRef: (el: HTMLElement | null) => void
-  style: CSSProperties
-  handle: Record<string, unknown>
-  isDragging: boolean
-}
 
 type ZoneValue = {
   ids: string[]
@@ -66,10 +48,6 @@ type ZoneValue = {
   liftKeyboard: (id: string) => void
 }
 const ZoneCtx = createContext<ZoneValue | null>(null)
-
-const ACTIVATION = 5 // px the pointer must travel before a drag starts (vs. a click)
-const HYSTERESIS = 6 // px a new candidate must beat the current `over` by, to switch — kills flicker
-const SETTLE_FALLBACK = 80 // ms slack past the transition for the commit fallback (paint-start delay)
 
 export type ZoneProps = DragNotify & {
   ids: string[]
@@ -166,8 +144,7 @@ export function Zone({
     for (const id of idsRef.current) {
       const el = els.current.get(id)
       if (!el) return null
-      const r = el.getBoundingClientRect()
-      out.push({ left: r.left, top: r.top, width: r.width, height: r.height, cx: r.left + r.width / 2, cy: r.top + r.height / 2 })
+      out.push(toBox(el))
     }
     return out
   }
@@ -467,8 +444,6 @@ export function Zone({
   )
   return <ZoneCtx.Provider value={value}>{children}</ZoneCtx.Provider>
 }
-
-const px = (n: number): string => `${n.toFixed(1)}px`
 
 function resolveBounds(kind: 'parent' | 'window' | undefined, rects: Box[]): Box | null {
   if (kind === 'window') return { left: 0, top: 0, width: window.innerWidth, height: window.innerHeight, cx: 0, cy: 0 }

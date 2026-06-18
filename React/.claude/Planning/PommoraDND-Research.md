@@ -1,6 +1,6 @@
 # PommoraDND — Research & Build Plan (V2)
 
-Status: **V2 — review-certified; Phases 0–2 + 4 + 5 + 6 built, each adversarially reviewed + fixed.** Seam unify · single-zone engine · cross-list board · constraints (axis/bounds/modifiers/swap/async-reject) · auto-scroll · keyboard + ARIA — all in the Interaction Lab; typecheck + 298 tests green (12 new pure-fn tests). `@dnd-kit` is import-free across the codebase. **Phase 3 (tree cross-level reparenting)** deferred as a decision — within-level works; reparenting is pure drop-feel needing visual iteration (flatten+project+rebuild approach in `Features/DragAndDrop.md`). **Phase 7 (prune the `@dnd-kit` dep)** gated on proven parity — deps kept until Nathan visually verifies. **Live drag-feel visual verification pending across all phases** (the agent can't drive the GUI). Durable spec → `Features/DragAndDrop.md`.
+Status: **APPROVED 2026-06-18 — PommoraDND is the engine; `@dnd-kit` removed.** All phases built + adversarially reviewed + fixed (seam unify · single-zone engine · cross-list board · constraints · auto-scroll · keyboard + ARIA); a final closeout review came back correctness-clean; shared types/constants/helpers extracted to `shared.ts`. Nathan visually verified the Lab and approved → `@dnd-kit/*` **uninstalled** (import-free, gone from `package.json`). Code identifiers carry no `pommora` brand (renamed: `engine.tsx` / `group.tsx` / `Zone` / `useZoneItem` / …). Typecheck + 298 tests green. **Remaining (deferred decisions):** tree **cross-level** reparenting (within-level works; flatten+project+rebuild approach in `Features/DragAndDrop.md`) · **board keyboard** access · real-app adoption (sidebar tree, view rows). Durable spec → `Features/DragAndDrop.md`.
 
 A from-scratch drag-and-drop engine replacing `@dnd-kit/*`, behind a unified thin seam (`SortableZone` / `useDragItem`, later `useArea`). Scope is **full dnd-kit feature parity** — keyboard drag, screen-reader support, auto-scroll, the lot — trimmed later if unused, never up front. dnd-kit stays installed until PommoraDND reaches parity in the Interaction Lab, then it's removed.
 
@@ -132,7 +132,7 @@ Each ships as a green commit, verified live in the Lab (`npm run showcase` → `
 
 ## Manual Inspection & Approval Gate (Nathan)
 
-The engine was built and reviewed without live visual verification (the agent can't drive the GUI). It is **not approved** until this gate is passed by manual inspection in the Lab (`npm run showcase` → `interactions.html`). Faithful surfaces should behave like dnd-kit; anything that doesn't is a **bug**, not a preference. Check each; note failures inline.
+Built and reviewed without live verification, then **inspected and APPROVED by Nathan on 2026-06-18** — `@dnd-kit` removed and the engine adopted as Pommora's own. This list is retained as the record of what was verified and the template for re-checking after future changes. Faithful surfaces behave like dnd-kit; anything that doesn't is a **bug**, not a preference.
 
 **Per-surface drag feel**
 - [ ] **List** — drag a row up/down; neighbours open the gap smoothly; drop settles with no lurch (beyond the accepted micro-jerk).
@@ -168,5 +168,5 @@ The engine was built and reviewed without live visual verification (the agent ca
 - [ ] Pick-up / move / drop / cancel are announced with position ("item 3 of 8").
 
 **Sign-off**
-- [ ] **APPROVED** — all of the above pass. → then prune the `@dnd-kit` dependency (Phase 7) and the engine is parity-proven.
-- Failures / notes: _______________________________________________
+- [x] **APPROVED — 2026-06-18 (Nathan).** Lab inspection passed; `@dnd-kit` pruned; PommoraDND is the engine.
+- Failures / notes: none blocking — accepted residual is the aggressive-drag drop micro-jerk.

@@ -1,4 +1,4 @@
-import type { Box } from './engine'
+import type { Box } from './shared'
 
 // Keyboard-drag direction model. Geometric and strategy-agnostic, like the pointer collision: from
 // the current slot, an arrow picks the nearest slot that lies AHEAD in that direction, biased toward

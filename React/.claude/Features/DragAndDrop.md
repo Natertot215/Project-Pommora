@@ -37,7 +37,9 @@ The **Interaction Lab** (`design-system/interactions/`, served via `npm run show
 
 ### Relationship to dnd-kit
 
-`@dnd-kit/*` remains installed while PommoraDND reaches feature parity in the Lab; it is removed at cutover. The engine is **not** a 1:1 reimplementation — it deliberately drops generality we don't need (the framework-agnostic core, three input sensors, four collision strategies, the modifier pipeline, SSR guards, continuous re-measuring) and adds improvements dnd-kit lacks (pointer capture, hysteresis, no mid-drag array churn, a frame-accurate commit). The full kept/simplified/dropped ledger is in `Planning/PommoraDND-Research.md`.
+`@dnd-kit/*` has been **fully replaced and uninstalled** — PommoraDND is the drag engine, with no `@dnd-kit` dependency or import anywhere. It was **not** a 1:1 reimplementation — it deliberately drops generality we don't need (the framework-agnostic core, three input sensors, four collision strategies, the modifier pipeline, SSR guards, continuous re-measuring) and adds improvements dnd-kit lacks (pointer capture, hysteresis, no mid-drag array churn, a frame-accurate commit). The full kept/simplified/dropped ledger is in `Planning/PommoraDND-Research.md`.
+
+Shared types (`Box` / `DropState` / `DragItem` / `DragNotify` / `Modifier`), the tuning constants, and the pure helpers (`toBox`, `px`) live in `shared.ts`, consumed by both `engine.tsx` and `group.tsx`. The two engines' drag-state and commit machinery stay separate — they model genuinely different interactions (in-place transform vs portal overlay), so only the shared primitives are hoisted.
 
 ### Constraints, auto-scroll, accessibility (built)
 

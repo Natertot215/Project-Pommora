@@ -1,6 +1,7 @@
 import { type ReactNode } from 'react'
-import { Zone, useZoneItem, type DragItem, type DragNotify, type Modifier } from './engine'
+import { Zone, useZoneItem } from './engine'
 import { DragGroup, GroupZone, useGroupedDragItem, type DragGroupProps } from './group'
+import type { DragItem, DragNotify, Modifier } from './shared'
 
 // The drag seam. Surfaces import ONLY from here — the engine lives behind it.
 //

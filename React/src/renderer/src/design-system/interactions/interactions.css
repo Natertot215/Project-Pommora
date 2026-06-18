@@ -1,4 +1,4 @@
-/* Interaction Lab (dnd-kit, barebones). Sorting transitions come from JS (useDragItem);
+/* Interaction Lab. Sorting transitions come from JS (useDragItem);
    the tree's expand + caret use the same feel via the --ix-dur / --ix-ease CSS vars. */
 
 .ix-wrap {
@@ -109,7 +109,7 @@
   text-align: right;
 }
 
-/* Reset every list Motion/dnd renders (ul). */
+/* Reset list spacing (ul). */
 .ix-vlist,
 .ix-tree,
 .sx-list,

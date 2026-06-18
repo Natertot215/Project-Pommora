@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest'
-import { reflow, type Box } from './engine'
+import { reflow } from './engine'
 import { autoScroll } from './autoscroll'
+import type { Box } from './shared'
 import { keyboardNext, ARROW_DIRS } from './keyboard'
 
 // A column of uniform 10px-tall slots at y = 0,10,20,...
