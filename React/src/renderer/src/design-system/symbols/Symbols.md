@@ -35,6 +35,7 @@ Pommora's React icons come from **Lucide** ([lucide.dev/icons](https://lucide.de
 - `arrow-left-right`
 - `arrow-up-down`
 - `log-in` (Create Inverse)
+- `log-out` (Sidebar collapse/expand — flipped = collapse, normal = expand)
 - `key-round`
 - `lock` (Needs Edits)
 - `square-plus`

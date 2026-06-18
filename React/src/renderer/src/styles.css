@@ -51,11 +51,20 @@ textarea,
 .titlebar {
   position: absolute;
   top: 0;
-  left: 0;
+  /* Start past the sidebar so it never overlays it — the sidebar is its own drag region.
+     (Overlaying stole the hover from the collapse button as the cursor approached it.) */
+  left: calc(var(--glass-inset) + var(--sidebar-width) + var(--glass-inset));
   right: 0;
   height: 38px;
   z-index: 2;
   -webkit-app-region: drag;
+  transition: left 200ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.shell.sidebar-hidden .titlebar {
+  left: 0;
+}
+.shell.is-resizing .titlebar {
+  transition: none;
 }
 
 /* Main view fills the whole window — the opaque window background the glass samples. */
@@ -73,11 +82,23 @@ textarea,
   top: var(--glass-inset);
   left: var(--glass-inset);
   bottom: var(--glass-inset);
-  width: 264px;
+  width: var(--sidebar-width);
   z-index: 1;
   border-radius: var(--glass-radius);
   overflow: hidden;
   -webkit-app-region: drag;
+  transition: transform 200ms cubic-bezier(0.22, 1, 0.36, 1), opacity 150ms ease;
+}
+/* Collapsed: slide the panel off the left edge + fade; the detail reclaims the gutter. */
+.shell.sidebar-hidden .surface-glass {
+  transform: translateX(calc(-100% - var(--glass-inset) - 14px));
+  opacity: 0;
+  pointer-events: none;
+}
+/* During an edge-drag resize, track the cursor 1:1 (no easing lag). */
+.shell.is-resizing .surface-glass,
+.shell.is-resizing .detail {
+  transition: none;
 }
 
 /* --- sidebar content (empty in the Phase-1 glass mockup) --- */
@@ -87,6 +108,60 @@ textarea,
   padding: 46px 10px 12px;
   overflow-y: auto;
   height: 100%;
+}
+
+/* Sidebar collapse / expand toggle (log-out glyph — flipped = collapse, normal = expand).
+   Both no-drag + clickable; icon in label-secondary, lifting to primary on hover. */
+.sidebar-toggle {
+  -webkit-app-region: no-drag;
+  position: absolute;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--label-secondary);
+  cursor: pointer;
+  transition: opacity 120ms ease, color 120ms ease, background 120ms ease;
+}
+.sidebar-toggle:hover {
+  color: var(--label-primary);
+  background: var(--hover);
+}
+.sidebar-toggle .flip-x {
+  transform: scaleX(-1);
+}
+/* Collapse — sidebar top-right, in-line with the traffic lights; revealed on sidebar hover. */
+.sidebar-collapse {
+  top: 7px;
+  right: 10px;
+  opacity: 0;
+}
+.surface-glass:hover .sidebar-collapse,
+.sidebar-collapse:focus-visible {
+  opacity: 1;
+}
+/* Expand — collapsed state; top-left beside the traffic lights, always shown. */
+.sidebar-expand {
+  top: 12px;
+  left: 84px;
+}
+
+/* Invisible edge-drag resize strip straddling the sidebar's right edge — no visible handle. */
+.sidebar-resize {
+  position: absolute;
+  top: var(--glass-inset);
+  bottom: var(--glass-inset);
+  left: calc(var(--glass-inset) + var(--sidebar-width) - 3px);
+  width: 9px;
+  z-index: 4;
+  cursor: col-resize;
+  -webkit-app-region: no-drag;
 }
 
 .section {
@@ -220,12 +295,13 @@ textarea,
 /* --- detail pane (lives inside .content-pane, offset past the glass sidebar) --- */
 .detail {
   height: 100%;
-  /* Clear the floating glass sidebar: its width (264px) + inset (5px) + gap. */
-  padding: 38px 28px 28px 300px;
+  /* Clear the floating glass sidebar: inset + its (variable) width + a gap. */
+  padding: 38px 28px 28px calc(var(--glass-inset) + var(--sidebar-width) + 31px);
   overflow-y: auto;
+  transition: padding-left 200ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-/* Sidebar hidden (View → Toggle Sidebar): reclaim the left gutter. */
+/* Sidebar hidden (collapsed): reclaim the left gutter (animates with the slide). */
 .shell.sidebar-hidden .detail {
   padding-left: 28px;
 }

@@ -4,6 +4,21 @@ import { DEFAULT_NEW_NAME, type MutableKind } from '@shared/mutate'
 import { reconcileSelection } from './selection'
 import { applyAccent } from './design-system/accent'
 
+// Sidebar width bounds mirror the Swift app (ContentView `navigationSplitViewColumnWidth(min:180, ideal:240, max:330)`).
+const SIDEBAR_MIN = 180
+const SIDEBAR_MAX = 330
+const SIDEBAR_DEFAULT = 240
+const SIDEBAR_WIDTH_KEY = 'pommora.sidebarWidth'
+const clampSidebar = (w: number): number => Math.max(SIDEBAR_MIN, Math.min(SIDEBAR_MAX, Math.round(w)))
+function readStoredSidebarWidth(): number {
+  try {
+    const n = Number(localStorage.getItem(SIDEBAR_WIDTH_KEY))
+    return Number.isFinite(n) && n > 0 ? clampSidebar(n) : SIDEBAR_DEFAULT
+  } catch {
+    return SIDEBAR_DEFAULT
+  }
+}
+
 /** What a sidebar row hands to `select` — mirrors the selectable SelectionState cases. */
 export type SelectTarget =
   | { kind: 'vault'; id: string }
@@ -23,6 +38,9 @@ interface SessionState {
   tree: NexusTree | null
   error?: string
   sidebarVisible: boolean
+  /** Sidebar width in px (clamped to the Swift min/max); persisted to localStorage. */
+  sidebarWidth: number
+  setSidebarWidth: (w: number) => void
   load: () => Promise<void>
   /** Swap in a freshly-read tree (from load() or the live watcher): set it, reconcile the selection, re-apply accent. */
   applyTree: (tree: NexusTree) => Promise<void>
@@ -121,6 +139,17 @@ export const useSession = create<SessionState>((set, get) => {
 
     sidebarVisible: true,
     toggleSidebar: () => set((s) => ({ sidebarVisible: !s.sidebarVisible })),
+
+    sidebarWidth: readStoredSidebarWidth(),
+    setSidebarWidth: (w) => {
+      const next = clampSidebar(w)
+      set({ sidebarWidth: next })
+      try {
+        localStorage.setItem(SIDEBAR_WIDTH_KEY, String(next))
+      } catch {
+        // private mode / disabled storage — width just won't persist
+      }
+    },
 
     selection: { kind: 'none' },
     pageStatus: 'idle',

@@ -18,7 +18,8 @@ export default defineConfig({
     rollupOptions: {
       input: {
         'design-system': resolve('design-system.html'),
-        'glass-editor': resolve('glass-editor.html')
+        'glass-editor': resolve('glass-editor.html'),
+        'interactions': resolve('interactions.html')
       }
     }
   }

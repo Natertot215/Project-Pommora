@@ -26,6 +26,7 @@ import {
   ArrowLeftRight,
   ArrowUpDown,
   LogIn,
+  LogOut,
   KeyRound,
   Lock,
   SquarePlus,
@@ -67,6 +68,7 @@ export const icons = {
   'arrow-left-right': ArrowLeftRight,
   'arrow-up-down': ArrowUpDown,
   'log-in': LogIn,
+  'log-out': LogOut,
   'key-round': KeyRound,
   lock: Lock,
   'square-plus': SquarePlus

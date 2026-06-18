@@ -10,7 +10,7 @@ The initial rebuild is the proven back half + the two shipped renderers + editor
 2. Properties
 3. Connections
 4. Markdown editor (a web editor — CodeMirror 6 is a candidate)
-5. Navigation (shell + sidebar + nav dropdown)
+5. Navigation 
 6. Table view
 7. Gallery view
 
@@ -32,3 +32,4 @@ Live phase status lives in `Handoff.md`. These are the phase definitions.
 - **Glass:** Apple-Regular CSS in place; `liquid-dom` shelved (experimental). Revisit when HTML-in-Canvas ships unflagged.
 - **Table is the historical risk** (failed twice in SwiftUI) — render it early and confirm before building outward. (Phase 2 brings it up now.)
 - **Two design forks already settled:** single-window-now-multi-window-ready; modernized TS-native on-disk format.
+- **Drag-and-drop is in-house (PommoraDND), not dnd-kit.** Built as design-system infrastructure in the Interaction Lab, behind a swappable seam; the drag/reorder substrate that navigation, the views, and the deferred block/dashboard renderers adopt as they're built. Spec → `Features/DragAndDrop.md`; plan → `Planning/PommoraDND-Research.md`.

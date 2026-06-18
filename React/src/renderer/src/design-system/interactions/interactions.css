@@ -1,0 +1,340 @@
+/* Interaction Lab (dnd-kit, barebones). Sorting transitions come from JS (useDragItem);
+   the tree's expand + caret use the same feel via the --ix-dur / --ix-ease CSS vars. */
+
+.ix-wrap {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 40px 32px 96px;
+}
+
+/* Header + live feel control */
+.ix-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 32px;
+  flex-wrap: wrap;
+  margin-bottom: 36px;
+}
+.ix-title {
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.ix-sub {
+  margin: 8px 0 0;
+  max-width: 56ch;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--label-secondary);
+}
+.ix-feel {
+  flex: none;
+  width: 300px;
+  background: var(--surface-secondary);
+  border: 1px solid var(--separator-border);
+  border-radius: 12px;
+  padding: 14px;
+}
+.ix-feel-presets {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.ix-preset {
+  flex: 1;
+  font: inherit;
+  font-size: 11.5px;
+  color: var(--label-secondary);
+  background: var(--surface-tertiary);
+  border: 1px solid var(--separator-border);
+  border-radius: 7px;
+  padding: 6px 0;
+  cursor: pointer;
+}
+.ix-preset.is-on {
+  color: var(--accent-text);
+  background: var(--accent-fill);
+  border-color: var(--accent-text);
+}
+.ix-feel-row {
+  display: grid;
+  grid-template-columns: 64px 1fr 44px;
+  align-items: center;
+  gap: 10px;
+  font-size: 11.5px;
+  color: var(--label-secondary);
+  padding: 2px 0 10px;
+}
+.ix-feel-row input[type='range'] {
+  width: 100%;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+.ix-feel-val {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--label-tertiary);
+}
+
+/* Section cards */
+.ix-sections {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 18px;
+  align-items: start;
+}
+.ix-card {
+  background: var(--surface-secondary);
+  border: 1px solid var(--separator-border);
+  border-radius: 14px;
+  padding: 16px;
+}
+.ix-card-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.ix-card-title {
+  font-size: 13px;
+  font-weight: 600;
+}
+.ix-card-hint {
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--label-tertiary);
+  text-align: right;
+}
+
+/* Reset every list Motion/dnd renders (ul). */
+.ix-vlist,
+.ix-tree,
+.sx-list,
+.sx-column {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* The shared draggable item look (list rows + grid/board cards). */
+.ix-row,
+.sx-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 9px 12px;
+  border-radius: 9px;
+  background: var(--surface-tertiary);
+  border: 1px solid var(--separator-border);
+  color: var(--label-primary);
+  font-size: 13px;
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+}
+.ix-row:active,
+.sx-item:active {
+  cursor: grabbing;
+}
+.ix-row svg,
+.sx-item svg {
+  color: var(--label-tertiary);
+  flex: none;
+}
+.ix-overlay {
+  cursor: grabbing;
+  box-shadow: 0 12px 30px #00000066;
+  background: var(--surface-tertiary);
+}
+
+/* Keyboard focus — items are focusable (tabIndex 0) so they can be picked up with Space/Enter. */
+.ix-row:focus-visible,
+.sx-item:focus-visible,
+.ix-tree-row:focus-visible,
+.ix-table tbody tr:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* List */
+.ix-vlist {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Grid (2D) */
+.ix-grid-surface .sx-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+  gap: 10px;
+}
+.ix-grid-surface .sx-item {
+  justify-content: center;
+  aspect-ratio: 1 / 1;
+  font-size: 12px;
+  text-align: center;
+}
+
+/* Table */
+.ix-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
+}
+.ix-table th {
+  text-align: left;
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--label-tertiary);
+  font-weight: 600;
+  padding: 0 10px 8px;
+  border-bottom: 1px solid var(--separator-border);
+}
+.ix-table td {
+  padding: 9px 10px;
+  border-bottom: 1px solid var(--separator-border);
+}
+.ix-table tbody tr {
+  cursor: grab;
+  touch-action: none;
+}
+.ix-table td:first-child {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.ix-table td svg {
+  color: var(--label-tertiary);
+}
+.ix-dim {
+  color: var(--label-tertiary);
+}
+
+/* Tree — recursive, CSS-only expand/caret driven by the feel vars */
+.ix-tree {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.ix-tree-nested {
+  padding-left: 16px;
+  padding-top: 3px;
+}
+.ix-tree-node {
+  list-style: none;
+}
+.ix-tree-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 9px;
+  border-radius: 8px;
+  background: var(--surface-tertiary);
+  border: 1px solid var(--separator-border);
+  color: var(--label-primary);
+  font-size: 13px;
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+}
+.ix-tree-row:active {
+  cursor: grabbing;
+}
+.ix-tree-row > svg {
+  color: var(--label-tertiary);
+  flex: none;
+}
+.ix-caret {
+  display: inline-flex;
+  color: var(--label-tertiary);
+  transition: transform var(--ix-dur, 230ms) var(--ix-ease, ease);
+}
+.ix-caret.open {
+  transform: rotate(90deg);
+}
+.ix-caret-gap {
+  width: 14px;
+  flex: none;
+}
+.ix-collapse {
+  display: grid;
+  grid-template-rows: 1fr;
+  transition: grid-template-rows var(--ix-dur, 230ms) var(--ix-ease, ease);
+}
+.ix-collapse.is-collapsed {
+  grid-template-rows: 0fr;
+}
+.ix-collapse > div {
+  overflow: hidden;
+  min-height: 0;
+}
+
+/* Scrolling list — capped height so auto-scroll has an edge to engage */
+.ix-scroll {
+  max-height: 220px;
+  overflow-y: auto;
+  padding: 2px;
+}
+
+/* Constraints demo — toggle chips */
+.ix-toggles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.ix-toggle {
+  font: inherit;
+  font-size: 11px;
+  color: var(--label-secondary);
+  background: var(--surface-tertiary);
+  border: 1px solid var(--separator-border);
+  border-radius: 7px;
+  padding: 5px 9px;
+  cursor: pointer;
+}
+.ix-toggle.is-on {
+  color: var(--accent-text);
+  background: var(--accent-fill);
+  border-color: var(--accent-text);
+}
+
+/* Board — two+ lists, drag between */
+.ix-board {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+.ix-col {
+  flex: 1;
+  min-width: 0;
+  background: var(--surface-primary);
+  border: 1px solid var(--separator-border);
+  border-radius: 10px;
+  padding: 10px;
+}
+.ix-col-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--label-secondary);
+  font-weight: 600;
+  padding: 2px 4px 10px;
+}
+.ix-col-count {
+  color: var(--label-tertiary);
+}
+.sx-column {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 48px;
+}
