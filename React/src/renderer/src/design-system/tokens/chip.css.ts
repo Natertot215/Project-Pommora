@@ -1,7 +1,7 @@
 import { style, styleVariants } from '@vanilla-extract/css'
 import { vars as colorVars } from './color.css'
 import { text } from './typography.css'
-import { tint } from './chip-tint'
+import { tint } from './tint'
 
 const solid = colorVars.color.solid
 

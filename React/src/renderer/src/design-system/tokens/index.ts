@@ -1,7 +1,7 @@
 import { vars as colorVars } from './color.css'
 import { font, text } from './typography.css'
 import { chip, chipColor, chipCheckbox } from './chip.css'
-import { tint } from './chip-tint'
+import { tint, tintAt, TINT_STEPS, type TintStep } from './tint'
 import './theme-vars.css' // bridges tokens → stable CSS vars for plain-CSS consumers
 
 /**
@@ -25,4 +25,5 @@ export { text }
  * A plain `chip` is a Pill (text) or Select (icon). `tint(base)` is the raw recipe
  * (e.g. for an accent chip via `tint('var(--accent)')`). See chip.css.ts.
  */
-export { chip, chipColor, chipCheckbox, tint }
+export { chip, chipColor, chipCheckbox, tint, tintAt, TINT_STEPS }
+export type { TintStep }

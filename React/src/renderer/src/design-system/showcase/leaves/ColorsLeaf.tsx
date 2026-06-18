@@ -1,5 +1,5 @@
 import { useState, type CSSProperties } from 'react'
-import { vars, chip, tint } from '@renderer/design-system/tokens'
+import { vars, chip, tint, tintAt, TINT_STEPS } from '@renderer/design-system/tokens'
 import { SortableZone, useDragItem, reorder } from '@renderer/design-system/interactions/drag'
 import { applyAccent, readCssAccentColor } from '../../accent'
 import { ACCENT_COLORS, type AccentSetting } from '@shared/types'
@@ -123,6 +123,42 @@ function AccentDemo(): React.JSX.Element {
   )
 }
 
+// The tint scale (opacity steps) applied across the spectrum — one row per color,
+// five steps primary → solid. Static reference (each is the color over the page).
+const TINT_ORDER = ['primary', 'secondary', 'tertiary', 'quaternary', 'solid'] as const
+
+function TintScale(): React.JSX.Element {
+  const colors = Object.entries(vars.color.solid)
+  return (
+    <section className="ds-section">
+      <h2>Color · Tints</h2>
+      <div className="ds-tints">
+        <div className="ds-tint-row ds-tint-head">
+          <span className="ds-tint-rowlabel" />
+          {TINT_ORDER.map((k) => (
+            <span key={k} className="ds-tint-steplabel">
+              {k} · {TINT_STEPS[k]}%
+            </span>
+          ))}
+        </div>
+        {colors.map(([name, color]) => (
+          <div className="ds-tint-row" key={name}>
+            <span className="ds-tint-rowlabel">{humanize(name)}</span>
+            {TINT_ORDER.map((k) => (
+              <span
+                key={k}
+                className="ds-tint-swatch"
+                style={{ background: tintAt(color, TINT_STEPS[k]) }}
+                title={`${name} · ${k} ${TINT_STEPS[k]}%`}
+              />
+            ))}
+          </div>
+        ))}
+      </div>
+    </section>
+  )
+}
+
 export function ColorsLeaf(): React.JSX.Element {
   return (
     <div className="ds-leaf">
@@ -130,6 +166,7 @@ export function ColorsLeaf(): React.JSX.Element {
       {COLOR_GROUPS.map(([label, group]) => (
         <SwatchGroup key={label} label={label} group={group} />
       ))}
+      <TintScale />
       <AccentDemo />
     </div>
   )

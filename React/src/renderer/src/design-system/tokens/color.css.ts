@@ -15,7 +15,7 @@ const primitive = createGlobalTheme(':root', {
 })
 
 // base @ alpha — apply an opacity to a primitive. color-mix(… X%, transparent) is
-// the project's established opacity mechanism (see chip-tint.ts / theme-vars.css.ts),
+// the project's established opacity mechanism (see tint.ts / theme-vars.css.ts),
 // so a derived token references the primitive var rather than baking its hex.
 const greyA = (pct: string): string => `color-mix(in srgb, ${primitive.color.system.grey} ${pct}, transparent)`
 const whiteA = (pct: string): string => `color-mix(in srgb, ${primitive.color.system.white} ${pct}, transparent)`

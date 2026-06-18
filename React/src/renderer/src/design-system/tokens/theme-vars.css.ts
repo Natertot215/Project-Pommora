@@ -2,6 +2,7 @@ import { globalStyle } from '@vanilla-extract/css'
 import { DEFAULT_ACCENT } from '@shared/types'
 import { vars as colorVars } from './color.css'
 import { font } from './typography.css'
+import { TINT_STEPS } from './tint'
 
 // Bridge: expose the (hashed) vanilla-extract tokens as stable-named CSS custom
 // properties, so plain CSS (the showcase chrome) can reference them via var(--…)
@@ -12,6 +13,12 @@ globalStyle(':root', {
     '--system-grey': colorVars.color.system.grey,
     '--system-white': colorVars.color.system.white,
     '--system-black': colorVars.color.system.black,
+    // Tint scale — opacity steps applied to a base color (color-mix). Step values only.
+    '--tint-primary': `${TINT_STEPS.primary}%`,
+    '--tint-secondary': `${TINT_STEPS.secondary}%`,
+    '--tint-tertiary': `${TINT_STEPS.tertiary}%`,
+    '--tint-quaternary': `${TINT_STEPS.quaternary}%`,
+    '--tint-solid': `${TINT_STEPS.solid}%`,
     '--label-primary': colorVars.color.label.primary,
     '--label-secondary': colorVars.color.label.secondary,
     '--label-tertiary': colorVars.color.label.tertiary,

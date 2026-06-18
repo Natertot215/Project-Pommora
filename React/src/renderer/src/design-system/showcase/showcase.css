@@ -589,3 +589,34 @@ code {
     flex-direction: column;
   }
 }
+
+/* ---- Tints — the opacity scale across the spectrum (Colors leaf) ---- */
+.ds-tints {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.ds-tint-row {
+  display: grid;
+  grid-template-columns: 90px repeat(5, 1fr);
+  gap: 8px;
+  align-items: center;
+}
+.ds-tint-rowlabel {
+  font-size: 12px;
+  color: var(--label-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ds-tint-steplabel {
+  font-size: 10px;
+  color: var(--label-tertiary);
+  text-align: center;
+  text-transform: capitalize;
+}
+.ds-tint-swatch {
+  height: 28px;
+  border-radius: 6px;
+  border: 1px solid var(--separator-border);
+}
