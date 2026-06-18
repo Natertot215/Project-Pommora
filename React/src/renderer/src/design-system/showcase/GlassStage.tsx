@@ -7,6 +7,7 @@ import {
 } from 'react'
 import { createPortal } from 'react-dom'
 import { GlassSurface } from '@renderer/design-system/materials'
+import { Icon } from '@renderer/design-system/symbols'
 import './glass-stage.css'
 
 // The glass panel's box — the single source for both its rendered size and the
@@ -100,6 +101,7 @@ function FloatingGlass({ anchorRef }: { anchorRef: RefObject<HTMLDivElement | nu
       onPointerUp={onUp}
     >
       <GlassSurface className="gl-panel" style={{ borderRadius: 16 }}>
+        <Icon name="log-out" size={16} className="gl-panel-icon" />
         <span className="gl-panel-label">Pommora Glass</span>
       </GlassSurface>
     </div>,

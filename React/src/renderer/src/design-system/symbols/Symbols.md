@@ -40,3 +40,7 @@ Pommora's React icons come from **Lucide** ([lucide.dev/icons](https://lucide.de
 - `lock` (Needs Edits)
 - `square-plus`
 - `heart`
+- `palette` (Colors leaf — design-system showcase)
+- `type` (Typography leaf)
+- `shapes` (Icons leaf)
+- `layers` (Materials / Glass leaf)

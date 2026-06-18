@@ -19,22 +19,6 @@ code {
   border-radius: 4px;
 }
 
-.ds-wrap {
-  max-width: 1080px;
-  margin: 0 auto;
-  padding: 56px 40px 96px;
-}
-.ds-head {
-  font-size: 28px;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-}
-.ds-sub {
-  color: var(--label-secondary);
-  margin-top: 8px;
-  font-size: 13px;
-}
-
 .ds-section {
   margin-top: 56px;
 }
@@ -230,4 +214,234 @@ code {
   color: var(--accent-text);
   font-size: 13px;
   font-weight: 600;
+}
+
+/* ============================================================
+   Showcase shell — glass sidebar (mirrors the app) + content pane.
+   GlassSurface supplies the frost (blur / border / shadow); all layout
+   (size / position / radius / padding) lives here.
+   ============================================================ */
+.sc-shell {
+  --sc-inset: 12px;
+  --sc-sidebar-width: 248px;
+  /* content clears the fixed glass sidebar: inset + width + gap */
+  --sc-content-gutter: calc(var(--sc-inset) + var(--sc-sidebar-width) + 28px);
+  position: relative;
+  min-height: 100vh;
+}
+
+.sc-sidebar {
+  position: fixed;
+  top: var(--sc-inset);
+  left: var(--sc-inset);
+  bottom: var(--sc-inset);
+  width: var(--sc-sidebar-width);
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  padding: 14px 10px 12px;
+  border-radius: 14px;
+  overflow: hidden;
+  transition: transform 200ms cubic-bezier(0.22, 1, 0.36, 1), opacity 150ms ease;
+}
+.sc-shell.sidebar-hidden .sc-sidebar {
+  transform: translateX(calc(-100% - var(--sc-inset) - 14px));
+  opacity: 0;
+  pointer-events: none;
+}
+
+.sc-sidebar-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 2px 6px 12px;
+}
+.sc-brand {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--label-primary);
+}
+
+/* Collapse / expand glyph buttons — secondary, lifting to primary on hover. */
+.sc-icon-btn,
+.sc-expand {
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--label-secondary);
+  cursor: pointer;
+  transition: color 120ms ease, background 120ms ease;
+}
+.sc-icon-btn {
+  display: flex;
+}
+.sc-icon-btn:hover,
+.sc-expand:hover {
+  color: var(--label-primary);
+  background: var(--state-hover);
+}
+.flip-x {
+  transform: scaleX(-1);
+}
+
+/* Expand affordance — shown only while the sidebar is collapsed (top-left). */
+.sc-expand {
+  display: none;
+  position: fixed;
+  top: var(--sc-inset);
+  left: var(--sc-inset);
+  z-index: 3;
+}
+.sc-shell.sidebar-hidden .sc-expand {
+  display: flex;
+}
+
+.sc-nav {
+  flex: 1;
+  overflow-y: auto;
+}
+.sc-section {
+  margin-bottom: 14px;
+}
+.sc-section-header {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--label-tertiary);
+  padding: 4px 8px;
+}
+
+/* Selectable nav row — the same language as the app sidebar's .row. */
+.sc-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  height: 28px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--label-primary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.sc-row:hover {
+  background: var(--state-hover);
+}
+.sc-row.selected,
+.sc-row.selected:hover {
+  background: var(--state-selected);
+}
+.sc-row-icon {
+  flex: 0 0 auto;
+  color: var(--label-secondary);
+}
+.sc-row.selected .sc-row-icon {
+  color: var(--label-primary);
+}
+.sc-row-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Content — offset past the fixed sidebar; reclaims the gutter when collapsed. */
+.sc-content {
+  padding-left: var(--sc-content-gutter);
+  transition: padding-left 200ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.sc-shell.sidebar-hidden .sc-content {
+  padding-left: 0;
+}
+
+/* Doc-style leaves (foundations / components) constrain + pad themselves; the lab
+   leaves (Interactions / Glass Lab) bring their own full-width layout. */
+.ds-leaf {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 44px 40px 96px;
+}
+.ds-leaf > .ds-section:first-child {
+  margin-top: 0;
+}
+
+/* Reorderable galleries — grab affordance for the interaction-library demos. */
+.ds-swatches-drag .ds-swatch {
+  cursor: grab;
+}
+.ds-swatches-drag .ds-swatch:active {
+  cursor: grabbing;
+}
+.ds-chip-row-items {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.ds-chip-row-items > span {
+  cursor: grab;
+}
+.ds-chip-row-items > span:active {
+  cursor: grabbing;
+}
+
+/* ---- Mobile: top-right glass dropdown (sidebar hidden below the breakpoint) ---- */
+.sc-mobile {
+  display: none;
+  position: fixed;
+  top: var(--sc-inset);
+  right: var(--sc-inset);
+  z-index: 4;
+}
+.sc-mobile-trigger {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 34px;
+  padding: 0 12px;
+  border-radius: 10px;
+  color: var(--label-primary);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.sc-mobile-active {
+  max-width: 40vw;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sc-mobile-menu {
+  position: absolute;
+  top: 42px;
+  right: 0;
+  width: 240px;
+  max-height: 70vh;
+  overflow-y: auto;
+  padding: 10px;
+  border-radius: 12px;
+}
+
+@media (max-width: 720px) {
+  .sc-sidebar,
+  .sc-expand {
+    display: none !important;
+  }
+  .sc-mobile {
+    display: block;
+  }
+  .sc-content {
+    padding-left: 0;
+  }
+  .ds-leaf {
+    padding: 64px 20px 80px; /* clear the floating mobile trigger */
+  }
 }

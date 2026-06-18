@@ -30,6 +30,10 @@ import {
   KeyRound,
   Lock,
   SquarePlus,
+  Palette,
+  Type,
+  Shapes,
+  Layers,
   type LucideIcon,
   type LucideProps
 } from 'lucide-react'
@@ -71,7 +75,11 @@ export const icons = {
   'log-out': LogOut,
   'key-round': KeyRound,
   lock: Lock,
-  'square-plus': SquarePlus
+  'square-plus': SquarePlus,
+  palette: Palette,
+  type: Type,
+  shapes: Shapes,
+  layers: Layers
 } satisfies Record<string, LucideIcon>
 
 export type IconName = keyof typeof icons
