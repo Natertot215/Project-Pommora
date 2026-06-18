@@ -1,15 +1,18 @@
 import type { CSSProperties } from 'react'
 
-/**
- * The shared Pommora glass recipe — liquidGL "Tinted Lens" at zero tint: a clear,
- * slightly-darkened frost (blur 5 + brightness 90%) with a faint edge, a top
- * specular, and a soft drop shadow. `GlassSurface` and `GlassControls` both
- * spread this (one source); either can override individual props later to diverge.
- */
-export const glassMaterial: CSSProperties = {
-  background: 'transparent',
-  backdropFilter: 'blur(5px) brightness(90%)',
-  WebkitBackdropFilter: 'blur(5px) brightness(90%)',
-  border: '1px solid #FFFFFF29',
-  boxShadow: 'inset 0 1px 0 #FFFFFF40, 0 8px 26px #00000047'
+// The Pommora glass recipe — CSS frost: a clear, slightly-dimmed blur (no fill, no
+// saturate) with a glassy edge — a crisp top specular, a hairline inner ring, and a
+// soft light pooling at the lower rim — so the edge reads like glass, not a flat panel.
+// One source for surfaces + controls; layout (size / position / radius) is the consumer's.
+export const frostMaterial: CSSProperties = {
+  background: 'transparent', // no fill
+  backdropFilter: 'blur(6px) brightness(95%)', // no saturate
+  WebkitBackdropFilter: 'blur(6px) brightness(95%)',
+  border: '1px solid #FFFFFF1F',
+  boxShadow: [
+    'inset 0 1px 0 #FFFFFF59', // top specular — the glassy edge highlight
+    'inset 0 0 0 1px #FFFFFF14', // hairline inner ring
+    'inset 0 -12px 18px -12px #FFFFFF14', // soft light pooling at the lower rim
+    '0 8px 26px #00000047' // drop shadow
+  ].join(', ')
 }

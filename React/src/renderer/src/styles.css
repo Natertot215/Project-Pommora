@@ -23,7 +23,7 @@ body,
 body {
   font: 13px/1.4 'Inter Variable', -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
   color: var(--text);
-  background: transparent; /* let the native window vibrancy show through */
+  background: var(--main-bg);
   -webkit-font-smoothing: antialiased;
   /* App chrome isn't text-selectable (native feel) — rows, headers, labels don't highlight
      on drag. Genuinely-editable content opts back in below. */
@@ -58,7 +58,7 @@ textarea,
   -webkit-app-region: drag;
 }
 
-/* Main view fills the whole window. */
+/* Main view fills the whole window — the opaque window background the glass samples. */
 .content-pane {
   position: absolute;
   inset: 0;
@@ -83,7 +83,8 @@ textarea,
 /* --- sidebar content (empty in the Phase-1 glass mockup) --- */
 .sidebar {
   -webkit-app-region: no-drag;
-  padding: 38px 10px 12px;
+  /* top clears the traffic lights (positioned at y:18, ~14px tall) with breathing room */
+  padding: 46px 10px 12px;
   overflow-y: auto;
   height: 100%;
 }

@@ -17,7 +17,8 @@ export default defineConfig({
   build: {
     rollupOptions: {
       input: {
-        'design-system': resolve('design-system.html')
+        'design-system': resolve('design-system.html'),
+        'glass-editor': resolve('glass-editor.html')
       }
     }
   }

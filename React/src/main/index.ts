@@ -71,9 +71,11 @@ function createWindow(): void {
     width: 1280,
     height: 832,
     show: false,
-    titleBarStyle: 'hiddenInset',
-    // Opaque window — no native vibrancy, so the sidebar glass samples the main
-    // view (CSS backdrop-filter), never the desktop wallpaper.
+    // Native frame kept (macOS draws the standard window corner radius + shadow, matching
+    // Swift apps) but the title bar is hidden; the traffic lights are positioned into the
+    // sidebar's top-left. Opaque so the sidebar glass samples the window background.
+    titleBarStyle: 'hidden',
+    trafficLightPosition: { x: 18, y: 18 },
     backgroundColor: '#1A1A1B', // = design-system background.window token
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
