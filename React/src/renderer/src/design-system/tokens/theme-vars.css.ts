@@ -8,6 +8,10 @@ import { font } from './typography.css'
 // instead of hardcoding the values — one source of truth across .ts and .css.
 globalStyle(':root', {
   vars: {
+    // Primitives — the base palette every grey/white tone derives from.
+    '--system-grey': colorVars.color.system.grey,
+    '--system-white': colorVars.color.system.white,
+    '--system-black': colorVars.color.system.black,
     '--label-primary': colorVars.color.label.primary,
     '--label-secondary': colorVars.color.label.secondary,
     '--label-tertiary': colorVars.color.label.tertiary,
@@ -16,7 +20,7 @@ globalStyle(':root', {
     '--surface-secondary': colorVars.color.surface.secondary,
     '--surface-tertiary': colorVars.color.surface.tertiary,
     '--separator-border': colorVars.color.separator.border,
-    // Interaction states (Figma "States") — fills base #71717A at hover 2.5% / selected 5%.
+    // Interaction states (Figma "States") — system-grey at hover 2.5% / selected 5%.
     '--state-hover': colorVars.color.state.hover,
     '--state-selected': colorVars.color.state.selected,
     // Accent: a pointer, never a baked color. The static seed is the default

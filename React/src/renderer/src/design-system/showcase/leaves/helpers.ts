@@ -36,3 +36,19 @@ export function useComputedStyleText<T extends HTMLElement>(
   }, [read])
   return [ref, value]
 }
+
+const COMPACT_QUERY = '(max-width: 720px)'
+
+/** True on compact (mobile-width) screens — the same breakpoint the mobile nav uses.
+ *  Galleries drop their drag wiring here: a draggable item sets `touch-action: none`,
+ *  which would otherwise trap touch scrolling on a tall grid. */
+export function useIsCompact(): boolean {
+  const [compact, setCompact] = useState(() => typeof window !== 'undefined' && window.matchMedia(COMPACT_QUERY).matches)
+  useEffect(() => {
+    const mq = window.matchMedia(COMPACT_QUERY)
+    const onChange = (): void => setCompact(mq.matches)
+    mq.addEventListener('change', onChange)
+    return () => mq.removeEventListener('change', onChange)
+  }, [])
+  return compact
+}

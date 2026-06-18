@@ -445,3 +445,147 @@ code {
     padding: 64px 20px 80px; /* clear the floating mobile trigger */
   }
 }
+
+/* ---- Glass leaf — the frost tuner (preview + controls rail / dropdown) ---- */
+.gl-tuner {
+  display: flex;
+  gap: 24px;
+  align-items: flex-start;
+}
+.gl-preview-wrap {
+  flex: 1;
+  min-width: 0;
+}
+.gl-switch {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+.gl-sw {
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--separator-border);
+  background: transparent;
+  color: var(--label-secondary);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.gl-sw.is-on {
+  background: var(--state-selected);
+  color: var(--label-primary);
+}
+.gl-preview {
+  aspect-ratio: 16 / 10;
+  border-radius: 14px;
+  overflow: hidden;
+  background-size: cover;
+  background-position: center;
+  border: 1px solid var(--separator-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.gl-preview.is-dark {
+  background: var(--bg-window);
+}
+.gl-glass {
+  width: 62%;
+  max-width: 300px;
+  aspect-ratio: 16 / 10;
+  border-radius: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.gl-glass-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--label-primary);
+  text-shadow: 0 1px 3px #00000066;
+}
+
+/* Controls — a fixed side rail on desktop; a toggled dropdown on compact. */
+.gl-controls-rail {
+  width: 264px;
+  flex: none;
+}
+.gl-controls-drop {
+  width: 100%;
+}
+.gl-controls-title {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--label-tertiary);
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+.gl-controls-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  width: 100%;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--separator-border);
+  background: transparent;
+  color: var(--label-primary);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  margin-bottom: 10px;
+}
+.gl-presets {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+.gl-presets-label {
+  font-size: 12px;
+  color: var(--label-secondary);
+}
+.gl-preset-btn {
+  padding: 5px 12px;
+  border-radius: 7px;
+  border: 1px solid var(--separator-border);
+  background: var(--state-selected);
+  color: var(--label-primary);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.gl-preset-btn:hover {
+  border-color: var(--label-tertiary);
+}
+.gl-ctl {
+  display: grid;
+  grid-template-columns: 84px 1fr 46px;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 0;
+}
+.gl-ctl-label {
+  font-size: 12px;
+  color: var(--label-secondary);
+}
+.gl-ctl input[type='range'] {
+  width: 100%;
+  accent-color: var(--accent);
+}
+.gl-ctl-val {
+  font-size: 11px;
+  color: var(--label-tertiary);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+@media (max-width: 720px) {
+  .gl-tuner {
+    flex-direction: column;
+  }
+}

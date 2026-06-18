@@ -1,14 +1,16 @@
-import { useState } from 'react'
+import { useState, type CSSProperties } from 'react'
 import { vars, chip, tint } from '@renderer/design-system/tokens'
 import { SortableZone, useDragItem, reorder } from '@renderer/design-system/interactions/drag'
 import { applyAccent, readCssAccentColor } from '../../accent'
 import { ACCENT_COLORS, type AccentSetting } from '@shared/types'
-import { humanize, formatColor, useComputedStyleText } from './helpers'
+import { humanize, formatColor, useComputedStyleText, useIsCompact } from './helpers'
 
-// Static color-token groups → labeled swatch grids. Accent is excluded; it has its
-// own live picker below.
+// Primitives first (the base palette), then the derived token groups. Accent is
+// excluded from the static groups — it has its own live picker below.
+const PRIMITIVE_GROUP: [string, Record<string, string>] = ['Primitives', vars.color.system]
 const COLOR_GROUPS: Array<[string, Record<string, string>]> = [
   ['Solid spectrum', vars.color.solid],
+  ['Label', vars.color.label],
   ['Background', vars.color.background],
   ['Surface', vars.color.surface],
   ['Fills', vars.color.fill],
@@ -18,11 +20,19 @@ const COLOR_GROUPS: Array<[string, Record<string, string>]> = [
 
 type SwatchItem = { id: string; name: string; color: string }
 
-function SwatchCell({ id, name, color }: SwatchItem): React.JSX.Element {
-  const { setNodeRef, style, handle } = useDragItem(id)
+// Presentational swatch. Reads its rendered color back off the inner chip (so the
+// shown hex can't drift from the token); optional drag bindings sit on the outer
+// node — distinct from the read-back ref, so they never collide.
+function SwatchView({ name, color, dragRef, style, handle }: {
+  name: string
+  color: string
+  dragRef?: (el: HTMLDivElement | null) => void
+  style?: CSSProperties
+  handle?: Record<string, unknown>
+}): React.JSX.Element {
   const [ref, hex] = useComputedStyleText<HTMLDivElement>((cs) => formatColor(cs.backgroundColor))
   return (
-    <div ref={setNodeRef} style={style} className="ds-swatch" {...handle}>
+    <div ref={dragRef} style={style} className="ds-swatch" {...handle}>
       <div ref={ref} className="ds-swatch-chip" style={{ background: color }} />
       <div className="ds-swatch-meta">
         <div className="ds-swatch-name">{name}</div>
@@ -32,27 +42,45 @@ function SwatchCell({ id, name, color }: SwatchItem): React.JSX.Element {
   )
 }
 
-// A color group as a reorderable gallery (grid reflow) — the "color gallery uses
-// gallery DnD" demo. Order is ephemeral showcase play; it resets on reload.
+function SwatchDraggable({ id, name, color }: SwatchItem): React.JSX.Element {
+  const { setNodeRef, style, handle } = useDragItem(id)
+  return <SwatchView name={name} color={color} dragRef={setNodeRef} style={style} handle={handle} />
+}
+
+// A color group. On desktop it's a reorderable gallery (grid reflow); on a compact
+// screen the swatches are static so the page scrolls (a draggable item sets
+// touch-action:none, which would trap touch scrolling on the tall grid).
 function SwatchGroup({ label, group }: { label: string; group: Record<string, string> }): React.JSX.Element {
   const [items, setItems] = useState<SwatchItem[]>(() =>
     Object.entries(group).map(([n, c]) => ({ id: n, name: humanize(n), color: c }))
   )
+  const compact = useIsCompact()
+  const cells = (
+    <div className={'ds-swatches' + (compact ? '' : ' ds-swatches-drag')}>
+      {items.map((it) =>
+        compact ? (
+          <SwatchView key={it.id} name={it.name} color={it.color} />
+        ) : (
+          <SwatchDraggable key={it.id} id={it.id} name={it.name} color={it.color} />
+        )
+      )}
+    </div>
+  )
   return (
     <section className="ds-section">
       <h2>{`Color · ${label}`}</h2>
-      <SortableZone
-        items={items.map((i) => i.id)}
-        layout="grid"
-        getItemLabel={(id) => items.find((i) => i.id === id)?.name ?? id}
-        onReorder={(a, o) => setItems((x) => reorder(x, a, o))}
-      >
-        <div className="ds-swatches ds-swatches-drag">
-          {items.map((it) => (
-            <SwatchCell key={it.id} id={it.id} name={it.name} color={it.color} />
-          ))}
-        </div>
-      </SortableZone>
+      {compact ? (
+        cells
+      ) : (
+        <SortableZone
+          items={items.map((i) => i.id)}
+          layout="grid"
+          getItemLabel={(id) => items.find((i) => i.id === id)?.name ?? id}
+          onReorder={(a, o) => setItems((x) => reorder(x, a, o))}
+        >
+          {cells}
+        </SortableZone>
+      )}
     </section>
   )
 }
@@ -98,6 +126,7 @@ function AccentDemo(): React.JSX.Element {
 export function ColorsLeaf(): React.JSX.Element {
   return (
     <div className="ds-leaf">
+      <SwatchGroup label={PRIMITIVE_GROUP[0]} group={PRIMITIVE_GROUP[1]} />
       {COLOR_GROUPS.map(([label, group]) => (
         <SwatchGroup key={label} label={label} group={group} />
       ))}

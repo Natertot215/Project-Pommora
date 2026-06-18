@@ -2,24 +2,38 @@ import { useState, type ReactNode } from 'react'
 import { chip, chipColor, chipCheckbox } from '@renderer/design-system/tokens'
 import { Icon } from '@renderer/design-system/symbols'
 import { SortableZone, useDragItem, reorder } from '@renderer/design-system/interactions/drag'
-import { humanize } from './helpers'
+import { humanize, useIsCompact } from './helpers'
 
 type ChipColorName = keyof typeof chipColor
 const CHIP_COLORS = Object.keys(chipColor) as ChipColorName[]
+const pillClass = (color: ChipColorName): string => `${chip} ${chipColor[color]}`
 
 function ChipCell({ id, color, label }: { id: string; color: ChipColorName; label: string }): React.JSX.Element {
   const { setNodeRef, style, handle } = useDragItem(id)
   return (
-    <span ref={setNodeRef} style={style} className={`${chip} ${chipColor[color]}`} {...handle} title={color}>
+    <span ref={setNodeRef} style={style} className={pillClass(color)} {...handle} title={color}>
       {label}
     </span>
   )
 }
 
-// The pill row reorders (the "list component reorders" demo); the shape-variant rows
-// below stay static as reference. Order is ephemeral — it resets on reload.
-function ReorderablePills(): React.JSX.Element {
+// The pill row reorders on desktop (the "list component reorders" demo); on a compact
+// screen the pills are static so the page scrolls (drag sets touch-action:none).
+function PillRow(): React.JSX.Element {
   const [items, setItems] = useState(() => CHIP_COLORS.map((c) => ({ id: c, name: humanize(c) })))
+  const compact = useIsCompact()
+  const cells = (
+    <div className="ds-chip-row-items">
+      {items.map((it) =>
+        compact ? (
+          <span key={it.id} className={pillClass(it.id)} title={it.id}>{it.name}</span>
+        ) : (
+          <ChipCell key={it.id} id={it.id} color={it.id} label={it.name} />
+        )
+      )}
+    </div>
+  )
+  if (compact) return cells
   return (
     <SortableZone
       items={items.map((i) => i.id)}
@@ -27,11 +41,7 @@ function ReorderablePills(): React.JSX.Element {
       getItemLabel={(id) => items.find((i) => i.id === id)?.name ?? id}
       onReorder={(a, o) => setItems((x) => reorder(x, a, o))}
     >
-      <div className="ds-chip-row-items">
-        {items.map((it) => (
-          <ChipCell key={it.id} id={it.id} color={it.id} label={it.name} />
-        ))}
-      </div>
+      {cells}
     </SortableZone>
   )
 }
@@ -52,7 +62,7 @@ export function ChipsLeaf(): React.JSX.Element {
         <div className="ds-chip-grid">
           <div className="ds-chip-row">
             <div className="ds-chip-rowlabel">Pill · drag to reorder</div>
-            <ReorderablePills />
+            <PillRow />
           </div>
           {STATIC_SHAPES.map((shape) => (
             <div className="ds-chip-row" key={shape.label}>

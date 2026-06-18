@@ -4,7 +4,6 @@ import { TypographyLeaf } from './TypographyLeaf'
 import { IconsLeaf } from './IconsLeaf'
 import { ChipsLeaf } from './ChipsLeaf'
 import { GlassLeaf } from './GlassLeaf'
-import { GlassLabLeaf } from './GlassLabLeaf'
 import { InteractionsLeaf } from './InteractionsLeaf'
 
 // The leaf catalog — the single source of which leaves the showcase has. Adding a
@@ -35,7 +34,6 @@ export const LEAVES: readonly Leaf[] = [
   { id: 'icons', label: 'Icons', icon: 'shapes', section: 'foundations', render: () => <IconsLeaf /> },
   { id: 'chips', label: 'Chips', icon: 'tag', section: 'components', render: () => <ChipsLeaf /> },
   { id: 'glass', label: 'Glass', icon: 'layers', section: 'materials', render: () => <GlassLeaf /> },
-  { id: 'glass-lab', label: 'Glass Lab', icon: 'sliders-horizontal', section: 'materials', render: () => <GlassLabLeaf /> },
   { id: 'interactions', label: 'Interaction Lab', icon: 'arrow-up-down', section: 'interactions', render: () => <InteractionsLeaf /> }
 ]
 
