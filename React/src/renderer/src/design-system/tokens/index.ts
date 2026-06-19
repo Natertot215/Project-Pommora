@@ -27,3 +27,4 @@ export { text }
  */
 export { chip, chipColor, chipCheckbox, tint, tintAt, TINT_STEPS }
 export type { TintStep }
+export { duration, easing } from './motion'

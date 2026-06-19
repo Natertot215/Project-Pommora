@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { Icon, icons, type IconName } from '@renderer/design-system/symbols'
 import { MenuItem } from '@renderer/design-system/components/menu'
+import { Reveal } from '@renderer/design-system/components/Reveal'
 import type {
   AreaNode,
   CollectionNode,
@@ -200,7 +201,9 @@ function Disclosure({
       >
         {rename ? <RowTitle path={rename.path} kind={rename.kind} title={title} /> : title}
       </MenuItem>
-      {open && <div className="children">{children}</div>}
+      <Reveal open={open}>
+        <div className="children">{children}</div>
+      </Reveal>
     </>
   )
 }

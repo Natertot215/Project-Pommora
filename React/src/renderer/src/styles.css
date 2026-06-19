@@ -58,7 +58,7 @@ textarea,
   height: 38px;
   z-index: 2;
   -webkit-app-region: drag;
-  transition: left 200ms cubic-bezier(0.22, 1, 0.36, 1);
+  transition: left var(--duration-base) var(--ease-standard);
 }
 .shell.sidebar-hidden .titlebar {
   left: 0;
@@ -87,12 +87,12 @@ textarea,
   border-radius: var(--glass-radius);
   overflow: hidden;
   -webkit-app-region: drag;
-  transition: transform 200ms cubic-bezier(0.22, 1, 0.36, 1), opacity 150ms ease;
+  transition: transform var(--duration-base) var(--ease-standard);
 }
-/* Collapsed: slide the panel off the left edge + fade; the detail reclaims the gutter. */
+/* Collapsed: slide the panel fully off the left edge — pure slide, no fade, so the motion
+   reads on the way OUT (not just in); the detail reclaims the gutter. */
 .shell.sidebar-hidden .surface-glass {
   transform: translateX(calc(-100% - var(--glass-inset) - 14px));
-  opacity: 0;
   pointer-events: none;
 }
 /* During an edge-drag resize, track the cursor 1:1 (no easing lag). */
@@ -136,7 +136,8 @@ textarea,
 .sidebar-toggle .flip-x {
   transform: scaleX(-1);
 }
-/* Collapse — sidebar top-right, in-line with the traffic lights; revealed on sidebar hover. */
+/* Collapse — sidebar top-right corner; hidden until you hover the sidebar (uncluttered at
+   rest), then rides the sidebar off as it slides while the expand reveals at the top-left. */
 .sidebar-collapse {
   top: 7px;
   right: 10px;
@@ -146,10 +147,26 @@ textarea,
 .sidebar-collapse:focus-visible {
   opacity: 1;
 }
-/* Expand — collapsed state; top-left beside the traffic lights, always shown. */
+/* Stay lit through the collapse slide — rides the panel off fully visible, hides at rest. */
+.shell.sidebar-hidden .sidebar-collapse {
+  opacity: 1;
+}
+/* Expand — always mounted at the toggle spot, on top (above the z2 titlebar). Hidden behind
+   the open sidebar's collapse button; as the sidebar slides off it fades + eases in (revealed,
+   close tucking behind it), and fades back out as the sidebar slides in to overtake it. */
 .sidebar-expand {
   top: 12px;
   left: 84px;
+  opacity: 0;
+  transform: translateX(-6px);
+  pointer-events: none;
+  transition: opacity var(--duration-base) var(--ease-standard), transform var(--duration-base) var(--ease-standard),
+    color 180ms ease, background 180ms ease;
+}
+.shell.sidebar-hidden .sidebar-expand {
+  opacity: 1;
+  transform: translateX(0);
+  pointer-events: auto;
 }
 
 /* Invisible edge-drag resize strip straddling the sidebar's right edge — no visible handle. */
@@ -260,7 +277,7 @@ textarea,
 /* Disclosure chevron — a chevron-right Icon (1em → tracks the row's 12px) that
    rotates 90° when open; colour comes from the row's secondary glyph cluster. */
 .twisty {
-  transition: transform 0.12s ease;
+  transition: transform var(--duration-fast) var(--ease-standard);
   flex: 0 0 auto;
 }
 
@@ -299,7 +316,7 @@ textarea,
   /* Clear the floating glass sidebar: inset + its (variable) width + a gap. */
   padding: 38px 28px 28px calc(var(--glass-inset) + var(--sidebar-width) + 31px);
   overflow-y: auto;
-  transition: padding-left 200ms cubic-bezier(0.22, 1, 0.36, 1);
+  transition: padding-left var(--duration-base) var(--ease-standard);
 }
 
 /* Sidebar hidden (collapsed): reclaim the left gutter (animates with the slide). */

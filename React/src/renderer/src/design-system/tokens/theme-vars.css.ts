@@ -3,6 +3,7 @@ import { DEFAULT_ACCENT } from '@shared/types'
 import { vars as colorVars } from './color.css'
 import { font } from './typography.css'
 import { TINT_STEPS } from './tint'
+import { duration, easing } from './motion'
 
 // Bridge: expose the (hashed) vanilla-extract tokens as stable-named CSS custom
 // properties, so plain CSS (the showcase chrome) can reference them via var(--…)
@@ -37,6 +38,12 @@ globalStyle(':root', {
     '--accent': colorVars.color.solid[DEFAULT_ACCENT],
     '--accent-fill': 'color-mix(in srgb, var(--accent) 15%, transparent)',
     '--accent-text': 'var(--accent)',
-    '--font-family': font.family
+    '--font-family': font.family,
+    // Motion — shared durations + easing so every transition reads as one system.
+    '--duration-fast': duration.fast,
+    '--duration-base': duration.base,
+    '--duration-slow': duration.slow,
+    '--ease-standard': easing.standard,
+    '--ease-out': easing.out
   }
 })

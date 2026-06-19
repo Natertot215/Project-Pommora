@@ -127,18 +127,18 @@ export function App(): React.JSX.Element {
           aria-label="Resize sidebar"
         />
       )}
-      {/* Expand — always shown when collapsed, top-left by the traffic lights (macOS convention). */}
-      {sidebarHidden && (
-        <button
-          type="button"
-          className="sidebar-toggle sidebar-expand"
-          onClick={toggleSidebar}
-          aria-label="Show sidebar"
-          title="Show sidebar"
-        >
-          <Icon name="log-out" size={18} />
-        </button>
-      )}
+      {/* Expand — always mounted at the top-left toggle spot, layered on top. Hidden behind
+          the open sidebar's collapse button; revealed (fade + ease) as the sidebar slides off,
+          and overtaken as it slides back. Always mounted so there's no in/out snap. */}
+      <button
+        type="button"
+        className="sidebar-toggle sidebar-expand"
+        onClick={toggleSidebar}
+        aria-label="Show sidebar"
+        title="Show sidebar"
+      >
+        <Icon name="log-out" size={18} />
+      </button>
     </div>
   )
 }
