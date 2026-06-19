@@ -52,7 +52,7 @@ The React thread continues in parallel as the contingency exploration.
 - **Backspace on checkbox / list item** should auto-delete the syntax — UNIMPLEMENTED (feature-add).
 - **In-line code doesn't render color** within a textblock; italics/bolds don't auto-pair.
 - **Agenda doc mismatches** — `AgendaEventManagerError._status` doc-vs-guard; description-cap (specs say 1000, validators enforce none).
-- **Pinned-nav title staleness** on rename until re-pinned (likely a future file-watcher fix).
+- **Pinned-nav title staleness** on rename until re-pinned.
 - **NOTE TO FUTURE** — relation properties are replaced by contexts, so future tasks/events lack a context-relation path; cross when reached.
 
 #### Handoff Rules

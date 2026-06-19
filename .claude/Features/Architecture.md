@@ -108,9 +108,9 @@ Every file write goes through one of three atomic paths, all via temp-file + ren
 
 ---
 
-#### File-watcher contract (deferred)
+#### File-watcher
 
-External edits (Obsidian / vim / Finder rename / cloud-sync mtime drift) propagate to the index + in-memory caches + sidebar without a restart, via a recursive filesystem watch on the Nexus root — with self-write filtering (debounce by path + outbound mtime tracking) and lost-update protection (mtime compare before overwriting). The atomic-write discipline + index-update path already support this; the watcher is a wiring task, not an architectural change.
+External + out-of-band on-disk changes (Obsidian / vim / Finder / cloud-sync) propagate to the index + in-memory caches + sidebar without a restart, via a recursive FSEvents watch on the Nexus root. **Authority is recency and origin-blind** — the newest write wins; internal-vs-external is irrelevant. Reconcile is surgical for the safe common case (existing-Page edits/creates reindex only their scope) and a coarse atomic rebuild for anything that could orphan a link or misclassify a move (rename / move / delete / non-Page / dropped events). The index database is excluded at intake so reconciles can't self-feed; a last-seen-`mtime` gate drops duplicate events + self-write echoes. Identity survives an external rename because every Page is stamped a stable ULID on first sight; the open editor live-reloads on an external edit while protecting unflushed edits. Full design → `History.md` + `// Planning//06-18-File-Watcher.md`.
 
 ---
 
