@@ -11,7 +11,7 @@ import { execSync } from 'node:child_process'
 
 const { PNG } = pngjs
 const CANVAS = 1024
-const OVER = 50 // overflow px per side — pushes the squircle edge + bevel off-canvas
+const OVER = 20 // overflow px per side — trimmed from 50 to size the mark nearer Swift's inset (still clears the bevel)
 const THRESH = 28 // brightness above this = the squircle (below = near-black margin/shadow)
 
 const src = PNG.sync.read(readFileSync('build/pommora-icon-src.png'))
