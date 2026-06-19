@@ -86,8 +86,8 @@ final class NexusEnvironment {
     /// Constructs and wires every manager (see the class doc above). The NexusContext
     /// snapshot closures built inline below are **one-shot**: they capture manager arrays
     /// at construction time, so never reuse one from a long-lived background closure
-    /// (e.g. a future FSEventStream watcher or SQLite indexer) — rebuild it inline on the
-    /// `@MainActor` at the call site.
+    /// (e.g. the file-watcher reconcile or a SQLite indexer) — rebuild it inline on
+    /// the `@MainActor` at the call site.
     init(nexus: Nexus, nexusManager: NexusManager) {
         let areaMgr = AreaManager(nexus: nexus)
         let projectMgr = ProjectManager(nexus: nexus)
@@ -203,24 +203,9 @@ final class NexusEnvironment {
         // Initial load — vaults first (PageSet discovery walks the loaded
         // Collections), then everything else in parallel.
         // PageContentManager loads per-collection lazily on detail-view appear.
-        Task {
-            await vaultMgr.loadAll(filter: folderFilter)
-            await pageSetMgr.loadAll(
-                collections: vaultMgr.pageCollectionsByType.values.flatMap { $0 },
-                filter: folderFilter
-            )
-            async let _ = areaMgr.loadAll()
-            async let _ = topicMgr.loadAll()
-            async let _ = projectMgr.loadAll()
-            async let _ = agendaTaskMgr.loadAll()
-            async let _ = agendaEventMgr.loadAll()
-            async let _ = homepageMgr.load()
-            async let _ = tierMgr.load()
-            async let _ = savedMgr.load()
-            async let _ = sidebarSectionsMgr.load()
-            async let _ = settingsMgr.loadOrSeed()
-            await recentsMgr.load()
-            await pinnedMgr.load()
+        Task { [weak self] in
+            guard let self else { return }
+            await self.reloadAllManagers(filter: folderFilter)
             // Start watching once the initial load has settled, so the in-memory
             // managers are populated before the first external change arrives.
             self.startWatching()
@@ -228,6 +213,35 @@ final class NexusEnvironment {
     }
 
     deinit { fileWatcher?.stop() }
+
+    // MARK: - Manager loading
+
+    /// Reloads every in-memory manager from disk — structure, Contexts, Agenda,
+    /// and per-Nexus config. The single source of truth for the load set, shared
+    /// by the initial load and the file-watcher reconcile so the two never drift.
+    /// Vault loads first (PageSet discovery needs its Collections); the rest run
+    /// in parallel.
+    func reloadAllManagers(filter: FolderFilter) async {
+        await vaultManager.loadAll(filter: filter)
+        await pageSetManager.loadAll(
+            collections: vaultManager.pageCollectionsByType.values.flatMap { $0 },
+            filter: filter)
+        async let areas: Void = areaManager.loadAll()
+        async let topics: Void = topicManager.loadAll()
+        async let projects: Void = projectManager.loadAll()
+        async let tasks: Void = agendaTaskManager.loadAll()
+        async let events: Void = agendaEventManager.loadAll()
+        async let homepage: Void = homepageManager.load()
+        async let tier: Void = tierConfigManager.load()
+        async let saved: Void = savedConfigManager.load()
+        async let sidebar: Void = sidebarSectionsManager.load()
+        async let settings: Void = settingsManager.loadOrSeed()
+        _ = await (
+            areas, topics, projects, tasks, events,
+            homepage, tier, saved, sidebar, settings)
+        await recentsManager.load()
+        await pinnedManager.load()
+    }
 
     // MARK: - File watching
 
@@ -239,7 +253,7 @@ final class NexusEnvironment {
         else { return }
         guard fileWatcher == nil, let nexus = nexusManager.currentNexus else { return }
 
-        let reconciler = ExternalChangeReconciler(env: self)
+        let reconciler = ExternalChangeReconciler(env: self, nexusID: nexus.id)
         self.reconciler = reconciler
 
         let indexDB = NexusPaths.nexusConfigDir(in: nexus)

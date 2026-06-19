@@ -383,6 +383,12 @@ struct ContentView: View {
     /// wiring, AppGlobals publish, and the parallel initial-load `Task` in its
     /// initializer (formerly `constructManagers`). See `NexusEnvironment.swift`.
     private func rebuildEnvironment(for nexus: Nexus?) {
+        // Stop the outgoing Nexus's file watcher deterministically (on the main
+        // actor) before the env is dropped. The switch path also re-overwrites
+        // AppGlobals.current via the new env's init, but the close path below
+        // would otherwise leave the old env strongly pinned there — running its
+        // watcher against a closed Nexus forever.
+        nexusEnvironment?.stopWatching()
         // Preview windows are per-Nexus state (their PageRefs resolve against
         // the outgoing managers) — close the whole group when switching away
         // from a live environment. MUST stay guarded to non-initial runs and
@@ -393,6 +399,7 @@ struct ContentView: View {
             Task { @MainActor in PreviewTarget.shared.close() }
         }
         guard let nexus else {
+            AppGlobals.current = nil
             nexusEnvironment = nil
             return
         }
