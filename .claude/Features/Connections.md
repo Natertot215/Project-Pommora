@@ -59,7 +59,7 @@ Because identity is the title and the body carries no id, **a rename cascades**:
 
 ### Resolution + lifecycle
 
-**Live visibility (non-negotiable).** A connection created or removed *inside Pommora* is reflected immediately on every user-facing surface — the editor, graph view, and any future connections panel or query — with no relaunch and no manual refresh. It registers the moment it resolves (its target exists) and deactivates the moment its target is gone. (A connection created or removed by an *external* tool reflects once Pommora sees the file — the file-watcher's job, [[Architecture]] "File-watcher contract".)
+**Live visibility (non-negotiable).** A connection created or removed *inside Pommora* is reflected immediately on every user-facing surface — the editor, graph view, and any future connections panel or query — with no relaunch and no manual refresh. It registers the moment it resolves (its target exists) and deactivates the moment its target is gone. (A connection created or removed by an *external* tool reflects once Pommora sees the file — the file-watcher's job, [[Architecture]] "File-watcher".)
 
 - **Resolved** — the title matches an existing Page → the connection is live (rendered + navigable).
 - **Unresolved** — the title matches nothing → the connection renders as **plain prose with the brackets visible** (`[[Foo]]` shown literally) and is inert. No muted styling, no navigation.

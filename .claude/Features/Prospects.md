@@ -53,7 +53,7 @@ The full Settings UI brings:
 **Description:** v1 appends new properties to the schema in declaration order; there's no UI for reordering the property list itself. Drag handles in some schema-editing view could let users restructure the canonical property order. Note this is distinct from view-level column reordering (which is already in v1, visual, per-view) and from option-order-within-a-Select (also in v1, drives sort).
 
 #### Board view: drag-to-rewrite-frontmatter
-**Description:** Planned post-v1.0 feature. Board view (kanban) ships as the visual layout — cards grouped by a property's options; moving a card between columns is done by editing the card's property via the card UI. Drag-to-rewrite-frontmatter (dragging a card across kanban columns to mutate the source's property value directly) is the higher-fidelity UX, but it requires the property edit / atomic write / file watcher loop to be hardened first. Deferred until those foundations stabilize.
+**Description:** Planned post-v1.0 feature. Board view (kanban) ships as the visual layout — cards grouped by a property's options; moving a card between columns is done by editing the card's property via the card UI. Drag-to-rewrite-frontmatter (dragging a card across kanban columns to mutate the source's property value directly) is the higher-fidelity UX, but it requires the property edit / atomic write loop to be hardened first. Deferred until those foundations stabilize.
 
 #### Quick-capture (menu-bar / web clipper)
 **Description:** Now committed roadmap, not a post-v1 prospect — full concept + architecture in [[QuickCapture]] (roadmap slot → `Framework.md`). A menu-bar capture pane (and an optional browser / Share-sheet web-clip route) adds Pages / Tasks / Events directly to the nexus as another in-process entry point. Kept here only as a redirect.
@@ -65,7 +65,7 @@ The full Settings UI brings:
 **Description:** The Saved section currently ships heading-less with three fixed entries (Homepage / Calendar / Recents). Post-v1: users pin arbitrary Pages / Tasks / Events / Contexts; section gets "Saved" heading + "+" affordance; defaults become movable. `saved-config.json` already accommodates arbitrary saved entries.
 
 #### Synced blocks (inline Page-body editing inside embeds)
-**Description:** Notion-style synced blocks — embedding a Page inside a composed-page surface such that body edits mirror both ways. v1 covers properties, relations, Agenda, and Collection-row inline editing; **full Page-body transclusion is deferred**. Requires per-block addressable IDs in Markdown, transclusion-aware undo/redo, cross-surface cursor coordination, conflict resolution, and a richer serializer. Post-v1 once the v1 editor + watcher loop is exercised. v1 stand-in: Linked Pages widget (title + frontmatter inline; click opens Page tab).
+**Description:** Notion-style synced blocks — embedding a Page inside a composed-page surface such that body edits mirror both ways. v1 covers properties, relations, Agenda, and Collection-row inline editing; **full Page-body transclusion is deferred**. Requires per-block addressable IDs in Markdown, transclusion-aware undo/redo, cross-surface cursor coordination, conflict resolution, and a richer serializer. Post-v1 once the v1 editor is exercised. v1 stand-in: Linked Pages widget (title + frontmatter inline; click opens Page tab).
 
 #### Context-link tier — post-v1 deferrals
 **Description:** Genuinely post-v1 deferrals remaining after the Relation→Context refactor (ship record in `History.md`):
