@@ -254,7 +254,12 @@ final class IndexBuilder {
             // resolution can't find it by title until an unrelated CRUD write
             // incidentally upserts it. The strict `PageFile.load` silently dropped
             // every frontmatter-less page from the launch scan.
-            guard let pf = try? PageFile.loadLenient(from: url, nexusRoot: nexusRoot) else { return nil }
+            guard let loaded = try? PageFile.loadLenient(from: url, nexusRoot: nexusRoot)
+            else { return nil }
+            // Stamp a frontmatter-less Page with a stable ULID at index-build time
+            // (Obsidian import / rebuild) so the snapshot — and any future rename —
+            // tracks by a persisted id rather than a path-derived placeholder.
+            let pf = PageStamper.stampInPlace(loaded, at: url)
             let fm = pf.frontmatter
             return PageSnapshot(
                 id: fm.id,
