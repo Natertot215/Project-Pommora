@@ -57,6 +57,22 @@ final class PageContentManager {
 
     // MARK: - Accessors
 
+    /// The currently-loaded PageMeta for `id`, across every loaded scope. The
+    /// file watcher uses it to re-point an open editor after an external rename;
+    /// nil when the Page's scope isn't loaded.
+    func meta(forID id: String) -> PageMeta? {
+        for metas in pagesByCollection.values {
+            if let match = metas.first(where: { $0.id == id }) { return match }
+        }
+        for metas in pagesByTypeRoot.values {
+            if let match = metas.first(where: { $0.id == id }) { return match }
+        }
+        for metas in pagesBySet.values {
+            if let match = metas.first(where: { $0.id == id }) { return match }
+        }
+        return nil
+    }
+
     func pages(in collection: PageCollection) -> [PageMeta] {
         pagesByCollection[collection.id] ?? []
     }

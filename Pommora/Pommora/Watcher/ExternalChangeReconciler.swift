@@ -17,7 +17,7 @@ final class ExternalChangeReconciler {
     /// this switch rather than reshaping a boolean chain.
     private enum Disposition {
         case ignore  // app-private / hidden file
-        case deferToEditor  // an open Page's own file — the editor is authoritative
+        case deferToEditor(PageEditorViewModel)  // an open Page's file — editor authoritative
         case reconcile  // everything else — drives the coarse reconcile
     }
 
@@ -39,12 +39,23 @@ final class ExternalChangeReconciler {
 
     /// Called on the main actor by the watcher with gated changed paths.
     func handle(_ paths: [URL]) {
-        let needsReconcile = paths.contains {
-            if case .reconcile = disposition(of: $0) { return true }
-            return false
+        var needsReconcile = false
+        for url in paths {
+            switch disposition(of: url) {
+            case .ignore:
+                continue
+            case .deferToEditor(let vm):
+                // In-place external edit to an open Page: reload its body now
+                // (cheap, no index rebuild). A rename instead surfaces as a new
+                // path (.reconcile) and re-points the editor in `run()`.
+                if let root = env.nexusManager.currentNexus?.rootURL {
+                    vm.reloadFromDisk(nexusRoot: root)
+                }
+            case .reconcile:
+                needsReconcile = true
+            }
         }
-        guard needsReconcile else { return }
-        scheduleReconcile()
+        if needsReconcile { scheduleReconcile() }
     }
 
     private func disposition(of url: URL) -> Disposition {
@@ -53,8 +64,8 @@ final class ExternalChangeReconciler {
             return .ignore
         }
         if url.pathExtension == "md",
-            AppGlobals.openEditor(forPath: url.standardizedFileURL.path) != nil {
-            return .deferToEditor
+            let vm = AppGlobals.openEditor(forPath: url.standardizedFileURL.path) {
+            return .deferToEditor(vm)
         }
         return .reconcile
     }
@@ -82,6 +93,19 @@ final class ExternalChangeReconciler {
         try? await IndexBuilder.populate(index: index, from: nexus, filter: filter)
         await env.reloadAllManagers(filter: filter)
         await reloadLoadedPageScopes()
+        refreshOpenEditors(nexusRoot: nexus.rootURL)
+    }
+
+    /// After a reconcile, re-point each open editor whose file was renamed/moved
+    /// externally (matched by stable id) and reload its body. Pages with unflushed
+    /// edits are left untouched (protect live edits).
+    private func refreshOpenEditors(nexusRoot: URL) {
+        for vm in AppGlobals.openEditorVMs() {
+            if let fresh = env.contentManager.meta(forID: vm.page.id), fresh.url != vm.page.url {
+                vm.refreshMeta(fresh)
+            }
+            vm.reloadFromDisk(nexusRoot: nexusRoot)
+        }
     }
 
     /// Refreshes only the currently-loaded Page scopes (Pages load lazily) so any

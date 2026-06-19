@@ -23,7 +23,7 @@ final class PageEditorViewModel {
     /// Editable body. Every keystroke updates this; `didSet` schedules a
     /// debounced save 300ms from now. Multiple rapid edits coalesce.
     var body: String {
-        didSet { scheduleSave() }
+        didSet { if !isReloadingFromDisk { scheduleSave() } }
     }
 
     /// UI-only fold state: which heading source lines (e.g. `"## Foo"`) are
@@ -47,6 +47,13 @@ final class PageEditorViewModel {
 
     private let saver: any PageSaver
     private var saveTask: Task<Void, Never>?
+    /// Guards `body.didSet` so a watcher-driven `reloadFromDisk` doesn't schedule
+    /// a save echoing the disk content straight back out.
+    private var isReloadingFromDisk = false
+
+    /// True while a debounced save is pending — the editor holds keystrokes not
+    /// yet on disk. The file watcher consults this to protect live edits.
+    var hasUnflushedEdits: Bool { saveTask != nil }
     /// Debounce window between a body edit and the disk write. Rapid edits within
     /// this window coalesce into one save. Internal (not `private`) so tests can
     /// derive their poll/settle timing from the real value instead of hardcoding
@@ -80,8 +87,16 @@ final class PageEditorViewModel {
     /// is pending. Used by ⌘S, window close, sidebar Page switch, and the
     /// app-lifecycle (background / terminate) flush paths.
     func flushNow() async {
+        let hadPendingSave = saveTask != nil
         saveTask?.cancel()
         saveTask = nil
+
+        // The Page's file was deleted/moved by an external action and we hold no
+        // unsaved edits — don't resurrect it at the old path.
+        if !hadPendingSave, !FileManager.default.fileExists(atPath: page.url.path) {
+            pendingError = nil
+            return
+        }
 
         // Drop stale fold-state keys (heading text changed or deleted
         // between saves) so `folded_headings:` doesn't accumulate dead
@@ -114,6 +129,30 @@ final class PageEditorViewModel {
     /// synchronously at the call site.
     func close() async {
         await flushNow()
+    }
+
+    /// Replaces the editor buffer with the file's current on-disk content WITHOUT
+    /// scheduling a save — the watcher's live-reload of an externally-edited open
+    /// Page. No-op while unflushed edits exist (protect live edits) or when disk
+    /// already matches (our own save echo).
+    func reloadFromDisk(nexusRoot: URL) {
+        guard !hasUnflushedEdits,
+            let pf = try? PageFile.loadLenient(from: page.url, nexusRoot: nexusRoot)
+        else { return }
+        if pf.body != body {
+            isReloadingFromDisk = true
+            body = pf.body
+            isReloadingFromDisk = false
+        }
+        page = PageMeta(
+            id: pf.frontmatter.id, title: pf.title, url: page.url, frontmatter: pf.frontmatter)
+    }
+
+    /// Re-points the editor at a freshly-resolved PageMeta after an external
+    /// rename/move (the id is stable) so saves follow the live path instead of
+    /// recreating the old one.
+    func refreshMeta(_ fresh: PageMeta) {
+        page = fresh
     }
 
     /// Clears `pendingError`. Called when the alert dismisses; lets the

@@ -107,7 +107,92 @@ struct PageEditorViewModelTests {
         #expect(vm.body == "draft text")  // draft preserved on failure
     }
 
+    // MARK: - Watcher-driven reload (protect live edits)
+
+    @Test("reloadFromDisk loads an external edit into a clean editor")
+    func reloadFromDiskClean() async throws {
+        let root = try tempRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let saver = StubPageSaver()
+        let meta = try writePage(body: "original", in: root)
+        let vm = PageEditorViewModel(page: meta, body: "original", saver: saver)
+
+        try PageFile(frontmatter: meta.frontmatter, body: "external", title: "Note")
+            .save(to: meta.url)
+        vm.reloadFromDisk(nexusRoot: root)
+
+        #expect(vm.body == "external")
+        // The reload must not schedule a save (no echo back to disk).
+        try await Task.sleep(for: PageEditorViewModel.debounce * 2)
+        #expect(saver.saved.isEmpty)
+    }
+
+    @Test("reloadFromDisk holds when the editor has unflushed edits")
+    func reloadFromDiskDirtyHolds() async throws {
+        let root = try tempRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let meta = try writePage(body: "original", in: root)
+        let vm = PageEditorViewModel(page: meta, body: "original", saver: StubPageSaver())
+
+        vm.body = "user typing"  // schedules a debounced save → dirty
+        #expect(vm.hasUnflushedEdits)
+        try PageFile(frontmatter: meta.frontmatter, body: "external", title: "Note")
+            .save(to: meta.url)
+        vm.reloadFromDisk(nexusRoot: root)
+
+        #expect(vm.body == "user typing")  // live edit protected, not clobbered
+    }
+
+    @Test("flushNow does not resurrect an externally-deleted file when clean")
+    func flushNowNoResurrectWhenClean() async throws {
+        let root = try tempRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let saver = StubPageSaver()
+        let meta = try writePage(body: "original", in: root)
+        let vm = PageEditorViewModel(page: meta, body: "original", saver: saver)
+
+        try FileManager.default.removeItem(at: meta.url)  // external delete
+        await vm.flushNow()  // clean + file gone → skip
+
+        #expect(saver.saved.isEmpty)
+    }
+
+    @Test("flushNow re-saves a deleted file when there are unflushed edits")
+    func flushNowResurrectsWhenDirty() async throws {
+        let root = try tempRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let saver = StubPageSaver()
+        let meta = try writePage(body: "original", in: root)
+        let vm = PageEditorViewModel(page: meta, body: "original", saver: saver)
+
+        vm.body = "user edit"  // dirty
+        try FileManager.default.removeItem(at: meta.url)
+        await vm.flushNow()  // dirty + file gone → save (protect live edits)
+
+        #expect(saver.saved.count == 1)
+        #expect(saver.saved.first?.body == "user edit")
+    }
+
     // MARK: - Fixtures
+
+    private func tempRoot() throws -> URL {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("pommora-editor-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        return root
+    }
+
+    /// Writes a real `.md` Page carrying a stable frontmatter id and returns its meta.
+    private func writePage(body: String, named name: String = "Note", in root: URL) throws
+        -> PageMeta
+    {
+        let fm = PageFrontmatter(
+            id: ULID.generate(), icon: nil, tier1: [], tier2: [], tier3: [],
+            properties: [:], createdAt: Date())
+        let url = root.appendingPathComponent("\(name).md")
+        try PageFile(frontmatter: fm, body: body, title: name).save(to: url)
+        return PageMeta(id: fm.id, title: name, url: url, frontmatter: fm)
+    }
 
     private func testPage() -> PageMeta {
         let fm = PageFrontmatter(

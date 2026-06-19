@@ -85,6 +85,10 @@ enum AppGlobals {
         }
     }
 
+    /// Every live editor VM — for the watcher to refresh open Pages (re-point on
+    /// external rename, reload body on external edit) after a reconcile.
+    static func openEditorVMs() -> [PageEditorViewModel] { editorVMs.allObjects }
+
     /// Flush all live editor VMs. Called from app-lifecycle observers
     /// (willResignActive, willTerminate) so pending debounced saves don't
     /// get lost when the app backgrounds or quits.
