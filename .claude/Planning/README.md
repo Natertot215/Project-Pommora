@@ -6,7 +6,6 @@ Plans are named `MM-DD-<slug>.md` (earlier files retain their `YYYY-MM-DD-` name
 
 #### Active
 
-- `06-18-File-Watcher.md` (spec, **V4**) — the FSEvents file watcher. **Implemented** on branch `file-watcher` (logged in `History.md`): watcher (index-db excluded at intake, last-seen-`mtime` gate) → **surgical/coarse reconcile** (surgical set-sync for safe existing-Page edits/creates, coarse rebuild for renames/moves/deletes/non-Page/dropped-events), editor live-reload + protect-live-edits, and **stamp-on-first-sight** (ratified paradigm) via the watcher + the index-build bulk-stamp. **Deferred** (net-negative to rush): Context/Agenda sidecar stamping + open-adopted-Page stamping. Move to `Superseded/` on merge.
 - `06-15-Grouping-Redesign.md` (spec) + `06-15-Grouping-Plan.md` (plan) — the Grouping redesign. **Interface SHIPPED** on branch `grouping-redesign` (schema + resolver + the Grouping pane, through a full UIX-review pass); **remaining** is the *view-side* — group-header manual-drag reorder + the table disclosure-chevron animation (Plan Phase 3–4). The spec/plan status banners carry the done-vs-remaining split.
 - `06-13-Views-UIX-Fixes.md` — the sequenced Views/toolbar UIX fixes. **The toolbar, Views button, and banner chrome are actively changing** — the doc's flux note is load-bearing; nothing in those sections is settled truth. Covers the toolbar cluster, banner + titles, the banner-menu confinement + per-button menus (next), Gallery, grouping/sorting, and the Layout-pane rework.
 - `06-14-React-Rebuild-Roadmap.md` — **exploratory** program-level roadmap for a post-v1 React + TypeScript + Electron rebuild (behavior-identical to the PRD). Phase-sequenced; each phase becomes its own task-plan when greenlit. Backed by two research workflows. A scoped option, not committed work.
@@ -18,6 +17,7 @@ Plans are named `MM-DD-<slug>.md` (earlier files retain their `YYYY-MM-DD-` name
 #### Superseded
 
 - `Superseded/06-11-Views-Spec.md` — the v0.5.0 Views cluster spec (SavedView v2, the pure view pipeline, Table + Gallery, Views dropdown, covers/banners). **COMPLETE at v0.5.0**; spec-as-fact → `Features/Views.md`.
+- `Superseded/06-18-File-Watcher.md` — the **V4** FSEvents file-watcher spec. **SHIPPED** on branch `file-watcher` (surgical/coarse reconcile, editor live-reload + protect-live-edits, stamp-on-first-sight); the durable record — shipped behavior + the two deferrals (Context/Agenda sidecar + open-adopted-Page stamping) — lives in `History.md`. The spec ran ahead of the implementation (V4 described more than shipped); read it as design history, not current truth.
 - Other shipped/abandoned plans (Sets, PagesV2, Contexts-Decoupling, PagePreviewWindow, ItemsV2, and earlier sweeps) were removed from the tree — git history preserves them; their ship records live in `History.md`.
 
 `Contextv2.md` (the Drop-Relations→Contexts refactor, shipped 2026-06-04, registry #16) still sits at the top level pending archival review.

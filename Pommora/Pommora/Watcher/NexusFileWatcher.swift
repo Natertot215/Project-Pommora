@@ -125,8 +125,7 @@ nonisolated final class NexusFileWatcher: @unchecked Sendable {
 
             let mtime = Self.modificationTime(ofPath: path)
             if let mtime {
-                // Existing file: pass only if it advanced past what we last saw
-                // (drops duplicate events and the app's own save-echoes).
+                // Existing file: pass only if it advanced past what we last saw.
                 if let seen = lastSeen[path], mtime <= seen { continue }
                 lastSeen[path] = mtime
             } else {

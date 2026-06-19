@@ -20,7 +20,9 @@ import Foundation
 @MainActor
 final class ExternalChangeReconciler {
 
-    private enum Disposition {
+    /// Intake classification for a changed path. Internal (not private) so the
+    /// reconciler test can pin the routing decision directly.
+    enum Disposition {
         case ignore  // app-private / hidden file
         case deferToEditor(PageEditorViewModel)  // an open Page's file — editor authoritative
         case reconcile  // drives the debounced reconcile
@@ -28,7 +30,7 @@ final class ExternalChangeReconciler {
 
     /// A Page scope to reload + reindex surgically, carrying the parent ids
     /// `IndexUpdater.upsertPage` needs.
-    private enum Scope: Hashable {
+    enum Scope: Hashable {
         case collection(id: String, typeID: String)
         case set(id: String, collectionID: String, typeID: String)
         case typeRoot(id: String)
@@ -79,12 +81,18 @@ final class ExternalChangeReconciler {
         if scheduled { scheduleReconcile() }
     }
 
-    private func disposition(of url: URL) -> Disposition {
+    func disposition(of url: URL) -> Disposition {
         let name = url.lastPathComponent
         if name == "nexus.json" || name == "state.json" || name.hasPrefix(".") {
             return .ignore
         }
+        // An open Page's in-place external edit defers to the editor — it reloads
+        // its own body. But a file GONE at the editor's path (an external move or
+        // delete out from under it) can't be reloaded; route it to reconcile so the
+        // gone path forces the coarse rebuild, which re-points the editor by stable
+        // id. Without this guard a moved open Page re-saves at its old path.
         if url.pathExtension == "md",
+            FileManager.default.fileExists(atPath: url.path),
             let vm = AppGlobals.openEditor(forPath: url.standardizedFileURL.path) {
             return .deferToEditor(vm)
         }
@@ -149,10 +157,10 @@ final class ExternalChangeReconciler {
         await runCoarse(nexus: nexus, index: index)
     }
 
-    /// Distinct Page scopes to reindex if every changed path is an existing `.md`
-    /// resolving to a known scope; `nil` (→ coarse) for anything that could be a
-    /// rename / move / delete / new container / non-Page / dropped-events signal.
-    private func surgicalScopes(for paths: Set<URL>, nexus: Nexus) -> Set<Scope>? {
+    /// Distinct Page scopes to reindex when every changed path is an existing `.md`
+    /// in a known scope; `nil` (→ coarse) otherwise. See the type doc for why a
+    /// gone path must force coarse.
+    func surgicalScopes(for paths: Set<URL>, nexus: Nexus) -> Set<Scope>? {
         guard !paths.isEmpty else { return nil }
         var scopes: Set<Scope> = []
         for url in paths {
