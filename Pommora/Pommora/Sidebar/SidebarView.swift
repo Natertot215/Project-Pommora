@@ -26,10 +26,10 @@ struct SidebarView: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            NexusHeaderBanner(selection: $selection)
             // Outside the List so it doesn't touch Section layout (quirk #9).
             SidebarToast()
             List(selection: $selectedTag) {
-                SavedSection(selection: $selection)
                 ContextsSection(
                     selection: $selection,
                     editingID: $editingID,
@@ -248,140 +248,6 @@ struct SidebarView: View {
 }
 
 // MARK: - Sections
-
-// MARK: - CalendarPinViewModel
-
-/// Extracted view-model for the Calendar pin row context menu.
-/// Holds mutable creation-result state so tests can verify callbacks
-/// without constructing SwiftUI views (J.5/J.11/K.1 pattern).
-@MainActor
-@Observable
-final class CalendarPinViewModel {
-    var lastCreatedTask: AgendaTask?
-    var lastCreatedEvent: AgendaEvent?
-    var pendingError: (any Error)?
-
-    func createTask(using manager: AgendaTaskManager) async {
-        let now = Date()
-        let task = AgendaTask(
-            id: ULID.generate(),
-            title: "New Task",
-            icon: nil,
-            description: "",
-            dueAt: nil,
-            dueFloating: false,
-            dueAllDay: false,
-            startAt: nil,
-            completed: false,
-            completedAt: nil,
-            priority: 0,
-            recurrence: nil,
-            alarmOffsets: [],
-            calendarID: nil,
-            eventkitUUID: nil,
-            tier1: [], tier2: [], tier3: [],
-            createdAt: now,
-            modifiedAt: now,
-            properties: [:]
-        )
-        do {
-            try await manager.createTask(task)
-            lastCreatedTask = task
-        } catch {
-            pendingError = error
-        }
-    }
-
-    func createEvent(using manager: AgendaEventManager) async {
-        let now = Date()
-        let event = AgendaEvent(
-            id: ULID.generate(),
-            title: "New Event",
-            icon: nil,
-            description: "",
-            startAt: now,
-            endAt: now.addingTimeInterval(3600),
-            allDay: false,
-            location: nil,
-            recurrence: nil,
-            alarmOffsets: [],
-            alarmAbsolute: [],
-            calendarID: nil,
-            eventkitUUID: nil,
-            tier1: [], tier2: [], tier3: [],
-            createdAt: now,
-            modifiedAt: now,
-            properties: [:]
-        )
-        do {
-            try await manager.createEvent(event)
-            lastCreatedEvent = event
-        } catch {
-            pendingError = error
-        }
-    }
-}
-
-// MARK: - SavedSection
-
-struct SavedSection: View {
-    @Binding var selection: SidebarSelection
-    @Environment(SavedConfigManager.self) private var savedConfigManager
-    @Environment(AgendaTaskManager.self) private var agendaTaskManager
-    @Environment(AgendaEventManager.self) private var agendaEventManager
-    @Environment(SettingsManager.self) private var settingsManager
-
-    @State private var calendarPinVM: CalendarPinViewModel = CalendarPinViewModel()
-
-    var body: some View {
-        Section {
-            ForEach(savedConfigManager.config.items) { item in
-                calendarAwareRow(for: item)
-            }
-        }
-    }
-
-    @ViewBuilder
-    private func calendarAwareRow(for item: SavedConfig.Item) -> some View {
-        let row = SelectableRow(
-            title: item.label,
-            symbol: iconFor(item.key),
-            tag: SelectionTag.savedKey(item.key),
-            selection: $selection,
-            accent: nil
-        )
-        .listRowBackground(
-            SelectionChrome(
-                isSelected: SelectionTag.savedKey(item.key).matches(selection)
-            )
-        )
-        .tag(SelectionTag.savedKey(item.key))
-
-        if item.key == "calendar" {
-            row.contextMenu {
-                let taskLabel = settingsManager.settings.labels.agendaTask.singular
-                let eventLabel = settingsManager.settings.labels.agendaEvent.singular
-                Button("New \(taskLabel)") {
-                    Task { await calendarPinVM.createTask(using: agendaTaskManager) }
-                }
-                Button("New \(eventLabel)") {
-                    Task { await calendarPinVM.createEvent(using: agendaEventManager) }
-                }
-            }
-        } else {
-            row
-        }
-    }
-
-    private func iconFor(_ key: String) -> String {
-        switch key {
-        case "homepage": return "house"
-        case "calendar": return "calendar"
-        case "recents": return "clock"
-        default: return "questionmark.square"
-        }
-    }
-}
 
 struct VaultsSection: View {
     @Binding var selection: SidebarSelection
