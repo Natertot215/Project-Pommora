@@ -74,6 +74,17 @@ enum AppGlobals {
         editorVMs.remove(vm)
     }
 
+    /// The live editor VM editing the file at `path`, if any. Lets the file
+    /// watcher route a changed `.md` to its open editor — or skip the editor's
+    /// own autosaves (which already updated index + memory via CRUD) instead of
+    /// triggering a redundant reconcile.
+    static func openEditor(forPath path: String) -> PageEditorViewModel? {
+        let target = URL(fileURLWithPath: path).standardizedFileURL.path
+        return editorVMs.allObjects.first {
+            $0.page.url.standardizedFileURL.path == target
+        }
+    }
+
     /// Flush all live editor VMs. Called from app-lifecycle observers
     /// (willResignActive, willTerminate) so pending debounced saves don't
     /// get lost when the app backgrounds or quits.

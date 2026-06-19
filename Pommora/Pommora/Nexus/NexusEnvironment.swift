@@ -77,6 +77,12 @@ final class NexusEnvironment {
     /// Drives `[[ ]]` connection styling.
     let connectionResolver: any WikiLinkResolver
 
+    /// Live FSEvents watcher + reconciler for this Nexus. Nil until
+    /// `startWatching()` (called after the initial load) and always nil under the
+    /// XCTest host. Propagates external + out-of-band on-disk changes live.
+    private(set) var fileWatcher: NexusFileWatcher?
+    private(set) var reconciler: ExternalChangeReconciler?
+
     /// Constructs and wires every manager (see the class doc above). The NexusContext
     /// snapshot closures built inline below are **one-shot**: they capture manager arrays
     /// at construction time, so never reuse one from a long-lived background closure
@@ -215,7 +221,42 @@ final class NexusEnvironment {
             async let _ = settingsMgr.loadOrSeed()
             await recentsMgr.load()
             await pinnedMgr.load()
+            // Start watching once the initial load has settled, so the in-memory
+            // managers are populated before the first external change arrives.
+            self.startWatching()
         }
+    }
+
+    deinit { fileWatcher?.stop() }
+
+    // MARK: - File watching
+
+    /// Starts the FSEvents watcher + reconciler for this Nexus. No-op under the
+    /// XCTest host (the watcher must not touch the filesystem during tests, and a
+    /// reconcile could race the test fixture), and no-op if already started.
+    func startWatching() {
+        guard ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil
+        else { return }
+        guard fileWatcher == nil, let nexus = nexusManager.currentNexus else { return }
+
+        let reconciler = ExternalChangeReconciler(env: self)
+        self.reconciler = reconciler
+
+        let indexDB = NexusPaths.nexusConfigDir(in: nexus)
+            .appendingPathComponent("index.db", isDirectory: false)
+        let watcher = NexusFileWatcher(
+            rootURL: nexus.rootURL, indexDatabaseURL: indexDB
+        ) { [weak reconciler] paths in
+            reconciler?.handle(paths)
+        }
+        self.fileWatcher = watcher
+        watcher.start()
+    }
+
+    func stopWatching() {
+        fileWatcher?.stop()
+        fileWatcher = nil
+        reconciler = nil
     }
 }
 
