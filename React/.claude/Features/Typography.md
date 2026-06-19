@@ -1,27 +1,31 @@
 ## Typography
 
-Pommora's type system. Source of truth: the Figma "Pommora - React" library (text styles); this doc is its on-disk spec. Family is **Inter** (variable), letter-spacing **0** throughout. Every style carries two weights — **Standard** and **Emphasized**. The literal sizes and line heights live in the token file.
+Pommora's type system. Source of truth: the Figma "Pommora - React" library (text styles); this doc is its on-disk spec. Family is **Inter** (variable, weight axis 100–900), letter-spacing **0** throughout. Every style carries two variants — **Standard** and **Emphasized** — each bound to one of four named weights. The literal sizes and line heights live in the token file.
+
+> **Two layers, shared words.** *Standard* and *Emphasized* name both a style's two **variants** (`text.body.standard` / `.emphasized`) and two of the four **weights** (Standard 400 / Emphasized 500). They're independent: a variant resolves to whatever weight its role needs — e.g. Headline's *Standard variant* uses the *Emphasized (500) weight*.
 
 ### The ramp
 
-| Style       | Standard       | Emphasized       | Role                                    |
-| ----------- | -------------- | ---------------- | --------------------------------------- |
-| Large Title | Regular        | Bold             | top-level titles                        |
-| Title 1     | Regular        | Bold             |                                         |
-| Title 2     | Regular        | Bold             |                                         |
-| Title 3     | Regular        | Bold             | section headers                         |
-| Headline    | **Medium**     | **Semibold**     | menu section headers; body-size heading |
-| Body        | Regular        | Bold             | paragraph / default UI text             |
-| Callout     | Regular        | **Bold**         | in-text quotes                          |
-| Control     | Regular        | **Semibold**     | chips, labels, UI controls              |
-| Caption     | Regular        | Semibold         | secondary captions                      |
-| Footnote    | Regular        | Semibold         | smallest text                           |
+Columns are the two **variants**; cells are the **weight** each resolves to.
 
-Derived from the macOS AppKit text scale drawn in Inter, with deliberate edits: **Headline** sits at body size with Medium / Semibold weights — distinct from Body by weight, used for menu section headers; **Callout** carries in-text quotes and menu item titles (Bold emphasis); **Control** drives chips / labels / buttons (Semibold emphasis). Standard weight is **Regular** for every style except Headline (**Medium**).
+| Style       | Standard        | Emphasized       | Role                                    |
+| ----------- | --------------- | ---------------- | --------------------------------------- |
+| Large Title | Standard        | Bold             | top-level titles                        |
+| Title 1     | Standard        | Bold             |                                         |
+| Title 2     | Standard        | Bold             |                                         |
+| Title 3     | Standard        | Bold             | section headers                         |
+| Headline    | **Emphasized**  | **Semibold**     | menu section headers; body-size heading |
+| Body        | Standard        | Bold             | paragraph / default UI text             |
+| Callout     | Standard        | **Bold**         | in-text quotes                          |
+| Control     | Standard        | **Semibold**     | chips, labels, UI controls              |
+| Caption     | Standard        | Semibold         | secondary captions                      |
+| Footnote    | Standard        | Semibold         | smallest text                           |
+
+Derived from the macOS AppKit text scale drawn in Inter, with deliberate edits: **Headline** sits at body size with Emphasized / Semibold weights — distinct from Body by weight, used for menu section headers; **Callout** carries in-text quotes and menu item titles (Bold emphasis); **Control** drives chips / labels / buttons (Semibold emphasis). The Standard variant is the **Standard (400)** weight everywhere except Headline, which takes **Emphasized (500)**.
 
 ### Weights
 
-Four Inter weights: **Regular** (all Standard except Headline) · **Medium** (Headline Standard) · **Semibold** (Headline Emphasized + Control / Caption / Footnote Emphasized) · **Bold** (Emphasized of Large Title → Body, plus Callout). Emphasis is **role-driven**, not a blanket size rule.
+Four Inter weights on a ladder — **Standard 400 · Emphasized 500 · Semibold 600 · Bold 700** — defined once in the token file (editable in place; the variable font renders any value). By role: **Standard** backs every Standard variant except Headline · **Emphasized** is Headline's Standard variant · **Semibold** is Headline's Emphasized plus Control / Caption / Footnote Emphasized · **Bold** is the Emphasized of Large Title → Body, plus Callout. Emphasis is **role-driven**, not a blanket size rule.
 
 ### Where each style goes
 
@@ -44,7 +48,7 @@ Text color is separate from the type ramp. Three label tones on one near-white b
 
 ### In code
 
-The type tokens are authored in vanilla-extract in two layers: **font primitives** (family, the four weights, and a size/line scale per style) as the single source, and **composed text classes** (`text.<style>.{standard, emphasized}`) that apply a whole style to a component. Inter loads as a variable font; the build extracts the CSS.
+The type tokens are authored in vanilla-extract in two layers: **font primitives** (family, the four weights, and a size/line scale per style) as the single source, and **composed text classes** (`text.<style>.{standard, emphasized}`) that apply a whole style to a component. The weights are also bridged to `--weight-{standard,emphasized,semibold,bold}` CSS vars so plain CSS draws from the same numbers. Inter loads as a variable font; the build extracts the CSS.
 
 ### Not yet established — stubs
 

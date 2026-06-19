@@ -9,9 +9,12 @@ import { createGlobalTheme, style } from '@vanilla-extract/css'
 export const font = createGlobalTheme(':root', {
   family:
     "'Inter Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif",
+  // The four Inter weights, named on a standard → bold ladder. Single source —
+  // edit a number here (or add a step) and it flows to every text style and the
+  // --weight-* CSS vars. Inter is variable (axis 100–900), so any value renders.
   weight: {
-    regular: '400',
-    medium: '500',
+    standard: '400',
+    emphasized: '500',
     semibold: '600',
     bold: '700'
   },
@@ -33,11 +36,14 @@ export const font = createGlobalTheme(':root', {
 type ScaleKey = keyof typeof font.scale
 type WeightKey = keyof typeof font.weight
 
-// Compose one ramp style into its Standard + Emphasized class names.
+// Compose one ramp style into its two variant classes — `.standard` + `.emphasized`.
+// NB: those variant-slot names are a separate layer from the weight names above;
+// a slot maps to whatever weight its role calls for (e.g. Headline's `.standard`
+// slot resolves to the `emphasized` 500 weight). Params name the weight per slot.
 const ramp = (
   key: ScaleKey,
-  standard: WeightKey,
-  emphasized: WeightKey
+  standardWeight: WeightKey,
+  emphasizedWeight: WeightKey
 ): { standard: string; emphasized: string } => {
   const base = {
     fontFamily: font.family,
@@ -46,26 +52,26 @@ const ramp = (
     letterSpacing: 0
   }
   return {
-    standard: style({ ...base, fontWeight: font.weight[standard] }),
-    emphasized: style({ ...base, fontWeight: font.weight[emphasized] })
+    standard: style({ ...base, fontWeight: font.weight[standardWeight] }),
+    emphasized: style({ ...base, fontWeight: font.weight[emphasizedWeight] })
   }
 }
 
 /**
  * Composed text styles — apply a whole ramp style by name, e.g.
- * `<span className={text.headline.emphasized}>`. Standard / Emphasized weights
- * are role-driven (see Typography.md): Headline is the only style whose Standard
- * weight is Medium; chips / labels / buttons use Control Emphasized.
+ * `<span className={text.headline.emphasized}>`. Each style's two slots are
+ * role-driven (see Typography.md): every `.standard` slot is the 400 weight
+ * except Headline (500); `.emphasized` is Semibold or Bold by role.
  */
 export const text = {
-  largeTitle: ramp('largeTitle', 'regular', 'bold'),
-  title1: ramp('title1', 'regular', 'bold'),
-  title2: ramp('title2', 'regular', 'bold'),
-  title3: ramp('title3', 'regular', 'bold'),
-  headline: ramp('headline', 'medium', 'semibold'),
-  body: ramp('body', 'regular', 'bold'),
-  callout: ramp('callout', 'regular', 'bold'),
-  control: ramp('control', 'regular', 'semibold'),
-  caption: ramp('caption', 'regular', 'semibold'),
-  footnote: ramp('footnote', 'regular', 'semibold')
+  largeTitle: ramp('largeTitle', 'standard', 'bold'),
+  title1: ramp('title1', 'standard', 'bold'),
+  title2: ramp('title2', 'standard', 'bold'),
+  title3: ramp('title3', 'standard', 'bold'),
+  headline: ramp('headline', 'emphasized', 'semibold'),
+  body: ramp('body', 'standard', 'bold'),
+  callout: ramp('callout', 'standard', 'bold'),
+  control: ramp('control', 'standard', 'semibold'),
+  caption: ramp('caption', 'standard', 'semibold'),
+  footnote: ramp('footnote', 'standard', 'semibold')
 }

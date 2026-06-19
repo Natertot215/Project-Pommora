@@ -39,6 +39,11 @@ globalStyle(':root', {
     '--accent-fill': 'color-mix(in srgb, var(--accent) 15%, transparent)',
     '--accent-text': 'var(--accent)',
     '--font-family': font.family,
+    // Weight ladder — so plain CSS single-sources the same numbers as the text styles.
+    '--weight-standard': font.weight.standard,
+    '--weight-emphasized': font.weight.emphasized,
+    '--weight-semibold': font.weight.semibold,
+    '--weight-bold': font.weight.bold,
     // Motion — shared durations + easing so every transition reads as one system.
     '--duration-fast': duration.fast,
     '--duration-base': duration.base,
