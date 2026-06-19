@@ -39,6 +39,7 @@ final class ExternalChangeReconciler {
 
     /// Called on the main actor by the watcher with gated changed paths.
     func handle(_ paths: [URL]) {
+        let nexusRoot = env.nexusManager.currentNexus?.rootURL
         var needsReconcile = false
         for url in paths {
             switch disposition(of: url) {
@@ -48,10 +49,13 @@ final class ExternalChangeReconciler {
                 // In-place external edit to an open Page: reload its body now
                 // (cheap, no index rebuild). A rename instead surfaces as a new
                 // path (.reconcile) and re-points the editor in `run()`.
-                if let root = env.nexusManager.currentNexus?.rootURL {
-                    vm.reloadFromDisk(nexusRoot: root)
-                }
+                if let nexusRoot { vm.reloadFromDisk(nexusRoot: nexusRoot) }
             case .reconcile:
+                // Give a newly-appeared external Page a stable id before the
+                // reconcile indexes it, so a future rename tracks it by id.
+                if let nexusRoot, url.pathExtension == "md" {
+                    PageStamper.stampIfNeeded(at: url, nexusRoot: nexusRoot)
+                }
                 needsReconcile = true
             }
         }
