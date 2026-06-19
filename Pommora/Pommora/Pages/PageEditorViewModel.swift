@@ -181,25 +181,40 @@ final class ContentManagerPageSaver: PageSaver {
     private let vault: PageType
     private let collection: PageCollection?
     private let set: PageSet?
+    /// When provided, each save resolves the Page's CURRENT container by id
+    /// (index-backed) so an external or in-app move to a different scope follows the
+    /// live location instead of the scope captured when the editor opened. The
+    /// vault/collection/set above are the open-time fallback if resolution can't
+    /// place the Page.
+    private let pageTypeManager: PageTypeManager?
+    private let pageSetManager: PageSetManager?
 
     init(
         contentManager: PageContentManager, vault: PageType, collection: PageCollection?,
-        set: PageSet? = nil
+        set: PageSet? = nil, pageTypeManager: PageTypeManager? = nil,
+        pageSetManager: PageSetManager? = nil
     ) {
         self.contentManager = contentManager
         self.vault = vault
         self.collection = collection
         self.set = set
+        self.pageTypeManager = pageTypeManager
+        self.pageSetManager = pageSetManager
     }
 
     func save(page: PageMeta, body: String) async throws {
-        if let set, let collection {
+        let target =
+            pageTypeManager.flatMap {
+                contentManager.resolveParent(
+                    for: page, pageTypeManager: $0, pageSetManager: pageSetManager)
+            } ?? (vault: vault, collection: collection, set: set)
+        if let set = target.set, let collection = target.collection {
             try await contentManager.updatePage(
-                page, body: body, in: set, collection: collection, vault: vault)
-        } else if let collection {
-            try await contentManager.updatePage(page, body: body, in: collection, vault: vault)
+                page, body: body, in: set, collection: collection, vault: target.vault)
+        } else if let collection = target.collection {
+            try await contentManager.updatePage(page, body: body, in: collection, vault: target.vault)
         } else {
-            try await contentManager.updatePage(page, body: body, inVaultRoot: vault)
+            try await contentManager.updatePage(page, body: body, inVaultRoot: target.vault)
         }
     }
 }

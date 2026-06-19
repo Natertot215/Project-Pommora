@@ -53,6 +53,44 @@ struct PageSetDetailTests {
         #expect(try PageFile.load(from: meta.url).body == "edited body")
     }
 
+    @Test("Saver resolves the live scope per-save, so a stale captured scope can't drop page_set_id")
+    func saverPerSaveResolutionOverridesStaleCapture() async throws {
+        let nexus = try TempNexus.make()
+        defer { TempNexus.cleanup(nexus) }
+        let (index, _) = try PommoraIndex.open(at: nexus.rootURL)
+
+        let vault = try makePageType(nexus: nexus, title: "Notes", index: index)
+        let coll = try makePageCollection(nexus: nexus, title: "Inbox", in: vault, index: index)
+        let set = try makePageSet(title: "Drafts", in: coll, index: index)
+
+        let manager = PageContentManager(nexus: nexus, contextProvider: { NexusContext.empty })
+        manager.indexUpdater = IndexUpdater(index)
+        let meta = try await manager.createPage(name: "Draft", in: set, collection: coll, vault: vault)
+
+        // Managers the saver resolves the Page's live scope against.
+        let typeMgr = PageTypeManager(nexus: nexus)
+        typeMgr.indexUpdater = IndexUpdater(index)
+        await typeMgr.loadAll()
+        let setMgr = PageSetManager(nexus: nexus)
+        await setMgr.loadAll(collections: typeMgr.pageCollectionsByType.values.flatMap { $0 })
+
+        // Captured scope is STALE — it claims Collection-scoped (set: nil), which a
+        // captured-only saver would route through, nulling page_set_id. With managers,
+        // the save resolves the live scope (the Set) per-save instead.
+        let saver = ContentManagerPageSaver(
+            contentManager: manager, vault: vault, collection: coll, set: nil,
+            pageTypeManager: typeMgr, pageSetManager: setMgr)
+        try await saver.save(page: meta, body: "edited")
+
+        let pageID = meta.id
+        let setID = set.id
+        let row = try await index.dbQueue.read { db in
+            try Row.fetchOne(
+                db, sql: "SELECT page_set_id FROM pages WHERE id = ?", arguments: [pageID])
+        }
+        #expect(row?["page_set_id"] as String? == setID)
+    }
+
     // MARK: - Cell-commit path
 
     @Test("updatePageProperty with a Set keeps page_set_id and refreshes the Set cache")

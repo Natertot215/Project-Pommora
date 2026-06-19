@@ -101,7 +101,9 @@ struct PageEditorHost: View {
             contentManager: contentManager,
             vault: resolved.vault,
             collection: resolved.collection,
-            set: resolved.set
+            set: resolved.set,
+            pageTypeManager: vaultManager,
+            pageSetManager: pageSetManager
         )
         let vm = PageEditorViewModel(page: page, body: pageFile.body, saver: saver)
         viewModel = vm
