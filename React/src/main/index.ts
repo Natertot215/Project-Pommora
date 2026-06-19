@@ -4,6 +4,7 @@ import { extname, join, sep } from 'node:path'
 import { readFile } from 'node:fs/promises'
 import type { NexusState, PageResult } from '@shared/types'
 import type { MutateRequest, MutateResult, ContextTarget } from '@shared/mutate'
+import { WINDOW_BG } from '@shared/theme'
 import { readNexus } from './readNexus'
 import { readPage } from './readPage'
 import { readAppConfig, writeAppConfig, addRecent, DEFAULT_TRASH_MODE } from './appConfig'
@@ -76,7 +77,7 @@ function createWindow(): void {
     // sidebar's top-left. Opaque so the sidebar glass samples the window background.
     titleBarStyle: 'hidden',
     trafficLightPosition: { x: 18, y: 18 },
-    backgroundColor: '#1A1A1B', // = design-system background.window token
+    backgroundColor: WINDOW_BG, // single source (@shared/theme) — also drives the background.window token + --bg-window
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       // CommonJS preload (package is not type:module) → sandbox can stay ON.

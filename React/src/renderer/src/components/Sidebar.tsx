@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { Icon, icons, type IconName } from '@renderer/design-system/symbols'
+import { MenuItem } from '@renderer/design-system/components/menu'
 import type {
   AreaNode,
   CollectionNode,
@@ -13,6 +14,7 @@ import type {
   ProjectNode
 } from '@shared/types'
 import { DEFAULT_NEW_NAME, type MutableKind } from '@shared/mutate'
+import { TreeMove, useTreeDrag, useTreeDrop } from '@renderer/design-system/interactions/behaviors/useTreeMove'
 import { useSession } from '../store'
 
 const savedIcon: Record<SavedNode['key'], IconName> = {
@@ -53,7 +55,7 @@ function RowTitle({ path, kind, title }: { path: string; kind: MutableKind; titl
   useEffect(() => {
     if (editing) settled.current = false
   }, [editing])
-  if (!editing) return <span className="row-title">{title}</span>
+  if (!editing) return <>{title}</>
   const finish = (raw: string): void => {
     if (settled.current) return
     settled.current = true
@@ -112,6 +114,7 @@ function Leaf({
   depth,
   swatch,
   selected = false,
+  chevronSpace = true,
   onSelect,
   onContextMenu,
   rename
@@ -121,25 +124,29 @@ function Leaf({
   depth: number
   swatch?: string
   selected?: boolean
+  // Reserve the disclosure-chevron column so the icon lines up under expandable
+  // rows. Top-level shortcuts (the Saved strip) opt out and sit flush.
+  chevronSpace?: boolean
   onSelect?: () => void
   onContextMenu?: () => void
   rename?: RenameTarget
 }): React.JSX.Element {
   return (
-    <div
-      className={`row${selected ? ' selected' : ''}`}
-      style={{ paddingLeft: 10 + depth * 14 }}
+    <MenuItem
+      className="row"
+      selected={selected}
+      indent={depth}
       onClick={onSelect}
       onContextMenu={ctxHandler(onContextMenu)}
+      leading={
+        <>
+          {chevronSpace && <span className="twisty-spacer" />}
+          {swatch ? <span className="swatch" data-color={swatch} /> : <Icon name={icon} size={16} />}
+        </>
+      }
     >
-      <span className="twisty-spacer" />
-      {swatch ? (
-        <span className="swatch" data-color={swatch} />
-      ) : (
-        <Icon name={icon} size={15} className="row-icon" />
-      )}
-      {rename ? <RowTitle path={rename.path} kind={rename.kind} title={title} /> : <span className="row-title">{title}</span>}
-    </div>
+      {rename ? <RowTitle path={rename.path} kind={rename.kind} title={title} /> : title}
+    </MenuItem>
   )
 }
 
@@ -171,23 +178,28 @@ function Disclosure({
   const [open, setOpen] = useState(defaultOpen)
   return (
     <>
-      <div
-        className={`row${selected ? ' selected' : ''}`}
-        style={{ paddingLeft: 10 + depth * 14 }}
+      <MenuItem
+        className="row"
+        selected={selected}
+        indent={depth}
         onClick={() => {
           setOpen((o) => !o)
           onSelect?.()
         }}
         onContextMenu={ctxHandler(onContextMenu)}
+        leading={
+          <>
+            <Icon name="chevron-right" size={12} className={`twisty${open ? ' open' : ''}`} />
+            {swatch ? (
+              <span className="swatch" data-color={swatch} />
+            ) : (
+              <Icon name={open && openIcon ? openIcon : icon} size={16} />
+            )}
+          </>
+        }
       >
-        <span className={`twisty ${open ? 'open' : ''}`}>▸</span>
-        {swatch ? (
-          <span className="swatch" data-color={swatch} />
-        ) : (
-          <Icon name={open && openIcon ? openIcon : icon} size={15} className="row-icon" />
-        )}
-        {rename ? <RowTitle path={rename.path} kind={rename.kind} title={title} /> : <span className="row-title">{title}</span>}
-      </div>
+        {rename ? <RowTitle path={rename.path} kind={rename.kind} title={title} /> : title}
+      </MenuItem>
       {open && <div className="children">{children}</div>}
     </>
   )
@@ -206,16 +218,19 @@ function PageRow({
   selection: SelectionState
   onSelectPage: (page: PageNode) => void
 }): React.JSX.Element {
+  const drag = useTreeDrag(page.id, page.path, page.title)
   return (
-    <Leaf
-      icon="file-text"
-      title={page.title}
-      depth={depth}
-      selected={isPageSelected(selection, page.id)}
-      onSelect={() => onSelectPage(page)}
-      onContextMenu={() => showContextFor(page)}
-      rename={{ path: page.path, kind: page.kind }}
-    />
+    <div ref={drag.setNodeRef} className={`tree-item${drag.isDragging ? ' dragging' : ''}`} {...drag.handle}>
+      <Leaf
+        icon="file-text"
+        title={page.title}
+        depth={depth}
+        selected={isPageSelected(selection, page.id)}
+        onSelect={() => onSelectPage(page)}
+        onContextMenu={() => showContextFor(page)}
+        rename={{ path: page.path, kind: page.kind }}
+      />
+    </div>
   )
 }
 
@@ -231,20 +246,23 @@ function SetRow({
   onSelectPage: (page: PageNode) => void
 }): React.JSX.Element {
   const { icon, openIcon } = folderAwareIcons(set.icon, 'folder-closed')
+  const drop = useTreeDrop(set.id, set.path)
   return (
-    <Disclosure
-      icon={icon}
-      openIcon={openIcon}
-      title={set.title}
-      depth={depth}
-      defaultOpen={false}
-      onContextMenu={() => showContextFor(set)}
-      rename={{ path: set.path, kind: set.kind }}
-    >
-      {set.pages.map((p) => (
-        <PageRow key={p.id} page={p} depth={depth + 1} selection={selection} onSelectPage={onSelectPage} />
-      ))}
-    </Disclosure>
+    <div ref={drop.setNodeRef} className={`tree-zone${drop.isOver ? ' tree-over' : ''}`}>
+      <Disclosure
+        icon={icon}
+        openIcon={openIcon}
+        title={set.title}
+        depth={depth}
+        defaultOpen={false}
+        onContextMenu={() => showContextFor(set)}
+        rename={{ path: set.path, kind: set.kind }}
+      >
+        {set.pages.map((p) => (
+          <PageRow key={p.id} page={p} depth={depth + 1} selection={selection} onSelectPage={onSelectPage} />
+        ))}
+      </Disclosure>
+    </div>
   )
 }
 
@@ -260,23 +278,26 @@ function CollectionRow({
   onSelectPage: (page: PageNode) => void
 }): React.JSX.Element {
   const { icon, openIcon } = folderAwareIcons(col.icon, 'folder-closed')
+  const drop = useTreeDrop(col.id, col.path)
   return (
-    <Disclosure
-      icon={icon}
-      openIcon={openIcon}
-      title={col.title}
-      depth={depth}
-      defaultOpen={false}
-      onContextMenu={() => showContextFor(col)}
-      rename={{ path: col.path, kind: col.kind }}
-    >
-      {col.sets.map((s) => (
-        <SetRow key={s.id} set={s} depth={depth + 1} selection={selection} onSelectPage={onSelectPage} />
-      ))}
-      {col.pages.map((p) => (
-        <PageRow key={p.id} page={p} depth={depth + 1} selection={selection} onSelectPage={onSelectPage} />
-      ))}
-    </Disclosure>
+    <div ref={drop.setNodeRef} className={`tree-zone${drop.isOver ? ' tree-over' : ''}`}>
+      <Disclosure
+        icon={icon}
+        openIcon={openIcon}
+        title={col.title}
+        depth={depth}
+        defaultOpen={false}
+        onContextMenu={() => showContextFor(col)}
+        rename={{ path: col.path, kind: col.kind }}
+      >
+        {col.sets.map((s) => (
+          <SetRow key={s.id} set={s} depth={depth + 1} selection={selection} onSelectPage={onSelectPage} />
+        ))}
+        {col.pages.map((p) => (
+          <PageRow key={p.id} page={p} depth={depth + 1} selection={selection} onSelectPage={onSelectPage} />
+        ))}
+      </Disclosure>
+    </div>
   )
 }
 
@@ -294,25 +315,28 @@ function VaultRow({
   onSelectPage: (page: PageNode) => void
 }): React.JSX.Element {
   const { icon, openIcon } = folderAwareIcons(vault.icon, 'gallery-vertical-end')
+  const drop = useTreeDrop(vault.id, vault.path)
   return (
-    <Disclosure
-      icon={icon}
-      openIcon={openIcon}
-      title={vault.title}
-      depth={depth}
-      defaultOpen={false}
-      selected={isVaultSelected(selection, vault.id)}
-      onSelect={() => onSelectVault(vault)}
-      onContextMenu={() => showContextFor(vault)}
-      rename={{ path: vault.path, kind: vault.kind }}
-    >
-      {vault.collections.map((c) => (
-        <CollectionRow key={c.id} col={c} depth={depth + 1} selection={selection} onSelectPage={onSelectPage} />
-      ))}
-      {vault.pages.map((p) => (
-        <PageRow key={p.id} page={p} depth={depth + 1} selection={selection} onSelectPage={onSelectPage} />
-      ))}
-    </Disclosure>
+    <div ref={drop.setNodeRef} className={`tree-zone${drop.isOver ? ' tree-over' : ''}`}>
+      <Disclosure
+        icon={icon}
+        openIcon={openIcon}
+        title={vault.title}
+        depth={depth}
+        defaultOpen={false}
+        selected={isVaultSelected(selection, vault.id)}
+        onSelect={() => onSelectVault(vault)}
+        onContextMenu={() => showContextFor(vault)}
+        rename={{ path: vault.path, kind: vault.kind }}
+      >
+        {vault.collections.map((c) => (
+          <CollectionRow key={c.id} col={c} depth={depth + 1} selection={selection} onSelectPage={onSelectPage} />
+        ))}
+        {vault.pages.map((p) => (
+          <PageRow key={p.id} page={p} depth={depth + 1} selection={selection} onSelectPage={onSelectPage} />
+        ))}
+      </Disclosure>
+    </div>
   )
 }
 
@@ -335,6 +359,7 @@ export function Sidebar({ tree }: { tree: NexusTree }): React.JSX.Element {
   const selection = useSession((s) => s.selection)
   const select = useSession((s) => s.select)
   const newVault = useSession((s) => s.newVault)
+  const movePage = useSession((s) => s.movePage)
 
   const onSelectVault = (vault: PageTypeNode): void => {
     void select({ kind: 'vault', id: vault.id })
@@ -357,7 +382,7 @@ export function Sidebar({ tree }: { tree: NexusTree }): React.JSX.Element {
       {/* Saved strip — inert in Phase 1 (proves section order) */}
       <div className="section">
         {tree.saved.map((s) => (
-          <Leaf key={s.id} icon={savedIcon[s.key]} title={s.title} depth={0} />
+          <Leaf key={s.id} icon={savedIcon[s.key]} title={s.title} depth={0} chevronSpace={false} />
         ))}
       </div>
 
@@ -375,26 +400,11 @@ export function Sidebar({ tree }: { tree: NexusTree }): React.JSX.Element {
         ))}
       </div>
 
-      {/* Vaults */}
-      <div className="section">
-        <SectionHeader label={tree.labels.vaults} onAdd={newVault} />
-        {tree.vaults.map((v) => (
-          <VaultRow
-            key={v.id}
-            vault={v}
-            depth={0}
-            selection={selection}
-            onSelectVault={onSelectVault}
-            onSelectPage={onSelectPage}
-          />
-        ))}
-      </div>
-
-      {/* User sections */}
-      {tree.userSections.map((sec) => (
-        <div className="section" key={sec.id}>
-          <SectionHeader label={sec.label} />
-          {sec.vaults.map((v) => (
+      {/* Vaults + user sections — drag a page between containers (cross-set / cross-collection). */}
+      <TreeMove onMove={(from, to) => void movePage(from, to)}>
+        <div className="section">
+          <SectionHeader label={tree.labels.vaults} onAdd={newVault} />
+          {tree.vaults.map((v) => (
             <VaultRow
               key={v.id}
               vault={v}
@@ -405,7 +415,23 @@ export function Sidebar({ tree }: { tree: NexusTree }): React.JSX.Element {
             />
           ))}
         </div>
-      ))}
+
+        {tree.userSections.map((sec) => (
+          <div className="section" key={sec.id}>
+            <SectionHeader label={sec.label} />
+            {sec.vaults.map((v) => (
+              <VaultRow
+                key={v.id}
+                vault={v}
+                depth={0}
+                selection={selection}
+                onSelectVault={onSelectVault}
+                onSelectPage={onSelectPage}
+              />
+            ))}
+          </div>
+        ))}
+      </TreeMove>
     </nav>
   )
 }

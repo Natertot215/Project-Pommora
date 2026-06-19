@@ -1,4 +1,5 @@
 import { createGlobalTheme } from '@vanilla-extract/css'
+import { WINDOW_BG } from '@shared/theme'
 
 // Primitives — the base system palette. Grey/white/black are the single source for
 // every derived tone: labels are system-white at an opacity, and fills / states /
@@ -42,9 +43,10 @@ const derived = createGlobalTheme(':root', {
       secondary: whiteA('65%'),
       tertiary: whiteA('35%')
     },
-    // The app substrate — the base background (Figma "Background").
+    // The app substrate — the base background (Figma "Background"). Single source:
+    // @shared/theme WINDOW_BG, so the Electron window + this token never drift.
     background: {
-      window: '#1A1A1B'
+      window: WINDOW_BG
     },
     // Content surfaces layered on the window (Figma "Surface").
     surface: {

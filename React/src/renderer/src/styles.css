@@ -1,10 +1,10 @@
 :root {
-  --row-h: 26px;
+  --row-h: 28px;
   --text: #FFFFFFE6;
   --text-dim: #FFFFFF80;
   --hover: var(--state-hover); /* Figma States/hover — #71717A @ 2.5% */
   --selected: var(--state-selected); /* Figma States/selected — #71717A @ 5% */
-  --main-bg: #1a1a1b; /* = design-system background.window token */
+  --main-bg: var(--bg-window); /* the background.window token via the theme-vars bridge — single source (@shared/theme) */
   --glass-inset: 5px; /* gap from the window edges */
   --glass-radius: 12px; /* matched to the macOS window corner (≈ window radius − inset) */
 }
@@ -176,7 +176,7 @@ textarea,
   font-weight: 600;
   letter-spacing: 0.02em;
   color: var(--text-dim);
-  padding: 4px 10px;
+  padding: 4px 8px;
 }
 
 /* Section "+" — create a top-level entity. Revealed on section hover (uncluttered), no-drag
@@ -203,39 +203,15 @@ textarea,
   color: var(--text);
 }
 
-.row {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  height: var(--row-h);
-  padding-right: 8px;
-  border-radius: 6px;
-  cursor: default;
-  user-select: none;
-  white-space: nowrap;
-}
+/* Row geometry, states, title + icon live in the Menu component
+   (design-system/components/menu) — sidebar rows ARE MenuItems. `.row` survives
+   only as the hook the tree-drag selectors below target. */
 
-.row:hover {
-  background: var(--hover);
-}
-
-/* Selected-row chrome — a touch stronger than hover, same white-alpha language.
-   Stays put under :hover so a selected row doesn't lighten further on pointer. */
-.row.selected,
-.row.selected:hover {
-  background: var(--selected);
-}
-
-.row-title {
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-/* Inline rename field — replaces .row-title while a row is being renamed. Inherits the row
-   font; a subtle accent ring marks edit mode. no-drag so it stays clickable inside the
+/* Inline rename field — replaces the title text while a row is being renamed. Inherits the
+   row font; a subtle accent ring marks edit mode. no-drag so it stays clickable inside the
    draggable glass sidebar. */
 .row-title-input {
-  flex: 1;
+  width: 100%;
   min-width: 0;
   font: inherit;
   color: var(--text);
@@ -248,27 +224,52 @@ textarea,
   -webkit-app-region: no-drag;
 }
 
-.row-icon {
-  color: var(--text-dim);
-  flex: 0 0 auto;
+/* --- Tree drag: pages move between containers (cross-set / cross-collection) --- */
+/* Wrappers are layout-transparent; the grab cursor signals a draggable page. */
+.tree-item .row {
+  cursor: grab;
+}
+.tree-item.dragging {
+  opacity: 0.4; /* source row dims in place while its ghost follows the cursor */
+}
+.tree-item.dragging .row {
+  cursor: grabbing;
+}
+/* Drop target — ring + fill the hovered container's header row (the innermost under the cursor). */
+.tree-zone.tree-over > .row {
+  background: var(--selected);
+  box-shadow: inset 0 0 0 1.5px var(--accent);
+}
+/* The ghost following the cursor. */
+.tree-drag-overlay {
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  height: var(--row-h);
+  border-radius: 8px;
+  background: var(--selected);
+  box-shadow:
+    0 8px 20px #00000055,
+    inset 0 0 0 1px var(--accent);
+  color: var(--text);
+  font: inherit;
+  white-space: nowrap;
+  overflow: hidden;
 }
 
+/* Disclosure chevron — a chevron-right Icon (1em → tracks the row's 12px) that
+   rotates 90° when open; colour comes from the row's secondary glyph cluster. */
 .twisty {
-  display: inline-block;
-  width: 12px;
-  font-size: 9px;
-  color: var(--text-dim);
   transition: transform 0.12s ease;
   flex: 0 0 auto;
-  text-align: center;
 }
 
 .twisty.open {
   transform: rotate(90deg);
 }
 
+/* Leaf rows align their icon under disclosure rows' icons via a chevron-width spacer. */
 .twisty-spacer {
-  display: inline-block;
   width: 12px;
   flex: 0 0 auto;
 }

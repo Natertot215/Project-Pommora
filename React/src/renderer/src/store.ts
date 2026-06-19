@@ -64,6 +64,8 @@ interface SessionState {
   cancelRename: () => void
   /** Commit an inline rename via the mutate op, then refetch (selection reconciles the path). */
   submitRename: (path: string, kind: MutableKind, newName: string) => Promise<void>
+  /** Move a page file into a different container (cross-set / cross-collection), then refetch. */
+  movePage: (path: string, newParentPath: string) => Promise<void>
 }
 
 export const useSession = create<SessionState>((set, get) => {
@@ -225,6 +227,11 @@ export const useSession = create<SessionState>((set, get) => {
       set({ renamingPath: null }) // exit edit mode immediately
       const res = await window.nexus.mutate({ op: 'rename', path, kind, newName })
       if (res.ok) await get().load() // reconcileSelection refreshes the selected page's path
+      else await window.nexus.showError(res.error.message)
+    },
+    movePage: async (path, newParentPath) => {
+      const res = await window.nexus.mutate({ op: 'movePage', path, newParentPath })
+      if (res.ok) await get().load() // reconcileSelection refreshes the moved page's path
       else await window.nexus.showError(res.error.message)
     }
   }
