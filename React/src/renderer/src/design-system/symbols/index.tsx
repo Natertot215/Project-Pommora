@@ -84,8 +84,12 @@ export const icons = {
 
 export type IconName = keyof typeof icons
 
-/** Render a curated icon by name: `<Icon name="folder-closed" size={15} />`. */
-export function Icon({ name, size = 16, ...rest }: { name: IconName } & LucideProps): React.JSX.Element {
+/**
+ * Render a curated icon by name: `<Icon name="folder-closed" />`. Size defaults to
+ * `1em`, so an icon follows the font-size (and, via `currentColor`, the colour) of
+ * its context — the type scale drives it. Pass `size={N}` to override.
+ */
+export function Icon({ name, size = '1em', ...rest }: { name: IconName } & LucideProps): React.JSX.Element {
   const Glyph = icons[name]
   return <Glyph size={size} {...rest} />
 }

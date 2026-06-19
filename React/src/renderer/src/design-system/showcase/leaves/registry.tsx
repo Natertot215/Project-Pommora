@@ -3,6 +3,7 @@ import { ColorsLeaf } from './ColorsLeaf'
 import { TypographyLeaf } from './TypographyLeaf'
 import { IconsLeaf } from './IconsLeaf'
 import { ChipsLeaf } from './ChipsLeaf'
+import { MenuLeaf } from './MenuLeaf'
 import { GlassLeaf } from './GlassLeaf'
 import { InteractionsLeaf } from './InteractionsLeaf'
 
@@ -33,6 +34,7 @@ export const LEAVES: readonly Leaf[] = [
   { id: 'typography', label: 'Typography', icon: 'type', section: 'foundations', render: () => <TypographyLeaf /> },
   { id: 'icons', label: 'Icons', icon: 'shapes', section: 'foundations', render: () => <IconsLeaf /> },
   { id: 'chips', label: 'Chips', icon: 'tag', section: 'components', render: () => <ChipsLeaf /> },
+  { id: 'menu', label: 'Menu', icon: 'ellipsis-vertical', section: 'components', render: () => <MenuLeaf /> },
   { id: 'glass', label: 'Glass', icon: 'layers', section: 'materials', render: () => <GlassLeaf /> },
   { id: 'interactions', label: 'Interaction Lab', icon: 'arrow-up-down', section: 'interactions', render: () => <InteractionsLeaf /> }
 ]
