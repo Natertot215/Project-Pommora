@@ -138,7 +138,11 @@ final class ExternalChangeReconciler {
                     sourceID: pf.frontmatter.id, sourceKind: "page",
                     sourceTitle: pf.title, body: pf.body)
             }
-            refreshOpenEditors(nexusRoot: nexus.rootURL)
+            // External create/edit may activate or phantom a `[[ ]]` target — nudge
+            // open editors to restyle, matching the in-app edit path. (Open Pages'
+            // own files route to the editor at intake, never into a surgical batch,
+            // so they need no reload here.)
+            ConnectionsBus.postChanged(from: env.contentManager)
             return
         }
 
@@ -161,10 +165,8 @@ final class ExternalChangeReconciler {
         return scopes
     }
 
-    /// Reloads one scope's Pages into memory and syncs the index to match — upsert
-    /// present, delete vanished. The set-sync delete closes the cross-batch
-    /// rename/move hole: if the gone path didn't share this batch, the stale row is
-    /// still removed here rather than orphaned until a later coarse rebuild.
+    /// Reloads one scope's Pages and syncs the index to match it via `syncScope`
+    /// (set-sync: upsert present, delete vanished).
     private func reloadAndIndex(_ scope: Scope, updater: IndexUpdater) async {
         let content = env.contentManager
         switch scope {
@@ -219,6 +221,7 @@ final class ExternalChangeReconciler {
         await env.reloadAllManagers(filter: filter)
         await reloadLoadedPageScopes()
         refreshOpenEditors(nexusRoot: nexus.rootURL)
+        ConnectionsBus.postChanged(from: env.contentManager)
     }
 
     // MARK: - Scope resolution
