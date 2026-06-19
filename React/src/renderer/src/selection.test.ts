@@ -19,7 +19,7 @@ function tree(pages: { id: string; path: string }[]): NexusTree {
       }
     ],
     userSections: [],
-    labels: { vaults: 'Vaults', areas: 'Areas', topics: 'Topics', collection: 'Collection', set: 'Set' },
+    labels: { vaults: 'Vaults', areas: 'Areas', topics: 'Topics', projects: 'Projects', collection: 'Collection', set: 'Set' },
     accent: 'lavender'
   }
 }

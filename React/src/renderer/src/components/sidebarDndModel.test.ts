@@ -52,10 +52,10 @@ describe('buildIndex', () => {
     expect(idx.byId.get('p3')).toMatchObject({ kind: 'page', depth: 2, parentId: 'c1', parentPath: 'Vault/Col' })
     expect(idx.byId.get('p4')).toMatchObject({ kind: 'page', depth: 1, parentId: 'v1', parentPath: 'Vault' })
   })
-  it('exposes top-level groups + indexes contexts as depth-0 leaves', () => {
+  it('exposes top-level groups + indexes contexts as depth-1 leaves (nested under their tier)', () => {
     expect(idx.vaultIds).toEqual(['v1'])
     expect(idx.areaIds).toEqual(['a1', 'a2'])
-    expect(idx.byId.get('a1')).toMatchObject({ kind: 'area', depth: 0, parentId: null })
+    expect(idx.byId.get('a1')).toMatchObject({ kind: 'area', depth: 1, parentId: null })
   })
 })
 

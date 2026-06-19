@@ -128,6 +128,7 @@ export interface NexusLabels {
   vaults: string
   areas: string
   topics: string
+  projects: string
   collection: string
   set: string
 }
@@ -252,6 +253,7 @@ export const DEFAULT_LABELS: NexusLabels = {
   vaults: 'Vaults',
   areas: 'Areas',
   topics: 'Topics',
+  projects: 'Projects',
   collection: 'Collection',
   set: 'Set'
 }

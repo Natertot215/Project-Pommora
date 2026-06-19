@@ -188,38 +188,41 @@ function Disclosure({
   onSelect?: () => void
   onContextMenu?: () => void
   rename?: RenameTarget
-  // The header row's id — its OWN rect (not the subtree's) is what the engine hit-tests, so
-  // DragRow wraps only the header MenuItem; the <Reveal> body below stays outside it.
-  dragId: string
+  // The header row's id when this disclosure is a real entity — its OWN rect (not the subtree's)
+  // is what the engine hit-tests, so DragRow wraps only the header MenuItem; the <Reveal> body
+  // stays outside it. Omitted for structural disclosures (the context tiers), which aren't
+  // entities and so are never draggable or drop targets.
+  dragId?: string
   children: React.ReactNode
 }): React.JSX.Element {
   const [open, setOpen] = useState(defaultOpen)
+  const header = (
+    <MenuItem
+      className="row"
+      selected={selected}
+      indent={depth}
+      onClick={() => {
+        setOpen((o) => !o)
+        onSelect?.()
+      }}
+      onContextMenu={ctxHandler(onContextMenu)}
+      leading={
+        <>
+          <Icon name="chevron-right" size={12} className={`twisty${open ? ' open' : ''}`} />
+          {swatch ? (
+            <span className="swatch" data-color={swatch} />
+          ) : (
+            <Icon name={open && openIcon ? openIcon : icon} size={16} />
+          )}
+        </>
+      }
+    >
+      {rename ? <RowTitle path={rename.path} kind={rename.kind} title={title} /> : title}
+    </MenuItem>
+  )
   return (
     <>
-      <DragRow id={dragId}>
-        <MenuItem
-          className="row"
-          selected={selected}
-          indent={depth}
-          onClick={() => {
-            setOpen((o) => !o)
-            onSelect?.()
-          }}
-          onContextMenu={ctxHandler(onContextMenu)}
-          leading={
-            <>
-              <Icon name="chevron-right" size={12} className={`twisty${open ? ' open' : ''}`} />
-              {swatch ? (
-                <span className="swatch" data-color={swatch} />
-              ) : (
-                <Icon name={open && openIcon ? openIcon : icon} size={16} />
-              )}
-            </>
-          }
-        >
-          {rename ? <RowTitle path={rename.path} kind={rename.kind} title={title} /> : title}
-        </MenuItem>
-      </DragRow>
+      {dragId ? <DragRow id={dragId}>{header}</DragRow> : header}
       <Reveal open={open}>
         <div className="children">{children}</div>
       </Reveal>
@@ -328,12 +331,24 @@ function VaultRow({ vault, depth, selection, onSelectVault, onSelectPage }: { va
   )
 }
 
-// A context row (Area / Topic / Project) — a draggable leaf reordered within its tier.
-function ContextRow({ node, icon, swatch }: { node: { id: string; title: string; path: string; kind: MutableKind }; icon: IconName; swatch?: string }): React.JSX.Element {
+// A context leaf (Area / Topic / Project) — a draggable row reordered within its tier disclosure
+// (depth 1, under the tier header). Areas show their color swatch; every tier uses the grid icon.
+function ContextRow({ node, swatch }: { node: { id: string; title: string; path: string; kind: MutableKind }; swatch?: string }): React.JSX.Element {
   return (
     <DragRow id={node.id}>
-      <Leaf icon={icon} title={node.title} depth={0} swatch={swatch} onContextMenu={() => showContextFor(node)} rename={{ path: node.path, kind: node.kind }} />
+      <Leaf icon="layout-grid" title={node.title} depth={1} swatch={swatch} onContextMenu={() => showContextFor(node)} rename={{ path: node.path, kind: node.kind }} />
     </DragRow>
+  )
+}
+
+// A context tier group (Areas / Topics / Projects) — a non-draggable disclosure under the
+// Contexts heading holding that tier's leaves. Grid icon, open by default. The tiers are
+// free-standing (no containment), so the header is a pure expand/collapse toggle.
+function TierDisclosure({ label, children }: { label: string; children: React.ReactNode }): React.JSX.Element {
+  return (
+    <Disclosure icon="layout-grid" title={label} depth={0} defaultOpen>
+      {children}
+    </Disclosure>
   )
 }
 
@@ -389,18 +404,25 @@ export function Sidebar({ tree }: { tree: NexusTree }): React.JSX.Element {
       {/* Drag to reorder any entity within its parent heading (or a page across folders); an
           insertion line marks the drop + a ghost follows the cursor. Saved stays inert above. */}
       <SidebarDnd tree={tree} onCommit={onCommit}>
-        {/* Contexts — always shown so the "+" can create the first; order Projects -> Topics -> Areas */}
+        {/* Contexts — three tier disclosures, top-to-bottom Areas → Topics → Projects (tier 1 → 3);
+            the header "+" pops a picker to create any tier. */}
         <div className="section">
           <SectionHeader label="Contexts" onAdd={newContext} />
-          {tree.contexts.projects.map((p: ProjectNode) => (
-            <ContextRow key={p.id} node={p} icon="layout-grid" />
-          ))}
-          {tree.contexts.topics.map((t: TopicNode) => (
-            <ContextRow key={t.id} node={t} icon="layout-grid" />
-          ))}
-          {tree.contexts.areas.map((a: AreaNode) => (
-            <ContextRow key={a.id} node={a} icon="layout-grid" swatch={a.color} />
-          ))}
+          <TierDisclosure label={tree.labels.areas}>
+            {tree.contexts.areas.map((a: AreaNode) => (
+              <ContextRow key={a.id} node={a} swatch={a.color} />
+            ))}
+          </TierDisclosure>
+          <TierDisclosure label={tree.labels.topics}>
+            {tree.contexts.topics.map((t: TopicNode) => (
+              <ContextRow key={t.id} node={t} />
+            ))}
+          </TierDisclosure>
+          <TierDisclosure label={tree.labels.projects}>
+            {tree.contexts.projects.map((p: ProjectNode) => (
+              <ContextRow key={p.id} node={p} />
+            ))}
+          </TierDisclosure>
         </div>
 
         <div className="section">

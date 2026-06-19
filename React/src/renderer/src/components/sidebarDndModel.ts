@@ -25,7 +25,8 @@ export type Index = {
 }
 
 /** Id-keyed index + top-level groups. Depths match the sidebar's rendered indent (vault 0 →
- *  its pages 1; nested deeper). Contexts are leaf rows at depth 0 under the Contexts heading. */
+ *  its pages 1; nested deeper). Contexts are leaf rows at depth 1, nested under their tier
+ *  disclosure (Areas / Topics / Projects) which sits at depth 0 below the Contexts heading. */
 export function buildIndex(tree: NexusTree): Index {
   const byId = new Map<string, Entry>()
   const addPages = (pages: PageNode[], parentId: string, parentPath: string, depth: number): void => {
@@ -49,7 +50,7 @@ export function buildIndex(tree: NexusTree): Index {
   for (const v of vaults) walkVault(v)
 
   const addContexts = (nodes: ReadonlyArray<{ id: string; path: string }>, kind: Kind): string[] => {
-    for (const n of nodes) byId.set(n.id, { id: n.id, kind, path: n.path, depth: 0, parentId: null, parentPath: null, pageIds: [], containerIds: [] })
+    for (const n of nodes) byId.set(n.id, { id: n.id, kind, path: n.path, depth: 1, parentId: null, parentPath: null, pageIds: [], containerIds: [] })
     return nodes.map((n) => n.id)
   }
   return {
