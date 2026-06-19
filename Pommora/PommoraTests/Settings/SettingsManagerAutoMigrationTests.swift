@@ -127,4 +127,81 @@ struct SettingsManagerAutoMigrationTests {
         // Must surface an error.
         #expect(m.pendingError != nil)
     }
+
+    // MARK: - Profile fields (v4 → v5)
+
+    @Test("old file without profile fields decodes them to defaults and migrates")
+    func profileFieldsAbsentDecodeToDefaults() async throws {
+        let nexus = try TempNexus.make()
+        defer { TempNexus.cleanup(nexus) }
+
+        // A pre-profile-fields file (no profile_image / profile_subtitle keys; no
+        // defaults_version → treated as 0/stale).
+        let oldJSON = """
+        {
+          "version": 1,
+          "labels": {
+            "sidebar_sections": { "pages": "Vaults", "items": "Types" },
+            "page_type":        { "singular": "Vault",       "plural": "Vaults"       },
+            "page_collection":  { "singular": "Collection",  "plural": "Collections"  },
+            "item_type":        { "singular": "Type",        "plural": "Types"        },
+            "item_collection":  { "singular": "Set",         "plural": "Sets"         },
+            "project":          { "singular": "Project",     "plural": "Projects"     },
+            "agenda_task":      { "singular": "Task",        "plural": "Tasks"        },
+            "agenda_event":     { "singular": "Event",       "plural": "Events"       }
+          },
+          "modified_at": "2026-01-01T00:00:00Z"
+        }
+        """
+        let url = NexusPaths.settingsFileURL(in: nexus)
+        try oldJSON.data(using: .utf8)!.write(to: url)
+
+        let m = SettingsManager(nexus: nexus)
+        await m.loadOrSeed()
+
+        #expect(m.settings.defaultsVersion == Settings.currentDefaultsVersion)
+        #expect(m.settings.profileImage == nil)
+        #expect(m.settings.profileSubtitle == "")
+        #expect(m.pendingError == nil)
+    }
+
+    @Test("user-set profile fields survive migration and persist")
+    func userProfileFieldsSurviveMigration() async throws {
+        let nexus = try TempNexus.make()
+        defer { TempNexus.cleanup(nexus) }
+
+        // A v4 file carrying user-customized profile fields.
+        var old = Settings.defaultSeed()
+        old.defaultsVersion = 4
+        old.profileImage = ".nexus/assets/NX/avatar.png"
+        old.profileSubtitle = "Wednesday"
+        let url = NexusPaths.settingsFileURL(in: nexus)
+        try AtomicJSON.write(old, to: url)
+
+        let m = SettingsManager(nexus: nexus)
+        await m.loadOrSeed()
+
+        #expect(m.settings.defaultsVersion == Settings.currentDefaultsVersion)
+        #expect(m.settings.profileImage == ".nexus/assets/NX/avatar.png")
+        #expect(m.settings.profileSubtitle == "Wednesday")
+
+        // The bump (and preserved fields) re-persisted to disk.
+        let reloaded = try AtomicJSON.decode(Settings.self, from: url)
+        #expect(reloaded.defaultsVersion == Settings.currentDefaultsVersion)
+        #expect(reloaded.profileImage == ".nexus/assets/NX/avatar.png")
+        #expect(reloaded.profileSubtitle == "Wednesday")
+    }
+
+    @Test("updateProfileSubtitle trims whitespace and caps at 30 characters")
+    func subtitleTrimmedAndCapped() async throws {
+        let nexus = try TempNexus.make()
+        defer { TempNexus.cleanup(nexus) }
+
+        let m = SettingsManager(nexus: nexus)
+        await m.loadOrSeed()
+
+        await m.updateProfileSubtitle("  " + String(repeating: "x", count: 50) + "  ")
+        #expect(m.settings.profileSubtitle == String(repeating: "x", count: 30))
+        #expect(m.pendingError == nil)
+    }
 }

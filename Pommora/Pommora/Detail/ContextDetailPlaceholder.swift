@@ -1,7 +1,8 @@
 import SwiftUI
 
-/// Minimal placeholder shown for Area / Topic / Project selection until
-/// the composed-blocks editor lands v0.7.0.
+/// Minimal identity view shown for Area / Topic / Project selection until the
+/// composed-blocks editor lands — the selected entity's icon + title, no
+/// placeholder or version copy.
 struct ContextDetailPlaceholder: View {
     let title: String
     let icon: String
@@ -20,9 +21,6 @@ struct ContextDetailPlaceholder: View {
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }
-            Text("Composed view coming v0.7.0")
-                .font(.caption)
-                .foregroundStyle(.tertiary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }

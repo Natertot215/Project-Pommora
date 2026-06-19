@@ -22,21 +22,9 @@ struct SettingsScene: Scene {
 
 struct SettingsSheetPlaceholder: View {
     var body: some View {
-        ContentUnavailableView(
-            "Settings UI coming in v0.6.0",
-            systemImage: "gearshape",
-            description: Text(
-                """
-                The full Settings panel — accent color, custom labels, EventKit sync, \
-                tier-config — ships in v0.6.0. The storage scaffold is live in v0.3.0 so \
-                future Settings UI work is purely additive.
-
-                Until then, edit `<nexus>/.nexus/settings.json` directly to override labels \
-                or accent color.
-                """
-            )
-        )
-        .frame(width: 480, height: 320)
-        .padding()
+        // Intentionally blank until the designed Settings panel is built — no
+        // placeholder or version copy in the shipping UI.
+        Color.clear
+            .frame(width: 480, height: 320)
     }
 }

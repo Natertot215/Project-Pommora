@@ -18,13 +18,9 @@ struct SidebarDetailView: View {
             case .none:
                 emptyState
 
-            case .savedKey(let key):
-                ContextDetailPlaceholder(
-                    title: key.capitalized,
-                    icon: iconForSavedKey(key),
-                    accent: nil,
-                    supportingLine: "Saved view coming v0.6.0"
-                )
+            case .savedKey:
+                // Pending surface (e.g. Homepage) — intentionally blank until built.
+                Color.clear
 
             case .area(let s):
                 ContextDetailPlaceholder(
@@ -153,15 +149,6 @@ struct SidebarDetailView: View {
                 .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-
-    private func iconForSavedKey(_ key: String) -> String {
-        switch key {
-        case "homepage": return "house"
-        case "calendar": return "calendar"
-        case "recents": return "clock"
-        default: return "questionmark.square"
-        }
     }
 
 }

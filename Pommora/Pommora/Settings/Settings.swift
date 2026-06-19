@@ -30,13 +30,21 @@ struct Settings: Codable, Equatable, Hashable, Sendable {
     /// Vault-relative folder paths excluded from discovery. Empty by default.
     /// Paths are anchored to the nexus root (e.g. "Archive", "Projects/Old").
     var excludedFolders: [String]
+    /// Per-Nexus profile image shown in the sidebar header — a nexus-relative
+    /// POSIX path into `.nexus/assets/<nexusID>/` (stored via `CoverAssetStore`),
+    /// or nil for the default avatar. Travels with the nexus.
+    var profileImage: String?
+    /// Per-Nexus sidebar-header subtitle — free text (≤30 chars, enforced at the
+    /// edit site) shown under the nexus title. A plain string today; the seam a
+    /// future dynamic source (time / weather / inbox) plugs into. Empty default.
+    var profileSubtitle: String
     var modifiedAt: Date
 
     // MARK: - Versioning constants
 
     /// The defaults version shipped with the current build.  Increment this
     /// whenever a default value changes and add a migration step in `migrate(_:)`.
-    static let currentDefaultsVersion: Int = 4
+    static let currentDefaultsVersion: Int = 5
 
     // MARK: - Codable
 
@@ -47,6 +55,8 @@ struct Settings: Codable, Equatable, Hashable, Sendable {
         case labels
         case showPageIcon = "show_page_icon"
         case excludedFolders = "excluded_folders"
+        case profileImage = "profile_image"
+        case profileSubtitle = "profile_subtitle"
         case modifiedAt = "modified_at"
     }
 
@@ -57,6 +67,8 @@ struct Settings: Codable, Equatable, Hashable, Sendable {
         labels: SettingsLabels,
         showPageIcon: Bool = false,
         excludedFolders: [String] = [],
+        profileImage: String? = nil,
+        profileSubtitle: String = "",
         modifiedAt: Date
     ) {
         self.version = version
@@ -65,6 +77,8 @@ struct Settings: Codable, Equatable, Hashable, Sendable {
         self.labels = labels
         self.showPageIcon = showPageIcon
         self.excludedFolders = excludedFolders
+        self.profileImage = profileImage
+        self.profileSubtitle = profileSubtitle
         self.modifiedAt = modifiedAt
     }
 
@@ -81,6 +95,10 @@ struct Settings: Codable, Equatable, Hashable, Sendable {
         // Old files lack "excluded_folders" → default [] (matches the new default,
         // so migration has nothing to rewrite — see migrate(_:) v3→v4).
         excludedFolders = (try? c.decode([String].self, forKey: .excludedFolders)) ?? []
+        // Old files lack the profile fields → nil / "" (match the new defaults,
+        // so migration has nothing to rewrite — see migrate(_:) v4→v5).
+        profileImage = (try? c.decodeIfPresent(String.self, forKey: .profileImage)) ?? nil
+        profileSubtitle = (try? c.decode(String.self, forKey: .profileSubtitle)) ?? ""
         modifiedAt = try c.decode(Date.self, forKey: .modifiedAt)
     }
 
@@ -94,6 +112,8 @@ struct Settings: Codable, Equatable, Hashable, Sendable {
             labels: SettingsLabels.defaults(),
             showPageIcon: false,  // opt-in per Nexus
             excludedFolders: [],
+            profileImage: nil,
+            profileSubtitle: "",
             modifiedAt: Date()
         )
     }
@@ -147,6 +167,13 @@ struct Settings: Codable, Equatable, Hashable, Sendable {
             // decoded as `[]`, which already equals the new default, so there's nothing
             // to rewrite. Just record the version.
             s.defaultsVersion = 4
+        }
+
+        if s.defaultsVersion < 5 {
+            // v4→v5: added `profileImage` + `profileSubtitle` (sidebar header).
+            // Brand-new fields — absent in older files, decoded as nil / "",
+            // which already equal the new defaults, so nothing to rewrite.
+            s.defaultsVersion = 5
         }
 
         // Clamp to current in case intermediate versions were skipped.

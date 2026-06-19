@@ -2,6 +2,17 @@
 
 Changelog + the home for locked decisions — what shipped and when, newest first. Brief by design. Current state lives in the feature docs + `PommoraPRD.md`; roadmap + phases in `Framework.md`; editor internals in `Features/PageEditor.md`. When an entry would enumerate file-level detail, it points to the canonical feature doc instead.
 
+#### Nexus header + sidebar identity (2026-06-19, branch `file-watcher`)
+
+The sidebar's top saved-leaves (Homepage / Calendar / Recents) give way to a **Nexus header banner** above the List — per-nexus profile image · nexus title · custom subtitle. **Homepage** becomes that header; **Calendar + Recents leaves are removed** (their managers stay; only the sidebar surfacing goes), leaving `SavedConfig` vestigial.
+
+**Locked on-disk paradigm:**
+- **Profile image (per-Nexus):** bytes in `.nexus/assets/<nexusID>/` via `CoverAssetStore` (entity = nexus ULID); the nexus-relative path persists as `profile_image` in `settings.json`. Right-click image picker.
+- **Subtitle:** free text (≤30 chars) at `profile_subtitle` in `settings.json` — a plain string now, a hook for future dynamic sources (weather / time / inbox). Inline right-click edit. Both fields land via a `defaultsVersion` bump (additive — absent decodes to default).
+- **Title = folder name** (no display-name field — "filename = title" holds); inline rename **renames the nexus root folder** on disk.
+- **Root rename ⇒ parent access.** The sandbox grants only the selected folder, never its parent; renaming the root is a write to its parent dir, so a security-scoped bookmark to the nexus's **parent** folder is persisted in app-level `state.json` and **requested at initial nexus load**. Free nexus placement is kept; the grant's breadth follows location (a Home-level nexus grants Home).
+- **No in-app meta-commentary.** Version-promise placeholder strings ("… coming vX") removed; pending detail surfaces render blank.
+
 #### File watcher — live external-change sync, v1 (2026-06-18, branch `file-watcher`)
 
 An FSEvents recursive watch on the Nexus root propagates external + out-of-band on-disk changes into the running app live, **authority by recency and origin-blind** — the newest write wins, internal-vs-external is irrelevant. Reconcile is **surgical for the safe common case** (a debounced batch of purely existing-Page edits/creates in known scopes reindexes just those scopes via set-sync) and **coarse** for anything that could orphan a link or misclassify a move — a gone path (rename / move / delete), a non-Page change, a dropped-events signal, or a Page in an unloaded container — falling back to an atomic full rebuild (`IndexBuilder.populate`) + manager reload — so every kind reconciles, Pages surgically and all other kinds through the coarse rebuild. The index database is excluded at watcher intake so reconciles can't self-feed, and a watcher-owned last-seen-`mtime` gate drops duplicate events and self-write echoes. The open editor live-reloads on an external in-place edit (clean only) and re-points by stable id on an external rename — **unflushed edits are protected** and a file deleted under a clean editor is never resurrected.

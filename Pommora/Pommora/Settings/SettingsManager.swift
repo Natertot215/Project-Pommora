@@ -63,6 +63,25 @@ final class SettingsManager {
         await persist(s)
     }
 
+    /// Sets (or clears, with nil) the nexus-relative profile-image path shown in
+    /// the sidebar header. The image bytes are copied into `.nexus/assets/` by
+    /// `CoverAssetStore` at the call site; this only persists the path.
+    func updateProfileImage(_ relativePath: String?) async {
+        var s = settings
+        s.profileImage = relativePath
+        s.modifiedAt = Date()
+        await persist(s)
+    }
+
+    /// Sets the sidebar-header subtitle. Trimmed + capped at 30 characters so the
+    /// stored value can never exceed the header's budget regardless of caller.
+    func updateProfileSubtitle(_ text: String) async {
+        var s = settings
+        s.profileSubtitle = String(text.trimmingCharacters(in: .whitespacesAndNewlines).prefix(30))
+        s.modifiedAt = Date()
+        await persist(s)
+    }
+
     func updateLabel<T>(_ keyPath: WritableKeyPath<SettingsLabels, T>, to newValue: T) async {
         var s = settings
         s.labels[keyPath: keyPath] = newValue
