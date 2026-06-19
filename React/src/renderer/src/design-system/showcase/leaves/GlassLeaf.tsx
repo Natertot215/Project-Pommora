@@ -4,9 +4,9 @@ import { useIsCompact } from './helpers'
 
 // Materials · Glass — a live tuner for the Pommora CSS frost. A param-driven glass
 // panel over a switchable backdrop, with the knobs as a side rail on desktop and a
-// dropdown on a compact screen. "Surface" / "Control" restore the two material
-// presets (identical today — both are `frostMaterial` — but distinct slots ready to
-// diverge, mirroring GlassSurface vs GlassControls).
+// dropdown on a compact screen. "Window" / "Surface" / "Control" restore the three
+// material presets (identical today — all are `frostMaterial` — but distinct slots
+// ready to diverge, mirroring GlassWindow / GlassSurface / GlassControls).
 
 type FrostParams = {
   blur: number
@@ -34,7 +34,7 @@ const FROST: FrostParams = {
   shadowBlur: 26,
   shadowAlpha: 28
 }
-const PRESETS: Record<string, FrostParams> = { Surface: FROST, Control: FROST }
+const PRESETS: Record<string, FrostParams> = { Window: FROST, Surface: FROST, Control: FROST }
 
 const SURFACES = [
   { key: 'philly', img: '/surfaces/philly.jpg' },
@@ -139,7 +139,7 @@ function GlassControls({ params, setParams }: { params: FrostParams; setParams: 
 }
 
 export function GlassLeaf(): React.JSX.Element {
-  const [params, setParams] = useState<FrostParams>(PRESETS.Surface)
+  const [params, setParams] = useState<FrostParams>(PRESETS.Window)
   const [bg, setBg] = useState<(typeof SURFACES)[number]>(SURFACES[0])
   return (
     <div className="ds-leaf">

@@ -1,4 +1,6 @@
 // Materials — Pommora's glass. Import from here, not the individual files.
+// Three tiers (largest → smallest): window frame, surfaces, controls.
+export { GlassWindow } from './glass-window'
 export { GlassSurface } from './glass-surface'
 export { GlassControls } from './glass-controls'
 export { frostMaterial } from './glass-material'
