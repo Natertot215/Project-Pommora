@@ -153,6 +153,34 @@ struct IndexUpdaterTests {
         #expect(count == 0)
     }
 
+    // MARK: - pageIDs scope filtering (surgical-reconcile set-sync)
+
+    @Test func pageIDsScopesPrecisely() async throws {
+        let nexus = try TempNexus.make()
+        defer { TempNexus.cleanup(nexus) }
+        let idx = try makeIndex(at: nexus)
+        let updater = IndexUpdater(idx)
+
+        let pt = makePageType()
+        try updater.upsertPageType(pt)
+        let pc = makePageCollection(typeID: pt.id)
+        try updater.upsertPageCollection(pc)
+
+        let rootPage = makePageMeta(title: "Root")
+        let collectionPage = makePageMeta(title: "InCollection")
+        try updater.upsertPage(rootPage, pageTypeID: pt.id, pageCollectionID: nil, pageSetID: nil)
+        try updater.upsertPage(
+            collectionPage, pageTypeID: pt.id, pageCollectionID: pc.id, pageSetID: nil)
+
+        // Type-root scope excludes the Collection page.
+        let rootIDs = try updater.pageIDs(pageTypeID: pt.id, pageCollectionID: nil, pageSetID: nil)
+        #expect(rootIDs == [rootPage.id])
+
+        // Collection scope returns only its own page.
+        let colIDs = try updater.pageIDs(pageTypeID: pt.id, pageCollectionID: pc.id, pageSetID: nil)
+        #expect(colIDs == [collectionPage.id])
+    }
+
     // MARK: - PageType title rename updates index
 
     @Test func renamePageTypeUpdatesIndexedTitle() async throws {

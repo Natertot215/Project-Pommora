@@ -215,6 +215,31 @@ struct IndexUpdater: Sendable {
         }
     }
 
+    /// Page ids the index currently holds for one scope — a Type root excludes its
+    /// Collection/Set pages, a Collection excludes its Set pages. The surgical
+    /// reconcile uses this to delete rows whose file vanished from the scope.
+    func pageIDs(pageTypeID: String, pageCollectionID: String?, pageSetID: String?) throws
+        -> [String]
+    {
+        try index.dbQueue.read { db in
+            if let pageSetID {
+                return try String.fetchAll(
+                    db, sql: "SELECT id FROM pages WHERE page_set_id = ?", arguments: [pageSetID])
+            }
+            if let pageCollectionID {
+                return try String.fetchAll(
+                    db,
+                    sql: "SELECT id FROM pages WHERE page_collection_id = ? AND page_set_id IS NULL",
+                    arguments: [pageCollectionID])
+            }
+            return try String.fetchAll(
+                db,
+                sql:
+                    "SELECT id FROM pages WHERE page_type_id = ? AND page_collection_id IS NULL AND page_set_id IS NULL",
+                arguments: [pageTypeID])
+        }
+    }
+
     // MARK: - AgendaTask
 
     func upsertAgendaTask(_ task: AgendaTask) throws {

@@ -4,32 +4,49 @@ import Foundation
 /// re-reads the affected files into the SQLite index and the in-memory managers
 /// so external edits and the app's own out-of-band writes propagate live.
 ///
-/// v1 reconcile is coarse: a real change debounces into a full reconcile that
-/// reuses the launch index build (`IndexBuilder.populate` — atomic, all-kinds,
-/// handles deletes) plus `NexusEnvironment.reloadAllManagers`. Per-scope surgical
-/// reconcile is a later optimization. The open editor's own file is skipped — its
-/// saves are already reconciled by CRUD, and an external edit to an open Page
-/// defers to the editor until it closes (protect-live-edits).
+/// A real change debounces into a reconcile that is **surgical** for the frequent,
+/// provably-safe case — a batch of purely existing-Page edits/creates in known
+/// scopes reindexes just those scopes — and falls back to the **coarse** full
+/// rebuild (`IndexBuilder.populate` + `reloadAllManagers`) for everything else:
+/// gone paths (rename / move / delete), non-Page changes, a dropped-events signal,
+/// or a Page in a not-yet-loaded container. The coarse path is the original,
+/// correct all-kinds reconcile; the surgical path only ever handles cases that
+/// cannot orphan a link or misclassify a move (those all carry a gone path, which
+/// forces coarse).
+///
+/// The open editor's own file is skipped (`deferToEditor`) — its saves are already
+/// reconciled by CRUD, and an external edit to an open Page reloads its body in
+/// place; renames re-point it by stable id during the reconcile.
 @MainActor
 final class ExternalChangeReconciler {
 
-    /// How a changed path is routed. The editor-reload + stamping layers extend
-    /// this switch rather than reshaping a boolean chain.
     private enum Disposition {
         case ignore  // app-private / hidden file
         case deferToEditor(PageEditorViewModel)  // an open Page's file — editor authoritative
-        case reconcile  // everything else — drives the coarse reconcile
+        case reconcile  // drives the debounced reconcile
+    }
+
+    /// A Page scope to reload + reindex surgically, carrying the parent ids
+    /// `IndexUpdater.upsertPage` needs.
+    private enum Scope: Hashable {
+        case collection(id: String, typeID: String)
+        case set(id: String, collectionID: String, typeID: String)
+        case typeRoot(id: String)
     }
 
     private unowned let env: NexusEnvironment
-    /// The Nexus this reconciler belongs to. A debounced reconcile that fires
-    /// after a Nexus switch is dropped rather than writing one Nexus's content
-    /// into another's index.
+    /// The Nexus this reconciler belongs to — a debounced reconcile firing after a
+    /// Nexus switch is dropped rather than writing one Nexus into another's index.
     private let nexusID: String
     private var reconcileTask: Task<Void, Never>?
+    /// Changed paths accumulated across the debounce window, drained by `run()`.
+    private var pendingPaths: Set<URL> = []
+    /// Serializes reconciles. `run()` is async and `@MainActor`-reentrant, so two
+    /// could interleave at an `await` and settle index/memory wrong under bursty
+    /// events; a reconcile arriving mid-run sets `rerunRequested` and reschedules.
+    private var isRunning = false
+    private var rerunRequested = false
 
-    /// Coalesces a burst of related events (and atomic-write temp churn) into one
-    /// reconcile.
     private static let debounce: Duration = .milliseconds(250)
 
     init(env: NexusEnvironment, nexusID: String) {
@@ -37,29 +54,29 @@ final class ExternalChangeReconciler {
         self.nexusID = nexusID
     }
 
+    // MARK: - Intake
+
     /// Called on the main actor by the watcher with gated changed paths.
     func handle(_ paths: [URL]) {
         let nexusRoot = env.nexusManager.currentNexus?.rootURL
-        var needsReconcile = false
+        var scheduled = false
         for url in paths {
             switch disposition(of: url) {
             case .ignore:
                 continue
             case .deferToEditor(let vm):
-                // In-place external edit to an open Page: reload its body now
-                // (cheap, no index rebuild). A rename instead surfaces as a new
-                // path (.reconcile) and re-points the editor in `run()`.
                 if let nexusRoot { vm.reloadFromDisk(nexusRoot: nexusRoot) }
             case .reconcile:
-                // Give a newly-appeared external Page a stable id before the
-                // reconcile indexes it, so a future rename tracks it by id.
+                // Stamp a newly-appeared external Page before it's indexed, so a
+                // future rename tracks it by id.
                 if let nexusRoot, url.pathExtension == "md" {
                     PageStamper.stampIfNeeded(at: url, nexusRoot: nexusRoot)
                 }
-                needsReconcile = true
+                pendingPaths.insert(url)
+                scheduled = true
             }
         }
-        if needsReconcile { scheduleReconcile() }
+        if scheduled { scheduleReconcile() }
     }
 
     private func disposition(of url: URL) -> Disposition {
@@ -83,22 +100,175 @@ final class ExternalChangeReconciler {
         }
     }
 
-    /// Coarse reconcile: rebuild the index atomically (clear + reinsert in one
-    /// transaction, so readers never see it empty; covers every kind and deletes),
-    /// then refresh the in-memory managers.
+    // MARK: - Reconcile
+
     private func run() async {
+        // Serialize: a reconcile arriving while one is in flight defers to a rerun.
+        if isRunning {
+            rerunRequested = true
+            return
+        }
+        isRunning = true
+        defer {
+            isRunning = false
+            if rerunRequested {
+                rerunRequested = false
+                scheduleReconcile()
+            }
+        }
+
         let nexusManager = env.nexusManager
+        let paths = pendingPaths
+        pendingPaths.removeAll()
         guard nexusManager.currentNexus?.id == nexusID,
             let nexus = nexusManager.currentNexus,
             let index = nexusManager.currentIndex
         else { return }
-        let filter = FolderFilter.load(for: nexus)
 
+        if let scopes = surgicalScopes(for: paths, nexus: nexus),
+            let updater = env.contentManager.indexUpdater {
+            for scope in scopes { await reloadAndIndex(scope, updater: updater) }
+            // Re-sync wiki-connection edges for the changed Page bodies (an external
+            // edit may have added/removed a `[[ ]]`), matching the in-app edit path
+            // so a later rename cascade doesn't miss them.
+            for url in paths where url.pathExtension == "md" {
+                guard let pf = try? PageFile.loadLenient(from: url, nexusRoot: nexus.rootURL)
+                else { continue }
+                try? updater.reconcileConnections(
+                    sourceID: pf.frontmatter.id, sourceKind: "page",
+                    sourceTitle: pf.title, body: pf.body)
+            }
+            refreshOpenEditors(nexusRoot: nexus.rootURL)
+            return
+        }
+
+        await runCoarse(nexus: nexus, index: index)
+    }
+
+    /// Distinct Page scopes to reindex if every changed path is an existing `.md`
+    /// resolving to a known scope; `nil` (→ coarse) for anything that could be a
+    /// rename / move / delete / new container / non-Page / dropped-events signal.
+    private func surgicalScopes(for paths: Set<URL>, nexus: Nexus) -> Set<Scope>? {
+        guard !paths.isEmpty else { return nil }
+        var scopes: Set<Scope> = []
+        for url in paths {
+            guard url.pathExtension == "md",
+                FileManager.default.fileExists(atPath: url.path),
+                let scope = resolveScope(for: url, nexus: nexus)
+            else { return nil }
+            scopes.insert(scope)
+        }
+        return scopes
+    }
+
+    /// Reloads one scope's Pages into memory and syncs the index to match — upsert
+    /// present, delete vanished. The set-sync delete closes the cross-batch
+    /// rename/move hole: if the gone path didn't share this batch, the stale row is
+    /// still removed here rather than orphaned until a later coarse rebuild.
+    private func reloadAndIndex(_ scope: Scope, updater: IndexUpdater) async {
+        let content = env.contentManager
+        switch scope {
+        case .collection(let id, let typeID):
+            guard let col = collection(id: id, typeID: typeID) else { return }
+            await content.loadAll(for: col)
+            syncScope(
+                content.pagesByCollection[id] ?? [],
+                pageTypeID: typeID, pageCollectionID: id, pageSetID: nil, updater: updater)
+        case .set(let id, let collectionID, let typeID):
+            guard let set = pageSet(id: id, collectionID: collectionID) else { return }
+            await content.loadAll(for: set)
+            syncScope(
+                content.pagesBySet[id] ?? [],
+                pageTypeID: typeID, pageCollectionID: collectionID, pageSetID: id, updater: updater)
+        case .typeRoot(let id):
+            guard let type = env.vaultManager.types.first(where: { $0.id == id }) else { return }
+            await content.loadAll(for: type)
+            syncScope(
+                content.pagesByTypeRoot[id] ?? [],
+                pageTypeID: id, pageCollectionID: nil, pageSetID: nil, updater: updater)
+        }
+    }
+
+    /// Upserts a scope's on-disk Pages, then deletes any index row whose file is no
+    /// longer present in that scope (set-sync).
+    private func syncScope(
+        _ metas: [PageMeta], pageTypeID: String, pageCollectionID: String?, pageSetID: String?,
+        updater: IndexUpdater
+    ) {
+        for meta in metas {
+            try? updater.upsertPage(
+                meta, pageTypeID: pageTypeID, pageCollectionID: pageCollectionID,
+                pageSetID: pageSetID)
+        }
+        let diskIDs = Set(metas.map(\.id))
+        guard
+            let indexed = try? updater.pageIDs(
+                pageTypeID: pageTypeID, pageCollectionID: pageCollectionID, pageSetID: pageSetID)
+        else { return }
+        for staleID in indexed where !diskIDs.contains(staleID) {
+            try? updater.deletePage(id: staleID)
+        }
+    }
+
+    /// Coarse reconcile: rebuild the index atomically (clear + reinsert in one
+    /// transaction, covers every kind + deletes) then refresh the managers + loaded
+    /// scopes.
+    private func runCoarse(nexus: Nexus, index: PommoraIndex) async {
+        let filter = FolderFilter.load(for: nexus)
         try? await IndexBuilder.populate(index: index, from: nexus, filter: filter)
         await env.reloadAllManagers(filter: filter)
         await reloadLoadedPageScopes()
         refreshOpenEditors(nexusRoot: nexus.rootURL)
     }
+
+    // MARK: - Scope resolution
+
+    /// Resolves the most-specific known container (Set → Collection → Type root)
+    /// whose folder contains `url`; `nil` if no loaded container matches (a Page in
+    /// a not-yet-loaded container → coarse).
+    private func resolveScope(for url: URL, nexus: Nexus) -> Scope? {
+        let parent = url.deletingLastPathComponent().standardizedFileURL.path
+        for (collectionID, sets) in env.pageSetManager.pageSetsByCollection {
+            for set in sets where isUnder(parent, set.folderURL) {
+                guard let typeID = typeID(ofCollection: collectionID) else { return nil }
+                return .set(id: set.id, collectionID: collectionID, typeID: typeID)
+            }
+        }
+        for (typeID, cols) in env.vaultManager.pageCollectionsByType {
+            for col in cols where isUnder(parent, col.folderURL) {
+                return .collection(id: col.id, typeID: typeID)
+            }
+        }
+        for type in env.vaultManager.types
+        where isUnder(parent, NexusPaths.vaultFolderURL(forTitle: type.title, in: nexus)) {
+            return .typeRoot(id: type.id)
+        }
+        return nil
+    }
+
+    /// Path containment with a separator boundary so `/a/bc` is not under `/a/b`.
+    private func isUnder(_ path: String, _ folder: URL) -> Bool {
+        let f = folder.standardizedFileURL.path
+        return path == f || path.hasPrefix(f + "/")
+    }
+
+    private func typeID(ofCollection collectionID: String) -> String? {
+        for (typeID, cols) in env.vaultManager.pageCollectionsByType
+        where cols.contains(where: { $0.id == collectionID }) {
+            return typeID
+        }
+        return nil
+    }
+
+    private func collection(id: String, typeID: String) -> PageCollection? {
+        (env.vaultManager.pageCollectionsByType[typeID] ?? []).first { $0.id == id }
+    }
+
+    private func pageSet(id: String, collectionID: String) -> PageSet? {
+        (env.pageSetManager.pageSetsByCollection[collectionID] ?? []).first { $0.id == id }
+    }
+
+    // MARK: - Editors + loaded scopes
 
     /// After a reconcile, re-point each open editor whose file was renamed/moved
     /// externally (matched by stable id) and reload its body. Pages with unflushed
@@ -112,12 +282,11 @@ final class ExternalChangeReconciler {
         }
     }
 
-    /// Refreshes only the currently-loaded Page scopes (Pages load lazily) so any
-    /// open list picks up external adds / edits / renames.
+    /// Refreshes the currently-loaded Page scopes (Pages load lazily) so any open
+    /// list picks up external changes after a coarse rebuild.
     private func reloadLoadedPageScopes() async {
         let content = env.contentManager
         let collections = env.vaultManager.pageCollectionsByType.values.flatMap { $0 }
-
         for id in Array(content.pagesByCollection.keys) {
             guard let collection = collections.first(where: { $0.id == id }) else { continue }
             await content.loadAll(for: collection)
