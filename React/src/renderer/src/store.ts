@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import type { NexusTree, PageDetail, SelectionState } from '@shared/types'
-import { DEFAULT_NEW_NAME, type MutableKind } from '@shared/mutate'
+import { DEFAULT_NEW_NAME, type MutableKind, type MutateRequest } from '@shared/mutate'
 import { reconcileSelection } from './selection'
 import { applyAccent } from './design-system/accent'
 
@@ -64,8 +64,10 @@ interface SessionState {
   cancelRename: () => void
   /** Commit an inline rename via the mutate op, then refetch (selection reconciles the path). */
   submitRename: (path: string, kind: MutableKind, newName: string) => Promise<void>
-  /** Move a page file into a different container (cross-set / cross-collection), then refetch. */
-  movePage: (path: string, newParentPath: string) => Promise<void>
+  /** The one write path: run a mutate op, surface its error or refetch on success. On a create,
+   *  the new entity is handed to `onCreated` (to select it, begin-renaming it, …). Every sidebar
+   *  mutation — drops, renames, creates — routes through here. */
+  mutate: (req: MutateRequest, onCreated?: (created: { id: string; path: string }) => void | Promise<void>) => Promise<void>
 }
 
 export const useSession = create<SessionState>((set, get) => {
@@ -199,40 +201,34 @@ export const useSession = create<SessionState>((set, get) => {
         parentPath = tree.vaults[0]?.path ?? tree.userSections.flatMap((s) => s.vaults)[0]?.path ?? null
       }
       if (parentPath === null) return // no container to create into
-      // main disambiguates the name on collision; on success refetch + select the new page,
-      // on failure surface the error natively (this path has no context-menu dialog).
-      const res = await window.nexus.mutate({ op: 'createPage', parentPath, name: DEFAULT_NEW_NAME })
-      if (res.ok) {
-        await get().load()
-        if (res.created) await get().select({ kind: 'page', id: res.created.id, path: res.created.path })
-      } else {
-        await window.nexus.showError(res.error.message)
-      }
+      // main disambiguates the name on collision; select the new page once it lands.
+      await get().mutate({ op: 'createPage', parentPath, name: DEFAULT_NEW_NAME }, (created) =>
+        get().select({ kind: 'page', id: created.id, path: created.path })
+      )
     },
 
     newVault: async () => {
-      const res = await window.nexus.mutate({ op: 'createContainer', parentPath: '', kind: 'pageType', name: DEFAULT_NEW_NAME })
-      if (res.ok) {
-        await get().load()
-        if (res.created) get().beginRename(res.created.path) // appears in inline-rename mode
-      } else {
-        await window.nexus.showError(res.error.message)
-      }
+      // create a top-level vault, then drop it straight into inline-rename mode
+      await get().mutate({ op: 'createContainer', parentPath: '', kind: 'pageType', name: DEFAULT_NEW_NAME }, (created) =>
+        get().beginRename(created.path)
+      )
     },
 
     renamingPath: null,
     beginRename: (path) => set({ renamingPath: path }),
     cancelRename: () => set({ renamingPath: null }),
     submitRename: async (path, kind, newName) => {
-      set({ renamingPath: null }) // exit edit mode immediately
-      const res = await window.nexus.mutate({ op: 'rename', path, kind, newName })
-      if (res.ok) await get().load() // reconcileSelection refreshes the selected page's path
-      else await window.nexus.showError(res.error.message)
+      set({ renamingPath: null }) // exit edit mode immediately, regardless of outcome
+      await get().mutate({ op: 'rename', path, kind, newName })
     },
-    movePage: async (path, newParentPath) => {
-      const res = await window.nexus.mutate({ op: 'movePage', path, newParentPath })
-      if (res.ok) await get().load() // reconcileSelection refreshes the moved page's path
-      else await window.nexus.showError(res.error.message)
+    mutate: async (req, onCreated) => {
+      const res = await window.nexus.mutate(req)
+      if (!res.ok) {
+        await window.nexus.showError(res.error.message)
+        return
+      }
+      await get().load() // refetch; reconcileSelection refreshes a moved/renamed page's path
+      if (res.created && onCreated) await onCreated(res.created)
     }
   }
 })

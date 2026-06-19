@@ -1,11 +1,11 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { mkdtemp, rm, readFile } from 'node:fs/promises'
+import { mkdtemp, rm, readFile, mkdir } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { setStateOrder, setContainerOrder } from './reorder'
+import { setStateOrder, setContainerOrder, setChildOrder } from './reorder'
 import { createFolderEntity } from './folderEntity'
 import { readSidecar } from '../sidecarIO'
-import { pageTypeSidecar } from '@shared/schemas'
+import { pageTypeSidecar, pageSetSidecar } from '@shared/schemas'
 import { nexusConfig, NEXUS_CONFIG_FILES } from '../paths'
 
 let root: string
@@ -46,5 +46,29 @@ describe('setContainerOrder', () => {
       icon: 'box',
       page_order: ['p2', 'p1']
     })
+  })
+})
+
+describe('setChildOrder', () => {
+  it('detects the folder kind from its sidecar and writes page_order (a set)', async () => {
+    const s = await createFolderEntity(root, 'set', 'Reading')
+    if (!s.ok) throw new Error('setup failed')
+    const r = await setChildOrder(s.value.path, 'page_order', ['p3', 'p1', 'p2'])
+    expect(r.ok).toBe(true)
+    expect(await readSidecar(s.value.path, 'set', pageSetSidecar)).toMatchObject({ page_order: ['p3', 'p1', 'p2'] })
+  })
+
+  it('writes collection_order to a vault (pageType) sidecar', async () => {
+    const v = await createFolderEntity(root, 'pageType', 'Vault', { icon: 'box' })
+    if (!v.ok) throw new Error('setup failed')
+    const r = await setChildOrder(v.value.path, 'collection_order', ['c2', 'c1'])
+    expect(r.ok).toBe(true)
+    expect(await readSidecar(v.value.path, 'pageType', pageTypeSidecar)).toMatchObject({ collection_order: ['c2', 'c1'] })
+  })
+
+  it('is a tolerated no-op for a folder with no recognized sidecar', async () => {
+    const raw = join(root, 'Raw')
+    await mkdir(raw, { recursive: true })
+    expect((await setChildOrder(raw, 'page_order', ['p1'])).ok).toBe(true)
   })
 })

@@ -5,7 +5,7 @@ import { join } from 'node:path'
 import { handleMutate, type MutateDeps } from './mutate'
 import { openSession, closeSession } from './session'
 import { closeSessionIndex } from './sessionIndex'
-import { splitFrontmatter } from './readNexus'
+import { splitFrontmatter, readNexus } from './readNexus'
 import { pathExists } from './io/atomicWrite'
 
 let root: string
@@ -123,6 +123,85 @@ describe('handleMutate — move + guards', () => {
     expect(r.ok).toBe(true)
     expect(await pathExists(join(root, 'Notes/Archive/Beta.md'))).toBe(true)
     expect(await pathExists(join(root, 'Notes/Daily/Beta.md'))).toBe(false)
+  })
+
+  it('movePage with order persists the destination page_order (same-parent reorder, no file move)', async () => {
+    const r = await handleMutate({ op: 'movePage', path: 'Notes/Daily/Beta.md', newParentPath: 'Notes/Daily', order: ['b', 'a'] }, nexusDeps)
+    expect(r.ok).toBe(true)
+    expect(await pathExists(join(root, 'Notes/Daily/Beta.md'))).toBe(true)
+    expect(JSON.parse(await read('Notes/Daily/_pagecollection.json')).page_order).toEqual(['b', 'a'])
+  })
+
+  it('movePage with order reparents the file AND seeds the destination page_order', async () => {
+    const r = await handleMutate({ op: 'movePage', path: 'Notes/Daily/Beta.md', newParentPath: 'Notes', order: ['b'] }, nexusDeps)
+    expect(r.ok).toBe(true)
+    expect(await pathExists(join(root, 'Notes/Beta.md'))).toBe(true)
+    expect(await pathExists(join(root, 'Notes/Daily/Beta.md'))).toBe(false)
+    expect(JSON.parse(await read('Notes/_pagetype.json')).page_order).toEqual(['b'])
+  })
+
+  it('round-trip: in-collection reorder writes page_order to a Swift-era sidecar AND readNexus applies it', async () => {
+    // Replicate the real on-disk shape: a Swift-era collection sidecar with views/type_id and
+    // NO page_order, plus a third page.
+    await writeFile(
+      join(root, 'Notes', 'Daily', '_pagecollection.json'),
+      JSON.stringify({ id: 'col', type_id: 'pt', schema_version: 0, modified_at: '2026-05-24T22:00:44Z', views: [{ id: 'v1', type: 'table' }] })
+    )
+    await writeFile(join(root, 'Notes', 'Daily', 'Gamma.md'), '---\nid: g\n---\n\nbody')
+    const r = await handleMutate({ op: 'movePage', path: 'Notes/Daily/Gamma.md', newParentPath: 'Notes/Daily', order: ['g', 'b', 'a'] }, nexusDeps)
+    expect(r.ok).toBe(true)
+    // page_order written; views/type_id preserved (loose sidecar); file not moved
+    const sc = JSON.parse(await read('Notes/Daily/_pagecollection.json'))
+    expect(sc.page_order).toEqual(['g', 'b', 'a'])
+    expect(sc.views).toHaveLength(1)
+    expect(sc.type_id).toBe('pt')
+    expect(await pathExists(join(root, 'Notes/Daily/Gamma.md'))).toBe(true)
+    // readNexus applies it: Daily's pages come back in the persisted order
+    const tree = await readNexus(root)
+    const daily = tree.vaults.flatMap((v) => v.collections).find((c) => c.title === 'Daily')
+    expect(daily?.pages.map((p) => p.id)).toEqual(['g', 'b', 'a'])
+  })
+
+  it('reorderChildren persists collection_order on the vault sidecar', async () => {
+    await mkdir(join(root, 'Notes', 'Weekly'), { recursive: true })
+    await writeFile(join(root, 'Notes', 'Weekly', '_pagecollection.json'), JSON.stringify({ id: 'wk' }))
+    const r = await handleMutate({ op: 'reorderChildren', parentPath: 'Notes', key: 'collection_order', order: ['wk', 'col'] }, nexusDeps)
+    expect(r.ok).toBe(true)
+    expect(JSON.parse(await read('Notes/_pagetype.json')).collection_order).toEqual(['wk', 'col'])
+  })
+
+  it('reorderTop persists vault_order to .nexus/state.json', async () => {
+    const r = await handleMutate({ op: 'reorderTop', key: 'vault_order', order: ['v2', 'v1'] }, nexusDeps)
+    expect(r.ok).toBe(true)
+    expect(JSON.parse(await read('.nexus/state.json')).vault_order).toEqual(['v2', 'v1'])
+  })
+
+  it('moveSet relocates a set folder (with its pages) to another collection AND writes the destination set_order', async () => {
+    await mkdir(join(root, 'Notes', 'Daily', 'SetX'), { recursive: true })
+    await writeFile(join(root, 'Notes', 'Daily', 'SetX', '_pageset.json'), JSON.stringify({ id: 'sx' }))
+    await writeFile(join(root, 'Notes', 'Daily', 'SetX', 'Inner.md'), '---\nid: in\n---\n\nbody')
+    await mkdir(join(root, 'Notes', 'Weekly'), { recursive: true })
+    await writeFile(join(root, 'Notes', 'Weekly', '_pagecollection.json'), JSON.stringify({ id: 'wk' }))
+    const r = await handleMutate({ op: 'moveSet', path: 'Notes/Daily/SetX', newParentPath: 'Notes/Weekly', order: ['sx'] }, nexusDeps)
+    expect(r.ok).toBe(true)
+    expect(await pathExists(join(root, 'Notes/Weekly/SetX/_pageset.json'))).toBe(true) // folder moved
+    expect(await pathExists(join(root, 'Notes/Weekly/SetX/Inner.md'))).toBe(true) // its pages travel with it
+    expect(await pathExists(join(root, 'Notes/Daily/SetX'))).toBe(false) // gone from the source collection
+    expect(JSON.parse(await read('Notes/Weekly/_pagecollection.json')).set_order).toEqual(['sx'])
+    const tree = await readNexus(root)
+    const weekly = tree.vaults.flatMap((v) => v.collections).find((c) => c.title === 'Weekly')
+    expect(weekly?.sets.map((s) => s.id)).toEqual(['sx']) // readNexus reflects the move
+  })
+
+  it('moveSet into its current collection is an in-place reorder (no folder move)', async () => {
+    await mkdir(join(root, 'Notes', 'Daily', 'SetA'), { recursive: true })
+    await mkdir(join(root, 'Notes', 'Daily', 'SetB'), { recursive: true })
+    await writeFile(join(root, 'Notes', 'Daily', 'SetA', '_pageset.json'), JSON.stringify({ id: 'sa' }))
+    await writeFile(join(root, 'Notes', 'Daily', 'SetB', '_pageset.json'), JSON.stringify({ id: 'sb' }))
+    const r = await handleMutate({ op: 'moveSet', path: 'Notes/Daily/SetA', newParentPath: 'Notes/Daily', order: ['sb', 'sa'] }, nexusDeps)
+    expect(r.ok).toBe(true)
+    expect(await pathExists(join(root, 'Notes/Daily/SetA/_pageset.json'))).toBe(true) // stayed put
+    expect(JSON.parse(await read('Notes/Daily/_pagecollection.json')).set_order).toEqual(['sb', 'sa'])
   })
 
   it('rejects a path that escapes the nexus root', async () => {

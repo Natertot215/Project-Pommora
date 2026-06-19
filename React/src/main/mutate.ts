@@ -19,7 +19,8 @@ import { sessionRoot } from './session'
 import { refreshSessionIndex } from './sessionIndex'
 import { resolveUnderRoot } from './pathSafety'
 import { createPage, renamePage, movePage } from './crud/page'
-import { createFolderEntity, renameFolderEntity } from './crud/folderEntity'
+import { setChildOrder, setStateOrder } from './crud/reorder'
+import { createFolderEntity, renameFolderEntity, moveFolderEntity } from './crud/folderEntity'
 import { renameCascade, unlinkTier } from './crud/cascade'
 import { trashWithTimestamp, pathExists, readJsonObject } from './io/atomicWrite'
 import { basenameNoMd } from './coerce'
@@ -177,6 +178,45 @@ async function dispatch(req: MutateRequest, deps: MutateDeps, root: string): Pro
       if (!dst.ok) return relay(dst)
       const r = await movePage(src.value, dst.value)
       if (!r.ok) return relay(r)
+      // Persist the destination's new page order (reorder + drop-at-position). The source's
+      // stale id self-drops on the next read, so only the destination is rewritten.
+      if (req.order) {
+        const o = await setChildOrder(dst.value, 'page_order', req.order)
+        if (!o.ok) return relay(o)
+      }
+      void refreshSessionIndex(root)
+      return { ok: true }
+    }
+
+    case 'moveSet': {
+      // Move a set folder between collections (within its vault) or reorder it in place, then
+      // write the destination collection's set_order. The set's pages travel inside the folder.
+      const src = await resolveUnderRoot(root, req.path)
+      if (!src.ok) return relay(src)
+      const dst = await resolveUnderRoot(root, req.newParentPath)
+      if (!dst.ok) return relay(dst)
+      const r = await moveFolderEntity(src.value, dst.value)
+      if (!r.ok) return relay(r)
+      const o = await setChildOrder(dst.value, 'set_order', req.order)
+      if (!o.ok) return relay(o)
+      void refreshSessionIndex(root)
+      return { ok: true }
+    }
+
+    case 'reorderChildren': {
+      // Reorder collections within a vault / sets within a collection — order-only, no move.
+      const parent = await resolveUnderRoot(root, req.parentPath)
+      if (!parent.ok) return relay(parent)
+      const o = await setChildOrder(parent.value, req.key, req.order)
+      if (!o.ok) return relay(o)
+      void refreshSessionIndex(root)
+      return { ok: true }
+    }
+
+    case 'reorderTop': {
+      // Reorder vaults / a context tier — persisted to .nexus/state.json.
+      const o = await setStateOrder(root, req.key, req.order)
+      if (!o.ok) return relay(o)
       void refreshSessionIndex(root)
       return { ok: true }
     }

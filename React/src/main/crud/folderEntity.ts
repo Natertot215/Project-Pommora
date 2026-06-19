@@ -7,7 +7,7 @@
 // update (readSidecar retains them via looseObject, and we spread the read object).
 
 import { mkdir, rename } from 'node:fs/promises'
-import { join, dirname } from 'node:path'
+import { join, dirname, basename } from 'node:path'
 import type { z } from 'zod'
 import { newId } from '../ids'
 import { readSidecar, writeSidecar } from '../sidecarIO'
@@ -42,6 +42,19 @@ export async function renameFolderEntity(
   const target = join(dirname(absFolder), newName)
   if (target === absFolder) return ok({ path: absFolder })
   if (await pathExists(target)) return fail('exists', `"${newName}" already exists.`)
+  await rename(absFolder, target)
+  return ok({ path: target })
+}
+
+/** Move a folder entity into a different parent folder (same name). No-op when it's already
+ *  there. The whole subtree (its pages + sidecar) moves with it. movePage, folder-level. */
+export async function moveFolderEntity(
+  absFolder: string,
+  newParentDir: string
+): Promise<Result<{ path: string }>> {
+  const target = join(newParentDir, basename(absFolder))
+  if (target === absFolder) return ok({ path: absFolder })
+  if (await pathExists(target)) return fail('exists', `"${basename(absFolder)}" already exists there.`)
   await rename(absFolder, target)
   return ok({ path: target })
 }

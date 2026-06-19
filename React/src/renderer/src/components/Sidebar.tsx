@@ -14,8 +14,8 @@ import type {
   TopicNode,
   ProjectNode
 } from '@shared/types'
-import { DEFAULT_NEW_NAME, type MutableKind } from '@shared/mutate'
-import { TreeMove, useTreeDrag, useTreeDrop } from '@renderer/design-system/interactions/behaviors/useTreeMove'
+import { DEFAULT_NEW_NAME, type MutableKind, type MutateRequest } from '@shared/mutate'
+import { SidebarDnd, useSidebarDrag } from './sidebarDnd'
 import { useSession } from '../store'
 
 const savedIcon: Record<SavedNode['key'], IconName> = {
@@ -151,6 +151,19 @@ function Leaf({
   )
 }
 
+// The draggable wrapper every sidebar row shares: registers the row with the DnD engine,
+// spreads the pointer handle, and mutes it while lifted. Its rect feeds the insertion-line
+// hit-testing, so it must wrap ONLY the row itself — never a subtree (a Disclosure's body
+// stays outside it).
+function DragRow({ id, children }: { id: string; children: React.ReactNode }): React.JSX.Element {
+  const drag = useSidebarDrag(id)
+  return (
+    <div ref={drag.ref} className={`tree-item${drag.isDragging ? ' dragging' : ''}`} {...drag.handle}>
+      {children}
+    </div>
+  )
+}
+
 function Disclosure({
   icon,
   openIcon,
@@ -162,6 +175,7 @@ function Disclosure({
   onSelect,
   onContextMenu,
   rename,
+  dragId,
   children
 }: {
   icon: IconName
@@ -174,33 +188,38 @@ function Disclosure({
   onSelect?: () => void
   onContextMenu?: () => void
   rename?: RenameTarget
+  // The header row's id — its OWN rect (not the subtree's) is what the engine hit-tests, so
+  // DragRow wraps only the header MenuItem; the <Reveal> body below stays outside it.
+  dragId: string
   children: React.ReactNode
 }): React.JSX.Element {
   const [open, setOpen] = useState(defaultOpen)
   return (
     <>
-      <MenuItem
-        className="row"
-        selected={selected}
-        indent={depth}
-        onClick={() => {
-          setOpen((o) => !o)
-          onSelect?.()
-        }}
-        onContextMenu={ctxHandler(onContextMenu)}
-        leading={
-          <>
-            <Icon name="chevron-right" size={12} className={`twisty${open ? ' open' : ''}`} />
-            {swatch ? (
-              <span className="swatch" data-color={swatch} />
-            ) : (
-              <Icon name={open && openIcon ? openIcon : icon} size={16} />
-            )}
-          </>
-        }
-      >
-        {rename ? <RowTitle path={rename.path} kind={rename.kind} title={title} /> : title}
-      </MenuItem>
+      <DragRow id={dragId}>
+        <MenuItem
+          className="row"
+          selected={selected}
+          indent={depth}
+          onClick={() => {
+            setOpen((o) => !o)
+            onSelect?.()
+          }}
+          onContextMenu={ctxHandler(onContextMenu)}
+          leading={
+            <>
+              <Icon name="chevron-right" size={12} className={`twisty${open ? ' open' : ''}`} />
+              {swatch ? (
+                <span className="swatch" data-color={swatch} />
+              ) : (
+                <Icon name={open && openIcon ? openIcon : icon} size={16} />
+              )}
+            </>
+          }
+        >
+          {rename ? <RowTitle path={rename.path} kind={rename.kind} title={title} /> : title}
+        </MenuItem>
+      </DragRow>
       <Reveal open={open}>
         <div className="children">{children}</div>
       </Reveal>
@@ -221,9 +240,8 @@ function PageRow({
   selection: SelectionState
   onSelectPage: (page: PageNode) => void
 }): React.JSX.Element {
-  const drag = useTreeDrag(page.id, page.path, page.title)
   return (
-    <div ref={drag.setNodeRef} className={`tree-item${drag.isDragging ? ' dragging' : ''}`} {...drag.handle}>
+    <DragRow id={page.id}>
       <Leaf
         icon="file-text"
         title={page.title}
@@ -233,113 +251,89 @@ function PageRow({
         onContextMenu={() => showContextFor(page)}
         rename={{ path: page.path, kind: page.kind }}
       />
-    </div>
+    </DragRow>
   )
 }
 
-function SetRow({
-  set,
+// Shared container header — folder-aware icon + drop-target registration + the
+// Disclosure shell. SetRow / CollectionRow / VaultRow differ only in default icon,
+// children, and (vault only) selection.
+function ContainerRow({
+  node,
+  defaultIcon,
   depth,
-  selection,
-  onSelectPage
+  selected,
+  onSelect,
+  children
 }: {
-  set: SetNode
+  node: { id: string; icon?: string; title: string; path: string; kind: MutableKind }
+  defaultIcon: IconName
   depth: number
-  selection: SelectionState
-  onSelectPage: (page: PageNode) => void
+  selected?: boolean
+  onSelect?: () => void
+  children: React.ReactNode
 }): React.JSX.Element {
-  const { icon, openIcon } = folderAwareIcons(set.icon, 'folder-closed')
-  const drop = useTreeDrop(set.id, set.path)
+  const { icon, openIcon } = folderAwareIcons(node.icon, defaultIcon)
   return (
-    <div ref={drop.setNodeRef} className={`tree-zone${drop.isOver ? ' tree-over' : ''}`}>
-      <Disclosure
-        icon={icon}
-        openIcon={openIcon}
-        title={set.title}
-        depth={depth}
-        defaultOpen={false}
-        onContextMenu={() => showContextFor(set)}
-        rename={{ path: set.path, kind: set.kind }}
-      >
-        {set.pages.map((p) => (
-          <PageRow key={p.id} page={p} depth={depth + 1} selection={selection} onSelectPage={onSelectPage} />
-        ))}
-      </Disclosure>
-    </div>
+    <Disclosure
+      dragId={node.id}
+      icon={icon}
+      openIcon={openIcon}
+      title={node.title}
+      depth={depth}
+      defaultOpen={false}
+      selected={selected}
+      onSelect={onSelect}
+      onContextMenu={() => showContextFor(node)}
+      rename={{ path: node.path, kind: node.kind }}
+    >
+      {children}
+    </Disclosure>
   )
 }
 
-function CollectionRow({
-  col,
-  depth,
-  selection,
-  onSelectPage
-}: {
-  col: CollectionNode
-  depth: number
-  selection: SelectionState
-  onSelectPage: (page: PageNode) => void
-}): React.JSX.Element {
-  const { icon, openIcon } = folderAwareIcons(col.icon, 'folder-closed')
-  const drop = useTreeDrop(col.id, col.path)
+function SetRow({ set, depth, selection, onSelectPage }: { set: SetNode; depth: number; selection: SelectionState; onSelectPage: (page: PageNode) => void }): React.JSX.Element {
   return (
-    <div ref={drop.setNodeRef} className={`tree-zone${drop.isOver ? ' tree-over' : ''}`}>
-      <Disclosure
-        icon={icon}
-        openIcon={openIcon}
-        title={col.title}
-        depth={depth}
-        defaultOpen={false}
-        onContextMenu={() => showContextFor(col)}
-        rename={{ path: col.path, kind: col.kind }}
-      >
-        {col.sets.map((s) => (
-          <SetRow key={s.id} set={s} depth={depth + 1} selection={selection} onSelectPage={onSelectPage} />
-        ))}
-        {col.pages.map((p) => (
-          <PageRow key={p.id} page={p} depth={depth + 1} selection={selection} onSelectPage={onSelectPage} />
-        ))}
-      </Disclosure>
-    </div>
+    <ContainerRow node={set} defaultIcon="folder-closed" depth={depth}>
+      {set.pages.map((p) => (
+        <PageRow key={p.id} page={p} depth={depth + 1} selection={selection} onSelectPage={onSelectPage} />
+      ))}
+    </ContainerRow>
   )
 }
 
-function VaultRow({
-  vault,
-  depth,
-  selection,
-  onSelectVault,
-  onSelectPage
-}: {
-  vault: PageTypeNode
-  depth: number
-  selection: SelectionState
-  onSelectVault: (vault: PageTypeNode) => void
-  onSelectPage: (page: PageNode) => void
-}): React.JSX.Element {
-  const { icon, openIcon } = folderAwareIcons(vault.icon, 'gallery-vertical-end')
-  const drop = useTreeDrop(vault.id, vault.path)
+function CollectionRow({ col, depth, selection, onSelectPage }: { col: CollectionNode; depth: number; selection: SelectionState; onSelectPage: (page: PageNode) => void }): React.JSX.Element {
   return (
-    <div ref={drop.setNodeRef} className={`tree-zone${drop.isOver ? ' tree-over' : ''}`}>
-      <Disclosure
-        icon={icon}
-        openIcon={openIcon}
-        title={vault.title}
-        depth={depth}
-        defaultOpen={false}
-        selected={isVaultSelected(selection, vault.id)}
-        onSelect={() => onSelectVault(vault)}
-        onContextMenu={() => showContextFor(vault)}
-        rename={{ path: vault.path, kind: vault.kind }}
-      >
-        {vault.collections.map((c) => (
-          <CollectionRow key={c.id} col={c} depth={depth + 1} selection={selection} onSelectPage={onSelectPage} />
-        ))}
-        {vault.pages.map((p) => (
-          <PageRow key={p.id} page={p} depth={depth + 1} selection={selection} onSelectPage={onSelectPage} />
-        ))}
-      </Disclosure>
-    </div>
+    <ContainerRow node={col} defaultIcon="folder-closed" depth={depth}>
+      {col.sets.map((s) => (
+        <SetRow key={s.id} set={s} depth={depth + 1} selection={selection} onSelectPage={onSelectPage} />
+      ))}
+      {col.pages.map((p) => (
+        <PageRow key={p.id} page={p} depth={depth + 1} selection={selection} onSelectPage={onSelectPage} />
+      ))}
+    </ContainerRow>
+  )
+}
+
+function VaultRow({ vault, depth, selection, onSelectVault, onSelectPage }: { vault: PageTypeNode; depth: number; selection: SelectionState; onSelectVault: (vault: PageTypeNode) => void; onSelectPage: (page: PageNode) => void }): React.JSX.Element {
+  return (
+    <ContainerRow node={vault} defaultIcon="gallery-vertical-end" depth={depth} selected={isVaultSelected(selection, vault.id)} onSelect={() => onSelectVault(vault)}>
+      {vault.collections.map((c) => (
+        <CollectionRow key={c.id} col={c} depth={depth + 1} selection={selection} onSelectPage={onSelectPage} />
+      ))}
+      {vault.pages.map((p) => (
+        <PageRow key={p.id} page={p} depth={depth + 1} selection={selection} onSelectPage={onSelectPage} />
+      ))}
+    </ContainerRow>
+  )
+}
+
+// A context row (Area / Topic / Project) — a draggable leaf reordered within its tier.
+function ContextRow({ node, icon, swatch }: { node: { id: string; title: string; path: string; kind: MutableKind }; icon: IconName; swatch?: string }): React.JSX.Element {
+  return (
+    <DragRow id={node.id}>
+      <Leaf icon={icon} title={node.title} depth={0} swatch={swatch} onContextMenu={() => showContextFor(node)} rename={{ path: node.path, kind: node.kind }} />
+    </DragRow>
   )
 }
 
@@ -362,7 +356,7 @@ export function Sidebar({ tree }: { tree: NexusTree }): React.JSX.Element {
   const selection = useSession((s) => s.selection)
   const select = useSession((s) => s.select)
   const newVault = useSession((s) => s.newVault)
-  const movePage = useSession((s) => s.movePage)
+  const mutate = useSession((s) => s.mutate)
 
   const onSelectVault = (vault: PageTypeNode): void => {
     void select({ kind: 'vault', id: vault.id })
@@ -370,6 +364,9 @@ export function Sidebar({ tree }: { tree: NexusTree }): React.JSX.Element {
   const onSelectPage = (page: PageNode): void => {
     void select({ kind: 'page', id: page.id, path: page.path })
   }
+
+  // A drop resolves to a MutateRequest; the store's one write path applies it (refetch on ok).
+  const onCommit = (req: MutateRequest): void => void mutate(req)
 
   // Contexts are three tiers; the header "+" pops a native picker → createContext(tier).
   const newContext = (): void => {
@@ -389,22 +386,23 @@ export function Sidebar({ tree }: { tree: NexusTree }): React.JSX.Element {
         ))}
       </div>
 
-      {/* Contexts — always shown so the "+" can create the first; order Projects -> Topics -> Areas */}
-      <div className="section">
-        <SectionHeader label="Contexts" onAdd={newContext} />
-        {tree.contexts.projects.map((p: ProjectNode) => (
-          <Leaf key={p.id} icon="layout-grid" title={p.title} depth={0} onContextMenu={() => showContextFor(p)} rename={{ path: p.path, kind: p.kind }} />
-        ))}
-        {tree.contexts.topics.map((t: TopicNode) => (
-          <Leaf key={t.id} icon="layout-grid" title={t.title} depth={0} onContextMenu={() => showContextFor(t)} rename={{ path: t.path, kind: t.kind }} />
-        ))}
-        {tree.contexts.areas.map((a: AreaNode) => (
-          <Leaf key={a.id} icon="layout-grid" title={a.title} depth={0} swatch={a.color} onContextMenu={() => showContextFor(a)} rename={{ path: a.path, kind: a.kind }} />
-        ))}
-      </div>
+      {/* Drag to reorder any entity within its parent heading (or a page across folders); an
+          insertion line marks the drop + a ghost follows the cursor. Saved stays inert above. */}
+      <SidebarDnd tree={tree} onCommit={onCommit}>
+        {/* Contexts — always shown so the "+" can create the first; order Projects -> Topics -> Areas */}
+        <div className="section">
+          <SectionHeader label="Contexts" onAdd={newContext} />
+          {tree.contexts.projects.map((p: ProjectNode) => (
+            <ContextRow key={p.id} node={p} icon="layout-grid" />
+          ))}
+          {tree.contexts.topics.map((t: TopicNode) => (
+            <ContextRow key={t.id} node={t} icon="layout-grid" />
+          ))}
+          {tree.contexts.areas.map((a: AreaNode) => (
+            <ContextRow key={a.id} node={a} icon="layout-grid" swatch={a.color} />
+          ))}
+        </div>
 
-      {/* Vaults + user sections — drag a page between containers (cross-set / cross-collection). */}
-      <TreeMove onMove={(from, to) => void movePage(from, to)}>
         <div className="section">
           <SectionHeader label={tree.labels.vaults} onAdd={newVault} />
           {tree.vaults.map((v) => (
@@ -434,7 +432,7 @@ export function Sidebar({ tree }: { tree: NexusTree }): React.JSX.Element {
             ))}
           </div>
         ))}
-      </TreeMove>
+      </SidebarDnd>
     </nav>
   )
 }

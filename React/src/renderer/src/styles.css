@@ -190,7 +190,7 @@ textarea,
   align-items: center;
   justify-content: space-between;
   font-size: 11px;
-  font-weight: 600;
+  font-weight: var(--weight-semibold);
   letter-spacing: 0.02em;
   color: var(--text-dim);
   padding: 4px 8px;
@@ -241,37 +241,16 @@ textarea,
   -webkit-app-region: no-drag;
 }
 
-/* --- Tree drag: pages move between containers (cross-set / cross-collection) --- */
-/* Wrappers are layout-transparent; the grab cursor signals a draggable page. */
-.tree-item .row {
-  cursor: grab;
-}
+/* --- Sidebar drag: a page reorders / reparents; the row dims in place while a ghost rides
+   the cursor + an insertion line marks the drop (line + ghost live in components/sidebarDnd.tsx).
+   No hover affordance — rows keep the sidebar's default cursor until a drag actually starts,
+   then show `grabbing`; a grab cursor on mere hover reads as "always draggable" and is wrong. --- */
 .tree-item.dragging {
   opacity: 0.4; /* source row dims in place while its ghost follows the cursor */
+  cursor: grabbing; /* the wrapper IS the pointer-capture target, so its cursor wins for the whole drag */
 }
 .tree-item.dragging .row {
   cursor: grabbing;
-}
-/* Drop target — ring + fill the hovered container's header row (the innermost under the cursor). */
-.tree-zone.tree-over > .row {
-  background: var(--selected);
-  box-shadow: inset 0 0 0 1.5px var(--accent);
-}
-/* The ghost following the cursor. */
-.tree-drag-overlay {
-  display: flex;
-  align-items: center;
-  padding: 0 8px;
-  height: var(--row-h);
-  border-radius: 8px;
-  background: var(--selected);
-  box-shadow:
-    0 8px 20px #00000055,
-    inset 0 0 0 1px var(--accent);
-  color: var(--text);
-  font: inherit;
-  white-space: nowrap;
-  overflow: hidden;
 }
 
 /* Disclosure chevron — a chevron-right Icon (1em → tracks the row's 12px) that
@@ -364,7 +343,7 @@ textarea,
 
 .data-table th {
   text-align: left;
-  font-weight: 600;
+  font-weight: var(--weight-semibold);
   color: var(--text-dim);
   padding: 6px 12px;
   border-bottom: 1px solid #FFFFFF1A;
@@ -424,7 +403,7 @@ textarea,
   border-radius: 7px;
   padding: 5px 14px;
   font: inherit;
-  font-weight: 500;
+  font-weight: var(--weight-emphasized);
   color: var(--text);
   background: var(--selected);
   cursor: default;

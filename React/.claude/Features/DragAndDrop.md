@@ -31,9 +31,13 @@ Two engines sit behind the seam, sharing types and the measure-once / decide-the
 - **Single-zone** (`engine.tsx`) — list, grid, table, and each tree level. The dragged item moves **in place** (transform follows the pointer); neighbours shift to open the gap. Used where the surface isn't clipped.
 - **Cross-list** (`group.tsx`) — the board. A `DragGroup` owns the one active drag across its zones. The lifted card is hidden in its source column and rendered as a `position: fixed` **portal overlay** under the cursor (escaping any column clipping); every column shifts its items by one slot-pitch to show where the card would land. The move commits once via `onCommit(activeId, toZone, toIndex)`. Because columns are never mutated mid-drag, there is no duplicate-card race to guard against — the class of bug dnd-kit's live cross-container moves required defending against simply doesn't exist here.
 
+### Sidebar tree (the app's chosen behavior)
+
+The sidebar adopts a **bespoke** position-aware behavior — the **"sidebar"** treatment (chosen 2026-06-19) — rather than the sort engines above, because its drop feel is an Apple-style **insertion line**, not displacement: the line marks the exact drop, the picked-up row stays **muted in place**, and a ghost rides the cursor (rendered through a portal, to escape the glass `backdrop-filter` containing block that would otherwise capture a `fixed` element). **Every entity is draggable and reorders within its parent heading** — pages (within a folder; also reparent across folders), collections (within a vault), sets (within a collection), vaults, and the three context tiers; the code-fixed Saved pins are the only inert rows. Because nothing displaces, rows never move mid-drag — so it hit-tests **live** row rects (no frozen snapshot) and derives all structure (kinds, paths, depths, parent, each parent's ordered child ids + the top-level groups) from the tree through a pure, unit-tested model (`components/sidebarDndModel.ts`). A drop resolves to one of three **commits**, each routed to its store/IPC action: `movePage` (page move + `page_order`), `reorderChildren` (`collection_order` / `set_order` on the parent's sidecar), or `reorderTop` (`vault_order` / `{tier}_order` in `.nexus/state.json`). It superseded the old container-only `useTreeMove`, which was removed (the sidebar was its only consumer).
+
 ### Verification harness
 
-The **Interaction Lab** (`design-system/interactions/`, served via `npm run showcase` → `interactions.html`) exercises every surface — list, grid, table, recursive tree, cross-list board — with a live "feel" control (duration + easing) shared across all of them. It is the design-system verification surface, **separate from the app**: a green lab does not mean the app consumes the engine. Real-app adoption (sidebar tree, main list) is a later, deliberate integration.
+The **Interaction Lab** (`design-system/interactions/`, served via `npm run showcase` → `interactions.html`) exercises every surface — list, grid, table, recursive tree, cross-list board — with a live "feel" control (duration + easing) shared across all of them. It is the design-system verification surface, **separate from the app**: a green lab does not mean the app consumes the engine. **The sidebar tree is now adopted** (its own behavior, above); the main list / view rows remain a later, deliberate integration.
 
 ### Relationship to dnd-kit
 
@@ -51,7 +55,7 @@ Each is an inline option or an automatic behavior, exercised in the Lab:
 
 ### Deferred (don't design out)
 
-- **Tree cross-level moves** — within-level reorder works today (each tree level is a standalone zone on the engine). Reparenting / indent-outdent across levels is **deferred**: it's pure drop-feel/semantics (indent threshold, drop indicator) that needs visual iteration, so it isn't built blind. Recommended approach when ready: flatten the tree to `{id, depth, parentId}` rows, reorder the flat list through the engine, project the new depth from the drop index + horizontal offset, and rebuild — dnd-kit's sortable-tree pattern; the flatten/project/rebuild functions are pure and testable.
+- **Sidebar cross-level — done** (see *Sidebar tree* above): the sidebar reorders + reparents across vault / collection / set via its bespoke behavior. The generic **sort engines** still don't do cross-level reparenting; if a non-sidebar tree ever needs it on the engine, the route is flatten → reorder → project-depth → rebuild (dnd-kit's sortable-tree pattern; pure, testable).
 - **Board keyboard access** — the cross-list board (`useGroupedDragItem`) is pointer-only; keyboard drag across columns is a later pass.
 
 ### Mobile-readiness invariants
