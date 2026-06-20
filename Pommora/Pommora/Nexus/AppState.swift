@@ -21,6 +21,11 @@ import Foundation
 struct AppState: Codable, Equatable {
     var schemaVersion: Int
     var lastNexusBookmark: Data?
+    /// Security-scoped bookmark to the active nexus's PARENT folder. The sandbox
+    /// grants only the nexus itself, so a root-folder rename (a write to the
+    /// parent directory) needs this. Requested at initial nexus load; nil until
+    /// granted, and survives the nexus being renamed (the parent is unchanged).
+    var parentFolderBookmark: Data?
     /// Pommora pageID → whether the inspector panel was visible last time
     /// this Page was opened. Missing key = closed (the global default).
     var pageInspectorOpen: [String: Bool]
@@ -28,23 +33,26 @@ struct AppState: Codable, Equatable {
     init(
         schemaVersion: Int = 2,
         lastNexusBookmark: Data? = nil,
+        parentFolderBookmark: Data? = nil,
         pageInspectorOpen: [String: Bool] = [:]
     ) {
         self.schemaVersion = schemaVersion
         self.lastNexusBookmark = lastNexusBookmark
+        self.parentFolderBookmark = parentFolderBookmark
         self.pageInspectorOpen = pageInspectorOpen
     }
 
     // Custom init(from:) keeps backwards-compat: an existing v1 state.json
     // file (no `pageInspectorOpen` key) decodes cleanly with an empty map.
     private enum CodingKeys: String, CodingKey {
-        case schemaVersion, lastNexusBookmark, pageInspectorOpen
+        case schemaVersion, lastNexusBookmark, parentFolderBookmark, pageInspectorOpen
     }
 
     init(from decoder: any Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         self.schemaVersion = try c.decode(Int.self, forKey: .schemaVersion)
         self.lastNexusBookmark = try c.decodeIfPresent(Data.self, forKey: .lastNexusBookmark)
+        self.parentFolderBookmark = try c.decodeIfPresent(Data.self, forKey: .parentFolderBookmark)
         self.pageInspectorOpen =
             try c.decodeIfPresent([String: Bool].self, forKey: .pageInspectorOpen) ?? [:]
     }

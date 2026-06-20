@@ -58,6 +58,11 @@ final class NexusManager {
     /// active nexus changes (we stop access on the old before starting on the new).
     private var accessingURL: URL?
 
+    /// The PARENT-folder URL we hold security-scoped access to, enabling a root-
+    /// folder rename (the sandbox grants only the nexus, not its parent). Separate
+    /// sandbox ref-count from `accessingURL`.
+    private var accessingParentURL: URL?
+
     /// Backing continuation for the adoption sheet's async wait. Held in a
     /// stored property because `withCheckedContinuation`'s closure stores it
     /// before the `await` suspends; resumed exactly once by `resolveAdoption`.
@@ -467,6 +472,132 @@ final class NexusManager {
             NexusBookmark.stopAccessing(old)
         }
         accessingURL = newURL
+    }
+
+    private func replaceAccessingParentURL(with newURL: URL) {
+        if let old = accessingParentURL, old != newURL {
+            NexusBookmark.stopAccessing(old)
+        }
+        accessingParentURL = newURL
+    }
+
+    // MARK: - Parent-folder access + root rename
+
+    /// Ensures security-scoped access to the active nexus's PARENT folder, which a
+    /// root-folder rename needs (the sandbox grants only the nexus). A saved,
+    /// still-valid bookmark resolves silently; otherwise — when `promptIfMissing`
+    /// — a one-time folder-grant panel is shown (Nathan's "ask at initial load").
+    /// Best-effort: declining just leaves rename unavailable until granted. No-op
+    /// under XCTest (a modal panel would block the test runner).
+    @discardableResult
+    private func ensureParentAccess(for nexus: Nexus, promptIfMissing: Bool = true) async -> Bool {
+        if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil { return false }
+
+        let parent = nexus.rootURL.deletingLastPathComponent().standardizedFileURL
+        let stateURL: URL
+        do { stateURL = try NexusStore.appStateURL() } catch { return false }
+        var state = (try? AppState.load(from: stateURL)) ?? AppState()
+
+        // 1. A saved bookmark that still resolves to THIS nexus's parent.
+        if let data = state.parentFolderBookmark,
+            let resolved = try? NexusBookmark.resolve(data),
+            resolved.url.standardizedFileURL == parent {
+            // Already holding access on this parent — nothing to re-acquire.
+            if accessingParentURL?.standardizedFileURL == parent { return true }
+            if NexusBookmark.startAccessing(resolved.url) {
+                replaceAccessingParentURL(with: resolved.url)
+                if resolved.isStale, let fresh = try? NexusBookmark.create(for: resolved.url) {
+                    state.parentFolderBookmark = fresh
+                    try? state.save(to: stateURL)
+                }
+                return true
+            }
+        }
+
+        guard promptIfMissing else { return false }
+
+        // 2. Ask the user to grant the containing folder (one-time).
+        NSApp.activate()
+        for _ in 0..<20 where !NSApp.isActive {
+            try? await Task.sleep(for: .milliseconds(50))
+        }
+        let panel = NSOpenPanel()
+        panel.message =
+            "Pommora needs access to the folder that contains your nexus "
+            + "(\"\(parent.lastPathComponent)\") so you can rename your nexus."
+        panel.prompt = "Grant Access"
+        panel.canChooseDirectories = true
+        panel.canChooseFiles = false
+        panel.allowsMultipleSelection = false
+        panel.canCreateDirectories = false
+        panel.directoryURL = parent
+        guard panel.runModal() == .OK, let picked = panel.url else { return false }
+
+        // The grant must cover the nexus (be an ancestor of / equal to it).
+        let pickedPath = picked.standardizedFileURL.path
+        let nexusPath = nexus.rootURL.standardizedFileURL.path
+        guard nexusPath == pickedPath || nexusPath.hasPrefix(pickedPath + "/"),
+            NexusBookmark.startAccessing(picked)
+        else {
+            pendingError = .accessDenied
+            return false
+        }
+        replaceAccessingParentURL(with: picked)
+        if let data = try? NexusBookmark.create(for: picked) {
+            state.parentFolderBookmark = data
+            try? state.save(to: stateURL)
+        }
+        return true
+    }
+
+    /// Renames the active nexus's root folder on disk (filename = title). Needs
+    /// parent-folder access — prompts for it if not yet granted. The nexus id is
+    /// stable; the nexus bookmark is refreshed for the new path, and publishing the
+    /// new `currentNexus` rebuilds the per-nexus environment + file watcher against
+    /// it (`ContentView.rebuildEnvironment`). Failures surface via `pendingError`.
+    func renameRoot(to rawName: String) async {
+        guard let nexus = currentNexus else { return }
+        let newName = rawName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let oldName = nexus.rootURL.lastPathComponent
+        guard !newName.isEmpty, newName != oldName, !newName.hasPrefix("."),
+            !newName.contains(where: { $0 == "/" || $0 == ":" })
+        else { return }
+
+        guard await ensureParentAccess(for: nexus) else {
+            pendingError = .accessDenied
+            return
+        }
+
+        let newURL = nexus.rootURL.deletingLastPathComponent()
+            .appendingPathComponent(newName, isDirectory: true)
+        guard !FileManager.default.fileExists(atPath: newURL.path) else {
+            pendingError = .initFailed("A folder named \"\(newName)\" already exists here.")
+            return
+        }
+
+        do {
+            try FileManager.default.moveItem(at: nexus.rootURL, to: newURL)
+        } catch {
+            pendingError = .initFailed("Couldn't rename the nexus: \(error.localizedDescription)")
+            return
+        }
+
+        // Refresh the nexus bookmark for the new path (the parent scope still
+        // covers it) and release the now-stale scope on the old path.
+        do {
+            let stateURL = try NexusStore.appStateURL()
+            var state = (try? AppState.load(from: stateURL)) ?? AppState()
+            state.lastNexusBookmark = try NexusBookmark.create(for: newURL)
+            try state.save(to: stateURL)
+        } catch {
+            pendingError = .bookmarkSaveFailed(error.localizedDescription)
+        }
+        if let old = accessingURL { NexusBookmark.stopAccessing(old) }
+        accessingURL = nil  // the parent scope now covers content access
+
+        let renamed = Nexus(id: nexus.id, rootURL: newURL)
+        await openIndex(for: renamed)
+        currentNexus = renamed
     }
 
     private func confirmInitialization(for url: URL) -> Bool {
