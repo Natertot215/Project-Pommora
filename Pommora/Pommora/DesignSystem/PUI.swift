@@ -191,60 +191,59 @@ enum PUI {
     // MARK: - Fills
 
     enum Fill {
-        /// Input / icon-field backdrop — replaces the old
-        /// `Color.primary.opacity(0.06)` capsule "pill" everywhere. Uses the
-        /// system `.quinary` hierarchical fill: translucent + appearance-
-        /// adaptive, so it sits cleanly on the popover's Liquid Glass backdrop.
-        /// (`.controlBackgroundColor` was too stark; `.quaternary` too bright —
-        /// 2026-05-27.) Apply via the `.fieldBackground()` modifier.
+        /// Input / icon-field backdrop (system `.quinary`). Apply via `.fieldBackground()`.
         static let field = AnyShapeStyle(.quinary)
     }
 
-    // MARK: - Chip geometry (the rounded-rect "tag" family + pill insets)
+    // MARK: - Chip geometry (tag insets + gaps)
 
-    /// Insets + gaps for the chip components (`Components/Chips/`). The
-    /// rounded-rect tag chrome (radius + fill + stroke) is applied via the
-    /// `.chipStyle(_:)` modifier; these are the values it and the chip bodies
-    /// reference instead of inline literals. Radii route through `Radius`.
+    /// Insets + gaps the chip bodies and `.chipStyle` reference instead of
+    /// inline literals. Radii route through `Radius`.
     enum Chip {
-        /// Relation / context tag — horizontal inset.
-        static let tagPaddingHorizontal: CGFloat = Spacing.md  // 8
-        /// Relation / context tag — vertical inset.
-        static let tagPaddingVertical: CGFloat = Spacing.xs  // 4
-        /// File-attachment tag — tighter inset than the relation tag.
-        static let filePaddingHorizontal: CGFloat = Spacing.sm  // 6
-        /// File-attachment tag — tighter inset than the relation tag.
+        static let tagPaddingHorizontal: CGFloat = Spacing.md
+        static let tagPaddingVertical: CGFloat = Spacing.xs
+        static let filePaddingHorizontal: CGFloat = Spacing.sm
         static let filePaddingVertical: CGFloat = 3
-        /// Icon ↔ title gap inside a relation tag.
         static let iconTitleGap: CGFloat = 5
-        /// Icon ↔ title gap inside a file tag (and other tight chips).
-        static let fileIconTitleGap: CGFloat = Spacing.xs  // 4
-        /// Hairline stroke width on tags that carry an outline.
+        static let fileIconTitleGap: CGFloat = Spacing.xs
+        /// Faint tags: the stroke out-opaques its fill, so 0.5pt reads.
         static let strokeWidth: CGFloat = 0.5
+        /// Strong chips: the border is the full chip color, so it needs more weight.
+        static let borderWidth: CGFloat = 1
     }
 
-    // MARK: - Tints (translucent chip fills + strokes)
+    // MARK: - Colors (css-like, nexus-wide semantic palette)
 
-    /// Named translucent fills for chips, so a retune is one edit rather than a
-    /// hunt for raw `.quinary` / `.opacity(…)` across files. System hierarchical
-    /// fills — appearance-adaptive, no hand-rolled greys.
+    /// The named palette the chip tints route to — a `:root` of color tokens, so
+    /// a palette change is one edit.
+    enum Colors {
+        static let labelPrimary = Color.primary
+        static let labelSecondary = Color.secondary
+        /// Neutral base the relation / file tag tints derive from.
+        static let chipBase = Color.primary
+        static let accent = Color.accentColor
+    }
+
+    // MARK: - Tints (opacity ramp over a base color)
+
+    /// A *tint* is a base color at one of four fixed opacities — chips share this
+    /// single ramp instead of hand-rolled `.opacity(…)` multipliers.
     enum Tint {
-        /// Relation / context tag fill.
-        static let tag = AnyShapeStyle(.quinary)
-        /// Relation / context tag outline.
-        static let tagStroke = AnyShapeStyle(.separator)
-        /// File-attachment tag fill (one tier brighter than the relation tag).
-        static let fileTag = AnyShapeStyle(Color(.quaternarySystemFill))
-        /// Toggle chip — selected state (accent at low alpha).
-        static let toggleOn = AnyShapeStyle(Color.accentColor.opacity(0.2))
-        /// Toggle chip — unselected state.
-        static let toggleOff = AnyShapeStyle(Color.gray.opacity(0.1))
+        static func primary(_ base: Color) -> Color { base.opacity(0.70) }
+        static func secondary(_ base: Color) -> Color { base.opacity(0.50) }
+        static func tertiary(_ base: Color) -> Color { base.opacity(0.25) }
+        static func quaternary(_ base: Color) -> Color { base.opacity(0.125) }
+
+        /// `labelPrimary` nudged toward the base — the readable "label with the
+        /// tint overlaid," not the base at 12.5%.
+        static func label(_ base: Color) -> Color {
+            Colors.labelPrimary.mix(with: base, by: 0.125)
+        }
     }
 
     // MARK: - Typography (chip labels)
 
-    /// Tag label font — relation / file chips. `Typography.chip` (semibold) is
-    /// the saturated *pill*; tags read lighter, hence medium.
+    /// Tag label font — lighter (medium) than the saturated pill's `Typography.chip`.
     enum ChipLabel {
         static let tag: Font = .system(size: 12, weight: .medium)
     }

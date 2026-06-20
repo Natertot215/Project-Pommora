@@ -22,15 +22,19 @@ struct MultiSelectChips: View {
 
     private func chip(for option: String) -> some View {
         let isOn = selected.contains(option)
+        let label = Text(option)
+            .font(.callout)
+            .foregroundStyle(isOn ? PUI.Tint.label(PUI.Colors.accent) : PUI.Colors.labelPrimary)
+            .padding(.horizontal, PUI.Chip.tagPaddingHorizontal)
+            .padding(.vertical, PUI.Chip.tagPaddingVertical)
         return Button {
             toggle(option)
         } label: {
-            Text(option)
-                .font(.callout)
-                .padding(.horizontal, PUI.Chip.tagPaddingHorizontal)
-                .padding(.vertical, PUI.Chip.tagPaddingVertical)
-                .background(Capsule().fill(isOn ? PUI.Tint.toggleOn : PUI.Tint.toggleOff))
-                .foregroundStyle(isOn ? Color.accentColor : Color.primary)
+            if isOn {
+                label.coloredChip(PUI.Colors.accent, in: Capsule())
+            } else {
+                label.background(Capsule().fill(PUI.Tint.quaternary(PUI.Colors.chipBase)))
+            }
         }
         .buttonStyle(.plain)
     }
@@ -50,7 +54,7 @@ struct MultiSelectChips: View {
         }
         .padding(.horizontal, PUI.Chip.tagPaddingHorizontal)
         .padding(.vertical, PUI.Chip.tagPaddingVertical)
-        .background(Capsule().fill(PUI.Tint.toggleOff))
+        .background(Capsule().fill(PUI.Tint.quaternary(PUI.Colors.chipBase)))
     }
 
     private func toggle(_ option: String) {

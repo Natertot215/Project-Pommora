@@ -1,21 +1,7 @@
 import SwiftUI
 
-/// The atomic visual primitive used everywhere a property option is rendered.
-/// Pure composition of `Capsule` / `Text` / `Image` — no re-styling of Apple
-/// controls. Used across Properties Pulldown, FrontmatterInspector,
-/// and future gallery / board / table cell views.
-///
-/// Mirrors the Figma spec verbatim:
-/// - **Pill** variant: 50pt × 20pt logical size, text Label (6pt horizontal padding)
-/// - **Chip** variant: 32pt × 20pt logical size, SF Symbol icon centered
-/// - Both: Capsule background (auto-max corner radius == Figma `rounded-[100px]`)
-/// - Font (Pill): SF Pro Semibold 12pt with 15pt line height (Callout/Emphasized)
-/// - Foreground: pure white
-///
-/// **All drop shadows REMOVED 2026-05-25 per Nathan's directive** — flat
-/// chip aesthetic. Text-emboss highlight method removed alongside; if the
-/// white-on-bright-fill legibility needs recovery later, do it via a
-/// non-shadow technique (e.g. blending mode, slight luminance boost).
+/// The atomic visual primitive for a rendered property option — a `Capsule`
+/// with a colored fill + tinted label (pill) or a single SF Symbol (chip).
 struct PropertyChip: View {
     let content: Content
     let color: PropertyChipColor
@@ -83,20 +69,22 @@ struct PropertyChip: View {
     }
 
     private func pillBody(label: String) -> some View {
-        Text(label)
+        let base = color.swiftUIColor
+        return Text(label)
             .font(size.pillFont)
             .lineSpacing(3)
-            .foregroundStyle(Color.white)
+            .foregroundStyle(PUI.Tint.label(base))
             .padding(.horizontal, size.hPadding)
             .frame(minWidth: size.pillMinWidth, minHeight: size.minHeight)
-            .background(Capsule().fill(color.swiftUIColor))
+            .coloredChip(base, in: Capsule())
     }
 
     private func chipBody(icon: String) -> some View {
-        Image(systemName: icon)
+        let base = color.swiftUIColor
+        return Image(systemName: icon)
             .font(size.iconFont)
-            .foregroundStyle(Color.white)
+            .foregroundStyle(PUI.Tint.label(base))
             .frame(minWidth: size.iconMinWidth, minHeight: size.minHeight)
-            .background(Capsule().fill(color.swiftUIColor))
+            .coloredChip(base, in: Capsule())
     }
 }
