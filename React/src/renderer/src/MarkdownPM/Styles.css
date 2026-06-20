@@ -27,6 +27,31 @@
   padding: 0;
 }
 
+/* Block vertical rhythm — every line (paragraph / bullet / list item / heading) gets consistent
+   spacing below it; headings additionally get em-relative top spacing per level (the Swift scale:
+   topSpacingEm × the level's size, expressed in body-em). :has() reads the size class on the line. */
+.mdpm-editor .cm-line {
+  padding-bottom: 0.3em;
+}
+.mdpm-editor .cm-line:has(.md-h1) {
+  margin-top: 0.7em;
+}
+.mdpm-editor .cm-line:has(.md-h2) {
+  margin-top: 0.6em;
+}
+.mdpm-editor .cm-line:has(.md-h3) {
+  margin-top: 0.48em;
+}
+.mdpm-editor .cm-line:has(.md-h4) {
+  margin-top: 0.31em;
+}
+.mdpm-editor .cm-line:has(.md-h5) {
+  margin-top: 0.24em;
+}
+.mdpm-editor .cm-line:has(.md-h6) {
+  margin-top: 0.15em;
+}
+
 /* Inline marks (content classes; markers are hidden via replace decorations caret-out) */
 .md-bold {
   font-weight: var(--weight-bold);
