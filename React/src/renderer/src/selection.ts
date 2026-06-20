@@ -31,9 +31,17 @@ function allPages(tree: NexusTree): PageNode[] {
 export function reconcileSelection(tree: NexusTree, selection: SelectionState): SelectionState {
   switch (selection.kind) {
     case 'none':
+    case 'homepage':
+      // Homepage is a singleton (always present) — never reconciled away.
       return selection
+    case 'context':
+      return [...tree.contexts.areas, ...tree.contexts.topics, ...tree.contexts.projects].some((c) => c.id === selection.id)
+        ? selection
+        : { kind: 'none' }
     case 'vault':
       return allVaults(tree).some((v) => v.id === selection.id) ? selection : { kind: 'none' }
+    case 'collection':
+      return allVaults(tree).some((v) => v.collections.some((c) => c.id === selection.id)) ? selection : { kind: 'none' }
     case 'page': {
       const page = allPages(tree).find((p) => p.id === selection.id)
       if (!page) return { kind: 'none' }

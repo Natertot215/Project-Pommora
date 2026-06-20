@@ -46,6 +46,7 @@ export const NEXUS_CONFIG_FILES = {
   identity: 'nexus.json',
   settings: 'settings.json',
   state: 'state.json',
+  homepage: 'homepage.json',
   savedConfig: 'saved-config.json',
   sidebarSections: 'sidebar-sections.json'
 } as const

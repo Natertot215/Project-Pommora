@@ -75,6 +75,10 @@ export interface BaseNode {
 export interface PathNode extends BaseNode {
   /** Nexus-relative POSIX path to the entity on disk (forward slashes). */
   path: string
+  /** Nexus-relative POSIX path to this entity's banner image, if set. Only banner-bearing
+   *  owners (vaults + contexts in v1) populate it, surfaced from the sidecar `banner` field
+   *  (a page's future banner rides here too — distinct from the page-level `cover`). */
+  banner?: string
 }
 
 export interface SavedNode extends BaseNode {
@@ -134,7 +138,11 @@ export interface NexusLabels {
 }
 
 export interface NexusTree {
-  nexus: { id: string; rootPath: string }
+  /** `name` is the root folder's basename (filename = title); `description` is the
+   *  user-set blurb persisted in `.nexus/nexus.json` ('' when unset). */
+  nexus: { id: string; rootPath: string; name: string; description: string; photo: string | null }
+  /** Homepage singleton (`.nexus/homepage.json`) — v1 surfaces just its optional banner. */
+  homepage: { banner?: string }
   saved: SavedNode[]
   contexts: {
     projects: ProjectNode[]
@@ -167,7 +175,10 @@ export type PageResult =
 /** What the renderer currently has open: a container, a page, or nothing. */
 export type SelectionState =
   | { kind: 'none' }
+  | { kind: 'homepage' }
+  | { kind: 'context'; id: string }
   | { kind: 'vault'; id: string }
+  | { kind: 'collection'; id: string }
   | { kind: 'page'; id: string; path: string }
 
 /** A single page's full content, read on demand for the detail view. */

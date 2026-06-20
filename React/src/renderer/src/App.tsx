@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react'
 import { useSession } from './store'
-import { Surface } from './components/Surface'
-import { Sidebar } from './components/Sidebar'
-import { DetailPane } from './components/DetailPane'
+import { Surface } from './Components/Surface'
+import { Sidebar } from './Sidebar/Sidebar'
+import { DetailPane } from './Detail/DetailPane'
 import { Icon } from '@renderer/design-system/symbols'
 
 export function App(): React.JSX.Element {

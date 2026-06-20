@@ -1,0 +1,53 @@
+/* Detail surface: the plain detail pane (none / page / not-found) and the banner-bearing scroller
+   (DetailScaffold) + its placeholder/empty/error states. */
+
+/* --- detail pane (lives inside .content-pane, offset past the glass sidebar) --- */
+.detail {
+  height: 100%;
+  /* Clear the floating glass sidebar via --content-inset (collapses with the sidebar). */
+  padding: 38px 28px 28px var(--content-inset);
+  overflow-y: auto;
+  transition: padding-left var(--duration-base) var(--ease-standard);
+}
+
+/* Banner-bearing views: a full-bleed scroller so the banner sits edge-to-edge behind the sidebar
+   + toolbar glass; the padding moves to an inner body. */
+.detail-scroll {
+  height: 100%;
+  overflow-y: auto;
+}
+.detail-body {
+  padding: 38px 28px 28px var(--content-inset);
+  transition: padding-left var(--duration-base) var(--ease-standard);
+}
+/* With a banner the full-bleed image already clears the toolbar, so the body sits just under it. */
+.detail-scroll.has-banner .detail-body {
+  padding-top: 16px;
+}
+/* During an edge-drag resize, track the cursor 1:1 (no easing lag). */
+.shell.is-resizing .detail,
+.shell.is-resizing .detail-body {
+  transition: none;
+}
+
+.detail-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-dim);
+}
+
+.detail-placeholder {
+  color: var(--text-dim);
+}
+
+.detail-error {
+  color: #ff453a;
+}
+
+.detail-detail {
+  display: block;
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--text-dim);
+}

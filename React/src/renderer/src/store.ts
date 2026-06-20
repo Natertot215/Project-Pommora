@@ -21,7 +21,10 @@ function readStoredSidebarWidth(): number {
 
 /** What a sidebar row hands to `select` — mirrors the selectable SelectionState cases. */
 export type SelectTarget =
+  | { kind: 'homepage' }
+  | { kind: 'context'; id: string }
   | { kind: 'vault'; id: string }
+  | { kind: 'collection'; id: string }
   | { kind: 'page'; id: string; path: string }
 
 /** A PageType's nexus-relative path by id, searched across ungrouped + sectioned vaults. */
@@ -161,6 +164,14 @@ export const useSession = create<SessionState>((set, get) => {
     pageError: undefined,
     select: async (target) => {
       switch (target.kind) {
+        case 'homepage':
+          // The homepage view renders from the loaded tree (banner + future widgets) — no fetch.
+          set({ selection: { kind: 'homepage' }, pageStatus: 'idle', pageDetail: null, pageError: undefined })
+          return
+        case 'context':
+          // A context (area/topic/project) renders a blank page from the loaded tree — no fetch.
+          set({ selection: { kind: 'context', id: target.id }, pageStatus: 'idle', pageDetail: null, pageError: undefined })
+          return
         case 'vault':
           // Vault detail is a view rendered from the already-loaded tree — no fetch.
           set({
@@ -169,6 +180,10 @@ export const useSession = create<SessionState>((set, get) => {
             pageDetail: null,
             pageError: undefined
           })
+          return
+        case 'collection':
+          // Collection detail renders from the loaded tree (banner + its pages) — no fetch.
+          set({ selection: { kind: 'collection', id: target.id }, pageStatus: 'idle', pageDetail: null, pageError: undefined })
           return
         case 'page': {
           set({
