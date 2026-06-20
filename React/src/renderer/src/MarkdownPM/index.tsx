@@ -6,6 +6,7 @@ import { EditorView, keymap } from '@codemirror/view'
 import { history, historyKeymap, defaultKeymap } from '@codemirror/commands'
 import { markdown } from '@codemirror/lang-markdown'
 import { markdownDecorations } from './editor/decorations'
+import { markdownInput } from './editor/input'
 import './Styles.css'
 
 interface Props {
@@ -26,6 +27,7 @@ export function MarkdownEditor({ initialBody, onChange }: Props): React.JSX.Elem
       parent,
       extensions: [
         history(),
+        markdownInput,
         keymap.of([...defaultKeymap, ...historyKeymap]),
         markdown(),
         EditorView.lineWrapping,
