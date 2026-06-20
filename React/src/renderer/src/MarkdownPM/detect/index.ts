@@ -60,6 +60,11 @@ export function isDashBulletLine(line: string): boolean {
   return marker.startsWith('-') && !marker.includes('[')
 }
 
+/** An ordered list line (`1. `, `12. `…). Markers render literally (no glyph), just recoloured. */
+export function isOrderedListLine(line: string): boolean {
+  return /^[ \t]*\d+\.[ \t]+/.test(line)
+}
+
 /** Does the line's marker carry a real (non-empty inner) task checkbox? Empty `[]` excluded. */
 export function hasCheckbox(line: string): boolean {
   return taskMarkerRegex.test(line)

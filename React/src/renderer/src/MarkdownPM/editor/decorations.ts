@@ -26,8 +26,25 @@ class BulletWidget extends WidgetType {
   }
   toDOM(): HTMLElement {
     const el = document.createElement('span')
-    el.className = 'md-bullet'
+    el.className = 'md-li-marker md-bullet md-syntax'
     el.textContent = '•'
+    return el
+  }
+}
+
+/** An ordered-list marker (`1.`, `12.`…). Rendered literally — recoloured to the syntax label,
+ *  occupying the same fixed marker zone as bullets/checkboxes so list text aligns across types. */
+class OrderedWidget extends WidgetType {
+  constructor(readonly label: string) {
+    super()
+  }
+  eq(o: OrderedWidget): boolean {
+    return o.label === this.label
+  }
+  toDOM(): HTMLElement {
+    const el = document.createElement('span')
+    el.className = 'md-li-marker md-ol-marker md-syntax'
+    el.textContent = this.label
     return el
   }
 }
@@ -46,13 +63,17 @@ class CheckboxWidget extends WidgetType {
     return o.checked === this.checked && o.bracketFrom === this.bracketFrom
   }
   toDOM(view: EditorView): HTMLElement {
+    // Sit the box in the shared marker zone so checkbox lines align with bullet/ordered lines.
+    const zone = document.createElement('span')
+    zone.className = 'md-li-marker'
     const box = document.createElement('span')
     box.className = `${chipCheckbox} md-checkbox${this.checked ? ' md-checkbox-checked' : ''}`
     box.addEventListener('mousedown', (e) => {
       e.preventDefault()
       view.dispatch({ changes: { from: this.bracketFrom, to: this.bracketTo, insert: this.checked ? '[ ]' : '[x]' } })
     })
-    return box
+    zone.appendChild(box)
+    return zone
   }
   ignoreEvent(): boolean {
     return false
@@ -65,6 +86,8 @@ function widgetFor(spec: WidgetSpec): WidgetType {
       return new HrWidget()
     case 'bullet':
       return new BulletWidget()
+    case 'ordered':
+      return new OrderedWidget(spec.label)
     case 'checkbox':
       return new CheckboxWidget(spec.bracketFrom, spec.bracketTo, spec.checked)
   }
@@ -80,6 +103,13 @@ function build(view: EditorView): DecorationSet {
   const active = activeTokenIndices(tokens, sel.from, sel.to)
   const ranges: Range<Decoration>[] = []
   for (const it of decorationsFor(text, tokens, active, sel.head)) {
+    if (it.kind === 'line') {
+      // The list nesting level rides as a CSS var the line + its marker zone both read.
+      ranges.push(
+        Decoration.line({ class: it.className, attributes: { style: `--li-level:${it.level}` } }).range(it.from)
+      )
+      continue
+    }
     if (it.to <= it.from) continue
     if (it.kind === 'class') ranges.push(Decoration.mark({ class: it.className }).range(it.from, it.to))
     else if (it.kind === 'hide') ranges.push(hideMarker.range(it.from, it.to))

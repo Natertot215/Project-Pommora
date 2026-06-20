@@ -4,22 +4,35 @@
 // into real CM6 decorations; keeping this layer pure data means it's unit-testable without an
 // editor and the behavior layer never holds a CSS literal — only class names + widget specs.
 import type { Token, TokenKind } from '../tokens'
-import { isThematicBreakLine, isHeadingLine, isDashBulletLine, hasCheckbox } from '../detect'
+import { isThematicBreakLine, isHeadingLine, isDashBulletLine, isOrderedListLine, hasCheckbox } from '../detect'
 
 const HEADING_RE = /^(\s{0,3})(#{1,6})([ \t]+)(.*)$/
-const BULLET_RE = /^(\s*)-[ \t]/
-const CHECKBOX_RE = /^(\s*)[-*+][ \t]*(\[[ xX]\])[ \t]+/d
+const BULLET_RE = /^([ \t]*)(-[ \t]+)/
+const ORDERED_RE = /^([ \t]*)(\d+)\.[ \t]+/
+const CHECKBOX_RE = /^([ \t]*)[-*+][ \t]*(\[[ xX]\])[ \t]+/d
+
+/** Source-indent → visual nesting level (`level = tabs + ⌊spaces/2⌋`, capped at 3 — spec §6.2). */
+function indentLevel(ws: string): number {
+  let tabs = 0
+  let spaces = 0
+  for (const ch of ws) ch === '\t' ? tabs++ : spaces++
+  return Math.min(3, tabs + Math.floor(spaces / 2))
+}
 
 /** A widget to draw in place of source text, with the data its renderer needs. */
 export type WidgetSpec =
   | { type: 'hr' }
   | { type: 'bullet' }
+  | { type: 'ordered'; label: string }
   | { type: 'checkbox'; bracketFrom: number; bracketTo: number; checked: boolean }
 
 export type DecoIntent =
   | { kind: 'class'; from: number; to: number; className: string }
   | { kind: 'hide'; from: number; to: number }
   | { kind: 'widget'; from: number; to: number; spec: WidgetSpec }
+  /** A whole-line decoration (`from` = line start). Carries the list nesting level so the
+   *  stylesheet can apply per-level indent + the hanging indent that flushes wrapped lines. */
+  | { kind: 'line'; from: number; className: string; level: number }
 
 /** Inline token kind → the Styles.css class applied to its content. */
 const CONTENT_CLASS: Partial<Record<TokenKind, string>> = {
@@ -73,11 +86,13 @@ export function decorationsFor(text: string, tokens: Token[], active: Set<number
       const cm = CHECKBOX_RE.exec(line)
       const bracket = cm?.indices?.[2]
       if (cm && bracket) {
-        const markerFrom = ls + cm[1].length // keep leading indent
         const [bs, be] = bracket
+        // Replace the whole prefix (indent + marker) so nesting comes purely from the line's
+        // padding, never literal leading whitespace — keeps the hanging indent exact.
+        intents.push({ kind: 'line', from: ls, className: 'md-li', level: indentLevel(cm[1]) })
         intents.push({
           kind: 'widget',
-          from: markerFrom,
+          from: ls,
           to: ls + cm[0].length,
           spec: { type: 'checkbox', bracketFrom: ls + bs, bracketTo: ls + be, checked: cm[2][1].toLowerCase() === 'x' }
         })
@@ -85,8 +100,14 @@ export function decorationsFor(text: string, tokens: Token[], active: Set<number
     } else if (isDashBulletLine(line)) {
       const bm = BULLET_RE.exec(line)
       if (bm) {
-        const dashAt = ls + bm[1].length
-        intents.push({ kind: 'widget', from: dashAt, to: dashAt + 1, spec: { type: 'bullet' } })
+        intents.push({ kind: 'line', from: ls, className: 'md-li', level: indentLevel(bm[1]) })
+        intents.push({ kind: 'widget', from: ls, to: ls + bm[0].length, spec: { type: 'bullet' } })
+      }
+    } else if (isOrderedListLine(line)) {
+      const om = ORDERED_RE.exec(line)
+      if (om) {
+        intents.push({ kind: 'line', from: ls, className: 'md-li', level: indentLevel(om[1]) })
+        intents.push({ kind: 'widget', from: ls, to: ls + om[0].length, spec: { type: 'ordered', label: `${om[2]}.` } })
       }
     } else if (isThematicBreakLine(line) && !caretOnLine) {
       intents.push({ kind: 'widget', from: ls, to: le, spec: { type: 'hr' } })

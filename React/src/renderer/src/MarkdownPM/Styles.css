@@ -79,16 +79,46 @@
   color: var(--label-secondary);
 }
 
-/* List bullet — the `-` renders as a • glyph (source stays `-`) */
-.md-bullet {
-  display: inline-block;
-  color: var(--label-primary);
-  font-size: 1.3em;
-  line-height: 0;
-  vertical-align: baseline;
+/* Syntax-label tint — system white @ 80% (theme-correct via the primary label token). Wired to
+   list markers (bullets + ordered numbers) so the marker reads as muted syntax, not body text. */
+.md-syntax {
+  color: color-mix(in srgb, var(--label-primary) 80%, transparent);
 }
 
-/* Task checkbox — reuses the chip checkbox dimensions; accent fill when checked */
+/* List lines — `--li-level` (set per line by the decoration) drives the per-level indent. The text
+   only ever moves RIGHT (padding-left); the marker is positioned absolutely in the reserved gutter
+   so it never displaces the text, and there's no negative text-indent that could pull into the
+   gutter. High specificity so CM6's own `.cm-line` padding can't override the indent. One mechanism
+   for bullets, checkboxes, ordered — they all align to the same text column. */
+.mdpm-editor .cm-line.md-li {
+  --li-hang: calc(var(--editor-font-size, 15px) * 1.55);
+  position: relative;
+  padding-left: calc(var(--li-level, 0) * 24px + var(--li-hang));
+}
+
+/* The marker zone — absolutely placed in the indent gutter, right-aligned against the text edge. */
+.md-li-marker {
+  position: absolute;
+  left: calc(var(--li-level, 0) * 24px);
+  width: var(--li-hang);
+  box-sizing: border-box;
+  text-align: right;
+  padding-right: 0.4em;
+}
+
+/* List bullet — the `-` renders as a • glyph (source stays `-`) */
+.md-bullet {
+  font-size: 1.15em;
+  line-height: 1;
+}
+
+/* Ordered-list number — rendered literally, tabular figures so the periods align down the column */
+.md-ol-marker {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Task checkbox — reuses the chip checkbox dimensions; accent fill when checked. The box sits in
+   the shared `.md-li-marker` zone (right-aligned there), so no checkbox-specific zone rule needed. */
 .md-checkbox {
   box-sizing: border-box;
   display: inline-block;
@@ -97,7 +127,6 @@
   border-color: var(--label-tertiary);
   background: transparent;
   cursor: pointer;
-  margin-right: 0.45em;
 }
 .md-checkbox-checked {
   background: var(--accent);

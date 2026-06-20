@@ -54,10 +54,25 @@ describe('decoration intents', () => {
     )
   })
 
-  it('dash bullet → a bullet widget over the dash', () => {
+  it('dash bullet → a bullet widget over the dash + a list line decoration', () => {
     const t = '- item'
     const intents = decorationsFor(t, tokenize(t), new Set(), 99)
     expect(intents.some((d) => d.kind === 'widget' && d.spec.type === 'bullet')).toBe(true)
+    expect(intents.some((d) => d.kind === 'line' && d.className === 'md-li' && d.level === 0)).toBe(true)
+  })
+
+  it('ordered list → an ordered widget carrying the number label + a list line', () => {
+    const t = '3. third'
+    const intents = decorationsFor(t, tokenize(t), new Set(), 99)
+    expect(intents.some((d) => d.kind === 'widget' && d.spec.type === 'ordered' && d.spec.label === '3.')).toBe(true)
+    expect(intents.some((d) => d.kind === 'line' && d.className === 'md-li')).toBe(true)
+  })
+
+  it('nested bullet → line decoration carries the indent level (2 spaces = 1, tab = 1)', () => {
+    const spaces = decorationsFor('  - x', tokenize('  - x'), new Set(), 99)
+    expect(spaces.some((d) => d.kind === 'line' && d.level === 1)).toBe(true)
+    const tab = decorationsFor('\t\t- x', tokenize('\t\t- x'), new Set(), 99)
+    expect(tab.some((d) => d.kind === 'line' && d.level === 2)).toBe(true)
   })
 
   it('task checkbox → a checkbox widget carrying bracket range + checked state', () => {
