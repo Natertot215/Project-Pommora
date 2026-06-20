@@ -15,6 +15,12 @@ const api = {
   // Debounced editor body write (relative path); main resolves under the session root + preserves frontmatter.
   updatePageBody: (relPath: string, body: string): Promise<{ ok: true } | { ok: false; error: string }> =>
     ipcRenderer.invoke('page:updateBody', relPath, body),
+  // Heading-fold UI state — local `.nexus/folds.json`, keyed by page id (per-machine, not frontmatter).
+  folds: {
+    get: (): Promise<Record<string, string[]>> => ipcRenderer.invoke('folds:get'),
+    set: (pageId: string, keys: string[]): Promise<{ ok: true } | { ok: false; error: string }> =>
+      ipcRenderer.invoke('folds:set', pageId, keys)
+  },
   // Renderer-initiated write (relative paths only); main resolves under the session root.
   mutate: (req: MutateRequest): Promise<MutateResult> => ipcRenderer.invoke('mutate', req),
   // Right-click an entity → main pops a native context menu + acts on it.

@@ -16,6 +16,7 @@ import { openSessionIndex, closeSessionIndex } from './sessionIndex'
 import { startWatcher, stopWatcher } from './watcher'
 import { resolveUnderRoot } from './pathSafety'
 import { updatePageBody } from './crud/page'
+import { readFolds, writeFolds, type FoldState } from './io/folds'
 import { handleMutate, type MutateDeps } from './mutate'
 import { showContextMenu } from './contextMenu'
 import { installAppMenu } from './menu'
@@ -261,6 +262,29 @@ ipcMain.handle(
       if (!resolved.ok) return { ok: false, error: resolved.error.message }
       const r = await updatePageBody(resolved.value, body)
       return r.ok ? { ok: true } : { ok: false, error: r.error.message }
+    } catch (e) {
+      return { ok: false, error: e instanceof Error ? e.message : String(e) }
+    }
+  }
+)
+
+// Heading-fold UI state — local `.nexus/folds.json` (out of frontmatter + index).
+ipcMain.handle('folds:get', async (): Promise<FoldState> => {
+  const root = sessionRoot()
+  return root === null ? {} : readFolds(root)
+})
+ipcMain.handle(
+  'folds:set',
+  async (_e, pageId: unknown, keys: unknown): Promise<{ ok: true } | { ok: false; error: string }> => {
+    try {
+      const root = sessionRoot()
+      if (root === null) return { ok: false, error: 'No nexus is open.' }
+      if (typeof pageId !== 'string') return { ok: false, error: 'A page id is required.' }
+      if (!Array.isArray(keys) || !keys.every((k) => typeof k === 'string')) {
+        return { ok: false, error: 'Fold keys must be a string array.' }
+      }
+      await writeFolds(root, pageId, keys)
+      return { ok: true }
     } catch (e) {
       return { ok: false, error: e instanceof Error ? e.message : String(e) }
     }
