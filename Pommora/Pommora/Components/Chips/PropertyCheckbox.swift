@@ -24,7 +24,7 @@ struct PropertyCheckbox: View {
         Button {
             isChecked.toggle()
         } label: {
-            RoundedRectangle(cornerRadius: 4, style: .continuous)
+            RoundedRectangle(cornerRadius: PUI.Radius.small, style: .continuous)
                 .fill(
                     isChecked
                         ? color.swiftUIColor

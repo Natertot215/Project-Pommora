@@ -11,9 +11,10 @@ import SwiftUI
 /// call-site level; the chip itself is single-file.
 struct FileChip: View {
     let filename: String
+    /// Leading glyph — defaults to the chain-link; image refs pass "photo".
+    var icon: String = "link"
 
     private let maxDisplayChars: Int = 13
-    private let cornerRadius: CGFloat = 4
 
     private var truncated: String {
         guard filename.count > maxDisplayChars else { return filename }
@@ -21,8 +22,8 @@ struct FileChip: View {
     }
 
     var body: some View {
-        HStack(spacing: 4) {
-            Image(systemName: "link")
+        HStack(spacing: PUI.Chip.fileIconTitleGap) {
+            Image(systemName: icon)
                 .font(.system(size: 10, weight: .regular))
                 .foregroundStyle(.secondary)
             Text(truncated)
@@ -31,11 +32,6 @@ struct FileChip: View {
                 .lineLimit(1)
                 .help(filename)
         }
-        .padding(.horizontal, 6)
-        .padding(.vertical, 3)
-        .background(
-            RoundedRectangle(cornerRadius: cornerRadius)
-                .fill(Color(.quaternarySystemFill))
-        )
+        .chipStyle(.fileTag)
     }
 }

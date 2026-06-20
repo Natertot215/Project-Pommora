@@ -27,11 +27,9 @@ struct MultiSelectChips: View {
         } label: {
             Text(option)
                 .font(.callout)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(
-                    Capsule().fill(isOn ? Color.accentColor.opacity(0.2) : Color.gray.opacity(0.1))
-                )
+                .padding(.horizontal, PUI.Chip.tagPaddingHorizontal)
+                .padding(.vertical, PUI.Chip.tagPaddingVertical)
+                .background(Capsule().fill(isOn ? PUI.Tint.toggleOn : PUI.Tint.toggleOff))
                 .foregroundStyle(isOn ? Color.accentColor : Color.primary)
         }
         .buttonStyle(.plain)
@@ -50,9 +48,9 @@ struct MultiSelectChips: View {
                 }
             Image(systemName: "plus.circle.fill").foregroundStyle(.secondary)
         }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 4)
-        .background(Capsule().fill(Color.gray.opacity(0.08)))
+        .padding(.horizontal, PUI.Chip.tagPaddingHorizontal)
+        .padding(.vertical, PUI.Chip.tagPaddingVertical)
+        .background(Capsule().fill(PUI.Tint.toggleOff))
     }
 
     private func toggle(_ option: String) {

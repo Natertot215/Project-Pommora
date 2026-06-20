@@ -21,33 +21,22 @@ import SwiftUI
 /// **Visual:** the target's icon + title inside a standard-button-radius
 /// rounded rectangle with a `.quinary` fill and a hairline separator stroke
 /// (so it pops against standard surfaces) — distinct from `PropertyChip`'s
-/// Capsule. Staged in the Component Library (Chips → Context Chip) per
-/// Nathan's 2026-05-29 design.
-///
-/// Stays at this path (`Properties/Chips/`). Do NOT move.
+/// Capsule. The chrome is the shared `.chipStyle(.referenceTag)`; staged in the
+/// Component Library (Chips → Context Chip) per Nathan's 2026-05-29 design.
 struct ContextChip: View {
     let icon: String
     let title: String
 
     var body: some View {
-        HStack(spacing: 5) {
+        HStack(spacing: PUI.Chip.iconTitleGap) {
             Image(systemName: icon)
-                .font(.system(size: 12, weight: .medium))
+                .font(PUI.ChipLabel.tag)
                 .foregroundStyle(.secondary)
             Text(title)
-                .font(.system(size: 12, weight: .medium))
+                .font(PUI.ChipLabel.tag)
                 .foregroundStyle(.primary)
                 .lineLimit(1)
         }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 4)
-        .background(
-            RoundedRectangle(cornerRadius: 6, style: .continuous)
-                .fill(.quinary)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 6, style: .continuous)
-                .strokeBorder(.separator, lineWidth: 0.5)
-        )
+        .chipStyle(.referenceTag)
     }
 }

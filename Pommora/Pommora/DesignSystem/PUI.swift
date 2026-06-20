@@ -199,4 +199,53 @@ enum PUI {
         /// 2026-05-27.) Apply via the `.fieldBackground()` modifier.
         static let field = AnyShapeStyle(.quinary)
     }
+
+    // MARK: - Chip geometry (the rounded-rect "tag" family + pill insets)
+
+    /// Insets + gaps for the chip components (`Components/Chips/`). The
+    /// rounded-rect tag chrome (radius + fill + stroke) is applied via the
+    /// `.chipStyle(_:)` modifier; these are the values it and the chip bodies
+    /// reference instead of inline literals. Radii route through `Radius`.
+    enum Chip {
+        /// Relation / context tag — horizontal inset.
+        static let tagPaddingHorizontal: CGFloat = Spacing.md  // 8
+        /// Relation / context tag — vertical inset.
+        static let tagPaddingVertical: CGFloat = Spacing.xs  // 4
+        /// File-attachment tag — tighter inset than the relation tag.
+        static let filePaddingHorizontal: CGFloat = Spacing.sm  // 6
+        /// File-attachment tag — tighter inset than the relation tag.
+        static let filePaddingVertical: CGFloat = 3
+        /// Icon ↔ title gap inside a relation tag.
+        static let iconTitleGap: CGFloat = 5
+        /// Icon ↔ title gap inside a file tag (and other tight chips).
+        static let fileIconTitleGap: CGFloat = Spacing.xs  // 4
+        /// Hairline stroke width on tags that carry an outline.
+        static let strokeWidth: CGFloat = 0.5
+    }
+
+    // MARK: - Tints (translucent chip fills + strokes)
+
+    /// Named translucent fills for chips, so a retune is one edit rather than a
+    /// hunt for raw `.quinary` / `.opacity(…)` across files. System hierarchical
+    /// fills — appearance-adaptive, no hand-rolled greys.
+    enum Tint {
+        /// Relation / context tag fill.
+        static let tag = AnyShapeStyle(.quinary)
+        /// Relation / context tag outline.
+        static let tagStroke = AnyShapeStyle(.separator)
+        /// File-attachment tag fill (one tier brighter than the relation tag).
+        static let fileTag = AnyShapeStyle(Color(.quaternarySystemFill))
+        /// Toggle chip — selected state (accent at low alpha).
+        static let toggleOn = AnyShapeStyle(Color.accentColor.opacity(0.2))
+        /// Toggle chip — unselected state.
+        static let toggleOff = AnyShapeStyle(Color.gray.opacity(0.1))
+    }
+
+    // MARK: - Typography (chip labels)
+
+    /// Tag label font — relation / file chips. `Typography.chip` (semibold) is
+    /// the saturated *pill*; tags read lighter, hence medium.
+    enum ChipLabel {
+        static let tag: Font = .system(size: 12, weight: .medium)
+    }
 }
