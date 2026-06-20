@@ -29,3 +29,6 @@ dist/
 
 # Graphify — regeneratable knowledge-graph output (55MB+, rebuilt via `graphify update .`)
 graphify-out/
+
+# Playwright MCP — tool console logs / page traces (regeneratable)
+.playwright-mcp/
