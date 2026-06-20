@@ -3,6 +3,12 @@
    connection colouring is intentionally global-ish (links exist off-page) — kept here for now,
    hoisted to the global sheet when off-page link rendering lands. */
 
+/* Shell — wraps the title overlay + the editor; clips the title as it scroll-tracks off the top. */
+.mdpm-shell {
+  position: relative;
+  height: 100%;
+  overflow: hidden;
+}
 .mdpm-editor {
   height: 100%;
 }
@@ -20,10 +26,48 @@
 .mdpm-editor .cm-content {
   color: var(--label-primary);
   caret-color: var(--label-primary);
-  padding: 0;
+  /* Reserve the title zone at top (= TITLE_ZONE in index.tsx) + a symmetric tail; sides inherit the
+     surrounding pane inset. The reserved zone scrolls WITH the document (content padding, not a fixed
+     inset) so the title overlay can translate in lockstep. */
+  padding: 90px 0;
   /* Driven by the unified zoom (zoom.ts): the host sets --editor-font-size = 15px × 2^(z−1).
      Default 15px (zoom 1.0). Everything else (headings ×multiplier, glyphs in em) scales off it. */
   font-size: var(--editor-font-size, 15px);
+}
+
+/* Inline title + hairline divider — overlays the reserved top zone, translated by the host on
+   scroll. pointer-events pass through except on the input, so clicks below land in the editor. */
+.mdpm-titlebar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 2;
+  pointer-events: none;
+  will-change: transform;
+}
+.mdpm-title {
+  pointer-events: auto;
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  margin: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--label-primary);
+  font-family: var(--font-family);
+  font-size: 28px;
+  font-weight: var(--weight-bold);
+  /* 24px top, 14px to the divider; no side inset (the pane already insets the column). */
+  padding: 24px 0 14px;
+}
+.mdpm-title::placeholder {
+  color: var(--label-tertiary);
+}
+.mdpm-divider {
+  height: 1.25px;
+  background: var(--separator-border);
 }
 
 .mdpm-editor .cm-line {
@@ -36,13 +80,13 @@
   margin-top: 0.6em;
 }
 .mdpm-editor .cm-line:has(.md-h3) {
-  margin-top: 0.48em;
+  margin-top: 0.50em;
 }
 .mdpm-editor .cm-line:has(.md-h4) {
-  margin-top: 0.31em;
+  margin-top: 0.30em;
 }
 .mdpm-editor .cm-line:has(.md-h5) {
-  margin-top: 0.24em;
+  margin-top: 0.25em;
 }
 .mdpm-editor .cm-line:has(.md-h6) {
   margin-top: 0.15em;
@@ -91,24 +135,34 @@
    gutter. High specificity so CM6's own `.cm-line` padding can't override the indent. One mechanism
    for bullets, checkboxes, ordered — they all align to the same text column. */
 .mdpm-editor .cm-line.md-li {
-  --li-hang: calc(var(--editor-font-size, 15px) * 1.55);
+  /* Swift parity (MarkdownListHandler): a default indentPerLevel (24) stop on top of source nesting
+     places the marker; the text hangs one marker-zone further. `--li-base` = marker column,
+     `--li-hang` = marker zone width (≈ glyph + bulletTextGap). */
+  --li-base: calc((var(--li-level, 0) + 1) * 24px);
+  --li-hang: calc(var(--editor-font-size, 15px) * 1.1);
   position: relative;
-  padding-left: calc(var(--li-level, 0) * 24px + var(--li-hang));
+  padding-left: calc(var(--li-base) + var(--li-hang));
 }
 
-/* The marker zone — absolutely placed in the indent gutter, right-aligned against the text edge. */
+/* The marker zone — absolutely placed at the marker column, spanning one line box so the glyph
+   sits vertically CENTERED on the first line; right-aligned with a 3px (Swift bulletTextGap) gap
+   to the text. Wider markers (numbers, checkbox) overflow left into the indent, never the text. */
 .md-li-marker {
   position: absolute;
-  left: calc(var(--li-level, 0) * 24px);
+  left: var(--li-base);
+  top: 0;
   width: var(--li-hang);
+  height: calc(var(--editor-font-size, 15px) * 1.6);
   box-sizing: border-box;
-  text-align: right;
-  padding-right: 0.4em;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: 3px;
 }
 
-/* List bullet — the `-` renders as a • glyph (source stays `-`) */
+/* List bullet — the `-` renders as a • glyph (source stays `-`); 1.5× body, per Swift. */
 .md-bullet {
-  font-size: 1.15em;
+  font-size: 1.25em;
   line-height: 1;
 }
 
@@ -122,7 +176,6 @@
 .md-checkbox {
   box-sizing: border-box;
   display: inline-block;
-  vertical-align: -3px;
   border-style: solid;
   border-color: var(--label-tertiary);
   background: transparent;

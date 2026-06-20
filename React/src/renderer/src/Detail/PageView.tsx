@@ -14,6 +14,7 @@ export function PageView(): React.JSX.Element {
   const pageStatus = useSession((s) => s.pageStatus)
   const pageDetail = useSession((s) => s.pageDetail)
   const pageError = useSession((s) => s.pageError)
+  const submitRename = useSession((s) => s.submitRename)
   const saveTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
   const scheduleSave = (path: string, body: string): void => {
@@ -40,6 +41,8 @@ export function PageView(): React.JSX.Element {
         <MarkdownEditor
           key={pageDetail.path}
           initialBody={pageDetail.body}
+          title={pageDetail.title}
+          onRename={(newName) => void submitRename(pageDetail.path, 'page', newName)}
           onChange={(body) => scheduleSave(pageDetail.path, body)}
         />
       )
