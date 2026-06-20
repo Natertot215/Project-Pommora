@@ -63,7 +63,10 @@ export function decorationsFor(text: string, tokens: Token[], active: Set<number
       if (hm) {
         const level = hm[2].length
         const contentStart = ls + hm[1].length + hm[2].length + hm[3].length
-        if (contentStart < le) intents.push({ kind: 'class', from: contentStart, to: le, className: `md-h${level}` })
+        // Size the WHOLE line so the `#` markers grow/shrink with the level too (live, as typed).
+        intents.push({ kind: 'class', from: ls, to: le, className: `md-h${level}` })
+        // The `#` markers render muted (label-secondary) when visible; hidden when the caret leaves.
+        if (contentStart > ls) intents.push({ kind: 'class', from: ls, to: contentStart, className: 'md-hmarker' })
         if (!caretOnLine) intents.push({ kind: 'hide', from: ls, to: contentStart })
       }
     } else if (hasCheckbox(line)) {

@@ -36,6 +36,16 @@ describe('decoration intents', () => {
     expect(intents.some((d) => d.kind === 'class' && d.className === 'md-connection')).toBe(true)
   })
 
+  it('heading sizes the whole line (markers grow too) + mutes the # markers', () => {
+    const t = '## Title'
+    const intents = decorationsFor(t, tokenize(t), new Set(), 99) // caret off the line
+    // whole-line size class so the ## grows with the level
+    expect(intents.some((d) => d.kind === 'class' && d.className === 'md-h2' && d.from === 0 && d.to === t.length)).toBe(
+      true
+    )
+    expect(intents.some((d) => d.kind === 'class' && d.className === 'md-hmarker')).toBe(true)
+  })
+
   it('strikethrough → md-strike on content', () => {
     const t = '~~gone~~'
     const tokens = tokenize(t)

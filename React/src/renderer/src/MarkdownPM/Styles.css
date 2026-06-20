@@ -107,6 +107,11 @@
   font-size: 1em;
   font-weight: var(--weight-bold);
 }
+/* The `#` markers: muted + non-bold, but sized with the heading (via the md-h* class on the line) */
+.md-hmarker {
+  color: var(--label-secondary);
+  font-weight: var(--weight-standard);
+}
 
 /* Thematic break — a full-width hairline replacing the `---` caret-out */
 .md-hr {
