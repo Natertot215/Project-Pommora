@@ -49,6 +49,20 @@ import Testing
         #expect(decoded.modifiedAt == now)
     }
 
+    @Test func missingCreatedAtFallsBackToModifiedAt() throws {
+        let json = """
+        {
+          "id": "p1",
+          "tier1": [], "tier2": [], "tier3": [],
+          "properties": {},
+          "modified_at": "2026-06-20T12:00:00Z"
+        }
+        """.data(using: .utf8)!
+        let fm = try Self.decoder().decode(PageFrontmatter.self, from: json)
+        #expect(fm.createdAt == fm.modifiedAt)
+        #expect(fm.createdAt != Date(timeIntervalSince1970: 0))
+    }
+
     @Test func modifiedAtNilOmittedFromEncoding() throws {
         let fm = PageFrontmatter(
             id: "01HABC", icon: nil,
