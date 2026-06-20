@@ -3,12 +3,10 @@
    connection colouring is intentionally global-ish (links exist off-page) — kept here for now,
    hoisted to the global sheet when off-page link rendering lands. */
 
-.mdpm-editor {
-  height: 100%;
-  overflow: auto;
-}
+/* The editor fills the detail content box and inherits the ONE canonical gutter from `.detail`
+   (Detail.css: 38px 28px 28px var(--content-inset)) — it adds no padding of its own, so editing
+   that single rule re-gutters every view incl. the editor. Auto-height: `.detail` owns the scroll. */
 .mdpm-editor .cm-editor {
-  height: 100%;
   background: transparent;
 }
 .mdpm-editor .cm-editor.cm-focused {
@@ -20,9 +18,8 @@
 }
 .mdpm-editor .cm-content {
   color: var(--label-primary);
-  caret-color: var(--accent);
-  padding: 24px;
-  max-width: 760px;
+  caret-color: var(--system-accent); /* the OS/system accent (not the editor text colour) */
+  padding: 0;
 }
 
 /* Inline marks (content classes; markers are hidden via replace decorations caret-out) */

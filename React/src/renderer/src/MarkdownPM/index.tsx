@@ -2,7 +2,7 @@
 // Markdown body. Uncontrolled by design: the body is the INITIAL doc, edits flow out via
 // onChange; the host remounts per page (key on the path) so there's no body-sync-on-keystroke.
 import { useEffect, useRef } from 'react'
-import { EditorView, keymap, drawSelection } from '@codemirror/view'
+import { EditorView, keymap } from '@codemirror/view'
 import { history, historyKeymap, defaultKeymap } from '@codemirror/commands'
 import { markdown } from '@codemirror/lang-markdown'
 import { markdownDecorations } from './editor/decorations'
@@ -29,7 +29,6 @@ export function MarkdownEditor({ initialBody, onChange }: Props): React.JSX.Elem
         keymap.of([...defaultKeymap, ...historyKeymap]),
         markdown(),
         EditorView.lineWrapping,
-        drawSelection(),
         markdownDecorations,
         EditorView.updateListener.of((u) => {
           if (u.docChanged) onChangeRef.current(u.state.doc.toString())
