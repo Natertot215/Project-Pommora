@@ -47,9 +47,37 @@
   color: var(--connection);
   text-decoration: underline;
 }
+.md-strike {
+  text-decoration: line-through;
+}
 .md-latex,
 .md-image {
   color: var(--label-secondary);
+}
+
+/* List bullet — the `-` renders as a • glyph (source stays `-`) */
+.md-bullet {
+  display: inline-block;
+  color: var(--label-primary);
+  font-size: 1.3em;
+  line-height: 0;
+  vertical-align: baseline;
+}
+
+/* Task checkbox — reuses the chip checkbox dimensions; accent fill when checked */
+.md-checkbox {
+  box-sizing: border-box;
+  display: inline-block;
+  vertical-align: -3px;
+  border-style: solid;
+  border-color: var(--label-tertiary);
+  background: transparent;
+  cursor: pointer;
+  margin-right: 0.45em;
+}
+.md-checkbox-checked {
+  background: var(--accent);
+  border-color: var(--accent);
 }
 
 /* Headings — the Pommora scale (multiplier × body), bold; H6 = body size */

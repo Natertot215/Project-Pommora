@@ -17,6 +17,7 @@ import { pageLinkPattern } from '@shared/connections'
 export type TokenKind =
   | 'italic'
   | 'bold'
+  | 'strikethrough'
   | 'inlineCode'
   | 'blockLatex'
   | 'inlineLatex'
@@ -52,7 +53,7 @@ function childSpan(node: MdNode): Span | null {
 
 /** Emit one emphasis token, reconstructing marker spans from the tighter of (delimiter width)
  *  and (child span) — robust when an inner node abuts the outer delimiter run. */
-function pushEmphasis(node: MdNode, kind: 'italic' | 'bold', width: number, out: Token[]): void {
+function pushEmphasis(node: MdNode, kind: 'italic' | 'bold' | 'strikethrough', width: number, out: Token[]): void {
   const fs = node.position?.start.offset
   const fe = node.position?.end.offset
   if (fs == null || fe == null || fe - fs < width * 2) return
@@ -77,6 +78,7 @@ function pushEmphasis(node: MdNode, kind: 'italic' | 'bold', width: number, out:
 function walkEmphasis(node: MdNode, out: Token[]): void {
   if (node.type === 'emphasis') pushEmphasis(node, 'italic', 1, out)
   else if (node.type === 'strong') pushEmphasis(node, 'bold', 2, out)
+  else if (node.type === 'delete') pushEmphasis(node, 'strikethrough', 2, out)
   if ('children' in node && node.children) {
     for (const child of node.children) walkEmphasis(child as MdNode, out)
   }

@@ -1,12 +1,13 @@
 // The CM6 adapter for decorations — the ONLY place behavior-layer intents become real CodeMirror
 // decorations. A ViewPlugin recomputes on every doc/selection change: tokenize → active tokens →
-// decorationsFor → CM6 mark (class) / replace (hide markers) / replace-widget (HR). Inline-only for
-// now (no line-break-crossing replaces), so a ViewPlugin is valid; block widgets move to a
-// StateField when they arrive (Phase 3).
+// decorationsFor → CM6 mark (class) / replace (hide markers) / replace-widget (•, checkbox, HR).
+// Inline-only replaces (no line-break crossing), so a ViewPlugin is valid; block-spanning chrome
+// (blockquote/callout cards) moves to a StateField when it arrives.
 import { Decoration, type DecorationSet, EditorView, ViewPlugin, type ViewUpdate, WidgetType } from '@codemirror/view'
 import type { Range } from '@codemirror/state'
+import { chipCheckbox } from '../../design-system/tokens'
 import { tokenize, activeTokenIndices } from '../tokens'
-import { decorationsFor } from '../decorations/intent'
+import { decorationsFor, type WidgetSpec } from '../decorations/intent'
 
 class HrWidget extends WidgetType {
   eq(): boolean {
@@ -16,6 +17,56 @@ class HrWidget extends WidgetType {
     const el = document.createElement('span')
     el.className = 'md-hr'
     return el
+  }
+}
+
+class BulletWidget extends WidgetType {
+  eq(): boolean {
+    return true
+  }
+  toDOM(): HTMLElement {
+    const el = document.createElement('span')
+    el.className = 'md-bullet'
+    el.textContent = '•'
+    return el
+  }
+}
+
+/** Reuses the chip checkbox visual (`chipCheckbox`) + the nexus accent when checked; clicking it
+ *  toggles the underlying `[ ]` ↔ `[x]` source (one transaction → native undo). */
+class CheckboxWidget extends WidgetType {
+  constructor(
+    readonly bracketFrom: number,
+    readonly bracketTo: number,
+    readonly checked: boolean
+  ) {
+    super()
+  }
+  eq(o: CheckboxWidget): boolean {
+    return o.checked === this.checked && o.bracketFrom === this.bracketFrom
+  }
+  toDOM(view: EditorView): HTMLElement {
+    const box = document.createElement('span')
+    box.className = `${chipCheckbox} md-checkbox${this.checked ? ' md-checkbox-checked' : ''}`
+    box.addEventListener('mousedown', (e) => {
+      e.preventDefault()
+      view.dispatch({ changes: { from: this.bracketFrom, to: this.bracketTo, insert: this.checked ? '[ ]' : '[x]' } })
+    })
+    return box
+  }
+  ignoreEvent(): boolean {
+    return false
+  }
+}
+
+function widgetFor(spec: WidgetSpec): WidgetType {
+  switch (spec.type) {
+    case 'hr':
+      return new HrWidget()
+    case 'bullet':
+      return new BulletWidget()
+    case 'checkbox':
+      return new CheckboxWidget(spec.bracketFrom, spec.bracketTo, spec.checked)
   }
 }
 
@@ -29,7 +80,7 @@ function build(view: EditorView): DecorationSet {
     if (it.to <= it.from) continue
     if (it.kind === 'class') ranges.push(Decoration.mark({ class: it.className }).range(it.from, it.to))
     else if (it.kind === 'hide') ranges.push(Decoration.replace({}).range(it.from, it.to))
-    else if (it.kind === 'widget') ranges.push(Decoration.replace({ widget: new HrWidget() }).range(it.from, it.to))
+    else ranges.push(Decoration.replace({ widget: widgetFor(it.spec) }).range(it.from, it.to))
   }
   return Decoration.set(ranges, true)
 }
