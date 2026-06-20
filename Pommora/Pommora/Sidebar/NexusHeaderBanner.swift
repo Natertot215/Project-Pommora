@@ -46,26 +46,34 @@ struct NexusHeaderBanner: View {
         return false
     }
 
+    /// Avatar size doubles as the text column's height so the title pins to the
+    /// avatar's top edge and the subtitle to its bottom (single source of truth).
+    private let avatarSize: CGFloat = 34
+
     var body: some View {
         HStack(spacing: 10) {
             avatar
-                .frame(width: 38, height: 38)
+                .frame(width: avatarSize, height: avatarSize)
                 .clipShape(Circle())
-            VStack(alignment: .leading, spacing: 1) {
+            VStack(alignment: .leading, spacing: 0) {
                 Text(title)
-                    .font(.system(size: 15, weight: .semibold))
+                    .font(PUI.Typography.paneTitle)
                     .lineLimit(1)
                     .truncationMode(.tail)
+                Spacer(minLength: 0)
                 subtitleSlot
             }
-            Spacer(minLength: 0)
+            .frame(height: avatarSize)
         }
-        .padding(.horizontal, 10)
+        .padding(.leading, 14)
         .padding(.vertical, 8)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .background(
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
+            // Inset 11 matches the row SelectionChrome — keeps the rounded right
+            // corner clear of the NavigationSplitView splitter (no edge cutoff).
+            RoundedRectangle(cornerRadius: 6, style: .continuous)
                 .fill(highlight)
-                .padding(.horizontal, 6)
+                .padding(.horizontal, 11)
         )
         .contentShape(Rectangle())
         .onTapGesture { if !isEditingSubtitle { selection = .savedKey("homepage") } }
@@ -79,7 +87,7 @@ struct NexusHeaderBanner: View {
             guard case .success(let urls) = result, let source = urls.first else { return }
             importImage(from: source)
         }
-        .padding(.top, 6)
+        .fileDialogMessage("Choose a profile picture for this nexus")
     }
 
     @ViewBuilder
@@ -87,7 +95,7 @@ struct NexusHeaderBanner: View {
         if isEditingSubtitle {
             TextField("Subtitle", text: $subtitleDraft)
                 .textFieldStyle(.plain)
-                .font(.system(size: 12))
+                .font(PUI.Typography.rowSubtitle)
                 .foregroundStyle(.secondary)
                 .focused($subtitleFocused)
                 .onSubmit { commitSubtitle() }
@@ -101,7 +109,7 @@ struct NexusHeaderBanner: View {
                 .onAppear { subtitleFocused = true }
         } else if !subtitle.isEmpty {
             Text(subtitle)
-                .font(.system(size: 12))
+                .font(PUI.Typography.rowSubtitle)
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
                 .truncationMode(.tail)
@@ -147,7 +155,8 @@ struct NexusHeaderBanner: View {
         ZStack {
             Circle().fill(Color.accentColor.opacity(0.18))
             Text(initial)
-                .font(.system(size: 16, weight: .semibold))
+                // Scales with the one avatarSize source rather than a 2nd constant.
+                .font(.system(size: avatarSize * 0.45, weight: .semibold))
                 .foregroundStyle(Color.accentColor)
         }
     }
