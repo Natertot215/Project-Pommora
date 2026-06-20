@@ -95,7 +95,7 @@ struct IndexUpdater: Sendable {
                         icon = excluded.icon, modified_at = excluded.modified_at,
                         schema_version = excluded.schema_version
                     """,
-                arguments: [pc.id, pc.typeID, pc.title, pc.icon, iso(pc.modifiedAt), 1]
+                arguments: [pc.id, pc.typeID, pc.title, pc.icon, iso(pc.modifiedAt), pc.schemaVersion]
             )
         }
     }
