@@ -2,6 +2,9 @@ import { useRef } from 'react'
 import { useSession } from '../store'
 import { MarkdownEditor } from '../MarkdownPM'
 
+/** Idle window before an edit flushes to disk. */
+const SAVE_DEBOUNCE_MS = 400
+
 /**
  * The page detail body — hosts the MarkdownPM editor over the open page's Markdown body.
  * Edits debounce out to `page:updateBody` (frontmatter-preserving, main-side). The editor keys
@@ -17,7 +20,7 @@ export function PageView(): React.JSX.Element {
     if (saveTimer.current) clearTimeout(saveTimer.current)
     saveTimer.current = setTimeout(() => {
       void window.nexus.updatePageBody(path, body)
-    }, 400)
+    }, SAVE_DEBOUNCE_MS)
   }
 
   switch (pageStatus) {

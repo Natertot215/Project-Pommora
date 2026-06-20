@@ -38,6 +38,10 @@ export interface Token {
 type Span = [number, number]
 const overlaps = (a: Span, b: Span): boolean => a[0] < b[1] && b[0] < a[1]
 
+/** Drop tokens whose range overlaps any of the higher-priority `claimed` tokens. */
+const notOverlapping = (claimed: Token[]) => (tk: Token): boolean =>
+  !claimed.some((c) => overlaps(c.range, tk.range))
+
 // --- Emphasis (mdast) ----------------------------------------------------------------------
 
 type MdNode = Root | RootContent | PhrasingContent
@@ -58,19 +62,18 @@ function pushEmphasis(node: MdNode, kind: 'italic' | 'bold' | 'strikethrough', w
   const fe = node.position?.end.offset
   if (fs == null || fe == null || fe - fs < width * 2) return
   const cs = childSpan(node) ?? [fs + width, fe - width]
+  // Clamp the content span inside the delimiters; the marker spans then fall out of the
+  // clamp (openStart ≥ fs and closeStart + width ≤ fe hold by construction).
   const contentStart = Math.max(cs[0], fs + width)
   const contentEnd = Math.min(cs[1], fe - width)
   if (contentEnd <= contentStart) return
-  const openStart = contentStart - width
-  const closeStart = contentEnd
-  if (openStart < fs || closeStart + width > fe) return
   out.push({
     kind,
     range: [fs, fe],
     contentRange: [contentStart, contentEnd],
     markerRanges: [
-      [openStart, contentStart],
-      [closeStart, closeStart + width]
+      [contentStart - width, contentStart],
+      [contentEnd, contentEnd + width]
     ]
   })
 }
@@ -149,13 +152,13 @@ export function tokenize(text: string): Token[] {
   walkEmphasis(ast, tokens)
 
   const images = regexTokens(text, { kind: 'imageEmbed', re: imageEmbedRegex(), open: 3, close: 2 })
-  const wikis = wikiLinkTokens(text).filter((w) => !images.some((im) => overlaps(im.range, w.range)))
+  const wikis = wikiLinkTokens(text).filter(notOverlapping(images))
   const links = regexTokens(text, { kind: 'link', re: markdownLinkRegex(), open: 1, close: 1 }).filter(
-    (l) => ![...images, ...wikis].some((o) => overlaps(o.range, l.range))
+    notOverlapping([...images, ...wikis])
   )
   const code = regexTokens(text, { kind: 'inlineCode', re: inlineCodeRegex(), open: 1, close: 1 })
   const blockTex = regexTokens(text, { kind: 'blockLatex', re: blockLatexRegex(), open: 2, close: 2 }).filter(
-    (b) => !code.some((c) => overlaps(c.range, b.range))
+    notOverlapping(code)
   )
   const inlineTex = regexTokens(text, {
     kind: 'inlineLatex',
@@ -163,7 +166,7 @@ export function tokenize(text: string): Token[] {
     open: 1,
     close: 1,
     accept: isInlineMathContent
-  }).filter((t) => ![...code, ...blockTex].some((o) => overlaps(o.range, t.range)))
+  }).filter(notOverlapping([...code, ...blockTex]))
 
   tokens.push(...images, ...wikis, ...links, ...code, ...blockTex, ...inlineTex)
   tokens.sort((a, b) => a.range[0] - b.range[0])

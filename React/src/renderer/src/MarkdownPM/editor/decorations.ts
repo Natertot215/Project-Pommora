@@ -70,6 +70,9 @@ function widgetFor(spec: WidgetSpec): WidgetType {
   }
 }
 
+// One shared replace decoration for every hidden marker — they carry no per-instance data.
+const hideMarker = Decoration.replace({})
+
 function build(view: EditorView): DecorationSet {
   const text = view.state.doc.toString()
   const sel = view.state.selection.main
@@ -79,7 +82,7 @@ function build(view: EditorView): DecorationSet {
   for (const it of decorationsFor(text, tokens, active, sel.head)) {
     if (it.to <= it.from) continue
     if (it.kind === 'class') ranges.push(Decoration.mark({ class: it.className }).range(it.from, it.to))
-    else if (it.kind === 'hide') ranges.push(Decoration.replace({}).range(it.from, it.to))
+    else if (it.kind === 'hide') ranges.push(hideMarker.range(it.from, it.to))
     else ranges.push(Decoration.replace({ widget: widgetFor(it.spec) }).range(it.from, it.to))
   }
   return Decoration.set(ranges, true)

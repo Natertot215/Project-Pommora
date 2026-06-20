@@ -55,6 +55,9 @@
 .md-italic {
   font-style: italic;
 }
+.md-strike {
+  text-decoration: line-through;
+}
 .md-code {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   color: var(--code);
@@ -70,9 +73,7 @@
   color: var(--connection);
   text-decoration: underline;
 }
-.md-strike {
-  text-decoration: line-through;
-}
+/* Block-embed placeholders — muted until live rendering lands */
 .md-latex,
 .md-image {
   color: var(--label-secondary);
