@@ -14,8 +14,7 @@ struct PageRow: View {
 
     @Environment(PageContentManager.self) private var contentManager
 
-    @State private var draft: String = ""
-    @State private var isCommitting: Bool = false
+    @State private var renameState = InlineRenameState()
     @FocusState private var renameFocused: Bool
 
     /// The page's icon, falling back to the default page glyph. A custom icon
@@ -32,13 +31,13 @@ struct PageRow: View {
                 RenameableRow(
                     symbol: rowSymbol,
                     initialTitle: page.title,
-                    draft: $draft,
+                    draft: $renameState.draft,
                     renameFocused: $renameFocused,
                     onSubmit: { commit() },
-                    onCancel: { cancel() },
+                    onCancel: { clearEditing() },
                     onFocusLoss: {
-                        if !isCommitting && editingID == page.id {
-                            cancel()
+                        if !renameState.isCommitting && editingID == page.id {
+                            clearEditing()
                         }
                     },
                     selectAllOnAppear: justCreatedID == page.id
@@ -68,33 +67,25 @@ struct PageRow: View {
     // MARK: - Actions
 
     private func commit() {
-        guard draft != page.title else {
-            editingID = nil
-            justCreatedID = nil
-            return
-        }
-        isCommitting = true
-        Task {
-            defer { isCommitting = false }
-            do {
+        renameState.commit(
+            currentTitle: page.title,
+            rename: {
+                // Resolve the parent-specific manager overload; the row stays
+                // unaware of which PageContentManager rename is dispatched.
                 switch parent {
                 case .collection(let coll, let vault):
-                    try await contentManager.renamePage(page, to: draft, in: coll, vault: vault)
+                    try await contentManager.renamePage(page, to: renameState.draft, in: coll, vault: vault)
                 case .set(let set, let coll, let vault):
-                    try await contentManager.renamePage(page, to: draft, in: set, collection: coll, vault: vault)
+                    try await contentManager.renamePage(page, to: renameState.draft, in: set, collection: coll, vault: vault)
                 case .vaultRoot(let vault):
-                    try await contentManager.renamePage(page, to: draft, inVaultRoot: vault)
+                    try await contentManager.renamePage(page, to: renameState.draft, inVaultRoot: vault)
                 }
-                editingID = nil
-                justCreatedID = nil
-            } catch {
-                // pendingError set by manager; toast surfaces.
-                // editingID preserved on failure for retry.
-            }
-        }
+            },
+            onCommitted: { clearEditing() }
+        )
     }
 
-    private func cancel() {
+    private func clearEditing() {
         editingID = nil
         justCreatedID = nil
     }

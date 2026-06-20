@@ -78,60 +78,38 @@ struct NexusHeaderBanner: View {
         .fileDialogMessage("Choose a profile picture for this nexus")
     }
 
-    // MARK: - Title (inline rename, scoped menu)
+    // MARK: - Title / Subtitle slots (shared inline-edit primitive)
 
-    @ViewBuilder
     private var titleSlot: some View {
-        if isEditingTitle {
-            TextField("Name", text: $titleDraft)
-                .textFieldStyle(.plain)
-                .font(PUI.Typography.paneTitle)
-                .focused($titleFocused)
-                .onSubmit { commitTitle() }
-                .onKeyPress(.escape) {
-                    cancelTitleEdit()
-                    return .handled
-                }
-                .onChange(of: titleFocused) { _, focused in
-                    if !focused { commitTitle() }
-                }
-                .onAppear { titleFocused = true }
-        } else {
-            Text(title)
-                .font(PUI.Typography.paneTitle)
-                .lineLimit(1)
-                .truncationMode(.tail)
-                .contextMenu { Button("Rename") { beginTitleEdit() } }
-        }
+        InlineEditField(
+            value: title,
+            placeholder: "Name",
+            font: PUI.Typography.paneTitle,
+            foreground: .primary,
+            menuLabel: "Rename",
+            isEditing: $isEditingTitle,
+            draft: $titleDraft,
+            focused: $titleFocused,
+            begin: beginTitleEdit,
+            commit: commitTitle,
+            cancel: cancelTitleEdit
+        )
     }
 
-    // MARK: - Subtitle (inline edit, scoped menu)
-
-    @ViewBuilder
     private var subtitleSlot: some View {
-        if isEditingSubtitle {
-            TextField("Subtitle", text: $subtitleDraft)
-                .textFieldStyle(.plain)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .focused($subtitleFocused)
-                .onSubmit { commitSubtitle() }
-                .onKeyPress(.escape) {
-                    cancelSubtitleEdit()
-                    return .handled
-                }
-                .onChange(of: subtitleFocused) { _, focused in
-                    if !focused { commitSubtitle() }
-                }
-                .onAppear { subtitleFocused = true }
-        } else {
-            Text(displaySubtitle)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-                .truncationMode(.tail)
-                .contextMenu { Button("Edit Subtitle") { beginSubtitleEdit() } }
-        }
+        InlineEditField(
+            value: displaySubtitle,
+            placeholder: "Subtitle",
+            font: .subheadline,
+            foreground: .secondary,
+            menuLabel: "Edit Subtitle",
+            isEditing: $isEditingSubtitle,
+            draft: $subtitleDraft,
+            focused: $subtitleFocused,
+            begin: beginSubtitleEdit,
+            commit: commitSubtitle,
+            cancel: cancelSubtitleEdit
+        )
     }
 
     // MARK: - Avatar (scoped menu)
@@ -290,5 +268,55 @@ struct NexusHeaderBanner: View {
     private func cancelSubtitleEdit() {
         isEditingSubtitle = false
         isCommittingSubtitle = false
+    }
+}
+
+// MARK: - Inline-edit primitive
+
+/// A right-click-to-edit text line: a `Text` with a scoped context menu when
+/// idle, an in-place `TextField` (auto-focused, submit/escape/blur-aware) when
+/// editing. Each instance keeps its own `@FocusState` upstream and hands its
+/// binding down, since `@FocusState` wrappers can't be shared across views.
+/// Commit/cancel/begin are caller-owned closures, so each field keeps its own
+/// exact commit semantics (trim-and-guard vs. defer-to-manager).
+private struct InlineEditField: View {
+    let value: String
+    let placeholder: String
+    let font: Font
+    let foreground: HierarchicalShapeStyle
+    let menuLabel: String
+
+    @Binding var isEditing: Bool
+    @Binding var draft: String
+    var focused: FocusState<Bool>.Binding
+
+    let begin: () -> Void
+    let commit: () -> Void
+    let cancel: () -> Void
+
+    var body: some View {
+        if isEditing {
+            TextField(placeholder, text: $draft)
+                .textFieldStyle(.plain)
+                .font(font)
+                .foregroundStyle(foreground)
+                .focused(focused)
+                .onSubmit { commit() }
+                .onKeyPress(.escape) {
+                    cancel()
+                    return .handled
+                }
+                .onChange(of: focused.wrappedValue) { _, isFocused in
+                    if !isFocused { commit() }
+                }
+                .onAppear { focused.wrappedValue = true }
+        } else {
+            Text(value)
+                .font(font)
+                .foregroundStyle(foreground)
+                .lineLimit(1)
+                .truncationMode(.tail)
+                .contextMenu { Button(menuLabel) { begin() } }
+        }
     }
 }

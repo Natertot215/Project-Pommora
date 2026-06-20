@@ -35,8 +35,7 @@ struct PageCollectionRow: View {
     @Environment(PageContentManager.self) private var contentManager
     @Environment(SettingsManager.self) private var settingsManager
 
-    @State private var draft: String = ""
-    @State private var isCommitting: Bool = false
+    @State private var renameState = InlineRenameState()
     @FocusState private var renameFocused: Bool
     @State private var expanded: Bool = false
     @State private var isCreatingPage: Bool = false
@@ -107,13 +106,13 @@ struct PageCollectionRow: View {
             RenameableRow(
                 symbol: "folder",
                 initialTitle: collection.title,
-                draft: $draft,
+                draft: $renameState.draft,
                 renameFocused: $renameFocused,
                 onSubmit: { commit() },
-                onCancel: { cancel() },
+                onCancel: { clearEditing() },
                 onFocusLoss: {
-                    if !isCommitting && editingID == collection.id {
-                        cancel()
+                    if !renameState.isCommitting && editingID == collection.id {
+                        clearEditing()
                     }
                 },
                 selectAllOnAppear: justCreatedID == collection.id
@@ -170,23 +169,11 @@ struct PageCollectionRow: View {
     }
 
     private func commit() {
-        guard draft != collection.title else {
-            editingID = nil
-            justCreatedID = nil
-            return
-        }
-        isCommitting = true
-        Task {
-            defer { isCommitting = false }
-            do {
-                try await vaultManager.renamePageCollection(collection, to: draft)
-                editingID = nil
-                justCreatedID = nil
-            } catch {
-                // pendingError set by manager; toast surfaces.
-                // editingID preserved on failure for retry.
-            }
-        }
+        renameState.commit(
+            currentTitle: collection.title,
+            rename: { try await vaultManager.renamePageCollection(collection, to: renameState.draft) },
+            onCommitted: { clearEditing() }
+        )
     }
 
     /// Stub-and-edit "New Set" trigger. Creates a uniquely-named PageSet on
@@ -217,7 +204,7 @@ struct PageCollectionRow: View {
         }
     }
 
-    private func cancel() {
+    private func clearEditing() {
         editingID = nil
         justCreatedID = nil
     }

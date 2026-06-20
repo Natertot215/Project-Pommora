@@ -60,51 +60,43 @@ struct IconPickerSheet: View {
         }
     }
 
-    /// Resolves a SavedView live off the manager by container + view ID,
-    /// searching PageType then PageCollection (the same dual lookup
-    /// `PageTypeManager.updateView` uses).
+    /// Resolves a SavedView live off the manager by container + view ID via
+    /// `PageTypeManager.views(in:)` — the single source for the dual-container
+    /// (PageType + PageCollection) view lookup.
     private func resolveSavedView(viewID: String, in containerID: String) -> SavedView? {
-        if let t = vaultManager.types.first(where: { $0.id == containerID }) {
-            return t.views.first(where: { $0.id == viewID })
-        }
-        for cols in vaultManager.pageCollectionsByType.values {
-            if let c = cols.first(where: { $0.id == containerID }) {
-                return c.views.first(where: { $0.id == viewID })
-            }
-        }
-        return nil
+        vaultManager.views(in: containerID).first(where: { $0.id == viewID })
+    }
+
+    /// Runs a manager update, swallowing the thrown error: each manager sets its
+    /// own `pendingError` on failure and SidebarToast surfaces it, so the catch
+    /// here has nothing left to do.
+    private func attempt(_ work: () async throws -> Void) async {
+        do { try await work() } catch {}
     }
 
     private func save(newIcon: String?) async {
-        // pendingError is set by each manager on failure; SidebarToast surfaces it.
         switch target {
         case .area(let s):
-            do { try await areaManager.updateIcon(s, to: newIcon) } catch
-            { /* pendingError set by manager; toast surfaces */  }
+            await attempt { try await areaManager.updateIcon(s, to: newIcon) }
         case .topic(let t):
-            do { try await topicManager.updateIcon(t, to: newIcon) } catch
-            { /* pendingError set by manager; toast surfaces */  }
+            await attempt { try await topicManager.updateIcon(t, to: newIcon) }
         case .project(let p):
-            do { try await projectManager.updateIcon(p, to: newIcon) } catch
-            { /* pendingError set by manager; toast surfaces */  }
+            await attempt { try await projectManager.updateIcon(p, to: newIcon) }
         case .pageType(let t):
-            do { try await vaultManager.updatePageTypeIcon(t, to: newIcon) } catch
-            { /* pendingError set by manager; toast surfaces */  }
+            await attempt { try await vaultManager.updatePageTypeIcon(t, to: newIcon) }
         case .pageCollection(let c):
-            do { try await vaultManager.updatePageCollectionIcon(c, to: newIcon) } catch
-            { /* pendingError set by manager; toast surfaces */  }
+            await attempt { try await vaultManager.updatePageCollectionIcon(c, to: newIcon) }
         case .pageSet(let s):
-            do { try await pageSetManager.updatePageSetIcon(s, to: newIcon) } catch
-            { /* pendingError set by manager; toast surfaces */  }
+            await attempt { try await pageSetManager.updatePageSetIcon(s, to: newIcon) }
         case .page(let p, let vault, let collection, let set):
-            do {
+            await attempt {
                 try await pageContentManager.updatePageIcon(
                     p, to: newIcon, vault: vault, collection: collection, set: set)
-            } catch { /* pendingError set by manager; toast surfaces */  }
+            }
         case .savedView(let viewID, let containerID):
-            do {
+            await attempt {
                 try await vaultManager.updateView(viewID, in: containerID) { $0.icon = newIcon }
-            } catch { /* pendingError set by manager; toast surfaces */  }
+            }
         }
     }
 }

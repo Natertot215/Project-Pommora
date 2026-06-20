@@ -11,8 +11,7 @@ struct ProjectRow: View {
 
     @Environment(ProjectManager.self) private var projectManager
 
-    @State private var draft: String = ""
-    @State private var isCommitting: Bool = false
+    @State private var renameState = InlineRenameState()
     @FocusState private var renameFocused: Bool
 
     var body: some View {
@@ -21,13 +20,13 @@ struct ProjectRow: View {
                 RenameableRow(
                     symbol: project.icon ?? "doc.text",
                     initialTitle: project.title,
-                    draft: $draft,
+                    draft: $renameState.draft,
                     renameFocused: $renameFocused,
                     onSubmit: { commit() },
-                    onCancel: { cancel() },
+                    onCancel: { clearEditing() },
                     onFocusLoss: {
-                        if !isCommitting && editingID == project.id {
-                            cancel()
+                        if !renameState.isCommitting && editingID == project.id {
+                            clearEditing()
                         }
                     },
                     selectAllOnAppear: justCreatedID == project.id
@@ -56,26 +55,14 @@ struct ProjectRow: View {
     }
 
     private func commit() {
-        guard draft != project.title else {
-            editingID = nil
-            justCreatedID = nil
-            return
-        }
-        isCommitting = true
-        Task {
-            defer { isCommitting = false }
-            do {
-                try await projectManager.rename(project, to: draft)
-                editingID = nil
-                justCreatedID = nil
-            } catch {
-                // pendingError set by manager; toast surfaces.
-                // editingID preserved on failure for retry.
-            }
-        }
+        renameState.commit(
+            currentTitle: project.title,
+            rename: { try await projectManager.rename(project, to: renameState.draft) },
+            onCommitted: { clearEditing() }
+        )
     }
 
-    private func cancel() {
+    private func clearEditing() {
         editingID = nil
         justCreatedID = nil
     }

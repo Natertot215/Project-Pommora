@@ -10,8 +10,7 @@ struct TopicRow: View {
 
     @Environment(TopicManager.self) private var topicManager
 
-    @State private var draft: String = ""
-    @State private var isCommitting: Bool = false
+    @State private var renameState = InlineRenameState()
     @FocusState private var renameFocused: Bool
     @State private var isCreatingTopic: Bool = false
 
@@ -30,13 +29,13 @@ struct TopicRow: View {
             RenameableRow(
                 symbol: topic.icon ?? "folder",
                 initialTitle: topic.title,
-                draft: $draft,
+                draft: $renameState.draft,
                 renameFocused: $renameFocused,
                 onSubmit: { commit() },
-                onCancel: { cancel() },
+                onCancel: { clearEditing() },
                 onFocusLoss: {
-                    if !isCommitting && editingID == topic.id {
-                        cancel()
+                    if !renameState.isCommitting && editingID == topic.id {
+                        clearEditing()
                     }
                 },
                 selectAllOnAppear: justCreatedID == topic.id
@@ -91,26 +90,14 @@ struct TopicRow: View {
     }
 
     private func commit() {
-        guard draft != topic.title else {
-            editingID = nil
-            justCreatedID = nil
-            return
-        }
-        isCommitting = true
-        Task {
-            defer { isCommitting = false }
-            do {
-                try await topicManager.rename(topic, to: draft)
-                editingID = nil
-                justCreatedID = nil
-            } catch {
-                // pendingError set by manager; toast surfaces.
-                // editingID preserved on failure for retry.
-            }
-        }
+        renameState.commit(
+            currentTitle: topic.title,
+            rename: { try await topicManager.rename(topic, to: renameState.draft) },
+            onCommitted: { clearEditing() }
+        )
     }
 
-    private func cancel() {
+    private func clearEditing() {
         editingID = nil
         justCreatedID = nil
     }

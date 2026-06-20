@@ -24,8 +24,7 @@ struct PageSetRow: View {
     @Environment(PageContentManager.self) private var contentManager
     @Environment(PageTypeManager.self) private var vaultManager
 
-    @State private var draft: String = ""
-    @State private var isCommitting: Bool = false
+    @State private var renameState = InlineRenameState()
     @FocusState private var renameFocused: Bool
     @State private var expanded: Bool = false
     @State private var isCreatingPage: Bool = false
@@ -66,13 +65,13 @@ struct PageSetRow: View {
             RenameableRow(
                 symbol: set.icon ?? "folder",
                 initialTitle: set.title,
-                draft: $draft,
+                draft: $renameState.draft,
                 renameFocused: $renameFocused,
                 onSubmit: { commit() },
-                onCancel: { cancel() },
+                onCancel: { clearEditing() },
                 onFocusLoss: {
-                    if !isCommitting && editingID == set.id {
-                        cancel()
+                    if !renameState.isCommitting && editingID == set.id {
+                        clearEditing()
                     }
                 },
                 selectAllOnAppear: justCreatedID == set.id
@@ -169,26 +168,14 @@ struct PageSetRow: View {
     }
 
     private func commit() {
-        guard draft != set.title else {
-            editingID = nil
-            justCreatedID = nil
-            return
-        }
-        isCommitting = true
-        Task {
-            defer { isCommitting = false }
-            do {
-                try await pageSetManager.renamePageSet(set, to: draft)
-                editingID = nil
-                justCreatedID = nil
-            } catch {
-                // pendingError set by manager; toast surfaces.
-                // editingID preserved on failure for retry.
-            }
-        }
+        renameState.commit(
+            currentTitle: set.title,
+            rename: { try await pageSetManager.renamePageSet(set, to: renameState.draft) },
+            onCommitted: { clearEditing() }
+        )
     }
 
-    private func cancel() {
+    private func clearEditing() {
         editingID = nil
         justCreatedID = nil
     }

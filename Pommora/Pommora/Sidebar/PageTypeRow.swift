@@ -37,8 +37,7 @@ struct PageTypeRow: View {
     @Environment(SettingsManager.self) private var settingsManager
     @Environment(SidebarSectionsManager.self) private var sectionsManager
 
-    @State private var draft: String = ""
-    @State private var isCommitting: Bool = false
+    @State private var renameState = InlineRenameState()
     @FocusState private var renameFocused: Bool
     @State private var showingVaultSettings: Bool = false
     @State private var isCreatingCollection: Bool = false
@@ -114,13 +113,13 @@ struct PageTypeRow: View {
             RenameableRow(
                 symbol: pageType.icon ?? "tray.2",
                 initialTitle: pageType.title,
-                draft: $draft,
+                draft: $renameState.draft,
                 renameFocused: $renameFocused,
                 onSubmit: { commit() },
-                onCancel: { cancel() },
+                onCancel: { clearEditing() },
                 onFocusLoss: {
-                    if !isCommitting && editingID == pageType.id {
-                        cancel()
+                    if !renameState.isCommitting && editingID == pageType.id {
+                        clearEditing()
                     }
                 },
                 selectAllOnAppear: justCreatedID == pageType.id
@@ -274,28 +273,14 @@ struct PageTypeRow: View {
     }
 
     private func commit() {
-        guard draft != pageType.title else {
-            editingID = nil
-            justCreatedID = nil
-            return
-        }
-        isCommitting = true
-        Task {
-            defer { isCommitting = false }
-            do {
-                try await pageTypeManager.renamePageType(pageType, to: draft)
-                editingID = nil
-                justCreatedID = nil
-            } catch {
-                // pendingError set by manager; toast surfaces.
-                // editingID preserved on failure for retry — justCreatedID
-                // also preserved so the still-visible TextField stays in its
-                // select-all state for the next keystroke.
-            }
-        }
+        renameState.commit(
+            currentTitle: pageType.title,
+            rename: { try await pageTypeManager.renamePageType(pageType, to: renameState.draft) },
+            onCommitted: { clearEditing() }
+        )
     }
 
-    private func cancel() {
+    private func clearEditing() {
         editingID = nil
         justCreatedID = nil
     }

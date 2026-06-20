@@ -125,7 +125,7 @@ struct SidebarView: View {
             }
         }
         .confirmationDialog(
-            confirmationTitle,
+            confirmingDelete?.dialogTitle ?? "",
             isPresented: Binding(
                 get: { confirmingDelete != nil },
                 set: { if !$0 { confirmingDelete = nil } }
@@ -135,37 +135,14 @@ struct SidebarView: View {
         ) { confirmation in
             confirmationButtons(for: confirmation)
         } message: { confirmation in
-            Text(confirmationMessage(for: confirmation))
+            Text(confirmation.dialogMessage)
         }
     }
 
-    private var confirmationTitle: String {
-        switch confirmingDelete {
-        case .deleteArea(let s)?: return "Delete Area \"\(s.title)\"?"
-        case .deleteTopic(let t)?: return "Delete Topic \"\(t.title)\"?"
-        case .deleteProject(let p)?: return "Delete Project \"\(p.title)\"?"
-        case .deleteVault(let v, _)?: return "Delete Vault \"\(v.title)\"?"
-        case .deleteCollection(let c)?: return "Delete Collection \"\(c.title)\"?"
-        case .deleteSet(let s)?: return "Delete Set \"\(s.title)\"?"
-        case .moveSet(let s, let dest, let destVault, _, _)?:
-            return "Move Set \"\(s.title)\" to \(destVault.title) › \(dest.title)?"
-        case nil: return ""
-        }
-    }
-
-    private func confirmationMessage(for confirmation: SidebarConfirmation) -> String {
-        switch confirmation {
-        case .deleteArea: return "This action cannot be undone."
-        case .deleteTopic: return "This action cannot be undone."
-        case .deleteProject: return "This action cannot be undone."
-        case .deleteVault(_, let cols): return "Contains \(cols) Collection(s). All contents will be deleted."
-        case .deleteCollection: return "All Pages inside will be deleted."
-        case .deleteSet:
-            return
-                "\"Delete Set Only\" moves its Pages up into the Collection. \"Delete Set and Pages\" deletes everything."
-        case .moveSet(_, _, _, _, let count):
-            return "\(count) property value(s) don't exist in the destination's schema and will be removed."
-        }
+    /// Shared trailing Cancel button for every confirmation branch — dismisses
+    /// the dialog without acting.
+    private var cancelButton: some View {
+        Button("Cancel", role: .cancel) { confirmingDelete = nil }
     }
 
     @ViewBuilder
@@ -179,7 +156,7 @@ struct SidebarView: View {
                     confirmingDelete = nil
                 }
             }
-            Button("Cancel", role: .cancel) { confirmingDelete = nil }
+            cancelButton
         case .deleteTopic(let t):
             Button("Delete", role: .destructive) {
                 Task {
@@ -189,7 +166,7 @@ struct SidebarView: View {
                     confirmingDelete = nil
                 }
             }
-            Button("Cancel", role: .cancel) { confirmingDelete = nil }
+            cancelButton
         case .deleteProject(let p):
             Button("Delete", role: .destructive) {
                 Task {
@@ -199,7 +176,7 @@ struct SidebarView: View {
                     confirmingDelete = nil
                 }
             }
-            Button("Cancel", role: .cancel) { confirmingDelete = nil }
+            cancelButton
         case .deleteVault(let v, _):
             Button("Delete", role: .destructive) {
                 Task {
@@ -208,7 +185,7 @@ struct SidebarView: View {
                     confirmingDelete = nil
                 }
             }
-            Button("Cancel", role: .cancel) { confirmingDelete = nil }
+            cancelButton
         case .deleteCollection(let c):
             Button("Delete", role: .destructive) {
                 Task {
@@ -217,7 +194,7 @@ struct SidebarView: View {
                     confirmingDelete = nil
                 }
             }
-            Button("Cancel", role: .cancel) { confirmingDelete = nil }
+            cancelButton
         case .deleteSet(let s):
             Button("Delete Set Only") {
                 Task {
@@ -233,7 +210,7 @@ struct SidebarView: View {
                     confirmingDelete = nil
                 }
             }
-            Button("Cancel", role: .cancel) { confirmingDelete = nil }
+            cancelButton
         case .moveSet(let s, let dest, let destVault, let srcVault, _):
             Button("Move", role: .destructive) {
                 Task {
@@ -245,7 +222,7 @@ struct SidebarView: View {
                     confirmingDelete = nil
                 }
             }
-            Button("Cancel", role: .cancel) { confirmingDelete = nil }
+            cancelButton
         }
     }
 

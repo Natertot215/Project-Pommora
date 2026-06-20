@@ -8,13 +8,11 @@ struct AreaRow: View {
     @Binding var presentedSheet: SidebarSheet?
     @Binding var confirmingDelete: SidebarConfirmation?
 
-    @State private var draft: String = ""
-    @State private var isCommitting: Bool = false
+    @State private var renameState = InlineRenameState()
     @FocusState private var renameFocused: Bool
     @State private var isCreatingArea: Bool = false
 
     @Environment(AreaManager.self) private var areaManager
-    @Environment(SettingsManager.self) private var settingsManager
 
     var body: some View {
         Group {
@@ -23,13 +21,13 @@ struct AreaRow: View {
                     symbol: area.icon ?? "circle.fill",
                     symbolForeground: area.color?.swiftUIColor ?? .primary,
                     initialTitle: area.title,
-                    draft: $draft,
+                    draft: $renameState.draft,
                     renameFocused: $renameFocused,
                     onSubmit: { commit() },
-                    onCancel: { cancel() },
+                    onCancel: { clearEditing() },
                     onFocusLoss: {
-                        if !isCommitting && editingID == area.id {
-                            cancel()
+                        if !renameState.isCommitting && editingID == area.id {
+                            clearEditing()
                         }
                     },
                     selectAllOnAppear: justCreatedID == area.id
@@ -69,12 +67,8 @@ struct AreaRow: View {
     private func createArea() {
         guard !isCreatingArea else { return }
         isCreatingArea = true
-        let label = settingsManager.settings.labels.sidebarSections.areas
         let existing = areaManager.areas.map(\.title)
-        // sidebarSections.areas is plural ("Areas") — use the singular
-        // fallback via stripping a trailing "s" when present.
-        let singular = label.hasSuffix("s") ? String(label.dropLast()) : label
-        let title = DefaultTitleResolver.resolve(label: singular, existingTitles: existing)
+        let title = DefaultTitleResolver.resolve(label: "Area", existingTitles: existing)
         Task {
             defer { isCreatingArea = false }
             do {
@@ -94,26 +88,14 @@ struct AreaRow: View {
     }
 
     private func commit() {
-        guard draft != area.title else {
-            editingID = nil
-            justCreatedID = nil
-            return
-        }
-        isCommitting = true
-        Task {
-            defer { isCommitting = false }
-            do {
-                try await areaManager.rename(area, to: draft)
-                editingID = nil  // success: dismiss edit mode
-                justCreatedID = nil
-            } catch {
-                // pendingError set by manager; toast surfaces.
-                // editingID preserved on failure for retry.
-            }
-        }
+        renameState.commit(
+            currentTitle: area.title,
+            rename: { try await areaManager.rename(area, to: renameState.draft) },
+            onCommitted: { clearEditing() }
+        )
     }
 
-    private func cancel() {
+    private func clearEditing() {
         editingID = nil
         justCreatedID = nil
     }
