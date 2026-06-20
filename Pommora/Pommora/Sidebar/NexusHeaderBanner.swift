@@ -3,13 +3,14 @@ import NukeUI
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// Top-of-sidebar identity banner — the per-Nexus profile image, the nexus
-/// title (its folder name), and a custom subtitle. Replaces the former
-/// "Homepage" saved-leaf: tapping the banner selects the Homepage surface.
+/// Top-of-sidebar identity banner — the per-Nexus profile image, the nexus title
+/// (its folder name), and a subtitle (custom text, or today's date by default).
+/// Replaces the former "Homepage" saved-leaf: tapping selects the Homepage
+/// surface; the selection fill hugs the content (gaps live outside it) and is
+/// inset on the right to clear the NavigationSplitView splitter.
 ///
-/// Editing is right-click-driven (matching every other sidebar entity): the
-/// context menu changes / removes the picture and begins inline subtitle edit;
-/// the inline subtitle field mirrors `RenameableRow`'s commit / cancel contract.
+/// Editing is right-click-driven: the context menu changes / removes the picture
+/// and begins inline subtitle editing (mirrors `RenameableRow`'s commit/cancel).
 /// Lives in the sidebar VStack ABOVE the List (outside Section layout) so its
 /// distinct shape never reaches `OutlineListCoordinator`'s row diff (quirk #8/#9).
 struct NexusHeaderBanner: View {
@@ -27,13 +28,18 @@ struct NexusHeaderBanner: View {
     @State private var isCommittingSubtitle = false
     @FocusState private var subtitleFocused: Bool
 
+    /// Avatar diameter; the initial glyph scales off it (single source of truth).
+    private let avatarSize: CGFloat = 38
+
     /// The nexus title IS its folder name (filename = title; no display-name field).
     private var title: String {
         nexusManager.currentNexus?.rootURL.lastPathComponent ?? ""
     }
 
-    private var subtitle: String {
-        settingsManager.settings.profileSubtitle
+    /// Custom subtitle when set; otherwise today's date as the default line.
+    private var displaySubtitle: String {
+        let custom = settingsManager.settings.profileSubtitle
+        return custom.isEmpty ? Self.formattedToday() : custom
     }
 
     private var hasImage: Bool {
@@ -46,34 +52,30 @@ struct NexusHeaderBanner: View {
         return false
     }
 
-    /// Avatar size doubles as the text column's height so the title pins to the
-    /// avatar's top edge and the subtitle to its bottom (single source of truth).
-    private let avatarSize: CGFloat = 34
-
     var body: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 12) {
             avatar
                 .frame(width: avatarSize, height: avatarSize)
                 .clipShape(Circle())
-            VStack(alignment: .leading, spacing: 0) {
+            // Natural height + HStack centering sits the text block on the
+            // avatar's mid-line.
+            VStack(alignment: .leading, spacing: 2) {
                 Text(title)
                     .font(PUI.Typography.paneTitle)
                     .lineLimit(1)
                     .truncationMode(.tail)
-                Spacer(minLength: 0)
                 subtitleSlot
             }
-            .frame(height: avatarSize)
         }
         .padding(.leading, 14)
-        .padding(.vertical, 8)
+        .padding(.vertical, 6)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
-            // Inset 11 matches the row SelectionChrome — keeps the rounded right
-            // corner clear of the NavigationSplitView splitter (no edge cutoff).
+            // Fill hugs the content. Right inset (16) > left (11) so the rounded
+            // corner clears the splitter; left matches the row SelectionChrome.
             RoundedRectangle(cornerRadius: 6, style: .continuous)
                 .fill(highlight)
-                .padding(.horizontal, 11)
+                .padding(EdgeInsets(top: 0, leading: 11, bottom: 0, trailing: 16))
         )
         .contentShape(Rectangle())
         .onTapGesture { if !isEditingSubtitle { selection = .savedKey("homepage") } }
@@ -88,6 +90,10 @@ struct NexusHeaderBanner: View {
             importImage(from: source)
         }
         .fileDialogMessage("Choose a profile picture for this nexus")
+        // Outer gaps — above to the toolbar (trimmed), below to "Contexts"
+        // (roomier so the header isn't squished against it).
+        .padding(.top, 5)
+        .padding(.bottom, 13)
     }
 
     @ViewBuilder
@@ -95,7 +101,7 @@ struct NexusHeaderBanner: View {
         if isEditingSubtitle {
             TextField("Subtitle", text: $subtitleDraft)
                 .textFieldStyle(.plain)
-                .font(PUI.Typography.rowSubtitle)
+                .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .focused($subtitleFocused)
                 .onSubmit { commitSubtitle() }
@@ -107,9 +113,9 @@ struct NexusHeaderBanner: View {
                     if !focused { commitSubtitle() }
                 }
                 .onAppear { subtitleFocused = true }
-        } else if !subtitle.isEmpty {
-            Text(subtitle)
-                .font(PUI.Typography.rowSubtitle)
+        } else {
+            Text(displaySubtitle)
+                .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
                 .truncationMode(.tail)
@@ -167,14 +173,33 @@ struct NexusHeaderBanner: View {
 
     private func avatarRequest(_ path: String, in nexus: Nexus) -> ImageRequest {
         let url = AssetURLResolver.fileURL(forRelativePath: path, in: nexus)
-        return ImageRequest(url: url, processors: [ImageProcessors.Resize(width: 96)])
+        return ImageRequest(url: url, processors: [ImageProcessors.Resize(width: 128)])
+    }
+
+    // MARK: - Today's date (default subtitle)
+
+    /// "June 19th 2026" — full month, ordinal day, year.
+    private static func formattedToday() -> String {
+        let now = Date()
+        let cal = Calendar.current
+        let day = cal.component(.day, from: now)
+        let year = cal.component(.year, from: now)
+        let month = now.formatted(.dateTime.month(.wide))
+        return "\(month) \(day)\(ordinalSuffix(day)) \(year)"
+    }
+
+    private static func ordinalSuffix(_ day: Int) -> String {
+        if (11...13).contains(day % 100) { return "th" }
+        switch day % 10 {
+        case 1: return "st"
+        case 2: return "nd"
+        case 3: return "rd"
+        default: return "th"
+        }
     }
 
     // MARK: - Image edit (mirrors ContainerBannerView's scoped import)
 
-    /// Copies the chosen image into the nexus's own assets folder (entity = the
-    /// nexus ULID) inside the security-scoped window, then persists the relative
-    /// path; the replaced asset is deleted only after the new path lands.
     private func importImage(from source: URL) {
         guard let nexus = nexusManager.currentNexus else { return }
         let scoped = source.startAccessingSecurityScopedResource()
