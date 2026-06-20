@@ -7,14 +7,17 @@ import { history, historyKeymap, defaultKeymap } from '@codemirror/commands'
 import { markdown } from '@codemirror/lang-markdown'
 import { markdownDecorations } from './editor/decorations'
 import { markdownInput } from './editor/input'
+import { ZOOM_DEFAULT, zoomFontSize } from './zoom'
 import './Styles.css'
 
 interface Props {
   initialBody: string
   onChange: (body: string) => void
+  /** Editor zoom (0–2, default 1.0 = 15pt). Wire a per-page value in later. */
+  zoom?: number
 }
 
-export function MarkdownEditor({ initialBody, onChange }: Props): React.JSX.Element {
+export function MarkdownEditor({ initialBody, onChange, zoom = ZOOM_DEFAULT }: Props): React.JSX.Element {
   const host = useRef<HTMLDivElement>(null)
   const onChangeRef = useRef(onChange)
   onChangeRef.current = onChange
@@ -42,5 +45,11 @@ export function MarkdownEditor({ initialBody, onChange }: Props): React.JSX.Elem
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  return <div ref={host} className="mdpm-editor" />
+  return (
+    <div
+      ref={host}
+      className="mdpm-editor"
+      style={{ '--editor-font-size': `${zoomFontSize(zoom)}px` } as React.CSSProperties}
+    />
+  )
 }

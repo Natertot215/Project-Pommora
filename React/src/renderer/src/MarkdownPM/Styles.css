@@ -21,9 +21,9 @@
   color: var(--label-primary);
   caret-color: var(--label-primary);
   padding: 0;
-  /* Swift's page-editor body is 15px (vs the app's 13px body token) — the "slight zoom" feel.
-     Headings (×multiplier) + bullets/checkboxes (em) all scale off this. */
-  font-size: 15px;
+  /* Driven by the unified zoom (zoom.ts): the host sets --editor-font-size = 15px × 2^(z−1).
+     Default 15px (zoom 1.0). Everything else (headings ×multiplier, glyphs in em) scales off it. */
+  font-size: var(--editor-font-size, 15px);
 }
 
 .mdpm-editor .cm-line {
