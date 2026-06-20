@@ -5,7 +5,7 @@
 .detail {
   height: 100%;
   /* Clear the floating glass sidebar via --content-inset (collapses with the sidebar). */
-  padding: 38px 28px 28px var(--content-inset);
+  padding: 38px var(--gutter) 28px var(--content-inset);
   overflow-y: auto;
   transition: padding-left var(--duration-base) var(--ease-standard);
 }
@@ -17,7 +17,7 @@
   overflow-y: auto;
 }
 .detail-body {
-  padding: 38px 28px 28px var(--content-inset);
+  padding: 38px var(--gutter) 28px var(--content-inset);
   transition: padding-left var(--duration-base) var(--ease-standard);
 }
 /* With a banner the full-bleed image already clears the toolbar, so the body sits just under it. */

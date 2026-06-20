@@ -47,12 +47,15 @@ textarea,
   position: relative;
   height: 100vh;
   background: var(--main-bg);
-  /* Left inset that clears the floating glass sidebar (variable width). Single source reused by
-     the detail body + the banner title overlay; collapses to 28px when the sidebar hides. */
-  --content-inset: calc(var(--glass-inset) + var(--sidebar-width) + 31px);
+  /* THE single content gutter — one value reused by every detail view (spaces, homepage, tables)
+     + the editor. Matches the Swift app's shared horizontal inset (24pt). Change here only. */
+  --gutter: 24px;
+  /* Left inset that clears the floating glass sidebar (variable width); its base addend IS the
+     gutter, so left + right stay equal. Collapses to the bare gutter when the sidebar hides. */
+  --content-inset: calc(var(--glass-inset) + var(--sidebar-width) + var(--gutter));
 }
 .shell.sidebar-hidden {
-  --content-inset: 28px;
+  --content-inset: var(--gutter);
 }
 
 /* Draggable titlebar strip across the top of the frameless (hiddenInset) window — the whole top
