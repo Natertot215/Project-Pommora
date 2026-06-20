@@ -13,6 +13,11 @@ export async function atomicWriteFile(filePath: string, data: string): Promise<v
   await writeFileAtomic(filePath, data, { encoding: 'utf8' })
 }
 
+/** Atomically write raw bytes to `filePath` (binary siblings of the UTF-8 writer). */
+export async function atomicWriteBinary(filePath: string, data: Buffer): Promise<void> {
+  await writeFileAtomic(filePath, data)
+}
+
 /** The canonical on-disk JSON bytes: stable, sorted keys + a trailing newline. The one
  *  source of the sidecar serialization shape — used by writeJson and by SchemaTransaction
  *  when it stages a sidecar alongside member-file rewrites. */

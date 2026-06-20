@@ -22,6 +22,18 @@ const api = {
   // Surface a failure natively (renderer can't show a native dialog itself).
   showError: (message: string): Promise<void> => ipcRenderer.invoke('error:show', message),
   systemAccent: (): Promise<string | null> => ipcRenderer.invoke('theme:systemAccent'),
+  // Pop a native "Add Photo" menu → native image picker; resolves the chosen image as a data URL (null if dismissed/canceled).
+  photoMenu: (): Promise<string | null> => ipcRenderer.invoke('nexus:photoMenu'),
+  // Open the native image picker directly → data URL (null if canceled). Banner Add / Change.
+  pickImage: (): Promise<string | null> => ipcRenderer.invoke('nexus:pickImage'),
+  // Pop the native Change / Remove banner menu → the chosen action (null if dismissed).
+  bannerMenu: (): Promise<'change' | 'remove' | null> => ipcRenderer.invoke('nexus:bannerMenu'),
+  // Persist a (cropped) PNG data URL to .nexus/photo.png + record it in nexus.json.
+  saveNexusPhoto: (dataUrl: string): Promise<{ ok: true } | { ok: false; error: string }> =>
+    ipcRenderer.invoke('nexus:saveNexusPhoto', dataUrl),
+  // Rename the open nexus's root folder + re-point the live session to the new path.
+  renameNexus: (newName: string): Promise<{ ok: true } | { ok: false; error: string }> =>
+    ipcRenderer.invoke('nexus:rename', newName),
   // Native-menu actions pushed from main; returns an unsubscribe.
   onMenuAction: (cb: (action: string) => void): (() => void) => {
     const listener = (_e: IpcRendererEvent, action: string): void => cb(action)

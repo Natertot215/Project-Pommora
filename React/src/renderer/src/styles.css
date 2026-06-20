@@ -1,3 +1,7 @@
+/* Global app shell: design-token bridge, resets, the window frame (shell / titlebar / content
+   pane), and the open/loading/empty/error states. Per-area styles live co-located with their
+   components: Sidebar/Sidebar.css, Detail/Detail.css, Detail/Banner/Banner.css, Detail/Table/Table.css. */
+
 :root {
   --row-h: 28px;
   --text: #FFFFFFE6;
@@ -43,11 +47,17 @@ textarea,
   position: relative;
   height: 100vh;
   background: var(--main-bg);
+  /* Left inset that clears the floating glass sidebar (variable width). Single source reused by
+     the detail body + the banner title overlay; collapses to 28px when the sidebar hides. */
+  --content-inset: calc(var(--glass-inset) + var(--sidebar-width) + 31px);
+}
+.shell.sidebar-hidden {
+  --content-inset: 28px;
 }
 
-/* Draggable titlebar strip across the top of the frameless (hiddenInset) window — the whole
-   top edge moves the window; the native traffic lights stay clickable through it. Any
-   interactive control placed here later must opt out with -webkit-app-region: no-drag. */
+/* Draggable titlebar strip across the top of the frameless (hiddenInset) window — the whole top
+   edge moves the window; the native traffic lights stay clickable through it. Any interactive
+   control placed here later must opt out with -webkit-app-region: no-drag. */
 .titlebar {
   position: absolute;
   top: 0;
@@ -74,306 +84,7 @@ textarea,
   background: var(--main-bg);
 }
 
-/* Sidebar glass = LAYOUT only — a floating overlay inset from the window edge.
-   The glass MATERIAL (blur / brightness / edge / shadow) now lives in the
-   GlassSurface component (design-system/materials/glass-surface.tsx). */
-.surface-glass {
-  position: absolute;
-  top: var(--glass-inset);
-  left: var(--glass-inset);
-  bottom: var(--glass-inset);
-  width: var(--sidebar-width);
-  z-index: 1;
-  border-radius: var(--glass-radius);
-  overflow: hidden;
-  -webkit-app-region: drag;
-  transition: transform var(--duration-base) var(--ease-standard);
-}
-/* Collapsed: slide the panel fully off the left edge — pure slide, no fade, so the motion
-   reads on the way OUT (not just in); the detail reclaims the gutter. */
-.shell.sidebar-hidden .surface-glass {
-  transform: translateX(calc(-100% - var(--glass-inset) - 14px));
-  pointer-events: none;
-}
-/* During an edge-drag resize, track the cursor 1:1 (no easing lag). */
-.shell.is-resizing .surface-glass,
-.shell.is-resizing .detail {
-  transition: none;
-}
-
-/* --- sidebar content (empty in the Phase-1 glass mockup) --- */
-.sidebar {
-  -webkit-app-region: no-drag;
-  /* top clears the traffic lights (positioned at y:18, ~14px tall) with breathing room */
-  padding: 46px 10px 12px;
-  overflow-y: auto;
-  height: 100%;
-}
-
-/* Sidebar collapse / expand toggle (log-out glyph — flipped = collapse, normal = expand).
-   Both no-drag + clickable; icon in label-secondary, lifting to primary on hover. */
-.sidebar-toggle {
-  -webkit-app-region: no-drag;
-  position: absolute;
-  z-index: 3;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 26px;
-  height: 26px;
-  padding: 0;
-  border: 0;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--label-secondary);
-  cursor: pointer;
-  transition: opacity 120ms ease, color 120ms ease, background 120ms ease;
-}
-.sidebar-toggle:hover {
-  color: var(--label-primary);
-  background: var(--hover);
-}
-.sidebar-toggle .flip-x {
-  transform: scaleX(-1);
-}
-/* Collapse — sidebar top-right corner; hidden until you hover the sidebar (uncluttered at
-   rest), then rides the sidebar off as it slides while the expand reveals at the top-left. */
-.sidebar-collapse {
-  top: 7px;
-  right: 10px;
-  opacity: 0;
-}
-.surface-glass:hover .sidebar-collapse,
-.sidebar-collapse:focus-visible {
-  opacity: 1;
-}
-/* Stay lit through the collapse slide — rides the panel off fully visible, hides at rest. */
-.shell.sidebar-hidden .sidebar-collapse {
-  opacity: 1;
-}
-/* Expand — always mounted at the toggle spot, on top (above the z2 titlebar). Hidden behind
-   the open sidebar's collapse button; as the sidebar slides off it fades + eases in (revealed,
-   close tucking behind it), and fades back out as the sidebar slides in to overtake it. */
-.sidebar-expand {
-  top: 12px;
-  left: 84px;
-  opacity: 0;
-  transform: translateX(-6px);
-  pointer-events: none;
-  transition: opacity var(--duration-base) var(--ease-standard), transform var(--duration-base) var(--ease-standard),
-    color 180ms ease, background 180ms ease;
-}
-.shell.sidebar-hidden .sidebar-expand {
-  opacity: 1;
-  transform: translateX(0);
-  pointer-events: auto;
-}
-
-/* Invisible edge-drag resize strip straddling the sidebar's right edge — no visible handle. */
-.sidebar-resize {
-  position: absolute;
-  top: var(--glass-inset);
-  bottom: var(--glass-inset);
-  left: calc(var(--glass-inset) + var(--sidebar-width) - 3px);
-  width: 9px;
-  z-index: 4;
-  cursor: col-resize;
-  -webkit-app-region: no-drag;
-}
-
-.section {
-  margin-bottom: 14px;
-}
-
-.section-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-size: 11px;
-  font-weight: var(--weight-semibold);
-  letter-spacing: 0.02em;
-  color: var(--text-dim);
-  padding: 4px 8px;
-}
-
-/* Section "+" — create a top-level entity. Revealed on section hover (uncluttered), no-drag
-   so it's clickable inside the draggable glass sidebar. */
-.section-add {
-  -webkit-app-region: no-drag;
-  appearance: none;
-  border: none;
-  background: none;
-  color: var(--text-dim);
-  font-size: 15px;
-  line-height: 1;
-  cursor: default;
-  padding: 0 2px;
-  opacity: 0;
-  transition: opacity 0.12s ease;
-}
-
-.section:hover .section-add {
-  opacity: 1;
-}
-
-.section-add:hover {
-  color: var(--text);
-}
-
-/* Row geometry, states, title + icon live in the Menu component
-   (design-system/components/menu) — sidebar rows ARE MenuItems. `.row` survives
-   only as the hook the tree-drag selectors below target. */
-
-/* Inline rename field — replaces the title text while a row is being renamed. Inherits the
-   row font; a subtle accent ring marks edit mode. no-drag so it stays clickable inside the
-   draggable glass sidebar. */
-.row-title-input {
-  width: 100%;
-  min-width: 0;
-  font: inherit;
-  color: var(--text);
-  background: #FFFFFF1F;
-  border: 1px solid var(--accent);
-  border-radius: 4px;
-  padding: 0 4px;
-  margin: 0;
-  outline: none;
-  -webkit-app-region: no-drag;
-}
-
-/* --- Sidebar drag: a page reorders / reparents; the row dims in place while a ghost rides
-   the cursor + an insertion line marks the drop (line + ghost live in components/sidebarDnd.tsx).
-   No hover affordance — rows keep the sidebar's default cursor until a drag actually starts,
-   then show `grabbing`; a grab cursor on mere hover reads as "always draggable" and is wrong. --- */
-.tree-item.dragging {
-  opacity: 0.4; /* source row dims in place while its ghost follows the cursor */
-  cursor: grabbing; /* the wrapper IS the pointer-capture target, so its cursor wins for the whole drag */
-}
-.tree-item.dragging .row {
-  cursor: grabbing;
-}
-
-/* Disclosure chevron — a chevron-right Icon (1em → tracks the row's 12px) that
-   rotates 90° when open; colour comes from the row's secondary glyph cluster. */
-.twisty {
-  transition: transform var(--duration-fast) var(--ease-standard);
-  flex: 0 0 auto;
-}
-
-.twisty.open {
-  transform: rotate(90deg);
-}
-
-/* Leaf rows align their icon under disclosure rows' icons via a chevron-width spacer. */
-.twisty-spacer {
-  width: 12px;
-  flex: 0 0 auto;
-}
-
-.swatch {
-  width: 11px;
-  height: 11px;
-  border-radius: 3px;
-  flex: 0 0 auto;
-  background: var(--text-dim);
-}
-
-.swatch[data-color='gray'] { background: #8e8e93; }
-.swatch[data-color='brown'] { background: #a2845e; }
-.swatch[data-color='orange'] { background: #ff9500; }
-.swatch[data-color='yellow'] { background: #ffcc00; }
-.swatch[data-color='green'] { background: #34c759; }
-.swatch[data-color='blue'] { background: #007aff; }
-.swatch[data-color='purple'] { background: #af52de; }
-.swatch[data-color='pink'] { background: #ff2d55; }
-.swatch[data-color='red'] { background: #ff3b30; }
-.swatch[data-color='accent'] { background: #007aff; }
-
-/* --- detail pane (lives inside .content-pane, offset past the glass sidebar) --- */
-.detail {
-  height: 100%;
-  /* Clear the floating glass sidebar: inset + its (variable) width + a gap. */
-  padding: 38px 28px 28px calc(var(--glass-inset) + var(--sidebar-width) + 31px);
-  overflow-y: auto;
-  transition: padding-left var(--duration-base) var(--ease-standard);
-}
-
-/* Sidebar hidden (collapsed): reclaim the left gutter (animates with the slide). */
-.shell.sidebar-hidden .detail {
-  padding-left: 28px;
-}
-
-.detail-empty {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--text-dim);
-}
-
-.detail-placeholder {
-  color: var(--text-dim);
-}
-
-.detail-error {
-  color: #ff453a;
-}
-
-.detail-detail {
-  display: block;
-  margin-top: 6px;
-  font-size: 11px;
-  color: var(--text-dim);
-}
-
-/* --- table view (vault selection) --- */
-.table-view {
-  width: 100%;
-}
-
-.table-empty {
-  color: var(--text-dim);
-  padding: 24px 0;
-}
-
-.data-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 13px;
-}
-
-.data-table th {
-  text-align: left;
-  font-weight: var(--weight-semibold);
-  color: var(--text-dim);
-  padding: 6px 12px;
-  border-bottom: 1px solid #FFFFFF1A;
-  white-space: nowrap;
-  user-select: none;
-}
-
-.data-table td {
-  color: var(--text);
-  padding: 6px 12px;
-  border-bottom: 1px solid #FFFFFF0D;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  max-width: 320px;
-}
-
-.data-row {
-  cursor: default;
-}
-
-.data-row:hover {
-  background: var(--hover);
-}
-
-.data-row.selected,
-.data-row.selected:hover {
-  background: var(--selected);
-}
-
+/* Open/loading/empty/error states shown in the sidebar Surface before a nexus is ready. */
 .state {
   padding: 48px 16px;
   text-align: center;
@@ -391,9 +102,9 @@ textarea,
   color: var(--text-dim);
 }
 
-/* Interim empty-state CTA — matches the app's white-alpha chrome; replace with the
-   design-system Button when that component ships. no-drag: it sits in the draggable
-   glass Surface, so it must opt out to receive clicks. */
+/* Interim empty-state CTA — matches the app's white-alpha chrome; replace with the design-system
+   Button when that component ships. no-drag: it sits in the draggable glass Surface, so it must
+   opt out to receive clicks. */
 .open-btn {
   -webkit-app-region: no-drag;
   display: block;

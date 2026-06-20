@@ -1,26 +1,29 @@
 ## Handoff — Pommora React
 
-Lean current-state snapshot. Read first at session start. Deep docs: data layer → `Planning/Data-Layer-Handoff.md`; desktop/filesystem → `Planning/Desktop-Filesystem-Integration.md`; design system → `Features/Design.md` + `Features/Typography.md`; drag-and-drop → `Features/DragAndDrop.md`; locked decisions → `History.md`.
+Lean current-state snapshot. Read first at session start. Deep docs: data layer → `Planning/Data-Layer-Design.md`; desktop/filesystem → `Planning/Desktop-Filesystem-Integration.md`; design system → `Features/Design.md` + `Features/Typography.md`; drag-and-drop → `Features/DragAndDrop.md`; locked decisions → `History.md`.
 
 ### Where the project is
 
-Foundations are down; the **main content pane is the next big piece** — the app navigates and organizes fully, but selecting anything still shows a placeholder ("render coming next"), so it can't yet show or edit a page's content.
+Foundations + the **container views** are down; the **page render/editor is the remaining keystone** — vaults, collections, contexts, and the homepage now render real views (with banners), but selecting a *page* still shows a placeholder, so a page's content can't yet be shown or edited.
 
-- **Data layer — done.** The full write/mutation side caught up to Swift (CRUD, properties, connections, Agenda). Files are canonical; the SQLite index is a regeneratable accelerator off the read path. Tests-only at this level. Detail → `Planning/Data-Layer-Handoff.md`.
+- **Data layer — done.** The full write/mutation side caught up to Swift (CRUD, properties, connections, Agenda). Files are canonical; the SQLite index is a regeneratable accelerator off the read path. Tests-only at this level. Detail → `Planning/Data-Layer-Design.md`.
 - **Design system — done, tokenized, live.** The Figma "Pommora - React" library is the source; the token layer is complete (colour primitives + a swappable accent + tint scale + typography + chips), Lucide icons, and a shared CSS-frost glass Material. Showcase live at https://pommora-design-system.vercel.app (`npm run showcase`). Spec → `Features/Design.md` + `Features/Typography.md`.
 - **Desktop app — runs (packaged `Pommora.app` + dev-mode HMR), with a working write path + live auto-refresh.** One `mutate` IPC (create / rename / delete / move / reorder; relative paths resolved under the root), native right-click menus + ⌘N + inline rename on every sidebar row, and a chokidar watcher that re-reads and swaps the tree in place on external changes. Detail → `Planning/Desktop-Filesystem-Integration.md`.
-- **Sidebar — fully built, drag-and-drop included.** Renders Contexts + Vaults/Collections/Sets/Pages; create / rename / delete / reorder all from the UI. **Drag-and-drop is shipped + committed** — the bespoke "sidebar" behaviour (Apple-style insertion line + grab ghost, no displacement): every entity reorders within its parent, pages move freely across the tree, sets move between collections, collections and sets stay within their vault, and invalid moves no-op. Followed by a DRY refactor of the sidebar + its data routing (one store write-path, a shared row wrapper, a single slot helper, single-sourced order-key types). typecheck + tests green (320); live-verified. Spec → `Features/DragAndDrop.md`.
+- **Sidebar — fully built, drag-and-drop included.** Renders Contexts + Vaults/Collections/Sets/Pages; create / rename / delete / reorder all from the UI. **Drag-and-drop is shipped + committed** — the bespoke "sidebar" behaviour (Apple-style insertion line + grab ghost, no displacement): every entity reorders within its parent, pages move freely across the tree, sets move between collections, collections and sets stay within their vault, and invalid moves no-op. Followed by a DRY refactor of the sidebar + its data routing (one store write-path, a shared row wrapper, a single slot helper, single-sourced order-key types). typecheck + tests green; live-verified. Spec → `Features/DragAndDrop.md`.
 - **Drag engine — PommoraDND, in-house (replaced `@dnd-kit`).** The generic sort engines (list/grid/table/board) sit behind the `interactions/drag.tsx` seam and are exercised in the Interaction Lab; so far only the sidebar consumes a drag behaviour (its own, above). View-row adoption + board keyboard are deferred.
-- **Repo + branch.** One monorepo, one `main`; the React build is a sub-project under `React/`. Current work (sidebar DnD + the typography rename) is committed on the **`file-watcher`** branch; `main` is a clean ancestor, behind for now — it fast-forwards when we ship the branch. Nothing is pushed to GitHub until Nathan says so.
+- **Container views — built.** Selecting a Vault or Collection renders its pages in a table; Context + the nexus-header **Homepage** render their own (currently blank-but-real) views. Vault + Collection share one `ContainerView` (same view principles, `source.kind` the divergence seam); every banner-bearing view sits in a shared `DetailScaffold` (banner + body + divider). Homepage + Collections are now **selectable sidebar entities** (the nexus header *is* the homepage).
+- **Banner — built.** A shared image cover *behind the glass* on Vault/Collection/Context/Homepage: native picker → `.nexus/assets/<id>/banner-<token>.<ext>` → served over a registered `nexus-asset://` protocol; native Change/Remove menu; one `setBanner` mutate op (the homepage's banner lives in the `.nexus/homepage.json` singleton). Spec → `Planning/Banner-Design.md`.
+- **Renderer structure — mirrors Swift.** `Detail/` (router · `DetailScaffold`≈ViewSurface · `Scope`≈DetailScope · `ContainerView`/`HomepageView`/`ContextView`/`PageView`) · `Detail/Table/` · `Detail/Banner/` · `Sidebar/` · `Components/`; the `styles.css` monolith split into co-located stylesheets per area. Detail → `Features/Architecture.md`.
+- **Repo + branch.** One monorepo, one `main`; the React build is a sub-project under `React/`. The live React session works in the **`pommora-main-preview` worktree on `main`**; this session's work (banner + container views + the Swift-aligned renderer reorg) is **uncommitted** there (the former `file-watcher` branch is gone). Nothing is pushed to GitHub until Nathan says so.
 
 ### Next session
 
-**▶ Build the main content pane, starting with the Page view (read → edit).** Pages are the core entity, and the editor is the deferred keystone.
+**▶ The page render + editor — the remaining keystone.** Pages are the core entity; the container views are done, so the page is what's left.
 
 1. **Read-only page render first** — `react-markdown` + `remark-gfm` (already deps) render the selected page's body; a quick win that makes the shell feel like a real app.
 2. **Then the editor** — wire the editing surface (CodeMirror 6 is the candidate, not yet committed); worth a brainstorm/spec pass before building.
 
-After the Page view: vault/context detail **views** (listing a collection's pages) · page **properties** + the frontmatter inspector · then Agenda + the Homepage.
+After the Page view: page **properties** + the frontmatter inspector · Agenda · the Homepage's dynamic widgets (a future "banner region" design, layered at the view level above the shared banner).
 
 Discipline: a green commit per task with an adversarial review (standard agents), and a live UIX pass with Nathan before any milestone closeout.
 
@@ -38,6 +41,7 @@ Discipline: a green commit per task with an adversarial review (standard agents)
 - The packaged renderer must serve over the registered **`app://` scheme**, never `file://` (Vite's ES-module scripts hit module CORS over `file://` → blank window). Dev over http is unaffected.
 - **better-sqlite3 is dual-ABI** (Node ≠ Electron). `node_modules` stays Node-ABI so the vitest gate is reliable; electron-builder rebuilds for Electron at package time; `db.ts` lazy-requires it so an ABI mismatch degrades to a cold index instead of crashing (the index is off the read path).
 - The live watcher must watch `.nexus/` (Contexts + settings live there) **and** carry an `.on('error')` guard, or fd/inotify exhaustion re-throws as an unhandled error and crashes the main process.
+- **A stable asset filename behind glass is a stale-image trap.** Banners write a *fresh* filename per save (`banner-<token>.<ext>`) so the `<img>` URL changes and the renderer can't serve the browser-cached previous image; image bytes ride a registered `nexus-asset://` protocol (kept out of the reloaded `NexusTree`), not base64-in-tree.
 
 ### Pending focuses
 

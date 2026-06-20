@@ -1,0 +1,66 @@
+/* Banner: a full-bleed cover behind the glass that scrolls with content, plus the no-banner
+   hover-revealed "Add Banner" affordance. */
+
+.banner {
+  position: relative;
+  height: 230px; /* Swift ContainerBannerView.bannerHeight */
+  border-bottom: 1px solid #FFFFFF1A; /* divider — matches the table header hairline */
+}
+.banner-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover; /* aspect-fill, center-cropped (Swift .aspectRatio(.fill).clipped()) */
+}
+/* The name sits at the content's left margin (clear of the sidebar), not the full-bleed image
+   edge — so it reads on the visible part of the banner (Swift's bottom-leading title). */
+.banner-title {
+  position: absolute;
+  bottom: 12px;
+  left: var(--content-inset);
+  right: 28px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text);
+  font-size: 20px;
+  font-weight: var(--weight-semibold);
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.55);
+  pointer-events: none;
+  transition: left var(--duration-base) var(--ease-standard);
+}
+.shell.is-resizing .banner-title {
+  transition: none;
+}
+
+/* No-banner affordance — a slim strip at the top of the body; the button reveals on hover
+   (mirrors Swift's opacity-on-hover Add Banner). In the body so it clears the titlebar. */
+.add-banner-strip {
+  height: 24px;
+  display: flex;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.add-banner-btn {
+  -webkit-app-region: no-drag;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  appearance: none;
+  border: 0;
+  background: none;
+  padding: 2px 4px;
+  font: inherit;
+  font-size: 12px;
+  color: var(--text-dim);
+  cursor: default;
+  opacity: 0;
+  transition: opacity 180ms ease, color 180ms ease;
+}
+.add-banner-strip:hover .add-banner-btn,
+.add-banner-btn:focus-visible {
+  opacity: 1;
+}
+.add-banner-btn:hover {
+  color: var(--text);
+}

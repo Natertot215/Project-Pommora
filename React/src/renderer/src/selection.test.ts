@@ -5,7 +5,8 @@ import { reconcileSelection } from './selection'
 /** A minimal tree with one vault holding the given top-level pages. */
 function tree(pages: { id: string; path: string }[]): NexusTree {
   return {
-    nexus: { id: 'nx', rootPath: '/x' },
+    nexus: { id: 'nx', rootPath: '/x', name: 'x', description: '', photo: null },
+    homepage: {},
     saved: [],
     contexts: { projects: [], topics: [], areas: [] },
     vaults: [
@@ -86,5 +87,29 @@ describe('reconcileSelection', () => {
     const collPage: SelectionState = { kind: 'page', id: 'cp', path: 'Notes/C/CP.md' }
     expect(reconcileSelection(t, setPage)).toBe(setPage)
     expect(reconcileSelection(t, collPage)).toBe(collPage)
+  })
+
+  it('keeps a homepage selection (singleton — always valid)', () => {
+    const t = tree([])
+    const home: SelectionState = { kind: 'homepage' }
+    expect(reconcileSelection(t, home)).toBe(home)
+  })
+
+  it('keeps a collection selection by id; drops it when the collection is gone', () => {
+    const t: NexusTree = {
+      ...tree([]),
+      vaults: [
+        {
+          kind: 'pageType',
+          id: 'v1',
+          title: 'Notes',
+          path: 'Notes',
+          pages: [],
+          collections: [{ kind: 'collection', id: 'c1', title: 'C', path: 'Notes/C', pages: [], sets: [] }]
+        }
+      ]
+    }
+    expect(reconcileSelection(t, { kind: 'collection', id: 'c1' })).toEqual({ kind: 'collection', id: 'c1' })
+    expect(reconcileSelection(t, { kind: 'collection', id: 'gone' })).toEqual({ kind: 'none' })
   })
 })

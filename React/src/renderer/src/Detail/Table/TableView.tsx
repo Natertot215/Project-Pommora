@@ -13,7 +13,7 @@ import type {
   ViewRow
 } from '@shared/types'
 import { resolveView } from './pipeline'
-import { useSession } from '../store'
+import { useSession } from '../../store'
 
 // --- row flattening -------------------------------------------------------
 
@@ -72,17 +72,18 @@ function cellText(v: unknown): string {
 
 const column = createColumnHelper<ViewRow>()
 
-export function TableView({ vault }: { vault: PageTypeNode }): React.JSX.Element {
+export function TableView({ source }: { source: PageTypeNode | CollectionNode }): React.JSX.Element {
   const selection = useSession((s) => s.selection)
   const select = useSession((s) => s.select)
 
-  // Sort by title (asc) in one implicit group — read-only ordering via the
-  // pure pipeline. resolveView never mutates its input.
+  // Sort by title (asc) in one implicit group — read-only ordering via the pure pipeline.
+  // resolveView never mutates its input. A vault flattens its collections + sets too; a
+  // collection flattens its own sets + direct pages.
   const rows = useMemo<ViewRow[]>(() => {
-    const flat = vaultRows(vault)
+    const flat = source.kind === 'pageType' ? vaultRows(source) : collectionRows(source)
     const groups = resolveView(flat, { sort: { field: 'title', direction: 'asc' } })
     return groups.flatMap((g) => g.rows)
-  }, [vault])
+  }, [source])
 
   const columns = useMemo<ColumnDef<ViewRow, string>[]>(() => {
     const titleCol = column.accessor('title', {
@@ -107,7 +108,7 @@ export function TableView({ vault }: { vault: PageTypeNode }): React.JSX.Element
   })
 
   if (rows.length === 0) {
-    return <div className="table-empty">No pages in this vault</div>
+    return <div className="table-empty">No pages here</div>
   }
 
   return (

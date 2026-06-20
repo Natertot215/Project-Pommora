@@ -27,6 +27,8 @@ const baseSidecar = z.looseObject({
 export const pageTypeSidecar = baseSidecar.extend({
   collection_order: ulidList,
   page_order: ulidList,
+  // Nexus-relative POSIX path to this vault's banner image (a per-entity assets file).
+  banner: z.string().optional(),
   // Loose at the sidecar level so one malformed def never sinks the whole type read;
   // the per-def codec + normalization is `parseDefinitions` (main/properties/schema.ts),
   // and the authoritative model is `propertyDefinition` (shared/properties.ts).
@@ -37,6 +39,7 @@ export type PageTypeSidecar = z.infer<typeof pageTypeSidecar>
 export const pageCollectionSidecar = baseSidecar.extend({
   type_id: z.string().optional(),
   vault_id: z.string().optional(), // legacy fallback for type_id
+  banner: z.string().optional(),
   set_order: ulidList,
   page_order: ulidList
 })
@@ -51,7 +54,9 @@ export type PageSetSidecar = z.infer<typeof pageSetSidecar>
 /** Areas/Topics/Projects share tier + the reserved `blocks` array (which rides as a
  *  foreign key — not modeled, per "catch up to Swift, don't go ahead"). */
 const contextBase = baseSidecar.extend({
-  tier: z.number()
+  tier: z.number(),
+  // Nexus-relative POSIX path to this context's banner image (a per-entity assets file).
+  banner: z.string().optional()
 })
 export const topicSidecar = contextBase
 export const projectSidecar = contextBase

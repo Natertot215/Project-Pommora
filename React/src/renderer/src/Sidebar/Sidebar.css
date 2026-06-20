@@ -1,0 +1,208 @@
+/* Sidebar: the glass panel's LAYOUT (the MATERIAL lives in GlassWindow / glass-material.ts), its
+   content, collapse/expand + resize affordances, section headers, rows, and tree-drag styling. */
+
+/* Sidebar glass = LAYOUT only — a floating overlay inset from the window edge. */
+.surface-glass {
+  position: absolute;
+  top: var(--glass-inset);
+  left: var(--glass-inset);
+  bottom: var(--glass-inset);
+  width: var(--sidebar-width);
+  z-index: 1;
+  border-radius: var(--glass-radius);
+  overflow: hidden;
+  -webkit-app-region: drag;
+  transition: transform var(--duration-base) var(--ease-standard);
+}
+/* Collapsed: slide the panel fully off the left edge — pure slide, no fade, so the motion reads
+   on the way OUT (not just in); the detail reclaims the gutter. */
+.shell.sidebar-hidden .surface-glass {
+  transform: translateX(calc(-100% - var(--glass-inset) - 14px));
+  pointer-events: none;
+}
+/* During an edge-drag resize, track the cursor 1:1 (no easing lag). */
+.shell.is-resizing .surface-glass {
+  transition: none;
+}
+
+/* --- sidebar content --- */
+.sidebar {
+  -webkit-app-region: no-drag;
+  /* top clears the traffic lights (positioned at y:18, ~14px tall) with breathing room */
+  padding: 46px 10px 12px;
+  overflow-y: auto;
+  height: 100%;
+}
+
+/* Sidebar collapse / expand toggle (log-out glyph — flipped = collapse, normal = expand).
+   Both no-drag + clickable; icon in label-secondary, lifting to primary on hover. */
+.sidebar-toggle {
+  -webkit-app-region: no-drag;
+  position: absolute;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--label-secondary);
+  cursor: pointer;
+  transition: opacity 120ms ease, color 120ms ease, background 120ms ease;
+}
+.sidebar-toggle:hover {
+  color: var(--label-primary);
+  background: var(--hover);
+}
+.sidebar-toggle .flip-x {
+  transform: scaleX(-1);
+}
+/* Collapse — sidebar top-right corner; hidden until you hover the sidebar (uncluttered at rest),
+   then rides the sidebar off as it slides while the expand reveals at the top-left. */
+.sidebar-collapse {
+  top: 7px;
+  right: 10px;
+  opacity: 0;
+}
+.surface-glass:hover .sidebar-collapse,
+.sidebar-collapse:focus-visible {
+  opacity: 1;
+}
+/* Stay lit through the collapse slide — rides the panel off fully visible, hides at rest. */
+.shell.sidebar-hidden .sidebar-collapse {
+  opacity: 1;
+}
+/* Expand — always mounted at the toggle spot, on top (above the z2 titlebar). Hidden behind the
+   open sidebar's collapse button; as the sidebar slides off it fades + eases in (revealed, close
+   tucking behind it), and fades back out as the sidebar slides in to overtake it. */
+.sidebar-expand {
+  top: 12px;
+  left: 84px;
+  opacity: 0;
+  transform: translateX(-6px);
+  pointer-events: none;
+  transition: opacity var(--duration-base) var(--ease-standard), transform var(--duration-base) var(--ease-standard),
+    color 180ms ease, background 180ms ease;
+}
+.shell.sidebar-hidden .sidebar-expand {
+  opacity: 1;
+  transform: translateX(0);
+  pointer-events: auto;
+}
+
+/* Invisible edge-drag resize strip straddling the sidebar's right edge — no visible handle. */
+.sidebar-resize {
+  position: absolute;
+  top: var(--glass-inset);
+  bottom: var(--glass-inset);
+  left: calc(var(--glass-inset) + var(--sidebar-width) - 3px);
+  width: 9px;
+  z-index: 4;
+  cursor: col-resize;
+  -webkit-app-region: no-drag;
+}
+
+.section {
+  margin-bottom: 14px;
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+  font-weight: var(--weight-semibold);
+  letter-spacing: 0.02em;
+  color: var(--text-dim);
+  padding: 4px 8px;
+}
+
+/* Section "+" — create a top-level entity. Revealed on section hover (uncluttered), no-drag so
+   it's clickable inside the draggable glass sidebar. */
+.section-add {
+  -webkit-app-region: no-drag;
+  appearance: none;
+  border: none;
+  background: none;
+  color: var(--text-dim);
+  font-size: 15px;
+  line-height: 1;
+  cursor: default;
+  padding: 0 2px;
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+
+.section:hover .section-add {
+  opacity: 1;
+}
+
+.section-add:hover {
+  color: var(--text);
+}
+
+/* Inline rename field — replaces the title text while a row is being renamed. Inherits the row
+   font; a subtle accent ring marks edit mode. no-drag so it stays clickable in the glass sidebar. */
+.row-title-input {
+  width: 100%;
+  min-width: 0;
+  font: inherit;
+  color: var(--text);
+  background: #FFFFFF1F;
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  padding: 0 4px;
+  margin: 0;
+  outline: none;
+  -webkit-app-region: no-drag;
+}
+
+/* --- Sidebar drag: a page reorders / reparents; the row dims in place while a ghost rides the
+   cursor + an insertion line marks the drop (line + ghost live in sidebarDnd.tsx). No hover
+   affordance — rows keep the default cursor until a drag starts, then show `grabbing`. --- */
+.tree-item.dragging {
+  opacity: 0.4; /* source row dims in place while its ghost follows the cursor */
+  cursor: grabbing; /* the wrapper IS the pointer-capture target, so its cursor wins for the whole drag */
+}
+.tree-item.dragging .row {
+  cursor: grabbing;
+}
+
+/* Disclosure chevron — a chevron-right Icon (1em → tracks the row's 12px) that rotates 90° when
+   open; colour comes from the row's secondary glyph cluster. */
+.twisty {
+  transition: transform var(--duration-fast) var(--ease-standard);
+  flex: 0 0 auto;
+}
+
+.twisty.open {
+  transform: rotate(90deg);
+}
+
+/* Leaf rows align their icon under disclosure rows' icons via a chevron-width spacer. */
+.twisty-spacer {
+  width: 12px;
+  flex: 0 0 auto;
+}
+
+.swatch {
+  width: 11px;
+  height: 11px;
+  border-radius: 3px;
+  flex: 0 0 auto;
+  background: var(--text-dim);
+}
+
+.swatch[data-color='gray'] { background: #8e8e93; }
+.swatch[data-color='brown'] { background: #a2845e; }
+.swatch[data-color='orange'] { background: #ff9500; }
+.swatch[data-color='yellow'] { background: #ffcc00; }
+.swatch[data-color='green'] { background: #34c759; }
+.swatch[data-color='blue'] { background: #007aff; }
+.swatch[data-color='purple'] { background: #af52de; }
+.swatch[data-color='pink'] { background: #ff2d55; }
+.swatch[data-color='red'] { background: #ff3b30; }
+.swatch[data-color='accent'] { background: #007aff; }

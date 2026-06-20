@@ -11,6 +11,10 @@ export const DEFAULT_NEW_NAME = 'Untitled'
 /** Entity kinds a mutation can target — every NodeKind except the code-keyed `saved`. */
 export type MutableKind = 'page' | 'pageType' | 'collection' | 'set' | 'area' | 'topic' | 'project'
 
+/** The entities that can own a banner image: the vault + collections + the three context tiers
+ *  (folder sidecars), plus the homepage singleton (`.nexus/homepage.json`). */
+export type BannerOwnerKind = 'pageType' | 'collection' | 'area' | 'topic' | 'project' | 'homepage'
+
 /** A folder container a page or sub-container can be created inside. These match their
  *  SidecarKind names exactly, so main passes them straight to createFolderEntity. */
 export type MutableContainerKind = 'pageType' | 'collection' | 'set'
@@ -28,6 +32,12 @@ export type MutateRequest =
   | { op: 'createContext'; tier: 1 | 2 | 3; name: string }
   | { op: 'rename'; path: string; kind: MutableKind; newName: string }
   | { op: 'delete'; path: string; kind: MutableKind }
+  // Set the nexus description, written into `.nexus/nexus.json` (merged, not clobbered).
+  | { op: 'setNexusDescription'; description: string }
+  // Set or clear an entity's banner. dataUrl set ⇒ decode + copy into `.nexus/assets/<key>/
+  // banner.<ext>` + record that path in the owner's config (folder sidecar, or homepage.json for
+  // the homepage singleton); null ⇒ clear the field + delete the file (delete-after-write).
+  | { op: 'setBanner'; path: string; kind: BannerOwnerKind; dataUrl: string | null }
   // `order`: the destination container's full page-id order after the drop (renderer-
   // computed). Absent = legacy append (order falls back to title/creation). Same parent +
   // order = a pure reorder. Stale ids in a source container self-drop on the next read.

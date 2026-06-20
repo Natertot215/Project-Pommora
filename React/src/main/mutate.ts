@@ -13,8 +13,8 @@
 //                    the folder is removed, so no page keeps a dangling tier ref.
 // System-trash is injected (deps.trashToSystem) so this module stays Electron-free + testable.
 
-import { basename, relative, sep } from 'node:path'
-import { realpath } from 'node:fs/promises'
+import { basename, dirname, join, relative, sep } from 'node:path'
+import { mkdir, realpath, rm } from 'node:fs/promises'
 import { sessionRoot } from './session'
 import { refreshSessionIndex } from './sessionIndex'
 import { resolveUnderRoot } from './pathSafety'
@@ -22,9 +22,10 @@ import { createPage, renamePage, movePage } from './crud/page'
 import { setChildOrder, setStateOrder } from './crud/reorder'
 import { createFolderEntity, renameFolderEntity, moveFolderEntity } from './crud/folderEntity'
 import { renameCascade, unlinkTier } from './crud/cascade'
-import { trashWithTimestamp, pathExists, readJsonObject } from './io/atomicWrite'
+import { trashWithTimestamp, pathExists, readJsonObject, mutateJson, atomicWriteBinary } from './io/atomicWrite'
 import { basenameNoMd } from './coerce'
-import { contextTierDir, SIDECAR_FILENAME, type ContextTier, type SidecarKind } from './paths'
+import { contextTierDir, nexusConfig, SIDECAR_FILENAME, NEXUS_CONFIG_FILES, type ContextTier, type SidecarKind } from './paths'
+import { newId } from './ids'
 import { ok, fail, type Result } from '@shared/result'
 import type { MutateRequest, MutateResult } from '@shared/mutate'
 import type { TrashMode } from './appConfig'
@@ -42,6 +43,29 @@ const TIER_DIR: Record<1 | 2 | 3, ContextTier> = { 1: 'areas', 2: 'topics', 3: '
 
 /** POSIX-join a nexus-relative parent with a child basename (`''` parent = the root). */
 const relJoin = (parent: string, child: string): string => (parent ? `${parent}/${child}` : child)
+
+/** Decode a `data:image/<subtype>;base64,<data>` URL to its bytes + file extension (jpeg→jpg). */
+function decodeImageDataUrl(dataUrl: string): { ext: string; buffer: Buffer } | null {
+  const m = /^data:image\/([a-z0-9.+-]+);base64,(.+)$/i.exec(dataUrl)
+  if (!m) return null
+  const subtype = m[1].toLowerCase()
+  return { ext: subtype === 'jpeg' ? 'jpg' : subtype, buffer: Buffer.from(m[2], 'base64') }
+}
+
+/** Decode + atomically write a banner image into `.nexus/assets/<key>/banner-<token>.<ext>`;
+ *  returns the nexus-relative path, or null if the data URL isn't a supported image. A FRESH
+ *  filename per write is deliberate: a stable name (`banner.<ext>`) gave every image the same
+ *  URL, so the renderer's <img> served the browser-cached previous image on Change/replace. */
+async function writeBannerAsset(root: string, assetKey: string, dataUrl: string): Promise<string | null> {
+  const decoded = decodeImageDataUrl(dataUrl)
+  if (!decoded) return null
+  const file = `banner-${Math.random().toString(36).slice(2, 10)}.${decoded.ext}`
+  const rel = `.nexus/assets/${assetKey}/${file}`
+  const absAsset = join(root, '.nexus', 'assets', assetKey, file)
+  await mkdir(dirname(absAsset), { recursive: true })
+  await atomicWriteBinary(absAsset, decoded.buffer)
+  return rel
+}
 
 /** The nexus's own machinery — never a renderer-mutable entity. The read side skips these,
  *  so the write side refuses to rename/delete them (defense against a buggy/hostile renderer
@@ -167,6 +191,58 @@ async function dispatch(req: MutateRequest, deps: MutateDeps, root: string): Pro
       }
       const removed = await removeViaMode(root, abs, deps)
       if (!removed.ok) return relay(removed)
+      void refreshSessionIndex(root)
+      return { ok: true }
+    }
+
+    case 'setNexusDescription': {
+      // Merge the description into .nexus/nexus.json, preserving every other key (foreign
+      // fields included). A missing file starts from a minted id so the nexus stays identified.
+      await mutateJson<Record<string, unknown>>(nexusConfig(root, NEXUS_CONFIG_FILES.identity), () => ({ id: newId() }), (cur) => ({ ...cur, description: req.description }))
+      void refreshSessionIndex(root)
+      return { ok: true }
+    }
+
+    case 'setBanner': {
+      // Resolve the config holding the banner field + the asset-folder key, per owner kind. The
+      // homepage is a singleton (.nexus/homepage.json, keyed 'homepage'); the rest are folder
+      // sidecars keyed by their entity id (matches Swift's per-entity assets/<id>/).
+      let cfgPath: string
+      let assetKey: string
+      let fallback: Record<string, unknown>
+      let existing: Record<string, unknown> | null
+      if (req.kind === 'homepage') {
+        cfgPath = nexusConfig(root, NEXUS_CONFIG_FILES.homepage)
+        assetKey = 'homepage'
+        fallback = {}
+        existing = await readJsonObject(cfgPath)
+      } else {
+        const resolved = await resolveUnderRoot(root, req.path)
+        if (!resolved.ok) return relay(resolved)
+        if (await isReserved(root, resolved.value)) return fault('That item can’t take a banner.')
+        cfgPath = `${resolved.value}/${SIDECAR_FILENAME[req.kind]}`
+        existing = await readJsonObject(cfgPath)
+        const id = typeof existing?.id === 'string' ? existing.id : null
+        if (!id) return fault('That item has no id to key its banner.')
+        assetKey = id
+        fallback = { id }
+      }
+      const prev = typeof existing?.banner === 'string' ? existing.banner : null
+      if (req.dataUrl) {
+        const rel = await writeBannerAsset(root, assetKey, req.dataUrl)
+        if (!rel) return fault('Unsupported image data.')
+        // Set the field first; only THEN delete a replaced file, so a failed write never
+        // leaves `banner` pointing at a deleted file (mirrors the cover/photo ordering).
+        await mutateJson<Record<string, unknown>>(cfgPath, () => fallback, (cur) => ({ ...cur, banner: rel }))
+        if (prev && prev !== rel) await rm(join(root, prev), { force: true }).catch(() => {})
+      } else {
+        await mutateJson<Record<string, unknown>>(cfgPath, () => fallback, (cur) => {
+          const next = { ...cur }
+          delete next.banner
+          return next
+        })
+        if (prev) await rm(join(root, prev), { force: true }).catch(() => {})
+      }
       void refreshSessionIndex(root)
       return { ok: true }
     }

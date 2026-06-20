@@ -1,14 +1,14 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState } from 'react'
 import { Icon, icons, type IconName } from '@renderer/design-system/symbols'
 import { MenuItem } from '@renderer/design-system/components/menu'
 import { Reveal } from '@renderer/design-system/components/Reveal'
+import { EditableInput } from '../Components/EditableInput'
 import type {
   AreaNode,
   CollectionNode,
   NexusTree,
   PageNode,
   PageTypeNode,
-  SavedNode,
   SelectionState,
   SetNode,
   TopicNode,
@@ -16,13 +16,8 @@ import type {
 } from '@shared/types'
 import { DEFAULT_NEW_NAME, type MutableKind, type MutateRequest } from '@shared/mutate'
 import { SidebarDnd, useSidebarDrag } from './sidebarDnd'
+import { NexusHeader } from './NexusHeader'
 import { useSession } from '../store'
-
-const savedIcon: Record<SavedNode['key'], IconName> = {
-  homepage: 'house',
-  calendar: 'calendar',
-  recents: 'clock'
-}
 
 /** Right-click an entity → main pops the native context menu. Every PathNode (page +
  *  container + context) carries kind/path/title; the code-keyed saved rows don't, so they
@@ -51,34 +46,16 @@ function RowTitle({ path, kind, title }: { path: string; kind: MutableKind; titl
   const renamingPath = useSession((s) => s.renamingPath)
   const cancelRename = useSession((s) => s.cancelRename)
   const submitRename = useSession((s) => s.submitRename)
-  const editing = renamingPath === path
-  const settled = useRef(false)
-  useEffect(() => {
-    if (editing) settled.current = false
-  }, [editing])
-  if (!editing) return <>{title}</>
-  const finish = (raw: string): void => {
-    if (settled.current) return
-    settled.current = true
-    const next = raw.trim()
-    if (next && next !== title) void submitRename(path, kind, next)
-    else cancelRename()
-  }
+  if (renamingPath !== path) return <>{title}</>
   return (
-    <input
+    <EditableInput
+      value={title}
       className="row-title-input"
-      defaultValue={title}
-      autoFocus
-      onFocus={(e) => e.currentTarget.select()}
-      onClick={(e) => e.stopPropagation()}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter') e.currentTarget.blur()
-        else if (e.key === 'Escape') {
-          settled.current = true
-          cancelRename()
-        }
+      onCommit={(next) => {
+        if (next && next !== title) void submitRename(path, kind, next)
+        else cancelRename()
       }}
-      onBlur={(e) => finish(e.currentTarget.value)}
+      onCancel={cancelRename}
     />
   )
 }
@@ -87,6 +64,10 @@ function RowTitle({ path, kind, title }: { path: string; kind: MutableKind; titl
 
 function isVaultSelected(sel: SelectionState, id: string): boolean {
   return sel.kind === 'vault' && sel.id === id
+}
+
+function isCollectionSelected(sel: SelectionState, id: string): boolean {
+  return sel.kind === 'collection' && sel.id === id
 }
 
 function isPageSelected(sel: SelectionState, id: string): boolean {
@@ -305,9 +286,9 @@ function SetRow({ set, depth, selection, onSelectPage }: { set: SetNode; depth: 
   )
 }
 
-function CollectionRow({ col, depth, selection, onSelectPage }: { col: CollectionNode; depth: number; selection: SelectionState; onSelectPage: (page: PageNode) => void }): React.JSX.Element {
+function CollectionRow({ col, depth, selection, onSelectCollection, onSelectPage }: { col: CollectionNode; depth: number; selection: SelectionState; onSelectCollection: (col: CollectionNode) => void; onSelectPage: (page: PageNode) => void }): React.JSX.Element {
   return (
-    <ContainerRow node={col} defaultIcon="folder-closed" depth={depth}>
+    <ContainerRow node={col} defaultIcon="folder-closed" depth={depth} selected={isCollectionSelected(selection, col.id)} onSelect={() => onSelectCollection(col)}>
       {col.sets.map((s) => (
         <SetRow key={s.id} set={s} depth={depth + 1} selection={selection} onSelectPage={onSelectPage} />
       ))}
@@ -318,11 +299,11 @@ function CollectionRow({ col, depth, selection, onSelectPage }: { col: Collectio
   )
 }
 
-function VaultRow({ vault, depth, selection, onSelectVault, onSelectPage }: { vault: PageTypeNode; depth: number; selection: SelectionState; onSelectVault: (vault: PageTypeNode) => void; onSelectPage: (page: PageNode) => void }): React.JSX.Element {
+function VaultRow({ vault, depth, selection, onSelectVault, onSelectCollection, onSelectPage }: { vault: PageTypeNode; depth: number; selection: SelectionState; onSelectVault: (vault: PageTypeNode) => void; onSelectCollection: (col: CollectionNode) => void; onSelectPage: (page: PageNode) => void }): React.JSX.Element {
   return (
     <ContainerRow node={vault} defaultIcon="gallery-vertical-end" depth={depth} selected={isVaultSelected(selection, vault.id)} onSelect={() => onSelectVault(vault)}>
       {vault.collections.map((c) => (
-        <CollectionRow key={c.id} col={c} depth={depth + 1} selection={selection} onSelectPage={onSelectPage} />
+        <CollectionRow key={c.id} col={c} depth={depth + 1} selection={selection} onSelectCollection={onSelectCollection} onSelectPage={onSelectPage} />
       ))}
       {vault.pages.map((p) => (
         <PageRow key={p.id} page={p} depth={depth + 1} selection={selection} onSelectPage={onSelectPage} />
@@ -334,9 +315,20 @@ function VaultRow({ vault, depth, selection, onSelectVault, onSelectPage }: { va
 // A context leaf (Area / Topic / Project) — a draggable row reordered within its tier disclosure
 // (depth 1, under the tier header). Areas show their color swatch; every tier uses the grid icon.
 function ContextRow({ node, swatch }: { node: { id: string; title: string; path: string; kind: MutableKind }; swatch?: string }): React.JSX.Element {
+  const select = useSession((s) => s.select)
+  const selected = useSession((s) => s.selection.kind === 'context' && s.selection.id === node.id)
   return (
     <DragRow id={node.id}>
-      <Leaf icon="layout-grid" title={node.title} depth={1} swatch={swatch} onContextMenu={() => showContextFor(node)} rename={{ path: node.path, kind: node.kind }} />
+      <Leaf
+        icon="layout-grid"
+        title={node.title}
+        depth={1}
+        swatch={swatch}
+        selected={selected}
+        onSelect={() => void select({ kind: 'context', id: node.id })}
+        onContextMenu={() => showContextFor(node)}
+        rename={{ path: node.path, kind: node.kind }}
+      />
     </DragRow>
   )
 }
@@ -376,6 +368,9 @@ export function Sidebar({ tree }: { tree: NexusTree }): React.JSX.Element {
   const onSelectVault = (vault: PageTypeNode): void => {
     void select({ kind: 'vault', id: vault.id })
   }
+  const onSelectCollection = (col: CollectionNode): void => {
+    void select({ kind: 'collection', id: col.id })
+  }
   const onSelectPage = (page: PageNode): void => {
     void select({ kind: 'page', id: page.id, path: page.path })
   }
@@ -394,11 +389,9 @@ export function Sidebar({ tree }: { tree: NexusTree }): React.JSX.Element {
 
   return (
     <nav className="sidebar">
-      {/* Saved strip — inert in Phase 1 (proves section order) */}
+      {/* Nexus header. Calendar/Recents stubs are hidden until a later UIX pass. */}
       <div className="section">
-        {tree.saved.map((s) => (
-          <Leaf key={s.id} icon={savedIcon[s.key]} title={s.title} depth={0} chevronSpace={false} />
-        ))}
+        <NexusHeader name={tree.nexus.name} description={tree.nexus.description} photo={tree.nexus.photo} />
       </div>
 
       {/* Drag to reorder any entity within its parent heading (or a page across folders); an
@@ -434,6 +427,7 @@ export function Sidebar({ tree }: { tree: NexusTree }): React.JSX.Element {
               depth={0}
               selection={selection}
               onSelectVault={onSelectVault}
+              onSelectCollection={onSelectCollection}
               onSelectPage={onSelectPage}
             />
           ))}
@@ -449,6 +443,7 @@ export function Sidebar({ tree }: { tree: NexusTree }): React.JSX.Element {
                 depth={0}
                 selection={selection}
                 onSelectVault={onSelectVault}
+                onSelectCollection={onSelectCollection}
                 onSelectPage={onSelectPage}
               />
             ))}

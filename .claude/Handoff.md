@@ -10,7 +10,7 @@
 
 #### Session Summary
 
-**6-19 (Swift) — mostly UIX enhancements + some sidebar refactoring; the prior focuses remain.** Two things settled, both on `main` (local, not pushed):
+**6-19 (Swift) — mostly UIX enhancements + some sidebar refactoring; the prior focuses remain.** Three things settled, all on `main` (local, not pushed):
 
 1. **Sidebar re-done + enhanced.** The Homepage/Calendar/Recents saved-leaves give way to a **Nexus header banner** — per-Nexus avatar · folder-name title · custom-or-today's-date subtitle — as the first **scrolling** row of the sidebar List (own Section, native selection + `.listRowBackground` chrome). **Calendar + Recents leaves were knowingly removed** (managers stay; only the surfacing went — "until we figure out what to do with them"). Editing is right-click-scoped per element: avatar → picture, title → **Rename** (renames the nexus folder via `NexusManager.renameRoot`, which requests a one-time parent-folder grant at nexus load), subtitle → Edit Subtitle. On-disk: `profile_image` + `profile_subtitle` in `settings.json`; avatar bytes in `.nexus/assets/<nexusID>/`. In-app "coming vX" copy blanked. Then a **sidebar DRY pass** (Opus subagents, build- + diff-verified): `InlineRenameState` across the 7 rows, `SidebarConfirmation` dialog props + shared cancel button, `IconPickerSheet`/banner helpers — net −12 lines. Decision + on-disk shape → `History.md`; behavior → `Features/Sidebar.md`.
 
@@ -18,7 +18,11 @@
 
 3. **Homepage banner shipped (post-compact).** The Nexus header opens the Homepage dashboard: a bounded banner band **identical to the content-view banner** — both now back onto one shared `BannerView` (DRY extraction) — folder title overlaid (no icon), a divider, then the empty future-blocks body; widgets will overlay the band. `banner` field on `homepage.json`; assets in `.nexus/assets/homepage/`. 1271 tests green. Spec → `Features/Homepage.md`; decision + on-disk shape → `History.md`.
 
-The React + TypeScript rebuild continues as the parallel cwork (its own live session + handoff).
+**6-19 (React) — image banners, live container views, + a Swift-aligned `src` reorg** (live + uncommitted in the `pommora-main-preview` worktree on `main`):
+
+1. **Banner** — one shared image banner *behind the glass* for Vault / Collection / Context / Homepage: native picker → copied to `.nexus/assets/<id>/banner-<token>.<ext>` (a fresh filename per write sidesteps the browser-image-cache stale-image trap) → served over a registered `nexus-asset://` protocol; native macOS Change/Remove menu; one `setBanner` mutate op for every owner kind.
+2. **Homepage + Collections are now selectable entities with their own views** — the sidebar nexus header *is* the homepage; collections are clickable and share Vault's view via `ContainerView` (vault + collection = the same view principles, `source.kind` the divergence seam).
+3. **Renderer reorg → mirrors Swift** — flat `components/` + `views/` → `Detail/` (`DetailPane` router · `DetailScaffold`≈ViewSurface · `Scope`≈DetailScope · `ContainerView`/`HomepageView`/`ContextView`/`PageView`) + `Detail/Table/` + `Detail/Banner/` + `Sidebar/` + `Components/`; the `styles.css` monolith split into co-located stylesheets. Green: 331 tests. Full state → `React/.claude/Handoff.md`.
 
 #### Lessons Learned
 

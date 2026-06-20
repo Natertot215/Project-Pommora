@@ -31,6 +31,7 @@ import {
   contextTierDir,
   NEXUS_CONFIG_FILES,
   nexusConfig,
+  nexusDir,
   SIDECAR_FILENAME
 } from './paths'
 
@@ -162,6 +163,7 @@ async function readCollection(
     title: name,
     icon: asString(meta.icon),
     path: relDir,
+    banner: asString(meta.banner),
     sets: resolveOrder(sets, asStringArray(meta.set_order), fb),
     pages: resolveOrder(pages, asStringArray(meta.page_order), fb)
   }
@@ -199,6 +201,7 @@ async function readPageType(
     title: name,
     icon: asString(meta.icon),
     path: relDir,
+    banner: asString(meta.banner),
     collections: resolveOrder(collections, asStringArray(meta.collection_order), fb),
     pages: resolveOrder(pages, asStringArray(meta.page_order), fb)
   }
@@ -230,7 +233,8 @@ async function readTier<T extends AreaNode | TopicNode | ProjectNode>(
       icon: asString(sc?.icon),
       // Contexts live under .nexus/<tier>/ — the real on-disk path a mutation resolves
       // (distinct from the adoptedId seed above, which is layout-agnostic by design).
-      path: `.nexus/${tier}/${e.name}`
+      path: `.nexus/${tier}/${e.name}`,
+      banner: asString(sc?.banner)
     } as T
     if (kind === 'area') {
       const c = sc?.color
@@ -251,6 +255,19 @@ export async function readNexus(root: string): Promise<NexusTree> {
   const sidecarMode = !!asString(identity?.id)
   const id = sidecarMode ? (identity!.id as string) : adoptedId(root)
   const fb: Fallback = sidecarMode ? 'id' : 'title'
+  // Nexus name = root folder basename (filename = title); description is the user-set blurb.
+  const description = asString(identity?.description) ?? ''
+  // The saved photo is always PNG (the crop exports image/png to .nexus/photo.png).
+  const photoFile = asString(identity?.photo)
+  let photo: string | null = null
+  if (photoFile) {
+    try {
+      const buf = await readFile(join(nexusDir(root), photoFile))
+      photo = `data:image/png;base64,${buf.toString('base64')}`
+    } catch {
+      photo = null
+    }
+  }
 
   const settings = (await readJsonObject(nexusConfig(root, NEXUS_CONFIG_FILES.settings))) ?? {}
   const excluded = asStringArray(settings.excluded_folders) ?? []
@@ -267,6 +284,7 @@ export async function readNexus(root: string): Promise<NexusTree> {
   const state = (await readJsonObject(nexusConfig(root, NEXUS_CONFIG_FILES.state))) ?? {}
   const savedConfig = (await readJsonObject(nexusConfig(root, NEXUS_CONFIG_FILES.savedConfig))) ?? {}
   const sectionsConfig = (await readJsonObject(nexusConfig(root, NEXUS_CONFIG_FILES.sidebarSections))) ?? {}
+  const homepageConfig = (await readJsonObject(nexusConfig(root, NEXUS_CONFIG_FILES.homepage))) ?? {}
 
   // Saved strip — 3 fixed, code-keyed rows (inert in Phase 1).
   const savedLabels = (savedConfig.labels as Record<string, string>) ?? {}
@@ -325,7 +343,8 @@ export async function readNexus(root: string): Promise<NexusTree> {
   const vaults = orderedTypes.filter((t) => !claimed.has(t.id))
 
   return {
-    nexus: { id, rootPath: root },
+    nexus: { id, rootPath: root, name: basename(root), description, photo },
+    homepage: { banner: asString(homepageConfig.banner) },
     saved,
     contexts,
     vaults,

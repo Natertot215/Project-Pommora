@@ -1,12 +1,15 @@
 import { app, BrowserWindow, dialog, ipcMain, Menu, nativeTheme, protocol, shell, systemPreferences } from 'electron'
 import type { OpenDialogOptions } from 'electron'
-import { extname, join, sep } from 'node:path'
-import { readFile } from 'node:fs/promises'
+import { basename, dirname, extname, join, sep } from 'node:path'
+import { readFile, rename } from 'node:fs/promises'
 import type { NexusState, PageResult } from '@shared/types'
 import type { MutateRequest, MutateResult, ContextTarget } from '@shared/mutate'
 import { WINDOW_BG } from '@shared/theme'
 import { readNexus } from './readNexus'
 import { readPage } from './readPage'
+import { atomicWriteBinary, mutateJson, pathExists } from './io/atomicWrite'
+import { nexusConfig, nexusDir, NEXUS_CONFIG_FILES } from './paths'
+import { newId } from './ids'
 import { readAppConfig, writeAppConfig, addRecent, DEFAULT_TRASH_MODE } from './appConfig'
 import { sessionRoot, openSession, resolveRestorePath, isExistingDir } from './session'
 import { openSessionIndex, closeSessionIndex } from './sessionIndex'
@@ -22,8 +25,13 @@ import { installAppMenu } from './menu'
 // standard secure scheme gives the renderer a real origin (like the dev http
 // server), so the bundle loads normally. Must be registered before app is ready.
 const RENDERER_SCHEME = 'app'
+// Banner/avatar assets ride their own privileged scheme so the renderer can <img src> them
+// without inlining bytes into the reloaded state tree (see registerAssetProtocol). Must be
+// registered before app is ready, alongside the renderer scheme.
+const ASSET_SCHEME = 'nexus-asset'
 protocol.registerSchemesAsPrivileged([
-  { scheme: RENDERER_SCHEME, privileges: { standard: true, secure: true, supportFetchAPI: true } }
+  { scheme: RENDERER_SCHEME, privileges: { standard: true, secure: true, supportFetchAPI: true } },
+  { scheme: ASSET_SCHEME, privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true } }
 ])
 
 const RENDERER_MIME: Record<string, string> = {
@@ -54,6 +62,35 @@ function registerRendererProtocol(): void {
       const data = await readFile(filePath)
       const type = RENDERER_MIME[extname(filePath).toLowerCase()] ?? 'application/octet-stream'
       return new Response(new Uint8Array(data), { headers: { 'Content-Type': type } })
+    } catch {
+      return new Response('Not found', { status: 404 })
+    }
+  })
+}
+
+// Serve banner/avatar assets over nexus-asset://nexus/<nexus-relative-path>: read-only and
+// confined to the open nexus's .nexus/assets/ (resolveUnderRoot realpaths + contains; the
+// prefix check pins it to that dir). Keeps image bytes out of the reloaded state tree.
+const ASSET_MIME: Record<string, string> = {
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.gif': 'image/gif',
+  '.webp': 'image/webp'
+}
+function registerAssetProtocol(): void {
+  protocol.handle(ASSET_SCHEME, async (request) => {
+    const root = sessionRoot()
+    if (!root) return new Response('No nexus open', { status: 404 })
+    const rel = decodeURIComponent(new URL(request.url).pathname).replace(/^\/+/, '')
+    if (!rel.startsWith('.nexus/assets/')) return new Response('Forbidden', { status: 403 })
+    const resolved = await resolveUnderRoot(root, rel)
+    if (!resolved.ok) return new Response('Not found', { status: 404 })
+    try {
+      const data = await readFile(resolved.value)
+      const type = ASSET_MIME[extname(resolved.value).toLowerCase()] ?? 'application/octet-stream'
+      // no-store: banners change in place; never let the renderer serve a stale cached image.
+      return new Response(new Uint8Array(data), { headers: { 'Content-Type': type, 'Cache-Control': 'no-store' } })
     } catch {
       return new Response('Not found', { status: 404 })
     }
@@ -273,6 +310,108 @@ ipcMain.handle('theme:systemAccent', (): string | null => {
   }
 })
 
+// The native image picker → the chosen file as a data URL (null if canceled). The one owner of
+// "pick an image file"; reuses ASSET_MIME for the ext→mime mapping (single source for both).
+const IMAGE_EXTS = Object.keys(ASSET_MIME).map((e) => e.slice(1))
+async function pickImageDataUrl(win: BrowserWindow): Promise<string | null> {
+  const result = await dialog.showOpenDialog(win, {
+    properties: ['openFile'],
+    filters: [{ name: 'Images', extensions: IMAGE_EXTS }]
+  })
+  if (result.canceled || !result.filePaths[0]) return null
+  try {
+    const p = result.filePaths[0]
+    const buf = await readFile(p)
+    const mime = ASSET_MIME[extname(p).toLowerCase()] ?? 'application/octet-stream'
+    return `data:${mime};base64,${buf.toString('base64')}`
+  } catch {
+    return null
+  }
+}
+
+// Pop a native single-item "Add Photo" menu; on click open the image picker and resolve the
+// chosen file as a data URL. Resolves null if the menu is dismissed or the picker canceled.
+ipcMain.handle('nexus:photoMenu', async (e): Promise<string | null> => {
+  const win = BrowserWindow.fromWebContents(e.sender)
+  if (!win) return null
+  return await new Promise<string | null>((resolve) => {
+    let acted = false
+    const menu = Menu.buildFromTemplate([
+      { label: 'Add Photo', click: async () => { acted = true; resolve(await pickImageDataUrl(win)) } }
+    ])
+    menu.popup({ window: win, callback: () => { if (!acted) resolve(null) } })
+  })
+})
+
+// Open the native image picker directly (no menu) → data URL or null. The banner's Add/Change
+// affordances use this (the photo's "Add Photo" menu wraps the same picker).
+ipcMain.handle('nexus:pickImage', async (e): Promise<string | null> => {
+  const win = BrowserWindow.fromWebContents(e.sender)
+  return win ? pickImageDataUrl(win) : null
+})
+
+// Pop a native macOS Change / Remove menu for an existing banner (mirrors Swift's .contextMenu).
+// Resolves the chosen action, or null if the menu is dismissed.
+ipcMain.handle('nexus:bannerMenu', async (e): Promise<'change' | 'remove' | null> => {
+  const win = BrowserWindow.fromWebContents(e.sender)
+  if (!win) return null
+  return await new Promise<'change' | 'remove' | null>((resolve) => {
+    let acted = false
+    const choose = (action: 'change' | 'remove'): void => {
+      acted = true
+      resolve(action)
+    }
+    const menu = Menu.buildFromTemplate([
+      { label: 'Change Banner', click: () => choose('change') },
+      { label: 'Remove Banner', click: () => choose('remove') }
+    ])
+    menu.popup({ window: win, callback: () => { if (!acted) resolve(null) } })
+  })
+})
+
+// Persist a cropped PNG data URL: write .nexus/photo.png atomically, then record
+// `photo: "photo.png"` in nexus.json. Never throws across the boundary.
+ipcMain.handle('nexus:saveNexusPhoto', async (_e, dataUrl: string): Promise<{ ok: true } | { ok: false; error: string }> => {
+  const root = sessionRoot()
+  if (root === null) return { ok: false, error: 'No nexus is open.' }
+  try {
+    const m = /^data:image\/png;base64,(.+)$/s.exec(dataUrl)
+    if (!m) return { ok: false, error: 'Invalid image data.' }
+    const buf = Buffer.from(m[1], 'base64')
+    await atomicWriteBinary(join(nexusDir(root), 'photo.png'), buf)
+    await mutateJson<Record<string, unknown>>(nexusConfig(root, NEXUS_CONFIG_FILES.identity), () => ({ id: newId() }), (cur) => ({ ...cur, photo: 'photo.png' }))
+    return { ok: true }
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : String(err) }
+  }
+})
+
+// Rename the OPEN nexus's ROOT folder within its parent dir, then RE-POINT the live session
+// to the new path. A dedicated IPC (not a mutate op) because it re-targets the whole session:
+// after the fs.rename, adoptNexus re-opens the session, index, watcher, and recents at the new
+// path. Never throws across the boundary.
+ipcMain.handle('nexus:rename', async (_e, newName: unknown): Promise<{ ok: true } | { ok: false; error: string }> => {
+  const root = sessionRoot()
+  if (root === null) return { ok: false, error: 'No nexus is open.' }
+  try {
+    if (typeof newName !== 'string') return { ok: false, error: 'A name is required.' }
+    const trimmed = newName.trim()
+    if (trimmed.length === 0) return { ok: false, error: 'The name can’t be empty.' }
+    if (trimmed.includes('/') || trimmed.includes('\\')) return { ok: false, error: 'The name can’t contain a slash.' }
+    if (trimmed === basename(root)) return { ok: false, error: 'That’s already the nexus name.' }
+    const newRoot = join(dirname(root), trimmed)
+    if (await pathExists(newRoot)) return { ok: false, error: 'A folder with that name already exists.' }
+    await rename(root, newRoot)
+    // RE-POINT: adoptNexus does exactly the re-target work (openSession + openSessionIndex +
+    // startWatcher + lastNexusPath/recents + addRecentDocument + refreshMenu) with no
+    // adoption-only side effects to skip, so reuse it rather than replicate the calls.
+    await adoptNexus(newRoot)
+    return { ok: true }
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : String(err) }
+  }
+})
+
 app
   .whenReady()
   .then(async () => {
@@ -297,6 +436,7 @@ app
     app.setAboutPanelOptions({ applicationName: 'Pommora', applicationVersion: app.getVersion() })
 
     registerRendererProtocol()
+    registerAssetProtocol()
     createWindow()
     refreshMenu()
     // A restored nexus opened before the window existed — start its watcher now.
