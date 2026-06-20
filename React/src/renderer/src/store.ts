@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import type { NexusTree, PageDetail, SelectionState } from '@shared/types'
 import { DEFAULT_NEW_NAME, type MutableKind, type MutateRequest } from '@shared/mutate'
 import { reconcileSelection } from './selection'
-import { applyAccent } from './design-system/accent'
+import { applyAccent, applySystemAccent } from './design-system/accent'
 
 // Sidebar width bounds mirror the Swift app (ContentView `navigationSplitViewColumnWidth(min:180, ideal:240, max:330)`).
 const SIDEBAR_MIN = 180
@@ -134,8 +134,11 @@ export const useSession = create<SessionState>((set, get) => {
           void get().select(next) // refetch the detail at the page's new path
         }
       }
-      const systemColor = tree.accent === 'system' ? await window.nexus.systemAccent() : null
+      // Always read the OS accent: it feeds --accent only when the setting is `system`,
+      // but --system-accent (external-link color) reflects it unconditionally.
+      const systemColor = await window.nexus.systemAccent()
       applyAccent(tree.accent, systemColor)
+      applySystemAccent(systemColor)
     },
 
     // Native folder picker; on a pick, the session changed → re-read.

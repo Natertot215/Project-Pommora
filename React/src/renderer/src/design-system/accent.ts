@@ -24,6 +24,18 @@ export function applyAccent(setting: AccentSetting, systemColor: string | null):
 }
 
 /**
+ * Reflect the OS accent on `--system-accent`, ALWAYS — independent of the Pommora
+ * `--accent` setting. External `[text](url)` links bind to this (internal connections
+ * bind to `--accent`). Falls back to the CSS `AccentColor` probe, then the default
+ * spectrum solid, when no OS value is supplied. No-op without a DOM.
+ */
+export function applySystemAccent(systemColor: string | null): void {
+  if (typeof document === 'undefined') return
+  const value = systemColor ?? readCssAccentColor() ?? vars.color.solid[DEFAULT_ACCENT]
+  document.documentElement.style.setProperty('--system-accent', value)
+}
+
+/**
  * Read the OS accent in a pure-web context (no Electron) via the CSS `AccentColor`
  * system color: paint it on an off-screen probe and read back the computed value.
  * Returns an `rgb(…)` string, or null if the browser doesn't resolve it.

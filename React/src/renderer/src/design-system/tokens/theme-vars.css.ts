@@ -38,6 +38,15 @@ globalStyle(':root', {
     '--accent': colorVars.color.solid[DEFAULT_ACCENT],
     '--accent-fill': 'color-mix(in srgb, var(--accent) 15%, transparent)',
     '--accent-text': 'var(--accent)',
+    // The OS/system accent, always reflected (applySystemAccent overrides it at
+    // runtime from the OS, independent of the Pommora --accent setting). Seeded
+    // with the default solid so SSR/cold paint has a value.
+    '--system-accent': colorVars.color.solid[DEFAULT_ACCENT],
+    // Semantic link colors (labels side, not tints): external links wear the OS
+    // accent, internal connections wear the Pommora accent; code is systemRed @ 0.85.
+    '--link': 'var(--system-accent)',
+    '--connection': 'var(--accent)',
+    '--code': `color-mix(in srgb, ${colorVars.color.solid.red} 85%, transparent)`,
     '--font-family': font.family,
     // Weight ladder — so plain CSS single-sources the same numbers as the text styles.
     '--weight-standard': font.weight.standard,
