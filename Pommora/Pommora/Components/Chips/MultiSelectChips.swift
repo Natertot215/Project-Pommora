@@ -3,18 +3,12 @@ import SwiftUI
 struct MultiSelectChips: View {
     let options: [String]
     @Binding var selected: [String]
-    let allowsAddingOptions: Bool
-
-    @State private var draftNew: String = ""
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             FlowLayout(spacing: 6) {
                 ForEach(options, id: \.self) { option in
                     chip(for: option)
-                }
-                if allowsAddingOptions {
-                    addButton
                 }
             }
         }
@@ -37,24 +31,6 @@ struct MultiSelectChips: View {
             }
         }
         .buttonStyle(.plain)
-    }
-
-    private var addButton: some View {
-        HStack(spacing: 4) {
-            TextField("Add option", text: $draftNew)
-                .textFieldStyle(.plain)
-                .frame(maxWidth: 100)
-                .onSubmit {
-                    let trimmed = draftNew.trimmingCharacters(in: .whitespaces)
-                    guard !trimmed.isEmpty, !selected.contains(trimmed) else { return }
-                    selected.append(trimmed)
-                    draftNew = ""
-                }
-            Image(systemName: "plus.circle.fill").foregroundStyle(.secondary)
-        }
-        .padding(.horizontal, PUI.Chip.tagPaddingHorizontal)
-        .padding(.vertical, PUI.Chip.tagPaddingVertical)
-        .background(Capsule().fill(PUI.Tint.quaternary(PUI.Colors.chipBase)))
     }
 
     private func toggle(_ option: String) {
