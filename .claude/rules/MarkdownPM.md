@@ -147,7 +147,7 @@ All construct detection in the engine follows a three-stage pattern to keep the 
 
 ##### 4.1 Three-stage detection
 
-**Stage 0 — Code-block guard.** Construct markers that look syntactic in isolation (e.g. `---`, `> foo`, `| a | b |`) parse as the construct when extracted standalone but visually belong to a fenced code block in context. Use the existing `hasCodeBlockBackground` property on `MarkdownTextLayoutFragment` (line 278-283) — it detects code-block membership via the `.backgroundColor` attribute the primary styler emits on code blocks.
+**Stage 0 — Code-block guard.** Construct markers that look syntactic in isolation (e.g. `---`, `> foo`, `| a | b |`) parse as the construct when extracted standalone but visually belong to a fenced code block in context. Use the existing `hasCodeBlockBackground` property on `MarkdownTextLayoutFragment` — it detects code-block membership AST-side via the coordinator's `isFragmentRangeInsideCodeBlock(_:)`, not by reading a styler-emitted `.backgroundColor` attribute (code blocks no longer emit a per-char background; the renderer draws the box and detects via the AST).
 
 **Stage 1 — Cheap string prefilter.** Eliminates ~99% of fragments before any AST parse fires. Examples from shipped code:
 
@@ -218,7 +218,7 @@ Each one of these has burned a session. The fix in every case was strip + restar
 
 ##### 6.2 Don't have the styler AND the service write the same construct's attributes
 
-**The mistake (forward-looking — applies to any new dynamic-syntax construct, including blockquote when it ships):** styler emits visual attributes (e.g. `.backgroundColor` / `.foregroundColor` / `.paragraphStyle`) AND a caret-awareness service later writes some of those when the caret moves. Today's styler `visitBlockQuote` still emits these — the new blockquote service hasn't been written yet. The race only materializes once both layers are live.
+**The mistake (forward-looking — applies to any new dynamic-syntax construct, including blockquote when it ships):** styler emits visual attributes (e.g. `.backgroundColor` / `.foregroundColor` / `.paragraphStyle`) AND a caret-awareness service later writes some of those when the caret moves. Today's styler `visitBlockQuote` emits `.paragraphStyle` + a clear-color marker collapse (the quote-wide foreground dim was removed so inline code in a quote keeps its color) — the new blockquote service hasn't been written yet. The race only materializes once both layers are live.
 
 **Why it fails:** restyle fires on every keystroke + every caret move. The styler re-applies its attributes; the service then re-applies its hide/reveal state. Race between them produces visible flicker. The order of execution isn't always what you think — `restyleTextView` runs supplemental styler, THEN `syncHRVisibility` ([+Restyling.swift:121-128](External/MarkdownPM/Sources/MarkdownPM/TextView/Coordinator/NativeTextViewCoordinator+Restyling.swift#L121-L128)), but a paragraph-scope restyle may not touch the construct's paragraphs and the service still walks the whole doc — those orderings get subtle. HR proved this in Session 12 by going service-sole-writer + styler-emits-nothing for ThematicBreak; the lesson generalizes.
 
@@ -461,7 +461,7 @@ Blockquote uses the **always-show overlay** pattern — same model as the v0.2.7
 Locked behavior (as-shipped):
 - `>` markers permanently hidden via font-0.1 + clear-color on `> ` (marker + space). Activation gate requires `>` + space/tab — bare `>` doesn't activate (matches list UX where `-` alone doesn't activate until `- `; L13 — detection regex consistency).
 - `paragraphStyle.headIndent = 20` preserved (per Nathan: "text indented just as it is currently").
-- Card chrome permanently visible via `MarkdownTextLayoutFragment.drawBlockquoteCard` — renderer-drawn `CGPath` with `NSColor.tertiarySystemFill` (native intensity, adapts light/dark).
+- Card chrome permanently visible via `MarkdownTextLayoutFragment.drawBlockquoteCard` — renderer-drawn `CGPath` with `NSColor.quaternarySystemFill` (native intensity, adapts light/dark).
 - 4pt accent bar in `NSColor.secondaryLabelColor` inside the card on the left (pill-shaped ends).
 - **Continuous bar across multi-line quotes** — per-fragment segments butt-jointed via `paragraphStyle.paragraphSpacing = 0` + `paragraphSpacingBefore = 0` on consecutive quote paragraphs. Card AND bar both inflated by `cornerRadius = 6pt` on rounded ends so visual extents match.
 - Slight right margin via `paragraphStyle.tailIndent = -8`.

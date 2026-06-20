@@ -339,10 +339,10 @@ The standalone Property Visibility pane is folded into Layout.
 - `timeFormat: TimeFormat?` (Date only) — time-portion display ("Display Time"): none (date only, default), 12-hour, or 24-hour. None stores a date-only value; 12h/24h store a with-time value.
 - `views: [SavedView]` (on `PageType` / `PageCollection`) — each Collection's view config is independent of its parent Type's.
 
-**Chip primitives** (`Pommora/Properties/Chips/`):
+**Chip primitives** (`Pommora/Components/Chips/`):
 
 - `ContextChip` — the single rendering primitive for context-link (tier relation) property values across every surface (Table cells, property panel, page-editor inspector, value picker rows). **Context-tier links render as minimal grey chips — the target's current icon + title.** Both icon and title resolve from the linked target entity, never from the home-side property. Resolution happens at the consumer (via `IndexQuery` against the SQLite `context_links` table); the chip receives pre-resolved strings and is purely visual — the file holds only the target's `$rel` ID, and a chip that renders blank or `(missing)` means the index lookup missed (stale/unbuilt row), not that the on-disk value is gone.
-- `FileChip` — quaternary fill, file SF Symbol, long filenames truncate.
+- `FileChip` — faint neutral fill, file SF Symbol, long filenames truncate.
 - `LinkChip` — pure accent-blue text, strips the `https://` prefix, long URLs truncate (no chip chrome, lives in Chips folder for naming consistency).
 - `ChipLink` — **intentionally dormant design asset**: the chip-link visual, wired to nothing in production (showcased in the Component Library explorer only). Context → [[Connections]] § "Scope".
 

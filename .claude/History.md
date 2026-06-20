@@ -54,7 +54,7 @@ The Items operational side is **deleted, not migrated** — Page is now the only
 
 - **Item* code deleted wholesale** — the Item entity, `ItemType` / `ItemCollection` containers, `ItemTypeManager` / `ItemContentManager`, the Item Window, templates (`template_config`), and the "Type" / "Set" UI label pair (Settings drops the item label fields; legacy `settings.json` with retired keys loads decode-tolerantly).
 - **`Class` frontmatter stamp dropped** — kind comes solely from the parent folder's sidecar; an on-disk `Class` key is preserved foreign frontmatter, never written.
-- **`[[` declassed to the sole connection syntax** — `{{ }}` retired entirely to plain text; the chip *visual* survives as one dormant Component Library design file (`Properties/Chips/ChipLink.swift`), wired to nothing.
+- **`[[` declassed to the sole connection syntax** — `{{ }}` retired entirely to plain text; the chip *visual* survives as one dormant Component Library design file (`Components/Chips/ChipLink.swift`), wired to nothing.
 - **`PageType.open_in` (`compact` | `window`; absent = `window`)** — per-vault presentation replaces the separate entity; a segmented footer toggle in the View Settings popover sets it.
 - **`PagePreview` built; the standalone `PreviewWindow` primitive eliminated** — an in-window draggable Liquid Glass card (`PreviewStack` overlay in `ContentView`; 475×475 collapsed, resizable, cascading multi-card, opens locked with the inspector open, context-menu Open Page promotes to the main pane). A main-pane page never previews (edit-conflict guard).
 - **User sidebar sections shipped (band 3)** — `.nexus/sidebar-sections.json`, navigation-only vault grouping, single-membership; empty sections render header-only.
