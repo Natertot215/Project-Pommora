@@ -20,12 +20,10 @@ enum AgendaEventValidator {
         properties: [String: PropertyValue],
         schema: AgendaEventSchema
     ) throws {
-        let trimmed = title.trimmingCharacters(in: .whitespaces)
-        guard !trimmed.isEmpty else { throw ValidationError.emptyTitle }
-        let invalidChars: Set<Character> = ["/", "\\", ":"]
-        guard trimmed.allSatisfy({ !invalidChars.contains($0) }) else {
-            throw ValidationError.invalidTitleCharacters
-        }
+        _ = try FilenameSafety.validatedTitle(
+            title,
+            empty: ValidationError.emptyTitle,
+            invalidCharacters: ValidationError.invalidTitleCharacters)
 
         // EKEvent-style time-field consistency: end_at must not precede start_at.
         if endAt < startAt { throw ValidationError.endBeforeStart }
