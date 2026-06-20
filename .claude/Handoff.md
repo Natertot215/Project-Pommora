@@ -16,14 +16,16 @@
 
 2. **Toolbar — parked: "if it ain't broken, don't fix it."** We acknowledged the toolbar / Views-button / banner chrome is finicky and has been a multi-week time sink for marginal gain; an early-session attempt to re-group it natively was **reverted**. The native `NSToolbar` display-mode menu is already suppressed (`WindowToolbarConfigurator`, `eecdf9f`). The button-specific-menu idea is **dropped, not deferred** — no further toolbar churn without a concrete, high-value reason.
 
-The React + TypeScript rebuild continues as the parallel contingency (its own live session + handoff).
+3. **Homepage banner shipped (post-compact).** The Nexus header opens the Homepage dashboard: a bounded banner band **identical to the content-view banner** — both now back onto one shared `BannerView` (DRY extraction) — folder title overlaid (no icon), a divider, then the empty future-blocks body; widgets will overlay the band. `banner` field on `homepage.json`; assets in `.nexus/assets/homepage/`. 1271 tests green. Spec → `Features/Homepage.md`; decision + on-disk shape → `History.md`.
+
+The React + TypeScript rebuild continues as the parallel cwork (its own live session + handoff).
 
 #### Lessons Learned
 
 - **Toolbar finickiness → leave it.** The toolbar/banner chrome cost weeks for little; "if it ain't broken, don't fix it" is the standing call. Don't reopen it casually.
-- **Sidebar list-row alignment = reclaim the chevron gutter.** A non-disclosure row (the header banner) sits at SwiftUI's reserved chevron indent; a **negative `.listRowInsets` leading** pulls it back — the SwiftUI-List analog of the detail table's `ChevronlessOutlineView.frameOfCell` shift. Tuned to `-8`.
+- **Sidebar list-row alignment = reclaim the chevron gutter.** A non-disclosure row (the header banner) sits at SwiftUI's reserved chevron indent; a **negative `.listRowInsets` leading** pulls it back — the SwiftUI-List analog of the detail table's `ChevronlessOutlineView.frameOfCell` shift. Tuning the negative indent allows percise control over the rows indentation.
 - **Verify subagent claims against the code.** The DRY-analysis agents produced false positives (a "missing guard" that was present; a `.area.singular` property that doesn't exist) — caught by reading the real code before acting. The cornerstone, applied to delegated work.
-- **Trust `xcodebuild`, not SourceKit** (reaffirmed): same-module "Cannot find type X" / "No such module 'Nuke'" squiggles are false; builds were green (1269 tests).
+
 
 #### Next Session
 
@@ -36,7 +38,6 @@ The React + TypeScript rebuild continues as the parallel contingency (its own li
 - **Rest of the Views build** (per `06-13-Views-UIX-Fixes.md`): Gallery, sorting UIX, Layout-pane rework, Edit-Icon popover. **Grouping is done** (merged; remaining = group-header manual-drag reorder + the drag-between-groups bug, both in Fix Log).
 - **Swift improvements from the React data-layer slice — reserve a dedicated session.** `Planning/Reference/Swift-Improvements-from-React-Rebuild.md` distills what completely slicing the data layer apart to fuel the React rebuild taught us about the Swift side — concrete, valuable improvements. Set aside a session to review it and apply them.
 - **Nexus rename — needs a live end-to-end pass** (the parent-grant prompt + actual folder rename).
-- **Toolbar — intentionally parked** (see Session Summary). Not a focus.
 - **`main` is local-only** — the session's Swift work is committed but not pushed to `origin`.
 
 #### Fix Log
@@ -44,8 +45,9 @@ The React + TypeScript rebuild continues as the parallel contingency (its own li
 - **Drag-between-groups schema rewrite "refuses to land"** (table, property/Status grouping) — dragging a row into a *different* property bucket should rewrite that property, but the drop is rejected. **Diagnosed, not yet fixed**: the rewrite path is wired + persists (`RowDragCoordinator.rewriteProperty` → `ViewSurface.rewriteDraggedProperty` → `updatePageProperty`). The failure is upstream in `ViewOutlineTable.Coordinator.dropTarget`: a root-level drop (`proposedItem == nil`) is only resolvable via the structural `.ungrouped` band, which doesn't exist under property grouping (the empty bucket is `.propertyBucket(value: nil)`) → returns nil → `validateDrop` → `[]` → rejected. Likely fix: retarget the drop onto the hovered bucket via `setDropItem(group, dropChildIndex: NSOutlineViewDropOnItemIndex)` before validating. **Confirm-symptom first:** does it land when dropping squarely on an existing row inside the target group, failing only in gaps / on the header?
 - **Backspace on checkbox / list item** should auto-delete the syntax — UNIMPLEMENTED (feature-add).
 - **In-line code doesn't render color** within a textblock; italics/bolds don't auto-pair.
+- **Table Links** are non-clickable due to the lack of proper input considerations; proposed single-click to navigate to the link + right-click to edit — single-click for in-line link creation when initially empty.
 - **Agenda doc mismatches** — `AgendaEventManagerError._status` doc-vs-guard; description-cap (specs say 1000, validators enforce none).
-- **Pinned-nav title staleness** on rename until re-pinned.
+- **Pinned-nav title staleness** on rename until re-pinned; this hasn't been retested recently, the file-watcher may have already fixed it.
 - **NOTE TO FUTURE** — relation properties are replaced by contexts, so future tasks/events lack a context-relation path; cross when reached.
 
 #### Handoff Rules

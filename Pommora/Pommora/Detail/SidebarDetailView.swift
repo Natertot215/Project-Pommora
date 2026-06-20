@@ -18,9 +18,14 @@ struct SidebarDetailView: View {
             case .none:
                 emptyState
 
-            case .savedKey:
-                // Pending surface (e.g. Homepage) — intentionally blank until built.
-                Color.clear
+            case .savedKey(let key):
+                // The Nexus header row selects `savedKey("homepage")` → the
+                // Homepage dashboard. Any other saved key stays blank.
+                if key == "homepage" {
+                    HomepageDetailView()
+                } else {
+                    Color.clear
+                }
 
             case .area(let s):
                 ContextDetailPlaceholder(

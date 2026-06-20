@@ -97,6 +97,9 @@ enum PUI {
         static let paddingVertical: CGFloat = Spacing.xxl
         /// Title inset up from the banner's bottom edge when overlaid.
         static let overlayInset: CGFloat = Spacing.xxl
+        /// Banner band height — shared by the container banner and the homepage
+        /// banner so both adopt one source of truth.
+        static let bannerHeight: CGFloat = 180
     }
 
     // MARK: - Icons (Font + frame per role)

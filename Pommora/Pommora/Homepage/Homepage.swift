@@ -5,11 +5,12 @@ import Foundation
 struct Homepage: Codable, Equatable, Hashable, Sendable {
     var schemaVersion: Int
     var icon: String?
+    var banner: String?  // nexus-relative banner image path (full-bleed background)
     var blocks: [ContextBlock]  // composed-blocks tree (editor lands v0.9)
     var modifiedAt: Date
 
     enum CodingKeys: String, CodingKey {
-        case schemaVersion, icon, blocks
+        case schemaVersion, icon, banner, blocks
         case modifiedAt = "modified_at"
     }
 
@@ -17,6 +18,7 @@ struct Homepage: Codable, Equatable, Hashable, Sendable {
         Homepage(
             schemaVersion: 1,
             icon: "house",
+            banner: nil,
             blocks: [],
             modifiedAt: Date()
         )

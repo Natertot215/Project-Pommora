@@ -10,8 +10,7 @@ import SwiftUI
 ///
 /// **Excluded** observers (no UI surface in v0.2 — their `pendingError` can't
 /// fire from user-driven actions yet): AgendaTaskManager, AgendaEventManager,
-/// HomepageManager, TierConfigManager. Add them if user-reachable code paths
-/// appear later.
+/// TierConfigManager. Add them if user-reachable code paths appear later.
 struct SidebarToast: View {
     @Environment(AreaManager.self) private var areaManager
     @Environment(TopicManager.self) private var topicManager
@@ -20,12 +19,13 @@ struct SidebarToast: View {
     @Environment(PageContentManager.self) private var contentManager
     @Environment(SavedConfigManager.self) private var savedConfigManager
     @Environment(SidebarSectionsManager.self) private var sidebarSectionsManager
+    @Environment(HomepageManager.self) private var homepageManager
 
     @State private var displayedError: (any Error)? = nil
     @State private var displayedSource: ErrorSource? = nil
 
     enum ErrorSource: String, Hashable {
-        case area, topic, project, vault, content, savedConfig, sidebarSections
+        case area, topic, project, vault, content, savedConfig, sidebarSections, homepage
     }
 
     var body: some View {
@@ -75,6 +75,9 @@ struct SidebarToast: View {
         .onChange(of: errorChangeID(sidebarSectionsManager.pendingError)) { _, _ in
             capture(from: sidebarSectionsManager.pendingError, source: .sidebarSections)
         }
+        .onChange(of: errorChangeID(homepageManager.pendingError)) { _, _ in
+            capture(from: homepageManager.pendingError, source: .homepage)
+        }
     }
 
     private func capture(from err: (any Error)?, source: ErrorSource) {
@@ -92,6 +95,7 @@ struct SidebarToast: View {
         case .content: contentManager.pendingError = nil
         case .savedConfig: savedConfigManager.pendingError = nil
         case .sidebarSections: sidebarSectionsManager.pendingError = nil
+        case .homepage: homepageManager.pendingError = nil
         case .none: break
         }
         displayedError = nil

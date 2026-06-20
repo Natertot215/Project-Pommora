@@ -22,12 +22,19 @@ Seeded on first launch with empty `blocks`; not user-deletable (regenerates if r
 {
   "schemaVersion": 1,
   "icon": "house",
+  "banner": "<nexus-relative image path>",   // optional; absent = no banner
   "blocks": [ /* composed-blocks tree — types below */ ],
   "modified_at": <epoch-seconds>
 }
 ```
 
-No `id` / `tier` / `parents` (the file location is the identity), and no `title` — the sidebar label comes from `saved-config.json` (renameable). See [[Sidebar]].
+No `id` / `tier` / `parents` (the file location is the identity), and no `title` — the Homepage surfaces under the **Nexus header** (the nexus folder name). See [[Sidebar]].
+
+---
+
+#### Banner
+
+A full-width banner heads the dashboard — a bounded image band **identical to the content-view banner** (shared band height, gutters, and title treatment), set / changed / removed in place. It's a **background layer**: the folder title overlays it now, and pinned widgets (time, weather, …) overlay it later, while the dashboard body flows below a divider. Image bytes live in `.nexus/assets/homepage/`; the nexus-relative path persists as `banner` (absent ⇒ no banner). The shared banner mechanism is one component reused by both the Homepage and content views.
 
 ---
 
@@ -49,9 +56,9 @@ Every widget is a **live, fully-editable view of its source**, never a read-only
 
 ---
 
-#### Pinned-section integration
+#### Sidebar integration
 
-The pinned section at the top of the sidebar holds the `Homepage` entry that opens this file in the main pane. Its label is renameable via `saved-config.json` (the `homepage` key is fixed). Pinned-section structure + `saved-config.json` shape are canonical in [[Sidebar]] / [[NavDropdown]].
+The **Nexus header** at the top of the sidebar — per-Nexus avatar, folder-name title, and subtitle — is the Homepage's entry point: selecting it opens this file in the main pane (saved-key `homepage`, fixed). The former Homepage / Calendar / Recents pinned leaves were retired in its favor. Sidebar structure is canonical in [[Sidebar]].
 
 ---
 

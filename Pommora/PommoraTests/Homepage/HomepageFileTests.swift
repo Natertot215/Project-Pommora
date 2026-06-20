@@ -23,6 +23,25 @@ struct HomepageFileTests {
         #expect(loaded == original)
     }
 
+    @Test("Homepage round-trips a banner path")
+    func roundTripBanner() throws {
+        let nexus = try TempNexus.make()
+        defer { TempNexus.cleanup(nexus) }
+        let url = nexus.rootURL.appendingPathComponent("homepage.json")
+
+        let original = Homepage(
+            schemaVersion: 1,
+            icon: "house",
+            banner: ".nexus/assets/homepage/cover.png",
+            blocks: [],
+            modifiedAt: Date(timeIntervalSince1970: 1716480000)
+        )
+        try AtomicJSON.write(original, to: url)
+        let loaded = try AtomicJSON.decode(Homepage.self, from: url)
+        #expect(loaded == original)
+        #expect(loaded.banner == ".nexus/assets/homepage/cover.png")
+    }
+
     @Test("defaultSeed has house icon + empty blocks")
     func defaultSeed() {
         let seed = Homepage.defaultSeed()

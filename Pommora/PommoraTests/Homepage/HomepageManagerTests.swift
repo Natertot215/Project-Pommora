@@ -45,4 +45,21 @@ struct HomepageManagerTests {
         let reloaded = try AtomicJSON.decode(Homepage.self, from: NexusPaths.homepageURL(in: nexus))
         #expect(reloaded.icon == "star")
     }
+
+    @Test("setBanner persists the banner path, then clears it")
+    func setBanner() async throws {
+        let nexus = try TempNexus.make()
+        defer { TempNexus.cleanup(nexus) }
+        let manager = HomepageManager(nexus: nexus)
+        await manager.load()
+
+        try await manager.setBanner(".nexus/assets/homepage/cover.png")
+        var reloaded = try AtomicJSON.decode(Homepage.self, from: NexusPaths.homepageURL(in: nexus))
+        #expect(reloaded.banner == ".nexus/assets/homepage/cover.png")
+        #expect(manager.homepage.banner == ".nexus/assets/homepage/cover.png")
+
+        try await manager.setBanner(nil)
+        reloaded = try AtomicJSON.decode(Homepage.self, from: NexusPaths.homepageURL(in: nexus))
+        #expect(reloaded.banner == nil)
+    }
 }

@@ -39,4 +39,13 @@ final class HomepageManager {
             throw error
         }
     }
+
+    /// Persists the homepage banner image path (`banner` in `homepage.json`).
+    /// `path` is the nexus-relative path returned by `CoverAssetStore`, or nil to
+    /// clear it. Mutating `homepage` drives the live view; `save` writes + sets
+    /// `pendingError` on failure (mirrors the container `setBanner` write path).
+    func setBanner(_ path: String?) async throws {
+        homepage.banner = path
+        try await save()
+    }
 }
