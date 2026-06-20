@@ -223,7 +223,6 @@ struct IndexQueryTests {
         defer { try? FileManager.default.removeItem(at: dir) }
 
         try await idx.dbQueue.write { db in
-            // Seed contexts (tier 1)
             try db.execute(
                 sql: """
                         INSERT INTO contexts(id, tier, title) VALUES

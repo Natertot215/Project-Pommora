@@ -22,7 +22,6 @@ struct CoverAssetStoreTests {
 
         #expect(path == ".nexus/assets/\(entityID)/photo.png")
 
-        // File exists at the resolved path.
         let resolved = nexus.rootURL.appendingPathComponent(path)
         #expect(FileManager.default.fileExists(atPath: resolved.path))
     }

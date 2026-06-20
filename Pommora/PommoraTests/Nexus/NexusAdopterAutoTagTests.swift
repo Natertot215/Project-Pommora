@@ -36,14 +36,12 @@ struct NexusAdopterAutoTagTests {
 
         NexusAdopter.autoTagMissingSidecars(at: nexus.rootURL)
 
-        // Type sidecar
         let ptMeta = typeFolder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename)
         #expect(FileManager.default.fileExists(atPath: ptMeta.path))
         let pt = try PageType.load(from: ptMeta)
         #expect(!pt.id.isEmpty)
         #expect(pt.title == "Research")
 
-        // Collection sidecar
         let pcMeta = collFolder.appendingPathComponent(
             NexusPaths.pageCollectionSidecarFilename
         )
@@ -182,7 +180,6 @@ struct NexusAdopterAutoTagTests {
             "# Paper\n", to: collFolder.appendingPathComponent("paper.md")
         )
 
-        // Pass 1
         NexusAdopter.autoTagMissingSidecars(at: nexus.rootURL)
         let ptMeta = collFolder.deletingLastPathComponent()
             .appendingPathComponent(NexusPaths.pageTypeSidecarFilename)
@@ -190,7 +187,6 @@ struct NexusAdopterAutoTagTests {
         let pt1 = try PageType.load(from: ptMeta)
         let pc1 = try PageCollection.load(from: pcMeta)
 
-        // Pass 2
         NexusAdopter.autoTagMissingSidecars(at: nexus.rootURL)
         let pt2 = try PageType.load(from: ptMeta)
         let pc2 = try PageCollection.load(from: pcMeta)

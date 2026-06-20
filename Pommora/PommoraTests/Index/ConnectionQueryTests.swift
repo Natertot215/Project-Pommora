@@ -87,7 +87,6 @@ struct ConnectionQueryTests {
         let exists = try await query.titleExists("target")
         #expect(exists == true)
 
-        // Non-existent title returns false
         let missing = try await query.titleExists("nope")
         #expect(missing == false)
 

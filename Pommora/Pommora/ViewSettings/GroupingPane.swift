@@ -107,7 +107,6 @@ struct GroupingPane: View {
         VStack(spacing: 0) {
             PaneDivider()
 
-            // --- Grouping toggle ---
             GroupingToggleRow(
                 isOn: Binding(
                     get: { model.groupingEnabled },
@@ -125,7 +124,6 @@ struct GroupingPane: View {
                 )
             )
 
-            // --- Group By picker ---
             GroupByRow(
                 isEnabled: model.groupingEnabled,
                 selectedDef: activeDef,

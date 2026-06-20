@@ -51,11 +51,10 @@ struct PropertyPanelTests {
     func emptySchemaRendersOnlyTiers() {
         let (vm, _, _) = makeVM(schema: [])
         #expect(vm.schema.isEmpty)
-        // Tier bindings are accessible
         #expect(vm.tier1 == [])
         #expect(vm.tier2 == [])
         #expect(vm.tier3 == [])
-        // totalRowCount = 0 schema + 3 tier rows
+        // totalRowCount = 0 schema + 3 always-present tier rows
         #expect(vm.totalRowCount == 3)
     }
 
@@ -137,8 +136,7 @@ struct PropertyPanelTests {
     func tierChangeInvalidTierIgnored() {
         let (vm, _, tierChanges) = makeVM()
         vm.handleTierChange(99, ["01HA"])
-        // onTierChange still called; state not changed for tiers 1-3
-        // (callback is fired, but tier1/2/3 unchanged)
+        // An out-of-range tier number leaves tier1/2/3 unchanged (no crash).
         #expect(vm.tier1 == [])
         #expect(vm.tier2 == [])
         #expect(vm.tier3 == [])

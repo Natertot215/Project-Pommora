@@ -195,7 +195,6 @@ struct PageTypeManagerTests {
         #expect(before.count == 2)
         let movedTitle = before[1].title  // the item we are about to move to front
 
-        // Move index 1 to offset 0 (bring the second item to the front).
         manager.reorderPageCollections(in: pageType, fromOffsets: IndexSet(integer: 1), toOffset: 0)
         let after = manager.pageCollections(in: pageType).map(\.title)
 

@@ -849,19 +849,16 @@ extension PageContentManager {
             "movePageAcrossTypes requires distinct source and destination PageTypes."
         )
         do {
-            // 1. Determine strip set by name comparison (shared primitive).
+            // Strip set by NAME comparison (shared primitive).
             let strippedIDs = Self.strippedPropertyIDs(from: source, to: destination)
 
-            // 2. Load the page file (frontmatter + body).
             let pageFile = try PageFile.load(from: page.url)
             var updatedFrontmatter = pageFile.frontmatter
 
-            // 3. Strip property values for stripped IDs.
             for id in strippedIDs {
                 updatedFrontmatter.properties.removeValue(forKey: id)
             }
 
-            // 4. Compute destination URL.
             let destFolder = toCollection?.folderURL ?? folderURL(for: destination)
             let destURL = NexusPaths.pageFileURL(forTitle: page.title, in: destFolder)
 
@@ -871,7 +868,6 @@ extension PageContentManager {
             //     the existing file). Page-side `duplicateTitle` wording.
             try guardNoOverwrite(at: destURL)
 
-            // 5. Stage the rewritten page at destination.
             let tx = SchemaTransaction()
             let pagePayload = try AtomicYAMLMarkdown.encode(
                 frontmatter: updatedFrontmatter,
@@ -881,13 +877,11 @@ extension PageContentManager {
             )
             tx.stage(payload: pagePayload, to: destURL)
 
-            // 6. Commit the whole batch atomically.
             try tx.commit()
 
-            // 7. Remove the source file (SchemaTransaction only writes new files).
+            // SchemaTransaction only writes new files — remove the source.
             try Filesystem.deleteFile(at: page.url)
 
-            // 8. Update index.
             var updated = page
             updated.url = destURL
             updated.frontmatter = updatedFrontmatter
@@ -903,7 +897,7 @@ extension PageContentManager {
                 }
             }
 
-            // 9. Update in-memory caches — remove from source bucket, add to destination.
+            // Update in-memory caches — remove from source bucket, add to destination.
             if let srcColl = fromCollection {
                 var arr = pagesByCollection[srcColl.id] ?? []
                 arr.removeAll { $0.id == page.id }

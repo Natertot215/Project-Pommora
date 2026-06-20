@@ -13,7 +13,6 @@ struct AttachmentManagerTests {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
 
-        // Write a small source file.
         let src = nexus.rootURL.appendingPathComponent("photo.png")
         try Data([0x89, 0x50, 0x4E, 0x47]).write(to: src)  // PNG magic bytes
 
@@ -23,7 +22,6 @@ struct AttachmentManagerTests {
             file: src, to: entityID, nexusRoot: nexus.rootURL
         )
 
-        // Destination file exists.
         let expectedDest = NexusPaths.attachmentsDir(for: entityID, in: nexus.rootURL)
             .appendingPathComponent("photo.png")
         #expect(FileManager.default.fileExists(atPath: expectedDest.path))
@@ -144,20 +142,18 @@ struct AttachmentManagerTests {
         let manager = AttachmentManager()
         let entityID = ULID.generate()
 
-        // First attach — lands as "report.pdf".
         let ref1 = try await manager.attach(
             file: src, to: entityID, nexusRoot: nexus.rootURL
         )
         #expect(ref1.path.hasSuffix("/report.pdf"))
 
-        // Second attach of the same filename — gets "-2" suffix.
+        // Same filename re-attached gets a "-2" collision suffix.
         let ref2 = try await manager.attach(
             file: src, to: entityID, nexusRoot: nexus.rootURL
         )
         #expect(ref2.path.hasSuffix("/report-2.pdf"))
         #expect(ref1.path != ref2.path)
 
-        // Both files exist.
         let dir = NexusPaths.attachmentsDir(for: entityID, in: nexus.rootURL)
         #expect(FileManager.default.fileExists(atPath: dir.appendingPathComponent("report.pdf").path))
         #expect(FileManager.default.fileExists(atPath: dir.appendingPathComponent("report-2.pdf").path))

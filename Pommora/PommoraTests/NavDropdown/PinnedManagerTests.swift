@@ -59,7 +59,6 @@ struct PinnedManagerTests {
     func savePreservesRecents() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
-        // Seed file with recents
         var seed = NexusState()
         seed.recents = [EntityStateRef(kind: .page, id: "R1", title: "Recent 1")]
         try FileManager.default.createDirectory(

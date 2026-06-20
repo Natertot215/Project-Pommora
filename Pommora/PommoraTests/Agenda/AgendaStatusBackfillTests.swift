@@ -110,18 +110,16 @@ struct AgendaStatusBackfillTests {
 
         try Self.writeTaskConfigWithoutStatus(in: nexus)
 
-        // First load — injects _status and rewrites sidecar.
         let manager = AgendaTaskManager(nexus: nexus)
         await manager.loadAll()
 
         let schemaURL = NexusPaths.taskSchemaURL(in: nexus)
         let afterFirst = try Data(contentsOf: schemaURL)
 
-        // Second load — schema already has _status, no rewrite.
         await manager.loadAll()
 
         let afterSecond = try Data(contentsOf: schemaURL)
-        // File bytes must be identical (no redundant rewrite).
+        // File bytes must be identical — no redundant rewrite on the second load.
         #expect(afterFirst == afterSecond)
     }
 
@@ -130,7 +128,6 @@ struct AgendaStatusBackfillTests {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
 
-        // Fresh nexus seeds defaultSeed (which already has _status).
         let manager = AgendaTaskManager(nexus: nexus)
         await manager.loadAll()
 

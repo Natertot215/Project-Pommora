@@ -16,24 +16,20 @@ struct AttachmentCascadeTests {
         let (nexus, vault, coll, manager) = try await setupPage()
         defer { TempNexus.cleanup(nexus) }
 
-        // Create a page.
         try await manager.createPage(name: "MyCascadePage", in: coll, vault: vault)
         guard let page = manager.pages(in: coll).first else {
             Issue.record("Page not created")
             return
         }
 
-        // Seed an attachments folder for the page entity.
         let attachDir = NexusPaths.attachmentsDir(for: page.id, in: nexus.rootURL)
         try FileManager.default.createDirectory(at: attachDir, withIntermediateDirectories: true)
         let dummyFile = attachDir.appendingPathComponent("note.txt")
         try Data("hello".utf8).write(to: dummyFile)
         #expect(FileManager.default.fileExists(atPath: attachDir.path))
 
-        // Delete the page — cascade must move attachments.
         try await manager.deletePage(page, in: coll)
 
-        // Attachments folder is no longer at its original location.
         #expect(!FileManager.default.fileExists(atPath: attachDir.path))
 
         // Attachments folder landed in trash.
@@ -69,19 +65,15 @@ struct AttachmentCascadeTests {
         )
         try await manager.createTask(task)
 
-        // Seed attachments folder.
         let attachDir = NexusPaths.attachmentsDir(for: taskID, in: nexus.rootURL)
         try FileManager.default.createDirectory(at: attachDir, withIntermediateDirectories: true)
         try Data("attachment".utf8).write(to: attachDir.appendingPathComponent("file.txt"))
         #expect(FileManager.default.fileExists(atPath: attachDir.path))
 
-        // Delete the task.
         try await manager.deleteTask(task)
 
-        // Attachments folder gone.
         #expect(!FileManager.default.fileExists(atPath: attachDir.path))
 
-        // Present in trash.
         let trashAttachments = NexusPaths.trashDir(in: nexus)
             .appendingPathComponent(".nexus/attachments/\(taskID)")
         #expect(FileManager.default.fileExists(atPath: trashAttachments.path))
@@ -112,19 +104,15 @@ struct AttachmentCascadeTests {
         )
         try await manager.createEvent(event)
 
-        // Seed attachments folder.
         let attachDir = NexusPaths.attachmentsDir(for: eventID, in: nexus.rootURL)
         try FileManager.default.createDirectory(at: attachDir, withIntermediateDirectories: true)
         try Data("attachment".utf8).write(to: attachDir.appendingPathComponent("invite.pdf"))
         #expect(FileManager.default.fileExists(atPath: attachDir.path))
 
-        // Delete the event.
         try await manager.deleteEvent(event)
 
-        // Attachments folder gone.
         #expect(!FileManager.default.fileExists(atPath: attachDir.path))
 
-        // Present in trash.
         let trashAttachments = NexusPaths.trashDir(in: nexus)
             .appendingPathComponent(".nexus/attachments/\(eventID)")
         #expect(FileManager.default.fileExists(atPath: trashAttachments.path))

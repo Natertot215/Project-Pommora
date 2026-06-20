@@ -55,7 +55,6 @@ struct AgendaEventManagerSchemaCRUDTests {
         #expect(stored.name == "Venue")
         #expect(stored.id.hasPrefix("prop_"))
 
-        // On-disk: reload sidecar and verify.
         let schemaURL = NexusPaths.eventSchemaURL(in: nexus)
         let reloaded = try AtomicJSON.decode(AgendaEventSchema.self, from: schemaURL)
         let reloadedUserProps = reloaded.properties.filter { $0.id.hasPrefix("prop_") }
@@ -77,7 +76,6 @@ struct AgendaEventManagerSchemaCRUDTests {
         try await manager.addProperty(prop)
         let storedPropID = manager.schema.properties.first { $0.name == "Score" }!.id
 
-        // Write a fake .event.json file referencing the property.
         let now = Date()
         let start = now
         let end = now.addingTimeInterval(3600)
@@ -102,10 +100,8 @@ struct AgendaEventManagerSchemaCRUDTests {
         let eventURL = NexusPaths.eventFileURL(forTitle: "TestEvent", in: nexus)
         try AtomicJSON.write(event, to: eventURL)
 
-        // Capture file data before rename.
         let dataBefore = try Data(contentsOf: eventURL)
 
-        // Rename the property (schema-only).
         try await manager.renameProperty(id: storedPropID, to: "Rating")
 
         // Member file must be byte-identical.
@@ -152,7 +148,6 @@ struct AgendaEventManagerSchemaCRUDTests {
         try await manager.addProperty(prop)
         let storedPropID = manager.schema.properties.first { $0.name == "Score" }!.id
 
-        // Write a fake .event.json file with a numeric value for the property.
         let now = Date()
         let event = AgendaEvent(
             id: ULID.generate(),
@@ -175,10 +170,8 @@ struct AgendaEventManagerSchemaCRUDTests {
         let eventURL = NexusPaths.eventFileURL(forTitle: "Entry1", in: nexus)
         try AtomicJSON.write(event, to: eventURL)
 
-        // Change number → checkbox, with value drop.
         try await manager.changeType(of: storedPropID, to: .checkbox, dropConflictingValues: true)
 
-        // Schema: property type updated.
         #expect(manager.schema.properties.first { $0.id == storedPropID }?.type == .checkbox)
 
         // Member file: property key must be GONE.
@@ -210,13 +203,11 @@ struct AgendaEventManagerSchemaCRUDTests {
         let manager = AgendaEventManager(nexus: nexus)
         await manager.loadAll()
 
-        // Add a user property and capture its minted ID.
         let def = PropertyDefinition(id: "", name: "Venue", type: .url)
         try await manager.addProperty(def)
         let storedPropID = manager.schema.properties.first { $0.id.hasPrefix("prop_") }!.id
 
-        // Write a .event.json member file carrying a value for that property.
-        // This mirrors the exact directory + extension that deleteProperty's strip
+        // Mirrors the exact directory + extension that deleteProperty's strip
         // loop iterates: NexusPaths.eventsDir(in:) + suffix ".event.json".
         let now = Date()
         let event = AgendaEvent(
@@ -240,17 +231,14 @@ struct AgendaEventManagerSchemaCRUDTests {
         let eventURL = NexusPaths.eventFileURL(forTitle: "MemberEvent", in: nexus)
         try AtomicJSON.write(event, to: eventURL)
 
-        // Delete the property — schema strip + member-file strip should both fire.
+        // Schema strip + member-file strip should both fire.
         try await manager.deleteProperty(id: storedPropID)
 
-        // (a) Schema no longer contains the property.
         #expect(manager.schema.properties.first { $0.id == storedPropID } == nil)
 
-        // (b) Member file reloaded from disk no longer carries the property key.
         let reloadedEvent = try AgendaEvent.load(from: eventURL)
         #expect(reloadedEvent.properties[storedPropID] == nil)
 
-        // (c) No error surfaced on the manager.
         #expect(manager.pendingError == nil)
     }
 
@@ -263,7 +251,6 @@ struct AgendaEventManagerSchemaCRUDTests {
         let manager = AgendaEventManager(nexus: nexus)
         await manager.loadAll()
 
-        // Add a number property and write a member file with a numeric value.
         let prop = PropertyDefinition(id: "", name: "Score", type: .number)
         try await manager.addProperty(prop)
         let storedPropID = manager.schema.properties.first { $0.id.hasPrefix("prop_") }!.id

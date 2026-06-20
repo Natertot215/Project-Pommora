@@ -290,7 +290,6 @@ struct ContentView: View {
                 }
                 router.pendingSelection = nil
             }
-            // Raise the main NSWindow.
             AppGlobals.mainWindow?.makeKeyAndOrderFront(nil)
         }
     }

@@ -33,7 +33,6 @@ struct UpdateViewClobberTests {
         _ = try writePage(titled: "One", in: coll.folderURL)
         _ = try writePage(titled: "Two", in: coll.folderURL)
 
-        // Page manager: load the Collection's pages.
         let pages = PageContentManager(nexus: nexus, contextProvider: { NexusContext.empty })
         await pages.loadAll(for: coll)
         let initial = pages.pages(in: coll).map(\.id)

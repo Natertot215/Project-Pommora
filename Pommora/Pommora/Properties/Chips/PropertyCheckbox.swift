@@ -18,7 +18,7 @@ struct PropertyCheckbox: View {
     @Binding var isChecked: Bool
     var color: PropertyChipColor = .blue
     var icon: String = "checkmark"   // SF Symbol shown when checked
-    var size: CGFloat = 16           // standard checkbox dimension
+    var size: CGFloat = 16
 
     var body: some View {
         Button {

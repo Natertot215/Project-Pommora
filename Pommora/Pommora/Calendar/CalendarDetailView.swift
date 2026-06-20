@@ -76,7 +76,6 @@ private struct CalendarDetailContent: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // Heading
             Text("Calendar")
                 .font(.title2)
                 .fontWeight(.semibold)

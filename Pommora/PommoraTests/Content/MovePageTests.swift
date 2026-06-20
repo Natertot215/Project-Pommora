@@ -19,7 +19,6 @@ struct MovePageTests {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
 
-        // Set up a PageType with 3 properties.
         let propA = PropertyDefinition(id: "prop_aaa", name: "Priority", type: .select)
         let propB = PropertyDefinition(id: "prop_bbb", name: "Status", type: .status)
         let propC = PropertyDefinition(id: "prop_ccc", name: "Due", type: .date)
@@ -28,18 +27,15 @@ struct MovePageTests {
             properties: [propA, propB, propC]
         )
 
-        // CollectionA: source.
         let collA = try makePageCollection(
             nexus: nexus, title: "CollA", in: vault
         )
-        // CollectionB: destination.
         let collB = try makePageCollection(
             nexus: nexus, title: "CollB", in: vault
         )
 
         let manager = PageContentManager(nexus: nexus, contextProvider: { NexusContext.empty })
 
-        // Create a page in CollA with all 3 property values set.
         let pageID = ULID.generate()
         let fm = PageFrontmatter(
             id: pageID, icon: nil,
@@ -59,10 +55,8 @@ struct MovePageTests {
         manager.pagesByCollection[collA.id] = [page]
         manager.pagesByCollection[collB.id] = []
 
-        // Move between collections.
         try await manager.movePageBetweenCollections(page, from: collA, to: collB, in: vault)
 
-        // Source gone, destination exists.
         #expect(!FileManager.default.fileExists(atPath: srcURL.path))
         let dstURL = NexusPaths.pageFileURL(forTitle: "MyPage", in: collB.folderURL)
         #expect(FileManager.default.fileExists(atPath: dstURL.path))

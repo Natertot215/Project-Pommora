@@ -57,7 +57,6 @@ struct AtomicJSONTests {
         let loaded = try AtomicJSON.decode(Sample.self, from: url)
         #expect(loaded == first)
 
-        // Overwrite
         let second = Sample(name: "b", count: 2, when: Date(timeIntervalSince1970: 100))
         try AtomicJSON.write(second, to: url)
         let reloaded = try AtomicJSON.decode(Sample.self, from: url)
