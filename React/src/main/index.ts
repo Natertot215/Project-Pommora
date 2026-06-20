@@ -15,6 +15,7 @@ import { sessionRoot, openSession, resolveRestorePath, isExistingDir } from './s
 import { openSessionIndex, closeSessionIndex } from './sessionIndex'
 import { startWatcher, stopWatcher } from './watcher'
 import { resolveUnderRoot } from './pathSafety'
+import { updatePageBody } from './crud/page'
 import { handleMutate, type MutateDeps } from './mutate'
 import { showContextMenu } from './contextMenu'
 import { installAppMenu } from './menu'
@@ -243,6 +244,28 @@ ipcMain.handle('page:open', async (_e, relPath: unknown): Promise<PageResult> =>
     return { ok: false, error: e instanceof Error ? e.message : String(e) }
   }
 })
+
+// Debounced body writes from the editor. Reconstructs the file via updatePageBody
+// (frontmatter-preserving) + atomic write; the renderer sends a relative path, main
+// resolves it under the session root. Structurally distinct from the one-shot `mutate`
+// ops, so it gets its own channel.
+ipcMain.handle(
+  'page:updateBody',
+  async (_e, relPath: unknown, body: unknown): Promise<{ ok: true } | { ok: false; error: string }> => {
+    try {
+      const root = sessionRoot()
+      if (root === null) return { ok: false, error: 'No nexus is open.' }
+      if (typeof relPath !== 'string') return { ok: false, error: 'A page path is required.' }
+      if (typeof body !== 'string') return { ok: false, error: 'A body string is required.' }
+      const resolved = await resolveUnderRoot(root, relPath)
+      if (!resolved.ok) return { ok: false, error: resolved.error.message }
+      const r = await updatePageBody(resolved.value, body)
+      return r.ok ? { ok: true } : { ok: false, error: r.error.message }
+    } catch (e) {
+      return { ok: false, error: e instanceof Error ? e.message : String(e) }
+    }
+  }
+)
 
 // The Electron-side bits the write orchestration needs: trashMode from app config +
 // system-trash injected. Shared by the mutate IPC + the native context menu.
