@@ -3,10 +3,6 @@
    connection colouring is intentionally global-ish (links exist off-page) — kept here for now,
    hoisted to the global sheet when off-page link rendering lands. */
 
-/* The editor FILLS the detail content box (so clicking anywhere — incl. the empty area below the
-   text — places the caret) and inherits the ONE canonical gutter from `.detail` (Detail.css:
-   38px 28px 28px var(--content-inset)) — it adds no padding of its own, so editing that single
-   rule re-gutters every view incl. the editor. CM's own scroller handles long docs. */
 .mdpm-editor {
   height: 100%;
 }
@@ -23,13 +19,13 @@
 }
 .mdpm-editor .cm-content {
   color: var(--label-primary);
-  caret-color: var(--label-primary); /* the OS/system accent (not the editor text colour) */
+  caret-color: var(--label-primary);
   padding: 0;
+  /* Swift's page-editor body is 15px (vs the app's 13px body token) — the "slight zoom" feel.
+     Headings (×multiplier) + bullets/checkboxes (em) all scale off this. */
+  font-size: 15px;
 }
 
-/* Block vertical rhythm — every line (paragraph / bullet / list item / heading) gets consistent
-   spacing below it; headings additionally get em-relative top spacing per level (the Swift scale:
-   topSpacingEm × the level's size, expressed in body-em). :has() reads the size class on the line. */
 .mdpm-editor .cm-line {
   padding-bottom: 0.3em;
 }
