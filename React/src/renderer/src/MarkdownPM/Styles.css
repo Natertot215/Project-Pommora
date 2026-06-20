@@ -1,0 +1,87 @@
+/* THE MarkdownPM stylesheet — all editor-construct appearance, every colour/size from the root
+   design tokens via the --var bridge (DRY; no literals the token layer already owns). Link /
+   connection colouring is intentionally global-ish (links exist off-page) — kept here for now,
+   hoisted to the global sheet when off-page link rendering lands. */
+
+.mdpm-editor {
+  height: 100%;
+  overflow: auto;
+}
+.mdpm-editor .cm-editor {
+  height: 100%;
+  background: transparent;
+}
+.mdpm-editor .cm-editor.cm-focused {
+  outline: none;
+}
+.mdpm-editor .cm-scroller {
+  font-family: var(--font-family);
+  line-height: 1.6;
+}
+.mdpm-editor .cm-content {
+  color: var(--label-primary);
+  caret-color: var(--accent);
+  padding: 24px;
+  max-width: 760px;
+}
+
+/* Inline marks (content classes; markers are hidden via replace decorations caret-out) */
+.md-bold {
+  font-weight: var(--weight-bold);
+}
+.md-italic {
+  font-style: italic;
+}
+.md-code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: var(--code);
+  background: color-mix(in srgb, var(--code) 12%, transparent);
+  padding: 0.05em 0.3em;
+  border-radius: 4px;
+}
+.md-link {
+  color: var(--link);
+  text-decoration: underline;
+}
+.md-connection {
+  color: var(--connection);
+  text-decoration: underline;
+}
+.md-latex,
+.md-image {
+  color: var(--label-secondary);
+}
+
+/* Headings — the Pommora scale (multiplier × body), bold; H6 = body size */
+.md-h1 {
+  font-size: 2em;
+  font-weight: var(--weight-bold);
+}
+.md-h2 {
+  font-size: 1.75em;
+  font-weight: var(--weight-bold);
+}
+.md-h3 {
+  font-size: 1.5em;
+  font-weight: var(--weight-bold);
+}
+.md-h4 {
+  font-size: 1.25em;
+  font-weight: var(--weight-bold);
+}
+.md-h5 {
+  font-size: 1.15em;
+  font-weight: var(--weight-bold);
+}
+.md-h6 {
+  font-size: 1em;
+  font-weight: var(--weight-bold);
+}
+
+/* Thematic break — a full-width hairline replacing the `---` caret-out */
+.md-hr {
+  display: inline-block;
+  width: 100%;
+  vertical-align: middle;
+  border-bottom: 1.5px solid var(--separator-border);
+}

@@ -1,14 +1,24 @@
+import { useRef } from 'react'
 import { useSession } from '../store'
+import { MarkdownEditor } from '../MarkdownPM'
 
 /**
- * The page detail body — a deliberate placeholder; a later stage replaces it with the page render.
- * It already reflects the on-demand fetch (store.pageStatus) so the wiring is real, only the final
- * render is stubbed. (Swift: Pages/PageEditorView.)
+ * The page detail body — hosts the MarkdownPM editor over the open page's Markdown body.
+ * Edits debounce out to `page:updateBody` (frontmatter-preserving, main-side). The editor keys
+ * on the page path so it remounts cleanly per page. (Swift: Pages/PageEditorView.)
  */
 export function PageView(): React.JSX.Element {
   const pageStatus = useSession((s) => s.pageStatus)
   const pageDetail = useSession((s) => s.pageDetail)
   const pageError = useSession((s) => s.pageError)
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+
+  const scheduleSave = (path: string, body: string): void => {
+    if (saveTimer.current) clearTimeout(saveTimer.current)
+    saveTimer.current = setTimeout(() => {
+      void window.nexus.updatePageBody(path, body)
+    }, 400)
+  }
 
   switch (pageStatus) {
     case 'idle':
@@ -22,10 +32,13 @@ export function PageView(): React.JSX.Element {
         </div>
       )
     case 'ready':
+      if (!pageDetail) return <div className="detail-placeholder">Page render — coming next</div>
       return (
-        <div className="detail-placeholder">
-          {pageDetail ? `Page: ${pageDetail.title} — render coming next` : 'Page render — coming next'}
-        </div>
+        <MarkdownEditor
+          key={pageDetail.path}
+          initialBody={pageDetail.body}
+          onChange={(body) => scheduleSave(pageDetail.path, body)}
+        />
       )
   }
 }

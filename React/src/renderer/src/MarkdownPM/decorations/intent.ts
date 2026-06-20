@@ -4,7 +4,10 @@
 // decorations; keeping this layer pure data means it's unit-testable without an editor and the
 // behavior layer never holds a CSS literal — only class names + widget tags.
 import type { Token, TokenKind } from '../tokens'
-import { isThematicBreakLine } from '../detect'
+import { isThematicBreakLine, isHeadingLine } from '../detect'
+
+// Heading line shape (≤3 leading spaces, 1–6 hashes, a space, then the title).
+const HEADING_RE = /^(\s{0,3})(#{1,6})([ \t]+)(.*)$/
 
 export type DecoIntent =
   | { kind: 'class'; from: number; to: number; className: string }
@@ -51,7 +54,15 @@ export function decorationsFor(
     const ls = pos
     const le = pos + line.length
     const caretOnLine = selStart >= ls && selStart <= le
-    if (isThematicBreakLine(line) && !caretOnLine) {
+    if (isHeadingLine(line)) {
+      const hm = HEADING_RE.exec(line)
+      if (hm) {
+        const level = hm[2].length
+        const contentStart = ls + hm[1].length + hm[2].length + hm[3].length
+        if (contentStart < le) intents.push({ kind: 'class', from: contentStart, to: le, className: `md-h${level}` })
+        if (!caretOnLine) intents.push({ kind: 'hide', from: ls, to: contentStart }) // hide the `#`s
+      }
+    } else if (isThematicBreakLine(line) && !caretOnLine) {
       intents.push({ kind: 'widget', from: ls, to: le, widget: 'hr' })
     }
     pos = le + 1
