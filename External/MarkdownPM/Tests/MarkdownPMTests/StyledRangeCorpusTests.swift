@@ -52,6 +52,21 @@ struct StyledRangeCorpusTests {
         #expect(hasCodeTextColor(ranges, at: 3))
     }
 
+    @Test("Fenced code block: content is red and carries NO per-char background (renderer box is the sole fill)")
+    func codeBlockContentRedNoPerCharBackground() {
+        // ```\nlet x = 1\n``` — the `l` of `let` sits at utf16 index 4 (after
+        // the opening ```\n). The renderer draws the full-width fill, so the
+        // styler must NOT also emit a per-char .backgroundColor (that double-fill
+        // is what made the text look lighter). The red foreground must remain.
+        let text = "```\nlet x = 1\n```"
+        let ranges = styled(text, caret: 0)
+        #expect(hasCodeTextColor(ranges, at: 4))
+        let hasBg = ranges.contains {
+            NSLocationInRange(4, $0.range) && $0.attributes[.backgroundColor] != nil
+        }
+        #expect(!hasBg)
+    }
+
     @Test("GFM checkbox: caret OFF the line keeps marker hidden (inactive)")
     func checkboxInactive() {
         let text = "- [ ] task\nother"
@@ -189,6 +204,28 @@ extension StyledRangeCorpusTests {
         )
         // visitThematicBreak is a deliberate no-op — supplemental owns nothing.
         #expect(hrRanges.isEmpty)
+    }
+
+    @Test("Supplemental blockquote no longer dims the content foreground (inline code keeps its red)")
+    func supplementalBlockquoteNoContentForeground() {
+        // Fix: the quote-wide foreground dim ran LAST in the compose and
+        // overwrote inline code's red. Removing it means supplemental emits no
+        // foreground over the quote's CONTENT — only the `>` marker collapse
+        // (clear color) at the line start survives. `> ` = indices 0..1, the
+        // backtick `q` content sits at index 3.
+        let text = "> `q`\n"
+        let ranges = AppleASTSupplementalStyler.styleAttributes(
+            text: text,
+            document: Document(parsing: text),
+            lineIndex: LineOffsetIndex(text: text),
+            baseFont: NSFont.systemFont(ofSize: 15),
+            theme: .default
+        )
+        #expect(!ranges.isEmpty) // paragraphStyle still emitted over the quote
+        let dimsContent = ranges.contains {
+            NSLocationInRange(3, $0.range) && $0.attributes[.foregroundColor] != nil
+        }
+        #expect(!dimsContent)
     }
 
     @Test("Supplemental strikethrough is INLINE and emits over the ~~span~~")

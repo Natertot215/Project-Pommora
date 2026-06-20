@@ -569,7 +569,9 @@ extension MarkdownPMStyler {
                     [
                         .font: ctx.codeFont,
                         .foregroundColor: ctx.configuration.theme.codeText,
-                        .backgroundColor: ctx.codeBackgroundColor,
+                        // No per-char .backgroundColor here: the renderer's full-width
+                        // box is the sole fill. Setting it re-filled over the box
+                        // (double alpha → lighter at the text). Inline code keeps its.
                         .paragraphStyle: ctx.codeParagraphStyle,
                     ]
                 ))

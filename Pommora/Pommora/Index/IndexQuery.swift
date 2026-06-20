@@ -542,9 +542,7 @@ private enum FilterBuilder {
             f.timeZone = TimeZone(identifier: "UTC")
             return ("?", [f.string(from: d)])
         case .datetime(let d):
-            let iso = ISO8601DateFormatter()
-            iso.formatOptions = [.withInternetDateTime]
-            return ("?", [iso.string(from: d)])
+            return ("?", [IndexDateFormat.iso8601.string(from: d)])
         case .multiSelect(let xs):
             let json = (try? String(data: JSONEncoder().encode(xs), encoding: .utf8)) ?? "[]"
             return ("?", [json])

@@ -28,14 +28,8 @@ struct IndexUpdater: Sendable {
 
     // MARK: - ISO-8601 helpers
 
-    private static let iso8601: ISO8601DateFormatter = {
-        let f = ISO8601DateFormatter()
-        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        return f
-    }()
-
     private func iso(_ date: Date) -> String {
-        IndexUpdater.iso8601.string(from: date)
+        IndexDateFormat.iso8601.string(from: date)
     }
 
     private func nowISO() -> String {

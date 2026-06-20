@@ -703,14 +703,8 @@ final class IndexBuilder {
 
     // MARK: - Encoding helpers (nonisolated — pure computation, no domain-type calls)
 
-    private nonisolated(unsafe) static let isoFormatter: ISO8601DateFormatter = {
-        let f = ISO8601DateFormatter()
-        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        return f
-    }()
-
     private nonisolated static func iso8601(_ date: Date) -> String {
-        isoFormatter.string(from: date)
+        IndexDateFormat.iso8601.string(from: date)
     }
 
     private nonisolated static func propertiesJSON(_ properties: [String: PropertyValue]) throws -> String {
