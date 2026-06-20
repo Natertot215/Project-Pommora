@@ -5,24 +5,27 @@ import UniformTypeIdentifiers
 
 /// Top-of-sidebar identity banner — the per-Nexus profile image, the nexus title
 /// (its folder name), and a subtitle (custom text, or today's date by default).
-/// Replaces the former "Homepage" saved-leaf: tapping selects the Homepage
-/// surface; the selection fill hugs the content (gaps live outside it) and is
-/// inset on the right to clear the NavigationSplitView splitter.
+/// Replaces the former "Homepage" saved-leaf and is the FIRST row of the sidebar
+/// List (its own Section) so it scrolls with everything else; selection +
+/// highlight ride the native List mechanism (`.tag` + `.listRowBackground` at the
+/// SidebarView call site, quirk #8/#9), not an in-content `.background`.
 ///
-/// Editing is right-click-driven: the context menu changes / removes the picture
-/// and begins inline subtitle editing (mirrors `RenameableRow`'s commit/cancel).
-/// Lives in the sidebar VStack ABOVE the List (outside Section layout) so its
-/// distinct shape never reaches `OutlineListCoordinator`'s row diff (quirk #8/#9).
+/// Editing is right-click-driven and SCOPED to each element: right-click the
+/// avatar → picture actions, the title → Rename (renames the nexus folder), the
+/// subtitle → Edit Subtitle. Inline edits mirror `RenameableRow`'s commit/cancel.
 struct NexusHeaderBanner: View {
-    @Binding var selection: SidebarSelection
-
     @Environment(NexusManager.self) private var nexusManager
     @Environment(SettingsManager.self) private var settingsManager
 
-    @State private var hovering = false
     @State private var isImportingImage = false
 
-    // Inline subtitle edit (mirrors RenameableRow's draft / commit / cancel).
+    // Inline title rename (renames the nexus root folder via NexusManager).
+    @State private var isEditingTitle = false
+    @State private var titleDraft = ""
+    @State private var isCommittingTitle = false
+    @FocusState private var titleFocused: Bool
+
+    // Inline subtitle edit.
     @State private var isEditingSubtitle = false
     @State private var subtitleDraft = ""
     @State private var isCommittingSubtitle = false
@@ -46,12 +49,6 @@ struct NexusHeaderBanner: View {
         !(settingsManager.settings.profileImage ?? "").isEmpty
     }
 
-    /// Homepage is the banner's destination — highlight it while selected.
-    private var isHomepageSelected: Bool {
-        if case .savedKey(let key) = selection { return key == "homepage" }
-        return false
-    }
-
     var body: some View {
         // spacing 8 matches the native row icon→label gap (SelectableRow /
         // TierDisclosureRow both use HStack(spacing: 8)).
@@ -59,32 +56,17 @@ struct NexusHeaderBanner: View {
             avatar
                 .frame(width: avatarSize, height: avatarSize)
                 .clipShape(Circle())
+                .contextMenu { avatarMenu }
             // Natural height + HStack centering sits the text block on the
             // avatar's mid-line.
             VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                    .font(PUI.Typography.paneTitle)
-                    .lineLimit(1)
-                    .truncationMode(.tail)
+                titleSlot
                 subtitleSlot
             }
         }
-        // Leading tuned so the avatar's center aligns with the disclosure-row
-        // icons (Areas / Vaults), which sit indented behind their chevron.
-        .padding(.leading, 20)
         .padding(.vertical, 6)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            // Fill hugs the content. Right inset (16) > left (11) so the rounded
-            // corner clears the splitter; left matches the row SelectionChrome.
-            RoundedRectangle(cornerRadius: 6, style: .continuous)
-                .fill(highlight)
-                .padding(EdgeInsets(top: 0, leading: 11, bottom: 0, trailing: 16))
-        )
         .contentShape(Rectangle())
-        .onTapGesture { if !isEditingSubtitle { selection = .savedKey("homepage") } }
-        .onHover { hovering = $0 }
-        .contextMenu { bannerMenu }
         .fileImporter(
             isPresented: $isImportingImage,
             allowedContentTypes: [.image],
@@ -94,12 +76,36 @@ struct NexusHeaderBanner: View {
             importImage(from: source)
         }
         .fileDialogMessage("Choose a profile picture for this nexus")
-        // Outer gaps — above to the toolbar (minimal; the bulk of that space is
-        // macOS's own toolbar inset, which the header sits below), below to
-        // "Contexts" (roomier so the header isn't squished against it).
-        .padding(.top, 2)
-        .padding(.bottom, 13)
     }
+
+    // MARK: - Title (inline rename, scoped menu)
+
+    @ViewBuilder
+    private var titleSlot: some View {
+        if isEditingTitle {
+            TextField("Name", text: $titleDraft)
+                .textFieldStyle(.plain)
+                .font(PUI.Typography.paneTitle)
+                .focused($titleFocused)
+                .onSubmit { commitTitle() }
+                .onKeyPress(.escape) {
+                    cancelTitleEdit()
+                    return .handled
+                }
+                .onChange(of: titleFocused) { _, focused in
+                    if !focused { commitTitle() }
+                }
+                .onAppear { titleFocused = true }
+        } else {
+            Text(title)
+                .font(PUI.Typography.paneTitle)
+                .lineLimit(1)
+                .truncationMode(.tail)
+                .contextMenu { Button("Rename") { beginTitleEdit() } }
+        }
+    }
+
+    // MARK: - Subtitle (inline edit, scoped menu)
 
     @ViewBuilder
     private var subtitleSlot: some View {
@@ -124,25 +130,19 @@ struct NexusHeaderBanner: View {
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
                 .truncationMode(.tail)
+                .contextMenu { Button("Edit Subtitle") { beginSubtitleEdit() } }
         }
     }
 
+    // MARK: - Avatar (scoped menu)
+
     @ViewBuilder
-    private var bannerMenu: some View {
+    private var avatarMenu: some View {
         Button(hasImage ? "Change Picture" : "Add Picture") { isImportingImage = true }
         if hasImage {
             Button("Remove Picture", role: .destructive) { removeImage() }
         }
-        Button("Edit Subtitle") { beginSubtitleEdit() }
     }
-
-    private var highlight: Color {
-        if isHomepageSelected { return Color(nsColor: .quaternarySystemFill) }
-        if hovering { return Color(nsColor: .quaternarySystemFill).opacity(0.5) }
-        return .clear
-    }
-
-    // MARK: - Avatar
 
     @ViewBuilder
     private var avatar: some View {
@@ -237,6 +237,36 @@ struct NexusHeaderBanner: View {
                 store.delete(relativePath: previous, for: nexus.id, in: nexus)
             }
         }
+    }
+
+    // MARK: - Title rename (mirrors RenameableRow commit / cancel)
+
+    private func beginTitleEdit() {
+        titleDraft = title
+        isEditingTitle = true
+    }
+
+    private func commitTitle() {
+        guard isEditingTitle, !isCommittingTitle else { return }
+        let trimmed = titleDraft.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, trimmed != title else {
+            isEditingTitle = false
+            return
+        }
+        isCommittingTitle = true
+        Task {
+            // Renames the nexus root folder (prompts for parent access if needed).
+            // A successful rename republishes currentNexus, which rebuilds this
+            // view — so resetting the flags below is best-effort.
+            await nexusManager.renameRoot(to: trimmed)
+            isEditingTitle = false
+            isCommittingTitle = false
+        }
+    }
+
+    private func cancelTitleEdit() {
+        isEditingTitle = false
+        isCommittingTitle = false
     }
 
     // MARK: - Subtitle edit (mirrors RenameableRow commit / cancel)

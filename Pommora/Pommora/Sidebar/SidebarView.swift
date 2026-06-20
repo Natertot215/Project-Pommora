@@ -26,10 +26,24 @@ struct SidebarView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            NexusHeaderBanner(selection: $selection)
             // Outside the List so it doesn't touch Section layout (quirk #9).
             SidebarToast()
             List(selection: $selectedTag) {
+                // Homepage header — the first row, in its own Section so it
+                // scrolls with the list; native selection + chrome (quirk #8/#9).
+                Section {
+                    NexusHeaderBanner()
+                        .tag(SelectionTag.savedKey("homepage"))
+                        // Negative leading reclaims the chevron-gutter allowance the
+                        // List reserves on every row — the SwiftUI-List analog of
+                        // ChevronlessOutlineView's frameOfCell shift (detail table).
+                        .listRowInsets(EdgeInsets(top: 1, leading: -8, bottom: 1, trailing: 0))
+                        .listRowBackground(
+                            SelectionChrome(
+                                isSelected: SelectionTag.savedKey("homepage").matches(selection)
+                            )
+                        )
+                }
                 ContextsSection(
                     selection: $selection,
                     editingID: $editingID,
