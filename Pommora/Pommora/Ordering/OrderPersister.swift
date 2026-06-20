@@ -94,7 +94,7 @@ enum OrderPersister {
         )
         var state: NexusState
         if FileManager.default.fileExists(atPath: url.path) {
-            state = (try? AtomicJSON.decode(NexusState.self, from: url)) ?? NexusState()
+            state = try AtomicJSON.decode(NexusState.self, from: url)
         } else {
             state = NexusState()
         }
