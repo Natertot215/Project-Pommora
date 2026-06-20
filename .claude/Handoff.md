@@ -16,7 +16,11 @@
 
 2. **Toolbar — parked: "if it ain't broken, don't fix it."** We acknowledged the toolbar / Views-button / banner chrome is finicky and has been a multi-week time sink for marginal gain; an early-session attempt to re-group it natively was **reverted**. The native `NSToolbar` display-mode menu is already suppressed (`WindowToolbarConfigurator`, `eecdf9f`). The button-specific-menu idea is **dropped, not deferred** — no further toolbar churn without a concrete, high-value reason.
 
-The React + TypeScript rebuild continues as the parallel contingency (its own live session + handoff).
+**6-19 (React) — image banners, live container views, + a Swift-aligned `src` reorg** (live + uncommitted in the `pommora-main-preview` worktree on `main`):
+
+1. **Banner** — one shared image banner *behind the glass* for Vault / Collection / Context / Homepage: native picker → copied to `.nexus/assets/<id>/banner-<token>.<ext>` (a fresh filename per write sidesteps the browser-image-cache stale-image trap) → served over a registered `nexus-asset://` protocol; native macOS Change/Remove menu; one `setBanner` mutate op for every owner kind.
+2. **Homepage + Collections are now selectable entities with their own views** — the sidebar nexus header *is* the homepage; collections are clickable and share Vault's view via `ContainerView` (vault + collection = the same view principles, `source.kind` the divergence seam).
+3. **Renderer reorg → mirrors Swift** — flat `components/` + `views/` → `Detail/` (`DetailPane` router · `DetailScaffold`≈ViewSurface · `Scope`≈DetailScope · `ContainerView`/`HomepageView`/`ContextView`/`PageView`) + `Detail/Table/` + `Detail/Banner/` + `Sidebar/` + `Components/`; the `styles.css` monolith split into co-located stylesheets. Green: 331 tests. Full state → `React/.claude/Handoff.md`.
 
 #### Lessons Learned
 

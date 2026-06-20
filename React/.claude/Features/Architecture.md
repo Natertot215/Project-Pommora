@@ -22,8 +22,16 @@ Load-bearing behaviors: lenient frontmatter (no fence → all body; unterminated
 
 ### The `NexusTree` contract
 
-Pre-ordered, serializable, consumed by the renderer without re-sorting: `saved[]` (3 fixed) · `contexts {projects, topics, areas}` (render order P→T→A) · `vaults[]` (PageType → Collection → Set → Page, typed arrays so Collections-before-Pages / Sets-before-Pages is structural) · `userSections[]` · `labels`. Full shape in `src/shared/types.ts`.
+Pre-ordered, serializable, consumed by the renderer without re-sorting: `nexus` (identity — name · description · avatar photo) · `homepage` (the singleton's banner) · `saved[]` (3 fixed) · `contexts {projects, topics, areas}` (render order P→T→A) · `vaults[]` (PageType → Collection → Set → Page, typed arrays so Collections-before-Pages / Sets-before-Pages is structural) · `userSections[]` · `labels` · `accent`. Full shape in `src/shared/types.ts`.
 
 ### What ports cleanly from Swift
 
 The on-disk format, domain model, property catalog, and CRUD semantics are stack-independent by design (PRD constraint #1) — they arrive as data + pure logic, not transliterated Swift. The entire macOS-sandbox layer (security-scoped bookmarks, the XCTest modal guard, NSOpenPanel retry) simply doesn't exist here. See the Swift project's `Features/Architecture.md` + `PommoraPRD.md` for the canonical on-disk spec.
+
+### Assets — the `nexus-asset://` protocol
+
+Binary assets (banner / avatar images) live under `.nexus/assets/<entity-id>/` and are served to the renderer over a registered, read-only **`nexus-asset://`** scheme — path-traversal-guarded and confined to `.nexus/assets/`. Image bytes therefore never ride the reloaded `NexusTree`; the read walk carries only the relative path and the renderer composes the URL. Writes go through one generic `setBanner` mutate op per owner kind (vault / collection / context sidecars, or the homepage singleton). A **fresh filename per write** keeps each image's URL unique so the browser can't serve a stale cached version. (Swift serves the same assets via Nuke/`LazyImage`; this is the web-platform equivalent.)
+
+### Renderer view layer
+
+The renderer mirrors Swift's folder shape. `Detail/` holds the router (`DetailPane`), the shared surface (`DetailScaffold` ≈ Swift `ViewSurface`), selection→entity resolution (`Scope` ≈ `DetailScope`), and a view file per container kind: `ContainerView` (shared by Vault + Collection — they share view principles, with `source.kind` as the divergence seam), `HomepageView`, `ContextView`, `PageView`. `Detail/Table/` (table + view pipeline), `Detail/Banner/`, `Sidebar/`, and `Components/` (shared primitives) complete it. Genuinely-shared mechanism (scaffold, banner, table, glass material) stays single-sourced; each view owns its composition + co-located styles.
