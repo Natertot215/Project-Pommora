@@ -6,16 +6,19 @@
 // so callers never share lastIndex.
 import { parse } from '../parser'
 
+// The `d` (indices) flag is set so token assembly can read exact per-group offsets
+// (match.indices[n]); `.test()`/`.exec()` behave identically with it.
+
 /** `![[name]]` image embed. Group 1 = name. */
-export const imageEmbedRegex = (): RegExp => /!\[\[([^\]\r\n]*)\]\]/g
+export const imageEmbedRegex = (): RegExp => /!\[\[([^\]\r\n]*)\]\]/gd
 /** `[text](url)` markdown link. Group 1 = text, 2 = url. */
-export const markdownLinkRegex = (): RegExp => /\[([^\]\r\n]+)\]\(([^)\r\n]+)\)/g
+export const markdownLinkRegex = (): RegExp => /\[([^\]\r\n]+)\]\(([^)\r\n]+)\)/gd
 /** `` `code` `` inline code. Group 1 = code. */
-export const inlineCodeRegex = (): RegExp => /`([^`\n]+)`/g
+export const inlineCodeRegex = (): RegExp => /`([^`\n]+)`/gd
 /** `$$…$$` block latex (multiline). Group 1 = formula. */
-export const blockLatexRegex = (): RegExp => /(?<!\$)\$\$([\s\S]+?)\$\$/g
+export const blockLatexRegex = (): RegExp => /(?<!\$)\$\$([\s\S]+?)\$\$/gd
 /** `$…$` inline latex (gate the content with isInlineMathContent). Group 1 = formula. */
-export const inlineLatexRegex = (): RegExp => /(?<!\$)\$(?!\$)([^$\n]+?)\$(?!\$)/g
+export const inlineLatexRegex = (): RegExp => /(?<!\$)\$(?!\$)([^$\n]+?)\$(?!\$)/gd
 
 /** A list line: bullet (`-*+•`) or ordered (`\d+.`), with an optional task bracket. Group 1 =
  *  whole marker run, group 2 = ordered digits. The optional `[…]?` is deliberate — a bare
