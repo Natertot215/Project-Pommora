@@ -578,11 +578,10 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment, @unchecked Sendabl
             roundTop: position == .only || position == .first,
             roundBottom: position == .only || position == .last
         )
-        // Highlight fill — `tertiarySystemFill` is the system's mid-tier
-        // semantic fill (more visible than quaternary, less than secondary).
-        // Used at native intensity (no alpha modification) — adapts
-        // automatically to light/dark mode and accessibility settings.
-        NSColor.tertiarySystemFill.setFill()
+        // Card fill — `quaternarySystemFill` sits one tier below the code box
+        // (tertiarySystemFill), so a quote reads as quieter than code. Native
+        // intensity (no alpha edit) — adapts to light/dark + accessibility.
+        NSColor.quaternarySystemFill.setFill()
         cardPath.fill()
 
         // === Draw the bar ===

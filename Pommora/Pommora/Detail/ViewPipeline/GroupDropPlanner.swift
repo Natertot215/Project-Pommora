@@ -109,7 +109,7 @@ enum BucketValueDecoder {
         case .status: return .status(bucket)
         case .checkbox: return .checkbox(bucket == "true")
         case .select: return .select(bucket)
-        default: return .select(bucket)
+        default: return nil
         }
     }
 }
