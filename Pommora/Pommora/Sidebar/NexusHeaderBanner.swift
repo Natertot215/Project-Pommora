@@ -53,7 +53,9 @@ struct NexusHeaderBanner: View {
     }
 
     var body: some View {
-        HStack(spacing: 12) {
+        // spacing 8 matches the native row icon→label gap (SelectableRow /
+        // TierDisclosureRow both use HStack(spacing: 8)).
+        HStack(spacing: 8) {
             avatar
                 .frame(width: avatarSize, height: avatarSize)
                 .clipShape(Circle())
@@ -67,7 +69,9 @@ struct NexusHeaderBanner: View {
                 subtitleSlot
             }
         }
-        .padding(.leading, 14)
+        // Leading tuned so the avatar's center aligns with the disclosure-row
+        // icons (Areas / Vaults), which sit indented behind their chevron.
+        .padding(.leading, 20)
         .padding(.vertical, 6)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
@@ -90,9 +94,10 @@ struct NexusHeaderBanner: View {
             importImage(from: source)
         }
         .fileDialogMessage("Choose a profile picture for this nexus")
-        // Outer gaps — above to the toolbar (trimmed), below to "Contexts"
-        // (roomier so the header isn't squished against it).
-        .padding(.top, 5)
+        // Outer gaps — above to the toolbar (minimal; the bulk of that space is
+        // macOS's own toolbar inset, which the header sits below), below to
+        // "Contexts" (roomier so the header isn't squished against it).
+        .padding(.top, 2)
         .padding(.bottom, 13)
     }
 
