@@ -30,14 +30,12 @@ struct PageTypeManagerSchemaCRUDTests {
         let def = PropertyDefinition(id: "", name: "Priority", type: .number)
         try await manager.addProperty(def, to: pageType.id)
 
-        // In-memory: exactly one property with correct name.
         let updated = manager.types.first { $0.id == pageType.id }!
         #expect(updated.properties.count == 1)
         let stored = updated.properties[0]
         #expect(stored.name == "Priority")
         #expect(stored.id.hasPrefix("prop_"))
 
-        // On-disk: reload sidecar and verify.
         let meta = NexusPaths.vaultMetadataURL(forTitle: "Notes", in: nexus)
         let reloaded = try PageType.load(from: meta)
         #expect(reloaded.properties.count == 1)
@@ -72,17 +70,14 @@ struct PageTypeManagerSchemaCRUDTests {
         )
         try AtomicYAMLMarkdown.write(frontmatter: fm, body: "Hello", to: pageFile)
 
-        // Capture file data before rename.
         let dataBefore = try Data(contentsOf: pageFile)
 
-        // Rename the property (schema-only).
         try await manager.renameProperty(id: storedPropID, in: pageType.id, to: "Rating")
 
         // Member file must be byte-identical.
         let dataAfter = try Data(contentsOf: pageFile)
         #expect(dataBefore == dataAfter)
 
-        // Schema in-memory and on-disk must reflect new name.
         let updatedType = manager.types.first { $0.id == pageType.id }!
         #expect(updatedType.properties[0].name == "Rating")
         let meta = NexusPaths.vaultMetadataURL(forTitle: "Notes", in: nexus)
@@ -106,7 +101,7 @@ struct PageTypeManagerSchemaCRUDTests {
         try await manager.addProperty(prop, to: pageType.id)
         let storedPropID = manager.types.first { $0.id == pageType.id }!.properties[0].id
 
-        // number → number: should succeed without dropConflictingValues.
+        // number → number: lossless, no dropConflictingValues required.
         try await manager.changeType(
             of: storedPropID, in: pageType.id, to: .number, dropConflictingValues: false
         )
@@ -147,7 +142,6 @@ struct PageTypeManagerSchemaCRUDTests {
             of: storedPropID, in: pageType.id, to: .checkbox, dropConflictingValues: true
         )
 
-        // Schema: property type updated.
         let updatedType = manager.types.first { $0.id == pageType.id }!
         #expect(updatedType.properties[0].type == .checkbox)
 
@@ -172,7 +166,6 @@ struct PageTypeManagerSchemaCRUDTests {
         try await manager.addProperty(prop, to: pageType.id)
         let storedPropID = manager.types.first { $0.id == pageType.id }!.properties[0].id
 
-        // number → checkbox without dropConflictingValues should throw.
         await #expect(throws: PageTypeManagerError.lossyChangeRequiresConfirmation) {
             try await manager.changeType(
                 of: storedPropID, in: pageType.id, to: .checkbox, dropConflictingValues: false

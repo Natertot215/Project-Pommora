@@ -6,7 +6,7 @@ struct Homepage: Codable, Equatable, Hashable, Sendable {
     var schemaVersion: Int
     var icon: String?
     var banner: String?  // nexus-relative banner image path (full-bleed background)
-    var blocks: [ContextBlock]  // composed-blocks tree (editor lands v0.9)
+    var blocks: [ContextBlock]  // composed-blocks tree
     var modifiedAt: Date
 
     enum CodingKeys: String, CodingKey {

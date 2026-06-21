@@ -71,7 +71,6 @@ struct FileAttachmentEditorTests {
         let src = try makeTempFile(size: 60_000_000)
         defer { try? FileManager.default.removeItem(at: src) }
 
-        // First call — should set sizeWarningPending
         await vm.attach(file: src, requireConfirmation: true)
 
         await MainActor.run {
@@ -79,7 +78,6 @@ struct FileAttachmentEditorTests {
             #expect(vm.attachments.isEmpty)
         }
 
-        // Simulate user confirming → second call with requireConfirmation: false
         await vm.confirmSizeWarning()
 
         await MainActor.run {

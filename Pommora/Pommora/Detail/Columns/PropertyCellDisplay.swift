@@ -357,25 +357,8 @@ private struct FileCellChip: View {
     private var isImage: Bool { ref.mimeType.hasPrefix("image/") }
 
     var body: some View {
-        if imageTreatment && isImage {
-            HStack(spacing: 4) {
-                Image(systemName: "photo")
-                    .font(.system(size: 10, weight: .regular))
-                    .foregroundStyle(.secondary)
-                Text(ref.originalName)
-                    .font(.system(size: 12))
-                    .foregroundStyle(.primary)
-                    .lineLimit(1)
-                    .help(ref.originalName)
-            }
-            .padding(.horizontal, 6)
-            .padding(.vertical, 3)
-            .background(
-                RoundedRectangle(cornerRadius: 4)
-                    .fill(Color(.quaternarySystemFill))
-            )
-        } else {
-            FileChip(filename: ref.originalName)
-        }
+        // Image refs under thumbnail/banner get a photo glyph; everything else
+        // the default chain-link. Both route through the one `FileChip` chrome.
+        FileChip(filename: ref.originalName, icon: imageTreatment && isImage ? "photo" : "link")
     }
 }

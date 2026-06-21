@@ -33,7 +33,6 @@ struct AgendaTaskManagerSchemaCRUDTests {
         #expect(stored.name == "Priority")
         #expect(stored.id.hasPrefix("prop_"))
 
-        // On-disk: reload sidecar and verify.
         let schemaURL = NexusPaths.taskSchemaURL(in: nexus)
         let reloaded = try AtomicJSON.decode(AgendaTaskSchema.self, from: schemaURL)
         let reloadedUserProps = reloaded.properties.filter { $0.id.hasPrefix("prop_") }
@@ -55,7 +54,6 @@ struct AgendaTaskManagerSchemaCRUDTests {
         try await manager.addProperty(prop)
         let storedPropID = manager.schema.properties.first { $0.name == "Score" }!.id
 
-        // Write a fake .task.json file referencing the property.
         let taskURL = NexusPaths.taskFileURL(forTitle: "TestTask", in: nexus)
         let now = Date()
         let task = AgendaTask(
@@ -80,10 +78,8 @@ struct AgendaTaskManagerSchemaCRUDTests {
         )
         try AtomicJSON.write(task, to: taskURL)
 
-        // Capture file data before rename.
         let dataBefore = try Data(contentsOf: taskURL)
 
-        // Rename the property (schema-only).
         try await manager.renameProperty(id: storedPropID, to: "Rating")
 
         // Member file must be byte-identical.
@@ -130,7 +126,6 @@ struct AgendaTaskManagerSchemaCRUDTests {
         try await manager.addProperty(prop)
         let storedPropID = manager.schema.properties.first { $0.name == "Score" }!.id
 
-        // Write a fake .task.json file with a numeric value for the property.
         let taskURL = NexusPaths.taskFileURL(forTitle: "Entry1", in: nexus)
         let now = Date()
         let task = AgendaTask(
@@ -155,10 +150,8 @@ struct AgendaTaskManagerSchemaCRUDTests {
         )
         try AtomicJSON.write(task, to: taskURL)
 
-        // Change number → checkbox, with value drop.
         try await manager.changeType(of: storedPropID, to: .checkbox, dropConflictingValues: true)
 
-        // Schema: property type updated.
         #expect(manager.schema.properties.first { $0.id == storedPropID }?.type == .checkbox)
 
         // Member file: property key must be GONE.
@@ -190,13 +183,11 @@ struct AgendaTaskManagerSchemaCRUDTests {
         let manager = AgendaTaskManager(nexus: nexus)
         await manager.loadAll()
 
-        // Add a user property and capture its minted ID.
         let def = PropertyDefinition(id: "", name: "Notes", type: .url)
         try await manager.addProperty(def)
         let storedPropID = manager.schema.properties.first { $0.id.hasPrefix("prop_") }!.id
 
-        // Write a .task.json member file carrying a value for that property.
-        // This mirrors the exact directory + extension that deleteProperty's strip
+        // Mirrors the exact directory + extension that deleteProperty's strip
         // loop iterates: NexusPaths.tasksDir(in:) + suffix ".task.json".
         let taskURL = NexusPaths.taskFileURL(forTitle: "MemberTask", in: nexus)
         let now = Date()
@@ -222,17 +213,14 @@ struct AgendaTaskManagerSchemaCRUDTests {
         )
         try AtomicJSON.write(task, to: taskURL)
 
-        // Delete the property — schema strip + member-file strip should both fire.
+        // Schema strip + member-file strip should both fire.
         try await manager.deleteProperty(id: storedPropID)
 
-        // (a) Schema no longer contains the property.
         #expect(manager.schema.properties.first { $0.id == storedPropID } == nil)
 
-        // (b) Member file reloaded from disk no longer carries the property key.
         let reloadedTask = try AgendaTask.load(from: taskURL)
         #expect(reloadedTask.properties[storedPropID] == nil)
 
-        // (c) No error surfaced on the manager.
         #expect(manager.pendingError == nil)
     }
 
@@ -245,7 +233,6 @@ struct AgendaTaskManagerSchemaCRUDTests {
         let manager = AgendaTaskManager(nexus: nexus)
         await manager.loadAll()
 
-        // Add a number property and write a member file with a numeric value.
         let prop = PropertyDefinition(id: "", name: "Score", type: .number)
         try await manager.addProperty(prop)
         let storedPropID = manager.schema.properties.first { $0.id.hasPrefix("prop_") }!.id

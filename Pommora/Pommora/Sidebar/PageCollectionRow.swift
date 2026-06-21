@@ -219,7 +219,6 @@ struct PageCollectionRow: View {
         let items = disclosureItems
         let setCount = pageSetManager.pageSets(in: collection).count
 
-        // Determine which zone all source indices belong to.
         let allSets = source.allSatisfy { $0 < setCount }
         let allPages = source.allSatisfy { $0 >= setCount }
 

@@ -100,19 +100,16 @@ enum PropertyValue: Codable, Equatable, Hashable, Sendable {
             }
         }
         if let s = try? c.decode(String.self) {
-            // Try URL
             if let url = URL(string: s), url.scheme != nil {
                 self = .url(url)
                 return
             }
-            // Try ISO-8601 datetime
             let isoDateTime = ISO8601DateFormatter()
             isoDateTime.formatOptions = [.withInternetDateTime]
             if let d = isoDateTime.date(from: s) {
                 self = .datetime(d)
                 return
             }
-            // Try yyyy-MM-dd
             let dateFormatter = DateFormatter()
             dateFormatter.dateFormat = "yyyy-MM-dd"
             dateFormatter.timeZone = TimeZone(identifier: "UTC")

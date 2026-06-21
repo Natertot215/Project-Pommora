@@ -6,8 +6,7 @@ Light reference for the editing surface. Two distinct editors; don't conflate th
 
 Pages are Markdown on disk. The editor edits Markdown directly (frontmatter ↔ body) with Pommora's rendering directives — it is **not** a block editor.
 
-- **Strongly consider building our own.** The Swift build's **MarkdownPM** package (TextKit 2 + Apple `swift-markdown`) already describes the exact behavior and functionality Pommora wants — it's a proven behavioral spec, not a library to go shopping for. The React editor can port that behavior rather than bending a third-party framework to fit it. Behavioral reference: the Swift project's `Features/PageEditor.md` + `MarkdownPM`.
-- **If adopting instead of building:** **CodeMirror 6** is the Framework's candidate — buffer-based, where Markdown literally *is* the document (the right model for a Markdown-canonical editor). Not yet installed.
+- **Decided: build our own.** The exact build spec is `Planning/MarkdownPM.md` — a faithful behavioral port of the Swift `MarkdownPM` package. We own the **behavior layer** (dynamic syntax, detection, styling, input transforms, theme) 100%; the two places Swift leaned on the platform get one swappable dep each, behind a seam: **CodeMirror 6** as the text substrate (the TextKit analog — buffer-based, Markdown *is* the document) and **micromark/mdast** as the GFM AST (the swift-markdown analog). Neither is installed yet.
 
 ### Deferred block editor — Contexts-as-blocks + Homepage
 

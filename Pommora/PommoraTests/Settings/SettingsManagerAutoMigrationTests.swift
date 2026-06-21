@@ -114,7 +114,6 @@ struct SettingsManagerAutoMigrationTests {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
 
-        // Write garbage JSON.
         let url = NexusPaths.settingsFileURL(in: nexus)
         try "{ not valid json !!!".data(using: .utf8)!.write(to: url)
 

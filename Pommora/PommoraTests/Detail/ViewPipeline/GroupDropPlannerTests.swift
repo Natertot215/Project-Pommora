@@ -308,3 +308,53 @@ struct ReorderByIDTests {
         #expect(result == ["a", "b", "c"])
     }
 }
+
+/// `BucketValueDecoder` inverts a property-bucket key back into the typed value a
+/// property-bucket drop writes. Only the groupable property types (Select / Status
+/// / Checkbox) decode; any other type yields nil so a stray drop never fabricates a
+/// wrong `.select` write.
+@Suite("BucketValueDecoder")
+struct BucketValueDecoderTests {
+
+    private func def(_ id: String, _ type: PropertyType) -> PropertyDefinition {
+        PropertyDefinition(id: id, name: "N", type: type)
+    }
+
+    @Test("Non-groupable type yields nil (no fabricated select)")
+    func nonGroupableTypeReturnsNil() {
+        let schema = [def("p", .number)]
+        #expect(
+            BucketValueDecoder.propertyValue(bucket: "5", propertyID: "p", schema: schema) == nil)
+    }
+
+    @Test("Select decodes to .select")
+    func selectDecodes() {
+        let schema = [def("p", .select)]
+        #expect(
+            BucketValueDecoder.propertyValue(bucket: "todo", propertyID: "p", schema: schema)
+                == .select("todo"))
+    }
+
+    @Test("Status decodes to .status")
+    func statusDecodes() {
+        let schema = [def("p", .status)]
+        #expect(
+            BucketValueDecoder.propertyValue(bucket: "done", propertyID: "p", schema: schema)
+                == .status("done"))
+    }
+
+    @Test("Checkbox decodes to .checkbox")
+    func checkboxDecodes() {
+        let schema = [def("p", .checkbox)]
+        #expect(
+            BucketValueDecoder.propertyValue(bucket: "true", propertyID: "p", schema: schema)
+                == .checkbox(true))
+    }
+
+    @Test("Nil bucket yields nil")
+    func nilBucketReturnsNil() {
+        let schema = [def("p", .select)]
+        #expect(
+            BucketValueDecoder.propertyValue(bucket: nil, propertyID: "p", schema: schema) == nil)
+    }
+}

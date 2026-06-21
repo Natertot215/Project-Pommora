@@ -82,7 +82,7 @@ struct PropertyTypePickerPane: View {
         case .pageCollection(let c):
             return c.typeID
         default:
-            return nil  // non-storage scopes shouldn't reach this pane
+            return nil
         }
     }
 

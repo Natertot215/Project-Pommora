@@ -106,7 +106,7 @@ struct IconPicker: View {
                     grid(IconCatalog.all)
                 } else {
                     grid(saved)
-                    Divider()  // separates favorites from the rest — only when favorites exist
+                    Divider()
                     grid(IconCatalog.all)
                 }
             }

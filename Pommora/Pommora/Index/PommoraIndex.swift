@@ -119,17 +119,15 @@ final class PommoraIndex: @unchecked Sendable {
     /// and a fresh empty DB is created — caller must signal "rebuild needed" to
     /// the index builder. Returns the connection + the rebuild signal.
     static func open(at nexusRoot: URL) throws -> (index: PommoraIndex, needsRebuild: Bool) {
-        // 1. Ensure .nexus dir exists.
         let nexusDir = nexusRoot.appendingPathComponent(".nexus")
         try FileManager.default.createDirectory(at: nexusDir, withIntermediateDirectories: true)
 
-        // 2. Compute dbURL = nexusRoot/.nexus/index.db.
         let dbURL = nexusDir.appendingPathComponent("index.db")
 
         let isNew = !FileManager.default.fileExists(atPath: dbURL.path)
 
-        // 3. If file exists: open + read meta.schema_version. If mismatch → close + delete + recurse.
-        //    On corruption (SQLite error opening) → delete + recurse.
+        // Existing file: read meta.schema_version. Mismatch or corruption (SQLite
+        // error opening) → delete + recurse to recreate fresh.
         if !isNew {
             do {
                 let dbQueue = try DatabaseQueue(path: dbURL.path)
@@ -141,26 +139,22 @@ final class PommoraIndex: @unchecked Sendable {
                 let storedVersion = versionString.flatMap { Int($0) }
                 if storedVersion == currentSchemaVersion {
                     return (PommoraIndex(dbQueue: dbQueue, dbURL: dbURL), false)
-                } else {
-                    // Version mismatch — close (dealloc) and delete.
                 }
-                // dbQueue deallocated here; fall through to delete + recreate.
+                // Version mismatch — dbQueue deallocated here; fall through to delete + recreate.
             } catch {
                 // Corruption — fall through to delete + recreate.
             }
             try? FileManager.default.removeItem(at: dbURL)
-            // Recurse to create a fresh DB.
             return try open(at: nexusRoot)
         }
 
-        // 4. File is new: open, bootstrap meta table + write schema_version, apply schema.
         let dbQueue = try DatabaseQueue(path: dbURL.path)
         try dbQueue.write { db in
             try bootstrapMeta(db)
             try IndexSchema.apply(to: db)
         }
 
-        // 5. Return (index, needsRebuild). needsRebuild = true on fresh-create.
+        // needsRebuild = true on fresh-create.
         return (PommoraIndex(dbQueue: dbQueue, dbURL: dbURL), true)
     }
 

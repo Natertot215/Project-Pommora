@@ -8,14 +8,14 @@ private struct ChipDropdownPanelBackground: ViewModifier {
     func body(content: Content) -> some View {
         content
             .background(
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                RoundedRectangle(cornerRadius: PUI.Radius.large, style: .continuous)
                     .fill(.regularMaterial)
                     .overlay(
-                        RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .strokeBorder(.white.opacity(0.10), lineWidth: 0.5)
+                        RoundedRectangle(cornerRadius: PUI.Radius.large, style: .continuous)
+                            .strokeBorder(.white.opacity(0.10), lineWidth: PUI.Chip.strokeWidth)
                     )
             )
-            .clipShape(.rect(cornerRadius: 12))
+            .clipShape(.rect(cornerRadius: PUI.Radius.large))
     }
 }
 

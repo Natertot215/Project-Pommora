@@ -18,7 +18,6 @@ struct LinkChip: View {
 
     private var display: String {
         let raw = url.absoluteString
-        // Strip scheme prefix; otherwise truncate the absolute string.
         let stripped: String
         if raw.hasPrefix("https://") {
             stripped = String(raw.dropFirst("https://".count))

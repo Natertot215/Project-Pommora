@@ -170,7 +170,6 @@ enum Filesystem {
         }
         let proposedDest = destDir.appendingPathComponent(relativePath)
 
-        // Ensure parent directories exist under the destination root.
         let proposedParent = proposedDest.deletingLastPathComponent()
         try FileManager.default.createDirectory(at: proposedParent, withIntermediateDirectories: true)
 

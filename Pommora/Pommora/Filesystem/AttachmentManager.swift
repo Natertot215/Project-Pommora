@@ -38,17 +38,6 @@ struct AttachmentManager: Sendable {
 
     /// Copies `source` into `<nexus>/.nexus/attachments/<entityID>/` and returns
     /// a `FileRef` whose `path` is relative to the nexus root.
-    ///
-    /// **Steps (in order):**
-    /// 1. Verify source exists.
-    /// 2. Read file size.
-    /// 3. Hard-cap check (≥ 500 MB → throw `.exceedsSizeCap`).
-    /// 4. Warn check (> 50 MB and `requireConfirmation == true` → throw `.sizeWarningRequired`).
-    /// 5. MIME detection and accept-list filter.
-    /// 6. Create destination directory if absent.
-    /// 7. Collision-safe filename (suffix `-2`, `-3`, … preserving extension).
-    /// 8. Copy file.
-    /// 9. Return `FileRef` with nexus-relative path.
     func attach(
         file source: URL,
         to entityID: String,
@@ -58,26 +47,21 @@ struct AttachmentManager: Sendable {
     ) async throws -> FileRef {
         let fm = FileManager.default
 
-        // 1. Source must exist.
         guard fm.fileExists(atPath: source.path) else {
             throw AttachmentError.sourceNotFound
         }
 
-        // 2. File size.
         let attrs = try fm.attributesOfItem(atPath: source.path)
         let sizeBytes = (attrs[.size] as? Int) ?? 0
 
-        // 3. Hard cap.
         if sizeBytes >= Constants.hardCapBytes {
             throw AttachmentError.exceedsSizeCap(sizeBytes: sizeBytes)
         }
 
-        // 4. Soft warn.
         if sizeBytes > Constants.warningSizeBytes, requireConfirmation {
             throw AttachmentError.sizeWarningRequired(sizeBytes: sizeBytes)
         }
 
-        // 5. MIME detection + accept-list filter.
         let detectedMIME = mimeType(for: source)
         if let accept {
             guard mimeIsAccepted(detectedMIME, in: accept) else {
@@ -85,23 +69,20 @@ struct AttachmentManager: Sendable {
             }
         }
 
-        // 6. Destination directory.
         let destDir = NexusPaths.attachmentsDir(for: entityID, in: nexusRoot)
         try fm.createDirectory(at: destDir, withIntermediateDirectories: true)
 
-        // 7. Collision-safe filename.
         let originalName = source.lastPathComponent
         let finalName = collisionSafeName(originalName, in: destDir, fm: fm)
         let destURL = destDir.appendingPathComponent(finalName, isDirectory: false)
 
-        // 8. Copy.
         do {
             try fm.copyItem(at: source, to: destURL)
         } catch {
             throw AttachmentError.copyFailed(error.localizedDescription)
         }
 
-        // 9. Build nexus-relative path (POSIX forward slashes).
+        // nexus-relative path uses POSIX forward slashes so it survives a nexus move.
         let relativePath = ".nexus/attachments/\(entityID)/\(finalName)"
 
         return FileRef(
@@ -151,7 +132,7 @@ struct AttachmentManager: Sendable {
         let candidate = dir.appendingPathComponent(originalName, isDirectory: false)
         guard fm.fileExists(atPath: candidate.path) else { return originalName }
 
-        // Split into stem and extension(s).  "file.task.json" → stem="file.task" ext="json"
+        // Only the final extension is split off: "file.task.json" → stem "file.task", ext "json".
         let url = URL(fileURLWithPath: originalName)
         let ext = url.pathExtension
         let stem = url.deletingPathExtension().lastPathComponent

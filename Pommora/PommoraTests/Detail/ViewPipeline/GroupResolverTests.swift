@@ -19,9 +19,9 @@ struct GroupResolverTests {
     @Test func structuralVaultGroupsByCollectionWithNestedSets() {
         let setX = VPFixture.set("set_X", title: "X", collection: "coll_A")
         let items = [
-            VPFixture.item("p1", title: "Loose", in: collA),  // loose in collA
-            VPFixture.item("p2", title: "InSet", in: setX, of: collA),  // in set X
-            VPFixture.item("p3", title: "BetaPage", in: collB),  // loose in collB
+            VPFixture.item("p1", title: "Loose", in: collA),
+            VPFixture.item("p2", title: "InSet", in: setX, of: collA),
+            VPFixture.item("p3", title: "BetaPage", in: collB),
         ]
         let groups = GroupResolver.resolve(items: items, config: .structural, scope: .vault)
 
@@ -29,10 +29,10 @@ struct GroupResolverTests {
         let alpha = groups[0]
         #expect(alpha.id == "coll_A")
         #expect(alpha.title == "Alpha")
-        #expect(alpha.items.map(\.id) == ["p1"])  // loose page in collection's own items
+        #expect(alpha.items.map(\.id) == ["p1"])
         #expect(alpha.children?.count == 1)
         #expect(alpha.children?[0].id == "set_X")
-        #expect(alpha.children?[0].items.map(\.id) == ["p2"])  // nested set's page
+        #expect(alpha.children?[0].items.map(\.id) == ["p2"])
 
         let beta = groups[1]
         #expect(beta.id == "coll_B")

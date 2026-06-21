@@ -1,6 +1,19 @@
 import AppKit
 import SwiftUI
 
+/// The exact dark-mode value of `.primary` (`NSColor.labelColor`), resolved once
+/// into a FIXED color. `SelectableRow`'s title + icon use this rather than semantic
+/// `.primary` so they (1) match `.primary` precisely on the live rows and (2) can't
+/// flip to black in the native `.onMove` drag-image snapshot, which renders in a
+/// light appearance regardless of the (dark) window. Pommora's sidebar is dark-only.
+private let sidebarLabelColor: Color = {
+    var cg = NSColor.labelColor.cgColor
+    NSAppearance(named: .darkAqua)?.performAsCurrentDrawingAppearance {
+        cg = NSColor.labelColor.cgColor
+    }
+    return Color(cgColor: cg)
+}()
+
 struct SidebarView: View {
     @Environment(AreaManager.self) private var areaManager
     @Environment(TopicManager.self) private var topicManager
@@ -523,7 +536,7 @@ private struct UserSectionHeader: View {
     }
 }
 
-// MARK: - SelectableRow (updated to use SelectionTag)
+// MARK: - SelectableRow
 
 /// Self-contained sidebar row content. Selection chrome is painted at the
 /// row-file level via `.listRowBackground(SelectionChrome(...))` so the fill
@@ -568,10 +581,10 @@ struct SelectableRow<Trailing: View>: View {
             Image(systemName: symbol)
                 .symbolRenderingMode(.monochrome)
                 .font(.system(size: 14, weight: .regular))
-                .foregroundStyle(isSelected ? Color.accentColor : (accent ?? .primary))
+                .foregroundStyle(isSelected ? Color.accentColor : (accent ?? sidebarLabelColor))
                 .frame(width: 16, height: 16, alignment: .center)
             Text(title)
-                .foregroundStyle(isSelected ? Color.accentColor : .primary)
+                .foregroundStyle(isSelected ? Color.accentColor : sidebarLabelColor)
                 .brightness(isSelected ? 0.10 : 0)
             Spacer(minLength: 0)
             trailing()

@@ -93,11 +93,11 @@ enum AppleASTSupplementalStyler {
                     (
                         range,
                         [
-                            // Foreground dimming preserved exactly.
-                            .foregroundColor: theme.bodyText.withAlphaComponent(0.75),
-                            // .backgroundColor INTENTIONALLY REMOVED — renderer
-                            // now draws the card via CGPath so corner rounding is
-                            // possible. Same color is used at draw time.
+                            // Foreground INTENTIONALLY NOT SET: the quote-wide dim
+                            // ran last in the compose (last-writer-wins) and overwrote
+                            // inline code's red. Prose now uses the base body color;
+                            // code keeps its red. (.backgroundColor also unset —
+                            // the renderer draws the card via CGPath.)
                             .paragraphStyle: paragraph,
                         ]
                     ))

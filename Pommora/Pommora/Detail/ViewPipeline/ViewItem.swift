@@ -10,7 +10,7 @@ import Foundation
 struct ViewItem: Identifiable, Equatable, Hashable, Sendable {
     let page: PageMeta
     let parent: PageParent  // Content/PageParent.swift
-    let setLabel: String?  // vault-scope gallery chip
+    let setLabel: String?
 
     var id: String { page.id }
 

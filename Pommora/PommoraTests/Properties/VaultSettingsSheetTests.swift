@@ -186,7 +186,7 @@ struct VaultSettingsSheetTests {
         let pt = makePageType(properties: props)
         let vm = VaultSettingsViewModel(pageType: pt)
 
-        vm.moveDown("p1")  // p1 should now be at index 1
+        vm.moveDown("p1")
 
         #expect(vm.draftProperties[0].id == "p2")
         #expect(vm.draftProperties[1].id == "p1")

@@ -16,13 +16,9 @@ import SwiftUI
 struct ChipLink: View {
     // Canonical chip design tokens (folded in from the retired engine-side
     // ChipLinkMetrics so the values survive the chip pipeline's removal).
-    /// Horizontal padding on each side of the chip content.
     static let horizontalPadding: CGFloat = 4
-    /// Gap between the icon and the title text.
     static let iconTitleGap: CGFloat = 3
-    /// Corner radius of the highlight rectangle.
     static let cornerRadius: CGFloat = 3
-    /// Hairline outline width.
     static let outlineWidth: CGFloat = 0.5
 
     let title: String

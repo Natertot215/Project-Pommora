@@ -54,7 +54,6 @@ struct IndexUpdaterWiringTests {
         agendaTaskMgr.indexUpdater = updater
         agendaEventMgr.indexUpdater = updater
 
-        // All 4 must be non-nil.
         #expect(vaultMgr.indexUpdater != nil)
         #expect(contentMgr.indexUpdater != nil)
         #expect(agendaTaskMgr.indexUpdater != nil)
@@ -72,13 +71,10 @@ struct IndexUpdaterWiringTests {
         let vaultMgr = PageTypeManager(nexus: nexus)
         await vaultMgr.loadAll()
 
-        // Wire the updater.
         vaultMgr.indexUpdater = IndexUpdater(index)
 
-        // Perform a mutation.
         try await vaultMgr.createPageType(name: "Research", icon: nil)
 
-        // Verify the row is in the index.
         let count = try await index.dbQueue.read { db in
             try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM page_types WHERE title = ?", arguments: ["Research"]) ?? 0
         }
@@ -114,7 +110,6 @@ struct IndexUpdaterWiringTests {
         agendaTaskMgr.indexUpdater = updater
         agendaEventMgr.indexUpdater = updater
 
-        // All 4 must be nil.
         #expect(vaultMgr.indexUpdater == nil)
         #expect(contentMgr.indexUpdater == nil)
         #expect(agendaTaskMgr.indexUpdater == nil)

@@ -104,7 +104,7 @@ struct DefaultSortConfigTests {
         let json = pageTypeJSON(withDefaultSort: false)
         let data = try #require(json.data(using: .utf8))
         var pt = try jsonDecoder().decode(PageType.self, from: data)
-        pt.title = "TestVault"  // caller normally sets this from folder name
+        pt.title = "TestVault"  // title comes from the folder name, not the sidecar JSON
         #expect(pt.defaultSort == nil)
     }
 

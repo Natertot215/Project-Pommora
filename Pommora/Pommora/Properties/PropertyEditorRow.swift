@@ -186,8 +186,7 @@ struct PropertyEditorRow: View {
             selected: Binding(
                 get: { if case .multiSelect(let xs) = value { return xs } else { return [] } },
                 set: { value = .multiSelect($0) }
-            ),
-            allowsAddingOptions: false  // schema edit is its own concern
+            )
         )
     }
 

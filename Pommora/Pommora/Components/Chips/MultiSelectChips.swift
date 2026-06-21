@@ -3,9 +3,6 @@ import SwiftUI
 struct MultiSelectChips: View {
     let options: [String]
     @Binding var selected: [String]
-    let allowsAddingOptions: Bool
-
-    @State private var draftNew: String = ""
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -13,46 +10,27 @@ struct MultiSelectChips: View {
                 ForEach(options, id: \.self) { option in
                     chip(for: option)
                 }
-                if allowsAddingOptions {
-                    addButton
-                }
             }
         }
     }
 
     private func chip(for option: String) -> some View {
         let isOn = selected.contains(option)
+        let label = Text(option)
+            .font(.callout)
+            .foregroundStyle(isOn ? PUI.Tint.label(PUI.Colors.accent) : PUI.Colors.labelPrimary)
+            .padding(.horizontal, PUI.Chip.tagPaddingHorizontal)
+            .padding(.vertical, PUI.Chip.tagPaddingVertical)
         return Button {
             toggle(option)
         } label: {
-            Text(option)
-                .font(.callout)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(
-                    Capsule().fill(isOn ? Color.accentColor.opacity(0.2) : Color.gray.opacity(0.1))
-                )
-                .foregroundStyle(isOn ? Color.accentColor : Color.primary)
+            if isOn {
+                label.coloredChip(PUI.Colors.accent, in: Capsule())
+            } else {
+                label.background(Capsule().fill(PUI.Tint.quaternary(PUI.Colors.chipBase)))
+            }
         }
         .buttonStyle(.plain)
-    }
-
-    private var addButton: some View {
-        HStack(spacing: 4) {
-            TextField("Add option", text: $draftNew)
-                .textFieldStyle(.plain)
-                .frame(maxWidth: 100)
-                .onSubmit {
-                    let trimmed = draftNew.trimmingCharacters(in: .whitespaces)
-                    guard !trimmed.isEmpty, !selected.contains(trimmed) else { return }
-                    selected.append(trimmed)
-                    draftNew = ""
-                }
-            Image(systemName: "plus.circle.fill").foregroundStyle(.secondary)
-        }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 4)
-        .background(Capsule().fill(Color.gray.opacity(0.08)))
     }
 
     private func toggle(_ option: String) {

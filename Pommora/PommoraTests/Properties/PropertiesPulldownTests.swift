@@ -84,7 +84,6 @@ struct PropertiesPulldownTests {
         let vm = makeVM(schema: schema, values: [:])
         #expect(vm.populatedProperties.isEmpty)
         #expect(vm.populatedCount == 0)
-        // tier1/2/3 also empty
         #expect(vm.showTier1 == false)
         #expect(vm.showTier2 == false)
         #expect(vm.showTier3 == false)
@@ -103,14 +102,11 @@ struct PropertiesPulldownTests {
         let vm = makeVM(schema: schema, values: [:])
         let addable = vm.addableProperties
 
-        // Only prop_user should be addable
         #expect(addable.count == 1)
         #expect(addable[0].id == "prop_user")
 
-        // Reserved IDs excluded
         #expect(addable.first(where: { $0.id == "_status" }) == nil)
         #expect(addable.first(where: { $0.id == "_tier1" }) == nil)
-        // lastEditedTime excluded (L15)
         #expect(addable.first(where: { $0.type == .lastEditedTime }) == nil)
     }
 
@@ -126,7 +122,6 @@ struct PropertiesPulldownTests {
         let vm = makeVM(schema: schema, values: values)
         let addable = vm.addableProperties
 
-        // prop_a is populated → not addable; prop_b is empty → addable
         #expect(addable.count == 1)
         #expect(addable[0].id == "prop_b")
     }

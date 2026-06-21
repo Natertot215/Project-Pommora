@@ -58,11 +58,8 @@ final class PropertiesPulldownViewModel {
     var addableProperties: [PropertyDefinition] {
         let reservedIDs = ReservedPropertyID.all
         return schema.filter { def in
-            // Exclude reserved/built-in IDs
             guard !reservedIDs.contains(def.id) else { return false }
-            // Exclude lastEditedTime property type (L15)
             guard def.type != .lastEditedTime else { return false }
-            // Only include if not already populated
             let val = values[def.id]
             if val == nil { return true }
             if case .null = val! { return true }

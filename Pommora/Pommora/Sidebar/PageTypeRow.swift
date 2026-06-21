@@ -295,7 +295,6 @@ struct PageTypeRow: View {
         let items = disclosureItems
         let collectionCount = pageTypeManager.pageCollections(in: pageType).count
 
-        // Determine which set all source indices belong to.
         let allCollections = source.allSatisfy { $0 < collectionCount }
         let allPages = source.allSatisfy { $0 >= collectionCount }
 

@@ -76,7 +76,7 @@ struct BackForwardButtons: View {
 
     private func applyStep(_ ref: EntityStateRef?) {
         guard let ref else { return }
-        // Agenda can't appear in the main detail pane. Support arrives at v0.6.0+.
+        // Agenda can't appear in the main detail pane. Support is not yet built.
         switch ref.typedKind {
         case .agenda, .none:
             return  // skip — nothing to route

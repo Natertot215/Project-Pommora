@@ -137,6 +137,26 @@ struct IndexUpdaterTests {
         #expect(row?["page_type_id"] as String? == pt.id)
     }
 
+    @Test func upsertPageCollectionPersistsEntitySchemaVersion() async throws {
+        let nexus = try TempNexus.make()
+        defer { TempNexus.cleanup(nexus) }
+        let idx = try makeIndex(at: nexus)
+        let updater = IndexUpdater(idx)
+
+        let pt = makePageType()
+        try updater.upsertPageType(pt)
+
+        // A schemaVersion ≠ the previously-hardcoded literal 1.
+        let folderURL = URL(fileURLWithPath: "/tmp/dummy-\(UUID().uuidString)")
+        let pc = PageCollection(
+            id: ULID.generate(), typeID: pt.id, title: "Migrated",
+            folderURL: folderURL, modifiedAt: Date(), schemaVersion: 7)
+        try updater.upsertPageCollection(pc)
+
+        let row = try firstRow(in: "page_collections", db: idx, where: "id = '\(pc.id)'")
+        #expect(row?["schema_version"] as Int? == 7)
+    }
+
     @Test func deletePageCollectionRemovesRow() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
@@ -151,6 +171,21 @@ struct IndexUpdaterTests {
 
         let count = try countRows(in: "page_collections", db: idx)
         #expect(count == 0)
+    }
+
+    // MARK: - Contexts
+
+    @Test func upsertContextGenericWritesRow() async throws {
+        let nexus = try TempNexus.make()
+        defer { TempNexus.cleanup(nexus) }
+        let idx = try makeIndex(at: nexus)
+        let updater = IndexUpdater(idx)
+
+        try updater.upsertContext(id: "ctx-1", tier: 2, title: "Topic A", icon: nil)
+
+        let row = try firstRow(in: "contexts", db: idx, where: "id = 'ctx-1'")
+        #expect(row?["tier"] as Int? == 2)
+        #expect(row?["title"] as String? == "Topic A")
     }
 
     // MARK: - pageIDs scope filtering (surgical-reconcile set-sync)

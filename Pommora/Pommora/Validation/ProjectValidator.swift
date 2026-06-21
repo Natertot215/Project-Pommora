@@ -15,13 +15,10 @@ enum ProjectValidator {
         existing: [Project],
         excluding: Project? = nil
     ) throws {
-        let trimmed = title.trimmingCharacters(in: .whitespaces)
-        guard !trimmed.isEmpty else { throw ValidationError.emptyTitle }
-
-        let invalidChars: Set<Character> = ["/", "\\", ":"]
-        guard trimmed.allSatisfy({ !invalidChars.contains($0) }) else {
-            throw ValidationError.invalidTitleCharacters
-        }
+        let trimmed = try FilenameSafety.validatedTitle(
+            title,
+            empty: ValidationError.emptyTitle,
+            invalidCharacters: ValidationError.invalidTitleCharacters)
 
         let conflict = existing.contains { p in
             p.id != excluding?.id && p.title.lowercased() == trimmed.lowercased()

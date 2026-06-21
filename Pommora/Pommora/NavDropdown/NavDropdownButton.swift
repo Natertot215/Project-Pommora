@@ -210,8 +210,8 @@ struct NavDropdownButton: View {
             }
             // Lazy-load fallback: pages/collections in vaults the user hasn't
             // visited this session aren't in ContentManager's dicts yet. Walk
-            // every vault + collection until the lookup succeeds. (SQLite in
-            // v0.4.0 makes this O(1) and removes the walk entirely.)
+            // every vault + collection until the lookup succeeds. (A future
+            // SQLite-backed lookup makes this O(1) and removes the walk entirely.)
             Task { @MainActor in
                 guard let cm = AppGlobals.contentManager,
                     let vm = AppGlobals.pageTypeManager

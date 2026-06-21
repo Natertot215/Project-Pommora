@@ -19,12 +19,10 @@ enum AgendaTaskValidator {
         properties: [String: PropertyValue],
         schema: AgendaTaskSchema
     ) throws {
-        let trimmed = title.trimmingCharacters(in: .whitespaces)
-        guard !trimmed.isEmpty else { throw ValidationError.emptyTitle }
-        let invalidChars: Set<Character> = ["/", "\\", ":"]
-        guard trimmed.allSatisfy({ !invalidChars.contains($0) }) else {
-            throw ValidationError.invalidTitleCharacters
-        }
+        _ = try FilenameSafety.validatedTitle(
+            title,
+            empty: ValidationError.emptyTitle,
+            invalidCharacters: ValidationError.invalidTitleCharacters)
 
         // EKReminder-style time-field consistency: due_all_day requires due_at.
         if dueAllDay && dueAt == nil { throw ValidationError.dueAllDayWithoutDue }

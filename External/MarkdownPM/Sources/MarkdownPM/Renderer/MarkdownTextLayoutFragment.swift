@@ -578,11 +578,10 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment, @unchecked Sendabl
             roundTop: position == .only || position == .first,
             roundBottom: position == .only || position == .last
         )
-        // Highlight fill — `tertiarySystemFill` is the system's mid-tier
-        // semantic fill (more visible than quaternary, less than secondary).
-        // Used at native intensity (no alpha modification) — adapts
-        // automatically to light/dark mode and accessibility settings.
-        NSColor.tertiarySystemFill.setFill()
+        // Card fill — `quaternarySystemFill` sits one tier below the code box
+        // (tertiarySystemFill), so a quote reads as quieter than code. Native
+        // intensity (no alpha edit) — adapts to light/dark + accessibility.
+        NSColor.quaternarySystemFill.setFill()
         cardPath.fill()
 
         // === Draw the bar ===
@@ -846,19 +845,25 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment, @unchecked Sendabl
     // MARK: - Code Block Background
 
     private var hasCodeBlockBackground: Bool {
-        guard let ts = textStorage, let range = nsRange, range.length > 0 else { return false }
-        let bgColor = ts.attribute(.backgroundColor, at: range.location, effectiveRange: nil) as? NSColor
-        guard let bgColor else { return false }
-        return isCodeBlockBackgroundColor(bgColor)
+        MainActor.assumeIsolated {
+            guard let range = nsRange, range.length > 0, let coordinator = nearestCoordinator()
+            else { return false }
+            return coordinator.isFragmentRangeInsideCodeBlock(range)
+        }
     }
 
     private func drawCodeBlockBackground(at point: CGPoint, in context: CGContext) {
-        guard let ts = textStorage, let range = nsRange, range.length > 0 else { return }
-
-        // Only fenced code-block fragments get the full-width fill (first char must carry the code background).
-        guard let color = ts.attribute(.backgroundColor, at: range.location, effectiveRange: nil) as? NSColor,
-            isCodeBlockBackgroundColor(color)
-        else { return }
+        // Only fenced code-block fragments get the full-width fill. Detection is
+        // AST-grounded (the per-char .backgroundColor it used to read was removed
+        // so it can no longer double-fill over this box); the fill color comes
+        // straight from the highlighter.
+        guard let range = nsRange, range.length > 0 else { return }
+        let isCodeBlock = MainActor.assumeIsolated {
+            nearestCoordinator()?.isFragmentRangeInsideCodeBlock(range) ?? false
+        }
+        guard isCodeBlock else { return }
+        let highlighter = (nearestTextView() as? NativeTextView)?.configuration.services.syntaxHighlighter
+        let color = (highlighter ?? PlainTextSyntaxHighlighter()).backgroundColor()
 
         let containerWidth = textLayoutManager?.textContainer?.size.width ?? layoutFragmentFrame.width
 
@@ -946,21 +951,6 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment, @unchecked Sendabl
             }
         }
         return rects
-    }
-
-    private func isCodeBlockBackgroundColor(_ color: NSColor) -> Bool {
-        let highlighter =
-            (textLayoutManager?.textContainer?.textView as? NativeTextView)?
-            .configuration.services.syntaxHighlighter
-            ?? PlainTextSyntaxHighlighter()
-        let currentBg = highlighter.backgroundColor()
-        guard let colorRGB = color.usingColorSpace(.deviceRGB),
-            let currentBgRGB = currentBg.usingColorSpace(.deviceRGB)
-        else { return false }
-        let tolerance: CGFloat = 0.03
-        return abs(colorRGB.redComponent - currentBgRGB.redComponent) < tolerance
-            && abs(colorRGB.greenComponent - currentBgRGB.greenComponent) < tolerance
-            && abs(colorRGB.blueComponent - currentBgRGB.blueComponent) < tolerance
     }
 
     // MARK: - LaTeX / Block Image Helpers

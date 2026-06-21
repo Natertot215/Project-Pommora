@@ -37,7 +37,7 @@ final class CalendarDetailViewModel {
 
 // MARK: - Main View
 
-/// Placeholder Calendar detail pane — v0.3.0. No calendar grid; that ships v0.6.0.
+/// Placeholder Calendar detail pane. No calendar grid yet.
 /// Two-section list: Tasks (sorted by due date) above Events (sorted by start date).
 @MainActor
 struct CalendarDetailView: View {
@@ -76,7 +76,6 @@ private struct CalendarDetailContent: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // Heading
             Text("Calendar")
                 .font(.title2)
                 .fontWeight(.semibold)

@@ -50,7 +50,7 @@ struct ViewSettingsPopover: View {
             StorageMenuRoot(scope: scope, path: $path)
         default:
             // Non-storage scopes: empty 300x360 shell retained from chrome slice.
-            // Per-scope panes for those surfaces ship in later versions. Sized
+            // Per-scope panes for those surfaces are not yet built. Sized
             // explicitly so the content-hugging NavigationStack has a definite
             // height here (Color.clear has no intrinsic size of its own).
             Color.clear

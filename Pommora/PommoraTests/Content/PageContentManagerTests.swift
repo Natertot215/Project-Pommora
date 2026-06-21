@@ -57,7 +57,6 @@ struct PageContentManagerTests {
         try await manager.deletePage(page, in: coll)
 
         #expect(manager.pages(in: coll).isEmpty)
-        // File no longer at original location
         #expect(!FileManager.default.fileExists(atPath: pageURL.path))
 
         // File now in .trash, preserving relative path under nexus root

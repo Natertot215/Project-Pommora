@@ -46,7 +46,6 @@ struct ContextDisplayResolverTests {
         #expect(resolver.resolve("P1")?.icon == "star")
         #expect(resolver.resolve("P2") == nil)  // no such entity
 
-        // entity(_:) exposes the full cached EntityRef.
         #expect(resolver.entity("P1")?.kind == .page)
         #expect(resolver.entity("P1")?.icon == "star")
         #expect(resolver.entity("P2") == nil)

@@ -18,13 +18,10 @@ enum PageValidator {
         vault: PageType,
         context: NexusContext
     ) throws {
-        let trimmed = title.trimmingCharacters(in: .whitespaces)
-        guard !trimmed.isEmpty else { throw ValidationError.emptyTitle }
-
-        let invalidChars: Set<Character> = ["/", "\\", ":"]
-        guard trimmed.allSatisfy({ !invalidChars.contains($0) }) else {
-            throw ValidationError.invalidTitleCharacters
-        }
+        _ = try FilenameSafety.validatedTitle(
+            title,
+            empty: ValidationError.emptyTitle,
+            invalidCharacters: ValidationError.invalidTitleCharacters)
 
         // created_at must be present (epoch-zero sentinels for "missing"); allow values > 0
         guard createdAt.timeIntervalSince1970 > 0 else {

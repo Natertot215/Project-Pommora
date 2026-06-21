@@ -77,8 +77,11 @@ struct PageFrontmatter: Codable, Equatable, Hashable, Sendable {
         self.tier2 = try c.decodeIfPresent([String].self, forKey: .tier2) ?? []
         self.tier3 = try c.decodeIfPresent([String].self, forKey: .tier3) ?? []
         self.properties = try c.decodeIfPresent([String: PropertyValue].self, forKey: .properties) ?? [:]
-        self.createdAt = try c.decodeIfPresent(Date.self, forKey: .createdAt) ?? Date(timeIntervalSince1970: 0)
+        // Decode `modifiedAt` first so a missing `createdAt` can fall back to it (a
+        // far better estimate than the 1970 epoch); the current date only if both
+        // are absent.
         self.modifiedAt = try c.decodeIfPresent(Date.self, forKey: .modifiedAt)
+        self.createdAt = try c.decodeIfPresent(Date.self, forKey: .createdAt) ?? self.modifiedAt ?? Date()
         self.foldedHeadings = try c.decodeIfPresent([String].self, forKey: .foldedHeadings)
         self.cover = try c.decodeIfPresent(String.self, forKey: .cover)
     }

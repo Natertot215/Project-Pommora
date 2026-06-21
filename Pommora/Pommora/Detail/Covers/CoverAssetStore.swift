@@ -55,34 +55,28 @@ struct CoverAssetStore: Sendable {
     func storeSync(image source: URL, for entityID: String, in nexus: Nexus) throws -> String {
         let fm = FileManager.default
 
-        // 1. Source must exist.
         guard fm.fileExists(atPath: source.path) else {
             throw CoverAssetError.sourceNotFound
         }
 
-        // 2. Hard cap.
         let attrs = try fm.attributesOfItem(atPath: source.path)
         let sizeBytes = (attrs[.size] as? Int) ?? 0
         if sizeBytes >= Constants.hardCapBytes {
             throw CoverAssetError.exceedsSizeCap(sizeBytes: sizeBytes)
         }
 
-        // 3. Destination directory.
         let destDir = NexusPaths.assetsDir(for: entityID, in: nexus)
         try fm.createDirectory(at: destDir, withIntermediateDirectories: true)
 
-        // 4. Collision-safe filename.
         let finalName = Self.collisionSafeName(source.lastPathComponent, in: destDir, fm: fm)
         let destURL = destDir.appendingPathComponent(finalName, isDirectory: false)
 
-        // 5. Copy.
         do {
             try fm.copyItem(at: source, to: destURL)
         } catch {
             throw CoverAssetError.copyFailed(error.localizedDescription)
         }
 
-        // 6. Nexus-relative POSIX path.
         return ".nexus/assets/\(entityID)/\(finalName)"
     }
 

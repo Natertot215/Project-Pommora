@@ -12,13 +12,10 @@ enum AreaValidator {
         existing: [Area],
         excluding: Area? = nil
     ) throws {
-        let trimmed = title.trimmingCharacters(in: .whitespaces)
-        guard !trimmed.isEmpty else { throw ValidationError.emptyTitle }
-
-        let invalidChars: Set<Character> = ["/", "\\", ":"]
-        guard trimmed.allSatisfy({ !invalidChars.contains($0) }) else {
-            throw ValidationError.invalidTitleCharacters
-        }
+        let trimmed = try FilenameSafety.validatedTitle(
+            title,
+            empty: ValidationError.emptyTitle,
+            invalidCharacters: ValidationError.invalidTitleCharacters)
 
         try NameCollisionValidator.validate(
             desiredTitle: trimmed, siblings: existing, excludingID: excluding?.id,
