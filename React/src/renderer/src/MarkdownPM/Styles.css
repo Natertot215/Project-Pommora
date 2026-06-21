@@ -131,61 +131,60 @@
   color: color-mix(in srgb, var(--label-primary) 80%, transparent);
 }
 
-/* LIST SPACING knobs:
-     --bullet-indent : list indent (× nesting level; marker + text move together)
-     --gap           : space between marker and text
-     --li-zone       : marker-slot width (the gutter the marker hangs in)
-   All markers hang in the gutter and the text starts at a shared column. Bullet → in-flow • widget
-   (raw `-` when the caret is on the marker); ordered → literal number right-aligned in --ol-zone so
-   the periods column; checkbox → chip widget in the wider --task-zone. */
+/* ══ LIST KNOBS — edit these to alter list indentation & spacing ════════════════
+     --list-indent  : indent step PER nesting level (all list types)
+     --list-gap     : space between a marker and its text
+     --bullet-zone  : bullet gutter width    → controls BULLET text indent
+     --number-zone  : number gutter width    → controls NUMBER text indent
+     --task-zone    : checkbox gutter width  → controls CHECKBOX text indent
+     --bullet-size  : the • glyph size
+   A wider *-zone pushes that list type's text further right from the margin.
+   The marker hangs in its zone; wrapped lines align to the text column.       */
 .mdpm-editor .cm-line.md-li {
-  --bullet-indent: 20px;
-  --gap: 4px;
-  --li-zone: 16px;
-  --li-col: calc((var(--li-level, 0) + 1) * var(--bullet-indent));
-  padding-left: calc(var(--li-col) + var(--li-zone));
-  /* The marker (• widget, literal ordered number, raw `-`, or checkbox chip) hangs into the gutter
-     via the negative first-line indent; wrapped lines align to the text column. */
-  text-indent: calc(-1 * var(--li-zone));
+  --list-indent: 20px;
+  --list-gap: 4px;
+  --bullet-zone: 16px;
+  --number-zone: 1.3em;
+  --task-zone: 1.8em;
+  --bullet-size: 1.25em;
+
+  --li-col: calc((var(--li-level, 0) + 1) * var(--list-indent));
+  /* Base layout = bullets; ordered + checkbox swap in their own zone below. */
+  padding-left: calc(var(--li-col) + var(--bullet-zone));
+  text-indent: calc(-1 * var(--bullet-zone));
 }
 
-/* The • shown in place of the source `-` when the caret is off the line (in-flow widget — occupies
-   the dash's exact slot, so revealing the raw `-` on caret-enter produces no horizontal shift). */
+/* ── Bullet ── the • shown in place of the source `-` (caret off the marker). */
 .md-bullet {
   color: color-mix(in srgb, var(--label-primary) 80%, transparent);
-  font-size: 1.25em;
+  font-size: var(--bullet-size);
 }
 
-/* Checkboxes get a zone sized for the chip (which is wider than a bullet) plus a clear gap, so the
-   text doesn't hug the box — matching the breathing room bullets and numbers have. */
-.mdpm-editor .cm-line.md-li-task {
-  --task-zone: 1.8em;
-  padding-left: calc(var(--li-col) + var(--task-zone));
-  text-indent: calc(-1 * var(--task-zone));
-}
-/* Marker zone — the in-flow slot the checkbox chip hangs in (left-aligned in the gutter). */
-.md-li-marker {
-  display: inline-block;
-  box-sizing: border-box;
-  min-width: var(--task-zone, 1.8em);
-  text-indent: 0;
-  white-space: nowrap;
-}
-
-/* Ordered lists get a wider marker zone; the number sits right-aligned in it so the periods read as
-   a flat column whether the number is 1 or 99 (text starts at one consistent column). */
+/* ── Numbers ── literal source, right-aligned in --number-zone so the periods column. */
 .mdpm-editor .cm-line.md-li-ordered {
-  --ol-zone: 1.3em;
-  padding-left: calc(var(--li-col) + var(--ol-zone));
-  text-indent: calc(-1 * var(--ol-zone));
+  padding-left: calc(var(--li-col) + var(--number-zone));
+  text-indent: calc(-1 * var(--number-zone));
 }
 .md-ol-marker {
   display: inline-block;
   box-sizing: border-box;
-  min-width: var(--ol-zone, 1.9em);
-  padding-right: var(--gap);
+  min-width: var(--number-zone);
+  padding-right: var(--list-gap);
   text-align: right;
   font-variant-numeric: tabular-nums;
+}
+
+/* ── Checkbox ── chip hung left in the wider --task-zone (chip is bigger than a •). */
+.mdpm-editor .cm-line.md-li-task {
+  padding-left: calc(var(--li-col) + var(--task-zone));
+  text-indent: calc(-1 * var(--task-zone));
+}
+.md-li-marker {
+  display: inline-block;
+  box-sizing: border-box;
+  min-width: var(--task-zone);
+  text-indent: 0;
+  white-space: nowrap;
 }
 
 /* Task checkbox — reuses the chip checkbox dimensions; accent fill when checked. Sits in the
