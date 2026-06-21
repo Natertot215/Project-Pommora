@@ -13,7 +13,7 @@ import Foundation
 ///
 /// Spec: https://github.com/ulid/spec
 enum ULID {
-    private nonisolated static let alphabet: [Character] = Array("0123456789ABCDEFGHJKMNPQRSTVWXYZ")
+    private nonisolated static let alphabet: [Character] = ULIDAlphabet.characters
 
     /// Generates a new ULID. Pass `at:` only in tests for deterministic timestamps.
     /// `nonisolated` — pure (timestamp + randomness), so it's callable from the
