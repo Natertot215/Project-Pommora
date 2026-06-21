@@ -105,7 +105,7 @@ final class AgendaTaskManager {
                 url.lastPathComponent.hasSuffix(".\(NexusPaths.taskFileExtension)")
             }
             tasks = taskFiles.compactMap { try? AgendaTask.load(from: $0) }
-                .sorted { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
+                .sortedByTitle()
             pendingError = nil
         } catch {
             tasks = []
@@ -131,7 +131,7 @@ final class AgendaTaskManager {
                 do { try updater.upsertAgendaTask(task) } catch { self.pendingError = error }
             }
             tasks.append(task)
-            tasks.sort { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
+            tasks.sortByTitle()
         } catch {
             self.pendingError = error
             throw error
@@ -212,7 +212,7 @@ final class AgendaTaskManager {
 
             if let i = tasks.firstIndex(where: { $0.id == task.id }) {
                 tasks[i] = updated
-                tasks.sort { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
+                tasks.sortByTitle()
             }
         } catch {
             if !(error is RenameAtomicityError) {

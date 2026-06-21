@@ -25,6 +25,23 @@ extension PageType: NameCollisionCandidate {}
 extension PageCollection: NameCollisionCandidate {}
 extension PageSet: NameCollisionCandidate {}
 
+// MARK: - Title ordering
+
+extension Sequence where Element: NameCollisionCandidate {
+    /// Canonical alphabetic-by-title order (locale-aware, ascending) — the single
+    /// source for the flat Tasks / Events in-memory sort.
+    func sortedByTitle() -> [Element] {
+        sorted { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
+    }
+}
+
+extension MutableCollection where Self: RandomAccessCollection, Element: NameCollisionCandidate {
+    /// In-place `sortedByTitle()`.
+    mutating func sortByTitle() {
+        sort { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
+    }
+}
+
 /// One source of truth for the same-container name-collision rule.
 ///
 /// **Why this exists:** `<title>.md` filenames are derived

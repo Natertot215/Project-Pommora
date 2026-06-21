@@ -475,14 +475,7 @@ private struct UserSectionHeader: View {
                     draft = section.label
                     renameFocused = true
                     if justCreatedID == section.id {
-                        // Same AppKit responder hop as RenameableRow: select
-                        // the whole default label so the first keystroke
-                        // replaces it.
-                        DispatchQueue.main.async {
-                            NSApp.keyWindow?.firstResponder?.tryToPerform(
-                                #selector(NSText.selectAll(_:)), with: nil
-                            )
-                        }
+                        InlineRenameFocus.selectAllOnNextRunloop()
                     }
                 }
         } else {
