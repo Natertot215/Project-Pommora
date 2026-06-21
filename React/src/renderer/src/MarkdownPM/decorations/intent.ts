@@ -140,6 +140,8 @@ export function decorationsFor(text: string, tokens: Token[], active: Set<number
       intents.push({ kind: 'line', from: ls, className: 'md-li md-li-ordered', level: lm.level })
       if (lm.markerStart > 0) intents.push({ kind: 'hide', from: ls, to: ls + lm.markerStart })
       intents.push({ kind: 'class', from: ls + lm.markerStart, to: ls + lm.markerEnd, className: 'md-ol-marker md-syntax' })
+      // Hide the source space after the period — the gap comes from the zone padding (like the checkbox).
+      intents.push({ kind: 'hide', from: ls + lm.markerEnd, to: ls + lm.contentStart })
     } else if (isBlockquoteLine(line)) {
       // Always-show card (not caret-aware): `>` markers stay hidden; first/last round the corners.
       const bm = blockquotePrefixRe.exec(line)

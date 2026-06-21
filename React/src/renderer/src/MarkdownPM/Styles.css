@@ -175,7 +175,7 @@
 /* Ordered lists get a wider marker zone; the number sits right-aligned in it so the periods read as
    a flat column whether the number is 1 or 99 (text starts at one consistent column). */
 .mdpm-editor .cm-line.md-li-ordered {
-  --ol-zone: 1.9em;
+  --ol-zone: 1.3em;
   padding-left: calc(var(--li-col) + var(--ol-zone));
   text-indent: calc(-1 * var(--ol-zone));
 }
