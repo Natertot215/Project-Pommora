@@ -18,24 +18,6 @@ private func firstRow(in table: String, db index: PommoraIndex, where clause: St
     }
 }
 
-// MARK: - Minimal entity factories
-
-private func makeAgendaEvent(title: String = "Team meeting") -> AgendaEvent {
-    let now = Date()
-    let later = now.addingTimeInterval(3600)
-    return AgendaEvent(
-        id: ULID.generate(), title: title, icon: nil,
-        description: "",
-        startAt: now, endAt: later, allDay: false,
-        location: nil, recurrence: nil,
-        alarmOffsets: [], alarmAbsolute: [],
-        calendarID: nil, eventkitUUID: nil,
-        tier1: [], tier2: [], tier3: [],
-        createdAt: now, modifiedAt: now,
-        properties: [:]
-    )
-}
-
 // MARK: - Suite
 
 @Suite("IndexUpdater")
@@ -234,7 +216,7 @@ struct IndexUpdaterTests {
         let idx = try Fixtures.index(at: nexus)
         let updater = IndexUpdater(idx)
 
-        let event = makeAgendaEvent()
+        let event = Fixtures.agendaEvent()
         try updater.upsertAgendaEvent(event)
 
         let count = try countRows(in: "agenda_events", db: idx)
@@ -247,7 +229,7 @@ struct IndexUpdaterTests {
         let idx = try Fixtures.index(at: nexus)
         let updater = IndexUpdater(idx)
 
-        let event = makeAgendaEvent()
+        let event = Fixtures.agendaEvent()
         try updater.upsertAgendaEvent(event)
         try updater.deleteAgendaEvent(id: event.id)
 

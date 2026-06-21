@@ -1,7 +1,7 @@
 import Foundation
 import GRDB
 
-// MARK: - FilterBuilder (pure value type; all members nonisolated)
+// MARK: - FilterBuilder
 
 struct BuiltQuery: Sendable {
     let sql: String
@@ -148,8 +148,6 @@ enum FilterBuilder {
             return ("?", [json])
         case .relation(let ids):
             // Relations are always-multi; mirror multiSelect and serialize the id array.
-            // Edge-resolution queries hit the `context_links` table directly (one row per target),
-            // not this scalar value column — this branch only feeds raw-value comparisons.
             let json = (try? String(data: JSONEncoder().encode(ids), encoding: .utf8)) ?? "[]"
             return ("?", [json])
         case .file, .lastEditedTime, .null:

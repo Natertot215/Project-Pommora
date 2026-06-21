@@ -1,6 +1,5 @@
 import SwiftUI
 
-/// Flow layout — wraps subviews onto multiple lines.
 struct FlowLayout: Layout {
     var spacing: CGFloat = 4
 

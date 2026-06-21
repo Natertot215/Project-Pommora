@@ -3,8 +3,7 @@ import Foundation
 @testable import Pommora
 
 /// Shared entity builders for tests — sensible defaults, params only for the
-/// fields a test varies. Pairs with `TempNexus` (filesystem isolation) and
-/// `FixtureFiles` (raw-file writes). Mirrors `TempNexus`'s plain-static style.
+/// fields a test varies.
 enum Fixtures {
 
     // MARK: - Pages domain

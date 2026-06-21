@@ -69,10 +69,7 @@ struct PropertyValueDecodeStressTests {
 
     @Test("an empty array decodes as .multiSelect([]) — the [String] probe catches it first")
     func emptyArrayIsMultiSelect() throws {
-        // `[]` is a valid empty `[String]`, so the multiSelect probe catches it before
-        // the `.file([])` fallback below it — which is therefore unreachable, and an
-        // empty `.file([])` does not round-trip (it encodes to `[]`, re-decodes here as
-        // `.multiSelect([])`). Pins current behaviour; flagged for decode-semantics review.
+        // `[]` is caught by the `[String]` probe first, so an empty `.file([])` does not round-trip.
         #expect(try decode("[]") == .multiSelect([]))
     }
 }
