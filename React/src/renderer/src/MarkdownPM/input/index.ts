@@ -2,7 +2,7 @@
 // for keystroke-reactive ones) and returns an Edit to apply, or null to fall through. Input-time
 // only (single-char insert / specific keys); paste preserves literal text by construction.
 import { isInsideCode, isInsideWikilink } from '../parser'
-import { parseListMarker, MAX_NESTING_LEVEL } from '../detect'
+import { parseListMarker, MAX_NESTING_LEVEL, blockquotePrefixRe } from '../detect'
 
 /** A single atomic edit: replace [from, to) with `insert`, then place the caret at `selection`. */
 export interface Edit {
@@ -42,9 +42,6 @@ export function continueListOnEnter(doc: string, selStart: number, selEnd: numbe
   const insert = `\n${line.slice(0, lm.markerStart)}${next}`
   return { from: selStart, to: selStart, insert, selection: selStart + insert.length }
 }
-
-// A blockquote line's marker prefix (one or more `>`, each with an optional space; nesting kept).
-const blockquotePrefixRe = /^[ \t]*(?:>[ \t]?)+/
 
 /** Enter inside a blockquote → continue with the same `> ` prefix (nesting preserved). Shift+Enter
  *  exits (the caller's separate binding inserts a plain newline). Caret in/before the marker → null. */

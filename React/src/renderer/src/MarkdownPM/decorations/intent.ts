@@ -3,28 +3,9 @@
 // is the ONLY thing that turns these into real CM6 decorations, so this layer stays unit-testable
 // without an editor.
 import type { Token, TokenKind } from '../tokens'
-import {
-  isThematicBreakLine,
-  isHeadingLine,
-  isDashBulletLine,
-  isOrderedListLine,
-  isBlockquoteLine,
-  hasCheckbox
-} from '../detect'
+import { isThematicBreakLine, isHeadingLine, isBlockquoteLine, parseListMarker, blockquotePrefixRe } from '../detect'
 
 const HEADING_RE = /^(\s{0,3})(#{1,6})([ \t]+)(.*)$/
-const BULLET_RE = /^([ \t]*)(-[ \t]+)/
-const ORDERED_RE = /^([ \t]*)(\d+)\.[ \t]+/
-const CHECKBOX_RE = /^([ \t]*)[-*+][ \t]*(\[[ xX]\])[ \t]+/d
-const BLOCKQUOTE_RE = /^[ \t]*(?:>[ \t]?)+/
-
-/** Source-indent → visual nesting level (`level = tabs + ⌊spaces/2⌋`, capped at 3 — spec §6.2). */
-function indentLevel(ws: string): number {
-  let tabs = 0
-  let spaces = 0
-  for (const ch of ws) ch === '\t' ? tabs++ : spaces++
-  return Math.min(3, tabs + Math.floor(spaces / 2))
-}
 
 const FENCE_RE = /^\s*```/
 /** A fenced-code-block line's role + the block's char range (so the caret-in-block test is cheap). */
@@ -112,6 +93,7 @@ export function decorationsFor(text: string, tokens: Token[], active: Set<number
     const le = ls + line.length
     const caretOnLine = selStart >= ls && selStart <= le
     const fence = fences[i]
+    const lm = parseListMarker(line)
 
     if (fence) {
       // Fence markers hide caret-out, reveal caret-in (dynamic syntax over the whole block).
@@ -129,35 +111,25 @@ export function decorationsFor(text: string, tokens: Token[], active: Set<number
         if (contentStart > ls) intents.push({ kind: 'class', from: ls, to: contentStart, className: 'md-hmarker' })
         if (!caretOnLine) intents.push({ kind: 'hide', from: ls, to: contentStart })
       }
-    } else if (hasCheckbox(line)) {
-      const cm = CHECKBOX_RE.exec(line)
-      const bracket = cm?.indices?.[2]
-      if (cm && bracket) {
-        const [bs, be] = bracket
-        // Nesting comes from the line's padding (md-li + level), so the prefix is replaced whole.
-        intents.push({ kind: 'line', from: ls, className: 'md-li', level: indentLevel(cm[1]) })
-        intents.push({
-          kind: 'widget',
-          from: ls,
-          to: ls + cm[0].length,
-          spec: { type: 'checkbox', bracketFrom: ls + bs, bracketTo: ls + be, checked: cm[2][1].toLowerCase() === 'x' }
-        })
-      }
-    } else if (isDashBulletLine(line)) {
-      const bm = BULLET_RE.exec(line)
-      if (bm) {
-        intents.push({ kind: 'line', from: ls, className: 'md-li', level: indentLevel(bm[1]) })
-        intents.push({ kind: 'widget', from: ls, to: ls + bm[0].length, spec: { type: 'bullet' } })
-      }
-    } else if (isOrderedListLine(line)) {
-      const om = ORDERED_RE.exec(line)
-      if (om) {
-        intents.push({ kind: 'line', from: ls, className: 'md-li', level: indentLevel(om[1]) })
-        intents.push({ kind: 'widget', from: ls, to: ls + om[0].length, spec: { type: 'ordered', label: `${om[2]}.` } })
-      }
+    } else if (lm?.kind === 'checkbox' && lm.box) {
+      // Nesting comes from the line's padding (md-li + level), so the prefix is replaced whole.
+      intents.push({ kind: 'line', from: ls, className: 'md-li', level: lm.level })
+      intents.push({
+        kind: 'widget',
+        from: ls,
+        to: ls + lm.contentStart,
+        spec: { type: 'checkbox', bracketFrom: ls + lm.box.start, bracketTo: ls + lm.box.end, checked: lm.checked ?? false }
+      })
+    } else if (lm?.kind === 'bullet' && lm.bullet === '-' && !lm.box) {
+      // Only a bare `-` bullet substitutes the • glyph (other bullet chars render literally).
+      intents.push({ kind: 'line', from: ls, className: 'md-li', level: lm.level })
+      intents.push({ kind: 'widget', from: ls, to: ls + lm.contentStart, spec: { type: 'bullet' } })
+    } else if (lm?.kind === 'ordered') {
+      intents.push({ kind: 'line', from: ls, className: 'md-li', level: lm.level })
+      intents.push({ kind: 'widget', from: ls, to: ls + lm.contentStart, spec: { type: 'ordered', label: `${lm.digits ?? ''}.` } })
     } else if (isBlockquoteLine(line)) {
       // Always-show card (not caret-aware): `>` markers stay hidden; first/last round the corners.
-      const bm = BLOCKQUOTE_RE.exec(line)
+      const bm = blockquotePrefixRe.exec(line)
       if (bm) {
         const first = i === 0 || !isBlockquoteLine(lines[i - 1])
         const last = i === lines.length - 1 || !isBlockquoteLine(lines[i + 1])

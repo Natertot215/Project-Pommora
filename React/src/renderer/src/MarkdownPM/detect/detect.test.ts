@@ -6,7 +6,6 @@ import {
   isDashBulletLine,
   hasCheckbox,
   isInlineMathContent,
-  listRegex,
   parseListMarker,
   indentLevel,
   imageEmbedRegex,
@@ -41,11 +40,6 @@ describe('heading', () => {
 })
 
 describe('lists + dash bullets', () => {
-  it('listRegex matches bullets, ordered, and the -[] shorthand as a list LINE', () => {
-    expect(listRegex().test('- a')).toBe(true)
-    expect(listRegex().test('1. a')).toBe(true)
-    expect(listRegex().test('-[] a')).toBe(true) // bare -[] still reads as a list line
-  })
   it('isDashBulletLine: only "-" marker, and NOT task lines', () => {
     expect(isDashBulletLine('- a')).toBe(true)
     expect(isDashBulletLine('* a')).toBe(false) // only - substitutes a glyph

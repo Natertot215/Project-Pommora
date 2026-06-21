@@ -18,10 +18,9 @@ export const blockLatexRegex = (): RegExp => /(?<!\$)\$\$([\s\S]+?)\$\$/gd
 /** `$…$` inline latex (gate the content with isInlineMathContent). Group 1 = formula. */
 export const inlineLatexRegex = (): RegExp => /(?<!\$)\$(?!\$)([^$\n]+?)\$(?!\$)/gd
 
-/** A list line: bullet or ordered, optional task bracket. Group 1 = marker run, 2 = ordered digits.
- *  The optional `[…]?` is deliberate — a bare `-[]` still reads as a list LINE; only checkbox
- *  rendering excludes empty `[]`. */
-export const listRegex = (): RegExp => /^\s*((?:(\d+)\.|[-*+•])(?:\s*\[[ xX]?\])?\s+)/
+/** A blockquote line's full marker prefix (one or more `>`, each with an optional space; nesting
+ *  kept). Shared by the render intent (hide span) and Enter-continuation. */
+export const blockquotePrefixRe = /^[ \t]*(?:>[ \t]?)+/
 
 /** The deepest list nesting (Tab cap + the render indent cap; spec §6.2). */
 export const MAX_NESTING_LEVEL = 3
