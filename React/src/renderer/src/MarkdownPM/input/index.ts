@@ -44,6 +44,20 @@ export function continueListOnEnter(doc: string, selStart: number, selEnd: numbe
   return { from: selStart, to: selStart, insert, selection: selStart + insert.length }
 }
 
+// A blockquote line's marker prefix (one or more `>`, each with an optional space; nesting kept).
+const blockquotePrefixRe = /^[ \t]*(?:>[ \t]?)+/
+
+/** Enter inside a blockquote → continue with the same `> ` prefix (nesting preserved). Shift+Enter
+ *  exits (the caller's separate binding inserts a plain newline). Caret in/before the marker → null. */
+export function continueBlockquoteOnEnter(doc: string, selStart: number, selEnd: number): Edit | null {
+  if (selStart !== selEnd) return null
+  const ls = lineStartAt(doc, selStart)
+  const m = blockquotePrefixRe.exec(doc.slice(ls, lineEndAt(doc, selStart)))
+  if (m === null || selStart < ls + m[0].length) return null
+  const insert = `\n${m[0].replace(/[ \t]+$/, '')} ` // normalize to a single trailing space
+  return { from: selStart, to: selStart, insert, selection: selStart + insert.length }
+}
+
 /** The deepest list nesting Tab will create (spec §6.2). */
 const MAX_NESTING_LEVEL = 3
 

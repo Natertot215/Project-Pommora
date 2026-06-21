@@ -8,6 +8,7 @@ import {
   bracketSkipOnEnter,
   dashArrow,
   indentListOnTab,
+  continueBlockquoteOnEnter,
   type Edit
 } from './index'
 
@@ -134,5 +135,20 @@ describe('tab indent (list nesting)', () => {
   it('ignores non-list lines and selections', () => {
     expect(indentListOnTab('plain text', 5, 5)).toBeNull()
     expect(indentListOnTab('- item', 2, 4)).toBeNull()
+  })
+})
+
+describe('blockquote continuation (Enter)', () => {
+  it('continues a quote with the same prefix', () => {
+    const doc = '> quote'
+    expect(apply(doc, continueBlockquoteOnEnter(doc, doc.length, doc.length)!)).toBe('> quote\n> ')
+  })
+  it('preserves nesting depth', () => {
+    const doc = '>> deep'
+    expect(apply(doc, continueBlockquoteOnEnter(doc, doc.length, doc.length)!)).toBe('>> deep\n>> ')
+  })
+  it('falls through when the caret is in the marker, or on a non-quote line', () => {
+    expect(continueBlockquoteOnEnter('> q', 1, 1)).toBeNull()
+    expect(continueBlockquoteOnEnter('plain', 5, 5)).toBeNull()
   })
 })

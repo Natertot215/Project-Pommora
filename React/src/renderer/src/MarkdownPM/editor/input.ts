@@ -8,6 +8,7 @@ import { EditorView, keymap } from '@codemirror/view'
 import { Prec } from '@codemirror/state'
 import {
   continueListOnEnter,
+  continueBlockquoteOnEnter,
   smartBackspace,
   canonicalizeCheckbox,
   autoPair,
@@ -32,9 +33,14 @@ function apply(view: EditorView, edit: Edit | null): boolean {
 const onEnter = (view: EditorView): boolean => {
   const s = view.state.selection.main
   const doc = view.state.doc.toString()
-  // Bracket-skip first (jump past a closer), else continue the list. Plain Enter only — Shift+Enter
-  // isn't bound here, so it falls through to a plain newline (the list/blockquote exit).
-  return apply(view, bracketSkipOnEnter(doc, s.from, s.to) ?? continueListOnEnter(doc, s.from, s.to))
+  // Bracket-skip first (jump past a closer), else continue a list, else continue a blockquote.
+  // Plain Enter only — Shift+Enter is bound separately to a plain newline (the construct exit).
+  return apply(
+    view,
+    bracketSkipOnEnter(doc, s.from, s.to) ??
+      continueListOnEnter(doc, s.from, s.to) ??
+      continueBlockquoteOnEnter(doc, s.from, s.to)
+  )
 }
 
 const onBackspace = (view: EditorView): boolean => {
