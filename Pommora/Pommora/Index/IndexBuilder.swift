@@ -625,7 +625,7 @@ final class IndexBuilder {
         for (level, targetIDs, propertyID) in tiers {
             let targetKind = RelationTargetKind.string(from: .contextTier(level))
             for targetID in targetIDs {
-                let relationID = UUID().uuidString
+                let relationID = ULID.generate()
                 attemptInsert(
                     "tier-\(level) relation \(sourceKind) \(sourceID) → \(targetID)",
                     {
