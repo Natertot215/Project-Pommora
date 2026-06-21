@@ -74,14 +74,17 @@ function widgetFor(spec: WidgetSpec): WidgetType {
 }
 
 const hideMarker = Decoration.replace({})
+const NO_ACTIVE = new Set<number>()
 
 function build(view: EditorView, conn: ConnectionsApi | undefined): DecorationSet {
   const text = view.state.doc.toString()
+  const focused = view.hasFocus
   const sel = view.state.selection.main
   const tokens = tokenize(text)
-  const active = activeTokenIndices(tokens, sel.from, sel.to)
+  const active = focused ? activeTokenIndices(tokens, sel.from, sel.to) : NO_ACTIVE
+  const head = focused ? sel.head : -1
   const ranges: Range<Decoration>[] = []
-  for (const it of decorationsFor(text, tokens, active, sel.head)) {
+  for (const it of decorationsFor(text, tokens, active, head)) {
     if (it.kind === 'line') {
       const spec =
         it.level === undefined
@@ -116,8 +119,8 @@ export function markdownDecorations(getConn: () => ConnectionsApi | undefined): 
         this.decorations = build(view, getConn())
       }
       update(u: ViewUpdate): void {
-        // Decorations cover the whole doc, so only doc/selection changes matter — not scroll.
-        if (u.docChanged || u.selectionSet) this.decorations = build(u.view, getConn())
+        // Decorations cover the whole doc, so only doc/selection/focus changes matter — not scroll.
+        if (u.docChanged || u.selectionSet || u.focusChanged) this.decorations = build(u.view, getConn())
       }
     },
     { decorations: (v) => v.decorations }

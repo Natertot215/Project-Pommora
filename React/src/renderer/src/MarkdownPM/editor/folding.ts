@@ -231,8 +231,12 @@ function toggleFold(view: EditorView, s: HeadingSection): void {
   }
   const bodyStart = s.lineEnd + 1
   if (bodyStart > s.to) return
+  // A caret inside the body being folded becomes unplaced (blur) rather than jumping to the next visible line.
+  const sel = view.state.selection.main
+  const caretInBody = sel.to > s.lineEnd && sel.from <= s.to
   cloneMap.set(s.from, cloneBody(view, bodyStart, s.to))
   view.dispatch({ effects: foldEffect.of({ headingFrom: s.from, from: bodyStart, to: s.to, animate: true }) })
+  if (caretInBody) view.contentDOM.blur()
 }
 
 // A chevron points down (open) when its section is unfolded or mid-expand, right when folding/folded.

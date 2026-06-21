@@ -23,6 +23,8 @@
   font-family: var(--font-family);
   line-height: 1.6;
   scrollbar-width: none;
+  /* Kill rubber-band overscroll: it desyncs from the JS-driven title transform and makes the title bounce. */
+  overscroll-behavior: none;
 }
 .mdpm-editor .cm-scroller::-webkit-scrollbar {
   display: none;
