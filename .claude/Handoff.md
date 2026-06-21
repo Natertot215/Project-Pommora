@@ -10,7 +10,7 @@
 
 #### Session Summary
 
-**6-20/6-21 (Swift) — the codebase-health refactoring program executed through Phase C, all merged to `main` (local, not pushed); 1,291 tests green.**
+**6-20/6-21 (Swift) — the codebase-health refactoring program executed through Phase C, all merged + pushed to `origin/main`; 1,291 tests green.**
 
 1. **Phase B — test-support.** Shared fixtures consolidated into `PommoraTests/Support/` (`Fixtures` entity/page/agenda builders — **no separate target**, single test consumer). The Index/Connections suites migrated onto them; the three parallel Context-manager suites collapsed behind a **test-only** `TestableContextManager` protocol + `ContextCRUDChecks` (production managers stay separate — ratified headroom). `PropertyValue` decode-probe stress coverage seeded.
 2. **Phase C — reorg + shared primitives.** New `Core/` absorbs the one-file folders (`CRUD`/`Ordering`/`Filesystem`) + `Core/Formatters/` (IndexDateFormat + TimeFormat + DateFormat); `FlowLayout` → `Components/Layout/`; `SavedConfig` → `Configuration/`, `ReservedTypeID` → `Agenda/`. Consolidations: `Core/ULIDAlphabet` single-sources the Crockford alphabet; `AppState`/`NexusIdentity` persist via `AtomicJSON`; `FilterBuilder` split out of `IndexQuery` → `IndexQueryFilter`. All behaviour-neutral + build-verified.
@@ -30,11 +30,10 @@
 - **Phase D — the `Row` primitive** (the marquee refactoring win): one `Components/Row` subsumes the 6-way-duplicated sidebar rows + the drag-ghost patch. **Med–high risk** — rewrites load-bearing `SidebarView` (quirks #8/#9: Section homogeneity, `SelectionChrome`, the launch-crash surface). Needs care + a post-build UIX check.
 - **The C-deferred visual/paradigm items** (need Nathan's eyes): magic-numbers → `PUI` + `.hoverFill()` (silent pixel risk), `PropertyValue` datetime → `IndexDateFormat` (on-disk decode change), the full `Domain/Features` top-level grouping, the `NexusAdopter`/`PageTypeManager` god-file splits.
 - **Phases E–H** (DRY non-divergent families · Codable→synthesized · god-file breakups · concurrency/typed-throws) — per `Planning/06-20-Refactoring-Roadmap.md`.
-- **Push `main` → `origin`** (gated — the session's Swift work is committed locally, not pushed).
 
 #### Pending Focuses
 
-- **`main` is local-only** — the refactoring + the React MarkdownPM work are on local `main` but not pushed to `origin` (origin is well behind).
+- **`main` is pushed to `origin`** — the refactoring + the React MarkdownPM work are on `origin/main`.
 - **Refactoring D–H + the C-deferred items** — per the Roadmap (the live controller).
 - **The Views build** (per `06-13-Views-UIX-Fixes.md`) — Gallery, sorting UIX, Layout-pane rework, Edit-Icon popover — a parallel focus; the toolbar/banner chrome is parked.
 - **Swift improvements from the React data-layer slice** — `Planning/Reference/Swift-Improvements-from-React-Rebuild.md` distills concrete wins; reserve a dedicated session.
