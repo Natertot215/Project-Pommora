@@ -13,8 +13,10 @@ function wikiLinkAt(view: EditorView, pos: number): { title: string } | null {
 
 export function connectionClicks(getApi: GetApi): ReturnType<typeof EditorView.domEventHandlers> {
   return EditorView.domEventHandlers({
-    mousedown(event, view) {
-      if (event.button !== 0) return false
+    // Navigate on a plain single-click (spec). Handled on `click`, not `mousedown`, and skipped when the
+    // selection is non-empty — so dragging across a connection highlights it instead of navigating away.
+    click(event, view) {
+      if (event.button !== 0 || event.detail !== 1 || !view.state.selection.main.empty) return false
       const api = getApi()
       if (!api) return false
       const pos = view.posAtCoords({ x: event.clientX, y: event.clientY })
