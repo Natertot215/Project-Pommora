@@ -2,6 +2,14 @@
 
 Changelog + the home for locked decisions — what shipped and when, newest first. Brief by design. Current state lives in the feature docs + `PommoraPRD.md`; roadmap + phases in `Framework.md`; editor internals in `Features/PageEditor.md`. When an entry would enumerate file-level detail, it points to the canonical feature doc instead.
 
+#### Refactoring program — Phase C reorg + shared primitives (2026-06-21, branch `refactoring-phase-b`)
+
+Folder reorg gave the shared layer real homes: new `Core/` absorbs the one-file utility folders (CRUD / Ordering / Filesystem) and `Core/Formatters/` (IndexDateFormat + TimeFormat + DateFormat); `FlowLayout` extracted to `Components/Layout/`; misplaced singletons rehomed (`SavedConfig` → Configuration, `ReservedTypeID` → Agenda). Consolidations: the Crockford ULID alphabet single-sourced (`Core/ULIDAlphabet`, consumed by `ULID` + `ULIDValidator`); `AppState` + `NexusIdentity` persistence routed through `AtomicJSON`; `FilterBuilder` split out of the `IndexQuery` god-file. All behaviour-neutral + build-verified (1291 tests). **Deferred for review** (visual or paradigm-adjacent): magic-numbers → `PUI` + `.hoverFill()` (silent pixel risk the build can't catch), `PropertyValue` datetime → `IndexDateFormat` (adds fractional seconds = on-disk decode change), the full Domain/Features top-level grouping (subjective), and the `NexusAdopter` / `PageTypeManager` god-file splits (tangled — view-coupled `Identifiable` models + shared mutable state).
+
+#### Refactoring program — Phase B test-support (2026-06-21, branch `refactoring-phase-b`)
+
+Shared test fixtures consolidated into `PommoraTests/Support/` — **decided: grow the existing folder, not a separate `PommoraTestSupport` target** (a single unit-test consumer makes a target needless plumbing). `Fixtures` builds the page + agenda entities; the Index/Connections suites migrated onto it, and the three parallel Context manager suites collapsed behind a **test-only** `TestableContextManager` protocol + `ContextCRUDChecks` (production managers stay separate — the ratified headroom holds). `PropertyValue` decode-probe stress coverage seeded. **Finding (deferred):** an empty `[]` decodes as `.multiSelect([])`, so an empty `.file([])` does not round-trip — noted in-code, the codec left unchanged pending a decode-semantics call.
+
 #### Refactoring program — Phase A decisions ratified (2026-06-20, branch `refactoring`)
 
 Following the codebase audit + Foundation Hardening, the larger refactoring's Phase-A on-disk decisions are ratified (roadmap → `Planning/06-20-Refactoring-Roadmap.md`):

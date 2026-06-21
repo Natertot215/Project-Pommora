@@ -28,19 +28,11 @@ extension NexusIdentity {
     /// or malformed — caller decides how to handle (e.g. offer re-init for
     /// corruption).
     static func load(from url: URL) throws -> NexusIdentity {
-        let data = try Data(contentsOf: url)
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
-        return try decoder.decode(NexusIdentity.self, from: data)
+        try AtomicJSON.decode(NexusIdentity.self, from: url)
     }
 
-    /// Atomically writes identity as pretty-printed JSON with sorted keys.
-    /// ISO-8601 dates for human readability and cross-platform parsing.
+    /// Atomically writes identity as pretty-printed JSON via AtomicJSON.
     func save(to url: URL) throws {
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        encoder.dateEncodingStrategy = .iso8601
-        let data = try encoder.encode(self)
-        try data.write(to: url, options: [.atomic])
+        try AtomicJSON.write(self, to: url)
     }
 }

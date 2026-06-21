@@ -63,19 +63,12 @@ extension AppState {
     /// Throws if the file is missing — callers decide whether that means
     /// "first launch, default state" or a hard error.
     static func load(from url: URL) throws -> AppState {
-        let data = try Data(contentsOf: url)
-        return try JSONDecoder().decode(AppState.self, from: data)
+        try AtomicJSON.decode(AppState.self, from: url)
     }
 
-    /// Atomically writes state to a JSON file at the given URL.
-    /// Pretty-printed with sorted keys for human inspectability and
-    /// git-friendly diffs (relevant if a user puts App Support under VCS
-    /// for backup, which is unusual but possible).
+    /// Atomically writes state as pretty-printed JSON via AtomicJSON.
     func save(to url: URL) throws {
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        let data = try encoder.encode(self)
-        try data.write(to: url, options: [.atomic])
+        try AtomicJSON.write(self, to: url)
     }
 
     // MARK: - Inspector persistence (v0.2.7)

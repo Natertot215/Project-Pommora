@@ -4,31 +4,6 @@ import Testing
 
 @testable import Pommora
 
-// MARK: - Minimal entity factories (mirror IndexUpdaterTests)
-
-private func makePageType(title: String = "Notes") -> PageType {
-    PageType(
-        id: ULID.generate(), title: title, icon: nil,
-        properties: [], views: [], modifiedAt: Date()
-    )
-}
-
-private func makePageCollection(typeID: String, title: String = "Archive") -> PageCollection {
-    let folderURL = URL(fileURLWithPath: "/tmp/dummy-\(UUID().uuidString)")
-    return PageCollection(id: ULID.generate(), typeID: typeID, title: title, folderURL: folderURL, modifiedAt: Date())
-}
-
-private func makePageMeta(id: String = ULID.generate(), title: String = "Hello") -> PageMeta {
-    let url = URL(fileURLWithPath: "/tmp/\(id).md")
-    let frontmatter = PageFrontmatter(
-        id: id, icon: nil,
-        tier1: [], tier2: [], tier3: [],
-        properties: [:],
-        createdAt: Date()
-    )
-    return PageMeta(id: id, title: title, url: url, frontmatter: frontmatter)
-}
-
 // MARK: - Suite
 
 @Suite("PageSetIndex")
@@ -184,14 +159,14 @@ struct PageSetIndexTests {
         let (idx, _) = try PommoraIndex.open(at: nexus.rootURL)
         let updater = IndexUpdater(idx)
 
-        let pt = makePageType()
+        let pt = Fixtures.pageType()
         try updater.upsertPageType(pt)
-        let pc = makePageCollection(typeID: pt.id)
+        let pc = Fixtures.pageCollection(typeID: pt.id)
         try updater.upsertPageCollection(pc)
 
         // The set FK dangles (never indexed) — the page must still land,
         // scoped to its Collection, without throwing.
-        let meta = makePageMeta()
+        let meta = Fixtures.pageMeta()
         try updater.upsertPage(meta, pageTypeID: pt.id, pageCollectionID: pc.id, pageSetID: ULID.generate())
 
         let pageID = meta.id
@@ -208,12 +183,12 @@ struct PageSetIndexTests {
         let (idx, _) = try PommoraIndex.open(at: nexus.rootURL)
         let updater = IndexUpdater(idx)
 
-        let pt = makePageType()
+        let pt = Fixtures.pageType()
         try updater.upsertPageType(pt)
 
         // Both the set AND collection FKs dangle — the page still indexes
         // under its Vault alone.
-        let meta = makePageMeta()
+        let meta = Fixtures.pageMeta()
         try updater.upsertPage(meta, pageTypeID: pt.id, pageCollectionID: ULID.generate(), pageSetID: ULID.generate())
 
         let pageID = meta.id
@@ -231,9 +206,9 @@ struct PageSetIndexTests {
         let (idx, _) = try PommoraIndex.open(at: nexus.rootURL)
         let updater = IndexUpdater(idx)
 
-        let pt = makePageType()
+        let pt = Fixtures.pageType()
         try updater.upsertPageType(pt)
-        let pc = makePageCollection(typeID: pt.id)
+        let pc = Fixtures.pageCollection(typeID: pt.id)
         try updater.upsertPageCollection(pc)
 
         let set = PageSet(

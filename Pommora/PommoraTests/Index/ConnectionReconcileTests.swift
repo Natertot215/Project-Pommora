@@ -10,11 +10,6 @@ struct ConnectionReconcileTests {
 
     // MARK: - Helpers
 
-    private func makeIndex(at nexus: Nexus) throws -> PommoraIndex {
-        let (idx, _) = try PommoraIndex.open(at: nexus.rootURL)
-        return idx
-    }
-
     /// Insert a pages row (with its required page_type parent) so reconcile's
     /// title lookup finds it. `pages.page_type_id` is NOT NULL + FK to page_types,
     /// so seed a shared parent row first (INSERT OR IGNORE — idempotent across calls).
@@ -44,7 +39,7 @@ struct ConnectionReconcileTests {
     @Test func resolvedPhantomAndMultiplicity() throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
-        let idx = try makeIndex(at: nexus)
+        let idx = try Fixtures.index(at: nexus)
         let updater = IndexUpdater(idx)
 
         let targetID = ULID.generate()
@@ -76,7 +71,7 @@ struct ConnectionReconcileTests {
     @Test func selfLinkIsSkipped() throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
-        let idx = try makeIndex(at: nexus)
+        let idx = try Fixtures.index(at: nexus)
         let updater = IndexUpdater(idx)
 
         try updater.reconcileConnections(
@@ -94,7 +89,7 @@ struct ConnectionReconcileTests {
     @Test func deactivateFlipsResolvedToPhantom() throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
-        let idx = try makeIndex(at: nexus)
+        let idx = try Fixtures.index(at: nexus)
         let updater = IndexUpdater(idx)
 
         let targetID = ULID.generate()

@@ -11,11 +11,6 @@ struct ConnectionResolverTests {
 
     // MARK: - Helpers
 
-    private func makeIndex(at nexus: Nexus) throws -> PommoraIndex {
-        let (idx, _) = try PommoraIndex.open(at: nexus.rootURL)
-        return idx
-    }
-
     private func now() -> String {
         let iso = ISO8601DateFormatter()
         iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
@@ -42,7 +37,7 @@ struct ConnectionResolverTests {
     @Test func uniquePageTitleResolves() throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
-        let idx = try makeIndex(at: nexus)
+        let idx = try Fixtures.index(at: nexus)
         let id = ULID.generate()
         try insertPage(id: id, title: "Alpha", index: idx)
 
@@ -57,7 +52,7 @@ struct ConnectionResolverTests {
     @Test func missingPageTitleReturnsNil() throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
-        let idx = try makeIndex(at: nexus)
+        let idx = try Fixtures.index(at: nexus)
 
         let resolver = PommoraConnectionResolver(index: idx)
         #expect(resolver.resolve(displayName: "Ghost", range: NSRange(location: 0, length: 0)) == nil)
@@ -67,7 +62,7 @@ struct ConnectionResolverTests {
     @Test func duplicatePageTitleReturnsNil() throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
-        let idx = try makeIndex(at: nexus)
+        let idx = try Fixtures.index(at: nexus)
         try insertPage(id: ULID.generate(), title: "Dup", index: idx)
         try insertPage(id: ULID.generate(), title: "Dup", index: idx)
 
@@ -81,7 +76,7 @@ struct ConnectionResolverTests {
     @Test func resolveByDirectID() throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
-        let idx = try makeIndex(at: nexus)
+        let idx = try Fixtures.index(at: nexus)
         let id = ULID.generate()
         try insertPage(id: id, title: "Bravo", index: idx)
 
@@ -92,7 +87,7 @@ struct ConnectionResolverTests {
     @Test func resolveByDisplayTitle() throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
-        let idx = try makeIndex(at: nexus)
+        let idx = try Fixtures.index(at: nexus)
         let id = ULID.generate()
         try insertPage(id: id, title: "Project Notes", index: idx)
 
@@ -103,7 +98,7 @@ struct ConnectionResolverTests {
     @Test func resolveByTitleCaseInsensitive() throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
-        let idx = try makeIndex(at: nexus)
+        let idx = try Fixtures.index(at: nexus)
         let id = ULID.generate()
         try insertPage(id: id, title: "Meeting Notes", index: idx)
 
@@ -115,7 +110,7 @@ struct ConnectionResolverTests {
     @Test func resolveUnknownReturnsNil() throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
-        let idx = try makeIndex(at: nexus)
+        let idx = try Fixtures.index(at: nexus)
 
         #expect(IndexQuery(idx).resolvePageByIDOrTitle("phantom-id-000") == nil)
     }
@@ -125,7 +120,7 @@ struct ConnectionResolverTests {
     @Test func resolveAmbiguousTitleReturnsNil() throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
-        let idx = try makeIndex(at: nexus)
+        let idx = try Fixtures.index(at: nexus)
         let id1 = ULID.generate()
         let id2 = ULID.generate()
         try insertPage(id: id1, title: "Dup", index: idx)

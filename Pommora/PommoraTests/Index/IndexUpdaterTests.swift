@@ -6,11 +6,6 @@ import Testing
 
 // MARK: - Test helpers
 
-private func makeIndex(at nexus: Nexus) throws -> PommoraIndex {
-    let (idx, _) = try PommoraIndex.open(at: nexus.rootURL)
-    return idx
-}
-
 private func countRows(in table: String, db index: PommoraIndex) throws -> Int {
     try index.dbQueue.read { db in
         try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM \(table)") ?? -1
@@ -21,62 +16,6 @@ private func firstRow(in table: String, db index: PommoraIndex, where clause: St
     try index.dbQueue.read { db in
         try Row.fetchOne(db, sql: "SELECT * FROM \(table) WHERE \(clause)")
     }
-}
-
-// MARK: - Minimal entity factories
-
-private func makePageType(title: String = "Notes") -> PageType {
-    PageType(
-        id: ULID.generate(), title: title, icon: nil,
-        properties: [], views: [], modifiedAt: Date()
-    )
-}
-
-private func makePageCollection(typeID: String, title: String = "Archive") -> PageCollection {
-    let folderURL = URL(fileURLWithPath: "/tmp/dummy-\(UUID().uuidString)")
-    return PageCollection(id: ULID.generate(), typeID: typeID, title: title, folderURL: folderURL, modifiedAt: Date())
-}
-
-private func makeAgendaTask(title: String = "Buy milk") -> AgendaTask {
-    let now = Date()
-    return AgendaTask(
-        id: ULID.generate(), title: title, icon: nil,
-        description: "",
-        dueAt: nil, dueFloating: false, dueAllDay: false,
-        startAt: nil, completed: false, completedAt: nil,
-        priority: 0, recurrence: nil, alarmOffsets: [],
-        calendarID: nil, eventkitUUID: nil,
-        tier1: [], tier2: [], tier3: [],
-        createdAt: now, modifiedAt: now,
-        properties: [:]
-    )
-}
-
-private func makeAgendaEvent(title: String = "Team meeting") -> AgendaEvent {
-    let now = Date()
-    let later = now.addingTimeInterval(3600)
-    return AgendaEvent(
-        id: ULID.generate(), title: title, icon: nil,
-        description: "",
-        startAt: now, endAt: later, allDay: false,
-        location: nil, recurrence: nil,
-        alarmOffsets: [], alarmAbsolute: [],
-        calendarID: nil, eventkitUUID: nil,
-        tier1: [], tier2: [], tier3: [],
-        createdAt: now, modifiedAt: now,
-        properties: [:]
-    )
-}
-
-private func makePageMeta(id: String = ULID.generate(), title: String = "Hello") -> PageMeta {
-    let url = URL(fileURLWithPath: "/tmp/\(id).md")
-    let frontmatter = PageFrontmatter(
-        id: id, icon: nil,
-        tier1: [], tier2: [], tier3: [],
-        properties: [:],
-        createdAt: Date()
-    )
-    return PageMeta(id: id, title: title, url: url, frontmatter: frontmatter)
 }
 
 // MARK: - Suite
@@ -90,10 +29,10 @@ struct IndexUpdaterTests {
     @Test func createPageTypeIndexesARow() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
-        let idx = try makeIndex(at: nexus)
+        let idx = try Fixtures.index(at: nexus)
         let updater = IndexUpdater(idx)
 
-        let pt = makePageType()
+        let pt = Fixtures.pageType()
         try updater.upsertPageType(pt)
 
         let count = try countRows(in: "page_types", db: idx)
@@ -106,10 +45,10 @@ struct IndexUpdaterTests {
     @Test func deletePageTypeRemovesRow() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
-        let idx = try makeIndex(at: nexus)
+        let idx = try Fixtures.index(at: nexus)
         let updater = IndexUpdater(idx)
 
-        let pt = makePageType()
+        let pt = Fixtures.pageType()
         try updater.upsertPageType(pt)
         try updater.deletePageType(id: pt.id)
 
@@ -122,12 +61,12 @@ struct IndexUpdaterTests {
     @Test func createPageCollectionIndexesARow() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
-        let idx = try makeIndex(at: nexus)
+        let idx = try Fixtures.index(at: nexus)
         let updater = IndexUpdater(idx)
 
-        let pt = makePageType()
+        let pt = Fixtures.pageType()
         try updater.upsertPageType(pt)
-        let pc = makePageCollection(typeID: pt.id)
+        let pc = Fixtures.pageCollection(typeID: pt.id)
         try updater.upsertPageCollection(pc)
 
         let count = try countRows(in: "page_collections", db: idx)
@@ -140,10 +79,10 @@ struct IndexUpdaterTests {
     @Test func upsertPageCollectionPersistsEntitySchemaVersion() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
-        let idx = try makeIndex(at: nexus)
+        let idx = try Fixtures.index(at: nexus)
         let updater = IndexUpdater(idx)
 
-        let pt = makePageType()
+        let pt = Fixtures.pageType()
         try updater.upsertPageType(pt)
 
         // A schemaVersion ≠ the previously-hardcoded literal 1.
@@ -160,12 +99,12 @@ struct IndexUpdaterTests {
     @Test func deletePageCollectionRemovesRow() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
-        let idx = try makeIndex(at: nexus)
+        let idx = try Fixtures.index(at: nexus)
         let updater = IndexUpdater(idx)
 
-        let pt = makePageType()
+        let pt = Fixtures.pageType()
         try updater.upsertPageType(pt)
-        let pc = makePageCollection(typeID: pt.id)
+        let pc = Fixtures.pageCollection(typeID: pt.id)
         try updater.upsertPageCollection(pc)
         try updater.deletePageCollection(id: pc.id)
 
@@ -178,7 +117,7 @@ struct IndexUpdaterTests {
     @Test func upsertContextGenericWritesRow() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
-        let idx = try makeIndex(at: nexus)
+        let idx = try Fixtures.index(at: nexus)
         let updater = IndexUpdater(idx)
 
         try updater.upsertContext(id: "ctx-1", tier: 2, title: "Topic A", icon: nil)
@@ -193,16 +132,16 @@ struct IndexUpdaterTests {
     @Test func pageIDsScopesPrecisely() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
-        let idx = try makeIndex(at: nexus)
+        let idx = try Fixtures.index(at: nexus)
         let updater = IndexUpdater(idx)
 
-        let pt = makePageType()
+        let pt = Fixtures.pageType()
         try updater.upsertPageType(pt)
-        let pc = makePageCollection(typeID: pt.id)
+        let pc = Fixtures.pageCollection(typeID: pt.id)
         try updater.upsertPageCollection(pc)
 
-        let rootPage = makePageMeta(title: "Root")
-        let collectionPage = makePageMeta(title: "InCollection")
+        let rootPage = Fixtures.pageMeta(title: "Root")
+        let collectionPage = Fixtures.pageMeta(title: "InCollection")
         try updater.upsertPage(rootPage, pageTypeID: pt.id, pageCollectionID: nil, pageSetID: nil)
         try updater.upsertPage(
             collectionPage, pageTypeID: pt.id, pageCollectionID: pc.id, pageSetID: nil)
@@ -221,10 +160,10 @@ struct IndexUpdaterTests {
     @Test func renamePageTypeUpdatesIndexedTitle() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
-        let idx = try makeIndex(at: nexus)
+        let idx = try Fixtures.index(at: nexus)
         let updater = IndexUpdater(idx)
 
-        var pt = makePageType(title: "Old Name")
+        var pt = Fixtures.pageType(title: "Old Name")
         try updater.upsertPageType(pt)
 
         pt.title = "New Name"
@@ -242,10 +181,10 @@ struct IndexUpdaterTests {
     @Test func createAgendaTaskIndexesARow() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
-        let idx = try makeIndex(at: nexus)
+        let idx = try Fixtures.index(at: nexus)
         let updater = IndexUpdater(idx)
 
-        let task = makeAgendaTask()
+        let task = Fixtures.agendaTask()
         try updater.upsertAgendaTask(task)
 
         let count = try countRows(in: "agenda_tasks", db: idx)
@@ -258,10 +197,10 @@ struct IndexUpdaterTests {
     @Test func deleteAgendaTaskRemovesRow() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
-        let idx = try makeIndex(at: nexus)
+        let idx = try Fixtures.index(at: nexus)
         let updater = IndexUpdater(idx)
 
-        let task = makeAgendaTask()
+        let task = Fixtures.agendaTask()
         try updater.upsertAgendaTask(task)
         try updater.deleteAgendaTask(id: task.id)
 
@@ -274,10 +213,10 @@ struct IndexUpdaterTests {
     @Test func createAgendaEventIndexesARow() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
-        let idx = try makeIndex(at: nexus)
+        let idx = try Fixtures.index(at: nexus)
         let updater = IndexUpdater(idx)
 
-        let event = makeAgendaEvent()
+        let event = Fixtures.agendaEvent()
         try updater.upsertAgendaEvent(event)
 
         let count = try countRows(in: "agenda_events", db: idx)
@@ -287,10 +226,10 @@ struct IndexUpdaterTests {
     @Test func deleteAgendaEventRemovesRow() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
-        let idx = try makeIndex(at: nexus)
+        let idx = try Fixtures.index(at: nexus)
         let updater = IndexUpdater(idx)
 
-        let event = makeAgendaEvent()
+        let event = Fixtures.agendaEvent()
         try updater.upsertAgendaEvent(event)
         try updater.deleteAgendaEvent(id: event.id)
 
@@ -303,10 +242,10 @@ struct IndexUpdaterTests {
     @Test func addPropertyIndexesAPropertyDefinitionRow() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
-        let idx = try makeIndex(at: nexus)
+        let idx = try Fixtures.index(at: nexus)
         let updater = IndexUpdater(idx)
 
-        let pt = makePageType()
+        let pt = Fixtures.pageType()
         try updater.upsertPageType(pt)
 
         let def = PropertyDefinition(
@@ -326,10 +265,10 @@ struct IndexUpdaterTests {
     @Test func renamePropertyUpdatesIndexedName() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
-        let idx = try makeIndex(at: nexus)
+        let idx = try Fixtures.index(at: nexus)
         let updater = IndexUpdater(idx)
 
-        let pt = makePageType()
+        let pt = Fixtures.pageType()
         try updater.upsertPageType(pt)
 
         var def = PropertyDefinition(
@@ -351,10 +290,10 @@ struct IndexUpdaterTests {
     @Test func deletePropertyRemovesPropertyDefinitionRow() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
-        let idx = try makeIndex(at: nexus)
+        let idx = try Fixtures.index(at: nexus)
         let updater = IndexUpdater(idx)
 
-        let pt = makePageType()
+        let pt = Fixtures.pageType()
         try updater.upsertPageType(pt)
 
         let def = PropertyDefinition(
@@ -377,10 +316,10 @@ struct IndexUpdaterTests {
     @Test func upsertPageWithTierFieldsIndexesTierRelationRows() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
-        let idx = try makeIndex(at: nexus)
+        let idx = try Fixtures.index(at: nexus)
         let updater = IndexUpdater(idx)
 
-        let pt = makePageType()
+        let pt = Fixtures.pageType()
         try updater.upsertPageType(pt)
 
         let contextID = ULID.generate()
