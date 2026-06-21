@@ -187,20 +187,22 @@
   white-space: nowrap;
 }
 
-/* Task checkbox — reuses the chip checkbox dimensions; accent fill when checked. Sits in the
-   shared `.md-li-marker` zone, so no checkbox-specific zone rule is needed. */
+/* Task checkbox — the chipCheckbox square holding a centered check when checked. */
 .md-checkbox {
   box-sizing: border-box;
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   vertical-align: -0.18em; /* sit the box on the text line */
   border-style: solid;
   border-color: var(--label-tertiary);
   background: transparent;
+  color: var(--accent); /* the check (currentColor) */
   cursor: pointer;
 }
 .md-checkbox-checked {
-  background: var(--accent);
-  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) var(--tint-primary), transparent);
+  border-color: color-mix(in srgb, var(--accent) var(--tint-tertiary), transparent);
 }
 
 /* Headings — the Pommora scale (multiplier × body), bold; H6 = body size */

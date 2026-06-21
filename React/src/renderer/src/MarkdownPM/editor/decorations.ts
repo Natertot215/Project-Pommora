@@ -47,11 +47,14 @@ class CheckboxWidget extends WidgetType {
     return o.checked === this.checked && o.bracketFrom === this.bracketFrom
   }
   toDOM(view: EditorView): HTMLElement {
-    // Shared marker zone so checkbox lines align with bullet/ordered lines.
     const zone = document.createElement('span')
     zone.className = 'md-li-marker'
     const box = document.createElement('span')
     box.className = `${chipCheckbox} md-checkbox${this.checked ? ' md-checkbox-checked' : ''}`
+    if (this.checked) {
+      box.innerHTML =
+        '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>'
+    }
     box.addEventListener('mousedown', (e) => {
       e.preventDefault()
       view.dispatch({ changes: { from: this.bracketFrom, to: this.bracketTo, insert: this.checked ? '[ ]' : '[x]' } })
