@@ -20,6 +20,10 @@
 .mdpm-editor .cm-scroller {
   font-family: var(--font-family);
   line-height: 1.6;
+  scrollbar-width: none; /* no scroll indicator */
+}
+.mdpm-editor .cm-scroller::-webkit-scrollbar {
+  display: none;
 }
 .mdpm-editor .cm-content {
   color: var(--label-primary);
@@ -73,22 +77,22 @@
   padding-left: 0;
 }
 .mdpm-editor .cm-line:has(.md-h1) {
-  margin-top: 0.7em;
+  padding-top: 0.7em;
 }
 .mdpm-editor .cm-line:has(.md-h2) {
-  margin-top: 0.6em;
+  padding-top: 0.6em;
 }
 .mdpm-editor .cm-line:has(.md-h3) {
-  margin-top: 0.50em;
+  padding-top: 0.50em;
 }
 .mdpm-editor .cm-line:has(.md-h4) {
-  margin-top: 0.30em;
+  padding-top: 0.30em;
 }
 .mdpm-editor .cm-line:has(.md-h5) {
-  margin-top: 0.25em;
+  padding-top: 0.25em;
 }
 .mdpm-editor .cm-line:has(.md-h6) {
-  margin-top: 0.15em;
+  padding-top: 0.15em;
 }
 
 /* Inline marks (content classes; markers are hidden via replace decorations caret-out) */
@@ -131,8 +135,9 @@
      --bullet-indent : list indent (× nesting level; marker + text move together)
      --gap           : space between marker and text
      --li-zone       : marker-slot width (the gutter the marker hangs in)
-   Markers are EDITABLE source — the `-` hides and a • is drawn by ::before; the ordered `N.` is
-   literal recoloured source hung into the gutter; only the checkbox is a widget. */
+   All markers hang in the gutter and the text starts at a shared column. Bullet → in-flow • widget
+   (raw `-` when the caret is on the marker); ordered → literal number right-aligned in --ol-zone so
+   the periods column; checkbox → chip widget in the wider --task-zone. */
 .mdpm-editor .cm-line.md-li {
   --bullet-indent: 20px;
   --gap: 4px;
@@ -151,14 +156,19 @@
   font-size: 1.25em;
 }
 
-/* Marker zone — the in-flow slot the checkbox chip sits in; right-aligned, `--gap` before the text. */
+/* Checkboxes get a zone sized for the chip (which is wider than a bullet) plus a clear gap, so the
+   text doesn't hug the box — matching the breathing room bullets and numbers have. */
+.mdpm-editor .cm-line.md-li-task {
+  --task-zone: 1.8em;
+  padding-left: calc(var(--li-col) + var(--task-zone));
+  text-indent: calc(-1 * var(--task-zone));
+}
+/* Marker zone — the in-flow slot the checkbox chip hangs in (left-aligned in the gutter). */
 .md-li-marker {
   display: inline-block;
   box-sizing: border-box;
-  width: var(--li-zone);
+  min-width: var(--task-zone, 1.8em);
   text-indent: 0;
-  text-align: right;
-  padding-right: var(--gap);
   white-space: nowrap;
 }
 

@@ -114,7 +114,7 @@ export function decorationsFor(text: string, tokens: Token[], active: Set<number
     } else if (lm?.kind === 'checkbox' && lm.box) {
       // Indent + the leading `- ` hide; the chip widget replaces only the `[ ]` bracket (interactive,
       // the one legitimate widget). The trailing space stays as editable source.
-      intents.push({ kind: 'line', from: ls, className: 'md-li', level: lm.level })
+      intents.push({ kind: 'line', from: ls, className: 'md-li md-li-task', level: lm.level })
       intents.push({ kind: 'hide', from: ls, to: ls + lm.box.start })
       intents.push({
         kind: 'widget',
