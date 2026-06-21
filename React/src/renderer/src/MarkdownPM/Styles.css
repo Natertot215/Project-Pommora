@@ -187,18 +187,25 @@
   white-space: nowrap;
 }
 
-/* Task checkbox — the chipCheckbox square holding a centered check when checked. */
+/* Task checkbox — the chipCheckbox square holding a centered check when checked. The box stays
+   inline-block (content-independent baseline) so toggling doesn't shift its position; the check is
+   absolutely centered. */
 .md-checkbox {
   box-sizing: border-box;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+  display: inline-block;
+  position: relative;
   vertical-align: -0.18em; /* sit the box on the text line */
   border-style: solid;
   border-color: var(--label-tertiary);
   background: transparent;
-  color: var(--accent); /* the check (currentColor) */
+  color: color-mix(in srgb, var(--accent) var(--tint-quaternary), var(--label-primary)); /* the check */
   cursor: pointer;
+}
+.md-checkbox svg {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
 }
 .md-checkbox-checked {
   background: color-mix(in srgb, var(--accent) var(--tint-primary), transparent);
