@@ -136,9 +136,9 @@ export function autoDelete(doc: string, selStart: number, selEnd: number): Edit 
   return { from: selStart - 1, to: selStart + 1, insert: '', selection: selStart - 1 }
 }
 
-/** Enter while the caret sits between a matched pair on the line → jump past the closer instead
- *  of inserting a newline (double-jump for `[[ ]]`). Carve-out: a list-marker checkbox falls
- *  through to list continuation (caller order handles that). */
+/** Enter while the caret sits between a matched pair → jump past the closer instead of inserting
+ *  a newline (double-jump for `[[ ]]`). Runs before list/blockquote continuation in the caller, so
+ *  a caret between an empty pair always jumps rather than opening a new item. */
 export function bracketSkipOnEnter(doc: string, selStart: number, selEnd: number): Edit | null {
   if (selStart !== selEnd || isInsideCode(selStart, doc)) return null
   const c = selStart
