@@ -65,7 +65,7 @@ struct ContextPicker: View {
                         }
                     }
                     if !grouped.groups.isEmpty && !grouped.rootEntities.isEmpty {
-                        Divider().padding(.horizontal, PUI.Spacing.sm)  // inset to align with row content
+                        PaneDivider(inset: PUI.Spacing.sm)
                     }
                     ForEach(grouped.rootEntities, id: \.id) { entity in
                         leafRow(entity)

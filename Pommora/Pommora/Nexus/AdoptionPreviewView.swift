@@ -60,7 +60,7 @@ struct AdoptionPreviewView: View {
                     warningsSection
                     skippedSection
                 }
-                .padding(20)
+                .padding(PUI.Spacing.s20)
             }
             .frame(minHeight: 240, idealHeight: 360, maxHeight: 460)
 
@@ -76,7 +76,7 @@ struct AdoptionPreviewView: View {
     private var header: some View {
         HStack(alignment: .firstTextBaseline, spacing: PUI.Spacing.xl) {
             Image(systemName: "folder.badge.gearshape")
-                .font(.system(size: 22, weight: .regular))
+                .font(PUI.Typography.Fixed.f22)
                 .foregroundStyle(.tint)
             VStack(alignment: .leading, spacing: PUI.Spacing.xxs) {
                 Text("Adopt Existing Folder Structure")
@@ -90,7 +90,7 @@ struct AdoptionPreviewView: View {
             }
             Spacer()
         }
-        .padding(.horizontal, 20)
+        .padding(.horizontal, PUI.Spacing.s20)
         .padding(.vertical, PUI.Spacing.xxl)
     }
 
@@ -402,8 +402,8 @@ struct AdoptionPreviewView: View {
             .buttonStyle(.borderedProminent)
             .disabled(adoptDisabled)
         }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 14)
+        .padding(.horizontal, PUI.Spacing.s20)
+        .padding(.vertical, PUI.Spacing.s14)
     }
 
     /// Adopt is always enabled post-Relations-redesign (no lossy changes remain).

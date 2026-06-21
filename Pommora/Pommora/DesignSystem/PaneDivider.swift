@@ -7,8 +7,11 @@ import SwiftUI
 /// rows + the "New property"-style footers). Callers add vertical padding
 /// where a gap is wanted (e.g. the field↔content divider adds 5pt).
 struct PaneDivider: View {
+    /// Horizontal inset to the content rail. Defaults to the standard pane rail;
+    /// pass a different rail for dropdowns whose rows sit at another inset.
+    var inset: CGFloat = PUI.Pane.contentPadding
     var body: some View {
         Divider()
-            .padding(.horizontal, PUI.Pane.contentPadding)
+            .padding(.horizontal, inset)
     }
 }

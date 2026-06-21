@@ -47,17 +47,17 @@ struct GalleryCard: View {
         }
         .padding(PUI.Spacing.lg)
         .background(
-            RoundedRectangle(cornerRadius: 10)
+            RoundedRectangle(cornerRadius: PUI.Radius.gallery)
                 .fill(Color(.controlBackgroundColor))
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 10)
+            RoundedRectangle(cornerRadius: PUI.Radius.gallery)
                 .stroke(isSelected ? Color.accentColor : Color(.separatorColor), lineWidth: isSelected ? 2 : 1)
         )
         .scaleEffect(isHovering ? 1.015 : 1)
         .shadow(color: .black.opacity(isHovering ? 0.18 : 0.06), radius: isHovering ? 8 : 3, y: 2)
         .animation(.easeOut(duration: 0.12), value: isHovering)
-        .contentShape(RoundedRectangle(cornerRadius: 10))
+        .contentShape(RoundedRectangle(cornerRadius: PUI.Radius.gallery))
         .onHover { isHovering = $0 }
         .simultaneousGesture(TapGesture(count: 1).onEnded { onSelect() })
         .simultaneousGesture(TapGesture(count: 2).onEnded { onOpen() })

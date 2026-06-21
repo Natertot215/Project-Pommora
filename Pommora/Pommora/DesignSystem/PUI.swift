@@ -45,6 +45,14 @@ enum PUI {
         static let xxl: CGFloat = 16
         /// 24 pt — outer popover / large section gap.
         static let xxxl: CGFloat = 24
+
+        // Off-grid steps — values that fall between the scale above. Kept exact
+        // for behavior-neutral routing; snap to a grid step only as a
+        // deliberate visual change.
+        /// 14 pt.
+        static let s14: CGFloat = 14
+        /// 20 pt.
+        static let s20: CGFloat = 20
     }
 
     // MARK: - Row (sidebar / pane / list row dimensions)
@@ -201,6 +209,8 @@ enum PUI {
         /// Input field + icon-button backdrop rounding (rounded-rect, NOT
         /// pill). Native-control feel; verify against the inspector in build.
         static let field: CGFloat = 8
+        /// 10 pt — gallery card corner (rounder than the standard inset card).
+        static let gallery: CGFloat = 10
         /// 12 pt — large controls.
         static let large: CGFloat = 12
         /// 18 pt — inset list trough (NavDropdown).

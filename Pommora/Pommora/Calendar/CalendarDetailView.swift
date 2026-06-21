@@ -80,8 +80,8 @@ private struct CalendarDetailContent: View {
                 .font(.title2)
                 .fontWeight(.semibold)
                 .foregroundStyle(.primary)
-                .padding(.horizontal, 20)
-                .padding(.top, 20)
+                .padding(.horizontal, PUI.Spacing.s20)
+                .padding(.top, PUI.Spacing.s20)
                 .padding(.bottom, PUI.Spacing.xl)
 
             List {

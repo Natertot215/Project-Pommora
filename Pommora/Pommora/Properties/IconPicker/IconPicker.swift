@@ -49,7 +49,7 @@ struct IconPicker: View {
     var body: some View {
         VStack(spacing: 0) {
             searchBar
-            Divider().padding(.horizontal, IconMetrics.inset)
+            PaneDivider(inset: IconMetrics.inset)
             ScrollView {
                 content
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -57,7 +57,7 @@ struct IconPicker: View {
                     .padding(.vertical, PUI.Spacing.md)
             }
             if symbol != nil {
-                Divider().padding(.horizontal, IconMetrics.inset)
+                PaneDivider(inset: IconMetrics.inset)
                 removeButton
             }
         }

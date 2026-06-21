@@ -146,7 +146,7 @@ struct SidebarDetailView: View {
     private var emptyState: some View {
         VStack(spacing: PUI.Spacing.md) {
             Image(systemName: "sidebar.left")
-                .font(.system(size: 36))
+                .font(PUI.Typography.Fixed.f36)
                 .foregroundStyle(.secondary)
             Text("Select something from the sidebar")
                 .font(.callout)
