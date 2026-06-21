@@ -4,6 +4,8 @@ Sequences the remaining debt from `06-20-Codebase-Audit-And-Reorg.md` into depen
 
 **Baseline:** branch landed on `main` (merge `5b82a1b`); ~1,285 tests green. The audit's snapshot was the pre-Foundation tree at 1,272 tests — several items below are already consumed.
 
+**Status (2026-06-21):** Phases **A, B, C are complete + merged to `main`** (1,291 tests green). The "Starting Point" table below predates B/C — read its "Remaining (Phases B, C, …)" rows as **only D–H**. **Deferred from C** (pending Nathan's review — visual or paradigm): magic-numbers → `PUI` + `.hoverFill()`, `PropertyValue` datetime → `IndexDateFormat` (adds fractional seconds), the full `Domain/Features` top-level grouping, and the `NexusAdopter` / `PageTypeManager` god-file splits (tangled).
+
 ---
 
 ### Starting Point — What Foundation Hardening Already Consumed

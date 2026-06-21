@@ -108,7 +108,7 @@ EventKit bridge (sandbox entitlement + Info.plist + modern `requestFullAccessTo*
 
 ##### v0.8.0 — Contexts + Homepage editor
 - **Contexts + Homepage block editor.** The composed-blocks surface (Areas / Topics / Projects / Homepage) gets its editor — paragraph, headings, lists, callout, code, image, columns, **embedded-collection-view** (inline-editable per the locked principle, not snapshots — renderers shipped v0.5.0), linked-pages widget, link-list widget, mini-calendar widget; drag-and-drop reorder + slash-menu insertion.
-- **Context Linked-from surface.** The real `LinkedFromDropdown` (stub today at `Detail/LinkedFromDropdown.swift`): a dropdown listing every operational entity whose `tier1/2/3` points at the Context, via `IndexQuery.incomingContextLinks(targetID:)` (shipped). Supporting bits: `EntityStateRef.iconName`, `EntityKind.displayLabel`, an `EntityStateRef → SidebarSelection` navigation resolver, and a host slot.
+- **Context Linked-from surface.** The real `LinkedFromDropdown` (not yet stubbed): a dropdown listing every operational entity whose `tier1/2/3` points at the Context. The reverse query it builds on, `IndexQuery.incomingContextLinks(targetID:)`, is shipped. Supporting bits: `EntityStateRef.iconName`, `EntityKind.displayLabel`, an `EntityStateRef → SidebarSelection` navigation resolver, and a host slot.
 
 ##### v1.0.0 — Stabilization
 No new features. Polish, performance, bug-fix across everything from v0.0.0 through v0.8.0. Final accent / typography pass. Release-readiness checklist (Sparkle integration if non-MAS, TestFlight if MAS).

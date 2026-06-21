@@ -58,7 +58,7 @@ This applies on every Page write path. Agenda (`.task.json` / `.event.json`) and
 
 Each section is its own `struct: View` (not a computed property) so SwiftUI can skip body re-evaluation when inputs don't change — pattern from `swiftui-expert-skill/references/view-structure.md` ("Extract Subviews, Not Computed Properties").
 
-Creation triggers use the stub-and-inline-rename coordinator (`CRUD/CreateWithInlineEdit.swift` + `CRUD/DefaultTitleResolver.swift`) — there is no creation-sheet enum and no `.sheet(item:)` switch. Each manager's `create*` returns the new entity via `@discardableResult`; the coordinator flips the matching row into rename mode via shared `editingID` + `justCreatedID` bindings owned by `ContentView`.
+Creation triggers use the stub-and-inline-rename coordinator (`Core/CRUD/CreateWithInlineEdit.swift` + `Core/CRUD/DefaultTitleResolver.swift`) — there is no creation-sheet enum and no `.sheet(item:)` switch. Each manager's `create*` returns the new entity via `@discardableResult`; the coordinator flips the matching row into rename mode via shared `editingID` + `justCreatedID` bindings owned by `ContentView`.
 
 ---
 
@@ -115,7 +115,7 @@ Pommora's own `IconPicker` (`Properties/IconPicker/`) is the icon chooser everyw
 
 **Edit-Icon on existing rows** routes through `IconPickerSheet`, which hosts the picker and dispatches the chosen symbol to the right manager's icon-update method via an icon-target switch (one case per entity kind). **Its `@Environment` managers must be reachable wherever it's presented** — a `.sheet` inherits the host's environment, so every NavigationSplitView column that can present it must inject every manager it reads (quirk #15; a manager missing from the detail-column chain crashes the detail-table Edit Icon).
 
-**Create flows** use `IconPickerField` — a button-field that holds the pick in local `@State` until Save, presenting the picker through the same modifier.
+**Create flows** present the picker through the same DRY `iconPickerPopover` modifier, anchored to the icon button.
 
 ---
 
