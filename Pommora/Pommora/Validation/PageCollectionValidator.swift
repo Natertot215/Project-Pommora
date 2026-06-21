@@ -11,7 +11,7 @@ enum PageCollectionValidator {
         title: String,
         existingInType: [PageCollection],
         excluding: PageCollection? = nil
-    ) throws {
+    ) throws(ValidationError) {
         let trimmed = try FilenameSafety.validatedTitle(
             title,
             empty: ValidationError.emptyTitle,

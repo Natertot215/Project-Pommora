@@ -11,7 +11,7 @@ enum AreaValidator {
         title: String,
         existing: [Area],
         excluding: Area? = nil
-    ) throws {
+    ) throws(ValidationError) {
         let trimmed = try FilenameSafety.validatedTitle(
             title,
             empty: ValidationError.emptyTitle,

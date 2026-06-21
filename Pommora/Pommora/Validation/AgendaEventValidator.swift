@@ -19,7 +19,7 @@ enum AgendaEventValidator {
         endAt: Date,
         properties: [String: PropertyValue],
         schema: AgendaEventSchema
-    ) throws {
+    ) throws(ValidationError) {
         _ = try FilenameSafety.validatedTitle(
             title,
             empty: ValidationError.emptyTitle,

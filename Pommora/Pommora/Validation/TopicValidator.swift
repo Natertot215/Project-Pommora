@@ -11,7 +11,7 @@ enum TopicValidator {
         title: String,
         existing: [Topic],
         excluding: Topic? = nil
-    ) throws {
+    ) throws(ValidationError) {
         let trimmed = try FilenameSafety.validatedTitle(
             title,
             empty: ValidationError.emptyTitle,

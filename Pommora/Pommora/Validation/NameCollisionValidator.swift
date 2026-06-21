@@ -55,7 +55,7 @@ enum NameCollisionValidator {
         desiredTitle: String,
         siblings: [C],
         excludingID: String? = nil
-    ) throws {
+    ) throws(NameCollisionError) {
         let needle = desiredTitle.trimmingCharacters(in: .whitespaces).lowercased()
         let conflict = siblings.contains { sibling in
             sibling.id != excludingID
@@ -65,21 +65,21 @@ enum NameCollisionValidator {
     }
 
     /// Side-specific overload: runs the same collision detection but rethrows the
-    /// caller's own `error` on collision instead of `NameCollisionError`. Hoists
+    /// caller's own `fallback` error on collision instead of `NameCollisionError`. Hoists
     /// the `do { try validate(...) } catch is NameCollisionError { throw <side>.duplicateTitle }`
     /// remap that previously lived (identically) in every side's manager into a
     /// one-liner: each side passes its own `duplicateTitle` case so its public
     /// error contract + toast wording stay intact (DRY hard rule).
-    static func validate<C: NameCollisionCandidate>(
+    static func validate<C: NameCollisionCandidate, E: Error>(
         desiredTitle: String,
         siblings: [C],
         excludingID: String? = nil,
-        else error: @autoclosure () -> any Error
-    ) throws {
+        else fallback: @autoclosure () -> E
+    ) throws(E) {
         do {
             try validate(desiredTitle: desiredTitle, siblings: siblings, excludingID: excludingID)
-        } catch is NameCollisionError {
-            throw error()
+        } catch {
+            throw fallback()
         }
     }
 }

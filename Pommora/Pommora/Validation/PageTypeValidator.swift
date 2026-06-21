@@ -11,7 +11,7 @@ enum PageTypeValidator {
         title: String,
         existing: [PageType],
         excluding: PageType? = nil
-    ) throws {
+    ) throws(ValidationError) {
         let trimmed = try FilenameSafety.validatedTitle(
             title,
             empty: ValidationError.emptyTitle,

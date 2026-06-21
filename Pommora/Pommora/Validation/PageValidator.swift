@@ -17,7 +17,7 @@ enum PageValidator {
         createdAt: Date,
         vault: PageType,
         context: NexusContext
-    ) throws {
+    ) throws(ValidationError) {
         _ = try FilenameSafety.validatedTitle(
             title,
             empty: ValidationError.emptyTitle,
@@ -51,7 +51,7 @@ enum PageValidator {
         _ value: PropertyValue,
         against type: PropertyType,
         id: String
-    ) throws {
+    ) throws(ValidationError) {
         // Exhaustive over the VALUE side (values arrive from disk) with no
         // `default:` arm — a new PropertyValue case fails compilation here
         // until its valid pairing is declared. (A tuple-switch `default:`

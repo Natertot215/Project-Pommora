@@ -18,7 +18,7 @@ enum AgendaTaskValidator {
         dueAllDay: Bool,
         properties: [String: PropertyValue],
         schema: AgendaTaskSchema
-    ) throws {
+    ) throws(ValidationError) {
         _ = try FilenameSafety.validatedTitle(
             title,
             empty: ValidationError.emptyTitle,

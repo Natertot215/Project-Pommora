@@ -11,7 +11,7 @@ enum PageSetValidator {
         title: String,
         existingInCollection: [PageSet],
         excluding: PageSet? = nil
-    ) throws {
+    ) throws(ValidationError) {
         let trimmed = try FilenameSafety.validatedTitle(
             title,
             empty: ValidationError.emptyTitle,
