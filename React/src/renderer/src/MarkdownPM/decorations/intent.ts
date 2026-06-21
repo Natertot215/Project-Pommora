@@ -122,6 +122,9 @@ export function decorationsFor(text: string, tokens: Token[], active: Set<number
         to: ls + lm.box.end,
         spec: { type: 'checkbox', bracketFrom: ls + lm.box.start, bracketTo: ls + lm.box.end, checked: lm.checked ?? false }
       })
+      // Hide the source space after the box too — the gap to the text comes from CSS padding (the
+      // chip zone), not a rendered space.
+      intents.push({ kind: 'hide', from: ls + lm.box.end, to: ls + lm.contentStart })
     } else if (lm?.kind === 'bullet' && lm.bullet === '-' && !lm.box) {
       // Reveal the raw `-` ONLY when the caret is literally on the marker (the dash itself), never
       // elsewhere on the line. Otherwise the `-` is an in-flow `•` widget (same slot as the dash, so
