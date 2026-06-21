@@ -12,8 +12,9 @@ export const DEFAULT_NEW_NAME = 'Untitled'
 export type MutableKind = 'page' | 'pageType' | 'collection' | 'set' | 'area' | 'topic' | 'project'
 
 /** The entities that can own a banner image: the vault + collections + the three context tiers
- *  (folder sidecars), plus the homepage singleton (`.nexus/homepage.json`). */
-export type BannerOwnerKind = 'pageType' | 'collection' | 'area' | 'topic' | 'project' | 'homepage'
+ *  (folder sidecars), the homepage singleton (`.nexus/homepage.json`), and a page (whose banner
+ *  is the Swift-compatible `cover` field in its `.md` frontmatter). */
+export type BannerOwnerKind = 'pageType' | 'collection' | 'area' | 'topic' | 'project' | 'homepage' | 'page'
 
 /** A folder container a page or sub-container can be created inside. These match their
  *  SidecarKind names exactly, so main passes them straight to createFolderEntity. */
@@ -35,8 +36,8 @@ export type MutateRequest =
   // Set the nexus description, written into `.nexus/nexus.json` (merged, not clobbered).
   | { op: 'setNexusDescription'; description: string }
   // Set or clear an entity's banner. dataUrl set ⇒ decode + copy into `.nexus/assets/<key>/
-  // banner.<ext>` + record that path in the owner's config (folder sidecar, or homepage.json for
-  // the homepage singleton); null ⇒ clear the field + delete the file (delete-after-write).
+  // banner.<ext>` + record that path in the owner's config (folder sidecar, homepage.json, or — for
+  // a page — the `cover` key in its `.md` frontmatter); null ⇒ clear the field + delete the file.
   | { op: 'setBanner'; path: string; kind: BannerOwnerKind; dataUrl: string | null }
   // `order`: the destination container's full page-id order after the drop (renderer-
   // computed). Absent = legacy append (order falls back to title/creation). Same parent +

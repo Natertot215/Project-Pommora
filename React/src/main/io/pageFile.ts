@@ -25,6 +25,12 @@ export function splitEnvelope(content: string): PageEnvelope {
   return { frontmatter: m[1], body }
 }
 
+/** Parse the file's frontmatter into a plain object — for reading modeled fields (id, cover) before a merge. */
+export function readFrontmatterFields(content: string): Record<string, unknown> {
+  const obj = parseDocument(splitEnvelope(content).frontmatter).toJSON()
+  return obj && typeof obj === 'object' ? (obj as Record<string, unknown>) : {}
+}
+
 /** Assemble canonical envelope bytes: `---\n<fm>---\n\n<body>` (fm must end in \n). */
 export function assembleEnvelope(frontmatterYaml: string, body: string): string {
   const fm = frontmatterYaml.endsWith('\n') ? frontmatterYaml : frontmatterYaml + '\n'

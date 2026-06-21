@@ -14,7 +14,7 @@
 // System-trash is injected (deps.trashToSystem) so this module stays Electron-free + testable.
 
 import { basename, dirname, join, relative, sep } from 'node:path'
-import { mkdir, realpath, rm } from 'node:fs/promises'
+import { mkdir, readFile, realpath, rm } from 'node:fs/promises'
 import { sessionRoot } from './session'
 import { refreshSessionIndex } from './sessionIndex'
 import { resolveUnderRoot } from './pathSafety'
@@ -22,7 +22,8 @@ import { createPage, renamePage, movePage } from './crud/page'
 import { setChildOrder, setStateOrder } from './crud/reorder'
 import { createFolderEntity, renameFolderEntity, moveFolderEntity } from './crud/folderEntity'
 import { renameCascade, unlinkTier } from './crud/cascade'
-import { trashWithTimestamp, pathExists, readJsonObject, mutateJson, atomicWriteBinary } from './io/atomicWrite'
+import { trashWithTimestamp, pathExists, readJsonObject, mutateJson, atomicWriteBinary, atomicWriteFile } from './io/atomicWrite'
+import { splitEnvelope, mergeFrontmatter, readFrontmatterFields } from './io/pageFile'
 import { basenameNoMd } from './coerce'
 import { contextTierDir, nexusConfig, SIDECAR_FILENAME, NEXUS_CONFIG_FILES, type ContextTier, type SidecarKind } from './paths'
 import { newId } from './ids'
@@ -204,6 +205,34 @@ async function dispatch(req: MutateRequest, deps: MutateDeps, root: string): Pro
     }
 
     case 'setBanner': {
+      // A page's banner is the Swift-compatible `cover` key in its `.md` frontmatter (not a JSON
+      // sidecar); the asset folder is keyed by the page id. Foreign frontmatter + body survive.
+      if (req.kind === 'page') {
+        const resolved = await resolveUnderRoot(root, req.path)
+        if (!resolved.ok) return relay(resolved)
+        let existing: string
+        try {
+          existing = await readFile(resolved.value, 'utf8')
+        } catch {
+          return fault('That page could not be read.')
+        }
+        const { body } = splitEnvelope(existing)
+        const fields = readFrontmatterFields(existing)
+        const id = typeof fields.id === 'string' ? fields.id : null
+        if (!id) return fault('That page has no id to key its banner.')
+        const prev = typeof fields.cover === 'string' ? fields.cover : null
+        if (req.dataUrl) {
+          const rel = await writeBannerAsset(root, id, req.dataUrl)
+          if (!rel) return fault('Unsupported image data.')
+          await atomicWriteFile(resolved.value, mergeFrontmatter(existing, { cover: rel }, ['cover'], body))
+          if (prev && prev !== rel) await rm(join(root, prev), { force: true }).catch(() => {})
+        } else {
+          await atomicWriteFile(resolved.value, mergeFrontmatter(existing, {}, ['cover'], body))
+          if (prev) await rm(join(root, prev), { force: true }).catch(() => {})
+        }
+        void refreshSessionIndex(root)
+        return { ok: true }
+      }
       // Resolve the config holding the banner field + the asset-folder key, per owner kind. The
       // homepage is a singleton (.nexus/homepage.json, keyed 'homepage'); the rest are folder
       // sidecars keyed by their entity id (matches Swift's per-entity assets/<id>/).
