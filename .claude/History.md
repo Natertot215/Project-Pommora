@@ -161,9 +161,9 @@ The dynamic-syntax editor architecture (markers reveal under the caret, render o
 
 Obsidian-parity "open folder as Nexus." Both open paths run `NexusAdopter.scan` + a preview-and-confirm sheet (top-level → Vaults, sub-folders → Collections). `PageFile.loadLenient` accepts `.md` without Pommora frontmatter (synthesizes a stable `id`, never writes back — files stay byte-identical until edited). Locked: adoption runs on every open (idempotent); 3-level structural depth (deeper folders roll up to the nearest Set); existing notes never mutated.
 
-#### v0.2.7.1 — NavDropdown shipped + simplified (2026-05-19)
+#### v0.2.7.1 — Navigation shipped + simplified (2026-05-19)
 
-NavDropdown shipped (Pinned + Recents; single-click select / double-click open; `⌘T` / `⌘[` / `⌘]`; state in `.nexus/state.json`). The earlier bloated attempt was cut back: standalone preview-window machinery stripped (the real PreviewWindow is a cross-feature primitive — build once, light up per kind); hover-heart favorites → right-click "Pin." New rule (`CRUD-Patterns.md`): the PreviewWindow primitive ships per kind before any "open in preview" UI.
+Navigation shipped (Pinned + Recents; single-click select / double-click open; `⌘T` / `⌘[` / `⌘]`; state in `.nexus/state.json`). The earlier bloated attempt was cut back: standalone preview-window machinery stripped (the real PreviewWindow is a cross-feature primitive — build once, light up per kind); hover-heart favorites → right-click "Pin." New rule (`CRUD-Patterns.md`): the PreviewWindow primitive ships per kind before any "open in preview" UI.
 
 #### v0.2.7.0 — native TextKit 2 editor (2026-05-18, tag `v0.2.7.0`)
 

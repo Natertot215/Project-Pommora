@@ -15,7 +15,7 @@ enum SidebarSelection: Equatable, Hashable, Sendable {
 
 extension SidebarSelection {
     /// The resolved entity's custom icon (SF Symbol name), or nil when unset or
-    /// empty. Lets render surfaces (e.g. NavDropdown rows) override their
+    /// empty. Lets render surfaces (e.g. Navigation rows) override their
     /// per-kind default glyph with the entity's current icon — "default unless
     /// the entity sets one."
     var resolvedIcon: String? {
@@ -38,7 +38,7 @@ extension SidebarSelection {
 /// snapshot path that broke sidebar selection on runtime-created entities
 /// and toolbar back/forward stepping (v0.3.1.0.1 hotfix).
 ///
-/// Callers (SidebarView / BackForwardButtons / NavDropdownButton) construct
+/// Callers (SidebarView / BackForwardButtons / NavigationButton) construct
 /// a fresh bundle from their `@Environment`-injected managers per resolution.
 /// The bundle keeps init signatures small — adding a new manager later means
 /// extending this struct, not every call site.
@@ -110,7 +110,7 @@ extension SidebarSelection {
 
 
     /// Bridge EntityStateRef → SidebarSelection by resolving via live managers.
-    /// Used by NavDropdown's double-click open and BackForwardButtons stepping.
+    /// Used by Navigation's double-click open and BackForwardButtons stepping.
     /// Returns nil for kinds that aren't main-detail-pane targets (agenda)
     /// and for entities that no longer exist on disk.
     @MainActor

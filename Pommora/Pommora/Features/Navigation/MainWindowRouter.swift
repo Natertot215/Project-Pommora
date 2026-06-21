@@ -1,7 +1,7 @@
 import Foundation
 import Observation
 
-/// Bridge between NavDropdown's popover and the main detail pane.
+/// Bridge between Navigation's popover and the main detail pane.
 /// The popover lives in the toolbar's view host (separate from ContentView's
 /// SidebarSelection @State), so opens push a pending selection here and tick
 /// `bringToFrontTick`. ContentView observes the tick, applies `pendingSelection`,

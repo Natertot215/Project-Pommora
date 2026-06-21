@@ -3,7 +3,7 @@ import Foundation
 import Observation
 import SwiftUI
 
-/// User-pinned entities surfaced in NavDropdown's Pinned tab. Insertion-order
+/// User-pinned entities surfaced in Navigation's Pinned tab. Insertion-order
 /// (drag-to-reorder via `move(fromOffsets:toOffset:)`); deduped by (kind, id).
 /// Persists to the shared `<nexus>/.nexus/state.json` alongside Recents.
 @MainActor

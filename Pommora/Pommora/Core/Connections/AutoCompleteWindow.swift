@@ -19,7 +19,7 @@ struct AutoCompleteCandidate: Identifiable, Hashable {
 /// `.glassEffect(in: .rect(cornerRadius: 12))` — Apple drives the fill + chrome,
 /// so there is no manual `.regularMaterial` + hairline border (that read as a flat
 /// panel, not glass). Matches the app's other glass surfaces (ContentView,
-/// NavDropdown, BackForwardButtons).
+/// Navigation, BackForwardButtons).
 ///
 /// **Rows:** each candidate = the entity icon + title in body font, in an `HStack`
 /// with tight inline padding (chip density, mirroring the Chips primitives).
@@ -70,7 +70,7 @@ struct AutoCompleteWindow: View {
                 // Real macOS 26 Liquid Glass: Apple drives the fill + chrome — no
                 // manual `.regularMaterial` + hairline border (that read as a flat
                 // panel, not glass). Matches the app's other glass surfaces
-                // (ContentView, NavDropdown, BackForwardButtons). A single panel is
+                // (ContentView, Navigation, BackForwardButtons). A single panel is
                 // one glass surface, so no GlassEffectContainer is needed.
                 .glassEffect(in: .rect(cornerRadius: Self.cornerRadius))
                 .focusable()

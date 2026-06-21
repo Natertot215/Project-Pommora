@@ -4,7 +4,7 @@ import SwiftUI
 ///
 /// Statically positioned at ContentView level (NOT per-detail-view) inside
 /// the primary-action cluster's trio pill, sharing one Liquid Glass capsule
-/// with NavDropdown + Inspector toggle.
+/// with Navigation + Inspector toggle.
 ///
 /// The `scope` parameter is reactive: when ContentView's selection changes,
 /// ContentView recomputes the scope and SwiftUI re-passes it here, causing

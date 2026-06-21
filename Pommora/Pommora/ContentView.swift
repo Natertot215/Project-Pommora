@@ -79,7 +79,7 @@ struct ContentView: View {
 
     /// Shared sidebar lookup bundle — built from the live Nexus environment and
     /// reused by the toolbar controls that resolve selection (Back/Forward,
-    /// NavDropdown). Nil until the environment is ready.
+    /// Navigation). Nil until the environment is ready.
     private var sidebarLookup: SidebarLookupBundle? {
         guard let env = nexusEnvironment else { return nil }
         return SidebarLookupBundle(
@@ -138,7 +138,7 @@ struct ContentView: View {
                     pageContentManager: env.contentManager
                 )
                 if let lookup = sidebarLookup {
-                    NavDropdownButton(lookup: lookup) { sel in
+                    NavigationButton(lookup: lookup) { sel in
                         sidebarSelection = sel
                     }
                 }

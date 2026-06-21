@@ -213,7 +213,7 @@ enum PUI {
         static let gallery: CGFloat = 10
         /// 12 pt — large controls.
         static let large: CGFloat = 12
-        /// 18 pt — inset list trough (NavDropdown).
+        /// 18 pt — inset list trough (Navigation).
         static let listTrough: CGFloat = 18
         /// 24 pt — outer popover container.
         static let popover: CGFloat = 24

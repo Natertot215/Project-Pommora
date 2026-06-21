@@ -134,7 +134,7 @@ Every entity opens under a consistent header. Containers (Page Types and Collect
 
 #### Navigation Dropdown
 
-The main pane is single-pane; navigation history lives in a dropdown button in the toolbar — a popover with two lists, user-curated **Pinned** and auto-tracked **Recents** (in the Things 3 Quick Find idiom). Single-click highlights, double-click opens; state persists per-Nexus. Full spec → `// Features//NavDropdown.md`.
+The main pane is single-pane; navigation history lives in a dropdown button in the toolbar — a popover with two lists, user-curated **Pinned** and auto-tracked **Recents** (in the Things 3 Quick Find idiom). Single-click highlights, double-click opens; state persists per-Nexus. Full spec → `// Features//Navigation.md`.
 
 #### Page Preview Window
 

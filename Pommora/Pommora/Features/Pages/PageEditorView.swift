@@ -37,7 +37,7 @@ struct PageEditorView: View {
 
     @Environment(PageContentManager.self) private var contentManager
     /// Routes a clicked `[[ ]]` page link into the main detail pane. Same router
-    /// NavDropdown + Back/Forward use; injected by `NexusEnvironment`.
+    /// Navigation + Back/Forward use; injected by `NexusEnvironment`.
     @Environment(MainWindowRouter.self) private var mainWindowRouter
     /// Per-Nexus settings; gates the page-header icon + "Add Icon" affordance.
     @Environment(SettingsManager.self) private var settingsManager

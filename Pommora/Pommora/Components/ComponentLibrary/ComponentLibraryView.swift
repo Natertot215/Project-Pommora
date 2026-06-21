@@ -79,7 +79,7 @@ enum ComponentLibraryGroup: String, CaseIterable, Hashable {
     var categories: [ComponentCategory] {
         switch self {
         case .components:
-            return [.chips, .sidebar, .detailViews, .pickers, .sheets, .pageEditor, .navDropdown, .windows]
+            return [.chips, .sidebar, .detailViews, .pickers, .sheets, .pageEditor, .navigation, .windows]
         case .foundations:
             return [.colors, .typography, .materials, .symbols, .spacing]
         }
@@ -96,7 +96,7 @@ enum ComponentCategory: String, CaseIterable, Hashable {
     case pickers
     case sheets
     case pageEditor
-    case navDropdown
+    case navigation
     case windows
 
     // Foundations
@@ -114,7 +114,7 @@ enum ComponentCategory: String, CaseIterable, Hashable {
         case .pickers: return "Date Picker"
         case .sheets: return "Sheets"
         case .pageEditor: return "Page Editor"
-        case .navDropdown: return "NavDropdown"
+        case .navigation: return "Navigation"
         case .windows: return "Windows"
         case .colors: return "Colors"
         case .typography: return "Typography"
@@ -132,7 +132,7 @@ enum ComponentCategory: String, CaseIterable, Hashable {
         case .pickers: return "calendar"
         case .sheets: return "doc.on.doc"
         case .pageEditor: return "text.alignleft"
-        case .navDropdown: return "square.on.square"
+        case .navigation: return "square.on.square"
         case .windows: return "macwindow"
         case .colors: return "paintpalette.fill"
         case .typography: return "textformat"
@@ -209,19 +209,19 @@ enum ComponentCategory: String, CaseIterable, Hashable {
                 ),
                 .init(name: "HR", detail: "Horizontal rule with layout-constant jitter fix. Shipped v0.2.7.4."),
             ]
-        case .navDropdown:
+        case .navigation:
             return [
                 .init(
-                    name: "NavDropdown Button",
+                    name: "Navigation Button",
                     detail:
                         "Liquid Glass dropdown navigation surface. Shipped v0.2.7.1; supersedes the earlier tab-strip model."
                 ),
                 .init(
                     name: "Entity Row",
-                    detail: "Single row inside the NavDropdown (Pinned + Recents). Icon + title + secondary metadata."),
+                    detail: "Single row inside the Navigation (Pinned + Recents). Icon + title + secondary metadata."),
                 .init(
                     name: "BackForward Buttons",
-                    detail: "⌘[ / ⌘] navigation through Recents stack. Shipped with NavDropdown."),
+                    detail: "⌘[ / ⌘] navigation through Recents stack. Shipped with Navigation."),
             ]
         case .windows:
             return []

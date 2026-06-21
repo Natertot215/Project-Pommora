@@ -38,14 +38,14 @@ Sidebar UX tweaks, GitHub Actions CI (`macos-26`), `swift-format` baseline + con
 ##### v0.2.7.0 — Pages editor (TextKit 2)
 Native NSTextView + Apple `swift-markdown` + the Pommora-owned `MarkdownPM` package. Writing Tools, Look Up, spell-check, IME, and dynamic system colors come free. One styler walks the cached AST once. `.md` is the architectural firewall — Pages survive any future editor swap. Spec → `Features/PageEditor.md`.
 
-##### v0.2.7.1 — NavDropdown
+##### v0.2.7.1 — Navigation
 Liquid Glass dropdown navigation surface — Pinned + Recents tabs, single-click select / double-click open. `⌘T` opens; `⌘[` / `⌘]` walk Recents. Replaces the earlier tab-strip navigation model.
 
 ##### v0.2.7.2–v0.2.7.5 — Editor construct passes
 HR, Lists, code blocks, and Blockquote rewritten through the dynamic-syntax architecture (markers shrink when the caret leaves the AST node, Bear/Notion pattern; on disk standard CommonMark). Bullet glyph substitution, task-list shorthand, bracket auto-pair, and arrow auto-format land alongside. Locked construct rules → `Features/PageEditor.md`.
 
 ##### v0.2.8 — Sidebar drag-to-reorder
-Order persistence (per-sidecar order fields) plus drag-to-reorder UX on the Pages-side and Contexts rows. NavDropdown Pinned reorder, cross-container drag, and detail-pane Table reorder remain queued.
+Order persistence (per-sidecar order fields) plus drag-to-reorder UX on the Pages-side and Contexts rows. Navigation Pinned reorder, cross-container drag, and detail-pane Table reorder remain queued.
 
 ##### v0.3.0 — Properties (data layer + SQLite + placeholder UI)
 The data-layer chapter. Full property data layer (10 property types, stable-ULID definitions, atomic multi-file schema commits, an every-open ID migration with preview, schema CRUD on all schema-bearing managers, validation + drift defense, file attachments with size caps + cascade-delete, Settings auto-migration scaffold). A live end-to-end SQLite index (GRDB, per-nexus `index.db`, two-phase populate, wired into every manager, Notion-style filter/sort/broken-links; mid-session mutations propagate). Placeholder UI gives every interaction a working path. Full summary → [[History]].
@@ -104,7 +104,7 @@ EventKit bridge (sandbox entitlement + Info.plist + modern `requestFullAccessTo*
 - **Quick Capture.** Global `⌘⇧N` / menu-bar popover creating Pages / Tasks / Events from anywhere in the OS; defaults to a configured inbox Vault; optional Tier / Vault override fields; Enter submits, Esc dismisses.
 - **LLM Interface.** The main-window inspector slot becomes the Claude chat (CLI subprocess bridge — frontend to Nathan's local CLI, not API integration). Properties never live in the main-window inspector under the locked direction.
 - **(folded) Global search.** `⌘K` command palette + FTS5 search over Page bodies, Agenda titles, and frontmatter / properties (over the FTS5 tables wired at v0.5.0). Natural pairing with Quick Capture — both are global invocation surfaces.
-- **(folded) Recents full-frame view.** The Saved-section `Recents` pin opens a full-frame view of the Recents store (up to 500, with sort + filter) — the same data the NavDropdown shows as its top 100.
+- **(folded) Recents full-frame view.** The Saved-section `Recents` pin opens a full-frame view of the Recents store (up to 500, with sort + filter) — the same data the Navigation shows as its top 100.
 
 ##### v0.8.0 — Contexts + Homepage editor
 - **Contexts + Homepage block editor.** The composed-blocks surface (Areas / Topics / Projects / Homepage) gets its editor — paragraph, headings, lists, callout, code, image, columns, **embedded-collection-view** (inline-editable per the locked principle, not snapshots — renderers shipped v0.5.0), linked-pages widget, link-list widget, mini-calendar widget; drag-and-drop reorder + slash-menu insertion.

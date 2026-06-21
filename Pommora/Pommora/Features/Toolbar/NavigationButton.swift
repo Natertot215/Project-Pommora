@@ -1,4 +1,4 @@
-// NavDropdownButton.swift
+// NavigationButton.swift
 import SwiftUI
 
 enum PanelMode: String, CaseIterable, Identifiable {
@@ -8,7 +8,7 @@ enum PanelMode: String, CaseIterable, Identifiable {
 }
 
 @MainActor
-struct NavDropdownButton: View {
+struct NavigationButton: View {
     /// Managers passed in as explicit params (NOT @Environment) because the
     /// toolbar where this lives is OUTSIDE ContentView's `.detail { ... }`
     /// closure's `.environment(...)` chain. Same pattern as ViewSettingsButton

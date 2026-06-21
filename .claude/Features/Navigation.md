@@ -1,4 +1,4 @@
-### Nav Dropdown
+### Navigation
 
 Pommora's primary navigation-history surface — a **Liquid Glass glyph button** at the toolbar's trailing edge opening a **popover panel** with two toggleable lists: **Pinned** (user-curated, right-click) and **Recents** (auto-tracked).
 
@@ -15,7 +15,7 @@ Drag-to-reorder Pinned (`.onMove` wired but doesn't fire inside the popover — 
 ```
 LEFT                                                       RIGHT
 [ ◯◯◯ ] [≡] [‹] [›] ····· [ ⚙︎ │ ▦ │ ▢ ]
- traffic  sidebar back/fwd     view-settings · nav-dropdown · inspector
+ traffic  sidebar back/fwd     view-settings · navigation · inspector
  lights   toggle  through      ──────── trailing toolbar capsule ────────
 ```
 
@@ -25,7 +25,7 @@ Left to right:
 - **Sidebar toggle (`≡`)** — system-provided by `NavigationSplitView`.
 - **Back / Forward (`‹ ›`)** — walks the Recents cursor (older / newer). `⌘[` / `⌘]` partners. Stepping does NOT modify Recents order.
 - (centre, empty) — no tab strip.
-- **Trailing toolbar capsule** — a glyph trio sharing one Liquid Glass capsule: view-settings · nav-dropdown · inspector, dividers between. The nav-dropdown trigger is the middle segment.
+- **Trailing toolbar capsule** — a glyph trio sharing one Liquid Glass capsule: view-settings · navigation · inspector, dividers between. The navigation trigger is the middle segment.
 
 The window title is suppressed (no toolbar title).
 
@@ -33,7 +33,7 @@ The window title is suppressed (no toolbar title).
 
 #### Trigger button
 
-A glyph button — one segment of the trailing toolbar capsule (view-settings · nav-dropdown · inspector). `⌘T` opens the panel; a single click does the same, presenting a `.popover` attached to the button.
+A glyph button — one segment of the trailing toolbar capsule (view-settings · navigation · inspector). `⌘T` opens the panel; a single click does the same, presenting a `.popover` attached to the button.
 
 ---
 
@@ -190,4 +190,4 @@ The page row's context menu in the Vault / Collection detail views offers edit-t
 
 - **`⌘1` … `⌘9` jump to Pinned N** — a thin accelerator on top of the pinned array.
 - **Search-within-dropdown** — useful once Recents fills past ~30 entries; defer until needed.
-- **Cross-window Recents sync** — the single-window assumption holds; if multiple windows are ever spawned, each has its own NavDropdown but shares one `RecentsManager`.
+- **Cross-window Recents sync** — the single-window assumption holds; if multiple windows are ever spawned, each has its own Navigation but shares one `RecentsManager`.
