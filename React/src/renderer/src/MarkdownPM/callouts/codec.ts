@@ -1,8 +1,6 @@
-// The callout codec — the ONE place the `::` ⇄ `> [!type]` mapping lives, so the on-disk format
-// is swappable here without touching the renderer or the rest of the behavior layer. `::` is an
-// INPUT shorthand only; on disk a callout is the portable Obsidian form `> [!type]` (a blockquote
-// variant), so it stays a real callout in Obsidian/Bear/GitHub. Detection consumes the canonical
-// form, never the shorthand.
+// The callout codec — the ONE place the `::` ⇄ `> [!type]` mapping lives. `::` is an INPUT
+// shorthand only; on disk a callout is the portable Obsidian form `> [!type]` (a blockquote
+// variant) so it stays a real callout in other editors. Detection consumes the canonical form.
 
 // The `::[type]` shorthand as a whole line prefix (up to the caret), e.g. `::` or `::warning`.
 const SHORTHAND_RE = /^::([a-zA-Z]*)$/

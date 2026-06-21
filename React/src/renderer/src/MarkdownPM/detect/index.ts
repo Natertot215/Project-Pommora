@@ -1,9 +1,7 @@
-// Construct detection — the verbatim regexes from the spec (§4.1) + the three-stage block
-// detectors (cheap prefilter → per-line AST confirm). Both the render and active-token paths
-// share these helpers, so detection can never disagree across layers. Wikilink detection is
-// NOT redefined here — it reuses @shared/connections.pageLinkPattern (DRY with the scanner /
-// resolver / rewrite). Inline matchers return a FRESH /g regex per call (like pageLinkPattern)
-// so callers never share lastIndex.
+// Construct detection — inline regexes + block detectors (cheap prefilter → per-line AST confirm).
+// Render and active-token paths share these helpers so detection can't disagree across layers.
+// Wikilinks reuse @shared/connections.pageLinkPattern (DRY). Inline matchers return a FRESH /g
+// regex per call so callers never share lastIndex.
 import { parse } from '../parser'
 
 // The `d` (indices) flag is set so token assembly can read exact per-group offsets
@@ -20,10 +18,9 @@ export const blockLatexRegex = (): RegExp => /(?<!\$)\$\$([\s\S]+?)\$\$/gd
 /** `$…$` inline latex (gate the content with isInlineMathContent). Group 1 = formula. */
 export const inlineLatexRegex = (): RegExp => /(?<!\$)\$(?!\$)([^$\n]+?)\$(?!\$)/gd
 
-/** A list line: bullet (`-*+•`) or ordered (`\d+.`), with an optional task bracket. Group 1 =
- *  whole marker run, group 2 = ordered digits. The optional `[…]?` is deliberate — a bare
- *  `-[]` still reads as a list LINE (it indents/continues); only checkbox rendering excludes
- *  empty `[]`. (Non-global; fresh per call for symmetry.) */
+/** A list line: bullet or ordered, optional task bracket. Group 1 = marker run, 2 = ordered digits.
+ *  The optional `[…]?` is deliberate — a bare `-[]` still reads as a list LINE; only checkbox
+ *  rendering excludes empty `[]`. */
 export const listRegex = (): RegExp => /^\s*((?:(\d+)\.|[-*+•])(?:\s*\[[ xX]?\])?\s+)/
 
 const dashBulletRegex = /^([ \t]*)([-*+•](?:[ \t]*\[[ xX]?\])?[ \t]+)(.*)$/

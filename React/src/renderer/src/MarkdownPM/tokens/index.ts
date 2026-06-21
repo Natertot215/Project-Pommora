@@ -1,7 +1,6 @@
-// The token model + the tokenizer. Emphasis (bold/italic) is located on the mdast AST so
-// `_`/`*` mixing + nesting is correct and code spans never emit emphasis; the other inline
-// constructs are regex-located (cheap, exact). Plus active-token computation: which tokens
-// have the caret/selection on them (so their markers reveal). Pure — no CM6.
+// The token model + tokenizer (pure, no CM6). Emphasis is located on the mdast AST so `_`/`*`
+// mixing + nesting is correct and code spans never emit emphasis; other inline constructs are
+// regex-located. Plus active-token computation (which tokens have the caret/selection on them).
 import type { Root, RootContent, PhrasingContent } from 'mdast'
 import { parse, isInsideCode } from '../parser'
 import {
@@ -62,8 +61,7 @@ function pushEmphasis(node: MdNode, kind: 'italic' | 'bold' | 'strikethrough', w
   const fe = node.position?.end.offset
   if (fs == null || fe == null || fe - fs < width * 2) return
   const cs = childSpan(node) ?? [fs + width, fe - width]
-  // Clamp the content span inside the delimiters; the marker spans then fall out of the
-  // clamp (openStart ≥ fs and closeStart + width ≤ fe hold by construction).
+  // Clamp the content span inside the delimiters so the marker spans fall out cleanly.
   const contentStart = Math.max(cs[0], fs + width)
   const contentEnd = Math.min(cs[1], fe - width)
   if (contentEnd <= contentStart) return

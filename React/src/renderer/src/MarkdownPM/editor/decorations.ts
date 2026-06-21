@@ -1,8 +1,6 @@
-// The CM6 adapter for decorations — the ONLY place behavior-layer intents become real CodeMirror
-// decorations. A ViewPlugin recomputes on every doc/selection change: tokenize → active tokens →
-// decorationsFor → CM6 mark (class) / replace (hide markers) / replace-widget (•, checkbox, HR).
-// Inline-only replaces (no line-break crossing), so a ViewPlugin is valid; block-spanning chrome
-// (blockquote/callout cards) moves to a StateField when it arrives.
+// The CM6 adapter — the ONLY place behavior-layer intents become real CodeMirror decorations.
+// A ViewPlugin recomputes on every doc/selection change. Replaces never cross a line break, so a
+// ViewPlugin is valid; block-spanning chrome (blockquote/callout cards) would need a StateField.
 import { Decoration, type DecorationSet, EditorView, ViewPlugin, type ViewUpdate, WidgetType } from '@codemirror/view'
 import type { Range } from '@codemirror/state'
 import { chipCheckbox } from '../../design-system/tokens'
@@ -32,8 +30,8 @@ class BulletWidget extends WidgetType {
   }
 }
 
-/** An ordered-list marker (`1.`, `12.`…). Rendered literally — recoloured to the syntax label,
- *  occupying the same fixed marker zone as bullets/checkboxes so list text aligns across types. */
+/** An ordered-list marker, rendered literally. Sits in the shared marker zone so list text aligns
+ *  across bullet/ordered/checkbox types. */
 class OrderedWidget extends WidgetType {
   constructor(readonly label: string) {
     super()
@@ -49,8 +47,8 @@ class OrderedWidget extends WidgetType {
   }
 }
 
-/** Reuses the chip checkbox visual (`chipCheckbox`) + the nexus accent when checked; clicking it
- *  toggles the underlying `[ ]` ↔ `[x]` source (one transaction → native undo). */
+/** Reuses the `chipCheckbox` visual + nexus accent when checked; clicking toggles the underlying
+ *  `[ ]` ↔ `[x]` source in one transaction (native undo). */
 class CheckboxWidget extends WidgetType {
   constructor(
     readonly bracketFrom: number,
@@ -63,7 +61,7 @@ class CheckboxWidget extends WidgetType {
     return o.checked === this.checked && o.bracketFrom === this.bracketFrom
   }
   toDOM(view: EditorView): HTMLElement {
-    // Sit the box in the shared marker zone so checkbox lines align with bullet/ordered lines.
+    // Shared marker zone so checkbox lines align with bullet/ordered lines.
     const zone = document.createElement('span')
     zone.className = 'md-li-marker'
     const box = document.createElement('span')
@@ -104,8 +102,7 @@ function build(view: EditorView): DecorationSet {
   const ranges: Range<Decoration>[] = []
   for (const it of decorationsFor(text, tokens, active, sel.head)) {
     if (it.kind === 'line') {
-      // List lines carry a nesting level (a CSS var the line + marker zone read); other line chrome
-      // (blockquote card) has no level.
+      // List lines carry a nesting level as a CSS var; other line chrome has none.
       const spec =
         it.level === undefined
           ? { class: it.className }

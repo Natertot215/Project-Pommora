@@ -1,9 +1,7 @@
-// The CM6 input adapter — wires the framework-free input transforms (Phase 1) into CodeMirror.
-// Enter / Backspace go through a high-precedence keymap; single-character inserts go through an
-// inputHandler (so auto-pair / dash-arrow / checkbox-canon fire before the literal char lands).
-// Each transform returns an Edit or null; a non-null Edit is applied as one transaction (so it's a
-// single, undoable user action) and consumes the keystroke. Multi-char inserts (paste, IME) fall
-// through untouched — paste preserves literal text by construction.
+// The CM6 input adapter — wires the framework-free input transforms into CodeMirror. Keys go
+// through a high-precedence keymap; single-char inserts through an inputHandler (so auto-pair /
+// dash-arrow / checkbox-canon fire before the literal char lands). A non-null Edit applies as one
+// transaction (single undoable action) and consumes the keystroke; multi-char inserts fall through.
 import { EditorView, keymap } from '@codemirror/view'
 import { Prec } from '@codemirror/state'
 import {

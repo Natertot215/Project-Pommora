@@ -1,7 +1,5 @@
-/* THE MarkdownPM stylesheet — all editor-construct appearance, every colour/size from the root
-   design tokens via the --var bridge (DRY; no literals the token layer already owns). Link /
-   connection colouring is intentionally global-ish (links exist off-page) — kept here for now,
-   hoisted to the global sheet when off-page link rendering lands. */
+/* MarkdownPM stylesheet — editor-construct appearance, all colour/size from the root design
+   tokens via the --var bridge (no literals the token layer already owns). */
 
 /* Shell — wraps the title overlay + the editor; clips the title as it scroll-tracks off the top. */
 .mdpm-shell {
@@ -26,12 +24,10 @@
 .mdpm-editor .cm-content {
   color: var(--label-primary);
   caret-color: var(--label-primary);
-  /* Reserve the title zone at top (= TITLE_ZONE in index.tsx) + a symmetric tail; sides inherit the
-     surrounding pane inset. The reserved zone scrolls WITH the document (content padding, not a fixed
-     inset) so the title overlay can translate in lockstep. */
+  /* Top padding reserves the title zone (= TITLE_ZONE in index.tsx); it's content padding, not a
+     fixed inset, so the title overlay can translate with the scroll. */
   padding: 90px 0;
-  /* Driven by the unified zoom (zoom.ts): the host sets --editor-font-size = 15px × 2^(z−1).
-     Default 15px (zoom 1.0). Everything else (headings ×multiplier, glyphs in em) scales off it. */
+  /* The host sets --editor-font-size from zoom.ts; everything else scales off it in em. */
   font-size: var(--editor-font-size, 15px);
 }
 
@@ -72,6 +68,9 @@
 
 .mdpm-editor .cm-line {
   padding-bottom: 0.3em;
+  /* Drop CM6's default left-padding so body text lines up with the title; list lines re-add their
+     own indent via `.md-li`. */
+  padding-left: 0;
 }
 .mdpm-editor .cm-line:has(.md-h1) {
   margin-top: 0.7em;
@@ -122,43 +121,34 @@
   color: var(--label-secondary);
 }
 
-/* Syntax-label tint — system white @ 80% (theme-correct via the primary label token). Wired to
-   list markers (bullets + ordered numbers) so the marker reads as muted syntax, not body text. */
+/* Syntax-label tint — primary label @ 80% (theme-correct); on list markers so they read as muted
+   syntax, not body text. */
 .md-syntax {
   color: color-mix(in srgb, var(--label-primary) 80%, transparent);
 }
 
-/* ============================================================================================
-   LIST & BULLET SPACING — three knobs, tune freely (UNIFORM across bullets / numbers / tasks):
-     --bullet-indent : indent of the marker from the margin (and the per-nesting step)
-     --spacing-h     : horizontal space between the marker and the text
-     --spacing-v     : vertical nudge of the marker (negative = up, positive = down)
-   The marker is rendered IN-FLOW (inline-block), so the hidden source prefix keeps real width —
-   that's what keeps CM6's caret / click / arrow mapping correct (an out-of-flow marker collapses it
-   to zero width and the caret misbehaves). Hanging indent = padding-left + a matching negative
-   text-indent, so wrapped lines sit flush under the text. High specificity beats CM6's .cm-line. */
+/* LIST SPACING knobs:
+     --bullet-indent : list indent (× nesting level; marker + text move together)
+     --gap           : space between marker and text
+     --li-zone       : marker-slot width (markers right-align; a wide one overflows left, not into text) */
 .mdpm-editor .cm-line.md-li {
-  --bullet-indent: 24px;
-  --spacing-h: 16px;
-  --spacing-v: 0px;
+  --bullet-indent: 20px;
+  --gap: 4px;
+  --li-zone: 16px;
   --li-col: calc((var(--li-level, 0) + 1) * var(--bullet-indent));
-  padding-left: calc(var(--li-col) + var(--spacing-h));
-  text-indent: calc(-1 * var(--spacing-h));
+  padding-left: calc(var(--li-col) + var(--li-zone));
+  text-indent: calc(-1 * var(--li-zone));
 }
 
-/* Marker zone — one fixed-width in-flow slot; identical geometry for every list type, so they all
-   align. The glyph right-aligns to sit --spacing-h's gap before the text. text-indent reset (it's
-   inherited from the line). */
+/* Marker zone — a fixed in-flow slot; markers right-align and sit `--gap` before the text. */
 .md-li-marker {
   display: inline-block;
   box-sizing: border-box;
-  width: var(--spacing-h);
+  width: var(--li-zone);
   text-indent: 0;
   text-align: right;
-  padding-right: 4px;
+  padding-right: var(--gap);
   white-space: nowrap;
-  position: relative;
-  top: var(--spacing-v);
 }
 
 /* The bullet glyph (• in place of the source `-`). */
@@ -172,12 +162,12 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* Task checkbox — reuses the chip checkbox dimensions; accent fill when checked. The box sits in
-   the shared `.md-li-marker` zone (right-aligned there), so no checkbox-specific zone rule needed. */
+/* Task checkbox — reuses the chip checkbox dimensions; accent fill when checked. Sits in the
+   shared `.md-li-marker` zone, so no checkbox-specific zone rule is needed. */
 .md-checkbox {
   box-sizing: border-box;
   display: inline-block;
-  vertical-align: -0.18em; /* sit the box on the text line (no flex centering anymore) */
+  vertical-align: -0.18em; /* sit the box on the text line */
   border-style: solid;
   border-color: var(--label-tertiary);
   background: transparent;
@@ -216,7 +206,7 @@
 /* The `#` markers: muted + non-bold, but sized with the heading (via the md-h* class on the line) */
 .md-hmarker {
   color: var(--label-secondary);
-  font-weight: var(--weight-standard);
+  font-weight: var(--weight-semibold);
 }
 
 /* Thematic break — a full-width hairline replacing the `---` caret-out */
@@ -227,14 +217,10 @@
   border-bottom: 1.5px solid var(--separator-border);
 }
 
-/* Blockquote — an always-show card (the `>` markers hidden). FILL is the line background; the BAR is
-   a ::before that paints over the fill but under the text (z-index inside the line's own stacking
-   context) — a clean even bar with rounded caps. NO line margins (CM6 doesn't account for line
-   margins → caret/arrow mapping breaks; padding is fine, it's measured). first/last round the fill's
-   right corners (the left tucks under the bar) and cap the bar.
-   ===== BLOCKQUOTE KNOBS =====
-     --bar-width / --bar-color / --bar-radius : the left bar (radius = cap rounding)
-     --bg-color / --bg-radius                 : the fill (radius = right-corner rounding) */
+/* Blockquote — always-show card (`>` markers hidden). Fill = line background; bar = a ::before
+   under the text via the line's own stacking context. CM6 GOTCHA: no line margins (they break
+   caret/arrow mapping — only padding is measured); first/last round corners + cap the bar.
+   KNOBS: --bar-width / --bar-color / --bar-radius (left bar) · --bg-color / --bg-radius (fill) */
 .mdpm-editor .cm-line.md-bq {
   --bar-width: 4px;
   --bar-color: var(--label-tertiary);
@@ -275,10 +261,9 @@
   border-bottom-right-radius: var(--bar-radius);
 }
 
-/* Fenced code block — every block line gets the code background + monospace (no-op highlighter:
-   plain mono). The ``` fence markers hide when the caret is outside the block, reveal when inside.
-   No margins/pseudos (caret-safe); first/last round the top/bottom corners.
-   ===== CODE-BLOCK KNOBS =====  --cb-bg / --cb-radius / --cb-size (font scale) */
+/* Fenced code block — every block line gets the code background + monospace (plain, no highlighter).
+   No margins/pseudos (caret-safe); first/last round the corners.
+   KNOBS: --cb-bg / --cb-radius / --cb-size (font scale) */
 .mdpm-editor .cm-line.md-cb {
   --cb-bg: var(--fill-secondary);
   --cb-radius: 6px;

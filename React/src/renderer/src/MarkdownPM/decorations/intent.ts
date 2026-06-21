@@ -1,8 +1,7 @@
-// Decoration-intent mapping — still framework-free. Turns detected tokens + caret state into a
-// flat list of intents (which Styles.css class, which marker ranges to hide, which widget to
-// draw + its data). The CM6 adapter (editor/decorations) is the ONLY thing that converts these
-// into real CM6 decorations; keeping this layer pure data means it's unit-testable without an
-// editor and the behavior layer never holds a CSS literal — only class names + widget specs.
+// Framework-free decoration-intent mapping: tokens + caret state → a flat list of intents
+// (class names + widget specs only, never CSS literals). The CM6 adapter (editor/decorations)
+// is the ONLY thing that turns these into real CM6 decorations, so this layer stays unit-testable
+// without an editor.
 import type { Token, TokenKind } from '../tokens'
 import {
   isThematicBreakLine,
@@ -35,8 +34,8 @@ interface FenceInfo {
   to: number
 }
 
-/** Classify every line as part of a fenced code block (or not). Mirrors `isInsideCode`'s doc-scan:
- *  toggle on ``` lines. An unclosed fence runs to the document end. */
+/** Classify every line's fenced-code role. Mirrors `isInsideCode`'s doc-scan (toggle on ```
+ *  lines); an unclosed fence runs to the document end. */
 function scanFencedCode(lines: string[], lineStarts: number[]): (FenceInfo | undefined)[] {
   const out: (FenceInfo | undefined)[] = new Array(lines.length)
   let i = 0
@@ -69,8 +68,8 @@ export type DecoIntent =
   | { kind: 'class'; from: number; to: number; className: string }
   | { kind: 'hide'; from: number; to: number }
   | { kind: 'widget'; from: number; to: number; spec: WidgetSpec }
-  /** A whole-line decoration (`from` = line start). `level` (lists only) rides as a CSS var for
-   *  the per-level indent; omit it for non-list line chrome (e.g. the blockquote card). */
+  /** Whole-line decoration (`from` = line start). `level` (lists only) rides as a CSS var for the
+   *  per-level indent. */
   | { kind: 'line'; from: number; className: string; level?: number }
 
 /** Inline token kind → the Styles.css class applied to its content. */
@@ -86,13 +85,8 @@ const CONTENT_CLASS: Partial<Record<TokenKind, string>> = {
   blockLatex: 'md-latex'
 }
 
-/**
- * Build the decoration intents for a document.
- * - Inline tokens: a content class always; markers hidden unless the token is active (caret on it).
- * - Headings: a size class on the title + the `#` markers hidden caret-out.
- * - Lists/checkboxes: always-show glyph widgets (• / a checkbox box) over the source marker.
- * - HR: a rule widget caret-out; literal `---` when the caret is on the line.
- */
+/** Build the decoration intents for a document. Inline markers hide unless their token is active
+ *  (caret on it); list/checkbox glyphs and the HR rule are widgets shown over the source marker. */
 export function decorationsFor(text: string, tokens: Token[], active: Set<number>, selStart: number): DecoIntent[] {
   const intents: DecoIntent[] = []
 
@@ -120,8 +114,7 @@ export function decorationsFor(text: string, tokens: Token[], active: Set<number
     const fence = fences[i]
 
     if (fence) {
-      // Code block line: the whole block gets the code background + mono via `md-cb`; the open/close
-      // fence markers hide when the caret is outside the block (dynamic syntax), reveal when inside.
+      // Fence markers hide caret-out, reveal caret-in (dynamic syntax over the whole block).
       const caretInBlock = selStart >= fence.from && selStart <= fence.to
       const className = `md-cb${fence.role === 'open' ? ' md-cb-first' : ''}${fence.role === 'close' ? ' md-cb-last' : ''}`
       intents.push({ kind: 'line', from: ls, className })
@@ -131,9 +124,8 @@ export function decorationsFor(text: string, tokens: Token[], active: Set<number
       if (hm) {
         const level = hm[2].length
         const contentStart = ls + hm[1].length + hm[2].length + hm[3].length
-        // Size the WHOLE line so the `#` markers grow/shrink with the level too (live, as typed).
+        // Size the WHOLE line so the `#` markers grow/shrink with the level too.
         intents.push({ kind: 'class', from: ls, to: le, className: `md-h${level}` })
-        // The `#` markers render muted (label-secondary) when visible; hidden when the caret leaves.
         if (contentStart > ls) intents.push({ kind: 'class', from: ls, to: contentStart, className: 'md-hmarker' })
         if (!caretOnLine) intents.push({ kind: 'hide', from: ls, to: contentStart })
       }
@@ -142,8 +134,7 @@ export function decorationsFor(text: string, tokens: Token[], active: Set<number
       const bracket = cm?.indices?.[2]
       if (cm && bracket) {
         const [bs, be] = bracket
-        // Replace the whole prefix (indent + marker) so nesting comes purely from the line's
-        // padding, never literal leading whitespace — keeps the hanging indent exact.
+        // Nesting comes from the line's padding (md-li + level), so the prefix is replaced whole.
         intents.push({ kind: 'line', from: ls, className: 'md-li', level: indentLevel(cm[1]) })
         intents.push({
           kind: 'widget',
@@ -165,8 +156,7 @@ export function decorationsFor(text: string, tokens: Token[], active: Set<number
         intents.push({ kind: 'widget', from: ls, to: ls + om[0].length, spec: { type: 'ordered', label: `${om[2]}.` } })
       }
     } else if (isBlockquoteLine(line)) {
-      // Always-show card (not caret-aware): the `>` markers are permanently hidden; first/last lines
-      // round the card's corners so a run of quote lines reads as one continuous box.
+      // Always-show card (not caret-aware): `>` markers stay hidden; first/last round the corners.
       const bm = BLOCKQUOTE_RE.exec(line)
       if (bm) {
         const first = i === 0 || !isBlockquoteLine(lines[i - 1])

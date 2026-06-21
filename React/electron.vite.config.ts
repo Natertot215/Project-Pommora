@@ -19,6 +19,10 @@ export default defineConfig({
         '@renderer': resolve('src/renderer/src')
       }
     },
-    plugins: [react(), vanillaExtractPlugin()]
+    plugins: [react(), vanillaExtractPlugin()],
+    // Preview worktree only (uncommitted): node_modules is a symlink to the main
+    // checkout, whose real path is outside this worktree — relax Vite's fs allow-list
+    // so fonts/assets load. Not for the committed config.
+    server: { fs: { strict: false } }
   }
 })

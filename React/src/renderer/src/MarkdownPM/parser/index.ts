@@ -1,7 +1,6 @@
-// The parser seam — the ONLY place the behavior layer touches micromark/mdast. Everything
-// downstream (detection, tokens, plain-text) consumes the AST shape this exposes, so the
-// parser is swappable behind here. Plus the cheap line-scoped helper queries that detection
-// + input transforms use to skip code / wikilink / latex regions without an AST walk.
+// The parser seam — the ONLY place the behavior layer touches micromark/mdast, so the parser is
+// swappable behind here. Plus the cheap line-scoped helpers detection + input transforms use to
+// skip code / wikilink / latex regions without an AST walk.
 import { fromMarkdown } from 'mdast-util-from-markdown'
 import { gfm } from 'micromark-extension-gfm'
 import { gfmFromMarkdown } from 'mdast-util-gfm'

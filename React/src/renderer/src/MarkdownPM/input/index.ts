@@ -1,8 +1,6 @@
-// Pure typing transforms. Each takes the document + selection (+ the char being inserted, for
-// the keystroke-reactive ones) and returns an Edit to apply, or null to fall through to the
-// default. Framework-free: the CM6 keymap (Phase 4) wires these in as one atomic transaction
-// with a re-entry guard. Input-time only — paste preserves literal text by construction (these
-// fire on single-char insert / specific keys).
+// Pure, framework-free typing transforms. Each takes the document + selection (+ the inserted char
+// for keystroke-reactive ones) and returns an Edit to apply, or null to fall through. Input-time
+// only (single-char insert / specific keys); paste preserves literal text by construction.
 import { isInsideCode, isInsideWikilink } from '../parser'
 
 /** A single atomic edit: replace [from, to) with `insert`, then place the caret at `selection`. */

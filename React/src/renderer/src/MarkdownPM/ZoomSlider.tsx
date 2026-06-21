@@ -1,6 +1,5 @@
-// The unified editor zoom control — a range slider over the zoom value (0–2, default 1.0 = 15pt).
-// Stateless: it reports changes via onChange. Drop it into a toolbar / page settings and feed the
-// value into <MarkdownEditor zoom={…}> (and persist per-page) when that wiring lands.
+// The editor zoom control — a stateless range slider (0–2) reporting via onChange. Feed the value
+// into <MarkdownEditor zoom={…}> when that wiring lands.
 import { ZOOM_MIN, ZOOM_MAX, ZOOM_DEFAULT, zoomFontSize } from './zoom'
 
 interface Props {

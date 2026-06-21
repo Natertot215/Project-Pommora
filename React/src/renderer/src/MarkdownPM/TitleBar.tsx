@@ -9,19 +9,16 @@ interface Props {
   onCommit?: () => void
 }
 
-/**
- * The inline page title above the body — filename = title, edited in place. Enter (or blur) commits
- * a file rename; Escape reverts. It lives in the editor's reserved top zone and scroll-tracks with
- * the body (the host translates it). A hairline divider runs the text column beneath it. (Swift:
- * PageEditorView title field + separator.)
- */
+/** The inline page title above the body — filename = title, edited in place. Enter (or blur)
+ *  commits a file rename; Escape reverts. Lives in the editor's reserved top zone and scroll-tracks
+ *  with the body (the host translates it). */
 export const TitleBar = forwardRef<HTMLDivElement, Props>(function TitleBar({ title, onRename, onCommit }, ref) {
   const [value, setValue] = useState(title)
 
   const commit = (): void => {
     const next = value.trim()
     if (next && next !== title) onRename?.(next)
-    else setValue(title) // empty or unchanged → revert the draft
+    else setValue(title) // empty or unchanged → revert
   }
 
   return (

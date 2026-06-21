@@ -1,7 +1,6 @@
-// The public front door — a React component that hosts a CodeMirror 6 editor over a page's
-// Markdown body. Uncontrolled by design: the body is the INITIAL doc, edits flow out via
-// onChange; the host remounts per page (key on the path) so there's no body-sync-on-keystroke.
-// The inline title sits above the body in a reserved top zone and scroll-tracks with the document.
+// The public front door — a React component hosting a CodeMirror 6 editor over a page's Markdown
+// body. Uncontrolled by design: the body is the INITIAL doc, edits flow out via onChange, and the
+// host remounts per page (key on path) so there's no body-sync-on-keystroke.
 import { useEffect, useRef } from 'react'
 import { EditorView, keymap } from '@codemirror/view'
 import { history, historyKeymap, defaultKeymap } from '@codemirror/commands'
