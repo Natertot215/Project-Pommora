@@ -25,6 +25,8 @@ Editor shipped at v0.2.7.0 on native TextKit 2. Swift-side primitives:
 
 - **GRDB.swift** (6.29.3 pinned) — SQLite for Swift; FTS5 first-class via `FTS5Pattern`; `ValueObservation.tracking { db in ... }` is the reactive primitive — `.values(in:)` returns an `AsyncThrowingStream` (Swift 6 idiom over Combine). [GitHub](https://github.com/groue/GRDB.swift)
 
+- **Nuke** (13.0.6 pinned) — image-loading pipeline (with NukeUI) powering page covers, container banners, and the gallery cards; resizes + disk-caches across launches. Drives `Detail/Gallery/`, `Detail/Covers/BannerView.swift`, and `Sidebar/NexusHeaderBanner.swift`. [GitHub](https://github.com/kean/Nuke)
+
 - **@Observable macro** (Swift 5.9+, mature in 6.2) — non-negotiable for new SwiftUI code; per-property tracking eliminates wasteful redraws; `@State` replaces `@StateObject`. [Apple docs](https://developer.apple.com/documentation/observation)
 
 - **SwiftData** — wraps Core Data; can't use a custom SQLite schema or FTS5 directly. Still not safe for Pommora's "files canonical + custom schema" shape in 2026. **Skip in favor of GRDB.**

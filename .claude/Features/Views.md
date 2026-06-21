@@ -76,7 +76,7 @@ The View Settings popover is active-view-scoped:
 - **Layout** — per-view display config: Display Banner, Card Size (gallery), the Property Visibility eye-list (per-view show/hide plus drag-order over all columns — user properties, tier columns, and Modified; Title pinned non-hideable; cover never listed), and a muted Wrap Text row (dynamic row heights are a later pass). The vault-scoped open-in selector is labeled Open Pages In.
 - **Sort** — a single picker: Manual, Title A→Z / Z→A, Created, Recent, or any property ascending/descending.
 - **Filter** — flat rule list plus Match All / Any.
-- **Group** — a Grouping toggle (off is the structural default) disclosing an inline property picker, a per-type Order popout, a Date By popout, a manual Options reorder list, and a bottom-pinned empty-group footer (hide-empty, empty Top/Bottom). Full spec → `Planning/06-15-Grouping-Redesign.md`. View-side rendering of the groups plus group-header manual drag is still pending — see the plan.
+- **Group** — a Grouping toggle (off is the structural default) disclosing an inline property picker, a per-type Order popout, a Date By popout, a manual Options reorder list, and a bottom-pinned empty-group footer (hide-empty, empty Top/Bottom). Full spec → `Planning/06-15-Grouping-Redesign.md`. View-side rendering of the groups ships in both table and gallery; group-header manual drag remains pending.
 
 ---
 

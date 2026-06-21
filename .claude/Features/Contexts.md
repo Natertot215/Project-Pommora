@@ -25,7 +25,8 @@ All three tiers are **folders with a config sidecar** — the same idiom as Page
 - `id` (ULID), `tier` (1/2/3), `icon` (optional)
 - `blocks` — an array reserved for a future composed-blocks surface; **currently always empty**
 - `modified_at`
-- Tier-1 (Area) additionally carries `color` — a fixed palette; `nil` = no tint
+
+All three tiers share this one shape exactly — Area is structurally identical to Topic and Project, icon-only with no extra fields.
 
 There is no `parents`, no containment field, and no cross-context link property. The folder name is the title; there is no `title` field on disk. Renaming in the UI renames the folder.
 
@@ -35,7 +36,7 @@ There is no `parents`, no containment field, and no cross-context link property.
 
 ```
 .nexus/
-  areas/<Title>/_area.json        id, tier 1, color, icon, blocks, modified_at
+  areas/<Title>/_area.json        id, tier 1, icon, blocks, modified_at
   topics/<Title>/_topic.json      id, tier 2, icon, blocks, modified_at
   projects/<Title>/_project.json  id, tier 3, icon, blocks, modified_at
 ```

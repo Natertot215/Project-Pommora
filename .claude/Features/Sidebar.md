@@ -33,7 +33,7 @@ Three fixed entries render at the top without a heading: Homepage opens the Home
 
 One section under a fixed "Contexts" label holding exactly three tier disclosure rows — Areas, Topics, Projects — as homogeneous siblings. The tiers are free-standing: no containment, no parents, no cross-tier nesting (see [[Contexts]]).
 
-Tier rows are expand/collapse only — they carry no selection, so clicking anywhere toggles disclosure; the label reads from the tier config, and creation is via the row's hover "+" or right-click. Entity rows render as flat leaf rows: Area rows carry a color (the Area palette — see [[Contexts]]) plus an optional icon; Topic and Project rows are bare icon-plus-title leaves with no parent indicator, since the tiers don't nest. Per-tier drag-reorder persists sibling order per Nexus; clicking an entity opens its detail surface. The tier rows mirror the disclosure shape used by Vaults.
+Tier rows are expand/collapse only — they carry no selection, so clicking anywhere toggles disclosure; the label reads from the tier config, and creation is via the row's hover "+" or right-click. Entity rows render as flat leaf rows: Area, Topic, and Project rows are all bare icon-plus-title leaves with no parent indicator, since the tiers don't nest. Per-tier drag-reorder persists sibling order per Nexus; clicking an entity opens its detail surface. The tier rows mirror the disclosure shape used by Vaults.
 
 ##### Vaults (default label)
 
@@ -55,7 +55,7 @@ Affordances: Add Section in the Vaults header context menu (stub then inline-ren
 
 Creation is right-click-first with no always-visible "New" buttons: right-click a heading, row, or area and the menu's "New X" options auto-scope to that location's tier or container. Location scoping is load-bearing — right-clicking a Collection produces a "New Page" that creates IN that Collection. The three tier rows each create only their own tier (no cross-tier creation — the tiers are independent). This matches Finder, Notion, and Obsidian.
 
-Beyond New entries, the menus carry the natural edit actions per row: Contexts entity rows offer Rename / Change Icon (Areas also Change Color) / Delete; the Vaults header offers Add Section; a Page Type row offers Vault Settings (the schema editor), Move to / Remove from Section, Rename / Change Icon / Delete; a Collection offers Rename / Delete; a Set offers Rename / Change Icon / Move to another Collection / Delete (two delete modes — see [[Sets]]); a Page offers Rename / Delete; a user-section header offers Rename / Delete (delete ungroups its vaults). There are no Agenda menu rows in the sidebar — Agenda creation lives on the Calendar pin.
+Beyond New entries, the menus carry the natural edit actions per row: Contexts entity rows offer Rename / Change Icon / Delete; the Vaults header offers Add Section; a Page Type row offers Vault Settings (the schema editor), Move to / Remove from Section, Rename / Change Icon / Delete; a Collection offers Rename / Delete; a Set offers Rename / Change Icon / Move to another Collection / Delete (two delete modes — see [[Sets]]); a Page offers Rename / Delete; a user-section header offers Rename / Delete (delete ungroups its vaults). There are no Agenda menu rows in the sidebar — Agenda creation lives on the Calendar pin.
 
 Tier and section headings also expose a hover-only "+" as a discoverable complement, opening that tier or section's new flow while keeping the sidebar quiet at rest. A fuller global creation path arrives via quick-capture, expected to absorb most CRUD entry traffic.
 

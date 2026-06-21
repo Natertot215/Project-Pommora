@@ -315,8 +315,8 @@ final class AgendaEventManager {
 
 enum AgendaEventManagerError: Error, Equatable {
     case propertyNotFound
-    /// Thrown when attempting to delete a built-in property (`_type`) that Pommora
-    /// manages and requires for core functionality. Events have no `_status`.
+    /// Thrown when attempting to delete a built-in property that Pommora manages and
+    /// requires for core functionality.
     case cannotDeleteBuiltinProperty
     case lossyChangeRequiresConfirmation
     case indexOutOfBounds
