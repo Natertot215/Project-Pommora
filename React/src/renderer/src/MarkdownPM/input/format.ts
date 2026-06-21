@@ -8,12 +8,12 @@ export interface FormatEdit {
   selection?: number
 }
 
-export type InlineFormat = 'bold' | 'italic' | 'strikethrough' | 'inlineCode' | 'link'
+export type InlineFormat = 'bold' | 'italic' | 'strikethrough' | 'inlineCode' | 'link' | 'connection'
 export type HeadingLevel = 0 | 1 | 2 | 3 | 4 | 5 | 6
 export type ListFormat = 'bullet' | 'ordered' | 'task'
 export type BlockFormat = 'quote' | 'code' | 'hr' | 'callout'
 
-const WRAP: Record<Exclude<InlineFormat, 'link'>, string> = {
+const WRAP: Record<Exclude<InlineFormat, 'link' | 'connection'>, string> = {
   bold: '**',
   italic: '*',
   strikethrough: '~~',
@@ -23,7 +23,8 @@ const WRAP: Record<Exclude<InlineFormat, 'link'>, string> = {
 /** Toggle an inline mark over the selection: unwrap if it already wraps, else wrap (caret sits inside when empty). */
 export function toggleInline(doc: string, from: number, to: number, fmt: InlineFormat): FormatEdit {
   if (fmt === 'link') return toggleLink(doc, from, to)
-  const kind = fmt as Exclude<InlineFormat, 'link'> & TokenKind
+  if (fmt === 'connection') return toggleConnection(doc, from, to)
+  const kind = fmt as Exclude<InlineFormat, 'link' | 'connection'> & TokenKind
   const existing = tokenize(doc).find(
     (tk) => tk.kind === kind && tk.contentRange[0] <= from && to <= tk.contentRange[1]
   )
@@ -58,6 +59,20 @@ function toggleLink(doc: string, from: number, to: number): FormatEdit {
       { from: to, to, insert: ']()' }
     ],
     selection: to + 3 // inside the empty ()
+  }
+}
+
+function toggleConnection(doc: string, from: number, to: number): FormatEdit {
+  const existing = tokenize(doc).find((tk) => tk.kind === 'wikiLink' && tk.range[0] <= from && to <= tk.range[1])
+  if (existing) {
+    return { changes: [{ from: existing.range[0], to: existing.range[1], insert: doc.slice(...existing.contentRange) }] }
+  }
+  return {
+    changes: [
+      { from, to: from, insert: '[[' },
+      { from: to, to, insert: ']]' }
+    ],
+    selection: from === to ? from + 2 : to + 2
   }
 }
 

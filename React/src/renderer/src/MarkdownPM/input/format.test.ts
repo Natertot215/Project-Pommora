@@ -20,6 +20,11 @@ describe('toggleInline', () => {
   it('link wraps with an empty url ready for typing', () => {
     expect(apply('site', toggleInline('site', 0, 4, 'link'))).toBe('[site]()')
   })
+  it('connection wraps the selection in [[ ]], and unwraps from inside', () => {
+    expect(apply('Page', toggleInline('Page', 0, 4, 'connection'))).toBe('[[Page]]')
+    const doc = 'a [[Page]] b'
+    expect(apply(doc, toggleInline(doc, 5, 5, 'connection'))).toBe('a Page b')
+  })
 })
 
 describe('setHeading', () => {

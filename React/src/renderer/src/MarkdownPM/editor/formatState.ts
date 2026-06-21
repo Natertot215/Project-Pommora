@@ -24,6 +24,7 @@ export function readFormatState(doc: string, from: number, to: number, focused: 
     strikethrough: wraps('strikethrough'),
     inlineCode: wraps('inlineCode'),
     link: tokens.some((tk) => tk.kind === 'link' && tk.range[0] <= from && to <= tk.range[1]),
+    connection: tokens.some((tk) => tk.kind === 'wikiLink' && tk.range[0] <= from && to <= tk.range[1]),
     heading: hm ? hm[1].length : 0,
     list: lm?.kind === 'checkbox' ? 'task' : lm?.kind === 'ordered' ? 'ordered' : lm?.kind === 'bullet' ? 'bullet' : null,
     block: /^[ \t]*>[ \t]/.test(line) ? 'quote' : null

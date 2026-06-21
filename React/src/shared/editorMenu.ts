@@ -13,6 +13,7 @@ export interface FormatState {
   strikethrough: boolean
   inlineCode: boolean
   link: boolean
+  connection: boolean
   heading: number // 0 = paragraph, 1–6
   list: 'bullet' | 'ordered' | 'task' | null
   block: 'quote' | null

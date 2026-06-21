@@ -37,15 +37,17 @@ function systemItems(wc: WebContents, params: ContextMenuParams): MenuItemConstr
     { role: 'pasteAndMatchStyle', enabled: f.canPaste },
     { role: 'selectAll' }
   )
-
-  if (params.selectionText) {
-    items.push(
-      { type: 'separator' },
-      { label: 'Speech', submenu: [{ role: 'startSpeaking' }, { role: 'stopSpeaking' }] },
-      { role: 'shareMenu', sharingItem: { texts: [params.selectionText] } }
-    )
-  }
   return items
+}
+
+// OS sharing/speech — placed last so the Pommora formatting block sits directly under the edit items.
+function speechShareItems(params: ContextMenuParams): MenuItemConstructorOptions[] {
+  if (!params.selectionText) return []
+  return [
+    { type: 'separator' },
+    { label: 'Speech', submenu: [{ role: 'startSpeaking' }, { role: 'stopSpeaking' }] },
+    { role: 'shareMenu', sharingItem: { texts: [params.selectionText] } }
+  ]
 }
 
 function pommoraItems(wc: WebContents, s: FormatState): MenuItemConstructorOptions[] {
@@ -65,7 +67,8 @@ function pommoraItems(wc: WebContents, s: FormatState): MenuItemConstructorOptio
         { label: 'Italic', type: 'checkbox', checked: s.italic, click: act('format:italic') },
         { label: 'Strikethrough', type: 'checkbox', checked: s.strikethrough, click: act('format:strikethrough') },
         { label: 'Inline Code', type: 'checkbox', checked: s.inlineCode, click: act('format:inlineCode') },
-        { label: 'Link', type: 'checkbox', checked: s.link, click: act('format:link') }
+        { label: 'Link', type: 'checkbox', checked: s.link, click: act('format:link') },
+        { label: 'Connection', type: 'checkbox', checked: s.connection, click: act('format:connection') }
       ]
     },
     {
@@ -75,7 +78,8 @@ function pommoraItems(wc: WebContents, s: FormatState): MenuItemConstructorOptio
         heading('Heading 1', 1),
         heading('Heading 2', 2),
         heading('Heading 3', 3),
-        heading('Heading 4', 4)
+        heading('Heading 4', 4),
+        heading('Heading 5', 5)
       ]
     },
     {
@@ -103,6 +107,7 @@ export function installEditorContextMenu(win: BrowserWindow): void {
     if (!params.isEditable) return // sidebar + read-only surfaces keep their own menus
     const items = systemItems(win.webContents, params)
     if (lastState?.focused) items.push(...pommoraItems(win.webContents, lastState))
+    items.push(...speechShareItems(params))
     Menu.buildFromTemplate(items).popup({ window: win })
   })
 }
