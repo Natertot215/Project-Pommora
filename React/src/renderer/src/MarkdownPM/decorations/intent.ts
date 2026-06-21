@@ -131,9 +131,10 @@ export function decorationsFor(text: string, tokens: Token[], active: Set<number
       if (lm.markerStart > 0) intents.push({ kind: 'hide', from: ls, to: ls + lm.markerStart })
       if (!onMarker) intents.push({ kind: 'widget', from: ls + lm.markerStart, to: ls + lm.markerEnd, spec: { type: 'bullet' } })
     } else if (lm?.kind === 'ordered') {
-      // The `N.` stays as literal, editable source (recoloured); only the indent hides. No widget,
-      // so typing a space after the number can't collide with an atomic range.
-      intents.push({ kind: 'line', from: ls, className: 'md-li', level: lm.level })
+      // The `N.` stays as literal, editable source (recoloured); only the indent hides. The marker
+      // gets a fixed-width right-aligned zone (md-ol-marker) so the periods form a flat column
+      // regardless of digit count. No widget → typing after the number can't hit an atomic range.
+      intents.push({ kind: 'line', from: ls, className: 'md-li md-li-ordered', level: lm.level })
       if (lm.markerStart > 0) intents.push({ kind: 'hide', from: ls, to: ls + lm.markerStart })
       intents.push({ kind: 'class', from: ls + lm.markerStart, to: ls + lm.markerEnd, className: 'md-ol-marker md-syntax' })
     } else if (isBlockquoteLine(line)) {
