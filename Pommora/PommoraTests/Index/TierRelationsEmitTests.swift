@@ -19,11 +19,6 @@ struct TierRelationsEmitTests {
 
     // MARK: - Helpers (mirror IndexUpdaterTests)
 
-    private func makeIndex(at nexus: Nexus) throws -> PommoraIndex {
-        let (idx, _) = try PommoraIndex.open(at: nexus.rootURL)
-        return idx
-    }
-
     private func tierRelationCount(targetID: String, propertyID: String, db index: PommoraIndex) throws -> Int {
         try index.dbQueue.read { db in
             try Int.fetchOne(
@@ -32,33 +27,6 @@ struct TierRelationsEmitTests {
                 arguments: [targetID, propertyID]
             ) ?? -1
         }
-    }
-
-    private func makePageType(title: String = "Notes") -> PageType {
-        PageType(
-            id: ULID.generate(), title: title, icon: nil,
-            properties: [], views: [], modifiedAt: Date()
-        )
-    }
-
-    private func makeAgendaTask(
-        title: String = "Buy milk",
-        tier1: [String] = [],
-        tier2: [String] = [],
-        tier3: [String] = []
-    ) -> AgendaTask {
-        let now = Date()
-        return AgendaTask(
-            id: ULID.generate(), title: title, icon: nil,
-            description: "",
-            dueAt: nil, dueFloating: false, dueAllDay: false,
-            startAt: nil, completed: false, completedAt: nil,
-            priority: 0, recurrence: nil, alarmOffsets: [],
-            calendarID: nil, eventkitUUID: nil,
-            tier1: tier1, tier2: tier2, tier3: tier3,
-            createdAt: now, modifiedAt: now,
-            properties: [:]
-        )
     }
 
     private func relationCount(sourceID: String, db index: PommoraIndex) throws -> Int {
@@ -76,10 +44,10 @@ struct TierRelationsEmitTests {
     @Test func upsertPageEmitsTier1RelationRow() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
-        let idx = try makeIndex(at: nexus)
+        let idx = try Fixtures.index(at: nexus)
         let updater = IndexUpdater(idx)
 
-        let pt = makePageType()
+        let pt = Fixtures.pageType()
         try updater.upsertPageType(pt)
 
         let contextID = ULID.generate()
@@ -118,10 +86,10 @@ struct TierRelationsEmitTests {
     @Test func upsertPageEmitsTier2AndTier3RelationRows() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
-        let idx = try makeIndex(at: nexus)
+        let idx = try Fixtures.index(at: nexus)
         let updater = IndexUpdater(idx)
 
-        let pt = makePageType(title: "Tasks")
+        let pt = Fixtures.pageType(title: "Tasks")
         try updater.upsertPageType(pt)
 
         let topicID = ULID.generate()
@@ -151,11 +119,11 @@ struct TierRelationsEmitTests {
     @Test func upsertAgendaTaskEmitsTier1RelationRow() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
-        let idx = try makeIndex(at: nexus)
+        let idx = try Fixtures.index(at: nexus)
         let updater = IndexUpdater(idx)
 
         let contextID = ULID.generate()
-        let task = makeAgendaTask(tier1: [contextID])
+        let task = Fixtures.agendaTask(tier1: [contextID])
         try updater.upsertAgendaTask(task)
 
         // The relations row exists and carries the reserved tier property id.
@@ -182,11 +150,11 @@ struct TierRelationsEmitTests {
     @Test func deleteAgendaTaskClearsRelations() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
-        let idx = try makeIndex(at: nexus)
+        let idx = try Fixtures.index(at: nexus)
         let updater = IndexUpdater(idx)
 
         let contextID = ULID.generate()
-        let task = makeAgendaTask(tier1: [contextID])
+        let task = Fixtures.agendaTask(tier1: [contextID])
         try updater.upsertAgendaTask(task)
 
         // Sanity: the relations row was written by the upsert.
@@ -203,10 +171,10 @@ struct TierRelationsEmitTests {
     @Test func reUpsertPageReplacesTierRelationsWithoutDuplication() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
-        let idx = try makeIndex(at: nexus)
+        let idx = try Fixtures.index(at: nexus)
         let updater = IndexUpdater(idx)
 
-        let pt = makePageType()
+        let pt = Fixtures.pageType()
         try updater.upsertPageType(pt)
 
         let contextID = ULID.generate()
@@ -235,7 +203,7 @@ struct TierRelationsEmitTests {
     @Test func userRelationPropertyValueEmitsNoRelationsRow() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
-        let idx = try makeIndex(at: nexus)
+        let idx = try Fixtures.index(at: nexus)
         let updater = IndexUpdater(idx)
 
         // Register a page type with one relation property definition.
@@ -280,7 +248,7 @@ struct TierRelationsEmitTests {
     @Test func userRelationWithTierEmitsOnlyTierRow() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
-        let idx = try makeIndex(at: nexus)
+        let idx = try Fixtures.index(at: nexus)
         let updater = IndexUpdater(idx)
 
         let relPropID = ULID.generate()
@@ -327,7 +295,7 @@ struct TierRelationsEmitTests {
     @Test func fullRebuildEmitsTierRelationRow() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
-        let idx = try makeIndex(at: nexus)
+        let idx = try Fixtures.index(at: nexus)
 
         // Lay down a real Page Type folder + one page with a tier1 frontmatter value,
         // then run a full IndexBuilder.populate against the on-disk nexus.
@@ -366,7 +334,7 @@ struct TierRelationsEmitTests {
     @Test func postMigrationIndexHasTierRowsButNoOrphanRelationRows() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
-        let idx = try makeIndex(at: nexus)
+        let idx = try Fixtures.index(at: nexus)
 
         // Build a legacy PageType (schemaVersion 0, one property) and a member that
         // carries an orphaned user-relation key + a tier1 value.

@@ -22,11 +22,6 @@ struct IndexParentUpsertCascadeTests {
 
     // MARK: - Helpers
 
-    private func makeIndex(at nexus: Nexus) throws -> PommoraIndex {
-        let (idx, _) = try PommoraIndex.open(at: nexus.rootURL)
-        return idx
-    }
-
     private func count(_ table: String, in index: PommoraIndex) throws -> Int {
         try index.dbQueue.read { db in
             try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM \(table)") ?? -1
@@ -44,37 +39,18 @@ struct IndexParentUpsertCascadeTests {
         }
     }
 
-    private func makePageType(title: String = "Notes") -> PageType {
-        PageType(id: ULID.generate(), title: title, icon: nil, properties: [], views: [], modifiedAt: Date())
-    }
-
-    private func makePageCollection(typeID: String, title: String = "Archive") -> PageCollection {
-        let folderURL = URL(fileURLWithPath: "/tmp/dummy-\(UUID().uuidString)")
-        return PageCollection(
-            id: ULID.generate(), typeID: typeID, title: title, folderURL: folderURL, modifiedAt: Date()
-        )
-    }
-
-    private func makePageMeta(id: String = ULID.generate(), title: String) -> PageMeta {
-        let url = URL(fileURLWithPath: "/tmp/\(id).md")
-        let frontmatter = PageFrontmatter(
-            id: id, icon: nil, tier1: [], tier2: [], tier3: [], properties: [:], createdAt: Date()
-        )
-        return PageMeta(id: id, title: title, url: url, frontmatter: frontmatter)
-    }
-
     // MARK: - Tests
 
     @Test func reUpsertPageTypePreservesChildPages() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
-        let idx = try makeIndex(at: nexus)
+        let idx = try Fixtures.index(at: nexus)
         let updater = IndexUpdater(idx)
 
-        let pt = makePageType()
+        let pt = Fixtures.pageType()
         try updater.upsertPageType(pt)
-        try updater.upsertPage(makePageMeta(title: "Page One"), pageTypeID: pt.id, pageCollectionID: nil)
-        try updater.upsertPage(makePageMeta(title: "Page Two"), pageTypeID: pt.id, pageCollectionID: nil)
+        try updater.upsertPage(Fixtures.pageMeta(title: "Page One"), pageTypeID: pt.id, pageCollectionID: nil)
+        try updater.upsertPage(Fixtures.pageMeta(title: "Page Two"), pageTypeID: pt.id, pageCollectionID: nil)
 
         let pagesBefore = try count("pages", in: idx)
         #expect(pagesBefore == 2)
@@ -91,15 +67,15 @@ struct IndexParentUpsertCascadeTests {
     @Test func reUpsertPageCollectionPreservesChildLinkage() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
-        let idx = try makeIndex(at: nexus)
+        let idx = try Fixtures.index(at: nexus)
         let updater = IndexUpdater(idx)
 
-        let pt = makePageType()
+        let pt = Fixtures.pageType()
         try updater.upsertPageType(pt)
-        let pc = makePageCollection(typeID: pt.id)
+        let pc = Fixtures.pageCollection(typeID: pt.id)
         try updater.upsertPageCollection(pc)
 
-        let pageMeta = makePageMeta(title: "Filed Page")
+        let pageMeta = Fixtures.pageMeta(title: "Filed Page")
         try updater.upsertPage(pageMeta, pageTypeID: pt.id, pageCollectionID: pc.id)
 
         // Hoist ids out before the read helpers (quirk #5: @MainActor local

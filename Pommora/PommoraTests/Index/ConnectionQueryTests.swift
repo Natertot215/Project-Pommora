@@ -10,11 +10,6 @@ struct ConnectionQueryTests {
 
     // MARK: - Helpers
 
-    private func makeIndex(at nexus: Nexus) throws -> PommoraIndex {
-        let (idx, _) = try PommoraIndex.open(at: nexus.rootURL)
-        return idx
-    }
-
     /// Insert a page row (with its required page_type parent).
     private func insertPage(id: String, title: String, index: PommoraIndex) throws {
         let iso = ISO8601DateFormatter()
@@ -35,7 +30,7 @@ struct ConnectionQueryTests {
     @Test func outgoingIncomingAndResolved() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
-        let idx = try makeIndex(at: nexus)
+        let idx = try Fixtures.index(at: nexus)
         let updater = IndexUpdater(idx)
         let query = IndexQuery(idx)
 
@@ -77,7 +72,7 @@ struct ConnectionQueryTests {
     @Test func titleExists() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
-        let idx = try makeIndex(at: nexus)
+        let idx = try Fixtures.index(at: nexus)
         let query = IndexQuery(idx)
 
         let targetID = ULID.generate()
@@ -100,7 +95,7 @@ struct ConnectionQueryTests {
     @Test func titleCandidatesPrefixMatch() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
-        let idx = try makeIndex(at: nexus)
+        let idx = try Fixtures.index(at: nexus)
         let query = IndexQuery(idx)
 
         let appleID = ULID.generate()
