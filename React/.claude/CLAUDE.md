@@ -43,8 +43,8 @@ The GUI only launches with `ELECTRON_RUN_AS_NODE` **unset** (this env has it set
 ### Document map
 
 - `Handoff.md` — current state + next session (read first).
-- `History.md` — what's been built + decisions/commits (brief).
-- `Framework.md` — phased roadmap + status.
+- `History.md` — what shipped + locked decisions, newest first (brief).
+- `Framework.md` — the continuous roadmap (shipped spine + what's next; no phases — the rebuild goes as it goes).
 - `Features/Architecture.md` — the data/read/IPC architecture.
 - `Guidelines/` — build gotchas + decisions not to repeat.
 - `Planning/` — active plans (Phase specs).
