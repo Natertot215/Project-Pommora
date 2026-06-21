@@ -14,7 +14,7 @@ struct SavedConfig: Codable, Equatable, Hashable, Sendable {
 
     static func defaultSeed() -> SavedConfig {
         SavedConfig(
-            schemaVersion: 1,
+            schemaVersion: SchemaVersion.savedConfig,
             items: [
                 Item(key: "homepage", label: "Homepage"),
                 Item(key: "calendar", label: "Calendar"),

@@ -83,7 +83,7 @@ struct AgendaEventSchema: Codable, Equatable, Hashable, Sendable {
 
     static func defaultSeed() -> AgendaEventSchema {
         AgendaEventSchema(
-            schemaVersion: 1,
+            schemaVersion: SchemaVersion.agendaEvent,
             icon: "calendar",
             properties: [
                 PropertyDefinition(

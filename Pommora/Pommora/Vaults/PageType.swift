@@ -49,7 +49,7 @@ struct PageType: Codable, Equatable, Identifiable, Hashable, Sendable {
     init(
         id: String, title: String, icon: String?,
         properties: [PropertyDefinition], views: [SavedView], modifiedAt: Date,
-        schemaVersion: Int = 2,
+        schemaVersion: Int = SchemaVersion.pageType,
         collectionOrder: [String]? = nil,
         pageOrder: [String]? = nil,
         defaultSort: DefaultSortConfig? = nil,

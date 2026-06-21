@@ -20,7 +20,7 @@ struct TierConfig: Codable, Equatable, Hashable, Sendable {
 
     static func defaultSeed() -> TierConfig {
         TierConfig(
-            schemaVersion: 1,
+            schemaVersion: SchemaVersion.tierConfig,
             tiers: [
                 Tier(level: 1, singular: "Area", plural: "Areas", exposed: true),
                 Tier(level: 2, singular: "Topic", plural: "Topics", exposed: true),

@@ -34,7 +34,7 @@ struct PageSet: Codable, Equatable, Identifiable, Hashable, Sendable {
         title: String,
         folderURL: URL,
         modifiedAt: Date,
-        schemaVersion: Int = 1,
+        schemaVersion: Int = SchemaVersion.pageSet,
         icon: String? = nil,
         pageOrder: [String]? = nil
     ) {
