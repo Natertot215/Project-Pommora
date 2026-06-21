@@ -48,27 +48,19 @@ const CONTENT_CLASS: Partial<Record<TokenKind, string>> = {
   strikethrough: 'md-strike',
   inlineCode: 'md-code',
   link: 'md-link',
-  wikiLink: 'md-connection',
   imageEmbed: 'md-image',
   inlineLatex: 'md-latex',
   blockLatex: 'md-latex'
-}
-
-const ACTIVE_MARKER_CLASS: Partial<Record<TokenKind, string>> = {
-  wikiLink: 'md-bracket'
 }
 
 export function decorationsFor(text: string, tokens: Token[], active: Set<number>, selStart: number): DecoIntent[] {
   const intents: DecoIntent[] = []
 
   tokens.forEach((tk, i) => {
+    if (tk.kind === 'wikiLink') return // resolution-dependent; rendered in decorations.ts by status
     const cls = CONTENT_CLASS[tk.kind]
     if (cls) intents.push({ kind: 'class', from: tk.contentRange[0], to: tk.contentRange[1], className: cls })
-    const markerClass = active.has(i) ? ACTIVE_MARKER_CLASS[tk.kind] : undefined
-    for (const [s, e] of tk.markerRanges) {
-      if (!active.has(i)) intents.push({ kind: 'hide', from: s, to: e })
-      else if (markerClass) intents.push({ kind: 'class', from: s, to: e, className: markerClass })
-    }
+    if (!active.has(i)) for (const [s, e] of tk.markerRanges) intents.push({ kind: 'hide', from: s, to: e })
   })
 
   const lines = text.split('\n')

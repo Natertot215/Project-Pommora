@@ -146,14 +146,11 @@
   color: var(--link);
   text-decoration: underline;
 }
-.md-connection {
-  color: var(--connection);
-}
+/* Resolved connections wear the connection color; unresolved (phantom) get no class — they render
+   raw `[[Foo]]` as plain prose (handled in decorations.ts). Ambiguous reads muted. */
 .md-connection-resolved {
+  color: var(--connection);
   cursor: pointer;
-}
-.md-connection-phantom {
-  color: var(--label-secondary);
 }
 .md-connection-ambiguous {
   color: var(--label-tertiary);

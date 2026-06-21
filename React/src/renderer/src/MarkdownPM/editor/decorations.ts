@@ -98,11 +98,14 @@ function build(view: EditorView, conn: ConnectionsApi | undefined): DecorationSe
     else ranges.push(Decoration.replace({ widget: widgetFor(it.spec) }).range(it.from, it.to))
   }
   if (conn) {
-    for (const tk of tokens) {
-      if (tk.kind !== 'wikiLink') continue
+    tokens.forEach((tk, i) => {
+      if (tk.kind !== 'wikiLink') return
       const status = conn.resolve(text.slice(tk.contentRange[0], tk.contentRange[1])).status
+      if (status === 'phantom') return // unresolved → raw `[[Foo]]`, brackets visible + inert (spec)
       ranges.push(Decoration.mark({ class: `md-connection-${status}` }).range(tk.contentRange[0], tk.contentRange[1]))
-    }
+      const bracket = active.has(i) ? Decoration.mark({ class: 'md-bracket' }) : hideMarker
+      for (const [s, e] of tk.markerRanges) ranges.push(bracket.range(s, e))
+    })
   }
   // A folded heading reads as collapsed via its own --label-control tint (the `…` placeholder is removed).
   const folded = foldedRanges(view.state)

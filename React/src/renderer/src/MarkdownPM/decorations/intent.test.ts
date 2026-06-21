@@ -29,11 +29,10 @@ describe('decoration intents', () => {
     expect(on.some((d) => d.kind === 'widget' && d.spec.type === 'hr')).toBe(false)
   })
 
-  it('connection wikilink content gets md-connection', () => {
+  it('leaves wikilinks untouched — they are rendered in decorations.ts by resolution status', () => {
     const t = '[[Page]]'
-    const tokens = tokenize(t)
-    const intents = decorationsFor(t, tokens, new Set(), 99)
-    expect(intents.some((d) => d.kind === 'class' && d.className === 'md-connection')).toBe(true)
+    const intents = decorationsFor(t, tokenize(t), new Set(), 99)
+    expect(intents).toHaveLength(0) // no content class, no bracket hide — status-dependent
   })
 
   it('heading sizes the whole line (markers grow too) + mutes the # markers', () => {
