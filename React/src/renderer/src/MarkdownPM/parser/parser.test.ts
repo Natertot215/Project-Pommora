@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { parse, isInsideCode, isInsideWikilink, isInsideLatex } from './index'
+import { parse, isInsideCode, isInsideWikilink } from './index'
 
 describe('parse (mdast seam)', () => {
   it('parses GFM into an mdast tree', () => {
@@ -38,19 +38,5 @@ describe('isInsideCode', () => {
     expect(isInsideCode(t.indexOf('code') + 1, t)).toBe(true)
     expect(isInsideCode(t.indexOf('after') + 1, t)).toBe(false)
     expect(isInsideCode(t.indexOf('before') + 1, t)).toBe(false)
-  })
-})
-
-describe('isInsideLatex', () => {
-  it('true inside a $$ block, false outside', () => {
-    const t = 'x\n$$\na=b\n$$\ny'
-    expect(isInsideLatex(t.indexOf('a=b') + 1, t)).toBe(true)
-    expect(isInsideLatex(t.indexOf('y'), t)).toBe(false)
-  })
-
-  it('true between inline $…$ on a line', () => {
-    const t = 'cost $x+1$ here'
-    expect(isInsideLatex(t.indexOf('x+1') + 1, t)).toBe(true)
-    expect(isInsideLatex(t.indexOf('here'), t)).toBe(false)
   })
 })

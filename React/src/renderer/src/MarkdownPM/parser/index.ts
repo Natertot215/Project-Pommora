@@ -49,28 +49,3 @@ export function isInsideWikilink(offset: number, text: string): boolean {
   }
   return depth > 0
 }
-
-/** Is `offset` inside LaTeX? A `$$` block (doc-scan toggle on `$$`-only lines), or an open
- *  inline `$…$` on the offset's line (odd count of unescaped `$` before it). Approximate —
- *  LaTeX rendering is deferred; this only gates skip-guards. */
-export function isInsideLatex(offset: number, text: string): boolean {
-  let pos = 0
-  let inBlock = false
-  for (const line of text.split('\n')) {
-    const lineEnd = pos + line.length
-    const isBlockFence = line.trim() === '$$'
-    if (isBlockFence) {
-      if (offset >= pos && offset <= lineEnd) return true
-      inBlock = !inBlock
-    } else if (offset >= pos && offset <= lineEnd) {
-      if (inBlock) return true
-      let count = 0
-      for (let j = pos; j < offset; j++) {
-        if (text[j] === '$' && text[j - 1] !== '\\') count++
-      }
-      return count % 2 === 1
-    }
-    pos = lineEnd + 1
-  }
-  return false
-}
