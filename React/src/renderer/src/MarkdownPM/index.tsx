@@ -7,6 +7,8 @@ import { markdownDecorations } from './editor/decorations'
 import { markdownInput } from './editor/input'
 import { connectionClicks } from './editor/connections'
 import { markdownFolding, initialFoldEffects, initialFoldAnnotation, type FoldsApi } from './editor/folding'
+import { applyEditorAction, type EditorMenuApi } from './editor/menu'
+import { readFormatState } from './editor/formatState'
 import { autocompleteQuery, connectionInsert } from './autocomplete'
 import { AutocompletePanel } from './AutocompletePanel'
 import type { ConnectionsApi, ConnPage } from './connections'
@@ -40,6 +42,7 @@ interface Props {
   zoom?: number
   connections?: ConnectionsApi
   folds?: FoldsApi
+  menu?: EditorMenuApi
 }
 
 export function MarkdownEditor({
@@ -49,7 +52,8 @@ export function MarkdownEditor({
   onRename,
   zoom = ZOOM_DEFAULT,
   connections,
-  folds
+  folds,
+  menu
 }: Props): React.JSX.Element {
   const host = useRef<HTMLDivElement>(null)
   const titleRef = useRef<HTMLDivElement>(null)
@@ -60,6 +64,9 @@ export function MarkdownEditor({
   connectionsRef.current = connections
   const foldsRef = useRef(folds)
   foldsRef.current = folds
+  const menuRef = useRef(menu)
+  menuRef.current = menu
+  const lastFormatRef = useRef('')
 
   // CM6 extensions are built once at mount, so they read live state + actions through refs.
   const [ac, setAc] = useState<AcState | null>(null)
@@ -128,12 +135,22 @@ export function MarkdownEditor({
         connectionClicks(() => connectionsRef.current),
         markdownFolding((keys) => foldsRef.current?.save(keys)),
         EditorView.updateListener.of((u) => {
-          if (u.docChanged) onChangeRef.current(u.state.doc.toString())
+          if (!(u.docChanged || u.selectionSet || u.focusChanged)) return // skip scroll/geometry-only updates
+          const doc = u.state.doc.toString()
+          const sel = u.state.selection.main
+          if (u.docChanged) onChangeRef.current(doc)
+
+          const fs = readFormatState(doc, sel.from, sel.to, u.view.hasFocus)
+          const json = JSON.stringify(fs)
+          if (json !== lastFormatRef.current) {
+            lastFormatRef.current = json
+            menuRef.current?.pushState(fs)
+          }
+
           if (u.docChanged || u.selectionSet) {
-            const sel = u.state.selection.main
             let next: AcState | null = null
             if (sel.empty) {
-              const q = autocompleteQuery(u.state.doc.toString(), sel.head)
+              const q = autocompleteQuery(doc, sel.head)
               const c = q && u.view.coordsAtPos(sel.head)
               if (q && c) next = { ...q, left: Math.round(c.left), caretTop: Math.round(c.top), caretBottom: Math.round(c.bottom) }
             }
@@ -153,8 +170,10 @@ export function MarkdownEditor({
       if (t) t.style.transform = `translateY(${-Math.min(Math.max(view.scrollDOM.scrollTop, 0), TITLE_ZONE)}px)`
     }
     view.scrollDOM.addEventListener('scroll', onScroll, { passive: true })
+    const unsubMenu = menuRef.current?.onAction((action) => applyEditorAction(view, action))
     return () => {
       view.scrollDOM.removeEventListener('scroll', onScroll)
+      unsubMenu?.()
       view.destroy()
       viewRef.current = null
     }

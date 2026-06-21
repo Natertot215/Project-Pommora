@@ -20,6 +20,8 @@ import { readFolds, writeFolds, type FoldState } from './io/folds'
 import { handleMutate, type MutateDeps } from './mutate'
 import { showContextMenu } from './contextMenu'
 import { installAppMenu } from './menu'
+import { installEditorContextMenu, setFormatState } from './editorMenu'
+import type { FormatState } from '@shared/editorMenu'
 
 // The production renderer is served over a custom secure scheme (app://) rather
 // than file://: ES-module scripts fetch in CORS mode and every file:// resource is
@@ -129,6 +131,7 @@ function createWindow(): void {
   })
 
   win.on('ready-to-show', () => win.show())
+  installEditorContextMenu(win)
   mainWindow = win
   win.on('closed', () => {
     if (mainWindow === win) mainWindow = null
@@ -290,6 +293,10 @@ ipcMain.handle(
     }
   }
 )
+
+// The renderer pushes the editor's active formatting state here so the native context menu
+// (built in editorMenu.ts on right-click) can render accurate checkmarks/radios.
+ipcMain.on('editor:format-state', (_e, state: FormatState) => setFormatState(state))
 
 // The Electron-side bits the write orchestration needs: trashMode from app config +
 // system-trash injected. Shared by the mutate IPC + the native context menu.

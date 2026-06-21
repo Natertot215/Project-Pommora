@@ -52,6 +52,10 @@ export function PageView(): React.JSX.Element {
             load: async () => (await window.nexus.folds.get())[pageDetail.id] ?? [],
             save: (keys) => void window.nexus.folds.set(pageDetail.id, keys)
           }}
+          menu={{
+            pushState: (s) => window.nexus.setEditorFormatState(s),
+            onAction: (cb) => window.nexus.onMenuAction(cb)
+          }}
         />
       )
   }

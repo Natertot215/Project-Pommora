@@ -2,6 +2,7 @@ import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import type { IpcRendererEvent } from 'electron'
 import type { NexusState, NexusTree, PageResult } from '@shared/types'
 import type { MutateRequest, MutateResult, ContextTarget } from '@shared/mutate'
+import type { FormatState } from '@shared/editorMenu'
 
 // The ONLY API the renderer can see. Narrow read surface; no fs, no Node.
 const api = {
@@ -25,6 +26,8 @@ const api = {
   mutate: (req: MutateRequest): Promise<MutateResult> => ipcRenderer.invoke('mutate', req),
   // Right-click an entity → main pops a native context menu + acts on it.
   contextMenu: (target: ContextTarget): Promise<void> => ipcRenderer.invoke('context-menu', target),
+  // Push the editor's active formatting state so the native right-click menu renders accurate state.
+  setEditorFormatState: (state: FormatState): void => ipcRenderer.send('editor:format-state', state),
   // Pop a native "New …" menu (e.g. the context tiers) + run the chosen create main-side.
   popCreateMenu: (items: { label: string; req: MutateRequest }[]): Promise<void> =>
     ipcRenderer.invoke('create-menu', items),
