@@ -249,7 +249,7 @@ final class NexusEnvironment {
     /// XCTest host (the watcher must not touch the filesystem during tests, and a
     /// reconcile could race the test fixture), and no-op if already started.
     func startWatching() {
-        guard ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil
+        guard !ProcessInfo.isRunningXCTests
         else { return }
         guard fileWatcher == nil, let nexus = nexusManager.currentNexus else { return }
 
