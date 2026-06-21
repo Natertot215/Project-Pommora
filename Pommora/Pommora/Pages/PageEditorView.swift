@@ -53,6 +53,9 @@ struct PageEditorView: View {
     /// freshly init'd per page anyway. The onChange handler is the belt; the
     /// .id() is the suspenders.
     @State private var titleDraft: String
+    /// True while the title is in inline-rename mode (entered via the header's
+    /// right-click "Rename"); the title shows as static text otherwise.
+    @State private var isRenamingTitle = false
     /// SwiftUI-side focus state for the title TextField. Pressing Enter
     /// flips this off, which deselects the title and lets us hand focus
     /// over to the body NSTextView (which doesn't participate in SwiftUI's
@@ -84,11 +87,8 @@ struct PageEditorView: View {
     /// chevron briefly visible on open before it goes hover-only.
     @State private var chevronForcedVisible = false
 
-    /// Cursor is over the title row — gates the hover-only "Add Icon" affordance
-    /// shown when the page has no icon yet.
-    @State private var hoveringTitleRow = false
-    /// Drives the shared icon-picker popover, anchored at whichever trigger is
-    /// visible (the inline icon when set, else the "Add Icon" affordance).
+    /// Drives the icon-picker popover, anchored on the page header; opened from
+    /// the header's right-click "Change Icon" menu item.
     @State private var iconPickerOpen = false
 
     // MARK: - `[[` autocomplete
@@ -335,38 +335,52 @@ struct PageEditorView: View {
                 // baseline (centered alignment floated it slightly high).
                 HStack(alignment: .firstTextBaseline, spacing: PUI.Spacing.sm) {
                     if showInlinePageIcon, let icon = pageIcon {
-                        pageIconButton(icon)
+                        Image(systemName: icon)
+                            .font(PUI.Typography.Fixed.f26)
+                            .foregroundStyle(.primary)
                     }
-                    TextField("Untitled", text: $titleDraft)
-                        .textFieldStyle(.plain)
-                        .font(.system(size: 28, weight: .bold))
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .focused($titleFocused)
-                        .onSubmit {
-                            // Drop SwiftUI focus FIRST so the title field
-                            // deselects (otherwise macOS NSTextField's default
-                            // Enter behavior is to select-all). Then move
-                            // AppKit firstResponder to the body editor. Rename
-                            // runs in parallel — doesn't need to block focus
-                            // shift.
-                            titleFocused = false
-                            focusBodyEditor()
-                            Task { await commitRename() }
-                        }
+                    if isRenamingTitle {
+                        TextField("Untitled", text: $titleDraft)
+                            .textFieldStyle(.plain)
+                            .font(.system(size: 28, weight: .bold))
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .focused($titleFocused)
+                            .onSubmit {
+                                // Exit rename FIRST so the focus-loss handler
+                                // below doesn't double-commit, then hand AppKit
+                                // firstResponder to the body editor.
+                                isRenamingTitle = false
+                                titleFocused = false
+                                focusBodyEditor()
+                                Task { await commitRename() }
+                            }
+                            .onExitCommand { cancelTitleRename() }
+                    } else {
+                        Text(viewModel.page.title.isEmpty ? "Untitled" : viewModel.page.title)
+                            .font(.system(size: 28, weight: .bold))
+                            .foregroundStyle(viewModel.page.title.isEmpty ? .secondary : .primary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                    }
                 }
                 .padding(.horizontal, PUI.Spacing.xxxl)
                 .padding(.top, PUI.Spacing.xxxl)
-                .padding(.bottom, 14)
-                .overlay(alignment: .trailing) {
-                    if showAddIconAffordance {
-                        addIconAffordance
-                            .padding(.trailing, PUI.Spacing.xxxl)
-                            .transition(.opacity)
+                .padding(.bottom, PUI.Spacing.s14)
+                .contextMenu {
+                    Button("Rename") { startTitleRename() }
+                    if settingsManager.settings.showPageIcon {
+                        Button(pageIcon == nil ? "Add Icon" : "Change Icon") {
+                            iconPickerOpen = true
+                        }
                     }
                 }
-                .onHover { hovering in
-                    withAnimation(.easeInOut(duration: 0.15)) {
-                        hoveringTitleRow = hovering
+                .iconPickerPopover(isPresented: $iconPickerOpen, symbol: pageIconBinding)
+                .onChange(of: titleFocused) { _, focused in
+                    // Click-away commit: focus left the rename field without Enter.
+                    if !focused && isRenamingTitle {
+                        isRenamingTitle = false
+                        Task { await commitRename() }
                     }
                 }
 
@@ -486,16 +500,6 @@ struct PageEditorView: View {
         settingsManager.settings.showPageIcon && pageIcon != nil
     }
 
-    /// The "Add Icon" affordance shows when the setting is on, no icon is set,
-    /// and either the cursor is over the title row OR its picker is open.
-    /// The `|| iconPickerOpen` clause is load-bearing: without it, moving the
-    /// cursor off the title row into the popover flips hover off, unmounts the
-    /// button, and the popover (anchored to it) closes mid-interaction.
-    private var showAddIconAffordance: Bool {
-        settingsManager.settings.showPageIcon && pageIcon == nil
-            && (hoveringTitleRow || iconPickerOpen)
-    }
-
     /// Bridges the icon picker to the page's frontmatter: reads the current icon;
     /// on pick/remove, persists via `commitIcon`.
     private var pageIconBinding: Binding<String?> {
@@ -505,35 +509,19 @@ struct PageEditorView: View {
         )
     }
 
-    @ViewBuilder
-    private func pageIconButton(_ symbol: String) -> some View {
-        Button { iconPickerOpen = true } label: {
-            Image(systemName: symbol)
-                .font(.system(size: 26))
-                .foregroundStyle(.primary)
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .help("Change page icon")
-        .accessibilityLabel("Page icon")
-        .iconPickerPopover(isPresented: $iconPickerOpen, symbol: pageIconBinding)
+    /// Enter inline-rename mode for the title (from the header's right-click menu).
+    /// Focus is deferred so the TextField is mounted before it's focused.
+    private func startTitleRename() {
+        titleDraft = viewModel.page.title
+        isRenamingTitle = true
+        DispatchQueue.main.async { titleFocused = true }
     }
 
-    private var addIconAffordance: some View {
-        Button { iconPickerOpen = true } label: {
-            VStack(spacing: PUI.Spacing.xxs) {
-                Image(systemName: "plus.app")
-                    .font(.system(size: 18))
-                Text("Add Icon")
-                    .font(.caption)
-            }
-            .foregroundStyle(.tertiary)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .help("Add a page icon")
-        .accessibilityLabel("Add page icon")
-        .iconPickerPopover(isPresented: $iconPickerOpen, symbol: pageIconBinding)
+    /// Cancel inline rename (Esc), reverting the draft to the committed title.
+    private func cancelTitleRename() {
+        titleDraft = viewModel.page.title
+        isRenamingTitle = false
+        titleFocused = false
     }
 
     /// The current PageMeta freshly resolved from the manager cache by id — the
