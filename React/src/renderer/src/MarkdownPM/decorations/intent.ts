@@ -27,6 +27,37 @@ function indentLevel(ws: string): number {
   return Math.min(3, tabs + Math.floor(spaces / 2))
 }
 
+const FENCE_RE = /^\s*```/
+/** A fenced-code-block line's role + the block's char range (so the caret-in-block test is cheap). */
+interface FenceInfo {
+  role: 'open' | 'content' | 'close'
+  from: number
+  to: number
+}
+
+/** Classify every line as part of a fenced code block (or not). Mirrors `isInsideCode`'s doc-scan:
+ *  toggle on ``` lines. An unclosed fence runs to the document end. */
+function scanFencedCode(lines: string[], lineStarts: number[]): (FenceInfo | undefined)[] {
+  const out: (FenceInfo | undefined)[] = new Array(lines.length)
+  let i = 0
+  while (i < lines.length) {
+    if (!FENCE_RE.test(lines[i])) {
+      i++
+      continue
+    }
+    let j = i + 1
+    while (j < lines.length && !FENCE_RE.test(lines[j])) j++
+    const closeLine = j < lines.length ? j : lines.length - 1
+    const from = lineStarts[i]
+    const to = lineStarts[closeLine] + lines[closeLine].length
+    out[i] = { role: 'open', from, to }
+    for (let k = i + 1; k < j; k++) out[k] = { role: 'content', from, to }
+    if (j < lines.length) out[j] = { role: 'close', from, to }
+    i = j + 1
+  }
+  return out
+}
+
 /** A widget to draw in place of source text, with the data its renderer needs. */
 export type WidgetSpec =
   | { type: 'hr' }
@@ -74,14 +105,28 @@ export function decorationsFor(text: string, tokens: Token[], active: Set<number
   })
 
   const lines = text.split('\n')
-  let pos = 0
+  const lineStarts: number[] = []
+  for (let p = 0, k = 0; k < lines.length; k++) {
+    lineStarts.push(p)
+    p += lines[k].length + 1
+  }
+  const fences = scanFencedCode(lines, lineStarts)
+
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i]
-    const ls = pos
-    const le = pos + line.length
+    const ls = lineStarts[i]
+    const le = ls + line.length
     const caretOnLine = selStart >= ls && selStart <= le
+    const fence = fences[i]
 
-    if (isHeadingLine(line)) {
+    if (fence) {
+      // Code block line: the whole block gets the code background + mono via `md-cb`; the open/close
+      // fence markers hide when the caret is outside the block (dynamic syntax), reveal when inside.
+      const caretInBlock = selStart >= fence.from && selStart <= fence.to
+      const className = `md-cb${fence.role === 'open' ? ' md-cb-first' : ''}${fence.role === 'close' ? ' md-cb-last' : ''}`
+      intents.push({ kind: 'line', from: ls, className })
+      if (fence.role !== 'content' && !caretInBlock) intents.push({ kind: 'hide', from: ls, to: le })
+    } else if (isHeadingLine(line)) {
       const hm = HEADING_RE.exec(line)
       if (hm) {
         const level = hm[2].length
@@ -133,7 +178,6 @@ export function decorationsFor(text: string, tokens: Token[], active: Set<number
     } else if (isThematicBreakLine(line) && !caretOnLine) {
       intents.push({ kind: 'widget', from: ls, to: le, spec: { type: 'hr' } })
     }
-    pos = le + 1
   }
 
   return intents

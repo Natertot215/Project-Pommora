@@ -129,47 +129,45 @@
 }
 
 /* ============================================================================================
-   LIST & BULLET SPACING — three knobs, tune freely:
-     --bullet-indent : how far the bullet sits from the left margin (also the per-nesting step)
-     --spacing-h     : horizontal space between the bullet and the text
-     --spacing-v     : vertical nudge of the bullet (negative = up, positive = down)
-   ============================================================================================ */
+   LIST & BULLET SPACING — three knobs, tune freely (UNIFORM across bullets / numbers / tasks):
+     --bullet-indent : indent of the marker from the margin (and the per-nesting step)
+     --spacing-h     : horizontal space between the marker and the text
+     --spacing-v     : vertical nudge of the marker (negative = up, positive = down)
+   The marker is rendered IN-FLOW (inline-block), so the hidden source prefix keeps real width —
+   that's what keeps CM6's caret / click / arrow mapping correct (an out-of-flow marker collapses it
+   to zero width and the caret misbehaves). Hanging indent = padding-left + a matching negative
+   text-indent, so wrapped lines sit flush under the text. High specificity beats CM6's .cm-line. */
 .mdpm-editor .cm-line.md-li {
   --bullet-indent: 24px;
   --spacing-h: 16px;
   --spacing-v: 0px;
-
-  /* derived — the bullet column (deeper for each nesting level); leave this */
   --li-col: calc((var(--li-level, 0) + 1) * var(--bullet-indent));
-  position: relative;
   padding-left: calc(var(--li-col) + var(--spacing-h));
+  text-indent: calc(-1 * var(--spacing-h));
 }
 
-/* Marker zone — anchored at the bullet column, one line tall so the glyph centers on the first
-   line. Numbers + checkboxes right-align to the text edge (overflowing LEFT into the indent when
-   wide, never into the text); the bullet left-anchors so --spacing-h moves the TEXT, not the bullet. */
+/* Marker zone — one fixed-width in-flow slot; identical geometry for every list type, so they all
+   align. The glyph right-aligns to sit --spacing-h's gap before the text. text-indent reset (it's
+   inherited from the line). */
 .md-li-marker {
-  position: absolute;
-  left: var(--li-col);
-  top: var(--spacing-v);
-  width: var(--spacing-h);
-  height: calc(var(--editor-font-size, 15px) * 1.6);
+  display: inline-block;
   box-sizing: border-box;
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  padding-right: 3px;
+  width: var(--spacing-h);
+  text-indent: 0;
+  text-align: right;
+  padding-right: 4px;
+  white-space: nowrap;
+  position: relative;
+  top: var(--spacing-v);
 }
 
-/* The bullet glyph (• in place of the source `-`), anchored at the indent column. */
+/* The bullet glyph (• in place of the source `-`). */
 .md-bullet {
-  justify-content: flex-start;
-  padding-right: 0;
   font-size: 1.25em;
   line-height: 1;
 }
 
-/* Ordered-list number — rendered literally, tabular figures so the periods align down the column. */
+/* Ordered-list number — tabular figures so the periods align down the column. */
 .md-ol-marker {
   font-variant-numeric: tabular-nums;
 }
@@ -179,6 +177,7 @@
 .md-checkbox {
   box-sizing: border-box;
   display: inline-block;
+  vertical-align: -0.18em; /* sit the box on the text line (no flex centering anymore) */
   border-style: solid;
   border-color: var(--label-tertiary);
   background: transparent;
@@ -228,10 +227,11 @@
   border-bottom: 1.5px solid var(--separator-border);
 }
 
-/* Blockquote — an always-show card (the `>` markers are hidden). The FILL is the line background;
-   the BAR is a ::before that paints OVER the fill but UNDER the text (z-index: -1 inside the line's
-   own stacking context), so the bar always sits in front of the fill. Consecutive lines abut into
-   one card; first/last round the fill's RIGHT corners (the left tucks under the bar) and cap the bar.
+/* Blockquote — an always-show card (the `>` markers hidden). FILL is the line background; the BAR is
+   a ::before that paints over the fill but under the text (z-index inside the line's own stacking
+   context) — a clean even bar with rounded caps. NO line margins (CM6 doesn't account for line
+   margins → caret/arrow mapping breaks; padding is fine, it's measured). first/last round the fill's
+   right corners (the left tucks under the bar) and cap the bar.
    ===== BLOCKQUOTE KNOBS =====
      --bar-width / --bar-color / --bar-radius : the left bar (radius = cap rounding)
      --bg-color / --bg-radius                 : the fill (radius = right-corner rounding) */
@@ -241,7 +241,6 @@
   --bar-radius: 2px;
   --bg-color: var(--fill-tertiary);
   --bg-radius: 6px;
-
   position: relative;
   isolation: isolate;
   padding-left: 16px;
@@ -261,8 +260,7 @@
 }
 .mdpm-editor .cm-line.md-bq-first {
   border-top-right-radius: var(--bg-radius);
-  padding-top: 6px;
-  margin-top: 6px;
+  padding-top: 4px;
 }
 .mdpm-editor .cm-line.md-bq-first::before {
   border-top-left-radius: var(--bar-radius);
@@ -270,10 +268,34 @@
 }
 .mdpm-editor .cm-line.md-bq-last {
   border-bottom-right-radius: var(--bg-radius);
-  padding-bottom: 6px;
-  margin-bottom: 6px;
+  padding-bottom: 4px;
 }
 .mdpm-editor .cm-line.md-bq-last::before {
   border-bottom-left-radius: var(--bar-radius);
   border-bottom-right-radius: var(--bar-radius);
+}
+
+/* Fenced code block — every block line gets the code background + monospace (no-op highlighter:
+   plain mono). The ``` fence markers hide when the caret is outside the block, reveal when inside.
+   No margins/pseudos (caret-safe); first/last round the top/bottom corners.
+   ===== CODE-BLOCK KNOBS =====  --cb-bg / --cb-radius / --cb-size (font scale) */
+.mdpm-editor .cm-line.md-cb {
+  --cb-bg: var(--fill-secondary);
+  --cb-radius: 6px;
+  --cb-size: 0.85em;
+  background: var(--cb-bg);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: var(--cb-size);
+  padding-left: 12px;
+  padding-right: 12px;
+}
+.mdpm-editor .cm-line.md-cb-first {
+  border-top-left-radius: var(--cb-radius);
+  border-top-right-radius: var(--cb-radius);
+  padding-top: 6px;
+}
+.mdpm-editor .cm-line.md-cb-last {
+  border-bottom-left-radius: var(--cb-radius);
+  border-bottom-right-radius: var(--cb-radius);
+  padding-bottom: 6px;
 }

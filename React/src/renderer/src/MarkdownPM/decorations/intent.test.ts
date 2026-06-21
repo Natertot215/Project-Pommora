@@ -102,4 +102,20 @@ describe('decoration intents', () => {
     expect(lines[0].className).toBe('md-bq md-bq-first')
     expect(lines[1].className).toBe('md-bq md-bq-last')
   })
+
+  it('fenced code block → md-cb lines (open/content/close); fences hidden with caret outside', () => {
+    const t = 'p\n```js\ncode\n```'
+    const intents = decorationsFor(t, tokenize(t), new Set(), 0) // caret on "p", outside the block
+    const classes = intents
+      .filter((d): d is Extract<typeof d, { kind: 'line' }> => d.kind === 'line')
+      .map((d) => d.className)
+    expect(classes).toEqual(['md-cb md-cb-first', 'md-cb', 'md-cb md-cb-last'])
+    expect(intents.filter((d) => d.kind === 'hide')).toHaveLength(2) // both fence lines' markers
+  })
+
+  it('fenced code block → fence markers reveal when the caret is inside the block', () => {
+    const t = '```js\ncode\n```'
+    const intents = decorationsFor(t, tokenize(t), new Set(), 7) // caret in "code"
+    expect(intents.filter((d) => d.kind === 'hide')).toHaveLength(0)
+  })
 })
