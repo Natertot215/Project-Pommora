@@ -8,6 +8,7 @@ import { markdownInput } from './editor/input'
 import { connectionClicks } from './editor/connections'
 import { markdownFolding, applySavedFolds, type FoldsApi } from './editor/folding'
 import { applyEditorAction, type EditorMenuApi } from './editor/menu'
+import { formatKeymap } from './editor/formatKeymap'
 import { readFormatState } from './editor/formatState'
 import { autocompleteQuery, connectionInsert } from './autocomplete'
 import { AutocompletePanel } from './AutocompletePanel'
@@ -128,6 +129,7 @@ export function MarkdownEditor({
           ])
         ),
         markdownInput,
+        formatKeymap,
         keymap.of([...defaultKeymap, ...historyKeymap]),
         markdown(),
         EditorView.lineWrapping,

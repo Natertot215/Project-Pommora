@@ -63,12 +63,13 @@ function pommoraItems(wc: WebContents, s: FormatState): MenuItemConstructorOptio
     {
       label: 'Format',
       submenu: [
-        { label: 'Bold', type: 'checkbox', checked: s.bold, click: act('format:bold') },
-        { label: 'Italic', type: 'checkbox', checked: s.italic, click: act('format:italic') },
-        { label: 'Strikethrough', type: 'checkbox', checked: s.strikethrough, click: act('format:strikethrough') },
-        { label: 'Inline Code', type: 'checkbox', checked: s.inlineCode, click: act('format:inlineCode') },
-        { label: 'Link', type: 'checkbox', checked: s.link, click: act('format:link') },
-        { label: 'Connection', type: 'checkbox', checked: s.connection, click: act('format:connection') }
+        // Accelerators are display-only (registerAccelerator: false); the keys are bound in formatKeymap.ts.
+        { label: 'Bold', type: 'checkbox', checked: s.bold, accelerator: 'CmdOrCtrl+B', registerAccelerator: false, click: act('format:bold') },
+        { label: 'Italic', type: 'checkbox', checked: s.italic, accelerator: 'CmdOrCtrl+I', registerAccelerator: false, click: act('format:italic') },
+        { label: 'Strikethrough', type: 'checkbox', checked: s.strikethrough, accelerator: 'CmdOrCtrl+Shift+X', registerAccelerator: false, click: act('format:strikethrough') },
+        { label: 'Inline Code', type: 'checkbox', checked: s.inlineCode, accelerator: 'CmdOrCtrl+E', registerAccelerator: false, click: act('format:inlineCode') },
+        { label: 'Link', type: 'checkbox', checked: s.link, accelerator: 'CmdOrCtrl+K', registerAccelerator: false, click: act('format:link') },
+        { label: 'Connection', type: 'checkbox', checked: s.connection, accelerator: 'CmdOrCtrl+Shift+K', registerAccelerator: false, click: act('format:connection') }
       ]
     },
     {
