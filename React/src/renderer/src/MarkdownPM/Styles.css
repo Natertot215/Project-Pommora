@@ -115,7 +115,6 @@
 }
 .md-connection {
   color: var(--connection);
-  text-decoration: underline;
 }
 /* Block-embed placeholders — muted until live rendering lands */
 .md-latex,
@@ -129,29 +128,31 @@
   color: color-mix(in srgb, var(--label-primary) 80%, transparent);
 }
 
-/* List lines — `--li-level` (set per line by the decoration) drives the per-level indent. The text
-   only ever moves RIGHT (padding-left); the marker is positioned absolutely in the reserved gutter
-   so it never displaces the text, and there's no negative text-indent that could pull into the
-   gutter. High specificity so CM6's own `.cm-line` padding can't override the indent. One mechanism
-   for bullets, checkboxes, ordered — they all align to the same text column. */
+/* ============================================================================================
+   LIST & BULLET SPACING — three knobs, tune freely:
+     --bullet-indent : how far the bullet sits from the left margin (also the per-nesting step)
+     --spacing-h     : horizontal space between the bullet and the text
+     --spacing-v     : vertical nudge of the bullet (negative = up, positive = down)
+   ============================================================================================ */
 .mdpm-editor .cm-line.md-li {
-  /* Swift parity (MarkdownListHandler): a default indentPerLevel (24) stop on top of source nesting
-     places the marker; the text hangs one marker-zone further. `--li-base` = marker column,
-     `--li-hang` = marker zone width (≈ glyph + bulletTextGap). */
-  --li-base: calc((var(--li-level, 0) + 1) * 24px);
-  --li-hang: calc(var(--editor-font-size, 15px) * 1.1);
+  --bullet-indent: 24px;
+  --spacing-h: 16px;
+  --spacing-v: 0px;
+
+  /* derived — the bullet column (deeper for each nesting level); leave this */
+  --li-col: calc((var(--li-level, 0) + 1) * var(--bullet-indent));
   position: relative;
-  padding-left: calc(var(--li-base) + var(--li-hang));
+  padding-left: calc(var(--li-col) + var(--spacing-h));
 }
 
-/* The marker zone — absolutely placed at the marker column, spanning one line box so the glyph
-   sits vertically CENTERED on the first line; right-aligned with a 3px (Swift bulletTextGap) gap
-   to the text. Wider markers (numbers, checkbox) overflow left into the indent, never the text. */
+/* Marker zone — anchored at the bullet column, one line tall so the glyph centers on the first
+   line. Numbers + checkboxes right-align to the text edge (overflowing LEFT into the indent when
+   wide, never into the text); the bullet left-anchors so --spacing-h moves the TEXT, not the bullet. */
 .md-li-marker {
   position: absolute;
-  left: var(--li-base);
-  top: 0;
-  width: var(--li-hang);
+  left: var(--li-col);
+  top: var(--spacing-v);
+  width: var(--spacing-h);
   height: calc(var(--editor-font-size, 15px) * 1.6);
   box-sizing: border-box;
   display: flex;
@@ -160,13 +161,15 @@
   padding-right: 3px;
 }
 
-/* List bullet — the `-` renders as a • glyph (source stays `-`); 1.5× body, per Swift. */
+/* The bullet glyph (• in place of the source `-`), anchored at the indent column. */
 .md-bullet {
+  justify-content: flex-start;
+  padding-right: 0;
   font-size: 1.25em;
   line-height: 1;
 }
 
-/* Ordered-list number — rendered literally, tabular figures so the periods align down the column */
+/* Ordered-list number — rendered literally, tabular figures so the periods align down the column. */
 .md-ol-marker {
   font-variant-numeric: tabular-nums;
 }
