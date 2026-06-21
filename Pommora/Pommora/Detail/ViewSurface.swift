@@ -37,10 +37,6 @@ struct ViewSurface<Scope: DetailScope>: View {
     // Rename alert state.
     @State private var renameTarget: RowTarget?
     @State private var renameDraft: String = ""
-    @State private var isRenamingHeader = false
-    @State private var headerDraft = ""
-    @State private var headerPickerOpen = false
-    @FocusState private var headerFocused: Bool
     /// Owns the row-drag mechanic + insertion/highlight state. The ONE shared
     /// instance — its commit closures are wired in `.task`.
     @State private var dragCoordinator = RowDragCoordinator()
@@ -125,53 +121,15 @@ struct ViewSurface<Scope: DetailScope>: View {
     /// interaction (right-click → Rename / Change Icon, inline rename, anchored
     /// picker). Rides over the banner (bottom-leading) when one is active.
     private var titleLabel: some View {
-        HStack(spacing: PUI.Spacing.sm) {
-            Image(systemName: scope.headerIcon)
-            if isRenamingHeader {
-                TextField("Untitled", text: $headerDraft)
-                    .textFieldStyle(.plain)
-                    .focused($headerFocused)
-                    .onSubmit { commitHeaderRename() }
-                    .onExitCommand { cancelHeaderRename() }
-            } else {
-                Text(scope.headerTitle)
-            }
-        }
-        .font(PUI.DetailHeader.titleFont)
-        .contextMenu {
-            Button("Rename") { startHeaderRename() }
-            Button("Change Icon") { headerPickerOpen = true }
-        }
-        .iconPickerPopover(isPresented: $headerPickerOpen, symbol: headerIconBinding)
-        .onChange(of: headerFocused) { _, isFocused in
-            if !isFocused && isRenamingHeader { commitHeaderRename() }
-        }
-    }
-
-    private var headerIconBinding: Binding<String?> {
-        Binding(
-            get: { scope.headerIcon },
-            set: { newIcon in Task { try? await scope.updateHeaderIcon(to: newIcon, types: pageTypeManager) } }
+        DetailTitleHeader(
+            title: scope.headerTitle,
+            icon: scope.headerIcon,
+            titleFont: PUI.DetailHeader.titleFont,
+            iconFont: PUI.DetailHeader.titleFont,
+            plainField: true,
+            onRename: { newTitle in try? await scope.renameHeader(to: newTitle, types: pageTypeManager) },
+            onIconChange: { newIcon in try? await scope.updateHeaderIcon(to: newIcon, types: pageTypeManager) }
         )
-    }
-
-    private func startHeaderRename() {
-        headerDraft = scope.headerTitle
-        isRenamingHeader = true
-        DispatchQueue.main.async { headerFocused = true }
-    }
-
-    private func commitHeaderRename() {
-        isRenamingHeader = false
-        headerFocused = false
-        let newTitle = headerDraft.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !newTitle.isEmpty, newTitle != scope.headerTitle else { return }
-        Task { try? await scope.renameHeader(to: newTitle, types: pageTypeManager) }
-    }
-
-    private func cancelHeaderRename() {
-        isRenamingHeader = false
-        headerFocused = false
     }
 
     /// True when this container has a banner image AND the active view shows it —

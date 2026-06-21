@@ -12,16 +12,22 @@ struct ContextDetailPlaceholder: View {
     var onRename: ((String) async -> Void)? = nil
     var onIconChange: ((String?) async -> Void)? = nil
 
-    @State private var isRenaming = false
-    @State private var draft = ""
-    @State private var pickerOpen = false
-    @FocusState private var focused: Bool
-
-    private var interactive: Bool { onRename != nil || onIconChange != nil }
-
     var body: some View {
         VStack(spacing: PUI.Spacing.xl) {
-            titleGroup
+            DetailTitleHeader(
+                title: title,
+                icon: icon,
+                titleFont: .title,
+                iconFont: PUI.Typography.Fixed.f48,
+                iconColor: accent ?? .secondary,
+                axis: .vertical,
+                horizontalAlignment: .center,
+                textAlignment: .center,
+                spacing: PUI.Spacing.md,
+                fieldMaxWidth: 360,
+                onRename: onRename,
+                onIconChange: onIconChange
+            )
             if let supportingLine {
                 Text(supportingLine)
                     .font(.callout)
@@ -29,64 +35,5 @@ struct ContextDetailPlaceholder: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .onChange(of: focused) { _, isFocused in
-            if !isFocused && isRenaming { commit() }
-        }
-    }
-
-    @ViewBuilder
-    private var titleGroup: some View {
-        let group = VStack(spacing: PUI.Spacing.md) {
-            Image(systemName: icon)
-                .font(PUI.Typography.Fixed.f48)
-                .foregroundStyle(accent ?? .secondary)
-            if isRenaming {
-                TextField("Untitled", text: $draft)
-                    .font(.title)
-                    .multilineTextAlignment(.center)
-                    .frame(maxWidth: 360)
-                    .focused($focused)
-                    .onSubmit { commit() }
-                    .onExitCommand { cancel() }
-            } else {
-                Text(title.isEmpty ? "Untitled" : title)
-                    .font(.title)
-            }
-        }
-        if interactive {
-            group
-                .contextMenu {
-                    if onRename != nil { Button("Rename") { startRename() } }
-                    if onIconChange != nil {
-                        Button(icon.isEmpty ? "Add Icon" : "Change Icon") { pickerOpen = true }
-                    }
-                }
-                .iconPickerPopover(isPresented: $pickerOpen, symbol: iconBinding)
-        } else {
-            group
-        }
-    }
-
-    private var iconBinding: Binding<String?> {
-        Binding(get: { icon.isEmpty ? nil : icon }, set: { new in Task { await onIconChange?(new) } })
-    }
-
-    private func startRename() {
-        draft = title
-        isRenaming = true
-        DispatchQueue.main.async { focused = true }
-    }
-
-    private func commit() {
-        isRenaming = false
-        focused = false
-        let newTitle = draft.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !newTitle.isEmpty, newTitle != title else { return }
-        Task { await onRename?(newTitle) }
-    }
-
-    private func cancel() {
-        isRenaming = false
-        focused = false
     }
 }

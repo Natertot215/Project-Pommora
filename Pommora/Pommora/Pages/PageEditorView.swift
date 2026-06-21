@@ -377,11 +377,8 @@ struct PageEditorView: View {
                 }
                 .iconPickerPopover(isPresented: $iconPickerOpen, symbol: pageIconBinding)
                 .onChange(of: titleFocused) { _, focused in
-                    // Click-away commit: focus left the rename field without Enter.
-                    if !focused && isRenamingTitle {
-                        isRenamingTitle = false
-                        Task { await commitRename() }
-                    }
+                    // Click-away voids the edit — commit happens only on Enter.
+                    if !focused && isRenamingTitle { cancelTitleRename() }
                 }
 
                 Rectangle()
