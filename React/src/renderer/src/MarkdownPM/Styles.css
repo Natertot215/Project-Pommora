@@ -260,23 +260,23 @@
 }
 
 .md-h1 {
-  font-size: 2em;
+  font-size: 1.8em;
   font-weight: var(--weight-bold);
 }
 .md-h2 {
-  font-size: 1.75em;
+  font-size: 1.6em;
   font-weight: var(--weight-bold);
 }
 .md-h3 {
-  font-size: 1.5em;
+  font-size: 1.4em;
   font-weight: var(--weight-bold);
 }
 .md-h4 {
-  font-size: 1.25em;
+  font-size: 1.2em;
   font-weight: var(--weight-bold);
 }
 .md-h5 {
-  font-size: 1.15em;
+  font-size: 1.075em;
   font-weight: var(--weight-bold);
 }
 .md-h6 {
