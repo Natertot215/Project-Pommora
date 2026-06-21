@@ -1,6 +1,5 @@
-// The CM6 adapter — the ONLY place behavior-layer intents become real CodeMirror decorations.
-// A ViewPlugin recomputes on every doc/selection change. Replaces never cross a line break, so a
-// ViewPlugin is valid; block-spanning chrome (blockquote/callout cards) would need a StateField.
+// The CM6 adapter — the only place behavior-layer intents become real CodeMirror decorations.
+// A ViewPlugin works because replaces never cross a line break; block-spanning chrome would need a StateField.
 import { Decoration, type DecorationSet, EditorView, ViewPlugin, type ViewUpdate, WidgetType } from '@codemirror/view'
 import type { Range } from '@codemirror/state'
 import { chipCheckbox } from '../../design-system/tokens'
@@ -89,7 +88,6 @@ function build(view: EditorView): DecorationSet {
   const ranges: Range<Decoration>[] = []
   for (const it of decorationsFor(text, tokens, active, sel.head)) {
     if (it.kind === 'line') {
-      // List lines carry a nesting level as a CSS var; other line chrome has none.
       const spec =
         it.level === undefined
           ? { class: it.className }

@@ -6,10 +6,8 @@ import type { BannerOwner } from '../Scope'
 const assetUrl = (rel: string): string => `nexus-asset://nexus/${encodeURI(rel)}`
 
 /**
- * The shared image banner (Family A): a full-width cover behind the glass chrome at the top of a
- * view. No banner → a hover-revealed "Add Banner" button; with one → the image, the entity name
- * overlaid, and a native macOS Change / Remove menu. Mirrors Swift's ContainerBannerView; the
- * scaffold positions the two states (full-bleed image vs. in-body strip).
+ * The shared image banner: no banner → a hover-revealed "Add Banner" button; with one → the image,
+ * the entity name overlaid, and a native macOS Change / Remove menu. (Swift: ContainerBannerView.)
  */
 export function Banner({ owner }: { owner: BannerOwner }): React.JSX.Element {
   const mutate = useSession((s) => s.mutate)

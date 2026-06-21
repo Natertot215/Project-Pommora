@@ -1,11 +1,8 @@
 // Construct detection — inline regexes + block detectors (cheap prefilter → per-line AST confirm).
 // Render and active-token paths share these helpers so detection can't disagree across layers.
-// Wikilinks reuse @shared/connections.pageLinkPattern (DRY). Inline matchers return a FRESH /g
-// regex per call so callers never share lastIndex.
+// Inline matchers return a fresh /g regex per call so callers never share lastIndex; the `d`
+// (indices) flag lets token assembly read exact per-group offsets.
 import { parse } from '../parser'
-
-// The `d` (indices) flag is set so token assembly can read exact per-group offsets
-// (match.indices[n]); `.test()`/`.exec()` behave identically with it.
 
 /** `![[name]]` image embed. Group 1 = name. */
 export const imageEmbedRegex = (): RegExp => /!\[\[([^\]\r\n]*)\]\]/gd

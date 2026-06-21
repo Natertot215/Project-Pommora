@@ -6,9 +6,9 @@ import { MarkdownEditor } from '../MarkdownPM'
 const SAVE_DEBOUNCE_MS = 400
 
 /**
- * The page detail body — hosts the MarkdownPM editor over the open page's Markdown body.
- * Edits debounce out to `page:updateBody` (frontmatter-preserving, main-side). The editor keys
- * on the page path so it remounts cleanly per page. (Swift: Pages/PageEditorView.)
+ * The page detail body — hosts the MarkdownPM editor over the open page's body. Edits debounce out
+ * to a frontmatter-preserving main-side write; the editor keys on the path so it remounts per page.
+ * (Swift: Pages/PageEditorView.)
  */
 export function PageView(): React.JSX.Element {
   const pageStatus = useSession((s) => s.pageStatus)

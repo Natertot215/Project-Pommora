@@ -1,6 +1,5 @@
 // The token model + tokenizer (pure, no CM6). Emphasis is located on the mdast AST so `_`/`*`
-// mixing + nesting is correct and code spans never emit emphasis; other inline constructs are
-// regex-located. Plus active-token computation (which tokens have the caret/selection on them).
+// mixing/nesting is correct and code spans never emit emphasis; other constructs are regex-located.
 import type { Root, RootContent, PhrasingContent } from 'mdast'
 import { parse, isInsideCode } from '../parser'
 import {
@@ -129,7 +128,7 @@ function wikiLinkTokens(text: string): Token[] {
     const fs = m.index
     const fe = fs + m[0].length
     if (isInsideCode(fs, text)) continue
-    const contentStart = fs + 2 // after "[["
+    const contentStart = fs + 2
     const contentEnd = contentStart + (m[1]?.length ?? 0)
     tokens.push({
       kind: 'wikiLink',

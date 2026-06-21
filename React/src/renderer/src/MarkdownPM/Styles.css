@@ -20,7 +20,7 @@
 .mdpm-editor .cm-scroller {
   font-family: var(--font-family);
   line-height: 1.6;
-  scrollbar-width: none; /* no scroll indicator */
+  scrollbar-width: none;
 }
 .mdpm-editor .cm-scroller::-webkit-scrollbar {
   display: none;

@@ -1,22 +1,19 @@
-// Framework-free decoration-intent mapping: tokens + caret state → a flat list of intents
-// (class names + widget specs only, never CSS literals). The CM6 adapter (editor/decorations)
-// is the ONLY thing that turns these into real CM6 decorations, so this layer stays unit-testable
-// without an editor.
+// Framework-free decoration-intent mapping (tokens + caret state → flat intents, no CSS literals).
+// The CM6 adapter (editor/decorations) is the only thing that realizes these, keeping this layer unit-testable without an editor.
 import type { Token, TokenKind } from '../tokens'
 import { isThematicBreakLine, isHeadingLine, isBlockquoteLine, parseListMarker, blockquotePrefixRe } from '../detect'
 
 const HEADING_RE = /^(\s{0,3})(#{1,6})([ \t]+)(.*)$/
 
 const FENCE_RE = /^\s*```/
-/** A fenced-code-block line's role + the block's char range (so the caret-in-block test is cheap). */
+/** A fenced-code-block line's role + the block's char range (for a cheap caret-in-block test). */
 interface FenceInfo {
   role: 'open' | 'content' | 'close'
   from: number
   to: number
 }
 
-/** Classify every line's fenced-code role. Mirrors `isInsideCode`'s doc-scan (toggle on ```
- *  lines); an unclosed fence runs to the document end. */
+/** Classify every line's fenced-code role (toggle on ``` lines); an unclosed fence runs to doc end. */
 function scanFencedCode(lines: string[], lineStarts: number[]): (FenceInfo | undefined)[] {
   const out: (FenceInfo | undefined)[] = new Array(lines.length)
   let i = 0
@@ -53,7 +50,6 @@ export type DecoIntent =
    *  per-level indent. */
   | { kind: 'line'; from: number; className: string; level?: number }
 
-/** Inline token kind → the Styles.css class applied to its content. */
 const CONTENT_CLASS: Partial<Record<TokenKind, string>> = {
   bold: 'md-bold',
   italic: 'md-italic',
@@ -96,7 +92,7 @@ export function decorationsFor(text: string, tokens: Token[], active: Set<number
     const lm = parseListMarker(line)
 
     if (fence) {
-      // Fence markers hide caret-out, reveal caret-in (dynamic syntax over the whole block).
+      // Fence markers reveal only when the caret is anywhere in the block.
       const caretInBlock = selStart >= fence.from && selStart <= fence.to
       const className = `md-cb${fence.role === 'open' ? ' md-cb-first' : ''}${fence.role === 'close' ? ' md-cb-last' : ''}`
       intents.push({ kind: 'line', from: ls, className })
@@ -112,8 +108,6 @@ export function decorationsFor(text: string, tokens: Token[], active: Set<number
         if (!caretOnLine) intents.push({ kind: 'hide', from: ls, to: contentStart })
       }
     } else if (lm?.kind === 'checkbox' && lm.box) {
-      // Indent + the leading `- ` hide; the chip widget replaces only the `[ ]` bracket (interactive,
-      // the one legitimate widget). The trailing space stays as editable source.
       intents.push({ kind: 'line', from: ls, className: 'md-li md-li-task', level: lm.level })
       intents.push({ kind: 'hide', from: ls, to: ls + lm.box.start })
       intents.push({
@@ -122,28 +116,24 @@ export function decorationsFor(text: string, tokens: Token[], active: Set<number
         to: ls + lm.box.end,
         spec: { type: 'checkbox', bracketFrom: ls + lm.box.start, bracketTo: ls + lm.box.end, checked: lm.checked ?? false }
       })
-      // Hide the source space after the box too — the gap to the text comes from CSS padding (the
-      // chip zone), not a rendered space.
+      // Hide the trailing space so the gap to the text is the chip zone's padding, not a rendered space.
       intents.push({ kind: 'hide', from: ls + lm.box.end, to: ls + lm.contentStart })
     } else if (lm?.kind === 'bullet' && lm.bullet === '-' && !lm.box) {
-      // Reveal the raw `-` ONLY when the caret is literally on the marker (the dash itself), never
-      // elsewhere on the line. Otherwise the `-` is an in-flow `•` widget (same slot as the dash, so
-      // no horizontal shift). Indent always hides.
+      // Reveal the raw `-` only when the caret is on the marker itself; otherwise a `•` widget takes
+      // the dash's exact slot (no horizontal shift).
       const onMarker = selStart >= ls + lm.markerStart && selStart <= ls + lm.markerEnd
       intents.push({ kind: 'line', from: ls, className: 'md-li', level: lm.level })
       if (lm.markerStart > 0) intents.push({ kind: 'hide', from: ls, to: ls + lm.markerStart })
       if (!onMarker) intents.push({ kind: 'widget', from: ls + lm.markerStart, to: ls + lm.markerEnd, spec: { type: 'bullet' } })
     } else if (lm?.kind === 'ordered') {
-      // The `N.` stays as literal, editable source (recoloured); only the indent hides. The marker
-      // gets a fixed-width right-aligned zone (md-ol-marker) so the periods form a flat column
-      // regardless of digit count. No widget → typing after the number can't hit an atomic range.
+      // The `N.` stays as literal recoloured source — no widget, so typing after the number can't hit
+      // an atomic range; the right-aligned zone (md-ol-marker) columns the periods across digit counts.
       intents.push({ kind: 'line', from: ls, className: 'md-li md-li-ordered', level: lm.level })
       if (lm.markerStart > 0) intents.push({ kind: 'hide', from: ls, to: ls + lm.markerStart })
       intents.push({ kind: 'class', from: ls + lm.markerStart, to: ls + lm.markerEnd, className: 'md-ol-marker md-syntax' })
-      // Hide the source space after the period — the gap comes from the zone padding (like the checkbox).
+      // Hide the trailing space — the gap comes from the zone padding (like the checkbox).
       intents.push({ kind: 'hide', from: ls + lm.markerEnd, to: ls + lm.contentStart })
     } else if (isBlockquoteLine(line)) {
-      // Always-show card (not caret-aware): `>` markers stay hidden; first/last round the corners.
       const bm = blockquotePrefixRe.exec(line)
       if (bm) {
         const first = i === 0 || !isBlockquoteLine(lines[i - 1])
