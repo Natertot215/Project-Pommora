@@ -117,6 +117,25 @@ Each phase: **Goal · Scope · Depends · Risk · Effort · Payoff.** Effort in 
 
 ---
 
+### Phase A — Execution Status
+
+**Done (green commits on `refactoring`):**
+- Decisions ratified + recorded (`History.md`).
+- Area color removed — `8e41064` (1283 tests).
+- `renameRoot`→`FilenameSafety` + XCTest-guard dedup (`ProcessInfo.isRunningXCTests`) — `7197307`.
+
+**Finding — `PropertiesPulldown` "dead VM" is a FALSE POSITIVE.** `PropertiesPulldownViewModel` is referenced only by its own test suite, never instantiated in production (the View re-implements the logic as private `@State`). It's a *tested parallel implementation*, not unreferenced dead code — removing it deletes real coverage. Proper fix = rewire the View to *use* the VM (removes the duplication the other direction); bigger than a Phase A subtraction. **Deferred** to whenever the View is next touched (Phase D/E).
+
+**Remaining — precise sites mapped:**
+- **`opt_` prefix** (decision #2): `VaultSettingsSheet.swift:498` mints Select options bare; `:508` mints Status as `opt_<ULID>`. Change `:498` to match — **but first grep `hasPrefix("opt_")` / `"opt_"` to confirm nothing parses the prefix to distinguish Status vs Select** (if it does, the "unify" decision is unsafe and needs re-thinking). Note: this introduces an old-bare-vs-new-prefixed mix in Select data (decision said "existing untouched").
+- **`context_links.id`→ULID** (decision #3): `IndexBuilder` (~`:628`/`:665`) mints with `UUID`; `IndexUpdater` uses `ULID`. Switch IndexBuilder to ULID. Regeneratable index → no migration.
+- **shared `schemaVersion`** (decision #4): literals at `TierConfig.swift:23`, `Homepage.swift:19`, `SavedConfig.swift:17`, `AgendaEventSchema.swift:86`, `PageType`(=2), `PageSet`, `PageCollection`(=1) → one `enum SchemaVersion { static let … }` registry; route each.
+- **SidebarConfirmation labels**: hardcodes "Vault"/"Collection"/"Set"/tier-names despite user-renameable labels — wire to the configured source (`TierConfig.tiers` singular/plural for context tiers; Settings labels for Vault/Collection/Set).
+- **Version-stamp sweep**: remove only *forward-looking* promises — `StatusGroupsEditor.swift:73` ("future v0.3.1.x patch"), `PommoraApp.swift:67` ("until … v0.6.0"), `FrontmatterInspector.swift:100` ("no more 'Coming v0.3.0' placeholders") — KEEP backward legacy-compat refs (they explain why decode paths exist).
+- **Bare `catch {}` → logged**: async move/rewrite/delete/cover paths swallow errors silently — route through the existing surfacing idiom (`pendingError`), don't introduce a new logger.
+
+---
+
 ### Review Status
 
 Adversarially reviewed against the live code + git history — verdict **minor issues, all folded**. Verified: every "done" claim true against its commit, both dropped audit items genuinely live, constraints (separate managers / no SwiftData / intentional AppKit bridges) respected, sequencing sound. Folded corrections: §2.2 utility hoists + `renameRoot` consistency gap (A/C), DispatchQueue re-grounded to 7 sites with AppKit-adjacent carve-outs (H), unit suite already 100% Swift Testing so no migration exists (H), `ViewSurface.columns` + `PropertyValue`-probe simplifications homed (G/B), NavDropdown store-collapse logged as deferred-optional (E).
