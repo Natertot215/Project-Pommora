@@ -98,8 +98,20 @@ export function canonicalizeCheckbox(doc: string, selStart: number, selEnd: numb
   return { from: ls, to: selStart, insert: gfm, selection: ls + gfm.length }
 }
 
-const MULTI_PAIR: Record<string, string> = { '*': '**', _: '__', '`': '``', '(': '))', '[': ']]' }
-const SINGLE_PAIR: Record<string, string> = { '(': ')', '{': '}' }
+/** One source for every auto-pair: `close` is the single closer; `multi` is the doubled closer for
+ *  the two-char markdown delimiters (`**`,`__`,`` `` ``,`((`,`[[`). Drives auto-pair AND auto-delete. */
+interface PairSpec {
+  close: string
+  multi?: string
+}
+const PAIRS: Record<string, PairSpec> = {
+  '*': { close: '*', multi: '**' },
+  _: { close: '_', multi: '__' },
+  '`': { close: '`', multi: '``' },
+  '(': { close: ')', multi: '))' },
+  '[': { close: ']', multi: ']]' },
+  '{': { close: '}' }
+}
 
 /** Auto-close pairs on type. Multi-char (`**`,`__`,`` `` ``,`((`,`[[`) trigger on the second char;
  *  single `(`/`{` always pair; single `[` only at line start / after whitespace (so `-[` flows). */
@@ -108,35 +120,33 @@ export function autoPair(doc: string, selStart: number, selEnd: number, inserted
   const c = selStart
   if (isInsideCode(c, doc)) return null
   const prev = doc[c - 1]
+  const pair = PAIRS[inserted]
+  if (!pair) return null
 
-  if (inserted in MULTI_PAIR && prev === inserted) {
-    const close = MULTI_PAIR[inserted]
+  if (pair.multi && prev === inserted) {
     // If the opener already auto-paired a single closer to the right (`[|]` → typing `[`), consume
     // it so the result is `[[|]]`, not a stray `[[|]]]`.
-    const single = close.slice(-1)
-    if (doc[c] === single) return { from: c, to: c, insert: inserted + single, selection: c + 1 }
-    return { from: c, to: c, insert: inserted + close, selection: c + 1 }
+    const insert = doc[c] === pair.close ? inserted + pair.close : inserted + pair.multi
+    return { from: c, to: c, insert, selection: c + 1 }
   }
   if (inserted === '[') {
     const atLineStart = c === lineStartAt(doc, c)
     if (atLineStart || prev === ' ' || prev === '\t' || prev === '\n') {
-      return { from: c, to: c, insert: '[]', selection: c + 1 }
+      return { from: c, to: c, insert: inserted + pair.close, selection: c + 1 }
     }
     return null
   }
   if (inserted === '(' || inserted === '{') {
-    return { from: c, to: c, insert: inserted + SINGLE_PAIR[inserted], selection: c + 1 }
+    return { from: c, to: c, insert: inserted + pair.close, selection: c + 1 }
   }
   return null
 }
 
-const DELETE_PAIR: Record<string, string> = { '*': '*', _: '_', '`': '`', '(': ')', '[': ']' }
-
 /** Backspace between an empty matched pair → delete both halves. */
 export function autoDelete(doc: string, selStart: number, selEnd: number): Edit | null {
   if (selStart !== selEnd || selStart === 0) return null
-  const open = doc[selStart - 1]
-  if (!(open in DELETE_PAIR) || doc[selStart] !== DELETE_PAIR[open]) return null
+  const close = PAIRS[doc[selStart - 1]]?.close
+  if (close === undefined || doc[selStart] !== close) return null
   return { from: selStart - 1, to: selStart + 1, insert: '', selection: selStart - 1 }
 }
 
