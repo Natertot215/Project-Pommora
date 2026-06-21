@@ -111,6 +111,10 @@ export function autoPair(doc: string, selStart: number, selEnd: number, inserted
 
   if (inserted in MULTI_PAIR && prev === inserted) {
     const close = MULTI_PAIR[inserted]
+    // If the opener already auto-paired a single closer to the right (`[|]` → typing `[`), consume
+    // it so the result is `[[|]]`, not a stray `[[|]]]`.
+    const single = close.slice(-1)
+    if (doc[c] === single) return { from: c, to: c, insert: inserted + single, selection: c + 1 }
     return { from: c, to: c, insert: inserted + close, selection: c + 1 }
   }
   if (inserted === '[') {

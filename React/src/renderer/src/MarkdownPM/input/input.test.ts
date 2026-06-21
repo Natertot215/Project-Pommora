@@ -85,6 +85,17 @@ describe('auto-pair + auto-delete', () => {
     const e = autoDelete('[]', 1, 1)!
     expect(apply('[]', e)).toBe('')
   })
+  it('[[ collapses the existing closer instead of stacking a stray ]', () => {
+    // doc is "[]" with caret after the first "[" (the first [ already auto-paired)
+    const e = autoPair('[]', 1, 1, '[')!
+    expect(apply('[]', e)).toBe('[[]]') // not "[[]]]"
+    expect(e.selection).toBe(2)
+  })
+  it('(( collapses the existing closer', () => {
+    const e = autoPair('()', 1, 1, '(')!
+    expect(apply('()', e)).toBe('(())')
+    expect(e.selection).toBe(2)
+  })
 })
 
 describe('bracket-skip on Enter', () => {
