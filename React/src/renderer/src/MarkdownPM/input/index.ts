@@ -2,6 +2,7 @@
 // for keystroke-reactive ones) and returns an Edit to apply, or null to fall through. Input-time
 // only (single-char insert / specific keys); paste preserves literal text by construction.
 import { isInsideCode, isInsideWikilink } from '../parser'
+import { parseListMarker, MAX_NESTING_LEVEL } from '../detect'
 
 /** A single atomic edit: replace [from, to) with `insert`, then place the caret at `selection`. */
 export interface Edit {
@@ -17,8 +18,6 @@ const lineEndAt = (doc: string, pos: number): number => {
   return i === -1 ? doc.length : i
 }
 
-// A list line: indent, marker (ordered or bullet) + optional task bracket + required space, content.
-const listMarkerRe = /^(\s*)((?:\d+\.|[-*+•])(?:[ \t]*\[[ xX]?\])?[ \t]+)(.*)$/
 // Any line marker (for smart-backspace): bullet / ordered / blockquote / heading.
 const lineMarkerRe = /^(\s*)(?:\d+\.|[-*+•]|>|#{1,6})(?:[ \t]*\[[ xX]?\])?[ \t]+/
 // The `-[]` / `-[ ]` / `-[x]` shorthand (no space before the bracket), up to the caret.
@@ -30,15 +29,17 @@ export function continueListOnEnter(doc: string, selStart: number, selEnd: numbe
   if (selStart !== selEnd) return null
   const ls = lineStartAt(doc, selStart)
   const line = doc.slice(ls, lineEndAt(doc, selStart))
-  const m = listMarkerRe.exec(line)
-  if (m === null) return null
-  const [, indent, marker] = m
-  if (selStart < ls + indent.length + marker.length) return null // caret in/before the marker zone
+  const lm = parseListMarker(line)
+  if (lm === null) return null
+  if (selStart < ls + lm.contentStart) return null // caret in/before the marker zone
 
-  const ordered = /^(\d+)\./.exec(marker.trimStart())
-  let next = ordered ? `${parseInt(ordered[1], 10) + 1}. ` : `${marker.trimStart()[0]} `
-  if (/\[[ xX]\]/.test(marker)) next = `${next.trimEnd()} [ ] ` // continue checkboxes as fresh unchecked
-  const insert = `\n${indent}${next}`
+  const next =
+    lm.kind === 'ordered'
+      ? `${parseInt(lm.digits ?? '0', 10) + 1}. `
+      : lm.kind === 'checkbox'
+        ? `${lm.bullet ?? '-'} [ ] ` // continue checkboxes as a fresh unchecked box
+        : `${lm.bullet ?? '-'} `
+  const insert = `\n${line.slice(0, lm.markerStart)}${next}`
   return { from: selStart, to: selStart, insert, selection: selStart + insert.length }
 }
 
@@ -56,20 +57,13 @@ export function continueBlockquoteOnEnter(doc: string, selStart: number, selEnd:
   return { from: selStart, to: selStart, insert, selection: selStart + insert.length }
 }
 
-/** The deepest list nesting Tab will create (spec §6.2). */
-const MAX_NESTING_LEVEL = 3
-
 /** Tab on a list line → insert one tab at line start (nest a level), capped at the max nesting.
- *  Level = tabCount + ⌊spaceCount/2⌋ (mirrors the renderer). Non-list lines / selections fall
- *  through (return null) so Tab keeps its default behavior elsewhere. */
+ *  Non-list lines / selections fall through (return null) so Tab keeps its default behavior. */
 export function indentListOnTab(doc: string, selStart: number, selEnd: number): Edit | null {
   if (selStart !== selEnd) return null
   const ls = lineStartAt(doc, selStart)
-  const m = listMarkerRe.exec(doc.slice(ls, lineEndAt(doc, selStart)))
-  if (m === null) return null
-  const indent = m[1]
-  const level = (indent.match(/\t/g)?.length ?? 0) + Math.floor((indent.match(/ /g)?.length ?? 0) / 2)
-  if (level >= MAX_NESTING_LEVEL) return null
+  const lm = parseListMarker(doc.slice(ls, lineEndAt(doc, selStart)))
+  if (lm === null || lm.level >= MAX_NESTING_LEVEL) return null
   return { from: ls, to: ls, insert: '\t', selection: selStart + 1 }
 }
 
