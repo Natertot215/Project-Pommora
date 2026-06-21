@@ -35,6 +35,11 @@ protocol DetailScope {
     var headerIcon: String { get }
     var headerTitle: String { get }
 
+    /// Commit a new title for this scope's header container (vault / collection).
+    func renameHeader(to newName: String, types: PageTypeManager) async throws
+    /// Commit a new icon for this scope's header container.
+    func updateHeaderIcon(to icon: String?, types: PageTypeManager) async throws
+
     // MARK: - Rename alert
 
     /// The quote glyphs wrapping the renamed title in the rename alert message.
@@ -200,6 +205,13 @@ struct VaultScope: DetailScope {
     var headerIcon: String { pageType.icon ?? "tray.2" }
     var headerTitle: String { pageType.title }
 
+    func renameHeader(to newName: String, types: PageTypeManager) async throws {
+        try await types.renamePageType(pageType, to: newName)
+    }
+    func updateHeaderIcon(to icon: String?, types: PageTypeManager) async throws {
+        try await types.updatePageTypeIcon(pageType, to: icon)
+    }
+
     // Vault uses curly quotes (preserved verbatim).
     var renameQuotes: (open: String, close: String) { ("\u{201C}", "\u{201D}") }
 
@@ -329,8 +341,15 @@ struct CollectionScope: DetailScope {
         liveCollection(types).banner
     }
 
-    var headerIcon: String { "folder" }
+    var headerIcon: String { collection.icon ?? "folder" }
     var headerTitle: String { collection.title }
+
+    func renameHeader(to newName: String, types: PageTypeManager) async throws {
+        try await types.renamePageCollection(collection, to: newName)
+    }
+    func updateHeaderIcon(to icon: String?, types: PageTypeManager) async throws {
+        try await types.updatePageCollectionIcon(collection, to: icon)
+    }
 
     // Collection uses straight quotes (preserved verbatim).
     var renameQuotes: (open: String, close: String) { ("\"", "\"") }
