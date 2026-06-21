@@ -23,7 +23,7 @@ struct PageEditorView: View {
     // @Bindable (not @State) because the VM is owned by PageEditorHost; this
     // view observes + binds to it without taking ownership. @State on a
     // received-from-parent reference preserves the OLD reference across
-    // re-renders — the v0.2.7-c5 regression that broke sidebar page switching.
+    // re-renders, which breaks sidebar page switching.
     @Bindable var viewModel: PageEditorViewModel
     let vault: PageType
     /// nil = vault-root Page (no Collection parent)
@@ -113,11 +113,8 @@ struct PageEditorView: View {
     /// and a completed query only applies if its captured token still matches.
     @State private var autocompleteQueryToken = 0
 
-    /// Top padding of the body editor's text container, sized to leave room
-    /// for the title overlay + a 14pt equidistant gap below the divider.
-    /// Natural title height: `padding(.top, 24)` + 28pt bold TextField line
-    /// (~34pt) + `padding(.bottom, 14)` + 1pt Divider ≈ 73pt. Add 14pt gap +
-    /// a small safety margin → 90pt.
+    /// Top padding of the body editor's text container, sized to reserve space
+    /// for the title overlay plus an equidistant gap below the divider.
     ///
     /// Used in two places that MUST agree:
     ///   1. The body editor's `textInsets.vertical` (reserves the empty zone
@@ -146,12 +143,9 @@ struct PageEditorView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // PropertiesPulldown removed 2026-05-25 per Nathan's directive —
-            // it obstructed the titlebar and isn't needed on the Page editor.
-            // Properties for Pages will live in the Claude chat main-window
-            // inspector slot when that ships.
-            // FrontmatterInspector still surfaces page properties via the
-            // pop-out inspector pane when explicitly opened.
+            // No inline properties pulldown here — it obstructed the titlebar.
+            // FrontmatterInspector surfaces page properties via the pop-out
+            // inspector pane when explicitly opened.
             editorZStack
                 .overlay(alignment: .bottomTrailing) { statsChevron }
 

@@ -16,18 +16,16 @@ enum PreviewWindowMetrics {
     /// (uniform-distance dividers).
     static let railPadding: CGFloat = PUI.Spacing.xl
 
-    /// Body leading inset — aligns the first body character with the LEFT EDGE
-    /// of the close button's "X" glyph (a 10pt glyph centered in the 36pt
-    /// capsule), so text starts where the X begins and the heading-fold chevron
-    /// gets its gutter to the LEFT (at railPadding it landed at -6pt, clipped).
-    /// The editor inset is symmetric, so it also lifts the right edge off the
-    /// hairline — the body reads with breathing room, not pressed to the edges.
+    /// Body leading inset — aligns the first body character with the left edge
+    /// of the close button's "X" glyph (the glyph centered in its capsule), so
+    /// text starts where the X begins and the heading-fold chevron gets its
+    /// gutter to the left. The inset is symmetric, lifting the right edge off
+    /// the hairline so the body reads with breathing room.
     static let bodyHorizontalInset: CGFloat =
         railPadding + (WindowCapsuleButton.size.width - 10) / 2
-    /// Header vertical rhythm: padding(top→title) == padding(title→separator).
-    /// Title-bar height = capsule 26 + 2×10 = 46pt — the standard unified-
-    /// toolbar height, which also lands the header hairline on the
-    /// inspector's first context-row divider (10pt card inset + 36pt row).
+    /// Header vertical rhythm: padding(top→title) == padding(title→separator),
+    /// sizing the title bar to the standard unified-toolbar height so the header
+    /// hairline lands on the inspector's first context-row divider.
     static let headerVPad: CGFloat = PUI.Spacing.lg
     /// Editor type size — reduced from the main editor's 15 so the body
     /// reads as a PREVIEW of the document, not a 1:1 editor.
