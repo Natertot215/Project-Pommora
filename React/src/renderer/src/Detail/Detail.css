@@ -10,6 +10,13 @@
   transition: padding-left var(--duration-base) var(--ease-standard);
 }
 
+/* The page editor reclaims its fold-chevron gutter from the standard left inset, so the body text
+   still lands on --content-inset (aligned with every other view); the chevron hangs in the gutter. */
+.detail-page {
+  --fold-gutter: 20px;
+  padding-left: calc(var(--content-inset) - var(--fold-gutter));
+}
+
 /* Banner-bearing views: a full-bleed scroller so the banner sits edge-to-edge behind the sidebar
    + toolbar glass; the padding moves to an inner body. */
 .detail-scroll {

@@ -58,6 +58,8 @@ globalStyle(':root', {
     '--weight-emphasized': font.weight.emphasized,
     '--weight-semibold': font.weight.semibold,
     '--weight-bold': font.weight.bold,
+    // Type sizes plain CSS needs (single-sourced from the scale); add more as consumers appear.
+    '--text-title3-size': font.scale.title3.size,
     // Motion — shared durations + easing so every transition reads as one system.
     '--duration-fast': duration.fast,
     '--duration-base': duration.base,

@@ -1,4 +1,4 @@
-import { gutter, GutterMarker, EditorView, ViewPlugin, Decoration, WidgetType, type ViewUpdate } from '@codemirror/view'
+import { gutter, GutterMarker, EditorView, Decoration, WidgetType, type ViewUpdate } from '@codemirror/view'
 import {
   StateField,
   StateEffect,
@@ -21,8 +21,6 @@ export interface FoldsApi {
 const initialFoldAnnotation = Annotation.define<boolean>()
 
 const HEADING_RE = /^(\s{0,3})(#{1,6})[ \t]+(.*)$/
-const CHEVRON_SVG =
-  '<svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>'
 
 export interface HeadingSection {
   /** Start of the heading line. */
@@ -244,19 +242,18 @@ function chevronOpen(state: EditorState, headingFrom: number): boolean {
 }
 
 class ChevronMarker extends GutterMarker {
-  constructor(readonly headingFrom: number) {
+  // Chevron is a ::before on the gutter element. CM updates elementClass in place on the reused element,
+  // so the rotation transitions even while the fold's requestMeasure loop keeps re-rendering content.
+  readonly elementClass: string
+  constructor(readonly open: boolean) {
     super()
+    this.elementClass = `mdpm-fold-cell${open ? ' mdpm-fold-open' : ''}`
   }
-  // eq by heading only → CM keeps the DOM node across fold toggles, so chevronSync can transition the rotation.
   eq(o: ChevronMarker): boolean {
-    return o.headingFrom === this.headingFrom
+    return o.open === this.open
   }
-  toDOM(view: EditorView): HTMLElement {
-    const el = document.createElement('span')
-    el.className = `mdpm-fold-chevron${chevronOpen(view.state, this.headingFrom) ? ' open' : ''}`
-    el.dataset.heading = String(this.headingFrom)
-    el.innerHTML = CHEVRON_SVG
-    return el
+  toDOM(): HTMLElement {
+    return document.createElement('span')
   }
 }
 
@@ -264,7 +261,7 @@ const foldGutterExt = gutter({
   class: 'cm-foldGutter',
   markers: (view) => {
     const b = new RangeSetBuilder<GutterMarker>()
-    for (const s of sectionsOf(view.state.doc)) b.add(s.from, s.from, new ChevronMarker(s.from))
+    for (const s of sectionsOf(view.state.doc)) b.add(s.from, s.from, new ChevronMarker(chevronOpen(view.state, s.from)))
     return b.finish()
   },
   domEventHandlers: {
@@ -277,21 +274,6 @@ const foldGutterExt = gutter({
     }
   }
 })
-
-// The chevron DOM persists (eq by heading); flip its `.open` class so the rotation transitions like the sidebar twisty.
-const chevronSync = ViewPlugin.fromClass(
-  class {
-    update(u: ViewUpdate): void {
-      const foldChanged = u.transactions.some((tr) =>
-        tr.effects.some((e) => e.is(foldEffect) || e.is(expandEffect) || e.is(dropEffect))
-      )
-      if (!foldChanged && !u.viewportChanged) return
-      for (const el of u.view.dom.querySelectorAll<HTMLElement>('.mdpm-fold-chevron')) {
-        el.classList.toggle('open', chevronOpen(u.view.state, Number(el.dataset.heading)))
-      }
-    }
-  }
-)
 
 /** Re-apply a page's saved folds at mount (no animation), capturing clones from the freshly-rendered lines. */
 export function applySavedFolds(view: EditorView, keys: string[]): void {
@@ -325,5 +307,5 @@ export function markdownFolding(onFoldsChange: (keys: string[]) => void): Extens
       .filter((k): k is string => k !== undefined)
     onFoldsChange(keys)
   })
-  return [foldField, foldGutterExt, chevronSync, persist]
+  return [foldField, foldGutterExt, persist]
 }

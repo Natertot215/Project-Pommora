@@ -46,7 +46,7 @@ export function DetailPane(): React.JSX.Element {
     }
     case 'page':
       return (
-        <div className="detail">
+        <div className="detail detail-page">
           <PageView />
         </div>
       )
