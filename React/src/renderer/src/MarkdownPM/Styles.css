@@ -333,3 +333,49 @@
   border-bottom-right-radius: var(--cb-radius);
   padding-bottom: 6px;
 }
+
+/* `[[` autocomplete panel — caret-anchored glass popover; keyboard-driven, click to accept.
+   KNOBS: --ac-radius / --ac-rows (visible before scroll) */
+.mdpm-ac {
+  --ac-radius: 12px;
+  --ac-rows: 4;
+  position: fixed;
+  z-index: 10;
+  min-width: 180px;
+  max-width: 320px;
+  max-height: calc(var(--ac-rows) * 28px + 8px);
+  overflow-y: auto;
+  margin-top: 4px;
+  padding: 4px;
+  border-radius: var(--ac-radius);
+  background: color-mix(in srgb, var(--surface-secondary) 92%, transparent);
+  backdrop-filter: blur(12px);
+  border: 0.5px solid var(--separator-border);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35);
+  font-size: var(--editor-font-size, 15px);
+}
+.mdpm-ac-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 8px;
+  border-radius: 8px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.mdpm-ac-selected {
+  background: var(--fill-quaternary);
+}
+.mdpm-ac-icon {
+  flex: none;
+  color: var(--label-secondary);
+}
+.mdpm-ac-title {
+  color: var(--label-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.mdpm-ac-match {
+  color: var(--label-primary);
+}
