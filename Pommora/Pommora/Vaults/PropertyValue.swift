@@ -77,14 +77,10 @@ enum PropertyValue: Codable, Equatable, Hashable, Sendable {
             self = .file(files)
             return
         }
+        // An empty array lands here as `.multiSelect([])`, so an empty `.file([])` does not
+        // round-trip — it re-decodes as multiSelect (pinned in PropertyValueDecodeStressTests).
         if let arr = try? c.decode([String].self) {
             self = .multiSelect(arr)
-            return
-        }
-        // Empty array → treat as empty file list (multi-select empty arrays should not occur
-        // at the storage layer; if needed, the manager can normalise).
-        if let empties = try? c.decode([FileRef].self), empties.isEmpty {
-            self = .file([])
             return
         }
         // Tagged-object: {"$rel": "01H..."} or {"$status": "value"}
