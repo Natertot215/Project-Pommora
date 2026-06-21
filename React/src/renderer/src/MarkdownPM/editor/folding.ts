@@ -107,7 +107,8 @@ export function markdownFolding(onFoldsChange: (keys: string[]) => void): Extens
   })
 
   return [
-    codeFolding(),
+    // No `…` placeholder — a folded section reads as collapsed via the heading's own --label-control tint (decorations.ts).
+    codeFolding({ placeholderDOM: () => document.createElement('span') }),
     foldService.of((state, lineStart) => {
       const s = sectionsOf(state.doc).find((x) => x.from === lineStart)
       return s ? { from: s.lineEnd, to: s.to } : null
@@ -117,7 +118,7 @@ export function markdownFolding(onFoldsChange: (keys: string[]) => void): Extens
         const el = document.createElement('span')
         el.className = `mdpm-fold-chevron${open ? ' open' : ''}`
         el.innerHTML =
-          '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>'
+          '<svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>'
         return el
       }
     }),

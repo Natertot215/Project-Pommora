@@ -1,6 +1,9 @@
 .mdpm-shell {
-  /* --fold-gutter: width of the heading-fold chevron column; title + body + divider all inset by it to stay aligned. */
+  /* --fold-gutter: width of the heading-fold chevron column; title + body + divider all inset by it to stay aligned.
+     --fold-chevron-size: chevron glyph size (title3). --label-control: dimmed "syntax/control" label tint. */
   --fold-gutter: 18px;
+  --fold-chevron-size: 15px;
+  --label-control: color-mix(in srgb, var(--label-primary) 80%, transparent);
   position: relative;
   height: 100%;
   overflow: hidden;
@@ -77,10 +80,12 @@
   align-items: center;
   justify-content: center;
   width: var(--fold-gutter);
+  padding: 0;
 }
 .mdpm-fold-chevron {
   display: inline-flex;
   cursor: pointer;
+  font-size: var(--fold-chevron-size);
   color: var(--label-secondary);
   transition: transform var(--duration-fast) var(--ease-standard), opacity var(--duration-fast) var(--ease-standard);
 }
@@ -88,8 +93,13 @@
   transform: rotate(90deg);
   opacity: 0;
 }
-.mdpm-editor .cm-gutters:hover .mdpm-fold-chevron.open {
+/* Open chevron reveals only over its own heading row (the gutter cell), not the whole column. */
+.mdpm-editor .cm-foldGutter .cm-gutterElement:hover .mdpm-fold-chevron.open {
   opacity: 1;
+}
+/* A folded heading reads as collapsed via the control tint (no `…` placeholder). */
+.mdpm-editor .cm-line.md-h-folded {
+  color: var(--label-control);
 }
 
 .mdpm-editor .cm-line {
@@ -156,8 +166,8 @@
   color: var(--label-secondary);
 }
 
-.md-syntax {
-  color: color-mix(in srgb, var(--label-primary) 80%, transparent);
+.md-control {
+  color: var(--label-control);
 }
 
 /* ══ LIST KNOBS — edit these to alter list indentation & spacing ════════════════

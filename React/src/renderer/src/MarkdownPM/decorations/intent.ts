@@ -127,7 +127,7 @@ export function decorationsFor(text: string, tokens: Token[], active: Set<number
       // `N.` stays literal recoloured source (no widget) so typing after the number can't hit an atomic range.
       intents.push({ kind: 'line', from: ls, className: 'md-li md-li-ordered', level: lm.level })
       if (lm.markerStart > 0) intents.push({ kind: 'hide', from: ls, to: ls + lm.markerStart })
-      intents.push({ kind: 'class', from: ls + lm.markerStart, to: ls + lm.markerEnd, className: 'md-ol-marker md-syntax' })
+      intents.push({ kind: 'class', from: ls + lm.markerStart, to: ls + lm.markerEnd, className: 'md-ol-marker md-control' })
       // Hide the source space so the gap is the zone padding.
       intents.push({ kind: 'hide', from: ls + lm.markerEnd, to: ls + lm.contentStart })
     } else if (isBlockquoteLine(line)) {
