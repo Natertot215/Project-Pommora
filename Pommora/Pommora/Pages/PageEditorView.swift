@@ -149,7 +149,7 @@ struct PageEditorView: View {
             // PropertiesPulldown removed 2026-05-25 per Nathan's directive —
             // it obstructed the titlebar and isn't needed on the Page editor.
             // Properties for Pages will live in the Claude chat main-window
-            // inspector slot when that ships (v0.3.x per Framework.md).
+            // inspector slot when that ships.
             // FrontmatterInspector still surfaces page properties via the
             // pop-out inspector pane when explicitly opened.
             editorZStack

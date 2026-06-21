@@ -3,8 +3,8 @@ import Foundation
 /// Per-Nexus user preferences. On disk at `<nexus>/.nexus/settings.json`.
 /// Loaded by SettingsManager; consumed by every UI label-rendering site.
 ///
-/// Existing `tier-config.json` and `saved-config.json` stay separate for v0.3.0
-/// (consolidation deferred to v0.6.0 Settings UI work).
+/// Existing `tier-config.json` and `saved-config.json` stay separate
+/// (consolidation deferred to the Settings UI work).
 ///
 /// ## Auto-migration
 /// `defaultsVersion` tracks which set of default values was seeded.  On every
@@ -24,7 +24,7 @@ struct Settings: Codable, Equatable, Hashable, Sendable {
     var labels: SettingsLabels
     /// Per-Nexus toggle: show a page's icon (and the "Add icon" affordance) in
     /// the page header beside the title. Default OFF — opt-in per Nexus. Wired
-    /// here ahead of the v0.6.0 Settings editor so the future toggle row binds
+    /// here ahead of the Settings editor so the future toggle row binds
     /// to an existing field rather than triggering a migration.
     var showPageIcon: Bool
     /// Vault-relative folder paths excluded from discovery. Empty by default.
