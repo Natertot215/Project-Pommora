@@ -11,6 +11,9 @@ struct SidebarDetailView: View {
 
     @Environment(PageTypeManager.self) private var vaultManager
     @Environment(PageContentManager.self) private var contentManager
+    @Environment(AreaManager.self) private var areaManager
+    @Environment(TopicManager.self) private var topicManager
+    @Environment(ProjectManager.self) private var projectManager
 
     var body: some View {
         Group {
@@ -32,7 +35,9 @@ struct SidebarDetailView: View {
                     title: s.title,
                     icon: s.icon ?? "circle.fill",
                     accent: nil,
-                    supportingLine: "Tier 1 — Area"
+                    supportingLine: "Tier 1 — Area",
+                    onRename: { try? await areaManager.rename(s, to: $0) },
+                    onIconChange: { try? await areaManager.updateIcon(s, to: $0) }
                 )
 
             case .topic(let t):
@@ -40,7 +45,9 @@ struct SidebarDetailView: View {
                     title: t.title,
                     icon: t.icon ?? "folder",
                     accent: nil,
-                    supportingLine: "Tier 2 — Topic"
+                    supportingLine: "Tier 2 — Topic",
+                    onRename: { try? await topicManager.rename(t, to: $0) },
+                    onIconChange: { try? await topicManager.updateIcon(t, to: $0) }
                 )
 
             case .project(let p):
@@ -48,7 +55,9 @@ struct SidebarDetailView: View {
                     title: p.title,
                     icon: p.icon ?? "doc.text",
                     accent: nil,
-                    supportingLine: "Tier 3 — Project"
+                    supportingLine: "Tier 3 — Project",
+                    onRename: { try? await projectManager.rename(p, to: $0) },
+                    onIconChange: { try? await projectManager.updateIcon(p, to: $0) }
                 )
 
             case .pageType(let t):
