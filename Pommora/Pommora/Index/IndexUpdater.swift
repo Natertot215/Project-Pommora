@@ -308,7 +308,7 @@ struct IndexUpdater: Sendable {
 
     // MARK: - Contexts
 
-    func upsertContext(_ area: Area) throws {
+    func upsertContext(id: String, tier: Int, title: String, icon: String?) throws {
         try index.dbQueue.write { db in
             try db.execute(
                 sql: """
@@ -316,35 +316,21 @@ struct IndexUpdater: Sendable {
                         (id, tier, title, icon)
                     VALUES (?, ?, ?, ?)
                     """,
-                arguments: [area.id, 1, area.title, area.icon]
+                arguments: [id, tier, title, icon]
             )
         }
+    }
+
+    func upsertContext(_ area: Area) throws {
+        try upsertContext(id: area.id, tier: area.tier, title: area.title, icon: area.icon)
     }
 
     func upsertContext(_ topic: Topic) throws {
-        try index.dbQueue.write { db in
-            try db.execute(
-                sql: """
-                    INSERT OR REPLACE INTO contexts
-                        (id, tier, title, icon)
-                    VALUES (?, ?, ?, ?)
-                    """,
-                arguments: [topic.id, 2, topic.title, topic.icon]
-            )
-        }
+        try upsertContext(id: topic.id, tier: topic.tier, title: topic.title, icon: topic.icon)
     }
 
     func upsertContext(_ project: Project) throws {
-        try index.dbQueue.write { db in
-            try db.execute(
-                sql: """
-                    INSERT OR REPLACE INTO contexts
-                        (id, tier, title, icon)
-                    VALUES (?, ?, ?, ?)
-                    """,
-                arguments: [project.id, 3, project.title, project.icon]
-            )
-        }
+        try upsertContext(id: project.id, tier: project.tier, title: project.title, icon: project.icon)
     }
 
     func deleteContext(id: String) throws {

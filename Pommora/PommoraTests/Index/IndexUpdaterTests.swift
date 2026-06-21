@@ -173,6 +173,21 @@ struct IndexUpdaterTests {
         #expect(count == 0)
     }
 
+    // MARK: - Contexts
+
+    @Test func upsertContextGenericWritesRow() async throws {
+        let nexus = try TempNexus.make()
+        defer { TempNexus.cleanup(nexus) }
+        let idx = try makeIndex(at: nexus)
+        let updater = IndexUpdater(idx)
+
+        try updater.upsertContext(id: "ctx-1", tier: 2, title: "Topic A", icon: nil)
+
+        let row = try firstRow(in: "contexts", db: idx, where: "id = 'ctx-1'")
+        #expect(row?["tier"] as Int? == 2)
+        #expect(row?["title"] as String? == "Topic A")
+    }
+
     // MARK: - pageIDs scope filtering (surgical-reconcile set-sync)
 
     @Test func pageIDsScopesPrecisely() async throws {
