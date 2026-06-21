@@ -122,10 +122,16 @@ export function decorationsFor(text: string, tokens: Token[], active: Set<number
         spec: { type: 'checkbox', bracketFrom: ls + lm.box.start, bracketTo: ls + lm.box.end, checked: lm.checked ?? false }
       })
     } else if (lm?.kind === 'bullet' && lm.bullet === '-' && !lm.box) {
-      // Hide indent + the `-` only (NOT the trailing space — that stays editable source so the caret
-      // sits after the marker). The • glyph is drawn by `.md-li-bullet::before`.
-      intents.push({ kind: 'line', from: ls, className: 'md-li md-li-bullet', level: lm.level })
-      intents.push({ kind: 'hide', from: ls, to: ls + lm.markerEnd })
+      // Caret-aware (heading parity): caret OFF the line → hide indent + `-`, draw `•` via
+      // `.md-li-bullet::before`. Caret ON the line → reveal the raw `- ` source (selectable/editable)
+      // and suppress the glyph via `.md-li-raw`.
+      intents.push({
+        kind: 'line',
+        from: ls,
+        className: caretOnLine ? 'md-li md-li-bullet md-li-raw' : 'md-li md-li-bullet',
+        level: lm.level
+      })
+      if (!caretOnLine) intents.push({ kind: 'hide', from: ls, to: ls + lm.markerEnd })
     } else if (lm?.kind === 'ordered') {
       // The `N.` stays as literal, editable source (recoloured); only the indent hides. No widget,
       // so typing a space after the number can't collide with an atomic range.

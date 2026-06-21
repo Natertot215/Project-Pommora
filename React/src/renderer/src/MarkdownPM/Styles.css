@@ -143,11 +143,16 @@
   /* Ordered numbers + the checkbox chip hang into the gutter via the negative first-line indent. */
   text-indent: calc(-1 * var(--li-zone));
 }
-/* Bullets draw their glyph as an overlay (::before), so the text line is NOT pulled back. */
+/* Bullets draw their glyph as an overlay (::before), so the text line is NOT pulled back — except
+   when the caret is on the line (.md-li-raw), where the literal `- ` source is revealed and hangs
+   into the gutter like the ordered number, and the glyph is suppressed. */
 .mdpm-editor .cm-line.md-li-bullet {
   text-indent: 0;
 }
-.mdpm-editor .cm-line.md-li-bullet::before {
+.mdpm-editor .cm-line.md-li-bullet.md-li-raw {
+  text-indent: calc(-1 * var(--li-zone));
+}
+.mdpm-editor .cm-line.md-li-bullet:not(.md-li-raw)::before {
   content: '•';
   position: absolute;
   left: var(--li-col);
