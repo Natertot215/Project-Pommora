@@ -2,6 +2,16 @@
 
 Changelog + the home for locked decisions — what shipped and when, newest first. Brief by design. Current state lives in the feature docs + `PommoraPRD.md`; roadmap + phases in `Framework.md`; editor internals in `Features/PageEditor.md`. When an entry would enumerate file-level detail, it points to the canonical feature doc instead.
 
+#### Refactoring program — Phase A decisions ratified (2026-06-20, branch `refactoring`)
+
+Following the codebase audit + Foundation Hardening, the larger refactoring's Phase-A on-disk decisions are ratified (roadmap → `Planning/06-20-Refactoring-Roadmap.md`):
+- **Adopted-Page id** stays `SHA256(path)[:16]` + `adopted-` prefix — path-derived + stable (idempotent re-adoption).
+- **Option-value minting** unifies on `opt_<ULID>` going forward (Status already does; Select aligns — existing data untouched).
+- **`context_links.id`** unifies on `ULID` (was `UUID` in `IndexBuilder`); index is regeneratable, no migration.
+- **`schemaVersion` "current" constants** move to one shared source (were scattered literals).
+- **`loadAll` heal-on-read kept as-is** — opening a nexus keeps silently minting/rewriting missing sidecars (self-heal favored over read-purity).
+- **Area color removed entirely.** The `AreaColor` palette + `Area.color` field + picker are cut — Areas are identified by **icon only**. (The `blue` swatch rendered as the app accent, not blue; `.accent` duplicated it; the controlling `TierConfig.taggingStyle` was already vestigial — its parent-Area indicator died with containment — and is removed too.) Existing `color` / `tagging_style` keys drop on next write.
+
 #### Homepage banner — dashboard surface (2026-06-19, branch `nexus-header`)
 
 Selecting the Nexus header (`savedKey("homepage")`) opens the Homepage dashboard. Its banner is a **bounded header band that adopts the content-view banner** — same height, gutters, title font, and `backgroundExtensionEffect` edge-to-edge bleed, via the shared `PUI.DetailHeader` tokens (`bannerHeight` hoisted there so both banners consume one source). The band is a **background layer** whose `.overlay` carries the folder title now (no icon — "filename = title") and future pinned widgets (time / weather) later; the empty homepage body sits below. It is deliberately **not** a full-pane background: the homepage has no data table beneath it (which is *why* it could go full-bleed at all), but the content-view band keeps the title legible and the future block-editor space honest — and the content-view banner itself stays a header band over its table, unchanged.

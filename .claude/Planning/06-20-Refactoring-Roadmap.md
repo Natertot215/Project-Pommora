@@ -25,7 +25,7 @@ Sequences the remaining debt from `06-20-Codebase-Audit-And-Reorg.md` into depen
 
 ### Decisions Needed (Ratify at Phase A)
 
-The "confirm paradigm-solidifying choices" HARD RULE — these on-disk shapes hardened by accident and should be ruled on before more data accrues. One-line recommendation each; Nathan adjudicates.
+**RATIFIED 2026-06-20** (recorded in `History.md`). Outcomes: #1–4 as recommended; **#5 kept silent** (no change — self-heal favored over read-purity); **#6 → full removal** of the Area color feature (Areas identified by icon only). The "confirm paradigm-solidifying choices" HARD RULE — these on-disk shapes hardened by accident.
 
 1. **Adopted-Page id** = `SHA256(path)[:16]` + `adopted-` prefix. Path-derived + stable (idempotent re-adoption) — intentional, but the digest length/prefix were never ratified. → *Rec: ratify as-is; 64 bits is ample at personal scale.*
 2. **Option-value minting** — Status mints `opt_<ULID>`, Select mints a bare `ULID`. → *Rec: unify to `opt_<ULID>` (typed, greppable).*
