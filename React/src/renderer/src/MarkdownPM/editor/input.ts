@@ -14,6 +14,7 @@ import {
   autoDelete,
   bracketSkipOnEnter,
   dashArrow,
+  indentListOnTab,
   type Edit
 } from '../input'
 
@@ -42,10 +43,24 @@ const onBackspace = (view: EditorView): boolean => {
   return apply(view, smartBackspace(doc, s.from, s.to) ?? autoDelete(doc, s.from, s.to))
 }
 
+const onTab = (view: EditorView): boolean => {
+  const s = view.state.selection.main
+  return apply(view, indentListOnTab(view.state.doc.toString(), s.from, s.to))
+}
+
+// Shift+Enter is the construct EXIT (spec §6.7): a plain newline, never a list/blockquote continue.
+const onShiftEnter = (view: EditorView): boolean => {
+  const s = view.state.selection.main
+  view.dispatch({ changes: { from: s.from, to: s.to, insert: '\n' }, selection: { anchor: s.from + 1 }, userEvent: 'input' })
+  return true
+}
+
 export const markdownInput = [
   Prec.high(
     keymap.of([
       { key: 'Enter', run: onEnter },
+      { key: 'Shift-Enter', run: onShiftEnter },
+      { key: 'Tab', run: onTab },
       { key: 'Backspace', run: onBackspace }
     ])
   ),

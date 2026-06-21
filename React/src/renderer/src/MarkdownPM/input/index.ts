@@ -44,6 +44,23 @@ export function continueListOnEnter(doc: string, selStart: number, selEnd: numbe
   return { from: selStart, to: selStart, insert, selection: selStart + insert.length }
 }
 
+/** The deepest list nesting Tab will create (spec §6.2). */
+const MAX_NESTING_LEVEL = 3
+
+/** Tab on a list line → insert one tab at line start (nest a level), capped at the max nesting.
+ *  Level = tabCount + ⌊spaceCount/2⌋ (mirrors the renderer). Non-list lines / selections fall
+ *  through (return null) so Tab keeps its default behavior elsewhere. */
+export function indentListOnTab(doc: string, selStart: number, selEnd: number): Edit | null {
+  if (selStart !== selEnd) return null
+  const ls = lineStartAt(doc, selStart)
+  const m = listMarkerRe.exec(doc.slice(ls, lineEndAt(doc, selStart)))
+  if (m === null) return null
+  const indent = m[1]
+  const level = (indent.match(/\t/g)?.length ?? 0) + Math.floor((indent.match(/ /g)?.length ?? 0) / 2)
+  if (level >= MAX_NESTING_LEVEL) return null
+  return { from: ls, to: ls, insert: '\t', selection: selStart + 1 }
+}
+
 /** Backspace at the START of a marker line's content → delete the WHOLE marker prefix in one
  *  step, caret to line start (instead of nibbling `- [ ] ` into broken syntax). All markers. */
 export function smartBackspace(doc: string, selStart: number, selEnd: number): Edit | null {

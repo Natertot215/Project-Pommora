@@ -7,6 +7,7 @@ import {
   autoDelete,
   bracketSkipOnEnter,
   dashArrow,
+  indentListOnTab,
   type Edit
 } from './index'
 
@@ -113,5 +114,25 @@ describe('dash + arrow auto-format', () => {
   it('spaced " - " second space → en-dash', () => {
     const doc = 'a -'
     expect(apply(doc, dashArrow(doc, 3, 3, ' ')!)).toBe('a – ')
+  })
+})
+
+describe('tab indent (list nesting)', () => {
+  it('nests a bullet by inserting a tab at line start, caret follows', () => {
+    const doc = '- item'
+    const e = indentListOnTab(doc, doc.length, doc.length)!
+    expect(apply(doc, e)).toBe('\t- item')
+    expect(e.selection).toBe(doc.length + 1)
+  })
+  it('counts 2 spaces as one level (4 spaces = level 2, still under the cap)', () => {
+    const doc = '    - two'
+    expect(apply(doc, indentListOnTab(doc, doc.length, doc.length)!)).toBe('\t    - two')
+  })
+  it('caps at the max nesting level (3 tabs → no further indent)', () => {
+    expect(indentListOnTab('\t\t\t- deep', 9, 9)).toBeNull()
+  })
+  it('ignores non-list lines and selections', () => {
+    expect(indentListOnTab('plain text', 5, 5)).toBeNull()
+    expect(indentListOnTab('- item', 2, 4)).toBeNull()
   })
 })
