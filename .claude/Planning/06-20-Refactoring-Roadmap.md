@@ -4,7 +4,7 @@ Sequences the remaining debt from `06-20-Codebase-Audit-And-Reorg.md` into depen
 
 **Baseline:** branch landed on `main` (merge `5b82a1b`); ~1,285 tests green. The audit's snapshot was the pre-Foundation tree at 1,272 tests — several items below are already consumed.
 
-**Status (2026-06-21):** Phases **A, B, C are complete + merged to `main`** (1,291 tests green). The "Starting Point" table below predates B/C — read its "Remaining (Phases B, C, …)" rows as **only D–H**. **Deferred from C** (pending Nathan's review — visual or paradigm): magic-numbers → `PUI` + `.hoverFill()`, `PropertyValue` datetime → `IndexDateFormat` (adds fractional seconds), the full `Domain/Features` top-level grouping, and the `NexusAdopter` / `PageTypeManager` god-file splits (tangled).
+**Status (2026-06-21):** Phases **A, B, C, H complete** (1,291 tests green). The C-deferred magic-numbers → `PUI` + `.hoverFill()` and the `Core/Components/Domain/Features` grouping are done (plus a `Features/Toolbar` extraction + `NavDropdown`→`Navigation` rename). **H** was closed by a simplification-review pass — Agenda title-sort DRY (`NameCollisionCandidate.sortedByTitle()`), a shared inline-rename responder-hop (`InlineRenameFocus`), a dropped single-use `View.if`, and a decorate-sort of `ViewSortComparator` — over the validator typed-throws. **Phase F is DROPPED — see its section.** **Remaining: D (next marquee), E, G** (the still-deferred `PropertyValue` datetime → `IndexDateFormat` and the tangled `NexusAdopter` / `PageTypeManager` splits live under G).
 
 ---
 
@@ -78,8 +78,9 @@ Each phase: **Goal · Scope · Depends · Risk · Effort · Payoff.** Effort in 
 - **Depends:** B. **Risk:** Med (load-bearing UI/CRUD — TDD-first, one at a time, not big-bang). **Effort:** ~2–3 sessions.
 - **Payoff:** removes mechanical duplication without blocking per-type divergence.
 
-**Phase F — Manual `Codable` → Synthesized**
-- **Goal:** −~1,000 loc of lockstep-fragile hand-rolled `Codable`.
+**Phase F — Manual `Codable` → Synthesized** — **DROPPED (2026-06-21).**
+A survey of all 21 hand-rolled `Codable` types invalidated the premise: Swift's *synthesized* `Decodable` **throws** on a missing in-CodingKeys non-Optional key — it does **not** fall back to the property's default. The pervasive `decodeIfPresent(…) ?? default` here is defensive schema-evolution robustness (a corrupt sidecar loads with defaults instead of failing), which synthesis can't replicate without regressing decode or changing the on-disk shape. Genuinely deletable subset: ≤2 trivial types (`PageDisplay`, maybe `SettingsLabels`) — nowhere near "−1,000 loc". The hand-rolling is justified; left as-is. (A minor *DRY* pass remains possible — Area/Topic/Project `Codable` is byte-identical modulo `tier`, Agenda Task/Event parallel — but that keeps the defaulting and is not this phase.)
+- **Goal (original):** −~1,000 loc of lockstep-fragile hand-rolled `Codable`.
 - **Scope:** `PageType`/`Collection`/`Set`/`SavedView`/`PropertyDefinition`/`Area`/`Topic`/`Project`/`Agenda`/`AppState` → synthesized + `decodeIfPresent` defaults; custom **only** for genuine legacy keys (`vault_id`, `visible_properties`, `relation_scope`, favorites→pinned). TDD the legacy-key + foreign-frontmatter-preservation paths first.
 - **Depends:** B. **Risk:** Med (must preserve legacy + foreign-frontmatter round-trips — TDD-gated). **Effort:** ~2 sessions.
 - **Payoff:** −~1,000 loc; the encode/decode lockstep-fragility class gone.
