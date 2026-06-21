@@ -7,6 +7,8 @@ import {
   hasCheckbox,
   isInlineMathContent,
   listRegex,
+  parseListMarker,
+  indentLevel,
   imageEmbedRegex,
   inlineCodeRegex,
   markdownLinkRegex
@@ -50,6 +52,44 @@ describe('lists + dash bullets', () => {
     expect(isDashBulletLine('+ a')).toBe(false)
     expect(isDashBulletLine('- [ ] a')).toBe(false) // task line excluded
     expect(isDashBulletLine('-[] a')).toBe(false) // any bracket excluded
+  })
+})
+
+describe('parseListMarker (single marker source)', () => {
+  it('bullet: ranges + level (2 spaces = 1 level)', () => {
+    const m = parseListMarker('  - x')!
+    expect(m.kind).toBe('bullet')
+    expect(m.bullet).toBe('-')
+    expect([m.markerStart, m.markerEnd, m.contentStart]).toEqual([2, 3, 4])
+    expect(m.level).toBe(1)
+    expect(m.box).toBeUndefined()
+  })
+  it('ordered: digits + marker spans through the dot', () => {
+    const m = parseListMarker('12. y')!
+    expect(m.kind).toBe('ordered')
+    expect(m.digits).toBe('12')
+    expect([m.markerStart, m.markerEnd, m.contentStart]).toEqual([0, 3, 4])
+  })
+  it('checkbox: bracket span + checked, markerEnd at the bracket end', () => {
+    const m = parseListMarker('- [x] done')!
+    expect(m.kind).toBe('checkbox')
+    expect(m.checked).toBe(true)
+    expect([m.box!.start, m.box!.end]).toEqual([2, 5])
+    expect(m.markerEnd).toBe(5)
+    expect(m.contentStart).toBe(6)
+  })
+  it('empty [] is a bullet (box present, not a checkbox); ordered "1. [ ]" stays ordered', () => {
+    expect(parseListMarker('-[] a')!.kind).toBe('bullet')
+    expect(parseListMarker('1. [ ] a')!.kind).toBe('ordered')
+  })
+  it('returns null for non-list lines and markers with no trailing space', () => {
+    expect(parseListMarker('plain')).toBeNull()
+    expect(parseListMarker('-[x]done')).toBeNull()
+  })
+  it('indentLevel: tabs + ⌊spaces/2⌋, capped at the max', () => {
+    expect(indentLevel('')).toBe(0)
+    expect(indentLevel('    ')).toBe(2)
+    expect(indentLevel('\t\t\t\t')).toBe(3) // capped
   })
 })
 

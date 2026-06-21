@@ -23,6 +23,63 @@ export const inlineLatexRegex = (): RegExp => /(?<!\$)\$(?!\$)([^$\n]+?)\$(?!\$)
  *  rendering excludes empty `[]`. */
 export const listRegex = (): RegExp => /^\s*((?:(\d+)\.|[-*+•])(?:\s*\[[ xX]?\])?\s+)/
 
+/** The deepest list nesting (Tab cap + the render indent cap; spec §6.2). */
+export const MAX_NESTING_LEVEL = 3
+
+/** Source-indent → visual nesting level (`tabs + ⌊spaces/2⌋`, capped at MAX_NESTING_LEVEL). */
+export function indentLevel(ws: string): number {
+  let tabs = 0
+  let spaces = 0
+  for (const ch of ws) ch === '\t' ? tabs++ : spaces++
+  return Math.min(MAX_NESTING_LEVEL, tabs + Math.floor(spaces / 2))
+}
+
+/** The single list-marker parser. Every layer (detect predicates, input transforms, render intent)
+ *  reads markers through this — never its own regex. Offsets are line-relative (`markerStart` =
+ *  indent end). A `box` is reported whenever a `[…]` follows the marker; `kind` is `checkbox` only
+ *  when that box is non-empty on a `-`/`*`/`+` bullet (an ordered `1. [ ]` stays `ordered`). */
+export interface ListMarker {
+  kind: 'ordered' | 'bullet' | 'checkbox'
+  /** The bullet glyph char (`-`/`*`/`+`/`•`); undefined for ordered. */
+  bullet?: string
+  /** Ordered digits, e.g. `"12"`. */
+  digits?: string
+  level: number
+  markerStart: number
+  /** End of the marker token (after `-`, after the `.`, or after the `]`), before the trailing space. */
+  markerEnd: number
+  /** First content char (after the required trailing space). */
+  contentStart: number
+  /** The `[…]` box, when present (any inner, incl empty). */
+  box?: { start: number; end: number; inner: string }
+  /** Checkbox only. */
+  checked?: boolean
+}
+
+const LIST_MARKER_RE = /^([ \t]*)(?:(\d+)\.|([-*+•]))(?:[ \t]*(\[([ xX]?)\]))?([ \t]+)(.*)$/d
+
+export function parseListMarker(line: string): ListMarker | null {
+  const m = LIST_MARKER_RE.exec(line)
+  const idx = m?.indices
+  const ws = idx?.[6]
+  if (!m || !idx || !ws) return null
+  const indent = m[1]
+  const markerStart = indent.length
+  const level = indentLevel(indent)
+  const contentStart = ws[1]
+  const b = idx[4]
+  const box = b ? { start: b[0], end: b[1], inner: m[5] ?? '' } : undefined
+  const bullet = m[3]
+
+  if (bullet !== undefined && box && box.inner !== '' && '-*+'.includes(bullet)) {
+    return { kind: 'checkbox', bullet, level, markerStart, markerEnd: box.end, contentStart, box, checked: box.inner !== ' ' }
+  }
+  if (m[2] !== undefined) {
+    return { kind: 'ordered', digits: m[2], level, markerStart, markerEnd: markerStart + m[2].length + 1, contentStart, box }
+  }
+  return { kind: 'bullet', bullet, level, markerStart, markerEnd: markerStart + (bullet?.length ?? 1), contentStart, box }
+}
+
 const dashBulletRegex = /^([ \t]*)([-*+•](?:[ \t]*\[[ xX]?\])?[ \t]+)(.*)$/
 // A real task marker: bullet, optional space, a NON-empty `[ xX]` box, then content space.
 // `[ ]`/`[x]`/`[X]` count; empty `[]` does not.
