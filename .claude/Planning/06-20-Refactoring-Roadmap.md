@@ -126,13 +126,17 @@ Each phase: **Goal · Scope · Depends · Risk · Effort · Payoff.** Effort in 
 
 **Finding — `PropertiesPulldown` "dead VM" is a FALSE POSITIVE.** `PropertiesPulldownViewModel` is referenced only by its own test suite, never instantiated in production (the View re-implements the logic as private `@State`). It's a *tested parallel implementation*, not unreferenced dead code — removing it deletes real coverage. Proper fix = rewire the View to *use* the VM (removes the duplication the other direction); bigger than a Phase A subtraction. **Deferred** to whenever the View is next touched (Phase D/E).
 
-**Remaining — precise sites mapped:**
-- **`opt_` prefix** (decision #2): `VaultSettingsSheet.swift:498` mints Select options bare; `:508` mints Status as `opt_<ULID>`. Change `:498` to match — **but first grep `hasPrefix("opt_")` / `"opt_"` to confirm nothing parses the prefix to distinguish Status vs Select** (if it does, the "unify" decision is unsafe and needs re-thinking). Note: this introduces an old-bare-vs-new-prefixed mix in Select data (decision said "existing untouched").
-- **`context_links.id`→ULID** (decision #3): `IndexBuilder` (~`:628`/`:665`) mints with `UUID`; `IndexUpdater` uses `ULID`. Switch IndexBuilder to ULID. Regeneratable index → no migration.
-- **shared `schemaVersion`** (decision #4): literals at `TierConfig.swift:23`, `Homepage.swift:19`, `SavedConfig.swift:17`, `AgendaEventSchema.swift:86`, `PageType`(=2), `PageSet`, `PageCollection`(=1) → one `enum SchemaVersion { static let … }` registry; route each.
-- **SidebarConfirmation labels**: hardcodes "Vault"/"Collection"/"Set"/tier-names despite user-renameable labels — wire to the configured source (`TierConfig.tiers` singular/plural for context tiers; Settings labels for Vault/Collection/Set).
-- **Version-stamp sweep**: remove only *forward-looking* promises — `StatusGroupsEditor.swift:73` ("future v0.3.1.x patch"), `PommoraApp.swift:67` ("until … v0.6.0"), `FrontmatterInspector.swift:100` ("no more 'Coming v0.3.0' placeholders") — KEEP backward legacy-compat refs (they explain why decode paths exist).
-- **Bare `catch {}` → logged**: async move/rewrite/delete/cover paths swallow errors silently — route through the existing surfacing idiom (`pendingError`), don't introduce a new logger.
+**Executed (green commits on `refactoring`, 1283 tests):**
+- `opt_` on Select option minting — `e0119fc` (verified nothing parses the prefix → safe).
+- `context_links.id`→ULID + `ULID.generate`/helpers/`alphabet` made `nonisolated` — `98a7b87`. The UUID/ULID split was *forced* by isolation, not sloppiness: `IndexBuilder` is `nonisolated` (off-main cold rebuild) and `ULID.generate` was `@MainActor`-inferred under default isolation. Making the pure generator nonisolated is the correct fix and unifies the index on ULID.
+- `SchemaVersion` registry — 8 nexus-entity sidecars centralized (`a056d0b`); app-level state (AppState/NexusState/NexusIdentity) kept separate.
+- Forward-looking version-stamp promises removed — `cbc1b7e` (`StatusGroupsEditor`, `FrontmatterInspector`; the `PommoraApp` "v0.6.0" stamp didn't exist on this branch).
+
+**Two more audit items were FALSE POSITIVE / BLOCKED — verified against code, not actioned:**
+- **`catch {}` "silent error swallowing"** — FALSE POSITIVE. The called managers self-surface via `pendingError` + rethrow (verified `movePage`:750, `deletePageCollection`:500); the view's empty catch absorbs the *rethrow* after the toast already fired. Cleanup-after-success catches are intentional.
+- **SidebarConfirmation hardcoded labels** — BLOCKED. Wiring needs a clear authoritative label source, but the architecture is tangled: context-tier labels live in `TierConfig.tiers` while `SettingsLabels` carries `project` + the Pages-side entities (no `area`/`topic` singular). Resolving that duplication is the prerequisite — not a Phase A swap.
+
+**Phase A complete** — every actionable item executed + verified; the three non-actionable ones (PropertiesPulldown, `catch{}`, SidebarConfirmation) are grounded findings, not skipped work.
 
 ---
 
