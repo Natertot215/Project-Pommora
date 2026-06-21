@@ -227,3 +227,27 @@
   vertical-align: middle;
   border-bottom: 1.5px solid var(--separator-border);
 }
+
+/* Blockquote — an always-show card (the `>` markers are hidden). Each quote line carries the fill +
+   left bar; consecutive lines' boxes abut into one continuous card, and the first/last lines round
+   the outer corners. Text reads at ~75% of body. High specificity to beat CM6's base `.cm-line`. */
+.mdpm-editor .cm-line.md-bq {
+  --bq-pad: 14px;
+  background: var(--surface-tertiary);
+  border-left: 4px solid var(--label-secondary);
+  padding-left: var(--bq-pad);
+  padding-right: var(--bq-pad);
+  color: color-mix(in srgb, var(--label-primary) 75%, transparent);
+}
+.mdpm-editor .cm-line.md-bq-first {
+  border-top-left-radius: 6px;
+  border-top-right-radius: 6px;
+  padding-top: 6px;
+  margin-top: 6px;
+}
+.mdpm-editor .cm-line.md-bq-last {
+  border-bottom-left-radius: 6px;
+  border-bottom-right-radius: 6px;
+  padding-bottom: 6px;
+  margin-bottom: 6px;
+}

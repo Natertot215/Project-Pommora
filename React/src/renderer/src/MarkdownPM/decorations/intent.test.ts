@@ -84,4 +84,22 @@ describe('decoration intents', () => {
     const w2 = decorationsFor(t2, tokenize(t2), new Set(), 99).find((d) => d.kind === 'widget')
     expect(w2?.kind === 'widget' && w2.spec.type === 'checkbox' && w2.spec.checked).toBe(false)
   })
+
+  it('blockquote → md-bq line + permanently hidden marker; a lone line is first AND last', () => {
+    const t = '> quote'
+    const intents = decorationsFor(t, tokenize(t), new Set(), 0) // caret on the line — still hidden
+    const line = intents.find((d) => d.kind === 'line')
+    expect(line?.kind === 'line' && line.className).toBe('md-bq md-bq-first md-bq-last')
+    expect(intents.some((d) => d.kind === 'hide' && d.from === 0 && d.to === 2)).toBe(true) // "> "
+  })
+
+  it('multi-line blockquote → only the outer lines round (first vs last)', () => {
+    const t = '> a\n> b'
+    const lines = decorationsFor(t, tokenize(t), new Set(), 99).filter(
+      (d): d is Extract<typeof d, { kind: 'line' }> => d.kind === 'line'
+    )
+    expect(lines).toHaveLength(2)
+    expect(lines[0].className).toBe('md-bq md-bq-first')
+    expect(lines[1].className).toBe('md-bq md-bq-last')
+  })
 })

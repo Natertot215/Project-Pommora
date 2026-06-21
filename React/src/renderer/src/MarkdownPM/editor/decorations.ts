@@ -104,10 +104,13 @@ function build(view: EditorView): DecorationSet {
   const ranges: Range<Decoration>[] = []
   for (const it of decorationsFor(text, tokens, active, sel.head)) {
     if (it.kind === 'line') {
-      // The list nesting level rides as a CSS var the line + its marker zone both read.
-      ranges.push(
-        Decoration.line({ class: it.className, attributes: { style: `--li-level:${it.level}` } }).range(it.from)
-      )
+      // List lines carry a nesting level (a CSS var the line + marker zone read); other line chrome
+      // (blockquote card) has no level.
+      const spec =
+        it.level === undefined
+          ? { class: it.className }
+          : { class: it.className, attributes: { style: `--li-level:${it.level}` } }
+      ranges.push(Decoration.line(spec).range(it.from))
       continue
     }
     if (it.to <= it.from) continue

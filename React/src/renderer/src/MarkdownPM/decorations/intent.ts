@@ -4,12 +4,20 @@
 // into real CM6 decorations; keeping this layer pure data means it's unit-testable without an
 // editor and the behavior layer never holds a CSS literal — only class names + widget specs.
 import type { Token, TokenKind } from '../tokens'
-import { isThematicBreakLine, isHeadingLine, isDashBulletLine, isOrderedListLine, hasCheckbox } from '../detect'
+import {
+  isThematicBreakLine,
+  isHeadingLine,
+  isDashBulletLine,
+  isOrderedListLine,
+  isBlockquoteLine,
+  hasCheckbox
+} from '../detect'
 
 const HEADING_RE = /^(\s{0,3})(#{1,6})([ \t]+)(.*)$/
 const BULLET_RE = /^([ \t]*)(-[ \t]+)/
 const ORDERED_RE = /^([ \t]*)(\d+)\.[ \t]+/
 const CHECKBOX_RE = /^([ \t]*)[-*+][ \t]*(\[[ xX]\])[ \t]+/d
+const BLOCKQUOTE_RE = /^[ \t]*(?:>[ \t]?)+/
 
 /** Source-indent → visual nesting level (`level = tabs + ⌊spaces/2⌋`, capped at 3 — spec §6.2). */
 function indentLevel(ws: string): number {
@@ -30,9 +38,9 @@ export type DecoIntent =
   | { kind: 'class'; from: number; to: number; className: string }
   | { kind: 'hide'; from: number; to: number }
   | { kind: 'widget'; from: number; to: number; spec: WidgetSpec }
-  /** A whole-line decoration (`from` = line start). Carries the list nesting level so the
-   *  stylesheet can apply per-level indent + the hanging indent that flushes wrapped lines. */
-  | { kind: 'line'; from: number; className: string; level: number }
+  /** A whole-line decoration (`from` = line start). `level` (lists only) rides as a CSS var for
+   *  the per-level indent; omit it for non-list line chrome (e.g. the blockquote card). */
+  | { kind: 'line'; from: number; className: string; level?: number }
 
 /** Inline token kind → the Styles.css class applied to its content. */
 const CONTENT_CLASS: Partial<Record<TokenKind, string>> = {
@@ -65,8 +73,10 @@ export function decorationsFor(text: string, tokens: Token[], active: Set<number
     }
   })
 
+  const lines = text.split('\n')
   let pos = 0
-  for (const line of text.split('\n')) {
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]
     const ls = pos
     const le = pos + line.length
     const caretOnLine = selStart >= ls && selStart <= le
@@ -108,6 +118,17 @@ export function decorationsFor(text: string, tokens: Token[], active: Set<number
       if (om) {
         intents.push({ kind: 'line', from: ls, className: 'md-li', level: indentLevel(om[1]) })
         intents.push({ kind: 'widget', from: ls, to: ls + om[0].length, spec: { type: 'ordered', label: `${om[2]}.` } })
+      }
+    } else if (isBlockquoteLine(line)) {
+      // Always-show card (not caret-aware): the `>` markers are permanently hidden; first/last lines
+      // round the card's corners so a run of quote lines reads as one continuous box.
+      const bm = BLOCKQUOTE_RE.exec(line)
+      if (bm) {
+        const first = i === 0 || !isBlockquoteLine(lines[i - 1])
+        const last = i === lines.length - 1 || !isBlockquoteLine(lines[i + 1])
+        const className = `md-bq${first ? ' md-bq-first' : ''}${last ? ' md-bq-last' : ''}`
+        intents.push({ kind: 'line', from: ls, className })
+        intents.push({ kind: 'hide', from: ls, to: ls + bm[0].length })
       }
     } else if (isThematicBreakLine(line) && !caretOnLine) {
       intents.push({ kind: 'widget', from: ls, to: le, spec: { type: 'hr' } })
