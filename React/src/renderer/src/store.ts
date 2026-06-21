@@ -65,12 +65,13 @@ interface SessionState {
   renamingPath: string | null
   beginRename: (path: string) => void
   cancelRename: () => void
-  /** Commit an inline rename via the mutate op, then refetch (selection reconciles the path). */
-  submitRename: (path: string, kind: MutableKind, newName: string) => Promise<void>
+  /** Commit an inline rename via the mutate op, then refetch (selection reconciles the path).
+   *  Resolves `true` on success, `false` if the op failed (so a caller can revert its draft). */
+  submitRename: (path: string, kind: MutableKind, newName: string) => Promise<boolean>
   /** The one write path: run a mutate op, surface its error or refetch on success. On a create,
    *  the new entity is handed to `onCreated` (to select it, begin-renaming it, …). Every sidebar
-   *  mutation — drops, renames, creates — routes through here. */
-  mutate: (req: MutateRequest, onCreated?: (created: { id: string; path: string }) => void | Promise<void>) => Promise<void>
+   *  mutation — drops, renames, creates — routes through here. Resolves the op's success. */
+  mutate: (req: MutateRequest, onCreated?: (created: { id: string; path: string }) => void | Promise<void>) => Promise<boolean>
 }
 
 export const useSession = create<SessionState>((set, get) => {
@@ -237,16 +238,17 @@ export const useSession = create<SessionState>((set, get) => {
     cancelRename: () => set({ renamingPath: null }),
     submitRename: async (path, kind, newName) => {
       set({ renamingPath: null }) // exit edit mode immediately, regardless of outcome
-      await get().mutate({ op: 'rename', path, kind, newName })
+      return get().mutate({ op: 'rename', path, kind, newName })
     },
     mutate: async (req, onCreated) => {
       const res = await window.nexus.mutate(req)
       if (!res.ok) {
         await window.nexus.showError(res.error.message)
-        return
+        return false
       }
       await get().load() // refetch; reconcileSelection refreshes a moved/renamed page's path
       if (res.created && onCreated) await onCreated(res.created)
+      return true
     }
   }
 })

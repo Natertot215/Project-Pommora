@@ -42,7 +42,7 @@ export function PageView(): React.JSX.Element {
           key={pageDetail.path}
           initialBody={pageDetail.body}
           title={pageDetail.title}
-          onRename={(newName) => void submitRename(pageDetail.path, 'page', newName)}
+          onRename={(newName) => submitRename(pageDetail.path, 'page', newName)}
           onChange={(body) => scheduleSave(pageDetail.path, body)}
         />
       )

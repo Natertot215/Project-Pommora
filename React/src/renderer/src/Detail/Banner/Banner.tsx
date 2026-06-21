@@ -13,7 +13,7 @@ const assetUrl = (rel: string): string => `nexus-asset://nexus/${encodeURI(rel)}
  */
 export function Banner({ owner }: { owner: BannerOwner }): React.JSX.Element {
   const mutate = useSession((s) => s.mutate)
-  const setBanner = (dataUrl: string | null): Promise<void> =>
+  const setBanner = (dataUrl: string | null): Promise<boolean> =>
     mutate({ op: 'setBanner', path: owner.path, kind: owner.kind, dataUrl })
 
   const addOrChange = async (): Promise<void> => {

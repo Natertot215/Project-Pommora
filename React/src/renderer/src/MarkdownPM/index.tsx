@@ -20,8 +20,9 @@ interface Props {
   onChange: (body: string) => void
   /** Page title (= filename). Omit to render bodyless (no title bar). */
   title?: string
-  /** Commit a rename of the page's `.md` (host wires to the existing rename op). */
-  onRename?: (newName: string) => void
+  /** Commit a rename of the page's `.md` (host wires to the existing rename op). Resolves the op's
+   *  success so the title bar can revert its draft on failure. */
+  onRename?: (newName: string) => void | Promise<boolean>
   /** Editor zoom (0–2, default 1.0 = 15pt). Wire a per-page value in later. */
   zoom?: number
 }
