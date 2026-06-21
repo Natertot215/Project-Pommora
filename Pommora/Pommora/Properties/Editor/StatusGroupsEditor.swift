@@ -71,7 +71,7 @@ struct StatusGroupsEditor: View {
             }
         } message: { _ in
             Text(
-                "Entities currently using this option will be re-grouped. Affected-entity count surfaces in a future v0.3.1.x patch."
+                "Entities currently using this option will be re-grouped."
             )
         }
     }

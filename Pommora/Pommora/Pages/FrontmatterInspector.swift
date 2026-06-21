@@ -97,8 +97,7 @@ final class FrontmatterInspectorViewModel {
 
 /// Live-editable frontmatter inspector for the editor's inspector panel.
 ///
-/// v0.3.0 Properties (Phase J.14): every property row is now a live editor
-/// backed by `PropertyEditorRow` — no more "Coming v0.3.0" placeholders.
+/// Every property row is a live editor backed by `PropertyEditorRow`.
 /// Picker edits commit immediately; free-text edits (number / url) debounce
 /// 300ms before triggering `onSave` with the mutated frontmatter.
 ///
