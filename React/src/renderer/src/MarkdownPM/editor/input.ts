@@ -47,9 +47,12 @@ const onBackspace = (view: EditorView): boolean => {
   return apply(view, smartBackspace(doc, s.from, s.to) ?? autoDelete(doc, s.from, s.to))
 }
 
+// Tab nests a list item; on any other line it's a no-op. Either way it ALWAYS returns true so the
+// key is consumed in the editor and never escapes to focus the sidebar.
 const onTab = (view: EditorView): boolean => {
   const s = view.state.selection.main
-  return apply(view, indentListOnTab(view.state.doc.toString(), s.from, s.to))
+  apply(view, indentListOnTab(view.state.doc.toString(), s.from, s.to))
+  return true
 }
 
 // Shift+Enter is the construct EXIT (spec §6.7): a plain newline, never a list/blockquote continue.
