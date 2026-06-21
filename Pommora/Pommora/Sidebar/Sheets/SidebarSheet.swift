@@ -7,10 +7,9 @@ import Foundation
 /// title (via `DefaultTitleResolver`) and flips the matching sidebar row
 /// into inline-rename mode. The retired `New*Sheet.swift` files (and their
 /// `.new*` cases) are gone. Only edit-affordance sheets remain:
-/// `editIcon`, `editColor`.
+/// `editIcon`.
 enum SidebarSheet: Identifiable {
     case editIcon(IconTarget)
-    case editColor(Area)
 
     /// Disambiguates the icon picker between entity kinds (each manager has its
     /// own updateIcon path).
@@ -42,7 +41,6 @@ enum SidebarSheet: Identifiable {
             case .savedView(let viewID, let containerID):
                 return "editIcon-savedView-\(containerID)-\(viewID)"
             }
-        case .editColor(let s): return "editColor-\(s.id)"
         }
     }
 }

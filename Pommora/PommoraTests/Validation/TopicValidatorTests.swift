@@ -39,7 +39,7 @@ struct TopicValidatorTests {
 
     private func makeArea(title: String) -> Area {
         Area(
-            id: ULID.generate(), title: title, color: .blue,
+            id: ULID.generate(), title: title,
             icon: nil, blocks: [], modifiedAt: Date())
     }
 }

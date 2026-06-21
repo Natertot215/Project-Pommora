@@ -31,7 +31,7 @@ struct IconBackfillTests {
         try Filesystem.createFolderWithMetadata(
             folderURL: NexusPaths.areaFolderURL(forTitle: "Personal", in: nexus),
             metadataURL: NexusPaths.areaMetadataURL(forTitle: "Personal", in: nexus),
-            metadata: Area(id: areaID, title: "Personal", color: nil, icon: "person", blocks: [], modifiedAt: Date())
+            metadata: Area(id: areaID, title: "Personal", icon: "person", blocks: [], modifiedAt: Date())
         )
 
         // --- Seed a PageType + a Page WITH an icon and tier1 = [Area]. ---

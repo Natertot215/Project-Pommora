@@ -16,7 +16,7 @@ struct Homepage: Codable, Equatable, Hashable, Sendable {
 
     static func defaultSeed() -> Homepage {
         Homepage(
-            schemaVersion: 1,
+            schemaVersion: SchemaVersion.homepage,
             icon: "house",
             banner: nil,
             blocks: [],

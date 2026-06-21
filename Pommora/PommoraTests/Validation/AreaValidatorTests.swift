@@ -64,7 +64,6 @@ struct AreaValidatorTests {
         Area(
             id: ULID.generate(),
             title: title,
-            color: .blue,
             icon: nil,
             blocks: [],
             modifiedAt: Date()

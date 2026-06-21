@@ -112,7 +112,7 @@ struct ContextsSection: View {
             defer { isCreatingArea = false }
             do {
                 _ = try await CreateWithInlineEdit.run(
-                    create: { try await areaManager.create(name: title, color: nil, icon: nil) },
+                    create: { try await areaManager.create(name: title, icon: nil) },
                     onCreate: { editingID = $0.id; justCreatedID = $0.id }
                 )
             } catch { /* pendingError set by manager; toast surfaces */ }

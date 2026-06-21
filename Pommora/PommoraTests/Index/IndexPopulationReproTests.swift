@@ -89,7 +89,7 @@ struct IndexPopulationReproTests {
         try Filesystem.createFolderWithMetadata(
             folderURL: NexusPaths.areaFolderURL(forTitle: areaName, in: nexus),
             metadataURL: NexusPaths.areaMetadataURL(forTitle: areaName, in: nexus),
-            metadata: Area(id: areaID, title: areaName, color: nil, icon: nil, blocks: [], modifiedAt: Date())
+            metadata: Area(id: areaID, title: areaName, icon: nil, blocks: [], modifiedAt: Date())
         )
 
         // --- Seed a VALID Topic (tier 2). ---

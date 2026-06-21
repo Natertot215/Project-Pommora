@@ -18,7 +18,6 @@ struct AreaFileTests {
         let original = Area(
             id: "01HX2K6Z3V4Y5W6X7Y8Z9A0B1C",
             title: "Personal",
-            color: .blue,
             icon: "person.circle",
             blocks: [],
             modifiedAt: Date(timeIntervalSince1970: 1716480000)
@@ -43,7 +42,6 @@ struct AreaFileTests {
         let area = Area(
             id: "01HX",
             title: "Work",
-            color: .green,
             icon: nil,
             blocks: [],
             modifiedAt: Date()
@@ -66,7 +64,6 @@ struct AreaFileTests {
         let area = Area(
             id: "01H",
             title: "Academics",
-            color: .red,
             icon: "book.closed",
             blocks: [],
             modifiedAt: Date()
@@ -88,7 +85,6 @@ struct AreaFileTests {
         let area = Area(
             id: "01H",
             title: "Side Projects",
-            color: .purple,
             icon: nil,
             blocks: [],
             modifiedAt: Date()

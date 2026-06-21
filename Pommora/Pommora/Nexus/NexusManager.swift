@@ -82,7 +82,7 @@ final class NexusManager {
         // ("test runner hung before establishing connection"), besides interrupting
         // the user. Unit tests build their own temporary nexuses, so skipping
         // launch-restore here is safe. Real app launches never set this var.
-        if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil { return }
+        if ProcessInfo.isRunningXCTests { return }
         LaunchTrace.mark("loadOnLaunch: enter")
 
         let stateURL: URL
@@ -491,7 +491,7 @@ final class NexusManager {
     /// under XCTest (a modal panel would block the test runner).
     @discardableResult
     private func ensureParentAccess(for nexus: Nexus, promptIfMissing: Bool = true) async -> Bool {
-        if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil { return false }
+        if ProcessInfo.isRunningXCTests { return false }
 
         let parent = nexus.rootURL.deletingLastPathComponent().standardizedFileURL
         let stateURL: URL
@@ -560,7 +560,7 @@ final class NexusManager {
         let newName = rawName.trimmingCharacters(in: .whitespacesAndNewlines)
         let oldName = nexus.rootURL.lastPathComponent
         guard !newName.isEmpty, newName != oldName, !newName.hasPrefix("."),
-            !newName.contains(where: { $0 == "/" || $0 == ":" })
+            newName.allSatisfy({ !FilenameSafety.invalidCharacters.contains($0) })
         else { return }
 
         guard await ensureParentAccess(for: nexus) else {

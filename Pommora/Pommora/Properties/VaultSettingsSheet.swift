@@ -495,7 +495,7 @@ private struct VaultSettingsNewPropertyConfig: View {
                     SelectOptionsEditor(
                         options: $vm.pendingSelectOptions,
                         onAddOption: {
-                            let value = ULID.generate()
+                            let value = "opt_\(ULID.generate())"
                             vm.pendingSelectOptions.append(
                                 .init(value: value, label: "New option", color: nil)
                             )

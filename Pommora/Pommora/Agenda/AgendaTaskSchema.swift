@@ -83,7 +83,7 @@ struct AgendaTaskSchema: Codable, Equatable, Hashable, Sendable {
 
     static func defaultSeed() -> AgendaTaskSchema {
         AgendaTaskSchema(
-            schemaVersion: 1,
+            schemaVersion: SchemaVersion.agendaTask,
             icon: "checkmark.circle",
             properties: [
                 PropertyDefinition(

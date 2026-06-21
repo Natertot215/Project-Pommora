@@ -35,7 +35,7 @@ enum NexusStore {
     /// Nexus bookmark with it. One central divert isolates every app-state
     /// path at once.
     static func applicationSupportDir() throws -> URL {
-        if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil {
+        if ProcessInfo.isRunningXCTests {
             let dir = FileManager.default.temporaryDirectory
                 .appendingPathComponent(
                     "pommora-test-appsupport-\(ProcessInfo.processInfo.processIdentifier)",

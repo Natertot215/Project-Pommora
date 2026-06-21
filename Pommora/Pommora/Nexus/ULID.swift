@@ -13,14 +13,16 @@ import Foundation
 ///
 /// Spec: https://github.com/ulid/spec
 enum ULID {
-    private static let alphabet: [Character] = Array("0123456789ABCDEFGHJKMNPQRSTVWXYZ")
+    private nonisolated static let alphabet: [Character] = Array("0123456789ABCDEFGHJKMNPQRSTVWXYZ")
 
     /// Generates a new ULID. Pass `at:` only in tests for deterministic timestamps.
-    static func generate(at date: Date = .now) -> String {
+    /// `nonisolated` — pure (timestamp + randomness), so it's callable from the
+    /// off-main index-build paths, not just the default-isolated main actor.
+    nonisolated static func generate(at date: Date = .now) -> String {
         encodeTimestamp(UInt64(date.timeIntervalSince1970 * 1000)) + encodeRandom()
     }
 
-    private static func encodeTimestamp(_ timestamp: UInt64) -> String {
+    private nonisolated static func encodeTimestamp(_ timestamp: UInt64) -> String {
         var result = ""
         result.reserveCapacity(10)
         for position in (0..<10).reversed() {
@@ -30,7 +32,7 @@ enum ULID {
         return result
     }
 
-    private static func encodeRandom() -> String {
+    private nonisolated static func encodeRandom() -> String {
         let bytes: [UInt8] = (0..<10).map { _ in UInt8.random(in: 0...255) }
 
         var bits: UInt64 = 0

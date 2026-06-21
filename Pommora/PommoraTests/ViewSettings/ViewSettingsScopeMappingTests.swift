@@ -40,7 +40,7 @@ struct ViewSettingsScopeMappingTests {
     @Test("area selection maps to .area scope")
     func areaMapsToArea() {
         let s = Area(
-            id: "01HSPACE", title: "Personal", color: nil, icon: nil,
+            id: "01HSPACE", title: "Personal", icon: nil,
             blocks: [], modifiedAt: Date()
         )
         let scope = ContentView.viewSettingsScope(for: .area(s))

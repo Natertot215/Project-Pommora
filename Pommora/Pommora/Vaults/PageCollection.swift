@@ -57,7 +57,7 @@ struct PageCollection: Codable, Equatable, Identifiable, Hashable, Sendable {
         title: String,
         folderURL: URL,
         modifiedAt: Date,
-        schemaVersion: Int = 1,
+        schemaVersion: Int = SchemaVersion.pageCollection,
         icon: String? = nil,
         pageOrder: [String]? = nil,
         setOrder: [String]? = nil,
