@@ -228,26 +228,52 @@
   border-bottom: 1.5px solid var(--separator-border);
 }
 
-/* Blockquote — an always-show card (the `>` markers are hidden). Each quote line carries the fill +
-   left bar; consecutive lines' boxes abut into one continuous card, and the first/last lines round
-   the outer corners. Text reads at ~75% of body. High specificity to beat CM6's base `.cm-line`. */
+/* Blockquote — an always-show card (the `>` markers are hidden). The FILL is the line background;
+   the BAR is a ::before that paints OVER the fill but UNDER the text (z-index: -1 inside the line's
+   own stacking context), so the bar always sits in front of the fill. Consecutive lines abut into
+   one card; first/last round the fill's RIGHT corners (the left tucks under the bar) and cap the bar.
+   ===== BLOCKQUOTE KNOBS =====
+     --bar-width / --bar-color / --bar-radius : the left bar (radius = cap rounding)
+     --bg-color / --bg-radius                 : the fill (radius = right-corner rounding) */
 .mdpm-editor .cm-line.md-bq {
-  --bq-pad: 14px;
-  background: var(--surface-tertiary);
-  border-left: 4px solid var(--label-secondary);
-  padding-left: var(--bq-pad);
-  padding-right: var(--bq-pad);
+  --bar-width: 4px;
+  --bar-color: var(--label-tertiary);
+  --bar-radius: 2px;
+  --bg-color: var(--fill-tertiary);
+  --bg-radius: 6px;
+
+  position: relative;
+  isolation: isolate;
+  padding-left: 16px;
+  padding-right: 14px;
+  background: var(--bg-color);
   color: color-mix(in srgb, var(--label-primary) 75%, transparent);
 }
+.mdpm-editor .cm-line.md-bq::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: var(--bar-width);
+  background: var(--bar-color);
+  z-index: -1;
+}
 .mdpm-editor .cm-line.md-bq-first {
-  border-top-left-radius: 6px;
-  border-top-right-radius: 6px;
+  border-top-right-radius: var(--bg-radius);
   padding-top: 6px;
   margin-top: 6px;
 }
+.mdpm-editor .cm-line.md-bq-first::before {
+  border-top-left-radius: var(--bar-radius);
+  border-top-right-radius: var(--bar-radius);
+}
 .mdpm-editor .cm-line.md-bq-last {
-  border-bottom-left-radius: 6px;
-  border-bottom-right-radius: 6px;
+  border-bottom-right-radius: var(--bg-radius);
   padding-bottom: 6px;
   margin-bottom: 6px;
+}
+.mdpm-editor .cm-line.md-bq-last::before {
+  border-bottom-left-radius: var(--bar-radius);
+  border-bottom-right-radius: var(--bar-radius);
 }

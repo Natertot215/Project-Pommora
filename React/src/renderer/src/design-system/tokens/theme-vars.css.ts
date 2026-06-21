@@ -27,6 +27,11 @@ globalStyle(':root', {
     '--surface-primary': colorVars.color.surface.primary,
     '--surface-secondary': colorVars.color.surface.secondary,
     '--surface-tertiary': colorVars.color.surface.tertiary,
+    // Overlay fills (system-grey ramp) — used for cards/chips over a surface.
+    '--fill-primary': colorVars.color.fill.primary,
+    '--fill-secondary': colorVars.color.fill.secondary,
+    '--fill-tertiary': colorVars.color.fill.tertiary,
+    '--fill-quaternary': colorVars.color.fill.quaternary,
     '--separator-border': colorVars.color.separator.border,
     // Interaction states (Figma "States") — system-grey at hover 2.5% / selected 5%.
     '--state-hover': colorVars.color.state.hover,
