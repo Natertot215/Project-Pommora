@@ -130,17 +130,37 @@
 /* LIST SPACING knobs:
      --bullet-indent : list indent (× nesting level; marker + text move together)
      --gap           : space between marker and text
-     --li-zone       : marker-slot width (markers right-align; a wide one overflows left, not into text) */
+     --li-zone       : marker-slot width (the gutter the marker hangs in)
+   Markers are EDITABLE source — the `-` hides and a • is drawn by ::before; the ordered `N.` is
+   literal recoloured source hung into the gutter; only the checkbox is a widget. */
 .mdpm-editor .cm-line.md-li {
   --bullet-indent: 20px;
   --gap: 4px;
   --li-zone: 16px;
   --li-col: calc((var(--li-level, 0) + 1) * var(--bullet-indent));
+  position: relative;
   padding-left: calc(var(--li-col) + var(--li-zone));
+  /* Ordered numbers + the checkbox chip hang into the gutter via the negative first-line indent. */
   text-indent: calc(-1 * var(--li-zone));
 }
+/* Bullets draw their glyph as an overlay (::before), so the text line is NOT pulled back. */
+.mdpm-editor .cm-line.md-li-bullet {
+  text-indent: 0;
+}
+.mdpm-editor .cm-line.md-li-bullet::before {
+  content: '•';
+  position: absolute;
+  left: var(--li-col);
+  width: var(--li-zone);
+  box-sizing: border-box;
+  padding-right: var(--gap);
+  text-align: right;
+  color: color-mix(in srgb, var(--label-primary) 80%, transparent);
+  font-size: 1.25em;
+  line-height: 1.6;
+}
 
-/* Marker zone — a fixed in-flow slot; markers right-align and sit `--gap` before the text. */
+/* Marker zone — the in-flow slot the checkbox chip sits in; right-aligned, `--gap` before the text. */
 .md-li-marker {
   display: inline-block;
   box-sizing: border-box;
@@ -151,13 +171,7 @@
   white-space: nowrap;
 }
 
-/* The bullet glyph (• in place of the source `-`). */
-.md-bullet {
-  font-size: 1.25em;
-  line-height: 1;
-}
-
-/* Ordered-list number — tabular figures so the periods align down the column. */
+/* Ordered-list number (literal source) — tabular figures so the periods align down the column. */
 .md-ol-marker {
   font-variant-numeric: tabular-nums;
 }

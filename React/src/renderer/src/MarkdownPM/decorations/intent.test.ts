@@ -54,18 +54,22 @@ describe('decoration intents', () => {
     )
   })
 
-  it('dash bullet → a bullet widget over the dash + a list line decoration', () => {
+  it('dash bullet → hidden dash (• drawn via ::before) + a bullet list line, no widget', () => {
     const t = '- item'
     const intents = decorationsFor(t, tokenize(t), new Set(), 99)
-    expect(intents.some((d) => d.kind === 'widget' && d.spec.type === 'bullet')).toBe(true)
-    expect(intents.some((d) => d.kind === 'line' && d.className === 'md-li' && d.level === 0)).toBe(true)
+    expect(intents.some((d) => d.kind === 'line' && d.className === 'md-li md-li-bullet' && d.level === 0)).toBe(true)
+    expect(intents.some((d) => d.kind === 'hide' && d.from === 0 && d.to === 1)).toBe(true) // just the "-"
+    expect(intents.some((d) => d.kind === 'widget')).toBe(false)
   })
 
-  it('ordered list → an ordered widget carrying the number label + a list line', () => {
+  it('ordered list → number kept as literal source (recolour mark), no widget', () => {
     const t = '3. third'
     const intents = decorationsFor(t, tokenize(t), new Set(), 99)
-    expect(intents.some((d) => d.kind === 'widget' && d.spec.type === 'ordered' && d.spec.label === '3.')).toBe(true)
+    expect(
+      intents.some((d) => d.kind === 'class' && d.className === 'md-ol-marker md-syntax' && d.from === 0 && d.to === 2)
+    ).toBe(true)
     expect(intents.some((d) => d.kind === 'line' && d.className === 'md-li')).toBe(true)
+    expect(intents.some((d) => d.kind === 'widget')).toBe(false)
   })
 
   it('nested bullet → line decoration carries the indent level (2 spaces = 1, tab = 1)', () => {

@@ -38,11 +38,10 @@ function scanFencedCode(lines: string[], lineStarts: number[]): (FenceInfo | und
   return out
 }
 
-/** A widget to draw in place of source text, with the data its renderer needs. */
+/** A widget to draw in place of source text, with the data its renderer needs. Bullets + ordered
+ *  numbers are NOT widgets — they render from their own (hidden / recoloured) source. */
 export type WidgetSpec =
   | { type: 'hr' }
-  | { type: 'bullet' }
-  | { type: 'ordered'; label: string }
   | { type: 'checkbox'; bracketFrom: number; bracketTo: number; checked: boolean }
 
 export type DecoIntent =
@@ -112,21 +111,27 @@ export function decorationsFor(text: string, tokens: Token[], active: Set<number
         if (!caretOnLine) intents.push({ kind: 'hide', from: ls, to: contentStart })
       }
     } else if (lm?.kind === 'checkbox' && lm.box) {
-      // Nesting comes from the line's padding (md-li + level), so the prefix is replaced whole.
+      // Indent + the leading `- ` hide; the chip widget replaces only the `[ ]` bracket (interactive,
+      // the one legitimate widget). The trailing space stays as editable source.
       intents.push({ kind: 'line', from: ls, className: 'md-li', level: lm.level })
+      intents.push({ kind: 'hide', from: ls, to: ls + lm.box.start })
       intents.push({
         kind: 'widget',
-        from: ls,
-        to: ls + lm.contentStart,
+        from: ls + lm.box.start,
+        to: ls + lm.box.end,
         spec: { type: 'checkbox', bracketFrom: ls + lm.box.start, bracketTo: ls + lm.box.end, checked: lm.checked ?? false }
       })
     } else if (lm?.kind === 'bullet' && lm.bullet === '-' && !lm.box) {
-      // Only a bare `-` bullet substitutes the • glyph (other bullet chars render literally).
-      intents.push({ kind: 'line', from: ls, className: 'md-li', level: lm.level })
-      intents.push({ kind: 'widget', from: ls, to: ls + lm.contentStart, spec: { type: 'bullet' } })
+      // Hide indent + the `-` only (NOT the trailing space — that stays editable source so the caret
+      // sits after the marker). The • glyph is drawn by `.md-li-bullet::before`.
+      intents.push({ kind: 'line', from: ls, className: 'md-li md-li-bullet', level: lm.level })
+      intents.push({ kind: 'hide', from: ls, to: ls + lm.markerEnd })
     } else if (lm?.kind === 'ordered') {
+      // The `N.` stays as literal, editable source (recoloured); only the indent hides. No widget,
+      // so typing a space after the number can't collide with an atomic range.
       intents.push({ kind: 'line', from: ls, className: 'md-li', level: lm.level })
-      intents.push({ kind: 'widget', from: ls, to: ls + lm.contentStart, spec: { type: 'ordered', label: `${lm.digits ?? ''}.` } })
+      if (lm.markerStart > 0) intents.push({ kind: 'hide', from: ls, to: ls + lm.markerStart })
+      intents.push({ kind: 'class', from: ls + lm.markerStart, to: ls + lm.markerEnd, className: 'md-ol-marker md-syntax' })
     } else if (isBlockquoteLine(line)) {
       // Always-show card (not caret-aware): `>` markers stay hidden; first/last round the corners.
       const bm = blockquotePrefixRe.exec(line)

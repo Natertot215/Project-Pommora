@@ -18,35 +18,6 @@ class HrWidget extends WidgetType {
   }
 }
 
-class BulletWidget extends WidgetType {
-  eq(): boolean {
-    return true
-  }
-  toDOM(): HTMLElement {
-    const el = document.createElement('span')
-    el.className = 'md-li-marker md-bullet md-syntax'
-    el.textContent = '•'
-    return el
-  }
-}
-
-/** An ordered-list marker, rendered literally. Sits in the shared marker zone so list text aligns
- *  across bullet/ordered/checkbox types. */
-class OrderedWidget extends WidgetType {
-  constructor(readonly label: string) {
-    super()
-  }
-  eq(o: OrderedWidget): boolean {
-    return o.label === this.label
-  }
-  toDOM(): HTMLElement {
-    const el = document.createElement('span')
-    el.className = 'md-li-marker md-ol-marker md-syntax'
-    el.textContent = this.label
-    return el
-  }
-}
-
 /** Reuses the `chipCheckbox` visual + nexus accent when checked; clicking toggles the underlying
  *  `[ ]` ↔ `[x]` source in one transaction (native undo). */
 class CheckboxWidget extends WidgetType {
@@ -82,10 +53,6 @@ function widgetFor(spec: WidgetSpec): WidgetType {
   switch (spec.type) {
     case 'hr':
       return new HrWidget()
-    case 'bullet':
-      return new BulletWidget()
-    case 'ordered':
-      return new OrderedWidget(spec.label)
     case 'checkbox':
       return new CheckboxWidget(spec.bracketFrom, spec.bracketTo, spec.checked)
   }
