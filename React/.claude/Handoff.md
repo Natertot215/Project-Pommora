@@ -48,6 +48,8 @@ Discipline: a green commit per task; a live UIX pass with Nathan before any mile
 
 ### Pending focuses
 
+- **Sidebar disclosures don't persist** — expand/collapse state on sidebar rows resets on every reload; persist it via the `.nexus/`-local UI-state pattern (like `folds.json`).
+- **Tables + stats footer deferred (MarkdownPM)** — out-of-the-box editor tables and the hover stats footer (line/word/char + breadcrumb; `editor/textStats.ts` stub committed, unwired) are both deferred.
 - **Real design-system Components** (Button / Menu / Label / Separator) built from the finished token layer — the prerequisite for replacing ad-hoc one-offs (notably the inline-rename `<input>`, a guessed design) during the live UIX pass.
 - **Radius + spacing tokens** — corners (6–16px) + spacing are ad-hoc literals; formalize as scales from Figma.
 - **Settings editing UI** is deferred — `.nexus/settings.json` (labels + accent) is the control surface for now.
