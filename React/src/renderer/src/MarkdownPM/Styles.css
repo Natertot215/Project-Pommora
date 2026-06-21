@@ -119,6 +119,23 @@
 .md-connection {
   color: var(--connection);
 }
+/* Resolved → a real, clickable link. Phantom (no such page yet) + ambiguous (duplicate titles)
+   stay inert and read as muted. */
+.md-connection-resolved {
+  cursor: pointer;
+}
+.md-connection-resolved:hover {
+  text-decoration: underline;
+}
+.md-connection-phantom {
+  color: var(--label-secondary);
+  text-decoration: underline dotted;
+  text-underline-offset: 2px;
+}
+.md-connection-ambiguous {
+  color: var(--label-secondary);
+  text-decoration: underline wavy;
+}
 /* Block-embed placeholders — muted until live rendering lands */
 .md-latex,
 .md-image {

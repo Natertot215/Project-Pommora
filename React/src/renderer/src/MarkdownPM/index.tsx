@@ -7,6 +7,8 @@ import { history, historyKeymap, defaultKeymap } from '@codemirror/commands'
 import { markdown } from '@codemirror/lang-markdown'
 import { markdownDecorations } from './editor/decorations'
 import { markdownInput } from './editor/input'
+import { connectionClicks, connectionStatus } from './editor/connections'
+import type { ConnectionsApi } from './connections'
 import { TitleBar } from './TitleBar'
 import { ZOOM_DEFAULT, zoomFontSize } from './zoom'
 import './Styles.css'
@@ -25,14 +27,25 @@ interface Props {
   onRename?: (newName: string) => void | Promise<boolean>
   /** Editor zoom (0–2, default 1.0 = 15pt). Wire a per-page value in later. */
   zoom?: number
+  /** Connection resolution + navigation. Read live via a ref so tree changes take effect. */
+  connections?: ConnectionsApi
 }
 
-export function MarkdownEditor({ initialBody, onChange, title, onRename, zoom = ZOOM_DEFAULT }: Props): React.JSX.Element {
+export function MarkdownEditor({
+  initialBody,
+  onChange,
+  title,
+  onRename,
+  zoom = ZOOM_DEFAULT,
+  connections
+}: Props): React.JSX.Element {
   const host = useRef<HTMLDivElement>(null)
   const titleRef = useRef<HTMLDivElement>(null)
   const viewRef = useRef<EditorView | null>(null)
   const onChangeRef = useRef(onChange)
   onChangeRef.current = onChange
+  const connectionsRef = useRef(connections)
+  connectionsRef.current = connections
 
   useEffect(() => {
     const parent = host.current
@@ -47,6 +60,8 @@ export function MarkdownEditor({ initialBody, onChange, title, onRename, zoom = 
         markdown(),
         EditorView.lineWrapping,
         markdownDecorations,
+        connectionStatus(() => connectionsRef.current),
+        connectionClicks(() => connectionsRef.current),
         EditorView.updateListener.of((u) => {
           if (u.docChanged) onChangeRef.current(u.state.doc.toString())
         })

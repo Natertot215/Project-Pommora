@@ -1,6 +1,7 @@
-import { useRef } from 'react'
+import { useMemo, useRef } from 'react'
 import { useSession } from '../store'
 import { MarkdownEditor } from '../MarkdownPM'
+import { buildPageIndex, flattenPages, type ConnectionsApi } from '../MarkdownPM/connections'
 
 /** Idle window before an edit flushes to disk. */
 const SAVE_DEBOUNCE_MS = 400
@@ -15,7 +16,15 @@ export function PageView(): React.JSX.Element {
   const pageDetail = useSession((s) => s.pageDetail)
   const pageError = useSession((s) => s.pageError)
   const submitRename = useSession((s) => s.submitRename)
+  const tree = useSession((s) => s.tree)
+  const select = useSession((s) => s.select)
   const saveTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+
+  const connections = useMemo<ConnectionsApi | undefined>(() => {
+    if (!tree) return undefined
+    const idx = buildPageIndex(flattenPages(tree))
+    return { ...idx, open: (page) => void select({ kind: 'page', id: page.id, path: page.path }) }
+  }, [tree, select])
 
   const scheduleSave = (path: string, body: string): void => {
     if (saveTimer.current) clearTimeout(saveTimer.current)
@@ -44,6 +53,7 @@ export function PageView(): React.JSX.Element {
           title={pageDetail.title}
           onRename={(newName) => submitRename(pageDetail.path, 'page', newName)}
           onChange={(body) => scheduleSave(pageDetail.path, body)}
+          connections={connections}
         />
       )
   }
