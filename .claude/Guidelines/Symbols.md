@@ -21,7 +21,7 @@ A future per-Nexus icon config mirrors this table — an in-app **Symbol Setting
 | Homepage (Pinned section) | `house` |
 | Calendar (Pinned section) | `calendar` |
 | Recents (Pinned section) | *(TBD — leave blank for now)* |
-| NavDropdown trigger (toolbar) | `square.on.square` |
+| Navigation trigger (toolbar) | `square.on.square` |
 | Inspector toggle (toolbar) | `sidebar.trailing` |
 | Sidebar toggle (toolbar) | *(system-provided by `NavigationSplitView`)* |
 | Back / forward arrows (toolbar) | `chevron.left` / `chevron.right` |

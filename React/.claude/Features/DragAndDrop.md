@@ -1,6 +1,6 @@
 ## Drag and Drop — PommoraDND
 
-Pommora's drag-and-drop is an **in-house engine, PommoraDND**, built to replace `@dnd-kit/*`. It owns the interaction layer the way `MarkdownPM` owns the editor layer — leaning on the external library first to learn the problem, then rebuilding a leaner equivalent scoped to our reality (Chromium-only via Electron, React-only, a known set of surfaces). It lives behind a **thin seam** so the engine is swappable without touching callers. The build plan, phase ladder, and the dnd-kit dissection that grounds it live at `Planning/PommoraDND-Research.md`; this doc is the durable spec of the system.
+Pommora's drag-and-drop is an **in-house engine, PommoraDND**, built to replace `@dnd-kit/*`. It owns the interaction layer the way `MarkdownPM` owns the editor layer — leaning on the external library first to learn the problem, then rebuilding a leaner equivalent scoped to our reality (Chromium-only via Electron, React-only, a known set of surfaces). It lives behind a **thin seam** so the engine is swappable without touching callers. This doc is the durable spec of the system.
 
 ### The seam
 
@@ -41,7 +41,7 @@ The **Interaction Lab** (`design-system/interactions/`, served via `npm run show
 
 ### Relationship to dnd-kit
 
-`@dnd-kit/*` has been **fully replaced and uninstalled** — PommoraDND is the drag engine, with no `@dnd-kit` dependency or import anywhere. It was **not** a 1:1 reimplementation — it deliberately drops generality we don't need (the framework-agnostic core, three input sensors, four collision strategies, the modifier pipeline, SSR guards, continuous re-measuring) and adds improvements dnd-kit lacks (pointer capture, hysteresis, no mid-drag array churn, a frame-accurate commit). The full kept/simplified/dropped ledger is in `Planning/PommoraDND-Research.md`.
+`@dnd-kit/*` has been **fully replaced and uninstalled** — PommoraDND is the drag engine, with no `@dnd-kit` dependency or import anywhere. It was **not** a 1:1 reimplementation — it deliberately drops generality we don't need (the framework-agnostic core, three input sensors, four collision strategies, the modifier pipeline, SSR guards, continuous re-measuring) and adds improvements dnd-kit lacks (pointer capture, hysteresis, no mid-drag array churn, a frame-accurate commit).
 
 Shared types (`Box` / `DropState` / `DragItem` / `DragNotify` / `Modifier`), the tuning constants, and the pure helpers (`toBox`, `px`) live in `shared.ts`, consumed by both `engine.tsx` and `group.tsx`. The two engines' drag-state and commit machinery stay separate — they model genuinely different interactions (in-place transform vs portal overlay), so only the shared primitives are hoisted.
 

@@ -318,7 +318,7 @@ Save-required + concurrent-open forbidden (only one Type's Settings sheet open a
 
 ##### 2. Vault / Type View Settings (per-view config)
 
-Per-view configuration via the consolidated `slider.horizontal.3` toolbar button popover at ContentView level. The button is statically positioned in the existing primary-action Liquid Glass capsule beside NavDropdown + Inspector toggle; its popover content adapts to the currently-selected surface via `ViewSettingsScope`.
+Per-view configuration via the consolidated `slider.horizontal.3` toolbar button popover at ContentView level. The button is statically positioned in the existing primary-action Liquid Glass capsule beside Navigation + Inspector toggle; its popover content adapts to the currently-selected surface via `ViewSettingsScope`.
 
 The popover is active-view-scoped (resolved via `ActiveViewStore`). Full pane spec → [[Views]] § "View Settings Panes".
 

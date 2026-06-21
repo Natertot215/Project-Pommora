@@ -21,10 +21,10 @@ struct ChipDropdown: View {
     var size: PropertyChip.Size = .standard
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: PUI.Spacing.xs) {
             ForEach(options) { opt in rowView(for: opt) }
         }
-        .padding(8)
+        .padding(PUI.Spacing.md)
         // Shared Liquid Glass panel surface (material fill + hairline + clip) —
         // always-on so the panel reads the same in any host context.
         .chipDropdownPanel()
@@ -80,7 +80,7 @@ private struct ChipDropdownRow: View {
     @State private var isHovered: Bool = false
 
     var body: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: PUI.Spacing.sm) {
             if showCheckbox {
                 PropertyCheckbox(
                     isChecked: Binding(get: { isSelected }, set: { _ in onPick() }),
@@ -90,7 +90,7 @@ private struct ChipDropdownRow: View {
                 )
             }
             Button(action: onPick) {
-                HStack(spacing: 4) {
+                HStack(spacing: PUI.Spacing.xs) {
                     PropertyChip(label: option.label, color: option.color, size: size)
                     Spacer(minLength: 0)
                 }
@@ -98,10 +98,10 @@ private struct ChipDropdownRow: View {
             }
             .buttonStyle(.plain)
         }
-        .padding(.horizontal, 4)
-        .padding(.vertical, 2)
+        .padding(.horizontal, PUI.Spacing.xs)
+        .padding(.vertical, PUI.Spacing.xxs)
         .background(
-            RoundedRectangle(cornerRadius: 6)
+            RoundedRectangle(cornerRadius: PUI.Radius.card)
                 .fill(isHovered ? Color(.textBackgroundColor).opacity(0.2) : .clear)
         )
         .onHover { isHovered = $0 }

@@ -32,7 +32,7 @@ struct LinkChip: View {
 
     var body: some View {
         Text(display)
-            .font(.system(size: 12))
+            .font(PUI.Typography.Fixed.f12)
             .foregroundStyle(Color.accentColor)
             .lineLimit(1)
             .help(url.absoluteString)

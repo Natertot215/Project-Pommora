@@ -1,0 +1,81 @@
+// PinnedManager.swift
+import Foundation
+import Observation
+import SwiftUI
+
+/// User-pinned entities surfaced in Navigation's Pinned tab. Insertion-order
+/// (drag-to-reorder via `move(fromOffsets:toOffset:)`); deduped by (kind, id).
+/// Persists to the shared `<nexus>/.nexus/state.json` alongside Recents.
+@MainActor
+@Observable
+final class PinnedManager {
+    private(set) var entries: [EntityStateRef] = []
+    var pendingError: (any Error)?
+
+    private let nexus: Nexus
+
+    init(nexus: Nexus) {
+        self.nexus = nexus
+    }
+
+    func load() async {
+        let url = NexusPaths.nexusStateURL(in: nexus)
+        guard FileManager.default.fileExists(atPath: url.path) else { return }
+        do {
+            let state = try AtomicJSON.decode(NexusState.self, from: url)
+            self.entries = state.pinned
+        } catch {
+            self.pendingError = error
+        }
+    }
+
+    func contains(_ ref: EntityStateRef) -> Bool {
+        entries.contains(ref)
+    }
+
+    /// Add if absent, remove if present (by (kind, id)).
+    func toggle(_ ref: EntityStateRef) {
+        if let idx = entries.firstIndex(of: ref) {
+            entries.remove(at: idx)
+        } else {
+            entries.append(ref)
+        }
+        Task { try? await save() }
+    }
+
+    /// SwiftUI `.onMove(perform:)` shape.
+    func move(fromOffsets source: IndexSet, toOffset destination: Int) {
+        entries.move(fromOffsets: source, toOffset: destination)
+        Task { try? await save() }
+    }
+
+    /// Refresh the denormalized title for a (kind, id) entry after a rename. Matches
+    /// by (kind, id) — NOT title — and replaces in place so order is preserved.
+    /// `EntityStateRef.kind` is a String; callers pass "page".
+    func updateTitle(for kind: String, id: String, to newTitle: String) {
+        guard let idx = entries.firstIndex(where: { $0.kind == kind && $0.id == id }) else { return }
+        entries[idx] = EntityStateRef(kind: entries[idx].kind, id: entries[idx].id, title: newTitle)
+        Task { try? await save() }
+    }
+
+    func save() async throws {
+        let url = NexusPaths.nexusStateURL(in: nexus)
+        try FileManager.default.createDirectory(
+            at: NexusPaths.nexusConfigDir(in: nexus),
+            withIntermediateDirectories: true
+        )
+        var state: NexusState
+        if FileManager.default.fileExists(atPath: url.path) {
+            state = (try? AtomicJSON.decode(NexusState.self, from: url)) ?? NexusState()
+        } else {
+            state = NexusState()
+        }
+        state.pinned = entries
+        do {
+            try AtomicJSON.write(state, to: url)
+        } catch {
+            self.pendingError = error
+            throw error
+        }
+    }
+}

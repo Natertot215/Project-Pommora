@@ -27,7 +27,7 @@ There are no wrapper folders on disk (see [[Architecture]]); the sidebar groups 
 
 ##### Pinned (top — no heading)
 
-Three fixed entries render at the top without a heading: Homepage opens the Homepage singleton (see [[Homepage]]); Calendar opens the Calendar detail surface, Tasks above and Events below, with right-click New Task / New Event for quick capture (see [[Agenda]]); Recents shows the NavDropdown's Recents store as a full-frame view (see [[NavDropdown]]). The section wrapper persists for the future user-pinning feature, gaining a "Saved" header when that ships; entry labels rename via Settings. User-pinning of arbitrary entities is post-v1 — the section gains its heading and "+" affordance then, and the three defaults become movable and removable.
+Three fixed entries render at the top without a heading: Homepage opens the Homepage singleton (see [[Homepage]]); Calendar opens the Calendar detail surface, Tasks above and Events below, with right-click New Task / New Event for quick capture (see [[Agenda]]); Recents shows the Navigation's Recents store as a full-frame view (see [[Navigation]]). The section wrapper persists for the future user-pinning feature, gaining a "Saved" header when that ships; entry labels rename via Settings. User-pinning of arbitrary entities is post-v1 — the section gains its heading and "+" affordance then, and the three defaults become movable and removable.
 
 ##### Contexts
 

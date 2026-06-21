@@ -1,35 +1,40 @@
 ## Framework — React Rebuild Roadmap
 
-The full program roadmap (with rationale, the two research workflows behind it, and the deferred frontier) lives at `// Projects // Project Pommora // .claude // Planning // 06-14-React-Rebuild-Roadmap.md`. This is the lean status view.
+Where the rebuild stands against Swift. The rebuild **goes as it goes** — no phase plan, no fixed sequence; it catches up to Swift, never ahead of it (the only intentional aheads are below). Shipped detail → `History.md`; session state → `Handoff.md`.
 
-### Scope (locked)
+Scope is the **core 7** — data · properties · connections · markdown · navigation · table · gallery — plus the deferred frontier (block editor, Agenda surfacing, Board/List/Cards renderers, settings UI, global search, LLM-chat inspector, OS integrations).
 
-The initial rebuild is the proven back half + the two shipped renderers + editor + navigation — **the "core 7"**, nothing from the spec-only frontier:
+### Rebuilt
 
-1. Data layer (incl. Task/Event entities — schema only, no surfacing)
-2. Properties
-3. Connections
-4. Markdown editor (a web editor — CodeMirror 6 is a candidate)
-5. Navigation 
-6. Table view
-7. Gallery view
+Carried over from Swift and working:
 
-**Deferred frontier** (post-core): block editor (Contexts-as-blocks + Homepage), Agenda surfacing + calendar sync, Board/List/Cards renderers, Settings editing UI, global search, LLM-chat inspector, type-to-find, OS integrations (Electron `Tray` covers basic menu-bar; a thin native Swift helper only if deeper hooks are wanted).
+- **Data layer** (headless) — CRUD, properties, connections + tier relations, SQLite index, Agenda.
+- **Read + navigation** — nexus walk → glass sidebar → selection/detail routing → the pure `filter → group → sort` view pipeline.
+- **Write path** — real Mac app; one `mutate` IPC, native right-click menus + ⌘N + inline rename, live index refresh + a file watcher.
+- **Sidebar** — full CRUD + drag-and-drop (every entity reorders; pages reparent across the tree).
+- **Container views** — Vault / Collection / Context / Homepage over a shared scaffold, with a pages table + image banners.
+- **Page editor (MarkdownPM)** — the dynamic-syntax CodeMirror 6 port; core constructs in (remainder under Pending).
+- **Design system** — tokenized (color primitives + accent + tint + typography + chips) + a live showcase.
+- **Glass + window chrome** — CSS frost material; traffic-lights-in-sidebar window.
+- **Drag engine (PommoraDND)** — the in-house sort/reorder substrate behind a swappable seam.
 
-### Phases
+### Pending
 
-Live phase status lives in `Handoff.md`. These are the phase definitions.
+Swift has these; React doesn't yet:
 
-- **Phase 1 — Window + glass sidebar (read-only skeleton):** Window + glass sidebar reading the test nexus via `readNexus` → IPC → store → recursive sidebar. No function.
-- **Phase 2 — Navigation function + views (read-only):** Selection → detail; page open + render (read-only); pure view pipeline; Table view; view switcher.
-- **Phase 3 — Write path:** Atomic write + order-preserving frontmatter merge; create/rename/move; the careful, tested write half.
-- **Phase 4 — Properties & Connections:** Discriminated property types + cell editors; `[[ ]]` links + rename cascade.
-- **Phase 5 — Page editor:** Controlled component, frontmatter↔body, debounced save, wikilink/embed decorations.
-- **Phase 6 — Contexts, settings, the frontier:** Deferred.
+- **Editor constructs** — callouts, wikilink 3-state resolution, image/latex, heading folding, the `[[` autocomplete panel, native context menu + stats footer.
+- **Page properties UI** — frontmatter inspector + per-type cell editors (data layer already done).
+- **Full view system** — Gallery renderer, the view switcher, and per-view Saved-View config (the Table renders today).
+- **Agenda surfacing** — Tasks/Events UI + calendar (data layer already done).
+- **Homepage widgets** — the composed-blocks dashboard surface.
+- **Contexts block editor** — the live, editable block surface for Areas / Topics / Projects.
+- **Settings editing UI** — `.nexus/settings.json` (labels + accent) gets a real editor.
 
-### Gates carried forward
+### Ahead
 
-- **Glass:** Apple-Regular CSS in place; `liquid-dom` shelved (experimental). Revisit when HTML-in-Canvas ships unflagged.
-- **Table is the historical risk** (failed twice in SwiftUI) — render it early and confirm before building outward. (Phase 2 brings it up now.)
-- **Two design forks already settled:** single-window-now-multi-window-ready; modernized TS-native on-disk format.
-- **Drag-and-drop is in-house (PommoraDND), not dnd-kit.** Built as design-system infrastructure in the Interaction Lab, behind a swappable seam; the drag/reorder substrate that navigation, the views, and the deferred block/dashboard renderers adopt as they're built. Spec → `Features/DragAndDrop.md`; plan → `Planning/PommoraDND-Research.md`.
+What React now has that Swift doesn't:
+
+- **Comment-preserving page writes** — the yaml Document API keeps foreign frontmatter keys *and* YAML comments; Swift's merge preserves keys but drops comments.
+- ** Disclosure Animations —** Disclosure animations on surfaces such as sidebars, in-page headings, and others have been and will continue to be used whereas the same is constrained to Swift’s frameworks on the Swift side; purely a visual advancement.
+- **Index-independent connections** — `[[link]]` resolution + rename cascade run on a pure in-memory Map, so the SQLite index is purely an accelerator; Swift's resolver + cascade require the index present and fresh.
+- **Single-source data-layer core** — one parameterized schema-ops, one folder-entity CRUD, one agenda CRUD, and one zod schema serving both strict and lenient reads, where Swift duplicates across services / managers / shapes. (Tracked for backport in Swift's `Swift-Improvements-from-React-Rebuild.md`.)
