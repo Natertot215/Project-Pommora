@@ -15,7 +15,8 @@
 - **Trust `xcodebuild`, not SourceKit** (stale "cannot find type" squiggles are normal — quirk #3).
 - New Swift files auto-include via `PBXFileSystemSynchronizedRootGroup` — no pbxproj edit needed (quirk #2). Revert any incidental SPM-reorder churn before commit (quirk #6).
 - Custom Codable signatures: `init(from decoder: any Decoder)` / `encode(to encoder: any Encoder)`; errors typed `(any Error)?` (quirk #5).
-- Branch: create `foundation-hardening` off the current `audit-comment-cleanup` HEAD (carries the committed comment-cleanup + audit doc).
+- Branch: **already on `foundation-hardening`** (HEAD carries the Chips→Components reorg + A1–B1). Do NOT create or switch branches; commit on the current branch.
+- Commits stage **explicit files by name** (`git add <path> <path>`), NEVER a directory or `-A` — a parallel session shares this tree.
 
 ---
 
@@ -231,7 +232,7 @@ default: return nil
 **Why:** `MultiSelectChips.allowsAddingOptions` has exactly one caller — `PropertyEditorRow.swift:190` — which passes `false`. The Properties spec forbids creating options by typing into a value picker, so the `addButton` + `draftNew` are dead in production.
 
 **Files:**
-- Modify: `Pommora/Pommora/Properties/Chips/MultiSelectChips.swift` (remove `:6`, `:8`, `:16-18`, `:40-56`)
+- Modify: `Pommora/Pommora/Components/Chips/MultiSelectChips.swift` (moved here in the Chips→Components reorg; locate members **by name** — pre-reorg line numbers are stale)
 - Modify: `Pommora/Pommora/Properties/PropertyEditorRow.swift:190`
 
 - [ ] **Step 1 — Re-confirm single caller:** `grep -rn "allowsAddingOptions" Pommora/Pommora --include="*.swift"` → only the definition + `PropertyEditorRow.swift:190`.
