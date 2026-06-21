@@ -1,4 +1,5 @@
 import { Icon } from '@renderer/design-system/symbols'
+import { GlassControls } from '@renderer/design-system/materials'
 import type { ConnPage } from './connections'
 
 interface Props {
@@ -18,7 +19,7 @@ export function AutocompletePanel({ candidates, index, left, top, query, onPick 
   if (candidates.length === 0) return null
   const matchLen = query.length
   return (
-    <div className="mdpm-ac" style={{ left, top }}>
+    <GlassControls className="mdpm-ac" style={{ left, top }}>
       {candidates.map((p, i) => (
         <div
           key={p.id}
@@ -35,6 +36,6 @@ export function AutocompletePanel({ candidates, index, left, top, query, onPick 
           </span>
         </div>
       ))}
-    </div>
+    </GlassControls>
   )
 }
