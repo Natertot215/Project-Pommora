@@ -48,6 +48,10 @@ export function PageView(): React.JSX.Element {
           onRename={(newName) => submitRename(pageDetail.path, 'page', newName)}
           onChange={(body) => scheduleSave(pageDetail.path, body)}
           connections={connections}
+          folds={{
+            load: async () => (await window.nexus.folds.get())[pageDetail.id] ?? [],
+            save: (keys) => void window.nexus.folds.set(pageDetail.id, keys)
+          }}
         />
       )
   }

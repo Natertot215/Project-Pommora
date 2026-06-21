@@ -6,6 +6,7 @@ import { markdown } from '@codemirror/lang-markdown'
 import { markdownDecorations } from './editor/decorations'
 import { markdownInput } from './editor/input'
 import { connectionClicks } from './editor/connections'
+import { markdownFolding, initialFoldEffects, initialFoldAnnotation, type FoldsApi } from './editor/folding'
 import { autocompleteQuery, connectionInsert } from './autocomplete'
 import { AutocompletePanel } from './AutocompletePanel'
 import type { ConnectionsApi, ConnPage } from './connections'
@@ -38,6 +39,7 @@ interface Props {
   onRename?: (newName: string) => void | Promise<boolean>
   zoom?: number
   connections?: ConnectionsApi
+  folds?: FoldsApi
 }
 
 export function MarkdownEditor({
@@ -46,7 +48,8 @@ export function MarkdownEditor({
   title,
   onRename,
   zoom = ZOOM_DEFAULT,
-  connections
+  connections,
+  folds
 }: Props): React.JSX.Element {
   const host = useRef<HTMLDivElement>(null)
   const titleRef = useRef<HTMLDivElement>(null)
@@ -55,6 +58,8 @@ export function MarkdownEditor({
   onChangeRef.current = onChange
   const connectionsRef = useRef(connections)
   connectionsRef.current = connections
+  const foldsRef = useRef(folds)
+  foldsRef.current = folds
 
   // CM6 extensions are built once at mount, so they read live state + actions through refs.
   const [ac, setAc] = useState<AcState | null>(null)
@@ -121,6 +126,7 @@ export function MarkdownEditor({
         EditorView.lineWrapping,
         markdownDecorations(() => connectionsRef.current),
         connectionClicks(() => connectionsRef.current),
+        markdownFolding((keys) => foldsRef.current?.save(keys)),
         EditorView.updateListener.of((u) => {
           if (u.docChanged) onChangeRef.current(u.state.doc.toString())
           if (u.docChanged || u.selectionSet) {
@@ -137,6 +143,11 @@ export function MarkdownEditor({
       ]
     })
     viewRef.current = view
+    // Restore this page's saved folds once the view exists (codeFolding's state field is ready).
+    void foldsRef.current?.load().then((keys) => {
+      const effects = initialFoldEffects(view.state.doc, keys)
+      if (effects.length) view.dispatch({ effects, annotations: initialFoldAnnotation.of(true) })
+    })
     const onScroll = (): void => {
       const t = titleRef.current
       if (t) t.style.transform = `translateY(${-Math.min(Math.max(view.scrollDOM.scrollTop, 0), TITLE_ZONE)}px)`

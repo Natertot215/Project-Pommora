@@ -1,4 +1,6 @@
 .mdpm-shell {
+  /* --fold-gutter: width of the heading-fold chevron column; title + body + divider all inset by it to stay aligned. */
+  --fold-gutter: 18px;
   position: relative;
   height: 100%;
   overflow: hidden;
@@ -51,14 +53,43 @@
   font-family: var(--font-family);
   font-size: 28px;
   font-weight: var(--weight-bold);
-  padding: 24px 0 14px;
+  padding: 24px 0 14px var(--fold-gutter);
 }
 .mdpm-title::placeholder {
   color: var(--label-tertiary);
 }
 .mdpm-divider {
   height: 1.25px;
+  margin-left: var(--fold-gutter);
   background: var(--separator-border);
+}
+
+/* HEADING FOLD — chevron in the left gutter. Chevron points right when folded, rotates down when open.
+   Visibility: persistent when folded (a closed section is a standing affordance); hover-only when open.
+   KNOBS: --fold-gutter (column width, on .mdpm-shell) · motion via --duration-fast / --ease-standard. */
+.mdpm-editor .cm-gutters {
+  background: transparent;
+  border: none;
+  color: var(--label-secondary);
+}
+.mdpm-editor .cm-foldGutter .cm-gutterElement {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--fold-gutter);
+}
+.mdpm-fold-chevron {
+  display: inline-flex;
+  cursor: pointer;
+  color: var(--label-secondary);
+  transition: transform var(--duration-fast) var(--ease-standard), opacity var(--duration-fast) var(--ease-standard);
+}
+.mdpm-fold-chevron.open {
+  transform: rotate(90deg);
+  opacity: 0;
+}
+.mdpm-editor .cm-gutters:hover .mdpm-fold-chevron.open {
+  opacity: 1;
 }
 
 .mdpm-editor .cm-line {
