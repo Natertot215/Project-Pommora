@@ -97,7 +97,7 @@ struct ViewsPanelRow: View {
                 .buttonStyle(.plain)
             }
         }
-        .padding(.vertical, 6)
+        .padding(.vertical, PUI.Spacing.sm)
         .frame(width: 180)
         .chipDropdownPanel()
     }

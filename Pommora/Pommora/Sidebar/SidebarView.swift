@@ -486,7 +486,7 @@ private struct UserSectionHeader: View {
                     }
                 }
         } else {
-            HStack(spacing: 4) {
+            HStack(spacing: PUI.Spacing.xs) {
                 Text(section.label)
                     .foregroundStyle(.secondary)
                 Spacer()
@@ -576,7 +576,7 @@ struct SelectableRow<Trailing: View>: View {
     var body: some View {
         // Pure content — tap + drag are driven by `List(selection:)` +
         // `.onMove` at the SidebarView level via the row's `.tag(...)`.
-        HStack(spacing: 8) {
+        HStack(spacing: PUI.Spacing.md) {
             Image(systemName: symbol)
                 .symbolRenderingMode(.monochrome)
                 .font(.system(size: 14, weight: .regular))
@@ -588,9 +588,9 @@ struct SelectableRow<Trailing: View>: View {
             Spacer(minLength: 0)
             trailing()
         }
-        .padding(.leading, 4)
+        .padding(.leading, PUI.Spacing.xs)
         .padding(.trailing, 0)
-        .padding(.vertical, 6)
+        .padding(.vertical, PUI.Spacing.sm)
         .frame(maxWidth: .infinity, alignment: .leading)
         .contentShape(Rectangle())
         .listRowInsets(EdgeInsets(top: 1, leading: 0, bottom: 1, trailing: 0))
@@ -604,8 +604,8 @@ struct SelectionChrome: View {
 
         var insets: EdgeInsets {
             switch self {
-            case .flat: return EdgeInsets(top: 2, leading: 11, bottom: 2, trailing: 11)
-            case .disclosure: return EdgeInsets(top: 2, leading: 0, bottom: 2, trailing: 11)
+            case .flat: return EdgeInsets(top: PUI.Spacing.xxs, leading: 11, bottom: PUI.Spacing.xxs, trailing: 11)
+            case .disclosure: return EdgeInsets(top: PUI.Spacing.xxs, leading: 0, bottom: PUI.Spacing.xxs, trailing: 11)
             }
         }
     }
@@ -615,7 +615,7 @@ struct SelectionChrome: View {
 
     var body: some View {
         if isSelected {
-            RoundedRectangle(cornerRadius: 6, style: .continuous)
+            RoundedRectangle(cornerRadius: PUI.Radius.card, style: .continuous)
                 .fill(Color(nsColor: .quaternarySystemFill))
                 .padding(style.insets)
         } else {
@@ -651,7 +651,7 @@ private struct SectionHeader<ExtraMenu: View>: View {
     }
 
     var body: some View {
-        HStack(spacing: 4) {
+        HStack(spacing: PUI.Spacing.xs) {
             Text(title)
                 .foregroundStyle(.secondary)
             Spacer()

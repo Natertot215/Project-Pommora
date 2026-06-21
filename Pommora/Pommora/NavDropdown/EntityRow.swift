@@ -12,11 +12,11 @@ struct EntityRow: View {
     @State private var hovering = false
 
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: PUI.Spacing.md) {
             Image(systemName: iconName)
                 .font(.system(size: 14))
                 .foregroundStyle(.secondary)
-                .frame(width: 18)
+                .frame(width: PUI.Icon.leadingFrame)
 
             Text(ref.title)
                 .lineLimit(1)
@@ -28,12 +28,12 @@ struct EntityRow: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
-        .padding(.vertical, 4)
-        .padding(.horizontal, 6)
+        .padding(.vertical, PUI.Spacing.xs)
+        .padding(.horizontal, PUI.Spacing.sm)
         .contentShape(Rectangle())
         .background(
-            RoundedRectangle(cornerRadius: 6)
-                .fill(hovering ? Color.primary.opacity(0.06) : Color.clear)
+            RoundedRectangle(cornerRadius: PUI.Radius.card)
+                .fill(PUI.Fill.hover(hovering))
         )
         .onHover { hovering = $0 }
         .contextMenu {

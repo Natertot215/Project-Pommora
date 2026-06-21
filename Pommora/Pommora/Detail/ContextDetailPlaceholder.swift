@@ -10,7 +10,7 @@ struct ContextDetailPlaceholder: View {
     let supportingLine: String?
 
     var body: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: PUI.Spacing.xl) {
             Image(systemName: icon)
                 .font(.system(size: 48))
                 .foregroundStyle(accent ?? .secondary)

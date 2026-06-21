@@ -12,7 +12,7 @@ struct FileAcceptEditor: View {
     @Binding var accept: String
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: PUI.Spacing.xs) {
             Text("Allowed MIME types (comma-separated, leave blank for any)")
                 .font(.caption)
                 .foregroundStyle(.secondary)

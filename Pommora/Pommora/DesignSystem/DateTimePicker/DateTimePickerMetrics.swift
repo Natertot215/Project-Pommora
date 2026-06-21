@@ -29,7 +29,6 @@ enum DateTimePickerMetrics {
     static let selectedFillOpacity: Double = 0.9
     static let betweenFillOpacity: Double = 0.15
     static let todayRingOpacity: Double = 0.55
-    static let hoverFillOpacity: Double = 0.06
 
     // Header month-step segmented control
     static let stepSegmentWidth: CGFloat = 22

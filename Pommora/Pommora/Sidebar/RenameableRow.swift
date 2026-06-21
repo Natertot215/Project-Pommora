@@ -58,7 +58,7 @@ struct RenameableRow<Trailing: View>: View {
     }
 
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: PUI.Spacing.md) {
             Image(systemName: symbol)
                 .symbolRenderingMode(.monochrome)
                 .font(.system(size: 14, weight: .regular))
@@ -98,9 +98,9 @@ struct RenameableRow<Trailing: View>: View {
             Spacer(minLength: 0)
             trailing()
         }
-        .padding(.leading, 2)
+        .padding(.leading, PUI.Spacing.xxs)
         .padding(.trailing, 0)
-        .padding(.vertical, 6)
+        .padding(.vertical, PUI.Spacing.sm)
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 }

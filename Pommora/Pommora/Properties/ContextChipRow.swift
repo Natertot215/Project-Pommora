@@ -16,7 +16,7 @@ struct ContextChipRow: View {
     var labelWidth: CGFloat = 100
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
+        HStack(alignment: .firstTextBaseline, spacing: PUI.Spacing.md) {
             Text(label)
                 .frame(width: labelWidth, alignment: .leading)
                 .foregroundStyle(.secondary)
@@ -26,7 +26,7 @@ struct ContextChipRow: View {
                     .foregroundStyle(.tertiary)
                     .font(.callout)
             } else {
-                HStack(spacing: 4) {
+                HStack(spacing: PUI.Spacing.xs) {
                     ForEach(Array(ids.enumerated()), id: \.offset) { _, id in
                         chip(id)
                     }

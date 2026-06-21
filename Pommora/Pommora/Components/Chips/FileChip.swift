@@ -23,7 +23,7 @@ struct FileChip: View {
                 .font(.system(size: 10, weight: .regular))
                 .foregroundStyle(PUI.Colors.labelSecondary)
             Text(truncated)
-                .font(.system(size: 12))
+                .font(PUI.Typography.Fixed.f12)
                 .foregroundStyle(PUI.Colors.labelPrimary)
                 .lineLimit(1)
                 .help(filename)

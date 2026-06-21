@@ -84,7 +84,7 @@ struct GalleryCard: View {
         }
         .frame(height: 110)
         .frame(maxWidth: .infinity)
-        .clipShape(RoundedRectangle(cornerRadius: 6))
+        .clipShape(RoundedRectangle(cornerRadius: PUI.Radius.card))
 
         if let coverMenu {
             area.contextMenu { coverMenu() }
@@ -128,8 +128,8 @@ struct GalleryCard: View {
             if let label = item.setLabel {
                 Text(label)
                     .font(.caption2)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
+                    .padding(.horizontal, PUI.Spacing.sm)
+                    .padding(.vertical, PUI.Spacing.xxs)
                     .background(Capsule().fill(Color(.quaternarySystemFill)))
                     .foregroundStyle(.secondary)
             }

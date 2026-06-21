@@ -51,7 +51,7 @@ struct ContextValueEditor: View {
                 .font(triggerFont)
                 .foregroundStyle(.secondary)
         } else if let resolver {
-            HStack(spacing: 4) {
+            HStack(spacing: PUI.Spacing.xs) {
                 ForEach(Array(ids.enumerated()), id: \.offset) { _, id in
                     if let resolved = resolver.resolve(id) {
                         ContextChip(icon: resolved.icon, title: resolved.title)

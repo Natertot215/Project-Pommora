@@ -31,7 +31,7 @@ struct SidebarToast: View {
     var body: some View {
         Group {
             if let err = displayedError {
-                HStack(spacing: 8) {
+                HStack(spacing: PUI.Spacing.md) {
                     Image(systemName: "exclamationmark.triangle.fill")
                         .foregroundStyle(.red)
                     Text(friendlyMessage(err))
@@ -47,11 +47,11 @@ struct SidebarToast: View {
                     }
                     .buttonStyle(.plain)
                 }
-                .padding(.horizontal, 10)
-                .padding(.vertical, 6)
-                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 6))
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
+                .padding(.horizontal, PUI.Spacing.lg)
+                .padding(.vertical, PUI.Spacing.sm)
+                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: PUI.Radius.card))
+                .padding(.horizontal, PUI.Spacing.md)
+                .padding(.vertical, PUI.Spacing.xs)
             }
         }
         .onChange(of: errorChangeID(areaManager.pendingError)) { _, _ in

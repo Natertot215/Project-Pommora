@@ -360,13 +360,13 @@ struct PageEditorView: View {
                             Task { await commitRename() }
                         }
                 }
-                .padding(.horizontal, 24)
-                .padding(.top, 24)
+                .padding(.horizontal, PUI.Spacing.xxxl)
+                .padding(.top, PUI.Spacing.xxxl)
                 .padding(.bottom, 14)
                 .overlay(alignment: .trailing) {
                     if showAddIconAffordance {
                         addIconAffordance
-                            .padding(.trailing, 24)
+                            .padding(.trailing, PUI.Spacing.xxxl)
                             .transition(.opacity)
                     }
                 }
@@ -379,7 +379,7 @@ struct PageEditorView: View {
                 Rectangle()
                     .fill(Color(NSColor.separatorColor))
                     .frame(height: 1)
-                    .padding(.horizontal, 24)
+                    .padding(.horizontal, PUI.Spacing.xxxl)
             }
             .offset(y: -min(max(0, scrollOffset), Self.titleAreaHeight))
         }
@@ -527,7 +527,7 @@ struct PageEditorView: View {
 
     private var addIconAffordance: some View {
         Button { iconPickerOpen = true } label: {
-            VStack(spacing: 2) {
+            VStack(spacing: PUI.Spacing.xxs) {
                 Image(systemName: "plus.app")
                     .font(.system(size: 18))
                 Text("Add Icon")

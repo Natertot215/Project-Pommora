@@ -112,7 +112,7 @@ struct PropertyCellEditor: View {
                         .onDisappear { commit(draft) }
                 } else {
                     editor
-                        .padding(12)
+                        .padding(PUI.Spacing.xl)
                         .frame(minWidth: 220)
                         .onDisappear { commit(draft) }
                 }
@@ -379,7 +379,7 @@ struct PropertyCellEditor: View {
 
     @ViewBuilder
     private var filePlaceholder: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: PUI.Spacing.xs) {
             Text("File attachments")
                 .font(.headline)
             Text(

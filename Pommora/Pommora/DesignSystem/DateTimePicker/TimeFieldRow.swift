@@ -111,7 +111,7 @@ private struct SteppableNumberField: View {
     @FocusState private var focused: Bool
 
     var body: some View {
-        HStack(spacing: 2) {
+        HStack(spacing: PUI.Spacing.xxs) {
             TextField("", text: $text)
                 .textFieldStyle(.plain)
                 .multilineTextAlignment(.center)

@@ -75,7 +75,7 @@ struct SidebarDetailView: View {
                         trailPage: pageTrail
                     )
                 } else {
-                    VStack(alignment: .leading, spacing: 8) {
+                    VStack(alignment: .leading, spacing: PUI.Spacing.md) {
                         Text("Collection parent vault not found")
                             .foregroundStyle(.red)
                             .font(.headline)
@@ -144,7 +144,7 @@ struct SidebarDetailView: View {
     }
 
     private var emptyState: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: PUI.Spacing.md) {
             Image(systemName: "sidebar.left")
                 .font(.system(size: 36))
                 .foregroundStyle(.secondary)

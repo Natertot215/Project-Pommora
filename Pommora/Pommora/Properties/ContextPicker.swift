@@ -32,7 +32,7 @@ struct ContextPicker: View {
     private static let panelMaxHeight: CGFloat = 240  // compact cap; scrolls past
 
     var body: some View {
-        HStack(alignment: .top, spacing: 8) {
+        HStack(alignment: .top, spacing: PUI.Spacing.md) {
             mainPanel
             if let active = activeGroup {
                 memberPanel(active)
@@ -54,7 +54,7 @@ struct ContextPicker: View {
             } else if grouped.groups.isEmpty && grouped.rootEntities.isEmpty {
                 placeholder("No matching items")
             } else {
-                VStack(alignment: .leading, spacing: 8) {
+                VStack(alignment: .leading, spacing: PUI.Spacing.md) {
                     ForEach(grouped.groups, id: \.container.id) { group in
                         ContextCollectionRow(
                             icon: group.container.icon,
@@ -65,7 +65,7 @@ struct ContextPicker: View {
                         }
                     }
                     if !grouped.groups.isEmpty && !grouped.rootEntities.isEmpty {
-                        Divider().padding(.horizontal, 6)  // inset to align with row content
+                        Divider().padding(.horizontal, PUI.Spacing.sm)  // inset to align with row content
                     }
                     ForEach(grouped.rootEntities, id: \.id) { entity in
                         leafRow(entity)
@@ -80,7 +80,7 @@ struct ContextPicker: View {
             if group.members.isEmpty {
                 placeholder("Empty")
             } else {
-                VStack(alignment: .leading, spacing: 8) {
+                VStack(alignment: .leading, spacing: PUI.Spacing.md) {
                     ForEach(group.members, id: \.id) { entity in
                         leafRow(entity)
                     }
@@ -167,7 +167,7 @@ private struct ContextCollectionRow: View {
 
     var body: some View {
         Button(action: onTap) {
-            HStack(spacing: 6) {
+            HStack(spacing: PUI.Spacing.sm) {
                 Image(systemName: icon ?? "folder").foregroundStyle(.secondary)
                 Text(title)
                     .lineLimit(1)
@@ -179,10 +179,10 @@ private struct ContextCollectionRow: View {
             }
             .font(.callout)
             .contentShape(Rectangle())
-            .padding(.horizontal, 6)
-            .padding(.vertical, 4)
+            .padding(.horizontal, PUI.Spacing.sm)
+            .padding(.vertical, PUI.Spacing.xs)
             .background(
-                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                RoundedRectangle(cornerRadius: PUI.Radius.card, style: .continuous)
                     .fill(rowFill)
             )
         }
@@ -192,7 +192,7 @@ private struct ContextCollectionRow: View {
 
     private var rowFill: Color {
         if isActive { return Color.primary.opacity(0.10) }
-        return isHovered ? Color.primary.opacity(0.06) : Color.clear
+        return PUI.Fill.hover(isHovered)
     }
 }
 
@@ -209,7 +209,7 @@ private struct ContextLeafRow: View {
 
     var body: some View {
         Button(action: onTap) {
-            HStack(spacing: 6) {
+            HStack(spacing: PUI.Spacing.sm) {
                 Image(systemName: icon).foregroundStyle(.secondary)
                 Text(title)
                     .lineLimit(1)
@@ -221,11 +221,11 @@ private struct ContextLeafRow: View {
             }
             .font(.callout)
             .contentShape(Rectangle())
-            .padding(.horizontal, 6)
-            .padding(.vertical, 4)
+            .padding(.horizontal, PUI.Spacing.sm)
+            .padding(.vertical, PUI.Spacing.xs)
             .background(
-                RoundedRectangle(cornerRadius: 6, style: .continuous)
-                    .fill(isHovered ? Color.primary.opacity(0.06) : Color.clear)
+                RoundedRectangle(cornerRadius: PUI.Radius.card, style: .continuous)
+                    .fill(PUI.Fill.hover(isHovered))
             )
         }
         .buttonStyle(.plain)
@@ -265,7 +265,7 @@ private struct SizedPanel<Content: View>: View {
         ScrollView {
             content
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(8)
+                .padding(PUI.Spacing.md)
                 .onGeometryChange(for: CGFloat.self) { proxy in
                     proxy.size.height
                 } action: { newHeight in

@@ -118,7 +118,7 @@ struct GalleryView: View {
         .padding(.vertical, PUI.Spacing.xs)
         .padding(.horizontal, PUI.Spacing.sm)
         .background(
-            RoundedRectangle(cornerRadius: 6)
+            RoundedRectangle(cornerRadius: PUI.Radius.card)
                 .fill(dragCoordinator.highlightedGroupID == group.id ? Color.accentColor.opacity(0.15) : .clear)
         )
         // Whole-header single-click toggles the section; double-click opens a
@@ -209,7 +209,7 @@ struct GalleryView: View {
         .font(.caption)
         .padding(.horizontal, PUI.Spacing.md)
         .padding(.vertical, PUI.Spacing.xs)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 6))
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: PUI.Radius.card))
     }
 
     /// The drag payload's pages: the full selection when the dragged card is

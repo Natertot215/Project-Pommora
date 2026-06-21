@@ -5,8 +5,8 @@ struct MultiSelectChips: View {
     @Binding var selected: [String]
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            FlowLayout(spacing: 6) {
+        VStack(alignment: .leading, spacing: PUI.Spacing.sm) {
+            FlowLayout(spacing: PUI.Spacing.sm) {
                 ForEach(options, id: \.self) { option in
                     chip(for: option)
                 }

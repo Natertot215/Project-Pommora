@@ -250,14 +250,14 @@ struct VaultSettingsSheet: View {
             Divider()
 
             ScrollView {
-                VStack(alignment: .leading, spacing: 24) {
+                VStack(alignment: .leading, spacing: PUI.Spacing.xxxl) {
                     // Properties section
                     VaultSettingsPropertiesSection(vm: vm)
 
                     // Templates placeholder
                     VaultSettingsTemplatesPlaceholder()
                 }
-                .padding(16)
+                .padding(PUI.Spacing.xxl)
             }
         }
         .frame(minWidth: 480, minHeight: 400)
@@ -298,8 +298,8 @@ private struct VaultSettingsSheetHeader: View {
             .buttonStyle(.borderedProminent)
             .disabled(!hasChanges || isSaving)
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
+        .padding(.horizontal, PUI.Spacing.xxl)
+        .padding(.vertical, PUI.Spacing.xl)
     }
 }
 
@@ -309,7 +309,7 @@ private struct VaultSettingsPropertiesSection: View {
     @Bindable var vm: VaultSettingsViewModel
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: PUI.Spacing.md) {
             Text("Properties")
                 .font(.subheadline)
                 .fontWeight(.semibold)
@@ -319,7 +319,7 @@ private struct VaultSettingsPropertiesSection: View {
                 Text("No properties yet. Add one below.")
                     .font(.callout)
                     .foregroundStyle(.tertiary)
-                    .padding(.vertical, 4)
+                    .padding(.vertical, PUI.Spacing.xs)
             } else {
                 VStack(spacing: 0) {
                     ForEach(vm.draftProperties) { def in
@@ -342,9 +342,9 @@ private struct VaultSettingsPropertiesSection: View {
                     }
                 }
                 .background(Color(.windowBackgroundColor).opacity(0.5))
-                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .clipShape(RoundedRectangle(cornerRadius: PUI.Radius.medium))
                 .overlay(
-                    RoundedRectangle(cornerRadius: 8)
+                    RoundedRectangle(cornerRadius: PUI.Radius.medium)
                         .strokeBorder(Color(.separatorColor), lineWidth: 0.5)
                 )
             }
@@ -356,7 +356,7 @@ private struct VaultSettingsPropertiesSection: View {
 
             // Type picker or Add button
             if vm.showingTypePicker {
-                VStack(alignment: .leading, spacing: 8) {
+                VStack(alignment: .leading, spacing: PUI.Spacing.md) {
                     Text("Choose a property type:")
                         .font(.callout)
                         .foregroundStyle(.secondary)
@@ -372,9 +372,9 @@ private struct VaultSettingsPropertiesSection: View {
                     .buttonStyle(.borderless)
                     .font(.callout)
                 }
-                .padding(12)
+                .padding(PUI.Spacing.xl)
                 .background(Color(.windowBackgroundColor).opacity(0.6))
-                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .clipShape(RoundedRectangle(cornerRadius: PUI.Radius.medium))
             } else if vm.pendingNewType == nil {
                 Button {
                     vm.showingTypePicker = true
@@ -383,7 +383,7 @@ private struct VaultSettingsPropertiesSection: View {
                         .font(.callout)
                 }
                 .buttonStyle(.borderless)
-                .padding(.top, 4)
+                .padding(.top, PUI.Spacing.xs)
             }
         }
     }
@@ -402,7 +402,7 @@ private struct VaultSettingsPropertyRow: View {
     let onMoveDown: () -> Void
 
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: PUI.Spacing.md) {
             // Icon if set
             if let icon = definition.icon {
                 Image(systemName: icon)
@@ -444,8 +444,8 @@ private struct VaultSettingsPropertyRow: View {
                 .fixedSize()
             }
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
+        .padding(.horizontal, PUI.Spacing.xl)
+        .padding(.vertical, PUI.Spacing.md)
     }
 }
 
@@ -458,8 +458,8 @@ private struct VaultPropertyTypeBadge: View {
         Text(type.displayName)
             .font(.caption)
             .foregroundStyle(.secondary)
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
+            .padding(.horizontal, PUI.Spacing.sm)
+            .padding(.vertical, PUI.Spacing.xxs)
             .background(
                 Capsule().fill(Color(.separatorColor).opacity(0.4))
             )
@@ -474,13 +474,13 @@ private struct VaultSettingsNewPropertyConfig: View {
     @Bindable var vm: VaultSettingsViewModel
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: PUI.Spacing.lg) {
             Text("New \(vm.pendingNewType?.displayName ?? "") property")
                 .font(.callout)
                 .fontWeight(.medium)
 
             // Name field (always present)
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: PUI.Spacing.xs) {
                 Text("Name")
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -537,11 +537,11 @@ private struct VaultSettingsNewPropertyConfig: View {
                 .disabled(!vm.canCommitNewProperty)
             }
         }
-        .padding(12)
+        .padding(PUI.Spacing.xl)
         .background(Color(.windowBackgroundColor).opacity(0.6))
-        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .clipShape(RoundedRectangle(cornerRadius: PUI.Radius.medium))
         .overlay(
-            RoundedRectangle(cornerRadius: 8)
+            RoundedRectangle(cornerRadius: PUI.Radius.medium)
                 .strokeBorder(Color.accentColor.opacity(0.3), lineWidth: 1)
         )
     }
@@ -589,7 +589,7 @@ private struct VaultSettingsNewPropertyConfig: View {
 
 private struct VaultSettingsTemplatesPlaceholder: View {
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: PUI.Spacing.md) {
             Text("Templates")
                 .font(.subheadline)
                 .fontWeight(.semibold)

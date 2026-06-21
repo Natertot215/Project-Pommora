@@ -74,7 +74,7 @@ struct BannerView: View {
             Button {
                 isImporting = true
             } label: {
-                HStack(spacing: 4) {
+                HStack(spacing: PUI.Spacing.xs) {
                     Image(systemName: "plus.app").font(.system(size: 14))
                     Text("Add Banner").font(.caption)
                 }

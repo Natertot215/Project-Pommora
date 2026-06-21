@@ -106,7 +106,7 @@ struct FileAttachmentEditor: View {
     @State private var isTargeted = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: PUI.Spacing.md) {
             dropZone
             if let model = vm, !model.attachments.isEmpty {
                 thumbnailStrip(model: model)
@@ -145,18 +145,18 @@ struct FileAttachmentEditor: View {
 
     private var dropZone: some View {
         ZStack {
-            RoundedRectangle(cornerRadius: 8)
+            RoundedRectangle(cornerRadius: PUI.Radius.field)
                 .strokeBorder(
                     isTargeted ? Color.accentColor : Color.secondary.opacity(0.4),
                     style: StrokeStyle(lineWidth: 1.5, dash: [5])
                 )
                 .background(
-                    RoundedRectangle(cornerRadius: 8)
+                    RoundedRectangle(cornerRadius: PUI.Radius.field)
                         .fill(isTargeted
                               ? Color.accentColor.opacity(0.08)
                               : Color(.windowBackgroundColor).opacity(0.3))
                 )
-            HStack(spacing: 6) {
+            HStack(spacing: PUI.Spacing.sm) {
                 Image(systemName: "paperclip")
                     .foregroundStyle(.secondary)
                 Text("Drop files here or")
@@ -166,7 +166,7 @@ struct FileAttachmentEditor: View {
                     .buttonStyle(.borderless)
                     .font(.callout)
             }
-            .padding(12)
+            .padding(PUI.Spacing.xl)
         }
         .frame(height: 60)
         .onDrop(of: [.fileURL], isTargeted: $isTargeted) { providers in
@@ -242,7 +242,7 @@ private struct FileAttachmentThumbnailStrip: View {
     let onRemove: (FileRef) -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: PUI.Spacing.xs) {
             ForEach(attachments, id: \.path) { ref in
                 FileAttachmentThumbnailRow(ref: ref, onRemove: onRemove)
             }
@@ -257,7 +257,7 @@ private struct FileAttachmentThumbnailRow: View {
     let onRemove: (FileRef) -> Void
 
     var body: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: PUI.Spacing.sm) {
             Image(systemName: iconName(for: ref.mimeType))
                 .foregroundStyle(.secondary)
                 .frame(width: 16)
@@ -276,8 +276,8 @@ private struct FileAttachmentThumbnailRow: View {
             .buttonStyle(.plain)
             .help("Remove attachment")
         }
-        .padding(.vertical, 2)
-        .padding(.horizontal, 4)
+        .padding(.vertical, PUI.Spacing.xxs)
+        .padding(.horizontal, PUI.Spacing.xs)
     }
 
     private func iconName(for mime: String) -> String {

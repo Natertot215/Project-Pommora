@@ -91,7 +91,7 @@ struct PropertyCellDisplay: View {
     private var numberCell: some View {
         if case .number(let n) = value {
             Text(formattedNumber(n))
-                .font(.system(size: 12))
+                .font(PUI.Typography.Fixed.f12)
                 .foregroundStyle(.primary)
                 .lineLimit(1)
         } else {
@@ -139,7 +139,7 @@ struct PropertyCellDisplay: View {
     private var dateCell: some View {
         if let d = dateValue {
             Text(formattedDate(d))
-                .font(.system(size: 12))
+                .font(PUI.Typography.Fixed.f12)
                 .foregroundStyle(.primary)
                 .lineLimit(1)
         } else {
@@ -180,7 +180,7 @@ struct PropertyCellDisplay: View {
     @ViewBuilder
     private var multiSelectCell: some View {
         if case .multiSelect(let ids) = value, !ids.isEmpty {
-            HStack(spacing: 4) {
+            HStack(spacing: PUI.Spacing.xs) {
                 ForEach(ids, id: \.self) { id in
                     if let opt = definition.selectOptions?.first(where: { $0.value == id }) {
                         PropertyChip(label: opt.label, color: PropertyChipColor(selectColor: opt.color), size: .compact)
@@ -241,9 +241,9 @@ struct PropertyCellDisplay: View {
             // `list` display lays the chips out vertically; everything else keeps
             // the inline horizontal run. The chip content is identical either way.
             if treatment == .verticalList {
-                VStack(alignment: .leading, spacing: 4) { relationChips(for: targetIDs) }
+                VStack(alignment: .leading, spacing: PUI.Spacing.xs) { relationChips(for: targetIDs) }
             } else {
-                HStack(spacing: 4) { relationChips(for: targetIDs) }
+                HStack(spacing: PUI.Spacing.xs) { relationChips(for: targetIDs) }
             }
         } else {
             emptyCell
@@ -257,13 +257,13 @@ struct PropertyCellDisplay: View {
                 ContextChip(icon: resolved.icon, title: resolved.title)
             } else {
                 Text("(missing)")
-                    .font(.system(size: 12).italic())
+                    .font(PUI.Typography.Fixed.f12.italic())
                     .foregroundStyle(.tertiary)
             }
         }
         if targetIDs.count > 3 {
             Text("+\(targetIDs.count - 3)")
-                .font(.system(size: 11))
+                .font(PUI.Typography.Fixed.f11)
                 .foregroundStyle(.secondary)
         }
     }
@@ -273,7 +273,7 @@ struct PropertyCellDisplay: View {
     @ViewBuilder
     private var fileCell: some View {
         if case .file(let refs) = value, !refs.isEmpty {
-            HStack(spacing: 4) {
+            HStack(spacing: PUI.Spacing.xs) {
                 ForEach(Array(refs.prefix(3).enumerated()), id: \.offset) { _, ref in
                     // `thumbnail`/`banner` display give image files a photo-glyph
                     // chip; every other case (and non-image files) keeps the
@@ -283,7 +283,7 @@ struct PropertyCellDisplay: View {
                 }
                 if refs.count > 3 {
                     Text("+\(refs.count - 3)")
-                        .font(.system(size: 11))
+                        .font(PUI.Typography.Fixed.f11)
                         .foregroundStyle(.secondary)
                 }
             }
@@ -302,7 +302,7 @@ struct PropertyCellDisplay: View {
         // value renders identically.
         if let d = dateValue {
             Text(relativeText(d))
-                .font(.system(size: 12))
+                .font(PUI.Typography.Fixed.f12)
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
         } else {

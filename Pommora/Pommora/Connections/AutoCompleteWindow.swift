@@ -58,7 +58,7 @@ struct AutoCompleteWindow: View {
     private static let visibleRowCap = 4
     /// Fixed per-row height — drives both the cap math and `ScrollViewReader`.
     private static let rowHeight: CGFloat = 28
-    private static let cornerRadius: CGFloat = 12
+    private static let cornerRadius: CGFloat = PUI.Radius.large
 
     var body: some View {
         if candidates.isEmpty {
@@ -159,7 +159,7 @@ private struct AutoCompleteRow: View {
 
     var body: some View {
         let split = AutoCompleteWindow.highlightSplit(title: candidate.title, queryLength: queryLength)
-        HStack(spacing: 6) {
+        HStack(spacing: PUI.Spacing.sm) {
             Image(systemName: candidate.icon)
                 .foregroundStyle(.secondary)
             Text("\(Text(split.matched).foregroundStyle(.primary))\(Text(split.rest).foregroundStyle(.secondary))")
@@ -167,13 +167,13 @@ private struct AutoCompleteRow: View {
             Spacer(minLength: 0)
         }
         .font(.body)
-        .padding(.horizontal, 8)
+        .padding(.horizontal, PUI.Spacing.md)
         .frame(height: height)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
-            RoundedRectangle(cornerRadius: 6, style: .continuous)
+            RoundedRectangle(cornerRadius: PUI.Radius.card, style: .continuous)
                 .fill(isSelected ? AnyShapeStyle(.quaternary) : AnyShapeStyle(.clear))
         )
-        .padding(.horizontal, 4)
+        .padding(.horizontal, PUI.Spacing.xs)
     }
 }

@@ -170,7 +170,7 @@ struct TierDisclosureRow<Children: View>: View {
         DisclosureGroup(isExpanded: $expanded) {
             children()
         } label: {
-            HStack(spacing: 8) {
+            HStack(spacing: PUI.Spacing.md) {
                 Image(systemName: "square.grid.2x2")
                     .symbolRenderingMode(.monochrome)
                     .font(.system(size: 14, weight: .regular))
@@ -191,8 +191,8 @@ struct TierDisclosureRow<Children: View>: View {
                 .allowsHitTesting(hovered)
                 .animation(.easeInOut(duration: 0.12), value: hovered)
             }
-            .padding(.leading, 4)
-            .padding(.vertical, 6)
+            .padding(.leading, PUI.Spacing.xs)
+            .padding(.vertical, PUI.Spacing.sm)
             .frame(maxWidth: .infinity, alignment: .leading)
             .contentShape(Rectangle())
             .onHover { hovered = $0 }

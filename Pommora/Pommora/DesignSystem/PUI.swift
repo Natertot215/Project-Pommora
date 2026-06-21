@@ -29,6 +29,8 @@ enum PUI {
     // MARK: - Spacing (HStack / VStack `spacing:`, ad-hoc gaps)
 
     enum Spacing {
+        /// 2 pt — hairline gaps (chip internals, tight icon-label stacks).
+        static let xxs: CGFloat = 2
         /// 4 pt — tight intra-row gaps (between two adjacent labels, etc.).
         static let xs: CGFloat = 4
         /// 6 pt — compact spacing inside small groups.
@@ -166,6 +168,25 @@ enum PUI {
         static let chip: Font = .callout.weight(.semibold)
         /// Muted / placeholder caption text.
         static let caption: Font = .caption2
+
+        /// Fixed point sizes for density-driven surfaces that deliberately opt
+        /// out of Dynamic Type (table / gallery cells, chips, compact rows).
+        /// Prefer a semantic token above — or a `PUI.Icon` role for glyphs —
+        /// when one fits; reach here only for a genuinely fixed text size with
+        /// no semantic home.
+        enum Fixed {
+            static let f10: Font = .system(size: 10)
+            static let f11: Font = .system(size: 11)
+            static let f12: Font = .system(size: 12)
+            static let f13: Font = .system(size: 13)
+            static let f14: Font = .system(size: 14)
+            static let f18: Font = .system(size: 18)
+            static let f22: Font = .system(size: 22)
+            static let f26: Font = .system(size: 26)
+            static let f28: Font = .system(size: 28)
+            static let f36: Font = .system(size: 36)
+            static let f48: Font = .system(size: 48)
+        }
     }
 
     // MARK: - Corner radii
@@ -193,6 +214,17 @@ enum PUI {
     enum Fill {
         /// Input / icon-field backdrop (system `.quinary`). Apply via `.fieldBackground()`.
         static let field = AnyShapeStyle(.quinary)
+        /// Hover-state background opacity — the faint fill under a hovered
+        /// row / cell / segment. Single source for the `.opacity(isHovered ? … : 0)`
+        /// hover idiom across pickers, rows, and segments.
+        static let hoverOpacity: Double = 0.06
+        /// The hover fill resolved to a color: `base` at `hoverOpacity` when
+        /// hovered, fully clear otherwise. Drop-in for the
+        /// `base.opacity(isHovered ? … : 0)` idiom — including branches where
+        /// hover shares the fill with other state.
+        static func hover(_ isHovered: Bool, over base: Color = .primary) -> Color {
+            base.opacity(isHovered ? hoverOpacity : 0)
+        }
     }
 
     // MARK: - Chip geometry (tag insets + gaps)

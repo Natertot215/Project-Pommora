@@ -66,19 +66,19 @@ struct NavDropdownButton: View {
     private var panel: some View {
         VStack(spacing: 3) {
             modePicker
-                .padding(.horizontal, 10)
-                .padding(.top, 10)
-                .padding(.bottom, 8)
+                .padding(.horizontal, PUI.Spacing.lg)
+                .padding(.top, PUI.Spacing.lg)
+                .padding(.bottom, PUI.Spacing.md)
 
             // Inset list trough — visually recessed inside the glass card
             listContainer
-                .padding(.horizontal, 6)
-                .padding(.bottom, 6)
+                .padding(.horizontal, PUI.Spacing.sm)
+                .padding(.bottom, PUI.Spacing.sm)
                 .frame(maxHeight: .infinity, alignment: .top)
         }
         .frame(minHeight: 300, maxHeight: 400)
 
-        .clipShape(.rect(cornerRadius: 24))
+        .clipShape(.rect(cornerRadius: PUI.Radius.popover))
     }
 
     /// Custom Liquid Glass segmented pill — hand-rolled HStack of glass
@@ -104,7 +104,7 @@ struct NavDropdownButton: View {
             Text(m.label)
                 .font(.callout)
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 6)
+                .padding(.vertical, PUI.Spacing.sm)
                 .foregroundStyle(mode == m ? Color.primary : Color.secondary)
         }
         .buttonStyle(.borderless)
@@ -120,7 +120,7 @@ struct NavDropdownButton: View {
             }
         }
         .background(Color.clear)
-        .clipShape(.rect(cornerRadius: 18))
+        .clipShape(.rect(cornerRadius: PUI.Radius.listTrough))
     }
 
     @ViewBuilder

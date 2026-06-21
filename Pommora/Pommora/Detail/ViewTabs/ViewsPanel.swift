@@ -26,7 +26,7 @@ struct ViewsPanel: View {
                 viewRow(view)
             }
 
-            Divider().padding(.vertical, 4)
+            Divider().padding(.vertical, PUI.Spacing.xs)
 
             Button(action: { Task { await addView() } }) {
                 HStack(spacing: PUI.Row.interSpacing) {
@@ -51,7 +51,7 @@ struct ViewsPanel: View {
                     .padding(.bottom, PUI.Row.paddingVertical)
             }
         }
-        .padding(.vertical, 6)
+        .padding(.vertical, PUI.Spacing.sm)
         .frame(width: 280)
         .focusable()
         .onMoveCommand { direction in stepActive(direction) }

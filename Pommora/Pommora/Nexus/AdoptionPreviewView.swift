@@ -74,11 +74,11 @@ struct AdoptionPreviewView: View {
     // MARK: - Sub-views
 
     private var header: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 12) {
+        HStack(alignment: .firstTextBaseline, spacing: PUI.Spacing.xl) {
             Image(systemName: "folder.badge.gearshape")
                 .font(.system(size: 22, weight: .regular))
                 .foregroundStyle(.tint)
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: PUI.Spacing.xxs) {
                 Text("Adopt Existing Folder Structure")
                     .font(.title3)
                     .fontWeight(.semibold)
@@ -91,13 +91,13 @@ struct AdoptionPreviewView: View {
             Spacer()
         }
         .padding(.horizontal, 20)
-        .padding(.vertical, 16)
+        .padding(.vertical, PUI.Spacing.xxl)
     }
 
     private var summaryRow: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: PUI.Spacing.md) {
             // Per-side migration counts (entity-oriented).
-            HStack(spacing: 24) {
+            HStack(spacing: PUI.Spacing.xxxl) {
                 summaryStat(
                     count: pageTypeMigrationCount,
                     label: labels.pageType.singular,
@@ -113,7 +113,7 @@ struct AdoptionPreviewView: View {
             // Pre-flight totals (operation-oriented). Mirrors the post-apply
             // summary surfaced via NexusManager's `pendingError` for failures
             // — keeps expectations in front of the user before they commit.
-            HStack(spacing: 16) {
+            HStack(spacing: PUI.Spacing.xxl) {
                 Text("\(totalMigrationCount) to migrate")
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -137,7 +137,7 @@ struct AdoptionPreviewView: View {
     }
 
     private func summaryStat(count: Int, label: String, systemImage: String) -> some View {
-        HStack(spacing: 6) {
+        HStack(spacing: PUI.Spacing.sm) {
             Image(systemName: systemImage)
                 .foregroundStyle(.secondary)
             VStack(alignment: .leading, spacing: 1) {
@@ -161,7 +161,7 @@ struct AdoptionPreviewView: View {
                 detail:
                     "Pre-existing wrapper folders (Pages/Agenda) will be dissolved — their children move to the nexus root."
             )
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: PUI.Spacing.sm) {
                 ForEach(plan.unwrapSteps) { unwrap in
                     ForEach(unwrap.moves) { move in
                         unwrapMoveRow(move, wrapperName: unwrap.wrapperURL.lastPathComponent)
@@ -172,12 +172,12 @@ struct AdoptionPreviewView: View {
     }
 
     private func unwrapMoveRow(_ move: PlannedUnwrap.ChildMove, wrapperName: String) -> some View {
-        HStack(spacing: 8) {
+        HStack(spacing: PUI.Spacing.md) {
             Image(systemName: iconForSidecar(move.typeSidecar))
                 .foregroundStyle(.secondary)
                 .frame(width: 16)
             VStack(alignment: .leading, spacing: 1) {
-                HStack(spacing: 6) {
+                HStack(spacing: PUI.Spacing.sm) {
                     Text("\(wrapperName)/\(move.sourceURL.lastPathComponent)")
                         .font(.callout)
                     Image(systemName: "arrow.right")
@@ -203,16 +203,16 @@ struct AdoptionPreviewView: View {
                 detail:
                     "Pre-ParadigmV2 sidecar files (_vault.json / _collection.json) will be renamed to the per-kind flat-layout names."
             )
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: PUI.Spacing.sm) {
                 ForEach(plan.inPlaceRenames) { rename in
-                    HStack(spacing: 8) {
+                    HStack(spacing: PUI.Spacing.md) {
                         Image(systemName: "doc.badge.gearshape")
                             .foregroundStyle(.secondary)
                             .frame(width: 16)
                         VStack(alignment: .leading, spacing: 1) {
                             Text(rename.folderURL.lastPathComponent)
                                 .font(.callout)
-                            HStack(spacing: 4) {
+                            HStack(spacing: PUI.Spacing.xs) {
                                 Text(rename.oldSidecar)
                                 Image(systemName: "arrow.right")
                                     .font(.caption2)
@@ -236,9 +236,9 @@ struct AdoptionPreviewView: View {
                 detail:
                     "Folders without a recognized sidecar get a fresh per-kind sidecar based on their contents."
             )
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: PUI.Spacing.sm) {
                 ForEach(plan.freshSidecars) { fresh in
-                    HStack(spacing: 8) {
+                    HStack(spacing: PUI.Spacing.md) {
                         Image(systemName: iconForSidecar(fresh.kind))
                             .foregroundStyle(.secondary)
                             .frame(width: 16)
@@ -269,7 +269,7 @@ struct AdoptionPreviewView: View {
                     + "file\(migrationPlan.totalMemberFileCandidates == 1 ? "" : "s") may be rewritten "
                     + "to key properties by ID. Orphan property values preserved."
             )
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: PUI.Spacing.sm) {
                 ForEach(Array(migrationPlan.pageTypeMigrations.enumerated()), id: \.offset) { _, m in
                     propertyMigrationRow(m)
                 }
@@ -278,14 +278,14 @@ struct AdoptionPreviewView: View {
     }
 
     private func propertyMigrationRow(_ m: PropertyIDMigration.TypeMigration) -> some View {
-        HStack(spacing: 8) {
+        HStack(spacing: PUI.Spacing.md) {
             Image(systemName: "folder.fill")
                 .foregroundStyle(.secondary)
                 .frame(width: 16)
             VStack(alignment: .leading, spacing: 1) {
                 Text(m.typeTitle)
                     .font(.callout)
-                HStack(spacing: 6) {
+                HStack(spacing: PUI.Spacing.sm) {
                     Text("\(m.propertiesToMint) propert\(m.propertiesToMint == 1 ? "y" : "ies") to mint")
                     if m.memberFileCandidates > 0 {
                         Text("·").foregroundStyle(.tertiary)
@@ -310,9 +310,9 @@ struct AdoptionPreviewView: View {
                 detail:
                     "Folders already in the flat layout — no migration needed; orphan-cleanup pass runs."
             )
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: PUI.Spacing.sm) {
                 ForEach(plan.alreadyFlat) { flat in
-                    HStack(spacing: 8) {
+                    HStack(spacing: PUI.Spacing.md) {
                         Image(systemName: iconForSidecar(flat.kind))
                             .foregroundStyle(.tertiary)
                             .frame(width: 16)
@@ -330,14 +330,14 @@ struct AdoptionPreviewView: View {
     private var warningsSection: some View {
         if !plan.warnings.isEmpty {
             DisclosureGroup {
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: PUI.Spacing.xs) {
                     ForEach(Array(plan.warnings.enumerated()), id: \.offset) { _, warning in
                         Text("• " + warning)
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
                 }
-                .padding(.top, 6)
+                .padding(.top, PUI.Spacing.sm)
             } label: {
                 Label(
                     "Warnings (\(plan.warnings.count))",
@@ -358,9 +358,9 @@ struct AdoptionPreviewView: View {
                 detail:
                     "Folders at the nexus root that don't look like Pommora data are left untouched."
             )
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: PUI.Spacing.sm) {
                 ForEach(plan.skippedTopLevel, id: \.self) { url in
-                    HStack(spacing: 8) {
+                    HStack(spacing: PUI.Spacing.md) {
                         Image(systemName: "folder.badge.minus")
                             .foregroundStyle(.tertiary)
                             .frame(width: 16)
@@ -375,7 +375,7 @@ struct AdoptionPreviewView: View {
     }
 
     private func sectionHeader(_ title: String, detail: String) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
+        VStack(alignment: .leading, spacing: PUI.Spacing.xxs) {
             Text(title)
                 .font(.subheadline)
                 .fontWeight(.semibold)

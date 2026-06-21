@@ -82,7 +82,7 @@ private struct CalendarDetailContent: View {
                 .foregroundStyle(.primary)
                 .padding(.horizontal, 20)
                 .padding(.top, 20)
-                .padding(.bottom, 12)
+                .padding(.bottom, PUI.Spacing.xl)
 
             List {
                 // MARK: Tasks section
@@ -140,14 +140,14 @@ private struct TaskRow: View {
     }()
 
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: PUI.Spacing.md) {
             // Status pill: filled capsule — green for done, gray for everything else.
             Capsule()
                 .fill(task.completed ? Color.green : Color.gray.opacity(0.4))
                 .frame(width: 8, height: 8)
                 .accessibilityLabel(task.completed ? "Done" : "Not done")
 
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: PUI.Spacing.xxs) {
                 Text(task.title)
                     .font(.body)
                     .strikethrough(task.completed)
@@ -160,7 +160,7 @@ private struct TaskRow: View {
                 }
             }
         }
-        .padding(.vertical, 2)
+        .padding(.vertical, PUI.Spacing.xxs)
     }
 }
 
@@ -178,12 +178,12 @@ private struct EventRow: View {
     }()
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 2) {
+        VStack(alignment: .leading, spacing: PUI.Spacing.xxs) {
             Text(event.title)
                 .font(.body)
                 .foregroundStyle(.primary)
 
-            HStack(spacing: 4) {
+            HStack(spacing: PUI.Spacing.xs) {
                 Text(Self.dateFormatter.string(from: event.startAt))
                 Text("→")
                 Text(Self.dateFormatter.string(from: event.endAt))
@@ -191,6 +191,6 @@ private struct EventRow: View {
             .font(.caption)
             .foregroundStyle(.secondary)
         }
-        .padding(.vertical, 2)
+        .padding(.vertical, PUI.Spacing.xxs)
     }
 }

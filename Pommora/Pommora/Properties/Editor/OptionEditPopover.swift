@@ -38,7 +38,7 @@ struct OptionEditPopover: View {
     /// Delete button share an exact rail with leading + trailing edges
     /// guaranteed to align.
     private let swatchSize: CGFloat = 26
-    private let swatchSpacing: CGFloat = 10
+    private let swatchSpacing: CGFloat = PUI.Spacing.lg
     private let contentWidth: CGFloat = 170   // 5*26 + 4*10
     private let outerPadding: CGFloat = 14
 

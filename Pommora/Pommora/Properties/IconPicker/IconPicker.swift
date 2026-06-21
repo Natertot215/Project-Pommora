@@ -11,7 +11,7 @@ private enum IconMetrics {
     static let cell: CGFloat = 36  // row height (cell width is flexible)
     static let glyph: CGFloat = 19
     static let gridSpacing: CGFloat = 3
-    static let inset: CGFloat = 12  // == PUI.Spacing.xl; the panel's content rail
+    static let inset: CGFloat = PUI.Spacing.xl  // the panel's content rail
 }
 
 /// Pommora-native SF Symbol picker — a compact Liquid-Glass dropdown that

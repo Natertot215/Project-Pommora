@@ -52,19 +52,19 @@ struct NexusHeaderBanner: View {
     var body: some View {
         // spacing 8 matches the native row icon→label gap (SelectableRow /
         // TierDisclosureRow both use HStack(spacing: 8)).
-        HStack(spacing: 8) {
+        HStack(spacing: PUI.Spacing.md) {
             avatar
                 .frame(width: avatarSize, height: avatarSize)
                 .clipShape(Circle())
                 .contextMenu { avatarMenu }
             // Natural height + HStack centering sits the text block on the
             // avatar's mid-line.
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: PUI.Spacing.xxs) {
                 titleSlot
                 subtitleSlot
             }
         }
-        .padding(.vertical, 6)
+        .padding(.vertical, PUI.Spacing.sm)
         .frame(maxWidth: .infinity, alignment: .leading)
         .contentShape(Rectangle())
         .fileImporter(

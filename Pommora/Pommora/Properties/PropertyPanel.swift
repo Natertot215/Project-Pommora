@@ -109,32 +109,32 @@ struct PropertyPanel: View {
                             }
                         )
                     )
-                    .padding(.vertical, 6)
-                    .padding(.horizontal, 12)
+                    .padding(.vertical, PUI.Spacing.sm)
+                    .padding(.horizontal, PUI.Spacing.xl)
                     Divider()
-                        .padding(.horizontal, 12)
+                        .padding(.horizontal, PUI.Spacing.xl)
                 }
             }
 
             // Tier relations — always rendered (icon + title chips via the shared resolver)
             ContextChipRow(label: "Areas", ids: tier1, resolver: relationDisplay)
-                .padding(.vertical, 6)
-                .padding(.horizontal, 12)
+                .padding(.vertical, PUI.Spacing.sm)
+                .padding(.horizontal, PUI.Spacing.xl)
             Divider()
-                .padding(.horizontal, 12)
+                .padding(.horizontal, PUI.Spacing.xl)
             ContextChipRow(label: "Topics", ids: tier2, resolver: relationDisplay)
-                .padding(.vertical, 6)
-                .padding(.horizontal, 12)
+                .padding(.vertical, PUI.Spacing.sm)
+                .padding(.horizontal, PUI.Spacing.xl)
             Divider()
-                .padding(.horizontal, 12)
+                .padding(.horizontal, PUI.Spacing.xl)
             ContextChipRow(label: "Projects", ids: tier3, resolver: relationDisplay)
-                .padding(.vertical, 6)
-                .padding(.horizontal, 12)
+                .padding(.vertical, PUI.Spacing.sm)
+                .padding(.horizontal, PUI.Spacing.xl)
 
             // Auto-managed section — collapsed by default
             Divider()
             DisclosureGroup(isExpanded: $autoManagedExpanded) {
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: PUI.Spacing.xs) {
                     autoManagedRow(label: "ID", value: autoManaged.id)
                     autoManagedRow(
                         label: "Created",
@@ -145,14 +145,14 @@ struct PropertyPanel: View {
                         value: autoManaged.modifiedAt.formatted(date: .abbreviated, time: .shortened)
                     )
                 }
-                .padding(.horizontal, 12)
-                .padding(.bottom, 6)
+                .padding(.horizontal, PUI.Spacing.xl)
+                .padding(.bottom, PUI.Spacing.sm)
             } label: {
                 Text("Auto-managed")
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
+                    .padding(.horizontal, PUI.Spacing.xl)
+                    .padding(.vertical, PUI.Spacing.sm)
             }
         }
     }
@@ -171,6 +171,6 @@ struct PropertyPanel: View {
                 .textSelection(.enabled)
             Spacer()
         }
-        .padding(.vertical, 2)
+        .padding(.vertical, PUI.Spacing.xxs)
     }
 }

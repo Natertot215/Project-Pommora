@@ -102,7 +102,7 @@ struct PropertiesListPane: View {
     private var emptyState: some View {
         VStack(spacing: PUI.Spacing.lg) {
             Image(systemName: "list.bullet.rectangle")
-                .font(.system(size: 26))
+                .font(PUI.Typography.Fixed.f26)
                 .foregroundStyle(.tertiary)
             Text(searchQuery.isEmpty ? "No properties yet" : "No matches")
                 .font(.callout)
@@ -163,7 +163,7 @@ private struct PropertyRow: View {
                     .foregroundStyle(isReserved ? .tertiary : .primary)
                     .frame(width: PUI.Icon.leadingFrame)
 
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: PUI.Spacing.xxs) {
                     HStack(spacing: PUI.Spacing.xs) {
                         Text(definition.name)
                             .font(PUI.Typography.row)

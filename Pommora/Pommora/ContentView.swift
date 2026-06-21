@@ -307,12 +307,12 @@ struct ContentView: View {
                 if nexusManager.isIndexing {
                     IndexingHUD()
                         .transition(.opacity)
-                        .padding(10)
+                        .padding(PUI.Spacing.lg)
                 }
             }
             .animation(.easeInOut(duration: 0.18), value: nexusManager.isIndexing)
         } else {
-            VStack(spacing: 8) {
+            VStack(spacing: PUI.Spacing.md) {
                 ProgressView()
                 Text("Loading nexus…")
                     .font(.caption)
@@ -423,18 +423,18 @@ struct ContentView: View {
 /// on Nexus open. Auto-fades in/out via the caller's `.animation` modifier.
 private struct IndexingHUD: View {
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: PUI.Spacing.md) {
             ProgressView()
                 .controlSize(.small)
             Text("Indexing…")
                 .font(.callout)
                 .foregroundStyle(.secondary)
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8))
+        .padding(.horizontal, PUI.Spacing.xl)
+        .padding(.vertical, PUI.Spacing.md)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: PUI.Radius.medium))
         .overlay(
-            RoundedRectangle(cornerRadius: 8)
+            RoundedRectangle(cornerRadius: PUI.Radius.medium)
                 .stroke(.separator, lineWidth: 0.5)
         )
     }

@@ -179,7 +179,7 @@ struct FrontmatterInspector: View {
     /// title-bar hairline by arithmetic — card top inset + one row height.
     /// `nil` keeps the stock Form insets in the full-size mount.
     private var rowInsets: EdgeInsets? {
-        compact ? EdgeInsets(top: 4, leading: 10, bottom: 4, trailing: 10) : nil
+        compact ? EdgeInsets(top: PUI.Spacing.xs, leading: PUI.Spacing.lg, bottom: PUI.Spacing.xs, trailing: PUI.Spacing.lg) : nil
     }
 
     /// Inspector action affordances ("+ Add", value editors) sit one
@@ -283,7 +283,7 @@ struct FrontmatterInspector: View {
                 // One tight single-label affordance (glyph + text read as ONE
                 // button), one typography step below the rows so it stays
                 // subordinate, never another property.
-                HStack(spacing: 4) {
+                HStack(spacing: PUI.Spacing.xs) {
                     Image(systemName: "plus")
                     Text("Add Property")
                 }

@@ -107,6 +107,6 @@ private struct MonthRow: View {
 
     private var rowFill: Color {
         if isCurrent { return Color.primary.opacity(0.10) }
-        return isHovered ? Color.primary.opacity(DateTimePickerMetrics.hoverFillOpacity) : Color.clear
+        return PUI.Fill.hover(isHovered)
     }
 }

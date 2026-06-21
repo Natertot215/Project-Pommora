@@ -10,7 +10,7 @@ struct NumberFormatPicker: View {
     @Binding var format: PropertyDefinition.NumberFormat
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: PUI.Spacing.xs) {
             Text("Format")
                 .font(.caption)
                 .foregroundStyle(.secondary)

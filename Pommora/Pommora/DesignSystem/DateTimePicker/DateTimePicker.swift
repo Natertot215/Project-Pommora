@@ -302,7 +302,7 @@ private struct CalendarDayCell: View {
                     lineWidth: 1
                 )
             } else if isHovered {
-                Circle().fill(Color.primary.opacity(DateTimePickerMetrics.hoverFillOpacity))
+                Circle().fill(PUI.Fill.hover(isHovered))
             } else {
                 Color.clear
             }
@@ -339,7 +339,6 @@ private struct MonthStepControl: View {
 private struct SegmentButton: View {
     let icon: String
     let action: () -> Void
-    @State private var isHovered = false
 
     var body: some View {
         Button(action: action) {
@@ -350,13 +349,9 @@ private struct SegmentButton: View {
                     width: DateTimePickerMetrics.stepSegmentWidth,
                     height: DateTimePickerMetrics.stepSegmentHeight
                 )
-                .background(
-                    RoundedRectangle(cornerRadius: PUI.Radius.field, style: .continuous)
-                        .fill(Color.primary.opacity(isHovered ? DateTimePickerMetrics.hoverFillOpacity : 0))
-                )
+                .hoverFill()
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .onHover { isHovered = $0 }
     }
 }
