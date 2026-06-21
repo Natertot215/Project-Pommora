@@ -1,10 +1,10 @@
-// The CM6 adapter — the only place behavior-layer intents become real CodeMirror decorations.
-// A ViewPlugin works because replaces never cross a line break; block-spanning chrome would need a StateField.
+// A ViewPlugin is valid because replaces never cross a line break (block-spanning chrome would need a StateField).
 import { Decoration, type DecorationSet, EditorView, ViewPlugin, type ViewUpdate, WidgetType } from '@codemirror/view'
-import type { Range } from '@codemirror/state'
+import type { Extension, Range } from '@codemirror/state'
 import { chipCheckbox } from '../../design-system/tokens'
 import { tokenize, activeTokenIndices } from '../tokens'
 import { decorationsFor, type WidgetSpec } from '../decorations/intent'
+import type { ConnectionsApi } from '../connections'
 
 class HrWidget extends WidgetType {
   eq(): boolean {
@@ -17,9 +17,7 @@ class HrWidget extends WidgetType {
   }
 }
 
-/** The `•` shown in place of the source `-` when the caret is off the line. In-flow (replaces just
- *  the dash) so it occupies the dash's exact slot — moving the caret onto the line swaps it for the
- *  raw `- ` with no horizontal shift. */
+// In-flow (replaces just the dash) so it sits in the dash's exact slot — no shift when the caret reveals the raw `- `.
 class BulletWidget extends WidgetType {
   eq(): boolean {
     return true
@@ -32,8 +30,6 @@ class BulletWidget extends WidgetType {
   }
 }
 
-/** Reuses the `chipCheckbox` visual + nexus accent when checked; clicking toggles the underlying
- *  `[ ]` ↔ `[x]` source in one transaction (native undo). */
 class CheckboxWidget extends WidgetType {
   constructor(
     readonly bracketFrom: number,
@@ -77,10 +73,9 @@ function widgetFor(spec: WidgetSpec): WidgetType {
   }
 }
 
-// One shared replace decoration for every hidden marker — they carry no per-instance data.
 const hideMarker = Decoration.replace({})
 
-function build(view: EditorView): DecorationSet {
+function build(view: EditorView, conn: ConnectionsApi | undefined): DecorationSet {
   const text = view.state.doc.toString()
   const sel = view.state.selection.main
   const tokens = tokenize(text)
@@ -100,18 +95,28 @@ function build(view: EditorView): DecorationSet {
     else if (it.kind === 'hide') ranges.push(hideMarker.range(it.from, it.to))
     else ranges.push(Decoration.replace({ widget: widgetFor(it.spec) }).range(it.from, it.to))
   }
+  if (conn) {
+    for (const tk of tokens) {
+      if (tk.kind !== 'wikiLink') continue
+      const status = conn.resolve(text.slice(tk.contentRange[0], tk.contentRange[1])).status
+      ranges.push(Decoration.mark({ class: `md-connection-${status}` }).range(tk.contentRange[0], tk.contentRange[1]))
+    }
+  }
   return Decoration.set(ranges, true)
 }
 
-export const markdownDecorations = ViewPlugin.fromClass(
-  class {
-    decorations: DecorationSet
-    constructor(view: EditorView) {
-      this.decorations = build(view)
-    }
-    update(u: ViewUpdate): void {
-      if (u.docChanged || u.selectionSet || u.viewportChanged) this.decorations = build(u.view)
-    }
-  },
-  { decorations: (v) => v.decorations }
-)
+export function markdownDecorations(getConn: () => ConnectionsApi | undefined): Extension {
+  return ViewPlugin.fromClass(
+    class {
+      decorations: DecorationSet
+      constructor(view: EditorView) {
+        this.decorations = build(view, getConn())
+      }
+      update(u: ViewUpdate): void {
+        // Decorations cover the whole doc, so only doc/selection changes matter — not scroll.
+        if (u.docChanged || u.selectionSet) this.decorations = build(u.view, getConn())
+      }
+    },
+    { decorations: (v) => v.decorations }
+  )
+}

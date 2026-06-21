@@ -1,6 +1,3 @@
-// Renderer-side connection resolution + autocomplete candidates, derived from the loaded nexus tree
-// (no IPC — every page is already in memory). Title-only `[[Title]]` links resolve by normalized
-// title; ranking mirrors the Swift autocomplete (prefix → exact, shortest, A–Z).
 import { normalizeTitle, type LinkStatus } from '@shared/connections'
 import type { NexusTree, PageTypeNode } from '@shared/types'
 
@@ -21,12 +18,10 @@ export interface PageIndex {
   candidates: (query: string, limit?: number) => ConnPage[]
 }
 
-/** What the editor needs from the host: resolution + candidates + a navigate callback. */
 export interface ConnectionsApi extends PageIndex {
   open: (page: ConnPage) => void
 }
 
-/** Every page in the nexus, flattened from the tree (vault → collection → [set] → pages). */
 export function flattenPages(tree: NexusTree): ConnPage[] {
   const out: ConnPage[] = []
   const add = (p: { id: string; title: string; path: string; icon?: string }): void => {
@@ -62,15 +57,17 @@ export function buildPageIndex(pages: ConnPage[]): PageIndex {
     candidates(query, limit = 20) {
       const q = normalizeTitle(query)
       if (!q) return []
-      const matches = pages.filter((p) => normalizeTitle(p.title).startsWith(q))
-      matches.sort((a, b) => {
-        const exactA = normalizeTitle(a.title) === q ? 0 : 1
-        const exactB = normalizeTitle(b.title) === q ? 0 : 1
-        if (exactA !== exactB) return exactA - exactB
-        if (a.title.length !== b.title.length) return a.title.length - b.title.length
-        return a.title.localeCompare(b.title)
-      })
-      return matches.slice(0, limit)
+      return pages
+        .map((p) => ({ p, norm: normalizeTitle(p.title) }))
+        .filter((x) => x.norm.startsWith(q))
+        .sort((a, b) => {
+          const exact = (a.norm === q ? 0 : 1) - (b.norm === q ? 0 : 1)
+          if (exact !== 0) return exact
+          if (a.p.title.length !== b.p.title.length) return a.p.title.length - b.p.title.length
+          return a.p.title.localeCompare(b.p.title)
+        })
+        .slice(0, limit)
+        .map((x) => x.p)
     }
   }
 }

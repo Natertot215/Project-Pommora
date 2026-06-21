@@ -1,18 +1,13 @@
-// The parser seam — the ONLY place the behavior layer touches micromark/mdast, so the parser is
-// swappable behind here. Plus the cheap line-scoped helpers detection + input transforms use to
-// skip code / wikilink / latex regions without an AST walk.
 import { fromMarkdown } from 'mdast-util-from-markdown'
 import { gfm } from 'micromark-extension-gfm'
 import { gfmFromMarkdown } from 'mdast-util-gfm'
 import type { Root } from 'mdast'
 
-/** Parse Markdown to a GFM mdast tree with per-node source offsets. */
 export function parse(text: string): Root {
   return fromMarkdown(text, { extensions: [gfm()], mdastExtensions: [gfmFromMarkdown()] })
 }
 
-/** Is `offset` inside a fenced code block? Doc-scan toggling on ``` fence lines; an offset
- *  on a fence line counts as inside (the fence is part of the construct). */
+// An offset on a fence line counts as inside (the fence is part of the construct).
 export function isInsideCode(offset: number, text: string): boolean {
   let pos = 0
   let inFence = false
@@ -30,8 +25,7 @@ export function isInsideCode(offset: number, text: string): boolean {
   return false
 }
 
-/** Is `offset` inside a `[[ … ]]` wikilink? Line-scoped depth counter (+1 on `[[`, −1 floored
- *  on `]]`); inside iff depth > 0. Resets each line, so an unclosed `[[` never bleeds across. */
+// Line-scoped so an unclosed `[[` never bleeds across lines.
 export function isInsideWikilink(offset: number, text: string): boolean {
   const lineStart = text.lastIndexOf('\n', Math.max(0, offset - 1)) + 1
   let depth = 0

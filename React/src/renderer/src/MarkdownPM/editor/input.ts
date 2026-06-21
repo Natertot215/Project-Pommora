@@ -1,6 +1,3 @@
-// The CM6 input adapter — wires the framework-free input transforms into CodeMirror. Single-char
-// inserts go through an inputHandler so the transforms fire before the literal char lands; a
-// non-null Edit applies as one transaction and consumes the keystroke, else it falls through.
 import { EditorView, keymap } from '@codemirror/view'
 import { Prec } from '@codemirror/state'
 import {
@@ -30,8 +27,7 @@ function apply(view: EditorView, edit: Edit | null): boolean {
 const onEnter = (view: EditorView): boolean => {
   const s = view.state.selection.main
   const doc = view.state.doc.toString()
-  // Bracket-skip first (jump past a closer), else continue a list, else continue a blockquote.
-  // Plain Enter only — Shift+Enter is bound separately to a plain newline (the construct exit).
+  // Bracket-skip before list/blockquote continuation, so a caret between an empty pair jumps.
   return apply(
     view,
     bracketSkipOnEnter(doc, s.from, s.to) ??
@@ -46,15 +42,14 @@ const onBackspace = (view: EditorView): boolean => {
   return apply(view, smartBackspace(doc, s.from, s.to) ?? autoDelete(doc, s.from, s.to))
 }
 
-// Tab nests a list item; on any other line it's a no-op. Either way it ALWAYS returns true so the
-// key is consumed in the editor and never escapes to focus the sidebar.
+// Always returns true so Tab never escapes the editor to focus the sidebar.
 const onTab = (view: EditorView): boolean => {
   const s = view.state.selection.main
   apply(view, indentListOnTab(view.state.doc.toString(), s.from, s.to))
   return true
 }
 
-// Shift+Enter is the construct EXIT (spec §6.7): a plain newline, never a list/blockquote continue.
+// Shift+Enter is the construct exit: a plain newline, never a list/blockquote continue.
 const onShiftEnter = (view: EditorView): boolean => {
   const s = view.state.selection.main
   view.dispatch({ changes: { from: s.from, to: s.to, insert: '\n' }, selection: { anchor: s.from + 1 }, userEvent: 'input' })
@@ -71,7 +66,7 @@ export const markdownInput = [
     ])
   ),
   EditorView.inputHandler.of((view, from, to, text) => {
-    if (text.length !== 1 || from !== to) return false // single-char inserts only (paste/IME pass through)
+    if (text.length !== 1 || from !== to) return false // single-char inserts only; paste/IME pass through
     const doc = view.state.doc.toString()
     return apply(
       view,

@@ -1,19 +1,15 @@
-// Framework-free decoration-intent mapping (tokens + caret state → flat intents, no CSS literals).
-// The CM6 adapter (editor/decorations) is the only thing that realizes these, keeping this layer unit-testable without an editor.
 import type { Token, TokenKind } from '../tokens'
 import { isThematicBreakLine, isHeadingLine, isBlockquoteLine, parseListMarker, blockquotePrefixRe } from '../detect'
 
 const HEADING_RE = /^(\s{0,3})(#{1,6})([ \t]+)(.*)$/
 
 const FENCE_RE = /^\s*```/
-/** A fenced-code-block line's role + the block's char range (for a cheap caret-in-block test). */
 interface FenceInfo {
   role: 'open' | 'content' | 'close'
   from: number
   to: number
 }
 
-/** Classify every line's fenced-code role (toggle on ``` lines); an unclosed fence runs to doc end. */
 function scanFencedCode(lines: string[], lineStarts: number[]): (FenceInfo | undefined)[] {
   const out: (FenceInfo | undefined)[] = new Array(lines.length)
   let i = 0
@@ -35,8 +31,6 @@ function scanFencedCode(lines: string[], lineStarts: number[]): (FenceInfo | und
   return out
 }
 
-/** A widget to draw in place of source text, with the data its renderer needs. Bullets + ordered
- *  numbers are NOT widgets — they render from their own (hidden / recoloured) source. */
 export type WidgetSpec =
   | { type: 'hr' }
   | { type: 'bullet' }
@@ -46,8 +40,6 @@ export type DecoIntent =
   | { kind: 'class'; from: number; to: number; className: string }
   | { kind: 'hide'; from: number; to: number }
   | { kind: 'widget'; from: number; to: number; spec: WidgetSpec }
-  /** Whole-line decoration (`from` = line start). `level` (lists only) rides as a CSS var for the
-   *  per-level indent. */
   | { kind: 'line'; from: number; className: string; level?: number }
 
 const CONTENT_CLASS: Partial<Record<TokenKind, string>> = {
@@ -62,19 +54,20 @@ const CONTENT_CLASS: Partial<Record<TokenKind, string>> = {
   blockLatex: 'md-latex'
 }
 
-/** Build the decoration intents for a document. Inline markers hide unless their token is active
- *  (caret on it); list/checkbox glyphs and the HR rule are widgets shown over the source marker. */
+const ACTIVE_MARKER_CLASS: Partial<Record<TokenKind, string>> = {
+  wikiLink: 'md-bracket'
+}
+
 export function decorationsFor(text: string, tokens: Token[], active: Set<number>, selStart: number): DecoIntent[] {
   const intents: DecoIntent[] = []
 
   tokens.forEach((tk, i) => {
     const cls = CONTENT_CLASS[tk.kind]
     if (cls) intents.push({ kind: 'class', from: tk.contentRange[0], to: tk.contentRange[1], className: cls })
-    if (!active.has(i)) {
-      for (const [s, e] of tk.markerRanges) intents.push({ kind: 'hide', from: s, to: e })
-    } else if (tk.kind === 'wikiLink') {
-      // The `[[ ]]` brackets read as muted syntax while the connection is being edited/written.
-      for (const [s, e] of tk.markerRanges) intents.push({ kind: 'class', from: s, to: e, className: 'md-bracket' })
+    const markerClass = active.has(i) ? ACTIVE_MARKER_CLASS[tk.kind] : undefined
+    for (const [s, e] of tk.markerRanges) {
+      if (!active.has(i)) intents.push({ kind: 'hide', from: s, to: e })
+      else if (markerClass) intents.push({ kind: 'class', from: s, to: e, className: markerClass })
     }
   })
 
@@ -105,7 +98,6 @@ export function decorationsFor(text: string, tokens: Token[], active: Set<number
       if (hm) {
         const level = hm[2].length
         const contentStart = ls + hm[1].length + hm[2].length + hm[3].length
-        // Size the WHOLE line so the `#` markers grow/shrink with the level too.
         intents.push({ kind: 'class', from: ls, to: le, className: `md-h${level}` })
         if (contentStart > ls) intents.push({ kind: 'class', from: ls, to: contentStart, className: 'md-hmarker' })
         if (!caretOnLine) intents.push({ kind: 'hide', from: ls, to: contentStart })
@@ -119,22 +111,20 @@ export function decorationsFor(text: string, tokens: Token[], active: Set<number
         to: ls + lm.box.end,
         spec: { type: 'checkbox', bracketFrom: ls + lm.box.start, bracketTo: ls + lm.box.end, checked: lm.checked ?? false }
       })
-      // Hide the trailing space so the gap to the text is the chip zone's padding, not a rendered space.
+      // Hide the source space so the gap is the chip zone's padding.
       intents.push({ kind: 'hide', from: ls + lm.box.end, to: ls + lm.contentStart })
     } else if (lm?.kind === 'bullet' && lm.bullet === '-' && !lm.box) {
-      // Reveal the raw `-` only when the caret is on the marker itself; otherwise a `•` widget takes
-      // the dash's exact slot (no horizontal shift).
+      // Raw `-` shows only when the caret is on the marker; else a `•` widget takes its exact slot.
       const onMarker = selStart >= ls + lm.markerStart && selStart <= ls + lm.markerEnd
       intents.push({ kind: 'line', from: ls, className: 'md-li', level: lm.level })
       if (lm.markerStart > 0) intents.push({ kind: 'hide', from: ls, to: ls + lm.markerStart })
       if (!onMarker) intents.push({ kind: 'widget', from: ls + lm.markerStart, to: ls + lm.markerEnd, spec: { type: 'bullet' } })
     } else if (lm?.kind === 'ordered') {
-      // The `N.` stays as literal recoloured source — no widget, so typing after the number can't hit
-      // an atomic range; the right-aligned zone (md-ol-marker) columns the periods across digit counts.
+      // `N.` stays literal recoloured source (no widget) so typing after the number can't hit an atomic range.
       intents.push({ kind: 'line', from: ls, className: 'md-li md-li-ordered', level: lm.level })
       if (lm.markerStart > 0) intents.push({ kind: 'hide', from: ls, to: ls + lm.markerStart })
       intents.push({ kind: 'class', from: ls + lm.markerStart, to: ls + lm.markerEnd, className: 'md-ol-marker md-syntax' })
-      // Hide the trailing space — the gap comes from the zone padding (like the checkbox).
+      // Hide the source space so the gap is the zone padding.
       intents.push({ kind: 'hide', from: ls + lm.markerEnd, to: ls + lm.contentStart })
     } else if (isBlockquoteLine(line)) {
       const bm = blockquotePrefixRe.exec(line)

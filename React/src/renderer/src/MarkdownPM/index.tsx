@@ -1,6 +1,3 @@
-// The public front door — a React component hosting a CodeMirror 6 editor over a page's Markdown
-// body. Uncontrolled by design: the body is the INITIAL doc, edits flow out via onChange, and the
-// host remounts per page (key on path) so there's no body-sync-on-keystroke.
 import { useEffect, useRef, useState } from 'react'
 import { EditorView, keymap } from '@codemirror/view'
 import { Prec } from '@codemirror/state'
@@ -8,7 +5,7 @@ import { history, historyKeymap, defaultKeymap } from '@codemirror/commands'
 import { markdown } from '@codemirror/lang-markdown'
 import { markdownDecorations } from './editor/decorations'
 import { markdownInput } from './editor/input'
-import { connectionClicks, connectionStatus } from './editor/connections'
+import { connectionClicks } from './editor/connections'
 import { autocompleteQuery, connectionInsert } from './autocomplete'
 import { AutocompletePanel } from './AutocompletePanel'
 import type { ConnectionsApi, ConnPage } from './connections'
@@ -16,13 +13,10 @@ import { TitleBar } from './TitleBar'
 import { ZOOM_DEFAULT, zoomFontSize } from './zoom'
 import './Styles.css'
 
-/** The reserved title zone (px) — must match the `.cm-content` top padding in Styles.css. The
- *  title translates up by the scroll offset, clamped to this, then clips off-screen. (Swift: 90.) */
+// Must match the `.cm-content` top padding in Styles.css.
 const TITLE_ZONE = 90
-/** Max connection candidates shown at once. */
 const AC_MAX = 6
 
-/** Active `[[` autocomplete: the query + the token span to replace + the caret anchor. */
 interface AcState {
   query: string
   from: number
@@ -34,14 +28,9 @@ interface AcState {
 interface Props {
   initialBody: string
   onChange: (body: string) => void
-  /** Page title (= filename). Omit to render bodyless (no title bar). */
   title?: string
-  /** Commit a rename of the page's `.md` (host wires to the existing rename op). Resolves the op's
-   *  success so the title bar can revert its draft on failure. */
   onRename?: (newName: string) => void | Promise<boolean>
-  /** Editor zoom (0–2, default 1.0 = 15pt). Wire a per-page value in later. */
   zoom?: number
-  /** Connection resolution + navigation. Read live via a ref so tree changes take effect. */
   connections?: ConnectionsApi
 }
 
@@ -61,15 +50,14 @@ export function MarkdownEditor({
   const connectionsRef = useRef(connections)
   connectionsRef.current = connections
 
-  // `[[` autocomplete. The CM6 extensions are built once at mount, so they read live state through
-  // refs rather than the closed-over values.
+  // CM6 extensions are built once at mount, so they read live state + actions through refs.
   const [ac, setAc] = useState<AcState | null>(null)
   const [acIndex, setAcIndex] = useState(0)
   const candidates =
     ac && connectionsRef.current
       ? connectionsRef.current
-          .candidates(ac.query, AC_MAX + 4)
-          .filter((p) => p.title !== title) // no self-links
+          .candidates(ac.query, AC_MAX + 1)
+          .filter((p) => p.title !== title)
           .slice(0, AC_MAX)
       : []
 
@@ -82,16 +70,19 @@ export function MarkdownEditor({
     view.focus()
   }
 
-  const acRef = useRef<{ open: boolean; candidates: ConnPage[]; index: number }>({ open: false, candidates: [], index: 0 })
-  acRef.current = { open: ac !== null && candidates.length > 0, candidates, index: acIndex }
+  const acCtl = useRef({ open: false, pick: () => {}, move: (_d: number) => {}, close: () => {} })
+  acCtl.current = {
+    open: ac !== null && candidates.length > 0,
+    pick: () => {
+      const p = candidates[acIndex]
+      if (p) commit(p)
+    },
+    move: (d) => setAcIndex((i) => Math.max(0, Math.min(i + d, candidates.length - 1))),
+    close: () => setAc(null)
+  }
   const setAcRef = useRef(setAc)
   setAcRef.current = setAc
-  const setAcIndexRef = useRef(setAcIndex)
-  setAcIndexRef.current = setAcIndex
-  const commitRef = useRef(commit)
-  commitRef.current = commit
 
-  // Selection resets to the top whenever the query changes (a fresh candidate list).
   useEffect(() => setAcIndex(0), [ac?.query])
 
   useEffect(() => {
@@ -102,50 +93,19 @@ export function MarkdownEditor({
       parent,
       extensions: [
         history(),
-        // When the autocomplete is open these intercept nav/accept/dismiss; otherwise fall through.
         Prec.highest(
           keymap.of([
-            {
-              key: 'ArrowDown',
-              run: () => {
-                if (!acRef.current.open) return false
-                setAcIndexRef.current((i) => Math.min(i + 1, acRef.current.candidates.length - 1))
-                return true
-              }
-            },
-            {
-              key: 'ArrowUp',
-              run: () => {
-                if (!acRef.current.open) return false
-                setAcIndexRef.current((i) => Math.max(i - 1, 0))
-                return true
-              }
-            },
-            {
-              key: 'Enter',
-              run: () => {
-                if (!acRef.current.open) return false
-                const p = acRef.current.candidates[acRef.current.index]
-                if (p) commitRef.current(p)
-                return true
-              }
-            },
-            {
-              key: 'Escape',
-              run: () => {
-                if (!acRef.current.open) return false
-                setAcRef.current(null)
-                return true
-              }
-            }
+            { key: 'ArrowDown', run: () => (acCtl.current.open ? (acCtl.current.move(1), true) : false) },
+            { key: 'ArrowUp', run: () => (acCtl.current.open ? (acCtl.current.move(-1), true) : false) },
+            { key: 'Enter', run: () => (acCtl.current.open ? (acCtl.current.pick(), true) : false) },
+            { key: 'Escape', run: () => (acCtl.current.open ? (acCtl.current.close(), true) : false) }
           ])
         ),
         markdownInput,
         keymap.of([...defaultKeymap, ...historyKeymap]),
         markdown(),
         EditorView.lineWrapping,
-        markdownDecorations,
-        connectionStatus(() => connectionsRef.current),
+        markdownDecorations(() => connectionsRef.current),
         connectionClicks(() => connectionsRef.current),
         EditorView.updateListener.of((u) => {
           if (u.docChanged) onChangeRef.current(u.state.doc.toString())
@@ -163,8 +123,6 @@ export function MarkdownEditor({
       ]
     })
     viewRef.current = view
-    // Scroll-track the title: translate it up 1:1 with the body scroll, clamped to the title zone,
-    // so it clips off as the document scrolls past (no React re-render — DOM write only).
     const onScroll = (): void => {
       const t = titleRef.current
       if (t) t.style.transform = `translateY(${-Math.min(Math.max(view.scrollDOM.scrollTop, 0), TITLE_ZONE)}px)`
@@ -175,7 +133,7 @@ export function MarkdownEditor({
       view.destroy()
       viewRef.current = null
     }
-    // Mount once per page (the host keys on path); initialBody is the seed, not a live binding.
+    // Mount once per page — the host keys on path; initialBody is the seed, not a live binding.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 

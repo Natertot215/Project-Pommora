@@ -1,5 +1,3 @@
-// The editor zoom control — a stateless range slider (0–2) reporting via onChange. Feed the value
-// into <MarkdownEditor zoom={…}> when that wiring lands.
 import { ZOOM_MIN, ZOOM_MAX, ZOOM_DEFAULT, zoomFontSize } from './zoom'
 
 interface Props {

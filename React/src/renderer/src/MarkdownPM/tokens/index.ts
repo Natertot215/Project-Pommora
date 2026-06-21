@@ -1,5 +1,4 @@
-// The token model + tokenizer (pure, no CM6). Emphasis is located on the mdast AST so `_`/`*`
-// mixing/nesting is correct and code spans never emit emphasis; other constructs are regex-located.
+// Emphasis is located on the mdast AST so `_`/`*` mixing/nesting is correct and code spans never emit emphasis.
 import type { Root, RootContent, PhrasingContent } from 'mdast'
 import { parse, isInsideCode } from '../parser'
 import {
@@ -27,24 +26,18 @@ export interface Token {
   kind: TokenKind
   /** Full span incl. markers, `[start, end)`. */
   range: [number, number]
-  /** Inner content span. */
   contentRange: [number, number]
-  /** The delimiter spans (open/close, etc.). */
   markerRanges: [number, number][]
 }
 
 type Span = [number, number]
 const overlaps = (a: Span, b: Span): boolean => a[0] < b[1] && b[0] < a[1]
 
-/** Drop tokens whose range overlaps any of the higher-priority `claimed` tokens. */
 const notOverlapping = (claimed: Token[]) => (tk: Token): boolean =>
   !claimed.some((c) => overlaps(c.range, tk.range))
 
-// --- Emphasis (mdast) ----------------------------------------------------------------------
-
 type MdNode = Root | RootContent | PhrasingContent
 
-/** Union of a node's direct children offsets (the "real" content span). */
 function childSpan(node: MdNode): Span | null {
   const kids = 'children' in node ? node.children : undefined
   if (!kids || kids.length === 0) return null
@@ -53,14 +46,12 @@ function childSpan(node: MdNode): Span | null {
   return start != null && end != null ? [start, end] : null
 }
 
-/** Emit one emphasis token, reconstructing marker spans from the tighter of (delimiter width)
- *  and (child span) — robust when an inner node abuts the outer delimiter run. */
+// Marker spans come from the tighter of (delimiter width) and (child span), robust when an inner node abuts the run.
 function pushEmphasis(node: MdNode, kind: 'italic' | 'bold' | 'strikethrough', width: number, out: Token[]): void {
   const fs = node.position?.start.offset
   const fe = node.position?.end.offset
   if (fs == null || fe == null || fe - fs < width * 2) return
   const cs = childSpan(node) ?? [fs + width, fe - width]
-  // Clamp the content span inside the delimiters so the marker spans fall out cleanly.
   const contentStart = Math.max(cs[0], fs + width)
   const contentEnd = Math.min(cs[1], fe - width)
   if (contentEnd <= contentStart) return
@@ -84,15 +75,11 @@ function walkEmphasis(node: MdNode, out: Token[]): void {
   }
 }
 
-// --- Inline regex tokens -------------------------------------------------------------------
-
 interface RegexSpec {
   kind: TokenKind
   re: RegExp
-  /** Open/close marker lengths to carve off the full match. */
   open: number
   close: number
-  /** Optional content-level gate (e.g. inline-math heuristic). */
   accept?: (content: string) => boolean
 }
 
@@ -119,8 +106,7 @@ function regexTokens(text: string, spec: RegexSpec): Token[] {
   return tokens
 }
 
-/** Wikilinks via the shared connections pattern (no `d` flag, so offsets are derived from the
- *  known `[[` prefix). Title-only; `![[ ]]` excluded by the pattern's lookbehind. */
+// No `d` flag, so offsets are derived from the known `[[` prefix.
 function wikiLinkTokens(text: string): Token[] {
   const tokens: Token[] = []
   for (const m of text.matchAll(pageLinkPattern())) {
@@ -170,11 +156,7 @@ export function tokenize(text: string): Token[] {
   return tokens
 }
 
-// --- Active tokens (caret/selection) -------------------------------------------------------
-
-/** Which tokens have the caret/selection on them (so their markers should reveal). A caret
- *  inside `[start, end]` activates; at a wikilink's `end` it does NOT (the closing `]]` was
- *  passed); a non-empty selection intersecting a token activates it. */
+// A caret at a wikilink's `end` does NOT activate it (the closing `]]` was passed).
 export function activeTokenIndices(tokens: Token[], selStart: number, selEnd: number): Set<number> {
   const active = new Set<number>()
   tokens.forEach((tk, i) => {
