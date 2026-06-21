@@ -42,6 +42,7 @@ function scanFencedCode(lines: string[], lineStarts: number[]): (FenceInfo | und
  *  numbers are NOT widgets — they render from their own (hidden / recoloured) source. */
 export type WidgetSpec =
   | { type: 'hr' }
+  | { type: 'bullet' }
   | { type: 'checkbox'; bracketFrom: number; bracketTo: number; checked: boolean }
 
 export type DecoIntent =
@@ -122,16 +123,13 @@ export function decorationsFor(text: string, tokens: Token[], active: Set<number
         spec: { type: 'checkbox', bracketFrom: ls + lm.box.start, bracketTo: ls + lm.box.end, checked: lm.checked ?? false }
       })
     } else if (lm?.kind === 'bullet' && lm.bullet === '-' && !lm.box) {
-      // Caret-aware (heading parity): caret OFF the line → hide indent + `-`, draw `•` via
-      // `.md-li-bullet::before`. Caret ON the line → reveal the raw `- ` source (selectable/editable)
-      // and suppress the glyph via `.md-li-raw`.
-      intents.push({
-        kind: 'line',
-        from: ls,
-        className: caretOnLine ? 'md-li md-li-bullet md-li-raw' : 'md-li md-li-bullet',
-        level: lm.level
-      })
-      if (!caretOnLine) intents.push({ kind: 'hide', from: ls, to: ls + lm.markerEnd })
+      // Caret-aware (heading parity): indent always hides. Caret OFF the line → the `-` becomes an
+      // in-flow `•` widget (same flow slot as the raw dash, so no horizontal jump). Caret ON the line
+      // → the raw, selectable `- ` source shows. The number/checkbox parallels: ordered keeps its
+      // literal number, the checkbox keeps its chip.
+      intents.push({ kind: 'line', from: ls, className: 'md-li', level: lm.level })
+      if (lm.markerStart > 0) intents.push({ kind: 'hide', from: ls, to: ls + lm.markerStart })
+      if (!caretOnLine) intents.push({ kind: 'widget', from: ls + lm.markerStart, to: ls + lm.markerEnd, spec: { type: 'bullet' } })
     } else if (lm?.kind === 'ordered') {
       // The `N.` stays as literal, editable source (recoloured); only the indent hides. No widget,
       // so typing a space after the number can't collide with an atomic range.

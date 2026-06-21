@@ -18,6 +18,21 @@ class HrWidget extends WidgetType {
   }
 }
 
+/** The `•` shown in place of the source `-` when the caret is off the line. In-flow (replaces just
+ *  the dash) so it occupies the dash's exact slot — moving the caret onto the line swaps it for the
+ *  raw `- ` with no horizontal shift. */
+class BulletWidget extends WidgetType {
+  eq(): boolean {
+    return true
+  }
+  toDOM(): HTMLElement {
+    const el = document.createElement('span')
+    el.className = 'md-bullet'
+    el.textContent = '•'
+    return el
+  }
+}
+
 /** Reuses the `chipCheckbox` visual + nexus accent when checked; clicking toggles the underlying
  *  `[ ]` ↔ `[x]` source in one transaction (native undo). */
 class CheckboxWidget extends WidgetType {
@@ -53,6 +68,8 @@ function widgetFor(spec: WidgetSpec): WidgetType {
   switch (spec.type) {
     case 'hr':
       return new HrWidget()
+    case 'bullet':
+      return new BulletWidget()
     case 'checkbox':
       return new CheckboxWidget(spec.bracketFrom, spec.bracketTo, spec.checked)
   }

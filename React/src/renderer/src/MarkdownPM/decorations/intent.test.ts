@@ -54,19 +54,18 @@ describe('decoration intents', () => {
     )
   })
 
-  it('dash bullet, caret OFF the line → hidden dash (• via ::before), no widget', () => {
+  it('dash bullet, caret OFF the line → • widget replaces just the dash (in-flow)', () => {
     const t = '- item'
     const intents = decorationsFor(t, tokenize(t), new Set(), 99)
-    expect(intents.some((d) => d.kind === 'line' && d.className === 'md-li md-li-bullet' && d.level === 0)).toBe(true)
-    expect(intents.some((d) => d.kind === 'hide' && d.from === 0 && d.to === 1)).toBe(true) // just the "-"
-    expect(intents.some((d) => d.kind === 'widget')).toBe(false)
+    expect(intents.some((d) => d.kind === 'line' && d.className === 'md-li' && d.level === 0)).toBe(true)
+    expect(intents.some((d) => d.kind === 'widget' && d.spec.type === 'bullet' && d.from === 0 && d.to === 1)).toBe(true)
   })
 
-  it('dash bullet, caret ON the line → raw `-` revealed (no hide), md-li-raw class', () => {
+  it('dash bullet, caret ON the line → raw `-` source, no widget', () => {
     const t = '- item'
     const intents = decorationsFor(t, tokenize(t), new Set(), 3) // caret inside the line
-    expect(intents.some((d) => d.kind === 'line' && d.className === 'md-li md-li-bullet md-li-raw')).toBe(true)
-    expect(intents.some((d) => d.kind === 'hide')).toBe(false) // nothing hidden → editable `- ` source
+    expect(intents.some((d) => d.kind === 'line' && d.className === 'md-li')).toBe(true)
+    expect(intents.some((d) => d.kind === 'widget')).toBe(false) // raw, editable `- ` source
   })
 
   it('ordered list → number kept as literal source (recolour mark), no widget', () => {

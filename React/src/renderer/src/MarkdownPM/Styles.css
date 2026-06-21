@@ -138,31 +138,17 @@
   --gap: 4px;
   --li-zone: 16px;
   --li-col: calc((var(--li-level, 0) + 1) * var(--bullet-indent));
-  position: relative;
   padding-left: calc(var(--li-col) + var(--li-zone));
-  /* Ordered numbers + the checkbox chip hang into the gutter via the negative first-line indent. */
+  /* The marker (• widget, literal ordered number, raw `-`, or checkbox chip) hangs into the gutter
+     via the negative first-line indent; wrapped lines align to the text column. */
   text-indent: calc(-1 * var(--li-zone));
 }
-/* Bullets draw their glyph as an overlay (::before), so the text line is NOT pulled back — except
-   when the caret is on the line (.md-li-raw), where the literal `- ` source is revealed and hangs
-   into the gutter like the ordered number, and the glyph is suppressed. */
-.mdpm-editor .cm-line.md-li-bullet {
-  text-indent: 0;
-}
-.mdpm-editor .cm-line.md-li-bullet.md-li-raw {
-  text-indent: calc(-1 * var(--li-zone));
-}
-.mdpm-editor .cm-line.md-li-bullet:not(.md-li-raw)::before {
-  content: '•';
-  position: absolute;
-  left: var(--li-col);
-  width: var(--li-zone);
-  box-sizing: border-box;
-  padding-right: var(--gap);
-  text-align: right;
+
+/* The • shown in place of the source `-` when the caret is off the line (in-flow widget — occupies
+   the dash's exact slot, so revealing the raw `-` on caret-enter produces no horizontal shift). */
+.md-bullet {
   color: color-mix(in srgb, var(--label-primary) 80%, transparent);
   font-size: 1.25em;
-  line-height: 1.6;
 }
 
 /* Marker zone — the in-flow slot the checkbox chip sits in; right-aligned, `--gap` before the text. */
