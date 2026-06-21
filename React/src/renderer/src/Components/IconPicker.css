@@ -1,0 +1,23 @@
+.icon-picker-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+}
+/* Placeholder positioning — the Figma design + the interactions dropdown primitive replace this. */
+.icon-picker {
+  position: fixed;
+  top: 140px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 41;
+  min-width: 240px;
+  padding: 16px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--label-primary) 8%, var(--bg-window));
+  border: 1px solid var(--separator-border);
+  box-shadow: 0 8px 26px #00000047;
+}
+.icon-picker-stub {
+  color: var(--label-secondary);
+  font-size: 13px;
+}

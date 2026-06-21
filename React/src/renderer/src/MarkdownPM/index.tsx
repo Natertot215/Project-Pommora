@@ -13,12 +13,11 @@ import { readFormatState } from './editor/formatState'
 import { autocompleteQuery, connectionInsert } from './autocomplete'
 import { AutocompletePanel } from './AutocompletePanel'
 import type { ConnectionsApi, ConnPage } from './connections'
-import { TitleBar } from './TitleBar'
+import type { IconName } from '@renderer/design-system/symbols'
+import { PageHeader } from './PageHeader'
 import { ZOOM_DEFAULT, zoomFontSize } from './zoom'
 import './Styles.css'
 
-// Must match the `.cm-content` top padding in Styles.css.
-const TITLE_ZONE = 90
 const AC_MAX = 6
 // Panel geometry — keep in sync with .mdpm-ac in Styles.css. Used to flip the panel above the caret near the viewport bottom.
 const AC_ROW_H = 28
@@ -40,6 +39,11 @@ interface Props {
   onChange: (body: string) => void
   title?: string
   onRename?: (newName: string) => void | Promise<boolean>
+  /** Page identity + chrome for the header (banner cover + title icon + Edit Icon). */
+  path?: string
+  icon?: IconName
+  cover?: string
+  onEditIcon?: () => void
   zoom?: number
   connections?: ConnectionsApi
   folds?: FoldsApi
@@ -51,6 +55,10 @@ export function MarkdownEditor({
   onChange,
   title,
   onRename,
+  path,
+  icon,
+  cover,
+  onEditIcon,
   zoom = ZOOM_DEFAULT,
   connections,
   folds,
@@ -166,7 +174,8 @@ export function MarkdownEditor({
     void foldsRef.current?.load().then((keys) => applySavedFolds(view, keys))
     const onScroll = (): void => {
       const t = titleRef.current
-      if (t) t.style.transform = `translateY(${-Math.min(Math.max(view.scrollDOM.scrollTop, 0), TITLE_ZONE)}px)`
+      // Scroll the header (banner + title) fully out of view over its own height.
+      if (t) t.style.transform = `translateY(${-Math.min(Math.max(view.scrollDOM.scrollTop, 0), t.offsetHeight)}px)`
     }
     view.scrollDOM.addEventListener('scroll', onScroll, { passive: true })
     const unsubMenu = menuRef.current?.onAction((action) => applyEditorAction(view, action))
@@ -180,10 +189,30 @@ export function MarkdownEditor({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // Body top-padding tracks the header height, so toggling the banner resizes the gutter automatically.
+  useEffect(() => {
+    const header = titleRef.current
+    const hostEl = host.current
+    if (!header || !hostEl) return
+    const apply = (): void => hostEl.style.setProperty('--header-zone', `${header.offsetHeight}px`)
+    apply()
+    const ro = new ResizeObserver(apply)
+    ro.observe(header)
+    return () => ro.disconnect()
+  }, [])
+
   return (
     <div className="mdpm-shell" style={{ '--editor-font-size': `${zoomFontSize(zoom)}px` } as React.CSSProperties}>
-      {title !== undefined && (
-        <TitleBar ref={titleRef} title={title} onRename={onRename} onCommit={() => viewRef.current?.focus()} />
+      {title !== undefined && path !== undefined && (
+        <PageHeader
+          ref={titleRef}
+          path={path}
+          title={title}
+          icon={icon ?? 'file-text'}
+          cover={cover}
+          onRename={onRename ?? ((): void => {})}
+          onEditIcon={onEditIcon ?? ((): void => {})}
+        />
       )}
       <div ref={host} className="mdpm-editor" />
       {ac && (

@@ -56,6 +56,8 @@ interface SessionState {
   pageDetail: PageDetail | null
   pageError?: string
   select: (target: SelectTarget) => Promise<void>
+  /** Re-fetch the open page's detail (after a frontmatter write like a page banner/cover). No-op if no page. */
+  reloadPage: () => Promise<void>
   /** Create a page in the selected container (or the selected page's parent), then select it. */
   newPage: () => Promise<void>
   /** Create a top-level vault (page type at the nexus root), then inline-rename it. */
@@ -206,6 +208,13 @@ export const useSession = create<SessionState>((set, get) => {
           return
         }
       }
+    },
+
+    reloadPage: async () => {
+      const { selection } = get()
+      if (selection.kind !== 'page') return
+      const res = await window.nexus.openPage(selection.path).catch(() => null)
+      if (res?.ok) set({ pageDetail: res.page })
     },
 
     newPage: async () => {

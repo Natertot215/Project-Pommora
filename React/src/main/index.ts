@@ -423,6 +423,24 @@ ipcMain.handle('nexus:bannerMenu', async (e): Promise<'change' | 'remove' | null
   })
 })
 
+// Pop a native Rename / Edit Icon menu for a detail title (matches Swift's DetailTitleHeader).
+ipcMain.handle('nexus:titleMenu', async (e): Promise<'rename' | 'editIcon' | null> => {
+  const win = BrowserWindow.fromWebContents(e.sender)
+  if (!win) return null
+  return await new Promise<'rename' | 'editIcon' | null>((resolve) => {
+    let acted = false
+    const choose = (action: 'rename' | 'editIcon'): void => {
+      acted = true
+      resolve(action)
+    }
+    const menu = Menu.buildFromTemplate([
+      { label: 'Rename', click: () => choose('rename') },
+      { label: 'Edit Icon', click: () => choose('editIcon') }
+    ])
+    menu.popup({ window: win, callback: () => { if (!acted) resolve(null) } })
+  })
+})
+
 // Persist a cropped PNG data URL: write .nexus/photo.png atomically, then record
 // `photo: "photo.png"` in nexus.json. Never throws across the boundary.
 ipcMain.handle('nexus:saveNexusPhoto', async (_e, dataUrl: string): Promise<{ ok: true } | { ok: false; error: string }> => {

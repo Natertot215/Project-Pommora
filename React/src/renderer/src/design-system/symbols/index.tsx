@@ -84,6 +84,10 @@ export const icons = {
 
 export type IconName = keyof typeof icons
 
+/** Coerce an arbitrary value (e.g. a frontmatter `icon` string) to a known IconName, else the fallback. */
+export const iconNameOr = (value: unknown, fallback: IconName): IconName =>
+  typeof value === 'string' && value in icons ? (value as IconName) : fallback
+
 /**
  * Render a curated icon by name: `<Icon name="folder-closed" />`. Size defaults to
  * `1em`, so an icon follows the font-size (and, via `currentColor`, the colour) of

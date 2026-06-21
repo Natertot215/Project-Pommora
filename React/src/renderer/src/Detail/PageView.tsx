@@ -1,7 +1,9 @@
-import { useMemo, useRef } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { useSession } from '../store'
 import { MarkdownEditor } from '../MarkdownPM'
 import { buildPageIndex, flattenPages, type ConnectionsApi } from '../MarkdownPM/connections'
+import { IconPicker } from '../Components/IconPicker'
+import { iconNameOr } from '../design-system/symbols'
 
 const SAVE_DEBOUNCE_MS = 400
 
@@ -13,6 +15,7 @@ export function PageView(): React.JSX.Element {
   const tree = useSession((s) => s.tree)
   const select = useSession((s) => s.select)
   const saveTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  const [iconPickerOpen, setIconPickerOpen] = useState(false)
 
   const connections = useMemo<ConnectionsApi | undefined>(() => {
     if (!tree) return undefined
@@ -41,22 +44,29 @@ export function PageView(): React.JSX.Element {
     case 'ready':
       if (!pageDetail) return <div className="detail-placeholder">Page render — coming next</div>
       return (
-        <MarkdownEditor
-          key={pageDetail.path}
-          initialBody={pageDetail.body}
-          title={pageDetail.title}
-          onRename={(newName) => submitRename(pageDetail.path, 'page', newName)}
-          onChange={(body) => scheduleSave(pageDetail.path, body)}
-          connections={connections}
-          folds={{
-            load: async () => (await window.nexus.folds.get())[pageDetail.id] ?? [],
-            save: (keys) => void window.nexus.folds.set(pageDetail.id, keys)
-          }}
-          menu={{
-            pushState: (s) => window.nexus.setEditorFormatState(s),
-            onAction: (cb) => window.nexus.onMenuAction(cb)
-          }}
-        />
+        <>
+          <MarkdownEditor
+            key={pageDetail.path}
+            initialBody={pageDetail.body}
+            title={pageDetail.title}
+            path={pageDetail.path}
+            icon={iconNameOr(pageDetail.frontmatter.icon, 'file-text')}
+            cover={typeof pageDetail.frontmatter.cover === 'string' ? pageDetail.frontmatter.cover : undefined}
+            onEditIcon={() => setIconPickerOpen(true)}
+            onRename={(newName) => submitRename(pageDetail.path, 'page', newName)}
+            onChange={(body) => scheduleSave(pageDetail.path, body)}
+            connections={connections}
+            folds={{
+              load: async () => (await window.nexus.folds.get())[pageDetail.id] ?? [],
+              save: (keys) => void window.nexus.folds.set(pageDetail.id, keys)
+            }}
+            menu={{
+              pushState: (s) => window.nexus.setEditorFormatState(s),
+              onAction: (cb) => window.nexus.onMenuAction(cb)
+            }}
+          />
+          <IconPicker open={iconPickerOpen} onClose={() => setIconPickerOpen(false)} />
+        </>
       )
   }
 }

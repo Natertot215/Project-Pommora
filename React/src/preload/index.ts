@@ -40,6 +40,8 @@ const api = {
   pickImage: (): Promise<string | null> => ipcRenderer.invoke('nexus:pickImage'),
   // Pop the native Change / Remove banner menu → the chosen action (null if dismissed).
   bannerMenu: (): Promise<'change' | 'remove' | null> => ipcRenderer.invoke('nexus:bannerMenu'),
+  // Pop the native Rename / Edit Icon menu for a detail title → the chosen action (null if dismissed).
+  titleMenu: (): Promise<'rename' | 'editIcon' | null> => ipcRenderer.invoke('nexus:titleMenu'),
   // Persist a (cropped) PNG data URL to .nexus/photo.png + record it in nexus.json.
   saveNexusPhoto: (dataUrl: string): Promise<{ ok: true } | { ok: false; error: string }> =>
     ipcRenderer.invoke('nexus:saveNexusPhoto', dataUrl),

@@ -1,0 +1,33 @@
+/* --detail-title-size: overridable per surface (banner overlay vs page header). */
+.detail-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  --detail-title-size: 24px;
+}
+.detail-title-icon {
+  flex: none;
+  color: var(--label-secondary);
+}
+.detail-title-text,
+.detail-title-input {
+  font-size: var(--detail-title-size);
+  font-weight: var(--weight-bold);
+  color: var(--label-primary);
+  line-height: 1.15;
+}
+.detail-title-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.detail-title-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: none;
+  outline: none;
+  padding: 0;
+  background: transparent;
+  font-family: var(--font-family);
+}
