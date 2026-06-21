@@ -123,13 +123,13 @@ export function decorationsFor(text: string, tokens: Token[], active: Set<number
         spec: { type: 'checkbox', bracketFrom: ls + lm.box.start, bracketTo: ls + lm.box.end, checked: lm.checked ?? false }
       })
     } else if (lm?.kind === 'bullet' && lm.bullet === '-' && !lm.box) {
-      // Caret-aware (heading parity): indent always hides. Caret OFF the line → the `-` becomes an
-      // in-flow `•` widget (same flow slot as the raw dash, so no horizontal jump). Caret ON the line
-      // → the raw, selectable `- ` source shows. The number/checkbox parallels: ordered keeps its
-      // literal number, the checkbox keeps its chip.
+      // Reveal the raw `-` ONLY when the caret is literally on the marker (the dash itself), never
+      // elsewhere on the line. Otherwise the `-` is an in-flow `•` widget (same slot as the dash, so
+      // no horizontal shift). Indent always hides.
+      const onMarker = selStart >= ls + lm.markerStart && selStart <= ls + lm.markerEnd
       intents.push({ kind: 'line', from: ls, className: 'md-li', level: lm.level })
       if (lm.markerStart > 0) intents.push({ kind: 'hide', from: ls, to: ls + lm.markerStart })
-      if (!caretOnLine) intents.push({ kind: 'widget', from: ls + lm.markerStart, to: ls + lm.markerEnd, spec: { type: 'bullet' } })
+      if (!onMarker) intents.push({ kind: 'widget', from: ls + lm.markerStart, to: ls + lm.markerEnd, spec: { type: 'bullet' } })
     } else if (lm?.kind === 'ordered') {
       // The `N.` stays as literal, editable source (recoloured); only the indent hides. No widget,
       // so typing a space after the number can't collide with an atomic range.

@@ -54,18 +54,24 @@ describe('decoration intents', () => {
     )
   })
 
-  it('dash bullet, caret OFF the line → • widget replaces just the dash (in-flow)', () => {
+  it('dash bullet, caret off the line → • widget replaces just the dash (in-flow)', () => {
     const t = '- item'
     const intents = decorationsFor(t, tokenize(t), new Set(), 99)
     expect(intents.some((d) => d.kind === 'line' && d.className === 'md-li' && d.level === 0)).toBe(true)
     expect(intents.some((d) => d.kind === 'widget' && d.spec.type === 'bullet' && d.from === 0 && d.to === 1)).toBe(true)
   })
 
-  it('dash bullet, caret ON the line → raw `-` source, no widget', () => {
+  it('dash bullet, caret in the CONTENT (just in the line) → still • widget, never raw', () => {
     const t = '- item'
-    const intents = decorationsFor(t, tokenize(t), new Set(), 3) // caret inside the line
+    const intents = decorationsFor(t, tokenize(t), new Set(), 4) // caret inside "item"
+    expect(intents.some((d) => d.kind === 'widget' && d.spec.type === 'bullet')).toBe(true)
+  })
+
+  it('dash bullet, caret ON the marker (the dash) → raw `-`, no widget', () => {
+    const t = '- item'
+    const intents = decorationsFor(t, tokenize(t), new Set(), 1) // caret right on the dash
     expect(intents.some((d) => d.kind === 'line' && d.className === 'md-li')).toBe(true)
-    expect(intents.some((d) => d.kind === 'widget')).toBe(false) // raw, editable `- ` source
+    expect(intents.some((d) => d.kind === 'widget')).toBe(false)
   })
 
   it('ordered list → number kept as literal source (recolour mark), no widget', () => {
