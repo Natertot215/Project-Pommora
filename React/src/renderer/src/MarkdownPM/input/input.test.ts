@@ -26,6 +26,17 @@ describe('list continuation (Enter)', () => {
     const e = continueListOnEnter(doc, doc.length, doc.length)!
     expect(apply(doc, e)).toBe('1. a\n2. ')
   })
+  it('renumbers the following siblings when inserting mid-list (1,2 → 1,2,3)', () => {
+    const doc = '1. a\n2. b'
+    const e = continueListOnEnter(doc, 4, 4)! // Enter at the end of "1. a"
+    expect(apply(doc, e)).toBe('1. a\n2. \n3. b')
+    expect(e.selection).toBe(8) // caret at the new item's content
+  })
+  it('renumbers a longer run (1,2,3 → insert at 1 → 1,2,3,4)', () => {
+    const doc = '1. a\n2. b\n3. c'
+    const e = continueListOnEnter(doc, 4, 4)!
+    expect(apply(doc, e)).toBe('1. a\n2. \n3. b\n4. c')
+  })
   it('continues a checkbox as a fresh unchecked box', () => {
     const doc = '- [x] done'
     const e = continueListOnEnter(doc, doc.length, doc.length)!

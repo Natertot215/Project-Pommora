@@ -28,18 +28,40 @@ const shorthandCheckboxRe = /^([ \t]*)([-*+])\[([ xX]?)\]$/
 export function continueListOnEnter(doc: string, selStart: number, selEnd: number): Edit | null {
   if (selStart !== selEnd) return null
   const ls = lineStartAt(doc, selStart)
-  const line = doc.slice(ls, lineEndAt(doc, selStart))
+  const lineEnd = lineEndAt(doc, selStart)
+  const line = doc.slice(ls, lineEnd)
   const lm = parseListMarker(line)
   if (lm === null) return null
   if (selStart < ls + lm.contentStart) return null // caret in/before the marker zone
 
-  const next =
-    lm.kind === 'ordered'
-      ? `${parseInt(lm.digits ?? '0', 10) + 1}. `
-      : lm.kind === 'checkbox'
-        ? `${lm.bullet ?? '-'} [ ] ` // continue checkboxes as a fresh unchecked box
-        : `${lm.bullet ?? '-'} `
-  const insert = `\n${line.slice(0, lm.markerStart)}${next}`
+  const indent = line.slice(0, lm.markerStart)
+
+  // Ordered: open the next number AND renumber the following same-level siblings so the run stays
+  // sequential (insert between 1 and 2 → 1, 2, 3 — not 1, 2, 2).
+  if (lm.kind === 'ordered') {
+    const restOfLine = doc.slice(selStart, lineEnd) // text after the caret moves to the new item
+    let counter = parseInt(lm.digits ?? '0', 10) + 1
+    const newPrefix = `\n${indent}${counter}. `
+    const caret = selStart + newPrefix.length
+    let insert = `${newPrefix}${restOfLine}`
+    let to = lineEnd
+    counter++
+    for (let p = lineEnd; p < doc.length; ) {
+      const fs = p + 1
+      const fe = lineEndAt(doc, fs)
+      const fline = doc.slice(fs, fe)
+      const flm = parseListMarker(fline)
+      if (flm === null || flm.kind !== 'ordered' || fline.slice(0, flm.markerStart) !== indent) break
+      insert += `\n${indent}${counter}. ${fline.slice(flm.contentStart)}`
+      counter++
+      to = fe
+      p = fe
+    }
+    return { from: selStart, to, insert, selection: caret }
+  }
+
+  const next = lm.kind === 'checkbox' ? `${lm.bullet ?? '-'} [ ] ` : `${lm.bullet ?? '-'} `
+  const insert = `\n${indent}${next}`
   return { from: selStart, to: selStart, insert, selection: selStart + insert.length }
 }
 
