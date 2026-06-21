@@ -1,11 +1,9 @@
 // A ViewPlugin is valid because replaces never cross a line break (block-spanning chrome would need a StateField).
 import { Decoration, type DecorationSet, EditorView, ViewPlugin, type ViewUpdate, WidgetType } from '@codemirror/view'
-import { foldedRanges, foldEffect, unfoldEffect } from '@codemirror/language'
 import type { Extension, Range } from '@codemirror/state'
 import { chipCheckbox } from '../../design-system/tokens'
 import { tokenize, activeTokenIndices } from '../tokens'
 import { decorationsFor, type WidgetSpec } from '../decorations/intent'
-import { headingSections } from './folding'
 import type { ConnectionsApi } from '../connections'
 
 class HrWidget extends WidgetType {
@@ -105,15 +103,6 @@ function build(view: EditorView, conn: ConnectionsApi | undefined): DecorationSe
       ranges.push(Decoration.mark({ class: `md-connection-${status}` }).range(tk.contentRange[0], tk.contentRange[1]))
       const bracket = active.has(i) ? Decoration.mark({ class: 'md-bracket' }) : hideMarker
       for (const [s, e] of tk.markerRanges) ranges.push(bracket.range(s, e))
-    })
-  }
-  // A folded heading reads as collapsed via its own --label-control tint (the `…` placeholder is removed).
-  const folded = foldedRanges(view.state)
-  if (folded.size) {
-    const sections = headingSections(text)
-    folded.between(0, text.length, (rFrom) => {
-      const s = sections.find((x) => x.lineEnd === rFrom)
-      if (s) ranges.push(Decoration.line({ class: 'md-h-folded' }).range(s.from))
     })
   }
   return Decoration.set(ranges, true)

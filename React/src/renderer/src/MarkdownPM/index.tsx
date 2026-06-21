@@ -6,7 +6,7 @@ import { markdown } from '@codemirror/lang-markdown'
 import { markdownDecorations } from './editor/decorations'
 import { markdownInput } from './editor/input'
 import { connectionClicks } from './editor/connections'
-import { markdownFolding, initialFoldEffects, initialFoldAnnotation, type FoldsApi } from './editor/folding'
+import { markdownFolding, applySavedFolds, type FoldsApi } from './editor/folding'
 import { applyEditorAction, type EditorMenuApi } from './editor/menu'
 import { readFormatState } from './editor/formatState'
 import { autocompleteQuery, connectionInsert } from './autocomplete'
@@ -160,11 +160,8 @@ export function MarkdownEditor({
       ]
     })
     viewRef.current = view
-    // Restore this page's saved folds once the view exists (codeFolding's state field is ready).
-    void foldsRef.current?.load().then((keys) => {
-      const effects = initialFoldEffects(view.state.doc, keys)
-      if (effects.length) view.dispatch({ effects, annotations: initialFoldAnnotation.of(true) })
-    })
+    // Restore this page's saved folds once the view's lines exist (the widget clones them).
+    void foldsRef.current?.load().then((keys) => applySavedFolds(view, keys))
     const onScroll = (): void => {
       const t = titleRef.current
       if (t) t.style.transform = `translateY(${-Math.min(Math.max(view.scrollDOM.scrollTop, 0), TITLE_ZONE)}px)`

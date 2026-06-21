@@ -1,7 +1,7 @@
 .mdpm-shell {
   /* --fold-gutter: width of the heading-fold chevron column; title + body + divider all inset by it to stay aligned.
      --fold-chevron-size: chevron glyph size (title3). --label-control: dimmed "syntax/control" label tint. */
-  --fold-gutter: 18px;
+  --fold-gutter: 26px;
   --fold-chevron-size: 15px;
   --label-control: color-mix(in srgb, var(--label-primary) 80%, transparent);
   position: relative;
@@ -78,9 +78,9 @@
 .mdpm-editor .cm-foldGutter .cm-gutterElement {
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start; /* chevron sits left, ~8px breathing room to the heading text (sidebar rhythm) */
   width: var(--fold-gutter);
-  padding: 0;
+  padding: 0 0 0 2px;
 }
 .mdpm-fold-chevron {
   display: inline-flex;
@@ -100,6 +100,15 @@
 /* A folded heading reads as collapsed via the control tint (no `…` placeholder). */
 .mdpm-editor .cm-line.md-h-folded {
   color: var(--label-control);
+}
+/* The body collapses/expands on the sidebar's exact Reveal motion (grid 0fr↔1fr). */
+.mdpm-fold-reveal {
+  display: grid;
+  transition: grid-template-rows var(--duration-fast) var(--ease-standard);
+}
+.mdpm-fold-reveal-inner {
+  overflow: hidden;
+  min-height: 0;
 }
 
 .mdpm-editor .cm-line {

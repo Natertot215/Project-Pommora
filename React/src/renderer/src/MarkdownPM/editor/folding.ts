@@ -1,6 +1,14 @@
-import { foldService, foldGutter, codeFolding, foldEffect, unfoldEffect, foldedRanges } from '@codemirror/language'
-import { EditorView, type ViewUpdate } from '@codemirror/view'
-import { Annotation, StateEffect, type Extension, type Text } from '@codemirror/state'
+import { gutter, GutterMarker, EditorView, ViewPlugin, Decoration, WidgetType, type ViewUpdate } from '@codemirror/view'
+import {
+  StateField,
+  StateEffect,
+  RangeSetBuilder,
+  Annotation,
+  type EditorState,
+  type Extension,
+  type Text,
+  type Range
+} from '@codemirror/state'
 import { isHeadingLine } from '../detect'
 
 /** Per-page fold persistence seam — reads/writes `.nexus/folds.json` via the host (kept Electron-free here). */
@@ -10,14 +18,16 @@ export interface FoldsApi {
 }
 
 /** Marks the mount-time re-apply of saved folds so the persist listener doesn't echo it straight back to disk. */
-export const initialFoldAnnotation = Annotation.define<boolean>()
+const initialFoldAnnotation = Annotation.define<boolean>()
 
 const HEADING_RE = /^(\s{0,3})(#{1,6})[ \t]+(.*)$/
+const CHEVRON_SVG =
+  '<svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>'
 
 export interface HeadingSection {
   /** Start of the heading line. */
   from: number
-  /** End of the heading line's text — a fold begins here, so the heading itself stays visible. */
+  /** End of the heading line's text — the body to fold begins on the next line. */
   lineEnd: number
   level: number
   /** Ordinal-disambiguated key for `.nexus/folds.json` (stable across heading-level changes). */
@@ -66,7 +76,6 @@ export function headingSections(doc: string): HeadingSection[] {
   return out
 }
 
-// Immutable doc → sections, so foldService/persistence don't re-scan the whole document per query.
 const sectionCache = new WeakMap<Text, HeadingSection[]>()
 function sectionsOf(doc: Text): HeadingSection[] {
   let s = sectionCache.get(doc)
@@ -77,51 +86,244 @@ function sectionsOf(doc: Text): HeadingSection[] {
   return s
 }
 
-/** Fold effects to seed the editor with a page's saved folded headings (applied once at mount). */
-export function initialFoldEffects(doc: Text, keys: string[]): StateEffect<unknown>[] {
-  if (keys.length === 0) return []
-  const wanted = new Set(keys)
-  return sectionsOf(doc)
-    .filter((s) => wanted.has(s.key))
-    .map((s) => foldEffect.of({ from: s.lineEnd, to: s.to }))
+// ── Custom fold state ──────────────────────────────────────────────────────────
+// CM6's native fold removes the body lines instantly. To mirror the sidebar's Reveal
+// (grid 0fr↔1fr, 180ms), each fold is a block widget over the body lines whose own DOM
+// animates; a per-frame requestMeasure keeps the lines below tracking the animated height.
+
+type Phase = 'collapsing' | 'collapsed' | 'expanding'
+interface FoldEntry {
+  headingFrom: number
+  from: number // first body line start
+  to: number // last body line end
+  phase: Phase
 }
 
-function foldedKeys(doc: Text, folds: ReturnType<typeof foldedRanges>): string[] {
-  const sections = sectionsOf(doc)
-  const keys: string[] = []
-  const it = folds.iter()
-  for (; it.value !== null; it.next()) {
-    const s = sections.find((x) => x.lineEnd === it.from)
-    if (s) keys.push(s.key)
+const foldEffect = StateEffect.define<{ headingFrom: number; from: number; to: number; animate: boolean }>()
+const settleEffect = StateEffect.define<number>() // collapsing → collapsed (animation done)
+const expandEffect = StateEffect.define<number>() // collapsed → expanding (start opening)
+const dropEffect = StateEffect.define<number>() // expanding done → remove the fold
+
+// Faithful clones of the folded body's line DOM, captured at fold time, keyed by heading start.
+const cloneMap = new Map<number, HTMLElement>()
+
+function lineElement(view: EditorView, pos: number): HTMLElement | null {
+  let node: Node | null = view.domAtPos(pos).node
+  while (node && !(node instanceof HTMLElement && node.classList.contains('cm-line'))) node = node.parentNode
+  return node instanceof HTMLElement ? node : null
+}
+
+function cloneBody(view: EditorView, from: number, to: number): HTMLElement {
+  const wrap = document.createElement('div')
+  wrap.className = 'mdpm-fold-clone'
+  const seen = new Set<HTMLElement>()
+  for (let pos = from; pos <= to; ) {
+    const line = view.state.doc.lineAt(pos)
+    const el = lineElement(view, line.from)
+    if (el && !seen.has(el)) {
+      seen.add(el)
+      wrap.appendChild(el.cloneNode(true))
+    }
+    if (line.to >= to) break
+    pos = line.to + 1
   }
-  return keys
+  return wrap
 }
 
-/** Heading folding: a chevron toggles each section closed/open; changes persist via `onFoldsChange`. */
+class RevealWidget extends WidgetType {
+  constructor(
+    readonly headingFrom: number,
+    readonly phase: Phase
+  ) {
+    super()
+  }
+  eq(o: RevealWidget): boolean {
+    return o.headingFrom === this.headingFrom && o.phase === this.phase
+  }
+  toDOM(view: EditorView): HTMLElement {
+    const outer = document.createElement('div')
+    outer.className = 'mdpm-fold-reveal'
+    const inner = document.createElement('div')
+    inner.className = 'mdpm-fold-reveal-inner'
+    const clone = cloneMap.get(this.headingFrom)
+    if (clone) inner.appendChild(clone.cloneNode(true))
+    outer.appendChild(inner)
+
+    if (this.phase === 'collapsed') {
+      outer.style.gridTemplateRows = '0fr'
+      return outer
+    }
+    const open = this.phase === 'expanding'
+    outer.style.gridTemplateRows = open ? '0fr' : '1fr'
+    const done = open ? dropEffect.of(this.headingFrom) : settleEffect.of(this.headingFrom)
+    // Re-measure each frame so the lines below follow the animated height (CM6 only measures on update).
+    const tick = (): void => {
+      if (!outer.isConnected) return
+      view.requestMeasure()
+      requestAnimationFrame(tick)
+    }
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        outer.style.gridTemplateRows = open ? '1fr' : '0fr'
+        requestAnimationFrame(tick)
+      })
+    })
+    outer.addEventListener(
+      'transitionend',
+      (e) => {
+        if (e.propertyName === 'grid-template-rows') view.dispatch({ effects: done })
+      },
+      { once: true }
+    )
+    return outer
+  }
+  get estimatedHeight(): number {
+    return -1
+  }
+  ignoreEvent(): boolean {
+    return true
+  }
+}
+
+const foldField = StateField.define<FoldEntry[]>({
+  create: () => [],
+  update(entries, tr) {
+    let next: FoldEntry[] = tr.changes.empty
+      ? entries
+      : entries.map((e) => ({
+          headingFrom: tr.changes.mapPos(e.headingFrom),
+          from: tr.changes.mapPos(e.from, 1),
+          to: tr.changes.mapPos(e.to, -1),
+          phase: e.phase
+        }))
+    for (const ef of tr.effects) {
+      if (ef.is(foldEffect)) {
+        const v = ef.value
+        next = next.filter((e) => e.headingFrom !== v.headingFrom)
+        next = [...next, { headingFrom: v.headingFrom, from: v.from, to: v.to, phase: v.animate ? 'collapsing' : 'collapsed' }]
+      } else if (ef.is(settleEffect)) {
+        next = next.map((e) => (e.headingFrom === ef.value ? { ...e, phase: 'collapsed' } : e))
+      } else if (ef.is(expandEffect)) {
+        next = next.map((e) => (e.headingFrom === ef.value ? { ...e, phase: 'expanding' } : e))
+      } else if (ef.is(dropEffect)) {
+        cloneMap.delete(ef.value)
+        next = next.filter((e) => e.headingFrom !== ef.value)
+      }
+    }
+    return next
+  },
+  provide: (f) =>
+    EditorView.decorations.from(f, (entries) => {
+      const ranges: Range<Decoration>[] = []
+      for (const e of entries) {
+        ranges.push(Decoration.line({ class: 'md-h-folded' }).range(e.headingFrom))
+        if (e.to > e.from) {
+          ranges.push(Decoration.replace({ block: true, widget: new RevealWidget(e.headingFrom, e.phase) }).range(e.from, e.to))
+        }
+      }
+      return Decoration.set(ranges, true)
+    })
+})
+
+function toggleFold(view: EditorView, s: HeadingSection): void {
+  const folded = view.state.field(foldField).some((e) => e.headingFrom === s.from)
+  if (folded) {
+    view.dispatch({ effects: expandEffect.of(s.from) })
+    return
+  }
+  const bodyStart = s.lineEnd + 1
+  if (bodyStart > s.to) return
+  cloneMap.set(s.from, cloneBody(view, bodyStart, s.to))
+  view.dispatch({ effects: foldEffect.of({ headingFrom: s.from, from: bodyStart, to: s.to, animate: true }) })
+}
+
+// A chevron points down (open) when its section is unfolded or mid-expand, right when folding/folded.
+function chevronOpen(state: EditorState, headingFrom: number): boolean {
+  const e = state.field(foldField).find((x) => x.headingFrom === headingFrom)
+  return !e || e.phase === 'expanding'
+}
+
+class ChevronMarker extends GutterMarker {
+  constructor(readonly headingFrom: number) {
+    super()
+  }
+  // eq by heading only → CM keeps the DOM node across fold toggles, so chevronSync can transition the rotation.
+  eq(o: ChevronMarker): boolean {
+    return o.headingFrom === this.headingFrom
+  }
+  toDOM(view: EditorView): HTMLElement {
+    const el = document.createElement('span')
+    el.className = `mdpm-fold-chevron${chevronOpen(view.state, this.headingFrom) ? ' open' : ''}`
+    el.dataset.heading = String(this.headingFrom)
+    el.innerHTML = CHEVRON_SVG
+    return el
+  }
+}
+
+const foldGutterExt = gutter({
+  class: 'cm-foldGutter',
+  markers: (view) => {
+    const b = new RangeSetBuilder<GutterMarker>()
+    for (const s of sectionsOf(view.state.doc)) b.add(s.from, s.from, new ChevronMarker(s.from))
+    return b.finish()
+  },
+  domEventHandlers: {
+    mousedown(view, line, event) {
+      if ((event as MouseEvent).button !== 0) return false
+      const s = sectionsOf(view.state.doc).find((x) => x.from === line.from)
+      if (!s) return false
+      toggleFold(view, s)
+      return true
+    }
+  }
+})
+
+// The chevron DOM persists (eq by heading); flip its `.open` class so the rotation transitions like the sidebar twisty.
+const chevronSync = ViewPlugin.fromClass(
+  class {
+    update(u: ViewUpdate): void {
+      const foldChanged = u.transactions.some((tr) =>
+        tr.effects.some((e) => e.is(foldEffect) || e.is(expandEffect) || e.is(dropEffect))
+      )
+      if (!foldChanged && !u.viewportChanged) return
+      for (const el of u.view.dom.querySelectorAll<HTMLElement>('.mdpm-fold-chevron')) {
+        el.classList.toggle('open', chevronOpen(u.view.state, Number(el.dataset.heading)))
+      }
+    }
+  }
+)
+
+/** Re-apply a page's saved folds at mount (no animation), capturing clones from the freshly-rendered lines. */
+export function applySavedFolds(view: EditorView, keys: string[]): void {
+  if (keys.length === 0) return
+  const wanted = new Set(keys)
+  const effects: StateEffect<unknown>[] = []
+  for (const s of sectionsOf(view.state.doc)) {
+    if (!wanted.has(s.key)) continue
+    const bodyStart = s.lineEnd + 1
+    if (bodyStart > s.to) continue
+    cloneMap.set(s.from, cloneBody(view, bodyStart, s.to))
+    effects.push(foldEffect.of({ headingFrom: s.from, from: bodyStart, to: s.to, animate: false }))
+  }
+  if (effects.length) view.dispatch({ effects, annotations: initialFoldAnnotation.of(true) })
+}
+
+/** Heading folding with the sidebar's Reveal motion; folded sections persist via `onFoldsChange`. */
 export function markdownFolding(onFoldsChange: (keys: string[]) => void): Extension {
   const persist = EditorView.updateListener.of((u: ViewUpdate) => {
     const changed = u.transactions.some(
-      (tr) => !tr.annotation(initialFoldAnnotation) && tr.effects.some((e) => e.is(foldEffect) || e.is(unfoldEffect))
+      (tr) =>
+        !tr.annotation(initialFoldAnnotation) &&
+        tr.effects.some((e) => e.is(foldEffect) || e.is(expandEffect) || e.is(dropEffect))
     )
-    if (changed) onFoldsChange(foldedKeys(u.state.doc, foldedRanges(u.state)))
+    if (!changed) return
+    const sections = sectionsOf(u.state.doc)
+    const keys = u.state
+      .field(foldField)
+      .filter((e) => e.phase !== 'expanding')
+      .map((e) => sections.find((s) => s.from === e.headingFrom)?.key)
+      .filter((k): k is string => k !== undefined)
+    onFoldsChange(keys)
   })
-
-  return [
-    // No `…` placeholder — a folded section reads as collapsed via the heading's own --label-control tint (decorations.ts).
-    codeFolding({ placeholderDOM: () => document.createElement('span') }),
-    foldService.of((state, lineStart) => {
-      const s = sectionsOf(state.doc).find((x) => x.from === lineStart)
-      return s ? { from: s.lineEnd, to: s.to } : null
-    }),
-    foldGutter({
-      markerDOM: (open) => {
-        const el = document.createElement('span')
-        el.className = `mdpm-fold-chevron${open ? ' open' : ''}`
-        el.innerHTML =
-          '<svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>'
-        return el
-      }
-    }),
-    persist
-  ]
+  return [foldField, foldGutterExt, chevronSync, persist]
 }
