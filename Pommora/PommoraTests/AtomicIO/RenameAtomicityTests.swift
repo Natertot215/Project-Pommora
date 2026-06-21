@@ -42,8 +42,8 @@ struct RenameAtomicityTests {
 
         // Create two Areas; renaming one to the other's title should throw
         // duplicateTitle and set pendingError.
-        try await manager.create(name: "Personal", color: .blue, icon: nil)
-        try await manager.create(name: "Work", color: .red, icon: nil)
+        try await manager.create(name: "Personal", icon: nil)
+        try await manager.create(name: "Work", icon: nil)
         let personal = manager.areas.first(where: { $0.title == "Personal" })!
 
         await #expect(throws: AreaValidator.ValidationError.duplicateTitle) {
@@ -68,7 +68,7 @@ struct RenameAtomicityTests {
         let manager = AreaManager(nexus: nexus)
         await manager.loadAll()
 
-        try await manager.create(name: "Personal", color: .blue, icon: nil)
+        try await manager.create(name: "Personal", icon: nil)
         let area = manager.areas.first!
 
         try await manager.rename(area, to: "Life")

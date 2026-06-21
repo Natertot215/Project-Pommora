@@ -73,7 +73,7 @@ struct RebuildResilienceTests {
         try Filesystem.createFolderWithMetadata(
             folderURL: areaFolder,
             metadataURL: NexusPaths.areaMetadataURL(forTitle: areaName, in: nexus),
-            metadata: Area(id: areaID, title: areaName, color: nil, icon: nil, blocks: [], modifiedAt: Date())
+            metadata: Area(id: areaID, title: areaName, icon: nil, blocks: [], modifiedAt: Date())
         )
 
         // --- Seed a VALID Topic (tier 2). ---

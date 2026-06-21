@@ -50,7 +50,7 @@ struct ManagerCreateReturnContractTests {
         let manager = AreaManager(nexus: nexus)
         await manager.loadAll()
 
-        let returned = try await manager.create(name: "Personal", color: .blue, icon: nil)
+        let returned = try await manager.create(name: "Personal", icon: nil)
         #expect(manager.areas.contains(where: { $0.id == returned.id }))
         #expect(returned.title == "Personal")
     }

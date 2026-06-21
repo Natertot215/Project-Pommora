@@ -134,7 +134,6 @@ struct SidebarView: View {
         .sheet(item: $presentedSheet) { sheet in
             switch sheet {
             case .editIcon(let target): IconPickerSheet(target: target)
-            case .editColor(let s): ColorPickerSheet(area: s)
             }
         }
         .confirmationDialog(

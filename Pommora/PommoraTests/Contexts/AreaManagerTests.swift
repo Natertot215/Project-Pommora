@@ -14,7 +14,7 @@ struct AreaManagerTests {
         let manager = AreaManager(nexus: nexus)
         await manager.loadAll()
 
-        try await manager.create(name: "Personal", color: .blue, icon: "person.circle")
+        try await manager.create(name: "Personal", icon: "person.circle")
         let url = NexusPaths.areaMetadataURL(forTitle: "Personal", in: nexus)
         #expect(FileManager.default.fileExists(atPath: url.path))
         #expect(manager.areas.count == 1)
@@ -27,10 +27,10 @@ struct AreaManagerTests {
         defer { TempNexus.cleanup(nexus) }
         let manager = AreaManager(nexus: nexus)
         await manager.loadAll()
-        try await manager.create(name: "Personal", color: .blue, icon: nil)
+        try await manager.create(name: "Personal", icon: nil)
 
         await #expect(throws: AreaValidator.ValidationError.duplicateTitle) {
-            try await manager.create(name: "personal", color: .red, icon: nil)
+            try await manager.create(name: "personal", icon: nil)
         }
         #expect(manager.areas.count == 1)
     }
@@ -41,7 +41,7 @@ struct AreaManagerTests {
         defer { TempNexus.cleanup(nexus) }
         let manager = AreaManager(nexus: nexus)
         await manager.loadAll()
-        try await manager.create(name: "Personal", color: .blue, icon: nil)
+        try await manager.create(name: "Personal", icon: nil)
         let area = manager.areas.first!
 
         try await manager.rename(area, to: "Life")
@@ -52,28 +52,13 @@ struct AreaManagerTests {
         #expect(manager.areas.first?.title == "Life")
     }
 
-    @Test("updateColor mutates field + bumps modified_at on disk")
-    func updateColor() async throws {
-        let nexus = try TempNexus.make()
-        defer { TempNexus.cleanup(nexus) }
-        let manager = AreaManager(nexus: nexus)
-        await manager.loadAll()
-        try await manager.create(name: "Personal", color: .blue, icon: nil)
-        let area = manager.areas.first!
-
-        try await manager.updateColor(area, to: .red)
-        #expect(manager.areas.first?.color == .red)
-        let reloaded = try Area.load(from: NexusPaths.areaMetadataURL(forTitle: "Personal", in: nexus))
-        #expect(reloaded.color == .red)
-    }
-
     @Test("delete removes folder + drops from areas")
     func delete() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
         let manager = AreaManager(nexus: nexus)
         await manager.loadAll()
-        try await manager.create(name: "Personal", color: .blue, icon: nil)
+        try await manager.create(name: "Personal", icon: nil)
         let area = manager.areas.first!
 
         try await manager.delete(area)
@@ -90,7 +75,7 @@ struct AreaManagerTests {
         let meta = NexusPaths.areaMetadataURL(forTitle: "Pre-existing", in: nexus)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         try Area(
-            id: "01H", title: "Pre-existing", color: .green, icon: nil,
+            id: "01H", title: "Pre-existing", icon: nil,
             blocks: [], modifiedAt: Date()
         )
         .save(to: meta)

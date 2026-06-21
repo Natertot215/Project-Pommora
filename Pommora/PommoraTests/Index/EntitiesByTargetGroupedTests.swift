@@ -26,7 +26,7 @@ struct EntitiesByTargetGroupedTests {
 
         let areaID = ULID.generate()
         try updater.upsertContext(
-            Area(id: areaID, title: "Personal", color: nil, icon: "person", blocks: [], modifiedAt: Date())
+            Area(id: areaID, title: "Personal", icon: "person", blocks: [], modifiedAt: Date())
         )
 
         let grouped = try await IndexQuery(index).entitiesByContextTargetGrouped(.contextTier(1))

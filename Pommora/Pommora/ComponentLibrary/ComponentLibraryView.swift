@@ -193,9 +193,6 @@ enum ComponentCategory: String, CaseIterable, Hashable {
                     detail:
                         "Pommora-native compact Liquid-Glass SF Symbol chooser — full catalog, search, and Saved icons. Replaces the third-party SymbolPicker."
                 ),
-                .init(
-                    name: "Color Picker Sheet",
-                    detail: "AreaColor chooser — Pommora's hand-picked Area accent palette."),
             ]
         case .pageEditor:
             return [

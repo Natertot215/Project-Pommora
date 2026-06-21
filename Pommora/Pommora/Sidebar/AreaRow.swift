@@ -19,7 +19,7 @@ struct AreaRow: View {
             if editingID == area.id {
                 RenameableRow(
                     symbol: area.icon ?? "circle.fill",
-                    symbolForeground: area.color?.swiftUIColor ?? .primary,
+                    symbolForeground: .primary,
                     initialTitle: area.title,
                     draft: $renameState.draft,
                     renameFocused: $renameFocused,
@@ -38,14 +38,13 @@ struct AreaRow: View {
                     symbol: area.icon ?? "circle.fill",
                     tag: SelectionTag.area(area.id),
                     selection: $selection,
-                    accent: area.color?.swiftUIColor
+                    accent: nil
                 )
                 .contextMenu {
                     Button("New Area") { createArea() }
                         .disabled(isCreatingArea)
                     Divider()
                     Button("Edit Title") { startRename() }
-                    Button("Change Color") { presentedSheet = .editColor(area) }
                     Button("Edit Icon") { presentedSheet = .editIcon(.area(area)) }
                     Divider()
                     Button("Delete", role: .destructive) {
@@ -74,7 +73,7 @@ struct AreaRow: View {
             do {
                 _ = try await CreateWithInlineEdit.run(
                     create: {
-                        try await areaManager.create(name: title, color: nil, icon: nil)
+                        try await areaManager.create(name: title, icon: nil)
                     },
                     onCreate: { newArea in
                         editingID = newArea.id

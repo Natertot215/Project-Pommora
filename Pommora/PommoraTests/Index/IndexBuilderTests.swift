@@ -271,8 +271,8 @@ struct IndexBuilderTests {
 
         let areaManager = AreaManager(nexus: nexus)
         await areaManager.loadAll()
-        try await areaManager.create(name: "Work", color: nil, icon: nil)
-        try await areaManager.create(name: "Personal", color: nil, icon: nil)
+        try await areaManager.create(name: "Work", icon: nil)
+        try await areaManager.create(name: "Personal", icon: nil)
 
         let topicManager = TopicManager(nexus: nexus)
         await topicManager.loadAll()
@@ -362,7 +362,7 @@ struct IndexBuilderTests {
         // Create a area so we have a real tier-1 ID.
         let areaManager = AreaManager(nexus: nexus)
         await areaManager.loadAll()
-        try await areaManager.create(name: "Work", color: nil, icon: nil)
+        try await areaManager.create(name: "Work", icon: nil)
         let area = areaManager.areas.first!
 
         // Create a page type + collection + one page with tier1 populated.

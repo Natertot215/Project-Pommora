@@ -60,14 +60,13 @@ final class AreaManager {
     }
 
     @discardableResult
-    func create(name: String, color: AreaColor?, icon: String?) async throws -> Area {
+    func create(name: String, icon: String?) async throws -> Area {
         do {
             try AreaValidator.validate(title: name, existing: areas)
 
             let area = Area(
                 id: ULID.generate(),
                 title: name,
-                color: color,
                 icon: icon,
                 blocks: [],
                 modifiedAt: Date()
@@ -150,22 +149,6 @@ final class AreaManager {
         let url = NexusPaths.nexusStateURL(in: nexus)
         guard FileManager.default.fileExists(atPath: url.path) else { return nil }
         return (try? AtomicJSON.decode(NexusState.self, from: url))?.areaOrder
-    }
-
-    func updateColor(_ area: Area, to color: AreaColor?) async throws {
-        do {
-            var updated = area
-            updated.color = color
-            updated.modifiedAt = Date()
-            let meta = NexusPaths.areaMetadataURL(forTitle: area.title, in: nexus)
-            try updated.save(to: meta)
-            if let i = areas.firstIndex(where: { $0.id == area.id }) {
-                areas[i] = updated
-            }
-        } catch {
-            self.pendingError = error
-            throw error
-        }
     }
 
     func updateIcon(_ area: Area, to icon: String?) async throws {
