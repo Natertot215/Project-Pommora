@@ -72,6 +72,9 @@ export function decorationsFor(text: string, tokens: Token[], active: Set<number
     if (cls) intents.push({ kind: 'class', from: tk.contentRange[0], to: tk.contentRange[1], className: cls })
     if (!active.has(i)) {
       for (const [s, e] of tk.markerRanges) intents.push({ kind: 'hide', from: s, to: e })
+    } else if (tk.kind === 'wikiLink') {
+      // The `[[ ]]` brackets read as muted syntax while the connection is being edited/written.
+      for (const [s, e] of tk.markerRanges) intents.push({ kind: 'class', from: s, to: e, className: 'md-bracket' })
     }
   })
 
