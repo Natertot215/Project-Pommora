@@ -59,7 +59,7 @@ export function parseListMarker(line: string): ListMarker | null {
 const dashBulletRegex = /^([ \t]*)([-*+•](?:[ \t]*\[[ xX]?\])?[ \t]+)(.*)$/
 const taskMarkerRegex = /^[ \t]*[-*+][ \t]*\[[ xX]\][ \t]+/
 const headingPrefilter = /^[ ]{0,3}#{1,6}([ \t]|$)/
-const blockquotePrefilter = /^[ \t]*>[ \t]/
+const blockquotePrefilter = /^[ \t]*>+[ \t]/
 
 export function isThematicBreakLine(line: string): boolean {
   const t = line.trim()
@@ -72,7 +72,7 @@ export function isHeadingLine(line: string): boolean {
   return parse(line).children.some((n) => n.type === 'heading')
 }
 
-/** A bare `>` (no following space/tab) does not activate. */
+/** Needs whitespace after the last `>`: `> a` and `>> a` activate; `>a`, `>>a`, bare `>` do not. */
 export function isBlockquoteLine(line: string): boolean {
   if (!blockquotePrefilter.test(line)) return false
   return parse(line).children.some((n) => n.type === 'blockquote')

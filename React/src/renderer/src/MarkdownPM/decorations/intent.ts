@@ -86,6 +86,8 @@ export function decorationsFor(text: string, tokens: Token[], active: Set<number
     const caretOnLine = selStart >= ls && selStart <= le
     const fence = fences[i]
     const lm = parseListMarker(line)
+    // A list line reveals its raw source when the caret sits on the marker (shared by bullet + checkbox).
+    const onMarker = lm !== null && selStart >= ls + lm.markerStart && selStart <= ls + lm.markerEnd
 
     if (fence) {
       // Fence markers reveal only when the caret is anywhere in the block.
@@ -103,19 +105,21 @@ export function decorationsFor(text: string, tokens: Token[], active: Set<number
         if (!caretOnLine) intents.push({ kind: 'hide', from: ls, to: contentStart })
       }
     } else if (lm?.kind === 'checkbox' && lm.box) {
+      // Raw `- [ ] ` shows only when the caret is on the marker; else a checkbox widget takes its slot.
       intents.push({ kind: 'line', from: ls, className: 'md-li md-li-task', level: lm.level })
-      intents.push({ kind: 'hide', from: ls, to: ls + lm.box.start })
-      intents.push({
-        kind: 'widget',
-        from: ls + lm.box.start,
-        to: ls + lm.box.end,
-        spec: { type: 'checkbox', bracketFrom: ls + lm.box.start, bracketTo: ls + lm.box.end, checked: lm.checked ?? false }
-      })
-      // Hide the source space so the gap is the chip zone's padding.
-      intents.push({ kind: 'hide', from: ls + lm.box.end, to: ls + lm.contentStart })
+      if (lm.markerStart > 0) intents.push({ kind: 'hide', from: ls, to: ls + lm.markerStart })
+      if (!onMarker) {
+        intents.push({ kind: 'hide', from: ls + lm.markerStart, to: ls + lm.box.start })
+        intents.push({
+          kind: 'widget',
+          from: ls + lm.box.start,
+          to: ls + lm.box.end,
+          spec: { type: 'checkbox', bracketFrom: ls + lm.box.start, bracketTo: ls + lm.box.end, checked: lm.checked ?? false }
+        })
+        intents.push({ kind: 'hide', from: ls + lm.box.end, to: ls + lm.contentStart })
+      }
     } else if (lm?.kind === 'bullet' && lm.bullet === '-' && !lm.box) {
       // Raw `-` shows only when the caret is on the marker; else a `•` widget takes its exact slot.
-      const onMarker = selStart >= ls + lm.markerStart && selStart <= ls + lm.markerEnd
       intents.push({ kind: 'line', from: ls, className: 'md-li', level: lm.level })
       if (lm.markerStart > 0) intents.push({ kind: 'hide', from: ls, to: ls + lm.markerStart })
       if (!onMarker) intents.push({ kind: 'widget', from: ls + lm.markerStart, to: ls + lm.markerEnd, spec: { type: 'bullet' } })

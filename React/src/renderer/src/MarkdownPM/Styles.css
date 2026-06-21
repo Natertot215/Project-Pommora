@@ -281,6 +281,10 @@
   border-bottom-left-radius: var(--bar-radius);
   border-bottom-right-radius: var(--bar-radius);
 }
+/* Inline code inside a quote drops its own fill (the quote already provides one); text colour stays. */
+.mdpm-editor .cm-line.md-bq .md-code {
+  background: transparent;
+}
 
 /* No margins/pseudos (caret-safe).
    KNOBS: --cb-bg / --cb-radius / --cb-size (font scale) */
@@ -315,7 +319,6 @@
   max-width: 320px;
   max-height: calc(var(--ac-rows) * 28px + 8px);
   overflow-y: auto;
-  margin-top: 4px;
   padding: 4px;
   border-radius: var(--ac-radius);
   font-size: var(--editor-font-size, 15px);

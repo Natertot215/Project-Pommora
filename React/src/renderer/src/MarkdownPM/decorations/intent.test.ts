@@ -101,6 +101,13 @@ describe('decoration intents', () => {
     expect(w2?.kind === 'widget' && w2.spec.type === 'checkbox' && w2.spec.checked).toBe(false)
   })
 
+  it('task checkbox, caret ON the marker → raw `- [ ] `, no widget (parity with bullets)', () => {
+    const t = '- [ ] todo'
+    const intents = decorationsFor(t, tokenize(t), new Set(), 2) // caret inside the box
+    expect(intents.some((d) => d.kind === 'line' && d.className === 'md-li md-li-task')).toBe(true)
+    expect(intents.some((d) => d.kind === 'widget')).toBe(false)
+  })
+
   it('blockquote → md-bq line + permanently hidden marker; a lone line is first AND last', () => {
     const t = '> quote'
     const intents = decorationsFor(t, tokenize(t), new Set(), 0) // caret on the line — still hidden

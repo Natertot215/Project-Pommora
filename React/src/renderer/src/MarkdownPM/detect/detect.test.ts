@@ -103,6 +103,11 @@ describe('blockquote', () => {
     expect(isBlockquoteLine('>a')).toBe(false)
     expect(isBlockquoteLine('>')).toBe(false)
   })
+
+  it('nested >> activates', () => {
+    expect(isBlockquoteLine('>> a')).toBe(true)
+    expect(isBlockquoteLine('>>a')).toBe(false)
+  })
 })
 
 describe('inline matchers (verbatim regexes)', () => {

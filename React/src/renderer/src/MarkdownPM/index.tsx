@@ -16,13 +16,19 @@ import './Styles.css'
 // Must match the `.cm-content` top padding in Styles.css.
 const TITLE_ZONE = 90
 const AC_MAX = 6
+// Panel geometry — keep in sync with .mdpm-ac in Styles.css. Used to flip the panel above the caret near the viewport bottom.
+const AC_ROW_H = 28
+const AC_PADDING = 8
+const AC_MAX_ROWS = 4
+const AC_GAP = 4
 
 interface AcState {
   query: string
   from: number
   to: number
   left: number
-  top: number
+  caretTop: number
+  caretBottom: number
 }
 
 interface Props {
@@ -85,6 +91,14 @@ export function MarkdownEditor({
 
   useEffect(() => setAcIndex(0), [ac?.query])
 
+  // Anchor below the caret; flip above when the panel would overflow the viewport bottom.
+  const panelHeight = Math.min(candidates.length, AC_MAX_ROWS) * AC_ROW_H + AC_PADDING
+  const acTop = ac
+    ? ac.caretBottom + AC_GAP + panelHeight > window.innerHeight
+      ? ac.caretTop - panelHeight - AC_GAP
+      : ac.caretBottom + AC_GAP
+    : 0
+
   useEffect(() => {
     const parent = host.current
     if (!parent) return
@@ -115,7 +129,7 @@ export function MarkdownEditor({
             if (sel.empty) {
               const q = autocompleteQuery(u.state.doc.toString(), sel.head)
               const c = q && u.view.coordsAtPos(sel.head)
-              if (q && c) next = { ...q, left: Math.round(c.left), top: Math.round(c.bottom) }
+              if (q && c) next = { ...q, left: Math.round(c.left), caretTop: Math.round(c.top), caretBottom: Math.round(c.bottom) }
             }
             setAcRef.current(next)
           }
@@ -148,7 +162,7 @@ export function MarkdownEditor({
           candidates={candidates}
           index={acIndex}
           left={ac.left}
-          top={ac.top}
+          top={acTop}
           query={ac.query}
           onPick={commit}
         />
