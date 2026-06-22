@@ -13,6 +13,13 @@ describe('codec', () => {
     expect(r.cells.map((c) => c.text)).toEqual(['a', 'b'])
   })
 
+  it('splitRow returns full inter-pipe segments (untrimmed) — one flex item per cell', () => {
+    expect(splitRow('| a | b |', 0).segments).toEqual([
+      [1, 4], // ' a ' incl. padding
+      [5, 8] // ' b ' incl. padding
+    ])
+  })
+
   it('parseDelimiter reads dashes + alignment', () => {
     expect(parseDelimiter('|:--|--:|:-:|')).toEqual([
       { align: 'left', dashes: 2 },

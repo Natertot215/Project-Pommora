@@ -7,6 +7,7 @@ export interface RowGeom {
   to: number
   cells: CellSpan[]
   pipes: number[]
+  segments: [number, number][]
 }
 
 export interface TableRegion {
@@ -24,8 +25,8 @@ function isTable(block: string): boolean {
 }
 
 function rowGeom(l: { text: string; from: number }): RowGeom {
-  const { cells, pipes } = splitRow(l.text, l.from)
-  return { from: l.from, to: lineTo(l), cells, pipes }
+  const { cells, pipes, segments } = splitRow(l.text, l.from)
+  return { from: l.from, to: lineTo(l), cells, pipes, segments }
 }
 
 // Self-healing detector: a region is the maximal header+delimiter+body block that

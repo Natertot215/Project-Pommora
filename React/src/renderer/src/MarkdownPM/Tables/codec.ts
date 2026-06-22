@@ -10,6 +10,7 @@ export interface CellSpan {
 export interface RowSplit {
   cells: CellSpan[]
   pipes: number[]
+  segments: [number, number][] // absolute, untrimmed pipe-to-pipe extent per cell (one flex item each)
 }
 
 // Split a row line on UNescaped pipes. Returns trimmed cell text + absolute pipe offsets (line start = `base`).
@@ -32,7 +33,8 @@ export function splitRow(line: string, base: number): RowSplit {
     const text = raw.trim()
     return { from: base + s + lead, to: base + s + lead + text.length, text }
   })
-  return { cells, pipes }
+  const segments = segs.map(([s, e]) => [base + s, base + e] as [number, number])
+  return { cells, pipes, segments }
 }
 
 const DELIM_CELL = /^\s*(:?)(-+)(:?)\s*$/
