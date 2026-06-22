@@ -2,7 +2,7 @@
 
  - **Read first at session start.** Maintained via `/handoff` — Session Summary + Lessons Learned + Next Session + Pending Focuses + Fix Log. Shipped history → `History.md`; roadmap → `Framework.md`; branch quirks + hard rules → `CLAUDE.md`; locked decisions → `History.md`.
 
- - **Two builds — this is the Swift handoff.** Project Pommora ships the same app two ways: **Swift** (this doc) and the **React + Electron** rebuild (`React/.claude/Handoff.md`). Working in React? Read that handoff instead. Both live on one `main`; a parallel React session works in the `pommora-main-preview` worktree — don't bundle its uncommitted work into Swift commits.
+ - **Two builds — this is the Swift handoff.** Project Pommora ships the same app two ways: **Swift** (this doc) and the **React + Electron** rebuild (`React/.claude/Handoff.md`). Working in React? Read that handoff instead. Both live on one `main`: Swift work happens in this repo on `main`; **React work happens in the `pommora-react` worktree** (its own branch off `main`, merged back when done).
 
 > ⚡ **CORNERSTONE — must remain; carry into every session, emphasized for the next (Nathan's voice).**
 >
@@ -23,7 +23,12 @@ The arc, in order:
 
 **Nathan's voice:** he overrode my "bank it / do this fresh" recommendations *repeatedly* — "continue", "do it now", "No, I said stop pausing. Go and do the rest of the work" — and each push landed green; calibrate toward momentum on behaviour-neutral refactors. He flagged the `NexusState.swift` edit as his own ("I removed a bloated comment -- thats all"). I **declined** the roadmap's #4 "fresh-token" asset naming as a paradigm change that would regress filename legibility — pending his override.
 
-**Where it left off:** HEAD `54464f0` on `refactoring-phase-b`; 10 commits this session, **none pushed**. Visual gate **closed** — Nathan eye-verified the right-click Rename/Change-Icon UX across all three detail surfaces ("IT works"), and reaching the container/context surfaces exercised the re-skinned sidebar rows live (render + select, no `recursivelyDiffRows` regression). Working tree: the parallel React `Styles.css` + Nathan's `NexusState.swift` trim, plus this Handoff + the roadmap status update (uncommitted). Immediate next action: Phase G, or push/merge the branch.
+**Where it left off:** the **A–H refactoring program is complete** — Phase G shipped (ViewSurface split into extensions, GroupingPane rows → shared `Components`, `NexusAdopter` + `PageTypeManager` cleaned-not-split), a full-branch comment/DRY cleanup pass ran, and the docs were closed out (roadmap retired → `// Planning//Reference//06-20-Refactoring-Program.md`; History pruned 183→131; stale paths/refs fixed). The branch was then **consolidated to `main`** — React side from the React session, Swift side from here — and pushed to origin; worktrees collapsed to `main` + `pommora-react`. The earlier visual gate (right-click Rename/Change-Icon UX) stays eye-verified.
+
+**6-21 (React, continued) — MarkdownPM Migration + Page Banners + Incidental Sidebar Tweaks (Written By Nathan)**
+- MarkdownPM was successfully recreated in the React project via CodeMirror6, and lots of issues with listed items lmaoo. It's also enhanced what Swift started with folded headings, now with animations and a slight color dim on fold, and shows a chevron to signify that it's a folded heading. Tables have been completely deferred, and no foundations for them have been started -- this is a high-priority focus on the React side so it doesn't get forgotten. 
+- Page banners have also been implemented, and should likely be scoped out as a quick-add and quality-of-life addition on the Swift side. Icon Picker UIX has been deferred to the highest priority. React + Swift's Banner property -- `cover` -- has also been intentionally compatible.
+- Sidebar storage rows now only enter the main view on direct textfield or icon clicking, and clicking the empty row just triggers its disclosure function. This is another quality-of-life fix that should be added on the Swift side. 
 
 #### Lessons Learned
 
@@ -34,17 +39,17 @@ The arc, in order:
 
 #### Next Session
 
-1. **Phase G — god-file splits.** Start with the non-tangled targets: `ViewSurface` (extract rename/delete/cover; simplify the `columns` copy-mutate force-show) and `GroupingPane` (reusable rows → `Components`). The **tangled** `NexusAdopter` + `PageTypeManager` splits are the harder tail (C-deferred for that reason).
-2. **Phase E tail (optional polish).** Migrate the Page-CRUD callers (PageRow, ViewSurface, container rows, DetailScope) onto the unified `createPage`/`renamePage(in: parent:)` API + delete the labeled shims. Behaviour-neutral, low-risk.
-3. **Push / merge `refactoring-phase-b`** — 10 commits unpushed; Nathan's call (push-to-origin vs merge-to-main).
+1. **Gallery view — the immediate focus.** Pick up the parked Views-UIX build (active plan → `// Planning//06-13-Views-UIX-Fixes.md`): the Gallery renderer, the Layout-pane rework, and the sorting / grouping UIX.
+2. **Port the React-side QoL wins to Swift** (per the React section above): the `cover`-compatible **page banners** (quick-add), the **sidebar storage-row click** behavior (empty-row click toggles disclosure; main view only on textfield/icon click), and the **Icon-Picker UIX** rework.
 
 #### Pending Focuses
 
-- **[carried from 6-21]** `PropertyValue` datetime → `IndexDateFormat` — on-disk decode change (adds fractional seconds); needs ratification before touching.
-- **[carried from 6-21]** **#4 fresh-token asset naming** — declined (keeps legible filenames); resurface only if Nathan wants React-style opaque tokens.
-- **[carried]** The **Views build** (Gallery, sorting UIX, Layout-pane, Edit-Icon) — parked parallel focus.
-- **[carried]** **Swift-improvements-from-React** slice (`Planning/Reference/…`) — dedicated session.
+- **[pending — soon]** **Adopted-ID consolidation** — unify the adopted-Page `SHA256(path)[:16]` + `adopted-` marking into one ID scheme; on-disk shape, ratify first.
+- **[pending]** **Resolve the CLAUDE.md branch quirks at the root** — work through the active-branch quirks (#1–#17) and fix the underlying causes where feasible so they no longer need carrying as workarounds.
+- **[carried]** `PropertyValue` datetime → `IndexDateFormat` — on-disk decode change (fractional seconds); needs ratification before touching.
+- **[carried]** **#4 fresh-token asset naming** — declined (keeps legible filenames); resurface only if React-style opaque tokens are wanted.
 - **[carried]** **Nexus rename** live end-to-end pass — build-verified, not behaviour-verified.
+- **[React→Swift parity]** editor **tables** (React deferred them — high-priority, don't forget) + the banners / sidebar-row / icon-picker ports (Next Session #2).
 
 #### Fix Log
 

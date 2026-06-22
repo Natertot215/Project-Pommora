@@ -12,7 +12,6 @@ Plans are named `MM-DD-<slug>.md`. They scope a single feature or refactor into 
 
 - `Reference/06-11-Views-Spec.md` — the v0.5.0 Views cluster design spec; Views shipped (spec-as-fact → `// Features//Views.md`). Kept for research value.
 - `Reference/06-12-Views-V2-Plan.md` — a non-implemented NSOutlineView-table rebuild plan, never executed as written (the shipped `ViewOutlineTable` came from a separate throwaway session). Kept as a researched alternative.
-- `Reference/Swift-Improvements-from-React-Rebuild.md` — concrete Swift-side improvements distilled from slicing the data layer apart for the React rebuild. Input for a future dedicated session.
 
 #### Superseded
 

@@ -15,6 +15,8 @@ A second operational entity ("Items") existed until the 2026-06 PagesV2 collapse
 
 **Two builds, one app.** Project Pommora is the umbrella for the *same product* built two ways — the **Swift / SwiftUI** native app (repo root; this `.claude/`) and the **React + Electron** rebuild (sub-project under `React/`, with its own `React/.claude/`). Same PRD, domain model, and on-disk paradigm; only the implementation differs. Both live in **one repo on one `main`** — there is no separate React checkout. **When working on React, `React/.claude/` is authoritative** (start at `React/.claude/Handoff.md`); the root `.claude/` governs the Swift build + shared product truth.
 
+**If working in React, check into the `pommora-react` worktree first, then merge to `main` when done.**
+
 #### Stack
 
 Locked to **SwiftUI**. **Editor = TextKit 2 + Apple `swift-markdown` + the Pommora-owned `MarkdownPM` package** (originally vendored from `swift-markdown-engine`, folded in-tree + rebuilt 2026-06-03); full spec → `// Features//PageEditor.md`. React+Electron is preserved as a contingency path.
