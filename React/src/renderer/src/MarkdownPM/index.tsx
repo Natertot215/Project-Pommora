@@ -65,6 +65,7 @@ export function MarkdownEditor({
   menu
 }: Props): React.JSX.Element {
   const host = useRef<HTMLDivElement>(null)
+  const shellRef = useRef<HTMLDivElement>(null)
   const titleRef = useRef<HTMLDivElement>(null)
   const viewRef = useRef<EditorView | null>(null)
   const onChangeRef = useRef(onChange)
@@ -172,15 +173,9 @@ export function MarkdownEditor({
     viewRef.current = view
     // Restore this page's saved folds once the view's lines exist (the widget clones them).
     void foldsRef.current?.load().then((keys) => applySavedFolds(view, keys))
-    const onScroll = (): void => {
-      const t = titleRef.current
-      // Scroll the header (banner + title) fully out of view over its own height.
-      if (t) t.style.transform = `translateY(${-Math.min(Math.max(view.scrollDOM.scrollTop, 0), t.offsetHeight)}px)`
-    }
-    view.scrollDOM.addEventListener('scroll', onScroll, { passive: true })
+    // The header parks on scroll via a CSS scroll-driven animation (Styles.css) — no JS scroll handler.
     const unsubMenu = menuRef.current?.onAction((action) => applyEditorAction(view, action))
     return () => {
-      view.scrollDOM.removeEventListener('scroll', onScroll)
       unsubMenu?.()
       view.destroy()
       viewRef.current = null
@@ -192,9 +187,10 @@ export function MarkdownEditor({
   // Body top-padding tracks the header height, so toggling the banner resizes the gutter automatically.
   useEffect(() => {
     const header = titleRef.current
-    const hostEl = host.current
-    if (!header || !hostEl) return
-    const apply = (): void => hostEl.style.setProperty('--header-zone', `${header.offsetHeight}px`)
+    const shell = shellRef.current
+    if (!header || !shell) return
+    // --header-zone lives on the shell so both the body's top padding and the header's scroll-park range read it.
+    const apply = (): void => shell.style.setProperty('--header-zone', `${header.offsetHeight}px`)
     apply()
     const ro = new ResizeObserver(apply)
     ro.observe(header)
@@ -202,13 +198,13 @@ export function MarkdownEditor({
   }, [])
 
   return (
-    <div className="mdpm-shell" style={{ '--editor-font-size': `${zoomFontSize(zoom)}px` } as React.CSSProperties}>
+    <div ref={shellRef} className="mdpm-shell" style={{ '--editor-font-size': `${zoomFontSize(zoom)}px` } as React.CSSProperties}>
       {title !== undefined && path !== undefined && (
         <PageHeader
           ref={titleRef}
           path={path}
           title={title}
-          icon={icon ?? 'file-text'}
+          icon={icon}
           cover={cover}
           onRename={onRename ?? ((): void => {})}
           onEditIcon={onEditIcon ?? ((): void => {})}

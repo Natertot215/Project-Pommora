@@ -45,7 +45,9 @@ The GUI only launches with `ELECTRON_RUN_AS_NODE` **unset** (this env has it set
 - `Handoff.md` — current state + next session (read first).
 - `History.md` — what shipped + locked decisions, newest first (brief).
 - `Framework.md` — the continuous roadmap (shipped spine + what's next; no phases — the rebuild goes as it goes).
+- `Prospects.md` — ideas considered and deliberately parked (off the roadmap, not yet planned).
 - `Features/Architecture.md` — the data/read/IPC architecture.
+- `Features/MarkdownPM.md` — the page editor's feature map (exhaustive build spec in `Planning/MarkdownPM.md`).
 - `Guidelines/` — build gotchas + decisions not to repeat.
 - `Planning/` — active plans (Phase specs).
 - `Deployment.md` — Vercel showcase deploy (where to point + settings).

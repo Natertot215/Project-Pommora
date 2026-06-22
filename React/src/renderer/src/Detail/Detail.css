@@ -10,11 +10,12 @@
   transition: padding-left var(--duration-base) var(--ease-standard);
 }
 
-/* The page editor reclaims its fold-chevron gutter from the standard left inset, so the body text
-   still lands on --content-inset (aligned with every other view); the chevron hangs in the gutter. */
+/* Full-bleed like the banner-bearing scaffold: no padding here, so the banner spans the pane edge-to-edge
+   and reaches the top. The body inset (and the reclaimed fold-chevron gutter) moves into .mdpm-editor. */
 .detail-page {
   --fold-gutter: 20px;
-  padding-left: calc(var(--content-inset) - var(--fold-gutter));
+  padding: 0;
+  overflow: hidden;
 }
 
 /* Banner-bearing views: a full-bleed scroller so the banner sits edge-to-edge behind the sidebar

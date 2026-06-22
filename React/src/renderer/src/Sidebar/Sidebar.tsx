@@ -17,6 +17,7 @@ import type {
 import { DEFAULT_NEW_NAME, type MutableKind, type MutateRequest } from '@shared/mutate'
 import { SidebarDnd, useSidebarDrag } from './sidebarDnd'
 import { NexusHeader } from './NexusHeader'
+import { loadOpen, saveOpen } from './disclosureState'
 import { useSession } from '../store'
 
 /** Right-click an entity → main pops the native context menu. Every PathNode (page +
@@ -152,6 +153,7 @@ function Disclosure({
   depth,
   swatch,
   defaultOpen = true,
+  persistKey,
   selected = false,
   onSelect,
   onContextMenu,
@@ -165,6 +167,9 @@ function Disclosure({
   depth: number
   swatch?: string
   defaultOpen?: boolean
+  // Stable identity for persisting open/collapse across sessions (entity id, or a `tier:*` key for
+  // the structural context tiers). Omitted → ephemeral (resets to `defaultOpen` each mount).
+  persistKey?: string
   selected?: boolean
   onSelect?: () => void
   onContextMenu?: () => void
@@ -176,29 +181,43 @@ function Disclosure({
   dragId?: string
   children: React.ReactNode
 }): React.JSX.Element {
-  const [open, setOpen] = useState(defaultOpen)
+  const [open, setOpen] = useState(() => (persistKey ? loadOpen(window.localStorage, persistKey, defaultOpen) : defaultOpen))
+  const toggle = (): void =>
+    setOpen((o) => {
+      const next = !o
+      if (persistKey) saveOpen(window.localStorage, persistKey, next)
+      return next
+    })
+  // Storage containers (vault/collection) carry an onSelect: clicking the icon or title opens the
+  // view, while the rest of the row (chevron, empty space) toggles. Rows with no onSelect (tiers,
+  // sets) have no select zone, so a click anywhere toggles.
+  const openView = onSelect
+    ? (e: React.MouseEvent): void => {
+        e.stopPropagation()
+        onSelect()
+      }
+    : undefined
   const header = (
     <MenuItem
       className="row"
       selected={selected}
       indent={depth}
-      onClick={() => {
-        setOpen((o) => !o)
-        onSelect?.()
-      }}
+      onClick={toggle}
       onContextMenu={ctxHandler(onContextMenu)}
       leading={
         <>
           <Icon name="chevron-right" size={12} className={`twisty${open ? ' open' : ''}`} />
-          {swatch ? (
-            <span className="swatch" data-color={swatch} />
-          ) : (
-            <Icon name={open && openIcon ? openIcon : icon} size={16} />
-          )}
+          <span onClick={openView}>
+            {swatch ? (
+              <span className="swatch" data-color={swatch} />
+            ) : (
+              <Icon name={open && openIcon ? openIcon : icon} size={16} />
+            )}
+          </span>
         </>
       }
     >
-      {rename ? <RowTitle path={rename.path} kind={rename.kind} title={title} /> : title}
+      <span onClick={openView}>{rename ? <RowTitle path={rename.path} kind={rename.kind} title={title} /> : title}</span>
     </MenuItem>
   )
   return (
@@ -261,6 +280,7 @@ function ContainerRow({
   return (
     <Disclosure
       dragId={node.id}
+      persistKey={node.id}
       icon={icon}
       openIcon={openIcon}
       title={node.title}
@@ -336,9 +356,9 @@ function ContextRow({ node, swatch }: { node: { id: string; title: string; path:
 // A context tier group (Areas / Topics / Projects) — a non-draggable disclosure under the
 // Contexts heading holding that tier's leaves. Grid icon, open by default. The tiers are
 // free-standing (no containment), so the header is a pure expand/collapse toggle.
-function TierDisclosure({ label, children }: { label: string; children: React.ReactNode }): React.JSX.Element {
+function TierDisclosure({ tierKey, label, children }: { tierKey: 'areas' | 'topics' | 'projects'; label: string; children: React.ReactNode }): React.JSX.Element {
   return (
-    <Disclosure icon="layout-grid" title={label} depth={0} defaultOpen>
+    <Disclosure icon="layout-grid" title={label} depth={0} defaultOpen persistKey={`tier:${tierKey}`}>
       {children}
     </Disclosure>
   )
@@ -401,17 +421,17 @@ export function Sidebar({ tree }: { tree: NexusTree }): React.JSX.Element {
             the header "+" pops a picker to create any tier. */}
         <div className="section">
           <SectionHeader label="Contexts" onAdd={newContext} />
-          <TierDisclosure label={tree.labels.areas}>
+          <TierDisclosure tierKey="areas" label={tree.labels.areas}>
             {tree.contexts.areas.map((a: AreaNode) => (
               <ContextRow key={a.id} node={a} swatch={a.color} />
             ))}
           </TierDisclosure>
-          <TierDisclosure label={tree.labels.topics}>
+          <TierDisclosure tierKey="topics" label={tree.labels.topics}>
             {tree.contexts.topics.map((t: TopicNode) => (
               <ContextRow key={t.id} node={t} />
             ))}
           </TierDisclosure>
-          <TierDisclosure label={tree.labels.projects}>
+          <TierDisclosure tierKey="projects" label={tree.labels.projects}>
             {tree.contexts.projects.map((p: ProjectNode) => (
               <ContextRow key={p.id} node={p} />
             ))}

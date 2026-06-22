@@ -84,9 +84,12 @@ export const icons = {
 
 export type IconName = keyof typeof icons
 
-/** Coerce an arbitrary value (e.g. a frontmatter `icon` string) to a known IconName, else the fallback. */
-export const iconNameOr = (value: unknown, fallback: IconName): IconName =>
-  typeof value === 'string' && value in icons ? (value as IconName) : fallback
+/** Coerce an arbitrary value (e.g. a frontmatter `icon` string) to a known IconName, or undefined if it isn't one. */
+export const asIconName = (value: unknown): IconName | undefined =>
+  typeof value === 'string' && value in icons ? (value as IconName) : undefined
+
+/** As `asIconName`, but falls back to a default when the value isn't a known icon. */
+export const iconNameOr = (value: unknown, fallback: IconName): IconName => asIconName(value) ?? fallback
 
 /**
  * Render a curated icon by name: `<Icon name="folder-closed" />`. Size defaults to

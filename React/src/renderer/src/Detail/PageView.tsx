@@ -3,7 +3,7 @@ import { useSession } from '../store'
 import { MarkdownEditor } from '../MarkdownPM'
 import { buildPageIndex, flattenPages, type ConnectionsApi } from '../MarkdownPM/connections'
 import { IconPicker } from '../Components/IconPicker'
-import { iconNameOr } from '../design-system/symbols'
+import { asIconName } from '../design-system/symbols'
 
 const SAVE_DEBOUNCE_MS = 400
 
@@ -50,7 +50,7 @@ export function PageView(): React.JSX.Element {
             initialBody={pageDetail.body}
             title={pageDetail.title}
             path={pageDetail.path}
-            icon={iconNameOr(pageDetail.frontmatter.icon, 'file-text')}
+            icon={asIconName(pageDetail.frontmatter.icon)}
             cover={typeof pageDetail.frontmatter.cover === 'string' ? pageDetail.frontmatter.cover : undefined}
             onEditIcon={() => setIconPickerOpen(true)}
             onRename={(newName) => submitRename(pageDetail.path, 'page', newName)}

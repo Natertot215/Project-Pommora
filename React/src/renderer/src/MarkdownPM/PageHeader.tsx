@@ -8,7 +8,7 @@ const assetUrl = (rel: string): string => `nexus-asset://nexus/${encodeURI(rel)}
 interface Props {
   path: string
   title: string
-  icon: IconName
+  icon?: IconName
   cover?: string
   onRename: (newName: string) => void | Promise<boolean | void>
   onEditIcon: () => void

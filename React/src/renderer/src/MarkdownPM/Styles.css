@@ -6,11 +6,24 @@
   --fold-chevron-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m9 18 6-6-6-6'/%3E%3C/svg%3E");
   --label-control: color-mix(in srgb, var(--label-primary) 80%, transparent);
   position: relative;
+  /* Own stacking context (sits below the sidebar's z-index:1) so the absolutely-positioned banner
+     header can layer above the editor body WITHOUT its z-index escaping to cover the floating sidebar. */
+  z-index: 0;
   height: 100%;
   overflow: hidden;
+  /* Hoist the scroll timeline defined on .cm-scroller so the sibling .mdpm-header can bind to it. */
+  timeline-scope: --mdpm-scroll;
 }
 .mdpm-editor {
   height: 100%;
+  /* The page surface is full-bleed (banner edge-to-edge); the body inset lives here so text still lands on
+     --content-inset, with the fold-chevron gutter hanging in the reclaimed --fold-gutter to its left. */
+  padding-left: calc(var(--content-inset) - var(--fold-gutter));
+  padding-right: var(--gutter);
+  transition: padding-left var(--duration-base) var(--ease-standard);
+}
+.shell.is-resizing .mdpm-editor {
+  transition: none;
 }
 .mdpm-editor .cm-editor {
   height: 100%;
@@ -23,7 +36,9 @@
   font-family: var(--font-family);
   line-height: 1.6;
   scrollbar-width: none;
-  /* Kill rubber-band overscroll: it desyncs from the JS-driven title transform and makes the title bounce. */
+  /* The compositor scroll timeline the banner header binds to — parks the header as you scroll, no JS. */
+  scroll-timeline: --mdpm-scroll block;
+  /* No rubber-band overscroll, so the parked header stays steady at the scroll extremes. */
   overscroll-behavior: none;
 }
 .mdpm-editor .cm-scroller::-webkit-scrollbar {
@@ -44,15 +59,35 @@
   left: 0;
   right: 0;
   z-index: 2;
+  /* Park the header on the compositor, tied 1:1 to the editor's scroll (no JS, no per-frame lag).
+     The distance + range track --header-zone, so toggling the banner re-syncs automatically. */
   will-change: transform;
+  animation-name: mdpm-header-park;
+  animation-timing-function: linear;
+  animation-fill-mode: both;
+  animation-timeline: --mdpm-scroll;
+  animation-range: 0 var(--header-zone, 90px);
+}
+@keyframes mdpm-header-park {
+  to {
+    transform: translateY(calc(-1 * var(--header-zone, 90px)));
+  }
+}
+/* One title size in both states — a banner must not shrink the title. */
+.mdpm-header .detail-title {
+  --detail-title-size: 28px;
 }
 
 /* No-banner state: a hover-revealed Add-Banner strip above the title, then an inset divider. */
+/* No-banner header clears the toolbar, then the hover Add-Banner strip. KNOB: padding-top raises/lowers the button. */
+.mdpm-header:not(.has-banner) {
+  padding-top: 28px;
+}
 .mdpm-add-banner {
   height: 24px;
   display: flex;
   align-items: center;
-  padding-left: var(--fold-gutter);
+  padding-left: var(--content-inset);
 }
 .mdpm-header .add-banner-btn {
   display: inline-flex;
@@ -75,12 +110,11 @@
   color: var(--label-secondary);
 }
 .mdpm-header:not(.has-banner) .detail-title {
-  padding: 6px 0 14px var(--fold-gutter);
-  --detail-title-size: 28px;
+  padding: 6px 0 14px var(--content-inset);
 }
 .mdpm-divider {
   height: 1.25px;
-  margin-left: var(--fold-gutter);
+  margin: 0 var(--gutter) 0 var(--content-inset);
   background: var(--separator-border);
 }
 
@@ -100,12 +134,16 @@
 .mdpm-banner-overlay {
   position: absolute;
   bottom: 12px;
-  left: var(--fold-gutter);
+  left: var(--content-inset);
   right: 28px;
 }
 .mdpm-banner-overlay .detail-title-text,
 .mdpm-banner-overlay .detail-title-input {
   text-shadow: 0 1px 4px rgba(0, 0, 0, 0.55);
+}
+.mdpm-banner-overlay .detail-title-icon {
+  color: var(--label-primary);
+  filter: drop-shadow(0 1px 4px rgba(0, 0, 0, 0.55));
 }
 
 /* HEADING FOLD — chevron in the left gutter. Chevron points right when folded, rotates down when open.

@@ -9,8 +9,8 @@ import './DetailTitleHeader.css'
  */
 interface Props {
   title: string
-  /** Resolved symbol name (the entity's icon, or a per-kind default). */
-  icon: IconName
+  /** The entity's assigned icon, if any — omitted/undefined renders no icon (empty). */
+  icon?: IconName
   onRename: (newName: string) => void | Promise<boolean | void>
   /** Pops the native Rename / Edit Icon menu and resolves the chosen action. */
   requestMenu: () => Promise<'rename' | 'editIcon' | null>
@@ -44,14 +44,16 @@ export function DetailTitleHeader({ title, icon, onRename, requestMenu, onEditIc
 
   const openMenu = async (e: React.MouseEvent): Promise<void> => {
     e.preventDefault()
+    e.stopPropagation() // don't also trip the banner's Change/Remove menu underneath
     const action = await requestMenu()
     if (action === 'rename') setEditing(true)
     else if (action === 'editIcon') onEditIcon()
   }
 
   return (
+    // Only the icon glyph + the name text are Rename / Edit-Icon targets — not the full-width row.
     <div className="detail-title">
-      <Icon name={icon} size={22} className="detail-title-icon" />
+      {icon && <Icon name={icon} className="detail-title-icon" onContextMenu={editing ? undefined : openMenu} />}
       {editing ? (
         <input
           ref={inputRef}
