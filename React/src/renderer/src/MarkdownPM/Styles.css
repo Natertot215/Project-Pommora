@@ -240,6 +240,17 @@
   text-decoration: underline;
   cursor: pointer;
 }
+/* Invalid external link — dimmed title (URL stays hidden at rest so it doesn't pollute the line).
+   No pointer cursor: invalid links don't navigate, so they read as plain text, not something clickable. */
+.md-link-invalid {
+  color: var(--label-control);
+  text-decoration: underline;
+}
+/* A valid link's revealed (url) — italic + underline signals validity; no link colour. */
+.md-link-url {
+  font-style: italic;
+  text-decoration: underline;
+}
 /* Resolved connections wear the connection color; unresolved (phantom) get no class — they render
    raw `[[Foo]]` as plain prose (handled in decorations.ts). Ambiguous reads muted. */
 .md-connection-resolved {

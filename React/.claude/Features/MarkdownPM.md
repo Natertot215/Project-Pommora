@@ -32,6 +32,7 @@ A construct's Markdown markers are **revealed** (literal editable text) when the
 - **Blockquote** — always-show rounded card + accent bar (not caret-aware).
 - **Thematic break** (`---`) — caret-aware full-width rule; no setext interpretation, ever.
 - **Connections** (`[[Title]]`) — title-only, rendered as **styled colored inline text (never a chip)**, three states (resolved / phantom / ambiguous) wired to the live `@shared/connections` layer; click navigates; live restyle when connections change. Plus the `[[` **autocomplete panel** (glass popup above the caret, prefix-matched, keyboard-driven).
+- **External links** (`[text](url)`) — title-only at rest (URL hidden). **Valid vs invalid** by a static URL check shared with the opener (`@shared/links`, so colour can't disagree with what opens): valid → link colour + underline; invalid → dimmed `label-control` with its `[brackets]` shown. The revealed `(url)` carries the tell — valid = italic + underline, invalid = dimmed. Pointer cursor + navigation (`shell.openExternal`) on valid titles only.
 
 ### Typing Transforms (Input-Time Only)
 

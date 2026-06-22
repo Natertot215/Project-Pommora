@@ -47,7 +47,6 @@ const CONTENT_CLASS: Partial<Record<TokenKind, string>> = {
   italic: 'md-italic',
   strikethrough: 'md-strike',
   inlineCode: 'md-code',
-  link: 'md-link',
   imageEmbed: 'md-image',
   inlineLatex: 'md-latex',
   blockLatex: 'md-latex'
@@ -58,6 +57,7 @@ export function decorationsFor(text: string, tokens: Token[], active: Set<number
 
   tokens.forEach((tk, i) => {
     if (tk.kind === 'wikiLink') return // resolution-dependent; rendered in decorations.ts by status
+    if (tk.kind === 'link') return // validity-dependent; rendered in decorations.ts (valid vs invalid)
     const cls = CONTENT_CLASS[tk.kind]
     if (cls) intents.push({ kind: 'class', from: tk.contentRange[0], to: tk.contentRange[1], className: cls })
     if (!active.has(i)) for (const [s, e] of tk.markerRanges) intents.push({ kind: 'hide', from: s, to: e })

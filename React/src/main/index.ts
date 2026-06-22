@@ -22,6 +22,7 @@ import { showContextMenu } from './contextMenu'
 import { installAppMenu } from './menu'
 import { installEditorContextMenu, setFormatState } from './editorMenu'
 import type { FormatState } from '@shared/editorMenu'
+import { isValidLink, normalizeLinkUrl } from '@shared/links'
 
 // The production renderer is served over a custom secure scheme (app://) rather
 // than file://: ES-module scripts fetch in CORS mode and every file:// resource is
@@ -353,13 +354,11 @@ ipcMain.handle('error:show', async (e, message: unknown): Promise<void> => {
   }
 })
 
-// Open an external markdown link in the OS default app. Schemeless URLs get https://; non-web
-// schemes (file:, javascript:, …) are rejected — the renderer never opens links itself.
+// Open an external markdown link in the OS default app. Invalid links (same check that dims them in
+// the editor) are rejected — the renderer never opens links itself.
 ipcMain.handle('link:open', async (_e, url: unknown): Promise<void> => {
-  if (typeof url !== 'string' || !url) return
-  const normalized = /^[a-z][a-z0-9+.-]*:/i.test(url) ? url : `https://${url}`
-  if (!/^(https?|mailto):/i.test(normalized)) return
-  await shell.openExternal(normalized)
+  if (typeof url !== 'string' || !isValidLink(url)) return
+  await shell.openExternal(normalizeLinkUrl(url))
 })
 
 // The OS accent (macOS 10.14+), for accent === 'system'. Electron returns
