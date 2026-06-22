@@ -1,10 +1,9 @@
 import SwiftUI
 
-/// Shared content for the simple/leaf sidebar rows (Area / Topic / Project /
-/// Page): the selectable ↔ inline-rename swap plus the rename plumbing
-/// (`InlineRenameState` + focus + commit/cancel/focus-loss) that each row used
-/// to repeat verbatim. Callers pass the entity specifics (symbol, title, tag,
-/// the rename call) and a context menu.
+/// Shared content for every sidebar row: the selectable ↔ inline-rename swap
+/// plus the rename plumbing (`InlineRenameState` + focus + commit/cancel/
+/// focus-loss) that each row used to repeat verbatim. Callers pass the entity
+/// specifics (symbol, title, tag, the rename call) and a context menu.
 ///
 /// Pure content — like `SelectableRow`, it carries NO selection chrome. The
 /// caller keeps `.listRowBackground(SelectionChrome(...))` at the row-file level

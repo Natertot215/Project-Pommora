@@ -638,8 +638,6 @@ extension PageTypeManager {
         }
     }
 
-    // MARK: - Delete property
-
     // MARK: - Update view (per-container SavedView edit)
 
     /// Apply a transform to a SavedView on a PageType or PageCollection

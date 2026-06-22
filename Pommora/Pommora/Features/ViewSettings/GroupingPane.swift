@@ -528,11 +528,7 @@ private struct OptionsSection: View {
     private func orderedStatusChips(
         _ groups: [PropertyDefinition.StatusGroup]
     ) -> [PropertyChipOption] {
-        let allChips: [PropertyChipOption] = groups.flatMap { group in
-            group.options.map { opt in
-                opt.asChipOption(groupColor: group.color)
-            }
-        }
+        let allChips = flatStatusChips(groups)
         guard let order = grouping.order else { return allChips }
         var result: [PropertyChipOption] = []
         for id in order {
