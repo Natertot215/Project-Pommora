@@ -79,20 +79,7 @@ struct RenameableRow<Trailing: View>: View {
                     draft = initialTitle
                     renameFocused = true
                     if selectAllOnAppear {
-                        // AppKit responder hop. The TextField becomes a
-                        // backing NSTextView in the responder chain a tick
-                        // after `renameFocused = true`; dispatching to the
-                        // next main-runloop pass lets focus settle, then
-                        // sending `selectAll:` to the first responder
-                        // highlights the entire default-title text so the
-                        // user's first keystroke replaces it. Safe no-op if
-                        // the responder hasn't materialized yet (the
-                        // tryToPerform call silently fails).
-                        DispatchQueue.main.async {
-                            NSApp.keyWindow?.firstResponder?.tryToPerform(
-                                #selector(NSText.selectAll(_:)), with: nil
-                            )
-                        }
+                        InlineRenameFocus.selectAllOnNextRunloop()
                     }
                 }
             Spacer(minLength: 0)

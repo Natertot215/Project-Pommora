@@ -22,46 +22,40 @@ enum GroupResolver {
         schema: [PropertyDefinition] = [],
         collapsed: Set<String> = []
     ) -> [ResolvedGroup] {
-        let comparator = ViewSortComparator.comparator(for: sort, schema: schema)
+        let sorter = ViewSortComparator.sorter(for: sort, schema: schema)
 
         switch config {
         case .none, .some(.structural):
-            return structural(items, scope: scope, comparator: comparator, collapsed: collapsed)
+            return structural(items, scope: scope, sorter: sorter, collapsed: collapsed)
         case .some(.property(let grouping)):
             guard schema.contains(where: { $0.id == grouping.propertyID }) else {
-                return structural(items, scope: scope, comparator: comparator, collapsed: collapsed)
+                return structural(items, scope: scope, sorter: sorter, collapsed: collapsed)
             }
             return property(
                 items, grouping: grouping, schema: schema,
-                comparator: comparator, collapsed: collapsed)
+                sorter: sorter, collapsed: collapsed)
         case .some(.flat):
-            return flat(items, comparator: comparator, collapsed: collapsed)
+            return flat(items, sorter: sorter, collapsed: collapsed)
         }
     }
 
     // MARK: - Sorting within a group
 
-    /// Applies the comparator to a group's items, preserving input order when the
-    /// comparator is nil (manual). Uses a stable sort so ties hold input order.
+    /// Applies the group sorter, preserving input order when nil (manual). The
+    /// sorter is itself stable (ties hold input order).
     private static func sorted(
-        _ items: [ViewItem], _ comparator: ViewSortComparator.Comparator?
+        _ items: [ViewItem], _ sorter: ViewSortComparator.GroupSorter?
     )
         -> [ViewItem]
     {
-        guard let comparator else { return items }
-        return items.enumerated()
-            .sorted { lhs, rhs in
-                if comparator(lhs.element, rhs.element) { return true }
-                if comparator(rhs.element, lhs.element) { return false }
-                return lhs.offset < rhs.offset  // stable: hold input order among ties
-            }
-            .map(\.element)
+        guard let sorter else { return items }
+        return sorter(items)
     }
 
     // MARK: - Flat
 
     private static func flat(
-        _ items: [ViewItem], comparator: ViewSortComparator.Comparator?, collapsed: Set<String>
+        _ items: [ViewItem], sorter: ViewSortComparator.GroupSorter?, collapsed: Set<String>
     ) -> [ResolvedGroup] {
         guard !items.isEmpty else { return [] }
         return [
@@ -69,7 +63,7 @@ enum GroupResolver {
                 id: ungroupedID,
                 title: "",
                 kind: .ungrouped,
-                items: sorted(items, comparator),
+                items: sorted(items, sorter),
                 isCollapsed: collapsed.contains(ungroupedID)
             )
         ]
@@ -80,13 +74,13 @@ enum GroupResolver {
     private static func structural(
         _ items: [ViewItem],
         scope: ViewScope,
-        comparator: ViewSortComparator.Comparator?,
+        sorter: ViewSortComparator.GroupSorter?,
         collapsed: Set<String>
     ) -> [ResolvedGroup] {
         switch scope {
-        case .vault: return structuralVault(items, comparator: comparator, collapsed: collapsed)
+        case .vault: return structuralVault(items, sorter: sorter, collapsed: collapsed)
         case .collection:
-            return structuralCollection(items, comparator: comparator, collapsed: collapsed)
+            return structuralCollection(items, sorter: sorter, collapsed: collapsed)
         }
     }
 
@@ -95,7 +89,7 @@ enum GroupResolver {
     /// vault root (no Collection) collect in a trailing ungrouped band.
     private static func structuralVault(
         _ items: [ViewItem],
-        comparator: ViewSortComparator.Comparator?,
+        sorter: ViewSortComparator.GroupSorter?,
         collapsed: Set<String>
     ) -> [ResolvedGroup] {
         var collectionOrder: [String] = []
@@ -131,7 +125,7 @@ enum GroupResolver {
                     id: set.id,
                     title: set.title,
                     kind: .structuralSet(set),
-                    items: sorted(setItems[sid] ?? [], comparator),
+                    items: sorted(setItems[sid] ?? [], sorter),
                     isCollapsed: collapsed.contains(set.id)
                 )
             }
@@ -139,7 +133,7 @@ enum GroupResolver {
                 id: coll.id,
                 title: coll.title,
                 kind: .structuralCollection(coll),
-                items: sorted(directItems[cid] ?? [], comparator),
+                items: sorted(directItems[cid] ?? [], sorter),
                 children: children.isEmpty ? nil : children,
                 isCollapsed: collapsed.contains(coll.id)
             )
@@ -151,7 +145,7 @@ enum GroupResolver {
                     id: ungroupedID,
                     title: "",
                     kind: .ungrouped,
-                    items: sorted(rootItems, comparator),
+                    items: sorted(rootItems, sorter),
                     isCollapsed: collapsed.contains(ungroupedID)
                 ))
         }
@@ -163,7 +157,7 @@ enum GroupResolver {
     /// (today's flat look).
     private static func structuralCollection(
         _ items: [ViewItem],
-        comparator: ViewSortComparator.Comparator?,
+        sorter: ViewSortComparator.GroupSorter?,
         collapsed: Set<String>
     ) -> [ResolvedGroup] {
         var setOrder: [String] = []
@@ -191,7 +185,7 @@ enum GroupResolver {
                     id: ungroupedID,
                     title: "",
                     kind: .ungrouped,
-                    items: sorted(rootItems, comparator),
+                    items: sorted(rootItems, sorter),
                     isCollapsed: collapsed.contains(ungroupedID)
                 )
             ]
@@ -203,7 +197,7 @@ enum GroupResolver {
                 id: set.id,
                 title: set.title,
                 kind: .structuralSet(set),
-                items: sorted(setItems[sid] ?? [], comparator),
+                items: sorted(setItems[sid] ?? [], sorter),
                 isCollapsed: collapsed.contains(set.id)
             )
         }
@@ -213,7 +207,7 @@ enum GroupResolver {
                     id: ungroupedID,
                     title: "",
                     kind: .ungrouped,
-                    items: sorted(rootItems, comparator),
+                    items: sorted(rootItems, sorter),
                     isCollapsed: collapsed.contains(ungroupedID)
                 ))
         }
@@ -240,7 +234,7 @@ enum GroupResolver {
         _ items: [ViewItem],
         grouping: PropertyGrouping,
         schema: [PropertyDefinition],
-        comparator: ViewSortComparator.Comparator?,
+        sorter: ViewSortComparator.GroupSorter?,
         collapsed: Set<String>
     ) -> [ResolvedGroup] {
         let def = schema.first(where: { $0.id == grouping.propertyID })
@@ -266,7 +260,7 @@ enum GroupResolver {
                 id: key,
                 title: bucketTitle(key, def: def),
                 kind: .propertyBucket(value: key),
-                items: sorted(bucketItems, comparator),
+                items: sorted(bucketItems, sorter),
                 isCollapsed: collapsed.contains(key)
             )
         }
@@ -277,7 +271,7 @@ enum GroupResolver {
                 id: ungroupedID,
                 title: "No \(def?.name ?? "Value")",
                 kind: .propertyBucket(value: nil),
-                items: sorted(noValue, comparator),
+                items: sorted(noValue, sorter),
                 isCollapsed: collapsed.contains(ungroupedID)
             )
             if grouping.emptyPlacement == .top {

@@ -49,14 +49,17 @@ private struct GroupingOptionsRow: View {
     @State private var isDropTargeted: Bool = false
 
     var body: some View {
-        HStack(spacing: PUI.Row.interSpacing) {
+        let row = HStack(spacing: PUI.Row.interSpacing) {
             PropertyChip(label: chip.label, color: chip.color)
             Spacer(minLength: 0)
             gripHandle
         }
         .contentShape(Rectangle())
-        .if(isDraggable) { view in
-            view
+
+        // Gate stays on `.draggable`: it has no inert form, so always-applying it
+        // would let rows be dragged outside Manual order mode.
+        if isDraggable {
+            row
                 .draggable(chip.id)
                 .dropDestination(for: String.self) { droppedIDs, _ in
                     onDrop(droppedIDs)
@@ -64,6 +67,8 @@ private struct GroupingOptionsRow: View {
                     isDropTargeted = $0
                 }
                 .optionRowInsertionLine(isActive: isDropTargeted)
+        } else {
+            row
         }
     }
 
@@ -73,18 +78,5 @@ private struct GroupingOptionsRow: View {
             .font(PUI.Typography.chip)
             .foregroundStyle(isDraggable ? AnyShapeStyle(.secondary) : AnyShapeStyle(.quaternary))
             .help(isDraggable ? "Drag to reorder" : "Switch to Manual order to reorder")
-    }
-}
-
-// MARK: - View+if helper
-
-extension View {
-    @ViewBuilder
-    fileprivate func `if`<Content: View>(_ condition: Bool, transform: (Self) -> Content) -> some View {
-        if condition {
-            transform(self)
-        } else {
-            self
-        }
     }
 }

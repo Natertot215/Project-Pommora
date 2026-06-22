@@ -36,13 +36,13 @@ Scaffolded the full locked paradigm: every entity CRUD-able end-to-end via sideb
 Sidebar UX tweaks, GitHub Actions CI (`macos-26`), `swift-format` baseline + config + CI lint step, and the `.trash//` data foundation (disk-recoverable deletes; the in-app Trash window surface lands later).
 
 ##### v0.2.7.0 — Pages editor (TextKit 2)
-Native NSTextView + Apple `swift-markdown` + the Pommora-owned `MarkdownPM` package. Writing Tools, Look Up, spell-check, IME, and dynamic system colors come free. One styler walks the cached AST once. `.md` is the architectural firewall — Pages survive any future editor swap. Spec → `Features/PageEditor.md`.
+Native NSTextView + Apple `swift-markdown` + the Pommora-owned `MarkdownPM` package. Writing Tools, Look Up, spell-check, IME, and dynamic system colors come free. One styler walks the cached AST once. `.md` is the architectural firewall — Pages survive any future editor swap. Spec → `// Features//PageEditor.md`.
 
 ##### v0.2.7.1 — Navigation
 Liquid Glass dropdown navigation surface — Pinned + Recents tabs, single-click select / double-click open. `⌘T` opens; `⌘[` / `⌘]` walk Recents. Replaces the earlier tab-strip navigation model.
 
 ##### v0.2.7.2–v0.2.7.5 — Editor construct passes
-HR, Lists, code blocks, and Blockquote rewritten through the dynamic-syntax architecture (markers shrink when the caret leaves the AST node, Bear/Notion pattern; on disk standard CommonMark). Bullet glyph substitution, task-list shorthand, bracket auto-pair, and arrow auto-format land alongside. Locked construct rules → `Features/PageEditor.md`.
+HR, Lists, code blocks, and Blockquote rewritten through the dynamic-syntax architecture (markers shrink when the caret leaves the AST node, Bear/Notion pattern; on disk standard CommonMark). Bullet glyph substitution, task-list shorthand, bracket auto-pair, and arrow auto-format land alongside. Locked construct rules → `// Features//PageEditor.md`.
 
 ##### v0.2.8 — Sidebar drag-to-reorder
 Order persistence (per-sidecar order fields) plus drag-to-reorder UX on the Pages-side and Contexts rows. Navigation Pinned reorder, cross-container drag, and detail-pane Table reorder remain queued.
@@ -54,7 +54,7 @@ The data-layer chapter. Full property data layer (10 property types, stable-ULID
 The View Settings popover goes live: schema CRUD through an Edit Properties pane, dynamic property-value columns in detail-view Tables, click-to-edit cell popovers per property type, and a Property Visibility pane. Adds saved-view fields + a default-view migration and the chip-color palette. Full record → [[History]].
 
 ##### v0.3.2 — View Settings editor rebuild + nav/detail fixes
-The per-property editor rebuilt to the Figma; popover-family UIX lessons folded into `Guidelines/Design.md` (standalone `UIX-Baseline.md` retired). A Pages-side Folders tier was built and **reverted the same cycle** — it duplicated Collections' role — keeping only its stub-and-inline-rename CRUD primitives and sidebar tweaks. Nav/detail bug fixes landed alongside.
+The per-property editor rebuilt to the Figma; popover-family UIX lessons folded into `// Guidelines//Design.md` (standalone `UIX-Baseline.md` retired). A Pages-side Folders tier was built and **reverted the same cycle** — it duplicated Collections' role — keeping only its stub-and-inline-rename CRUD primitives and sidebar tweaks. Nav/detail bug fixes landed alongside.
 
 ##### v0.3.4 — Relations made real + manager de-dup + Pages stats footer
 The big consolidation release (**v0.3.3 skipped** — relations folded forward).
@@ -65,7 +65,7 @@ The big consolidation release (**v0.3.3 skipped** — relations folded forward).
 - **Pages stats footer + editor polish.** Live line / word / character counts (toggle) + a plain-text breadcrumb; code-block and bullet rendering refinements.
 
 ##### v0.3.5 — Connections (page-level) + Contextv2 + MarkdownPM perf
-- **Connections page-level.** `[[Page Title]]` syntax, inline render as styled colored text, Liquid Glass autocomplete, click navigation, atomic rename cascade, nexus-wide title uniqueness, a live-refresh bus, and a `connections` index table. Spec → `Features/Connections.md`.
+- **Connections page-level.** `[[Page Title]]` syntax, inline render as styled colored text, Liquid Glass autocomplete, click navigation, atomic rename cascade, nexus-wide title uniqueness, a live-refresh bus, and a `connections` index table. Spec → `// Features//Connections.md`.
 - **Contextv2.** User-creatable relation properties retired; the three tiers are now the sole relation connection. The paired-relation coordinator was deleted; all `Relation*` symbols renamed `Context*`; the substrate kept.
 - **MarkdownPM performance.** Heading / HR / blockquote / bullet reads served from token/construct caches; scroll lag eliminated.
 - **Index hardening + page icon.** Conflict-safe parent upserts, a lenient launch scan with file-level exclusions, and an in-editor page-header icon with an "Add Icon" hover affordance (toggle, default off).
@@ -85,14 +85,14 @@ The third operational tier: Vault → Collection → **Set** (optional) → Page
 > **Version buckets + priority follow Nathan's own [[Pommora Tasks]] doc** (the working intent ledger); Framework keeps the implementation detail under each. Entries Framework tracks that the Tasks doc doesn't name are *folded into their nearest bucket* and marked **(infra)** / **(folded)**. **The view system ships incrementally** — UIX fixes at **v0.4.2**, Gallery + Layout settings at **v0.4.3**, feature-complete (with the Sort / Filter / Group panes + multi-saved-view config) at **v0.5.0**.
 
 ##### v0.4.2 — Views UIX fixes (in progress)
-Cross-view polish on the Vault + Collection views: the toolbar **Views dropdown** (create / switch / type-switch — done); the detail **header + container banners** (a title overlaying an edge-to-edge banner); and the shared **menus + toolbar** behavior. Open item: the macOS 26 toolbar `»`-overflow. Active plan → `Planning//06-13-Views-UIX-Fixes.md`.
+Cross-view polish on the Vault + Collection views: the toolbar **Views dropdown** (create / switch / type-switch — done); the detail **header + container banners** (a title overlaying an edge-to-edge banner); and the shared **menus + toolbar** behavior. Open item: the macOS 26 toolbar `»`-overflow. Active plan → `// Planning//06-13-Views-UIX-Fixes.md`.
 
 ##### v0.4.3 — Gallery + Layout settings
 The **Gallery** renderer (cards over the per-container `SavedView` storage) and the View Settings **Layout** pane rework (format-dependent Table/Gallery options + per-view Open-In + type dual-write). The grouping + sorting UIX rework lands in this window.
 
 ##### v0.5.0 — Views complete + Symbols + Trash
-- **Views feature-complete.** With Table + Gallery, the Views dropdown, page **covers** + container **banners**, and the full per-view config — **order, sort, Group By, column selection** + **tier-link sort + filter** (`linked to` / `not linked to` relation operators) — all polished, the view system is done (Board / List / Cards stay enum-carried for post-v0.5 UI — Board = kanban, cards grouped by a property's options). Includes the deferred per-view **reorder engine** on the macOS 26 drag-session APIs (until now, Type detail tables are display-only and mirror the sidebar). Ratified spec → `Planning//06-11-Views-Spec.md`.
-- **Standardized Symbols.** In-app Symbol Settings surface over the `Guidelines/Symbols.md` registry — user-remappable Application ↔ SF Symbol assignments, replacing hardcoded glyphs with a configurable table.
+- **Views feature-complete.** With Table + Gallery, the Views dropdown, page **covers** + container **banners**, and the full per-view config — **order, sort, Group By, column selection** + **tier-link sort + filter** (`linked to` / `not linked to` relation operators) — all polished, the view system is done (Board / List / Cards stay enum-carried for post-v0.5 UI — Board = kanban, cards grouped by a property's options). Includes the deferred per-view **reorder engine** on the macOS 26 drag-session APIs (until now, Type detail tables are display-only and mirror the sidebar). Spec → `// Features//Views.md`.
+- **Standardized Symbols.** In-app Symbol Settings surface over the `// Guidelines//Symbols.md` registry — user-remappable Application ↔ SF Symbol assignments, replacing hardcoded glyphs with a configurable table.
 - **Archive / Trash.** In-app Trash window (SwiftUI surface over the v0.2.5 `.trash//` data layer) with restore + permanent-delete + Empty Trash; cascade-delete reporting with exact counts (Page Type → N Collections + M Pages).
 - **(infra)** **FTS5 tables wired** (schema only — the `⌘K` search UI ships v0.7.0); broken-link warning surface for connections.
 

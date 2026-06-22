@@ -17,23 +17,20 @@ struct SortComparatorTests {
         SortCriterion(propertyID: id, direction: dir)
     }
 
-    /// Applies a comparator to items the way the pipeline does (stable sort);
-    /// returns nil-passthrough when the comparator is nil.
-    private func order(_ items: [ViewItem], by comparator: ViewSortComparator.Comparator?) -> [String] {
-        guard let comparator else { return items.map(\.id) }
-        return items.enumerated()
-            .sorted {
-                if comparator($0.element, $1.element) { return true }
-                if comparator($1.element, $0.element) { return false }
-                return $0.offset < $1.offset
-            }
-            .map(\.element.id)
+    /// Sorts items the way the pipeline does; a nil sorter is manual passthrough.
+    private func order(
+        _ items: [ViewItem], for criterion: SortCriterion?, schema: [PropertyDefinition] = []
+    ) -> [String] {
+        guard let sorter = ViewSortComparator.sorter(for: criterion, schema: schema) else {
+            return items.map(\.id)
+        }
+        return sorter(items).map(\.id)
     }
 
     // MARK: - Manual (nil)
 
     @Test func nilCriterionIsManual() {
-        #expect(ViewSortComparator.comparator(for: nil, schema: []) == nil)
+        #expect(ViewSortComparator.sorter(for: nil, schema: []) == nil)
     }
 
     // MARK: - Title
@@ -42,15 +39,13 @@ struct SortComparatorTests {
         let a = VPFixture.item("01", title: "banana", in: coll)
         let b = VPFixture.item("02", title: "Apple", in: coll)
         let c = VPFixture.item("03", title: "cherry", in: coll)
-        let cmp = ViewSortComparator.comparator(for: crit("_title", .ascending), schema: [])
-        #expect(order([a, b, c], by: cmp) == ["02", "01", "03"])
+        #expect(order([a, b, c], for: crit("_title", .ascending)) == ["02", "01", "03"])
     }
 
     @Test func titleSortDescendingFlips() {
         let a = VPFixture.item("01", title: "Apple", in: coll)
         let b = VPFixture.item("02", title: "banana", in: coll)
-        let cmp = ViewSortComparator.comparator(for: crit("_title", .descending), schema: [])
-        #expect(order([a, b], by: cmp) == ["02", "01"])
+        #expect(order([a, b], for: crit("_title", .descending)) == ["02", "01"])
     }
 
     // MARK: - ID (ULID = creation order)
@@ -58,9 +53,8 @@ struct SortComparatorTests {
     @Test func idSortIsLexicographic() {
         let older = VPFixture.item("01HAAA", title: "Zebra", in: coll)
         let newer = VPFixture.item("01HBBB", title: "Apple", in: coll)
-        let cmp = ViewSortComparator.comparator(for: crit("_id", .ascending), schema: [])
         // id order wins over title.
-        #expect(order([newer, older], by: cmp) == ["01HAAA", "01HBBB"])
+        #expect(order([newer, older], for: crit("_id", .ascending)) == ["01HAAA", "01HBBB"])
     }
 
     // MARK: - Modified-at with createdAt fallback
@@ -80,10 +74,8 @@ struct SortComparatorTests {
                 createdAt: VPFixture.date("2010-01-01T00:00:00Z"),
                 modifiedAt: nil),
             parent: .collection(coll, vault: VPFixture.vault()), setLabel: nil)
-        let asc = ViewSortComparator.comparator(for: crit("_modified_at", .ascending), schema: [])
-        #expect(order([p1, p2], by: asc) == ["p2", "p1"])
-        let desc = ViewSortComparator.comparator(for: crit("_modified_at", .descending), schema: [])
-        #expect(order([p1, p2], by: desc) == ["p1", "p2"])
+        #expect(order([p1, p2], for: crit("_modified_at", .ascending)) == ["p2", "p1"])
+        #expect(order([p1, p2], for: crit("_modified_at", .descending)) == ["p1", "p2"])
     }
 
     // MARK: - Select by schema option order (not alphabetic)
@@ -96,13 +88,12 @@ struct SortComparatorTests {
         let a = VPFixture.item("a", title: "A", in: coll, properties: ["prop_p": .select("low")])
         let b = VPFixture.item("b", title: "B", in: coll, properties: ["prop_p": .select("high")])
         let c = VPFixture.item("c", title: "C", in: coll, properties: ["prop_p": .select("medium")])
-        let cmp = ViewSortComparator.comparator(for: crit("prop_p", .ascending), schema: [def])
         // Option order high → medium → low: [b, c, a]. Alphabetic would be high,low,medium.
-        #expect(order([a, b, c], by: cmp) == ["b", "c", "a"])
+        #expect(order([a, b, c], for: crit("prop_p", .ascending), schema: [def]) == ["b", "c", "a"])
     }
 
     @Test func unknownPropertyCriterionIsManual() {
-        // No schema entry → nil comparator (manual).
-        #expect(ViewSortComparator.comparator(for: crit("prop_missing", .ascending), schema: []) == nil)
+        // No schema entry → nil sorter (manual).
+        #expect(ViewSortComparator.sorter(for: crit("prop_missing", .ascending), schema: []) == nil)
     }
 }

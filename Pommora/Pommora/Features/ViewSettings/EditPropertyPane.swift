@@ -528,13 +528,7 @@ struct EditPropertyPane: View {
             .properties.first(where: { $0.id == propertyID })
     }
 
-    private func parentTypeID() -> String? {
-        switch scope {
-        case .pageType(let t): return t.id
-        case .pageCollection(let c): return c.typeID
-        default: return nil
-        }
-    }
+    private func parentTypeID() -> String? { scope.schemaTypeID }
 
     // MARK: - Bindings
 

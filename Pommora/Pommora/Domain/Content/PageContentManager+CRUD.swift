@@ -54,18 +54,20 @@ extension PageContentManager {
 
     // MARK: - Page CRUD (PageCollection-scoped)
 
+    /// Creates a Page in any parent scope (Collection / Set / Type root): validates,
+    /// enforces same-container + nexus-wide title uniqueness, writes the `.md`
+    /// (refusing to clobber), indexes + activates connections, and inserts into the
+    /// scope's ordered cache. The three labeled overloads below are thin delegations.
     @discardableResult
-    func createPage(
-        name: String, icon: String? = nil, in collection: PageCollection, vault: PageType
-    ) async throws -> PageMeta {
+    func createPage(name: String, icon: String? = nil, in parent: PageParent) async throws -> PageMeta {
         do {
-            let existing = pagesByCollection[collection.id] ?? []
+            let existing = cachedPages(at: parent)
             try PageValidator.validate(
                 title: name,
                 tier1: [], tier2: [], tier3: [],
                 properties: [:],
                 createdAt: Date(),
-                vault: vault,
+                vault: parent.vault,
                 context: contextProvider()
             )
             try enforceTitleUniqueness(name, among: existing)
@@ -79,15 +81,17 @@ extension PageContentManager {
                 createdAt: now
             )
             let page = PageFile(frontmatter: frontmatter, body: "", title: name)
-            let url = NexusPaths.pageFileURL(forTitle: name, in: collection.folderURL)
+            let url = NexusPaths.pageFileURL(forTitle: name, in: folderURL(for: parent))
             try guardNoOverwrite(at: url)
             try page.save(to: url)
 
             let meta = PageMeta(id: frontmatter.id, title: name, url: url, frontmatter: frontmatter)
             if let updater = indexUpdater {
-                do { try updater.upsertPage(meta, pageTypeID: vault.id, pageCollectionID: collection.id) } catch {
-                    self.pendingError = error
-                }
+                do {
+                    try updater.upsertPage(
+                        meta, pageTypeID: parent.vault.id, pageCollectionID: parent.collectionID,
+                        pageSetID: parent.setID)
+                } catch { self.pendingError = error }
                 do { try updater.activateConnections(targetID: meta.id, targetKind: "page", targetTitle: name) } catch {
                     self.pendingError = error
                 }
@@ -99,10 +103,10 @@ extension PageContentManager {
             arr.append(meta)
             arr = OrderResolver.resolve(
                 arr,
-                persistedOrder: collection.pageOrder,
+                persistedOrder: parent.pageOrder,
                 titleKeyPath: \PageMeta.title
             )
-            pagesByCollection[collection.id] = arr
+            setCachedPages(arr, at: parent)
             return meta
         } catch {
             self.pendingError = error
@@ -110,21 +114,32 @@ extension PageContentManager {
         }
     }
 
-    func renamePage(_ page: PageMeta, to newName: String, in collection: PageCollection, vault: PageType) async throws {
+    @discardableResult
+    func createPage(
+        name: String, icon: String? = nil, in collection: PageCollection, vault: PageType
+    ) async throws -> PageMeta {
+        try await createPage(name: name, icon: icon, in: .collection(collection, vault: vault))
+    }
+
+    /// Renames a Page within any parent scope (Collection / Set / Type root).
+    /// Single-step atomic file move + connection cascade (with revert on cascade
+    /// failure) + index/cache/pinned/recents reconciliation. The three labeled
+    /// overloads below are thin delegations.
+    func renamePage(_ page: PageMeta, to newName: String, in parent: PageParent) async throws {
         do {
-            let existing = pagesByCollection[collection.id] ?? []
+            let existing = cachedPages(at: parent)
             try PageValidator.validate(
                 title: newName,
                 tier1: page.frontmatter.tier1, tier2: page.frontmatter.tier2, tier3: page.frontmatter.tier3,
                 properties: page.frontmatter.properties,
                 createdAt: page.frontmatter.createdAt,
-                vault: vault,
+                vault: parent.vault,
                 context: contextProvider()
             )
             try enforceTitleUniqueness(newName, among: existing, excluding: page)
             try await enforceNexusWideTitleUniqueness(newName, excludingID: page.id)
 
-            let newURL = NexusPaths.pageFileURL(forTitle: newName, in: collection.folderURL)
+            let newURL = NexusPaths.pageFileURL(forTitle: newName, in: folderURL(for: parent))
             // No metadata save here — rename is single-step atomic via
             // FileManager.moveItem. If frontmatter writes are added later,
             // apply the RenameAtomicityError rollback pattern.
@@ -157,9 +172,11 @@ extension PageContentManager {
             updated.url = newURL
 
             if let updater = indexUpdater {
-                do { try updater.upsertPage(updated, pageTypeID: vault.id, pageCollectionID: collection.id) } catch {
-                    self.pendingError = error
-                }
+                do {
+                    try updater.upsertPage(
+                        updated, pageTypeID: parent.vault.id, pageCollectionID: parent.collectionID,
+                        pageSetID: parent.setID)
+                } catch { self.pendingError = error }
                 do {
                     try updater.activateConnections(
                         targetID: page.id, targetKind: "page", targetTitle: newName)
@@ -173,11 +190,11 @@ extension PageContentManager {
                 arr[i] = updated
                 arr = OrderResolver.resolve(
                     arr,
-                    persistedOrder: collection.pageOrder,
+                    persistedOrder: parent.pageOrder,
                     titleKeyPath: \PageMeta.title
                 )
             }
-            pagesByCollection[collection.id] = arr
+            setCachedPages(arr, at: parent)
 
             pinnedManager?.updateTitle(for: "page", id: page.id, to: newName)
             recentsManager?.updateTitle(for: "page", id: page.id, to: newName)
@@ -187,26 +204,16 @@ extension PageContentManager {
         }
     }
 
+    func renamePage(_ page: PageMeta, to newName: String, in collection: PageCollection, vault: PageType) async throws {
+        try await renamePage(page, to: newName, in: .collection(collection, vault: vault))
+    }
+
     func deletePage(_ page: PageMeta, in collection: PageCollection) async throws {
-        do {
-            try Filesystem.moveToTrash(page.url, in: nexus)
-            if let updater = indexUpdater {
-                do { try updater.deletePage(id: page.id) } catch { self.pendingError = error }
-                do { try updater.deactivateConnections(targetID: page.id) } catch { self.pendingError = error }
-                do { try updater.reactivateIfNowUnique(targetKind: "page", title: page.title) } catch {
-                    self.pendingError = error
-                }
-            }
-            // A title disappeared — restyle open editors so resolved links to it revert to phantom.
-            ConnectionsBus.postChanged(from: self)
-            var arr = pagesByCollection[collection.id] ?? []
+        try await deletePageCore(page) {
+            var arr = self.pagesByCollection[collection.id] ?? []
             arr.removeAll { $0.id == page.id }
-            pagesByCollection[collection.id] = arr
-        } catch {
-            self.pendingError = error
-            throw error
+            self.pagesByCollection[collection.id] = arr
         }
-        trashAttachments(for: page.id)
     }
 
     /// Re-write a Page's body to disk, preserving its frontmatter verbatim.
@@ -272,161 +279,21 @@ extension PageContentManager {
     func createPage(
         name: String, icon: String? = nil, in set: PageSet, collection: PageCollection, vault: PageType
     ) async throws -> PageMeta {
-        do {
-            let existing = pagesBySet[set.id] ?? []
-            try PageValidator.validate(
-                title: name,
-                tier1: [], tier2: [], tier3: [],
-                properties: [:],
-                createdAt: Date(),
-                vault: vault,
-                context: contextProvider()
-            )
-            try enforceTitleUniqueness(name, among: existing)
-            try await enforceNexusWideTitleUniqueness(name, excludingID: nil)
-
-            let now = Date()
-            let frontmatter = PageFrontmatter(
-                id: ULID.generate(), icon: icon,
-                tier1: [], tier2: [], tier3: [],
-                properties: [:],
-                createdAt: now
-            )
-            let page = PageFile(frontmatter: frontmatter, body: "", title: name)
-            let url = NexusPaths.pageFileURL(forTitle: name, in: set.folderURL)
-            try guardNoOverwrite(at: url)
-            try page.save(to: url)
-
-            let meta = PageMeta(id: frontmatter.id, title: name, url: url, frontmatter: frontmatter)
-            if let updater = indexUpdater {
-                do {
-                    try updater.upsertPage(
-                        meta, pageTypeID: vault.id, pageCollectionID: collection.id, pageSetID: set.id)
-                } catch {
-                    self.pendingError = error
-                }
-                do { try updater.activateConnections(targetID: meta.id, targetKind: "page", targetTitle: name) } catch {
-                    self.pendingError = error
-                }
-            }
-            // A new title now exists — restyle open editors so any phantom [[name]] lights up.
-            ConnectionsBus.postChanged(from: self)
-
-            var arr = existing
-            arr.append(meta)
-            arr = OrderResolver.resolve(
-                arr,
-                persistedOrder: set.pageOrder,
-                titleKeyPath: \PageMeta.title
-            )
-            pagesBySet[set.id] = arr
-            return meta
-        } catch {
-            self.pendingError = error
-            throw error
-        }
+        try await createPage(name: name, icon: icon, in: .set(set, collection: collection, vault: vault))
     }
 
     func renamePage(
         _ page: PageMeta, to newName: String, in set: PageSet, collection: PageCollection, vault: PageType
     ) async throws {
-        do {
-            let existing = pagesBySet[set.id] ?? []
-            try PageValidator.validate(
-                title: newName,
-                tier1: page.frontmatter.tier1, tier2: page.frontmatter.tier2, tier3: page.frontmatter.tier3,
-                properties: page.frontmatter.properties,
-                createdAt: page.frontmatter.createdAt,
-                vault: vault,
-                context: contextProvider()
-            )
-            try enforceTitleUniqueness(newName, among: existing, excluding: page)
-            try await enforceNexusWideTitleUniqueness(newName, excludingID: page.id)
-
-            let newURL = NexusPaths.pageFileURL(forTitle: newName, in: set.folderURL)
-            // No metadata save here — single-step atomic via FileManager.moveItem.
-            try Filesystem.renameFile(from: page.url, to: newURL)
-
-            if let updater = indexUpdater {
-                let cascade = ConnectionCascade(rootURL: nexus.rootURL, indexQuery: IndexQuery(updater.index))
-                let touched: [ConnectionCascade.Touched]
-                do {
-                    touched = try await cascade.run(
-                        targetID: page.id, oldTitle: page.title, newTitle: newName)
-                } catch let cascadeError {
-                    do {
-                        try Filesystem.renameFile(from: newURL, to: page.url)  // revert — NOT try?
-                        throw cascadeError
-                    } catch {
-                        throw PageCRUDError.cascadeFailed(message: "\(cascadeError)")
-                    }
-                }
-                for t in touched {
-                    do {
-                        try updater.reconcileConnections(
-                            sourceID: t.id, sourceKind: t.kind.rawValue, sourceTitle: t.title, body: t.newBody)
-                    } catch { self.pendingError = error }
-                }
-            }
-
-            var updated = page
-            updated.title = newName
-            updated.url = newURL
-
-            if let updater = indexUpdater {
-                do {
-                    try updater.upsertPage(
-                        updated, pageTypeID: vault.id, pageCollectionID: collection.id, pageSetID: set.id)
-                } catch {
-                    self.pendingError = error
-                }
-                do {
-                    try updater.activateConnections(
-                        targetID: page.id, targetKind: "page", targetTitle: newName)
-                } catch { self.pendingError = error }
-            }
-            // The title changed — restyle open editors (old [[ ]] cascaded, new title resolves).
-            ConnectionsBus.postChanged(from: self)
-
-            var arr = existing
-            if let i = arr.firstIndex(where: { $0.id == page.id }) {
-                arr[i] = updated
-                arr = OrderResolver.resolve(
-                    arr,
-                    persistedOrder: set.pageOrder,
-                    titleKeyPath: \PageMeta.title
-                )
-            }
-            pagesBySet[set.id] = arr
-
-            pinnedManager?.updateTitle(for: "page", id: page.id, to: newName)
-            recentsManager?.updateTitle(for: "page", id: page.id, to: newName)
-        } catch {
-            self.pendingError = error
-            throw error
-        }
+        try await renamePage(page, to: newName, in: .set(set, collection: collection, vault: vault))
     }
 
     func deletePage(_ page: PageMeta, in set: PageSet) async throws {
-        do {
-            try Filesystem.moveToTrash(page.url, in: nexus)
-            if let updater = indexUpdater {
-                do { try updater.deletePage(id: page.id) } catch { self.pendingError = error }
-                do { try updater.deactivateConnections(targetID: page.id) } catch { self.pendingError = error }
-                do { try updater.reactivateIfNowUnique(targetKind: "page", title: page.title) } catch {
-                    self.pendingError = error
-                }
-            }
-            // A title disappeared — restyle open editors so resolved links to it revert to phantom.
-            ConnectionsBus.postChanged(from: self)
-            var arr = pagesBySet[set.id] ?? []
+        try await deletePageCore(page) {
+            var arr = self.pagesBySet[set.id] ?? []
             arr.removeAll { $0.id == page.id }
-            pagesBySet[set.id] = arr
-        } catch {
-            self.pendingError = error
-            throw error
+            self.pagesBySet[set.id] = arr
         }
-        trashAttachments(for: page.id)
     }
 
     /// PageSet variant of `updatePage`. Same contract: body-only write,
@@ -479,134 +346,26 @@ extension PageContentManager {
 
     @discardableResult
     func createPage(name: String, icon: String? = nil, inVaultRoot vault: PageType) async throws -> PageMeta {
-        do {
-            let existing = pagesByTypeRoot[vault.id] ?? []
-            try PageValidator.validate(
-                title: name,
-                tier1: [], tier2: [], tier3: [],
-                properties: [:],
-                createdAt: Date(),
-                vault: vault,
-                context: contextProvider()
-            )
-            try enforceTitleUniqueness(name, among: existing)
-            try await enforceNexusWideTitleUniqueness(name, excludingID: nil)
-
-            let now = Date()
-            let frontmatter = PageFrontmatter(
-                id: ULID.generate(), icon: icon,
-                tier1: [], tier2: [], tier3: [],
-                properties: [:],
-                createdAt: now
-            )
-            let page = PageFile(frontmatter: frontmatter, body: "", title: name)
-            let url = NexusPaths.pageFileURL(forTitle: name, in: folderURL(for: vault))
-            try guardNoOverwrite(at: url)
-            try page.save(to: url)
-
-            let meta = PageMeta(id: frontmatter.id, title: name, url: url, frontmatter: frontmatter)
-            if let updater = indexUpdater {
-                do { try updater.upsertPage(meta, pageTypeID: vault.id, pageCollectionID: nil) } catch {
-                    self.pendingError = error
-                }
-                do { try updater.activateConnections(targetID: meta.id, targetKind: "page", targetTitle: name) } catch {
-                    self.pendingError = error
-                }
-            }
-            // A new title now exists — restyle open editors so any phantom [[name]] lights up.
-            ConnectionsBus.postChanged(from: self)
-
-            var arr = existing
-            arr.append(meta)
-            arr = OrderResolver.resolve(
-                arr,
-                persistedOrder: vault.pageOrder,
-                titleKeyPath: \PageMeta.title
-            )
-            pagesByTypeRoot[vault.id] = arr
-            return meta
-        } catch {
-            self.pendingError = error
-            throw error
-        }
+        try await createPage(name: name, icon: icon, in: .vaultRoot(vault))
     }
 
     func renamePage(_ page: PageMeta, to newName: String, inVaultRoot vault: PageType) async throws {
-        do {
-            let existing = pagesByTypeRoot[vault.id] ?? []
-            try PageValidator.validate(
-                title: newName,
-                tier1: page.frontmatter.tier1, tier2: page.frontmatter.tier2, tier3: page.frontmatter.tier3,
-                properties: page.frontmatter.properties,
-                createdAt: page.frontmatter.createdAt,
-                vault: vault,
-                context: contextProvider()
-            )
-            try enforceTitleUniqueness(newName, among: existing, excluding: page)
-            try await enforceNexusWideTitleUniqueness(newName, excludingID: page.id)
-
-            let newURL = NexusPaths.pageFileURL(forTitle: newName, in: folderURL(for: vault))
-            // No metadata save here — single-step atomic via FileManager.moveItem.
-            try Filesystem.renameFile(from: page.url, to: newURL)
-
-            if let updater = indexUpdater {
-                let cascade = ConnectionCascade(rootURL: nexus.rootURL, indexQuery: IndexQuery(updater.index))
-                let touched: [ConnectionCascade.Touched]
-                do {
-                    touched = try await cascade.run(
-                        targetID: page.id, oldTitle: page.title, newTitle: newName)
-                } catch let cascadeError {
-                    do {
-                        try Filesystem.renameFile(from: newURL, to: page.url)  // revert — NOT try?
-                        throw cascadeError
-                    } catch {
-                        throw PageCRUDError.cascadeFailed(message: "\(cascadeError)")
-                    }
-                }
-                for t in touched {
-                    do {
-                        try updater.reconcileConnections(
-                            sourceID: t.id, sourceKind: t.kind.rawValue, sourceTitle: t.title, body: t.newBody)
-                    } catch { self.pendingError = error }
-                }
-            }
-
-            var updated = page
-            updated.title = newName
-            updated.url = newURL
-
-            if let updater = indexUpdater {
-                do { try updater.upsertPage(updated, pageTypeID: vault.id, pageCollectionID: nil) } catch {
-                    self.pendingError = error
-                }
-                do {
-                    try updater.activateConnections(
-                        targetID: page.id, targetKind: "page", targetTitle: newName)
-                } catch { self.pendingError = error }
-            }
-            // The title changed — restyle open editors (old [[ ]] cascaded, new title resolves).
-            ConnectionsBus.postChanged(from: self)
-
-            var arr = existing
-            if let i = arr.firstIndex(where: { $0.id == page.id }) {
-                arr[i] = updated
-                arr = OrderResolver.resolve(
-                    arr,
-                    persistedOrder: vault.pageOrder,
-                    titleKeyPath: \PageMeta.title
-                )
-            }
-            pagesByTypeRoot[vault.id] = arr
-
-            pinnedManager?.updateTitle(for: "page", id: page.id, to: newName)
-            recentsManager?.updateTitle(for: "page", id: page.id, to: newName)
-        } catch {
-            self.pendingError = error
-            throw error
-        }
+        try await renamePage(page, to: newName, in: .vaultRoot(vault))
     }
 
     func deletePage(_ page: PageMeta, inVaultRoot vault: PageType) async throws {
+        try await deletePageCore(page) {
+            var arr = self.pagesByTypeRoot[vault.id] ?? []
+            arr.removeAll { $0.id == page.id }
+            self.pagesByTypeRoot[vault.id] = arr
+        }
+    }
+
+    /// Shared body for the three `deletePage` variants: trash the file, reconcile
+    /// the index + connections, post the change, then remove the page from
+    /// whichever in-memory cache the caller owns (via `removeFromCache`). The
+    /// attachments cascade always runs last on success.
+    private func deletePageCore(_ page: PageMeta, removeFromCache: () -> Void) async throws {
         do {
             try Filesystem.moveToTrash(page.url, in: nexus)
             if let updater = indexUpdater {
@@ -618,9 +377,7 @@ extension PageContentManager {
             }
             // A title disappeared — restyle open editors so resolved links to it revert to phantom.
             ConnectionsBus.postChanged(from: self)
-            var arr = pagesByTypeRoot[vault.id] ?? []
-            arr.removeAll { $0.id == page.id }
-            pagesByTypeRoot[vault.id] = arr
+            removeFromCache()
         } catch {
             self.pendingError = error
             throw error

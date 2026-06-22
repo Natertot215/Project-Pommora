@@ -56,12 +56,14 @@ struct LayoutPane: View {
     @ViewBuilder
     private func sections(for view: SavedView) -> some View {
         VStack(spacing: 0) {
-            LayoutToggleRow(
+            LabeledToggleRow(
+                label: "Display Banner",
                 icon: "photo",
-                title: "Display Banner",
-                isOn: view.showBanner ?? true,
-                isEnabled: containerHasBanner,
-                onToggle: { value in Task { await setBanner(value) } }
+                isOn: Binding(
+                    get: { view.showBanner ?? true },
+                    set: { value in Task { await setBanner(value) } }
+                ),
+                isEnabled: containerHasBanner
             )
 
             if view.type == .gallery {
@@ -213,8 +215,7 @@ struct LayoutPane: View {
     /// Resolves the ACTIVE view via the shared resolver — edits whichever view
     /// the user is viewing.
     private func currentView() -> SavedView? {
-        guard let cid = containerID() else { return nil }
-        return activeViewStore.resolvedActiveView(in: cid, manager: pageTypeManager)
+        activeViewStore.resolvedActiveView(for: scope, manager: pageTypeManager)
     }
 
     /// The full toggleable column set: user properties + tier relations +
@@ -239,57 +240,12 @@ struct LayoutPane: View {
         return false
     }
 
-    private func containerID() -> String? {
-        switch scope {
-        case .pageType(let t): return t.id
-        case .pageCollection(let c): return c.id
-        default: return nil
-        }
-    }
+    private func containerID() -> String? { scope.containerID }
 
-    private func parentTypeID() -> String? {
-        switch scope {
-        case .pageType(let t): return t.id
-        case .pageCollection(let c): return c.typeID
-        default: return nil
-        }
-    }
+    private func parentTypeID() -> String? { scope.schemaTypeID }
 }
 
 // MARK: - Rows
-
-/// A plain on/off layout toggle row (label left, `Toggle` right). Disabled rows
-/// mute their label so the inert state reads tonally.
-private struct LayoutToggleRow: View {
-    let icon: String
-    let title: String
-    let isOn: Bool
-    let isEnabled: Bool
-    let onToggle: (Bool) -> Void
-
-    var body: some View {
-        HStack(spacing: PUI.Row.interSpacing) {
-            Image(systemName: icon)
-                .font(PUI.Icon.leading)
-                .foregroundStyle(isEnabled ? .primary : .tertiary)
-                .frame(width: PUI.Icon.leadingFrame)
-            Text(title)
-                .font(PUI.Typography.row)
-                .foregroundStyle(isEnabled ? .primary : .tertiary)
-            Spacer()
-            Toggle(
-                "",
-                isOn: Binding(get: { isOn }, set: { onToggle($0) })
-            )
-            .labelsHidden()
-            .toggleStyle(.switch)
-            .controlSize(.small)
-            .disabled(!isEnabled)
-        }
-        .padding(.horizontal, PUI.Row.paddingHorizontal)
-        .padding(.vertical, PUI.Row.paddingVertical)
-    }
-}
 
 /// Gallery-only card-size segmented control (Small / Medium / Large).
 private struct CardSizeRow: View {

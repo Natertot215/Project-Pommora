@@ -79,15 +79,9 @@ Pages — `.md` files with YAML frontmatter; prose-bearing. See [[Pages]]. Tasks
 
 ---
 
-#### Page Collections (sub-folders within a Page Type)
+#### Page Collections + Page Sets (sub-folders)
 
-Filesystem folders inside a Page Type with a minimal `_pagecollection.json` sidecar. They inherit the parent Page Type's property schema but carry their own saved `views[]`, existing for visual / structural grouping inside large Page Types.
-
-The sidecar carries: `id`; `type_id` (explicit parent-Type reference — keeps external query tools from inferring nesting and gives Collections stable portable IDs across renames); `icon` (optional per-Collection SF Symbol, mirrored into SQLite for the context picker); an optional `banner` image path; `page_order` (user-arranged collection-root Pages — pages inside a Set order via that Set's own `page_order`); `set_order` (user-arranged child Sets); `views` (independent SavedView configs → [[Views]]); and `modified_at`. No `properties` — the schema is the parent Type's.
-
-- Title = folder name; create = sub-folder + `_pagecollection.json`; rename = folder rename (id / type_id preserved); delete = folder delete (warn-and-confirm if non-empty); moving a Page anywhere within the same Page Type (between Collections, Sets, and the Type root) = pure filesystem move, properties unchanged.
-
-Page Sets subdivide a Collection one level further — schema-less, view-less, settings-less folders whose `_pageset.json` carries identity + icon + `page_order` only. Full spec → [[Sets]].
+A Page Collection is an organizational sub-folder inside a Page Type (`_pagecollection.json`) — it inherits the Type's property schema but carries its own independent `views[]`, for structural grouping inside large Types. A Page Set subdivides a Collection one level further: a schema-less, view-less folder (identity + icon + `page_order` only). Full specs → [[Collections]] and [[Sets]].
 
 ---
 
@@ -155,4 +149,4 @@ Exclusion set (never adopted): any folder starting with `.` or `_` (e.g. `.nexus
 
 `.md` files within an adopted Page Type need no Pommora-specific shape to surface — discovery is extension-based, and Pages without frontmatter open via the lenient loader ([[Pages]] § "On disk").
 
-Implementation lives in `NexusAdopter` (`Pommora/Pommora/Nexus/NexusAdopter.swift`) with a preview view; both nexus-open paths run adoption after identity is set, and indexing status surfaces via an indexing HUD overlay in the sidebar.
+Implementation lives in `NexusAdopter` (`Pommora/Pommora/Domain/Nexus/NexusAdopter.swift`) with a preview view; both nexus-open paths run adoption after identity is set, and indexing status surfaces via an indexing HUD overlay in the sidebar.

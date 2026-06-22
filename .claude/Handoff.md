@@ -2,7 +2,7 @@
 
  - **Read first at session start.** Maintained via `/handoff` — Session Summary + Lessons Learned + Next Session + Pending Focuses + Fix Log. Shipped history → `History.md`; roadmap → `Framework.md`; branch quirks + hard rules → `CLAUDE.md`; locked decisions → `History.md`.
 
- - **Two builds — this is the Swift handoff.** Project Pommora ships the same app two ways: **Swift** (this doc) and the **React + Electron** rebuild (`React/.claude/Handoff.md`). Working in React? Read that handoff instead. Both live on one `main`; a parallel React session works in the `pommora-main-preview` worktree — don't bundle its uncommitted work into Swift commits.
+ - **Two builds — this is the Swift handoff.** Project Pommora ships the same app two ways: **Swift** (this doc) and the **React + Electron** rebuild (`React/.claude/Handoff.md`). Working in React? Read that handoff instead. Both live on one `main`: Swift work happens in this repo on `main`; **React work happens in the `pommora-react` worktree** (its own branch off `main`, merged back when done).
 
 > ⚡ **CORNERSTONE — must remain; carry into every session, emphasized for the next (Nathan's voice).**
 >
@@ -10,40 +10,52 @@
 
 #### Session Summary
 
-**6-20/6-21 (Swift) — the codebase-health refactoring program executed through Phase C, all merged + pushed to `origin/main`; 1,291 tests green.**
+**6-21 (Swift, continued) — toolbar/Navigation reorg + Phases H/F/D/E of the refactoring program. 10 commits on `refactoring-phase-b` (NOT pushed); 1,294 tests green throughout.**
 
-1. **Phase B — test-support.** Shared fixtures consolidated into `PommoraTests/Support/` (`Fixtures` entity/page/agenda builders — **no separate target**, single test consumer). The Index/Connections suites migrated onto them; the three parallel Context-manager suites collapsed behind a **test-only** `TestableContextManager` protocol + `ContextCRUDChecks` (production managers stay separate — ratified headroom). `PropertyValue` decode-probe stress coverage seeded.
-2. **Phase C — reorg + shared primitives.** New `Core/` absorbs the one-file folders (`CRUD`/`Ordering`/`Filesystem`) + `Core/Formatters/` (IndexDateFormat + TimeFormat + DateFormat); `FlowLayout` → `Components/Layout/`; `SavedConfig` → `Configuration/`, `ReservedTypeID` → `Agenda/`. Consolidations: `Core/ULIDAlphabet` single-sources the Crockford alphabet; `AppState`/`NexusIdentity` persist via `AtomicJSON`; `FilterBuilder` split out of `IndexQuery` → `IndexQueryFilter`. All behaviour-neutral + build-verified.
-3. **Review + doc audit.** A 5-angle review/simplify pass (clean — one missed migration + comment trims). A full `.claude` doc audit: docs were mostly current; fixed the AreaColor-removal staleness (`Contexts.md`/`Sidebar.md`), a couple of moved-path refs, and completed-plan cleanup.
+Opened post-compaction continuing the refactoring roadmap, with a parallel React session live in the `pommora-main-preview` worktree — its `MarkdownPM/Styles.css` plus Nathan's own one-line `NexusState.swift` comment trim sat uncommitted in the tree all session and were left untouched (never bundled into a Swift commit).
 
-(Phase A — AreaColor removal, `SchemaVersion` registry, `opt_<ULID>` minting, `context_links`→ULID, FilenameSafety — landed earlier; see `History.md`.)
+The arc, in order:
+- **Toolbar + Navigation reorg** (`0d1dcd1`): extracted the window-toolbar surface into `Features/Toolbar/` (2 plumbing files + 4 toolbar buttons), then renamed the residual nav-domain folder `NavDropdown`→`Navigation` end-to-end — folder, `NavDropdownButton`→`NavigationButton` type, `.navigation` enum case, spec `NavDropdown.md`→`Navigation.md` + `[[wikilinks]]` + History/Framework/PRD prose. (Framework's unrelated "page-nav dropdown" wishlist item correctly left alone.)
+- **Phase H closed** via a 4-lens simplification review (`94d7356` + `17ca4c6`): confirmed the `DispatchQueue`/`ConnectionScanner`/comparator items are intentional (left them), and executed the genuine wins it surfaced — Agenda title-sort DRY (`NameCollisionCandidate.sortedByTitle()`), a shared `InlineRenameFocus` responder-hop, a dropped single-use `View.if`, and a decorate-sort of `ViewSortComparator` (extract each key once). Roadmap updated (`ee02c38`).
+- **Phase F dropped** (rationale recorded in the roadmap): a survey of all 21 hand-rolled `Codable` types invalidated the premise — synthesized `Decodable` *throws* on a missing in-CodingKeys key rather than using the property default, so the pervasive defensive `decodeIfPresent ?? default` can't be synthesized; deletable subset was ≤2 trivial types, nowhere near "−1,000 loc."
+- **Phase D complete** (`4c4c1d0` + `cb4e23d`): built the `SidebarRow` content primitive and re-skinned all 7 sidebar rows onto it (4 simple/leaf + 3 disclosure containers), single-sourcing the inline-rename/selection/swap wiring; the row files shed 1139→648 lines. Bootstrap-verified (no `recursivelyDiffRows` regression).
+- **Phase E core complete** (`468a0b6`, `ce7793e`, `f7706d8`, `54464f0`): `containerID`/`schemaTypeID` props on `ViewSettingsScope` + a `currentView` hoist onto `ActiveViewStore` (closes #1; the empty-state/error scaffolds were already components, and `schemaOptionValues` #3 didn't exist — both grounding findings); `collisionSafeName` hoisted to `Filesystem` and shared by `CoverAssetStore`/`AttachmentManager` (#4 — they legitimately stay separate importers, full-merge + fresh-token naming scoped out); and the Page-CRUD triplication (#2) routed through one scope-parameterized path — `createPage`/`renamePage(in: parent:)` + a shared `deletePageCore` — all 9 public signatures preserved so the CRUD suite gates neutrality (the file dropped 1209→965 lines).
+
+**Nathan's voice:** he overrode my "bank it / do this fresh" recommendations *repeatedly* — "continue", "do it now", "No, I said stop pausing. Go and do the rest of the work" — and each push landed green; calibrate toward momentum on behaviour-neutral refactors. He flagged the `NexusState.swift` edit as his own ("I removed a bloated comment -- thats all"). I **declined** the roadmap's #4 "fresh-token" asset naming as a paradigm change that would regress filename legibility — pending his override.
+
+**Where it left off:** the **A–H refactoring program is complete** — Phase G shipped (ViewSurface split into extensions, GroupingPane rows → shared `Components`, `NexusAdopter` + `PageTypeManager` cleaned-not-split), a full-branch comment/DRY cleanup pass ran, and the docs were closed out (roadmap retired → `// Planning//Reference//06-20-Refactoring-Program.md`; History pruned 183→131; stale paths/refs fixed). The branch was then **consolidated to `main`** — React side from the React session, Swift side from here — and pushed to origin; worktrees collapsed to `main` + `pommora-react`. The earlier visual gate (right-click Rename/Change-Icon UX) stays eye-verified.
+
+**6-21 (React, continued) — MarkdownPM Migration + Page Banners + Incidental Sidebar Tweaks (Written By Nathan)**
+- MarkdownPM was successfully recreated in the React project via CodeMirror6, and lots of issues with listed items lmaoo. It's also enhanced what Swift started with folded headings, now with animations and a slight color dim on fold, and shows a chevron to signify that it's a folded heading. Tables have been completely deferred, and no foundations for them have been started -- this is a high-priority focus on the React side so it doesn't get forgotten. 
+- Page banners have also been implemented, and should likely be scoped out as a quick-add and quality-of-life addition on the Swift side. Icon Picker UIX has been deferred to the highest priority. React + Swift's Banner property -- `cover` -- has also been intentionally compatible.
+- Sidebar storage rows now only enter the main view on direct textfield or icon clicking, and clicking the empty row just triggers its disclosure function. This is another quality-of-life fix that should be added on the Swift side. 
 
 #### Lessons Learned
 
-- **Folder moves within a module are free.** `git mv` + `PBXFileSystemSynchronizedRootGroup` auto-tracks; Swift references types by module, not path, so relocating a `.swift` file is compile-neutral (verified across the whole Phase C reorg). The only risk is a file dropping *out* of the synchronized root — the build catches that.
-- **Collapse via a test-only protocol.** The three manager suites unified behind a protocol + conformances living in the **test target**, leaving production untouched — the seam already existed (identical CRUD surface), so it's extraction, not invented abstraction.
-- **Docs-altitude pays off at audit time.** Because the specs describe durable decisions (not file paths), the Phase C moves produced almost zero stale doc references — the only real staleness was a *removed feature* (Area colors) the docs still narrated. Write at altitude and audits stay cheap.
-- **Verify-before-acting, again.** The codebase audit's "easy" items had a high false-positive rate (tested code called "dead"; forced workarounds called "inconsistency") — reading the code first avoided breaking working things.
+- **Every roadmap line is a hypothesis until grounded against code.** This session grounding repeatedly contradicted the roadmap — F's whole premise was false; E#3 (`schemaOptionValues`) didn't exist; E#1's scaffold/error were already components; E#4's "fresh-token" was paradigm-blocked. Open the file before executing the line.
+- **Synthesized `Decodable` does NOT use property defaults for missing keys** — it throws `keyNotFound`; only excluded-from-CodingKeys properties use their default. So defensive `decodeIfPresent(…) ?? default` is un-synthesizable. (The fact that killed Phase F.) **→ candidate CLAUDE.md quirk.**
+- **Load-bearing refactors are safest behind a stable public API.** Both the SidebarView re-skin and the Page-CRUD collapse stayed behaviour-neutral by preserving every public signature and leaning on the existing test suite as the gate — zero caller/test churn. Migrating callers + deleting shims is a separate, lower-risk follow-up.
+- **Delegation is a valid marathon-tail DRY.** Route duplicated logic through one source and leave thin shims/aliases when full call-site migration is risky; logic single-sources immediately, shim cleanup is fresh follow-up.
 
 #### Next Session
 
-- **Phase D — the `Row` primitive** (the marquee refactoring win): one `Components/Row` subsumes the 6-way-duplicated sidebar rows + the drag-ghost patch. **Med–high risk** — rewrites load-bearing `SidebarView` (quirks #8/#9: Section homogeneity, `SelectionChrome`, the launch-crash surface). Needs care + a post-build UIX check.
-- **The C-deferred visual/paradigm items** (need Nathan's eyes): magic-numbers → `PUI` + `.hoverFill()` (silent pixel risk), `PropertyValue` datetime → `IndexDateFormat` (on-disk decode change), the full `Domain/Features` top-level grouping, the `NexusAdopter`/`PageTypeManager` god-file splits.
-- **Phases E–H** (DRY non-divergent families · Codable→synthesized · god-file breakups · concurrency/typed-throws) — per `Planning/06-20-Refactoring-Roadmap.md`.
+1. **Gallery view — the immediate focus.** Pick up the parked Views-UIX build (active plan → `// Planning//06-13-Views-UIX-Fixes.md`): the Gallery renderer, the Layout-pane rework, and the sorting / grouping UIX.
+2. **Port the React-side QoL wins to Swift** (per the React section above): the `cover`-compatible **page banners** (quick-add), the **sidebar storage-row click** behavior (empty-row click toggles disclosure; main view only on textfield/icon click), and the **Icon-Picker UIX** rework.
 
 #### Pending Focuses
 
-- **`main` is pushed to `origin`** — the refactoring + the React MarkdownPM work are on `origin/main`.
-- **Refactoring D–H + the C-deferred items** — per the Roadmap (the live controller).
-- **The Views build** (per `06-13-Views-UIX-Fixes.md`) — Gallery, sorting UIX, Layout-pane rework, Edit-Icon popover — a parallel focus; the toolbar/banner chrome is parked.
-- **Swift improvements from the React data-layer slice** — `Planning/Reference/Swift-Improvements-from-React-Rebuild.md` distills concrete wins; reserve a dedicated session.
-- **Nexus rename — live end-to-end pass** (the parent-grant prompt + folder rename; build-verified 6-19, not behaviour-verified).
+- **[pending — soon]** **Adopted-ID consolidation** — unify the adopted-Page `SHA256(path)[:16]` + `adopted-` marking into one ID scheme; on-disk shape, ratify first.
+- **[pending]** **Resolve the CLAUDE.md branch quirks at the root** — work through the active-branch quirks (#1–#17) and fix the underlying causes where feasible so they no longer need carrying as workarounds.
+- **[carried]** `PropertyValue` datetime → `IndexDateFormat` — on-disk decode change (fractional seconds); needs ratification before touching.
+- **[carried]** **#4 fresh-token asset naming** — declined (keeps legible filenames); resurface only if React-style opaque tokens are wanted.
+- **[carried]** **Nexus rename** live end-to-end pass — build-verified, not behaviour-verified.
+- **[React→Swift parity]** editor **tables** (React deferred them — high-priority, don't forget) + the banners / sidebar-row / icon-picker ports (Next Session #2).
 
 #### Fix Log
 
 - **Backspace on checkbox / list item** should auto-delete the syntax — UNIMPLEMENTED (feature-add).
 - **Table Links** non-clickable (no input handling); proposed single-click navigate + right-click edit.
-- **Agenda description-cap** — specs say 1000, validators enforce none. (The stale `AgendaEventManagerError` built-in-property comment was corrected this session.)
+- **Agenda description-cap** — specs say 1000, validators enforce none.
 - **Pinned-nav title staleness** on rename until re-pinned — may already be fixed by the file-watcher; retest.
 - **Relation properties replaced by Contexts** — future tasks/events lack a context-relation path; cross when reached.
 

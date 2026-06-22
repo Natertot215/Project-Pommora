@@ -7,13 +7,11 @@ Plans are named `MM-DD-<slug>.md`. They scope a single feature or refactor into 
 #### Active
 
 - `06-13-Views-UIX-Fixes.md` — the sequenced Views / toolbar UIX fixes. The toolbar, Views button, and banner chrome are actively in flux — the doc's flux note is load-bearing; nothing there is settled truth. Covers the toolbar cluster, banner + titles, Gallery, grouping/sorting, and the Layout-pane rework.
-- `06-20-Refactoring-Roadmap.md` — the Swift codebase-health program (8 phases, A–H). **Phases A, B, C are complete + merged to `main`**; the doc is the live controller for D–H plus the C-deferred visual/paradigm items. Spawned by the codebase audit; ship records live in `History.md`.
 
 #### Reference
 
-- `Reference/06-11-Views-Spec.md` — the v0.5.0 Views cluster design spec; Views shipped (spec-as-fact → `Features/Views.md`). Kept for research value.
+- `Reference/06-11-Views-Spec.md` — the v0.5.0 Views cluster design spec; Views shipped (spec-as-fact → `// Features//Views.md`). Kept for research value.
 - `Reference/06-12-Views-V2-Plan.md` — a non-implemented NSOutlineView-table rebuild plan, never executed as written (the shipped `ViewOutlineTable` came from a separate throwaway session). Kept as a researched alternative.
-- `Reference/Swift-Improvements-from-React-Rebuild.md` — concrete Swift-side improvements distilled from slicing the data layer apart for the React rebuild. Input for a future dedicated session.
 
 #### Superseded
 

@@ -9,7 +9,7 @@ The detail-pane surfacing layer for Pages. Every storage container (Page Type / 
 Each container's sidecar holds an ordered list of saved views. A view records its name and icon, its renderer type, the property layout, and the sort / filter / group / display config. New fields decode leniently with sensible defaults, so an older sidecar never fails to load. Views are sidecar-only — no SQLite changes.
 
 - **Property layout** is one ordered list of every column — Title, the tier columns, Modified, and user properties — paired with a hidden-column set, rather than separate visible and hidden arrays. Title is movable but never hideable; the cover is never a column. A property missing from the order appends at resolution.
-- **Grouping** is a tagged config: structural (default), property-based, or flat. Property grouping additionally carries its order mode, date granularity, empty-bucket placement, and a hide-empty toggle. A nil or unrecognized grouping decodes to structural — a throw would poison the whole sidecar. Full model → `Planning/06-15-Grouping-Redesign.md`.
+- **Grouping** is a tagged config: structural (default), property-based, or flat. Property grouping additionally carries its order mode, date granularity, empty-bucket placement, and a hide-empty toggle. A nil or unrecognized grouping decodes to structural — a throw would poison the whole sidecar.
 - **Sort presets** encode as reserved column ids — Title, Created (creation order), Recent (modified date) — stored as a single-criterion list.
 - **Card size** (gallery) maps small/medium/large to a fixed cards-per-row count, smaller cards packing more per row.
 - **Show Cover** defaults off; **Show Banner** defaults on whenever the container has a banner (the toggle hides it per view).
@@ -76,7 +76,7 @@ The View Settings popover is active-view-scoped:
 - **Layout** — per-view display config: Display Banner, Card Size (gallery), the Property Visibility eye-list (per-view show/hide plus drag-order over all columns — user properties, tier columns, and Modified; Title pinned non-hideable; cover never listed), and a muted Wrap Text row (dynamic row heights are a later pass). The vault-scoped open-in selector is labeled Open Pages In.
 - **Sort** — a single picker: Manual, Title A→Z / Z→A, Created, Recent, or any property ascending/descending.
 - **Filter** — flat rule list plus Match All / Any.
-- **Group** — a Grouping toggle (off is the structural default) disclosing an inline property picker, a per-type Order popout, a Date By popout, a manual Options reorder list, and a bottom-pinned empty-group footer (hide-empty, empty Top/Bottom). Full spec → `Planning/06-15-Grouping-Redesign.md`. View-side rendering of the groups ships in both table and gallery; group-header manual drag remains pending.
+- **Group** — a Grouping toggle (off is the structural default) disclosing an inline property picker, a per-type Order popout, a Date By popout, a manual Options reorder list, and a bottom-pinned empty-group footer (hide-empty, empty Top/Bottom). View-side rendering of the groups ships in both table and gallery; group-header manual drag remains pending.
 
 ---
 

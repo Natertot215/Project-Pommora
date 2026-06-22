@@ -106,7 +106,7 @@ final class AgendaEventManager {
                 url.lastPathComponent.hasSuffix(".\(NexusPaths.eventFileExtension)")
             }
             events = eventFiles.compactMap { try? AgendaEvent.load(from: $0) }
-                .sorted { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
+                .sortedByTitle()
             pendingError = nil
         } catch {
             events = []
@@ -134,7 +134,7 @@ final class AgendaEventManager {
             }
 
             events.append(event)
-            events.sort { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
+            events.sortByTitle()
         } catch {
             self.pendingError = error
             throw error
@@ -217,7 +217,7 @@ final class AgendaEventManager {
 
             if let i = events.firstIndex(where: { $0.id == event.id }) {
                 events[i] = updated
-                events.sort { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
+                events.sortByTitle()
             }
         } catch {
             if !(error is RenameAtomicityError) {

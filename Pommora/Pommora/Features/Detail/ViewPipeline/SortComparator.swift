@@ -1,81 +1,91 @@
 import Foundation
 
-/// Pure sort engine. Builds a comparator `(ViewItem, ViewItem) -> Bool` from a
+/// Pure sort engine. Builds a group-sorter `([ViewItem]) -> [ViewItem]` from a
 /// `SortCriterion` against a property schema, or returns `nil` for manual order
-/// (caller preserves input order). No disk, no SwiftUI.
+/// (caller preserves input order). Decorate-sort: each item's sort key is
+/// extracted ONCE, then compared — no per-comparison re-extraction. No disk, no
+/// SwiftUI.
 ///
 /// Reserved criteria:
 ///   - `_title`        — case-insensitive filename compare.
 ///   - `_id`           — lexicographic ULID compare (= creation order).
 ///   - `_modified_at`  — `modifiedAt` with `createdAt` fallback when nil.
 /// Select / status properties sort BY SCHEMA OPTION ORDER (not alphabetic).
-/// `SortDirection` is honored (descending flips the comparator).
+/// `SortDirection` is honored (descending flips the comparison); ties hold input
+/// order in both directions via a stable offset tiebreak.
 enum ViewSortComparator {
-    /// A pairwise less-than over `ViewItem`. Stable-sort callers pass this to a
-    /// stable sort to preserve input order among equal elements.
-    typealias Comparator = (ViewItem, ViewItem) -> Bool
+    /// Orders a group's items. `nil` = manual order (no criterion / unknown
+    /// property) — caller keeps input order.
+    typealias GroupSorter = ([ViewItem]) -> [ViewItem]
 
-    /// `nil` = manual order (no sort criterion / unknown property) — caller keeps
-    /// input order.
-    static func comparator(
+    static func sorter(
         for criterion: SortCriterion?,
         schema: [PropertyDefinition]
-    ) -> Comparator? {
+    ) -> GroupSorter? {
         guard let criterion else { return nil }
         let ascending = criterion.direction == .ascending
 
         switch criterion.propertyID {
         case ReservedPropertyID.title:
-            return direct({ caseInsensitiveLess($0.page.title, $1.page.title) }, ascending)
+            return decorator(ascending: ascending, key: { $0.page.title }, less: caseInsensitiveLess)
         case ReservedPropertyID.id:
-            return direct({ $0.page.id < $1.page.id }, ascending)
+            return decorator(ascending: ascending, key: { $0.page.id }, less: { $0 < $1 })
         case ReservedPropertyID.modifiedAt:
-            return direct(
-                { lhs, rhs in
-                    modifiedStamp(lhs.page.frontmatter) < modifiedStamp(rhs.page.frontmatter)
-                }, ascending)
+            return decorator(
+                ascending: ascending, key: { modifiedStamp($0.page.frontmatter) }, less: { $0 < $1 })
         default:
-            return propertyComparator(criterion.propertyID, schema: schema, ascending: ascending)
+            return propertySorter(criterion.propertyID, schema: schema, ascending: ascending)
         }
     }
 
-    // MARK: - Property comparators
+    // MARK: - Property sorters
 
-    private static func propertyComparator(
+    private static func propertySorter(
         _ propertyID: String,
         schema: [PropertyDefinition],
         ascending: Bool
-    ) -> Comparator? {
+    ) -> GroupSorter? {
         guard let def = schema.first(where: { $0.id == propertyID }) else { return nil }
 
         switch def.type {
         case .select, .status:
             let order = optionOrderIndex(def)
-            return direct(
-                { lhs, rhs in
-                    rank(lhs, propertyID, order) < rank(rhs, propertyID, order)
-                }, ascending)
+            return decorator(ascending: ascending, key: { rank($0, propertyID, order) }, less: { $0 < $1 })
         case .number:
-            return direct(
-                { lhs, rhs in
-                    numberOf(lhs, propertyID) < numberOf(rhs, propertyID)
-                }, ascending)
+            return decorator(ascending: ascending, key: { numberOf($0, propertyID) }, less: { $0 < $1 })
         case .date, .datetime, .lastEditedTime:
-            return direct(
-                { lhs, rhs in
-                    dateOf(lhs, propertyID) < dateOf(rhs, propertyID)
-                }, ascending)
+            return decorator(ascending: ascending, key: { dateOf($0, propertyID) }, less: { $0 < $1 })
         case .checkbox:
-            return direct(
-                { lhs, rhs in
-                    // false < true
-                    !boolOf(lhs, propertyID) && boolOf(rhs, propertyID)
-                }, ascending)
+            // false < true
+            return decorator(ascending: ascending, key: { boolOf($0, propertyID) }, less: { !$0 && $1 })
         case .url, .multiSelect, .relation, .file:
-            return direct(
-                { lhs, rhs in
-                    caseInsensitiveLess(sortText(lhs, propertyID), sortText(rhs, propertyID))
-                }, ascending)
+            return decorator(ascending: ascending, key: { sortText($0, propertyID) }, less: caseInsensitiveLess)
+        }
+    }
+
+    // MARK: - Decorate-sort
+
+    /// Stable group-sorter: extracts each item's sort key once, then orders by
+    /// `less` (flipped for descending), holding input order among ties.
+    private static func decorator<K>(
+        ascending: Bool,
+        key: @escaping (ViewItem) -> K,
+        less: @escaping (K, K) -> Bool
+    ) -> GroupSorter {
+        { items in
+            items.enumerated()
+                .map { (offset: $0.offset, key: key($0.element), element: $0.element) }
+                .sorted { lhs, rhs in
+                    if ascending {
+                        if less(lhs.key, rhs.key) { return true }
+                        if less(rhs.key, lhs.key) { return false }
+                    } else {
+                        if less(rhs.key, lhs.key) { return true }
+                        if less(lhs.key, rhs.key) { return false }
+                    }
+                    return lhs.offset < rhs.offset  // stable: input order among ties
+                }
+                .map(\.element)
         }
     }
 
@@ -98,14 +108,7 @@ enum ViewSortComparator {
         return index
     }
 
-    // MARK: - Direction + tie helpers
-
-    /// Wraps a base ascending less-than, flipping it for descending. Equal elements
-    /// stay equal in both directions (caller relies on a stable sort to hold input
-    /// order among ties).
-    private static func direct(_ base: @escaping Comparator, _ ascending: Bool) -> Comparator {
-        ascending ? base : { lhs, rhs in base(rhs, lhs) }
-    }
+    // MARK: - Key helpers
 
     private static func caseInsensitiveLess(_ a: String, _ b: String) -> Bool {
         a.localizedCaseInsensitiveCompare(b) == .orderedAscending

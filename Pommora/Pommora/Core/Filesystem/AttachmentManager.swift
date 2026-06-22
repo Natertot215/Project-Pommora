@@ -73,7 +73,7 @@ struct AttachmentManager: Sendable {
         try fm.createDirectory(at: destDir, withIntermediateDirectories: true)
 
         let originalName = source.lastPathComponent
-        let finalName = collisionSafeName(originalName, in: destDir, fm: fm)
+        let finalName = Filesystem.collisionSafeName(originalName, in: destDir, fm: fm)
         let destURL = destDir.appendingPathComponent(finalName, isDirectory: false)
 
         do {
@@ -126,25 +126,4 @@ struct AttachmentManager: Sendable {
         return false
     }
 
-    /// Returns a filename that doesn't collide with existing files in `dir`.
-    /// If `originalName` already exists, tries `<stem>-2.<ext>`, `<stem>-3.<ext>`, etc.
-    private func collisionSafeName(_ originalName: String, in dir: URL, fm: FileManager) -> String {
-        let candidate = dir.appendingPathComponent(originalName, isDirectory: false)
-        guard fm.fileExists(atPath: candidate.path) else { return originalName }
-
-        // Only the final extension is split off: "file.task.json" → stem "file.task", ext "json".
-        let url = URL(fileURLWithPath: originalName)
-        let ext = url.pathExtension
-        let stem = url.deletingPathExtension().lastPathComponent
-
-        var counter = 2
-        while true {
-            let name = ext.isEmpty ? "\(stem)-\(counter)" : "\(stem)-\(counter).\(ext)"
-            let attempt = dir.appendingPathComponent(name, isDirectory: false)
-            if !fm.fileExists(atPath: attempt.path) {
-                return name
-            }
-            counter += 1
-        }
-    }
 }

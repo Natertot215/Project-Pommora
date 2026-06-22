@@ -41,7 +41,7 @@ The full Settings UI brings:
 - **Tier-config consolidation** — the existing `.nexus/tier-config.json` (Area / Topic / Project label customization) folds into the same Settings surface so all label customization lives in one place.
 
 #### Custom color picker for Select / Multi-select properties
-**Description:** v1 uses a fixed Notion-style palette. A custom hex picker for option colors could come post-v1 — useful if users want brand-specific palettes or finer distinction across many options. Likely gated by the Full Settings UI work.
+**Description:** v1 uses a fixed-style palette. A custom hex picker for option colors could come post-v1 — useful if users want brand-specific palettes or finer distinction across many options. Likely gated by the Full Settings UI work.
 
 #### Pulldown "show empty schema entries" toggle
 **Description:** The Pages-main-view Pulldown is lazy in v1 (hides empty schema entries; "+ Add property" picker reveals them). Inspectors (the main-pane `FrontmatterInspector` and the PagePreview inspector) are eager in v1 (already show every schema property). A per-Type setting that switches the Pulldown to eager mode (matching Inspector behavior) would help users explore the full schema inline on the Page main view — useful for densely-populated Page Types where the user wants to fill in many properties per Page without opening the picker. Post-v1.
@@ -49,17 +49,11 @@ The full Settings UI brings:
 #### Pinned-property zone for the PagePreview card
 **Description:** A configurable set of properties surfaced in a dedicated zone of the `PagePreview` card, with a vault-level default schema overridable per-collection. Deliberately dropped: the card's default-open inspector gives the same glance-level functionality without a stored schema, an editor UI, or override rules. Revisit only if the open-inspector affordance proves insufficient in practice.
 
-#### Drag-to-reorder schema-level property declarations
-**Description:** v1 appends new properties to the schema in declaration order; there's no UI for reordering the property list itself. Drag handles in some schema-editing view could let users restructure the canonical property order. Note this is distinct from view-level column reordering (which is already in v1, visual, per-view) and from option-order-within-a-Select (also in v1, drives sort).
-
 #### Board view: drag-to-rewrite-frontmatter
 **Description:** Planned post-v1.0 feature. Board view (kanban) ships as the visual layout — cards grouped by a property's options; moving a card between columns is done by editing the card's property via the card UI. Drag-to-rewrite-frontmatter (dragging a card across kanban columns to mutate the source's property value directly) is the higher-fidelity UX, but it requires the property edit / atomic write loop to be hardened first. Deferred until those foundations stabilize.
 
 #### Quick-capture (menu-bar / web clipper)
 **Description:** Now committed roadmap, not a post-v1 prospect — full concept + architecture in [[QuickCapture]] (roadmap slot → `Framework.md`). A menu-bar capture pane (and an optional browser / Share-sheet web-clip route) adds Pages / Tasks / Events directly to the nexus as another in-process entry point. Kept here only as a redirect.
-
-#### Hover-icon "+" affordance on sidebar section headings
-**Description:** Visible counterpart to the right-click creation menu — section headings (Areas / Topics / Vaults) get a hover-revealed "+" icon at the trailing edge (same pattern as the disclosure chevron). Click triggers the section's default new sheet. **Deliberately skipped** in favor of right-click-only; if sidebar discoverability becomes a friction point pre-quick-capture, this is the open slot. After quick-capture ships, this likely stays deferred indefinitely — quick-capture is the primary discoverable path.
 
 #### Pinned-page user pinning (the "Saved" section's real role)
 **Description:** The Saved section currently ships heading-less with three fixed entries (Homepage / Calendar / Recents). Post-v1: users pin arbitrary Pages / Tasks / Events / Contexts; section gets "Saved" heading + "+" affordance; defaults become movable. `saved-config.json` already accommodates arbitrary saved entries.
@@ -67,16 +61,8 @@ The full Settings UI brings:
 #### Synced blocks (inline Page-body editing inside embeds)
 **Description:** Notion-style synced blocks — embedding a Page inside a composed-page surface such that body edits mirror both ways. v1 covers properties, relations, Agenda, and Collection-row inline editing; **full Page-body transclusion is deferred**. Requires per-block addressable IDs in Markdown, transclusion-aware undo/redo, cross-surface cursor coordination, conflict resolution, and a richer serializer. Post-v1 once the v1 editor is exercised. v1 stand-in: Linked Pages widget (title + frontmatter inline; click opens Page tab).
 
-#### Context-link tier — post-v1 deferrals
-**Description:** Genuinely post-v1 deferrals remaining after the Relation→Context refactor (ship record in `History.md`):
-
 - **Tier property icon overrides** at the nexus-default level (IconConfig effort). `BuiltInContextLinkProperties` falls back sidecar-override → hardcoded SF Symbol today; when IconConfig ships, the chain extends to sidecar override → IconConfig default → hardcoded fallback.
 
 (Two former entries here — the "linked from" real surface and context-link sort/filter — are now committed roadmap work, promoted to `Framework.md` under the Context-views surface + per-view sort/group, not post-v1 prospects.)
 
-#### Drag-reorder vaults within a user sidebar section
-**Description:** User sidebar sections store their member vaults in display order (`vaultIDs` on `.nexus/sidebar-sections.json`), but the only mutation UI is the "Move to Section" context menu — there's no drag-to-reorder inside a section. Drag handles (or row drag) within a section would let users arrange vaults directly.
-
-#### User-section rename validation
-**Description:** Section labels rename inline with only an empty-label guard at the commit site — duplicate labels across sections are currently accepted. A uniqueness check would match the collision rules every other renameable entity follows.
 

@@ -59,7 +59,7 @@ struct GroupingPane: View {
                 VStack(spacing: 0) {
                     PaneDivider()
 
-                    GroupingToggleRow(
+                    LabeledToggleRow(
                         label: "Hide empty groups",
                         isOn: Binding(
                             get: { grouping.hideEmptyGroups },
@@ -107,7 +107,8 @@ struct GroupingPane: View {
         VStack(spacing: 0) {
             PaneDivider()
 
-            GroupingToggleRow(
+            LabeledToggleRow(
+                label: "Grouping",
                 isOn: Binding(
                     get: { model.groupingEnabled },
                     set: { newValue in
@@ -196,40 +197,10 @@ struct GroupingPane: View {
     }
 
     private func currentView() -> SavedView? {
-        guard let cid = containerID() else { return nil }
-        return activeViewStore.resolvedActiveView(in: cid, manager: pageTypeManager)
+        activeViewStore.resolvedActiveView(for: scope, manager: pageTypeManager)
     }
 
-    private func containerID() -> String? {
-        switch scope {
-        case .pageType(let t): return t.id
-        case .pageCollection(let c): return c.id
-        default: return nil
-        }
-    }
-}
-
-// MARK: - GroupingToggleRow
-
-private struct GroupingToggleRow: View {
-    var label: String = "Grouping"
-    @Binding var isOn: Bool
-    var secondary: Bool = false
-
-    var body: some View {
-        HStack(spacing: PUI.Row.interSpacing) {
-            Text(label)
-                .font(secondary ? .subheadline : PUI.Typography.row)
-                .foregroundStyle(secondary ? AnyShapeStyle(.secondary) : AnyShapeStyle(.primary))
-            Spacer(minLength: 0)
-            Toggle("", isOn: $isOn)
-                .toggleStyle(.switch)
-                .controlSize(.small)
-                .labelsHidden()
-        }
-        .padding(.horizontal, PUI.Row.paddingHorizontal)
-        .padding(.vertical, secondary ? PUI.Spacing.xs : PUI.Row.paddingVertical)
-    }
+    private func containerID() -> String? { scope.containerID }
 }
 
 // MARK: - GroupByRow
@@ -286,7 +257,10 @@ private struct GroupByRow: View {
             if pickerExpanded {
                 VStack(spacing: 0) {
                     ForEach(props, id: \.id) { def in
-                        PropertyPickerRow(def: def, isActive: selectedDef?.id == def.id) {
+                        SelectableOptionRow(
+                            label: def.name, icon: def.displayIcon,
+                            isSelected: selectedDef?.id == def.id
+                        ) {
                             onSelect(def.id)
                         }
                     }
@@ -294,37 +268,6 @@ private struct GroupByRow: View {
                 .transition(.opacity.combined(with: .move(edge: .top)))
             }
         }
-    }
-}
-
-private struct PropertyPickerRow: View {
-    let def: PropertyDefinition
-    let isActive: Bool
-    let onSelect: () -> Void
-
-    var body: some View {
-        Button(action: onSelect) {
-            HStack(spacing: PUI.Row.interSpacing) {
-                Image(systemName: def.displayIcon)
-                    .font(PUI.Icon.leading)
-                    .foregroundStyle(.secondary)
-                    .frame(width: PUI.Icon.leadingFrame)
-                Text(def.name)
-                    .font(PUI.Typography.row)
-                    .foregroundStyle(.primary)
-                    .lineLimit(1)
-                Spacer(minLength: 0)
-                if isActive {
-                    Image(systemName: "checkmark")
-                        .font(PUI.Icon.chevron)
-                        .foregroundStyle(.tint)
-                }
-            }
-            .padding(.horizontal, PUI.Row.paddingHorizontal)
-            .padding(.vertical, PUI.Row.paddingVertical)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
     }
 }
 
@@ -371,9 +314,9 @@ private struct DateGranularityPicker: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             ForEach(DateGranularity.allCases, id: \.self) { gran in
-                DisclosureOptionRow(
+                SelectableOptionRow(
                     label: gran.displayLabel,
-                    isActive: selected == gran,
+                    isSelected: selected == gran,
                     onSelect: { selected = gran }
                 )
             }
@@ -470,45 +413,15 @@ private struct OrderModePicker: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             ForEach(entries) { entry in
-                DisclosureOptionRow(
+                SelectableOptionRow(
                     label: entry.label,
-                    isActive: selected == entry.mode,
+                    isSelected: selected == entry.mode,
                     onSelect: { selected = entry.mode }
                 )
             }
         }
         .padding(.vertical, PUI.Spacing.xs)
         .fixedSize(horizontal: true, vertical: true)
-    }
-}
-
-// MARK: - DisclosureOptionRow
-
-/// Shared checkmark-row used in the disclosure popover panels (Date By / Order).
-private struct DisclosureOptionRow: View {
-    let label: String
-    let isActive: Bool
-    let onSelect: () -> Void
-
-    var body: some View {
-        Button(action: onSelect) {
-            HStack(spacing: PUI.Row.interSpacing) {
-                Text(label)
-                    .font(PUI.Typography.row)
-                    .foregroundStyle(.primary)
-                    .lineLimit(1)
-                Spacer(minLength: 0)
-                if isActive {
-                    Image(systemName: "checkmark")
-                        .font(PUI.Icon.chevron)
-                        .foregroundStyle(.tint)
-                }
-            }
-            .padding(.horizontal, PUI.Row.paddingHorizontal)
-            .padding(.vertical, PUI.Row.paddingVertical)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
     }
 }
 
@@ -615,11 +528,7 @@ private struct OptionsSection: View {
     private func orderedStatusChips(
         _ groups: [PropertyDefinition.StatusGroup]
     ) -> [PropertyChipOption] {
-        let allChips: [PropertyChipOption] = groups.flatMap { group in
-            group.options.map { opt in
-                opt.asChipOption(groupColor: group.color)
-            }
-        }
+        let allChips = flatStatusChips(groups)
         guard let order = grouping.order else { return allChips }
         var result: [PropertyChipOption] = []
         for id in order {
@@ -722,9 +631,9 @@ private struct EmptyGroupRow: View {
             .popover(isPresented: $popoverOpen, arrowEdge: .bottom) {
                 VStack(alignment: .leading, spacing: 0) {
                     ForEach([EmptyPlacement.top, EmptyPlacement.bottom], id: \.self) { p in
-                        DisclosureOptionRow(
+                        SelectableOptionRow(
                             label: p.displayLabel,
-                            isActive: placement == p,
+                            isSelected: placement == p,
                             onSelect: { placement = p }
                         )
                     }

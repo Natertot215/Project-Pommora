@@ -16,9 +16,6 @@ struct NexusState: Codable, Equatable, Sendable {
     var pinned: [EntityStateRef] = []
     var cursor: Int = 0
 
-    // Top-level sidebar order (v0.2.8.0). All nil until the user reorders that
-    // section's siblings; missing entries fall through to OrderResolver's
-    // alphabetic tail.
     var areaOrder: [String]?
     var topicOrder: [String]?
     var projectOrder: [String]?

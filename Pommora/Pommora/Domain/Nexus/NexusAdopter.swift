@@ -256,15 +256,6 @@ private let legacyCollectionSidecarFilename = "_collection.json"
 /// Pre-flatlayout unified sidecar name. The wrapper-layout unwrap reads + rewrites these.
 private let paradigmV2UnifiedSidecarFilename = "_schema.json"
 
-/// Set of all per-kind sidecar filenames — fast membership test.
-private let recognizedFlatSidecarFilenames: Set<String> = [
-    NexusPaths.pageTypeSidecarFilename,
-    NexusPaths.pageCollectionSidecarFilename,
-    NexusPaths.pageSetSidecarFilename,
-    NexusPaths.taskConfigSidecarFilename,
-    NexusPaths.eventConfigSidecarFilename,
-]
-
 /// Stateless utility that walks a Nexus root, classifies each top-level folder
 /// into one of the four input shapes, and offers `apply` to land the flat
 /// target layout on disk.
@@ -306,7 +297,6 @@ enum NexusAdopter {
                     inPlaceRenames: &inPlaceRenames,
                     unwrapSteps: &unwrapSteps,
                     alreadyFlat: &alreadyFlat,
-                    skipped: &skipped,
                     warnings: &warnings
                 )
             } catch {
@@ -338,7 +328,6 @@ enum NexusAdopter {
         inPlaceRenames: inout [PlannedInPlaceRename],
         unwrapSteps: inout [PlannedUnwrap],
         alreadyFlat: inout [PlannedAlreadyFlat],
-        skipped: inout [URL],
         warnings: inout [String]
     ) throws {
         let name = folder.lastPathComponent
@@ -379,11 +368,6 @@ enum NexusAdopter {
             // routinely for nexuses migrated through early flatlayout-4.2
             // versions, and the cleanup is non-destructive (data on disk
             // matches the authoritative sidecar's kind).
-            _ = flatKind
-            // Legacy orphan cleanup is queued via inPlaceRenames-with-noop-target
-            // — but inPlaceRenames is only for renames. Orphans on a flat folder
-            // are deleted as a cleanup pass inside apply (no plan entry needed;
-            // it's a pure on-disk pass keyed off `alreadyFlat`).
             alreadyFlat.append(
                 PlannedAlreadyFlat(folderURL: folder, kind: flatKind)
             )
@@ -426,11 +410,6 @@ enum NexusAdopter {
 
         // Shape #1 — fresh. No recognized sidecar; content-sniff classifies
         // as a Page Type (sidecar-less folders always adopt as Page Types).
-        // The four-shape rule absorbs every non-dotfile non-underscore
-        // top-level folder into one of the four planning lists — `skipped`
-        // exists for completeness but isn't populated under the current
-        // rules. Reserved for future shape rules.
-        _ = skipped
         freshSidecars.append(
             PlannedFreshSidecar(
                 folderURL: folder, kind: contentSniff(folder), title: name
@@ -677,12 +656,7 @@ enum NexusAdopter {
         do {
             try writeAutoTagTypeSidecar(at: folder, title: title, now: now)
         } catch {
-            #if DEBUG
-            FileHandle.standardError.write(
-                Data(
-                    "autoTag depth-0 write failed at \(folder.path): \(error)\n".utf8
-                ))
-            #endif
+            logAutoTagFailure(error, at: folder, depth: 0)
         }
     }
 
@@ -718,12 +692,7 @@ enum NexusAdopter {
                 at: folder, title: title, typeID: typeID, now: now
             )
         } catch {
-            #if DEBUG
-            FileHandle.standardError.write(
-                Data(
-                    "autoTag depth-1 write failed at \(folder.path): \(error)\n".utf8
-                ))
-            #endif
+            logAutoTagFailure(error, at: folder, depth: 1)
         }
     }
 
@@ -751,12 +720,7 @@ enum NexusAdopter {
                 at: folder, title: title, collectionID: collectionID, now: now
             )
         } catch {
-            #if DEBUG
-            FileHandle.standardError.write(
-                Data(
-                    "autoTag depth-2 write failed at \(folder.path): \(error)\n".utf8
-                ))
-            #endif
+            logAutoTagFailure(error, at: folder, depth: 2)
         }
     }
 
@@ -769,9 +733,7 @@ enum NexusAdopter {
         let ptURL = folder.appendingPathComponent(
             NexusPaths.pageTypeSidecarFilename, isDirectory: false
         )
-        guard Filesystem.fileExists(at: ptURL),
-            let pt = try? PageType.load(from: ptURL)
-        else { return nil }
+        guard let pt = try? PageType.load(from: ptURL) else { return nil }
         return pt.id
     }
 
@@ -783,9 +745,7 @@ enum NexusAdopter {
         let pcURL = folder.appendingPathComponent(
             NexusPaths.pageCollectionSidecarFilename, isDirectory: false
         )
-        guard Filesystem.fileExists(at: pcURL),
-            let pc = try? PageCollection.load(from: pcURL)
-        else { return nil }
+        guard let pc = try? PageCollection.load(from: pcURL) else { return nil }
         return pc.id
     }
 
@@ -851,6 +811,15 @@ enum NexusAdopter {
         if name.hasPrefix(".") || name.hasPrefix("_") { return true }
         if adoptionExcludedSubFolderNames.contains(name) { return true }
         return false
+    }
+
+    /// Best-effort DEBUG log for an auto-tag sidecar write failure. Silent in
+    /// release; failures never abort the walk.
+    private static func logAutoTagFailure(_ error: any Error, at folder: URL, depth: Int) {
+        #if DEBUG
+        FileHandle.standardError.write(
+            Data("autoTag depth-\(depth) write failed at \(folder.path): \(error)\n".utf8))
+        #endif
     }
 
     // MARK: - Legacy fresh-sidecar writer (scan/apply path)
