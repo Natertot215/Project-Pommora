@@ -14,7 +14,9 @@ struct SidebarRow<Menu: View>: View {
     let title: String
     let symbol: String
     var symbolForeground: Color = .primary
-    let tag: SelectionTag
+    /// `nil` for non-selectable rows (e.g. Page Sets) — passed through to
+    /// `SelectableRow`, which never highlights a nil tag.
+    let tag: SelectionTag?
     @Binding var selection: SidebarSelection
     @Binding var editingID: String?
     @Binding var justCreatedID: String?
@@ -30,7 +32,7 @@ struct SidebarRow<Menu: View>: View {
         title: String,
         symbol: String,
         symbolForeground: Color = .primary,
-        tag: SelectionTag,
+        tag: SelectionTag?,
         selection: Binding<SidebarSelection>,
         editingID: Binding<String?>,
         justCreatedID: Binding<String?>,

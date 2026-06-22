@@ -3,10 +3,9 @@ import SwiftUI
 // MARK: - Unified disclosure item
 
 /// Combines PageCollections and Pages into a single ordered list for the
-/// PageType disclosure body. Collections render ABOVE Pages (Nathan's directive
-/// 2026-05-25). A single ForEach + .onMove handles both, avoiding the
-/// dual-ForEach SwiftUI bug where only the first ForEach's .onMove binding
-/// is honoured.
+/// PageType disclosure body. Collections render ABOVE Pages. A single ForEach +
+/// .onMove handles both, avoiding the dual-ForEach SwiftUI bug where only the
+/// first ForEach's .onMove binding is honoured.
 private enum VaultDisclosureItem: Identifiable {
     case collection(PageCollection)
     case page(PageMeta)
@@ -37,15 +36,12 @@ struct PageTypeRow: View {
     @Environment(SettingsManager.self) private var settingsManager
     @Environment(SidebarSectionsManager.self) private var sectionsManager
 
-    @State private var renameState = InlineRenameState()
-    @FocusState private var renameFocused: Bool
     @State private var showingVaultSettings: Bool = false
     @State private var isCreatingCollection: Bool = false
     @State private var isCreatingPage: Bool = false
 
-    // Collections first, then vault-root pages. A single ForEach with one
-    // .onMove works around the SwiftUI bug where only the first sibling
-    // ForEach's .onMove is honoured inside a DisclosureGroup body.
+    // Collections first, then vault-root pages — single ForEach + one .onMove
+    // (SwiftUI honours only the first sibling ForEach's .onMove in a disclosure).
     private var disclosureItems: [VaultDisclosureItem] {
         pageTypeManager.pageCollections(in: pageType).map { .collection($0) }
             + contentManager.pages(in: pageType).map { .page($0) }
@@ -53,7 +49,6 @@ struct PageTypeRow: View {
 
     var body: some View {
         DisclosureGroup(isExpanded: $expanded) {
-            // Collections render ABOVE Pages per Nathan's directive 2026-05-25.
             ForEach(disclosureItems) { item in
                 switch item {
                 case .collection(let coll):
@@ -82,70 +77,29 @@ struct PageTypeRow: View {
                 reorder(fromOffsets: source, toOffset: destination)
             }
         } label: {
-            label
-        }
-        .listRowBackground(
-            SelectionChrome(
-                isSelected: SelectionTag.pageType(pageType.id).matches(selection)
-            )
-        )
-        // Load Page-Type-root Pages when the row appears, regardless of
-        // disclosure state. `.task` fires once on appearance; if it were
-        // attached to the disclosure children it would only fire on expand.
-        .task {
-            await contentManager.loadAll(for: pageType)
-        }
-        .sheet(isPresented: $showingVaultSettings) {
-            VaultSettingsSheet(
-                pageType: pageType,
-                pageTypeManager: pageTypeManager,
-                nexus: nexus,
-                index: index,
-                onDismiss: { showingVaultSettings = false }
-            )
-            .interactiveDismissDisabled()
-        }
-    }
-
-    @ViewBuilder
-    private var label: some View {
-        if editingID == pageType.id {
-            RenameableRow(
-                symbol: pageType.icon ?? "tray.2",
-                initialTitle: pageType.title,
-                draft: $renameState.draft,
-                renameFocused: $renameFocused,
-                onSubmit: { commit() },
-                onCancel: { clearEditing() },
-                onFocusLoss: {
-                    if !renameState.isCommitting && editingID == pageType.id {
-                        clearEditing()
-                    }
-                },
-                selectAllOnAppear: justCreatedID == pageType.id
-            )
-        } else {
-            SelectableRow(
+            SidebarRow(
+                id: pageType.id,
                 title: pageType.title,
                 symbol: pageType.icon ?? "tray.2",
-                tag: SelectionTag.pageType(pageType.id),
+                tag: .pageType(pageType.id),
                 selection: $selection,
-                accent: nil
-            )
-            .contextMenu {
+                editingID: $editingID,
+                justCreatedID: $justCreatedID,
+                onRename: { try await pageTypeManager.renamePageType(pageType, to: $0) }
+            ) {
                 let pageTypeLabel = settingsManager.settings.labels.pageType.singular
                 let collectionLabel = settingsManager.settings.labels.pageCollection.singular
-                // Vault creation is intentionally NOT offered here — the only
-                // way to create a Vault is the "+" button in the Pages section
-                // header (SidebarView.createPageType). A Vault's context menu
-                // creates its children (Collections + Pages) only.
+                // Vault creation is intentionally NOT offered here — the only way
+                // to create a Vault is the "+" in the Pages section header
+                // (SidebarView.createPageType). A Vault's menu creates its
+                // children (Collections + Pages) only.
                 Button("New \(collectionLabel)") { createPageCollection() }
                     .disabled(isCreatingCollection)
                 Button("New Page") { createPage() }
                     .disabled(isCreatingPage)
-                // User vault sections (PagesV2 P9, navigation-only). Hidden
-                // until at least one section exists; "Remove from Section"
-                // appears only while this vault is grouped.
+                // User vault sections (PagesV2 P9, navigation-only). Hidden until
+                // at least one section exists; "Remove from Section" appears only
+                // while this vault is grouped.
                 if !sectionsManager.config.sections.isEmpty {
                     Divider()
                     Menu("Move to Section") {
@@ -173,13 +127,28 @@ struct PageTypeRow: View {
                 }
             }
         }
+        .listRowBackground(
+            SelectionChrome(
+                isSelected: SelectionTag.pageType(pageType.id).matches(selection)
+            )
+        )
+        // Load Page-Type-root Pages when the row appears, regardless of disclosure.
+        .task {
+            await contentManager.loadAll(for: pageType)
+        }
+        .sheet(isPresented: $showingVaultSettings) {
+            VaultSettingsSheet(
+                pageType: pageType,
+                pageTypeManager: pageTypeManager,
+                nexus: nexus,
+                index: index,
+                onDismiss: { showingVaultSettings = false }
+            )
+            .interactiveDismissDisabled()
+        }
     }
 
-    /// Stub-and-edit "New Page" trigger. Creates a uniquely-named Page at
-    /// the PageType folder root (no PageCollection parent), then flips the
-    /// matching sidebar row into rename mode with the default title
-    /// pre-selected. `isCreatingPage` guards against rapid double-clicks
-    /// producing collision toasts. Mirrors `PageTypeDetailView.createPage()`.
+    /// Stub-and-edit "New Page" trigger — creates a Page at the PageType root.
     private func createPage() {
         guard !isCreatingPage else { return }
         isCreatingPage = true
@@ -203,11 +172,7 @@ struct PageTypeRow: View {
         }
     }
 
-    /// Stub-and-edit "New PageCollection" trigger. Creates a uniquely-named
-    /// PageCollection on disk + in memory + in SQLite, then flips the
-    /// matching sidebar row into rename mode with the default title
-    /// pre-selected for replacement. `isCreatingCollection` guards against
-    /// rapid double-clicks producing collision toasts.
+    /// Stub-and-edit "New PageCollection" trigger.
     private func createPageCollection() {
         guard !isCreatingCollection else { return }
         isCreatingCollection = true
@@ -236,21 +201,19 @@ struct PageTypeRow: View {
 
     // MARK: - User vault sections (PagesV2 P9)
 
-    /// The user section currently holding this vault, if any
-    /// (single-membership — at most one).
+    /// The user section currently holding this vault, if any (single-membership).
     private var currentSectionID: String? {
         sectionsManager.section(containing: pageType.id)?.id
     }
 
-    /// Plain-value helper for the context-menu `disabled` check — kept out of
-    /// the @ViewBuilder closure per quirk #12 (GRDB String overload pollution).
+    /// Plain-value helper for the context-menu `disabled` check — kept out of the
+    /// @ViewBuilder closure per quirk #12 (GRDB String overload pollution).
     private func isInSection(_ sectionID: String) -> Bool {
         currentSectionID == sectionID
     }
 
-    /// Single-membership move (one manager mutation: strips the vault from
-    /// every section, appends to the target, one save). Navigation-only —
-    /// the vault folder never moves on disk.
+    /// Single-membership move (one manager mutation). Navigation-only — the vault
+    /// folder never moves on disk.
     private func moveToSection(_ sectionID: String) {
         Task {
             do {
@@ -272,25 +235,9 @@ struct PageTypeRow: View {
         }
     }
 
-    private func commit() {
-        renameState.commit(
-            currentTitle: pageType.title,
-            rename: { try await pageTypeManager.renamePageType(pageType, to: renameState.draft) },
-            onCommitted: { clearEditing() }
-        )
-    }
-
-    private func clearEditing() {
-        editingID = nil
-        justCreatedID = nil
-    }
-
-    /// Routes a drag-reorder to the correct manager.
-    ///
-    /// Cross-set drags (a collection dragged into the pages zone, or vice
-    /// versa) are silently rejected — v0.3.0 doesn't support interleaving.
-    /// Same-set drags are translated back to per-set offsets before
-    /// forwarding to the manager.
+    /// Routes a drag-reorder to the correct manager. Cross-set drags (a
+    /// collection into the pages zone, or vice versa) are silently rejected;
+    /// same-set drags are translated back to per-set offsets before forwarding.
     private func reorder(fromOffsets source: IndexSet, toOffset destination: Int) {
         let items = disclosureItems
         let collectionCount = pageTypeManager.pageCollections(in: pageType).count
@@ -298,11 +245,10 @@ struct PageTypeRow: View {
         let allCollections = source.allSatisfy { $0 < collectionCount }
         let allPages = source.allSatisfy { $0 >= collectionCount }
 
-        guard allCollections || allPages else { return }   // cross-set drag — reject
+        guard allCollections || allPages else { return }  // cross-set drag — reject
 
         withAnimation(.snappy) {
             if allCollections {
-                // Clamp destination to the collections zone (indices 0..<collectionCount).
                 let clampedDestination = min(destination, collectionCount)
                 pageTypeManager.reorderPageCollections(
                     in: pageType,
@@ -310,7 +256,6 @@ struct PageTypeRow: View {
                     toOffset: clampedDestination
                 )
             } else {
-                // Translate unified-list offsets to page-local offsets.
                 let localSource = IndexSet(source.map { $0 - collectionCount })
                 let pageCount = items.count - collectionCount
                 let rawLocal = destination - collectionCount

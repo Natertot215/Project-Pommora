@@ -1,15 +1,11 @@
 import SwiftUI
 
-/// Sidebar row for a PageSet — a disclosure of its member Pages, one level
-/// below PageCollectionRow and modeled on it. Sets are non-selectable: the
-/// call site (PageCollectionRow) tags the whole row with the identity-only
-/// `SelectionTag.set` (never matches, never resolves), the label row is
-/// `.selectionDisabled` so clicks and keyboard traversal skip it, and there
-/// is NO SelectionChrome. Only the PageRow children carry selectable tags.
-/// `.selectionDisabled` is applied to the LABEL, not the DisclosureGroup —
-/// row traits on a multi-row container propagate to the generated child rows
-/// (the same inheritance that caused the tag-bleed bug), which would disable
-/// the Pages inside.
+/// Sidebar row for a PageSet — a disclosure of its member Pages. Sets are
+/// non-selectable: the header passes `tag: nil` and is `.selectionDisabled`, and
+/// there is NO SelectionChrome (the call site PageCollectionRow tags the row).
+/// `.selectionDisabled` goes on the LABEL (the `SidebarRow`), NOT the
+/// DisclosureGroup — row traits on a multi-row container propagate to the
+/// generated child rows, which would disable the Pages inside.
 struct PageSetRow: View {
     let set: PageSet
     let parentCollection: PageCollection
@@ -24,8 +20,6 @@ struct PageSetRow: View {
     @Environment(PageContentManager.self) private var contentManager
     @Environment(PageTypeManager.self) private var vaultManager
 
-    @State private var renameState = InlineRenameState()
-    @FocusState private var renameFocused: Bool
     @State private var expanded: Bool = false
     @State private var isCreatingPage: Bool = false
 
@@ -49,42 +43,16 @@ struct PageSetRow: View {
                 }
             }
         } label: {
-            label
-                .selectionDisabled(true)
-        }
-        // Same pattern as PageCollectionRow: load on row appearance so Pages
-        // are available even when the disclosure is collapsed.
-        .task {
-            await contentManager.loadAll(for: set)
-        }
-    }
-
-    @ViewBuilder
-    private var label: some View {
-        if editingID == set.id {
-            RenameableRow(
-                symbol: set.icon ?? "folder",
-                initialTitle: set.title,
-                draft: $renameState.draft,
-                renameFocused: $renameFocused,
-                onSubmit: { commit() },
-                onCancel: { clearEditing() },
-                onFocusLoss: {
-                    if !renameState.isCommitting && editingID == set.id {
-                        clearEditing()
-                    }
-                },
-                selectAllOnAppear: justCreatedID == set.id
-            )
-        } else {
-            SelectableRow(
+            SidebarRow(
+                id: set.id,
                 title: set.title,
                 symbol: set.icon ?? "folder",
                 tag: nil,  // Sets are non-selectable — content only, never highlighted.
                 selection: $selection,
-                accent: nil
-            )
-            .contextMenu {
+                editingID: $editingID,
+                justCreatedID: $justCreatedID,
+                onRename: { try await pageSetManager.renamePageSet(set, to: $0) }
+            ) {
                 Button("New Page") { createPage() }
                     .disabled(isCreatingPage)
                 Divider()
@@ -106,6 +74,11 @@ struct PageSetRow: View {
                     confirmingDelete = .deleteSet(set)
                 }
             }
+            .selectionDisabled(true)
+        }
+        // Load on row appearance so Pages are available even when collapsed.
+        .task {
+            await contentManager.loadAll(for: set)
         }
     }
 
@@ -135,16 +108,15 @@ struct PageSetRow: View {
         }
     }
 
-    /// Plain-value helper for the move menu's `disabled` check — kept out of
-    /// the @ViewBuilder closure per quirk #12 (GRDB String overload pollution).
+    /// Plain-value helper for the move menu's `disabled` check — kept out of the
+    /// @ViewBuilder closure per quirk #12 (GRDB String overload pollution).
     private func isCurrentCollection(_ collection: PageCollection) -> Bool {
         collection.id == parentCollection.id
     }
 
-    /// Whole-Set move. Same-vault targets move immediately (strip-free — one
-    /// schema). A cross-vault target first counts the property values the
-    /// move would strip: non-zero routes through the sidebar confirmation
-    /// dialog; zero proceeds directly.
+    /// Whole-Set move. Same-vault targets move immediately; a cross-vault target
+    /// first counts the property values the move would strip — non-zero routes
+    /// through the confirmation dialog, zero proceeds directly.
     private func moveTo(_ collection: PageCollection, vault: PageType) {
         Task {
             do {
@@ -165,18 +137,5 @@ struct PageSetRow: View {
                 // pendingError set by manager; toast surfaces.
             }
         }
-    }
-
-    private func commit() {
-        renameState.commit(
-            currentTitle: set.title,
-            rename: { try await pageSetManager.renamePageSet(set, to: renameState.draft) },
-            onCommitted: { clearEditing() }
-        )
-    }
-
-    private func clearEditing() {
-        editingID = nil
-        justCreatedID = nil
     }
 }
