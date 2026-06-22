@@ -63,6 +63,21 @@ final class PageTypeManager {
         }
     }
 
+    /// Runs `body`, recording any thrown error in `pendingError` (so the error
+    /// toast fires) before rethrowing. `skipIf` suppresses the record for an error
+    /// a method already surfaced itself (the rename rollback's `RenameAtomicityError`).
+    private func withPendingError<T>(
+        skipIf: (any Error) -> Bool = { _ in false },
+        _ body: () throws -> T
+    ) throws -> T {
+        do {
+            return try body()
+        } catch {
+            if !skipIf(error) { pendingError = error }
+            throw error
+        }
+    }
+
     // MARK: - Load
 
     func loadAll(filter: FolderFilter = .empty) async {
@@ -231,7 +246,7 @@ final class PageTypeManager {
 
     @discardableResult
     func createPageType(name: String, icon: String?) async throws -> PageType {
-        do {
+        return try withPendingError {
             try PageTypeValidator.validate(title: name, existing: types)
 
             let pageType = PageType(
@@ -258,14 +273,11 @@ final class PageTypeManager {
                 titleKeyPath: \PageType.title
             )
             return pageType
-        } catch {
-            self.pendingError = error
-            throw error
         }
     }
 
     func renamePageType(_ pageType: PageType, to newName: String) async throws {
-        do {
+        try withPendingError(skipIf: { $0 is RenameAtomicityError }) {
             try PageTypeValidator.validate(title: newName, existing: types, excluding: pageType)
 
             let oldFolder = NexusPaths.vaultFolderURL(forTitle: pageType.title, in: nexus)
@@ -322,16 +334,11 @@ final class PageTypeManager {
                     titleKeyPath: \PageType.title
                 )
             }
-        } catch {
-            if !(error is RenameAtomicityError) {
-                self.pendingError = error
-            }
-            throw error
         }
     }
 
     func updatePageTypeIcon(_ pageType: PageType, to icon: String?) async throws {
-        do {
+        try withPendingError {
             var updated = pageType
             updated.icon = icon
             updated.modifiedAt = Date()
@@ -343,14 +350,11 @@ final class PageTypeManager {
             if let i = types.firstIndex(where: { $0.id == pageType.id }) {
                 types[i] = updated
             }
-        } catch {
-            self.pendingError = error
-            throw error
         }
     }
 
     func updatePageCollectionIcon(_ collection: PageCollection, to icon: String?) async throws {
-        do {
+        try withPendingError {
             var updated = collection
             updated.icon = icon
             updated.modifiedAt = Date()
@@ -365,14 +369,11 @@ final class PageTypeManager {
                 arr[i] = updated
             }
             pageCollectionsByType[collection.typeID] = arr
-        } catch {
-            self.pendingError = error
-            throw error
         }
     }
 
     func deletePageType(_ pageType: PageType) async throws {
-        do {
+        try withPendingError {
             let folder = NexusPaths.vaultFolderURL(forTitle: pageType.title, in: nexus)
             try Filesystem.moveToTrash(folder, in: nexus)
             if let updater = indexUpdater {
@@ -380,9 +381,6 @@ final class PageTypeManager {
             }
             types.removeAll { $0.id == pageType.id }
             pageCollectionsByType.removeValue(forKey: pageType.id)
-        } catch {
-            self.pendingError = error
-            throw error
         }
     }
 
@@ -390,7 +388,7 @@ final class PageTypeManager {
 
     @discardableResult
     func createPageCollection(name: String, inPageType pageType: PageType) async throws -> PageCollection {
-        do {
+        return try withPendingError {
             let existing = pageCollectionsByType[pageType.id] ?? []
             try PageCollectionValidator.validate(title: name, existingInType: existing)
 
@@ -423,14 +421,11 @@ final class PageTypeManager {
             )
             pageCollectionsByType[pageType.id] = arr
             return coll
-        } catch {
-            self.pendingError = error
-            throw error
         }
     }
 
     func renamePageCollection(_ collection: PageCollection, to newName: String) async throws {
-        do {
+        try withPendingError(skipIf: { $0 is RenameAtomicityError }) {
             guard let pageType = types.first(where: { $0.id == collection.typeID }) else { return }
             let existing = pageCollectionsByType[pageType.id] ?? []
             try PageCollectionValidator.validate(
@@ -480,16 +475,11 @@ final class PageTypeManager {
             }
             pageCollectionsByType[pageType.id] = arr
             onCollectionFolderChanged?(updated)
-        } catch {
-            if !(error is RenameAtomicityError) {
-                self.pendingError = error
-            }
-            throw error
         }
     }
 
     func deletePageCollection(_ collection: PageCollection) async throws {
-        do {
+        try withPendingError {
             try Filesystem.moveToTrash(collection.folderURL, in: nexus)
             if let updater = indexUpdater {
                 do { try updater.deletePageCollection(id: collection.id) } catch { self.pendingError = error }
@@ -497,9 +487,6 @@ final class PageTypeManager {
             var arr = pageCollectionsByType[collection.typeID] ?? []
             arr.removeAll { $0.id == collection.id }
             pageCollectionsByType[collection.typeID] = arr
-        } catch {
-            self.pendingError = error
-            throw error
         }
     }
 
@@ -549,11 +536,8 @@ final class PageTypeManager {
         var updated = types[i]
         updated.openIn = mode
         updated.modifiedAt = Date()
-        do {
+        try withPendingError {
             try updated.save(to: NexusPaths.vaultMetadataURL(forTitle: updated.title, in: nexus))
-        } catch {
-            self.pendingError = error
-            throw error
         }
         types[i] = updated
     }
@@ -570,7 +554,7 @@ final class PageTypeManager {
     /// in-memory-first save — so a concurrent sibling-order write to the same
     /// sidecar isn't clobbered. Handles BOTH container kinds, like `updateView`.
     func setBanner(_ path: String?, forContainer containerID: String) async throws {
-        do {
+        try withPendingError {
             // PageType first.
             if let i = types.firstIndex(where: { $0.id == containerID }) {
                 let meta = NexusPaths.vaultMetadataURL(forTitle: types[i].title, in: nexus)
@@ -596,9 +580,6 @@ final class PageTypeManager {
                 }
             }
             throw PageTypeManagerError.typeNotFound
-        } catch {
-            self.pendingError = error
-            throw error
         }
     }
 
@@ -642,9 +623,8 @@ extension PageTypeManager {
     /// properties via `PropertyDefinitionValidator`. Schema-only write (member files
     /// are not touched — identity is stored by ID).
     func addProperty(_ definition: PropertyDefinition, to typeID: String) async throws {
-        do { try PerTypeSchemaService.addProperty(definition, in: typeID, on: schemaAdapter) } catch {
-            self.pendingError = error
-            throw error
+        try withPendingError {
+            try PerTypeSchemaService.addProperty(definition, in: typeID, on: schemaAdapter)
         }
     }
 
@@ -653,10 +633,8 @@ extension PageTypeManager {
     /// Renames a property by its stable ID. Schema-only write — member files keyed by
     /// `id` are not touched (rename-safe by design per the domain model).
     func renameProperty(id propertyID: String, in typeID: String, to newName: String) async throws {
-        do { try PerTypeSchemaService.renameProperty(id: propertyID, in: typeID, to: newName, on: schemaAdapter) } catch
-        {
-            self.pendingError = error
-            throw error
+        try withPendingError {
+            try PerTypeSchemaService.renameProperty(id: propertyID, in: typeID, to: newName, on: schemaAdapter)
         }
     }
 
@@ -705,7 +683,7 @@ extension PageTypeManager {
         in containerID: String,
         transform: (inout [SavedView]) throws -> Result
     ) async throws -> Result {
-        do {
+        return try withPendingError {
             if let i = types.firstIndex(where: { $0.id == containerID }) {
                 let meta = NexusPaths.vaultMetadataURL(forTitle: types[i].title, in: nexus)
                 var updated = try PageType.load(from: meta)
@@ -728,9 +706,6 @@ extension PageTypeManager {
                 }
             }
             throw PageTypeManagerError.typeNotFound
-        } catch {
-            self.pendingError = error
-            throw error
         }
     }
 
@@ -803,7 +778,7 @@ extension PageTypeManager {
     /// rule: "add property = schema-only write" — new copies start empty
     /// on every member entity, ready to fill).
     func duplicateProperty(id propertyID: String, in typeID: String) async throws {
-        do {
+        try withPendingError {
             guard let i = types.firstIndex(where: { $0.id == typeID }) else {
                 throw PageTypeManagerError.typeNotFound
             }
@@ -835,9 +810,6 @@ extension PageTypeManager {
             }
 
             types[i] = updatedType
-        } catch {
-            self.pendingError = error
-            throw error
         }
     }
 
@@ -854,7 +826,7 @@ extension PageTypeManager {
         in typeID: String,
         transform: (inout PropertyDefinition) -> Void
     ) async throws {
-        do {
+        try withPendingError {
             guard let i = types.firstIndex(where: { $0.id == typeID }) else {
                 throw PageTypeManagerError.typeNotFound
             }
@@ -886,16 +858,12 @@ extension PageTypeManager {
             }
 
             types[i] = updatedType
-        } catch {
-            self.pendingError = error
-            throw error
         }
     }
 
     func deleteProperty(id propertyID: String, in typeID: String) async throws {
-        do { try PerTypeSchemaService.deleteProperty(id: propertyID, in: typeID, on: schemaAdapter) } catch {
-            self.pendingError = error
-            throw error
+        try withPendingError {
+            try PerTypeSchemaService.deleteProperty(id: propertyID, in: typeID, on: schemaAdapter)
         }
         // Scrub the now-dangling property id from every SavedView of this
         // container so a view grouped/sorted by it doesn't collapse into one
@@ -913,11 +881,8 @@ extension PageTypeManager {
     /// Moves a property to a new index within the schema's `properties` array.
     /// Schema-only write — member files are not touched.
     func reorderProperty(id propertyID: String, in typeID: String, toIndex newIndex: Int) async throws {
-        do {
+        try withPendingError {
             try PerTypeSchemaService.reorderProperty(id: propertyID, in: typeID, toIndex: newIndex, on: schemaAdapter)
-        } catch {
-            self.pendingError = error
-            throw error
         }
     }
 
@@ -939,16 +904,13 @@ extension PageTypeManager {
         to newType: PropertyType,
         dropConflictingValues: Bool = false
     ) async throws {
-        do {
+        try withPendingError {
             try PerTypeSchemaService.changeType(
                 of: propertyID,
                 in: typeID,
                 to: newType,
                 dropConflictingValues: dropConflictingValues,
                 on: schemaAdapter)
-        } catch {
-            self.pendingError = error
-            throw error
         }
     }
 }
