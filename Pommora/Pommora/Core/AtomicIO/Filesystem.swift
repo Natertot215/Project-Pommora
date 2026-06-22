@@ -275,6 +275,29 @@ enum Filesystem {
         }
     }
 
+    /// Returns a filename that doesn't collide with existing files in `dir`,
+    /// appending `-2`, `-3`, … to the stem (final extension preserved) until free.
+    /// One source for the asset / attachment importers' collision handling.
+    static func collisionSafeName(_ originalName: String, in dir: URL, fm: FileManager = .default) -> String {
+        let candidate = dir.appendingPathComponent(originalName, isDirectory: false)
+        guard fm.fileExists(atPath: candidate.path) else { return originalName }
+
+        // Only the final extension is split off: "file.task.json" → stem "file.task", ext "json".
+        let url = URL(fileURLWithPath: originalName)
+        let ext = url.pathExtension
+        let stem = url.deletingPathExtension().lastPathComponent
+
+        var counter = 2
+        while true {
+            let name = ext.isEmpty ? "\(stem)-\(counter)" : "\(stem)-\(counter).\(ext)"
+            let attempt = dir.appendingPathComponent(name, isDirectory: false)
+            if !fm.fileExists(atPath: attempt.path) {
+                return name
+            }
+            counter += 1
+        }
+    }
+
     /// Recursively enumerates files under `folderURL`, descending into every
     /// non-excluded sub-folder. Excludes:
     /// - any URL in `excludedFolderURLs` (entire subtree is skipped)
