@@ -353,6 +353,15 @@ ipcMain.handle('error:show', async (e, message: unknown): Promise<void> => {
   }
 })
 
+// Open an external markdown link in the OS default app. Schemeless URLs get https://; non-web
+// schemes (file:, javascript:, …) are rejected — the renderer never opens links itself.
+ipcMain.handle('link:open', async (_e, url: unknown): Promise<void> => {
+  if (typeof url !== 'string' || !url) return
+  const normalized = /^[a-z][a-z0-9+.-]*:/i.test(url) ? url : `https://${url}`
+  if (!/^(https?|mailto):/i.test(normalized)) return
+  await shell.openExternal(normalized)
+})
+
 // The OS accent (macOS 10.14+), for accent === 'system'. Electron returns
 // RRGGBBAA; surface just the RGB as '#RRGGBB'. null when unsupported/unavailable.
 ipcMain.handle('theme:systemAccent', (): string | null => {

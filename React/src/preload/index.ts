@@ -33,6 +33,8 @@ const api = {
     ipcRenderer.invoke('create-menu', items),
   // Surface a failure natively (renderer can't show a native dialog itself).
   showError: (message: string): Promise<void> => ipcRenderer.invoke('error:show', message),
+  // Open an external link (http/https/mailto) in the OS default browser/app.
+  openExternal: (url: string): Promise<void> => ipcRenderer.invoke('link:open', url),
   systemAccent: (): Promise<string | null> => ipcRenderer.invoke('theme:systemAccent'),
   // Pop a native "Add Photo" menu → native image picker; resolves the chosen image as a data URL (null if dismissed/canceled).
   photoMenu: (): Promise<string | null> => ipcRenderer.invoke('nexus:photoMenu'),

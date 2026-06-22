@@ -6,6 +6,7 @@ import { markdown } from '@codemirror/lang-markdown'
 import { markdownDecorations } from './editor/decorations'
 import { markdownInput } from './editor/input'
 import { connectionClicks } from './editor/connections'
+import { externalLinkClicks } from './editor/links'
 import { markdownFolding, applySavedFolds, type FoldsApi } from './editor/folding'
 import { applyEditorAction, type EditorMenuApi } from './editor/menu'
 import { formatKeymap } from './editor/formatKeymap'
@@ -144,6 +145,7 @@ export function MarkdownEditor({
         EditorView.lineWrapping,
         markdownDecorations(() => connectionsRef.current),
         connectionClicks(() => connectionsRef.current),
+        externalLinkClicks(),
         markdownFolding((keys) => foldsRef.current?.save(keys)),
         EditorView.updateListener.of((u) => {
           if (!(u.docChanged || u.selectionSet || u.focusChanged)) return // skip scroll/geometry-only updates

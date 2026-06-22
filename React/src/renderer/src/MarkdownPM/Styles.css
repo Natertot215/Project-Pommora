@@ -238,6 +238,7 @@
 .md-link {
   color: var(--link);
   text-decoration: underline;
+  cursor: pointer;
 }
 /* Resolved connections wear the connection color; unresolved (phantom) get no class — they render
    raw `[[Foo]]` as plain prose (handled in decorations.ts). Ambiguous reads muted. */
