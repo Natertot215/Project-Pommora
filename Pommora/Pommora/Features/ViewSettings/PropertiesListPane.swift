@@ -90,13 +90,7 @@ struct PropertiesListPane: View {
         return resolved.filter { !ReservedPropertyID.isReserved($0.id) }
     }
 
-    private func scopeTypeID() -> String? {
-        switch scope {
-        case .pageType(let t): return t.id
-        case .pageCollection(let c): return c.typeID
-        default: return nil
-        }
-    }
+    private func scopeTypeID() -> String? { scope.schemaTypeID }
 
     @ViewBuilder
     private var emptyState: some View {

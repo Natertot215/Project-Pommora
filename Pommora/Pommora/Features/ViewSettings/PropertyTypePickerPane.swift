@@ -75,15 +75,6 @@ struct PropertyTypePickerPane: View {
 
     /// The Type schema that owns this scope's properties (Collections inherit
     /// from their parent Type). `nil` for non-storage scopes.
-    private var schemaTypeID: String? {
-        switch scope {
-        case .pageType(let t):
-            return t.id
-        case .pageCollection(let c):
-            return c.typeID
-        default:
-            return nil
-        }
-    }
+    private var schemaTypeID: String? { scope.schemaTypeID }
 
 }

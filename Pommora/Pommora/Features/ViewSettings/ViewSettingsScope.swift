@@ -24,3 +24,27 @@ enum ViewSettingsScope: Equatable, Sendable {
     case project
     case calendar
 }
+
+extension ViewSettingsScope {
+    /// The container whose SavedView config this scope edits — the entity's own
+    /// id (Vault or Collection). `nil` for non-container scopes. One source for
+    /// the per-pane `containerID()` switch the View Settings panes used to repeat.
+    var containerID: String? {
+        switch self {
+        case .pageType(let t): return t.id
+        case .pageCollection(let c): return c.id
+        default: return nil
+        }
+    }
+
+    /// The schema-owning Type's id — a Vault owns its schema; a Collection
+    /// inherits its parent Vault's (`typeID`). `nil` for non-container scopes.
+    /// One source for the per-pane `parentTypeID()` / `scopeTypeID()` switch.
+    var schemaTypeID: String? {
+        switch self {
+        case .pageType(let t): return t.id
+        case .pageCollection(let c): return c.typeID
+        default: return nil
+        }
+    }
+}

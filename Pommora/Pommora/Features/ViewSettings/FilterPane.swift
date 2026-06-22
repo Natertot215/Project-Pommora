@@ -167,13 +167,7 @@ struct FilterPane: View {
         return activeViewStore.resolvedActiveView(in: cid, manager: pageTypeManager)
     }
 
-    private func containerID() -> String? {
-        switch scope {
-        case .pageType(let t): return t.id
-        case .pageCollection(let c): return c.id
-        default: return nil
-        }
-    }
+    private func containerID() -> String? { scope.containerID }
 }
 
 // MARK: - Shared property catalog (Filter + Group)
@@ -287,13 +281,7 @@ enum ViewSettingsProperties {
         return resolved + [recent]
     }
 
-    private static func parentTypeID(_ scope: ViewSettingsScope) -> String? {
-        switch scope {
-        case .pageType(let t): return t.id
-        case .pageCollection(let c): return c.typeID
-        default: return nil
-        }
-    }
+    private static func parentTypeID(_ scope: ViewSettingsScope) -> String? { scope.schemaTypeID }
 }
 
 // MARK: - FilterRuleRow

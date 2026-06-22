@@ -239,21 +239,9 @@ struct LayoutPane: View {
         return false
     }
 
-    private func containerID() -> String? {
-        switch scope {
-        case .pageType(let t): return t.id
-        case .pageCollection(let c): return c.id
-        default: return nil
-        }
-    }
+    private func containerID() -> String? { scope.containerID }
 
-    private func parentTypeID() -> String? {
-        switch scope {
-        case .pageType(let t): return t.id
-        case .pageCollection(let c): return c.typeID
-        default: return nil
-        }
-    }
+    private func parentTypeID() -> String? { scope.schemaTypeID }
 }
 
 // MARK: - Rows
