@@ -163,8 +163,7 @@ struct FilterPane: View {
     /// whichever view the user is currently viewing rather than the container's
     /// first view.
     private func currentView() -> SavedView? {
-        guard let cid = containerID() else { return nil }
-        return activeViewStore.resolvedActiveView(in: cid, manager: pageTypeManager)
+        activeViewStore.resolvedActiveView(for: scope, manager: pageTypeManager)
     }
 
     private func containerID() -> String? { scope.containerID }

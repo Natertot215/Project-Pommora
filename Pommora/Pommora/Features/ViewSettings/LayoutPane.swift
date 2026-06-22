@@ -213,8 +213,7 @@ struct LayoutPane: View {
     /// Resolves the ACTIVE view via the shared resolver — edits whichever view
     /// the user is viewing.
     private func currentView() -> SavedView? {
-        guard let cid = containerID() else { return nil }
-        return activeViewStore.resolvedActiveView(in: cid, manager: pageTypeManager)
+        activeViewStore.resolvedActiveView(for: scope, manager: pageTypeManager)
     }
 
     /// The full toggleable column set: user properties + tier relations +

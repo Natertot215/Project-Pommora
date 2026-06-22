@@ -34,4 +34,12 @@ final class ActiveViewStore {
         let activeID = activeViewID(for: containerID)
         return views.first(where: { $0.id == activeID }) ?? views.first
     }
+
+    /// The active `SavedView` for a View Settings scope — resolves the scope's
+    /// `containerID`, then defers to `resolvedActiveView(in:manager:)`. `nil` for
+    /// non-container scopes. Single source for the panes' `currentView()`.
+    func resolvedActiveView(for scope: ViewSettingsScope, manager: PageTypeManager) -> SavedView? {
+        guard let containerID = scope.containerID else { return nil }
+        return resolvedActiveView(in: containerID, manager: manager)
+    }
 }
