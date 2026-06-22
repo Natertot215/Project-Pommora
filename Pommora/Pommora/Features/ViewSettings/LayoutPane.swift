@@ -56,12 +56,14 @@ struct LayoutPane: View {
     @ViewBuilder
     private func sections(for view: SavedView) -> some View {
         VStack(spacing: 0) {
-            LayoutToggleRow(
+            LabeledToggleRow(
+                label: "Display Banner",
                 icon: "photo",
-                title: "Display Banner",
-                isOn: view.showBanner ?? true,
-                isEnabled: containerHasBanner,
-                onToggle: { value in Task { await setBanner(value) } }
+                isOn: Binding(
+                    get: { view.showBanner ?? true },
+                    set: { value in Task { await setBanner(value) } }
+                ),
+                isEnabled: containerHasBanner
             )
 
             if view.type == .gallery {
@@ -244,39 +246,6 @@ struct LayoutPane: View {
 }
 
 // MARK: - Rows
-
-/// A plain on/off layout toggle row (label left, `Toggle` right). Disabled rows
-/// mute their label so the inert state reads tonally.
-private struct LayoutToggleRow: View {
-    let icon: String
-    let title: String
-    let isOn: Bool
-    let isEnabled: Bool
-    let onToggle: (Bool) -> Void
-
-    var body: some View {
-        HStack(spacing: PUI.Row.interSpacing) {
-            Image(systemName: icon)
-                .font(PUI.Icon.leading)
-                .foregroundStyle(isEnabled ? .primary : .tertiary)
-                .frame(width: PUI.Icon.leadingFrame)
-            Text(title)
-                .font(PUI.Typography.row)
-                .foregroundStyle(isEnabled ? .primary : .tertiary)
-            Spacer()
-            Toggle(
-                "",
-                isOn: Binding(get: { isOn }, set: { onToggle($0) })
-            )
-            .labelsHidden()
-            .toggleStyle(.switch)
-            .controlSize(.small)
-            .disabled(!isEnabled)
-        }
-        .padding(.horizontal, PUI.Row.paddingHorizontal)
-        .padding(.vertical, PUI.Row.paddingVertical)
-    }
-}
 
 /// Gallery-only card-size segmented control (Small / Medium / Large).
 private struct CardSizeRow: View {

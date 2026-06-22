@@ -57,7 +57,7 @@ struct SortPane: View {
         let active = view.sort?.first
         VStack(spacing: 0) {
             ForEach(SortPreset.allCases) { preset in
-                SortRow(
+                SelectableOptionRow(
                     label: preset.label,
                     icon: preset.icon,
                     isSelected: preset.matches(active),
@@ -65,7 +65,7 @@ struct SortPane: View {
                 )
             }
             ForEach(sortableProperties(), id: \.id) { def in
-                SortRow(
+                SelectableOptionRow(
                     label: "\(def.name) (A→Z)",
                     icon: def.displayIcon,
                     isSelected: matches(active, def.id, .ascending),
@@ -73,7 +73,7 @@ struct SortPane: View {
                         Task { await apply(SortCriterion(propertyID: def.id, direction: .ascending)) }
                     }
                 )
-                SortRow(
+                SelectableOptionRow(
                     label: "\(def.name) (Z→A)",
                     icon: def.displayIcon,
                     isSelected: matches(active, def.id, .descending),
@@ -189,39 +189,5 @@ private enum SortPreset: String, CaseIterable, Identifiable {
     /// nil sort).
     func matches(_ active: SortCriterion?) -> Bool {
         criterion == active
-    }
-}
-
-// MARK: - SortRow
-
-private struct SortRow: View {
-    let label: String
-    let icon: String
-    let isSelected: Bool
-    let onSelect: () -> Void
-
-    var body: some View {
-        Button(action: onSelect) {
-            HStack(spacing: PUI.Row.interSpacing) {
-                Image(systemName: icon)
-                    .font(PUI.Icon.leading)
-                    .foregroundStyle(.primary)
-                    .frame(width: PUI.Icon.leadingFrame)
-                Text(label)
-                    .font(PUI.Typography.row)
-                    .foregroundStyle(.primary)
-                    .lineLimit(1)
-                Spacer()
-                if isSelected {
-                    Image(systemName: "checkmark")
-                        .font(PUI.Icon.chevron)
-                        .foregroundStyle(.tint)
-                }
-            }
-            .padding(.horizontal, PUI.Row.paddingHorizontal)
-            .padding(.vertical, PUI.Row.paddingVertical)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
     }
 }
