@@ -155,4 +155,4 @@ Exclusion set (never adopted): any folder starting with `.` or `_` (e.g. `.nexus
 
 `.md` files within an adopted Page Type need no Pommora-specific shape to surface — discovery is extension-based, and Pages without frontmatter open via the lenient loader ([[Pages]] § "On disk").
 
-Implementation lives in `NexusAdopter` (`Pommora/Pommora/Nexus/NexusAdopter.swift`) with a preview view; both nexus-open paths run adoption after identity is set, and indexing status surfaces via an indexing HUD overlay in the sidebar.
+Implementation lives in `NexusAdopter` (`Pommora/Pommora/Domain/Nexus/NexusAdopter.swift`) with a preview view; both nexus-open paths run adoption after identity is set, and indexing status surfaces via an indexing HUD overlay in the sidebar.
