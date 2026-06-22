@@ -25,28 +25,28 @@ struct ViewSurface<Scope: DetailScope>: View {
     /// One container-create flag — only this scope's container kind flips it.
     @State private var isCreatingContainer: Bool = false
 
-    @Environment(PageTypeManager.self) private var pageTypeManager
-    @Environment(PageSetManager.self) private var pageSetManager
-    @Environment(PageContentManager.self) private var contentManager
-    @Environment(SettingsManager.self) private var settingsManager
-    @Environment(NexusManager.self) private var nexusManager
+    @Environment(PageTypeManager.self) var pageTypeManager
+    @Environment(PageSetManager.self) var pageSetManager
+    @Environment(PageContentManager.self) var contentManager
+    @Environment(SettingsManager.self) var settingsManager
+    @Environment(NexusManager.self) var nexusManager
     @Environment(TierConfigManager.self) private var tierConfigManager
     @Environment(ContextDisplayResolver.self) private var contextDisplay
     @Environment(ActiveViewStore.self) private var activeViewStore
 
     // Rename alert state.
-    @State private var renameTarget: RowTarget?
-    @State private var renameDraft: String = ""
+    @State var renameTarget: RowTarget?
+    @State var renameDraft: String = ""
     /// Owns the row-drag mechanic + insertion/highlight state. The ONE shared
     /// instance — its commit closures are wired in `.task`.
     @State private var dragCoordinator = RowDragCoordinator()
     /// Container-delete confirmation target — set only from a container group's
     /// menu. Page deletes stay direct (no confirmation); only the container case
     /// routes here, mirroring the sidebar's delete guard.
-    @State private var deleteTarget: ContainerRef?
+    @State var deleteTarget: ContainerRef?
     /// The page whose cover is being set/changed via the gallery cover menu.
-    @State private var coverTarget: ViewItem?
-    @State private var isPickingCover: Bool = false
+    @State var coverTarget: ViewItem?
+    @State var isPickingCover: Bool = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -514,50 +514,6 @@ struct ViewSurface<Scope: DetailScope>: View {
             openPreview: { openPagePreview($0) })
     }
 
-    // MARK: - Cover
-
-    @ViewBuilder
-    private var coverPickerHost: some View {
-        if let item = coverTarget, let nexus = nexusManager.currentNexus {
-            CoverPicker(
-                page: item.page, vault: item.parent.vault,
-                collection: item.parent.collection, set: item.parent.set,
-                nexus: nexus, isPresenting: $isPickingCover)
-        }
-    }
-
-    /// Cover-area context menu (gallery) — Set / Change / Remove Cover.
-    @ViewBuilder
-    private func coverMenuItems(for item: ViewItem) -> some View {
-        let hasCover = item.page.frontmatter.cover != nil
-        Button(hasCover ? "Change Cover" : "Set Cover") {
-            coverTarget = item
-            isPickingCover = true
-        }
-        if hasCover {
-            Button("Remove Cover", role: .destructive) { removeCover(item) }
-        }
-    }
-
-    private func removeCover(_ item: ViewItem) {
-        let previousCover = item.page.frontmatter.cover
-        var fm = item.page.frontmatter
-        fm.cover = nil
-        Task {
-            do {
-                try await contentManager.updatePageFrontmatter(
-                    item.page, frontmatter: fm, vault: item.parent.vault,
-                    collection: item.parent.collection, set: item.parent.set)
-                // Delete the cleared cover file ONLY AFTER the `cover = nil`
-                // write succeeds, so a failed write never leaves `cover`
-                // pointing at a deleted file.
-                if let nexus = nexusManager.currentNexus {
-                    CoverAssetStore().delete(relativePath: previousCover, for: item.page.id, in: nexus)
-                }
-            } catch {}
-        }
-    }
-
     // MARK: - Context menus
 
     /// Page (Title-cell) menu — Edit Title / Edit Icon / Pin / Delete.
@@ -609,143 +565,4 @@ struct ViewSurface<Scope: DetailScope>: View {
         }
     }
 
-    // MARK: - Rename
-
-    private var renameAlertBinding: Binding<Bool> {
-        Binding(
-            get: { renameTarget != nil },
-            set: { if !$0 { renameTarget = nil } }
-        )
-    }
-
-    private func renameTitle(_ target: RowTarget) -> String {
-        switch target {
-        case .page(let item): return item.page.title
-        case .container(let ref): return ref.title
-        }
-    }
-
-    private func renameKindLabel(_ target: RowTarget) -> String {
-        switch target {
-        case .page: return "Page"
-        case .container(let ref): return ref.kindLabel
-        }
-    }
-
-    private func beginRename(_ target: RowTarget) {
-        renameDraft = renameTitle(target)
-        renameTarget = target
-    }
-
-    private func commitRename() {
-        guard let target = renameTarget else { return }
-        let newName = renameDraft
-        renameTarget = nil
-        guard !newName.isEmpty, newName != renameTitle(target) else { return }
-        Task {
-            do {
-                switch target {
-                case .container(let ref):
-                    try await renameContainer(ref, to: newName)
-                case .page(let item):
-                    // Route purely off the stamped parent — uniform across scopes.
-                    // `.vaultRoot` can't occur in collection scope but is harmless.
-                    switch item.parent {
-                    case .collection(let coll, let t):
-                        try await contentManager.renamePage(item.page, to: newName, in: coll, vault: t)
-                    case .set(let set, let coll, let t):
-                        try await contentManager.renamePage(
-                            item.page, to: newName, in: set, collection: coll, vault: t)
-                    case .vaultRoot(let t):
-                        try await contentManager.renamePage(item.page, to: newName, inVaultRoot: t)
-                    }
-                }
-            } catch {
-                // pendingError set by manager; toast surfaces.
-            }
-        }
-    }
-
-    /// Renames a container via its kind's manager (Collection or Set).
-    private func renameContainer(_ ref: ContainerRef, to newName: String) async throws {
-        switch ref {
-        case .collection(let coll):
-            try await pageTypeManager.renamePageCollection(coll, to: newName)
-        case .set(let set):
-            try await pageSetManager.renamePageSet(set, to: newName)
-        }
-    }
-
-    // MARK: - Delete
-
-    /// The active container-delete confirmation payload (vault: single Collection
-    /// delete; collection: two-mode Set delete), nil when nothing is pending.
-    private var deleteConfirmation: DeleteConfirmation? {
-        guard let ref = deleteTarget else { return nil }
-        return scope.deleteConfirmation(for: ref, settings: settingsManager)
-    }
-
-    private var deleteConfirmationBinding: Binding<Bool> {
-        Binding(
-            get: { deleteTarget != nil },
-            set: { if !$0 { deleteTarget = nil } }
-        )
-    }
-
-    /// The confirmation dialog's buttons. `single` → one destructive Collection
-    /// delete; `setTwoMode` → the two-mode Set delete (Set only vs. Set and Pages).
-    @ViewBuilder
-    private func deleteConfirmationActions(_ confirmation: DeleteConfirmation) -> some View {
-        switch confirmation.mode {
-        case .single(let coll):
-            Button("Delete", role: .destructive) {
-                Task {
-                    do { try await pageTypeManager.deletePageCollection(coll) } catch {}
-                    deleteTarget = nil
-                }
-            }
-            Button("Cancel", role: .cancel) { deleteTarget = nil }
-        case .setTwoMode(let set, let coll):
-            Button("Delete Set Only") {
-                Task {
-                    do {
-                        try await pageSetManager.deletePageSet(set, mode: .setOnly)
-                        // Rehomed Pages land in the Collection root on disk + in
-                        // the index; refresh the cache so they surface now.
-                        await contentManager.loadAll(for: coll)
-                    } catch {}
-                    deleteTarget = nil
-                }
-            }
-            Button("Delete Set and Pages", role: .destructive) {
-                Task {
-                    do {
-                        try await pageSetManager.deletePageSet(set, mode: .withPages)
-                        await contentManager.loadAll(for: coll)
-                    } catch {}
-                    deleteTarget = nil
-                }
-            }
-            Button("Cancel", role: .cancel) { deleteTarget = nil }
-        }
-    }
-
-    /// Direct page delete (containers route through the confirmation dialog). Routes
-    /// purely off the stamped parent — uniform across scopes; `.vaultRoot` can't
-    /// occur in collection scope but is harmless.
-    private func delete(_ target: RowTarget) async {
-        guard case .page(let item) = target else { return }
-        do {
-            switch item.parent {
-            case .collection(let coll, _):
-                try await contentManager.deletePage(item.page, in: coll)
-            case .set(let set, _, _):
-                try await contentManager.deletePage(item.page, in: set)
-            case .vaultRoot(let t):
-                try await contentManager.deletePage(item.page, inVaultRoot: t)
-            }
-        } catch {
-            // pendingError set by manager; toast surfaces.
-        }
-    }
 }
