@@ -53,7 +53,7 @@ The arc, in order:
 
 #### Fix Log
 
-- **Backspace on checkbox / list item** should auto-delete the syntax — UNIMPLEMENTED (feature-add).
+- **Backspace on checkbox / list item** should auto-delete the syntax — UNIMPLEMENTED (feature-add; react-side already added this).
 - **Table Links** non-clickable (no input handling); proposed single-click navigate + right-click edit.
 - **Agenda description-cap** — specs say 1000, validators enforce none.
 - **Pinned-nav title staleness** on rename until re-pinned — may already be fixed by the file-watcher; retest.
