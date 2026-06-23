@@ -66,3 +66,12 @@ Discipline: a green commit per task; a live UIX pass with Nathan before any mile
 - **Radius + spacing tokens** — corners + spacing are ad-hoc literals; formalize as scales from Figma.
 - **Settings editing UI** is deferred — `.nexus/settings.json` (labels + accent) is the control surface for now.
 - **Doc mirror** — a launchd watcher mirrors these docs into the Obsidian vault; keep them current so the mirror stays useful.
+
+#### Fix Log
+
+- Non-native caret used in the MarkdownPM editor; investigate and fix ASAP. 
+
+#### Handoff Rules
+
+- **Keep the Fix Log current.** Acknowledged-but-not-yet-fixed issues get a 1–2 sentence entry; remove on resolve.
+- **Maintain this file every session** — Session Summary + Lessons Learned + Next Session + Pending Focuses + Fix Log only. Push spec/decision content to its canonical home.
