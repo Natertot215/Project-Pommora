@@ -644,7 +644,7 @@ final class IndexBuilder {
     /// Runs AFTER the entity rows are inserted so single-match title resolution
     /// can see targets. Best-effort: on a freshly-adopted nexus, a target whose
     /// type/collection wasn't indexed yet resolves as phantom and self-heals on the
-    /// next CRUD write or loadAll (quirk #14). Each row is resilient via attemptInsert.
+    /// next CRUD write or loadAll (quirk #10). Each row is resilient via attemptInsert.
     private nonisolated static func insertConnections(_ db: Database, snapshot: NexusSnapshot) {
         func emit(sourceID: String, sourceTitle: String, body: String) {
             let selfKey = ConnectionTitle.normalize(sourceTitle)

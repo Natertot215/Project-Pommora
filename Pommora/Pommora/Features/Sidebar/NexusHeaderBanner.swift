@@ -8,7 +8,7 @@ import UniformTypeIdentifiers
 /// Replaces the former "Homepage" saved-leaf and is the FIRST row of the sidebar
 /// List (its own Section) so it scrolls with everything else; selection +
 /// highlight ride the native List mechanism (`.tag` + `.listRowBackground` at the
-/// SidebarView call site, quirk #8/#9), not an in-content `.background`.
+/// SidebarView call site, quirk #6/#7), not an in-content `.background`.
 ///
 /// Editing is right-click-driven and SCOPED to each element: right-click the
 /// avatar → picture actions, the title → Rename (renames the nexus folder), the

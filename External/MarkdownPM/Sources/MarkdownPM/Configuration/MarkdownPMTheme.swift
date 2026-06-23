@@ -219,7 +219,7 @@ public struct ListStyle: Sendable {
         autoClosePairsEnabled: Bool = true,
         indentPerLevel: CGFloat = 24,
         maximumNestingLevel: Int = 3,
-        extraLineHeight: CGFloat = 2,
+        extraLineHeight: CGFloat = 4,
         bulletTextGap: CGFloat = 3
     ) {
         self.helpersEnabled = helpersEnabled

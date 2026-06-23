@@ -2,7 +2,7 @@ import SwiftUI
 
 /// The sidebar's context area (Contexts Decoupling): ONE Section with a
 /// "Contexts" header, holding exactly three TierDisclosureRows — homogeneous
-/// siblings (quirk #8). Tier rows are expand/collapse only; entity rows inside
+/// siblings (quirk #6). Tier rows are expand/collapse only; entity rows inside
 /// keep selection.
 struct ContextsSection: View {
     @Binding var selection: SidebarSelection

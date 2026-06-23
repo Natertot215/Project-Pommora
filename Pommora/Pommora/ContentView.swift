@@ -37,7 +37,7 @@ struct ContentView: View {
     /// open. Every manager is reached via `nexusEnvironment?.someManager`, and
     /// every descendant's `@Environment(X.self)` is satisfied in ONE place by
     /// `.injectNexusEnvironment(env)` (eliminates the forgotten-inject SIGTRAP,
-    /// quirk #15). See `NexusEnvironment.swift`.
+    /// quirk #11). See `NexusEnvironment.swift`.
     @State private var nexusEnvironment: NexusEnvironment?
 
     /// Maps a `SidebarSelection` to a `ViewSettingsScope`. Static + pure so the

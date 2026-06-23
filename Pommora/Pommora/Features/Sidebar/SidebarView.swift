@@ -39,11 +39,11 @@ struct SidebarView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // Outside the List so it doesn't touch Section layout (quirk #9).
+            // Outside the List so it doesn't touch Section layout (quirk #7).
             SidebarToast()
             List(selection: $selectedTag) {
                 // Homepage header — the first row, in its own Section so it
-                // scrolls with the list; native selection + chrome (quirk #8/#9).
+                // scrolls with the list; native selection + chrome (quirk #6/#7).
                 Section {
                     NexusHeaderBanner()
                         .tag(SelectionTag.savedKey("homepage"))
@@ -74,7 +74,7 @@ struct SidebarView: View {
                 // User vault sections (PagesV2 P9) — each a SIBLING Section
                 // with the IDENTICAL `Section(isExpanded:) { rows } header:`
                 // shape as VaultsSection, reusing PageTypeRow unchanged
-                // (quirk #8: never mix row shapes inside one Section).
+                // (quirk #6: never mix row shapes inside one Section).
                 ForEach(sidebarSectionsManager.config.sections) { userSection in
                     UserVaultSection(
                         section: userSection,
@@ -385,9 +385,9 @@ struct VaultsSection: View {
 
 /// One user-created sidebar section grouping Vaults — a SIBLING `Section`
 /// with the IDENTICAL `Section(isExpanded:) { rows } header:` shape as
-/// `VaultsSection`, reusing `PageTypeRow` unchanged (quirk #8: row shapes
+/// `VaultsSection`, reusing `PageTypeRow` unchanged (quirk #6: row shapes
 /// inside a Section must stay homogeneous; selection chrome stays at the
-/// row file level per quirk #9).
+/// row file level per quirk #7).
 ///
 /// Membership is navigation-only: `section.vaultIDs` resolve to live
 /// `PageType`s in section order; dangling IDs (a deleted vault's ID left in

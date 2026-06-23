@@ -207,7 +207,7 @@ struct PageTypeRow: View {
     }
 
     /// Plain-value helper for the context-menu `disabled` check — kept out of the
-    /// @ViewBuilder closure per quirk #12 (GRDB String overload pollution).
+    /// @ViewBuilder closure per quirk #9 (GRDB String overload pollution).
     private func isInSection(_ sectionID: String) -> Bool {
         currentSectionID == sectionID
     }
