@@ -32,3 +32,6 @@ graphify-out/
 
 # Playwright MCP — tool console logs / page traces (regeneratable)
 .playwright-mcp/
+
+# Claude Code — local agent config (machine-specific paths / hooks)
+.claude/settings.json
