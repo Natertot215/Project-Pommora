@@ -145,8 +145,9 @@ export function MarkdownEditor({
         markdown(),
         EditorView.lineWrapping,
         markdownDecorations(() => connectionsRef.current),
-        // Interactive table widget — renders each Markdown table as an editable HTML table over the GFM source.
-        tableWidgetExtension(),
+        // Interactive table widget — renders each Markdown table as an editable HTML table over the GFM
+        // source; the connections getter lets `[[…]]` render + autocomplete inside cells.
+        tableWidgetExtension(() => connectionsRef.current),
         connectionClicks(() => connectionsRef.current),
         externalLinkClicks(),
         markdownFolding((keys) => foldsRef.current?.save(keys)),
