@@ -396,7 +396,7 @@
   padding-left: 16px;
   padding-right: 14px;
   background: var(--bg-color);
-  color: color-mix(in srgb, var(--label-primary) 75%, transparent);
+  color: color-mix(in srgb, var(--label-control));
 }
 .mdpm-editor .cm-line.md-bq::before {
   content: '';
