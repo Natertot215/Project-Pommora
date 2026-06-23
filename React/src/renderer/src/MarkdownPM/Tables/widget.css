@@ -1,5 +1,5 @@
-/* Interactive table widget (block-replace over the canonical GFM source). Read-only render for now —
-   cell editing, grips, and resize layer on top in later slices. Values resolve from design tokens. */
+/* Interactive table widget (block-replace over the canonical GFM source). Each cell is a live nested
+   CodeMirror editor; grips + resize layer on top in later slices. Values resolve from design tokens. */
 
 .mdpm-tbl-widget {
   margin: 0.4em 0;
@@ -15,7 +15,7 @@
 
 .mdpm-tbl-cell {
   box-sizing: border-box;
-  padding: 3px 8px;
+  padding: 0;
   min-height: 1.6em;
   overflow-wrap: anywhere;
   vertical-align: top;
@@ -34,4 +34,31 @@
 
 .mdpm-tbl-align-right {
   text-align: right;
+}
+
+/* Each cell is a live nested editor. Reset CM chrome so it reads as plain cell text, fills the cell
+   (so a click anywhere edits), inherits the cell's alignment, and shows NO focus effect — a cell looks
+   identical whether you're editing it or not. Scoped + extra class depth to beat the main editor's rules. */
+.mdpm-tbl-cell-editor,
+.mdpm-tbl-cell-editor .cm-editor {
+  height: 100%;
+}
+.mdpm-tbl-cell-editor .cm-editor {
+  background: transparent;
+}
+.mdpm-tbl-cell-editor .cm-editor.cm-focused {
+  outline: none;
+}
+.mdpm-tbl-cell-editor .cm-editor .cm-scroller {
+  font: inherit;
+  line-height: inherit;
+}
+.mdpm-tbl-cell-editor .cm-editor .cm-content {
+  padding: 3px 8px;
+  text-align: inherit;
+  white-space: pre-wrap;
+  caret-color: var(--label-primary);
+}
+.mdpm-tbl-cell-editor .cm-editor .cm-line {
+  padding: 0;
 }

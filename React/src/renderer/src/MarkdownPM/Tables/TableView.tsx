@@ -1,13 +1,23 @@
 import './widget.css'
 import type { Align, TableModel } from './model'
+import { CellEditor } from './CellEditor'
+import type { ConnectionsApi } from '../connections'
 
 function alignClass(align: Align): string {
   return `mdpm-tbl-align-${align ?? 'left'}`
 }
 
-// Read-only render of a parsed table. Columns size by dash-ratio (our width convention) via <colgroup>
-// + table-layout:fixed; cell text is raw for now — inline rendering + editing arrive in later slices.
-export function TableView({ model }: { model: TableModel }): React.JSX.Element {
+// The interactive table: columns size by dash-ratio (<colgroup> + table-layout:fixed); every cell is a
+// live CellEditor. onCellCommit speaks the visual-row convention — row 0 = header, row >= 1 = body[row-1].
+export function TableView({
+  model,
+  onCellCommit,
+  connections
+}: {
+  model: TableModel
+  onCellCommit: (row: number, col: number, text: string) => void
+  connections?: () => ConnectionsApi | undefined
+}): React.JSX.Element {
   const total = model.columns.reduce((sum, c) => sum + Math.max(1, c.dashes), 0) || model.columns.length
 
   return (
@@ -21,7 +31,7 @@ export function TableView({ model }: { model: TableModel }): React.JSX.Element {
         <tr>
           {model.header.map((cell, ci) => (
             <th key={ci} className={`mdpm-tbl-cell ${alignClass(model.columns[ci]?.align ?? null)}`}>
-              {cell}
+              <CellEditor initial={cell} connections={connections} onCommit={(t) => onCellCommit(0, ci, t)} />
             </th>
           ))}
         </tr>
@@ -31,7 +41,7 @@ export function TableView({ model }: { model: TableModel }): React.JSX.Element {
           <tr key={ri}>
             {row.map((cell, ci) => (
               <td key={ci} className={`mdpm-tbl-cell ${alignClass(model.columns[ci]?.align ?? null)}`}>
-                {cell}
+                <CellEditor initial={cell} connections={connections} onCommit={(t) => onCellCommit(ri + 1, ci, t)} />
               </td>
             ))}
           </tr>

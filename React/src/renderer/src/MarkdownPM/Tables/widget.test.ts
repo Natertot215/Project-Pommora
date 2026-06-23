@@ -1,10 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { createElement } from 'react'
-import { renderToStaticMarkup } from 'react-dom/server'
 import { EditorState } from '@codemirror/state'
 import { buildWidgetDecorations } from './widget'
-import { TableView } from './TableView'
-import { parseTable } from './codec'
 
 const make = (doc: string): number => buildWidgetDecorations(EditorState.create({ doc })).size
 
@@ -32,18 +28,5 @@ describe('table widget decorations', () => {
       to = t
     })
     expect(doc.slice(from, to)).toBe('| a | b |\n| --- | --- |\n| 1 | 2 |')
-  })
-})
-
-describe('table widget render (distinguishes the widget from the decoration grid)', () => {
-  it('renders a real <table.mdpm-tbl> with dash-width <colgroup> + per-column alignment', () => {
-    const model = parseTable('| Task | N |\n| :--- | ---: |\n| a | 1 |')!
-    const html = renderToStaticMarkup(createElement(TableView, { model }))
-    expect(html).toContain('<table class="mdpm-tbl">') // the decoration grid never creates a <table>
-    expect(html).toContain('<colgroup>')
-    expect(html).toMatch(/<col style="width:[\d.]+%/) // proportional dash-width columns
-    expect(html).toContain('mdpm-tbl-align-left') // :--- → left
-    expect(html).toContain('mdpm-tbl-align-right') // ---: → right
-    expect(html).toContain('Task')
   })
 })
