@@ -50,9 +50,9 @@ const derived = createGlobalTheme(':root', {
     },
     // Content surfaces layered on the window (Figma "Surface").
     surface: {
-      primary: '#1E1E20',
-      secondary: '#222224',
-      tertiary: '#2C2C2F'
+      primary: '#202022',
+      secondary: '#2A2A2E',
+      tertiary: '#3A3A3E'
     },
     // Overlay fills over a surface — system-grey ramp at 20 / 15 / 10 / 6 / 4%.
     fill: {
