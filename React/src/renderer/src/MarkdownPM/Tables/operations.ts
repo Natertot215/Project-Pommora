@@ -41,13 +41,6 @@ export function setAlign(m: TableModel, col: number, align: Align): TableModel {
   return { ...m, columns: m.columns.map((c, i) => (i === col ? { ...c, align } : c)) }
 }
 
-// Cell content edit. Visual-row convention the cell editor speaks: row 0 = header, row >= 1 = body[row-1].
-export function setCell(m: TableModel, row: number, col: number, text: string): TableModel {
-  if (row === 0) return { ...m, header: m.header.map((c, i) => (i === col ? text : c)) }
-  const bi = row - 1
-  return { ...m, rows: m.rows.map((r, i) => (i === bi ? r.map((c, j) => (j === col ? text : c)) : r)) }
-}
-
 // Positive dashDelta widens columns[boundaryIndex] and narrows columns[boundaryIndex+1]
 // (the boundary moves right); the total is conserved and the shrinking side floors at 1 dash.
 export function resizeColumn(m: TableModel, boundaryIndex: number, dashDelta: number): TableModel {

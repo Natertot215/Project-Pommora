@@ -7,8 +7,7 @@ import {
   setAlign,
   resizeColumn,
   moveRow,
-  moveColumn,
-  setCell
+  moveColumn
 } from './operations'
 import type { TableModel } from './model'
 
@@ -93,23 +92,5 @@ describe('operations', () => {
       ['4', '5', '6'],
       ['1', '2', '3']
     ])
-  })
-
-  // Cell editing — the visual-row convention the cell editor speaks: row 0 = header, row >= 1 = body[row-1].
-  it('setCell edits the header (row 0), body untouched, immutable', () => {
-    const m = setCell(base, 0, 1, 'B!')
-    expect(m.header).toEqual(['a', 'B!', 'c'])
-    expect(m.rows).toEqual([['1', '2', '3']])
-    expect(base.header).toEqual(['a', 'b', 'c']) // original unmutated
-  })
-
-  it('setCell edits a body cell (row >= 1 maps to body[row-1]), header untouched', () => {
-    const m = setCell(base, 1, 0, 'X')
-    expect(m.rows).toEqual([['X', '2', '3']])
-    expect(m.header).toEqual(['a', 'b', 'c'])
-  })
-
-  it('setCell allows emptying a cell', () => {
-    expect(setCell(base, 1, 2, '').rows[0]).toEqual(['1', '2', ''])
   })
 })

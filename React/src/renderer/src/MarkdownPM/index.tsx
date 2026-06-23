@@ -5,7 +5,7 @@ import { history, historyKeymap, defaultKeymap } from '@codemirror/commands'
 import { markdown } from '@codemirror/lang-markdown'
 import { markdownDecorations } from './editor/decorations'
 import { markdownInput } from './editor/input'
-import { tableExtension } from './Tables'
+import { tableWidgetExtension } from './Tables'
 import { connectionClicks } from './editor/connections'
 import { externalLinkClicks } from './editor/links'
 import { markdownFolding, applySavedFolds, type FoldsApi } from './editor/folding'
@@ -145,9 +145,8 @@ export function MarkdownEditor({
         markdown(),
         EditorView.lineWrapping,
         markdownDecorations(() => connectionsRef.current),
-        // Keep tableExtension AFTER the autocomplete keymap above: both bind Enter at Prec.highest, so the
-        // tie resolves by registration order — autocomplete must run first so Enter-to-accept still works in a cell.
-        tableExtension(),
+        // Interactive table widget — renders each Markdown table as an editable HTML table over the GFM source.
+        tableWidgetExtension(),
         connectionClicks(() => connectionsRef.current),
         externalLinkClicks(),
         markdownFolding((keys) => foldsRef.current?.save(keys)),
