@@ -86,7 +86,8 @@ export function CellEditor({
           EditorView.lineWrapping,
           Prec.highest(
             keymap.of([
-              { key: 'Tab', run: () => (onNavigateRef.current('next'), true) },
+              // Tab accepts an open connection candidate (like Enter); otherwise it moves to the next cell.
+              { key: 'Tab', run: () => (acCtl.current.open ? acCtl.current.pick() : onNavigateRef.current('next'), true) },
               { key: 'Shift-Tab', run: () => (onNavigateRef.current('prev'), true) },
               // With the connection panel open these keys drive it; otherwise they navigate cells.
               { key: 'Enter', run: () => (acCtl.current.open ? acCtl.current.pick() : onNavigateRef.current('down'), true) },
