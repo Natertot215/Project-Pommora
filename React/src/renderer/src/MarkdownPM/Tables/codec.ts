@@ -20,6 +20,13 @@ export interface RowSplit {
 export const escapeCell = (s: string): string => s.replace(/([\\|])/g, '\\$1')
 export const unescapeCell = (s: string): string => s.replace(/\\([\\|])/g, '$1')
 
+// A cell is single-line GFM on disk, so an in-cell line break serializes as `<br>` (literal newlines would
+// split the row). These pair the escaping with the `<br>` ⇄ newline transform for the full round-trip:
+// cellToSource on commit, cellToDisplay when seeding the cell editor.
+export const cellToSource = (display: string): string => escapeCell(display).replace(/\r?\n/g, '<br>')
+export const cellToDisplay = (source: string): string =>
+  unescapeCell(source).replace(/<br\s*\/?>/gi, '\n')
+
 // Split a row line on UNescaped pipes. Returns trimmed cell text + absolute pipe offsets (line start = `base`).
 export function splitRow(line: string, base: number): RowSplit {
   const pipes: number[] = []

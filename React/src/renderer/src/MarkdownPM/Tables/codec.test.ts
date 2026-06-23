@@ -1,5 +1,14 @@
 import { describe, it, expect } from 'vitest'
-import { parseTable, serialize, splitRow, parseDelimiter, escapeCell, unescapeCell } from './codec'
+import {
+  parseTable,
+  serialize,
+  splitRow,
+  parseDelimiter,
+  escapeCell,
+  unescapeCell,
+  cellToSource,
+  cellToDisplay
+} from './codec'
 
 describe('codec', () => {
   it('splitRow splits on unescaped pipes, keeps \\| in-cell, records pipe offsets', () => {
@@ -44,6 +53,14 @@ describe('codec', () => {
     }
     expect(escapeCell('a|b')).toBe('a\\|b') // a literal pipe escapes
     expect(escapeCell('a\\|b')).toBe('a\\\\\\|b') // a literal backslash AND pipe both escape
+  })
+
+  it('cellToSource / cellToDisplay round-trip in-cell newlines as <br> (and still escape pipes)', () => {
+    expect(cellToSource('a\nb')).toBe('a<br>b') // newline → <br> so the row never splits
+    expect(cellToSource('a|b\nc')).toBe('a\\|b<br>c') // pipe escaped AND newline serialized
+    expect(cellToDisplay('a<br>b')).toBe('a\nb') // <br> → newline for the multi-line cell editor
+    for (const s of ['a\nb', 'a|b', 'line1\nline2|x', 'plain', 'a\nb\nc'])
+      expect(cellToDisplay(cellToSource(s))).toBe(s) // full display→source→display round-trip
   })
 
   it('parseTable keeps raw escaped cell text; unescapeCell renders the literal for display', () => {

@@ -93,11 +93,9 @@ export function CellEditor({
               { key: 'ArrowDown', run: () => (acCtl.current.open ? (acCtl.current.move(1), true) : false) },
               { key: 'ArrowUp', run: () => (acCtl.current.open ? (acCtl.current.move(-1), true) : false) },
               { key: 'Escape', run: () => (acCtl.current.open ? (acCtl.current.close(), true) : false) },
-              // Cells are single-line GFM. Shift+Enter is the in-cell soft break — inserts a single space
-              // (a real <br> arrives with multi-line cells); Mod+Enter stays reserved. Neither inserts a
-              // newline, which would split the row.
-              { key: 'Shift-Enter', run: (view) => (view.dispatch(view.state.replaceSelection(' ')), true) },
-              { key: 'Mod-Enter', run: () => true }
+              // Shift+Enter is the in-cell line break — a real newline (the cell grows taller; the row does
+              // NOT split, because cellToSource serializes the newline as <br> on disk).
+              { key: 'Shift-Enter', run: (view) => (view.dispatch(view.state.replaceSelection('\n')), true) }
             ])
           ),
           keymap.of(defaultKeymap),
@@ -110,16 +108,8 @@ export function CellEditor({
             view.dispatch({ changes: { from: e.from, to: e.to, insert: e.insert }, selection: { anchor: e.selection }, userEvent: 'input' })
             return true
           }),
+          // Close the connection panel when focus leaves the cell (Tab to the next cell, click away).
           EditorView.domEventHandlers({
-            // Multi-line paste would split the row; flatten newlines to spaces on the way in.
-            paste: (event, view) => {
-              const text = event.clipboardData?.getData('text/plain')
-              if (text == null || !/\r?\n/.test(text)) return false
-              event.preventDefault()
-              view.dispatch(view.state.replaceSelection(text.replace(/\r?\n/g, ' ')))
-              return true
-            },
-            // Close the panel when focus leaves the cell (Tab to the next cell, click away).
             blur: () => {
               setAcRef.current(null)
               return false

@@ -30,9 +30,9 @@ describe('cellCommitChange — minimal-diff cell edit (replace just the cell spa
     expect(cellCommitChange(doc, 5, 0, 0, 'z')).toBeNull()
   })
 
-  it('flattens newlines so a multi-line paste / Shift+Enter cannot split the GFM row', () => {
+  it('serializes in-cell newlines as <br> so the row stays single-line (multi-line cell)', () => {
     const c = cellCommitChange(doc, 0, 1, 0, 'x\ny')!
-    expect(c.insert).toBe(' x y ')
+    expect(c.insert).toBe(' x<br>y ')
     expect(c.insert).not.toContain('\n')
   })
 
