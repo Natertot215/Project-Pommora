@@ -1,5 +1,5 @@
 import { parse, isInsideCode } from '../parser'
-import type { Column } from './model'
+import { normalize, type Column, type TableModel } from './model'
 import { splitRow, parseDelimiter, docLines, type CellSpan } from './codec'
 
 export interface RowGeom {
@@ -71,4 +71,15 @@ export function tableRegions(doc: string): TableRegion[] {
   cacheDoc = doc
   cacheRegions = regions
   return regions
+}
+
+// Build the editable model straight from a located region — `tableRegions` already parsed + validated the
+// block and recorded its columns + per-cell text, so the widget needn't re-parse the same slice. Equivalent
+// to `parseTable` on the region's source (regression-tested), without the second micromark pass per build.
+export function modelFromRegion(region: TableRegion): TableModel {
+  return normalize({
+    columns: region.delimiter.columns,
+    header: region.rows[0].cells.map((c) => c.text),
+    rows: region.rows.slice(1).map((r) => r.cells.map((c) => c.text))
+  })
 }

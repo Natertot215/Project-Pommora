@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { tableRegions } from './regions'
+import { tableRegions, modelFromRegion } from './regions'
+import { parseTable } from './codec'
 
 describe('regions', () => {
   it('finds a top-level table and its row/pipe geometry; excludes the delimiter from rows', () => {
@@ -17,5 +18,17 @@ describe('regions', () => {
 
   it('skips a half-typed table (no delimiter yet)', () => {
     expect(tableRegions('| a | b |\nnot a delimiter')).toEqual([])
+  })
+
+  it('modelFromRegion equals parseTable on the same slice (the widget skips the second parse)', () => {
+    for (const table of [
+      '| a | b |\n|---|---|\n| 1 | 2 |',
+      '| h1 | h2 | h3 |\n| :--- | :-: | ---: |\n| 1 | 2 | 3 |\n| 4 | 5 | 6 |',
+      '| a\\|b | c |\n| ---- | -- |\n| x | y |', // escaped pipe + uneven dash widths
+      '| only header |\n| --- |' // header-only, no body rows
+    ]) {
+      const [r] = tableRegions(table)
+      expect(modelFromRegion(r)).toEqual(parseTable(table))
+    }
   })
 })

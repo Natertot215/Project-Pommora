@@ -1,8 +1,7 @@
 import { Decoration, type DecorationSet, EditorView, WidgetType } from '@codemirror/view'
 import { Facet, StateField, type EditorState, type Extension, type Range } from '@codemirror/state'
 import { createRoot, type Root } from 'react-dom/client'
-import { tableRegions } from './regions'
-import { parseTable } from './codec'
+import { tableRegions, modelFromRegion } from './regions'
 import { cellCommitChange, tableSelfEdit } from './sync'
 import type { TableModel } from './model'
 import type { ConnectionsApi } from '../connections'
@@ -79,8 +78,7 @@ export function buildWidgetDecorations(state: EditorState): DecorationSet {
   const ranges: Range<Decoration>[] = []
   tableRegions(doc.toString()).forEach((region, i) => {
     const text = doc.sliceString(region.from, region.to)
-    const model = parseTable(text)
-    if (!model) return
+    const model = modelFromRegion(region)
     ranges.push(
       Decoration.replace({ widget: new TableWidget(text, model, i), block: true }).range(region.from, region.to)
     )
