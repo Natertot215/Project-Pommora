@@ -9,9 +9,10 @@
 .mdpm-tbl-wrap {
   --grip-gutter: 18px;
   position: relative;
-  /* Only a top gutter reserves layout space (for the column grips); the row grips hang into the editor's
-     left margin via negative offset, so the table itself stays flush with the body text. */
-  padding-top: var(--grip-gutter);
+  /* Top + left gutters reserve hoverable space for the grips INSIDE the wrap. (A negative-margin gutter
+     hanging into the editor's left chrome renders but can't be hovered — the chrome intercepts it.) The
+     table is inset by the gutter width as a result. */
+  padding: var(--grip-gutter) 0 0 var(--grip-gutter);
 }
 
 .mdpm-tbl {
@@ -39,7 +40,7 @@
   height: var(--grip-gutter);
 }
 .mdpm-tbl-grip-row {
-  left: calc(-1 * var(--grip-gutter));
+  left: 0;
   width: var(--grip-gutter);
 }
 .mdpm-tbl-grip {

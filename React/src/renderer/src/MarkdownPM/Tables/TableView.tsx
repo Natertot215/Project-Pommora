@@ -104,11 +104,15 @@ export function TableView({
 
   // Grip pointer-down starts a live reorder. The subject follows the cursor; the target is the slot under
   // it; on release a changed target commits via onReorder (the widget rebuilds in the new order).
-  const startDrag = (e: React.PointerEvent, axis: Axis, index: number): void => {
+  const startDrag = (e: React.PointerEvent<HTMLDivElement>, axis: Axis, index: number): void => {
     if (axis === 'row' && index === 0) return // the header row never drags
     e.preventDefault()
     const wrap = wrapRef.current
     if (!wrap) return
+    // Capture the pointer to the grip so every move/up reaches us directly — otherwise the events bubble
+    // through the nested cell editors the cursor passes over and the drag silently loses its updates.
+    const grip = e.currentTarget
+    grip.setPointerCapture(e.pointerId)
     const box = wrap.getBoundingClientRect()
     const origin = axis === 'col' ? box.left : box.top
     const start = axis === 'col' ? e.clientX : e.clientY
@@ -121,14 +125,15 @@ export function TableView({
       current = { axis, from: index, to, delta: pos - start }
       setDrag(current)
     }
-    const onUp = (): void => {
-      window.removeEventListener('pointermove', onMove)
-      window.removeEventListener('pointerup', onUp)
+    const onUp = (ev: PointerEvent): void => {
+      grip.releasePointerCapture(ev.pointerId)
+      grip.removeEventListener('pointermove', onMove)
+      grip.removeEventListener('pointerup', onUp)
       if (current.to !== current.from) onReorder(axis, current.from, current.to)
       else setDrag(null) // no move — snap back (a reorder rebuilds the widget, clearing this drag)
     }
-    window.addEventListener('pointermove', onMove)
-    window.addEventListener('pointerup', onUp)
+    grip.addEventListener('pointermove', onMove)
+    grip.addEventListener('pointerup', onUp)
   }
 
   const navigate = (row: number, col: number, dir: NavDir): void => {
