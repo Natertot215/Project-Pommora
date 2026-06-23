@@ -70,6 +70,7 @@ Discipline: a green commit per task; a live UIX pass with Nathan before any mile
 #### Fix Log
 
 - Non-native caret used in the MarkdownPM editor; investigate and fix ASAP. 
+- **Widget-table cell editing — nested-CM cells don't take focus on click (the slice-2 blocker).** The Tables widget rebuild (commits `5ae1f28` render, `945c0c8` data, `78a012f` cell editors) renders each cell as a live nested CodeMirror editor — render *proven* live (cell-marker check), reusing the main editor's hidden-syntax rendering, no focus outline. But clicking a cell leaves focus in the OUTER editor: typed text lands in the main doc, not the cell (verified on disk). Nested-editable-inside-a-block-widget focus needs real management — mousedown `stopPropagation` was insufficient; ckant's reference solves it with `selectionType`/`drawSelection`/focus-effect machinery (worth porting, or reconsider nested-CM-per-cell vs a lighter cell). Editing *logic* is TDD'd (`setCell`/`cellCommitChange`/the `tableSelfEdit` remap-not-rebuild sync). The widget is live behind the **uncommitted `index.tsx` swap** (committed main still uses the editable decoration tables).
 
 #### Handoff Rules
 
