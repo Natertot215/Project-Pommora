@@ -32,7 +32,12 @@ function rowGeom(l: { text: string; from: number }): RowGeom {
 // Self-healing detector: a region is the maximal header+delimiter+body block that
 // `parse()`s to a single GFM table. micromark is the sole authority on validity;
 // blockquote and fenced-code headers are excluded up front.
+// Single-entry memo: a keystroke calls this several times (guard ×2, decorations ×2, atomicRanges,
+// findCell) on the same doc string, and each call re-parses with micromark — so cache the last result.
+let cacheDoc: string | null = null
+let cacheRegions: TableRegion[] = []
 export function tableRegions(doc: string): TableRegion[] {
+  if (doc === cacheDoc) return cacheRegions
   const lines = docLines(doc)
   const regions: TableRegion[] = []
   let i = 1
@@ -63,5 +68,7 @@ export function tableRegions(doc: string): TableRegion[] {
     })
     i = last + 1
   }
+  cacheDoc = doc
+  cacheRegions = regions
   return regions
 }

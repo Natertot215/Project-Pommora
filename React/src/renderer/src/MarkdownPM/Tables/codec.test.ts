@@ -13,6 +13,11 @@ describe('codec', () => {
     expect(r.cells.map((c) => c.text)).toEqual(['a', 'b'])
   })
 
+  it('splitRow: a pipe after an escaped backslash (\\\\|) is structural, not escaped', () => {
+    // '| a \\| b |' — the \\ is an escaped backslash, so the following | IS a real cell boundary → 2 cells
+    expect(splitRow('| a \\\\| b |', 0).cells.length).toBe(2)
+  })
+
   it('splitRow returns full inter-pipe segments (untrimmed) — one flex item per cell', () => {
     expect(splitRow('| a | b |', 0).segments).toEqual([
       [1, 4], // ' a ' incl. padding

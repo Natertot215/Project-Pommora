@@ -1,10 +1,33 @@
-import { Decoration, type DecorationSet, EditorView, ViewPlugin, type ViewUpdate } from '@codemirror/view'
+import {
+  Decoration,
+  type DecorationSet,
+  EditorView,
+  ViewPlugin,
+  type ViewUpdate,
+  WidgetType
+} from '@codemirror/view'
 import { StateField, type EditorState, type Extension, type Range } from '@codemirror/state'
 import { tableRegions } from './regions'
 
 // display:none mark (not replace) so the pipe is excluded from grid layout — never steals a track.
 const hidePipe = Decoration.mark({ class: 'md-table-pipe' })
 const hideDelimLine = Decoration.replace({ block: true })
+// Foreign row with more cells than the delimiter declares — GFM ignores the extras; hide them so they
+// don't spill into auto grid tracks and break column alignment.
+const hideOverflow = Decoration.replace({})
+
+// Filler for a ragged row (fewer source cells than columns) so every column still shows a bordered box.
+class EmptyCellWidget extends WidgetType {
+  eq(): boolean {
+    return true
+  }
+  toDOM(): HTMLElement {
+    const s = document.createElement('span')
+    s.className = 'md-table-cell'
+    return s
+  }
+}
+const EMPTY_CELL = Decoration.widget({ widget: new EmptyCellWidget(), side: 1 })
 
 // Each row is a CSS grid with the SAME column template (one minmax(0,<dashes>fr) per column), so columns
 // align across independent rows. Inline cell content is styled by the existing markdownDecorations plugin.
@@ -20,11 +43,21 @@ export function buildInline(doc: string): DecorationSet {
         }).range(row.from)
       )
       for (const p of row.pipes) ranges.push(hidePipe.range(p, p + 1))
+      const ncols = region.delimiter.columns.length
       row.segments.forEach(([from, to], ci) => {
-        if (to <= from) return // zero-width foreign `||` cell — hardened in T9
+        if (ci >= ncols) {
+          if (to > from) ranges.push(hideOverflow.range(from, to)) // extra cell past the column count
+          return
+        }
+        if (to <= from) {
+          ranges.push(EMPTY_CELL.range(from)) // collapsed `||` cell → placeholder so the column stays visible
+          return
+        }
         const align = region.delimiter.columns[ci]?.align ?? 'left'
         ranges.push(Decoration.mark({ class: `md-table-cell md-align-${align}` }).range(from, to))
       })
+      // Pad ragged rows so every column still renders a bordered (empty) cell.
+      for (let ci = row.segments.length; ci < ncols; ci++) ranges.push(EMPTY_CELL.range(row.to))
     })
   }
   return Decoration.set(ranges, true)

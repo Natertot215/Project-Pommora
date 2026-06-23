@@ -2,13 +2,14 @@
    (set inline from the dash counts), so columns align across the independent line elements.
    The delimiter line is removed by a block-replace decoration (decorations.ts); pipes are display:none. */
 
-/* !important on display/padding beats CM6's runtime-injected `.cm-line { display:block }` theme rule. */
-.cm-line.md-table-row {
-  display: grid !important;
+/* Scoped under .mdpm-editor (the editor host) so this is 3 classes (0,3,0) — beats CM6's runtime
+   `.ͼN .cm-line{display:block}` (0,2,0) and the project's `.mdpm-editor .cm-line` (0,2,0), no !important. */
+.mdpm-editor .cm-line.md-table-row {
+  display: grid;
   box-sizing: border-box;
   width: 100%;
   align-items: stretch;
-  padding: 0 !important;
+  padding: 0;
   border-left: 1px solid var(--separator-border);
 }
 

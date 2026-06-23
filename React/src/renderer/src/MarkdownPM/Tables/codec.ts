@@ -16,8 +16,14 @@ export interface RowSplit {
 // Split a row line on UNescaped pipes. Returns trimmed cell text + absolute pipe offsets (line start = `base`).
 export function splitRow(line: string, base: number): RowSplit {
   const pipes: number[] = []
-  for (let i = 0; i < line.length; i++)
-    if (line[i] === '|' && line[i - 1] !== '\\') pipes.push(base + i)
+  for (let i = 0; i < line.length; i++) {
+    if (line[i] !== '|') continue
+    // A pipe is structural unless preceded by an ODD run of backslashes (one-char look-behind missed
+    // `\\|`, where the backslash is itself escaped and the pipe is a real boundary — micromark's rule).
+    let bs = 0
+    for (let j = i - 1; j >= 0 && line[j] === '\\'; j--) bs++
+    if (bs % 2 === 0) pipes.push(base + i)
+  }
   const segs: [number, number][] = []
   const hasLead = line.trimStart()[0] === '|'
   const hasTrail = line.trimEnd().slice(-1) === '|'

@@ -145,6 +145,8 @@ export function MarkdownEditor({
         markdown(),
         EditorView.lineWrapping,
         markdownDecorations(() => connectionsRef.current),
+        // Keep tableExtension AFTER the autocomplete keymap above: both bind Enter at Prec.highest, so the
+        // tie resolves by registration order — autocomplete must run first so Enter-to-accept still works in a cell.
         tableExtension(),
         connectionClicks(() => connectionsRef.current),
         externalLinkClicks(),
