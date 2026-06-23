@@ -5,6 +5,7 @@ import { history, historyKeymap, defaultKeymap } from '@codemirror/commands'
 import { markdown } from '@codemirror/lang-markdown'
 import { markdownDecorations } from './editor/decorations'
 import { markdownInput } from './editor/input'
+import { tableExtension } from './Tables'
 import { connectionClicks } from './editor/connections'
 import { externalLinkClicks } from './editor/links'
 import { markdownFolding, applySavedFolds, type FoldsApi } from './editor/folding'
@@ -144,6 +145,7 @@ export function MarkdownEditor({
         markdown(),
         EditorView.lineWrapping,
         markdownDecorations(() => connectionsRef.current),
+        tableExtension(),
         connectionClicks(() => connectionsRef.current),
         externalLinkClicks(),
         markdownFolding((keys) => foldsRef.current?.save(keys)),
