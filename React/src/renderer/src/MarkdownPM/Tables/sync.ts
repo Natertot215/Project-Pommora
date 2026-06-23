@@ -1,6 +1,7 @@
 import { Annotation } from '@codemirror/state'
-import { tableRegions } from './regions'
-import { cellToSource } from './codec'
+import { tableRegions, modelFromRegion } from './regions'
+import { cellToSource, serialize } from './codec'
+import type { TableModel } from './model'
 
 // Marks a transaction as the table widget editing its own source. The widget StateField remaps its
 // decorations (keeping the widget + its focused cell editor mounted) instead of rebuilding from the doc;
@@ -21,4 +22,18 @@ export function cellCommitChange(
   const seg = tableRegions(docText)[tableIndex]?.rows[row]?.segments[col]
   if (!seg) return null
   return { from: seg[0], to: seg[1], insert: ` ${cellToSource(newText)} ` }
+}
+
+// Structural edit: apply a whole-table model transform (insert/delete row or column, set alignment, …)
+// and replace the table's entire source region with the re-serialized result. Unlike cellCommitChange this
+// changes the table's shape, so the caller dispatches it WITHOUT the tableSelfEdit annotation — the widget
+// rebuilds. Cell content + dash widths survive (the model carries them). Returns null if out of range.
+export function structuralEditChange(
+  docText: string,
+  tableIndex: number,
+  transform: (m: TableModel) => TableModel
+): { from: number; to: number; insert: string } | null {
+  const region = tableRegions(docText)[tableIndex]
+  if (!region) return null
+  return { from: region.from, to: region.to, insert: serialize(transform(modelFromRegion(region))) }
 }

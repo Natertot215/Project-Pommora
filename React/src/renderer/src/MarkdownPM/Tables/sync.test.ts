@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { cellCommitChange } from './sync'
+import { cellCommitChange, structuralEditChange } from './sync'
+import { insertColumn } from './operations'
 import { parseTable, unescapeCell } from './codec'
 
 describe('cellCommitChange — minimal-diff cell edit (replace just the cell span, focus-safe)', () => {
@@ -42,5 +43,23 @@ describe('cellCommitChange — minimal-diff cell edit (replace just the cell spa
     const m = parseTable(spliced)!
     expect(m.header).toHaveLength(2) // structure intact — no phantom column
     expect(unescapeCell(m.header[1])).toBe('a\\|b') // value preserved through the round-trip
+  })
+})
+
+describe('structuralEditChange — whole-table op re-serialized into the source region', () => {
+  const doc = 'before\n\n| a | b |\n| --- | --- |\n| 1 | 2 |\n\nafter'
+
+  it('applies the transform, replaces the region, and preserves content + surroundings', () => {
+    const c = structuralEditChange(doc, 0, (m) => insertColumn(m, 1, 'right'))!
+    const m = parseTable(c.insert)!
+    expect(m.header).toEqual(['a', 'b', '']) // a column was added
+    expect(m.rows).toEqual([['1', '2', '']]) // existing cells preserved
+    const next = doc.slice(0, c.from) + c.insert + doc.slice(c.to)
+    expect(next.startsWith('before\n\n')).toBe(true) // text before the table untouched
+    expect(next.endsWith('\n\nafter')).toBe(true) // text after the table untouched
+  })
+
+  it('returns null for an out-of-range table index', () => {
+    expect(structuralEditChange(doc, 5, (m) => m)).toBeNull()
   })
 })
