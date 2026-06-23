@@ -1,0 +1,37 @@
+/* Interactive table widget (block-replace over the canonical GFM source). Read-only render for now —
+   cell editing, grips, and resize layer on top in later slices. Values resolve from design tokens. */
+
+.mdpm-tbl-widget {
+  margin: 0.4em 0;
+}
+
+.mdpm-tbl {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font: inherit;
+  border: 1px solid var(--separator-border);
+}
+
+.mdpm-tbl-cell {
+  box-sizing: border-box;
+  padding: 3px 8px;
+  min-height: 1.6em;
+  overflow-wrap: anywhere;
+  vertical-align: top;
+  text-align: left;
+  border: 1px solid var(--separator-border);
+}
+
+.mdpm-tbl thead .mdpm-tbl-cell {
+  background: var(--fill-tertiary);
+  font-weight: var(--weight-emphasized);
+}
+
+.mdpm-tbl-align-center {
+  text-align: center;
+}
+
+.mdpm-tbl-align-right {
+  text-align: right;
+}

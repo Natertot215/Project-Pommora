@@ -7,3 +7,7 @@ import { tableInput } from './input'
 export function tableExtension(): Extension {
   return [tableDecorations(), tableDelimiterHider(), tableInput()]
 }
+
+// Widget-architecture rebuild (core slice): renders each table as a block-replace HTML widget over the
+// canonical GFM source. Swappable for tableExtension() at the editor's call site while it's built up.
+export { tableWidgetExtension } from './widget'
