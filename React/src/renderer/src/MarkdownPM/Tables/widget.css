@@ -51,6 +51,19 @@
   opacity: 1;
 }
 
+/* Live reorder — while a drag is active the non-subject cells/rows ease into their shifted slot (the
+   slide); the grabbed row/column follows the cursor directly (no transition) and dims. */
+.mdpm-tbl-dragging .mdpm-tbl-cell,
+.mdpm-tbl-dragging .mdpm-tbl tr {
+  transition: transform 0.16s var(--ease-standard, ease);
+}
+.mdpm-tbl-subject {
+  position: relative;
+  z-index: 2;
+  opacity: 0.55;
+  transition: none !important;
+}
+
 .mdpm-tbl-cell {
   box-sizing: border-box;
   padding: 0;

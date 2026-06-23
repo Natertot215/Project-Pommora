@@ -2,7 +2,8 @@ import { Decoration, type DecorationSet, EditorView, WidgetType } from '@codemir
 import { Facet, StateField, type EditorState, type Extension, type Range } from '@codemirror/state'
 import { createRoot, type Root } from 'react-dom/client'
 import { tableRegions, modelFromRegion } from './regions'
-import { cellCommitChange, tableSelfEdit } from './sync'
+import { cellCommitChange, structuralEditChange, tableSelfEdit } from './sync'
+import { moveColumn, moveRow } from './operations'
 import type { TableModel } from './model'
 import type { ConnectionsApi } from '../connections'
 
@@ -47,6 +48,15 @@ class TableWidget extends WidgetType {
       view.dispatch({ selection: { anchor: dir === 'before' ? region.from : region.to } })
       view.focus()
     }
+    // Reorder a column or body row — re-serialize the whole table with the move applied (a structural edit,
+    // no tableSelfEdit annotation, so the widget rebuilds in the new order). Row indices are visual (0 =
+    // header, which never drags), so body moves map to body indices via -1.
+    const reorder = (axis: 'col' | 'row', from: number, to: number): void => {
+      const change = structuralEditChange(view.state.doc.toString(), this.tableIndex, (m) =>
+        axis === 'col' ? moveColumn(m, from, to) : moveRow(m, from - 1, to - 1)
+      )
+      if (change) view.dispatch({ changes: change })
+    }
     // Lazy-load the React renderer: keeps this module unit-testable (the render chain pulls design-system
     // vanilla-extract that the test env can't build) and defers that cost until a table actually renders.
     const connections = view.state.facet(tableConnections)
@@ -54,7 +64,13 @@ class TableWidget extends WidgetType {
       if (this.destroyed) return
       this.root = createRoot(dom)
       this.root.render(
-        <TableView model={this.model} onCellCommit={commit} onExit={exit} connections={connections} />
+        <TableView
+          model={this.model}
+          onCellCommit={commit}
+          onExit={exit}
+          onReorder={reorder}
+          connections={connections}
+        />
       )
     })
     return dom
