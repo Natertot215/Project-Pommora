@@ -1,6 +1,6 @@
 import './widget.css'
 import { useLayoutEffect, useRef, useState } from 'react'
-import { GripVertical } from 'lucide-react'
+import { GripHorizontal, GripVertical } from 'lucide-react'
 import type { EditorView } from '@codemirror/view'
 import type { Align, TableModel } from './model'
 import { CellEditor } from './CellEditor'
@@ -136,7 +136,7 @@ export function TableView({
           data-index={i}
           style={{ left: c.left, width: c.width }}
         >
-          <GripVertical className="mdpm-tbl-grip" size={14} strokeWidth={2} />
+          <GripHorizontal className="mdpm-tbl-grip" size={14} strokeWidth={2} />
         </div>
       ))}
       {geom.rows.map((r, j) => (
