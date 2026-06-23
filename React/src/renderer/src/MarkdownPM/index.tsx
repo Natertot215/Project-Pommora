@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef } from 'react'
 import { EditorView, keymap } from '@codemirror/view'
 import { Prec } from '@codemirror/state'
 import { history, historyKeymap, defaultKeymap } from '@codemirror/commands'
@@ -12,22 +12,14 @@ import { markdownFolding, applySavedFolds, type FoldsApi } from './editor/foldin
 import { applyEditorAction, type EditorMenuApi } from './editor/menu'
 import { formatKeymap } from './editor/formatKeymap'
 import { readFormatState } from './editor/formatState'
-import { autocompleteQuery, connectionInsert, AC_MAX, acPanelTop } from './autocomplete'
+import { AC_MAX } from './autocomplete'
+import { useConnectionAutocomplete, detectConnectionQuery } from './useConnectionAutocomplete'
 import { AutocompletePanel } from './AutocompletePanel'
-import type { ConnectionsApi, ConnPage } from './connections'
+import type { ConnectionsApi } from './connections'
 import type { IconName } from '@renderer/design-system/symbols'
 import { PageHeader } from './PageHeader'
 import { ZOOM_DEFAULT, zoomFontSize } from './zoom'
 import './Styles.css'
-
-interface AcState {
-  query: string
-  from: number
-  to: number
-  left: number
-  caretTop: number
-  caretBottom: number
-}
 
 interface Props {
   initialBody: string
@@ -73,42 +65,16 @@ export function MarkdownEditor({
   menuRef.current = menu
   const lastFormatRef = useRef('')
 
-  // CM6 extensions are built once at mount, so they read live state + actions through refs.
-  const [ac, setAc] = useState<AcState | null>(null)
-  const [acIndex, setAcIndex] = useState(0)
-  const candidates =
-    ac && connectionsRef.current
-      ? connectionsRef.current
-          .candidates(ac.query, AC_MAX + 1)
-          .filter((p) => p.title !== title)
-          .slice(0, AC_MAX)
-      : []
-
-  const commit = (page: ConnPage): void => {
-    const view = viewRef.current
-    if (!view || !ac) return
-    const { insert, caret } = connectionInsert(page.title, ac.from)
-    view.dispatch({ changes: { from: ac.from, to: ac.to, insert }, selection: { anchor: caret }, userEvent: 'input' })
-    setAc(null)
-    view.focus()
-  }
-
-  const acCtl = useRef({ open: false, pick: () => {}, move: (_d: number) => {}, close: () => {} })
-  acCtl.current = {
-    open: ac !== null && candidates.length > 0,
-    pick: () => {
-      const p = candidates[acIndex]
-      if (p) commit(p)
-    },
-    move: (d) => setAcIndex((i) => Math.max(0, Math.min(i + d, candidates.length - 1))),
-    close: () => setAc(null)
-  }
-  const setAcRef = useRef(setAc)
-  setAcRef.current = setAc
-
-  useEffect(() => setAcIndex(0), [ac?.query])
-
-  const acTop = ac ? acPanelTop(ac.caretTop, ac.caretBottom, candidates.length) : 0
+  // CM6 extensions are built once at mount, so they read live state + actions through refs. The `[[…]]`
+  // autocomplete state machine is shared with table cells; this editor's seams are the candidate source
+  // (over-fetch one to drop the page's own title) and the inline panel placement (rendered below).
+  const { ac, setAc, candidates, acIndex, acTop, commit, acCtl } = useConnectionAutocomplete(
+    viewRef,
+    (query) =>
+      connectionsRef.current
+        ? connectionsRef.current.candidates(query, AC_MAX + 1).filter((p) => p.title !== title).slice(0, AC_MAX)
+        : []
+  )
 
   useEffect(() => {
     const parent = host.current
@@ -151,15 +117,7 @@ export function MarkdownEditor({
             menuRef.current?.pushState(fs)
           }
 
-          if (u.docChanged || u.selectionSet) {
-            let next: AcState | null = null
-            if (sel.empty) {
-              const q = autocompleteQuery(doc, sel.head)
-              const c = q && u.view.coordsAtPos(sel.head)
-              if (q && c) next = { ...q, left: Math.round(c.left), caretTop: Math.round(c.top), caretBottom: Math.round(c.bottom) }
-            }
-            setAcRef.current(next)
-          }
+          if (u.docChanged || u.selectionSet) detectConnectionQuery(u.view, setAc)
         })
       ]
     })
