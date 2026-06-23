@@ -12,20 +12,13 @@ import { markdownFolding, applySavedFolds, type FoldsApi } from './editor/foldin
 import { applyEditorAction, type EditorMenuApi } from './editor/menu'
 import { formatKeymap } from './editor/formatKeymap'
 import { readFormatState } from './editor/formatState'
-import { autocompleteQuery, connectionInsert } from './autocomplete'
+import { autocompleteQuery, connectionInsert, AC_MAX, acPanelTop } from './autocomplete'
 import { AutocompletePanel } from './AutocompletePanel'
 import type { ConnectionsApi, ConnPage } from './connections'
 import type { IconName } from '@renderer/design-system/symbols'
 import { PageHeader } from './PageHeader'
 import { ZOOM_DEFAULT, zoomFontSize } from './zoom'
 import './Styles.css'
-
-const AC_MAX = 6
-// Panel geometry — keep in sync with .mdpm-ac in Styles.css. Used to flip the panel above the caret near the viewport bottom.
-const AC_ROW_H = 28
-const AC_PADDING = 8
-const AC_MAX_ROWS = 4
-const AC_GAP = 4
 
 interface AcState {
   query: string
@@ -115,13 +108,7 @@ export function MarkdownEditor({
 
   useEffect(() => setAcIndex(0), [ac?.query])
 
-  // Anchor below the caret; flip above when the panel would overflow the viewport bottom.
-  const panelHeight = Math.min(candidates.length, AC_MAX_ROWS) * AC_ROW_H + AC_PADDING
-  const acTop = ac
-    ? ac.caretBottom + AC_GAP + panelHeight > window.innerHeight
-      ? ac.caretTop - panelHeight - AC_GAP
-      : ac.caretBottom + AC_GAP
-    : 0
+  const acTop = ac ? acPanelTop(ac.caretTop, ac.caretBottom, candidates.length) : 0
 
   useEffect(() => {
     const parent = host.current
