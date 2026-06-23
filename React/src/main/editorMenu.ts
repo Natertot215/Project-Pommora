@@ -92,8 +92,9 @@ function pommoraItems(wc: WebContents, s: FormatState): MenuItemConstructorOptio
       ]
     },
     {
-      label: 'Block',
+      label: 'Insert',
       submenu: [
+        { label: 'Table', click: act('block:table') },
         { label: 'Blockquote', type: 'checkbox', checked: s.block === 'quote', click: act('block:quote') },
         { label: 'Code Block', click: act('block:code') },
         { label: 'Horizontal Rule', click: act('block:hr') },

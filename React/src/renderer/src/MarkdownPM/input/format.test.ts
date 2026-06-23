@@ -59,4 +59,9 @@ describe('setBlock', () => {
   it('fences a line as code', () => {
     expect(apply('x = 1', setBlock('x = 1', 0, 'code'))).toBe('```\nx = 1\n```')
   })
+  it('inserts a 3×3 GFM table, blank-line separated as its own block', () => {
+    const t = '|  |  |  |\n| ------ | ------ | ------ |\n|  |  |  |\n|  |  |  |'
+    expect(apply('', setBlock('', 0, 'table'))).toBe(t) // empty doc → table at the top
+    expect(apply('hi', setBlock('hi', 2, 'table'))).toBe(`hi\n\n${t}`) // keep the line, blank, then table
+  })
 })

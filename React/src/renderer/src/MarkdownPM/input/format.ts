@@ -1,6 +1,8 @@
 import { tokenize, type TokenKind } from '../tokens'
 import { parseListMarker } from '../detect'
 import { lineStartAt, lineEndAt } from './index'
+import { emptyTable } from '../Tables/model'
+import { serialize } from '../Tables/codec'
 
 /** A set of source edits + an optional resulting caret, applied as one CM transaction. */
 export interface FormatEdit {
@@ -11,7 +13,7 @@ export interface FormatEdit {
 export type InlineFormat = 'bold' | 'italic' | 'strikethrough' | 'inlineCode' | 'link' | 'connection'
 export type HeadingLevel = 0 | 1 | 2 | 3 | 4 | 5 | 6
 export type ListFormat = 'bullet' | 'ordered' | 'task'
-export type BlockFormat = 'quote' | 'code' | 'hr' | 'callout'
+export type BlockFormat = 'quote' | 'code' | 'hr' | 'callout' | 'table'
 
 const WRAP: Record<Exclude<InlineFormat, 'link' | 'connection'>, string> = {
   bold: '**',
@@ -121,6 +123,15 @@ export function setBlock(doc: string, pos: number, fmt: BlockFormat): FormatEdit
     }
     case 'hr': {
       const insert = line.length === 0 ? '---' : `${line}\n\n---\n`
+      return { changes: [{ from: ls, to: le, insert }], selection: ls + insert.length }
+    }
+    case 'table': {
+      // A GFM table parses only as its own block — keep the caret line (if any), guarantee a blank line
+      // before it, then a 3×3 table. The caret lands just after; the user clicks a cell to edit it.
+      const table = serialize(emptyTable(3, 3))
+      const before = doc.slice(0, ls)
+      const lead = line.length > 0 ? `${line}\n\n` : ls === 0 || before.endsWith('\n\n') ? '' : '\n'
+      const insert = `${lead}${table}`
       return { changes: [{ from: ls, to: le, insert }], selection: ls + insert.length }
     }
   }
