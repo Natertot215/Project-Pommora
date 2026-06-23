@@ -5,12 +5,50 @@
   margin: 0.4em 0;
 }
 
+/* The wrap reserves a thin top + left gutter the hover grips live in (kept outside the table border). */
+.mdpm-tbl-wrap {
+  --grip-gutter: 18px;
+  position: relative;
+  /* Only a top gutter reserves layout space (for the column grips); the row grips hang into the editor's
+     left margin via negative offset, so the table itself stays flush with the body text. */
+  padding-top: var(--grip-gutter);
+}
+
 .mdpm-tbl {
   width: 100%;
   border-collapse: collapse;
   table-layout: fixed;
   font: inherit;
   border: 1px solid var(--separator-border);
+}
+
+/* Hover grips — Lucide grip-vertical, label-secondary, revealed ONLY when the pointer reaches into the
+   grip's gutter zone (quiet reveal), and only for the one row/column hovered. Positions are measured. */
+.mdpm-tbl-grip-zone {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+}
+.mdpm-tbl-grip-zone:active {
+  cursor: grabbing;
+}
+.mdpm-tbl-grip-col {
+  top: 0;
+  height: var(--grip-gutter);
+}
+.mdpm-tbl-grip-row {
+  left: calc(-1 * var(--grip-gutter));
+  width: var(--grip-gutter);
+}
+.mdpm-tbl-grip {
+  color: var(--label-secondary);
+  opacity: 0;
+  transition: opacity 0.12s var(--ease-standard, ease);
+}
+.mdpm-tbl-grip-zone:hover .mdpm-tbl-grip {
+  opacity: 1;
 }
 
 .mdpm-tbl-cell {

@@ -75,3 +75,4 @@ Wikilink resolver — **wired** to `@shared/connections` (not a no-op): resoluti
 
 - **Stats footer — ASAP.** Hover-revealed bar: `Vault › Collection › Page` breadcrumb + line / word / char counts (`editor/textStats.ts` stub exists, unwired).
 - **Callouts** (`::` → portable `> [!type]`, behind a swappable codec — a deliberate extension beyond Swift) · **image + latex** render seams (detected + styled today, rendered later) · **zoom slider** placement in the UI.
+- **Border-anchored "+" insert** (hover a column/row edge to insert there). Deferred while tables are full-width — there's no gutter to host it, and the grip's right-click Insert covers the need. Revisit only if non-full-width tables ship.
