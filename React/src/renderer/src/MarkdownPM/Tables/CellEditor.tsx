@@ -4,25 +4,32 @@ import { EditorState, Prec } from '@codemirror/state'
 import { defaultKeymap } from '@codemirror/commands'
 import { markdownDecorations } from '../editor/decorations'
 import type { ConnectionsApi } from '../connections'
+import type { NavDir } from './navigate'
 
 const noConn = (): undefined => undefined
 
-// A table cell rendered as a live nested CodeMirror editor: the SAME hidden-syntax inline rendering as
-// the main editor (markdownDecorations), always editable — there is no read-vs-edit visual switch and no
-// focus effect (the CSS clears CM's focus outline). Single-line for now: Enter is consumed so a stray
-// newline can't break the GFM row; multi-line (<br>) and Tab/Enter cell navigation come in later slices.
+// A table cell as a live nested CodeMirror editor: the SAME hidden-syntax inline rendering as the main
+// editor (markdownDecorations), always editable, no read/edit visual switch and no focus outline. Tab /
+// Shift-Tab / Enter drive cell navigation (handled by the parent so it can cross cells + exit the table);
+// they never insert structure. Multi-line (<br>) cells come in a later slice.
 export function CellEditor({
   initial,
   onCommit,
+  onNavigate,
+  register,
   connections
 }: {
   initial: string
   onCommit: (text: string) => void
+  onNavigate: (dir: NavDir) => void
+  register: (view: EditorView) => () => void
   connections?: () => ConnectionsApi | undefined
 }): React.JSX.Element {
   const host = useRef<HTMLDivElement>(null)
   const onCommitRef = useRef(onCommit)
   onCommitRef.current = onCommit
+  const onNavigateRef = useRef(onNavigate)
+  onNavigateRef.current = onNavigate
 
   useEffect(() => {
     const view = new EditorView({
@@ -32,7 +39,13 @@ export function CellEditor({
         extensions: [
           markdownDecorations(connections ?? noConn),
           EditorView.lineWrapping,
-          Prec.highest(keymap.of([{ key: 'Enter', run: () => true }])),
+          Prec.highest(
+            keymap.of([
+              { key: 'Tab', run: () => (onNavigateRef.current('next'), true) },
+              { key: 'Shift-Tab', run: () => (onNavigateRef.current('prev'), true) },
+              { key: 'Enter', run: () => (onNavigateRef.current('down'), true) }
+            ])
+          ),
           keymap.of(defaultKeymap),
           EditorView.updateListener.of((u) => {
             if (u.docChanged) onCommitRef.current(u.state.doc.toString())
@@ -40,7 +53,11 @@ export function CellEditor({
         ]
       })
     })
-    return () => view.destroy()
+    const unregister = register(view)
+    return () => {
+      unregister()
+      view.destroy()
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- mount once; the cell IS the live editor
   }, [])
 

@@ -33,12 +33,19 @@ class TableWidget extends WidgetType {
       const change = cellCommitChange(view.state.doc.toString(), this.tableIndex, row, col, text)
       if (change) view.dispatch({ changes: change, annotations: tableSelfEdit.of(true) })
     }
+    // Navigating past a table edge moves the main caret before/after the table block.
+    const exit = (dir: 'before' | 'after'): void => {
+      const region = tableRegions(view.state.doc.toString())[this.tableIndex]
+      if (!region) return
+      view.dispatch({ selection: { anchor: dir === 'before' ? region.from : region.to } })
+      view.focus()
+    }
     // Lazy-load the React renderer: keeps this module unit-testable (the render chain pulls design-system
     // vanilla-extract that the test env can't build) and defers that cost until a table actually renders.
     void import('./TableView').then(({ TableView }) => {
       if (this.destroyed) return
       this.root = createRoot(dom)
-      this.root.render(<TableView model={this.model} onCellCommit={commit} />)
+      this.root.render(<TableView model={this.model} onCellCommit={commit} onExit={exit} />)
     })
     return dom
   }
