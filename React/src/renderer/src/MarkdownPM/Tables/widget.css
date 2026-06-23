@@ -52,6 +52,10 @@
 .mdpm-tbl-cell-editor .cm-editor .cm-scroller {
   font: inherit;
   line-height: inherit;
+  /* A nested editor is its own scroll container by default and swallows the wheel when the caret is in a
+     cell — so the page can't scroll. Cells are single-line + wrapped and never scroll: drop the container
+     so the wheel chains to the main editor's scroller. */
+  overflow: visible;
 }
 .mdpm-tbl-cell-editor .cm-editor .cm-content {
   padding: 3px 8px;

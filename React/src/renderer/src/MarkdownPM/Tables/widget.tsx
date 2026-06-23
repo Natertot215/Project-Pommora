@@ -91,5 +91,7 @@ const widgetField = StateField.define<DecorationSet>({
 })
 
 export function tableWidgetExtension(): Extension {
-  return widgetField
+  // atomicRanges over the table blocks: the main caret skips the table as one unit and a boundary
+  // backspace/delete removes the whole block (undoable) instead of eating its pipes and breaking it.
+  return [widgetField, EditorView.atomicRanges.of((view) => view.state.field(widgetField))]
 }

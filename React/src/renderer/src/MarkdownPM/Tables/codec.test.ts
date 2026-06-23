@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { parseTable, serialize, splitRow, parseDelimiter } from './codec'
+import { parseTable, serialize, splitRow, parseDelimiter, escapeCell, unescapeCell } from './codec'
 
 describe('codec', () => {
   it('splitRow splits on unescaped pipes, keeps \\| in-cell, records pipe offsets', () => {
@@ -36,6 +36,20 @@ describe('codec', () => {
   it('parseTable returns null on a non-table and on a code-broken pipe', () => {
     expect(parseTable('not a table')).toBeNull()
     expect(parseTable('| `a|b` | c |\n|---|---|')).toBeNull()
+  })
+
+  it('escapeCell / unescapeCell are inverse for backslashes and pipes', () => {
+    for (const s of ['a|b', 'a\\b', 'a\\|b', 'plain', '|||', '\\\\', 'C:\\path']) {
+      expect(unescapeCell(escapeCell(s))).toBe(s)
+    }
+    expect(escapeCell('a|b')).toBe('a\\|b') // a literal pipe escapes
+    expect(escapeCell('a\\|b')).toBe('a\\\\\\|b') // a literal backslash AND pipe both escape
+  })
+
+  it('parseTable keeps raw escaped cell text; unescapeCell renders the literal for display', () => {
+    const m = parseTable('| a\\|b | c |\n| --- | --- |')!
+    expect(m.header[0]).toBe('a\\|b') // raw source form (matches splitRow contract)
+    expect(unescapeCell(m.header[0])).toBe('a|b') // display form — the backslash is gone
   })
 
   it('round-trips canonical GFM with widths + alignment', () => {

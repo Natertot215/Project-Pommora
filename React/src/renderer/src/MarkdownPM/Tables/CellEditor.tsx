@@ -43,10 +43,24 @@ export function CellEditor({
             keymap.of([
               { key: 'Tab', run: () => (onNavigateRef.current('next'), true) },
               { key: 'Shift-Tab', run: () => (onNavigateRef.current('prev'), true) },
-              { key: 'Enter', run: () => (onNavigateRef.current('down'), true) }
+              { key: 'Enter', run: () => (onNavigateRef.current('down'), true) },
+              // Cells are single-line GFM — consume every newline key so none reaches defaultKeymap's
+              // insertNewline. Multi-line (<br>) cells are a later slice; these keys are reserved for it.
+              { key: 'Shift-Enter', run: () => true },
+              { key: 'Mod-Enter', run: () => true }
             ])
           ),
           keymap.of(defaultKeymap),
+          // Multi-line paste would split the row; flatten newlines to spaces on the way in.
+          EditorView.domEventHandlers({
+            paste: (event, view) => {
+              const text = event.clipboardData?.getData('text/plain')
+              if (text == null || !/\r?\n/.test(text)) return false
+              event.preventDefault()
+              view.dispatch(view.state.replaceSelection(text.replace(/\r?\n/g, ' ')))
+              return true
+            }
+          }),
           EditorView.updateListener.of((u) => {
             if (u.docChanged) onCommitRef.current(u.state.doc.toString())
           })

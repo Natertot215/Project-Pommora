@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { cellCommitChange } from './sync'
-import { parseTable } from './codec'
+import { parseTable, unescapeCell } from './codec'
 
 describe('cellCommitChange — minimal-diff cell edit (replace just the cell span, focus-safe)', () => {
   const doc = '| a | b |\n| --- | --- |\n| 1 | 2 |'
@@ -28,5 +28,19 @@ describe('cellCommitChange — minimal-diff cell edit (replace just the cell spa
   it('returns null for an out-of-range cell or table index', () => {
     expect(cellCommitChange(doc, 0, 9, 9, 'z')).toBeNull()
     expect(cellCommitChange(doc, 5, 0, 0, 'z')).toBeNull()
+  })
+
+  it('flattens newlines so a multi-line paste / Shift+Enter cannot split the GFM row', () => {
+    const c = cellCommitChange(doc, 0, 1, 0, 'x\ny')!
+    expect(c.insert).toBe(' x y ')
+    expect(c.insert).not.toContain('\n')
+  })
+
+  it('escapes backslash+pipe so a literal `a\\|b` stays ONE cell and round-trips', () => {
+    const c = cellCommitChange(doc, 0, 0, 1, 'a\\|b')! // user typed: a \ | b into header col 1
+    const spliced = doc.slice(0, c.from) + c.insert + doc.slice(c.to)
+    const m = parseTable(spliced)!
+    expect(m.header).toHaveLength(2) // structure intact — no phantom column
+    expect(unescapeCell(m.header[1])).toBe('a\\|b') // value preserved through the round-trip
   })
 })

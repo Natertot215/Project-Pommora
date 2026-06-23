@@ -3,6 +3,7 @@ import { useRef } from 'react'
 import type { EditorView } from '@codemirror/view'
 import type { Align, TableModel } from './model'
 import { CellEditor } from './CellEditor'
+import { unescapeCell } from './codec'
 import { nextCell, type NavDir } from './navigate'
 import type { ConnectionsApi } from '../connections'
 
@@ -51,7 +52,7 @@ export function TableView({
 
   const cell = (row: number, col: number, text: string): React.JSX.Element => (
     <CellEditor
-      initial={text}
+      initial={unescapeCell(text)}
       connections={connections}
       onCommit={(t) => onCellCommit(row, col, t)}
       onNavigate={(dir) => navigate(row, col, dir)}

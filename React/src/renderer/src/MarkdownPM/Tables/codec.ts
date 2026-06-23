@@ -13,6 +13,13 @@ export interface RowSplit {
   segments: [number, number][] // absolute, untrimmed pipe-to-pipe extent per cell (one flex item each)
 }
 
+// GFM table-cell escaping: a literal backslash or pipe inside a cell is backslash-escaped so it
+// round-trips through the pipe-delimited row without reading as a column boundary. Inverse pair —
+// escape on commit (sync.ts), unescape at the cell-display boundary (TableView). The model + segments
+// stay in raw source form; only the editable display is unescaped.
+export const escapeCell = (s: string): string => s.replace(/([\\|])/g, '\\$1')
+export const unescapeCell = (s: string): string => s.replace(/\\([\\|])/g, '$1')
+
 // Split a row line on UNescaped pipes. Returns trimmed cell text + absolute pipe offsets (line start = `base`).
 export function splitRow(line: string, base: number): RowSplit {
   const pipes: number[] = []
