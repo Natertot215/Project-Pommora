@@ -170,7 +170,7 @@ Each construct: detection (§4), the active (caret-in) vs inactive (caret-out) r
 - **Fenced code blocks** — full-width background (code background color, no corner radius), monospace at 0.85× size, symmetric horizontal indent (12), char-wrap, fixed line height, paragraph spacing 2. Fence markers hidden when inactive, shown when active. Syntax-highlight is a pluggable seam with a **no-op default** (plain mono on the code background). A copy button overlays the block's top-right (icon + optional uppercased language, 10px, white@80%, `rgba(0,0,0,0.3)` pill, radius 6, insets top 6 / trailing 8) → copies the block text.
 - **Blockquote** — always-show overlay (NOT caret-aware): a rounded card (radius 6) with a 4px accent bar (pill caps radius 2) on the left; text indented (~20px head-indent, 8px right margin) at ~75% body color. Multi-paragraph quotes join contiguously (one element with a left bar). `>` + space markers permanently hidden; bare `>` doesn't activate. Plain Enter continues, Shift+Enter exits (§6). **Colors:** the card fill, bar, and text color are authored in `MarkdownPM/Styles.css` and import their values from the root tokens via CSS vars — fill ← `color.fill.tertiary`, bar ← `color.label.secondary`, text ← `color.label.primary` (alpha'd). No color literals in the blockquote rule.
 - **Thematic break** (`---`) — caret-aware: a 1.5px-thick full-text-width rule (`separatorColor`) when caret is off the line; reverts to literal `---` when entered. No setext interpretation, ever.
-- **Table** — GFM pipe-tables, **out-of-the-box (no grid engine)**. Rendered styled (monospace, faint background `color.fill` low-alpha) with the **pipes `|` and the `|---|` separator row hidden when the caret is off the table, revealed when it enters** — caret-aware dynamic syntax, same pattern as HR. **Editing is inline as plain text** — you type directly in the source; CM6 handles it natively (the hidden-syntax + inline-edit principles, nothing more). No grid widget, cell editors, drag-reorder, or structural machinery — that engine is explicitly deferred (§9).
+- **Table** — GFM pipe-tables rendered as a **live decoration grid** (the `Tables/` subsystem): structural pipes + the delimiter row are always hidden, columns are dash-count-proportional, cell text stays native CM6, and a single `transactionFilter` structure guard makes the shape uncorruptable from the keyboard while cell content edits freely. This **supersedes the earlier "styled text, caret-reveal like HR, no grid engine" plan**. **Full spec → `Features/MarkdownPM.md` § Tables** (dash-count width convention, cell model, structure/resize design, module shape).
 - **Callout** (`::` line) — Notion-style bordered container around a block, like blockquote but a full box. **New construct, not in Swift** — full spec in §11. `::` is a shorthand that canonicalizes to portable `> [!type]` on disk (provisional, behind a swappable codec).
 
 ---
@@ -232,7 +232,7 @@ The editor never reaches into the app; the host injects implementations behind t
 **Deliberate extension beyond Swift** (Nathan-directed): **`::` callouts** (§11). A conscious addition, not a port.
 
 **Deferred:**
-- **Table engine** — the interactive grid, inline cell editors, row/column drag-reorder, and the vendored `md-advanced-tables` core are all **deferred for now**. Tables ship out-of-the-box: styled GFM with hidden pipes/separator + inline text editing (§5). The engine is a clean later add (the research is captured in `History.md`/this doc's git history if revived).
+- **Table grip menu, resize-drag, and row/column reorder** — the `Tables/` decoration grid + headless ops are built (spec → `Features/MarkdownPM.md` § Tables); the grip-menu UI, the resize drag, and drag-reorder are the remaining deferred sub-parts. (A ProseMirror / `md-advanced-tables` engine was rejected — a CM6 decoration layer reaches the whole portable-GFM ceiling without a second editor.)
 
 - **Backlinks panel** (a separate UI listing inbound connections) — out of editor scope. Wikilink *resolution, styling, click-routing, and rename-cascade* are **not** deferred — they wire to the existing connections layer (§7).
 - **Latex math rendering** + **code syntax highlighting** — seams ship with no-op defaults; real renderers opt in later.
@@ -260,7 +260,9 @@ src/renderer/src/MarkdownPM/
                    //   dash/arrow, checkbox canonicalize, Enter/Shift+Enter
   callouts/        // the :: ⇄ > [!type] codec — the swappable on-disk format lives here only
   widgets/         // the DOM/React widgets: checkbox, HR, blockquote box, callout box, code-copy,
-                   //   fold-chevron, image, latex (no table widget — tables are styled text, not a grid)
+                   //   fold-chevron, image, latex (tables are their own Tables/ module — a decoration grid)
+  Tables/          // the table grid subsystem: headless core (model/codec/operations/regions) + CM6
+                   //   adapters (decorations/input/resize) behind one extension — see Features § Tables
   services.ts      // host seams: wikilink resolver (wired to @shared/connections, NOT no-op);
                    //   image, latex, syntax-highlight (no-op defaults for now)
   constants.ts     // the few non-CSS numbers logic needs (nesting cap, debounce…); regexes live in detect/
