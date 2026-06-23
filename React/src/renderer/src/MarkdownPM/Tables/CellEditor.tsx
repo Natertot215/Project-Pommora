@@ -93,9 +93,10 @@ export function CellEditor({
               { key: 'ArrowDown', run: () => (acCtl.current.open ? (acCtl.current.move(1), true) : false) },
               { key: 'ArrowUp', run: () => (acCtl.current.open ? (acCtl.current.move(-1), true) : false) },
               { key: 'Escape', run: () => (acCtl.current.open ? (acCtl.current.close(), true) : false) },
-              // Cells are single-line GFM — consume every newline key so none reaches defaultKeymap's
-              // insertNewline. Multi-line (<br>) cells are a later slice; these keys are reserved for it.
-              { key: 'Shift-Enter', run: () => true },
+              // Cells are single-line GFM. Shift+Enter is the in-cell soft break — inserts a single space
+              // (a real <br> arrives with multi-line cells); Mod+Enter stays reserved. Neither inserts a
+              // newline, which would split the row.
+              { key: 'Shift-Enter', run: (view) => (view.dispatch(view.state.replaceSelection(' ')), true) },
               { key: 'Mod-Enter', run: () => true }
             ])
           ),

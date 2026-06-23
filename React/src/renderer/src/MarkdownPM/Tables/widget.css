@@ -56,6 +56,10 @@
      cell — so the page can't scroll. Cells are single-line + wrapped and never scroll: drop the container
      so the wheel chains to the main editor's scroller. */
   overflow: visible;
+  /* The page header parks via a named scroll-timeline (--mdpm-scroll) the main `.mdpm-editor .cm-scroller`
+     declares. That selector also matches THIS nested scroller; a second declarer makes the name ambiguous,
+     so the header gets no timeline and stays glued to the top. Don't claim the name here. */
+  scroll-timeline: none;
 }
 .mdpm-tbl-cell-editor .cm-editor .cm-content {
   padding: 3px 8px;
