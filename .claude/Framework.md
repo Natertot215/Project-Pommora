@@ -93,7 +93,7 @@ The **Gallery** renderer (cards over the per-container `SavedView` storage) and 
 ##### v0.5.0 — Views complete + Symbols + Trash
 - **Views feature-complete.** With Table + Gallery, the Views dropdown, page **covers** + container **banners**, and the full per-view config — **order, sort, Group By, column selection** + **tier-link sort + filter** (`linked to` / `not linked to` relation operators) — all polished, the view system is done (Board / List / Cards stay enum-carried for post-v0.5 UI — Board = kanban, cards grouped by a property's options). Includes the deferred per-view **reorder engine** on the macOS 26 drag-session APIs (until now, Type detail tables are display-only and mirror the sidebar). Spec → `// Features//Views.md`.
 - **Standardized Symbols.** In-app Symbol Settings surface over the `// Guidelines//Symbols.md` registry — user-remappable Application ↔ SF Symbol assignments, replacing hardcoded glyphs with a configurable table.
-- **Archive / Trash.** In-app Trash window (SwiftUI surface over the v0.2.5 `.trash//` data layer) with restore + permanent-delete + Empty Trash; cascade-delete reporting with exact counts (Page Type → N Collections + M Pages).
+- **Archive / Trash.** In-app Trash window (SwiftUI surface over the v0.2.5 `.trash//` data layer) with restore + permanent-delete + Empty Trash; cascade-delete reporting with exact counts (Page Collection → N Sets + M Pages).
 - **(infra)** **FTS5 tables wired** (schema only — the `⌘K` search UI ships v0.7.0); broken-link warning surface for connections.
 
 ##### v0.6.0 — EventKit + Agenda UIX + Calendar

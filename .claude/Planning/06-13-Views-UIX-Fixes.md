@@ -30,7 +30,7 @@ Dropdown redesigned: fixed-width single-icon **views button** (icon = active vie
 
 ### Fix 1b — Column / page-row "Edit Icon" → IconPicker popover — NEEDS NATHAN'S PICK
 
-Replace the screen-takeover (`IconPickerSheet`) with the left-flying `IconPicker` popover (the approach used in the views dropdown). Open question — WHICH rows: table/gallery page rows (routed via `ViewSurface` → the global `.sheet`; rows need a per-row anchor, more involved) or sidebar entity rows (Vaults / Areas / Topics / Projects / Sets). (Property rows in Edit Properties already use `iconPickerPopover`.)
+Replace the screen-takeover (`IconPickerSheet`) with the left-flying `IconPicker` popover (the approach used in the views dropdown). Open question — WHICH rows: table/gallery page rows (routed via `ViewSurface` → the global `.sheet`; rows need a per-row anchor, more involved) or sidebar entity rows (Collections / Areas / Topics / Projects / Sets). (Property rows in Edit Properties already use `iconPickerPopover`.)
 
 ### Fix 2 — Banner + revised titles — IN PROGRESS
 
@@ -47,7 +47,7 @@ Current working point on `main` (Nathan set it manually — the baseline; nothin
 ### Fix 3 — Layout pane revision + type dual-write — QUEUED (lands after BOTH views are visually perfect)
 
 - Settings → Layout pane becomes format-dependent: **Layout Format** row (Table/Gallery); **Table** → Hide Column Borders, Hide Page Icon; **Gallery** → Card Size, Hide Property Titles, Hide Page Icon; **both** → Open In (per-view).
-- New `SavedView` fields: `hideColumnBorders`, `hidePageIcon`, `hidePropertyTitles`, per-view `openIn` (today `openIn` lives on `PageType`).
+- New `SavedView` fields: `hideColumnBorders`, `hidePageIcon`, `hidePropertyTitles`, per-view `openIn` (today `openIn` lives on `PageCollection`).
 - Type changeable from BOTH the dropdown submenu and this pane → single source of truth on `SavedView.type`.
 - Order: the grouping + sorting UIX rework comes FIRST; Fix 3 is the final pass.
 

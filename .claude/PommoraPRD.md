@@ -8,7 +8,7 @@
 
 A personal management platform combining Obsidian's customization and local-first ethos with Notion's database and view capabilities. Pommora is a simpler Notion that's also a more capable Obsidian — without the trade-offs that push people to bounce between the two.
 
-Pages are Markdown documents that live inside **Page Types** — folder-based database entities that carry a shared property schema and saved views. **Page Collections** organize within a Type, optionally subdivided by schema-less **Page Sets**. **Contexts** (Areas / Topics / Projects) are free-standing organization surfaces that tag and gather everything else. UI labels default to "Vault" + "Collection" + "Set".
+Pages are Markdown documents that live inside **Page Collections** — folder-based database entities that carry a shared property schema and saved views. A Collection nests **Page Sets** to any depth: schema-less organizing sub-folders that inherit the Collection's schema. **Contexts** (Areas / Topics / Projects) are free-standing organization surfaces that tag and gather everything else. UI labels default to "Collection" + "Set".
 
 ### Why
 
@@ -16,7 +16,7 @@ Pages are Markdown documents that live inside **Page Types** — folder-based da
 - **Notion's** in-line database views — filtered, sorted, and regrouped per page without altering the source — are its defining feature, and Obsidian's file-as-document model can't match it natively.
 - Obsidian shines until you need real task management or cross-page coordination. Notion shines until you hit an interface decision you can't change.
 
-Pommora's bet: a Markdown-canonical foundation with a fast property and query engine, and a clean separation between content (Pages), structure (Page Types + Collections), and interface (Contexts) — delivering Notion's most-loved features without giving up Obsidian's open, hackable, local-first nature.
+Pommora's bet: a Markdown-canonical foundation with a fast property and query engine, and a clean separation between content (Pages), structure (Page Collections + Sets), and interface (Contexts) — delivering Notion's most-loved features without giving up Obsidian's open, hackable, local-first nature.
 
 ### Audience and Posture
 
@@ -34,14 +34,14 @@ Two layers, PARA-aligned.
 
 **Operational layer — Pages + Agenda:**
 
-- **Pages** — Markdown documents inside a **Page Type** (the schema-bearing container). Page Collections organize within a Type and share its schema; Page Sets optionally subdivide a Collection and inherit everything from it. The hierarchy is intentionally shallow — Type, Collection, Set — so structure stays legible. UI labels default to "Vault" / "Collection" / "Set".
+- **Pages** — Markdown documents inside a **Page Collection** (the schema-bearing container). A Collection nests **Page Sets** to any depth — schema-less sub-folders that inherit the Collection's schema; the first level is a "Set" (carries its own views), deeper levels are "Sub-Sets" (plain). UI labels default to "Collection" / "Set".
 - **Agenda** — the calendar layer, split into two entities: **Tasks** (reminder-shaped) and **Events** (calendar-event-shaped). "Agenda" names the parent layer that holds both. EventKit integration is opt-in.
 
 **Singleton — Homepage**: a composed-blocks dashboard, one per Nexus, that can embed anything.
 
 **Settings**: per-Nexus, user-overridable UI labels and accent color.
 
-Full definitions and linking model → `// Features//Domain-Model.md` plus per-entity files (`Contexts.md`, `PageTypes.md`, `Pages.md`, `Agenda.md`, `Homepage.md`).
+Full definitions and linking model → `// Features//Domain-Model.md` plus per-entity files (`Contexts.md`, `PageCollections.md`, `PageSets.md`, `Pages.md`, `Agenda.md`, `Homepage.md`).
 
 ---
 
@@ -55,7 +55,7 @@ Pommora is a native macOS app built in SwiftUI, with AppKit interop where SwiftU
 
 1. **Portability of functionalities.** The product's value — file formats, domain model, property catalog, connection behavior, design values, UX patterns — survives a stack rebuild. The codebase is replaceable; the documented decisions are what endure. Detail → `// Features//Architecture.md`.
 
-2. **Cloud-sync-ready and cross-nexus queryable.** Types and Collections aren't isolated silos — any Page or Context can query, link, or embed any Type's contents regardless of where it sits on disk. The on-disk model maps cleanly onto a cloud database, so sync arrives later as an additive translation rather than a rewrite. A Nexus placed in iCloud Drive, Dropbox, or any synced folder already gets device-to-device sync for free.
+2. **Cloud-sync-ready and cross-nexus queryable.** Collections aren't isolated silos — any Page or Context can query, link, or embed any Collection's contents regardless of where it sits on disk. The on-disk model maps cleanly onto a cloud database, so sync arrives later as an additive translation rather than a rewrite. A Nexus placed in iCloud Drive, Dropbox, or any synced folder already gets device-to-device sync for free.
 
 3. **Agent-legible files.** External agents — Claude, MCP clients, any tool with filesystem access — can read Pommora's entire structured graph (Pages, schemas, Areas, relations, properties) straight from the files, with no tool-call round-trips. This is the differentiator from Notion-via-MCP (tool-mediated and opaque) and from Obsidian (legible but unstructured). Any choice that trades file-legibility for app-internal convenience violates this constraint.
 
@@ -63,7 +63,7 @@ Pommora is a native macOS app built in SwiftUI, with AppKit interop where SwiftU
 
 **Files are canonical.** Everything a user creates lives as a plain file in a folder they pick (default `~//PommoraNexus//`), and that folder is the whole product — it can sit in any synced location and travels intact. Pages are Markdown with YAML frontmatter; Agenda entries, Contexts, and all configuration are JSON. There is no database of record holding user data hostage.
 
-**Kind comes from the folder's sidecar, not the file.** Each container folder carries a small config sidecar that declares what it is and what schema its contents share. A folder *is* a Page Type because it holds a Page Type sidecar — folder names stay freely renameable, and classification never depends on a file extension or a frontmatter field.
+**Kind comes from the folder's sidecar, not the file.** Each container folder carries a small config sidecar that declares what it is and what schema its contents share. A folder *is* a Page Collection because it holds a Page Collection sidecar — folder names stay freely renameable, and classification never depends on a file extension or a frontmatter field.
 
 **Foreign data is preserved.** Frontmatter Pommora doesn't recognize is carried through untouched on every write, so the format stays friendly to other tools.
 
@@ -73,13 +73,13 @@ Full on-disk spec → `// Features//Architecture.md`.
 
 #### Pages
 
-A Page is a Markdown document — one continuous stream, not a stack of blocks. The filename is the title (there is no separate title field), and the parent Page Type is implied by location. Pages conform to their Type's schema.
+A Page is a Markdown document — one continuous stream, not a stack of blocks. The filename is the title (there is no separate title field), and the parent Page Collection is implied by location. Pages conform to their Collection's schema.
 
 Beyond standard Markdown (headings, lists, code, images, tables, blockquotes), Pages support two Pommora rendering directives: **Columns** (an evenly-divided multi-column section) and **Callouts** (an outlined box, distinct from a blockquote's emphasis bar). Both degrade to plain Markdown for external tools. Headings fold by default. Full detail → `// Features//Pages.md`.
 
-#### Page Types, Collections, and Sets
+#### Page Collections and Sets
 
-A **Page Type** is the operational container — a folder carrying a shared property schema and a set of saved views. It has no text editor of its own; it's a pure database surface (table / board / list / cards / gallery). **Page Collections** are sub-folders that share the Type's schema but carry their own ordering and views. **Page Sets** optionally subdivide a Collection, inheriting everything from it. Moving a Page across Types strips any properties the destination schema doesn't define, with a confirmation warning. Each Type chooses where its Pages open — a compact preview window, or the main detail pane. Full detail → `// Features//PageTypes.md` + `// Features//Sets.md`.
+A **Page Collection** is the operational container — a folder carrying a shared property schema and a set of saved views. It has no text editor of its own; it's a pure database surface (table / board / list / cards / gallery). A Collection nests **Page Sets** to any depth: schema-less sub-folders that inherit the Collection's schema — the first level (a "Set") carries its own views and sorting, deeper levels ("Sub-Sets") are plain. Moving a Page across Collections strips any properties the destination schema doesn't define, with a confirmation warning. Each Collection chooses where its Pages open — a compact preview window, or the main detail pane. Full detail → `// Features//PageCollections.md` + `// Features//PageSets.md`.
 
 #### Contexts (Areas / Topics / Projects)
 
@@ -118,7 +118,7 @@ Connections are body `[[Title]]` links — the sole connection syntax, rendered 
 
 #### Sidebar Navigation
 
-The sidebar surfaces curated, app-relevant navigation — not a raw filesystem view. Top-level groups, default-collapsed and user-reorderable: a heading-less **Pinned** section (Homepage / Calendar / Recents) at the top, then **Contexts** (Areas / Topics / Projects as disclosure rows), then **Vaults** (Page Types disclosing their Collections, Sets, and Pages), then any user-created vault sections. Agenda surfaces through the Pinned Calendar entry rather than its own rows.
+The sidebar surfaces curated, app-relevant navigation — not a raw filesystem view. Top-level groups, default-collapsed and user-reorderable: a heading-less **Pinned** section (Homepage / Calendar / Recents) at the top, then **Contexts** (Areas / Topics / Projects as disclosure rows), then **Collections** (Page Collections disclosing their Sets, Sub-Sets, and Pages), then any user-created Collection sections. Agenda surfaces through the Pinned Calendar entry rather than its own rows.
 
 Creation is right-click-only — no "+ New" buttons. A context menu offers "New X" options scoped to the cursor location, and a global quick-capture hotkey is the discoverable counterpart for creating from anywhere. Full spec → `// Features//Sidebar.md`.
 
@@ -130,7 +130,7 @@ The window uses the macOS unified title bar — no separate Pommora chrome — w
 
 #### Detail Header + Banner
 
-Every entity opens under a consistent header. Containers (Page Types and Collections) can set an optional **banner** image that bleeds edge-to-edge under the side panes; when a banner is set, the title overlays its bottom-leading corner, otherwise it sits as plain chrome above the content. An unset banner shows a hover-revealed "Add Banner" affordance.
+Every entity opens under a consistent header. Containers (Page Collections and depth-1 Sets) can set an optional **banner** image that bleeds edge-to-edge under the side panes; when a banner is set, the title overlays its bottom-leading corner, otherwise it sits as plain chrome above the content. An unset banner shows a hover-revealed "Add Banner" affordance.
 
 #### Navigation Dropdown
 
@@ -138,7 +138,7 @@ The main pane is single-pane; navigation history lives in a dropdown button in t
 
 #### Page Preview Window
 
-Pages from a preview-mode vault open in a lightweight **preview window** — one per Page, child-attached to the main window so it rides its moves and never behaves as its own app window. It opens locked (read-only) with the inspector open; unlocking reveals an Open action, and a shortcut promotes the Page into the main detail pane. A Page already shown in the main pane never previews. Full spec → `// Features//Pages.md`.
+Pages from a preview-mode Collection open in a lightweight **preview window** — one per Page, child-attached to the main window so it rides its moves and never behaves as its own app window. It opens locked (read-only) with the inspector open; unlocking reveals an Open action, and a shortcut promotes the Page into the main detail pane. A Page already shown in the main pane never previews. Full spec → `// Features//Pages.md`.
 
 #### First-Launch Experience
 
@@ -163,7 +163,7 @@ Auto-update for the direct build, TestFlight for Mac, and Mac App Store readines
 **In:**
 
 - **Contexts** (Areas / Topics / Projects) — free-standing organization surfaces with per-Nexus configurable labels, all three in one sidebar section. No containment, no parents, no cross-tier links.
-- **Page Types + Collections + Sets + Pages** — schema-bearing Types, schema-sharing Collections, schema-less Sets, and Markdown Pages. UI labels renameable. Each Type chooses preview-window vs. main-pane opening.
+- **Page Collections + Sets + Pages** — schema-bearing Collections, schema-less recursive Sets, and Markdown Pages. UI labels renameable. Each Collection chooses preview-window vs. main-pane opening.
 - **Pages** — Markdown + frontmatter (including per-tier multi-relations), native editor, Columns and Callouts.
 - **Agenda** — Tasks and Events with a required built-in Status on each; sync opt-in (data layer in place, live mirroring planned); surfaced through the Calendar entry, no sidebar section.
 - **Homepage** — singleton dashboard, seeded on first launch.
@@ -172,7 +172,7 @@ Auto-update for the direct build, TestFlight for Mac, and Mac App Store readines
 - Connections — `[[Page]]` inline links, the sole connection syntax.
 - Automatic rename with connection cascade across all referencing bodies.
 - A file watcher keeping the index synced, and global full-text search.
-- Sidebar (Pinned / Contexts / Vaults) plus user-creatable vault sections, reorderable and default-collapsed.
+- Sidebar (Pinned / Contexts / Collections) plus user-creatable Collection sections, reorderable and default-collapsed.
 - Inline editing of embedded views.
 - One design scheme plus in-app accent and font-size customization.
 

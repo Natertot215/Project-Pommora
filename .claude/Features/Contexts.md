@@ -20,7 +20,7 @@ Labels are stored per-Nexus (singular + plural, Capacities convention); tier *nu
 
 #### Shared shape
 
-All three tiers are **folders with a config sidecar** — the same idiom as Page Types (folder + `_pagetype.json`). Each entity carries:
+All three tiers are **folders with a config sidecar** — the same idiom as Page Collections (folder + `_pagecollection.json`). Each entity carries:
 
 - `id` (ULID), `tier` (1/2/3), `icon` (optional)
 - `blocks` — an array reserved for a future composed-blocks surface; **currently always empty**

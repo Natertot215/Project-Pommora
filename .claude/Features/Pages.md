@@ -6,16 +6,16 @@ A Page is one Markdown file inside a [[PageCollections|Page Collection]] — the
 
 #### On disk
 
-- A single `.md` file inside a Page Type folder (a root folder carrying `_pagetype.json`).
+- A single `.md` file inside a Page Collection folder (a root folder carrying `_pagecollection.json`).
 
-- **Page Type membership is determined by location.** A Page inside a Page Type folder (folder containing `_pagetype.json`) is a Page in that Page Type. Pages can live directly in a Page Type folder, in a Page Collection sub-folder (carrying `_pagecollection.json`), or in a Page Set sub-folder (carrying `_pageset.json`) inside a Collection.
+- **Page Collection membership is determined by location.** A Page inside a Page Collection folder (folder containing `_pagecollection.json`) is a Page in that Collection. Pages can live directly in the Collection folder, or in a Page Set sub-folder (carrying `_pageset.json`) at any depth inside it.
 
-- Move a Page between Page Types → properties not in the destination Page Type's schema are stripped (Notion-style; confirm prompt warns the user). Move it anywhere within the same Page Type (between Sets, Collection roots, and the Type root) → no strip; schema is shared and Sets carry none of their own.
+- Move a Page between Page Collections → properties not in the destination Collection's schema are stripped (Notion-style; confirm prompt warns the user). Move it anywhere within the same Collection (between Sets, Sub-Sets, and the Collection root, at any depth) → no strip; schema is shared and Sets carry none of their own.
 
-- YAML frontmatter for identity (`id`), icon, **per-tier multi-relations** (`tier1` / `tier2` / `tier3` pointing to Contexts), and property values from the Page Type's schema. **No `page_type` field needed** — membership is by location. **No `title` field either** — the Page's title is its filename (minus `.md`); renaming the title in the UI renames the file on disk. (Independent UI titles → [[Prospects]].)
+- YAML frontmatter for identity (`id`), icon, **per-tier multi-relations** (`tier1` / `tier2` / `tier3` pointing to Contexts), and property values from the Collection's schema. **No container field needed** — membership is by location. **No `title` field either** — the Page's title is its filename (minus `.md`); renaming the title in the UI renames the file on disk. (Independent UI titles → [[Prospects]].)
 - **Title is NOT the same thing as ID.** The Page's `id` (ULID in frontmatter) is its stable identity; the filename is its renameable display title. Cross-references (connections, context-link tier values) resolve via `id`, never by filename. Page titles are globally unique nexus-wide — a colliding create or rename is rejected (canonical rule → [[Domain-Model]] "Entity identity vs title").
 
-- Properties on a Page must conform to the Page Type's schema. **Ad-hoc properties (page-local fields not in the schema) are out of v1 scope** — the only "outside the schema" things are sidebar ordering / sorting, which are UI state, not file content. (Ad-hoc properties → [[Prospects]].)
+- Properties on a Page must conform to the Collection's schema. **Ad-hoc properties (page-local fields not in the schema) are out of v1 scope** — the only "outside the schema" things are sidebar ordering / sorting, which are UI state, not file content. (Ad-hoc properties → [[Prospects]].)
 
 - Markdown body for prose.
 

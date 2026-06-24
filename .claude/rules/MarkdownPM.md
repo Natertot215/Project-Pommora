@@ -408,7 +408,7 @@ When a feature needs to remember user-chosen display state (column widths, futur
 
 ##### 9.4 Filename = title (CLAUDE.md, locked)
 
-Pages have no `title` field. The filename IS the title. Renaming the title in the UI renames the file on disk. Vaults, Collections, Contexts all follow the same rule (Independent UI titles are a Prospect, not v1).
+Pages have no `title` field. The filename IS the title. Renaming the title in the UI renames the file on disk. Collections, Sets, Contexts all follow the same rule (Independent UI titles are a Prospect, not v1).
 
 ##### 9.5 Strip-and-revert beats hotfix-on-hotfix (Session 12 + Session 13 reinforced)
 

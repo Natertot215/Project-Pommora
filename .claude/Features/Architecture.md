@@ -118,7 +118,7 @@ External + out-of-band on-disk changes (Obsidian / vim / Finder / cloud-sync) pr
 
 When a folder is first opened as a Nexus, the adopter classifies each root folder independently: fresh (no recognized sidecar → content-sniff picks a Page Collection), unrecognized sidecar (auto-tagged as a Page Collection, the foreign sidecar staying **inert on disk**), or already flat (no-op). Idempotent, per-folder atomic, safe to re-run on partial state; hidden folders skipped. Preview-before-commit shows per-Collection counts + warnings; fully-flat Nexuses skip the sheet silently. Full per-shape detail → `// Features//PageCollections.md` § "Adopting existing folders".
 
-**Kind authority = the folder sidecar, not the extension.** A `.md` file's kind comes from its parent folder's sidecar (`_pagetype.json` → Page), never from frontmatter. Any kind-like frontmatter key is treated as preserved foreign frontmatter — carried by value, never written by Pommora.
+**Kind authority = the folder sidecar, not the extension.** A `.md` file's kind comes from its parent folder's sidecar (`_pagecollection.json` / `_pageset.json` → Page), never from frontmatter. Any kind-like frontmatter key is treated as preserved foreign frontmatter — carried by value, never written by Pommora.
 
 ---
 
