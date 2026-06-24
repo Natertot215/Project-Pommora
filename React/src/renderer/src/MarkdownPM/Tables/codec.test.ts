@@ -11,10 +11,9 @@ import {
 } from './codec'
 
 describe('codec', () => {
-  it('splitRow splits on unescaped pipes, keeps \\| in-cell, records pipe offsets', () => {
+  it('splitRow splits on unescaped pipes, keeps \\| in-cell', () => {
     const r = splitRow('| a\\|b | c |', 0)
     expect(r.cells.map((c) => c.text)).toEqual(['a\\|b', 'c'])
-    expect(r.pipes).toEqual([0, 7, 11]) // leading, middle, trailing structural pipes
   })
 
   it('splitRow handles rows with no outer pipes', () => {

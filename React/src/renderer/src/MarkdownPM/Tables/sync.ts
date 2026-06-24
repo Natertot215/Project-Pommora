@@ -8,10 +8,6 @@ import type { TableModel } from './model'
 // external edits carry no annotation, so they rebuild. This is what keeps cell focus across an edit.
 export const tableSelfEdit = Annotation.define<boolean>()
 
-// Minimal-diff cell edit: replace ONLY the cell's source span (not the whole table) so the block
-// decoration remaps cleanly via deco.map and the focused cell editor never remounts. `cellToSource`
-// escapes backslashes + pipes and serializes in-cell newlines as `<br>`, so the row stays single-line
-// GFM no matter what's typed/pasted. Returns null if out of range. row 0 = header, row >= 1 = body[row-1].
 export function cellCommitChange(
   docText: string,
   tableIndex: number,
@@ -21,13 +17,10 @@ export function cellCommitChange(
 ): { from: number; to: number; insert: string } | null {
   const seg = tableRegions(docText)[tableIndex]?.rows[row]?.segments[col]
   if (!seg) return null
-  return { from: seg[0], to: seg[1], insert: ` ${cellToSource(newText)} ` }
+  const insert = ` ${cellToSource(newText)} `
+  return { from: seg[0], to: seg[1], insert }
 }
 
-// Structural edit: apply a whole-table model transform (insert/delete row or column, set alignment, …)
-// and replace the table's entire source region with the re-serialized result. Unlike cellCommitChange this
-// changes the table's shape, so the caller dispatches it WITHOUT the tableSelfEdit annotation — the widget
-// rebuilds. Cell content + dash widths survive (the model carries them). Returns null if out of range.
 export function structuralEditChange(
   docText: string,
   tableIndex: number,
@@ -35,5 +28,10 @@ export function structuralEditChange(
 ): { from: number; to: number; insert: string } | null {
   const region = tableRegions(docText)[tableIndex]
   if (!region) return null
-  return { from: region.from, to: region.to, insert: serialize(transform(modelFromRegion(region))) }
+  const insert = serialize(transform(modelFromRegion(region)))
+  // A transform that serializes to the same text (reordering identical/empty columns, aligning to the
+  // current alignment) is a no-op. Skip it: dispatching it would rebuild an eq-equal widget, CM would skip
+  // the re-render, and a live drag — which relies on that re-render to clear — would freeze.
+  if (insert === docText.slice(region.from, region.to)) return null
+  return { from: region.from, to: region.to, insert }
 }

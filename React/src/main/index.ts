@@ -20,6 +20,8 @@ import { readFolds, writeFolds, type FoldState } from './io/folds'
 import { handleMutate, type MutateDeps } from './mutate'
 import { showContextMenu } from './contextMenu'
 import { installAppMenu } from './menu'
+import { popTableMenu } from './tableMenu'
+import type { TableMenuContext } from '@shared/tableMenu'
 import { installEditorContextMenu, setFormatState } from './editorMenu'
 import type { FormatState } from '@shared/editorMenu'
 import { isValidLink, normalizeLinkUrl } from '@shared/links'
@@ -447,6 +449,12 @@ ipcMain.handle('nexus:titleMenu', async (e): Promise<'rename' | 'editIcon' | nul
     ])
     menu.popup({ window: win, callback: () => { if (!acted) resolve(null) } })
   })
+})
+
+// Pop the table grip's native right-click menu → the chosen action (null if dismissed); renderer applies it.
+ipcMain.handle('table-menu', async (e, ctx: TableMenuContext) => {
+  const win = BrowserWindow.fromWebContents(e.sender)
+  return win ? popTableMenu(win, ctx) : null
 })
 
 // Persist a cropped PNG data URL: write .nexus/photo.png atomically, then record

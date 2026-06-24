@@ -3,10 +3,7 @@ import { normalize, type Column, type TableModel } from './model'
 import { splitRow, parseDelimiter, docLines, type CellSpan } from './codec'
 
 export interface RowGeom {
-  from: number
-  to: number
   cells: CellSpan[]
-  pipes: number[]
   segments: [number, number][]
 }
 
@@ -14,7 +11,7 @@ export interface TableRegion {
   from: number
   to: number
   rows: RowGeom[]
-  delimiter: { from: number; to: number; columns: Column[] }
+  delimiter: { columns: Column[] }
 }
 
 const lineTo = (l: { text: string; from: number }): number => l.from + l.text.length
@@ -25,15 +22,11 @@ function isTable(block: string): boolean {
 }
 
 function rowGeom(l: { text: string; from: number }): RowGeom {
-  const { cells, pipes, segments } = splitRow(l.text, l.from)
-  return { from: l.from, to: lineTo(l), cells, pipes, segments }
+  return splitRow(l.text, l.from)
 }
 
-// Self-healing detector: a region is the maximal header+delimiter+body block that
-// `parse()`s to a single GFM table. micromark is the sole authority on validity;
-// blockquote and fenced-code headers are excluded up front.
-// Single-entry memo: a keystroke calls this several times (guard ×2, decorations ×2, atomicRanges,
-// findCell) on the same doc string, and each call re-parses with micromark — so cache the last result.
+// Single-entry memo: a keystroke calls this several times on the same doc string (guard, decorations,
+// atomicRanges) and each call re-parses with micromark — cache the last result.
 let cacheDoc: string | null = null
 let cacheRegions: TableRegion[] = []
 export function tableRegions(doc: string): TableRegion[] {
@@ -64,7 +57,7 @@ export function tableRegions(doc: string): TableRegion[] {
       from: header.from,
       to: lineTo(lines[last]),
       rows: [rowGeom(header), ...body.map(rowGeom)],
-      delimiter: { from: lines[i].from, to: lineTo(lines[i]), columns }
+      delimiter: { columns }
     })
     i = last + 1
   }
@@ -73,9 +66,7 @@ export function tableRegions(doc: string): TableRegion[] {
   return regions
 }
 
-// Build the editable model straight from a located region — `tableRegions` already parsed + validated the
-// block and recorded its columns + per-cell text, so the widget needn't re-parse the same slice. Equivalent
-// to `parseTable` on the region's source (regression-tested), without the second micromark pass per build.
+// Equivalent to `parseTable` on the region's source (regression-tested), without a second micromark pass.
 export function modelFromRegion(region: TableRegion): TableModel {
   return normalize({
     columns: region.delimiter.columns,

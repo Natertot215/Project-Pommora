@@ -64,4 +64,13 @@ describe('setBlock', () => {
     expect(apply('', setBlock('', 0, 'table'))).toBe(t) // empty doc → table at the top
     expect(apply('hi', setBlock('hi', 2, 'table'))).toBe(`hi\n\n${t}`) // keep the line, blank, then table
   })
+
+  it('blank-line-fences the inserted table below too, so it never merges with an adjacent table', () => {
+    const t = '|  |  |  |\n| ------ | ------ | ------ |\n|  |  |  |\n|  |  |  |'
+    const below = '| A | B |\n| --- | --- |\n| 1 | 2 |'
+    // caret on the blank line directly above a table → table fenced by a blank line on each side
+    expect(apply(`text\n\n${below}`, setBlock(`text\n\n${below}`, 5, 'table'))).toBe(`text\n\n${t}\n\n${below}`)
+    // a blank line already follows → not doubled
+    expect(apply(`text\n\n\n${below}`, setBlock(`text\n\n\n${below}`, 5, 'table'))).toBe(`text\n\n${t}\n\n${below}`)
+  })
 })

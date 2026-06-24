@@ -126,12 +126,16 @@ export function setBlock(doc: string, pos: number, fmt: BlockFormat): FormatEdit
       return { changes: [{ from: ls, to: le, insert }], selection: ls + insert.length }
     }
     case 'table': {
-      // A GFM table parses only as its own block — keep the caret line (if any), guarantee a blank line
-      // before it, then a 3×3 table. The caret lands just after; the user clicks a cell to edit it.
+      // A GFM table parses as its own block ONLY when blank lines fence it; without one it merges with an
+      // adjacent table below (the first delimiter wins and every other row — including the second table's
+      // header + delimiter — becomes a body row). Guarantee a blank line BEFORE and AFTER the 3×3 table.
+      // The caret lands just after; the user clicks a cell to edit it.
       const table = serialize(emptyTable(3, 3))
       const before = doc.slice(0, ls)
+      const after = doc.slice(le) // begins with the caret line's newline (or empty at EOF)
       const lead = line.length > 0 ? `${line}\n\n` : ls === 0 || before.endsWith('\n\n') ? '' : '\n'
-      const insert = `${lead}${table}`
+      const trail = after.startsWith('\n') && !after.startsWith('\n\n') && after.length > 1 ? '\n' : ''
+      const insert = `${lead}${table}${trail}`
       return { changes: [{ from: ls, to: le, insert }], selection: ls + insert.length }
     }
   }

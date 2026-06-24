@@ -3,8 +3,10 @@ import { useLayoutEffect, useRef, useState } from 'react'
 import { GripHorizontal, GripVertical } from 'lucide-react'
 import type { EditorView } from '@codemirror/view'
 import type { Align, TableModel } from './model'
+import type { TableMenuContext } from '@shared/tableMenu'
 import { CellEditor } from './CellEditor'
 import { cellToDisplay } from './codec'
+import { clamp } from './operations'
 import { nextCell, type NavDir } from './navigate'
 import type { ConnectionsApi } from '../connections'
 
@@ -12,16 +14,14 @@ function alignClass(align: Align): string {
   return `mdpm-tbl-align-${align ?? 'left'}`
 }
 
-// Measured geometry of the rendered table — column x-spans (from the header cells) and visual-row y-spans
-// (header + body). Re-measured on model change + table resize; drives the grips and the drag math.
+const RESIZE_HIT = 10
+
 interface Geom {
   cols: { left: number; width: number }[]
   rows: { top: number; height: number }[]
 }
 
 type Axis = 'col' | 'row'
-// A live reorder drag. `from`/`to` are indices in the drag's axis (col 0..M-1; visual-row 1..N for body —
-// row 0 = header, which never drags). `delta` is the subject's pixel offset, tracking the cursor.
 interface Drag {
   axis: Axis
   from: number
@@ -29,8 +29,14 @@ interface Drag {
   delta: number
 }
 
-// During a column drag: the grabbed column follows the cursor (delta); columns between from and to slide
-// by one column-width to open the gap. Mirror logic for rows. Returns the CSS transform for one cell/row.
+// A live column-boundary resize: pixel-exact preview of the two adjacent columns while dragging; the dash
+// counts are only recomputed + committed on release.
+interface Resize {
+  boundaryIndex: number
+  leftPx: number
+  rightPx: number
+}
+
 function shift(drag: Drag | null, axis: Axis, index: number, size: number): string | undefined {
   if (!drag || drag.axis !== axis) return undefined
   const { from, to, delta } = drag
@@ -41,7 +47,6 @@ function shift(drag: Drag | null, axis: Axis, index: number, size: number): stri
   return undefined
 }
 
-// The slot the cursor sits over, along the axis (wrap-relative coordinate). Clamped to the axis bounds.
 function slotAt(axis: Axis, geom: Geom, rel: number): number {
   const spans = axis === 'col' ? geom.cols : geom.rows
   for (let i = 0; i < spans.length; i++) {
@@ -51,19 +56,25 @@ function slotAt(axis: Axis, geom: Geom, rel: number): number {
   return spans.length - 1
 }
 
-// The interactive table: dash-ratio columns (<colgroup> + table-layout:fixed); every cell is a live
-// CellEditor. Hover grips ride a top gutter (columns) + left margin (rows); grabbing one reorders live.
 export function TableView({
   model,
   onCellCommit,
   onExit,
   onReorder,
+  onResize,
+  onMenu,
+  onUndo,
+  onRedo,
   connections
 }: {
   model: TableModel
   onCellCommit: (row: number, col: number, text: string) => void
   onExit: (dir: 'before' | 'after') => void
-  onReorder: (axis: Axis, from: number, to: number) => void
+  onReorder: (axis: Axis, from: number, to: number) => boolean
+  onResize: (boundaryIndex: number, dashDelta: number) => boolean
+  onMenu: (ctx: TableMenuContext) => void
+  onUndo: () => void
+  onRedo: () => void
   connections?: () => ConnectionsApi | undefined
 }): React.JSX.Element {
   const total = model.columns.reduce((sum, c) => sum + Math.max(1, c.dashes), 0) || model.columns.length
@@ -75,6 +86,7 @@ export function TableView({
   const tableRef = useRef<HTMLTableElement>(null)
   const [geom, setGeom] = useState<Geom>({ cols: [], rows: [] })
   const [drag, setDrag] = useState<Drag | null>(null)
+  const [resize, setResize] = useState<Resize | null>(null)
 
   useLayoutEffect(() => {
     const measure = (): void => {
@@ -102,15 +114,23 @@ export function TableView({
     return () => ro.disconnect()
   }, [model])
 
-  // Grip pointer-down starts a live reorder. The subject follows the cursor; the target is the slot under
-  // it; on release a changed target commits via onReorder (the widget rebuilds in the new order).
+  // updateDOM re-renders in place (no re-mount), so a live drag survives the model update.
+  // Clear when the model changes so the dropped item settles without holding its drag transform.
+  useLayoutEffect(() => {
+    setDrag(null)
+    setResize(null)
+  }, [model])
+
   const startDrag = (e: React.PointerEvent<HTMLDivElement>, axis: Axis, index: number): void => {
     if (axis === 'row' && index === 0) return // the header row never drags
+    if (e.button !== 0) return // only the left button drags; a right-press falls through to the context menu
     e.preventDefault()
     const wrap = wrapRef.current
     if (!wrap) return
-    // Capture the pointer to the grip so every move/up reaches us directly — otherwise the events bubble
-    // through the nested cell editors the cursor passes over and the drag silently loses its updates.
+    // Capture the pointer to the grip (so moves over the nested cell editors report to it, not get
+    // swallowed), but bind move/up on WINDOW: the grip element is re-rendered mid-drag (setDrag + the
+    // ResizeObserver on the transform reflow), and listeners hung on it get dropped when the node detaches
+    // — capture then implicitly releases WITHOUT firing pointerup, so the drag would never clear (freeze).
     const grip = e.currentTarget
     grip.setPointerCapture(e.pointerId)
     const box = wrap.getBoundingClientRect()
@@ -127,13 +147,51 @@ export function TableView({
     }
     const onUp = (ev: PointerEvent): void => {
       grip.releasePointerCapture(ev.pointerId)
-      grip.removeEventListener('pointermove', onMove)
-      grip.removeEventListener('pointerup', onUp)
-      if (current.to !== current.from) onReorder(axis, current.from, current.to)
-      else setDrag(null) // no move — snap back (a reorder rebuilds the widget, clearing this drag)
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', onUp)
+      // A real reorder clears drag via the model-change effect; a no-op (same serialization) won't re-render, so clear here.
+      if (current.to === current.from || !onReorder(axis, current.from, current.to)) setDrag(null)
     }
-    grip.addEventListener('pointermove', onMove)
-    grip.addEventListener('pointerup', onUp)
+    window.addEventListener('pointermove', onMove)
+    window.addEventListener('pointerup', onUp)
+  }
+
+  // Drag a column boundary: dashes move between the two adjacent columns (total conserved, 1-dash floor).
+  // Preview is pixel-exact (override both <col> widths in px); on release we quantize the new left width
+  // to whole dashes and commit one resizeColumn. Same window-bound pointer-capture pattern as startDrag.
+  const startResize = (e: React.PointerEvent<HTMLDivElement>, boundaryIndex: number): void => {
+    if (e.button !== 0) return
+    e.preventDefault()
+    const i = boundaryIndex
+    const leftDashes = Math.max(1, model.columns[i].dashes)
+    const rightDashes = Math.max(1, model.columns[i + 1].dashes)
+    const combinedDashes = leftDashes + rightDashes
+    const startLeftPx = geom.cols[i]?.width ?? 0
+    const startRightPx = geom.cols[i + 1]?.width ?? 0
+    const combinedPx = startLeftPx + startRightPx
+    if (combinedPx === 0) return
+    const oneDashPx = combinedPx / combinedDashes
+    const handle = e.currentTarget
+    handle.setPointerCapture(e.pointerId)
+    const startX = e.clientX
+    let leftPx = startLeftPx
+    setResize({ boundaryIndex: i, leftPx: startLeftPx, rightPx: startRightPx })
+    const onMove = (ev: PointerEvent): void => {
+      const delta = clamp(ev.clientX - startX, -(startLeftPx - oneDashPx), startRightPx - oneDashPx)
+      leftPx = startLeftPx + delta
+      setResize({ boundaryIndex: i, leftPx, rightPx: startRightPx - delta })
+    }
+    const onUp = (ev: PointerEvent): void => {
+      handle.releasePointerCapture(ev.pointerId)
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', onUp)
+      const newLeftDashes = clamp(Math.round(leftPx / oneDashPx), 1, combinedDashes - 1)
+      const dashDelta = newLeftDashes - leftDashes
+      // No change (or a no-op commit) won't re-render → clear the preview here, like reorder's onUp.
+      if (dashDelta === 0 || !onResize(i, dashDelta)) setResize(null)
+    }
+    window.addEventListener('pointermove', onMove)
+    window.addEventListener('pointerup', onUp)
   }
 
   const navigate = (row: number, col: number, dir: NavDir): void => {
@@ -163,20 +221,44 @@ export function TableView({
       connections={connections}
       onCommit={(t) => onCellCommit(row, col, t)}
       onNavigate={(dir) => navigate(row, col, dir)}
+      onUndo={onUndo}
+      onRedo={onRedo}
       register={register(row, col)}
     />
   )
+
+  // Grips swallow mousedown so a click on one (to drag or open the right-click menu) never pulls focus or
+  // moves the editor caret to the click point — the grip is a control, not a text position.
+  const swallowCaret = (e: React.MouseEvent): void => e.preventDefault()
 
   const colDragged = (ci: number): boolean => drag?.axis === 'col' && drag.from === ci
   const colW = (ci: number): number => geom.cols[ci]?.width ?? 0
   const rowH = (ri: number): number => geom.rows[ri]?.height ?? 0
 
+  // While resizing, every column is sized in px (the two at the boundary from the live preview, the rest
+  // from their measured widths) so the table total stays fixed; otherwise columns are dash-proportional %.
+  const colWidth = (ci: number): string => {
+    if (resize) {
+      if (ci === resize.boundaryIndex) return `${resize.leftPx}px`
+      if (ci === resize.boundaryIndex + 1) return `${resize.rightPx}px`
+      return `${colW(ci)}px`
+    }
+    return `${(Math.max(1, model.columns[ci].dashes) / total) * 100}%`
+  }
+
+  const tableTop = geom.rows[0]?.top ?? 0
+  const lastRow = geom.rows[geom.rows.length - 1]
+  const tableHeight = lastRow ? lastRow.top + lastRow.height - tableTop : 0
+
   return (
-    <div className={`mdpm-tbl-wrap${drag ? ' mdpm-tbl-dragging' : ''}`} ref={wrapRef}>
+    <div
+      className={`mdpm-tbl-wrap${drag ? ' mdpm-tbl-dragging' : ''}${resize ? ' mdpm-tbl-resizing' : ''}`}
+      ref={wrapRef}
+    >
       <table className="mdpm-tbl" ref={tableRef}>
         <colgroup>
-          {model.columns.map((c, i) => (
-            <col key={i} style={{ width: `${(Math.max(1, c.dashes) / total) * 100}%` }} />
+          {model.columns.map((_, i) => (
+            <col key={i} style={{ width: colWidth(i) }} />
           ))}
         </colgroup>
         <thead>
@@ -216,10 +298,13 @@ export function TableView({
         <div
           key={`col-${i}`}
           className="mdpm-tbl-grip-zone mdpm-tbl-grip-col"
-          data-grip="col"
-          data-index={i}
           style={{ left: c.left, width: c.width }}
+          onMouseDown={swallowCaret}
           onPointerDown={(e) => startDrag(e, 'col', i)}
+          onContextMenu={(e) => {
+            e.preventDefault()
+            onMenu({ kind: 'column', index: i, align: model.columns[i]?.align ?? null })
+          }}
         >
           <GripHorizontal className="mdpm-tbl-grip" size={14} strokeWidth={2} />
         </div>
@@ -228,13 +313,25 @@ export function TableView({
         <div
           key={`row-${j}`}
           className="mdpm-tbl-grip-zone mdpm-tbl-grip-row"
-          data-grip="row"
-          data-index={j}
           style={{ top: r.top, height: r.height }}
+          onMouseDown={swallowCaret}
           onPointerDown={(e) => startDrag(e, 'row', j)}
+          onContextMenu={(e) => {
+            e.preventDefault()
+            onMenu(j === 0 ? { kind: 'header', index: 0 } : { kind: 'row', index: j })
+          }}
         >
           <GripVertical className="mdpm-tbl-grip" size={14} strokeWidth={2} />
         </div>
+      ))}
+      {geom.cols.slice(0, -1).map((c, i) => (
+        <div
+          key={`resize-${i}`}
+          className="mdpm-tbl-resize-zone"
+          style={{ left: c.left + c.width - RESIZE_HIT / 2, top: tableTop, height: tableHeight, width: RESIZE_HIT }}
+          onMouseDown={swallowCaret}
+          onPointerDown={(e) => startResize(e, i)}
+        />
       ))}
     </div>
   )

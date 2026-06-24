@@ -3,14 +3,11 @@ import type { Align, Column, TableModel } from './model'
 import { normalize } from './model'
 
 export interface CellSpan {
-  from: number
-  to: number
   text: string
-} // absolute doc offsets of trimmed cell text
+}
 export interface RowSplit {
   cells: CellSpan[]
-  pipes: number[]
-  segments: [number, number][] // absolute, untrimmed pipe-to-pipe extent per cell (one flex item each)
+  segments: [number, number][] // untrimmed pipe-to-pipe span per cell (one flex item each)
 }
 
 // GFM table-cell escaping: a literal backslash or pipe inside a cell is backslash-escaped so it
@@ -29,32 +26,26 @@ export const cellToDisplay = (source: string): string =>
 
 // Split a row line on UNescaped pipes. Returns trimmed cell text + absolute pipe offsets (line start = `base`).
 export function splitRow(line: string, base: number): RowSplit {
-  const pipes: number[] = []
+  const cuts: number[] = [] // relative offsets of the structural pipes
   for (let i = 0; i < line.length; i++) {
     if (line[i] !== '|') continue
     // A pipe is structural unless preceded by an ODD run of backslashes (one-char look-behind missed
     // `\\|`, where the backslash is itself escaped and the pipe is a real boundary — micromark's rule).
     let bs = 0
     for (let j = i - 1; j >= 0 && line[j] === '\\'; j--) bs++
-    if (bs % 2 === 0) pipes.push(base + i)
+    if (bs % 2 === 0) cuts.push(i)
   }
   const segs: [number, number][] = []
   const hasLead = line.trimStart()[0] === '|'
   const hasTrail = line.trimEnd().slice(-1) === '|'
-  const cuts = pipes.map((p) => p - base)
   const starts = hasLead ? cuts : [-1, ...cuts]
   const ends = hasTrail
     ? cuts.slice(hasLead ? 1 : 0)
     : [...(hasLead ? cuts.slice(1) : cuts), line.length]
   for (let k = 0; k < ends.length; k++) segs.push([starts[k] + 1, ends[k]])
-  const cells: CellSpan[] = segs.map(([s, e]) => {
-    const raw = line.slice(s, e)
-    const lead = raw.length - raw.trimStart().length
-    const text = raw.trim()
-    return { from: base + s + lead, to: base + s + lead + text.length, text }
-  })
+  const cells: CellSpan[] = segs.map(([s, e]) => ({ text: line.slice(s, e).trim() }))
   const segments = segs.map(([s, e]) => [base + s, base + e] as [number, number])
-  return { cells, pipes, segments }
+  return { cells, segments }
 }
 
 const DELIM_CELL = /^\s*(:?)(-+)(:?)\s*$/
@@ -106,7 +97,10 @@ function delimCell(c: Column): string {
         : bar
 }
 export function serialize(m: TableModel): string {
-  const row = (cells: string[]): string => `| ${cells.join(' | ')} |`
+  // Sink guard: a cell carrying a raw newline would split its row across lines and break the GFM, so
+  // re-encode any in-cell newline as <br>. Defensive — a healthy model never holds one (cellToSource).
+  const row = (cells: string[]): string =>
+    `| ${cells.map((c) => c.replace(/\r?\n/g, '<br>')).join(' | ')} |`
   return [row(m.header), `| ${m.columns.map(delimCell).join(' | ')} |`, ...m.rows.map(row)].join(
     '\n'
   )

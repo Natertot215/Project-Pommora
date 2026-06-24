@@ -3,6 +3,7 @@ import type { IpcRendererEvent } from 'electron'
 import type { NexusState, NexusTree, PageResult } from '@shared/types'
 import type { MutateRequest, MutateResult, ContextTarget } from '@shared/mutate'
 import type { FormatState } from '@shared/editorMenu'
+import type { TableMenuAction, TableMenuContext } from '@shared/tableMenu'
 
 // The ONLY API the renderer can see. Narrow read surface; no fs, no Node.
 const api = {
@@ -44,6 +45,8 @@ const api = {
   bannerMenu: (): Promise<'change' | 'remove' | null> => ipcRenderer.invoke('nexus:bannerMenu'),
   // Pop the native Rename / Edit Icon menu for a detail title → the chosen action (null if dismissed).
   titleMenu: (): Promise<'rename' | 'editIcon' | null> => ipcRenderer.invoke('nexus:titleMenu'),
+  // Pop the table grip's native right-click menu → the chosen action (null if dismissed).
+  tableMenu: (ctx: TableMenuContext): Promise<TableMenuAction | null> => ipcRenderer.invoke('table-menu', ctx),
   // Persist a (cropped) PNG data URL to .nexus/photo.png + record it in nexus.json.
   saveNexusPhoto: (dataUrl: string): Promise<{ ok: true } | { ok: false; error: string }> =>
     ipcRenderer.invoke('nexus:saveNexusPhoto', dataUrl),

@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import { cellCommitChange, structuralEditChange } from './sync'
-import { insertColumn } from './operations'
-import { parseTable, unescapeCell } from './codec'
+import { insertColumn, moveColumn } from './operations'
+import { parseTable, unescapeCell, serialize } from './codec'
+import { emptyTable } from './model'
 
 describe('cellCommitChange — minimal-diff cell edit (replace just the cell span, focus-safe)', () => {
   const doc = '| a | b |\n| --- | --- |\n| 1 | 2 |'
@@ -61,5 +62,10 @@ describe('structuralEditChange — whole-table op re-serialized into the source 
 
   it('returns null for an out-of-range table index', () => {
     expect(structuralEditChange(doc, 5, (m) => m)).toBeNull()
+  })
+
+  it('returns null for a no-op transform — reordering empty/identical columns serializes the same', () => {
+    const empty = serialize(emptyTable(2, 2))
+    expect(structuralEditChange(empty, 0, (m) => moveColumn(m, 0, 1))).toBeNull()
   })
 })

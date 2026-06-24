@@ -3,7 +3,7 @@ import type { Align, Column, TableModel } from './model'
 type RowWhere = 'above' | 'below'
 type ColWhere = 'left' | 'right'
 
-const clamp = (v: number, lo: number, hi: number): number => Math.max(lo, Math.min(hi, v))
+export const clamp = (v: number, lo: number, hi: number): number => Math.max(lo, Math.min(hi, v))
 
 function spliceAt<T>(arr: T[], pos: number, del: number, ...ins: T[]): T[] {
   const a = [...arr]
@@ -39,6 +39,16 @@ export function deleteColumn(m: TableModel, atIndex: number): TableModel {
 
 export function setAlign(m: TableModel, col: number, align: Align): TableModel {
   return { ...m, columns: m.columns.map((c, i) => (i === col ? { ...c, align } : c)) }
+}
+
+// Clear empties cells; it does NOT remove structure (that's delete). A column clear keeps the header
+// label (the column's identity) and blanks only the body cells; a row clear blanks every cell in the row.
+export function clearColumn(m: TableModel, atIndex: number): TableModel {
+  return { ...m, rows: m.rows.map((r) => r.map((c, i) => (i === atIndex ? '' : c))) }
+}
+
+export function clearRow(m: TableModel, atBodyIndex: number): TableModel {
+  return { ...m, rows: m.rows.map((r, i) => (i === atBodyIndex ? r.map(() => '') : r)) }
 }
 
 // Positive dashDelta widens columns[boundaryIndex] and narrows columns[boundaryIndex+1]

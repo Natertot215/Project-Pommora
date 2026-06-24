@@ -1,6 +1,3 @@
-/* Interactive table widget (block-replace over the canonical GFM source). Each cell is a live nested
-   CodeMirror editor; grips + resize layer on top in later slices. Values resolve from design tokens. */
-
 .mdpm-tbl-widget {
   margin: 0.4em 0;
 }
@@ -9,30 +6,34 @@
 .mdpm-tbl-wrap {
   --grip-gutter: 18px;
   position: relative;
-  /* Top + left gutters reserve hoverable space for the grips INSIDE the wrap. (A negative-margin gutter
-     hanging into the editor's left chrome renders but can't be hovered — the chrome intercepts it.) The
-     table is inset by the gutter width as a result. */
-  padding: var(--grip-gutter) 0 0 var(--grip-gutter);
+  /* Top + left gutters reserve hoverable space for the grips INSIDE the wrap (a negative-margin gutter
+     hanging into the editor's chrome renders but can't be hovered — the chrome intercepts it). The right
+     padding mirrors the left purely for visual symmetry — no grips live there. */
+  padding: var(--grip-gutter) var(--grip-gutter) 0 var(--grip-gutter);
 }
 
 .mdpm-tbl {
   width: 100%;
-  border-collapse: collapse;
+  /* Separate (not collapsed) borders: a collapsed border is painted by the table grid and doesn't move
+     when a cell is transformed, so a dragged column/row would tear away from its gridlines. With separate
+     borders each cell carries its own edges. Table draws top+left; cells draw right+bottom → single 1px grid. */
+  border-collapse: separate;
+  border-spacing: 0;
   table-layout: fixed;
   font: inherit;
-  border: 1px solid var(--separator-border);
+  border-top: 1px solid var(--separator-border);
+  border-left: 1px solid var(--separator-border);
 }
 
-/* Hover grips — Lucide grip-vertical, label-secondary, revealed ONLY when the pointer reaches into the
-   grip's gutter zone (quiet reveal), and only for the one row/column hovered. Positions are measured. */
 .mdpm-tbl-grip-zone {
   position: absolute;
   display: flex;
   align-items: center;
   justify-content: center;
-  cursor: grab;
+  cursor: default;
 }
-.mdpm-tbl-grip-zone:active {
+/* Grabbing cursor only during a real (left-button) drag — a right-press keeps default cursor and reaches the context menu. */
+.mdpm-tbl-dragging .mdpm-tbl-grip-zone {
   cursor: grabbing;
 }
 .mdpm-tbl-grip-col {
@@ -52,8 +53,18 @@
   opacity: 1;
 }
 
-/* Live reorder — while a drag is active the non-subject cells/rows ease into their shifted slot (the
-   slide); the grabbed row/column follows the cursor directly (no transition) and dims. */
+/* Column-boundary resize handles: invisible hit-strips. The live column widths ARE the drag feedback, so
+   there's no separate bar to lag behind them; the ew-resize cursor is the hover affordance. */
+.mdpm-tbl-resize-zone {
+  position: absolute;
+  z-index: 4;
+  cursor: ew-resize;
+}
+/* Hold the resize cursor for the whole table while a drag is live, even if the pointer leaves the strip. */
+.mdpm-tbl-resizing {
+  cursor: ew-resize;
+}
+
 .mdpm-tbl-dragging .mdpm-tbl-cell,
 .mdpm-tbl-dragging .mdpm-tbl tr {
   transition: transform 0.16s var(--ease-standard, ease);
@@ -62,6 +73,9 @@
   position: relative;
   z-index: 2;
   opacity: 0.55;
+  /* Fill the grabbed row/column so it glides as one solid band — without it an empty cell has nothing
+     visible to move and the column appears to tear (only populated cells slide). */
+  background: var(--fill-tertiary);
   transition: none !important;
 }
 
@@ -72,7 +86,8 @@
   overflow-wrap: anywhere;
   vertical-align: top;
   text-align: left;
-  border: 1px solid var(--separator-border);
+  border-right: 1px solid var(--separator-border);
+  border-bottom: 1px solid var(--separator-border);
 }
 
 .mdpm-tbl thead .mdpm-tbl-cell {
@@ -88,9 +103,6 @@
   text-align: right;
 }
 
-/* Each cell is a live nested editor. Reset CM chrome so it reads as plain cell text, fills the cell
-   (so a click anywhere edits), inherits the cell's alignment, and shows NO focus effect — a cell looks
-   identical whether you're editing it or not. Scoped + extra class depth to beat the main editor's rules. */
 .mdpm-tbl-cell-editor,
 .mdpm-tbl-cell-editor .cm-editor {
   height: 100%;

@@ -7,7 +7,9 @@ import {
   setAlign,
   resizeColumn,
   moveRow,
-  moveColumn
+  moveColumn,
+  clearColumn,
+  clearRow
 } from './operations'
 import type { TableModel } from './model'
 
@@ -72,6 +74,26 @@ describe('operations', () => {
     const m = setAlign(base, 1, 'center')
     expect(m.columns[1].align).toBe('center')
     expect(m.columns[0].align).toBeNull()
+  })
+
+  it('clearColumn blanks the body cells of one column, keeps the header label', () => {
+    const m = clearColumn(base, 1)
+    expect(m.header).toEqual(['a', 'b', 'c']) // header untouched
+    expect(m.rows[0]).toEqual(['1', '', '3'])
+  })
+
+  it('clearRow blanks every cell in one body row', () => {
+    const two: TableModel = {
+      ...base,
+      rows: [
+        ['1', '2', '3'],
+        ['4', '5', '6']
+      ]
+    }
+    expect(clearRow(two, 0).rows).toEqual([
+      ['', '', ''],
+      ['4', '5', '6']
+    ])
   })
 
   it('moveColumn reorders the column across header + every row', () => {

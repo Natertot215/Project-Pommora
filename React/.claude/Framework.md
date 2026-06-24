@@ -14,6 +14,7 @@ Carried over from Swift and working:
 - **Sidebar** — full CRUD + drag-and-drop (every entity reorders; pages reparent across the tree).
 - **Container views** — Vault / Collection / Context / Homepage over a shared scaffold, with a pages table + image banners.
 - **Page editor (MarkdownPM)** — the dynamic-syntax CodeMirror 6 port; core constructs in (remainder under Pending).
+- **Tables (in the editor)** — full GFM table editing: a block-replace CM6 widget over canonical source, nested cell editors, drag-reorder, an OS-native grip menu, and column width-resize. A React port of ckant/codemirror-markdown-tables; dash-width columns + width-resize are Pommora-only. Spec → `Features/MarkdownPM.md` § Tables.
 - **Design system** — tokenized (color primitives + accent + tint + typography + chips) + a live showcase.
 - **Glass + window chrome** — CSS frost material; traffic-lights-in-sidebar window.
 - **Drag engine (PommoraDND)** — the in-house sort/reorder substrate behind a swappable seam.
@@ -22,7 +23,7 @@ Carried over from Swift and working:
 
 Swift has these; React doesn't yet:
 
-- **Editor constructs** — callouts, wikilink 3-state resolution, image/latex, heading folding, the `[[` autocomplete panel, native context menu + stats footer.
+- **Editor constructs** — callouts (`::` → `> [!type]`), the image / latex render seams, and the stats footer. (Wikilink 3-state, heading folding, the `[[` autocomplete panel, the native context menu, and Tables have shipped.)
 - **Page properties UI** — frontmatter inspector + per-type cell editors (data layer already done).
 - **Full view system** — Gallery renderer, the view switcher, and per-view Saved-View config (the Table renders today).
 - **Agenda surfacing** — Tasks/Events UI + calendar (data layer already done).
