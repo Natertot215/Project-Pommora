@@ -210,8 +210,12 @@ struct PageSetManagerTests {
             .appendingPathComponent("Notes/Inbox/Drafts/Inside.md")
         #expect(FileManager.default.fileExists(atPath: trashedPage.path))
 
+        // The deleted Set's index row is gone. Depth-1 Collections share the
+        // `page_sets` table (parent_type_id set, parent_set_id NULL), so count only
+        // depth-2+ Sets (parent_set_id NOT NULL) to assert the Set's row left.
         let count = try await index.dbQueue.read { db in
-            try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM page_sets") ?? -1
+            try Int.fetchOne(
+                db, sql: "SELECT COUNT(*) FROM page_sets WHERE parent_set_id IS NOT NULL") ?? -1
         }
         #expect(count == 0)
     }
@@ -249,7 +253,9 @@ struct PageSetManagerTests {
         #expect(!FileManager.default.fileExists(atPath: set.folderURL.path))
         #expect(fx.setManager.pageSets(in: fx.collection).isEmpty)
 
-        // Index: page re-pointed (collection kept, set cleared); page_sets row gone.
+        // Index: page re-pointed (collection kept, set cleared); the Set's row is
+        // gone. Depth-1 Collections share `page_sets` (parent_type_id set), so count
+        // only depth-2+ Sets (parent_set_id NOT NULL) to assert the Set's row left.
         let collectionID = fx.collection.id
         let row = try await index.dbQueue.read { db in
             try Row.fetchOne(db, sql: "SELECT * FROM pages WHERE id = ?", arguments: [pageID])
@@ -257,7 +263,8 @@ struct PageSetManagerTests {
         #expect(row?["page_collection_id"] as String? == collectionID)
         #expect(row?["page_set_id"] as String? == nil)
         let setCount = try await index.dbQueue.read { db in
-            try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM page_sets") ?? -1
+            try Int.fetchOne(
+                db, sql: "SELECT COUNT(*) FROM page_sets WHERE parent_set_id IS NOT NULL") ?? -1
         }
         #expect(setCount == 0)
     }

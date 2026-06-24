@@ -78,7 +78,6 @@ final class PageSetManager {
 
             for pageType in types {
                 let typeFolder = NexusPaths.vaultFolderURL(forTitle: pageType.title, in: nexus)
-                do { let __m = "PMDBG typeFolder=\(typeFolder.path) exists=\(FileManager.default.fileExists(atPath: typeFolder.path)) children=\((try? Filesystem.childFolders(of: typeFolder, folderFilter: filter))?.map(\.lastPathComponent) ?? [])\n"; let __p = (NSTemporaryDirectory() as NSString).appendingPathComponent("pmdbg_loadall.txt"); if !FileManager.default.fileExists(atPath: __p) { FileManager.default.createFile(atPath: __p, contents: nil) }; if let __h = FileHandle(forWritingAtPath: __p) { __h.seekToEndOfFile(); __h.write(__m.data(using: .utf8)!); try? __h.close() } } // DEBUG_INSTRUMENT
                 let parentPropertyIDs = pageType.properties.map(\.id)
 
                 var cols = try Filesystem.childFolders(of: typeFolder, folderFilter: filter)
@@ -142,14 +141,13 @@ final class PageSetManager {
             }
 
             self.pageCollectionsByType = loadedCols
-            do { let __m = "PMDBG loadAll types=\(types.map(\.title)) loadedCols=\(loadedCols.mapValues { $0.map(\.title) })\n"; let __p = (NSTemporaryDirectory() as NSString).appendingPathComponent("pmdbg_loadall.txt"); if !FileManager.default.fileExists(atPath: __p) { FileManager.default.createFile(atPath: __p, contents: nil) }; if let __h = FileHandle(forWritingAtPath: __p) { __h.seekToEndOfFile(); __h.write(__m.data(using: .utf8)!); try? __h.close() } } // DEBUG_INSTRUMENT
             self.pageSetsByCollection = loadedSets
             self.pendingError = nil
 
             if let updater = indexUpdater {
                 for cols in loadedCols.values {
                     for col in cols {
-                        do { try updater.upsertPageCollection(col) } catch { let __m = "PMDBG upsertCollection FAILED \(col.title): \(error)\n"; let __p = (NSTemporaryDirectory() as NSString).appendingPathComponent("pmdbg_loadall.txt"); if !FileManager.default.fileExists(atPath: __p) { FileManager.default.createFile(atPath: __p, contents: nil) }; if let __h = FileHandle(forWritingAtPath: __p) { __h.seekToEndOfFile(); __h.write(__m.data(using: .utf8)!); try? __h.close() } } // DEBUG_INSTRUMENT
+                        do { try updater.upsertPageCollection(col) } catch { self.pendingError = error }
                     }
                 }
                 for sets in loadedSets.values {
@@ -811,10 +809,10 @@ final class PageSetManager {
 
     // MARK: - Private helpers
 
-    /// Discovers all sidecar-bearing child folders of `parent` as PageSets,
-    /// writes them into `loadedSets` keyed by `parent.id`, then recurses into
-    /// each discovered set. Accepts both `_pagecollection.json` (depth-1 alias)
-    /// and `_pageset.json` so mixed-sidecar vaults load correctly at any depth.
+    /// Discovers child folders of `parent` as PageSets, writing them into
+    /// `loadedSets` keyed by `parent.id`, then recurses into each discovered set.
+    /// Accepts both `_pagecollection.json` (depth-1 alias) and `_pageset.json`.
+    /// Missing sidecars are healed in place (same pattern as the Collection-level heal).
     private func discoverChildSets(
         of parent: PageSet,
         filter: FolderFilter,
@@ -830,7 +828,23 @@ final class PageSetManager {
                 let resolvedMetaURL = Filesystem.fileExists(at: setMetaURL) ? setMetaURL
                     : Filesystem.fileExists(at: collMetaURL) ? collMetaURL
                     : nil
-                guard let metaURL = resolvedMetaURL else { return nil }
+                let metaURL: URL
+                if let url = resolvedMetaURL {
+                    metaURL = url
+                } else {
+                    let healURL = setMetaURL
+                    let fresh = PageSet(
+                        id: ULID.generate(),
+                        parentID: parent.id,
+                        title: sub.lastPathComponent,
+                        folderURL: sub,
+                        modifiedAt: Date()
+                    )
+                    try? Filesystem.writeMetadataIntoExistingFolder(
+                        metadataURL: healURL, metadata: fresh
+                    )
+                    metaURL = healURL
+                }
                 guard var set = try? PageSet.load(from: metaURL) else { return nil }
                 if set.parentID != parent.id {
                     set.parentID = parent.id

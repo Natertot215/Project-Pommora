@@ -251,12 +251,20 @@ final class PageContentManager {
     // MARK: - Load (PageSet-scoped)
 
     /// Loads every `.md` Page inside `set.folderURL`, descending recursively
-    /// through sub-folders. A Set has no recognized sub-containers, so deeper
-    /// folders roll up into this PageSet — mirroring the PageCollection walk.
+    /// through non-Set sub-folders. Immediate child folders with a `_pageset.json`
+    /// sidecar are excluded — they are recognized sub-Sets with their own load scope,
+    /// mirroring the Collection walk's exclusion of Set subtrees.
     func loadAll(for set: PageSet) async {
         let nexusRoot = nexus.rootURL
         do {
-            let pageFiles = try Filesystem.descendantFiles(of: set.folderURL) { url in
+            let allSubs = (try? Filesystem.childFolders(of: set.folderURL)) ?? []
+            let subSetFolders = allSubs.filter { sub in
+                Filesystem.fileExists(at: sub.appendingPathComponent(NexusPaths.pageSetSidecarFilename))
+            }
+            let excludedSubSetFolders = Set(subSetFolders.map { $0.standardizedFileURL })
+            let pageFiles = try Filesystem.descendantFiles(
+                of: set.folderURL, excluding: excludedSubSetFolders
+            ) { url in
                 url.pathExtension == "md" && !url.lastPathComponent.hasPrefix("_")
             }
             let unsortedPages: [PageMeta] = pageFiles.compactMap { url in
