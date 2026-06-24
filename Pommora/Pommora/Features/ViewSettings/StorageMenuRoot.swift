@@ -23,6 +23,7 @@ struct StorageMenuRoot: View {
     @Binding var path: [ViewSettingsRoute]
 
     @Environment(PageCollectionManager.self) private var collectionManager
+    @Environment(PageSetManager.self) private var pageSetManager
 
     @State private var iconPickerOpen: Bool = false
     @State private var isRenaming: Bool = false
@@ -234,8 +235,8 @@ struct StorageMenuRoot: View {
         switch liveScope {
         case .pageCollection(let t):
             try? await collectionManager.updatePageCollectionIcon(t, to: newIcon)
-        case .pageCollection(let c):
-            try? await collectionManager.updatePageCollectionIcon(c, to: newIcon)
+        case .pageSet(let s):
+            try? await pageSetManager.updatePageSetIcon(s, to: newIcon)
         default:
             break
         }
@@ -248,8 +249,8 @@ struct StorageMenuRoot: View {
         switch liveScope {
         case .pageCollection(let t):
             try? await collectionManager.renamePageCollection(t, to: trimmed)
-        case .pageCollection(let c):
-            try? await collectionManager.renamePageCollection(c, to: trimmed)
+        case .pageSet(let s):
+            try? await pageSetManager.renamePageSet(s, to: trimmed)
         default:
             break
         }
