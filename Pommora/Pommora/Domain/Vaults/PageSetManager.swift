@@ -31,6 +31,11 @@ final class PageSetManager {
     /// write (filesystem is canonical).
     var indexUpdater: IndexUpdater?
 
+    /// Injected by NexusEnvironment so depth-demotion moves can prune stale
+    /// `.collection` Recents entries. Nil in test harnesses that don't wire
+    /// navigation; pruning is a best-effort advisory (filesystem is canonical).
+    var recentsManager: RecentsManager?
+
     /// Closure supplying the current PageType array. Wired by NexusEnvironment
     /// so Collection reorders and renames can read the parent type's `collectionOrder`.
     @ObservationIgnored var pageTypeProvider: (() -> [PageType])?
@@ -721,6 +726,13 @@ final class PageSetManager {
             )
             pageSetsByCollection[destination.id] = destArr
 
+            // If the Set was previously recorded as a depth-1 Collection in
+            // Recents (topTierIDs contains its old parentID), prune that entry —
+            // the Set is now depth-2+ and no longer selectable as a collection.
+            if topTierIDs.contains(sourceCollectionID) {
+                recentsManager?.prune(kind: EntityStateRef.Kind.collection.rawValue, id: set.id)
+            }
+
             await contentManager.loadAll(for: updated)
         } catch {
             if !(error is RenameAtomicityError) {
@@ -772,6 +784,29 @@ final class PageSetManager {
         for updatedColl in rebuilt {
             rebuildFolderURLs(for: updatedColl)
         }
+    }
+
+    // MARK: - Set ancestry
+
+    /// Look up any loaded Set by id across all parent buckets.
+    func findSet(byID id: String) -> PageSet? {
+        for sets in pageSetsByCollection.values {
+            if let s = sets.first(where: { $0.id == id }) { return s }
+        }
+        return nil
+    }
+
+    /// The chain of ancestor Sets from the immediate parent Set of `set` up to
+    /// (but not including) the depth-1 Collection. Ordered outermost-first.
+    /// Returns [] for a depth-2 Set (whose parent is a Collection, not a Set).
+    func setAncestors(from set: PageSet) -> [PageSet] {
+        var chain: [PageSet] = []
+        var currentID = set.parentID
+        while let ancestor = findSet(byID: currentID) {
+            chain.insert(ancestor, at: 0)
+            currentID = ancestor.parentID
+        }
+        return chain
     }
 
     // MARK: - Private helpers

@@ -36,6 +36,7 @@ struct PageEditorView: View {
     @Binding var selection: SidebarSelection
 
     @Environment(PageContentManager.self) private var contentManager
+    @Environment(PageSetManager.self) private var pageSetManager
     /// Routes a clicked `[[ ]]` page link into the main detail pane. Same router
     /// Navigation + Back/Forward use; injected by `NexusEnvironment`.
     @Environment(MainWindowRouter.self) private var mainWindowRouter
@@ -184,18 +185,22 @@ struct PageEditorView: View {
         let body: String
     }
 
-    /// Breadcrumb segments for the stats bar footer: vault and collection
-    /// are tappable ancestors; the set (non-navigable — Sets have no detail
-    /// surface) and the page itself render without actions.
+    /// Breadcrumb segments for the stats bar footer. Vault and depth-1
+    /// Collection ancestors are tappable; depth-2+ Set segments are plain
+    /// (no detail surface). Walks the full Set ancestor chain so pages nested
+    /// at arbitrary depth show the complete path.
     private var breadcrumbCrumbs: [FooterCrumb] {
         var crumbs: [FooterCrumb] = [
             FooterCrumb(title: vault.title) { selection = .pageType(vault) }
         ]
         if let c = collection {
             crumbs.append(FooterCrumb(title: c.title) { selection = .collection(c) })
-        }
-        if let set {
-            crumbs.append(FooterCrumb(title: set.title))
+            if let immediateSet = set {
+                for ancestor in pageSetManager.setAncestors(from: immediateSet) {
+                    crumbs.append(FooterCrumb(title: ancestor.title))
+                }
+                crumbs.append(FooterCrumb(title: immediateSet.title))
+            }
         }
         crumbs.append(FooterCrumb(title: viewModel.page.title))
         return crumbs

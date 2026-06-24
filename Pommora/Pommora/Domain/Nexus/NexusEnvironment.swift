@@ -159,6 +159,7 @@ final class NexusEnvironment {
         // Pinned + Recents stores so pins/recents don't show a stale name.
         contentMgr.pinnedManager = pinnedMgr
         contentMgr.recentsManager = recentsMgr
+        pageSetMgr.recentsManager = recentsMgr
 
         self.nexusManager = nexusManager
         self.areaManager = areaMgr

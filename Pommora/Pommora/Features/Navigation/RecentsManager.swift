@@ -101,6 +101,17 @@ final class RecentsManager {
         Task { try? await save() }
     }
 
+    /// Remove all entries matching `(kind, id)` — called when an entity is
+    /// demoted (e.g. a depth-1 Collection moved to depth-2+) so stale selectable
+    /// entries don't linger in the back/forward stack.
+    func prune(kind: String, id: String) {
+        let before = entries.count
+        entries.removeAll { $0.kind == kind && $0.id == id }
+        if entries.count != before {
+            Task { try? await save() }
+        }
+    }
+
     @discardableResult
     func stepBack() -> EntityStateRef? {
         guard canStepBack else { return nil }

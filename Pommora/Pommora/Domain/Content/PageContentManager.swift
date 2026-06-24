@@ -142,7 +142,8 @@ final class PageContentManager {
     }
 
     /// URL-based fallback when no index is available. All PageTypes are loaded at
-    /// launch so folder-path prefix matching is always complete.
+    /// launch so folder-path prefix matching is always complete. Walks the Set
+    /// hierarchy recursively so pages nested at arbitrary depth resolve correctly.
     private func resolveParentByURL(
         _ pageURL: URL, pageTypeManager: PageTypeManager, pageSetManager: PageSetManager?
     ) -> (vault: PageType, collection: PageSet?, set: PageSet?)? {
@@ -153,15 +154,29 @@ final class PageContentManager {
             for collection in pageTypeManager.pageCollections(in: pageType) {
                 let collPath = collection.folderURL.standardizedFileURL.path + "/"
                 guard canonical.hasPrefix(collPath) else { continue }
-                if let pageSetManager {
-                    for set in pageSetManager.pageSets(in: collection) {
-                        let setPath = set.folderURL.standardizedFileURL.path + "/"
-                        if canonical.hasPrefix(setPath) { return (pageType, collection, set) }
-                    }
+                if let pageSetManager,
+                    let deepSet = deepestSet(
+                        under: collection, canonical: canonical, sets: pageSetManager)
+                {
+                    return (pageType, collection, deepSet)
                 }
                 return (pageType, collection, nil)
             }
             return (pageType, nil, nil)
+        }
+        return nil
+    }
+
+    /// Recursively descends the Set tree under `parent`, returning the deepest
+    /// Set whose folder path is a prefix of `canonical`. Returns nil when the
+    /// page lives at the Collection root (not inside any Set).
+    private func deepestSet(
+        under parent: PageSet, canonical: String, sets: PageSetManager
+    ) -> PageSet? {
+        for set in sets.pageSets(in: parent) {
+            let setPath = set.folderURL.standardizedFileURL.path + "/"
+            guard canonical.hasPrefix(setPath) else { continue }
+            return deepestSet(under: set, canonical: canonical, sets: sets) ?? set
         }
         return nil
     }
