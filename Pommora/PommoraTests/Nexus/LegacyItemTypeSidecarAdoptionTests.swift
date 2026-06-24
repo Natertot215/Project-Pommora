@@ -58,7 +58,7 @@ struct LegacyItemTypeSidecarAdoptionTests {
     }
 
     @Test("scan treats a legacy _itemtype.json folder as sidecar-less — fresh Page Type, no consent gate")
-    func scanClassifiesLegacyItemTypeFolderAsFreshPageType() throws {
+    func scanClassifiesLegacyItemTypeFolderAsFreshPageCollection() throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
         try makeLegacyItemTypeFolder(in: nexus.rootURL, title: "Errands")
@@ -66,7 +66,7 @@ struct LegacyItemTypeSidecarAdoptionTests {
         let plan = try NexusAdopter.scan(nexusRoot: nexus.rootURL)
 
         #expect(plan.freshSidecars.count == 1)
-        #expect(plan.freshSidecars.first?.kind == .pageType)
+        #expect(plan.freshSidecars.first?.kind == .pageCollection)
         #expect(plan.inPlaceRenames.isEmpty)
         #expect(plan.unwrapSteps.isEmpty)
         // Fresh sidecars never trip the consent gate — no adoption preview.
@@ -74,7 +74,7 @@ struct LegacyItemTypeSidecarAdoptionTests {
     }
 
     @Test("auto-tag writes _pagetype.json and leaves the stale _itemtype.json inert on disk")
-    func autoTagAddsPageTypeAndLeavesItemTypeInert() throws {
+    func autoTagAddsPageCollectionAndLeavesItemTypeInert() throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
         let folder = try makeLegacyItemTypeFolder(in: nexus.rootURL, title: "Errands")

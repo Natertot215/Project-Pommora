@@ -3,13 +3,13 @@ import Testing
 
 @testable import Pommora
 
-/// PageType-root Pages (sitting directly in a PageType folder, not inside a
+/// PageCollection-root Pages (sitting directly in a PageCollection folder, not inside a
 /// PageSet sub-folder). Mirrors PageContentManagerTests but uses the
-/// parallel `(inVaultRoot:)` overloads + `pages(in: vault)` accessors.
+/// parallel `(inCollectionRoot:)` overloads + `pages(in: vault)` accessors.
 ///
 /// The legacy "VaultRoot" filename mirrors `pagesByTypeRoot` storage; the
 /// suite header keeps the "vault-root" label since the on-disk concept is
-/// still "the PageType root."
+/// still "the PageCollection root."
 @MainActor
 @Suite("PageContentManager type-root")
 struct PageContentManagerTypeRootTests {
@@ -68,7 +68,7 @@ struct PageContentManagerTypeRootTests {
             folderURL: collFolder,
             modifiedAt: Date()
         )
-        // Sidecar so PageType discovery would treat this as a real PageSet
+        // Sidecar so PageCollection discovery would treat this as a real PageSet
         try coll.save(to: collFolder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename))
         try FixtureFiles.write(
             "---\nid: 01HINNER\ncreated_at: 2025-01-01T00:00:00Z\n---\n\nbody\n",
@@ -91,7 +91,7 @@ struct PageContentManagerTypeRootTests {
         let (nexus, vault, manager) = try await setup()
         defer { TempNexus.cleanup(nexus) }
 
-        _ = try await manager.createPage(name: "Notes", inVaultRoot: vault)
+        _ = try await manager.createPage(name: "Notes", inCollectionRoot: vault)
         let folder = NexusPaths.vaultFolderURL(forTitle: vault.title, in: nexus)
         let url = NexusPaths.pageFileURL(forTitle: "Notes", in: folder)
         #expect(FileManager.default.fileExists(atPath: url.path))
@@ -110,10 +110,10 @@ struct PageContentManagerTypeRootTests {
         let (nexus, vault, manager) = try await setup()
         defer { TempNexus.cleanup(nexus) }
         let folder = NexusPaths.vaultFolderURL(forTitle: vault.title, in: nexus)
-        _ = try await manager.createPage(name: "Notes", inVaultRoot: vault)
+        _ = try await manager.createPage(name: "Notes", inCollectionRoot: vault)
         let page = manager.pages(in: vault).first!
 
-        try await manager.renamePage(page, to: "Ideas", inVaultRoot: vault)
+        try await manager.renamePage(page, to: "Ideas", inCollectionRoot: vault)
         #expect(
             !FileManager.default.fileExists(
                 atPath: NexusPaths.pageFileURL(forTitle: "Notes", in: folder).path
@@ -130,10 +130,10 @@ struct PageContentManagerTypeRootTests {
         let (nexus, vault, manager) = try await setup()
         defer { TempNexus.cleanup(nexus) }
         let folder = NexusPaths.vaultFolderURL(forTitle: vault.title, in: nexus)
-        _ = try await manager.createPage(name: "Notes", inVaultRoot: vault)
+        _ = try await manager.createPage(name: "Notes", inCollectionRoot: vault)
         let page = manager.pages(in: vault).first!
 
-        try await manager.deletePage(page, inVaultRoot: vault)
+        try await manager.deletePage(page, inCollectionRoot: vault)
         #expect(
             !FileManager.default.fileExists(
                 atPath: NexusPaths.pageFileURL(forTitle: "Notes", in: folder).path
@@ -143,9 +143,9 @@ struct PageContentManagerTypeRootTests {
 
     // MARK: - Setup
 
-    private func setup() async throws -> (Nexus, PageType, PageContentManager) {
+    private func setup() async throws -> (Nexus, PageCollection, PageContentManager) {
         let nexus = try TempNexus.make()
-        let vault = PageType(
+        let vault = PageCollection(
             id: ULID.generate(), title: "V", icon: nil,
             properties: [], views: [], modifiedAt: Date())
         let vaultFolder = NexusPaths.vaultFolderURL(forTitle: "V", in: nexus)

@@ -3,7 +3,7 @@ import Testing
 
 @testable import Pommora
 
-/// Covers the multi-saved-view CRUD managers on `PageTypeManager` (Views Task
+/// Covers the multi-saved-view CRUD managers on `PageCollectionManager` (Views Task
 /// 17): `addView`, `duplicateView`, `deleteView`, `renameView`.
 ///
 /// Each test hits real disk (mirrors `UpdateViewClobberTests`) and asserts on
@@ -20,17 +20,17 @@ struct ViewCRUDTests {
         defer { TempNexus.cleanup(nexus) }
 
         let viewID = "view_\(ULID.generate())"
-        let vault = try makePageType(nexus: nexus, title: "Notes", views: [SavedView(id: viewID)])
+        let vault = try makePageCollection(nexus: nexus, title: "Notes", views: [SavedView(id: viewID)])
 
-        let types = PageTypeManager(nexus: nexus)
+        let types = PageCollectionManager(nexus: nexus)
         await types.loadAll()
 
-        await #expect(throws: PageTypeManagerError.cannotDeleteLastView) {
+        await #expect(throws: PageCollectionManagerError.cannotDeleteLastView) {
             try await types.deleteView(viewID, in: vault.id)
         }
 
         // No mutation — disk still holds the single view.
-        let fresh = try PageType.load(from: NexusPaths.vaultMetadataURL(forTitle: "Notes", in: nexus))
+        let fresh = try PageCollection.load(from: NexusPaths.vaultMetadataURL(forTitle: "Notes", in: nexus))
         #expect(fresh.views.count == 1)
         #expect(fresh.views.first?.id == viewID)
     }
@@ -42,16 +42,16 @@ struct ViewCRUDTests {
 
         let a = "view_\(ULID.generate())"
         let b = "view_\(ULID.generate())"
-        let vault = try makePageType(
+        let vault = try makePageCollection(
             nexus: nexus, title: "Notes",
             views: [SavedView(id: a), SavedView(id: b)])
 
-        let types = PageTypeManager(nexus: nexus)
+        let types = PageCollectionManager(nexus: nexus)
         await types.loadAll()
 
         try await types.deleteView(a, in: vault.id)
 
-        let fresh = try PageType.load(from: NexusPaths.vaultMetadataURL(forTitle: "Notes", in: nexus))
+        let fresh = try PageCollection.load(from: NexusPaths.vaultMetadataURL(forTitle: "Notes", in: nexus))
         #expect(fresh.views.map(\.id) == [b])
     }
 
@@ -63,16 +63,16 @@ struct ViewCRUDTests {
         defer { TempNexus.cleanup(nexus) }
 
         let seed = "view_\(ULID.generate())"
-        let vault = try makePageType(nexus: nexus, title: "Notes", views: [SavedView(id: seed)])
+        let vault = try makePageCollection(nexus: nexus, title: "Notes", views: [SavedView(id: seed)])
 
-        let types = PageTypeManager(nexus: nexus)
+        let types = PageCollectionManager(nexus: nexus)
         await types.loadAll()
 
         let added = try await types.addView(type: .table, to: vault.id)
 
         #expect(added.name == "Untitled View")
         #expect(added.type == .table)
-        let fresh = try PageType.load(from: NexusPaths.vaultMetadataURL(forTitle: "Notes", in: nexus))
+        let fresh = try PageCollection.load(from: NexusPaths.vaultMetadataURL(forTitle: "Notes", in: nexus))
         #expect(fresh.views.count == 2)
         #expect(fresh.views.last?.id == added.id)
     }
@@ -83,9 +83,9 @@ struct ViewCRUDTests {
         defer { TempNexus.cleanup(nexus) }
 
         let seed = "view_\(ULID.generate())"
-        let vault = try makePageType(nexus: nexus, title: "Notes", views: [SavedView(id: seed)])
+        let vault = try makePageCollection(nexus: nexus, title: "Notes", views: [SavedView(id: seed)])
 
-        let types = PageTypeManager(nexus: nexus)
+        let types = PageCollectionManager(nexus: nexus)
         await types.loadAll()
 
         let added = try await types.addView(type: .gallery, to: vault.id)
@@ -120,9 +120,9 @@ struct ViewCRUDTests {
                 rules: [FilterRule(propertyID: "prop_a", op: "eq", value: "v")]),
             group: .property(PropertyGrouping(propertyID: "prop_a", order: ["x", "y"]))
         )
-        let vault = try makePageType(nexus: nexus, title: "Notes", views: [original])
+        let vault = try makePageCollection(nexus: nexus, title: "Notes", views: [original])
 
-        let types = PageTypeManager(nexus: nexus)
+        let types = PageCollectionManager(nexus: nexus)
         await types.loadAll()
 
         let copy = try await types.duplicateView(viewID, in: vault.id)
@@ -140,7 +140,7 @@ struct ViewCRUDTests {
         #expect(copy.showCover == original.showCover)
         #expect(copy.type == original.type)
 
-        let fresh = try PageType.load(from: NexusPaths.vaultMetadataURL(forTitle: "Notes", in: nexus))
+        let fresh = try PageCollection.load(from: NexusPaths.vaultMetadataURL(forTitle: "Notes", in: nexus))
         #expect(fresh.views.count == 2)
         #expect(fresh.views.contains(where: { $0.id == copy.id }))
     }
@@ -153,15 +153,15 @@ struct ViewCRUDTests {
         defer { TempNexus.cleanup(nexus) }
 
         let viewID = "view_\(ULID.generate())"
-        let vault = try makePageType(
+        let vault = try makePageCollection(
             nexus: nexus, title: "Notes", views: [SavedView(id: viewID, name: "Old")])
 
-        let types = PageTypeManager(nexus: nexus)
+        let types = PageCollectionManager(nexus: nexus)
         await types.loadAll()
 
         try await types.renameView(viewID, in: vault.id, to: "New")
 
-        let fresh = try PageType.load(from: NexusPaths.vaultMetadataURL(forTitle: "Notes", in: nexus))
+        let fresh = try PageCollection.load(from: NexusPaths.vaultMetadataURL(forTitle: "Notes", in: nexus))
         #expect(fresh.views.first(where: { $0.id == viewID })?.name == "New")
     }
 
@@ -173,11 +173,11 @@ struct ViewCRUDTests {
         defer { TempNexus.cleanup(nexus) }
 
         let seed = "view_\(ULID.generate())"
-        let vault = try makePageType(nexus: nexus, title: "Notes", views: [])
+        let vault = try makePageCollection(nexus: nexus, title: "Notes", views: [])
         let coll = try makePageSet(
             nexus: nexus, title: "Inbox", in: vault, views: [SavedView(id: seed)])
 
-        let types = PageTypeManager(nexus: nexus)
+        let types = PageCollectionManager(nexus: nexus)
         let setManager = PageSetManager(nexus: nexus)
         setManager.pageTypeProvider = { [weak types] in types?.types ?? [] }
         types.pageSetManager = setManager
@@ -196,8 +196,8 @@ struct ViewCRUDTests {
     // MARK: - Fixtures (mirror UpdateViewClobberTests)
 
     @discardableResult
-    private func makePageType(nexus: Nexus, title: String, views: [SavedView]) throws -> PageType {
-        var vault = PageType(
+    private func makePageCollection(nexus: Nexus, title: String, views: [SavedView]) throws -> PageCollection {
+        var vault = PageCollection(
             id: ULID.generate(), title: title, icon: nil,
             properties: [], views: [], modifiedAt: Date())
         vault.views = views
@@ -209,13 +209,13 @@ struct ViewCRUDTests {
 
     @discardableResult
     private func makePageSet(
-        nexus: Nexus, title: String, in vault: PageType, views: [SavedView]
+        nexus: Nexus, title: String, in pageCollection: PageCollection, views: [SavedView]
     ) throws -> PageSet {
         let folderURL = NexusPaths.collectionFolderURL(
-            forTitle: title, inVaultTitled: vault.title, in: nexus)
+            forTitle: title, inVaultTitled: pageCollection.title, in: nexus)
         try FileManager.default.createDirectory(at: folderURL, withIntermediateDirectories: true)
         var coll = PageSet(
-            id: ULID.generate(), parentID: vault.id, title: title,
+            id: ULID.generate(), parentID: pageCollection.id, title: title,
             folderURL: folderURL, modifiedAt: Date())
         coll.views = views
         try coll.save(to: folderURL.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename))

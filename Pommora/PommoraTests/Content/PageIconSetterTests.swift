@@ -29,10 +29,10 @@ struct PageIconSetterTests {
         defer { TempNexus.cleanup(nexus) }
 
         let (vault, _, manager) = try await makePageSetup(nexus: nexus)
-        try await manager.createPage(name: "RootNotes", inVaultRoot: vault)
+        try await manager.createPage(name: "RootNotes", inCollectionRoot: vault)
         let page = manager.pages(in: vault).first!
 
-        try await manager.updatePageIcon(page, to: "star.fill", vault: vault, collection: nil)
+        try await manager.updatePageIcon(page, to: "star.fill", pageCollection: vault, collection: nil)
 
         // On-disk assertion: reload the .md frontmatter directly.
         let reloaded = try PageFile.load(from: page.url)
@@ -46,10 +46,10 @@ struct PageIconSetterTests {
         defer { TempNexus.cleanup(nexus) }
 
         let (vault, coll, manager) = try await makePageSetup(nexus: nexus)
-        try await manager.createPage(name: "Notes", in: coll, vault: vault)
+        try await manager.createPage(name: "Notes", in: coll, pageCollection: vault)
         let page = manager.pages(inCollection: coll).first!
 
-        try await manager.updatePageIcon(page, to: "star.fill", vault: vault, collection: coll)
+        try await manager.updatePageIcon(page, to: "star.fill", pageCollection: vault, collection: coll)
 
         let reloaded = try PageFile.load(from: page.url)
         #expect(reloaded.frontmatter.icon == "star.fill")
@@ -57,12 +57,12 @@ struct PageIconSetterTests {
 
     // MARK: - Helpers
 
-    /// Builds a PageType + a PageSet on disk and a PageContentManager
+    /// Builds a PageCollection + a PageSet on disk and a PageContentManager
     /// (mirrors PageContentManagerUpdatePageTests.setup).
     private func makePageSetup(nexus: Nexus) async throws
-        -> (PageType, PageSet, PageContentManager)
+        -> (PageCollection, PageSet, PageContentManager)
     {
-        let vault = PageType(
+        let vault = PageCollection(
             id: ULID.generate(), title: "V", icon: nil,
             properties: [], views: [], modifiedAt: Date())
         let vaultFolder = NexusPaths.vaultFolderURL(forTitle: "V", in: nexus)

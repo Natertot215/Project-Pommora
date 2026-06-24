@@ -33,9 +33,9 @@ struct ConnectionCascadeTests {
         pageManager.indexUpdater = updater
 
         // Target page, plus a page source A that links [[Target]].
-        let target = try await pageManager.createPage(name: "Target", inVaultRoot: vault)
-        let pageA = try await pageManager.createPage(name: "A", inVaultRoot: vault)
-        try await pageManager.updatePage(pageA, body: "see [[Target]] here", inVaultRoot: vault)
+        let target = try await pageManager.createPage(name: "Target", inCollectionRoot: vault)
+        let pageA = try await pageManager.createPage(name: "A", inCollectionRoot: vault)
+        try await pageManager.updatePage(pageA, body: "see [[Target]] here", inCollectionRoot: vault)
 
         // Sanity: A → Target resolved before the rename.
         let beforeA = try await IndexQuery(index).outgoingConnections(sourceID: pageA.id)
@@ -43,7 +43,7 @@ struct ConnectionCascadeTests {
         #expect(beforeA.first?.targetID == target.id)
 
         // Rename Target → Renamed.
-        try await pageManager.renamePage(target, to: "Renamed", inVaultRoot: vault)
+        try await pageManager.renamePage(target, to: "Renamed", inCollectionRoot: vault)
 
         // (1) Page source A's .md now links [[Renamed]] and not [[Target]].
         let aFolder = NexusPaths.pageTypeFolderURL(in: nexus.rootURL, typeFolderName: vault.title)
@@ -85,15 +85,15 @@ struct ConnectionCascadeTests {
 
     // MARK: - Fixtures (mirror UnlinkTierTests)
 
-    private func makeVault(in nexus: Nexus, index: PommoraIndex) throws -> PageType {
-        let vault = PageType(
+    private func makeVault(in nexus: Nexus, index: PommoraIndex) throws -> PageCollection {
+        let vault = PageCollection(
             id: ULID.generate(), title: "V", icon: nil,
             properties: [], views: [], modifiedAt: Date()
         )
         let folder = NexusPaths.vaultFolderURL(forTitle: "V", in: nexus)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         try vault.save(to: NexusPaths.vaultMetadataURL(forTitle: "V", in: nexus))
-        try IndexUpdater(index).upsertPageType(vault)
+        try IndexUpdater(index).upsertPageCollection(vault)
         return vault
     }
 }

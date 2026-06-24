@@ -10,4 +10,4 @@ protocol PageOrderSidecar {
 }
 
 extension PageSet: PageOrderSidecar {}
-extension PageType: PageOrderSidecar {}
+extension PageCollection: PageOrderSidecar {}

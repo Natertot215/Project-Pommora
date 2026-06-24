@@ -18,20 +18,20 @@ struct PageEditorHost: View {
     @Binding var selection: SidebarSelection
 
     @Environment(PageContentManager.self) private var contentManager
-    @Environment(PageTypeManager.self) private var vaultManager
+    @Environment(PageCollectionManager.self) private var collectionManager
     @Environment(PageSetManager.self) private var pageSetManager
 
     @State private var viewModel: PageEditorViewModel?
-    @State private var resolvedVault: PageType?
+    @State private var resolvedPageCollection: PageCollection?
     @State private var resolvedCollection: PageSet?
     @State private var resolvedSet: PageSet?
     @State private var loadFailed = false
 
     var body: some View {
         Group {
-            if let vm = viewModel, let vault = resolvedVault {
+            if let vm = viewModel, let vault = resolvedPageCollection {
                 PageEditorView(
-                    viewModel: vm, vault: vault, collection: resolvedCollection,
+                    viewModel: vm, pageCollection: vault, collection: resolvedCollection,
                     set: resolvedSet, selection: $selection)
                     // Force a full teardown + rebuild of PageEditorView when
                     // the loaded Page changes — guarantees @State (titleDraft)
@@ -64,10 +64,10 @@ struct PageEditorHost: View {
     private func loadAndConstruct(for page: PageMeta) async {
         guard
             let resolved = contentManager.resolveParent(
-                for: page, pageTypeManager: vaultManager, pageSetManager: pageSetManager)
+                for: page, collectionManager: collectionManager, pageSetManager: pageSetManager)
         else {
             viewModel = nil
-            resolvedVault = nil
+            resolvedPageCollection = nil
             resolvedCollection = nil
             resolvedSet = nil
             loadFailed = true
@@ -90,7 +90,7 @@ struct PageEditorHost: View {
             )
         else {
             viewModel = nil
-            resolvedVault = nil
+            resolvedPageCollection = nil
             resolvedCollection = nil
             resolvedSet = nil
             loadFailed = true
@@ -99,15 +99,15 @@ struct PageEditorHost: View {
 
         let saver = ContentManagerPageSaver(
             contentManager: contentManager,
-            vault: resolved.vault,
+            pageCollection: resolved.pageCollection,
             collection: resolved.collection,
             set: resolved.set,
-            pageTypeManager: vaultManager,
+            collectionManager: collectionManager,
             pageSetManager: pageSetManager
         )
         let vm = PageEditorViewModel(page: page, body: pageFile.body, saver: saver)
         viewModel = vm
-        resolvedVault = resolved.vault
+        resolvedPageCollection = resolved.pageCollection
         resolvedCollection = resolved.collection
         resolvedSet = resolved.set
         loadFailed = false

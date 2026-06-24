@@ -3,8 +3,8 @@ import SwiftUI
 /// The Views dropdown popover content: one row per saved view on the container,
 /// a footer "New View" action, and an inline type-switch expansion per row.
 ///
-/// Resolves the container's views LIVE off `PageTypeManager` by `containerID`
-/// (PageType or PageCollection — the same dual lookup the panes use), so CRUD
+/// Resolves the container's views LIVE off `PageCollectionManager` by `containerID`
+/// (PageCollection or PageCollection — the same dual lookup the panes use), so CRUD
 /// edits reflect immediately. Active-view switching routes through
 /// `ActiveViewStore.setActive`.
 ///
@@ -15,7 +15,7 @@ struct ViewsPanel: View {
     /// Dismisses the hosting popover after an active-view switch.
     let onDismiss: () -> Void
 
-    @Environment(PageTypeManager.self) private var pageTypeManager
+    @Environment(PageCollectionManager.self) private var collectionManager
     @Environment(ActiveViewStore.self) private var activeViewStore
 
     @State private var commitError: String?
@@ -80,11 +80,11 @@ struct ViewsPanel: View {
     // MARK: - Live container resolution
 
     private var views: [SavedView] {
-        pageTypeManager.views(in: containerID)
+        collectionManager.views(in: containerID)
     }
 
     private var activeID: String? {
-        activeViewStore.resolvedActiveView(in: containerID, manager: pageTypeManager)?.id
+        activeViewStore.resolvedActiveView(in: containerID, manager: collectionManager)?.id
     }
 
     /// Up/down arrow moves the active view to the previous/next row.
@@ -104,32 +104,32 @@ struct ViewsPanel: View {
     // MARK: - CRUD bridges
 
     private func addView() async {
-        do { _ = try await pageTypeManager.addView(type: .table, to: containerID) } catch {
+        do { _ = try await collectionManager.addView(type: .table, to: containerID) } catch {
             commitError = PropertyEditorErrorMessage.string(for: error)
         }
     }
 
     private func duplicate(_ viewID: String) async {
-        do { _ = try await pageTypeManager.duplicateView(viewID, in: containerID) } catch {
+        do { _ = try await collectionManager.duplicateView(viewID, in: containerID) } catch {
             commitError = PropertyEditorErrorMessage.string(for: error)
         }
     }
 
     private func delete(_ viewID: String) async {
-        do { try await pageTypeManager.deleteView(viewID, in: containerID) } catch {
+        do { try await collectionManager.deleteView(viewID, in: containerID) } catch {
             commitError = PropertyEditorErrorMessage.string(for: error)
         }
     }
 
     private func rename(_ viewID: String, to name: String) async {
-        do { try await pageTypeManager.renameView(viewID, in: containerID, to: name) } catch {
+        do { try await collectionManager.renameView(viewID, in: containerID, to: name) } catch {
             commitError = PropertyEditorErrorMessage.string(for: error)
         }
     }
 
     private func setIcon(_ viewID: String, to icon: String?) async {
         do {
-            try await pageTypeManager.updateView(viewID, in: containerID) { $0.icon = icon }
+            try await collectionManager.updateView(viewID, in: containerID) { $0.icon = icon }
         } catch {
             commitError = PropertyEditorErrorMessage.string(for: error)
         }
@@ -137,7 +137,7 @@ struct ViewsPanel: View {
 
     private func switchType(_ viewID: String, to type: ViewType) async {
         do {
-            try await pageTypeManager.updateView(viewID, in: containerID) { v in
+            try await collectionManager.updateView(viewID, in: containerID) { v in
                 v.type = type
                 // Gallery needs a card size; mint the default when switching in.
                 if type == .gallery, v.cardSize == nil { v.cardSize = .medium }

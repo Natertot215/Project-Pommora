@@ -3,18 +3,18 @@ import Testing
 
 @testable import Pommora
 
-/// Tests for `VaultSettingsViewModel` — the draft-state machine backing `VaultSettingsSheet`.
+/// Tests for `CollectionSettingsViewModel` — the draft-state machine backing `CollectionSettingsSheet`.
 ///
 /// Drives the view-model directly (J.5/J.11/K.1 pattern) without SwiftUI rendering.
-/// Manager interactions are captured via `MockPageTypeManager`.
-@Suite("VaultSettingsSheetTests")
+/// Manager interactions are captured via `MockPageCollectionManager`.
+@Suite("CollectionSettingsSheetTests")
 @MainActor
-struct VaultSettingsSheetTests {
+struct CollectionSettingsSheetTests {
 
     // MARK: - Helpers
 
-    private func makePageType(properties: [PropertyDefinition] = []) -> PageType {
-        PageType(
+    private func makePageCollection(properties: [PropertyDefinition] = []) -> PageCollection {
+        PageCollection(
             id: "pt_test_001",
             title: "Test Vault",
             icon: nil,
@@ -32,10 +32,10 @@ struct VaultSettingsSheetTests {
         PropertyDefinition(id: id, name: name, type: type)
     }
 
-    // MARK: - MockPageTypeManager
+    // MARK: - MockPageCollectionManager
 
     /// Captures method calls without touching the filesystem.
-    final class MockPageTypeManager: @unchecked Sendable {
+    final class MockPageCollectionManager: @unchecked Sendable {
         struct Call: Sendable {
             enum Kind: Sendable {
                 case add(PropertyDefinition, String)
@@ -71,7 +71,7 @@ struct VaultSettingsSheetTests {
         }
     }
 
-    // We can't inject MockPageTypeManager into vm.save() because PageTypeManager is
+    // We can't inject MockPageCollectionManager into vm.save() because PageCollectionManager is
     // a concrete class with no protocol abstraction at this phase. The tests instead
     // verify the *draft* mutations directly (the invariant that matters for correctness)
     // and use hasChanges / pendingError / draftProperties as observable outputs.
@@ -84,8 +84,8 @@ struct VaultSettingsSheetTests {
             makeDef(id: "p1", name: "Priority"),
             makeDef(id: "p2", name: "Score"),
         ]
-        let pt = makePageType(properties: props)
-        let vm = VaultSettingsViewModel(pageType: pt)
+        let pt = makePageCollection(properties: props)
+        let vm = CollectionSettingsViewModel(pageCollection: pt)
 
         #expect(vm.draftProperties.count == 2)
         #expect(vm.draftProperties[0].id == "p1")
@@ -97,8 +97,8 @@ struct VaultSettingsSheetTests {
 
     @Test("Adding a property appends to draftProperties and marks hasChanges")
     func addingPropertyAppendsAndMarksChanges() {
-        let pt = makePageType()
-        let vm = VaultSettingsViewModel(pageType: pt)
+        let pt = makePageCollection()
+        let vm = CollectionSettingsViewModel(pageCollection: pt)
 
         let newDef = makeDef(id: "p_new", name: "Tags", type: .select)
         vm.addDraft(newDef)
@@ -113,8 +113,8 @@ struct VaultSettingsSheetTests {
     @Test("Renaming a property mutates draftProperties and marks hasChanges")
     func renamingPropertyMutatesDraft() {
         let props = [makeDef(id: "p1", name: "OldName")]
-        let pt = makePageType(properties: props)
-        let vm = VaultSettingsViewModel(pageType: pt)
+        let pt = makePageCollection(properties: props)
+        let vm = CollectionSettingsViewModel(pageCollection: pt)
 
         vm.renamingID = "p1"
         vm.renameBuffer = "NewName"
@@ -130,8 +130,8 @@ struct VaultSettingsSheetTests {
     @Test("commitRename with whitespace-only string is a no-op")
     func renameWithWhitespaceIsNoop() {
         let props = [makeDef(id: "p1", name: "Original")]
-        let pt = makePageType(properties: props)
-        let vm = VaultSettingsViewModel(pageType: pt)
+        let pt = makePageCollection(properties: props)
+        let vm = CollectionSettingsViewModel(pageCollection: pt)
 
         vm.commitRename("p1", newName: "   ")
 
@@ -147,8 +147,8 @@ struct VaultSettingsSheetTests {
             makeDef(id: "p1", name: "Alpha"),
             makeDef(id: "p2", name: "Beta"),
         ]
-        let pt = makePageType(properties: props)
-        let vm = VaultSettingsViewModel(pageType: pt)
+        let pt = makePageCollection(properties: props)
+        let vm = CollectionSettingsViewModel(pageCollection: pt)
 
         vm.deleteDraft("p1")
 
@@ -161,8 +161,8 @@ struct VaultSettingsSheetTests {
 
     @Test("Deleting a property that was added in the same session is a net no-op")
     func deletingPendingAddIsNetNoop() {
-        let pt = makePageType()
-        let vm = VaultSettingsViewModel(pageType: pt)
+        let pt = makePageCollection()
+        let vm = CollectionSettingsViewModel(pageCollection: pt)
 
         let newDef = makeDef(id: "p_new", name: "Temp")
         vm.addDraft(newDef)
@@ -183,8 +183,8 @@ struct VaultSettingsSheetTests {
             makeDef(id: "p2", name: "Second"),
             makeDef(id: "p3", name: "Third"),
         ]
-        let pt = makePageType(properties: props)
-        let vm = VaultSettingsViewModel(pageType: pt)
+        let pt = makePageCollection(properties: props)
+        let vm = CollectionSettingsViewModel(pageCollection: pt)
 
         vm.moveDown("p1")
 
@@ -202,8 +202,8 @@ struct VaultSettingsSheetTests {
             makeDef(id: "p1", name: "First"),
             makeDef(id: "p2", name: "Second"),
         ]
-        let pt = makePageType(properties: props)
-        let vm = VaultSettingsViewModel(pageType: pt)
+        let pt = makePageCollection(properties: props)
+        let vm = CollectionSettingsViewModel(pageCollection: pt)
 
         vm.moveUp("p1")
 
@@ -219,8 +219,8 @@ struct VaultSettingsSheetTests {
             makeDef(id: "p1", name: "First"),
             makeDef(id: "p2", name: "Second"),
         ]
-        let pt = makePageType(properties: props)
-        let vm = VaultSettingsViewModel(pageType: pt)
+        let pt = makePageCollection(properties: props)
+        let vm = CollectionSettingsViewModel(pageCollection: pt)
 
         vm.moveDown("p2")
 
@@ -233,8 +233,8 @@ struct VaultSettingsSheetTests {
     @Test("Cancel is a no-op — no pending changes accumulate if no edits were made")
     func cancelWithNoEditsHasNoChanges() {
         let props = [makeDef(id: "p1", name: "Alpha")]
-        let pt = makePageType(properties: props)
-        let vm = VaultSettingsViewModel(pageType: pt)
+        let pt = makePageCollection(properties: props)
+        let vm = CollectionSettingsViewModel(pageCollection: pt)
 
         // Simulate Cancel without making any edits
         #expect(vm.hasChanges == false)
@@ -245,8 +245,8 @@ struct VaultSettingsSheetTests {
     @Test("hasChanges is false on a fresh vm with no mutations")
     func saveWithNoChangesIsNoop() {
         let props = [makeDef(id: "p1", name: "Alpha")]
-        let pt = makePageType(properties: props)
-        let vm = VaultSettingsViewModel(pageType: pt)
+        let pt = makePageCollection(properties: props)
+        let vm = CollectionSettingsViewModel(pageCollection: pt)
 
         #expect(vm.hasChanges == false)
         #expect(vm.pendingError == nil)
@@ -257,8 +257,8 @@ struct VaultSettingsSheetTests {
     @Test("Renaming the same property twice keeps only the latest name")
     func multipleRenamesDeduplicateToLatest() {
         let props = [makeDef(id: "p1", name: "Original")]
-        let pt = makePageType(properties: props)
-        let vm = VaultSettingsViewModel(pageType: pt)
+        let pt = makePageCollection(properties: props)
+        let vm = CollectionSettingsViewModel(pageCollection: pt)
 
         vm.commitRename("p1", newName: "Intermediate")
         vm.commitRename("p1", newName: "Final")
@@ -270,8 +270,8 @@ struct VaultSettingsSheetTests {
 
     @Test("resetNewPropertyState clears pendingNewType, name, and options")
     func resetClearsEphemeralState() {
-        let pt = makePageType()
-        let vm = VaultSettingsViewModel(pageType: pt)
+        let pt = makePageCollection()
+        let vm = CollectionSettingsViewModel(pageCollection: pt)
 
         vm.pendingNewType = .select
         vm.pendingNewName = "Some Name"
@@ -290,8 +290,8 @@ struct VaultSettingsSheetTests {
 
     @Test("canCommitNewProperty is false when pendingNewName is empty")
     func canCommitRequiresName() {
-        let pt = makePageType()
-        let vm = VaultSettingsViewModel(pageType: pt)
+        let pt = makePageCollection()
+        let vm = CollectionSettingsViewModel(pageCollection: pt)
 
         vm.pendingNewType = .number
         vm.pendingNewName = ""
@@ -305,8 +305,8 @@ struct VaultSettingsSheetTests {
 
     @Test("canCommitNewProperty is false for select type with no options")
     func canCommitSelectRequiresOptions() {
-        let pt = makePageType()
-        let vm = VaultSettingsViewModel(pageType: pt)
+        let pt = makePageCollection()
+        let vm = CollectionSettingsViewModel(pageCollection: pt)
 
         vm.pendingNewType = .select
         vm.pendingNewName = "Status"

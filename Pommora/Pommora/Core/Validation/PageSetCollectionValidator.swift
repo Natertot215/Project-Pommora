@@ -1,6 +1,6 @@
 import Foundation
 
-enum PageTypeValidator {
+enum PageSetCollectionValidator {
     enum ValidationError: Error, Equatable {
         case emptyTitle
         case invalidTitleCharacters
@@ -9,8 +9,8 @@ enum PageTypeValidator {
 
     static func validate(
         title: String,
-        existing: [PageType],
-        excluding: PageType? = nil
+        existingInType: [PageSet],
+        excluding: PageSet? = nil
     ) throws(ValidationError) {
         let trimmed = try FilenameSafety.validatedTitle(
             title,
@@ -18,7 +18,7 @@ enum PageTypeValidator {
             invalidCharacters: ValidationError.invalidTitleCharacters)
 
         try NameCollisionValidator.validate(
-            desiredTitle: trimmed, siblings: existing, excludingID: excluding?.id,
+            desiredTitle: trimmed, siblings: existingInType, excludingID: excluding?.id,
             else: ValidationError.duplicateTitle)
     }
 }

@@ -11,7 +11,7 @@ import Testing
 ///   - **Manual** writes `sort = nil`;
 ///   - a property sort writes exactly one `SortCriterion` with the right id +
 ///     direction;
-///   - `loadAll`'s default-view mint folds `PageType.defaultSort` into the
+///   - `loadAll`'s default-view mint folds `PageCollection.defaultSort` into the
 ///     minted view's `sort`.
 ///
 /// The first three exercise the real disk-backed `updateView` path (mirrors
@@ -29,9 +29,9 @@ struct SortPersistenceTests {
         defer { TempNexus.cleanup(nexus) }
 
         let viewID = "view_\(ULID.generate())"
-        let vault = try makePageType(nexus: nexus, title: "Notes", views: [SavedView(id: viewID)])
+        let vault = try makePageCollection(nexus: nexus, title: "Notes", views: [SavedView(id: viewID)])
 
-        let types = PageTypeManager(nexus: nexus)
+        let types = PageCollectionManager(nexus: nexus)
         await types.loadAll()
 
         try await types.updateView(viewID, in: vault.id) { v in
@@ -51,12 +51,12 @@ struct SortPersistenceTests {
         defer { TempNexus.cleanup(nexus) }
 
         let viewID = "view_\(ULID.generate())"
-        let vault = try makePageType(
+        let vault = try makePageCollection(
             nexus: nexus, title: "Notes",
             views: [SavedView(id: viewID, sort: [SortCriterion(propertyID: "prop_due", direction: .ascending)])]
         )
 
-        let types = PageTypeManager(nexus: nexus)
+        let types = PageCollectionManager(nexus: nexus)
         await types.loadAll()
 
         // Pick "Title A→Z" over an existing property sort.
@@ -77,7 +77,7 @@ struct SortPersistenceTests {
         defer { TempNexus.cleanup(nexus) }
 
         let viewID = "view_\(ULID.generate())"
-        let vault = try makePageType(
+        let vault = try makePageCollection(
             nexus: nexus, title: "Notes",
             views: [
                 SavedView(
@@ -85,7 +85,7 @@ struct SortPersistenceTests {
             ]
         )
 
-        let types = PageTypeManager(nexus: nexus)
+        let types = PageCollectionManager(nexus: nexus)
         await types.loadAll()
 
         try await types.updateView(viewID, in: vault.id) { v in
@@ -98,7 +98,7 @@ struct SortPersistenceTests {
 
     // MARK: - defaultSort fold (Step 3)
 
-    @Test("defaultTable folds PageType.defaultSort into the minted view's sort")
+    @Test("defaultTable folds PageCollection.defaultSort into the minted view's sort")
     func defaultTableFoldsDefaultSort() {
         let config = DefaultSortConfig(propertyID: "_modified_at", direction: .descending)
         let view = SavedView.defaultTable(visiblePropertyIDs: ["prop_a"], defaultSort: config)
@@ -119,12 +119,12 @@ struct SortPersistenceTests {
         defer { TempNexus.cleanup(nexus) }
 
         // Vault with a default_sort sidecar field and NO views (forces mint).
-        _ = try makePageType(
+        _ = try makePageCollection(
             nexus: nexus, title: "Notes", views: [],
             defaultSort: DefaultSortConfig(propertyID: "_id", direction: .ascending)
         )
 
-        let types = PageTypeManager(nexus: nexus)
+        let types = PageCollectionManager(nexus: nexus)
         await types.loadAll()
 
         let minted = try #require(types.types.first(where: { $0.title == "Notes" })?.views.first)
@@ -137,13 +137,13 @@ struct SortPersistenceTests {
     // MARK: - Fixtures
 
     @discardableResult
-    private func makePageType(
+    private func makePageCollection(
         nexus: Nexus,
         title: String,
         views: [SavedView],
         defaultSort: DefaultSortConfig? = nil
-    ) throws -> PageType {
-        let vault = PageType(
+    ) throws -> PageCollection {
+        let vault = PageCollection(
             id: ULID.generate(), title: title, icon: nil,
             properties: [], views: views, modifiedAt: Date(),
             defaultSort: defaultSort
@@ -154,7 +154,7 @@ struct SortPersistenceTests {
         return vault
     }
 
-    private func reloadVault(nexus: Nexus, title: String) throws -> PageType {
-        try PageType.load(from: NexusPaths.vaultMetadataURL(forTitle: title, in: nexus))
+    private func reloadVault(nexus: Nexus, title: String) throws -> PageCollection {
+        try PageCollection.load(from: NexusPaths.vaultMetadataURL(forTitle: title, in: nexus))
     }
 }

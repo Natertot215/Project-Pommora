@@ -25,7 +25,7 @@ struct PageEditorView: View {
     // received-from-parent reference preserves the OLD reference across
     // re-renders, which breaks sidebar page switching.
     @Bindable var viewModel: PageEditorViewModel
-    let vault: PageType
+    let pageCollection: PageCollection
     /// nil = vault-root Page (no Collection parent)
     let collection: PageSet?
     /// nil = Page outside any Set. Non-nil implies `collection` is non-nil
@@ -129,13 +129,13 @@ struct PageEditorView: View {
 
     init(
         viewModel: PageEditorViewModel,
-        vault: PageType,
+        pageCollection: PageCollection,
         collection: PageSet?,
         set: PageSet? = nil,
         selection: Binding<SidebarSelection>
     ) {
         self.viewModel = viewModel
-        self.vault = vault
+        self.pageCollection = pageCollection
         self.collection = collection
         self.set = set
         self._selection = selection
@@ -191,7 +191,7 @@ struct PageEditorView: View {
     /// at arbitrary depth show the complete path.
     private var breadcrumbCrumbs: [FooterCrumb] {
         var crumbs: [FooterCrumb] = [
-            FooterCrumb(title: vault.title) { selection = .pageType(vault) }
+            FooterCrumb(title: pageCollection.title) { selection = .pageCollection(pageCollection) }
         ]
         if let c = collection {
             crumbs.append(FooterCrumb(title: c.title) { selection = .collection(c) })
@@ -536,7 +536,7 @@ struct PageEditorView: View {
         } else if let collection {
             return contentManager.pages(inCollection: collection).first { $0.id == viewModel.page.id }
         } else {
-            return contentManager.pages(in: vault).first { $0.id == viewModel.page.id }
+            return contentManager.pages(in: pageCollection).first { $0.id == viewModel.page.id }
         }
     }
 
@@ -548,7 +548,7 @@ struct PageEditorView: View {
     private func commitIcon(_ newIcon: String?) async {
         do {
             try await contentManager.updatePageIcon(
-                viewModel.page, to: newIcon, vault: vault, collection: collection, set: set)
+                viewModel.page, to: newIcon, pageCollection: pageCollection, collection: collection, set: set)
             if let updated = currentPageMetaFromCache() { viewModel.page = updated }
         } catch {
             viewModel.pendingError = error
@@ -569,15 +569,15 @@ struct PageEditorView: View {
         do {
             if let set, let collection {
                 try await contentManager.renamePage(
-                    viewModel.page, to: newTitle, in: set, collection: collection, vault: vault
+                    viewModel.page, to: newTitle, in: set, collection: collection, pageCollection: pageCollection
                 )
             } else if let collection {
                 try await contentManager.renamePage(
-                    viewModel.page, to: newTitle, in: collection, vault: vault
+                    viewModel.page, to: newTitle, in: collection, pageCollection: pageCollection
                 )
             } else {
                 try await contentManager.renamePage(
-                    viewModel.page, to: newTitle, inVaultRoot: vault
+                    viewModel.page, to: newTitle, inCollectionRoot: pageCollection
                 )
             }
             // Pick up the freshly-renamed PageMeta from the manager cache.

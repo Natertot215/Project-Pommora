@@ -16,7 +16,7 @@ struct WikiLinkNavigationTests {
 
     private func setup() async throws -> (
         nexus: Nexus,
-        vault: PageType,
+        pageCollection: PageCollection,
         coll: PageSet,
         manager: PageContentManager,
         index: PommoraIndex
@@ -24,7 +24,7 @@ struct WikiLinkNavigationTests {
         let nexus = try TempNexus.make()
         let (index, _) = try PommoraIndex.open(at: nexus.rootURL)
 
-        let vault = PageType(
+        let vault = PageCollection(
             id: ULID.generate(), title: "V", icon: nil,
             properties: [], views: [], modifiedAt: Date()
         )
@@ -43,7 +43,7 @@ struct WikiLinkNavigationTests {
         )
 
         let updater = IndexUpdater(index)
-        try updater.upsertPageType(vault)
+        try updater.upsertPageCollection(vault)
         try updater.upsertPageCollection(coll)
 
         let manager = PageContentManager(nexus: nexus, contextProvider: { NexusContext.empty })
@@ -59,7 +59,7 @@ struct WikiLinkNavigationTests {
         let (nexus, vault, coll, manager, index) = try await setup()
         defer { TempNexus.cleanup(nexus) }
 
-        let target = try await manager.createPage(name: "Target", in: coll, vault: vault)
+        let target = try await manager.createPage(name: "Target", in: coll, pageCollection: vault)
 
         let selection = await WikiLinkPageOpener.pageSelection(
             forTitle: "Target", index: index, nexusRootURL: nexus.rootURL)
@@ -93,7 +93,7 @@ struct WikiLinkNavigationTests {
         defer { TempNexus.cleanup(nexus) }
 
         // One real on-disk page named "Dupe"…
-        let first = try await manager.createPage(name: "Dupe", in: coll, vault: vault)
+        let first = try await manager.createPage(name: "Dupe", in: coll, pageCollection: vault)
         // …plus a second index row with the SAME title under the Vault root.
         // resolveUniqueTitle must now find 2 matches and return nil (ambiguous).
         let twin = PageMeta(

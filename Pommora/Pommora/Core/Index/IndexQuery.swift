@@ -143,7 +143,7 @@ struct IndexQuery: Sendable {
     ///
     /// Backs `unlinkTier` on `PageContentManager`: that manager receives only an
     /// entity id + kind from `incomingContextLinks` (no URL), and holds no
-    /// `PageTypeManager` reference, so the index is the single source of truth
+    /// `PageCollectionManager` reference, so the index is the single source of truth
     /// for an entity's container.
     ///
     /// Returns `nil` for a dangling id, an Agenda kind (Agenda files live in a flat
@@ -477,8 +477,8 @@ struct EntityContainer: Equatable, Sendable {
 }
 
 enum TargetRef: Sendable {
-    case pageType(String)
     case pageCollection(String)
+    case pageSetCollection(String)
     case pageSet(String)
     case agendaTasks
     case agendaEvents

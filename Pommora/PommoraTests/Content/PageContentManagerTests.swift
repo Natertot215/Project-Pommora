@@ -14,7 +14,7 @@ struct PageContentManagerTests {
         let (nexus, vault, coll, manager) = try await setup()
         defer { TempNexus.cleanup(nexus) }
 
-        try await manager.createPage(name: "Notes", in: coll, vault: vault)
+        try await manager.createPage(name: "Notes", in: coll, pageCollection: vault)
         let url = NexusPaths.pageFileURL(forTitle: "Notes", in: coll.folderURL)
         #expect(FileManager.default.fileExists(atPath: url.path))
         let pages = manager.pages(inCollection: coll)
@@ -31,10 +31,10 @@ struct PageContentManagerTests {
     func renamePage() async throws {
         let (nexus, vault, coll, manager) = try await setup()
         defer { TempNexus.cleanup(nexus) }
-        try await manager.createPage(name: "Notes", in: coll, vault: vault)
+        try await manager.createPage(name: "Notes", in: coll, pageCollection: vault)
         let page = manager.pages(inCollection: coll).first!
 
-        try await manager.renamePage(page, to: "Ideas", in: coll, vault: vault)
+        try await manager.renamePage(page, to: "Ideas", in: coll, pageCollection: vault)
         #expect(
             !FileManager.default.fileExists(
                 atPath: NexusPaths.pageFileURL(forTitle: "Notes", in: coll.folderURL).path
@@ -50,7 +50,7 @@ struct PageContentManagerTests {
     func deletes() async throws {
         let (nexus, vault, coll, manager) = try await setup()
         defer { TempNexus.cleanup(nexus) }
-        try await manager.createPage(name: "P", in: coll, vault: vault)
+        try await manager.createPage(name: "P", in: coll, pageCollection: vault)
         let page = manager.pages(inCollection: coll).first!
         let pageURL = NexusPaths.pageFileURL(forTitle: "P", in: coll.folderURL)
 
@@ -60,7 +60,7 @@ struct PageContentManagerTests {
         #expect(!FileManager.default.fileExists(atPath: pageURL.path))
 
         // File now in .trash, preserving relative path under nexus root
-        // (flatlayout: PageType + PageSet folders live at the nexus root).
+        // (flatlayout: PageCollection + PageSet folders live at the nexus root).
         let trashPage = NexusPaths.trashDir(in: nexus).appendingPathComponent("V/C/P.md")
         #expect(FileManager.default.fileExists(atPath: trashPage.path))
     }
@@ -103,9 +103,9 @@ struct PageContentManagerTests {
         }
         manager.indexUpdater = IndexUpdater(index)
 
-        // Build a PageTypeManager so resolveParent can match the vault ID.
-        let vaultManager = PageTypeManager(nexus: nexus)
-        await vaultManager.loadAll()
+        // Build a PageCollectionManager so resolveParent can match the vault ID.
+        let collectionManager = PageCollectionManager(nexus: nexus)
+        await collectionManager.loadAll()
 
         // Confirm the page is NOT in the manager's in-memory arrays.
         #expect(manager.pages(in: vault).isEmpty)
@@ -118,8 +118,8 @@ struct PageContentManagerTests {
             properties: [:], createdAt: Date())
         let page = PageMeta(id: pageID, title: "Unloaded", url: pageURL, frontmatter: fm)
 
-        let result = manager.resolveParent(for: page, pageTypeManager: vaultManager)
-        #expect(result?.vault.id == vault.id)
+        let result = manager.resolveParent(for: page, collectionManager: collectionManager)
+        #expect(result?.pageCollection.id == vault.id)
         #expect(result?.collection == nil)
     }
 
@@ -149,12 +149,12 @@ struct PageContentManagerTests {
         }
         manager.indexUpdater = IndexUpdater(index)
 
-        let vaultManager = PageTypeManager(nexus: nexus)
+        let collectionManager = PageCollectionManager(nexus: nexus)
         let setManager = PageSetManager(nexus: nexus)
-        setManager.pageTypeProvider = { [weak vaultManager] in vaultManager?.types ?? [] }
-        vaultManager.pageSetManager = setManager
-        await vaultManager.loadAll()
-        await setManager.loadAll(types: vaultManager.types)
+        setManager.pageTypeProvider = { [weak collectionManager] in collectionManager?.types ?? [] }
+        collectionManager.pageSetManager = setManager
+        await collectionManager.loadAll()
+        await setManager.loadAll(types: collectionManager.types)
         #expect(manager.pages(inCollection: coll).isEmpty)
 
         let fm = PageFrontmatter(
@@ -165,8 +165,8 @@ struct PageContentManagerTests {
             url: NexusPaths.pageFileURL(forTitle: "InColl", in: coll.folderURL),
             frontmatter: fm)
 
-        let result = manager.resolveParent(for: page, pageTypeManager: vaultManager)
-        #expect(result?.vault.id == vault.id)
+        let result = manager.resolveParent(for: page, collectionManager: collectionManager)
+        #expect(result?.pageCollection.id == vault.id)
         #expect(result?.collection?.id == coll.id)
     }
 
@@ -177,8 +177,8 @@ struct PageContentManagerTests {
         defer { TempNexus.cleanup(nexus) }
         // manager.indexUpdater is nil — no index available.
 
-        let vaultManager = PageTypeManager(nexus: nexus)
-        await vaultManager.loadAll()
+        let collectionManager = PageCollectionManager(nexus: nexus)
+        await collectionManager.loadAll()
 
         let pageURL = NexusPaths.pageFileURL(
             forTitle: "AnyPage",
@@ -188,13 +188,13 @@ struct PageContentManagerTests {
             properties: [:], createdAt: Date())
         let page = PageMeta(id: ULID.generate(), title: "AnyPage", url: pageURL, frontmatter: fm)
 
-        let result = manager.resolveParent(for: page, pageTypeManager: vaultManager)
-        #expect(result?.vault.id == vault.id)
+        let result = manager.resolveParent(for: page, collectionManager: collectionManager)
+        #expect(result?.pageCollection.id == vault.id)
     }
 
-    private func setup() async throws -> (Nexus, PageType, PageSet, PageContentManager) {
+    private func setup() async throws -> (Nexus, PageCollection, PageSet, PageContentManager) {
         let nexus = try TempNexus.make()
-        let vault = PageType(
+        let vault = PageCollection(
             id: ULID.generate(), title: "V", icon: nil,
             properties: [], views: [], modifiedAt: Date())
         let vaultFolder = NexusPaths.vaultFolderURL(forTitle: "V", in: nexus)

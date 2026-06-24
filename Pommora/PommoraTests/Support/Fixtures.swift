@@ -8,21 +8,21 @@ enum Fixtures {
 
     // MARK: - Pages domain
 
-    static func pageType(
+    static func pageCollection(
         id: String = ULID.generate(),
         title: String = "Notes",
         icon: String? = nil,
         properties: [PropertyDefinition] = [],
         views: [SavedView] = [],
         modifiedAt: Date = Date()
-    ) -> PageType {
-        PageType(
+    ) -> PageCollection {
+        PageCollection(
             id: id, title: title, icon: icon,
             properties: properties, views: views, modifiedAt: modifiedAt
         )
     }
 
-    static func pageCollection(
+    static func pageSetCollection(
         id: String = ULID.generate(),
         parentID: String,
         title: String = "Archive",

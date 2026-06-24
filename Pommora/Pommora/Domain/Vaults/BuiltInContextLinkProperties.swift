@@ -30,7 +30,7 @@ enum BuiltInContextLinkProperties {
     /// - Parameters:
     ///   - existing: The full property list currently stored in the sidecar.
     ///   - tierConfig: The nexus-level tier label configuration.
-    ///   - sourceTypeID: ID of the PageType being merged (reserved for
+    ///   - sourceTypeID: ID of the PageCollection being merged (reserved for
     ///     future logging / per-type overrides; currently unused by this function body).
     static func merge(
         existing: [PropertyDefinition],

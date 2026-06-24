@@ -23,7 +23,7 @@ struct GroupResolverTests {
             VPFixture.item("p2", title: "InSet", in: setX, of: collA),
             VPFixture.item("p3", title: "BetaPage", in: collB),
         ]
-        let groups = GroupResolver.resolve(items: items, config: .structural, scope: .vault)
+        let groups = GroupResolver.resolve(items: items, config: .structural, scope: .pageCollection)
 
         #expect(groups.count == 2)
         let alpha = groups[0]
@@ -45,7 +45,7 @@ struct GroupResolverTests {
             VPFixture.item("p1", title: "InColl", in: collA),
             VPFixture.rootItem("p2", title: "Root"),
         ]
-        let groups = GroupResolver.resolve(items: items, config: nil, scope: .vault)
+        let groups = GroupResolver.resolve(items: items, config: nil, scope: .pageCollection)
         #expect(groups.count == 2)
         #expect(groups[0].id == "coll_A")
         #expect(groups[1].id == GroupResolver.ungroupedID)
@@ -63,7 +63,7 @@ struct GroupResolverTests {
             VPFixture.item("inX", title: "InX", in: setX, of: collA),
             VPFixture.item("inY", title: "InY", in: setY, of: collA),
         ]
-        let groups = GroupResolver.resolve(items: items, config: .structural, scope: .vault)
+        let groups = GroupResolver.resolve(items: items, config: .structural, scope: .pageCollection)
         #expect(groups.count == 1)
         let flat = groups[0].flattenedItems.map(\.id).sorted()
         #expect(flat == ["inX", "inY", "loose"])  // own items + every set's items
@@ -143,7 +143,7 @@ struct GroupResolverTests {
             VPFixture.item("p1", title: "A", in: collA),
             VPFixture.item("p2", title: "B", in: setX, of: collA),
         ]
-        let groups = GroupResolver.resolve(items: items, config: .flat, scope: .vault)
+        let groups = GroupResolver.resolve(items: items, config: .flat, scope: .pageCollection)
         #expect(groups.count == 1)
         #expect(groups[0].kind == .ungrouped)
         #expect(groups[0].items.count == 2)
@@ -154,7 +154,7 @@ struct GroupResolverTests {
     @Test func collapsedGroupStillAppearsWithFlag() {
         let items = [VPFixture.item("p1", title: "A", in: collA)]
         let groups = GroupResolver.resolve(
-            items: items, config: .structural, scope: .vault,
+            items: items, config: .structural, scope: .pageCollection,
             collapsed: ["coll_A"])
         #expect(groups.count == 1)
         #expect(groups[0].isCollapsed)  // header shows; renderer hides items
@@ -172,7 +172,7 @@ struct GroupResolverTests {
             VPFixture.item("p4", title: "Banana", in: setX, of: collA),
         ]
         let groups = GroupResolver.resolve(
-            items: items, config: .structural, scope: .vault,
+            items: items, config: .structural, scope: .pageCollection,
             sort: SortCriterion(propertyID: "_title", direction: .ascending))
         // Collection's own items sorted by title: Apple(p1), Zebra(p3).
         #expect(groups[0].items.map(\.id) == ["p1", "p3"])

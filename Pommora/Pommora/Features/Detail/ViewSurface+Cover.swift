@@ -5,7 +5,7 @@ extension ViewSurface {
     var coverPickerHost: some View {
         if let item = coverTarget, let nexus = nexusManager.currentNexus {
             CoverPicker(
-                page: item.page, vault: item.parent.vault,
+                page: item.page, pageCollection: item.parent.pageCollection,
                 collection: item.parent.collection, set: item.parent.set,
                 nexus: nexus, isPresenting: $isPickingCover)
         }
@@ -31,7 +31,7 @@ extension ViewSurface {
         Task {
             do {
                 try await contentManager.updatePageFrontmatter(
-                    item.page, frontmatter: fm, vault: item.parent.vault,
+                    item.page, frontmatter: fm, pageCollection: item.parent.pageCollection,
                     collection: item.parent.collection, set: item.parent.set)
                 // Delete the cleared cover file ONLY AFTER the `cover = nil`
                 // write succeeds, so a failed write never leaves `cover`

@@ -21,7 +21,7 @@ struct PagePreviewSetTests {
 
     @Test("routeOpen carries the Set into the preview ref")
     func routeOpenCarriesSet() {
-        let vault = PageType(
+        let vault = PageCollection(
             id: ULID.generate(), title: "Vault", icon: nil,
             properties: [], views: [], modifiedAt: Date(),
             openIn: .compact
@@ -50,11 +50,11 @@ struct PagePreviewSetTests {
         var opened: [PageRef] = []
 
         let routed = PageOpenRouter.routeOpen(
-            page, vault: vault, collection: collection, set: set, selection: &selection
+            page, pageCollection: vault, collection: collection, set: set, selection: &selection
         ) { opened.append($0) }
 
         #expect(routed == .previewCard)
-        #expect(opened == [PageRef(page: page, in: set, collection: collection, vault: vault)])
+        #expect(opened == [PageRef(page: page, in: set, collection: collection, pageCollection: vault)])
         #expect(opened.first?.setID == set.id)
     }
 
@@ -74,19 +74,19 @@ struct PagePreviewSetTests {
         defer { TempNexus.cleanup(nexus) }
         let (index, _) = try PommoraIndex.open(at: nexus.rootURL)
 
-        let vault = try makePageType(nexus: nexus, title: "Notes", index: index)
+        let vault = try makePageCollection(nexus: nexus, title: "Notes", index: index)
         let coll = try makePageCollection(nexus: nexus, title: "Inbox", in: vault, index: index)
         let set = try makePageSet(title: "Drafts", in: coll, index: index)
 
         let manager = PageContentManager(nexus: nexus, contextProvider: { NexusContext.empty })
         manager.indexUpdater = IndexUpdater(index)
-        let meta = try await manager.createPage(name: "Doc", in: set, collection: coll, vault: vault)
+        let meta = try await manager.createPage(name: "Doc", in: set, collection: coll, pageCollection: vault)
 
-        let vaultManager = PageTypeManager(nexus: nexus)
+        let collectionManager = PageCollectionManager(nexus: nexus)
         let setManager = PageSetManager(nexus: nexus)
-        setManager.pageTypeProvider = { [weak vaultManager] in vaultManager?.types ?? [] }
-        vaultManager.pageSetManager = setManager
-        await vaultManager.loadAll()
+        setManager.pageTypeProvider = { [weak collectionManager] in collectionManager?.types ?? [] }
+        collectionManager.pageSetManager = setManager
+        await collectionManager.loadAll()
         await setManager.loadAll(types: [vault])
 
         // A COLD content manager + loadAll(for: set) mirrors the preview
@@ -95,12 +95,12 @@ struct PagePreviewSetTests {
         let coldManager = PageContentManager(nexus: nexus, contextProvider: { NexusContext.empty })
         await coldManager.loadAll(for: set)
 
-        let ref = PageRef(page: meta, in: set, collection: coll, vault: vault)
+        let ref = PageRef(page: meta, in: set, collection: coll, pageCollection: vault)
         let resolved = ref.resolve(
-            vaultManager: vaultManager, contentManager: coldManager, setManager: setManager)
+            collectionManager: collectionManager, contentManager: coldManager, setManager: setManager)
         #expect(resolved?.page.id == meta.id)
         #expect(resolved?.page.url.standardizedFileURL == meta.url.standardizedFileURL)
-        #expect(resolved?.vault.id == vault.id)
+        #expect(resolved?.pageCollection.id == vault.id)
         #expect(resolved?.collection?.id == coll.id)
         #expect(resolved?.set?.id == set.id)
     }
@@ -113,29 +113,29 @@ struct PagePreviewSetTests {
         defer { TempNexus.cleanup(nexus) }
         let (index, _) = try PommoraIndex.open(at: nexus.rootURL)
 
-        let vault = try makePageType(nexus: nexus, title: "Notes", index: index)
+        let vault = try makePageCollection(nexus: nexus, title: "Notes", index: index)
         let coll = try makePageCollection(nexus: nexus, title: "Inbox", in: vault, index: index)
         let set = try makePageSet(title: "Drafts", in: coll, index: index)
 
         let manager = PageContentManager(nexus: nexus, contextProvider: { NexusContext.empty })
         manager.indexUpdater = IndexUpdater(index)
-        let meta = try await manager.createPage(name: "Draft", in: set, collection: coll, vault: vault)
+        let meta = try await manager.createPage(name: "Draft", in: set, collection: coll, pageCollection: vault)
 
-        let vaultManager = PageTypeManager(nexus: nexus)
+        let collectionManager = PageCollectionManager(nexus: nexus)
         let setManager = PageSetManager(nexus: nexus)
-        setManager.pageTypeProvider = { [weak vaultManager] in vaultManager?.types ?? [] }
-        vaultManager.pageSetManager = setManager
-        await vaultManager.loadAll()
+        setManager.pageTypeProvider = { [weak collectionManager] in collectionManager?.types ?? [] }
+        collectionManager.pageSetManager = setManager
+        await collectionManager.loadAll()
         await setManager.loadAll(types: [vault])
 
-        let ref = PageRef(page: meta, in: set, collection: coll, vault: vault)
+        let ref = PageRef(page: meta, in: set, collection: coll, pageCollection: vault)
         let resolved = try #require(
             ref.resolve(
-                vaultManager: vaultManager, contentManager: manager, setManager: setManager))
+                collectionManager: collectionManager, contentManager: manager, setManager: setManager))
 
         // The exact saver PagePreviewContent.load builds for a resolved Set ref.
         let saver = ContentManagerPageSaver(
-            contentManager: manager, vault: resolved.vault,
+            contentManager: manager, pageCollection: resolved.pageCollection,
             collection: resolved.collection, set: resolved.set)
         try await saver.save(page: resolved.page, body: "previewed edit")
 
@@ -153,19 +153,19 @@ struct PagePreviewSetTests {
     // MARK: - Fixtures (mirror PageSetDetailTests)
 
     @discardableResult
-    private func makePageType(
+    private func makePageCollection(
         nexus: Nexus,
         title: String,
         index: PommoraIndex? = nil
-    ) throws -> PageType {
-        let vault = PageType(
+    ) throws -> PageCollection {
+        let vault = PageCollection(
             id: ULID.generate(), title: title, icon: nil,
             properties: [], views: [], modifiedAt: Date()
         )
         let folderURL = NexusPaths.vaultFolderURL(forTitle: title, in: nexus)
         try FileManager.default.createDirectory(at: folderURL, withIntermediateDirectories: true)
         try vault.save(to: NexusPaths.vaultMetadataURL(forTitle: title, in: nexus))
-        if let index { try IndexUpdater(index).upsertPageType(vault) }
+        if let index { try IndexUpdater(index).upsertPageCollection(vault) }
         return vault
     }
 
@@ -173,15 +173,15 @@ struct PagePreviewSetTests {
     private func makePageCollection(
         nexus: Nexus,
         title: String,
-        in vault: PageType,
+        in pageCollection: PageCollection,
         index: PommoraIndex? = nil
     ) throws -> PageSet {
         let folderURL = NexusPaths.collectionFolderURL(
-            forTitle: title, inVaultTitled: vault.title, in: nexus
+            forTitle: title, inVaultTitled: pageCollection.title, in: nexus
         )
         try FileManager.default.createDirectory(at: folderURL, withIntermediateDirectories: true)
         let coll = PageSet(
-            id: ULID.generate(), parentID: vault.id, title: title,
+            id: ULID.generate(), parentID: pageCollection.id, title: title,
             folderURL: folderURL, modifiedAt: Date()
         )
         try coll.save(to: folderURL.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename))

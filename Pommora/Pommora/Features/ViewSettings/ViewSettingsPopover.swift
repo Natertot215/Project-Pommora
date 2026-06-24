@@ -2,7 +2,7 @@ import SwiftUI
 
 /// View Settings popover content.
 ///
-/// Storage scopes (PageType / PageCollection)
+/// Storage scopes (PageCollection / PageCollection)
 /// render `StorageMenuRoot` — a Notion-style root menu with active Edit
 /// Properties + Layout + Group + Filter + Sort rows plus a muted Templates
 /// row. Non-storage scopes
@@ -46,7 +46,7 @@ struct ViewSettingsPopover: View {
     @ViewBuilder
     private var rootContent: some View {
         switch scope {
-        case .pageType, .pageCollection:
+        case .pageCollection, .pageSetCollection:
             StorageMenuRoot(scope: scope, path: $path)
         default:
             // Non-storage scopes: empty 300x360 shell retained from chrome slice.
@@ -81,10 +81,10 @@ struct ViewSettingsPopover: View {
 }
 
 #if DEBUG
-#Preview("Popover — PageType scope") {
+#Preview("Popover — PageCollection scope") {
     ViewSettingsPopover(
-        scope: .pageType(
-            PageType(
+        scope: .pageCollection(
+            PageCollection(
                 id: "01HPT", title: "Notes", icon: "note.text",
                 properties: [], views: [], modifiedAt: Date()
             )

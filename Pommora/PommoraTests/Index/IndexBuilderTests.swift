@@ -10,7 +10,7 @@ struct IndexBuilderTests {
 
     // MARK: - Fixture setup
 
-    /// Builds a small nexus with 1 PageType "Notes" + 1 PageSet "Inbox"
+    /// Builds a small nexus with 1 PageCollection "Notes" + 1 PageSet "Inbox"
     /// + 2 Pages, and 1 LEGACY item-side folder "Tasks" (raw `_itemtype.json`
     /// sidecar + 2 member `.md` files, written byte-for-byte — the Item types
     /// are deleted). The legacy folder exists to prove `populate` IGNORES
@@ -19,16 +19,16 @@ struct IndexBuilderTests {
     private func setup() async throws -> (Nexus, PommoraIndex) {
         let nexus = try TempNexus.make()
 
-        let pageTypeManager = PageTypeManager(nexus: nexus)
+        let collectionManager = PageCollectionManager(nexus: nexus)
         let setManager = PageSetManager(nexus: nexus)
-        setManager.pageTypeProvider = { [weak pageTypeManager] in pageTypeManager?.types ?? [] }
-        pageTypeManager.pageSetManager = setManager
-        await pageTypeManager.loadAll()
-        try await pageTypeManager.createPageType(name: "Notes", icon: nil)
-        let pt = pageTypeManager.types.first!
+        setManager.pageTypeProvider = { [weak collectionManager] in collectionManager?.types ?? [] }
+        collectionManager.pageSetManager = setManager
+        await collectionManager.loadAll()
+        try await collectionManager.createPageCollection(name: "Notes", icon: nil)
+        let pt = collectionManager.types.first!
 
-        try await pageTypeManager.createPageCollection(name: "Inbox", inPageType: pt)
-        let coll = pageTypeManager.pageCollections(in: pt).first!
+        try await collectionManager.createPageCollection(name: "Inbox", inPageCollection: pt)
+        let coll = collectionManager.pageCollections(in: pt).first!
 
         // Write 2 Pages directly to disk (mirrors existing test patterns).
         let page1URL = NexusPaths.pageFileURL(forTitle: "Page A", in: coll.folderURL)
@@ -97,7 +97,7 @@ struct IndexBuilderTests {
         #expect(pageCount == 0)
     }
 
-    @Test func populateIndexesAllPageTypes() async throws {
+    @Test func populateIndexesAllPageCollections() async throws {
         let (nexus, idx) = try await setup()
         defer { TempNexus.cleanup(nexus) }
 
@@ -144,7 +144,7 @@ struct IndexBuilderTests {
         }
         #expect(count == 2)
 
-        // All pages must be linked to the one PageType.
+        // All pages must be linked to the one PageCollection.
         let withTypeCount = try await idx.dbQueue.read { db in
             try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM pages WHERE page_type_id IS NOT NULL") ?? 0
         }
@@ -155,15 +155,15 @@ struct IndexBuilderTests {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
 
-        let pageTypeManager = PageTypeManager(nexus: nexus)
+        let collectionManager = PageCollectionManager(nexus: nexus)
         let setManager = PageSetManager(nexus: nexus)
-        setManager.pageTypeProvider = { [weak pageTypeManager] in pageTypeManager?.types ?? [] }
-        pageTypeManager.pageSetManager = setManager
-        await pageTypeManager.loadAll()
-        try await pageTypeManager.createPageType(name: "Notes", icon: nil)
-        let pt = pageTypeManager.types.first!
-        try await pageTypeManager.createPageCollection(name: "Inbox", inPageType: pt)
-        let coll = pageTypeManager.pageCollections(in: pt).first!
+        setManager.pageTypeProvider = { [weak collectionManager] in collectionManager?.types ?? [] }
+        collectionManager.pageSetManager = setManager
+        await collectionManager.loadAll()
+        try await collectionManager.createPageCollection(name: "Notes", icon: nil)
+        let pt = collectionManager.types.first!
+        try await collectionManager.createPageCollection(name: "Inbox", inPageCollection: pt)
+        let coll = collectionManager.pageCollections(in: pt).first!
 
         // A plain Markdown file with NO Pommora frontmatter — the exact shape of a
         // mirror doc dropped into a Nexus folder via Finder. Strict PageFile.load
@@ -189,15 +189,15 @@ struct IndexBuilderTests {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
 
-        let pageTypeManager = PageTypeManager(nexus: nexus)
+        let collectionManager = PageCollectionManager(nexus: nexus)
         let setManager = PageSetManager(nexus: nexus)
-        setManager.pageTypeProvider = { [weak pageTypeManager] in pageTypeManager?.types ?? [] }
-        pageTypeManager.pageSetManager = setManager
-        await pageTypeManager.loadAll()
-        try await pageTypeManager.createPageType(name: "Notes", icon: nil)
-        let pt = pageTypeManager.types.first!
-        try await pageTypeManager.createPageCollection(name: "Inbox", inPageType: pt)
-        let coll = pageTypeManager.pageCollections(in: pt).first!
+        setManager.pageTypeProvider = { [weak collectionManager] in collectionManager?.types ?? [] }
+        collectionManager.pageSetManager = setManager
+        await collectionManager.loadAll()
+        try await collectionManager.createPageCollection(name: "Notes", icon: nil)
+        let pt = collectionManager.types.first!
+        try await collectionManager.createPageCollection(name: "Inbox", inPageCollection: pt)
+        let coll = collectionManager.pageCollections(in: pt).first!
 
         // One real page to keep + one loose meta file to exclude by path — mirrors
         // CLAUDE.md sitting beside real specs in a vault root.
@@ -375,15 +375,15 @@ struct IndexBuilderTests {
         let area = areaManager.areas.first!
 
         // Create a page type + collection + one page with tier1 populated.
-        let pageTypeManager = PageTypeManager(nexus: nexus)
+        let collectionManager = PageCollectionManager(nexus: nexus)
         let setManager = PageSetManager(nexus: nexus)
-        setManager.pageTypeProvider = { [weak pageTypeManager] in pageTypeManager?.types ?? [] }
-        pageTypeManager.pageSetManager = setManager
-        await pageTypeManager.loadAll()
-        try await pageTypeManager.createPageType(name: "Notes", icon: nil)
-        let pt = pageTypeManager.types.first!
-        try await pageTypeManager.createPageCollection(name: "Inbox", inPageType: pt)
-        let coll = pageTypeManager.pageCollections(in: pt).first!
+        setManager.pageTypeProvider = { [weak collectionManager] in collectionManager?.types ?? [] }
+        collectionManager.pageSetManager = setManager
+        await collectionManager.loadAll()
+        try await collectionManager.createPageCollection(name: "Notes", icon: nil)
+        let pt = collectionManager.types.first!
+        try await collectionManager.createPageCollection(name: "Inbox", inPageCollection: pt)
+        let coll = collectionManager.pageCollections(in: pt).first!
 
         let now = Date()
         let fm = PageFrontmatter(
@@ -419,21 +419,21 @@ struct IndexBuilderTests {
         #expect(targetID == area.id)
     }
 
-    @Test func populatePropertyDefinitionsForPageType() async throws {
+    @Test func populatePropertyDefinitionsForPageCollection() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
 
-        let pageTypeManager = PageTypeManager(nexus: nexus)
-        await pageTypeManager.loadAll()
-        try await pageTypeManager.createPageType(name: "Notes", icon: nil)
-        let pt = pageTypeManager.types.first!
+        let collectionManager = PageCollectionManager(nexus: nexus)
+        await collectionManager.loadAll()
+        try await collectionManager.createPageCollection(name: "Notes", icon: nil)
+        let pt = collectionManager.types.first!
 
         // Add a property definition to the type. select requires at least one option.
         let def = PropertyDefinition(
             id: ULID.generate(), name: "Status", type: .select,
             selectOptions: [PropertyDefinition.SelectOption(value: "Open", label: "Open", color: .blue)]
         )
-        try await pageTypeManager.addProperty(def, to: pt.id)
+        try await collectionManager.addProperty(def, to: pt.id)
 
         let (idx, _) = try PommoraIndex.open(at: nexus.rootURL)
         try await IndexBuilder.populate(index: idx, from: nexus)

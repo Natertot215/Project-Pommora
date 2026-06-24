@@ -7,11 +7,11 @@ import Testing
 struct ResolvedPropertiesTests {
     private let tierConfig = TierConfig.defaultSeed()
 
-    // MARK: - PageType
+    // MARK: - PageCollection
 
-    @Test("PageType resolvedProperties includes all three tier IDs")
+    @Test("PageCollection resolvedProperties includes all three tier IDs")
     func pageTypeIncludesTiers() {
-        let pageType = PageType(
+        let pc = PageCollection(
             id: "01HPTYPE",
             title: "Notes",
             icon: nil,
@@ -19,15 +19,15 @@ struct ResolvedPropertiesTests {
             views: [],
             modifiedAt: Date()
         )
-        let resolved = pageType.resolvedProperties(tierConfig: tierConfig)
+        let resolved = pc.resolvedProperties(tierConfig: tierConfig)
         #expect(resolved.contains { $0.id == ReservedPropertyID.tier1 })
         #expect(resolved.contains { $0.id == ReservedPropertyID.tier2 })
         #expect(resolved.contains { $0.id == ReservedPropertyID.tier3 })
     }
 
-    @Test("PageType stored properties does NOT contain tier IDs")
+    @Test("PageCollection stored properties does NOT contain tier IDs")
     func pageTypeStoredPropertiesExcludesTiers() {
-        let pageType = PageType(
+        let pc = PageCollection(
             id: "01HPTYPE",
             title: "Notes",
             icon: nil,
@@ -35,14 +35,14 @@ struct ResolvedPropertiesTests {
             views: [],
             modifiedAt: Date()
         )
-        #expect(!pageType.properties.contains { $0.id == ReservedPropertyID.tier1 })
-        #expect(!pageType.properties.contains { $0.id == ReservedPropertyID.tier2 })
-        #expect(!pageType.properties.contains { $0.id == ReservedPropertyID.tier3 })
+        #expect(!pc.properties.contains { $0.id == ReservedPropertyID.tier1 })
+        #expect(!pc.properties.contains { $0.id == ReservedPropertyID.tier2 })
+        #expect(!pc.properties.contains { $0.id == ReservedPropertyID.tier3 })
     }
 
-    @Test("PageType tier1 resolves to Areas with default TierConfig")
+    @Test("PageCollection tier1 resolves to Areas with default TierConfig")
     func pageTypeTier1ResolvesToAreas() {
-        let pageType = PageType(
+        let pc = PageCollection(
             id: "01HPTYPE",
             title: "Notes",
             icon: nil,
@@ -50,7 +50,7 @@ struct ResolvedPropertiesTests {
             views: [],
             modifiedAt: Date()
         )
-        let resolved = pageType.resolvedProperties(tierConfig: tierConfig)
+        let resolved = pc.resolvedProperties(tierConfig: tierConfig)
         let tier1 = resolved.first { $0.id == ReservedPropertyID.tier1 }
         #expect(tier1?.name == "Areas")
     }

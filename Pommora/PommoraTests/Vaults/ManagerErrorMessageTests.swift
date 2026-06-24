@@ -7,9 +7,9 @@ import Testing
 struct ManagerErrorMessageTests {
 
     /// `.localizedDescription` must NOT contain the raw type name. Pre-fix the
-    /// bridged string is "Pommora.PageTypeManagerError error 1"; post-fix the
+    /// bridged string is "Pommora.PageCollectionManagerError error 1"; post-fix the
     /// `LocalizedError.errorDescription` text replaces it.
-    @Test func pageTypeManagerErrorRendersFriendly() {
-        #expect(!PageTypeManagerError.propertyNotFound.localizedDescription.contains("PageTypeManagerError"))
+    @Test func collectionManagerErrorRendersFriendly() {
+        #expect(!PageCollectionManagerError.propertyNotFound.localizedDescription.contains("PageCollectionManagerError"))
     }
 }

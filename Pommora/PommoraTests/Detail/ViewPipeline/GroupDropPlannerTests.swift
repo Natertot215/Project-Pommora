@@ -8,15 +8,15 @@ struct GroupDropPlannerTests {
 
     // MARK: - Fixtures
 
-    private func vault(_ id: String = "type1") -> PageType {
-        PageType(
+    private func vault(_ id: String = "type1") -> PageCollection {
+        PageCollection(
             id: id, title: "Notes", icon: nil,
             properties: [], views: [], modifiedAt: Date())
     }
 
-    private func collection(_ id: String, in vault: PageType) -> PageSet {
+    private func collection(_ id: String, in pageCollection: PageCollection) -> PageSet {
         PageSet(
-            id: id, parentID: vault.id, title: id,
+            id: id, parentID: pageCollection.id, title: id,
             folderURL: URL(fileURLWithPath: "/tmp/\(id)"), modifiedAt: Date())
     }
 
@@ -32,7 +32,7 @@ struct GroupDropPlannerTests {
     func nonPageSourceIsNone() {
         let v = vault()
         let coll = collection("c1", in: v)
-        let parent = PageParent.collection(coll, vault: v)
+        let parent = PageParent.collection(coll, pageCollection: v)
         let source = GroupDropPlanner.Source(
             pageIDs: ["p1"],
             isPageRows: false,  // group row / non-page
@@ -52,7 +52,7 @@ struct GroupDropPlannerTests {
     func emptyPageIDsIsNone() {
         let v = vault()
         let coll = collection("c1", in: v)
-        let parent = PageParent.collection(coll, vault: v)
+        let parent = PageParent.collection(coll, pageCollection: v)
         let source = GroupDropPlanner.Source(
             pageIDs: [], isPageRows: true,
             group: .structural(parent), parent: parent)
@@ -72,7 +72,7 @@ struct GroupDropPlannerTests {
     func reorderSameContainerManual() {
         let v = vault()
         let coll = collection("c1", in: v)
-        let parent = PageParent.collection(coll, vault: v)
+        let parent = PageParent.collection(coll, pageCollection: v)
         let source = GroupDropPlanner.Source(
             pageIDs: ["p1"], isPageRows: true,
             group: .structural(parent), parent: parent)
@@ -90,7 +90,7 @@ struct GroupDropPlannerTests {
     func reorderBlockedWhenSorted() {
         let v = vault()
         let coll = collection("c1", in: v)
-        let parent = PageParent.collection(coll, vault: v)
+        let parent = PageParent.collection(coll, pageCollection: v)
         let source = GroupDropPlanner.Source(
             pageIDs: ["p1"], isPageRows: true,
             group: .structural(parent), parent: parent)
@@ -108,7 +108,7 @@ struct GroupDropPlannerTests {
     func reorderSamePropertyBucketManual() {
         let v = vault()
         let coll = collection("c1", in: v)
-        let parent = PageParent.collection(coll, vault: v)
+        let parent = PageParent.collection(coll, pageCollection: v)
         let source = GroupDropPlanner.Source(
             pageIDs: ["p1"], isPageRows: true,
             group: .property(value: "todo"), parent: parent)
@@ -129,8 +129,8 @@ struct GroupDropPlannerTests {
         let v = vault()
         let coll = collection("c1", in: v)
         let other = collection("c2", in: v)
-        let sourceParent = PageParent.collection(coll, vault: v)
-        let destParent = PageParent.collection(other, vault: v)
+        let sourceParent = PageParent.collection(coll, pageCollection: v)
+        let destParent = PageParent.collection(other, pageCollection: v)
         let source = GroupDropPlanner.Source(
             pageIDs: ["p1"], isPageRows: true,
             group: .structural(sourceParent), parent: sourceParent)
@@ -149,8 +149,8 @@ struct GroupDropPlannerTests {
         let v = vault()
         let coll = collection("c1", in: v)
         let s = set("s1", in: coll)
-        let sourceParent = PageParent.collection(coll, vault: v)
-        let destParent = PageParent.set(s, collection: coll, vault: v)
+        let sourceParent = PageParent.collection(coll, pageCollection: v)
+        let destParent = PageParent.set(s, collection: coll, pageCollection: v)
         let source = GroupDropPlanner.Source(
             pageIDs: ["p1"], isPageRows: true,
             group: .structural(sourceParent), parent: sourceParent)
@@ -170,7 +170,7 @@ struct GroupDropPlannerTests {
     func rewriteToPropertyBucket() {
         let v = vault()
         let coll = collection("c1", in: v)
-        let parent = PageParent.collection(coll, vault: v)
+        let parent = PageParent.collection(coll, pageCollection: v)
         let source = GroupDropPlanner.Source(
             pageIDs: ["p1"], isPageRows: true,
             group: .property(value: "todo"), parent: parent)
@@ -188,7 +188,7 @@ struct GroupDropPlannerTests {
     func rewriteToUngroupedBucketIsNil() {
         let v = vault()
         let coll = collection("c1", in: v)
-        let parent = PageParent.collection(coll, vault: v)
+        let parent = PageParent.collection(coll, pageCollection: v)
         let source = GroupDropPlanner.Source(
             pageIDs: ["p1"], isPageRows: true,
             group: .property(value: "todo"), parent: parent)
@@ -206,7 +206,7 @@ struct GroupDropPlannerTests {
     func propertyBucketWithoutGroupPropertyIsNone() {
         let v = vault()
         let coll = collection("c1", in: v)
-        let parent = PageParent.collection(coll, vault: v)
+        let parent = PageParent.collection(coll, pageCollection: v)
         let source = GroupDropPlanner.Source(
             pageIDs: ["p1"], isPageRows: true,
             group: .property(value: "todo"), parent: parent)

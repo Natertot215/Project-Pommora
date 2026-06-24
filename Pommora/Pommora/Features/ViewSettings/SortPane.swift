@@ -17,14 +17,14 @@ import SwiftUI
 ///   - one row per sortable schema property, offering asc + desc
 ///
 /// Persistence mirrors the other panes: writes through
-/// `PageTypeManager.updateView(_:in:transform:)` against the active view
+/// `PageCollectionManager.updateView(_:in:transform:)` against the active view
 /// resolved by stable ID (re-queried live off the manager, never the stale
 /// `ViewSettingsScope` snapshot).
 struct SortPane: View {
     let scope: ViewSettingsScope
     @Binding var path: [ViewSettingsRoute]
 
-    @Environment(PageTypeManager.self) private var pageTypeManager
+    @Environment(PageCollectionManager.self) private var collectionManager
     @Environment(TierConfigManager.self) private var tierConfigManager
     @Environment(ActiveViewStore.self) private var activeViewStore
 
@@ -103,7 +103,7 @@ struct SortPane: View {
         guard let view = currentView(), let cid = containerID() else { return }
         let viewID = view.id
         do {
-            try await pageTypeManager.updateView(viewID, in: cid) { v in
+            try await collectionManager.updateView(viewID, in: cid) { v in
                 v.sort = criterion.map { [$0] }
             }
             commitError = nil
@@ -118,7 +118,7 @@ struct SortPane: View {
     /// whichever view the user is currently viewing rather than the container's
     /// first view.
     private func currentView() -> SavedView? {
-        activeViewStore.resolvedActiveView(for: scope, manager: pageTypeManager)
+        activeViewStore.resolvedActiveView(for: scope, manager: collectionManager)
     }
 
     /// User-defined sortable properties (Relation + file columns excluded —
@@ -127,7 +127,7 @@ struct SortPane: View {
     private func sortableProperties() -> [PropertyDefinition] {
         guard let typeID = parentTypeID() else { return [] }
         let schema: [PropertyDefinition] =
-            pageTypeManager.types.first(where: { $0.id == typeID })?
+            collectionManager.types.first(where: { $0.id == typeID })?
             .resolvedProperties(tierConfig: tierConfigManager.config) ?? []
         return schema.filter { def in
             !ReservedPropertyID.isReserved(def.id) && def.type.isSortable

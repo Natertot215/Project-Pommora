@@ -15,7 +15,7 @@
 //    1. Fresh             — no recognized sidecar; content-sniff always picks
 //                           Pages.
 //    2. Legacy v0.2       — folder carries `_vault.json` at root (pre-ParadigmV2
-//                           PageType sidecar). Sub-folders may carry
+//                           PageCollection sidecar). Sub-folders may carry
 //                           `_collection.json`. Renamed in place to per-kind
 //                           sidecars.
 //    3. paradigmV2 wrap   — folder IS named `Pages` / `Agenda` AND contains
@@ -38,16 +38,16 @@ import Foundation
 /// Lives at the top of this file so the shape classifier + apply paths share
 /// a single source of truth.
 enum AdoptedSidecarKind: Sendable, Equatable {
-    case pageType
     case pageCollection
+    case pageSetCollection
     case pageSet
     case taskConfig
     case eventConfig
 
     var filename: String {
         switch self {
-        case .pageType: return NexusPaths.pageTypeSidecarFilename
-        case .pageCollection: return NexusPaths.pageCollectionSidecarFilename
+        case .pageCollection: return NexusPaths.pageTypeSidecarFilename
+        case .pageSetCollection: return NexusPaths.pageCollectionSidecarFilename
         case .pageSet: return NexusPaths.pageSetSidecarFilename
         case .taskConfig: return NexusPaths.taskConfigSidecarFilename
         case .eventConfig: return NexusPaths.eventConfigSidecarFilename
@@ -98,7 +98,7 @@ struct PlannedUnwrap: Equatable, Sendable, Identifiable {
     var id: String { wrapperURL.path }
 
     enum WrapperKind: String, Sendable, Equatable {
-        /// `<nexus>/Pages/` — children become PageTypes; their sub-folders
+        /// `<nexus>/Pages/` — children become PageCollections; their sub-folders
         /// become PageCollections.
         case pages
         /// `<nexus>/Agenda/` — children are the singletons `Tasks/` / `Events/`.
@@ -185,7 +185,7 @@ struct AdoptionPlan: Equatable, Sendable, Identifiable {
     /// folders stay invisible — per-folder adoption is a future Prospect, not
     /// a launch-time bulk prompt. Without this exclusion, every non-Pommora
     /// folder at Nathan's Nexus root (Obsidian-managed folders, personal
-    /// organization folders, etc.) would be proposed as a fresh PageType
+    /// organization folders, etc.) would be proposed as a fresh PageCollection
     /// candidate on every launch — turning the preview into spam.
     var hasAnythingToAdopt: Bool {
         !inPlaceRenames.isEmpty  // legacy v0.2 migration
@@ -441,8 +441,8 @@ enum NexusAdopter {
             let collectionSidecar: AdoptedSidecarKind?
             switch kind {
             case .pages:
-                typeSidecar = .pageType
-                collectionSidecar = .pageCollection
+                typeSidecar = .pageCollection
+                collectionSidecar = .pageSetCollection
             case .agenda:
                 // Tasks/Events sub-folders — name-discriminated since Agenda
                 // is sidecar-asymmetric. Default to Tasks for unknown names
@@ -497,8 +497,8 @@ enum NexusAdopter {
         // tier-2 kinds (Collections) precede tier-3 kinds (Sets), matching the
         // natural-parent inference rule.
         let allKinds: [AdoptedSidecarKind] = [
-            .pageType, .taskConfig, .eventConfig,
-            .pageCollection,
+            .pageCollection, .taskConfig, .eventConfig,
+            .pageSetCollection,
             .pageSet,
         ]
         for kind in allKinds {
@@ -510,11 +510,11 @@ enum NexusAdopter {
         return found
     }
 
-    /// The adopted kind for a sidecar-less fresh folder — always `.pageType`.
+    /// The adopted kind for a sidecar-less fresh folder — always `.pageCollection`.
     /// Callers early-return when a recognized sidecar exists, so a sidecar-less
-    /// folder always adopts as a Page Type — no content walk needed.
+    /// folder always adopts as a PageCollection — no content walk needed.
     private static func contentSniff(_ folder: URL) -> AdoptedSidecarKind {
-        .pageType
+        .pageCollection
     }
 
     // MARK: - apply
@@ -729,7 +729,7 @@ enum NexusAdopter {
         let ptURL = folder.appendingPathComponent(
             NexusPaths.pageTypeSidecarFilename, isDirectory: false
         )
-        guard let pt = try? PageType.load(from: ptURL) else { return nil }
+        guard let pt = try? PageCollection.load(from: ptURL) else { return nil }
         return pt.id
     }
 
@@ -763,7 +763,7 @@ enum NexusAdopter {
             NexusPaths.pageTypeSidecarFilename, isDirectory: false)
         try Filesystem.writeMetadataIntoExistingFolder(
             metadataURL: metaURL,
-            metadata: PageType(
+            metadata: PageCollection(
                 id: ULID.generate(), title: title, icon: nil,
                 properties: [], views: [], modifiedAt: now
             )
@@ -839,10 +839,10 @@ enum NexusAdopter {
             fresh.kind.filename, isDirectory: false
         )
         switch fresh.kind {
-        case .pageType:
+        case .pageCollection:
             try Filesystem.writeMetadataIntoExistingFolder(
                 metadataURL: metaURL,
-                metadata: PageType(
+                metadata: PageCollection(
                     id: ULID.generate(),
                     title: fresh.title,
                     icon: nil,
@@ -859,7 +859,7 @@ enum NexusAdopter {
             try Filesystem.writeMetadataIntoExistingFolder(
                 metadataURL: metaURL, metadata: AgendaEventSchema.defaultSeed()
             )
-        case .pageCollection, .pageSet:
+        case .pageSetCollection, .pageSet:
             // Fresh PageCollection / PageSet writes are not initiated by the
             // LEGACY adopter for top-level folders — those land via creation
             // flows inside the app, or via the silent `autoTagMissingSidecars`
@@ -988,7 +988,7 @@ enum NexusAdopter {
     ///    runs of the corrected logic write the right one, but the orphan
     ///    persists. Rule: only ONE per-kind sidecar is valid at a folder's
     ///    top level; the rest are orphans. "Which one is authoritative" is
-    ///    decided by `recognizedSidecarsAt`'s order (pageType > taskConfig >
+    ///    decided by `recognizedSidecarsAt`'s order (pageCollection > taskConfig >
     ///    eventConfig > pageCollection > pageSet), which matches the
     ///    natural-parent inference (a folder at root carrying both is a Type,
     ///    not a Collection, because Collections must live inside a Type, and
@@ -1066,7 +1066,7 @@ enum NexusAdopter {
 
     /// Returns `true` when at least one non-hidden child folder of `folder`
     /// carries one of the pre-flat legacy sidecar files: `_schema.json`
-    /// (ParadigmV2 unified sidecar), `_vault.json` (pre-ParadigmV2 PageType
+    /// (ParadigmV2 unified sidecar), `_vault.json` (pre-ParadigmV2 PageCollection
     /// sidecar), or `_collection.json` (pre-ParadigmV2 Collection sidecar).
     ///
     /// This is the structural guard that prevents user-created folders named

@@ -24,16 +24,16 @@ private func firstRow(in table: String, db index: PommoraIndex, where clause: St
 @MainActor
 struct IndexUpdaterTests {
 
-    // MARK: - PageType
+    // MARK: - PageCollection
 
-    @Test func createPageTypeIndexesARow() async throws {
+    @Test func createPageCollectionIndexesARow() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
         let idx = try Fixtures.index(at: nexus)
         let updater = IndexUpdater(idx)
 
-        let pt = Fixtures.pageType()
-        try updater.upsertPageType(pt)
+        let pt = Fixtures.pageCollection()
+        try updater.upsertPageCollection(pt)
 
         let count = try countRows(in: "page_types", db: idx)
         #expect(count == 1)
@@ -42,15 +42,15 @@ struct IndexUpdaterTests {
         #expect(row?["title"] as String? == "Notes")
     }
 
-    @Test func deletePageTypeRemovesRow() async throws {
+    @Test func deletePageCollectionRemovesRow() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
         let idx = try Fixtures.index(at: nexus)
         let updater = IndexUpdater(idx)
 
-        let pt = Fixtures.pageType()
-        try updater.upsertPageType(pt)
-        try updater.deletePageType(id: pt.id)
+        let pt = Fixtures.pageCollection()
+        try updater.upsertPageCollection(pt)
+        try updater.deletePageCollection(id: pt.id)
 
         let count = try countRows(in: "page_types", db: idx)
         #expect(count == 0)
@@ -64,9 +64,9 @@ struct IndexUpdaterTests {
         let idx = try Fixtures.index(at: nexus)
         let updater = IndexUpdater(idx)
 
-        let pt = Fixtures.pageType()
-        try updater.upsertPageType(pt)
-        let pc = Fixtures.pageCollection(parentID: pt.id)
+        let pt = Fixtures.pageCollection()
+        try updater.upsertPageCollection(pt)
+        let pc = Fixtures.pageSetCollection(parentID: pt.id)
         try updater.upsertPageCollection(pc)
 
         let count = try countRows(in: "page_sets", db: idx)
@@ -83,8 +83,8 @@ struct IndexUpdaterTests {
         let idx = try Fixtures.index(at: nexus)
         let updater = IndexUpdater(idx)
 
-        let pt = Fixtures.pageType()
-        try updater.upsertPageType(pt)
+        let pt = Fixtures.pageCollection()
+        try updater.upsertPageCollection(pt)
 
         // A schemaVersion ≠ the previously-hardcoded literal 1.
         let folderURL = URL(fileURLWithPath: "/tmp/dummy-\(UUID().uuidString)")
@@ -103,9 +103,9 @@ struct IndexUpdaterTests {
         let idx = try Fixtures.index(at: nexus)
         let updater = IndexUpdater(idx)
 
-        let pt = Fixtures.pageType()
-        try updater.upsertPageType(pt)
-        let pc = Fixtures.pageCollection(parentID: pt.id)
+        let pt = Fixtures.pageCollection()
+        try updater.upsertPageCollection(pt)
+        let pc = Fixtures.pageSetCollection(parentID: pt.id)
         try updater.upsertPageCollection(pc)
         try updater.deletePageSet(id: pc.id)
 
@@ -136,9 +136,9 @@ struct IndexUpdaterTests {
         let idx = try Fixtures.index(at: nexus)
         let updater = IndexUpdater(idx)
 
-        let pt = Fixtures.pageType()
-        try updater.upsertPageType(pt)
-        let pc = Fixtures.pageCollection(parentID: pt.id)
+        let pt = Fixtures.pageCollection()
+        try updater.upsertPageCollection(pt)
+        let pc = Fixtures.pageSetCollection(parentID: pt.id)
         try updater.upsertPageCollection(pc)
 
         let rootPage = Fixtures.pageMeta(title: "Root")
@@ -156,20 +156,20 @@ struct IndexUpdaterTests {
         #expect(colIDs == [collectionPage.id])
     }
 
-    // MARK: - PageType title rename updates index
+    // MARK: - PageCollection title rename updates index
 
-    @Test func renamePageTypeUpdatesIndexedTitle() async throws {
+    @Test func renamePageCollectionUpdatesIndexedTitle() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
         let idx = try Fixtures.index(at: nexus)
         let updater = IndexUpdater(idx)
 
-        var pt = Fixtures.pageType(title: "Old Name")
-        try updater.upsertPageType(pt)
+        var pt = Fixtures.pageCollection(title: "Old Name")
+        try updater.upsertPageCollection(pt)
 
         pt.title = "New Name"
         pt.modifiedAt = Date()
-        try updater.upsertPageType(pt)
+        try updater.upsertPageCollection(pt)
 
         let count = try countRows(in: "page_types", db: idx)
         #expect(count == 1, "upsert should replace — not duplicate")
@@ -246,8 +246,8 @@ struct IndexUpdaterTests {
         let idx = try Fixtures.index(at: nexus)
         let updater = IndexUpdater(idx)
 
-        let pt = Fixtures.pageType()
-        try updater.upsertPageType(pt)
+        let pt = Fixtures.pageCollection()
+        try updater.upsertPageCollection(pt)
 
         let def = PropertyDefinition(
             id: ReservedPropertyID.mintUserPropertyID(),
@@ -269,8 +269,8 @@ struct IndexUpdaterTests {
         let idx = try Fixtures.index(at: nexus)
         let updater = IndexUpdater(idx)
 
-        let pt = Fixtures.pageType()
-        try updater.upsertPageType(pt)
+        let pt = Fixtures.pageCollection()
+        try updater.upsertPageCollection(pt)
 
         var def = PropertyDefinition(
             id: ReservedPropertyID.mintUserPropertyID(),
@@ -294,8 +294,8 @@ struct IndexUpdaterTests {
         let idx = try Fixtures.index(at: nexus)
         let updater = IndexUpdater(idx)
 
-        let pt = Fixtures.pageType()
-        try updater.upsertPageType(pt)
+        let pt = Fixtures.pageCollection()
+        try updater.upsertPageCollection(pt)
 
         let def = PropertyDefinition(
             id: ReservedPropertyID.mintUserPropertyID(),
@@ -320,8 +320,8 @@ struct IndexUpdaterTests {
         let idx = try Fixtures.index(at: nexus)
         let updater = IndexUpdater(idx)
 
-        let pt = Fixtures.pageType()
-        try updater.upsertPageType(pt)
+        let pt = Fixtures.pageCollection()
+        try updater.upsertPageCollection(pt)
 
         let contextID = ULID.generate()
         let pageID = ULID.generate()

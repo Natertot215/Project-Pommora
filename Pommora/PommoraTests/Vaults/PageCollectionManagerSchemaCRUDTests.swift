@@ -4,8 +4,8 @@ import Testing
 @testable import Pommora
 
 @MainActor
-@Suite("PageTypeManagerSchemaCRUD")
-struct PageTypeManagerSchemaCRUDTests {
+@Suite("PageCollectionManagerSchemaCRUD")
+struct PageCollectionManagerSchemaCRUDTests {
 
     // MARK: - Helper
 
@@ -20,24 +20,24 @@ struct PageTypeManagerSchemaCRUDTests {
     func addPropertyMintsIDAndPersists() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
-        let manager = PageTypeManager(nexus: nexus)
+        let manager = PageCollectionManager(nexus: nexus)
         await manager.loadAll()
 
-        try await manager.createPageType(name: "Notes", icon: nil)
-        let pageType = manager.types.first!
+        try await manager.createPageCollection(name: "Notes", icon: nil)
+        let pageCollection = manager.types.first!
 
         // Pass id: "" — addProperty should mint a new ID.
         let def = PropertyDefinition(id: "", name: "Priority", type: .number)
-        try await manager.addProperty(def, to: pageType.id)
+        try await manager.addProperty(def, to: pageCollection.id)
 
-        let updated = manager.types.first { $0.id == pageType.id }!
+        let updated = manager.types.first { $0.id == pageCollection.id }!
         #expect(updated.properties.count == 1)
         let stored = updated.properties[0]
         #expect(stored.name == "Priority")
         #expect(stored.id.hasPrefix("prop_"))
 
         let meta = NexusPaths.vaultMetadataURL(forTitle: "Notes", in: nexus)
-        let reloaded = try PageType.load(from: meta)
+        let reloaded = try PageCollection.load(from: meta)
         #expect(reloaded.properties.count == 1)
         #expect(reloaded.properties[0].name == "Priority")
         #expect(reloaded.properties[0].id.hasPrefix("prop_"))
@@ -49,17 +49,17 @@ struct PageTypeManagerSchemaCRUDTests {
     func renameDoesNotRewriteMemberFiles() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
-        let manager = PageTypeManager(nexus: nexus)
+        let manager = PageCollectionManager(nexus: nexus)
         await manager.loadAll()
 
-        try await manager.createPageType(name: "Notes", icon: nil)
-        let pageType = manager.types.first!
+        try await manager.createPageCollection(name: "Notes", icon: nil)
+        let pageCollection = manager.types.first!
 
         let prop = makeNumberProp(name: "Score")
-        try await manager.addProperty(prop, to: pageType.id)
-        let storedPropID = manager.types.first { $0.id == pageType.id }!.properties[0].id
+        try await manager.addProperty(prop, to: pageCollection.id)
+        let storedPropID = manager.types.first { $0.id == pageCollection.id }!.properties[0].id
 
-        // Write a fake Page file into the PageType folder referencing the property.
+        // Write a fake Page file into the PageCollection folder referencing the property.
         let pageTypeFolder = NexusPaths.vaultFolderURL(forTitle: "Notes", in: nexus)
         let pageFile = pageTypeFolder.appendingPathComponent("Page1.md")
         let fm = PageFrontmatter(
@@ -72,16 +72,16 @@ struct PageTypeManagerSchemaCRUDTests {
 
         let dataBefore = try Data(contentsOf: pageFile)
 
-        try await manager.renameProperty(id: storedPropID, in: pageType.id, to: "Rating")
+        try await manager.renameProperty(id: storedPropID, in: pageCollection.id, to: "Rating")
 
         // Member file must be byte-identical.
         let dataAfter = try Data(contentsOf: pageFile)
         #expect(dataBefore == dataAfter)
 
-        let updatedType = manager.types.first { $0.id == pageType.id }!
+        let updatedType = manager.types.first { $0.id == pageCollection.id }!
         #expect(updatedType.properties[0].name == "Rating")
         let meta = NexusPaths.vaultMetadataURL(forTitle: "Notes", in: nexus)
-        let reloaded = try PageType.load(from: meta)
+        let reloaded = try PageCollection.load(from: meta)
         #expect(reloaded.properties[0].name == "Rating")
     }
 
@@ -91,22 +91,22 @@ struct PageTypeManagerSchemaCRUDTests {
     func changeTypeSameTypeNoOpIsLossless() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
-        let manager = PageTypeManager(nexus: nexus)
+        let manager = PageCollectionManager(nexus: nexus)
         await manager.loadAll()
 
-        try await manager.createPageType(name: "Tracker", icon: nil)
-        let pageType = manager.types.first!
+        try await manager.createPageCollection(name: "Tracker", icon: nil)
+        let pageCollection = manager.types.first!
 
         let prop = makeNumberProp()
-        try await manager.addProperty(prop, to: pageType.id)
-        let storedPropID = manager.types.first { $0.id == pageType.id }!.properties[0].id
+        try await manager.addProperty(prop, to: pageCollection.id)
+        let storedPropID = manager.types.first { $0.id == pageCollection.id }!.properties[0].id
 
         // number → number: lossless, no dropConflictingValues required.
         try await manager.changeType(
-            of: storedPropID, in: pageType.id, to: .number, dropConflictingValues: false
+            of: storedPropID, in: pageCollection.id, to: .number, dropConflictingValues: false
         )
 
-        let updatedType = manager.types.first { $0.id == pageType.id }!
+        let updatedType = manager.types.first { $0.id == pageCollection.id }!
         #expect(updatedType.properties[0].type == .number)
     }
 
@@ -116,15 +116,15 @@ struct PageTypeManagerSchemaCRUDTests {
     func changeTypeLossyDropsValuesViaSchemaTransaction() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
-        let manager = PageTypeManager(nexus: nexus)
+        let manager = PageCollectionManager(nexus: nexus)
         await manager.loadAll()
 
-        try await manager.createPageType(name: "Tracker", icon: nil)
-        let pageType = manager.types.first!
+        try await manager.createPageCollection(name: "Tracker", icon: nil)
+        let pageCollection = manager.types.first!
 
         let prop = makeNumberProp(name: "Score")
-        try await manager.addProperty(prop, to: pageType.id)
-        let storedPropID = manager.types.first { $0.id == pageType.id }!.properties[0].id
+        try await manager.addProperty(prop, to: pageCollection.id)
+        let storedPropID = manager.types.first { $0.id == pageCollection.id }!.properties[0].id
 
         // Write a fake Page file with a numeric value for the property.
         let pageTypeFolder = NexusPaths.vaultFolderURL(forTitle: "Tracker", in: nexus)
@@ -139,10 +139,10 @@ struct PageTypeManagerSchemaCRUDTests {
 
         // Change number → checkbox, with value drop.
         try await manager.changeType(
-            of: storedPropID, in: pageType.id, to: .checkbox, dropConflictingValues: true
+            of: storedPropID, in: pageCollection.id, to: .checkbox, dropConflictingValues: true
         )
 
-        let updatedType = manager.types.first { $0.id == pageType.id }!
+        let updatedType = manager.types.first { $0.id == pageCollection.id }!
         #expect(updatedType.properties[0].type == .checkbox)
 
         // Member file: property key must be GONE.
@@ -156,19 +156,19 @@ struct PageTypeManagerSchemaCRUDTests {
     func changeTypeLossyWithoutConfirmThrows() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
-        let manager = PageTypeManager(nexus: nexus)
+        let manager = PageCollectionManager(nexus: nexus)
         await manager.loadAll()
 
-        try await manager.createPageType(name: "Tracker", icon: nil)
-        let pageType = manager.types.first!
+        try await manager.createPageCollection(name: "Tracker", icon: nil)
+        let pageCollection = manager.types.first!
 
         let prop = makeNumberProp(name: "Score")
-        try await manager.addProperty(prop, to: pageType.id)
-        let storedPropID = manager.types.first { $0.id == pageType.id }!.properties[0].id
+        try await manager.addProperty(prop, to: pageCollection.id)
+        let storedPropID = manager.types.first { $0.id == pageCollection.id }!.properties[0].id
 
-        await #expect(throws: PageTypeManagerError.lossyChangeRequiresConfirmation) {
+        await #expect(throws: PageCollectionManagerError.lossyChangeRequiresConfirmation) {
             try await manager.changeType(
-                of: storedPropID, in: pageType.id, to: .checkbox, dropConflictingValues: false
+                of: storedPropID, in: pageCollection.id, to: .checkbox, dropConflictingValues: false
             )
         }
     }

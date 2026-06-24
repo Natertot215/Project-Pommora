@@ -81,7 +81,7 @@ struct ExternalChangeReconcilerTests {
         let reconciler = ExternalChangeReconciler(env: env, nexusID: nexus.id)
 
         let vaultFolder = try makeVault(titled: "Notes", in: nexus)
-        await env.vaultManager.loadAll()
+        await env.collectionManager.loadAll()
         let existing = vaultFolder.appendingPathComponent("Kept.md")
         try writePage(at: existing)
 
@@ -95,11 +95,11 @@ struct ExternalChangeReconcilerTests {
 
     // MARK: - Fixtures
 
-    /// Creates a vault (PageType) folder + sidecar on disk; returns the folder URL.
+    /// Creates a vault (PageCollection) folder + sidecar on disk; returns the folder URL.
     private func makeVault(titled title: String, in nexus: Nexus) throws -> URL {
         let folder = NexusPaths.vaultFolderURL(forTitle: title, in: nexus)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        let vault = PageType(
+        let vault = PageCollection(
             id: ULID.generate(), title: title, icon: nil,
             properties: [], views: [], modifiedAt: Date())
         try vault.save(to: NexusPaths.vaultMetadataURL(forTitle: title, in: nexus))

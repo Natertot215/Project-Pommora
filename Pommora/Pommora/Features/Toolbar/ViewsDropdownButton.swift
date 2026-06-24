@@ -12,7 +12,7 @@ struct ViewsDropdownButton: View {
     /// Threaded explicitly — the toolbar lives outside ContentView's environment
     /// chain, so reading these via @Environment SIGTRAPs at toolbar render. Used
     /// to reflect the active view's icon on the button.
-    let pageTypeManager: PageTypeManager
+    let collectionManager: PageCollectionManager
     let activeViewStore: ActiveViewStore
 
     @State private var isPresented = false
@@ -52,13 +52,13 @@ struct ViewsDropdownButton: View {
 
     private var activeView: SavedView? {
         guard let cid = containerID else { return nil }
-        return activeViewStore.resolvedActiveView(in: cid, manager: pageTypeManager)
+        return activeViewStore.resolvedActiveView(in: cid, manager: collectionManager)
     }
 
     private var containerID: String? {
         switch scope {
-        case .pageType(let t): return t.id
-        case .pageCollection(let c): return c.id
+        case .pageCollection(let t): return t.id
+        case .pageSetCollection(let c): return c.id
         default: return nil
         }
     }

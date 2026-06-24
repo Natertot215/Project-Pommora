@@ -7,9 +7,9 @@ import SwiftUI
 /// `FilterEvaluator` honors for that property's `PropertyType`), and an
 /// optional serialized value. Presence operators (`is_empty` / `is_not_empty`)
 /// carry no value. Every read + write resolves the active view by stable ID off
-/// the live `PageTypeManager` (never the stale `ViewSettingsScope` snapshot),
+/// the live `PageCollectionManager` (never the stale `ViewSettingsScope` snapshot),
 /// then persists the WHOLE rewritten `FilterGroup` through
-/// `PageTypeManager.updateView(_:in:transform:)` — mirrors `SortPane`.
+/// `PageCollectionManager.updateView(_:in:transform:)` — mirrors `SortPane`.
 ///
 /// The Cover sentinel never appears in the property list (filtered by
 /// `ViewSettingsProperties.filterable`, shared with the Group pane).
@@ -17,7 +17,7 @@ struct FilterPane: View {
     let scope: ViewSettingsScope
     @Binding var path: [ViewSettingsRoute]
 
-    @Environment(PageTypeManager.self) private var pageTypeManager
+    @Environment(PageCollectionManager.self) private var collectionManager
     @Environment(TierConfigManager.self) private var tierConfigManager
     @Environment(ActiveViewStore.self) private var activeViewStore
 
@@ -49,7 +49,7 @@ struct FilterPane: View {
     private func rows(for view: SavedView) -> some View {
         let group = view.filter ?? FilterGroup(match: .all, rules: [])
         let props = ViewSettingsProperties.filterable(
-            scope: scope, manager: pageTypeManager, tierConfig: tierConfigManager.config)
+            scope: scope, manager: collectionManager, tierConfig: tierConfigManager.config)
         VStack(spacing: 0) {
             matchSelector(group)
             PaneDivider()
@@ -148,7 +148,7 @@ struct FilterPane: View {
         guard let view = currentView(), let cid = containerID() else { return }
         let viewID = view.id
         do {
-            try await pageTypeManager.updateView(viewID, in: cid) { v in
+            try await collectionManager.updateView(viewID, in: cid) { v in
                 v.filter = group.rules.isEmpty && group.match == .all ? nil : group
             }
             commitError = nil
@@ -163,7 +163,7 @@ struct FilterPane: View {
     /// whichever view the user is currently viewing rather than the container's
     /// first view.
     private func currentView() -> SavedView? {
-        activeViewStore.resolvedActiveView(for: scope, manager: pageTypeManager)
+        activeViewStore.resolvedActiveView(for: scope, manager: collectionManager)
     }
 
     private func containerID() -> String? { scope.containerID }
@@ -185,7 +185,7 @@ enum ViewSettingsProperties {
     /// `_modified_at` ID, the one entry that actually resolves a modified Date.
     static func filterable(
         scope: ViewSettingsScope,
-        manager: PageTypeManager,
+        manager: PageCollectionManager,
         tierConfig: TierConfig
     ) -> [PropertyDefinition] {
         schema(scope: scope, manager: manager, tierConfig: tierConfig).filter { def in
@@ -199,7 +199,7 @@ enum ViewSettingsProperties {
     /// relations) and Cover are never groupable.
     static func groupable(
         scope: ViewSettingsScope,
-        manager: PageTypeManager,
+        manager: PageCollectionManager,
         tierConfig: TierConfig
     ) -> [PropertyDefinition] {
         schema(scope: scope, manager: manager, tierConfig: tierConfig).filter { def in
@@ -267,7 +267,7 @@ enum ViewSettingsProperties {
     /// reserved Recent (modified) date as a synthetic filterable entry.
     private static func schema(
         scope: ViewSettingsScope,
-        manager: PageTypeManager,
+        manager: PageCollectionManager,
         tierConfig: TierConfig
     ) -> [PropertyDefinition] {
         guard let typeID = parentTypeID(scope) else { return [] }

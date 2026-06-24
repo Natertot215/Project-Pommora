@@ -48,7 +48,7 @@ struct EditPropertyPane: View {
     let propertyID: String
     @Binding var path: [ViewSettingsRoute]
 
-    @Environment(PageTypeManager.self) private var pageTypeManager
+    @Environment(PageCollectionManager.self) private var collectionManager
     @Environment(\.dismiss) private var dismiss
 
     @State private var draftName: String = ""
@@ -236,7 +236,7 @@ struct EditPropertyPane: View {
             color: nil
         )
         do {
-            try await pageTypeManager.updateProperty(id: propertyID, in: typeID) { def in
+            try await collectionManager.updateProperty(id: propertyID, in: typeID) { def in
                 def.selectOptions = (def.selectOptions ?? []) + [newOption]
             }
             commitError = nil
@@ -257,7 +257,7 @@ struct EditPropertyPane: View {
             groupID: groupID
         )
         do {
-            try await pageTypeManager.updateProperty(id: propertyID, in: typeID) { def in
+            try await collectionManager.updateProperty(id: propertyID, in: typeID) { def in
                 var groups = def.statusGroups ?? []
                 if let i = groups.firstIndex(where: { $0.id == groupID }) {
                     groups[i].options.append(newOption)
@@ -523,7 +523,7 @@ struct EditPropertyPane: View {
 
     private func currentDefinition() -> PropertyDefinition? {
         guard let typeID = parentTypeID() else { return nil }
-        return pageTypeManager.types
+        return collectionManager.types
             .first(where: { $0.id == typeID })?
             .properties.first(where: { $0.id == propertyID })
     }
@@ -617,7 +617,7 @@ struct EditPropertyPane: View {
     private func applyTransform(_ transform: @escaping (inout PropertyDefinition) -> Void) async {
         guard let typeID = parentTypeID() else { return }
         do {
-            try await pageTypeManager.updateProperty(id: propertyID, in: typeID, transform: transform)
+            try await collectionManager.updateProperty(id: propertyID, in: typeID, transform: transform)
             commitError = nil
         } catch {
             commitError = PropertyEditorErrorMessage.string(for: error)
@@ -631,7 +631,7 @@ struct EditPropertyPane: View {
         // without double-writing or clobbering with an unchanged value.
         guard !trimmed.isEmpty, trimmed != currentDefinition()?.name else { return }
         do {
-            try await pageTypeManager.renameProperty(id: propertyID, in: typeID, to: trimmed)
+            try await collectionManager.renameProperty(id: propertyID, in: typeID, to: trimmed)
             commitError = nil
         } catch {
             commitError = PropertyEditorErrorMessage.string(for: error)
@@ -648,7 +648,7 @@ struct EditPropertyPane: View {
         // disk delete completes off-screen.
         if !path.isEmpty { path.removeLast() }
         do {
-            try await pageTypeManager.deleteProperty(id: propertyID, in: typeID)
+            try await collectionManager.deleteProperty(id: propertyID, in: typeID)
         } catch {
             commitError = PropertyEditorErrorMessage.string(for: error)
         }
@@ -657,7 +657,7 @@ struct EditPropertyPane: View {
     private func commitDuplicate() async {
         guard let typeID = parentTypeID() else { return }
         do {
-            try await pageTypeManager.duplicateProperty(id: propertyID, in: typeID)
+            try await collectionManager.duplicateProperty(id: propertyID, in: typeID)
             if !path.isEmpty { path.removeLast() }
         } catch {
             commitError = PropertyEditorErrorMessage.string(for: error)

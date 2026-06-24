@@ -2,7 +2,7 @@ import Foundation
 
 /// A fully-resolved table column: the ordered, sized, icon-bearing descriptor
 /// the custom table renders. Produced by `TableColumnResolver` from a
-/// `SavedView` + a PageType's property schema.
+/// `SavedView` + a PageCollection's property schema.
 struct ResolvedColumn: Equatable, Hashable, Sendable, Identifiable {
     /// Column kind — drives default width, header icon, and cell rendering.
     /// Modeled as an enum + switch (HARD RULE: condensed exhaustive control

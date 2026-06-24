@@ -18,7 +18,7 @@ import UniformTypeIdentifiers
 /// the card can place them in its cover-area context menu.
 struct CoverPicker: View {
     let page: PageMeta
-    let vault: PageType
+    let pageCollection: PageCollection
     let collection: PageSet?
     let set: PageSet?
     let nexus: Nexus
@@ -72,7 +72,7 @@ struct CoverPicker: View {
         Task {
             do {
                 try await contentManager.updatePageFrontmatter(
-                    page, frontmatter: fm, vault: vault, collection: collection, set: set)
+                    page, frontmatter: fm, pageCollection: pageCollection, collection: collection, set: set)
                 store.delete(relativePath: previousCover, for: page.id, in: nexus)
             } catch {
                 // pendingError on the manager surfaces a toast.

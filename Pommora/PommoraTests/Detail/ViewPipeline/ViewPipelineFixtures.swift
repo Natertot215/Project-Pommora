@@ -11,16 +11,16 @@ import Foundation
 @testable import Pommora
 
 enum VPFixture {
-    static func vault(_ id: String = "vault_1", title: String = "Vault") -> PageType {
-        PageType(
+    static func vault(_ id: String = "vault_1", title: String = "Vault") -> PageCollection {
+        PageCollection(
             id: id, title: title, icon: nil,
             properties: [], views: [], modifiedAt: Date(timeIntervalSince1970: 0)
         )
     }
 
-    static func collection(_ id: String, title: String, vault: String = "vault_1") -> PageSet {
+    static func collection(_ id: String, title: String, pageCollection: String = "vault_1") -> PageSet {
         PageSet(
-            id: id, parentID: vault, title: title,
+            id: id, parentID: pageCollection, title: title,
             folderURL: URL(fileURLWithPath: "/"), modifiedAt: Date(timeIntervalSince1970: 0)
         )
     }
@@ -77,7 +77,7 @@ enum VPFixture {
             page: meta(
                 id: id, title: title, properties: properties,
                 tier1: tier1, createdAt: createdAt, modifiedAt: modifiedAt),
-            parent: .collection(collection, vault: vault(collection.parentID)),
+            parent: .collection(collection, pageCollection: vault(collection.parentID)),
             setLabel: nil
         )
     }
@@ -89,7 +89,7 @@ enum VPFixture {
     ) -> ViewItem {
         ViewItem(
             page: meta(id: id, title: title, properties: properties),
-            parent: .set(set, collection: collection, vault: vault(collection.parentID)),
+            parent: .set(set, collection: collection, pageCollection: vault(collection.parentID)),
             setLabel: set.title
         )
     }
@@ -102,7 +102,7 @@ enum VPFixture {
     ) -> ViewItem {
         ViewItem(
             page: meta(id: id, title: title, properties: properties),
-            parent: .set(subSet, collection: collection, vault: vault(collection.parentID)),
+            parent: .set(subSet, collection: collection, pageCollection: vault(collection.parentID)),
             setLabel: nil
         )
     }
@@ -111,7 +111,7 @@ enum VPFixture {
     static func rootItem(_ id: String, title: String) -> ViewItem {
         ViewItem(
             page: meta(id: id, title: title),
-            parent: .vaultRoot(vault()),
+            parent: .collectionRoot(vault()),
             setLabel: nil
         )
     }

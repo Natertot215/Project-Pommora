@@ -5,7 +5,7 @@ import Testing
 @testable import Pommora
 
 /// Depth-1 view rule (Task 1.5): only Collections (direct children of a top-tier
-/// PageType) carry and render views. Deeper Sub-Sets are plain — stray `views[]`
+/// PageCollection) carry and render views. Deeper Sub-Sets are plain — stray `views[]`
 /// in their sidecars are ignored (not rendered). Moves and promotion behave
 /// correctly without rewriting sidecars.
 @MainActor
@@ -15,30 +15,30 @@ struct PageSetDepthViewTests {
     // MARK: - Fixtures
 
     @discardableResult
-    private func makePageType(
+    private func makePageCollection(
         nexus: Nexus, title: String, index: PommoraIndex? = nil
-    ) throws -> PageType {
-        let vault = PageType(
+    ) throws -> PageCollection {
+        let vault = PageCollection(
             id: ULID.generate(), title: title, icon: nil,
             properties: [], views: [], modifiedAt: Date()
         )
         let folderURL = NexusPaths.vaultFolderURL(forTitle: title, in: nexus)
         try FileManager.default.createDirectory(at: folderURL, withIntermediateDirectories: true)
         try vault.save(to: NexusPaths.vaultMetadataURL(forTitle: title, in: nexus))
-        if let index { try IndexUpdater(index).upsertPageType(vault) }
+        if let index { try IndexUpdater(index).upsertPageCollection(vault) }
         return vault
     }
 
     @discardableResult
     private func makePageCollection(
-        nexus: Nexus, title: String, in vault: PageType, index: PommoraIndex? = nil
+        nexus: Nexus, title: String, in pageCollection: PageCollection, index: PommoraIndex? = nil
     ) throws -> PageSet {
         let folderURL = NexusPaths.collectionFolderURL(
-            forTitle: title, inVaultTitled: vault.title, in: nexus
+            forTitle: title, inVaultTitled: pageCollection.title, in: nexus
         )
         try FileManager.default.createDirectory(at: folderURL, withIntermediateDirectories: true)
         let coll = PageSet(
-            id: ULID.generate(), parentID: vault.id, title: title,
+            id: ULID.generate(), parentID: pageCollection.id, title: title,
             folderURL: folderURL, modifiedAt: Date()
         )
         try coll.save(to: folderURL.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename))
@@ -68,8 +68,8 @@ struct PageSetDepthViewTests {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
 
-        let vaultA = try makePageType(nexus: nexus, title: "Notes")
-        let vaultB = try makePageType(nexus: nexus, title: "Tasks")
+        let vaultA = try makePageCollection(nexus: nexus, title: "Notes")
+        let vaultB = try makePageCollection(nexus: nexus, title: "Tasks")
         _ = try makePageCollection(nexus: nexus, title: "Inbox", in: vaultA)
 
         let setManager = PageSetManager(nexus: nexus)
@@ -85,7 +85,7 @@ struct PageSetDepthViewTests {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
 
-        let vault = try makePageType(nexus: nexus, title: "Notes")
+        let vault = try makePageCollection(nexus: nexus, title: "Notes")
         let coll = try makePageCollection(nexus: nexus, title: "Inbox", in: vault)
 
         let setManager = PageSetManager(nexus: nexus)
@@ -102,7 +102,7 @@ struct PageSetDepthViewTests {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
 
-        let vault = try makePageType(nexus: nexus, title: "Notes")
+        let vault = try makePageCollection(nexus: nexus, title: "Notes")
         let coll = try makePageCollection(nexus: nexus, title: "Inbox", in: vault)
 
         // Hand-place a views[] on the sub-set sidecar (simulating stray data).
@@ -131,7 +131,7 @@ struct PageSetDepthViewTests {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
 
-        let vault = try makePageType(nexus: nexus, title: "Notes")
+        let vault = try makePageCollection(nexus: nexus, title: "Notes")
         let coll = try makePageCollection(nexus: nexus, title: "Inbox", in: vault)
         _ = try makePageSet(title: "SubSet", in: coll)
 
@@ -153,7 +153,7 @@ struct PageSetDepthViewTests {
         let (index, _) = try PommoraIndex.open(at: nexus.rootURL)
         let updater = IndexUpdater(index)
 
-        let vault = try makePageType(nexus: nexus, title: "Notes", index: index)
+        let vault = try makePageCollection(nexus: nexus, title: "Notes", index: index)
         let collA = try makePageCollection(nexus: nexus, title: "Alpha", in: vault, index: index)
         let collB = try makePageCollection(nexus: nexus, title: "Beta", in: vault, index: index)
         // Drafts starts under collA (depth-2); Archive is under collB (depth-2) — destination.
@@ -179,7 +179,7 @@ struct PageSetDepthViewTests {
         let loadedArchive = try #require(setManager.pageSets(in: collB).first(where: { $0.id == archive.id }))
         try await setManager.moveSet(
             loadedDrafts, to: loadedArchive,
-            destinationVault: vault, sourceVault: vault,
+            destinationPageCollection: vault, sourcePageCollection: vault,
             contentManager: contentManager
         )
 
@@ -200,7 +200,7 @@ struct PageSetDepthViewTests {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
 
-        let vault = try makePageType(nexus: nexus, title: "Notes")
+        let vault = try makePageCollection(nexus: nexus, title: "Notes")
         let coll = try makePageCollection(nexus: nexus, title: "Inbox", in: vault)
 
         let setManager = PageSetManager(nexus: nexus)
@@ -228,7 +228,7 @@ struct PageSetDepthViewTests {
         let (index, _) = try PommoraIndex.open(at: nexus.rootURL)
         let updater = IndexUpdater(index)
 
-        let vault = try makePageType(nexus: nexus, title: "Notes", index: index)
+        let vault = try makePageCollection(nexus: nexus, title: "Notes", index: index)
         let coll = try makePageCollection(nexus: nexus, title: "Inbox", in: vault, index: index)
 
         // Build: Inbox/Intermediate/SubSet — SubSet is depth-3, ineligible.
@@ -280,18 +280,18 @@ struct PageSetDepthViewTests {
         await setManager.loadAll(types: [vault])
         let reloadedSub = setManager.pageSets(in: coll).first(where: { $0.id == subSet.id })
         #expect(reloadedSub != nil)
-        // depth-2: parentID = coll.id (a Collection, not a PageType) → still ineligible
+        // depth-2: parentID = coll.id (a Collection, not a PageCollection) → still ineligible
         #expect(!setManager.isViewEligible(reloadedSub!), "depth-2 is still ineligible")
         // The sidecar views[] are still present — dormant, not stripped.
         #expect(!reloadedSub!.views.isEmpty, "dormant views must survive on disk")
     }
 
-    @Test("true promotion to depth-1: child of Collection becomes direct child of PageType (eligible)")
+    @Test("true promotion to depth-1: child of Collection becomes direct child of PageCollection (eligible)")
     func truePromotionToDepth1BecomesEligible() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
 
-        let vault = try makePageType(nexus: nexus, title: "Notes")
+        let vault = try makePageCollection(nexus: nexus, title: "Notes")
         let coll = try makePageCollection(nexus: nexus, title: "Inbox", in: vault)
 
         // SubSet starts at depth-2 (parent = coll), ineligible.
@@ -331,7 +331,7 @@ struct PageSetDepthViewTests {
 
     // MARK: - Cross-vault move at depth-2 strips off-schema properties
 
-    @Test("cross-PageType move at depth-2 strips off-schema properties")
+    @Test("cross-PageCollection move at depth-2 strips off-schema properties")
     func crossVaultMoveAtDepth2Strips() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
@@ -342,14 +342,14 @@ struct PageSetDepthViewTests {
         let onlyA = PropertyDefinition(id: "prop_only_a", name: "Status", type: .status)
         let vaultAFolderURL = NexusPaths.vaultFolderURL(forTitle: "VaultA", in: nexus)
         try FileManager.default.createDirectory(at: vaultAFolderURL, withIntermediateDirectories: true)
-        let vaultAWithProp = PageType(
+        let vaultAWithProp = PageCollection(
             id: ULID.generate(), title: "VaultA", icon: nil,
             properties: [onlyA], views: [], modifiedAt: Date()
         )
         try vaultAWithProp.save(to: NexusPaths.vaultMetadataURL(forTitle: "VaultA", in: nexus))
-        try updater.upsertPageType(vaultAWithProp)
+        try updater.upsertPageCollection(vaultAWithProp)
 
-        let vaultB = try makePageType(nexus: nexus, title: "VaultB", index: index)
+        let vaultB = try makePageCollection(nexus: nexus, title: "VaultB", index: index)
 
         let collA = try makePageCollection(nexus: nexus, title: "CollA", in: vaultAWithProp, index: index)
         let collB = try makePageCollection(nexus: nexus, title: "CollB", in: vaultB, index: index)
@@ -377,7 +377,7 @@ struct PageSetDepthViewTests {
 
         try await setManager.moveSet(
             loadedSubSet, to: collB,
-            destinationVault: vaultB, sourceVault: vaultAWithProp,
+            destinationPageCollection: vaultB, sourcePageCollection: vaultAWithProp,
             contentManager: contentManager
         )
 

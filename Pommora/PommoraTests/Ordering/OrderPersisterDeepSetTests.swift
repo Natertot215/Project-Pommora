@@ -15,7 +15,7 @@ struct OrderPersisterDeepSetTests {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
 
-        let vault = try makePageType(nexus: nexus, title: "Notes")
+        let vault = try makePageCollection(nexus: nexus, title: "Notes")
         let coll = try makePageCollection(nexus: nexus, title: "Inbox", in: vault)
 
         // SetA is a depth-2 Set (parent is a Collection). It carries _pageset.json.
@@ -45,7 +45,7 @@ struct OrderPersisterDeepSetTests {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
 
-        let vault = try makePageType(nexus: nexus, title: "Notes")
+        let vault = try makePageCollection(nexus: nexus, title: "Notes")
         let coll = try makePageCollection(nexus: nexus, title: "Inbox", in: vault)
         let setA = try makePageSet(title: "SetA", in: coll)
         let setB = try makePageSet(title: "SetB", in: coll)
@@ -61,8 +61,8 @@ struct OrderPersisterDeepSetTests {
     // MARK: - Helpers
 
     @discardableResult
-    private func makePageType(nexus: Nexus, title: String) throws -> PageType {
-        let vault = PageType(
+    private func makePageCollection(nexus: Nexus, title: String) throws -> PageCollection {
+        let vault = PageCollection(
             id: ULID.generate(), title: title, icon: nil,
             properties: [], views: [], modifiedAt: Date()
         )
@@ -73,12 +73,12 @@ struct OrderPersisterDeepSetTests {
     }
 
     @discardableResult
-    private func makePageCollection(nexus: Nexus, title: String, in vault: PageType) throws -> PageSet {
+    private func makePageCollection(nexus: Nexus, title: String, in pageCollection: PageCollection) throws -> PageSet {
         let folderURL = NexusPaths.collectionFolderURL(
-            forTitle: title, inVaultTitled: vault.title, in: nexus)
+            forTitle: title, inVaultTitled: pageCollection.title, in: nexus)
         try FileManager.default.createDirectory(at: folderURL, withIntermediateDirectories: true)
         let coll = PageSet(
-            id: ULID.generate(), parentID: vault.id, title: title,
+            id: ULID.generate(), parentID: pageCollection.id, title: title,
             folderURL: folderURL, modifiedAt: Date()
         )
         try coll.save(to: folderURL.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename))

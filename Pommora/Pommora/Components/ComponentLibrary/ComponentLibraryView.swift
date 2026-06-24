@@ -160,7 +160,7 @@ enum ComponentCategory: String, CaseIterable, Hashable {
                 .init(
                     name: "Renameable Row",
                     detail:
-                        "Inline-rename mode for any sidebar row. Used by Area / Project / PageType / Topic / Page / PageCollection."
+                        "Inline-rename mode for any sidebar row. Used by Area / Project / PageCollection / Topic / Page / PageCollection."
                 ),
                 .init(
                     name: "Section Header",
@@ -187,7 +187,7 @@ enum ComponentCategory: String, CaseIterable, Hashable {
             return [
                 .init(
                     name: "Vault Settings Sheet",
-                    detail: "Pages-side schema editor. Add/edit/delete properties on a PageType."),
+                    detail: "Pages-side schema editor. Add/edit/delete properties on a PageCollection."),
                 .init(
                     name: "Icon Picker",
                     detail:

@@ -17,30 +17,30 @@ import Testing
 @Suite("Manager create return contract")
 struct ManagerCreateReturnContractTests {
 
-    @Test("PageTypeManager.createPageType returns the new PageType")
-    func createPageTypeReturns() async throws {
+    @Test("PageCollectionManager.createPageCollection returns the new PageCollection")
+    func createPageCollectionReturns() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
-        let manager = PageTypeManager(nexus: nexus)
+        let manager = PageCollectionManager(nexus: nexus)
         await manager.loadAll()
 
-        let returned = try await manager.createPageType(name: "Planner", icon: nil)
+        let returned = try await manager.createPageCollection(name: "Planner", icon: nil)
         #expect(manager.types.contains(where: { $0.id == returned.id }))
         #expect(returned.title == "Planner")
     }
 
-    @Test("PageTypeManager.createPageSet returns the new PageSet")
+    @Test("PageCollectionManager.createPageSet returns the new PageSet")
     func createPageSetReturns() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
-        let manager = PageTypeManager(nexus: nexus)
+        let manager = PageCollectionManager(nexus: nexus)
         let setManager = PageSetManager(nexus: nexus)
         setManager.pageTypeProvider = { [weak manager] in manager?.types ?? [] }
         manager.pageSetManager = setManager
         await manager.loadAll()
-        let pt = try await manager.createPageType(name: "Planner", icon: nil)
+        let pt = try await manager.createPageCollection(name: "Planner", icon: nil)
 
-        let returned = try await manager.createPageCollection(name: "Tasks", inPageType: pt)
+        let returned = try await manager.createPageCollection(name: "Tasks", inPageCollection: pt)
         #expect(manager.pageCollections(in: pt).contains(where: { $0.id == returned.id }))
         #expect(returned.title == "Tasks")
         #expect(returned.parentID == pt.id)

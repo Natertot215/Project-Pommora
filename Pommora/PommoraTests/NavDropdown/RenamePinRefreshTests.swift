@@ -8,7 +8,7 @@ import Testing
 /// the Pinned + Recents stores so pins/recents no longer show the old name.
 ///
 /// Fixture mirrors `ConnectionLiveUpdateTests.setup()` (TempNexus + PommoraIndex
-/// + one PageType + one PageSet seeded into the index + a
+/// + one PageCollection + one PageSet seeded into the index + a
 /// `PageContentManager` with `indexUpdater` set), plus a `PinnedManager` +
 /// `RecentsManager` injected onto the manager.
 @MainActor
@@ -17,7 +17,7 @@ struct RenamePinRefreshTests {
 
     private func setup() async throws -> (
         nexus: Nexus,
-        vault: PageType,
+        pageCollection: PageCollection,
         coll: PageSet,
         manager: PageContentManager,
         pinned: PinnedManager,
@@ -26,7 +26,7 @@ struct RenamePinRefreshTests {
         let nexus = try TempNexus.make()
         let (index, _) = try PommoraIndex.open(at: nexus.rootURL)
 
-        let vault = PageType(
+        let vault = PageCollection(
             id: ULID.generate(), title: "V", icon: nil,
             properties: [], views: [], modifiedAt: Date()
         )
@@ -45,7 +45,7 @@ struct RenamePinRefreshTests {
         )
 
         let updater = IndexUpdater(index)
-        try updater.upsertPageType(vault)
+        try updater.upsertPageCollection(vault)
         try updater.upsertPageCollection(coll)
 
         let manager = PageContentManager(nexus: nexus, contextProvider: { NexusContext.empty })
@@ -66,7 +66,7 @@ struct RenamePinRefreshTests {
         let (nexus, vault, coll, manager, pinned, recents) = try await setup()
         defer { TempNexus.cleanup(nexus) }
 
-        let page = try await manager.createPage(name: "Old", in: coll, vault: vault)
+        let page = try await manager.createPage(name: "Old", in: coll, pageCollection: vault)
 
         pinned.toggle(EntityStateRef(kind: .page, id: page.id, title: "Old"))
         recents.record(EntityStateRef(kind: .page, id: page.id, title: "Old"))
@@ -74,7 +74,7 @@ struct RenamePinRefreshTests {
         let pinnedCountBefore = pinned.entries.count
         let recentsCountBefore = recents.entries.count
 
-        try await manager.renamePage(page, to: "New", in: coll, vault: vault)
+        try await manager.renamePage(page, to: "New", in: coll, pageCollection: vault)
 
         #expect(pinned.entries.first?.title == "New")
         #expect(recents.entries.first(where: { $0.id == page.id })?.title == "New")

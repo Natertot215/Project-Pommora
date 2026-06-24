@@ -47,8 +47,8 @@ struct TierRelationsEmitTests {
         let idx = try Fixtures.index(at: nexus)
         let updater = IndexUpdater(idx)
 
-        let pt = Fixtures.pageType()
-        try updater.upsertPageType(pt)
+        let pt = Fixtures.pageCollection()
+        try updater.upsertPageCollection(pt)
 
         let contextID = ULID.generate()
         let pageID = ULID.generate()
@@ -89,8 +89,8 @@ struct TierRelationsEmitTests {
         let idx = try Fixtures.index(at: nexus)
         let updater = IndexUpdater(idx)
 
-        let pt = Fixtures.pageType(title: "Tasks")
-        try updater.upsertPageType(pt)
+        let pt = Fixtures.pageCollection(title: "Tasks")
+        try updater.upsertPageCollection(pt)
 
         let topicID = ULID.generate()
         let projectID = ULID.generate()
@@ -174,8 +174,8 @@ struct TierRelationsEmitTests {
         let idx = try Fixtures.index(at: nexus)
         let updater = IndexUpdater(idx)
 
-        let pt = Fixtures.pageType()
-        try updater.upsertPageType(pt)
+        let pt = Fixtures.pageCollection()
+        try updater.upsertPageCollection(pt)
 
         let contextID = ULID.generate()
         let pageID = ULID.generate()
@@ -209,11 +209,11 @@ struct TierRelationsEmitTests {
         // Register a page type with one relation property definition.
         let relPropID = ULID.generate()
         let relDef = PropertyDefinition(id: relPropID, name: "Linked", type: .relation)
-        let pt = PageType(
+        let pt = PageCollection(
             id: ULID.generate(), title: "Notes", icon: nil,
             properties: [relDef], views: [], modifiedAt: Date()
         )
-        try updater.upsertPageType(pt)
+        try updater.upsertPageCollection(pt)
 
         // Create a page whose `properties` map carries a `.relation` value.
         let targetID = ULID.generate()
@@ -253,11 +253,11 @@ struct TierRelationsEmitTests {
 
         let relPropID = ULID.generate()
         let relDef = PropertyDefinition(id: relPropID, name: "Linked", type: .relation)
-        let pt = PageType(
+        let pt = PageCollection(
             id: ULID.generate(), title: "Notes", icon: nil,
             properties: [relDef], views: [], modifiedAt: Date()
         )
-        try updater.upsertPageType(pt)
+        try updater.upsertPageCollection(pt)
 
         let userTargetID = ULID.generate()
         let contextID = ULID.generate()
@@ -303,11 +303,11 @@ struct TierRelationsEmitTests {
         let typeFolder = nexus.rootURL.appendingPathComponent("Notes", isDirectory: true)
         try FileManager.default.createDirectory(at: typeFolder, withIntermediateDirectories: true)
 
-        let pageType = PageType(
+        let pc = PageCollection(
             id: ULID.generate(), title: "Notes", icon: nil,
             properties: [], views: [], modifiedAt: Date()
         )
-        try pageType.save(to: typeFolder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename))
+        try pc.save(to: typeFolder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename))
 
         let pageID = ULID.generate()
         let frontmatter = PageFrontmatter(
@@ -336,7 +336,7 @@ struct TierRelationsEmitTests {
         defer { TempNexus.cleanup(nexus) }
         let idx = try Fixtures.index(at: nexus)
 
-        // Build a legacy PageType (schemaVersion 0, one property) and a member that
+        // Build a legacy PageCollection (schemaVersion 0, one property) and a member that
         // carries an orphaned user-relation key + a tier1 value.
         let typeFolder = nexus.rootURL.appendingPathComponent("Notes", isDirectory: true)
         try FileManager.default.createDirectory(at: typeFolder, withIntermediateDirectories: true)
@@ -376,9 +376,9 @@ struct TierRelationsEmitTests {
 
         // Now index the migrated nexus.
         let updater = IndexUpdater(idx)
-        let pt = try PageType.load(
+        let pt = try PageCollection.load(
             from: typeFolder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename))
-        try updater.upsertPageType(pt)
+        try updater.upsertPageCollection(pt)
 
         let pageURL = typeFolder.appendingPathComponent("Doc.md")
         let reloadedFile = try PageFile.load(from: pageURL)

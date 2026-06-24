@@ -27,15 +27,15 @@ import Testing
 struct MemberFileStripResilienceTests {
 
     /// The non-paired path: deleting a plain property also strips member files via
-    /// `PageTypeManager.deleteProperty`'s inline loop. The same frontmatter-less
+    /// `PageCollectionManager.deleteProperty`'s inline loop. The same frontmatter-less
     /// `.md` must be tolerated.
     @Test func plainPropertyDeleteToleratesFrontmatterlessMemberPage() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
 
-        let manager = PageTypeManager(nexus: nexus)
+        let manager = PageCollectionManager(nexus: nexus)
         await manager.loadAll()
-        try await manager.createPageType(name: "Notes", icon: nil)
+        try await manager.createPageCollection(name: "Notes", icon: nil)
         let notes = manager.types.first { $0.title == "Notes" }!
 
         let def = PropertyDefinition(id: "", name: "Count", type: .number)

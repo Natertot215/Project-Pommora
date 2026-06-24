@@ -6,7 +6,7 @@
 //  executing `INSERT OR REPLACE INTO pages...`" toast that surfaced
 //  when CRUD ran against entities loaded from disk that the index DB
 //  had no record of (adoption / external-folder scenarios). loadAll
-//  on PageTypeManager now defensively upserts every in-memory parent
+//  on PageCollectionManager now defensively upserts every in-memory parent
 //  entity into the index so subsequent CRUD upserts always find their
 //  FK target.
 //
@@ -21,25 +21,25 @@ import Testing
 @Suite("loadAll syncs parents to index")
 struct LoadAllIndexSyncTests {
 
-    // MARK: - PageType / PageSet sync
+    // MARK: - PageCollection / PageSet sync
 
-    /// Simulates the adoption / external-folder scenario: a PageType folder
+    /// Simulates the adoption / external-folder scenario: a PageCollection folder
     /// + sidecar lives on disk but was never created via the app's CRUD
-    /// (so upsertPageType never ran). loadAll should defensively upsert
+    /// (so upsertPageCollection never ran). loadAll should defensively upsert
     /// it to the index so later page CRUD doesn't FK-fail.
-    @Test func pageTypeManagerLoadAllSyncsToIndex() async throws {
+    @Test func collectionManagerLoadAllSyncsToIndex() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
         let (index, _) = try PommoraIndex.open(at: nexus.rootURL)
 
-        // Write a PageType sidecar directly to disk — bypassing
-        // createPageType (which would upsert via CRUD). This mirrors the
+        // Write a PageCollection sidecar directly to disk — bypassing
+        // createPageCollection (which would upsert via CRUD). This mirrors the
         // post-adoption / external-folder state.
         let vaultID = ULID.generate()
         let folderName = "Adopted Vault"
         let folder = NexusPaths.vaultFolderURL(forTitle: folderName, in: nexus)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        let pageType = PageType(
+        let pc = PageCollection(
             id: vaultID,
             title: folderName,
             icon: nil,
@@ -48,7 +48,7 @@ struct LoadAllIndexSyncTests {
             modifiedAt: Date()
         )
         let sidecarURL = folder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename)
-        try pageType.save(to: sidecarURL)
+        try pc.save(to: sidecarURL)
 
         // Confirm the DB starts empty.
         let initialCount = try await index.dbQueue.read { db in
@@ -57,7 +57,7 @@ struct LoadAllIndexSyncTests {
         #expect(initialCount == 0)
 
         // Wire IndexUpdater + load.
-        let manager = PageTypeManager(nexus: nexus)
+        let manager = PageCollectionManager(nexus: nexus)
         manager.indexUpdater = IndexUpdater(index)
         await manager.loadAll()
 
@@ -89,21 +89,21 @@ struct LoadAllIndexSyncTests {
         #expect(pageCount == 1)
     }
 
-    /// Same scenario for a PageSet nested inside a PageType — the
-    /// loadAll pair (PageTypeManager then PageSetManager) must sync BOTH levels
+    /// Same scenario for a PageSet nested inside a PageCollection — the
+    /// loadAll pair (PageCollectionManager then PageSetManager) must sync BOTH levels
     /// so page CRUD into a collection doesn't FK-fail on `page_collection_id`.
-    @Test func pageTypeManagerLoadAllSyncsCollectionsToo() async throws {
+    @Test func collectionManagerLoadAllSyncsCollectionsToo() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
         let (index, _) = try PommoraIndex.open(at: nexus.rootURL)
 
-        // PageType folder + sidecar on disk.
+        // PageCollection folder + sidecar on disk.
         let vaultID = ULID.generate()
         let vaultName = "Adopted Vault"
         let vaultFolder = NexusPaths.vaultFolderURL(forTitle: vaultName, in: nexus)
         try FileManager.default.createDirectory(at: vaultFolder, withIntermediateDirectories: true)
-        let pageType = PageType(id: vaultID, title: vaultName, icon: nil, properties: [], views: [], modifiedAt: Date())
-        try pageType.save(to: vaultFolder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename))
+        let pc = PageCollection(id: vaultID, title: vaultName, icon: nil, properties: [], views: [], modifiedAt: Date())
+        try pc.save(to:vaultFolder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename))
 
         // PageSet sub-folder + sidecar on disk.
         let collID = ULID.generate()
@@ -114,7 +114,7 @@ struct LoadAllIndexSyncTests {
         try collection.save(to: collFolder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename))
 
         // Wire + load: collections are owned by PageSetManager.
-        let manager = PageTypeManager(nexus: nexus)
+        let manager = PageCollectionManager(nexus: nexus)
         manager.indexUpdater = IndexUpdater(index)
         let setManager = PageSetManager(nexus: nexus)
         setManager.indexUpdater = IndexUpdater(index)
@@ -186,10 +186,10 @@ struct LoadAllIndexSyncTests {
         let vaultID = ULID.generate()
         let folder = NexusPaths.vaultFolderURL(forTitle: "Vault", in: nexus)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        let pageType = PageType(id: vaultID, title: "Vault", icon: nil, properties: [], views: [], modifiedAt: Date())
-        try pageType.save(to: folder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename))
+        let pc = PageCollection(id: vaultID, title: "Vault", icon: nil, properties: [], views: [], modifiedAt: Date())
+        try pc.save(to:folder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename))
 
-        let manager = PageTypeManager(nexus: nexus)
+        let manager = PageCollectionManager(nexus: nexus)
         manager.indexUpdater = IndexUpdater(index)
         await manager.loadAll()
         await manager.loadAll()  // second pass should be a no-op

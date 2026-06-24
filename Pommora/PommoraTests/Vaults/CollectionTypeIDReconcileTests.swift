@@ -10,7 +10,7 @@
 //  `type_id` keeps pointing at the OLD (now-vanished) Type id — so property /
 //  schema resolution finds nothing (empty "Edit Properties" pane).
 //
-//  Fix under test: PageTypeManager.loadAll() must reconcile each collection's
+//  Fix under test: PageCollectionManager.loadAll() must reconcile each collection's
 //  `type_id` to its CONTAINING Type's `id` (the folder is authoritative) —
 //  both IN MEMORY and by re-saving the sidecar to disk.
 //
@@ -44,7 +44,7 @@ struct CollectionTypeIDReconcileTests {
         let vaultName = "Re-adopted Vault"
         let vaultFolder = NexusPaths.vaultFolderURL(forTitle: vaultName, in: nexus)
         try FileManager.default.createDirectory(at: vaultFolder, withIntermediateDirectories: true)
-        let pageType = PageType(
+        let pc = PageCollection(
             id: vaultID,
             title: vaultName,
             icon: nil,
@@ -52,7 +52,7 @@ struct CollectionTypeIDReconcileTests {
             views: [],
             modifiedAt: Date()
         )
-        try pageType.save(to: vaultFolder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename))
+        try pc.save(to: vaultFolder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename))
 
         // Collection sub-folder whose sidecar `type_id` = wrongTypeID (drift).
         let collName = "Drifted Collection"
@@ -69,14 +69,14 @@ struct CollectionTypeIDReconcileTests {
         try drifted.save(to: collMetaURL)
 
         // Load. No index wired — reconcile is about type_id, not the SQLite index.
-        let manager = PageTypeManager(nexus: nexus)
+        let manager = PageCollectionManager(nexus: nexus)
         let setManager = PageSetManager(nexus: nexus)
         setManager.pageTypeProvider = { [weak manager] in manager?.types ?? [] }
         manager.pageSetManager = setManager
         await manager.loadAll()
         await setManager.loadAll(types: manager.types)
 
-        // Resolve the loaded vault by title so we hand the right PageType to
+        // Resolve the loaded vault by title so we hand the right PageCollection to
         // pageCollections(in:).
         let loadedVault = try #require(manager.types.first(where: { $0.title == vaultName }))
         #expect(loadedVault.id == vaultID)
@@ -100,10 +100,10 @@ struct CollectionTypeIDReconcileTests {
         let vaultName = "Stable Vault"
         let vaultFolder = NexusPaths.vaultFolderURL(forTitle: vaultName, in: nexus)
         try FileManager.default.createDirectory(at: vaultFolder, withIntermediateDirectories: true)
-        let pageType = PageType(
+        let pc = PageCollection(
             id: vaultID, title: vaultName, icon: nil, properties: [], views: [], modifiedAt: Date()
         )
-        try pageType.save(to: vaultFolder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename))
+        try pc.save(to: vaultFolder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename))
 
         let collName = "Correct Collection"
         let collFolder = vaultFolder.appendingPathComponent(collName, isDirectory: true)
@@ -118,7 +118,7 @@ struct CollectionTypeIDReconcileTests {
         )
         try correct.save(to: collMetaURL)
 
-        let manager = PageTypeManager(nexus: nexus)
+        let manager = PageCollectionManager(nexus: nexus)
         let setManager = PageSetManager(nexus: nexus)
         setManager.pageTypeProvider = { [weak manager] in manager?.types ?? [] }
         manager.pageSetManager = setManager

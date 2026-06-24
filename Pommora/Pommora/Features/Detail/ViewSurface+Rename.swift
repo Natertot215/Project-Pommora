@@ -42,12 +42,12 @@ extension ViewSurface {
                     // `.vaultRoot` can't occur in collection scope but is harmless.
                     switch item.parent {
                     case .collection(let coll, let t):
-                        try await contentManager.renamePage(item.page, to: newName, in: coll, vault: t)
+                        try await contentManager.renamePage(item.page, to: newName, in: coll, pageCollection: t)
                     case .set(let set, let coll, let t):
                         try await contentManager.renamePage(
-                            item.page, to: newName, in: set, collection: coll, vault: t)
-                    case .vaultRoot(let t):
-                        try await contentManager.renamePage(item.page, to: newName, inVaultRoot: t)
+                            item.page, to: newName, in: set, collection: coll, pageCollection: t)
+                    case .collectionRoot(let t):
+                        try await contentManager.renamePage(item.page, to: newName, inCollectionRoot: t)
                     }
                 }
             } catch {
@@ -60,7 +60,7 @@ extension ViewSurface {
     private func renameContainer(_ ref: ContainerRef, to newName: String) async throws {
         switch ref {
         case .collection(let coll):
-            try await pageTypeManager.renamePageCollection(coll, to: newName)
+            try await collectionManager.renamePageCollection(coll, to: newName)
         case .set(let set):
             try await pageSetManager.renamePageSet(set, to: newName)
         }

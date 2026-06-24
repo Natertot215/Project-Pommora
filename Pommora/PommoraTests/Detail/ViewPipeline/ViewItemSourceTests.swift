@@ -23,7 +23,7 @@ struct ViewItemSourceTests {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
 
-        let vault = try makePageType(nexus: nexus, title: "Notes")
+        let vault = try makePageCollection(nexus: nexus, title: "Notes")
         let coll = try makePageCollection(nexus: nexus, title: "Inbox", in: vault)
         let set = try makePageSet(title: "Drafts", in: coll)
 
@@ -39,7 +39,7 @@ struct ViewItemSourceTests {
         await sets.loadAll(types: [vault])
 
         let items = ViewItemSource.items(
-            for: .vault(vault),
+            for: .pageCollection(vault),
             content: content,
             sets: sets,
             collections: { _ in [coll] }
@@ -49,7 +49,7 @@ struct ViewItemSourceTests {
 
         // Vault-root page.
         let root = try #require(byTitle["RootPage"])
-        guard case .vaultRoot = root.parent else { return #expect(Bool(false), "expected vaultRoot") }
+        guard case .collectionRoot = root.parent else { return #expect(Bool(false), "expected collectionRoot") }
         #expect(root.setLabel == nil)
 
         // Collection-loose page.
@@ -77,7 +77,7 @@ struct ViewItemSourceTests {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
 
-        let vault = try makePageType(nexus: nexus, title: "Notes")
+        let vault = try makePageCollection(nexus: nexus, title: "Notes")
         let coll = try makePageCollection(nexus: nexus, title: "Inbox", in: vault)
         let set = try makePageSet(title: "Drafts", in: coll)
 
@@ -90,7 +90,7 @@ struct ViewItemSourceTests {
         await sets.loadAll(types: [vault])
 
         let items = ViewItemSource.items(
-            for: .collection(coll, vault: vault),
+            for: .collection(coll, pageCollection: vault),
             content: content,
             sets: sets,
             collections: { _ in [coll] }
@@ -123,8 +123,8 @@ struct ViewItemSourceTests {
     }
 
     @discardableResult
-    private func makePageType(nexus: Nexus, title: String) throws -> PageType {
-        let vault = PageType(
+    private func makePageCollection(nexus: Nexus, title: String) throws -> PageCollection {
+        let vault = PageCollection(
             id: ULID.generate(), title: title, icon: nil,
             properties: [], views: [], modifiedAt: Date()
         )
@@ -136,15 +136,15 @@ struct ViewItemSourceTests {
 
     @discardableResult
     private func makePageCollection(
-        nexus: Nexus, title: String, in vault: PageType
+        nexus: Nexus, title: String, in pageCollection: PageCollection
     ) throws
         -> PageSet
     {
         let folderURL = NexusPaths.collectionFolderURL(
-            forTitle: title, inVaultTitled: vault.title, in: nexus)
+            forTitle: title, inVaultTitled: pageCollection.title, in: nexus)
         try FileManager.default.createDirectory(at: folderURL, withIntermediateDirectories: true)
         let coll = PageSet(
-            id: ULID.generate(), parentID: vault.id, title: title,
+            id: ULID.generate(), parentID: pageCollection.id, title: title,
             folderURL: folderURL, modifiedAt: Date()
         )
         try coll.save(to: folderURL.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename))

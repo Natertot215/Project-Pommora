@@ -8,7 +8,7 @@ import Testing
 /// Finder-duplicating a container folder clones its sidecar id. On load, the
 /// first folder discovered keeps the id; every later duplicate gets a fresh
 /// ULID minted + its sidecar rewritten via `ContainerIDHealer`, wired into
-/// `PageTypeManager.loadAll` (Types + Collections) and
+/// `PageCollectionManager.loadAll` (Types + Collections) and
 /// `PageSetManager.loadAll` (Sets).
 @MainActor
 @Suite("ContainerIDHealer")
@@ -18,28 +18,28 @@ struct ContainerIDHealerTests {
 
     private struct Fixture {
         let nexus: Nexus
-        let typeManager: PageTypeManager
+        let typeManager: PageCollectionManager
         let setManager: PageSetManager
-        let pageType: PageType
+        let pageCollection: PageCollection
         let collection: PageSet
     }
 
     /// Vault "Notes" + Collection "Inbox" via CRUD; both managers loaded.
     private func makeFixture() async throws -> Fixture {
         let nexus = try TempNexus.make()
-        let typeManager = PageTypeManager(nexus: nexus)
+        let typeManager = PageCollectionManager(nexus: nexus)
         let setManager = PageSetManager(nexus: nexus)
         setManager.pageTypeProvider = { [weak typeManager] in typeManager?.types ?? [] }
         typeManager.pageSetManager = setManager
         await typeManager.loadAll()
-        try await typeManager.createPageType(name: "Notes", icon: nil)
-        let pageType = typeManager.types.first!
-        try await typeManager.createPageCollection(name: "Inbox", inPageType: pageType)
-        let collection = typeManager.pageCollections(in: pageType).first!
+        try await typeManager.createPageCollection(name: "Notes", icon: nil)
+        let pageCollection = typeManager.types.first!
+        try await typeManager.createPageCollection(name: "Inbox", inPageCollection: pageCollection)
+        let collection = typeManager.pageCollections(in: pageCollection).first!
         await setManager.loadAll(types: typeManager.types)
         return Fixture(
             nexus: nexus, typeManager: typeManager, setManager: setManager,
-            pageType: pageType, collection: collection
+            pageCollection: pageCollection, collection: collection
         )
     }
 
@@ -148,7 +148,7 @@ struct ContainerIDHealerTests {
         let types = fx.typeManager.types
         #expect(types.count == 2)
         #expect(Set(types.map(\.id)).count == 2)
-        #expect(types.filter { $0.id == fx.pageType.id }.count == 1)
+        #expect(types.filter { $0.id == fx.pageCollection.id }.count == 1)
 
         // The cloned Collection ids are healed across Types (load-wide
         // namespace), and each Collection points at its CONTAINING Type.

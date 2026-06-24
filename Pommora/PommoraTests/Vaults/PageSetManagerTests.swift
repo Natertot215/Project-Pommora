@@ -12,30 +12,30 @@ struct PageSetManagerTests {
 
     private struct Fixture {
         let nexus: Nexus
-        let typeManager: PageTypeManager
+        let typeManager: PageCollectionManager
         let setManager: PageSetManager
-        let pageType: PageType
+        let pageCollection: PageCollection
         let collection: PageSet
     }
 
     /// Vault "Notes" + Collection "Inbox" via CRUD; both managers loaded.
     private func makeFixture(indexUpdater: IndexUpdater? = nil) async throws -> Fixture {
         let nexus = try TempNexus.make()
-        let typeManager = PageTypeManager(nexus: nexus)
+        let typeManager = PageCollectionManager(nexus: nexus)
         typeManager.indexUpdater = indexUpdater
         let setManager = PageSetManager(nexus: nexus)
         setManager.indexUpdater = indexUpdater
         setManager.pageTypeProvider = { [weak typeManager] in typeManager?.types ?? [] }
         typeManager.pageSetManager = setManager
         await typeManager.loadAll()
-        try await typeManager.createPageType(name: "Notes", icon: nil)
-        let pageType = typeManager.types.first!
-        try await typeManager.createPageCollection(name: "Inbox", inPageType: pageType)
-        let collection = typeManager.pageCollections(in: pageType).first!
+        try await typeManager.createPageCollection(name: "Notes", icon: nil)
+        let pageCollection = typeManager.types.first!
+        try await typeManager.createPageCollection(name: "Inbox", inPageCollection: pageCollection)
+        let collection = typeManager.pageCollections(in: pageCollection).first!
         await setManager.loadAll(types: typeManager.types)
         return Fixture(
             nexus: nexus, typeManager: typeManager, setManager: setManager,
-            pageType: pageType, collection: collection
+            pageCollection: pageCollection, collection: collection
         )
     }
 
@@ -45,21 +45,21 @@ struct PageSetManagerTests {
         let nexus = try TempNexus.make()
         let (index, _) = try PommoraIndex.open(at: nexus.rootURL)
         let updater = IndexUpdater(index)
-        let typeManager = PageTypeManager(nexus: nexus)
+        let typeManager = PageCollectionManager(nexus: nexus)
         typeManager.indexUpdater = updater
         let setManager = PageSetManager(nexus: nexus)
         setManager.indexUpdater = updater
         setManager.pageTypeProvider = { [weak typeManager] in typeManager?.types ?? [] }
         typeManager.pageSetManager = setManager
         await typeManager.loadAll()
-        try await typeManager.createPageType(name: "Notes", icon: nil)
-        let pageType = typeManager.types.first!
-        try await typeManager.createPageCollection(name: "Inbox", inPageType: pageType)
-        let collection = typeManager.pageCollections(in: pageType).first!
+        try await typeManager.createPageCollection(name: "Notes", icon: nil)
+        let pageCollection = typeManager.types.first!
+        try await typeManager.createPageCollection(name: "Inbox", inPageCollection: pageCollection)
+        let collection = typeManager.pageCollections(in: pageCollection).first!
         await setManager.loadAll(types: typeManager.types)
         let fx = Fixture(
             nexus: nexus, typeManager: typeManager, setManager: setManager,
-            pageType: pageType, collection: collection
+            pageCollection: pageCollection, collection: collection
         )
         return (fx, index)
     }
@@ -240,7 +240,7 @@ struct PageSetManagerTests {
         let pf = try PageFile.load(from: pageURL)
         try IndexUpdater(index).upsertPage(
             PageMeta(id: pageID, title: "Inside", url: pageURL, frontmatter: pf.frontmatter),
-            pageTypeID: fx.pageType.id, pageCollectionID: fx.collection.id, pageSetID: set.id)
+            pageTypeID: fx.pageCollection.id, pageCollectionID: fx.collection.id, pageSetID: set.id)
 
         try await fx.setManager.deletePageSet(set, mode: .setOnly)
 
@@ -400,7 +400,7 @@ struct PageSetManagerTests {
         let pf = try PageFile.load(from: pageURL)
         try IndexUpdater(index).upsertPage(
             PageMeta(id: pageID, title: "Inside", url: pageURL, frontmatter: pf.frontmatter),
-            pageTypeID: fx.pageType.id, pageCollectionID: fx.collection.id, pageSetID: setID)
+            pageTypeID: fx.pageCollection.id, pageCollectionID: fx.collection.id, pageSetID: setID)
         let rowSetID = try await index.dbQueue.read { db in
             try String.fetchOne(
                 db, sql: "SELECT page_set_id FROM pages WHERE id = ?", arguments: [pageID])
@@ -418,7 +418,7 @@ struct PageSetManagerTests {
         let set = try await fx.setManager.createPageSet(name: "Drafts", in: fx.collection)
         try await fx.typeManager.renamePageCollection(fx.collection, to: "Archive")
 
-        let renamed = fx.typeManager.pageCollections(in: fx.pageType).first!
+        let renamed = fx.typeManager.pageCollections(in: fx.pageCollection).first!
         let cached = fx.setManager.pageSets(in: renamed).first!
         #expect(cached.id == set.id)
         #expect(cached.folderURL.path == renamed.folderURL.appendingPathComponent("Drafts").path)
@@ -434,7 +434,7 @@ struct PageSetManagerTests {
         defer { TempNexus.cleanup(fx.nexus) }
 
         let set = try await fx.setManager.createPageSet(name: "Drafts", in: fx.collection)
-        try await fx.typeManager.renamePageType(fx.pageType, to: "Journal")
+        try await fx.typeManager.renamePageCollection(fx.pageCollection, to: "Journal")
 
         let renamedType = fx.typeManager.types.first!
         let renamedColl = fx.typeManager.pageCollections(in: renamedType).first!

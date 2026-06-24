@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// The container a detail view renders. A `ViewSurface` renders ONE scope —
-/// vault (a PageType's whole tree) or collection (one PageCollection's Sets +
+/// vault (a PageCollection's whole tree) or collection (one PageCollection's Sets +
 /// loose pages). Everything that genuinely differs between the two detail views
 /// lives here as a slot; `ViewSurface` reads `scope.<slot>` and never branches
 /// on which scope it is.
@@ -18,17 +18,17 @@ protocol DetailScope {
 
     // MARK: - Live entities (resolved by id off the @Observable manager)
 
-    /// The live PageType supplying schema + tier columns. Vault scope: this
+    /// The live PageCollection supplying schema + tier columns. Vault scope: this
     /// container; collection scope: the parent vault (Collections inherit schema).
-    func schemaSource(_ types: PageTypeManager) -> PageType
+    func schemaSource(_ types: PageCollectionManager) -> PageCollection
 
     /// The live container's stable id — feeds `tableIdentity`, `editView`, and
     /// the `.task` warm-up id. Vault scope: the Type id; collection scope: the
     /// live Collection id.
-    func containerID(_ types: PageTypeManager) -> String
+    func containerID(_ types: PageCollectionManager) -> String
 
     /// The live container's banner relative path, or nil.
-    func containerBanner(_ types: PageTypeManager) -> String?
+    func containerBanner(_ types: PageCollectionManager) -> String?
 
     // MARK: - Header
 
@@ -36,9 +36,9 @@ protocol DetailScope {
     var headerTitle: String { get }
 
     /// Commit a new title for this scope's header container (vault / collection).
-    func renameHeader(to newName: String, types: PageTypeManager) async throws
+    func renameHeader(to newName: String, types: PageCollectionManager) async throws
     /// Commit a new icon for this scope's header container.
-    func updateHeaderIcon(to icon: String?, types: PageTypeManager) async throws
+    func updateHeaderIcon(to icon: String?, types: PageCollectionManager) async throws
 
     // MARK: - Rename alert
 
@@ -50,19 +50,19 @@ protocol DetailScope {
     // MARK: - Pipeline scope args
 
     /// The source scope `ViewItemSource.items(for:)` walks.
-    func itemScope(_ types: PageTypeManager) -> ViewItemScope
+    func itemScope(_ types: PageCollectionManager) -> ViewItemScope
 
     /// The grouping-shape scope `GroupResolver.resolve(scope:)` branches on.
     var groupScope: ViewScope { get }
 
     /// Maps a structural `ResolvedGroup` to its `PageParent` for drag drops.
-    func structuralParent(_ group: ResolvedGroup, _ types: PageTypeManager) -> PageParent?
+    func structuralParent(_ group: ResolvedGroup, _ types: PageCollectionManager) -> PageParent?
 
     // MARK: - Cache warm-up
 
     /// Loads every cache the scope's table renders. Vault scope nests two levels
     /// (collections, then their sets); collection scope nests one (its sets).
-    func warmCaches(content: PageContentManager, sets: PageSetManager, types: PageTypeManager) async
+    func warmCaches(content: PageContentManager, sets: PageSetManager, types: PageCollectionManager) async
 
     // MARK: - Group (disclosure-row) menu
 
@@ -93,12 +93,12 @@ protocol DetailScope {
 
     /// Creates this scope's container kind and reports the new entity's id.
     func createContainer(
-        title: String, types: PageTypeManager,
+        title: String, types: PageCollectionManager,
         sets: PageSetManager
     ) async throws -> String
 
     /// Existing container titles in this scope (for default-title de-dupe).
-    func existingContainerTitles(types: PageTypeManager, sets: PageSetManager) -> [String]
+    func existingContainerTitles(types: PageCollectionManager, sets: PageSetManager) -> [String]
 
     // MARK: - Container delete
 
@@ -143,7 +143,7 @@ enum ContainerRef: Hashable {
     /// The icon-edit sheet target for this container kind.
     var iconTarget: SidebarSheet.IconTarget {
         switch self {
-        case .collection(let coll): return .pageCollection(coll)
+        case .collection(let coll): return .pageSetCollection(coll)
         case .set(let set): return .pageSet(set)
         }
     }
@@ -185,62 +185,62 @@ struct DeleteConfirmation {
 
 // MARK: - Vault scope
 
-/// Vault detail (`PageTypeDetailView`). Spans every Collection + its Sets, plus
+/// Vault detail (`PageCollectionDetailView`). Spans every Collection + its Sets, plus
 /// the Type's root pages.
-struct VaultScope: DetailScope {
-    let pageType: PageType
+struct PageCollectionScope: DetailScope {
+    let pageCollection: PageCollection
 
-    func schemaSource(_ types: PageTypeManager) -> PageType {
-        types.types.first { $0.id == pageType.id } ?? pageType
+    func schemaSource(_ types: PageCollectionManager) -> PageCollection {
+        types.types.first { $0.id == pageCollection.id } ?? pageCollection
     }
 
-    func containerID(_ types: PageTypeManager) -> String {
+    func containerID(_ types: PageCollectionManager) -> String {
         schemaSource(types).id
     }
 
-    func containerBanner(_ types: PageTypeManager) -> String? {
+    func containerBanner(_ types: PageCollectionManager) -> String? {
         schemaSource(types).banner
     }
 
-    var headerIcon: String { pageType.icon ?? "tray.2" }
-    var headerTitle: String { pageType.title }
+    var headerIcon: String { pageCollection.icon ?? "tray.2" }
+    var headerTitle: String { pageCollection.title }
 
-    func renameHeader(to newName: String, types: PageTypeManager) async throws {
-        try await types.renamePageType(pageType, to: newName)
+    func renameHeader(to newName: String, types: PageCollectionManager) async throws {
+        try await types.renamePageCollection(pageCollection, to: newName)
     }
-    func updateHeaderIcon(to icon: String?, types: PageTypeManager) async throws {
-        try await types.updatePageTypeIcon(pageType, to: icon)
+    func updateHeaderIcon(to icon: String?, types: PageCollectionManager) async throws {
+        try await types.updatePageCollectionIcon(pageCollection, to: icon)
     }
 
     // Vault uses curly quotes (preserved verbatim).
     var renameQuotes: (open: String, close: String) { ("\u{201C}", "\u{201D}") }
 
-    func itemScope(_ types: PageTypeManager) -> ViewItemScope {
-        .vault(schemaSource(types))
+    func itemScope(_ types: PageCollectionManager) -> ViewItemScope {
+        .pageCollection(schemaSource(types))
     }
 
-    var groupScope: ViewScope { .vault }
+    var groupScope: ViewScope { .pageCollection }
 
-    func structuralParent(_ group: ResolvedGroup, _ types: PageTypeManager) -> PageParent? {
+    func structuralParent(_ group: ResolvedGroup, _ types: PageCollectionManager) -> PageParent? {
         switch group.kind {
         case .structuralCollection(let coll):
-            return .collection(coll, vault: pageType)
+            return .collection(coll, pageCollection: pageCollection)
         case .structuralSet(let set):
             guard
                 let coll = types.pageCollections(in: schemaSource(types))
                     .first(where: { $0.id == set.parentID })
             else { return nil }
-            return .set(set, collection: coll, vault: pageType)
+            return .set(set, collection: coll, pageCollection: pageCollection)
         default:
             return nil
         }
     }
 
-    func warmCaches(content: PageContentManager, sets: PageSetManager, types: PageTypeManager) async {
+    func warmCaches(content: PageContentManager, sets: PageSetManager, types: PageCollectionManager) async {
         // Type-root pages + every Collection's pages + every Set's pages — vault
         // scope nests Sets under their Collection, so their caches must be warm.
-        await content.loadAll(for: pageType)
-        for coll in types.pageCollections(in: pageType) {
+        await content.loadAll(for: pageCollection)
+        for coll in types.pageCollections(in: pageCollection) {
             await content.loadAll(forCollection: coll)
             for set in sets.pageSets(in: coll) {
                 await content.loadAll(for: set)
@@ -264,9 +264,9 @@ struct VaultScope: DetailScope {
         sets: PageSetManager,
         select: @escaping (SidebarSelection) -> Void
     ) -> [FooterCrumb] {
-        var crumbs: [FooterCrumb] = [FooterCrumb(title: pageType.title)]
+        var crumbs: [FooterCrumb] = [FooterCrumb(title: pageCollection.title)]
         if let trail = trailPage,
-            content.pages(in: pageType).contains(where: { $0.id == trail.id })
+            content.pages(in: pageCollection).contains(where: { $0.id == trail.id })
         {
             crumbs.append(FooterCrumb(title: trail.title, isGhost: true) { select(.page(trail)) })
         }
@@ -278,22 +278,22 @@ struct VaultScope: DetailScope {
     }
 
     func createPage(title: String, content: PageContentManager) async throws -> PageMeta {
-        try await content.createPage(name: title, inVaultRoot: pageType)
+        try await content.createPage(name: title, inCollectionRoot: pageCollection)
     }
 
     func existingPageTitles(_ content: PageContentManager) -> [String] {
-        content.pages(in: pageType).map(\.title)
+        content.pages(in: pageCollection).map(\.title)
     }
 
     func createContainer(
-        title: String, types: PageTypeManager,
+        title: String, types: PageCollectionManager,
         sets: PageSetManager
     ) async throws -> String {
-        try await types.createPageCollection(name: title, inPageType: pageType).id
+        try await types.createPageCollection(name: title, inPageCollection: pageCollection).id
     }
 
-    func existingContainerTitles(types: PageTypeManager, sets: PageSetManager) -> [String] {
-        types.pageCollections(in: pageType).map(\.title)
+    func existingContainerTitles(types: PageCollectionManager, sets: PageSetManager) -> [String] {
+        types.pageCollections(in: pageCollection).map(\.title)
     }
 
     func deleteConfirmation(for ref: ContainerRef, settings: SettingsManager) -> DeleteConfirmation? {
@@ -302,7 +302,7 @@ struct VaultScope: DetailScope {
         // deleteTarget). Degrade to nil rather than crash if that ever slips —
         // assertionFailure flags it in debug, release no-ops.
         guard case .collection(let coll) = ref else {
-            assertionFailure("VaultScope received a non-Collection ContainerRef")
+            assertionFailure("PageCollectionScope received a non-Collection ContainerRef")
             return nil
         }
         let label = settings.settings.labels.pageCollection.singular
@@ -315,59 +315,59 @@ struct VaultScope: DetailScope {
 
 // MARK: - Collection scope
 
-/// Collection detail (`PageCollectionDetailView`). Spans one Collection's Sets +
+/// Collection detail (`PageSetCollectionDetailView`). Spans one Collection's Sets +
 /// its loose root pages. Inherits schema from the parent vault.
 struct CollectionScope: DetailScope {
     let collection: PageSet
-    let vault: PageType
+    let pageCollection: PageCollection
 
-    private func liveVault(_ types: PageTypeManager) -> PageType {
-        types.types.first { $0.id == vault.id } ?? vault
+    private func livePageCollection(_ types: PageCollectionManager) -> PageCollection {
+        types.types.first { $0.id == pageCollection.id } ?? pageCollection
     }
 
-    private func liveCollection(_ types: PageTypeManager) -> PageSet {
-        types.pageCollections(in: liveVault(types)).first { $0.id == collection.id } ?? collection
+    private func liveCollection(_ types: PageCollectionManager) -> PageSet {
+        types.pageCollections(in: livePageCollection(types)).first { $0.id == collection.id } ?? collection
     }
 
-    func schemaSource(_ types: PageTypeManager) -> PageType {
-        liveVault(types)
+    func schemaSource(_ types: PageCollectionManager) -> PageCollection {
+        livePageCollection(types)
     }
 
-    func containerID(_ types: PageTypeManager) -> String {
+    func containerID(_ types: PageCollectionManager) -> String {
         liveCollection(types).id
     }
 
-    func containerBanner(_ types: PageTypeManager) -> String? {
+    func containerBanner(_ types: PageCollectionManager) -> String? {
         liveCollection(types).banner
     }
 
     var headerIcon: String { collection.icon ?? "folder" }
     var headerTitle: String { collection.title }
 
-    func renameHeader(to newName: String, types: PageTypeManager) async throws {
+    func renameHeader(to newName: String, types: PageCollectionManager) async throws {
         try await types.renamePageCollection(collection, to: newName)
     }
-    func updateHeaderIcon(to icon: String?, types: PageTypeManager) async throws {
+    func updateHeaderIcon(to icon: String?, types: PageCollectionManager) async throws {
         try await types.updatePageCollectionIcon(collection, to: icon)
     }
 
     // Collection uses straight quotes (preserved verbatim).
     var renameQuotes: (open: String, close: String) { ("\"", "\"") }
 
-    func itemScope(_ types: PageTypeManager) -> ViewItemScope {
-        .collection(liveCollection(types), vault: liveVault(types))
+    func itemScope(_ types: PageCollectionManager) -> ViewItemScope {
+        .collection(liveCollection(types), pageCollection: livePageCollection(types))
     }
 
     var groupScope: ViewScope { .collection }
 
-    func structuralParent(_ group: ResolvedGroup, _ types: PageTypeManager) -> PageParent? {
+    func structuralParent(_ group: ResolvedGroup, _ types: PageCollectionManager) -> PageParent? {
         if case .structuralSet(let set) = group.kind {
-            return .set(set, collection: collection, vault: vault)
+            return .set(set, collection: collection, pageCollection: pageCollection)
         }
         return nil
     }
 
-    func warmCaches(content: PageContentManager, sets: PageSetManager, types: PageTypeManager) async {
+    func warmCaches(content: PageContentManager, sets: PageSetManager, types: PageCollectionManager) async {
         await content.loadAll(forCollection: collection)
         await warmSetCaches(from: sets.pageSets(in: collection), content: content, sets: sets)
     }
@@ -398,7 +398,7 @@ struct CollectionScope: DetailScope {
         select: @escaping (SidebarSelection) -> Void
     ) -> [FooterCrumb] {
         var crumbs: [FooterCrumb] = [
-            FooterCrumb(title: vault.title) { select(.pageType(vault)) },
+            FooterCrumb(title: pageCollection.title) { select(.pageCollection(pageCollection)) },
             FooterCrumb(title: collection.title),
         ]
         if let trail = trailPage {
@@ -430,7 +430,7 @@ struct CollectionScope: DetailScope {
     }
 
     func createPage(title: String, content: PageContentManager) async throws -> PageMeta {
-        try await content.createPage(name: title, in: collection, vault: vault)
+        try await content.createPage(name: title, in: collection, pageCollection: pageCollection)
     }
 
     func existingPageTitles(_ content: PageContentManager) -> [String] {
@@ -438,13 +438,13 @@ struct CollectionScope: DetailScope {
     }
 
     func createContainer(
-        title: String, types: PageTypeManager,
+        title: String, types: PageCollectionManager,
         sets: PageSetManager
     ) async throws -> String {
         try await sets.createPageSet(name: title, in: collection).id
     }
 
-    func existingContainerTitles(types: PageTypeManager, sets: PageSetManager) -> [String] {
+    func existingContainerTitles(types: PageCollectionManager, sets: PageSetManager) -> [String] {
         sets.pageSets(in: collection).map(\.title)
     }
 

@@ -1,15 +1,15 @@
 import SwiftUI
 
-// MARK: - VaultSettingsViewModel
+// MARK: - CollectionSettingsViewModel
 
-/// View-model backing `VaultSettingsSheet`. Stages all edits as a local draft
+/// View-model backing `CollectionSettingsSheet`. Stages all edits as a local draft
 /// so the manager is only called on explicit Save, not on every interaction.
 ///
 /// Tracks a sequence of pending operations that are replayed against the manager
 /// in the correct order (deletes → renames → type-changes → reorders → adds).
 @Observable
 @MainActor
-final class VaultSettingsViewModel {
+final class CollectionSettingsViewModel {
 
     // MARK: - Draft state
 
@@ -56,10 +56,10 @@ final class VaultSettingsViewModel {
 
     // MARK: - Init
 
-    init(pageType: PageType) {
-        self.typeID = pageType.id
-        self.draftProperties = pageType.properties
-        self.originalProperties = pageType.properties
+    init(pageCollection: PageCollection) {
+        self.typeID = pageCollection.id
+        self.draftProperties = pageCollection.properties
+        self.originalProperties = pageCollection.properties
     }
 
     // MARK: - Draft mutations
@@ -159,7 +159,7 @@ final class VaultSettingsViewModel {
     /// Replays all pending operations against the manager in safe order.
     /// Deletes first (to avoid name-collision on re-adds), then renames, then
     /// type-changes, then reorders, then adds.
-    func save(manager: PageTypeManager) async {
+    func save(manager: PageCollectionManager) async {
         guard hasChanges else { return }
 
         do {
@@ -191,54 +191,54 @@ final class VaultSettingsViewModel {
     }
 }
 
-// MARK: - VaultSettingsSheet
+// MARK: - CollectionSettingsSheet
 
-/// Schema editor sheet for a PageType (Pages side). Presents a live-editable
+/// Schema editor sheet for a PageCollection (Pages side). Presents a live-editable
 /// list of property definitions with inline add / rename / reorder / delete.
 ///
 /// Save-required semantics: all edits are staged in a local draft; Save replays
-/// the diff against `pageTypeManager`. Cancel discards the draft.
+/// the diff against `collectionManager`. Cancel discards the draft.
 ///
 /// One-at-a-time concurrency guard (concurrent-open forbidden per J.8 spec)
 /// is enforced by the caller — this sheet does not implement it internally.
 @MainActor
-struct VaultSettingsSheet: View {
-    let pageType: PageType
-    let pageTypeManager: PageTypeManager
+struct CollectionSettingsSheet: View {
+    let pageCollection: PageCollection
+    let collectionManager: PageCollectionManager
     let nexus: Nexus
     let index: PommoraIndex?
     let onDismiss: () -> Void
 
-    @State private var vm: VaultSettingsViewModel
+    @State private var vm: CollectionSettingsViewModel
     @State private var isSaving: Bool = false
 
     init(
-        pageType: PageType,
-        pageTypeManager: PageTypeManager,
+        pageCollection: PageCollection,
+        collectionManager: PageCollectionManager,
         nexus: Nexus,
         index: PommoraIndex?,
         onDismiss: @escaping () -> Void
     ) {
-        self.pageType = pageType
-        self.pageTypeManager = pageTypeManager
+        self.pageCollection = pageCollection
+        self.collectionManager = collectionManager
         self.nexus = nexus
         self.index = index
         self.onDismiss = onDismiss
-        self._vm = State(wrappedValue: VaultSettingsViewModel(pageType: pageType))
+        self._vm = State(wrappedValue: CollectionSettingsViewModel(pageCollection: pageCollection))
     }
 
     var body: some View {
         VStack(spacing: 0) {
             // Header
-            VaultSettingsSheetHeader(
-                title: pageType.title,
+            CollectionSettingsSheetHeader(
+                title: pageCollection.title,
                 hasChanges: vm.hasChanges,
                 isSaving: isSaving,
                 onCancel: { onDismiss() },
                 onSave: {
                     isSaving = true
                     Task {
-                        await vm.save(manager: pageTypeManager)
+                        await vm.save(manager: collectionManager)
                         isSaving = false
                         if vm.pendingError == nil {
                             onDismiss()
@@ -252,10 +252,10 @@ struct VaultSettingsSheet: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: PUI.Spacing.xxxl) {
                     // Properties section
-                    VaultSettingsPropertiesSection(vm: vm)
+                    CollectionSettingsPropertiesSection(vm: vm)
 
                     // Templates placeholder
-                    VaultSettingsTemplatesPlaceholder()
+                    CollectionSettingsTemplatesPlaceholder()
                 }
                 .padding(PUI.Spacing.xxl)
             }
@@ -275,9 +275,9 @@ struct VaultSettingsSheet: View {
     }
 }
 
-// MARK: - VaultSettingsSheetHeader
+// MARK: - CollectionSettingsSheetHeader
 
-private struct VaultSettingsSheetHeader: View {
+private struct CollectionSettingsSheetHeader: View {
     let title: String
     let hasChanges: Bool
     let isSaving: Bool
@@ -303,10 +303,10 @@ private struct VaultSettingsSheetHeader: View {
     }
 }
 
-// MARK: - VaultSettingsPropertiesSection
+// MARK: - CollectionSettingsPropertiesSection
 
-private struct VaultSettingsPropertiesSection: View {
-    @Bindable var vm: VaultSettingsViewModel
+private struct CollectionSettingsPropertiesSection: View {
+    @Bindable var vm: CollectionSettingsViewModel
 
     var body: some View {
         VStack(alignment: .leading, spacing: PUI.Spacing.md) {
@@ -471,7 +471,7 @@ private struct VaultPropertyTypeBadge: View {
 /// Inline sub-view for configuring a new property before adding it.
 /// Shown after a property type is chosen in `PropertyTypePicker`.
 private struct VaultSettingsNewPropertyConfig: View {
-    @Bindable var vm: VaultSettingsViewModel
+    @Bindable var vm: CollectionSettingsViewModel
 
     var body: some View {
         VStack(alignment: .leading, spacing: PUI.Spacing.lg) {
@@ -585,9 +585,9 @@ private struct VaultSettingsNewPropertyConfig: View {
 // now share the same definitions; future View Settings popover panes reuse
 // them too.
 
-// MARK: - VaultSettingsTemplatesPlaceholder
+// MARK: - CollectionSettingsTemplatesPlaceholder
 
-private struct VaultSettingsTemplatesPlaceholder: View {
+private struct CollectionSettingsTemplatesPlaceholder: View {
     var body: some View {
         VStack(alignment: .leading, spacing: PUI.Spacing.md) {
             Text("Templates")

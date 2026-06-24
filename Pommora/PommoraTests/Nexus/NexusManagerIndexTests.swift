@@ -47,15 +47,15 @@ struct NexusManagerIndexTests {
     // MARK: - Test 2: openPickedInitializesAndPopulates
 
     /// A fresh nexus (no prior index.db) triggers `IndexBuilder.populate`.
-    /// After `openIndex`, the index tables exist and a seeded PageType appears.
+    /// After `openIndex`, the index tables exist and a seeded PageCollection appears.
     @Test func openPickedInitializesAndPopulates() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
 
-        // Seed one PageType so populate has something to write.
-        let ptManager = PageTypeManager(nexus: nexus)
+        // Seed one PageCollection so populate has something to write.
+        let ptManager = PageCollectionManager(nexus: nexus)
         await ptManager.loadAll()
-        try await ptManager.createPageType(name: "Notes", icon: nil)
+        try await ptManager.createPageCollection(name: "Notes", icon: nil)
 
         let manager = NexusManager()
         await manager.openIndex(for: nexus)

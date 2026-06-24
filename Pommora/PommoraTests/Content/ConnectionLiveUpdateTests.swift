@@ -8,7 +8,7 @@ import Testing
 /// PageContentManager CRUD (no rebuild required).
 ///
 /// Fixture mirrors `PageContentManagerTests.setup()` — TempNexus + one
-/// PageType + one PageSet — and wires an `IndexUpdater` to the manager
+/// PageCollection + one PageSet — and wires an `IndexUpdater` to the manager
 /// so each CRUD call drives the connection index in-process.
 @MainActor
 @Suite("ConnectionLiveUpdateTests")
@@ -18,7 +18,7 @@ struct ConnectionLiveUpdateTests {
 
     private func setup() async throws -> (
         nexus: Nexus,
-        vault: PageType,
+        pageCollection: PageCollection,
         coll: PageSet,
         manager: PageContentManager,
         index: PommoraIndex
@@ -26,7 +26,7 @@ struct ConnectionLiveUpdateTests {
         let nexus = try TempNexus.make()
         let (index, _) = try PommoraIndex.open(at: nexus.rootURL)
 
-        let vault = PageType(
+        let vault = PageCollection(
             id: ULID.generate(), title: "V", icon: nil,
             properties: [], views: [], modifiedAt: Date()
         )
@@ -47,7 +47,7 @@ struct ConnectionLiveUpdateTests {
         // Seed the index with the vault + collection so FK constraints pass
         // when the manager calls upsertPage.
         let updater = IndexUpdater(index)
-        try updater.upsertPageType(vault)
+        try updater.upsertPageCollection(vault)
         try updater.upsertPageCollection(coll)
 
         let manager = PageContentManager(nexus: nexus, contextProvider: { NexusContext.empty })
@@ -66,11 +66,11 @@ struct ConnectionLiveUpdateTests {
         defer { TempNexus.cleanup(nexus) }
 
         // Create Target and page A.
-        let target = try await manager.createPage(name: "Target", in: coll, vault: vault)
-        let pageA = try await manager.createPage(name: "A", in: coll, vault: vault)
+        let target = try await manager.createPage(name: "Target", in: coll, pageCollection: vault)
+        let pageA = try await manager.createPage(name: "A", in: coll, pageCollection: vault)
 
         // Write a body into A that links [[Target]].
-        try await manager.updatePage(pageA, body: "[[Target]]", in: coll, vault: vault)
+        try await manager.updatePage(pageA, body: "[[Target]]", in: coll, pageCollection: vault)
 
         // The connection edge from A → Target must be resolved immediately.
         let aID = pageA.id
@@ -93,8 +93,8 @@ struct ConnectionLiveUpdateTests {
         defer { TempNexus.cleanup(nexus) }
 
         // Create page C and give it a body with a pending phantom link.
-        let pageC = try await manager.createPage(name: "C", in: coll, vault: vault)
-        try await manager.updatePage(pageC, body: "[[Pending]]", in: coll, vault: vault)
+        let pageC = try await manager.createPage(name: "C", in: coll, pageCollection: vault)
+        try await manager.updatePage(pageC, body: "[[Pending]]", in: coll, pageCollection: vault)
 
         // Verify the edge is phantom before the target exists.
         let cID = pageC.id
@@ -104,7 +104,7 @@ struct ConnectionLiveUpdateTests {
         #expect(beforeCreate[0].targetID == nil)
 
         // Create the target — activateConnections should flip the phantom to resolved.
-        let pending = try await manager.createPage(name: "Pending", in: coll, vault: vault)
+        let pending = try await manager.createPage(name: "Pending", in: coll, pageCollection: vault)
 
         let afterCreate = try await IndexQuery(index).outgoingConnections(sourceID: cID)
         #expect(afterCreate.count == 1)
@@ -122,9 +122,9 @@ struct ConnectionLiveUpdateTests {
         defer { TempNexus.cleanup(nexus) }
 
         // Create Target and A → Target resolved edge.
-        let target = try await manager.createPage(name: "Target", in: coll, vault: vault)
-        let pageA = try await manager.createPage(name: "A", in: coll, vault: vault)
-        try await manager.updatePage(pageA, body: "[[Target]]", in: coll, vault: vault)
+        let target = try await manager.createPage(name: "Target", in: coll, pageCollection: vault)
+        let pageA = try await manager.createPage(name: "A", in: coll, pageCollection: vault)
+        try await manager.updatePage(pageA, body: "[[Target]]", in: coll, pageCollection: vault)
 
         let aID = pageA.id
         let before = try await IndexQuery(index).outgoingConnections(sourceID: aID)

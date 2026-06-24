@@ -6,27 +6,27 @@ import Foundation
 /// rows and sheets route create/rename/delete calls to the correct
 /// ContentManager overload without leaking that branching into UI code.
 enum PageParent: Hashable {
-    case collection(PageSet, vault: PageType)
-    case set(PageSet, collection: PageSet, vault: PageType)
-    case vaultRoot(PageType)
+    case collection(PageSet, pageCollection: PageCollection)
+    case set(PageSet, collection: PageSet, pageCollection: PageCollection)
+    case collectionRoot(PageCollection)
 }
 
 extension PageParent {
     /// The owning Page Type — every case carries it.
-    var vault: PageType {
+    var pageCollection: PageCollection {
         switch self {
         case .collection(_, let vault): return vault
         case .set(_, _, let vault): return vault
-        case .vaultRoot(let vault): return vault
+        case .collectionRoot(let vault): return vault
         }
     }
 
-    /// The enclosing PageSet's id, nil at the vault root.
+    /// The enclosing PageSet's id, nil at the collection root.
     var collectionID: String? {
         switch self {
         case .collection(let coll, _): return coll.id
         case .set(_, let coll, _): return coll.id
-        case .vaultRoot: return nil
+        case .collectionRoot: return nil
         }
     }
 
@@ -34,7 +34,7 @@ extension PageParent {
     var setID: String? {
         switch self {
         case .set(let set, _, _): return set.id
-        case .collection, .vaultRoot: return nil
+        case .collection, .collectionRoot: return nil
         }
     }
 
@@ -42,16 +42,16 @@ extension PageParent {
     var set: PageSet? {
         switch self {
         case .set(let set, _, _): return set
-        case .collection, .vaultRoot: return nil
+        case .collection, .collectionRoot: return nil
         }
     }
 
-    /// The enclosing PageSet, nil at the vault root.
+    /// The enclosing PageSet, nil at the collection root.
     var collection: PageSet? {
         switch self {
         case .collection(let coll, _): return coll
         case .set(_, let coll, _): return coll
-        case .vaultRoot: return nil
+        case .collectionRoot: return nil
         }
     }
 
@@ -60,7 +60,7 @@ extension PageParent {
         switch self {
         case .collection(let coll, _): return coll.pageOrder
         case .set(let set, _, _): return set.pageOrder
-        case .vaultRoot(let vault): return vault.pageOrder
+        case .collectionRoot(let vault): return vault.pageOrder
         }
     }
 }

@@ -13,27 +13,27 @@ struct PageSetDepthNavigationTests {
     // MARK: - Fixtures
 
     @discardableResult
-    private func makePageType(nexus: Nexus, title: String, index: PommoraIndex? = nil) throws -> PageType {
-        let vault = PageType(
+    private func makePageCollection(nexus: Nexus, title: String, index: PommoraIndex? = nil) throws -> PageCollection {
+        let vault = PageCollection(
             id: ULID.generate(), title: title, icon: nil,
             properties: [], views: [], modifiedAt: Date()
         )
         let folderURL = NexusPaths.vaultFolderURL(forTitle: title, in: nexus)
         try FileManager.default.createDirectory(at: folderURL, withIntermediateDirectories: true)
         try vault.save(to: NexusPaths.vaultMetadataURL(forTitle: title, in: nexus))
-        if let index { try IndexUpdater(index).upsertPageType(vault) }
+        if let index { try IndexUpdater(index).upsertPageCollection(vault) }
         return vault
     }
 
     @discardableResult
     private func makePageCollection(
-        nexus: Nexus, title: String, in vault: PageType, index: PommoraIndex? = nil
+        nexus: Nexus, title: String, in pageCollection: PageCollection, index: PommoraIndex? = nil
     ) throws -> PageSet {
         let folderURL = NexusPaths.collectionFolderURL(
-            forTitle: title, inVaultTitled: vault.title, in: nexus)
+            forTitle: title, inVaultTitled: pageCollection.title, in: nexus)
         try FileManager.default.createDirectory(at: folderURL, withIntermediateDirectories: true)
         let coll = PageSet(
-            id: ULID.generate(), parentID: vault.id, title: title,
+            id: ULID.generate(), parentID: pageCollection.id, title: title,
             folderURL: folderURL, modifiedAt: Date()
         )
         try coll.save(to: folderURL.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename))
@@ -78,7 +78,7 @@ struct PageSetDepthNavigationTests {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
 
-        let vault = try makePageType(nexus: nexus, title: "Notes")
+        let vault = try makePageCollection(nexus: nexus, title: "Notes")
         let coll = try makePageCollection(nexus: nexus, title: "Inbox", in: vault)
         _ = try makePageSet(title: "SubSet", in: coll)
 
@@ -99,7 +99,7 @@ struct PageSetDepthNavigationTests {
 
         // SelectionTag.set matches no SidebarSelection.
         let setTag = SelectionTag.set(depthTwoSet!.id)
-        let lookup = SidebarLookupBundle(content: nil, pageType: nil, area: nil, topic: nil, project: nil)
+        let lookup = SidebarLookupBundle(content: nil, pageCollection: nil, area: nil, topic: nil, project: nil)
         #expect(SidebarSelection(tag: setTag, lookup: lookup) == nil,
                 "depth-2 .set tag must resolve nil (non-selectable)")
         _ = tag // suppress unused warning — the tag itself being constructible is the assertion
@@ -109,7 +109,7 @@ struct PageSetDepthNavigationTests {
 
     /// Verifies: (1) RecentsManager.prune removes entries by (kind, id); (2) the
     /// integrated path in moveSet fires prune when the source parent is a top-tier
-    /// PageType (depth-1 demotion); (3) depth-2→depth-2 moves do NOT prune.
+    /// PageCollection (depth-1 demotion); (3) depth-2→depth-2 moves do NOT prune.
     @Test("moving a depth-1 Set to depth-2 invalidates its stale Recents entry")
     func recentsEntryPrunedOnDemotion() async throws {
         let nexus = try TempNexus.make()
@@ -117,7 +117,7 @@ struct PageSetDepthNavigationTests {
         let (index, _) = try PommoraIndex.open(at: nexus.rootURL)
         let updater = IndexUpdater(index)
 
-        let vault = try makePageType(nexus: nexus, title: "Notes", index: index)
+        let vault = try makePageCollection(nexus: nexus, title: "Notes", index: index)
         let source = try makePageCollection(nexus: nexus, title: "Inbox", in: vault, index: index)
         let dest = try makePageCollection(nexus: nexus, title: "Archive", in: vault, index: index)
         let movingSet = try makePageSet(title: "Drafts", in: source, index: index)
@@ -149,7 +149,7 @@ struct PageSetDepthNavigationTests {
             setManager.pageSets(in: source).first(where: { $0.id == movingSet.id }))
         try await setManager.moveSet(
             loadedMoving, to: dest,
-            destinationVault: vault, sourceVault: vault,
+            destinationPageCollection: vault, sourcePageCollection: vault,
             contentManager: contentManager)
 
         // Page entries are untouched — depth-2→depth-2 move does not prune.
@@ -165,7 +165,7 @@ struct PageSetDepthNavigationTests {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
 
-        let vault = try makePageType(nexus: nexus, title: "Notes")
+        let vault = try makePageCollection(nexus: nexus, title: "Notes")
         let coll = try makePageCollection(nexus: nexus, title: "Inbox", in: vault)
         let setA = try makePageSet(title: "Alpha", in: coll)
         let setB = try makePageSet(title: "Beta", in: setA)
@@ -202,7 +202,7 @@ struct PageSetDepthNavigationTests {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
 
-        let vault = try makePageType(nexus: nexus, title: "Notes")
+        let vault = try makePageCollection(nexus: nexus, title: "Notes")
         let coll = try makePageCollection(nexus: nexus, title: "Inbox", in: vault)
         let setA = try makePageSet(title: "Alpha", in: coll)
         let setB = try makePageSet(title: "Beta", in: setA)
@@ -211,11 +211,11 @@ struct PageSetDepthNavigationTests {
         // No index — exercises the URL fallback path exclusively.
         let manager = PageContentManager(nexus: nexus, contextProvider: { NexusContext.empty })
 
-        let vaultManager = PageTypeManager(nexus: nexus)
+        let collectionManager = PageCollectionManager(nexus: nexus)
         let setManager = PageSetManager(nexus: nexus)
-        setManager.pageTypeProvider = { [weak vaultManager] in vaultManager?.types ?? [] }
-        vaultManager.pageSetManager = setManager
-        await vaultManager.loadAll()
+        setManager.pageTypeProvider = { [weak collectionManager] in collectionManager?.types ?? [] }
+        collectionManager.pageSetManager = setManager
+        await collectionManager.loadAll()
         await setManager.loadAll(types: [vault])
 
         let fm = PageFrontmatter(
@@ -225,9 +225,9 @@ struct PageSetDepthNavigationTests {
         let page = PageMeta(id: pageID, title: "DeepPage", url: pageURL, frontmatter: fm)
 
         let result = manager.resolveParent(
-            for: page, pageTypeManager: vaultManager, pageSetManager: setManager)
+            for: page, collectionManager: collectionManager, pageSetManager: setManager)
 
-        #expect(result?.vault.id == vault.id, "vault must resolve")
+        #expect(result?.pageCollection.id == vault.id, "vault must resolve")
         #expect(result?.collection?.id == coll.id, "collection must resolve")
         #expect(result?.set?.id == setB.id, "deepest set (Beta) must resolve, not Alpha")
     }

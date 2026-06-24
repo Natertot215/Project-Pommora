@@ -26,16 +26,16 @@ struct ReorderPropertyParity {
         PropertyDefinition(id: "", name: name, type: .number)
     }
 
-    // MARK: - PageTypeManager
+    // MARK: - PageCollectionManager
 
-    @Test("PageTypeManager reorderProperty moves middle property to front in-memory and on disk")
-    func pageTypeManagerReorderHappyPath() async throws {
+    @Test("PageCollectionManager reorderProperty moves middle property to front in-memory and on disk")
+    func collectionManagerReorderHappyPath() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
-        let manager = PageTypeManager(nexus: nexus)
+        let manager = PageCollectionManager(nexus: nexus)
         await manager.loadAll()
 
-        try await manager.createPageType(name: "Notes", icon: nil)
+        try await manager.createPageCollection(name: "Notes", icon: nil)
         let typeID = manager.types.first!.id
 
         // Seed three user properties in order A, B, C.
@@ -55,30 +55,30 @@ struct ReorderPropertyParity {
         let inMemory = manager.types.first { $0.id == typeID }!.properties
         #expect(inMemory.map(\.id) == [idB, idA, idC])
 
-        // (b) On-disk order matches — reload via PageType.load.
+        // (b) On-disk order matches — reload via PageCollection.load.
         let metaURL = NexusPaths.vaultMetadataURL(forTitle: "Notes", in: nexus)
-        let reloaded = try PageType.load(from: metaURL)
+        let reloaded = try PageCollection.load(from: metaURL)
         #expect(reloaded.properties.map(\.id) == [idB, idA, idC])
 
         // (c) No error was surfaced.
         #expect(manager.pendingError == nil)
     }
 
-    @Test("PageTypeManager reorderProperty with unknown property ID throws propertyNotFound")
-    func pageTypeManagerReorderUnknownProperty() async throws {
+    @Test("PageCollectionManager reorderProperty with unknown property ID throws propertyNotFound")
+    func collectionManagerReorderUnknownProperty() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
-        let manager = PageTypeManager(nexus: nexus)
+        let manager = PageCollectionManager(nexus: nexus)
         await manager.loadAll()
 
-        try await manager.createPageType(name: "Notes", icon: nil)
+        try await manager.createPageCollection(name: "Notes", icon: nil)
         let typeID = manager.types.first!.id
 
         try await manager.addProperty(makeNumberProp(name: "Alpha"), to: typeID)
         try await manager.addProperty(makeNumberProp(name: "Beta"), to: typeID)
         try await manager.addProperty(makeNumberProp(name: "Gamma"), to: typeID)
 
-        await #expect(throws: PageTypeManagerError.propertyNotFound) {
+        await #expect(throws: PageCollectionManagerError.propertyNotFound) {
             try await manager.reorderProperty(id: "prop_nonexistent", in: typeID, toIndex: 0)
         }
     }
@@ -194,14 +194,14 @@ struct ReorderPropertyParity {
 
     // MARK: - Clamp Characterization
 
-    @Test("PageTypeManager reorderProperty clamps out-of-range toIndex to last position")
+    @Test("PageCollectionManager reorderProperty clamps out-of-range toIndex to last position")
     func outOfRangeIndexClampsToLast_pageType() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
-        let manager = PageTypeManager(nexus: nexus)
+        let manager = PageCollectionManager(nexus: nexus)
         await manager.loadAll()
 
-        try await manager.createPageType(name: "Notes", icon: nil)
+        try await manager.createPageCollection(name: "Notes", icon: nil)
         let typeID = manager.types.first!.id
 
         // Seed three user properties in order A, B, C.
@@ -221,9 +221,9 @@ struct ReorderPropertyParity {
         let inMemory = manager.types.first { $0.id == typeID }!.properties
         #expect(inMemory.map(\.id) == [idB, idC, idA])
 
-        // (b) On-disk order matches — reload via PageType.load.
+        // (b) On-disk order matches — reload via PageCollection.load.
         let metaURL = NexusPaths.vaultMetadataURL(forTitle: "Notes", in: nexus)
-        let reloaded = try PageType.load(from: metaURL)
+        let reloaded = try PageCollection.load(from: metaURL)
         #expect(reloaded.properties.map(\.id) == [idB, idC, idA])
 
         // (c) No error was surfaced — clamp is silent, not a throw.

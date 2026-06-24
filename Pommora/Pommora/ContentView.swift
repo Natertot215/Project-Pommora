@@ -59,10 +59,10 @@ struct ContentView: View {
             return .topic
         case .project:
             return .project
-        case .pageType(let t):
-            return .pageType(t)
+        case .pageCollection(let t):
+            return .pageCollection(t)
         case .collection(let c):
-            return .pageCollection(c)
+            return .pageSetCollection(c)
         case .page:
             return .page
         }
@@ -84,7 +84,7 @@ struct ContentView: View {
         guard let env = nexusEnvironment else { return nil }
         return SidebarLookupBundle(
             content: env.contentManager,
-            pageType: env.vaultManager,
+            pageCollection: env.collectionManager,
             area: env.areaManager,
             topic: env.topicManager,
             project: env.projectManager
@@ -115,7 +115,7 @@ struct ContentView: View {
         if let env = nexusEnvironment {
             ViewsDropdownButton(
                 scope: currentViewSettingsScope,
-                pageTypeManager: env.vaultManager,
+                collectionManager: env.collectionManager,
                 activeViewStore: env.activeViewStore
             )
             .glassEffect(.regular.interactive(), in: .capsule)
@@ -133,7 +133,7 @@ struct ContentView: View {
             HStack(spacing: 0) {
                 ViewSettingsButton(
                     scope: currentViewSettingsScope,
-                    pageTypeManager: env.vaultManager,
+                    collectionManager: env.collectionManager,
                     tierConfigManager: env.tierConfigManager,
                     pageContentManager: env.contentManager
                 )
@@ -152,7 +152,7 @@ struct ContentView: View {
     /// views that own SavedViews.
     private var showsViewControls: Bool {
         switch currentViewSettingsScope {
-        case .pageType, .pageCollection: return true
+        case .pageCollection, .pageSetCollection: return true
         default: return false
         }
     }
@@ -331,17 +331,17 @@ struct ContentView: View {
         if case .page(let p) = sidebarSelection,
             let env = nexusEnvironment,
             let resolved = env.contentManager.resolveParent(
-                for: p, pageTypeManager: env.vaultManager, pageSetManager: env.pageSetManager)
+                for: p, collectionManager: env.collectionManager, pageSetManager: env.pageSetManager)
         {
             FrontmatterInspector(
                 page: p,
-                vault: resolved.vault,
+                pageCollection: resolved.pageCollection,
                 index: nexusManager.currentIndex,
                 relationDisplay: env.contextResolver,
                 onSave: { updated in
                     Task {
                         try? await env.contentManager.updatePageFrontmatter(
-                            p, frontmatter: updated, vault: resolved.vault,
+                            p, frontmatter: updated, pageCollection: resolved.pageCollection,
                             collection: resolved.collection, set: resolved.set)
                     }
                 }

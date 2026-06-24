@@ -19,7 +19,7 @@ struct ViewSettingsButton: View {
     /// Managers passed in as explicit params (NOT @Environment) because the
     /// toolbar where this button lives is OUTSIDE ContentView's
     /// `.detail { ... }` closure's `.environment(...)` chain. Reading these
-    /// via `@Environment(PageTypeManager.self)` here asserts at toolbar
+    /// via `@Environment(PageCollectionManager.self)` here asserts at toolbar
     /// render (app launch crash).
     ///
     /// macOS popovers present their content in a detached context that doesn't
@@ -33,7 +33,7 @@ struct ViewSettingsButton: View {
     /// threaded in because the toolbar lives OUTSIDE ContentView's
     /// `.environment(...)` chain; they remain available for any future
     /// button-level use.
-    let pageTypeManager: PageTypeManager
+    let collectionManager: PageCollectionManager
     let tierConfigManager: TierConfigManager
     /// Threaded in pre-emptively: the `.page` scope's settings pane (not built
     /// yet — currently renders empty) will read this to edit a page's icon /
@@ -72,5 +72,5 @@ struct ViewSettingsButton: View {
 }
 
 // Preview removed at v0.3.1 — the new init signature requires a real
-// PageTypeManager instance which needs a Nexus to construct. Use
+// PageCollectionManager instance which needs a Nexus to construct. Use
 // PommoraUIX (Cmd+Shift+D) for the live debug surface.

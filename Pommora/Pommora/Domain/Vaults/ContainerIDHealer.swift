@@ -7,7 +7,7 @@ import Foundation
 /// etc.) is re-pointed by the existing heal-on-load passes.
 ///
 /// `seen` is threaded `inout` so a caller healing several sibling groups
-/// (e.g. PageTypeManager healing each Type's Collections) shares ONE id
+/// (e.g. PageCollectionManager healing each Type's Collections) shares ONE id
 /// namespace across the whole load — a duplicated TYPE folder clones every
 /// nested Collection id across two Types, and only a load-wide set catches
 /// that.

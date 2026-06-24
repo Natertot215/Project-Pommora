@@ -14,10 +14,10 @@ struct ConnectionRebuildTests {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
 
-        // Seed a PageType "Notes" so the vault is discovered during the filesystem walk.
-        let pageTypeManager = PageTypeManager(nexus: nexus)
-        await pageTypeManager.loadAll()
-        try await pageTypeManager.createPageType(name: "Notes", icon: nil)
+        // Seed a PageCollection "Notes" so the vault is discovered during the filesystem walk.
+        let collectionManager = PageCollectionManager(nexus: nexus)
+        await collectionManager.loadAll()
+        try await collectionManager.createPageCollection(name: "Notes", icon: nil)
 
         // Vault folder for writing page files directly (mirrors RebuildResilienceTests fixture pattern).
         let vaultFolder = NexusPaths.vaultFolderURL(forTitle: "Notes", in: nexus)

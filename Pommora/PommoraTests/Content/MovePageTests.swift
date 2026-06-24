@@ -22,7 +22,7 @@ struct MovePageTests {
         let propA = PropertyDefinition(id: "prop_aaa", name: "Priority", type: .select)
         let propB = PropertyDefinition(id: "prop_bbb", name: "Status", type: .status)
         let propC = PropertyDefinition(id: "prop_ccc", name: "Due", type: .date)
-        let vault = try makePageType(
+        let vault = try makePageCollection(
             nexus: nexus, title: "Tasks",
             properties: [propA, propB, propC]
         )
@@ -84,8 +84,8 @@ struct MovePageTests {
         let p3 = PropertyDefinition(id: "prop_003", name: "Due", type: .date)
         let p4 = PropertyDefinition(id: "prop_004", name: "Owner", type: .select)
 
-        let typeA = try makePageType(nexus: nexus, title: "TypeA", properties: [p1, p2, p3])
-        let typeB = try makePageType(nexus: nexus, title: "TypeB", properties: [p1, p4])
+        let typeA = try makePageCollection(nexus: nexus, title: "TypeA", properties: [p1, p2, p3])
+        let typeB = try makePageCollection(nexus: nexus, title: "TypeB", properties: [p1, p4])
 
         // No collections — pages live at the Type root.
         let pageID = ULID.generate()
@@ -145,9 +145,9 @@ struct MovePageTests {
         defer { TempNexus.cleanup(nexus) }
 
         let p1 = PropertyDefinition(id: "prop_x1", name: "Tag", type: .select)
-        let typeA = try makePageType(nexus: nexus, title: "SourceType", properties: [p1])
+        let typeA = try makePageCollection(nexus: nexus, title: "SourceType", properties: [p1])
         // TypeB folder does NOT exist — the destination write will fail, triggering rollback.
-        let typeB = PageType(
+        let typeB = PageCollection(
             id: ULID.generate(), title: "MissingType", icon: nil,
             properties: [], views: [], modifiedAt: Date()
         )
@@ -201,7 +201,7 @@ struct MovePageTests {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
 
-        let vault = try makePageType(nexus: nexus, title: "Tasks", properties: [])
+        let vault = try makePageCollection(nexus: nexus, title: "Tasks", properties: [])
         let collA = try makePageSet(nexus: nexus, title: "CollA", in: vault)
         let collB = try makePageSet(nexus: nexus, title: "CollB", in: vault)
 
@@ -252,8 +252,8 @@ struct MovePageTests {
 
         // TypeA owns "Priority" (prop_a, schema-scoped → STRIP on move to TypeB).
         let propA = PropertyDefinition(id: "prop_a", name: "Priority", type: .select)
-        let typeA = try makePageType(nexus: nexus, title: "TypeA", properties: [propA])
-        let typeB = try makePageType(nexus: nexus, title: "TypeB", properties: [])
+        let typeA = try makePageCollection(nexus: nexus, title: "TypeA", properties: [propA])
+        let typeB = try makePageCollection(nexus: nexus, title: "TypeB", properties: [])
 
         // Hand-author a `.md` Page with `Class: page`, the TypeA schema property,
         // AND a foreign (non-Pommora) frontmatter key.
@@ -313,12 +313,12 @@ struct MovePageTests {
     // MARK: - Private setup helpers
 
     @discardableResult
-    private func makePageType(
+    private func makePageCollection(
         nexus: Nexus,
         title: String,
         properties: [PropertyDefinition]
-    ) throws -> PageType {
-        let vault = PageType(
+    ) throws -> PageCollection {
+        let vault = PageCollection(
             id: ULID.generate(), title: title, icon: nil,
             properties: properties, views: [], modifiedAt: Date()
         )
@@ -332,17 +332,17 @@ struct MovePageTests {
     private func makePageSet(
         nexus: Nexus,
         title: String,
-        in vault: PageType
+        in pageCollection: PageCollection
     ) throws -> PageSet {
         let folderURL = NexusPaths.collectionFolderURL(
             forTitle: title,
-            inVaultTitled: vault.title,
+            inVaultTitled: pageCollection.title,
             in: nexus
         )
         try FileManager.default.createDirectory(at: folderURL, withIntermediateDirectories: true)
         let coll = PageSet(
             id: ULID.generate(),
-            parentID: vault.id,
+            parentID: pageCollection.id,
             title: title,
             folderURL: folderURL,
             modifiedAt: Date()

@@ -16,8 +16,8 @@ import Foundation
 ///     collapse to `.none` — they aren't view-settings surfaces.
 enum ViewSettingsScope: Equatable, Sendable {
     case none
-    case pageType(PageType)
-    case pageCollection(PageSet)
+    case pageCollection(PageCollection)
+    case pageSetCollection(PageSet)
     case page
     case area
     case topic
@@ -31,8 +31,8 @@ extension ViewSettingsScope {
     /// the per-pane `containerID()` switch the View Settings panes used to repeat.
     var containerID: String? {
         switch self {
-        case .pageType(let t): return t.id
-        case .pageCollection(let c): return c.id
+        case .pageCollection(let t): return t.id
+        case .pageSetCollection(let c): return c.id
         default: return nil
         }
     }
@@ -42,8 +42,8 @@ extension ViewSettingsScope {
     /// One source for the per-pane `parentTypeID()` / `scopeTypeID()` switch.
     var schemaTypeID: String? {
         switch self {
-        case .pageType(let t): return t.id
-        case .pageCollection(let c): return c.parentID
+        case .pageCollection(let t): return t.id
+        case .pageSetCollection(let c): return c.parentID
         default: return nil
         }
     }

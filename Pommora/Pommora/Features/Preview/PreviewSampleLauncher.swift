@@ -12,20 +12,20 @@
                 // Managers load in parallel after env construction — wait for
                 // the vault list (bounded; gives up quietly after ~10s).
                 var ticks = 0
-                while env.vaultManager.types.isEmpty && ticks < 100 {
+                while env.collectionManager.types.isEmpty && ticks < 100 {
                     try? await Task.sleep(for: .milliseconds(100))
                     ticks += 1
                 }
-                for vault in env.vaultManager.types {
+                for vault in env.collectionManager.types {
                     await env.contentManager.loadAll(for: vault)
                     if let page = env.contentManager.pages(in: vault).first {
-                        open(PageRef(page: page, inVaultRoot: vault))
+                        open(PageRef(page: page, inCollectionRoot: vault))
                         return
                     }
-                    for collection in env.vaultManager.pageCollections(in: vault) {
+                    for collection in env.collectionManager.pageCollections(in: vault) {
                         await env.contentManager.loadAll(forCollection: collection)
                         if let page = env.contentManager.pages(inCollection: collection).first {
-                            open(PageRef(page: page, in: collection, vault: vault))
+                            open(PageRef(page: page, in: collection, pageCollection: vault))
                             return
                         }
                     }

@@ -6,7 +6,7 @@ import Foundation
 /// `<nexus>/.nexus/state.json` — the same file PinnedManager and RecentsManager
 /// own. Per-container child order lives on each container's own per-kind
 /// sidecar:
-///   - PageType  → `_pagetype.json`
+///   - PageCollection  → `_pagetype.json`
 ///   - PageSet → `_pagecollection.json`
 ///
 /// Every write is a read-modify-atomic-write round-trip: the file is
@@ -49,8 +49,8 @@ enum OrderPersister {
 
     // MARK: - PageSet / Page-Type-root Pages (sidecar JSON)
 
-    static func setPageCollectionOrder(_ order: [String], in pageType: PageType, nexus: Nexus) throws {
-        try mutatePageType(pageType, nexus: nexus) { t in
+    static func setPageCollectionOrder(_ order: [String], in pageCollection: PageCollection, nexus: Nexus) throws {
+        try mutatePageCollection(pageCollection, nexus: nexus) { t in
             t.collectionOrder = order.isEmpty ? nil : order
         }
     }
@@ -61,8 +61,8 @@ enum OrderPersister {
         }
     }
 
-    static func setPageOrder(_ order: [String], inVault pageType: PageType, nexus: Nexus) throws {
-        try mutatePageType(pageType, nexus: nexus) { t in
+    static func setPageOrder(_ order: [String], inVaultRoot pageCollection: PageCollection, nexus: Nexus) throws {
+        try mutatePageCollection(pageCollection, nexus: nexus) { t in
             t.pageOrder = order.isEmpty ? nil : order
         }
     }
@@ -114,13 +114,13 @@ enum OrderPersister {
         try AtomicJSON.write(state, to: url)
     }
 
-    private static func mutatePageType(
-        _ pageType: PageType,
+    private static func mutatePageCollection(
+        _ pageCollection: PageCollection,
         nexus: Nexus,
-        _ mutate: (inout PageType) -> Void
+        _ mutate: (inout PageCollection) -> Void
     ) throws {
-        let url = NexusPaths.vaultMetadataURL(forTitle: pageType.title, in: nexus)
-        var updated = try PageType.load(from: url)
+        let url = NexusPaths.vaultMetadataURL(forTitle: pageCollection.title, in: nexus)
+        var updated = try PageCollection.load(from: url)
         mutate(&updated)
         try updated.save(to: url)
     }

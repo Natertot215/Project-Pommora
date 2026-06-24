@@ -61,7 +61,7 @@ enum PropertyCreation {
     /// so callers can route to post-create configuration.
     @discardableResult
     static func commitDefault(
-        _ type: PropertyType, toTypeID typeID: String, manager: PageTypeManager
+        _ type: PropertyType, toTypeID typeID: String, manager: PageCollectionManager
     ) async throws -> PropertyDefinition {
         var definition = makeDefaultDefinition(for: type)
         // Mint up-front so the caller's route argument carries a real ULID —

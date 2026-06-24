@@ -15,7 +15,7 @@ struct SidebarToast: View {
     @Environment(AreaManager.self) private var areaManager
     @Environment(TopicManager.self) private var topicManager
     @Environment(ProjectManager.self) private var projectManager
-    @Environment(PageTypeManager.self) private var vaultManager
+    @Environment(PageCollectionManager.self) private var collectionManager
     @Environment(PageContentManager.self) private var contentManager
     @Environment(SavedConfigManager.self) private var savedConfigManager
     @Environment(SidebarSectionsManager.self) private var sidebarSectionsManager
@@ -25,7 +25,7 @@ struct SidebarToast: View {
     @State private var displayedSource: ErrorSource? = nil
 
     enum ErrorSource: String, Hashable {
-        case area, topic, project, vault, content, savedConfig, sidebarSections, homepage
+        case area, topic, project, pageCollection, content, savedConfig, sidebarSections, homepage
     }
 
     var body: some View {
@@ -63,8 +63,8 @@ struct SidebarToast: View {
         .onChange(of: errorChangeID(projectManager.pendingError)) { _, _ in
             capture(from: projectManager.pendingError, source: .project)
         }
-        .onChange(of: errorChangeID(vaultManager.pendingError)) { _, _ in
-            capture(from: vaultManager.pendingError, source: .vault)
+        .onChange(of: errorChangeID(collectionManager.pendingError)) { _, _ in
+            capture(from: collectionManager.pendingError, source: .pageCollection)
         }
         .onChange(of: errorChangeID(contentManager.pendingError)) { _, _ in
             capture(from: contentManager.pendingError, source: .content)
@@ -91,7 +91,7 @@ struct SidebarToast: View {
         case .area: areaManager.pendingError = nil
         case .topic: topicManager.pendingError = nil
         case .project: projectManager.pendingError = nil
-        case .vault: vaultManager.pendingError = nil
+        case .pageCollection: collectionManager.pendingError = nil
         case .content: contentManager.pendingError = nil
         case .savedConfig: savedConfigManager.pendingError = nil
         case .sidebarSections: sidebarSectionsManager.pendingError = nil

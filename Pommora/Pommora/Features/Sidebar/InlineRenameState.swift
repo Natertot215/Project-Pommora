@@ -1,7 +1,7 @@
 import Observation
 
 /// Shared inline-rename scaffolding for every sidebar row that supports
-/// rename-in-place (Area / Topic / Project / PageType / PageCollection /
+/// rename-in-place (Area / Topic / Project / PageCollection / PageCollection /
 /// PageSet / Page). Owns the editable `draft` and the in-flight `isCommitting`
 /// flag, plus the guard / Task / do-catch shape every row's `commit()`
 /// repeated verbatim.

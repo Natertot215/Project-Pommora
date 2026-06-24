@@ -1,14 +1,14 @@
 import SwiftUI
 
-/// The single shared detail view behind `PageTypeDetailView` (vault scope) and
-/// `PageCollectionDetailView` (collection scope). Owns the whole render skeleton,
+/// The single shared detail view behind `PageCollectionDetailView` (vault scope) and
+/// `PageSetCollectionDetailView` (collection scope). Owns the whole render skeleton,
 /// the pipeline computeds, the drag/cover/rename/delete machinery, and ALL view
 /// state. Everything that genuinely differs between the two scopes is read off
 /// the injected `scope` (a `DetailScope` value witness) or off each item's
 /// stamped `item.parent.*` — `ViewSurface` never branches on which scope it is.
 ///
 /// The two scopes pass exactly the snapshots `ViewItemSource` re-stamps onto each
-/// `ViewItem.parent`, so reading `item.parent.vault` / `.collection` / `.set` is
+/// `ViewItem.parent`, so reading `item.parent.pageCollection` / `.collection` / `.set` is
 /// byte-equivalent to passing the container snapshots through (the accidental
 /// per-view diff the old two-view split carried).
 struct ViewSurface<Scope: DetailScope>: View {
@@ -25,7 +25,7 @@ struct ViewSurface<Scope: DetailScope>: View {
     /// One container-create flag — only this scope's container kind flips it.
     @State private var isCreatingContainer: Bool = false
 
-    @Environment(PageTypeManager.self) var pageTypeManager
+    @Environment(PageCollectionManager.self) var collectionManager
     @Environment(PageSetManager.self) var pageSetManager
     @Environment(PageContentManager.self) var contentManager
     @Environment(SettingsManager.self) var settingsManager
@@ -57,9 +57,9 @@ struct ViewSurface<Scope: DetailScope>: View {
             footer
         }
         .background { coverPickerHost }
-        .task(id: scope.containerID(pageTypeManager)) {
+        .task(id: scope.containerID(collectionManager)) {
             await scope.warmCaches(
-                content: contentManager, sets: pageSetManager, types: pageTypeManager)
+                content: contentManager, sets: pageSetManager, types: collectionManager)
         }
         .alert("Rename", isPresented: renameAlertBinding) {
             TextField("Title", text: $renameDraft)
@@ -127,15 +127,15 @@ struct ViewSurface<Scope: DetailScope>: View {
             titleFont: PUI.DetailHeader.titleFont,
             iconFont: PUI.DetailHeader.titleFont,
             plainField: true,
-            onRename: { newTitle in try? await scope.renameHeader(to: newTitle, types: pageTypeManager) },
-            onIconChange: { newIcon in try? await scope.updateHeaderIcon(to: newIcon, types: pageTypeManager) }
+            onRename: { newTitle in try? await scope.renameHeader(to: newTitle, types: collectionManager) },
+            onIconChange: { newIcon in try? await scope.updateHeaderIcon(to: newIcon, types: collectionManager) }
         )
     }
 
     /// True when this container has a banner image AND the active view shows it —
     /// the only state where the title overlays the banner.
     private var bannerActive: Bool {
-        scope.containerBanner(pageTypeManager) != nil && (activeView?.showBanner ?? true)
+        scope.containerBanner(collectionManager) != nil && (activeView?.showBanner ?? true)
     }
 
     /// Container banner — absent unless set, with a floating Add Banner
@@ -144,8 +144,8 @@ struct ViewSurface<Scope: DetailScope>: View {
     private var banner: some View {
         if let nexus = nexusManager.currentNexus {
             ContainerBannerView(
-                containerID: scope.containerID(pageTypeManager),
-                bannerPath: scope.containerBanner(pageTypeManager),
+                containerID: scope.containerID(collectionManager),
+                bannerPath: scope.containerBanner(collectionManager),
                 isVisible: activeView?.showBanner ?? true,
                 nexus: nexus)
         }
@@ -153,10 +153,10 @@ struct ViewSurface<Scope: DetailScope>: View {
 
     // MARK: - Pipeline computeds
 
-    /// The live PageType supplying schema + tier columns (live so schema/view
+    /// The live PageCollection supplying schema + tier columns (live so schema/view
     /// edits re-render immediately, not only after a reselect).
-    private var schemaSource: PageType {
-        scope.schemaSource(pageTypeManager)
+    private var schemaSource: PageCollection {
+        scope.schemaSource(collectionManager)
     }
 
     /// Merged property schema (user properties + tier columns) for both the
@@ -170,7 +170,7 @@ struct ViewSurface<Scope: DetailScope>: View {
     /// to the first view when the store has no record yet.
     private var activeView: SavedView? {
         activeViewStore.resolvedActiveView(
-            in: scope.containerID(pageTypeManager), manager: pageTypeManager)
+            in: scope.containerID(collectionManager), manager: collectionManager)
     }
 
     /// The FULL ordered column set (hidden columns included). The table hides via
@@ -224,17 +224,17 @@ struct ViewSurface<Scope: DetailScope>: View {
     private var tableIdentity: String {
         // The disclosure column is folded in: switching it (Title ⇄ Status) rebuilds
         // the outline so columns re-add in the new order with the right outline column.
-        "viewoutline.\(scope.containerID(pageTypeManager)).\(activeView?.id ?? "default").\(outlineColumnID)"
+        "viewoutline.\(scope.containerID(collectionManager)).\(activeView?.id ?? "default").\(outlineColumnID)"
     }
 
     /// The full pipeline output, recomputed on every observed cache change so the
     /// table reflects edits instantly: source → filter → group → sort-in-group.
     private var resolvedGroups: [ResolvedGroup] {
         let items = ViewItemSource.items(
-            for: scope.itemScope(pageTypeManager),
+            for: scope.itemScope(collectionManager),
             content: contentManager,
             sets: pageSetManager,
-            collections: { pageTypeManager.pageCollections(in: $0) }
+            collections: { collectionManager.pageCollections(in: $0) }
         )
         let filtered: [ViewItem] = {
             guard let filter = activeView?.filter else { return items }
@@ -295,7 +295,7 @@ struct ViewSurface<Scope: DetailScope>: View {
             onEditIcon: { item in
                 presentedSheet = .editIcon(
                     .page(
-                        item.page, vault: item.parent.vault,
+                        item.page, pageCollection: item.parent.pageCollection,
                         collection: item.parent.collection, set: item.parent.set))
             },
             pageMenu: { AnyView(menuItems(for: .page($0))) },
@@ -362,7 +362,7 @@ struct ViewSurface<Scope: DetailScope>: View {
             anchorID: anchorID,
             group: activeView?.group,
             sortIsManual: activeView?.sort == nil,
-            structuralParent: { scope.structuralParent($0, pageTypeManager) })
+            structuralParent: { scope.structuralParent($0, collectionManager) })
     }
 
     /// Wire the coordinator's commit closures to the live managers.
@@ -393,7 +393,7 @@ struct ViewSurface<Scope: DetailScope>: View {
             do {
                 try await contentManager.updatePageProperty(
                     item.page, propertyID: propertyID, newValue: newValue,
-                    vault: item.parent.vault, collection: item.parent.collection, set: item.parent.set)
+                    pageCollection: item.parent.pageCollection, collection: item.parent.collection, set: item.parent.set)
             } catch {}
         }
     }
@@ -406,8 +406,8 @@ struct ViewSurface<Scope: DetailScope>: View {
     /// container sidecar via the disk-safe `updateView` (single-view today).
     private func editView(_ transform: @escaping (inout SavedView) -> Void) {
         guard let viewID = activeView?.id else { return }
-        let containerID = scope.containerID(pageTypeManager)
-        Task { try? await pageTypeManager.updateView(viewID, in: containerID, transform: transform) }
+        let containerID = scope.containerID(collectionManager)
+        Task { try? await collectionManager.updateView(viewID, in: containerID, transform: transform) }
     }
 
     /// Persists a single property edit. The page's parent comes from its stamped
@@ -418,7 +418,7 @@ struct ViewSurface<Scope: DetailScope>: View {
                 item.page,
                 propertyID: def.id,
                 newValue: newValue,
-                vault: item.parent.vault,
+                pageCollection: item.parent.pageCollection,
                 collection: item.parent.collection,
                 set: item.parent.set
             )
@@ -472,7 +472,7 @@ struct ViewSurface<Scope: DetailScope>: View {
         guard !isCreatingContainer else { return }
         isCreatingContainer = true
         let label = scope.containerCreateLabel(settingsManager)
-        let existing = scope.existingContainerTitles(types: pageTypeManager, sets: pageSetManager)
+        let existing = scope.existingContainerTitles(types: collectionManager, sets: pageSetManager)
         let title = DefaultTitleResolver.resolve(label: label, existingTitles: existing)
         Task {
             defer { isCreatingContainer = false }
@@ -480,7 +480,7 @@ struct ViewSurface<Scope: DetailScope>: View {
                 _ = try await CreateWithInlineEdit.run(
                     create: {
                         try await scope.createContainer(
-                            title: title, types: pageTypeManager, sets: pageSetManager)
+                            title: title, types: collectionManager, sets: pageSetManager)
                     },
                     onCreate: { newID in
                         editingID = newID
@@ -508,7 +508,7 @@ struct ViewSurface<Scope: DetailScope>: View {
         // Open-in routing: rows here mix vault-root, collection, and set pages.
         // The item's stamped parent carries the exact ref, so route directly.
         PageOpenRouter.routeOpen(
-            item.page, vault: item.parent.vault,
+            item.page, pageCollection: item.parent.pageCollection,
             collection: item.parent.collection, set: item.parent.set,
             selection: &selection,
             openPreview: { openPagePreview($0) })
@@ -525,7 +525,7 @@ struct ViewSurface<Scope: DetailScope>: View {
             Button("Edit Icon") {
                 presentedSheet = .editIcon(
                     .page(
-                        item.page, vault: item.parent.vault,
+                        item.page, pageCollection: item.parent.pageCollection,
                         collection: item.parent.collection, set: item.parent.set))
             }
             Button(pinned ? "Unpin Page" : "Pin Page") { item.page.togglePin() }

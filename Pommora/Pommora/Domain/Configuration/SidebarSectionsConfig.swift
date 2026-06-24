@@ -13,7 +13,7 @@ struct SidebarSectionsConfig: Codable, Equatable, Hashable, Sendable {
     struct Section: Codable, Equatable, Hashable, Identifiable, Sendable {
         let id: String  // ULID
         var label: String  // user-renamable inline
-        var vaultIDs: [String]  // PageType IDs, in display order
+        var vaultIDs: [String]  // PageCollection IDs, in display order
     }
 
     var sections: [Section] = []

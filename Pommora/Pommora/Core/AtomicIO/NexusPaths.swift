@@ -6,7 +6,7 @@ enum NexusPaths {
 
     // MARK: - Per-kind sidecar filenames (flatlayout)
 
-    /// `_pagetype.json` — PageType folder sidecar.
+    /// `_pagetype.json` — PageCollection folder sidecar.
     static let pageTypeSidecarFilename = "_pagetype.json"
     /// `_pagecollection.json` — PageCollection sub-folder sidecar.
     static let pageCollectionSidecarFilename = "_pagecollection.json"
@@ -248,9 +248,9 @@ enum NexusPaths {
             .appendingPathComponent("_project.json", isDirectory: false)
     }
 
-    // MARK: - PageType / PageCollection / Content paths (flatlayout)
+    // MARK: - PageCollection / PageCollection / Content paths (flatlayout)
 
-    /// `<nexus>/<typeFolderName>/` — PageType folder (flatlayout: lives at the
+    /// `<nexus>/<typeFolderName>/` — PageCollection folder (flatlayout: lives at the
     /// nexus root, no wrapper segment).
     static func pageTypeFolderURL(in nexusRoot: URL, typeFolderName: String) -> URL {
         nexusRoot.appendingPathComponent(typeFolderName, isDirectory: true)
@@ -261,7 +261,7 @@ enum NexusPaths {
         pageTypeFolderURL(in: nexus.rootURL, typeFolderName: title)
     }
 
-    /// `<nexus>/<typeFolderName>/_pagetype.json` — PageType schema sidecar.
+    /// `<nexus>/<typeFolderName>/_pagetype.json` — PageCollection schema sidecar.
     static func pageTypeMetadataURL(in nexusRoot: URL, typeFolderName: String) -> URL {
         pageTypeFolderURL(in: nexusRoot, typeFolderName: typeFolderName)
             .appendingPathComponent(pageTypeSidecarFilename, isDirectory: false)
@@ -273,7 +273,7 @@ enum NexusPaths {
     }
 
     /// `<nexus>/<typeFolderName>/<collectionFolderName>/` — PageCollection folder
-    /// (still nested inside its parent PageType folder).
+    /// (still nested inside its parent PageCollection folder).
     static func pageCollectionFolderURL(
         in nexusRoot: URL,
         typeFolderName: String,
@@ -286,7 +286,7 @@ enum NexusPaths {
     /// Nexus-typed convenience overload (legacy parameter shape).
     static func pageCollectionFolderURL(
         forTitle title: String,
-        inPageTypeTitled pageTypeTitle: String,
+        inPageCollectionTitled pageTypeTitle: String,
         in nexus: Nexus
     ) -> URL {
         pageCollectionFolderURL(

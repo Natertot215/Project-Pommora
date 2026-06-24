@@ -12,7 +12,7 @@ struct PageSetIndexTests {
 
     // MARK: - Fixture setup
 
-    /// Builds a nexus with 1 PageType "Notes" + 1 PageSet "Inbox"
+    /// Builds a nexus with 1 PageCollection "Notes" + 1 PageSet "Inbox"
     /// + 1 PageSet "Drafts" inside it. One Page lives in the Set, one at the
     /// Collection root — the pair exercises both sides of `page_set_id`.
     private func setup() async throws -> (
@@ -22,16 +22,16 @@ struct PageSetIndexTests {
     ) {
         let nexus = try TempNexus.make()
 
-        let pageTypeManager = PageTypeManager(nexus: nexus)
+        let collectionManager = PageCollectionManager(nexus: nexus)
         let setManager = PageSetManager(nexus: nexus)
-        setManager.pageTypeProvider = { [weak pageTypeManager] in pageTypeManager?.types ?? [] }
-        pageTypeManager.pageSetManager = setManager
-        await pageTypeManager.loadAll()
-        try await pageTypeManager.createPageType(name: "Notes", icon: nil)
-        let pt = pageTypeManager.types.first!
+        setManager.pageTypeProvider = { [weak collectionManager] in collectionManager?.types ?? [] }
+        collectionManager.pageSetManager = setManager
+        await collectionManager.loadAll()
+        try await collectionManager.createPageCollection(name: "Notes", icon: nil)
+        let pt = collectionManager.types.first!
 
-        try await pageTypeManager.createPageCollection(name: "Inbox", inPageType: pt)
-        let coll = pageTypeManager.pageCollections(in: pt).first!
+        try await collectionManager.createPageCollection(name: "Inbox", inPageCollection: pt)
+        let coll = collectionManager.pageCollections(in: pt).first!
 
         // Lay down the Set folder + `_pageset.json` sidecar directly on disk
         // (the manager CRUD surface ships in a later task).
@@ -167,9 +167,9 @@ struct PageSetIndexTests {
         let (idx, _) = try PommoraIndex.open(at: nexus.rootURL)
         let updater = IndexUpdater(idx)
 
-        let pt = Fixtures.pageType()
-        try updater.upsertPageType(pt)
-        let pc = Fixtures.pageCollection(parentID: pt.id)
+        let pt = Fixtures.pageCollection()
+        try updater.upsertPageCollection(pt)
+        let pc = Fixtures.pageSetCollection(parentID: pt.id)
         try updater.upsertPageCollection(pc)
 
         // The set FK dangles (never indexed) — the page must still land,
@@ -191,8 +191,8 @@ struct PageSetIndexTests {
         let (idx, _) = try PommoraIndex.open(at: nexus.rootURL)
         let updater = IndexUpdater(idx)
 
-        let pt = Fixtures.pageType()
-        try updater.upsertPageType(pt)
+        let pt = Fixtures.pageCollection()
+        try updater.upsertPageCollection(pt)
 
         // Both the set AND collection FKs dangle — the page still indexes
         // under its Vault alone.
@@ -214,9 +214,9 @@ struct PageSetIndexTests {
         let (idx, _) = try PommoraIndex.open(at: nexus.rootURL)
         let updater = IndexUpdater(idx)
 
-        let pt = Fixtures.pageType()
-        try updater.upsertPageType(pt)
-        let pc = Fixtures.pageCollection(parentID: pt.id)
+        let pt = Fixtures.pageCollection()
+        try updater.upsertPageCollection(pt)
+        let pc = Fixtures.pageSetCollection(parentID: pt.id)
         try updater.upsertPageCollection(pc)
 
         let set = PageSet(

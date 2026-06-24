@@ -1,6 +1,6 @@
 import Foundation
 
-/// One property schema entry inside a PageType / Tasks / Events
+/// One property schema entry inside a PageCollection / Tasks / Events
 /// per-kind sidecar (`_pagetype.json` / `_taskconfig.json`
 /// / `_eventconfig.json`). Type-specific config fields live as optionals on
 /// this struct; only the ones relevant to `type` should be populated.

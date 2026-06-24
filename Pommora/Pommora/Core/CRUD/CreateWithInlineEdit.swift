@@ -2,7 +2,7 @@ import Foundation
 
 /// Orchestrates the system-wide stub-and-inline-rename CRUD flow (paradigm
 /// shift superseding the modal `New*Sheet.swift` pattern). Every "New X"
-/// trigger across Pommora — PageType, PageCollection, Page, and the Context
+/// trigger across Pommora — PageCollection, PageCollection, Page, and the Context
 /// tier (Area, Topic, Project) — funnels through this helper so the
 /// create-then-edit sequence is uniform.
 ///
@@ -17,7 +17,7 @@ import Foundation
 ///                         label: labels.pageCollection.singular,
 ///                         existingTitles: existing.map(\.title)
 ///                     ),
-///                     inPageType: parent
+///                     inPageCollection: parent
 ///                 )
 ///             },
 ///             onCreate: { newCollection in
@@ -31,7 +31,7 @@ import Foundation
 /// ```
 ///
 /// The caller writes the `editingID` binding inside `onCreate`. The matching
-/// row file (e.g. `PageCollectionRow`) gates rename-mode on
+/// row file (e.g. `PageSetCollectionRow`) gates rename-mode on
 /// `editingID == entity.id`; `RenameableRow.onAppear` then auto-focuses its
 /// `TextField`. Esc and click-away both call the row's `cancel()`, which
 /// resets `editingID` to `nil` — the stub entity stays created with the

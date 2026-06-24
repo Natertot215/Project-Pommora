@@ -2,7 +2,7 @@ import SwiftUI
 
 /// Shared editor for a File property's `accept` MIME-type whitelist.
 ///
-/// Extracted from VaultSettingsSheet + TypeSettingsSheet (Task 8) where the
+/// Extracted from CollectionSettingsSheet + TypeSettingsSheet (Task 8) where the
 /// implementations were byte-for-byte copies. Both sheets now reference
 /// this shared definition; future View Settings popover panes will too.
 ///

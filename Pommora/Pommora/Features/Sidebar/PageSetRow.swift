@@ -25,7 +25,7 @@ private enum SetDisclosureItem: Identifiable {
 struct PageSetRow: View {
     let set: PageSet
     let parentCollection: PageSet
-    let parentVault: PageType
+    let parentPageCollection: PageCollection
     @Binding var selection: SidebarSelection
     @Binding var editingID: String?
     @Binding var justCreatedID: String?
@@ -34,7 +34,7 @@ struct PageSetRow: View {
 
     @Environment(PageSetManager.self) private var pageSetManager
     @Environment(PageContentManager.self) private var contentManager
-    @Environment(PageTypeManager.self) private var vaultManager
+    @Environment(PageCollectionManager.self) private var collectionManager
 
     @State private var expanded: Bool = false
     @State private var isCreatingPage: Bool = false
@@ -52,7 +52,7 @@ struct PageSetRow: View {
                     PageSetRow(
                         set: childSet,
                         parentCollection: parentCollection,
-                        parentVault: parentVault,
+                        parentPageCollection: parentPageCollection,
                         selection: $selection,
                         editingID: $editingID,
                         justCreatedID: $justCreatedID,
@@ -63,7 +63,7 @@ struct PageSetRow: View {
                 case .page(let page):
                     PageRow(
                         page: page,
-                        parent: .set(set, collection: parentCollection, vault: parentVault),
+                        parent: .set(set, collection: parentCollection, pageCollection: parentPageCollection),
                         selection: $selection,
                         editingID: $editingID,
                         justCreatedID: $justCreatedID
@@ -92,10 +92,10 @@ struct PageSetRow: View {
                 Button("Edit Icon") { presentedSheet = .editIcon(.pageSet(set)) }
                 Divider()
                 Menu("Move to…") {
-                    ForEach(vaultManager.types) { vault in
-                        ForEach(vaultManager.pageCollections(in: vault)) { collection in
+                    ForEach(collectionManager.types) { vault in
+                        ForEach(collectionManager.pageCollections(in: vault)) { collection in
                             Button("\(vault.title) › \(collection.title)") {
-                                moveTo(collection, vault: vault)
+                                moveTo(collection, pageCollection: vault)
                             }
                             .disabled(isCurrentCollection(collection))
                         }
@@ -126,7 +126,7 @@ struct PageSetRow: View {
                 _ = try await CreateWithInlineEdit.run(
                     create: {
                         try await contentManager.createPage(
-                            name: title, in: set, collection: parentCollection, vault: parentVault
+                            name: title, in: set, collection: parentCollection, pageCollection: parentPageCollection
                         )
                     },
                     onCreate: { newPage in
@@ -174,22 +174,22 @@ struct PageSetRow: View {
     /// Whole-Set move. Same-vault targets move immediately; a cross-vault target
     /// first counts the property values the move would strip — non-zero routes
     /// through the confirmation dialog, zero proceeds directly.
-    private func moveTo(_ collection: PageSet, vault: PageType) {
+    private func moveTo(_ collection: PageSet, pageCollection: PageCollection) {
         Task {
             do {
-                if vault.id != parentVault.id {
+                if pageCollection.id != parentPageCollection.id {
                     let stripCount = try await pageSetManager.moveStripTotal(
-                        for: set, from: parentVault, to: vault)
+                        for: set, from: parentPageCollection, to: pageCollection)
                     if stripCount > 0 {
                         confirmingDelete = .moveSet(
-                            set, destination: collection, destinationVault: vault,
-                            sourceVault: parentVault, stripCount: stripCount)
+                            set, destination: collection, destinationPageCollection: pageCollection,
+                            sourcePageCollection: parentPageCollection, stripCount: stripCount)
                         return
                     }
                 }
                 try await pageSetManager.moveSet(
-                    set, to: collection, destinationVault: vault,
-                    sourceVault: parentVault, contentManager: contentManager)
+                    set, to: collection, destinationPageCollection: pageCollection,
+                    sourcePageCollection: parentPageCollection, contentManager: contentManager)
             } catch {
                 // pendingError set by manager; toast surfaces.
             }

@@ -67,14 +67,14 @@ struct ViewSettingsScopeMappingTests {
         #expect(scope == .project)
     }
 
-    @Test("pageType selection maps to .pageType scope carrying the entity")
-    func pageTypeMapsToPageType() {
-        let t = PageType(
+    @Test("pageCollection selection maps to .pageCollection scope carrying the entity")
+    func pageTypeMapsToPageCollection() {
+        let t = PageCollection(
             id: "01HPT", title: "Notes", icon: nil, properties: [],
             views: [], modifiedAt: Date()
         )
-        let scope = ContentView.viewSettingsScope(for: .pageType(t))
-        #expect(scope == .pageType(t))
+        let scope = ContentView.viewSettingsScope(for: .pageCollection(t))
+        #expect(scope == .pageCollection(t))
     }
 
     @Test("collection (PageSet) selection maps to .pageCollection scope carrying the entity")
@@ -85,7 +85,7 @@ struct ViewSettingsScopeMappingTests {
             modifiedAt: Date()
         )
         let scope = ContentView.viewSettingsScope(for: .collection(c))
-        #expect(scope == .pageCollection(c))
+        #expect(scope == .pageSetCollection(c))
     }
 
     @Test("page selection maps to .page scope")

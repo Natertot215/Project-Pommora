@@ -191,7 +191,7 @@ final class ExternalChangeReconciler {
                 content.pagesBySet[id] ?? [],
                 pageTypeID: typeID, pageCollectionID: collectionID, pageSetID: id, updater: updater)
         case .typeRoot(let id):
-            guard let type = env.vaultManager.types.first(where: { $0.id == id }) else { return }
+            guard let type = env.collectionManager.types.first(where: { $0.id == id }) else { return }
             await content.loadAll(for: type)
             syncScope(
                 content.pagesByTypeRoot[id] ?? [],
@@ -245,12 +245,12 @@ final class ExternalChangeReconciler {
                 return .set(id: set.id, collectionID: collectionID, typeID: typeID)
             }
         }
-        for (typeID, cols) in env.vaultManager.pageCollectionsByType {
+        for (typeID, cols) in env.collectionManager.pageCollectionsByType {
             for col in cols where isUnder(parent, col.folderURL) {
                 return .collection(id: col.id, typeID: typeID)
             }
         }
-        for type in env.vaultManager.types
+        for type in env.collectionManager.types
         where isUnder(parent, NexusPaths.vaultFolderURL(forTitle: type.title, in: nexus)) {
             return .typeRoot(id: type.id)
         }
@@ -264,7 +264,7 @@ final class ExternalChangeReconciler {
     }
 
     private func typeID(ofCollection collectionID: String) -> String? {
-        for (typeID, cols) in env.vaultManager.pageCollectionsByType
+        for (typeID, cols) in env.collectionManager.pageCollectionsByType
         where cols.contains(where: { $0.id == collectionID }) {
             return typeID
         }
@@ -272,7 +272,7 @@ final class ExternalChangeReconciler {
     }
 
     private func collection(id: String, typeID: String) -> PageSet? {
-        (env.vaultManager.pageCollectionsByType[typeID] ?? []).first { $0.id == id }
+        (env.collectionManager.pageCollectionsByType[typeID] ?? []).first { $0.id == id }
     }
 
     private func pageSet(id: String, collectionID: String) -> PageSet? {
@@ -297,13 +297,13 @@ final class ExternalChangeReconciler {
     /// list picks up external changes after a coarse rebuild.
     private func reloadLoadedPageScopes() async {
         let content = env.contentManager
-        let collections = env.vaultManager.pageCollectionsByType.values.flatMap { $0 }
+        let collections = env.collectionManager.pageCollectionsByType.values.flatMap { $0 }
         for id in Array(content.pagesByCollection.keys) {
             guard let collection = collections.first(where: { $0.id == id }) else { continue }
             await content.loadAll(forCollection: collection)
         }
         for id in Array(content.pagesByTypeRoot.keys) {
-            guard let type = env.vaultManager.types.first(where: { $0.id == id }) else { continue }
+            guard let type = env.collectionManager.types.first(where: { $0.id == id }) else { continue }
             await content.loadAll(for: type)
         }
         let sets = env.pageSetManager.pageSetsByCollection.values.flatMap { $0 }

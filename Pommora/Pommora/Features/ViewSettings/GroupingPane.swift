@@ -14,15 +14,15 @@ import SwiftUI
 ///   - **Empty group** — Top / Bottom control; hidden while hideEmptyGroups is on.
 ///
 /// Persistence path: `model.onSave` routes through
-/// `PageTypeManager.updateView(_:in:transform:)` — the same path as SortPane /
+/// `PageCollectionManager.updateView(_:in:transform:)` — the same path as SortPane /
 /// FilterPane / the old GroupPane. The model is created once from `currentView()`
 /// in `body` and stored in `@State`; subsequent manager re-renders that swap the
-/// live view are observed by reading `pageTypeManager` inside `onSave`.
+/// live view are observed by reading `collectionManager` inside `onSave`.
 struct GroupingPane: View {
     let scope: ViewSettingsScope
     @Binding var path: [ViewSettingsRoute]
 
-    @Environment(PageTypeManager.self) private var pageTypeManager
+    @Environment(PageCollectionManager.self) private var collectionManager
     @Environment(TierConfigManager.self) private var tierConfigManager
     @Environment(ActiveViewStore.self) private var activeViewStore
 
@@ -52,7 +52,7 @@ struct GroupingPane: View {
         if let model {
             let grouping = model.grouping
             let props = ViewSettingsProperties.groupable(
-                scope: scope, manager: pageTypeManager, tierConfig: tierConfigManager.config)
+                scope: scope, manager: collectionManager, tierConfig: tierConfigManager.config)
             let activeDef = grouping.flatMap { g in props.first(where: { $0.id == g.propertyID }) }
 
             if let grouping, let def = activeDef, def.type != .checkbox, !pickerExpanded {
@@ -101,7 +101,7 @@ struct GroupingPane: View {
     private func paneRows(model: GroupingPaneModel) -> some View {
         let grouping = model.grouping
         let props = ViewSettingsProperties.groupable(
-            scope: scope, manager: pageTypeManager, tierConfig: tierConfigManager.config)
+            scope: scope, manager: collectionManager, tierConfig: tierConfigManager.config)
         let activeDef = grouping.flatMap { g in props.first(where: { $0.id == g.propertyID }) }
 
         VStack(spacing: 0) {
@@ -185,7 +185,7 @@ struct GroupingPane: View {
         model = GroupingPaneModel(config: view.group ?? .structural) { [self] newConfig in
             Task {
                 do {
-                    try await pageTypeManager.updateView(viewID, in: cid) { v in
+                    try await collectionManager.updateView(viewID, in: cid) { v in
                         v.group = newConfig
                     }
                     commitError = nil
@@ -197,7 +197,7 @@ struct GroupingPane: View {
     }
 
     private func currentView() -> SavedView? {
-        activeViewStore.resolvedActiveView(for: scope, manager: pageTypeManager)
+        activeViewStore.resolvedActiveView(for: scope, manager: collectionManager)
     }
 
     private func containerID() -> String? { scope.containerID }

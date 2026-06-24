@@ -12,7 +12,7 @@ import Testing
 /// criterion. The fix scrubs the deleted id from every view of the container.
 ///
 /// The fixture hits real disk (mirrors `UpdateViewClobberTests` /
-/// `PageTypeManagerSchemaCRUDTests`) and asserts on the sidecar read FRESH from
+/// `PageCollectionManagerSchemaCRUDTests`) and asserts on the sidecar read FRESH from
 /// disk so the scrub is verified at the persistence layer.
 @MainActor
 @Suite("PropertyDeleteScrubTests")
@@ -23,9 +23,9 @@ struct PropertyDeleteScrubTests {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
 
-        let manager = PageTypeManager(nexus: nexus)
+        let manager = PageCollectionManager(nexus: nexus)
         await manager.loadAll()
-        try await manager.createPageType(name: "Notes", icon: nil)
+        try await manager.createPageCollection(name: "Notes", icon: nil)
         let typeID = manager.types.first!.id
 
         // Add the property we'll later delete.
@@ -55,7 +55,7 @@ struct PropertyDeleteScrubTests {
 
         // Assert on the sidecar read FRESH from disk.
         let meta = NexusPaths.vaultMetadataURL(forTitle: "Notes", in: nexus)
-        let reloaded = try PageType.load(from: meta)
+        let reloaded = try PageCollection.load(from: meta)
         let scrubbed = try #require(reloaded.views.first { $0.id == view.id })
 
         // group reset to structural.

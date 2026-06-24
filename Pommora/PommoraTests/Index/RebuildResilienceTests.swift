@@ -85,16 +85,16 @@ struct RebuildResilienceTests {
             id: topicID, title: topicName, icon: nil, blocks: [], modifiedAt: Date()
         ).save(to: NexusPaths.topicMetadataURL(forTitle: topicName, in: nexus))
 
-        // --- Seed a VALID Vault (PageType) at the nexus root. ---
+        // --- Seed a VALID Vault (PageCollection) at the nexus root. ---
         let vaultID = ULID.generate()
         let vaultName = "Notes"
         let vaultFolder = NexusPaths.vaultFolderURL(forTitle: vaultName, in: nexus)
         try FileManager.default.createDirectory(at: vaultFolder, withIntermediateDirectories: true)
-        let pageType = PageType(
+        let pc = PageCollection(
             id: vaultID, title: vaultName, icon: nil,
             properties: [], views: [], modifiedAt: Date()
         )
-        try pageType.save(to: vaultFolder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename))
+        try pc.save(to: vaultFolder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename))
 
         // --- Seed TWO Page `.md` files in the Vault whose frontmatter carries
         // the SAME `id` (a realistic legacy/adoption primary-key collision).

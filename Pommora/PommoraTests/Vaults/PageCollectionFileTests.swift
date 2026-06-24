@@ -3,10 +3,10 @@ import Testing
 
 @testable import Pommora
 
-@Suite("PageTypeFile")
-struct PageTypeFileTests {
+@Suite("PageCollectionFile")
+struct PageCollectionFileTests {
 
-    @Test("PageType round-trips through AtomicJSON")
+    @Test("PageCollection round-trips through AtomicJSON")
     func roundTrip() throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
@@ -14,7 +14,7 @@ struct PageTypeFileTests {
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         let metaURL = folder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename)
 
-        let original = PageType(
+        let original = PageCollection(
             id: "01HVAULT",
             title: "Planner",
             icon: "folder",
@@ -34,7 +34,7 @@ struct PageTypeFileTests {
         )
         try original.save(to: metaURL)
 
-        let loaded = try PageType.load(from: metaURL)
+        let loaded = try PageCollection.load(from: metaURL)
         #expect(loaded.id == "01HVAULT")
         #expect(loaded.title == "Planner")
         #expect(loaded.icon == "folder")
@@ -43,7 +43,7 @@ struct PageTypeFileTests {
         #expect(loaded.properties[0].type == .select)
     }
 
-    @Test("PageType on-disk JSON omits title")
+    @Test("PageCollection on-disk JSON omits title")
     func titleNotPersisted() throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
@@ -51,22 +51,22 @@ struct PageTypeFileTests {
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         let metaURL = folder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename)
 
-        try PageType(id: "01H", title: "Materials", icon: nil, properties: [], views: [], modifiedAt: Date())
+        try PageCollection(id: "01H", title: "Materials", icon: nil, properties: [], views: [], modifiedAt: Date())
             .save(to: metaURL)
         let raw = try String(contentsOf: metaURL, encoding: .utf8)
         #expect(!raw.contains("\"title\""))
     }
 
-    @Test("PageType `open_in` round-trips; absent key decodes to nil")
+    @Test("PageCollection `open_in` round-trips; absent key decodes to nil")
     func openInRoundTrip() throws {
         // Legacy sidecar (no openIn): the key is never written and decodes nil.
-        let legacy = PageType(
+        let legacy = PageCollection(
             id: "01H", title: "T", icon: nil, properties: [], views: [],
             modifiedAt: Date(timeIntervalSince1970: 0))
         let legacyData = try JSONEncoder().encode(legacy)
         let legacyJSON = try JSONSerialization.jsonObject(with: legacyData) as? [String: Any]
         #expect(legacyJSON?["open_in"] == nil)
-        #expect(try JSONDecoder().decode(PageType.self, from: legacyData).openIn == nil)
+        #expect(try JSONDecoder().decode(PageCollection.self, from: legacyData).openIn == nil)
 
         // Each mode writes its raw value and round-trips.
         for (mode, raw) in [(OpenInMode.compact, "compact"), (OpenInMode.window, "window")] {
@@ -75,21 +75,21 @@ struct PageTypeFileTests {
             let data = try JSONEncoder().encode(t)
             let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
             #expect(json?["open_in"] as? String == raw)
-            #expect(try JSONDecoder().decode(PageType.self, from: data).openIn == mode)
+            #expect(try JSONDecoder().decode(PageCollection.self, from: data).openIn == mode)
         }
     }
 
-    @Test("empty PageType round-trips with empty properties + views")
-    func emptyPageType() throws {
+    @Test("empty PageCollection round-trips with empty properties + views")
+    func emptyPageCollection() throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
         let folder = nexus.rootURL.appendingPathComponent("Empty", isDirectory: true)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         let metaURL = folder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename)
 
-        let v = PageType(id: "01H", title: "Empty", icon: nil, properties: [], views: [], modifiedAt: Date())
+        let v = PageCollection(id: "01H", title: "Empty", icon: nil, properties: [], views: [], modifiedAt: Date())
         try v.save(to: metaURL)
-        let loaded = try PageType.load(from: metaURL)
+        let loaded = try PageCollection.load(from: metaURL)
         #expect(loaded.properties == [])
         #expect(loaded.views == [])
     }

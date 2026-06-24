@@ -178,7 +178,7 @@ protocol PageSaver: AnyObject, Sendable {
 @MainActor
 final class ContentManagerPageSaver: PageSaver {
     private let contentManager: PageContentManager
-    private let vault: PageType
+    private let pageCollection: PageCollection
     private let collection: PageSet?
     private let set: PageSet?
     /// When provided, each save resolves the Page's CURRENT container by id
@@ -186,35 +186,35 @@ final class ContentManagerPageSaver: PageSaver {
     /// live location instead of the scope captured when the editor opened. The
     /// vault/collection/set above are the open-time fallback if resolution can't
     /// place the Page.
-    private let pageTypeManager: PageTypeManager?
+    private let collectionManager: PageCollectionManager?
     private let pageSetManager: PageSetManager?
 
     init(
-        contentManager: PageContentManager, vault: PageType, collection: PageSet?,
-        set: PageSet? = nil, pageTypeManager: PageTypeManager? = nil,
+        contentManager: PageContentManager, pageCollection: PageCollection, collection: PageSet?,
+        set: PageSet? = nil, collectionManager: PageCollectionManager? = nil,
         pageSetManager: PageSetManager? = nil
     ) {
         self.contentManager = contentManager
-        self.vault = vault
+        self.pageCollection = pageCollection
         self.collection = collection
         self.set = set
-        self.pageTypeManager = pageTypeManager
+        self.collectionManager = collectionManager
         self.pageSetManager = pageSetManager
     }
 
     func save(page: PageMeta, body: String) async throws {
         let target =
-            pageTypeManager.flatMap {
+            collectionManager.flatMap {
                 contentManager.resolveParent(
-                    for: page, pageTypeManager: $0, pageSetManager: pageSetManager)
-            } ?? (vault: vault, collection: collection, set: set)
+                    for: page, collectionManager: $0, pageSetManager: pageSetManager)
+            } ?? (pageCollection: pageCollection, collection: collection, set: set)
         if let set = target.set, let collection = target.collection {
             try await contentManager.updatePage(
-                page, body: body, in: set, collection: collection, vault: target.vault)
+                page, body: body, in: set, collection: collection, pageCollection: target.pageCollection)
         } else if let collection = target.collection {
-            try await contentManager.updatePage(page, body: body, in: collection, vault: target.vault)
+            try await contentManager.updatePage(page, body: body, in: collection, pageCollection: target.pageCollection)
         } else {
-            try await contentManager.updatePage(page, body: body, inVaultRoot: target.vault)
+            try await contentManager.updatePage(page, body: body, inCollectionRoot: target.pageCollection)
         }
     }
 }

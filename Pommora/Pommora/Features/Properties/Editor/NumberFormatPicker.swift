@@ -2,7 +2,7 @@ import SwiftUI
 
 /// Shared segmented picker for a Number property's `numberFormat` config.
 ///
-/// Extracted from VaultSettingsSheet + TypeSettingsSheet (Task 8) where the
+/// Extracted from CollectionSettingsSheet + TypeSettingsSheet (Task 8) where the
 /// implementations were byte-for-byte copies. Both sheets now reference
 /// this shared definition; future View Settings popover panes (EditPropertyPane —
 /// Task 11) will reuse the same picker.

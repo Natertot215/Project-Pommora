@@ -48,7 +48,7 @@ import Testing
 
     // MARK: - Tolerant decode regression: retired user-target degrades to nil in PropertyDefinition
 
-    @Test func retiredPageTypeTargetDegradesPropertyDefinitionToNilRelationTarget() throws {
+    @Test func retiredPageCollectionTargetDegradesPropertyDefinitionToNilRelationTarget() throws {
         // A sidecar JSON carrying a page_type relation_target must decode successfully
         // (the sidecar LOADS); the def's relationTarget becomes nil (tolerance boundary).
         let json = """

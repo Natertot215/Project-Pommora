@@ -14,11 +14,11 @@ import Testing
         return root
     }
 
-    /// Creates a fresh PageType folder at the nexus root carrying a sidecar
+    /// Creates a fresh PageCollection folder at the nexus root carrying a sidecar
     /// with the given properties. Optionally injects `schemaVersion` (default 0
     /// = "needs migration") via a raw JSON write.
     @discardableResult
-    private static func makeLegacyPageType(
+    private static func makeLegacyPageCollection(
         in nexusRoot: URL,
         title: String,
         properties: [(name: String, type: PropertyType)],
@@ -60,7 +60,7 @@ import Testing
         try AtomicYAMLMarkdown.write(frontmatter: fm, body: "body content\n", to: url)
     }
 
-    // MARK: - PageType
+    // MARK: - PageCollection
 
     @Test func emptyNexusReportsNoOp() throws {
         let nexus = try Self.makeTempNexus()
@@ -74,7 +74,7 @@ import Testing
         let nexus = try Self.makeTempNexus()
         defer { try? FileManager.default.removeItem(at: nexus) }
 
-        let folder = try Self.makeLegacyPageType(
+        let folder = try Self.makeLegacyPageCollection(
             in: nexus, title: "Notes",
             properties: [("Status", .select), ("Tags", .multiSelect)])
         let pageURL = folder.appendingPathComponent("Page-1.md")
@@ -91,7 +91,7 @@ import Testing
         #expect(report.failedTypes.isEmpty)
 
         // Verify schema gained prop_<ulid> IDs
-        let pt = try PageType.load(from: folder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename))
+        let pt = try PageCollection.load(from: folder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename))
         #expect(pt.schemaVersion == 2)
         #expect(pt.properties.allSatisfy { $0.id.hasPrefix("prop_") })
 
@@ -109,7 +109,7 @@ import Testing
         let nexus = try Self.makeTempNexus()
         defer { try? FileManager.default.removeItem(at: nexus) }
 
-        let folder = try Self.makeLegacyPageType(
+        let folder = try Self.makeLegacyPageCollection(
             in: nexus, title: "X", properties: [("S", .select)])
         let pageURL = folder.appendingPathComponent("P.md")
         try Self.writeLegacyPage(
@@ -129,7 +129,7 @@ import Testing
         let nexus = try Self.makeTempNexus()
         defer { try? FileManager.default.removeItem(at: nexus) }
 
-        let folder = try Self.makeLegacyPageType(
+        let folder = try Self.makeLegacyPageCollection(
             in: nexus, title: "X", properties: [("Status", .select)])
         let pageURL = folder.appendingPathComponent("P.md")
         try Self.writeLegacyPage(
@@ -140,7 +140,7 @@ import Testing
 
         let pf = try PageFile.load(from: pageURL)
         // Known property rekeyed
-        let pt = try PageType.load(from: folder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename))
+        let pt = try PageCollection.load(from: folder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename))
         let statusID = pt.properties.first(where: { $0.name == "Status" })!.id
         #expect(pf.frontmatter.properties[statusID] == .select("a"))
         // Orphan preserved under its original key
@@ -155,7 +155,7 @@ import Testing
         // => no migration.
         let folder = nexus.appendingPathComponent("Pre-migrated", isDirectory: true)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        let alreadyMigrated = PageType(
+        let alreadyMigrated = PageCollection(
             id: "01HPT", title: "Pre-migrated", icon: nil,
             properties: [
                 PropertyDefinition(id: "prop_01HEXISTING", name: "Status", type: .select)
@@ -187,7 +187,7 @@ import Testing
         let nexus = try Self.makeTempNexus()
         defer { try? FileManager.default.removeItem(at: nexus) }
 
-        let pageFolder = try Self.makeLegacyPageType(
+        let pageFolder = try Self.makeLegacyPageCollection(
             in: nexus, title: "Notes",
             properties: [("Status", .select), ("Tags", .multiSelect)])
         try Self.writeLegacyPage(
@@ -214,7 +214,7 @@ import Testing
         let nexus = try Self.makeTempNexus()
         defer { try? FileManager.default.removeItem(at: nexus) }
 
-        let pageFolder = try Self.makeLegacyPageType(
+        let pageFolder = try Self.makeLegacyPageCollection(
             in: nexus, title: "Notes", properties: [("Status", .select)])
         let pageURL = pageFolder.appendingPathComponent("P.md")
         try Self.writeLegacyPage(
@@ -239,7 +239,7 @@ import Testing
         let nexus = try Self.makeTempNexus()
         defer { try? FileManager.default.removeItem(at: nexus) }
 
-        let pageFolder = try Self.makeLegacyPageType(
+        let pageFolder = try Self.makeLegacyPageCollection(
             in: nexus, title: "Notes", properties: [("Status", .select)])
         let pageURL = pageFolder.appendingPathComponent("P.md")
         try Self.writeLegacyPage(
@@ -254,7 +254,7 @@ import Testing
         #expect(report.memberFilesRewritten == 1)
 
         // Same end state as runIfNeeded would produce
-        let pt = try PageType.load(from: pageFolder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename))
+        let pt = try PageCollection.load(from: pageFolder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename))
         #expect(pt.schemaVersion == 2)
         let statusID = pt.properties.first(where: { $0.name == "Status" })!.id
         let pf = try PageFile.load(from: pageURL)
@@ -267,7 +267,7 @@ import Testing
         let nexus = try Self.makeTempNexus()
         defer { try? FileManager.default.removeItem(at: nexus) }
 
-        let folder = try Self.makeLegacyPageType(
+        let folder = try Self.makeLegacyPageCollection(
             in: nexus, title: "X", properties: [("S", .select)])
         try Self.writeLegacyPage(
             at: folder.appendingPathComponent("P.md"),
@@ -283,11 +283,11 @@ import Testing
 
     // MARK: - schemaVersion 2 trigger (Relations redesign — normalizing re-save)
 
-    /// Writes a v1 PageType sidecar: `schema_version: 1` with every property
+    /// Writes a v1 PageCollection sidecar: `schema_version: 1` with every property
     /// ID already minted. Pre-Relations-redesign this needed no migration; the
     /// broadened `< 2` trigger now re-saves it once to normalize the JSON.
     @discardableResult
-    private static func makeV1PageType(
+    private static func makeV1PageCollection(
         in nexusRoot: URL,
         title: String,
         properties: [(id: String, name: String, type: PropertyType)]
@@ -317,7 +317,7 @@ import Testing
         let nexus = try Self.makeTempNexus()
         defer { try? FileManager.default.removeItem(at: nexus) }
 
-        let folder = try Self.makeV1PageType(
+        let folder = try Self.makeV1PageCollection(
             in: nexus, title: "Notes",
             properties: [("prop_01HSTATUS", "Status", .select)])
 
@@ -330,14 +330,14 @@ import Testing
         #expect(report.typesMigrated == 1)
         #expect(report.propertiesMinted == 0)
 
-        let pt = try PageType.load(from: folder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename))
+        let pt = try PageCollection.load(from: folder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename))
         #expect(pt.schemaVersion == 2)
         #expect(pt.properties.first?.id == "prop_01HSTATUS")  // preserved
     }
 
-    @Test func freshPageTypeIsSchemaVersion2() {
+    @Test func freshPageCollectionIsSchemaVersion2() {
         // Newly-constructed Types are stamped current so they never re-migrate.
-        let pt = PageType(
+        let pt = PageCollection(
             id: "01HP", title: "X", icon: nil,
             properties: [], views: [], modifiedAt: Date())
         #expect(pt.schemaVersion == 2)
@@ -345,7 +345,7 @@ import Testing
 
     // MARK: - Orphan user-relation clearing
 
-    /// A member under a MIGRATING PageType carrying an orphaned `$rel`-keyed
+    /// A member under a MIGRATING PageCollection carrying an orphaned `$rel`-keyed
     /// property (a `prop_`-prefixed key whose ID is absent from the post-migration
     /// schema) must have that entry dropped. The root `tier1` array and any
     /// foreign frontmatter are unaffected.
@@ -354,7 +354,7 @@ import Testing
         defer { try? FileManager.default.removeItem(at: nexus) }
 
         // Type with one legit property ("Status"); needs migration (schemaVersion 0).
-        let folder = try Self.makeLegacyPageType(
+        let folder = try Self.makeLegacyPageCollection(
             in: nexus, title: "Notes",
             properties: [("Status", .select)])
 
@@ -390,7 +390,7 @@ import Testing
         #expect(pf.frontmatter.properties[orphanRelKey] == nil, "orphaned $rel key must be cleared")
 
         // Legit property is rekeyed (not name-keyed any more, not the orphan key).
-        let pt = try PageType.load(
+        let pt = try PageCollection.load(
             from: folder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename))
         let statusID = pt.properties.first(where: { $0.name == "Status" })!.id
         #expect(pf.frontmatter.properties[statusID] == .select("active"), "legit property survives rekeyed")

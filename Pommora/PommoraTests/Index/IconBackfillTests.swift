@@ -34,11 +34,11 @@ struct IconBackfillTests {
             metadata: Area(id: areaID, title: "Personal", icon: "person", blocks: [], modifiedAt: Date())
         )
 
-        // --- Seed a PageType + a Page WITH an icon and tier1 = [Area]. ---
-        let pageTypeManager = PageTypeManager(nexus: nexus)
-        await pageTypeManager.loadAll()
-        try await pageTypeManager.createPageType(name: "Notes", icon: nil)
-        let pt = pageTypeManager.types.first { $0.title == "Notes" }!
+        // --- Seed a PageCollection + a Page WITH an icon and tier1 = [Area]. ---
+        let collectionManager = PageCollectionManager(nexus: nexus)
+        await collectionManager.loadAll()
+        try await collectionManager.createPageCollection(name: "Notes", icon: nil)
+        let pt = collectionManager.types.first { $0.title == "Notes" }!
         _ = pt
         let typeFolder = NexusPaths.vaultFolderURL(forTitle: "Notes", in: nexus)
 

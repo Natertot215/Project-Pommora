@@ -33,14 +33,14 @@ struct InlineEditCommitTests {
         let (nexus, vault, manager) = try await setup()
         defer { TempNexus.cleanup(nexus) }
 
-        try await manager.createPage(name: "P", inVaultRoot: vault)
+        try await manager.createPage(name: "P", inCollectionRoot: vault)
         let page = manager.pages(in: vault).first!
         try seedBodyAndForeign(at: page.url, id: page.frontmatter.id)
 
         let propID = ReservedPropertyID.mintUserPropertyID()
         try await manager.updatePageProperty(
             page, propertyID: propID, newValue: .number(42),
-            vault: vault, collection: nil)
+            pageCollection: vault, collection: nil)
 
         // Cache (what the cells render) reflects the edit.
         let cached = manager.pages(in: vault).first { $0.id == page.id }
@@ -58,7 +58,7 @@ struct InlineEditCommitTests {
         let (nexus, vault, manager) = try await setup()
         defer { TempNexus.cleanup(nexus) }
 
-        try await manager.createPage(name: "P", inVaultRoot: vault)
+        try await manager.createPage(name: "P", inCollectionRoot: vault)
         let page = manager.pages(in: vault).first!
         // Remove the file so any disk round-trip throws.
         try FileManager.default.removeItem(at: page.url)
@@ -66,7 +66,7 @@ struct InlineEditCommitTests {
         let propID = ReservedPropertyID.mintUserPropertyID()
         try? await manager.updatePageProperty(
             page, propertyID: propID, newValue: .number(7),
-            vault: vault, collection: nil)
+            pageCollection: vault, collection: nil)
 
         let cached = manager.pages(in: vault).first { $0.id == page.id }
         #expect(
@@ -82,7 +82,7 @@ struct InlineEditCommitTests {
         let (nexus, vault, manager) = try await setup()
         defer { TempNexus.cleanup(nexus) }
 
-        try await manager.createPage(name: "P", inVaultRoot: vault)
+        try await manager.createPage(name: "P", inCollectionRoot: vault)
         let page = manager.pages(in: vault).first!
         try seedBodyAndForeign(at: page.url, id: page.frontmatter.id)
 
@@ -90,7 +90,7 @@ struct InlineEditCommitTests {
         var fm = page.frontmatter
         fm.properties[propID] = .number(99)
         try await manager.updatePageFrontmatter(
-            page, frontmatter: fm, vault: vault, collection: nil)
+            page, frontmatter: fm, pageCollection: vault, collection: nil)
 
         let cached = manager.pages(in: vault).first { $0.id == page.id }
         #expect(cached?.frontmatter.properties[propID] == .number(99))
@@ -106,7 +106,7 @@ struct InlineEditCommitTests {
         let (nexus, vault, manager) = try await setup()
         defer { TempNexus.cleanup(nexus) }
 
-        try await manager.createPage(name: "P", inVaultRoot: vault)
+        try await manager.createPage(name: "P", inCollectionRoot: vault)
         let page = manager.pages(in: vault).first!
         try FileManager.default.removeItem(at: page.url)
 
@@ -114,7 +114,7 @@ struct InlineEditCommitTests {
         var fm = page.frontmatter
         fm.properties[propID] = .number(13)
         try? await manager.updatePageFrontmatter(
-            page, frontmatter: fm, vault: vault, collection: nil)
+            page, frontmatter: fm, pageCollection: vault, collection: nil)
 
         let cached = manager.pages(in: vault).first { $0.id == page.id }
         #expect(cached?.frontmatter.properties[propID] == .number(13))
@@ -123,9 +123,9 @@ struct InlineEditCommitTests {
 
     // MARK: - Harness
 
-    private func setup() async throws -> (Nexus, PageType, PageContentManager) {
+    private func setup() async throws -> (Nexus, PageCollection, PageContentManager) {
         let nexus = try TempNexus.make()
-        let vault = PageType(
+        let vault = PageCollection(
             id: ULID.generate(), title: "V", icon: nil,
             properties: [], views: [], modifiedAt: Date())
         let vaultFolder = NexusPaths.vaultFolderURL(forTitle: "V", in: nexus)

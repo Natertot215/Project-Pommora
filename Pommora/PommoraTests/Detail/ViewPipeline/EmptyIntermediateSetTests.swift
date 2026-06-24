@@ -21,7 +21,7 @@ struct EmptyIntermediateSetTests {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
 
-        let vault = try makePageType(nexus: nexus, title: "Notes")
+        let vault = try makePageCollection(nexus: nexus, title: "Notes")
         let coll = try makePageCollection(nexus: nexus, title: "Inbox", in: vault)
 
         // SetA has no direct pages but has SubB as a child.
@@ -37,7 +37,7 @@ struct EmptyIntermediateSetTests {
         await sets.loadAll(types: [vault])
 
         let items = ViewItemSource.items(
-            for: .collection(coll, vault: vault),
+            for: .collection(coll, pageCollection: vault),
             content: content,
             sets: sets,
             collections: { _ in [coll] }
@@ -74,7 +74,7 @@ struct EmptyIntermediateSetTests {
         // Structural anchor for SetA (no page, isStructuralAnchor: true).
         let anchor = ViewItem(
             page: VPFixture.meta(id: "_anchor_set_A", title: ""),
-            parent: .set(setA, collection: collA, vault: VPFixture.vault("vault_1")),
+            parent: .set(setA, collection: collA, pageCollection: VPFixture.vault("vault_1")),
             setLabel: nil,
             isStructuralAnchor: true
         )
@@ -118,13 +118,13 @@ struct EmptyIntermediateSetTests {
 
         let anchorA = ViewItem(
             page: VPFixture.meta(id: "_anchor_set_A", title: ""),
-            parent: .set(setA, collection: collA, vault: VPFixture.vault("vault_1")),
+            parent: .set(setA, collection: collA, pageCollection: VPFixture.vault("vault_1")),
             setLabel: nil,
             isStructuralAnchor: true
         )
         let anchorB = ViewItem(
             page: VPFixture.meta(id: "_anchor_sub_B", title: ""),
-            parent: .set(subB, collection: collA, vault: VPFixture.vault("vault_1")),
+            parent: .set(subB, collection: collA, pageCollection: VPFixture.vault("vault_1")),
             setLabel: nil,
             isStructuralAnchor: true
         )
@@ -153,8 +153,8 @@ struct EmptyIntermediateSetTests {
     // MARK: - Helpers
 
     @discardableResult
-    private func makePageType(nexus: Nexus, title: String) throws -> PageType {
-        let vault = PageType(
+    private func makePageCollection(nexus: Nexus, title: String) throws -> PageCollection {
+        let vault = PageCollection(
             id: ULID.generate(), title: title, icon: nil,
             properties: [], views: [], modifiedAt: Date()
         )
@@ -165,12 +165,12 @@ struct EmptyIntermediateSetTests {
     }
 
     @discardableResult
-    private func makePageCollection(nexus: Nexus, title: String, in vault: PageType) throws -> PageSet {
+    private func makePageCollection(nexus: Nexus, title: String, in pageCollection: PageCollection) throws -> PageSet {
         let folderURL = NexusPaths.collectionFolderURL(
-            forTitle: title, inVaultTitled: vault.title, in: nexus)
+            forTitle: title, inVaultTitled: pageCollection.title, in: nexus)
         try FileManager.default.createDirectory(at: folderURL, withIntermediateDirectories: true)
         let coll = PageSet(
-            id: ULID.generate(), parentID: vault.id, title: title,
+            id: ULID.generate(), parentID: pageCollection.id, title: title,
             folderURL: folderURL, modifiedAt: Date()
         )
         try coll.save(to: folderURL.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename))

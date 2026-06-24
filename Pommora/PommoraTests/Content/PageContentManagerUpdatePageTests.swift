@@ -13,10 +13,10 @@ struct PageContentManagerUpdatePageTests {
         let (nexus, vault, coll, manager) = try await setup()
         defer { TempNexus.cleanup(nexus) }
 
-        try await manager.createPage(name: "Notes", in: coll, vault: vault)
+        try await manager.createPage(name: "Notes", in: coll, pageCollection: vault)
         let page = manager.pages(inCollection: coll).first!
 
-        try await manager.updatePage(page, body: "Hello world", in: coll, vault: vault)
+        try await manager.updatePage(page, body: "Hello world", in: coll, pageCollection: vault)
 
         let reloaded = try PageFile.load(from: page.url)
         #expect(reloaded.body == "Hello world")
@@ -27,12 +27,12 @@ struct PageContentManagerUpdatePageTests {
         let (nexus, vault, coll, manager) = try await setup()
         defer { TempNexus.cleanup(nexus) }
 
-        try await manager.createPage(name: "Notes", in: coll, vault: vault)
+        try await manager.createPage(name: "Notes", in: coll, pageCollection: vault)
         let page = manager.pages(inCollection: coll).first!
         let originalID = page.frontmatter.id
         let originalCreatedAt = page.frontmatter.createdAt
 
-        try await manager.updatePage(page, body: "Some new body content", in: coll, vault: vault)
+        try await manager.updatePage(page, body: "Some new body content", in: coll, pageCollection: vault)
 
         let reloaded = try PageFile.load(from: page.url)
         #expect(reloaded.frontmatter.id == originalID)
@@ -51,10 +51,10 @@ struct PageContentManagerUpdatePageTests {
         let (nexus, vault, _, manager) = try await setup()
         defer { TempNexus.cleanup(nexus) }
 
-        try await manager.createPage(name: "RootNotes", inVaultRoot: vault)
+        try await manager.createPage(name: "RootNotes", inCollectionRoot: vault)
         let page = manager.pages(in: vault).first!
 
-        try await manager.updatePage(page, body: "Root body", inVaultRoot: vault)
+        try await manager.updatePage(page, body: "Root body", inCollectionRoot: vault)
 
         let reloaded = try PageFile.load(from: page.url)
         #expect(reloaded.body == "Root body")
@@ -66,7 +66,7 @@ struct PageContentManagerUpdatePageTests {
         let (nexus, vault, coll, manager) = try await setup()
         defer { TempNexus.cleanup(nexus) }
 
-        try await manager.createPage(name: "Notes", in: coll, vault: vault)
+        try await manager.createPage(name: "Notes", in: coll, pageCollection: vault)
         let page = manager.pages(inCollection: coll).first!
 
         // Mutate the in-memory PageMeta to carry an invalid title — the validator
@@ -81,7 +81,7 @@ struct PageContentManagerUpdatePageTests {
         )
 
         await #expect(throws: (any Error).self) {
-            try await manager.updatePage(badPage, body: "anything", in: coll, vault: vault)
+            try await manager.updatePage(badPage, body: "anything", in: coll, pageCollection: vault)
         }
         #expect(manager.pendingError != nil)
 
@@ -95,7 +95,7 @@ struct PageContentManagerUpdatePageTests {
         let (nexus, vault, coll, manager) = try await setup()
         defer { TempNexus.cleanup(nexus) }
 
-        try await manager.createPage(name: "Notes", in: coll, vault: vault)
+        try await manager.createPage(name: "Notes", in: coll, pageCollection: vault)
         let page = manager.pages(inCollection: coll).first!
 
         // Delete the PageSet folder out from under us — `pageFile.save(to:)`
@@ -104,14 +104,14 @@ struct PageContentManagerUpdatePageTests {
         try FileManager.default.removeItem(at: coll.folderURL)
 
         await #expect(throws: (any Error).self) {
-            try await manager.updatePage(page, body: "anything", in: coll, vault: vault)
+            try await manager.updatePage(page, body: "anything", in: coll, pageCollection: vault)
         }
         #expect(manager.pendingError != nil)
     }
 
-    private func setup() async throws -> (Nexus, PageType, PageSet, PageContentManager) {
+    private func setup() async throws -> (Nexus, PageCollection, PageSet, PageContentManager) {
         let nexus = try TempNexus.make()
-        let vault = PageType(
+        let vault = PageCollection(
             id: ULID.generate(), title: "V", icon: nil,
             properties: [], views: [], modifiedAt: Date())
         let vaultFolder = NexusPaths.vaultFolderURL(forTitle: "V", in: nexus)

@@ -8,7 +8,7 @@ enum SidebarSelection: Equatable, Hashable, Sendable {
     case area(Area)
     case topic(Topic)
     case project(Project)
-    case pageType(PageType)
+    case pageCollection(PageCollection)
     case collection(PageSet)
     case page(PageMeta)
 }
@@ -22,7 +22,7 @@ extension SidebarSelection {
         let raw: String?
         switch self {
         case .page(let p): raw = p.frontmatter.icon
-        case .pageType(let t): raw = t.icon
+        case .pageCollection(let t): raw = t.icon
         case .collection(let c): raw = c.icon
         case .area(let s): raw = s.icon
         case .topic(let t): raw = t.icon
@@ -45,7 +45,7 @@ extension SidebarSelection {
 @MainActor
 struct SidebarLookupBundle {
     let content: PageContentManager?
-    let pageType: PageTypeManager?
+    let pageCollection: PageCollectionManager?
     let area: AreaManager?
     let topic: TopicManager?
     let project: ProjectManager?
@@ -79,16 +79,16 @@ extension SidebarSelection {
     }
 
     @MainActor
-    private static func resolvePageType(id: String, lookup: SidebarLookupBundle) -> SidebarSelection? {
-        guard let pm = lookup.pageType, let t = pm.types.first(where: { $0.id == id }) else { return nil }
-        return .pageType(t)
+    private static func resolvePageCollection(id: String, lookup: SidebarLookupBundle) -> SidebarSelection? {
+        guard let pm = lookup.pageCollection, let t = pm.types.first(where: { $0.id == id }) else { return nil }
+        return .pageCollection(t)
     }
 
     @MainActor
     private static func resolveCollection(id: String, lookup: SidebarLookupBundle) -> SidebarSelection? {
-        guard let pm = lookup.pageType else { return nil }
-        for pageType in pm.types {
-            if let c = pm.pageCollections(in: pageType).first(where: { $0.id == id }) { return .collection(c) }
+        guard let pm = lookup.pageCollection else { return nil }
+        for pageCollection in pm.types {
+            if let c = pm.pageCollections(in: pageCollection).first(where: { $0.id == id }) { return .collection(c) }
         }
         return nil
     }
@@ -118,7 +118,7 @@ extension SidebarSelection {
         let resolved: SidebarSelection?
         switch stateRef.typedKind {
         case .page: resolved = Self.resolvePage(id: stateRef.id, lookup: lookup)
-        case .vault: resolved = Self.resolvePageType(id: stateRef.id, lookup: lookup)
+        case .vault: resolved = Self.resolvePageCollection(id: stateRef.id, lookup: lookup)
         case .area: resolved = Self.resolveArea(id: stateRef.id, lookup: lookup)
         case .topic: resolved = Self.resolveTopic(id: stateRef.id, lookup: lookup)
         case .project: resolved = Self.resolveProject(id: stateRef.id, lookup: lookup)
@@ -143,7 +143,7 @@ extension SidebarSelection {
         case .area(let id): resolved = Self.resolveArea(id: id, lookup: lookup)
         case .topic(let id): resolved = Self.resolveTopic(id: id, lookup: lookup)
         case .project(let id): resolved = Self.resolveProject(id: id, lookup: lookup)
-        case .pageType(let id): resolved = Self.resolvePageType(id: id, lookup: lookup)
+        case .pageCollection(let id): resolved = Self.resolvePageCollection(id: id, lookup: lookup)
         case .collection(let id): resolved = Self.resolveCollection(id: id, lookup: lookup)
         case .page(let id): resolved = Self.resolvePage(id: id, lookup: lookup)
         // Sets have no detail view — a .set tag resolves to nothing, which
@@ -163,7 +163,7 @@ enum SelectionTag: Equatable, Hashable, Sendable {
     case area(String)
     case topic(String)
     case project(String)
-    case pageType(String)
+    case pageCollection(String)
     case collection(String)
     case page(String)
     /// Identity-only tag for PageSet rows. Gives each Set row a distinct row
@@ -192,7 +192,7 @@ enum SelectionTag: Equatable, Hashable, Sendable {
         case .area(let s): self = .area(s.id)
         case .topic(let t): self = .topic(t.id)
         case .project(let p): self = .project(p.id)
-        case .pageType(let t): self = .pageType(t.id)
+        case .pageCollection(let t): self = .pageCollection(t.id)
         case .collection(let c): self = .collection(c.id)
         case .page(let p): self = .page(p.id)
         }

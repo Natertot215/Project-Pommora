@@ -45,7 +45,7 @@ extension EntityStateRef {
         switch sel {
         case .none, .savedKey: return nil
         case .page(let p): self.init(kind: .page, id: p.id, title: p.title)
-        case .pageType(let t): self.init(kind: .vault, id: t.id, title: t.title)
+        case .pageCollection(let t): self.init(kind: .vault, id: t.id, title: t.title)
         case .area(let s): self.init(kind: .area, id: s.id, title: s.title)
         case .topic(let t): self.init(kind: .topic, id: t.id, title: t.title)
         case .project(let p): self.init(kind: .project, id: p.id, title: p.title)

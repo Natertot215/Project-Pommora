@@ -1,7 +1,7 @@
 import Foundation
 
 /// One-shot migration that rewrites pre-v0.3.0 name-keyed property values to
-/// ID-keyed values across every PageType in a Nexus.
+/// ID-keyed values across every PageCollection in a Nexus.
 ///
 /// Two-phase API:
 ///   - `scan(at:) -> Plan` — pure: walks the nexus, mints `prop_<ulid>` IDs
@@ -44,7 +44,7 @@ enum PropertyIDMigration {
     /// `relation_scope` → `relation_target`, wraps single `$rel` objects into
     /// arrays), so widening the trigger to `< 2` forces a one-time normalizing
     /// re-save of every legacy v1 sidecar. `scan` stamps this; the matching
-    /// `PageType.init` default keeps freshly-created Types current so they
+    /// `PageCollection.init` default keeps freshly-created Types current so they
     /// never re-migrate.
     static let currentTypeSchemaVersion = 2
 
@@ -147,7 +147,7 @@ enum PropertyIDMigration {
 
             if FileManager.default.fileExists(atPath: pageSidecar.path) {
                 pageTypesScanned += 1
-                if let m = scanPageType(at: folder, sidecarURL: pageSidecar) {
+                if let m = scanPageCollection(at: folder, sidecarURL: pageSidecar) {
                     pageTypeMigrations.append(m)
                 }
             }
@@ -169,7 +169,7 @@ enum PropertyIDMigration {
         report.pageTypesScanned = plan.pageTypesScanned
 
         for migration in plan.pageTypeMigrations {
-            applyPageType(migration, into: &report)
+            applyPageCollection(migration, into: &report)
         }
         return report
     }
@@ -182,12 +182,12 @@ enum PropertyIDMigration {
 
     // MARK: - Scan helpers
 
-    private static func scanPageType(at folder: URL, sidecarURL: URL) -> TypeMigration? {
-        guard let pageType = try? PageType.load(from: sidecarURL),
-            needsMigration(pageType)
+    private static func scanPageCollection(at folder: URL, sidecarURL: URL) -> TypeMigration? {
+        guard let pageCollection = try? PageCollection.load(from: sidecarURL),
+            needsMigration(pageCollection)
         else { return nil }
 
-        var mutable = pageType
+        var mutable = pageCollection
         let mintResult = mintMissingIDs(in: &mutable.properties)
         mutable.schemaVersion = currentTypeSchemaVersion
         mutable.modifiedAt = Date()
@@ -208,7 +208,7 @@ enum PropertyIDMigration {
 
     // MARK: - Apply helpers
 
-    private static func applyPageType(_ migration: TypeMigration, into report: inout Report) {
+    private static func applyPageCollection(_ migration: TypeMigration, into report: inout Report) {
         let txn = SchemaTransaction()
         txn.stage(payload: migration.updatedSchemaJSON, to: migration.sidecarURL)
 
@@ -255,7 +255,7 @@ enum PropertyIDMigration {
     /// the current Type-sidecar schema version (`schemaVersion <
     /// currentTypeSchemaVersion`). The version arm catches legacy v1 sidecars
     /// (IDs already present) and re-saves them once to normalize their JSON.
-    private static func needsMigration(_ pt: PageType) -> Bool {
+    private static func needsMigration(_ pt: PageCollection) -> Bool {
         pt.schemaVersion < currentTypeSchemaVersion
             || pt.properties.contains(where: { $0.id.isEmpty })
     }

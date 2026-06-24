@@ -5,7 +5,7 @@ import SwiftUI  // for Array.move(fromOffsets:toOffset:) used by reorderProperty
 
 /// Per-side dependencies the per-type schema property-mutation methods need.
 ///
-/// `PageTypeManager` is a "per-type" schema manager: it holds
+/// `PageCollectionManager` is a "per-type" schema manager: it holds
 /// `types: [Type]` keyed by a `typeID`, and its five property-mutation
 /// methods (`addProperty`, `renameProperty`, `deleteProperty`, `reorderProperty`,
 /// `changeType`) persist the sidecar and assign `types[i] = updated` (there is
@@ -98,7 +98,7 @@ protocol PerTypeSchemaAdapter: AnyObject {
 // MARK: - Service
 
 /// Shared implementation of the five per-type schema property-mutation methods,
-/// lifted verbatim from `PageTypeManager` and parameterized over a
+/// lifted verbatim from `PageCollectionManager` and parameterized over a
 /// `PerTypeSchemaAdapter`. Methods **throw** on error; they do NOT set
 /// `pendingError` for the thrown error — the manager's delegator keeps the
 /// `catch { pendingError = error; throw }` wrapper. (Non-fatal index-write

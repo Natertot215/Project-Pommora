@@ -3,7 +3,7 @@
 //  PommoraTests
 //
 //  Regression coverage for Task 5 (Phase A — v0.3.1): loadAll on
-//  PageTypeManager mints a default Table view for any Type or Collection
+//  PageCollectionManager mints a default Table view for any Type or Collection
 //  whose `views` array is empty. Mirrors the LoadAllIndexSyncTests pattern
 //  (quirk #15) — same defensive-on-load contract.
 //
@@ -17,17 +17,17 @@ import Testing
 @Suite("loadAll mints default views when missing")
 struct DefaultViewMigrationTests {
 
-    // MARK: - PageType + PageSet
+    // MARK: - PageCollection + PageSet
 
     @Test func pageTypeWithoutViewsGetsDefaultTableView() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
 
-        // PageType written to disk with views = [] (matches pre-v0.3.1 sidecars).
+        // PageCollection written to disk with views = [] (matches pre-v0.3.1 sidecars).
         let vaultID = ULID.generate()
         let folder = NexusPaths.vaultFolderURL(forTitle: "Books", in: nexus)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        let pageType = PageType(
+        let pc = PageCollection(
             id: vaultID,
             title: "Books",
             icon: nil,
@@ -39,9 +39,9 @@ struct DefaultViewMigrationTests {
             modifiedAt: Date()
         )
         let sidecarURL = folder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename)
-        try pageType.save(to: sidecarURL)
+        try pc.save(to: sidecarURL)
 
-        let manager = PageTypeManager(nexus: nexus)
+        let manager = PageCollectionManager(nexus: nexus)
         await manager.loadAll()
 
         #expect(manager.types.count == 1)
@@ -53,7 +53,7 @@ struct DefaultViewMigrationTests {
 
         // Re-decode the sidecar from disk — the migration must persist, not
         // just exist in memory.
-        let reloaded = try PageType.load(from: sidecarURL)
+        let reloaded = try PageCollection.load(from: sidecarURL)
         #expect(reloaded.views.count == 1)
         #expect(reloaded.views[0].id == loaded.views[0].id)
     }
@@ -73,7 +73,7 @@ struct DefaultViewMigrationTests {
             propertyOrder: ["_title", "prop_only"],
             hiddenProperties: []
         )
-        let pageType = PageType(
+        let pc = PageCollection(
             id: vaultID,
             title: "Notes",
             icon: nil,
@@ -81,9 +81,9 @@ struct DefaultViewMigrationTests {
             views: [existing],
             modifiedAt: Date()
         )
-        try pageType.save(to: folder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename))
+        try pc.save(to:folder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename))
 
-        let manager = PageTypeManager(nexus: nexus)
+        let manager = PageCollectionManager(nexus: nexus)
         await manager.loadAll()
 
         #expect(manager.types[0].views.count == 1)
@@ -98,7 +98,7 @@ struct DefaultViewMigrationTests {
         let vaultID = ULID.generate()
         let vaultFolder = NexusPaths.vaultFolderURL(forTitle: "Drafts", in: nexus)
         try FileManager.default.createDirectory(at: vaultFolder, withIntermediateDirectories: true)
-        let pageType = PageType(
+        let pc = PageCollection(
             id: vaultID,
             title: "Drafts",
             icon: nil,
@@ -106,7 +106,7 @@ struct DefaultViewMigrationTests {
             views: [],
             modifiedAt: Date()
         )
-        try pageType.save(to: vaultFolder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename))
+        try pc.save(to:vaultFolder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename))
 
         let collID = ULID.generate()
         let collFolder = vaultFolder.appendingPathComponent("Inbox", isDirectory: true)
@@ -121,7 +121,7 @@ struct DefaultViewMigrationTests {
         let collSidecar = collFolder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename)
         try collection.save(to: collSidecar)
 
-        let manager = PageTypeManager(nexus: nexus)
+        let manager = PageCollectionManager(nexus: nexus)
         let setManager = PageSetManager(nexus: nexus)
         setManager.pageTypeProvider = { [weak manager] in manager?.types ?? [] }
         manager.pageSetManager = setManager
@@ -149,13 +149,13 @@ struct DefaultViewMigrationTests {
         let vaultID = ULID.generate()
         let folder = NexusPaths.vaultFolderURL(forTitle: "Vault", in: nexus)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        let pageType = PageType(
+        let pc = PageCollection(
             id: vaultID, title: "Vault", icon: nil,
             properties: [], views: [], modifiedAt: Date()
         )
-        try pageType.save(to: folder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename))
+        try pc.save(to:folder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename))
 
-        let manager = PageTypeManager(nexus: nexus)
+        let manager = PageCollectionManager(nexus: nexus)
         await manager.loadAll()
         let firstViewID = manager.types[0].views[0].id
 

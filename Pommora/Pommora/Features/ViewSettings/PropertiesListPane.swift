@@ -10,8 +10,8 @@ import SwiftUI
 /// Footer "+ New property" button pushes `PropertyTypePickerPane` so the
 /// user picks a type before naming + configuring.
 ///
-/// Schema ownership: properties live on the PageType. For Collection
-/// scopes the pane resolves the parent Type via the manager (PageTypeManager
+/// Schema ownership: properties live on the PageCollection. For Collection
+/// scopes the pane resolves the parent Type via the manager (PageCollectionManager
 /// looked up from @Environment).
 ///
 /// Chrome routed through shared `PaneHeader` + `PUI` tokens for uniformity
@@ -20,7 +20,7 @@ struct PropertiesListPane: View {
     let scope: ViewSettingsScope
     @Binding var path: [ViewSettingsRoute]
 
-    @Environment(PageTypeManager.self) private var pageTypeManager
+    @Environment(PageCollectionManager.self) private var collectionManager
     @Environment(TierConfigManager.self) private var tierConfigManager
 
     @State private var searchQuery: String = ""
@@ -82,7 +82,7 @@ struct PropertiesListPane: View {
     private func resolvedProperties() -> [PropertyDefinition] {
         guard let typeID = scopeTypeID() else { return [] }
         let resolved =
-            pageTypeManager.types.first(where: { $0.id == typeID })?
+            collectionManager.types.first(where: { $0.id == typeID })?
             .resolvedProperties(tierConfig: tierConfigManager.config) ?? []
         // Schema-only: reserved/built-in columns (tiers + Modified + the rest)
         // are non-editable, so they're excluded from this list. Their per-view

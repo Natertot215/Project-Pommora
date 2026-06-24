@@ -214,7 +214,7 @@ struct NavigationButton: View {
             // SQLite-backed lookup makes this O(1) and removes the walk entirely.)
             Task { @MainActor in
                 guard let cm = AppGlobals.contentManager,
-                    let vm = AppGlobals.pageTypeManager
+                    let vm = AppGlobals.collectionManager
                 else { return }
                 for vault in vm.types {
                     await cm.loadAll(for: vault)

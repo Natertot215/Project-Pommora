@@ -38,7 +38,7 @@ struct NexusAdopterAutoTagTests {
 
         let ptMeta = typeFolder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename)
         #expect(FileManager.default.fileExists(atPath: ptMeta.path))
-        let pt = try PageType.load(from: ptMeta)
+        let pt = try PageCollection.load(from: ptMeta)
         #expect(!pt.id.isEmpty)
         #expect(pt.title == "Research")
 
@@ -81,7 +81,7 @@ struct NexusAdopterAutoTagTests {
         NexusAdopter.autoTagMissingSidecars(at: nexus.rootURL)
 
         // All three sidecars exist with correct parent-id chaining.
-        let pt = try PageType.load(
+        let pt = try PageCollection.load(
             from: typeFolder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename)
         )
         let pc = try PageSet.load(
@@ -176,11 +176,11 @@ struct NexusAdopterAutoTagTests {
         let ptMeta = collFolder.deletingLastPathComponent()
             .appendingPathComponent(NexusPaths.pageTypeSidecarFilename)
         let pcMeta = collFolder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename)
-        let pt1 = try PageType.load(from: ptMeta)
+        let pt1 = try PageCollection.load(from: ptMeta)
         let pc1 = try PageSet.load(from: pcMeta)
 
         NexusAdopter.autoTagMissingSidecars(at: nexus.rootURL)
-        let pt2 = try PageType.load(from: ptMeta)
+        let pt2 = try PageCollection.load(from: ptMeta)
         let pc2 = try PageSet.load(from: pcMeta)
 
         // IDs preserved across passes — sidecars not rewritten.
@@ -223,7 +223,7 @@ struct NexusAdopterAutoTagTests {
     func skipsDotfileChild() throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
-        // Research/.obsidian/ — Research becomes a PageType, .obsidian stays untouched.
+        // Research/.obsidian/ — Research becomes a PageCollection, .obsidian stays untouched.
         let typeFolder = nexus.rootURL.appendingPathComponent("Research", isDirectory: true)
         let inner = typeFolder.appendingPathComponent(".obsidian", isDirectory: true)
         try FileManager.default.createDirectory(at: inner, withIntermediateDirectories: true)
@@ -255,7 +255,7 @@ struct NexusAdopterAutoTagTests {
         // Pre-write a Type sidecar with a known ID — auto-tag must NOT rewrite it.
         let knownID = ULID.generate()
         let now = Date()
-        let pt = PageType(
+        let pt = PageCollection(
             id: knownID, title: "Research", icon: nil,
             properties: [], views: [], modifiedAt: now
         )
@@ -268,7 +268,7 @@ struct NexusAdopterAutoTagTests {
         NexusAdopter.autoTagMissingSidecars(at: nexus.rootURL)
 
         // Type sidecar's ID is preserved.
-        let reloadedPT = try PageType.load(
+        let reloadedPT = try PageCollection.load(
             from: typeFolder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename)
         )
         #expect(reloadedPT.id == knownID)
@@ -296,7 +296,7 @@ struct NexusAdopterAutoTagTests {
 
         NexusAdopter.autoTagMissingSidecars(at: nexus.rootURL)
 
-        let pt = try PageType.load(
+        let pt = try PageCollection.load(
             from: typeFolder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename)
         )
         let pa = try PageSet.load(
@@ -343,16 +343,16 @@ struct NexusAdopterAutoTagTests {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
 
-        let typeManager = PageTypeManager(nexus: nexus)
+        let typeManager = PageCollectionManager(nexus: nexus)
         let setManager = PageSetManager(nexus: nexus)
         setManager.pageTypeProvider = { [weak typeManager] in typeManager?.types ?? [] }
         typeManager.pageSetManager = setManager
 
         await typeManager.loadAll()
-        try await typeManager.createPageType(name: "Vault", icon: nil)
-        let pageType = typeManager.types.first!
-        try await typeManager.createPageCollection(name: "A", inPageType: pageType)
-        let collection = typeManager.pageCollections(in: pageType).first!
+        try await typeManager.createPageCollection(name: "Vault", icon: nil)
+        let pageCollection = typeManager.types.first!
+        try await typeManager.createPageCollection(name: "A", inPageCollection: pageCollection)
+        let collection = typeManager.pageCollections(in: pageCollection).first!
         let parentSet = try await setManager.createPageSet(name: "B", in: collection)
         let deepSet = try await setManager.createPageSet(name: "C", in: parentSet)
 

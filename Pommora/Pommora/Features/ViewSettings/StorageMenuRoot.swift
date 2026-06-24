@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// Root menu rendered inside the View Settings popover for the storage
-/// scopes (PageType / PageCollection).
+/// scopes (PageCollection / PageCollection).
 ///
 /// Mirrors Notion's view-settings dropdown shape — header (icon + title,
 /// both inline-editable for both storage scopes) + a stack of pane
@@ -11,9 +11,9 @@ import SwiftUI
 /// Header inline edits (both storage scopes — Types and Collections
 /// alike; Collections carry their own icon since #45 and rename via the
 /// atomic folder-move rename methods):
-///   - Click icon → SymbolPicker popover → commits via updatePageTypeIcon /
+///   - Click icon → SymbolPicker popover → commits via updatePageCollectionIcon /
 ///     updatePageCollectionIcon
-///   - Click title → inline TextField → commits via renamePageType /
+///   - Click title → inline TextField → commits via renamePageCollection /
 ///     renamePageCollection on submit
 ///
 /// Push behavior lives at the popover level — this view appends routes to
@@ -22,7 +22,7 @@ struct StorageMenuRoot: View {
     let scope: ViewSettingsScope
     @Binding var path: [ViewSettingsRoute]
 
-    @Environment(PageTypeManager.self) private var pageTypeManager
+    @Environment(PageCollectionManager.self) private var collectionManager
 
     @State private var iconPickerOpen: Bool = false
     @State private var isRenaming: Bool = false
@@ -78,22 +78,22 @@ struct StorageMenuRoot: View {
     /// selector below a trailing divider, rendered as the shared
     /// `LabeledMenuSelector` (label left, value-dropdown right) so it reads
     /// identically to the Edit-Property "Display As" picker. Writes
-    /// `PageType.open_in` via `setOpenIn`. Labels are structural — NOT
+    /// `PageCollection.open_in` via `setOpenIn`. Labels are structural — NOT
     /// user-renameable. (The "Layout" name now belongs to the Layout pane row.)
     @ViewBuilder
     private var openInFooter: some View {
-        if case .pageType(let liveVault) = liveScope {
+        if case .pageCollection(let livePageCollection) = liveScope {
             Divider()
             LabeledMenuSelector(
                 title: "Open Pages In",
-                value: (liveVault.openIn ?? .window).displayLabel
+                value: (livePageCollection.openIn ?? .window).displayLabel
             ) {
                 Picker(
                     "Open Pages In",
                     selection: Binding(
-                        get: { liveVault.openIn ?? .window },
+                        get: { livePageCollection.openIn ?? .window },
                         set: { mode in
-                            Task { try? await pageTypeManager.setOpenIn(mode, forVault: liveVault.id) }
+                            Task { try? await collectionManager.setOpenIn(mode, forPageCollection: livePageCollection.id) }
                         }
                     )
                 ) {
@@ -185,16 +185,16 @@ struct StorageMenuRoot: View {
 
     private var headerTitle: String {
         switch liveScope {
-        case .pageType(let t): return t.title
-        case .pageCollection(let c): return c.title
+        case .pageCollection(let t): return t.title
+        case .pageSetCollection(let c): return c.title
         default: return "View Settings"
         }
     }
 
     private var headerIcon: String {
         switch liveScope {
-        case .pageType(let t): return t.icon ?? "folder"
-        case .pageCollection(let c): return c.icon ?? "folder"
+        case .pageCollection(let t): return t.icon ?? "folder"
+        case .pageSetCollection(let c): return c.icon ?? "folder"
         default: return "slider.horizontal.3"
         }
     }
@@ -203,15 +203,15 @@ struct StorageMenuRoot: View {
     /// icon + title update the instant an edit commits. The captured `scope` is a
     /// value snapshot — reading it never re-renders on a manager change; reading
     /// the managers here registers the observation dependency (mirrors the detail
-    /// views' `livePageType` / `liveCollection`). Falls back to the snapshot when
+    /// views' `livePageCollection` / `liveCollection`). Falls back to the snapshot when
     /// the entity isn't resolvable (e.g. mid-delete).
     private var liveScope: ViewSettingsScope {
         switch scope {
-        case .pageType(let t):
-            return .pageType(pageTypeManager.types.first(where: { $0.id == t.id }) ?? t)
-        case .pageCollection(let c):
-            return .pageCollection(
-                pageTypeManager.pageCollectionsByType[c.parentID]?.first(where: { $0.id == c.id }) ?? c)
+        case .pageCollection(let t):
+            return .pageCollection(collectionManager.types.first(where: { $0.id == t.id }) ?? t)
+        case .pageSetCollection(let c):
+            return .pageSetCollection(
+                collectionManager.pageCollectionsByType[c.parentID]?.first(where: { $0.id == c.id }) ?? c)
         default:
             return scope
         }
@@ -232,10 +232,10 @@ struct StorageMenuRoot: View {
 
     private func commitIcon(_ newIcon: String?) async {
         switch liveScope {
-        case .pageType(let t):
-            try? await pageTypeManager.updatePageTypeIcon(t, to: newIcon)
+        case .pageCollection(let t):
+            try? await collectionManager.updatePageCollectionIcon(t, to: newIcon)
         case .pageCollection(let c):
-            try? await pageTypeManager.updatePageCollectionIcon(c, to: newIcon)
+            try? await collectionManager.updatePageCollectionIcon(c, to: newIcon)
         default:
             break
         }
@@ -246,10 +246,10 @@ struct StorageMenuRoot: View {
         defer { isRenaming = false }
         guard !trimmed.isEmpty, trimmed != headerTitle else { return }
         switch liveScope {
-        case .pageType(let t):
-            try? await pageTypeManager.renamePageType(t, to: trimmed)
+        case .pageCollection(let t):
+            try? await collectionManager.renamePageCollection(t, to: trimmed)
         case .pageCollection(let c):
-            try? await pageTypeManager.renamePageCollection(c, to: trimmed)
+            try? await collectionManager.renamePageCollection(c, to: trimmed)
         default:
             break
         }
@@ -302,10 +302,10 @@ struct StorageMenuRoot: View {
 }
 
 #if DEBUG
-#Preview("Storage menu — PageType") {
+#Preview("Storage menu — PageCollection") {
     StorageMenuRoot(
-        scope: .pageType(
-            PageType(
+        scope: .pageCollection(
+            PageCollection(
                 id: "01HPT", title: "Notes", icon: "note.text",
                 properties: [], views: [], modifiedAt: Date()
             )

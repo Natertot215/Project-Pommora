@@ -1,10 +1,10 @@
 import Foundation
 
-/// The scope a view renders in. Vault scope (PageType detail) spans every
+/// The scope a view renders in. Vault scope (PageCollection detail) spans every
 /// Collection and its Sets; Collection scope (PageCollection detail) spans one
 /// Collection's Sets plus its loose root pages. Drives structural grouping shape.
 enum ViewScope: Equatable, Sendable {
-    case vault
+    case pageCollection
     case collection
 }
 

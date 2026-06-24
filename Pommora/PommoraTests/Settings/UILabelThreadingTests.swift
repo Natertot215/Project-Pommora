@@ -50,7 +50,7 @@ struct UILabelThreadingTests {
     // MARK: - Test 3: Default page-type label is "Vault"
 
     @Test("Default pageType label is Vault / Vaults")
-    func defaultPageTypeLabel() async throws {
+    func defaultPageCollectionLabel() async throws {
         let m = try await makeSettingsManager()
         #expect(m.settings.labels.pageType.singular == "Vault")
         #expect(m.settings.labels.pageType.plural   == "Vaults")

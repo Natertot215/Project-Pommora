@@ -15,7 +15,7 @@ enum PageValidator {
         tier1: [String], tier2: [String], tier3: [String],
         properties: [String: PropertyValue],
         createdAt: Date,
-        vault: PageType,
+        pageCollection: PageCollection,
         context: NexusContext
     ) throws(ValidationError) {
         _ = try FilenameSafety.validatedTitle(
@@ -38,7 +38,7 @@ enum PageValidator {
             throw ValidationError.tierMismatch(expectedTier: 3, id: id)
         }
 
-        let schemaByID = Dictionary(uniqueKeysWithValues: vault.properties.map { ($0.id, $0) })
+        let schemaByID = Dictionary(uniqueKeysWithValues: pageCollection.properties.map { ($0.id, $0) })
         for (propertyID, value) in properties {
             guard let def = schemaByID[propertyID] else {
                 throw ValidationError.unknownProperty(id: propertyID)

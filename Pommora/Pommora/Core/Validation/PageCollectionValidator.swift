@@ -9,8 +9,8 @@ enum PageCollectionValidator {
 
     static func validate(
         title: String,
-        existingInType: [PageSet],
-        excluding: PageSet? = nil
+        existing: [PageCollection],
+        excluding: PageCollection? = nil
     ) throws(ValidationError) {
         let trimmed = try FilenameSafety.validatedTitle(
             title,
@@ -18,7 +18,7 @@ enum PageCollectionValidator {
             invalidCharacters: ValidationError.invalidTitleCharacters)
 
         try NameCollisionValidator.validate(
-            desiredTitle: trimmed, siblings: existingInType, excludingID: excluding?.id,
+            desiredTitle: trimmed, siblings: existing, excludingID: excluding?.id,
             else: ValidationError.duplicateTitle)
     }
 }

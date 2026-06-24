@@ -17,12 +17,12 @@ enum SidebarSheet: Identifiable {
         case area(Area)
         case topic(Topic)
         case project(Project)
-        case pageType(PageType)
-        case pageCollection(PageSet)
+        case pageCollection(PageCollection)
+        case pageSetCollection(PageSet)
         case pageSet(PageSet)
-        case page(PageMeta, vault: PageType, collection: PageSet?, set: PageSet?)
-        /// A SavedView on a container (PageType or PageSet). Carries IDs
-        /// only — the icon write routes through `PageTypeManager.updateView`,
+        case page(PageMeta, pageCollection: PageCollection, collection: PageSet?, set: PageSet?)
+        /// A SavedView on a container (PageCollection or PageSet). Carries IDs
+        /// only — the icon write routes through `PageCollectionManager.updateView`,
         /// which resolves the container by ID across both kinds.
         case savedView(viewID: String, containerID: String)
     }
@@ -34,8 +34,8 @@ enum SidebarSheet: Identifiable {
             case .area(let s): return "editIcon-area-\(s.id)"
             case .topic(let t): return "editIcon-topic-\(t.id)"
             case .project(let p): return "editIcon-project-\(p.id)"
-            case .pageType(let t): return "editIcon-pageType-\(t.id)"
-            case .pageCollection(let c): return "editIcon-pageCollection-\(c.id)"
+            case .pageCollection(let t): return "editIcon-pageCollection-\(t.id)"
+            case .pageSetCollection(let c): return "editIcon-pageSetCollection-\(c.id)"
             case .pageSet(let s): return "editIcon-pageSet-\(s.id)"
             case .page(let p, _, _, _): return "editIcon-page-\(p.id)"
             case .savedView(let viewID, let containerID):

@@ -38,10 +38,10 @@ struct UnlinkTierTests {
         manager.indexUpdater = IndexUpdater(index)
 
         // Two Pages, both tagged tier1 == [areaA, areaB].
-        let p1 = try await manager.createPage(name: "Alpha", inVaultRoot: vault)
-        let p2 = try await manager.createPage(name: "Beta", inVaultRoot: vault)
-        try await setPageTier(manager, p1, tier: 1, ids: [areaA, areaB], vault: vault)
-        try await setPageTier(manager, p2, tier: 1, ids: [areaA, areaB], vault: vault)
+        let p1 = try await manager.createPage(name: "Alpha", inCollectionRoot: vault)
+        let p2 = try await manager.createPage(name: "Beta", inCollectionRoot: vault)
+        try await setPageTier(manager, p1, tier: 1, ids: [areaA, areaB], pageCollection: vault)
+        try await setPageTier(manager, p2, tier: 1, ids: [areaA, areaB], pageCollection: vault)
 
         // Sanity: the index sees both Pages as referencing areaA before the cascade.
         let before = try await IndexQuery(index).incomingContextLinks(targetID: areaA)
@@ -71,12 +71,12 @@ struct UnlinkTierTests {
         let (index, _) = try PommoraIndex.open(at: nexus.rootURL)
 
         let vault = try makeVault(in: nexus, index: index)
-        let coll = try makePageSet(in: nexus, vault: vault, index: index)
+        let coll = try makePageSet(in: nexus, pageCollection: vault, index: index)
         let manager = PageContentManager(nexus: nexus, contextProvider: { NexusContext.empty })
         manager.indexUpdater = IndexUpdater(index)
 
-        let page = try await manager.createPage(name: "Nested", in: coll, vault: vault)
-        try await setPageTier(manager, page, tier: 1, ids: [areaA], vault: vault, collection: coll)
+        let page = try await manager.createPage(name: "Nested", in: coll, pageCollection: vault)
+        try await setPageTier(manager, page, tier: 1, ids: [areaA], pageCollection: vault, collection: coll)
 
         try await manager.unlinkTier(contextID: areaA, tier: 1, index: index)
 
@@ -131,8 +131,8 @@ struct UnlinkTierTests {
         manager.indexUpdater = IndexUpdater(index)
 
         // Page references ONLY areaB.
-        let page = try await manager.createPage(name: "Untouched", inVaultRoot: vault)
-        try await setPageTier(manager, page, tier: 1, ids: [areaB], vault: vault)
+        let page = try await manager.createPage(name: "Untouched", inCollectionRoot: vault)
+        try await setPageTier(manager, page, tier: 1, ids: [areaB], pageCollection: vault)
 
         // Capture the file's modification timestamp + content before the cascade.
         let mtimeBefore = try modificationDate(of: page.url)
@@ -161,8 +161,8 @@ struct UnlinkTierTests {
         let manager = PageContentManager(nexus: nexus, contextProvider: { NexusContext.empty })
         manager.indexUpdater = IndexUpdater(index)
 
-        let page = try await manager.createPage(name: "Solo", inVaultRoot: vault)
-        try await setPageTier(manager, page, tier: 1, ids: [areaA], vault: vault)
+        let page = try await manager.createPage(name: "Solo", inCollectionRoot: vault)
+        try await setPageTier(manager, page, tier: 1, ids: [areaA], pageCollection: vault)
         let bytesBefore = try Data(contentsOf: page.url)
 
         // tier 4 has no `_tierN` mapping → ReservedPropertyID.tierPropertyID returns
@@ -175,25 +175,25 @@ struct UnlinkTierTests {
 
     // MARK: - Fixtures
 
-    /// PageType folder + sidecar on disk + page_types row in the index (FK parent
+    /// PageCollection folder + sidecar on disk + page_types row in the index (FK parent
     /// for subsequent `upsertPage`).
-    private func makeVault(in nexus: Nexus, index: PommoraIndex) throws -> PageType {
-        let vault = PageType(
+    private func makeVault(in nexus: Nexus, index: PommoraIndex) throws -> PageCollection {
+        let vault = PageCollection(
             id: ULID.generate(), title: "V", icon: nil,
             properties: [], views: [], modifiedAt: Date()
         )
         let folder = NexusPaths.vaultFolderURL(forTitle: "V", in: nexus)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         try vault.save(to: NexusPaths.vaultMetadataURL(forTitle: "V", in: nexus))
-        try IndexUpdater(index).upsertPageType(vault)
+        try IndexUpdater(index).upsertPageCollection(vault)
         return vault
     }
 
-    private func makePageSet(in nexus: Nexus, vault: PageType, index: PommoraIndex) throws -> PageSet {
-        let folder = NexusPaths.collectionFolderURL(forTitle: "C", inVaultTitled: vault.title, in: nexus)
+    private func makePageSet(in nexus: Nexus, pageCollection: PageCollection, index: PommoraIndex) throws -> PageSet {
+        let folder = NexusPaths.collectionFolderURL(forTitle: "C", inVaultTitled: pageCollection.title, in: nexus)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         let coll = PageSet(
-            id: ULID.generate(), parentID: vault.id, title: "C", folderURL: folder, modifiedAt: Date()
+            id: ULID.generate(), parentID: pageCollection.id, title: "C", folderURL: folder, modifiedAt: Date()
         )
         try coll.save(to: folder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename))
         try IndexUpdater(index).upsertPageCollection(coll)
@@ -204,11 +204,11 @@ struct UnlinkTierTests {
     /// (`updatePageProperty` → `setRelationIDs` adapter + index re-upsert).
     private func setPageTier(
         _ manager: PageContentManager, _ page: PageMeta, tier: Int, ids: [String],
-        vault: PageType, collection: PageSet? = nil
+        pageCollection: PageCollection, collection: PageSet? = nil
     ) async throws {
         let propID = ReservedPropertyID.tierPropertyID(forTier: tier)!
         try await manager.updatePageProperty(
-            page, propertyID: propID, newValue: .relation(ids), vault: vault, collection: collection
+            page, propertyID: propID, newValue: .relation(ids), pageCollection: pageCollection, collection: collection
         )
     }
 

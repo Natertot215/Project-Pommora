@@ -48,9 +48,9 @@ struct IndexUpdater: Sendable {
         return str
     }
 
-    // MARK: - PageType
+    // MARK: - PageCollection
 
-    func upsertPageType(_ pt: PageType) throws {
+    func upsertPageCollection(_ pt: PageCollection) throws {
         try index.dbQueue.write { db in
             try db.execute(
                 sql: """
@@ -66,7 +66,7 @@ struct IndexUpdater: Sendable {
         }
     }
 
-    func deletePageType(id: String) throws {
+    func deletePageCollection(id: String) throws {
         try index.dbQueue.write { db in
             try db.execute(
                 sql: "DELETE FROM page_types WHERE id = ?",
@@ -75,7 +75,7 @@ struct IndexUpdater: Sendable {
         }
     }
 
-    // MARK: - PageCollection (depth-1 set — parent is a PageType)
+    // MARK: - PageCollection (depth-1 set — parent is a PageCollection)
 
     /// Upserts a depth-1 `PageSet` (formerly called a Collection) into `page_sets`
     /// with `parent_type_id = pc.parentID`. The vestigial `page_collections` table
@@ -97,7 +97,7 @@ struct IndexUpdater: Sendable {
         }
     }
 
-    func deletePageCollection(id: String) throws {
+    func deletePageSetCollection(id: String) throws {
         try index.dbQueue.write { db in
             try db.execute(
                 sql: "DELETE FROM page_sets WHERE id = ?",

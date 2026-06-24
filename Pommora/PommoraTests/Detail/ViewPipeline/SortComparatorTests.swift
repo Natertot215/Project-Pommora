@@ -67,13 +67,13 @@ struct SortComparatorTests {
                 id: "p1", title: "P1",
                 createdAt: VPFixture.date("2000-01-01T00:00:00Z"),
                 modifiedAt: VPFixture.date("2030-01-01T00:00:00Z")),
-            parent: .collection(coll, vault: VPFixture.vault()), setLabel: nil)
+            parent: .collection(coll, pageCollection: VPFixture.vault()), setLabel: nil)
         let p2 = ViewItem(
             page: VPFixture.meta(
                 id: "p2", title: "P2",
                 createdAt: VPFixture.date("2010-01-01T00:00:00Z"),
                 modifiedAt: nil),
-            parent: .collection(coll, vault: VPFixture.vault()), setLabel: nil)
+            parent: .collection(coll, pageCollection: VPFixture.vault()), setLabel: nil)
         #expect(order([p1, p2], for: crit("_modified_at", .ascending)) == ["p2", "p1"])
         #expect(order([p1, p2], for: crit("_modified_at", .descending)) == ["p1", "p2"])
     }

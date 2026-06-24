@@ -41,14 +41,14 @@ struct IndexParentUpsertCascadeTests {
 
     // MARK: - Tests
 
-    @Test func reUpsertPageTypePreservesChildPages() async throws {
+    @Test func reUpsertPageCollectionPreservesChildPages() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
         let idx = try Fixtures.index(at: nexus)
         let updater = IndexUpdater(idx)
 
-        let pt = Fixtures.pageType()
-        try updater.upsertPageType(pt)
+        let pt = Fixtures.pageCollection()
+        try updater.upsertPageCollection(pt)
         try updater.upsertPage(Fixtures.pageMeta(title: "Page One"), pageTypeID: pt.id, pageCollectionID: nil)
         try updater.upsertPage(Fixtures.pageMeta(title: "Page Two"), pageTypeID: pt.id, pageCollectionID: nil)
 
@@ -56,7 +56,7 @@ struct IndexParentUpsertCascadeTests {
         #expect(pagesBefore == 2)
 
         // Re-upsert the SAME page type — simulating loadAll's defensive re-sync.
-        try updater.upsertPageType(pt)
+        try updater.upsertPageCollection(pt)
 
         let pagesAfter = try count("pages", in: idx)
         let typesAfter = try count("page_types", in: idx)
@@ -70,9 +70,9 @@ struct IndexParentUpsertCascadeTests {
         let idx = try Fixtures.index(at: nexus)
         let updater = IndexUpdater(idx)
 
-        let pt = Fixtures.pageType()
-        try updater.upsertPageType(pt)
-        let pc = Fixtures.pageCollection(parentID: pt.id)
+        let pt = Fixtures.pageCollection()
+        try updater.upsertPageCollection(pt)
+        let pc = Fixtures.pageSetCollection(parentID: pt.id)
         try updater.upsertPageCollection(pc)
 
         let pageMeta = Fixtures.pageMeta(title: "Filed Page")

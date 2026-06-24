@@ -12,7 +12,7 @@ import SwiftUI  // for Array.move(fromOffsets:toOffset:) used by reorderPages
 /// PageMeta = lightweight tracking value (no body in memory); full PageFile is
 /// loaded on demand by the editor (post-v0.2).
 ///
-/// All CRUD methods take the parent `PageType` because Page validation needs
+/// All CRUD methods take the parent `PageCollection` because Page validation needs
 /// the Type's property schema. Validation runs before every write.
 ///
 /// CRUD methods are split into `PageContentManager+CRUD.swift` for legibility —
@@ -27,7 +27,7 @@ final class PageContentManager {
     /// into the dictionaries by index.
     var pagesByCollection: [String: [PageMeta]] = [:]
     /// Page-Type-root Pages (directly inside the Type folder, NOT in a PageCollection)
-    /// keyed by PageType.id.
+    /// keyed by PageCollection.id.
     var pagesByTypeRoot: [String: [PageMeta]] = [:]
     /// PageSet-scoped Pages keyed by PageSet.id.
     var pagesBySet: [String: [PageMeta]] = [:]
@@ -77,8 +77,8 @@ final class PageContentManager {
         pagesByCollection[collection.id] ?? []
     }
 
-    func pages(in pageType: PageType) -> [PageMeta] {
-        pagesByTypeRoot[pageType.id] ?? []
+    func pages(in pageCollection: PageCollection) -> [PageMeta] {
+        pagesByTypeRoot[pageCollection.id] ?? []
     }
 
     func pages(in set: PageSet) -> [PageMeta] {
@@ -87,7 +87,7 @@ final class PageContentManager {
 
     // MARK: - Resolvers
 
-    /// Find the PageType (and optionally PageCollection + PageSet) that a
+    /// Find the PageCollection (and optionally PageCollection + PageSet) that a
     /// `PageMeta` lives in. Works regardless of whether the vault's pages have
     /// been loaded into the sidebar.
     ///
@@ -97,27 +97,27 @@ final class PageContentManager {
     /// `pageSetManager` is optional for call sites that don't care about Set
     /// membership; without it `set` resolves nil even for Set pages.
     func resolveParent(
-        for page: PageMeta, pageTypeManager: PageTypeManager, pageSetManager: PageSetManager? = nil
+        for page: PageMeta, collectionManager: PageCollectionManager, pageSetManager: PageSetManager? = nil
     )
-        -> (vault: PageType, collection: PageSet?, set: PageSet?)?
+        -> (pageCollection: PageCollection, collection: PageSet?, set: PageSet?)?
     {
         if let index = indexUpdater?.index,
             let result = resolveParentFromIndex(
-                pageID: page.id, pageTypeManager: pageTypeManager,
+                pageID: page.id, collectionManager: collectionManager,
                 pageSetManager: pageSetManager, index: index)
         {
             return result
         }
         return resolveParentByURL(
-            page.url, pageTypeManager: pageTypeManager, pageSetManager: pageSetManager)
+            page.url, collectionManager: collectionManager, pageSetManager: pageSetManager)
     }
 
     /// Index-based parent resolution: queries page_type_id / page_collection_id /
     /// page_set_id directly, then matches them to the in-memory objects.
     private func resolveParentFromIndex(
-        pageID: String, pageTypeManager: PageTypeManager, pageSetManager: PageSetManager?,
+        pageID: String, collectionManager: PageCollectionManager, pageSetManager: PageSetManager?,
         index: PommoraIndex
-    ) -> (vault: PageType, collection: PageSet?, set: PageSet?)? {
+    ) -> (pageCollection: PageCollection, collection: PageSet?, set: PageSet?)? {
         guard
             let row = try? index.dbQueue.read({ db in
                 try Row.fetchOne(
@@ -128,10 +128,10 @@ final class PageContentManager {
         let typeID: String = row["page_type_id"]
         let collectionID: String? = row["page_collection_id"]
         let setID: String? = row["page_set_id"]
-        guard let vault = pageTypeManager.types.first(where: { $0.id == typeID })
+        guard let vault = collectionManager.types.first(where: { $0.id == typeID })
         else { return nil }
         if let collID = collectionID,
-            let coll = pageTypeManager.pageCollections(in: vault).first(where: { $0.id == collID })
+            let coll = collectionManager.pageCollections(in: vault).first(where: { $0.id == collID })
         {
             let set = setID.flatMap { sid in
                 pageSetManager?.pageSets(in: coll).first { $0.id == sid }
@@ -141,28 +141,28 @@ final class PageContentManager {
         return (vault, nil, nil)
     }
 
-    /// URL-based fallback when no index is available. All PageTypes are loaded at
+    /// URL-based fallback when no index is available. All PageCollections are loaded at
     /// launch so folder-path prefix matching is always complete. Walks the Set
     /// hierarchy recursively so pages nested at arbitrary depth resolve correctly.
     private func resolveParentByURL(
-        _ pageURL: URL, pageTypeManager: PageTypeManager, pageSetManager: PageSetManager?
-    ) -> (vault: PageType, collection: PageSet?, set: PageSet?)? {
+        _ pageURL: URL, collectionManager: PageCollectionManager, pageSetManager: PageSetManager?
+    ) -> (pageCollection: PageCollection, collection: PageSet?, set: PageSet?)? {
         let canonical = pageURL.standardizedFileURL.path
-        for pageType in pageTypeManager.types {
-            let vaultPath = folderURL(for: pageType).standardizedFileURL.path + "/"
+        for pageCollection in collectionManager.types {
+            let vaultPath = folderURL(for: pageCollection).standardizedFileURL.path + "/"
             guard canonical.hasPrefix(vaultPath) else { continue }
-            for collection in pageTypeManager.pageCollections(in: pageType) {
+            for collection in collectionManager.pageCollections(in: pageCollection) {
                 let collPath = collection.folderURL.standardizedFileURL.path + "/"
                 guard canonical.hasPrefix(collPath) else { continue }
                 if let pageSetManager,
                     let deepSet = deepestSet(
                         under: collection, canonical: canonical, sets: pageSetManager)
                 {
-                    return (pageType, collection, deepSet)
+                    return (pageCollection, collection, deepSet)
                 }
-                return (pageType, collection, nil)
+                return (pageCollection, collection, nil)
             }
-            return (pageType, nil, nil)
+            return (pageCollection, nil, nil)
         }
         return nil
     }
@@ -183,12 +183,12 @@ final class PageContentManager {
 
     // MARK: - Path helpers (Page-Type-root)
 
-    /// PageType.folderURL isn't a stored property — it's always derived from the
+    /// PageCollection.folderURL isn't a stored property — it's always derived from the
     /// nexus root + the Type's title. Centralized here so every Type-root
     /// CRUD path uses the same derivation. Internal so the +CRUD extension
     /// can call it across the file boundary.
-    func folderURL(for pageType: PageType) -> URL {
-        NexusPaths.vaultFolderURL(forTitle: pageType.title, in: nexus)
+    func folderURL(for pageCollection: PageCollection) -> URL {
+        NexusPaths.vaultFolderURL(forTitle: pageCollection.title, in: nexus)
     }
 
     // MARK: - Load (PageCollection-scoped)
@@ -304,12 +304,12 @@ final class PageContentManager {
     ///
     /// Pages use the lenient loader so adopted Markdown surfaces even when
     /// it predates Pommora frontmatter.
-    func loadAll(for pageType: PageType) async {
-        let folder = folderURL(for: pageType)
+    func loadAll(for pageCollection: PageCollection) async {
+        let folder = folderURL(for: pageCollection)
         let nexusRoot = nexus.rootURL
         // Discover PageCollection sub-folders by sidecar presence so we exclude
         // their subtrees from the Type-root walk — their files load via
-        // `loadAll(for: collection)`, not here. Avoids needing a PageTypeManager
+        // `loadAll(for: collection)`, not here. Avoids needing a PageCollectionManager
         // handle inside PageContentManager.
         let allSubs = (try? Filesystem.childFolders(of: folder)) ?? []
         let collectionFolders = allSubs.filter { sub in
@@ -336,22 +336,22 @@ final class PageContentManager {
             }
             // `page_order` can drift from the passed snapshot when a sibling
             // drag-reorder wrote it straight to disk (reorderPages → OrderPersister)
-            // without updating the in-memory PageType. Re-read the sidecar so a
+            // without updating the in-memory PageCollection. Re-read the sidecar so a
             // re-entry resolve reflects the persisted order instead of reverting to
             // the stale snapshot. Files are canonical.
             let freshOrder = Self.freshPageOrder(
                 from: folder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename),
-                as: PageType.self, fallback: pageType.pageOrder)
+                as: PageCollection.self, fallback: pageCollection.pageOrder)
             let pageMetas = OrderResolver.resolve(
                 unsortedPages,
                 persistedOrder: freshOrder,
                 titleKeyPath: \PageMeta.title
             )
 
-            pagesByTypeRoot[pageType.id] = pageMetas
+            pagesByTypeRoot[pageCollection.id] = pageMetas
             pendingError = nil
         } catch {
-            pagesByTypeRoot[pageType.id] = []
+            pagesByTypeRoot[pageCollection.id] = []
             pendingError = error
         }
     }
@@ -412,17 +412,17 @@ final class PageContentManager {
     /// Reorders Pages at the root of `pageType`. New ID order persists to the
     /// Page Type's `_pagetype.json` sidecar.
     func reorderPages(
-        inVault pageType: PageType,
+        inVaultRoot pageCollection: PageCollection,
         fromOffsets source: IndexSet,
         toOffset destination: Int
     ) {
-        var arr = pagesByTypeRoot[pageType.id] ?? []
+        var arr = pagesByTypeRoot[pageCollection.id] ?? []
         let before = arr
         arr.move(fromOffsets: source, toOffset: destination)
         guard arr != before else { return }
-        pagesByTypeRoot[pageType.id] = arr
+        pagesByTypeRoot[pageCollection.id] = arr
         do {
-            try OrderPersister.setPageOrder(arr.map(\.id), inVault: pageType, nexus: nexus)
+            try OrderPersister.setPageOrder(arr.map(\.id), inVaultRoot: pageCollection, nexus: nexus)
         } catch {
             self.pendingError = error
         }
@@ -499,7 +499,7 @@ final class PageContentManager {
         switch parent {
         case .collection(let coll, _): return pagesByCollection[coll.id] ?? []
         case .set(let set, _, _): return pagesBySet[set.id] ?? []
-        case .vaultRoot(let type): return pagesByTypeRoot[type.id] ?? []
+        case .collectionRoot(let type): return pagesByTypeRoot[type.id] ?? []
         }
     }
 
@@ -513,9 +513,9 @@ final class PageContentManager {
             case .set(let set, _, _):
                 pagesBySet[set.id] = pages
                 try OrderPersister.setPageOrder(pages.map(\.id), in: set)
-            case .vaultRoot(let type):
+            case .collectionRoot(let type):
                 pagesByTypeRoot[type.id] = pages
-                try OrderPersister.setPageOrder(pages.map(\.id), inVault: type, nexus: nexus)
+                try OrderPersister.setPageOrder(pages.map(\.id), inVaultRoot: type, nexus: nexus)
             }
         } catch {
             self.pendingError = error

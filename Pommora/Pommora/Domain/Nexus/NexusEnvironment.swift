@@ -50,7 +50,7 @@ final class NexusEnvironment {
     let areaManager: AreaManager
     let topicManager: TopicManager
     let projectManager: ProjectManager
-    let vaultManager: PageTypeManager
+    let collectionManager: PageCollectionManager
     let pageSetManager: PageSetManager
     let contentManager: PageContentManager
     let agendaTaskManager: AgendaTaskManager
@@ -91,7 +91,7 @@ final class NexusEnvironment {
     init(nexus: Nexus, nexusManager: NexusManager) {
         let areaMgr = AreaManager(nexus: nexus)
         let projectMgr = ProjectManager(nexus: nexus)
-        let vaultMgr = PageTypeManager(nexus: nexus)
+        let vaultMgr = PageCollectionManager(nexus: nexus)
         let pageSetMgr = PageSetManager(nexus: nexus)
 
         // Wire cross-manager references so delegation and URL rebuilds work.
@@ -165,7 +165,7 @@ final class NexusEnvironment {
         self.areaManager = areaMgr
         self.topicManager = topicMgr
         self.projectManager = projectMgr
-        self.vaultManager = vaultMgr
+        self.collectionManager = vaultMgr
         self.pageSetManager = pageSetMgr
         self.contentManager = contentMgr
         self.agendaTaskManager = agendaTaskMgr
@@ -186,7 +186,7 @@ final class NexusEnvironment {
         // them without restructuring the ContentView dependency graph.
         AppGlobals.publish(
             contentManager: contentMgr,
-            pageTypeManager: vaultMgr,
+            collectionManager: vaultMgr,
             areaManager: areaMgr,
             topicManager: topicMgr,
             recentsManager: recentsMgr,
@@ -221,8 +221,8 @@ final class NexusEnvironment {
     /// Vault loads first (PageSet discovery needs its Collections); the rest run
     /// in parallel.
     func reloadAllManagers(filter: FolderFilter) async {
-        await vaultManager.loadAll(filter: filter)
-        await pageSetManager.loadAll(types: vaultManager.types, filter: filter)
+        await collectionManager.loadAll(filter: filter)
+        await pageSetManager.loadAll(types: collectionManager.types, filter: filter)
         async let areas: Void = areaManager.loadAll()
         async let topics: Void = topicManager.loadAll()
         async let projects: Void = projectManager.loadAll()
@@ -285,7 +285,7 @@ extension View {
             .environment(env.areaManager)
             .environment(env.topicManager)
             .environment(env.projectManager)
-            .environment(env.vaultManager)
+            .environment(env.collectionManager)
             .environment(env.pageSetManager)
             .environment(env.contentManager)
             .environment(env.agendaTaskManager)

@@ -7,7 +7,7 @@ import SwiftUI
 /// `.editProperty(propertyID:)` so the user lands in the configuration
 /// editor immediately after creation.
 ///
-/// Commits via PageTypeManager addProperty. Schema lives on the Type
+/// Commits via PageCollectionManager addProperty. Schema lives on the Type
 /// (Collections inherit), so Collection-scope adds route to the parent
 /// Type's manager.
 ///
@@ -21,7 +21,7 @@ struct PropertyTypePickerPane: View {
     let scope: ViewSettingsScope
     @Binding var path: [ViewSettingsRoute]
 
-    @Environment(PageTypeManager.self) private var pageTypeManager
+    @Environment(PageCollectionManager.self) private var collectionManager
 
     @State private var selected: PropertyType?
     @State private var commitError: String?
@@ -59,7 +59,7 @@ struct PropertyTypePickerPane: View {
             // Shared mint + seed + commit path (`PropertyCreation`) — also
             // used by the inspector's Add Property affordance.
             definition = try await PropertyCreation.commitDefault(
-                type, toTypeID: typeID, manager: pageTypeManager)
+                type, toTypeID: typeID, manager: collectionManager)
         } catch {
             commitError = PropertyEditorErrorMessage.string(for: error)
             return

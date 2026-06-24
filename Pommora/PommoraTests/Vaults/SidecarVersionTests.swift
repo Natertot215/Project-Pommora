@@ -3,7 +3,7 @@ import Testing
 @testable import Pommora
 
 /// Verifies the EC2 `schema_version` forward-compat field on the non-Agenda
-/// sidecars (PageType, PageSet). PageType is stamped `2`
+/// sidecars (PageCollection, PageSet). PageCollection is stamped `2`
 /// (Relations-redesign re-migration bump); PageSet stays on `1` (no
 /// schema change). Legacy sidecars still decode missing versions as `0`.
 /// AgendaTaskSchema + AgendaEventSchema were already on `schemaVersion: 1`
@@ -11,10 +11,10 @@ import Testing
 /// here; their existing tests already cover round-trip.
 @Suite("SidecarVersion") struct SidecarVersionTests {
 
-    // MARK: - PageType
+    // MARK: - PageCollection
 
     @Test func pageTypeFreshDefaultsToSchemaVersion2() throws {
-        let pt = PageType(
+        let pt = PageCollection(
             id: "01HP", title: "X", icon: nil,
             properties: [], views: [], modifiedAt: Date()
         )
@@ -22,7 +22,7 @@ import Testing
     }
 
     @Test func pageTypeEncodesSchemaVersionKey() throws {
-        let pt = PageType(
+        let pt = PageCollection(
             id: "01HP", title: "X", icon: nil,
             properties: [], views: [], modifiedAt: Date()
         )
@@ -43,7 +43,7 @@ import Testing
         """#.data(using: .utf8)!
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
-        let pt = try decoder.decode(PageType.self, from: json)
+        let pt = try decoder.decode(PageCollection.self, from: json)
         #expect(pt.schemaVersion == 0)
     }
 
@@ -74,13 +74,13 @@ import Testing
     // MARK: - Round-trip preserves version
 
     @Test func pageTypeRoundTripPreservesSchemaVersion() throws {
-        var pt = PageType(
+        var pt = PageCollection(
             id: "01HP", title: "X", icon: nil,
             properties: [], views: [], modifiedAt: Date()
         )
         pt.schemaVersion = 5  // future version
         let data = try AtomicJSON.encode(pt)
-        let decoded = try AtomicJSON.decode(PageType.self, from: writeToTemp(data: data))
+        let decoded = try AtomicJSON.decode(PageCollection.self, from: writeToTemp(data: data))
         #expect(decoded.schemaVersion == 5)
     }
 

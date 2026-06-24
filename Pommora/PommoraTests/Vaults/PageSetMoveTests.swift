@@ -24,7 +24,7 @@ struct PageSetMoveTests {
         let (index, _) = try PommoraIndex.open(at: nexus.rootURL)
         let updater = IndexUpdater(index)
 
-        let vault = try makePageType(nexus: nexus, title: "Notes", index: index)
+        let vault = try makePageCollection(nexus: nexus, title: "Notes", index: index)
         let source = try makePageCollection(nexus: nexus, title: "Inbox", in: vault, index: index)
         let dest = try makePageCollection(nexus: nexus, title: "Archive", in: vault, index: index)
         let set = try makePageSet(title: "Drafts", in: source, index: index)
@@ -46,7 +46,7 @@ struct PageSetMoveTests {
 
         let loadedSet = try #require(setManager.pageSets(in: source).first)
         try await setManager.moveSet(
-            loadedSet, to: dest, destinationVault: vault, sourceVault: vault,
+            loadedSet, to: dest, destinationPageCollection: vault, sourcePageCollection: vault,
             contentManager: contentManager)
 
         // Folder relocated on disk.
@@ -95,7 +95,7 @@ struct PageSetMoveTests {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
 
-        let vault = try makePageType(nexus: nexus, title: "Notes")
+        let vault = try makePageCollection(nexus: nexus, title: "Notes")
         let source = try makePageCollection(nexus: nexus, title: "Inbox", in: vault)
         let dest = try makePageCollection(nexus: nexus, title: "Archive", in: vault)
         let set = try makePageSet(title: "Drafts", in: source)
@@ -110,7 +110,7 @@ struct PageSetMoveTests {
         let loadedSet = try #require(setManager.pageSets(in: source).first)
         await #expect(throws: PageSetValidator.ValidationError.duplicateTitle) {
             try await setManager.moveSet(
-                loadedSet, to: dest, destinationVault: vault, sourceVault: vault,
+                loadedSet, to: dest, destinationPageCollection: vault, sourcePageCollection: vault,
                 contentManager: contentManager)
         }
 
@@ -137,9 +137,9 @@ struct PageSetMoveTests {
         let onlyA = PropertyDefinition(id: "prop_only_a", name: "Status", type: .status)
         let sharedA = PropertyDefinition(id: "prop_shared_a", name: "Priority", type: .select)
         let sharedB = PropertyDefinition(id: "prop_shared_b", name: "Priority", type: .select)
-        let vaultA = try makePageType(
+        let vaultA = try makePageCollection(
             nexus: nexus, title: "VaultA", properties: [onlyA, sharedA], index: index)
-        let vaultB = try makePageType(
+        let vaultB = try makePageCollection(
             nexus: nexus, title: "VaultB", properties: [sharedB], index: index)
         let collA = try makePageCollection(nexus: nexus, title: "CollA", in: vaultA, index: index)
         let collB = try makePageCollection(nexus: nexus, title: "CollB", in: vaultB, index: index)
@@ -165,7 +165,7 @@ struct PageSetMoveTests {
         #expect(total == 2)
 
         try await setManager.moveSet(
-            loadedSet, to: collB, destinationVault: vaultB, sourceVault: vaultA,
+            loadedSet, to: collB, destinationPageCollection: vaultB, sourcePageCollection: vaultA,
             contentManager: contentManager)
 
         // Stripped on disk; the name-shared value survived.
@@ -199,8 +199,8 @@ struct PageSetMoveTests {
         // Same property NAME on both vaults — nothing to strip.
         let propA = PropertyDefinition(id: "prop_a", name: "Priority", type: .select)
         let propB = PropertyDefinition(id: "prop_b", name: "Priority", type: .select)
-        let vaultA = try makePageType(nexus: nexus, title: "VaultA", properties: [propA])
-        let vaultB = try makePageType(nexus: nexus, title: "VaultB", properties: [propB])
+        let vaultA = try makePageCollection(nexus: nexus, title: "VaultA", properties: [propA])
+        let vaultB = try makePageCollection(nexus: nexus, title: "VaultB", properties: [propB])
         let collA = try makePageCollection(nexus: nexus, title: "CollA", in: vaultA)
         let collB = try makePageCollection(nexus: nexus, title: "CollB", in: vaultB)
         let set = try makePageSet(title: "Drafts", in: collA)
@@ -218,7 +218,7 @@ struct PageSetMoveTests {
         #expect(total == 0)
 
         try await setManager.moveSet(
-            loadedSet, to: collB, destinationVault: vaultB, sourceVault: vaultA,
+            loadedSet, to: collB, destinationPageCollection: vaultB, sourcePageCollection: vaultA,
             contentManager: contentManager)
 
         let newFolder = collB.folderURL.appendingPathComponent("Drafts", isDirectory: true)
@@ -231,20 +231,20 @@ struct PageSetMoveTests {
     // MARK: - Fixtures (mirror PageSetContentTests)
 
     @discardableResult
-    private func makePageType(
+    private func makePageCollection(
         nexus: Nexus,
         title: String,
         properties: [PropertyDefinition] = [],
         index: PommoraIndex? = nil
-    ) throws -> PageType {
-        let vault = PageType(
+    ) throws -> PageCollection {
+        let vault = PageCollection(
             id: ULID.generate(), title: title, icon: nil,
             properties: properties, views: [], modifiedAt: Date()
         )
         let folderURL = NexusPaths.vaultFolderURL(forTitle: title, in: nexus)
         try FileManager.default.createDirectory(at: folderURL, withIntermediateDirectories: true)
         try vault.save(to: NexusPaths.vaultMetadataURL(forTitle: title, in: nexus))
-        if let index { try IndexUpdater(index).upsertPageType(vault) }
+        if let index { try IndexUpdater(index).upsertPageCollection(vault) }
         return vault
     }
 
@@ -252,15 +252,15 @@ struct PageSetMoveTests {
     private func makePageCollection(
         nexus: Nexus,
         title: String,
-        in vault: PageType,
+        in pageCollection: PageCollection,
         index: PommoraIndex? = nil
     ) throws -> PageSet {
         let folderURL = NexusPaths.collectionFolderURL(
-            forTitle: title, inVaultTitled: vault.title, in: nexus
+            forTitle: title, inVaultTitled: pageCollection.title, in: nexus
         )
         try FileManager.default.createDirectory(at: folderURL, withIntermediateDirectories: true)
         let coll = PageSet(
-            id: ULID.generate(), parentID: vault.id, title: title,
+            id: ULID.generate(), parentID: pageCollection.id, title: title,
             folderURL: folderURL, modifiedAt: Date()
         )
         try coll.save(to: folderURL.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename))

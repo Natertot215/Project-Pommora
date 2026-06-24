@@ -4,8 +4,8 @@ import Foundation
 /// (`ResolvedGroup.swift`, the grouping-shape enum) — this one carries the live
 /// container values the source needs to walk the caches and stamp parents.
 enum ViewItemScope {
-    case vault(PageType)
-    case collection(PageSet, vault: PageType)
+    case pageCollection(PageCollection)
+    case collection(PageSet, pageCollection: PageCollection)
 }
 
 /// Builds the `[ViewItem]` currency the custom table + gallery consume, reading
@@ -22,37 +22,37 @@ enum ViewItemSource {
         for scope: ViewItemScope,
         content: PageContentManager,
         sets: PageSetManager,
-        collections: (PageType) -> [PageSet]
+        collections: (PageCollection) -> [PageSet]
     ) -> [ViewItem] {
         switch scope {
-        case .vault(let vault):
-            return vaultItems(vault, content: content, sets: sets, collections: collections)
-        case .collection(let collection, let vault):
-            return collectionItems(collection, vault: vault, content: content, sets: sets)
+        case .pageCollection(let pageCollection):
+            return vaultItems(pageCollection, content: content, sets: sets, collections: collections)
+        case .collection(let collection, let pageCollection):
+            return collectionItems(collection, pageCollection: pageCollection, content: content, sets: sets)
         }
     }
 
     // MARK: - Vault scope
 
     private static func vaultItems(
-        _ vault: PageType,
+        _ pageCollection: PageCollection,
         content: PageContentManager,
         sets: PageSetManager,
-        collections: (PageType) -> [PageSet]
+        collections: (PageCollection) -> [PageSet]
     ) -> [ViewItem] {
         var items: [ViewItem] = []
 
         // Type-root pages — no collection, no set, no chip label.
-        items += content.pages(in: vault).map { page in
-            ViewItem(page: page, parent: .vaultRoot(vault), setLabel: nil)
+        items += content.pages(in: pageCollection).map { page in
+            ViewItem(page: page, parent: .collectionRoot(pageCollection), setLabel: nil)
         }
 
         // Each collection: its loose pages, then each of its sets' pages.
-        for collection in collections(vault) {
+        for collection in collections(pageCollection) {
             items += content.pages(inCollection: collection).map { page in
                 ViewItem(
                     page: page,
-                    parent: .collection(collection, vault: vault),
+                    parent: .collection(collection, pageCollection: pageCollection),
                     setLabel: nil
                 )
             }
@@ -60,7 +60,7 @@ enum ViewItemSource {
                 items += content.pages(in: set).map { page in
                     ViewItem(
                         page: page,
-                        parent: .set(set, collection: collection, vault: vault),
+                        parent: .set(set, collection: collection, pageCollection: pageCollection),
                         setLabel: set.title
                     )
                 }
@@ -73,7 +73,7 @@ enum ViewItemSource {
 
     private static func collectionItems(
         _ collection: PageSet,
-        vault: PageType,
+        pageCollection: PageCollection,
         content: PageContentManager,
         sets: PageSetManager
     ) -> [ViewItem] {
@@ -83,7 +83,7 @@ enum ViewItemSource {
         items += content.pages(inCollection: collection).map { page in
             ViewItem(
                 page: page,
-                parent: .collection(collection, vault: vault),
+                parent: .collection(collection, pageCollection: pageCollection),
                 setLabel: nil
             )
         }
@@ -92,7 +92,7 @@ enum ViewItemSource {
         // parent Set (used by GroupResolver to reconstruct the nesting).
         appendSetItems(
             from: sets.pageSets(in: collection),
-            collection: collection, vault: vault,
+            collection: collection, pageCollection: pageCollection,
             content: content, sets: sets, into: &items
         )
         return items
@@ -105,7 +105,7 @@ enum ViewItemSource {
     private static func appendSetItems(
         from children: [PageSet],
         collection: PageSet,
-        vault: PageType,
+        pageCollection: PageCollection,
         content: PageContentManager,
         sets: PageSetManager,
         into items: inout [ViewItem]
@@ -114,19 +114,19 @@ enum ViewItemSource {
             let pages = content.pages(in: set)
             let childSets = sets.pageSets(in: set)
             if pages.isEmpty && !childSets.isEmpty {
-                items.append(structuralAnchor(for: set, collection: collection, vault: vault))
+                items.append(structuralAnchor(for: set, collection: collection, pageCollection: pageCollection))
             } else {
                 items += pages.map { page in
                     ViewItem(
                         page: page,
-                        parent: .set(set, collection: collection, vault: vault),
+                        parent: .set(set, collection: collection, pageCollection: pageCollection),
                         setLabel: nil
                     )
                 }
             }
             appendSetItems(
                 from: childSets,
-                collection: collection, vault: vault,
+                collection: collection, pageCollection: pageCollection,
                 content: content, sets: sets, into: &items
             )
         }
@@ -137,7 +137,7 @@ enum ViewItemSource {
     /// with real pages. GroupResolver skips it from rendered items but uses its
     /// parent to register the Set in the tree.
     private static func structuralAnchor(
-        for set: PageSet, collection: PageSet, vault: PageType
+        for set: PageSet, collection: PageSet, pageCollection: PageCollection
     ) -> ViewItem {
         let phantomID = "_anchor_\(set.id)"
         let meta = PageMeta(
@@ -151,7 +151,7 @@ enum ViewItemSource {
         )
         return ViewItem(
             page: meta,
-            parent: .set(set, collection: collection, vault: vault),
+            parent: .set(set, collection: collection, pageCollection: pageCollection),
             setLabel: nil,
             isStructuralAnchor: true
         )

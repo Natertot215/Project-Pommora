@@ -5,7 +5,7 @@ import Foundation
 /// operational layer (introduced Phase 5).
 ///
 /// On disk: `<nexus>/<Title>/_pagetype.json` (folder name = title; no title on disk).
-struct PageType: Codable, Equatable, Identifiable, Hashable, Sendable {
+struct PageCollection: Codable, Equatable, Identifiable, Hashable, Sendable {
     var id: String  // ULID
     var title: String  // derived from folder name
     var icon: String?  // SF Symbol name
@@ -103,29 +103,29 @@ struct PageType: Codable, Equatable, Identifiable, Hashable, Sendable {
     }
 }
 
-extension PageType {
-    static func load(from metadataURL: URL) throws -> PageType {
-        var t = try AtomicJSON.decode(PageType.self, from: metadataURL)
+extension PageCollection {
+    static func load(from metadataURL: URL) throws -> PageCollection {
+        var t = try AtomicJSON.decode(PageCollection.self, from: metadataURL)
         t.title = metadataURL.deletingLastPathComponent().lastPathComponent
         return t
     }
 
-    /// Finds the PageType whose `id` matches `id` by walking the Nexus root —
-    /// the same flat-layout discovery `loadAll` / `IndexBuilder.collectPageTypes`
+    /// Finds the PageCollection whose `id` matches `id` by walking the Nexus root —
+    /// the same flat-layout discovery `loadAll` / `IndexBuilder.collectPageCollections`
     /// use (root child folders, skip `.`/`_` prefixes, require `_pagetype.json`).
     /// Returns nil if no folder carries a matching sidecar. Used for relation
     /// target resolution where the target lives outside the calling manager's
     /// in-memory `types`.
-    static func find(id: String, in nexus: Nexus) -> PageType? {
+    static func find(id: String, in nexus: Nexus) -> PageCollection? {
         let topLevel = (try? Filesystem.childFolders(of: nexus.rootURL)) ?? []
         for folder in topLevel
         where !folder.lastPathComponent.hasPrefix(".") && !folder.lastPathComponent.hasPrefix("_") {
             let metaURL = folder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename)
             guard Filesystem.fileExists(at: metaURL),
-                let pageType = try? PageType.load(from: metaURL),
-                pageType.id == id
+                let pc = try? PageCollection.load(from: metaURL),
+                pc.id == id
             else { continue }
-            return pageType
+            return pc
         }
         return nil
     }

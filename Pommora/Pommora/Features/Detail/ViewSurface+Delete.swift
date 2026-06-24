@@ -23,7 +23,7 @@ extension ViewSurface {
         case .single(let coll):
             Button("Delete", role: .destructive) {
                 Task {
-                    do { try await pageTypeManager.deletePageCollection(coll) } catch {}
+                    do { try await collectionManager.deletePageCollection(coll) } catch {}
                     deleteTarget = nil
                 }
             }
@@ -64,8 +64,8 @@ extension ViewSurface {
                 try await contentManager.deletePage(item.page, inCollection: coll)
             case .set(let set, _, _):
                 try await contentManager.deletePage(item.page, in: set)
-            case .vaultRoot(let t):
-                try await contentManager.deletePage(item.page, inVaultRoot: t)
+            case .collectionRoot(let t):
+                try await contentManager.deletePage(item.page, inCollectionRoot: t)
             }
         } catch {
             // pendingError set by manager; toast surfaces.

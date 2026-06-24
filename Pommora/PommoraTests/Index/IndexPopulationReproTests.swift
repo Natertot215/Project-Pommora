@@ -53,16 +53,16 @@ struct IndexPopulationReproTests {
         defer { TempNexus.cleanup(nexus) }
         let (index, _) = try PommoraIndex.open(at: nexus.rootURL)
 
-        // --- Seed a VALID Vault (PageType) at the nexus root, via save(to:). ---
+        // --- Seed a VALID Vault (PageCollection) at the nexus root, via save(to:). ---
         let vaultID = ULID.generate()
         let vaultName = "Notes"
         let vaultFolder = NexusPaths.vaultFolderURL(forTitle: vaultName, in: nexus)
         try FileManager.default.createDirectory(at: vaultFolder, withIntermediateDirectories: true)
-        let pageType = PageType(
+        let pc = PageCollection(
             id: vaultID, title: vaultName, icon: nil,
             properties: [], views: [], modifiedAt: Date()
         )
-        try pageType.save(to: vaultFolder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename))
+        try pc.save(to: vaultFolder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename))
 
         // --- Seed a VALID Page Collection inside the Vault. ---
         let collID = ULID.generate()
@@ -103,12 +103,12 @@ struct IndexPopulationReproTests {
 
         // --- Construct all managers sharing ONE IndexUpdater over the fresh index. ---
         // Injection mirrors LoadAllIndexSyncTests (`manager.indexUpdater = IndexUpdater(index)`).
-        let pageTypeManager = PageTypeManager(nexus: nexus)
-        pageTypeManager.indexUpdater = IndexUpdater(index)
+        let collectionManager = PageCollectionManager(nexus: nexus)
+        collectionManager.indexUpdater = IndexUpdater(index)
         let pageSetManager = PageSetManager(nexus: nexus)
         pageSetManager.indexUpdater = IndexUpdater(index)
-        pageSetManager.pageTypeProvider = { [weak pageTypeManager] in pageTypeManager?.types ?? [] }
-        pageTypeManager.pageSetManager = pageSetManager
+        pageSetManager.pageTypeProvider = { [weak collectionManager] in collectionManager?.types ?? [] }
+        collectionManager.pageSetManager = pageSetManager
         let pageContentManager = PageContentManager(nexus: nexus, contextProvider: { NexusContext.empty })
         pageContentManager.indexUpdater = IndexUpdater(index)
         let areaManager = AreaManager(nexus: nexus)
@@ -117,11 +117,11 @@ struct IndexPopulationReproTests {
         topicManager.indexUpdater = IndexUpdater(index)
 
         // --- Run loadAll in the order the app does. ---
-        await pageTypeManager.loadAll()
-        await pageSetManager.loadAll(types: pageTypeManager.types)
-        let loadedVault = try #require(pageTypeManager.types.first { $0.id == vaultID })
+        await collectionManager.loadAll()
+        await pageSetManager.loadAll(types: collectionManager.types)
+        let loadedVault = try #require(collectionManager.types.first { $0.id == vaultID })
         let loadedCollection = try #require(
-            pageTypeManager.pageCollections(in: loadedVault).first { $0.id == collID }
+            collectionManager.pageCollections(in: loadedVault).first { $0.id == collID }
         )
         await pageContentManager.loadAll(for: loadedVault)
         await pageContentManager.loadAll(forCollection: loadedCollection)
@@ -147,7 +147,7 @@ struct IndexPopulationReproTests {
             loadedPage,
             propertyID: ReservedPropertyID.tier1,
             newValue: .relation([areaID]),
-            vault: loadedVault,
+            pageCollection: loadedVault,
             collection: loadedCollection
         )
         // updatePageProperty swallows an index FK failure onto pendingError
@@ -161,7 +161,7 @@ struct IndexPopulationReproTests {
     /// Reproduces the FK error via decode-skip. A Page Collection whose
     /// `_pagecollection.json` OMITS the required `id` field
     /// (`PageSet.init(from:)` → `c.decode(String.self, forKey: .id)`,
-    /// non-optional) makes `PageSet.load` throw, so PageTypeManager's
+    /// non-optional) makes `PageSet.load` throw, so PageCollectionManager's
     /// `try?` skips it — it never lands in `page_collections`. A child Page
     /// upsert that still carries that Collection's id hits the
     /// `pages.page_collection_id` FK; Task 8 Bug B makes that NON-fatal — the page
@@ -176,16 +176,16 @@ struct IndexPopulationReproTests {
         let vaultName = "Notes"
         let vaultFolder = NexusPaths.vaultFolderURL(forTitle: vaultName, in: nexus)
         try FileManager.default.createDirectory(at: vaultFolder, withIntermediateDirectories: true)
-        let pageType = PageType(
+        let pc = PageCollection(
             id: vaultID, title: vaultName, icon: nil,
             properties: [], views: [], modifiedAt: Date()
         )
-        try pageType.save(to: vaultFolder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename))
+        try pc.save(to: vaultFolder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename))
 
         // --- MALFORMED Page Collection: the `_pagecollection.json` EXISTS (so
         // PageContentManager's Type-root walk excludes this folder — exclusion
         // keys on sidecar PRESENCE, not decodability) but OMITS the required
-        // `id` field, so `PageSet.load` throws and PageTypeManager's
+        // `id` field, so `PageSet.load` throws and PageCollectionManager's
         // `try?` skips it. We pin a known collection id so the orphaned child
         // page can reference it directly in the upsert below. ---
         let orphanCollID = ULID.generate()
@@ -214,24 +214,24 @@ struct IndexPopulationReproTests {
         try PageFile(frontmatter: pageFrontmatter, body: "# Orphan\n").save(to: pageURL)
 
         // --- Wire + load. ---
-        let pageTypeManager = PageTypeManager(nexus: nexus)
-        pageTypeManager.indexUpdater = IndexUpdater(index)
+        let collectionManager = PageCollectionManager(nexus: nexus)
+        collectionManager.indexUpdater = IndexUpdater(index)
         let pageSetManager = PageSetManager(nexus: nexus)
         pageSetManager.indexUpdater = IndexUpdater(index)
-        pageSetManager.pageTypeProvider = { [weak pageTypeManager] in pageTypeManager?.types ?? [] }
-        pageTypeManager.pageSetManager = pageSetManager
+        pageSetManager.pageTypeProvider = { [weak collectionManager] in collectionManager?.types ?? [] }
+        collectionManager.pageSetManager = pageSetManager
         let pageContentManager = PageContentManager(nexus: nexus, contextProvider: { NexusContext.empty })
         pageContentManager.indexUpdater = IndexUpdater(index)
 
-        await pageTypeManager.loadAll()
-        await pageSetManager.loadAll(types: pageTypeManager.types)
-        let loadedVault = try #require(pageTypeManager.types.first { $0.id == vaultID })
+        await collectionManager.loadAll()
+        await pageSetManager.loadAll(types: collectionManager.types)
+        let loadedVault = try #require(collectionManager.types.first { $0.id == vaultID })
         await pageContentManager.loadAll(for: loadedVault)
         await pageContentManager.loadAll(for: loadedVault)  // harmless idempotent re-run; no Collection to load
 
         // --- ASSERT: the malformed Collection is ABSENT from the in-memory
         // load AND from the `page_sets` index table (v15: depth-1 sets land there). ---
-        #expect(pageTypeManager.pageCollections(in: loadedVault).isEmpty)
+        #expect(collectionManager.pageCollections(in: loadedVault).isEmpty)
         let collRowCount = try await index.dbQueue.read { db in
             try Int.fetchOne(
                 db, sql: "SELECT COUNT(*) FROM page_sets WHERE id = ?", arguments: [orphanCollID]
@@ -244,7 +244,7 @@ struct IndexPopulationReproTests {
         // (FOREIGN KEY constraint failed). Call IndexUpdater.upsertPage
         // directly — updatePageProperty swallows the index error onto
         // pendingError rather than rethrowing. The Vault itself IS in the index
-        // (PageTypeManager.loadAll synced it), so the violation is isolated to
+        // (PageCollectionManager.loadAll synced it), so the violation is isolated to
         // the page_collection_id FK. ---
         let orphanMeta = PageMeta(
             id: pageID, title: "Orphan", url: pageURL, frontmatter: pageFrontmatter

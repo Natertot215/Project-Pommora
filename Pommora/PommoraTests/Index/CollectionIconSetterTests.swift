@@ -22,23 +22,23 @@ struct CollectionIconSetterTests {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
 
-        // Build a PageType + PageSet via normal CRUD so
+        // Build a PageCollection + PageSet via normal CRUD so
         // pageCollectionsByType is populated and the sidecar exists on disk.
-        let manager = PageTypeManager(nexus: nexus)
+        let manager = PageCollectionManager(nexus: nexus)
         let setManager = PageSetManager(nexus: nexus)
         setManager.pageTypeProvider = { [weak manager] in manager?.types ?? [] }
         manager.pageSetManager = setManager
         await manager.loadAll()
-        try await manager.createPageType(name: "Notes", icon: nil)
-        let pageType = manager.types.first!
-        try await manager.createPageCollection(name: "Daily", inPageType: pageType)
-        let collection = manager.pageCollections(in: pageType).first!
+        try await manager.createPageCollection(name: "Notes", icon: nil)
+        let pageCollection = manager.types.first!
+        try await manager.createPageCollection(name: "Daily", inPageCollection: pageCollection)
+        let collection = manager.pageCollections(in: pageCollection).first!
 
         // Act — stub is a no-op; real body lands in the GREEN step.
         try await manager.updatePageCollectionIcon(collection, to: "star.fill")
 
         // --- In-memory assertion ---
-        let inMemory = manager.pageCollections(in: pageType).first { $0.id == collection.id }
+        let inMemory = manager.pageCollections(in: pageCollection).first { $0.id == collection.id }
         #expect(inMemory?.icon == "star.fill")
 
         // --- On-disk assertion: reload sidecar directly ---

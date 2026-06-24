@@ -9,7 +9,7 @@ struct SidebarDetailView: View {
     /// collection or vault view so the user can tap back to it.
     @State private var pageTrail: PageMeta? = nil
 
-    @Environment(PageTypeManager.self) private var vaultManager
+    @Environment(PageCollectionManager.self) private var collectionManager
     @Environment(PageContentManager.self) private var contentManager
     @Environment(AreaManager.self) private var areaManager
     @Environment(TopicManager.self) private var topicManager
@@ -60,9 +60,9 @@ struct SidebarDetailView: View {
                     onIconChange: { try? await projectManager.updateIcon(p, to: $0) }
                 )
 
-            case .pageType(let t):
-                PageTypeDetailView(
-                    pageType: t,
+            case .pageCollection(let t):
+                PageCollectionDetailView(
+                    pageCollection: t,
                     selection: $selection,
                     presentedSheet: $presentedSheet,
                     editingID: $editingID,
@@ -71,12 +71,12 @@ struct SidebarDetailView: View {
                 )
 
             case .collection(let c):
-                // We need the parent Vault here too. Find it via PageTypeManager
+                // We need the parent Vault here too. Find it via PageCollectionManager
                 // (primary: typeID match; fallback: parent-folder-name match).
                 if let v = lookupVault(forCollection: c) {
-                    PageCollectionDetailView(
+                    PageSetCollectionDetailView(
                         collection: c,
-                        vault: v,
+                        pageCollection: v,
                         selection: $selection,
                         presentedSheet: $presentedSheet,
                         editingID: $editingID,
@@ -97,10 +97,10 @@ struct SidebarDetailView: View {
                         Text("Parent folder name: \(c.folderURL.deletingLastPathComponent().lastPathComponent)")
                             .font(.caption.monospaced())
                             .foregroundStyle(.secondary)
-                        Text("Known vault IDs (\(vaultManager.types.count)):")
+                        Text("Known vault IDs (\(collectionManager.types.count)):")
                             .font(.caption)
                             .foregroundStyle(.secondary)
-                        ForEach(vaultManager.types, id: \.id) { vt in
+                        ForEach(collectionManager.types, id: \.id) { vt in
                             Text("  \(vt.title): \(vt.id)")
                                 .font(.caption.monospaced())
                                 .foregroundStyle(.secondary)
@@ -117,7 +117,7 @@ struct SidebarDetailView: View {
             switch newSel {
             case .page(let p):
                 pageTrail = p
-            case .collection, .pageType:
+            case .collection, .pageCollection:
                 // Keep trail — child views validate membership before rendering
                 // the ghost crumb; irrelevant pages are silently skipped.
                 break
@@ -132,24 +132,24 @@ struct SidebarDetailView: View {
         }
     }
 
-    /// Find the PageType that owns this PageCollection.
+    /// Find the PageCollection that owns this PageCollection.
     ///
     /// Primary: match by `typeID` (the relationship stored on disk in
     /// `_pagecollection.json`).
     ///
     /// Fallback: match by parent folder name. PageCollection sub-folders sit
-    /// directly inside their owning PageType's folder, so `c.folderURL`'s
-    /// parent is the PageType folder. This rescues users whose pre-flatlayout
+    /// directly inside their owning PageCollection's folder, so `c.folderURL`'s
+    /// parent is the PageCollection folder. This rescues users whose pre-flatlayout
     /// `_collection.json` carried a `vault_id` that no longer matches any
-    /// current PageType id (e.g. ID was regenerated during a re-init, or
-    /// the user manually rebuilt the PageType while keeping the Collection
+    /// current PageCollection id (e.g. ID was regenerated during a re-init, or
+    /// the user manually rebuilt the PageCollection while keeping the Collection
     /// folder intact).
-    private func lookupVault(forCollection c: PageSet) -> PageType? {
-        if let v = vaultManager.types.first(where: { $0.id == c.parentID }) {
+    private func lookupVault(forCollection c: PageSet) -> PageCollection? {
+        if let v = collectionManager.types.first(where: { $0.id == c.parentID }) {
             return v
         }
         let parentFolderName = c.folderURL.deletingLastPathComponent().lastPathComponent
-        return vaultManager.types.first { $0.title == parentFolderName }
+        return collectionManager.types.first { $0.title == parentFolderName }
     }
 
     private var emptyState: some View {

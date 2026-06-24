@@ -14,7 +14,7 @@ struct PageSetSidebarTests {
 
     private struct Fixture {
         let nexus: Nexus
-        let typeManager: PageTypeManager
+        let typeManager: PageCollectionManager
         let setManager: PageSetManager
         let collection: PageSet
     }
@@ -22,15 +22,15 @@ struct PageSetSidebarTests {
     /// Vault "Notes" + Collection "Inbox" via CRUD; both managers loaded.
     private func makeFixture() async throws -> Fixture {
         let nexus = try TempNexus.make()
-        let typeManager = PageTypeManager(nexus: nexus)
+        let typeManager = PageCollectionManager(nexus: nexus)
         let setManager = PageSetManager(nexus: nexus)
         setManager.pageTypeProvider = { [weak typeManager] in typeManager?.types ?? [] }
         typeManager.pageSetManager = setManager
         await typeManager.loadAll()
-        try await typeManager.createPageType(name: "Notes", icon: nil)
-        let pageType = typeManager.types.first!
-        try await typeManager.createPageCollection(name: "Inbox", inPageType: pageType)
-        let collection = typeManager.pageCollections(in: pageType).first!
+        try await typeManager.createPageCollection(name: "Notes", icon: nil)
+        let pageCollection = typeManager.types.first!
+        try await typeManager.createPageCollection(name: "Inbox", inPageCollection: pageCollection)
+        let collection = typeManager.pageCollections(in: pageCollection).first!
         await setManager.loadAll(types: typeManager.types)
         return Fixture(
             nexus: nexus, typeManager: typeManager, setManager: setManager,

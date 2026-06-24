@@ -80,7 +80,7 @@ enum GroupResolver {
         collapsed: Set<String>
     ) -> [ResolvedGroup] {
         switch scope {
-        case .vault: return structuralVault(items, sorter: sorter, collapsed: collapsed)
+        case .pageCollection: return structuralPageCollection(items, sorter: sorter, collapsed: collapsed)
         case .collection:
             return structuralCollection(items, sorter: sorter, collapsed: collapsed)
         }
@@ -89,7 +89,7 @@ enum GroupResolver {
     /// VAULT scope: group by Collection; that Collection's Sets nest as `children`.
     /// Pages not in any Set sit in the Collection group's own `items`. Pages at the
     /// vault root (no Collection) collect in a trailing ungrouped band.
-    private static func structuralVault(
+    private static func structuralPageCollection(
         _ items: [ViewItem],
         sorter: ViewSortComparator.GroupSorter?,
         collapsed: Set<String>
@@ -104,7 +104,7 @@ enum GroupResolver {
 
         for item in items {
             switch item.parent {
-            case .vaultRoot:
+            case .collectionRoot:
                 if !item.isStructuralAnchor { rootItems.append(item) }
             case .collection(let coll, _):
                 register(coll, &collectionOrder, &collections)

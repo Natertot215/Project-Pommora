@@ -19,7 +19,7 @@ struct IconPickerSheet: View {
     @Environment(AreaManager.self) private var areaManager
     @Environment(TopicManager.self) private var topicManager
     @Environment(ProjectManager.self) private var projectManager
-    @Environment(PageTypeManager.self) private var vaultManager
+    @Environment(PageCollectionManager.self) private var collectionManager
     @Environment(PageSetManager.self) private var pageSetManager
     @Environment(PageContentManager.self) private var pageContentManager
 
@@ -51,8 +51,8 @@ struct IconPickerSheet: View {
         case .area(let s): return s.icon
         case .topic(let t): return t.icon
         case .project(let p): return p.icon
-        case .pageType(let t): return t.icon
-        case .pageCollection(let c): return c.icon
+        case .pageCollection(let t): return t.icon
+        case .pageSetCollection(let c): return c.icon
         case .pageSet(let s): return s.icon
         case .page(let p, _, _, _): return p.frontmatter.icon
         case .savedView(let viewID, let containerID):
@@ -61,10 +61,10 @@ struct IconPickerSheet: View {
     }
 
     /// Resolves a SavedView live off the manager by container + view ID via
-    /// `PageTypeManager.views(in:)` — the single source for the dual-container
-    /// (PageType + PageCollection) view lookup.
+    /// `PageCollectionManager.views(in:)` — the single source for the dual-container
+    /// (PageCollection + PageCollection) view lookup.
     private func resolveSavedView(viewID: String, in containerID: String) -> SavedView? {
-        vaultManager.views(in: containerID).first(where: { $0.id == viewID })
+        collectionManager.views(in: containerID).first(where: { $0.id == viewID })
     }
 
     /// Runs a manager update, swallowing the thrown error: each manager sets its
@@ -82,20 +82,20 @@ struct IconPickerSheet: View {
             await attempt { try await topicManager.updateIcon(t, to: newIcon) }
         case .project(let p):
             await attempt { try await projectManager.updateIcon(p, to: newIcon) }
-        case .pageType(let t):
-            await attempt { try await vaultManager.updatePageTypeIcon(t, to: newIcon) }
-        case .pageCollection(let c):
-            await attempt { try await vaultManager.updatePageCollectionIcon(c, to: newIcon) }
+        case .pageCollection(let t):
+            await attempt { try await collectionManager.updatePageCollectionIcon(t, to: newIcon) }
+        case .pageSetCollection(let c):
+            await attempt { try await collectionManager.updatePageCollectionIcon(c, to: newIcon) }
         case .pageSet(let s):
             await attempt { try await pageSetManager.updatePageSetIcon(s, to: newIcon) }
-        case .page(let p, let vault, let collection, let set):
+        case .page(let p, let pageCollection, let collection, let set):
             await attempt {
                 try await pageContentManager.updatePageIcon(
-                    p, to: newIcon, vault: vault, collection: collection, set: set)
+                    p, to: newIcon, pageCollection: pageCollection, collection: collection, set: set)
             }
         case .savedView(let viewID, let containerID):
             await attempt {
-                try await vaultManager.updateView(viewID, in: containerID) { $0.icon = newIcon }
+                try await collectionManager.updateView(viewID, in: containerID) { $0.icon = newIcon }
             }
         }
     }

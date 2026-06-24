@@ -4,14 +4,14 @@ import Testing
 @testable import Pommora
 
 @MainActor
-@Suite("PageTypeManager")
-struct PageTypeManagerTests {
+@Suite("PageCollectionManager")
+struct PageCollectionManagerTests {
 
-    /// Builds a PageTypeManager with its PageSetManager wired (the sole owner of
+    /// Builds a PageCollectionManager with its PageSetManager wired (the sole owner of
     /// Collection storage/CRUD), loaded against `nexus`. Mirrors production wiring.
     @discardableResult
-    private func makeManager(nexus: Nexus) async -> PageTypeManager {
-        let manager = PageTypeManager(nexus: nexus)
+    private func makeManager(nexus: Nexus) async -> PageCollectionManager {
+        let manager = PageCollectionManager(nexus: nexus)
         let setManager = PageSetManager(nexus: nexus)
         setManager.pageTypeProvider = { [weak manager] in manager?.types ?? [] }
         manager.pageSetManager = setManager
@@ -20,13 +20,13 @@ struct PageTypeManagerTests {
         return manager
     }
 
-    @Test("createPageType writes folder + _pagetype.json")
-    func createPageType() async throws {
+    @Test("createPageCollection writes folder + _pagetype.json")
+    func createPageCollection() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
         let manager = await makeManager(nexus: nexus)
 
-        try await manager.createPageType(name: "Planner", icon: "folder")
+        try await manager.createPageCollection(name: "Planner", icon: "folder")
         let folder = NexusPaths.vaultFolderURL(forTitle: "Planner", in: nexus)
         let meta = NexusPaths.vaultMetadataURL(forTitle: "Planner", in: nexus)
         #expect(FileManager.default.fileExists(atPath: folder.path))
@@ -35,62 +35,62 @@ struct PageTypeManagerTests {
         #expect(manager.types.first?.title == "Planner")
     }
 
-    @Test("createPageSet creates folder inside PageType")
+    @Test("createPageSet creates folder inside PageCollection")
     func createPageSet() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
         let manager = await makeManager(nexus: nexus)
 
-        try await manager.createPageType(name: "Planner", icon: nil)
-        let pageType = manager.types.first!
-        try await manager.createPageCollection(name: "Tasks", inPageType: pageType)
+        try await manager.createPageCollection(name: "Planner", icon: nil)
+        let pageCollection = manager.types.first!
+        try await manager.createPageCollection(name: "Tasks", inPageCollection: pageCollection)
 
         let folder = NexusPaths.collectionFolderURL(
             forTitle: "Tasks", inVaultTitled: "Planner", in: nexus
         )
         #expect(FileManager.default.fileExists(atPath: folder.path))
-        let cols = manager.pageCollections(in: pageType)
+        let cols = manager.pageCollections(in: pageCollection)
         #expect(cols.count == 1)
         #expect(cols.first?.title == "Tasks")
     }
 
-    @Test("renamePageType renames folder + updates collection paths")
-    func renamePageType() async throws {
+    @Test("renamePageCollection renames folder + updates collection paths")
+    func renamePageCollection() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
         let manager = await makeManager(nexus: nexus)
 
-        try await manager.createPageType(name: "Planner", icon: nil)
-        let pageType = manager.types.first!
-        try await manager.createPageCollection(name: "Tasks", inPageType: pageType)
+        try await manager.createPageCollection(name: "Planner", icon: nil)
+        let pageCollection = manager.types.first!
+        try await manager.createPageCollection(name: "Tasks", inPageCollection: pageCollection)
 
-        try await manager.renamePageType(pageType, to: "Schedule")
+        try await manager.renamePageCollection(pageCollection, to: "Schedule")
         let newFolder = NexusPaths.vaultFolderURL(forTitle: "Schedule", in: nexus)
         #expect(FileManager.default.fileExists(atPath: newFolder.path))
-        // PageSet still present under new PageType folder
+        // PageSet still present under new PageCollection folder
         let renamedType = manager.types.first!
         let cols = manager.pageCollections(in: renamedType)
         #expect(cols.count == 1)
         #expect(cols.first?.title == "Tasks")
     }
 
-    @Test("deletePageType removes folder + collections")
-    func deletePageType() async throws {
+    @Test("deletePageCollection removes folder + collections")
+    func deletePageCollection() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
         let manager = await makeManager(nexus: nexus)
 
-        try await manager.createPageType(name: "Planner", icon: nil)
-        let pageType = manager.types.first!
-        try await manager.createPageCollection(name: "Tasks", inPageType: pageType)
+        try await manager.createPageCollection(name: "Planner", icon: nil)
+        let pageCollection = manager.types.first!
+        try await manager.createPageCollection(name: "Tasks", inPageCollection: pageCollection)
 
-        try await manager.deletePageType(pageType)
+        try await manager.deletePageCollection(pageCollection)
         let folder = NexusPaths.vaultFolderURL(forTitle: "Planner", in: nexus)
         #expect(!FileManager.default.fileExists(atPath: folder.path))
         #expect(manager.types.isEmpty)
 
         // Folder now in .trash, preserving relative path under nexus root
-        // (flatlayout: PageType folder lives directly at the nexus root).
+        // (flatlayout: PageCollection folder lives directly at the nexus root).
         let trashFolder = NexusPaths.trashDir(in: nexus).appendingPathComponent("Planner")
         #expect(FileManager.default.fileExists(atPath: trashFolder.path))
     }
@@ -99,7 +99,7 @@ struct PageTypeManagerTests {
     func skipCosmeticFolders() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
-        // Cosmetic folder at the nexus root that ISN'T a PageType (no
+        // Cosmetic folder at the nexus root that ISN'T a PageCollection (no
         // `_pagetype.json` sidecar). Discovery filters by sidecar presence, so
         // it never resolves into the loaded types.
         try FileManager.default.createDirectory(
@@ -115,17 +115,17 @@ struct PageTypeManagerTests {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
         let manager = await makeManager(nexus: nexus)
-        try await manager.createPageType(name: "Planner", icon: nil)
-        let pageType = manager.types.first!
-        try await manager.createPageCollection(name: "Tasks", inPageType: pageType)
-        let coll = manager.pageCollections(in: pageType).first!
+        try await manager.createPageCollection(name: "Planner", icon: nil)
+        let pageCollection = manager.types.first!
+        try await manager.createPageCollection(name: "Tasks", inPageCollection: pageCollection)
+        let coll = manager.pageCollections(in: pageCollection).first!
 
         try await manager.renamePageCollection(coll, to: "To-dos")
         let newFolder = NexusPaths.collectionFolderURL(
             forTitle: "To-dos", inVaultTitled: "Planner", in: nexus
         )
         #expect(FileManager.default.fileExists(atPath: newFolder.path))
-        #expect(manager.pageCollections(in: pageType).first?.title == "To-dos")
+        #expect(manager.pageCollections(in: pageCollection).first?.title == "To-dos")
     }
 
     @Test("renamePageSet preserves icon (cache + disk)")
@@ -133,18 +133,18 @@ struct PageTypeManagerTests {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
         let manager = await makeManager(nexus: nexus)
-        try await manager.createPageType(name: "Planner", icon: nil)
-        let pageType = manager.types.first!
-        try await manager.createPageCollection(name: "Tasks", inPageType: pageType)
-        let coll = manager.pageCollections(in: pageType).first!
+        try await manager.createPageCollection(name: "Planner", icon: nil)
+        let pageCollection = manager.types.first!
+        try await manager.createPageCollection(name: "Tasks", inPageCollection: pageCollection)
+        let coll = manager.pageCollections(in: pageCollection).first!
 
         try await manager.updatePageCollectionIcon(coll, to: "doc")
-        let withIcon = manager.pageCollections(in: pageType).first!
+        let withIcon = manager.pageCollections(in: pageCollection).first!
         #expect(withIcon.icon == "doc")
 
         // Rename must NOT reset the icon.
         try await manager.renamePageCollection(withIcon, to: "To-dos")
-        let renamed = manager.pageCollections(in: pageType).first!
+        let renamed = manager.pageCollections(in: pageCollection).first!
         #expect(renamed.title == "To-dos")
         #expect(renamed.icon == "doc")
 
@@ -160,17 +160,17 @@ struct PageTypeManagerTests {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
         let manager = await makeManager(nexus: nexus)
-        try await manager.createPageType(name: "Planner", icon: nil)
-        let pageType = manager.types.first!
-        try await manager.createPageCollection(name: "Tasks", inPageType: pageType)
-        let coll = manager.pageCollections(in: pageType).first!
+        try await manager.createPageCollection(name: "Planner", icon: nil)
+        let pageCollection = manager.types.first!
+        try await manager.createPageCollection(name: "Tasks", inPageCollection: pageCollection)
+        let coll = manager.pageCollections(in: pageCollection).first!
 
         try await manager.deletePageCollection(coll)
         let folder = NexusPaths.collectionFolderURL(
             forTitle: "Tasks", inVaultTitled: "Planner", in: nexus
         )
         #expect(!FileManager.default.fileExists(atPath: folder.path))
-        #expect(manager.pageCollections(in: pageType).isEmpty)
+        #expect(manager.pageCollections(in: pageCollection).isEmpty)
 
         // Folder now in .trash, preserving relative path under nexus root
         // (flatlayout: PageSet folder lives inside <nexus>/<Type>/).
@@ -184,22 +184,22 @@ struct PageTypeManagerTests {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
         let manager = await makeManager(nexus: nexus)
-        try await manager.createPageType(name: "Planner", icon: nil)
-        let pageType = manager.types.first!
-        try await manager.createPageCollection(name: "Alpha", inPageType: pageType)
-        try await manager.createPageCollection(name: "Beta", inPageType: pageType)
+        try await manager.createPageCollection(name: "Planner", icon: nil)
+        let pageCollection = manager.types.first!
+        try await manager.createPageCollection(name: "Alpha", inPageCollection: pageCollection)
+        try await manager.createPageCollection(name: "Beta", inPageCollection: pageCollection)
 
         // Capture whatever order the manager has settled on before the reorder.
         // Under the creation-order default the order is ULID-ascending, which
         // is non-deterministic when both ULIDs are generated within the same
         // millisecond. We therefore assert the DELTA (a specific item moved to
         // front) rather than hard-coding absolute positions.
-        let before = manager.pageCollections(in: pageType)
+        let before = manager.pageCollections(in: pageCollection)
         #expect(before.count == 2)
         let movedTitle = before[1].title  // the item we are about to move to front
 
-        manager.reorderPageCollections(in: pageType, fromOffsets: IndexSet(integer: 1), toOffset: 0)
-        let after = manager.pageCollections(in: pageType).map(\.title)
+        manager.reorderPageCollections(in: pageCollection, fromOffsets: IndexSet(integer: 1), toOffset: 0)
+        let after = manager.pageCollections(in: pageCollection).map(\.title)
 
         #expect(after != before.map(\.title))
         #expect(after.first == movedTitle)
@@ -211,11 +211,11 @@ struct PageTypeManagerTests {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
         let manager = await makeManager(nexus: nexus)
-        try await manager.createPageType(name: "Planner", icon: nil)
+        try await manager.createPageCollection(name: "Planner", icon: nil)
         let vault = manager.types.first!
         #expect(vault.openIn == nil)  // absent on fresh sidecars
 
-        try await manager.setOpenIn(.compact, forVault: vault.id)
+        try await manager.setOpenIn(.compact, forPageCollection: vault.id)
         #expect(manager.types.first?.openIn == .compact)
 
         // The sidecar carries the raw value under the snake_case key.
@@ -229,9 +229,9 @@ struct PageTypeManagerTests {
         #expect(reloaded.types.first?.openIn == .compact)
 
         // Flipping back persists too — on disk, not just in memory.
-        try await manager.setOpenIn(.window, forVault: vault.id)
+        try await manager.setOpenIn(.window, forPageCollection: vault.id)
         #expect(manager.types.first?.openIn == .window)
-        let flipped = PageTypeManager(nexus: nexus)
+        let flipped = PageCollectionManager(nexus: nexus)
         await flipped.loadAll()
         #expect(flipped.types.first?.openIn == .window)
     }

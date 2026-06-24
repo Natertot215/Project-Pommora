@@ -2,7 +2,7 @@ import Foundation
 
 /// Anything that occupies a filename slot inside a container (operational
 /// entities — PageMeta, AgendaTask, AgendaEvent — and the organizational
-/// entities + containers — Area, Topic, PageType, PageCollection). All
+/// entities + containers — Area, Topic, PageCollection, PageCollection). All
 /// expose `id` (rename-safe identity) + `title` (the filename / folder stem).
 /// Conformance is free — every type already carries these fields, so the
 /// same-title collision rule lives in one place for all.
@@ -21,7 +21,7 @@ extension AgendaEvent: NameCollisionCandidate {}
 // its collision check adds a parent-scope dimension this validator doesn't model.
 extension Area: NameCollisionCandidate {}
 extension Topic: NameCollisionCandidate {}
-extension PageType: NameCollisionCandidate {}
+extension PageCollection: NameCollisionCandidate {}
 extension PageSet: NameCollisionCandidate {}
 
 // MARK: - Title ordering

@@ -18,7 +18,7 @@ struct ContentSniffTests {
     // MARK: - markdown children → Page Type
 
     @Test("sidecar-less folder with .md children classifies as Page Type")
-    func markdownChildrenArePageType() throws {
+    func markdownChildrenArePageCollection() throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
         let folder = nexus.rootURL.appendingPathComponent("Journal", isDirectory: true)
@@ -27,13 +27,13 @@ struct ContentSniffTests {
 
         let plan = try NexusAdopter.scan(nexusRoot: nexus.rootURL)
         #expect(plan.freshSidecars.count == 1)
-        #expect(plan.freshSidecars.first?.kind == .pageType)
+        #expect(plan.freshSidecars.first?.kind == .pageCollection)
     }
 
     // MARK: - empty folder → Page Type (default)
 
     @Test("empty sidecar-less folder defaults to Page Type")
-    func emptyFolderDefaultsToPageType() throws {
+    func emptyFolderDefaultsToPageCollection() throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
         let folder = nexus.rootURL.appendingPathComponent("Notes", isDirectory: true)
@@ -41,7 +41,7 @@ struct ContentSniffTests {
 
         let plan = try NexusAdopter.scan(nexusRoot: nexus.rootURL)
         #expect(plan.freshSidecars.count == 1)
-        #expect(plan.freshSidecars.first?.kind == .pageType)
+        #expect(plan.freshSidecars.first?.kind == .pageCollection)
     }
 
     // MARK: - the behavior change: .json children → Page Type (NOT Item Type)
@@ -62,13 +62,13 @@ struct ContentSniffTests {
 
         let plan = try NexusAdopter.scan(nexusRoot: nexus.rootURL)
         #expect(plan.freshSidecars.count == 1)
-        #expect(plan.freshSidecars.first?.kind == .pageType)
+        #expect(plan.freshSidecars.first?.kind == .pageCollection)
     }
 
-    // MARK: - auto-tag writes a PageType sidecar for a sidecar-less .md folder
+    // MARK: - auto-tag writes a PageCollection sidecar for a sidecar-less .md folder
 
     @Test("auto-tag writes _pagetype.json (not _itemtype.json) for a sidecar-less folder")
-    func autoTagSidecarLessFolderWritesPageType() throws {
+    func autoTagSidecarLessFolderWritesPageCollection() throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
         let folder = nexus.rootURL.appendingPathComponent("Inbox", isDirectory: true)

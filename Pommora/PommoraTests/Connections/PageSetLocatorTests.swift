@@ -25,15 +25,15 @@ struct PageSetLocatorTests {
     ) {
         let nexus = try TempNexus.make()
 
-        let pageTypeManager = PageTypeManager(nexus: nexus)
+        let collectionManager = PageCollectionManager(nexus: nexus)
         let setManager = PageSetManager(nexus: nexus)
-        setManager.pageTypeProvider = { [weak pageTypeManager] in pageTypeManager?.types ?? [] }
-        pageTypeManager.pageSetManager = setManager
-        await pageTypeManager.loadAll()
-        try await pageTypeManager.createPageType(name: "Notes", icon: nil)
-        let pt = pageTypeManager.types.first!
-        try await pageTypeManager.createPageCollection(name: "Inbox", inPageType: pt)
-        let coll = pageTypeManager.pageCollections(in: pt).first!
+        setManager.pageTypeProvider = { [weak collectionManager] in collectionManager?.types ?? [] }
+        collectionManager.pageSetManager = setManager
+        await collectionManager.loadAll()
+        try await collectionManager.createPageCollection(name: "Notes", icon: nil)
+        let pt = collectionManager.types.first!
+        try await collectionManager.createPageCollection(name: "Inbox", inPageCollection: pt)
+        let coll = collectionManager.pageCollections(in: pt).first!
 
         let setFolder = coll.folderURL.appendingPathComponent("Drafts", isDirectory: true)
         try FileManager.default.createDirectory(at: setFolder, withIntermediateDirectories: true)

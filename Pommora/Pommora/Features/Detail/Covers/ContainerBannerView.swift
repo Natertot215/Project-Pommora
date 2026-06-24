@@ -1,8 +1,8 @@
 import SwiftUI
 
-/// Content-view banner — the per-container banner above a PageType / PageCollection
+/// Content-view banner — the per-container banner above a PageCollection / PageCollection
 /// title. A thin wrapper over the shared `BannerView`, wiring it to the container's
-/// persistence (`PageTypeManager.setBanner(forContainer:)`) and asset key (the
+/// persistence (`PageCollectionManager.setBanner(forContainer:)`) and asset key (the
 /// container id). Display, import/remove, and the Add / Change / Remove affordances
 /// all live in `BannerView`; `ViewSurface` overlays the title.
 struct ContainerBannerView: View {
@@ -13,7 +13,7 @@ struct ContainerBannerView: View {
     var isVisible: Bool = true
     let nexus: Nexus
 
-    @Environment(PageTypeManager.self) private var pageTypeManager
+    @Environment(PageCollectionManager.self) private var collectionManager
 
     var body: some View {
         BannerView(
@@ -21,8 +21,8 @@ struct ContainerBannerView: View {
             isVisible: isVisible,
             nexus: nexus,
             assetKey: containerID,
-            setBanner: { try await pageTypeManager.setBanner($0, forContainer: containerID) },
-            reportError: { pageTypeManager.pendingError = $0 }
+            setBanner: { try await collectionManager.setBanner($0, forContainer: containerID) },
+            reportError: { collectionManager.pendingError = $0 }
         )
     }
 }

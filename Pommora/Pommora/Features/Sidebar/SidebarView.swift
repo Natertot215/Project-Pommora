@@ -18,7 +18,7 @@ struct SidebarView: View {
     @Environment(AreaManager.self) private var areaManager
     @Environment(TopicManager.self) private var topicManager
     @Environment(ProjectManager.self) private var projectManager
-    @Environment(PageTypeManager.self) private var vaultManager
+    @Environment(PageCollectionManager.self) private var collectionManager
     @Environment(PageSetManager.self) private var pageSetManager
     @Environment(PageContentManager.self) private var contentManager
     @Environment(AgendaTaskManager.self) private var agendaTaskManager
@@ -73,7 +73,7 @@ struct SidebarView: View {
                 )
                 // User vault sections (PagesV2 P9) — each a SIBLING Section
                 // with the IDENTICAL `Section(isExpanded:) { rows } header:`
-                // shape as VaultsSection, reusing PageTypeRow unchanged
+                // shape as VaultsSection, reusing PageCollectionRow unchanged
                 // (quirk #6: never mix row shapes inside one Section).
                 ForEach(sidebarSectionsManager.config.sections) { userSection in
                     UserVaultSection(
@@ -91,7 +91,7 @@ struct SidebarView: View {
             .onChange(of: selectedTag) { _, newTag in
                 let lookup = SidebarLookupBundle(
                     content: contentManager,
-                    pageType: vaultManager,
+                    pageCollection: collectionManager,
                     area: areaManager,
                     topic: topicManager,
                     project: projectManager
@@ -109,7 +109,7 @@ struct SidebarView: View {
                 if case .page(let p) = resolved {
                     let routed = PageOpenRouter.routeOpen(
                         p, selection: &selection,
-                        content: contentManager, vaultManager: vaultManager,
+                        content: contentManager, collectionManager: collectionManager,
                         setManager: pageSetManager,
                         openPreview: { openPagePreview($0) })
                     if routed != .detailPane {
@@ -189,10 +189,10 @@ struct SidebarView: View {
                 }
             }
             cancelButton
-        case .deleteVault(let v, _):
+        case .deletePageCollection(let v, _):
             Button("Delete", role: .destructive) {
                 Task {
-                    do { try await vaultManager.deletePageType(v) } catch
+                    do { try await collectionManager.deletePageCollection(v) } catch
                     { /* pendingError set by manager; toast surfaces */  }
                     confirmingDelete = nil
                 }
@@ -201,7 +201,7 @@ struct SidebarView: View {
         case .deleteCollection(let c):
             Button("Delete", role: .destructive) {
                 Task {
-                    do { try await vaultManager.deletePageCollection(c) } catch
+                    do { try await collectionManager.deletePageCollection(c) } catch
                     { /* pendingError set by manager; toast surfaces */  }
                     confirmingDelete = nil
                 }
@@ -228,8 +228,8 @@ struct SidebarView: View {
                 Task {
                     do {
                         try await pageSetManager.moveSet(
-                            s, to: dest, destinationVault: destVault,
-                            sourceVault: srcVault, contentManager: contentManager)
+                            s, to: dest, destinationPageCollection: destVault,
+                            sourcePageCollection: srcVault, contentManager: contentManager)
                     } catch { /* pendingError set by manager; toast surfaces */  }
                     confirmingDelete = nil
                 }
@@ -258,7 +258,7 @@ struct VaultsSection: View {
     @Binding var justCreatedID: String?
     @Binding var presentedSheet: SidebarSheet?
     @Binding var confirmingDelete: SidebarConfirmation?
-    @Environment(PageTypeManager.self) private var vaultManager
+    @Environment(PageCollectionManager.self) private var collectionManager
     @Environment(SettingsManager.self) private var settingsManager
     @Environment(NexusManager.self) private var nexusManager
     @Environment(SidebarSectionsManager.self) private var sectionsManager
@@ -269,16 +269,16 @@ struct VaultsSection: View {
 
     /// The default Vaults section shows only UNGROUPED vaults — those not
     /// claimed by any user section (PagesV2 P9, single-membership).
-    private var ungroupedTypes: [PageType] {
+    private var ungroupedTypes: [PageCollection] {
         let grouped = sectionsManager.config.groupedVaultIDs
-        return vaultManager.types.filter { !grouped.contains($0.id) }
+        return collectionManager.types.filter { !grouped.contains($0.id) }
     }
 
     var body: some View {
         Section(isExpanded: $expanded) {
-            ForEach(ungroupedTypes) { pageType in
-                PageTypeRow(
-                    pageType: pageType,
+            ForEach(ungroupedTypes) { pageCollection in
+                PageCollectionRow(
+                    pageCollection: pageCollection,
                     selection: $selection,
                     editingID: $editingID,
                     justCreatedID: $justCreatedID,
@@ -287,7 +287,7 @@ struct VaultsSection: View {
                     nexus: nexusManager.currentNexus ?? Nexus(id: "", rootURL: URL(filePath: "/")),
                     index: nexusManager.currentIndex
                 )
-                .tag(SelectionTag.pageType(pageType.id))
+                .tag(SelectionTag.pageCollection(pageCollection.id))
             }
             .onMove { source, destination in
                 withAnimation(.snappy) {
@@ -297,7 +297,7 @@ struct VaultsSection: View {
         } header: {
             SectionHeader(
                 title: settingsManager.settings.labels.sidebarSections.pages,
-                onAdd: { createPageType() }
+                onAdd: { createPageCollection() }
             ) {
                 Divider()
                 Button("Add Section") { createUserSection() }
@@ -307,12 +307,12 @@ struct VaultsSection: View {
     }
 
     /// Translates drag offsets from the displayed (ungrouped-only) list back
-    /// into `vaultManager.types` offsets before forwarding to the existing
+    /// into `collectionManager.types` offsets before forwarding to the existing
     /// full-array reorder. When no vault is grouped the mapping is the
     /// identity, preserving pre-P9 behavior exactly.
     private func reorderUngrouped(fromOffsets source: IndexSet, toOffset destination: Int) {
         let displayed = ungroupedTypes
-        let full = vaultManager.types
+        let full = collectionManager.types
         let fullIndices: [Int] = displayed.compactMap { d in
             full.firstIndex(where: { $0.id == d.id })
         }
@@ -325,22 +325,22 @@ struct VaultsSection: View {
         } else {
             translatedDestination = fullIndices[destination]
         }
-        vaultManager.reorderPageTypes(
+        collectionManager.reorderPageCollections(
             fromOffsets: translatedSource, toOffset: translatedDestination)
     }
 
-    private func createPageType() {
+    private func createPageCollection() {
         guard !isCreating else { return }
         isCreating = true
         let label = settingsManager.settings.labels.pageType.singular
-        let existing = vaultManager.types.map(\.title)
+        let existing = collectionManager.types.map(\.title)
         let title = DefaultTitleResolver.resolve(label: label, existingTitles: existing)
         Task {
             defer { isCreating = false }
             do {
                 _ = try await CreateWithInlineEdit.run(
                     create: {
-                        try await vaultManager.createPageType(name: title, icon: nil)
+                        try await collectionManager.createPageCollection(name: title, icon: nil)
                     },
                     onCreate: { newType in
                         editingID = newType.id
@@ -385,12 +385,12 @@ struct VaultsSection: View {
 
 /// One user-created sidebar section grouping Vaults — a SIBLING `Section`
 /// with the IDENTICAL `Section(isExpanded:) { rows } header:` shape as
-/// `VaultsSection`, reusing `PageTypeRow` unchanged (quirk #6: row shapes
+/// `VaultsSection`, reusing `PageCollectionRow` unchanged (quirk #6: row shapes
 /// inside a Section must stay homogeneous; selection chrome stays at the
 /// row file level per quirk #7).
 ///
 /// Membership is navigation-only: `section.vaultIDs` resolve to live
-/// `PageType`s in section order; dangling IDs (a deleted vault's ID left in
+/// `PageCollection`s in section order; dangling IDs (a deleted vault's ID left in
 /// the config) skip-render. An EMPTY section renders its header with zero
 /// rows — zero rows is trivially homogeneous, and the header must stay
 /// visible so a freshly created section can be inline-renamed.
@@ -401,15 +401,15 @@ struct UserVaultSection: View {
     @Binding var justCreatedID: String?
     @Binding var presentedSheet: SidebarSheet?
     @Binding var confirmingDelete: SidebarConfirmation?
-    @Environment(PageTypeManager.self) private var vaultManager
+    @Environment(PageCollectionManager.self) private var collectionManager
     @Environment(NexusManager.self) private var nexusManager
 
     @State private var expanded: Bool = true
 
-    /// `vaultIDs` resolved to live PageTypes in section order. Dangling IDs
+    /// `vaultIDs` resolved to live PageCollections in section order. Dangling IDs
     /// are skipped (skip-render policy — the config is not self-healed).
-    private var resolvedTypes: [PageType] {
-        let types = vaultManager.types
+    private var resolvedTypes: [PageCollection] {
+        let types = collectionManager.types
         return section.vaultIDs.compactMap { id in
             types.first(where: { $0.id == id })
         }
@@ -417,9 +417,9 @@ struct UserVaultSection: View {
 
     var body: some View {
         Section(isExpanded: $expanded) {
-            ForEach(resolvedTypes) { pageType in
-                PageTypeRow(
-                    pageType: pageType,
+            ForEach(resolvedTypes) { pageCollection in
+                PageCollectionRow(
+                    pageCollection: pageCollection,
                     selection: $selection,
                     editingID: $editingID,
                     justCreatedID: $justCreatedID,
@@ -428,7 +428,7 @@ struct UserVaultSection: View {
                     nexus: nexusManager.currentNexus ?? Nexus(id: "", rootURL: URL(filePath: "/")),
                     index: nexusManager.currentIndex
                 )
-                .tag(SelectionTag.pageType(pageType.id))
+                .tag(SelectionTag.pageCollection(pageCollection.id))
             }
         } header: {
             UserSectionHeader(

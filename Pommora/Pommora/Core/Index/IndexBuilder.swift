@@ -4,8 +4,8 @@ import os
 
 // MARK: - Sendable snapshot types (pure data, passed across actor boundaries)
 
-/// Snapshot of a PageType and its children, safe to pass into a @Sendable closure.
-private struct PageTypeSnapshot: Sendable {
+/// Snapshot of a PageCollection and its children, safe to pass into a @Sendable closure.
+private struct PageCollectionSnapshot: Sendable {
     let id: String
     let title: String
     let icon: String?
@@ -85,7 +85,7 @@ private struct EventSchemaSnapshot: Sendable {
 }
 
 private struct NexusSnapshot: Sendable {
-    let pageTypes: [PageTypeSnapshot]
+    let pageCollections: [PageCollectionSnapshot]
     let tasks: [AgendaTaskSnapshot]
     let taskSchema: TaskSchemaSnapshot?
     let events: [AgendaEventSnapshot]
@@ -125,7 +125,7 @@ final class IndexBuilder {
         // No @MainActor calls happen inside here — all data is pre-collected in `snapshot`.
         try await index.dbQueue.write { db in
             try clearAllTables(db)
-            insertPageTypes(db, snapshot: snapshot)
+            insertPageCollections(db, snapshot: snapshot)
             insertAgendaTasks(db, snapshot: snapshot)
             insertAgendaEvents(db, snapshot: snapshot)
             insertContexts(db, snapshot: snapshot)
@@ -138,7 +138,7 @@ final class IndexBuilder {
 
     private static func buildSnapshot(from nexus: Nexus, filter: FolderFilter = .empty) -> NexusSnapshot {
         NexusSnapshot(
-            pageTypes: collectPageTypes(from: nexus, filter: filter),
+            pageCollections: collectPageCollections(from: nexus, filter: filter),
             tasks: collectTasks(from: nexus),
             taskSchema: collectTaskSchema(from: nexus),
             events: collectEvents(from: nexus),
@@ -147,16 +147,16 @@ final class IndexBuilder {
         )
     }
 
-    private static func collectPageTypes(from nexus: Nexus, filter: FolderFilter = .empty) -> [PageTypeSnapshot] {
+    private static func collectPageCollections(from nexus: Nexus, filter: FolderFilter = .empty) -> [PageCollectionSnapshot] {
         let root = nexus.rootURL
         let topLevel = (try? Filesystem.childFolders(of: root, folderFilter: filter)) ?? []
-        var result: [PageTypeSnapshot] = []
+        var result: [PageCollectionSnapshot] = []
 
         for folder in topLevel
         where !folder.lastPathComponent.hasPrefix(".") && !folder.lastPathComponent.hasPrefix("_") {
             let metaURL = folder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename)
             guard Filesystem.fileExists(at: metaURL),
-                let pageType = try? PageType.load(from: metaURL)
+                let pc = try? PageCollection.load(from: metaURL)
             else { continue }
 
             // Depth-1 sets — sub-folders of the type carrying `_pagecollection.json` OR
@@ -173,22 +173,22 @@ final class IndexBuilder {
                 else { continue }
 
                 let snap = collectSetSnapshot(
-                    set, folder: sub, parentTypeID: pageType.id, parentSetID: nil,
-                    pageTypeID: pageType.id, nexusRoot: root, filter: filter)
+                    set, folder: sub, parentTypeID: pc.id, parentSetID: nil,
+                    pageTypeID: pc.id, nexusRoot: root, filter: filter)
                 depthOneSets.append(snap)
             }
 
             let directPages = collectPagesInFolder(
-                folder, pageTypeID: pageType.id, collectionID: nil, nexusRoot: root, filter: filter)
+                folder, pageTypeID: pc.id, collectionID: nil, nexusRoot: root, filter: filter)
 
             result.append(
-                PageTypeSnapshot(
-                    id: pageType.id,
-                    title: pageType.title,
-                    icon: pageType.icon,
-                    modifiedAt: pageType.modifiedAt,
-                    schemaVersion: pageType.schemaVersion,
-                    properties: pageType.properties,
+                PageCollectionSnapshot(
+                    id: pc.id,
+                    title: pc.title,
+                    icon: pc.icon,
+                    modifiedAt: pc.modifiedAt,
+                    schemaVersion: pc.schemaVersion,
+                    properties: pc.properties,
                     sets: depthOneSets,
                     directPages: directPages
                 ))
@@ -440,8 +440,8 @@ final class IndexBuilder {
         try db.execute(sql: "DELETE FROM page_types")
     }
 
-    private nonisolated static func insertPageTypes(_ db: Database, snapshot: NexusSnapshot) {
-        for pt in snapshot.pageTypes {
+    private nonisolated static func insertPageCollections(_ db: Database, snapshot: NexusSnapshot) {
+        for pt in snapshot.pageCollections {
             // Parent must land before its children; if it can't (e.g. a duplicate
             // id), skip the whole subtree — the children would only FK-fail.
             guard
@@ -565,7 +565,7 @@ final class IndexBuilder {
     }
 
     private nonisolated static func insertTierContextLinks(_ db: Database, snapshot: NexusSnapshot) {
-        for pt in snapshot.pageTypes {
+        for pt in snapshot.pageCollections {
             for page in allPages(in: pt.sets) + pt.directPages {
                 insertTierContextLinkRows(
                     db, sourceID: page.id, sourceKind: "page",
@@ -654,7 +654,7 @@ final class IndexBuilder {
                 }
             }
         }
-        for pt in snapshot.pageTypes {
+        for pt in snapshot.pageCollections {
             for p in allPages(in: pt.sets) + pt.directPages {
                 emit(sourceID: p.id, sourceTitle: p.title, body: p.body)
             }

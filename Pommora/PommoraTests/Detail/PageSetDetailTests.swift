@@ -29,17 +29,17 @@ struct PageSetDetailTests {
         defer { TempNexus.cleanup(nexus) }
         let (index, _) = try PommoraIndex.open(at: nexus.rootURL)
 
-        let vault = try makePageType(nexus: nexus, title: "Notes", index: index)
+        let vault = try makePageCollection(nexus: nexus, title: "Notes", index: index)
         let coll = try makePageCollection(nexus: nexus, title: "Inbox", in: vault, index: index)
         let set = try makePageSet(title: "Drafts", in: coll, index: index)
 
         let manager = PageContentManager(nexus: nexus, contextProvider: { NexusContext.empty })
         manager.indexUpdater = IndexUpdater(index)
-        let meta = try await manager.createPage(name: "Draft", in: set, collection: coll, vault: vault)
+        let meta = try await manager.createPage(name: "Draft", in: set, collection: coll, pageCollection: vault)
 
         // The exact object PageEditorHost builds for a resolved Set page.
         let saver = ContentManagerPageSaver(
-            contentManager: manager, vault: vault, collection: coll, set: set)
+            contentManager: manager, pageCollection: vault, collection: coll, set: set)
         try await saver.save(page: meta, body: "edited body")
 
         let pageID = meta.id  // hoist before the dbQueue closure (@Sendable)
@@ -59,16 +59,16 @@ struct PageSetDetailTests {
         defer { TempNexus.cleanup(nexus) }
         let (index, _) = try PommoraIndex.open(at: nexus.rootURL)
 
-        let vault = try makePageType(nexus: nexus, title: "Notes", index: index)
+        let vault = try makePageCollection(nexus: nexus, title: "Notes", index: index)
         let coll = try makePageCollection(nexus: nexus, title: "Inbox", in: vault, index: index)
         let set = try makePageSet(title: "Drafts", in: coll, index: index)
 
         let manager = PageContentManager(nexus: nexus, contextProvider: { NexusContext.empty })
         manager.indexUpdater = IndexUpdater(index)
-        let meta = try await manager.createPage(name: "Draft", in: set, collection: coll, vault: vault)
+        let meta = try await manager.createPage(name: "Draft", in: set, collection: coll, pageCollection: vault)
 
         // Managers the saver resolves the Page's live scope against.
-        let typeMgr = PageTypeManager(nexus: nexus)
+        let typeMgr = PageCollectionManager(nexus: nexus)
         typeMgr.indexUpdater = IndexUpdater(index)
         let setMgr = PageSetManager(nexus: nexus)
         setMgr.pageTypeProvider = { [weak typeMgr] in typeMgr?.types ?? [] }
@@ -80,8 +80,8 @@ struct PageSetDetailTests {
         // captured-only saver would route through, nulling page_set_id. With managers,
         // the save resolves the live scope (the Set) per-save instead.
         let saver = ContentManagerPageSaver(
-            contentManager: manager, vault: vault, collection: coll, set: nil,
-            pageTypeManager: typeMgr, pageSetManager: setMgr)
+            contentManager: manager, pageCollection: vault, collection: coll, set: nil,
+            collectionManager: typeMgr, pageSetManager: setMgr)
         try await saver.save(page: meta, body: "edited")
 
         let pageID = meta.id
@@ -101,17 +101,17 @@ struct PageSetDetailTests {
         defer { TempNexus.cleanup(nexus) }
         let (index, _) = try PommoraIndex.open(at: nexus.rootURL)
 
-        let vault = try makePageType(nexus: nexus, title: "Notes", index: index)
+        let vault = try makePageCollection(nexus: nexus, title: "Notes", index: index)
         let coll = try makePageCollection(nexus: nexus, title: "Inbox", in: vault, index: index)
         let set = try makePageSet(title: "Drafts", in: coll, index: index)
 
         let manager = PageContentManager(nexus: nexus, contextProvider: { NexusContext.empty })
         manager.indexUpdater = IndexUpdater(index)
-        let meta = try await manager.createPage(name: "Doc", in: set, collection: coll, vault: vault)
+        let meta = try await manager.createPage(name: "Doc", in: set, collection: coll, pageCollection: vault)
 
         try await manager.updatePageProperty(
             meta, propertyID: "prop_x", newValue: .select("hello"),
-            vault: vault, collection: coll, set: set)
+            pageCollection: vault, collection: coll, set: set)
 
         let pageID = meta.id  // hoist before the dbQueue closure (@Sendable)
         let setID = set.id
@@ -133,24 +133,24 @@ struct PageSetDetailTests {
         defer { TempNexus.cleanup(nexus) }
         let (index, _) = try PommoraIndex.open(at: nexus.rootURL)
 
-        let vault = try makePageType(nexus: nexus, title: "Notes", index: index)
+        let vault = try makePageCollection(nexus: nexus, title: "Notes", index: index)
         let coll = try makePageCollection(nexus: nexus, title: "Inbox", in: vault, index: index)
         let set = try makePageSet(title: "Drafts", in: coll, index: index)
 
         let manager = PageContentManager(nexus: nexus, contextProvider: { NexusContext.empty })
         manager.indexUpdater = IndexUpdater(index)
-        let meta = try await manager.createPage(name: "Doc", in: set, collection: coll, vault: vault)
+        let meta = try await manager.createPage(name: "Doc", in: set, collection: coll, pageCollection: vault)
 
-        let vaultManager = PageTypeManager(nexus: nexus)
+        let collectionManager = PageCollectionManager(nexus: nexus)
         let setManager = PageSetManager(nexus: nexus)
-        setManager.pageTypeProvider = { [weak vaultManager] in vaultManager?.types ?? [] }
-        vaultManager.pageSetManager = setManager
-        await vaultManager.loadAll()
+        setManager.pageTypeProvider = { [weak collectionManager] in collectionManager?.types ?? [] }
+        collectionManager.pageSetManager = setManager
+        await collectionManager.loadAll()
         await setManager.loadAll(types: [vault])
 
         let result = manager.resolveParent(
-            for: meta, pageTypeManager: vaultManager, pageSetManager: setManager)
-        #expect(result?.vault.id == vault.id)
+            for: meta, collectionManager: collectionManager, pageSetManager: setManager)
+        #expect(result?.pageCollection.id == vault.id)
         #expect(result?.collection?.id == coll.id)
         #expect(result?.set?.id == set.id)
     }
@@ -160,7 +160,7 @@ struct PageSetDetailTests {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
 
-        let vault = try makePageType(nexus: nexus, title: "Notes")
+        let vault = try makePageCollection(nexus: nexus, title: "Notes")
         let coll = try makePageCollection(nexus: nexus, title: "Inbox", in: vault)
         let set = try makePageSet(title: "Drafts", in: coll)
         let pageID = try writePage(titled: "Doc", in: set.folderURL)
@@ -168,11 +168,11 @@ struct PageSetDetailTests {
         // manager.indexUpdater is nil — URL prefix matching only.
         let manager = PageContentManager(nexus: nexus, contextProvider: { NexusContext.empty })
 
-        let vaultManager = PageTypeManager(nexus: nexus)
+        let collectionManager = PageCollectionManager(nexus: nexus)
         let setManager = PageSetManager(nexus: nexus)
-        setManager.pageTypeProvider = { [weak vaultManager] in vaultManager?.types ?? [] }
-        vaultManager.pageSetManager = setManager
-        await vaultManager.loadAll()
+        setManager.pageTypeProvider = { [weak collectionManager] in collectionManager?.types ?? [] }
+        collectionManager.pageSetManager = setManager
+        await collectionManager.loadAll()
         await setManager.loadAll(types: [vault])
 
         let fm = PageFrontmatter(
@@ -184,8 +184,8 @@ struct PageSetDetailTests {
             frontmatter: fm)
 
         let result = manager.resolveParent(
-            for: page, pageTypeManager: vaultManager, pageSetManager: setManager)
-        #expect(result?.vault.id == vault.id)
+            for: page, collectionManager: collectionManager, pageSetManager: setManager)
+        #expect(result?.pageCollection.id == vault.id)
         #expect(result?.collection?.id == coll.id)
         #expect(result?.set?.id == set.id)
     }
@@ -213,7 +213,7 @@ struct PageSetDetailTests {
     @Test(".set tag resolves to no SidebarSelection — SidebarView's onChange guard makes it a no-op")
     func setTagResolvesNil() {
         let lookup = SidebarLookupBundle(
-            content: nil, pageType: nil, area: nil, topic: nil, project: nil)
+            content: nil, pageCollection: nil, area: nil, topic: nil, project: nil)
         #expect(SidebarSelection(tag: .set(ULID.generate()), lookup: lookup) == nil)
     }
 
@@ -231,26 +231,26 @@ struct PageSetDetailTests {
         cm.pagesBySet[ULID.generate()] = [page]
 
         let lookup = SidebarLookupBundle(
-            content: cm, pageType: nil, area: nil, topic: nil, project: nil)
+            content: cm, pageCollection: nil, area: nil, topic: nil, project: nil)
         #expect(SidebarSelection(tag: .page(pageID), lookup: lookup) == .page(page))
     }
 
     // MARK: - Fixtures (mirror PageSetContentTests)
 
     @discardableResult
-    private func makePageType(
+    private func makePageCollection(
         nexus: Nexus,
         title: String,
         index: PommoraIndex? = nil
-    ) throws -> PageType {
-        let vault = PageType(
+    ) throws -> PageCollection {
+        let vault = PageCollection(
             id: ULID.generate(), title: title, icon: nil,
             properties: [], views: [], modifiedAt: Date()
         )
         let folderURL = NexusPaths.vaultFolderURL(forTitle: title, in: nexus)
         try FileManager.default.createDirectory(at: folderURL, withIntermediateDirectories: true)
         try vault.save(to: NexusPaths.vaultMetadataURL(forTitle: title, in: nexus))
-        if let index { try IndexUpdater(index).upsertPageType(vault) }
+        if let index { try IndexUpdater(index).upsertPageCollection(vault) }
         return vault
     }
 
@@ -258,15 +258,15 @@ struct PageSetDetailTests {
     private func makePageCollection(
         nexus: Nexus,
         title: String,
-        in vault: PageType,
+        in pageCollection: PageCollection,
         index: PommoraIndex? = nil
     ) throws -> PageSet {
         let folderURL = NexusPaths.collectionFolderURL(
-            forTitle: title, inVaultTitled: vault.title, in: nexus
+            forTitle: title, inVaultTitled: pageCollection.title, in: nexus
         )
         try FileManager.default.createDirectory(at: folderURL, withIntermediateDirectories: true)
         let coll = PageSet(
-            id: ULID.generate(), parentID: vault.id, title: title,
+            id: ULID.generate(), parentID: pageCollection.id, title: title,
             folderURL: folderURL, modifiedAt: Date()
         )
         try coll.save(to: folderURL.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename))

@@ -28,7 +28,7 @@ struct NexusAdopterTests {
         #expect(!plan.hasAnythingToAdopt)
     }
 
-    @Test("scan classifies bare empty folder as fresh-PageType (defaults to Pages)")
+    @Test("scan classifies bare empty folder as fresh-PageCollection (defaults to Pages)")
     func scanBareFolderDefaultsToPages() throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
@@ -37,12 +37,12 @@ struct NexusAdopterTests {
 
         let plan = try NexusAdopter.scan(nexusRoot: nexus.rootURL)
         #expect(plan.freshSidecars.count == 1)
-        #expect(plan.freshSidecars.first?.kind == .pageType)
+        #expect(plan.freshSidecars.first?.kind == .pageCollection)
         #expect(plan.freshSidecars.first?.title == "Notes")
     }
 
-    @Test("scan classifies folder with .md content as fresh-PageType")
-    func scanMarkdownContentSignalsPageType() throws {
+    @Test("scan classifies folder with .md content as fresh-PageCollection")
+    func scanMarkdownContentSignalsPageCollection() throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
         let folder = nexus.rootURL.appendingPathComponent("Journal", isDirectory: true)
@@ -51,11 +51,11 @@ struct NexusAdopterTests {
 
         let plan = try NexusAdopter.scan(nexusRoot: nexus.rootURL)
         #expect(plan.freshSidecars.count == 1)
-        #expect(plan.freshSidecars.first?.kind == .pageType)
+        #expect(plan.freshSidecars.first?.kind == .pageCollection)
     }
 
-    @Test("scan classifies sidecar-less folder with user .json content as fresh-PageType")
-    func scanJSONContentClassifiesAsPageType() throws {
+    @Test("scan classifies sidecar-less folder with user .json content as fresh-PageCollection")
+    func scanJSONContentClassifiesAsPageCollection() throws {
         // Items-as-Markdown change: content-sniffing reads file extensions,
         // not frontmatter, so a `.json`/`.md` folder is ambiguous. A
         // sidecar-less folder — even one holding user `.json` files — now
@@ -73,7 +73,7 @@ struct NexusAdopterTests {
 
         let plan = try NexusAdopter.scan(nexusRoot: nexus.rootURL)
         #expect(plan.freshSidecars.count == 1)
-        #expect(plan.freshSidecars.first?.kind == .pageType)
+        #expect(plan.freshSidecars.first?.kind == .pageCollection)
     }
 
     // MARK: - scan: fresh folders don't trigger adoption preview
@@ -90,7 +90,7 @@ struct NexusAdopterTests {
             let folder = nexus.rootURL.appendingPathComponent(name, isDirectory: true)
             try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
             // Mix some content so the content-sniff picks a kind — these would
-            // otherwise be proposed as fresh PageType candidates on every launch.
+            // otherwise be proposed as fresh PageCollection candidates on every launch.
             try FixtureFiles.write(
                 "# Stray", to: folder.appendingPathComponent("Stray.md")
             )
@@ -177,8 +177,8 @@ struct NexusAdopterTests {
         let move = try #require(unwrap.moves.first)
         #expect(move.sourceURL.lastPathComponent == "Recipes")
         #expect(move.destURL.lastPathComponent == "Recipes")
-        #expect(move.typeSidecar == .pageType)
-        #expect(move.collectionSidecar == .pageCollection)
+        #expect(move.typeSidecar == .pageCollection)
+        #expect(move.collectionSidecar == .pageSetCollection)
     }
 
     @Test("scan classifies Agenda/ Tasks + Events as wrapper-unwrap with per-singleton sidecars")
@@ -216,7 +216,7 @@ struct NexusAdopterTests {
     // MARK: - scan: already flat
 
     @Test("scan classifies folder with _pagetype.json as already-flat")
-    func scanAlreadyFlatPageType() throws {
+    func scanAlreadyFlatPageCollection() throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
         let folder = nexus.rootURL.appendingPathComponent("Projects", isDirectory: true)
@@ -228,7 +228,7 @@ struct NexusAdopterTests {
 
         let plan = try NexusAdopter.scan(nexusRoot: nexus.rootURL)
         #expect(plan.alreadyFlat.count == 1)
-        #expect(plan.alreadyFlat.first?.kind == .pageType)
+        #expect(plan.alreadyFlat.first?.kind == .pageCollection)
         #expect(plan.freshSidecars.isEmpty)
         #expect(plan.inPlaceRenames.isEmpty)
     }
@@ -311,8 +311,8 @@ struct NexusAdopterTests {
 
     // MARK: - apply: each shape
 
-    @Test("apply on fresh PageType folder writes _pagetype.json")
-    func applyFreshPageType() throws {
+    @Test("apply on fresh PageCollection folder writes _pagetype.json")
+    func applyFreshPageCollection() throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
         let folder = nexus.rootURL.appendingPathComponent("Recipes", isDirectory: true)
@@ -324,8 +324,8 @@ struct NexusAdopterTests {
 
         let sidecar = folder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename)
         #expect(FileManager.default.fileExists(atPath: sidecar.path))
-        let pageType = try PageType.load(from: sidecar)
-        #expect(pageType.title == "Recipes")
+        let pc = try PageCollection.load(from: sidecar)
+        #expect(pc.title == "Recipes")
         #expect(result.failedCount == 0)
     }
 
@@ -347,8 +347,8 @@ struct NexusAdopterTests {
         let oldSidecar = folder.appendingPathComponent("_vault.json")
         #expect(FileManager.default.fileExists(atPath: newSidecar.path))
         #expect(!FileManager.default.fileExists(atPath: oldSidecar.path))
-        let pageType = try PageType.load(from: newSidecar)
-        #expect(pageType.id == "01HVREC")
+        let pc = try PageCollection.load(from: newSidecar)
+        #expect(pc.id == "01HVREC")
         #expect(result.failedCount == 0)
     }
 
@@ -376,8 +376,8 @@ struct NexusAdopterTests {
         // Old wrapper gone.
         #expect(!FileManager.default.fileExists(atPath: wrapper.path))
         // Sidecar id preserved through the schema → pagetype rename.
-        let pageType = try PageType.load(from: sidecar)
-        #expect(pageType.id == "01HVREC")
+        let pc = try PageCollection.load(from: sidecar)
+        #expect(pc.id == "01HVREC")
         #expect(result.failedCount == 0)
     }
 
@@ -506,7 +506,7 @@ struct NexusAdopterTests {
         )
         // Empty Items/ folder with only .DS_Store noise — no wrapper-shaped
         // children, so after the structural-guard fix it is treated as a fresh
-        // PageType rather than unwrapped (the old pure-name-match behaviour was
+        // PageCollection rather than unwrapped (the old pure-name-match behaviour was
         // the bug being fixed here).
         let items = nexus.rootURL.appendingPathComponent("Items", isDirectory: true)
         try FileManager.default.createDirectory(at: items, withIntermediateDirectories: true)
@@ -533,7 +533,7 @@ struct NexusAdopterTests {
         #expect(!FileManager.default.fileExists(atPath: pages.path))
         #expect(!FileManager.default.fileExists(atPath: agenda.path))
         // The empty Items/ folder had no wrapper-shaped children, so the
-        // structural guard correctly left it as a fresh PageType — it stays
+        // structural guard correctly left it as a fresh PageCollection — it stays
         // on disk and receives a _pagetype.json sidecar.
         #expect(FileManager.default.fileExists(atPath: items.path))
         #expect(
@@ -620,7 +620,7 @@ struct NexusAdopterTests {
         // A user folder coincidentally named "Pages" that carries only regular
         // .md content must NOT be destructively unwrapped. The structural guard
         // checks for _schema.json / _vault.json / _collection.json in children;
-        // none present here → falls through to fresh PageType classification.
+        // none present here → falls through to fresh PageCollection classification.
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
         let pages = nexus.rootURL.appendingPathComponent("Pages", isDirectory: true)
@@ -634,7 +634,7 @@ struct NexusAdopterTests {
         #expect(plan.unwrapSteps.isEmpty, "user Pages/ must not be unwrapped")
         let fresh = plan.freshSidecars.first { $0.folderURL.lastPathComponent == "Pages" }
         #expect(fresh != nil, "Pages/ should be classified as a fresh candidate")
-        #expect(fresh?.kind == .pageType)
+        #expect(fresh?.kind == .pageCollection)
     }
 
     @Test("user-named Items/ folder without legacy child sidecars is not unwrapped")
@@ -661,13 +661,13 @@ struct NexusAdopterTests {
         #expect(plan.unwrapSteps.isEmpty, "user Items/ must not be unwrapped")
         let fresh = plan.freshSidecars.first { $0.folderURL.lastPathComponent == "Items" }
         #expect(fresh != nil)
-        #expect(fresh?.kind == .pageType)
+        #expect(fresh?.kind == .pageCollection)
     }
 
     @Test("user-named Agenda/ folder without legacy child sidecars is not unwrapped")
     func userNamedAgendaFolderIsNotUnwrapped() throws {
         // A user folder named "Agenda" with .md content (no _schema.json etc.
-        // in any child) must fall through to fresh PageType classification.
+        // in any child) must fall through to fresh PageCollection classification.
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
         let agenda = nexus.rootURL.appendingPathComponent("Agenda", isDirectory: true)
@@ -679,7 +679,7 @@ struct NexusAdopterTests {
         #expect(plan.unwrapSteps.isEmpty, "user Agenda/ must not be unwrapped")
         let fresh = plan.freshSidecars.first { $0.folderURL.lastPathComponent == "Agenda" }
         #expect(fresh != nil)
-        #expect(fresh?.kind == .pageType)
+        #expect(fresh?.kind == .pageCollection)
     }
 
     @Test("real ParadigmV2 Pages/ wrapper with _schema.json child still unwraps")
@@ -708,11 +708,11 @@ struct NexusAdopterTests {
         #expect(!plan.freshSidecars.contains(where: { $0.folderURL.lastPathComponent == "Pages" }))
     }
 
-    @Test("empty user-named Pages/ folder with no children treated as fresh PageType")
+    @Test("empty user-named Pages/ folder with no children treated as fresh PageCollection")
     func emptyUserNamedPagesFolderTreatedAsFresh() throws {
         // An empty folder named "Pages" (no children at all) has no
         // wrapper-shaped children → structural guard returns false → fresh
-        // PageType via emptyFolderDefaultsToPages. Must NOT be an unwrap.
+        // PageCollection via emptyFolderDefaultsToPages. Must NOT be an unwrap.
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
         let pages = nexus.rootURL.appendingPathComponent("Pages", isDirectory: true)
@@ -723,7 +723,7 @@ struct NexusAdopterTests {
         #expect(plan.unwrapSteps.isEmpty, "empty Pages/ must not be unwrapped")
         let fresh = plan.freshSidecars.first { $0.folderURL.lastPathComponent == "Pages" }
         #expect(fresh != nil)
-        #expect(fresh?.kind == .pageType)
+        #expect(fresh?.kind == .pageCollection)
     }
 
     @Test("Pages/ with one legacy-shaped child AND one loose file triggers unwrap; loose file fate documented")

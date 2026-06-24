@@ -35,11 +35,11 @@ struct PageRow: View {
                 // unaware of which PageContentManager rename is dispatched.
                 switch parent {
                 case .collection(let coll, let vault):
-                    try await contentManager.renamePage(page, to: newTitle, in: coll, vault: vault)
+                    try await contentManager.renamePage(page, to: newTitle, in: coll, pageCollection: vault)
                 case .set(let set, let coll, let vault):
-                    try await contentManager.renamePage(page, to: newTitle, in: set, collection: coll, vault: vault)
-                case .vaultRoot(let vault):
-                    try await contentManager.renamePage(page, to: newTitle, inVaultRoot: vault)
+                    try await contentManager.renamePage(page, to: newTitle, in: set, collection: coll, pageCollection: vault)
+                case .collectionRoot(let vault):
+                    try await contentManager.renamePage(page, to: newTitle, inCollectionRoot: vault)
                 }
             }
         ) {
@@ -61,8 +61,8 @@ struct PageRow: View {
                 try await contentManager.deletePage(page, inCollection: coll)
             case .set(let set, _, _):
                 try await contentManager.deletePage(page, in: set)
-            case .vaultRoot(let vault):
-                try await contentManager.deletePage(page, inVaultRoot: vault)
+            case .collectionRoot(let vault):
+                try await contentManager.deletePage(page, inCollectionRoot: vault)
             }
         } catch {
             // pendingError set by manager; toast surfaces.

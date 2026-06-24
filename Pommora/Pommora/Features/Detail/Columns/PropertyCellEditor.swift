@@ -296,8 +296,8 @@ struct PropertyCellEditor: View {
         )
         .onAppear { multiOptionOrder = liveMultiOptions }
         // The passed-in `definition` is re-derived live from the @Observable
-        // PageTypeManager each render (the host detail view's `schema` reads
-        // `pageTypeManager.types`), so newly-added options arrive here without a
+        // PageCollectionManager each render (the host detail view's `schema` reads
+        // `collectionManager.types`), so newly-added options arrive here without a
         // restart — but the @State seed above fires only on first appearance.
         // Re-seed when the live option set changes so an option added while the
         // popover is open (or before reopen) is immediately selectable. In-session

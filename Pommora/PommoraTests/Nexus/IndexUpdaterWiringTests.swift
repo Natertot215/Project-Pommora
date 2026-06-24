@@ -34,7 +34,7 @@ struct IndexUpdaterWiringTests {
         defer { TempNexus.cleanup(nexus) }
 
         // Build the 4 managers exactly as constructManagers does.
-        let vaultMgr = PageTypeManager(nexus: nexus)
+        let vaultMgr = PageCollectionManager(nexus: nexus)
         let agendaTaskMgr = AgendaTaskManager(nexus: nexus)
         let agendaEventMgr = AgendaEventManager(nexus: nexus)
 
@@ -62,18 +62,18 @@ struct IndexUpdaterWiringTests {
 
     // MARK: - Test 2: mutation via manager propagates to index
 
-    /// Wire a PageTypeManager with indexUpdater; call createPageType; verify
+    /// Wire a PageCollectionManager with indexUpdater; call createPageCollection; verify
     /// the row appears in page_types via a direct GRDB read.
     @Test func mutationViaManagerPropagatesToIndex() async throws {
         let (nexus, index) = try makeTempIndex()
         defer { TempNexus.cleanup(nexus) }
 
-        let vaultMgr = PageTypeManager(nexus: nexus)
+        let vaultMgr = PageCollectionManager(nexus: nexus)
         await vaultMgr.loadAll()
 
         vaultMgr.indexUpdater = IndexUpdater(index)
 
-        try await vaultMgr.createPageType(name: "Research", icon: nil)
+        try await vaultMgr.createPageCollection(name: "Research", icon: nil)
 
         let count = try await index.dbQueue.read { db in
             try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM page_types WHERE title = ?", arguments: ["Research"]) ?? 0
@@ -91,7 +91,7 @@ struct IndexUpdaterWiringTests {
 
         // Build managers and apply nil updater — mirrors the .map path when
         // currentIndex is nil (Optional<PommoraIndex>.none.map { ... } = nil).
-        let vaultMgr = PageTypeManager(nexus: nexus)
+        let vaultMgr = PageCollectionManager(nexus: nexus)
         let agendaTaskMgr = AgendaTaskManager(nexus: nexus)
         let agendaEventMgr = AgendaEventManager(nexus: nexus)
 
@@ -117,14 +117,14 @@ struct IndexUpdaterWiringTests {
 
         // A mutation with nil indexUpdater must not crash.
         await vaultMgr.loadAll()
-        try await vaultMgr.createPageType(name: "Notes", icon: nil)
+        try await vaultMgr.createPageCollection(name: "Notes", icon: nil)
         // If we reach here without throwing, the degraded path is safe.
         #expect(vaultMgr.types.count == 1)
     }
 
-    // MARK: - Test 4: deleteProperty removes the property_definitions row (PageTypeManager)
+    // MARK: - Test 4: deleteProperty removes the property_definitions row (PageCollectionManager)
 
-    /// Wire a real IndexUpdater into a PageTypeManager; add a user property so a
+    /// Wire a real IndexUpdater into a PageCollectionManager; add a user property so a
     /// `property_definitions` row is written; call `deleteProperty(id:in:)`; assert
     /// the row is gone from the index. Pins the invariant that `deleteProperty`
     /// always calls `indexUpdater.deletePropertyDefinition(id:)`.
@@ -132,21 +132,21 @@ struct IndexUpdaterWiringTests {
         let (nexus, index) = try makeTempIndex()
         defer { TempNexus.cleanup(nexus) }
 
-        let vaultMgr = PageTypeManager(nexus: nexus)
+        let vaultMgr = PageCollectionManager(nexus: nexus)
         await vaultMgr.loadAll()
         vaultMgr.indexUpdater = IndexUpdater(index)
 
-        // Create a PageType so we have a typeID to operate on.
-        try await vaultMgr.createPageType(name: "Journal", icon: nil)
-        guard let pageType = vaultMgr.types.first else {
-            Issue.record("Expected at least one page type after createPageType")
+        // Create a PageCollection so we have a typeID to operate on.
+        try await vaultMgr.createPageCollection(name: "Journal", icon: nil)
+        guard let pageCollection = vaultMgr.types.first else {
+            Issue.record("Expected at least one page type after createPageCollection")
             return
         }
 
         // Add a user property — this writes a property_definitions row via upsert.
         let propID = ReservedPropertyID.mintUserPropertyID()
         let def = PropertyDefinition(id: propID, name: "Priority", type: .number)
-        try await vaultMgr.addProperty(def, to: pageType.id)
+        try await vaultMgr.addProperty(def, to: pageCollection.id)
 
         // Confirm the row exists in the index before deletion.
         let countBefore = try await index.dbQueue.read { db in
@@ -159,7 +159,7 @@ struct IndexUpdaterWiringTests {
         #expect(countBefore == 1, "property_definitions row must exist after addProperty")
 
         // Delete the property — must call indexUpdater.deletePropertyDefinition(id:).
-        try await vaultMgr.deleteProperty(id: propID, in: pageType.id)
+        try await vaultMgr.deleteProperty(id: propID, in: pageCollection.id)
 
         // Assert the row is gone.
         let countAfter = try await index.dbQueue.read { db in
@@ -172,9 +172,9 @@ struct IndexUpdaterWiringTests {
         #expect(countAfter == 0, "property_definitions row must be absent after deleteProperty")
     }
 
-    // MARK: - Test 5: reorderProperty updates positions in the index (PageTypeManager)
+    // MARK: - Test 5: reorderProperty updates positions in the index (PageCollectionManager)
 
-    /// Wire a real IndexUpdater into a PageTypeManager; add two user properties so
+    /// Wire a real IndexUpdater into a PageCollectionManager; add two user properties so
     /// two `property_definitions` rows are written with their initial positions; call
     /// `reorderProperty` to swap their order; assert both rows reflect the new
     /// positions in the index.
@@ -186,13 +186,13 @@ struct IndexUpdaterWiringTests {
         let (nexus, index) = try makeTempIndex()
         defer { TempNexus.cleanup(nexus) }
 
-        let vaultMgr = PageTypeManager(nexus: nexus)
+        let vaultMgr = PageCollectionManager(nexus: nexus)
         await vaultMgr.loadAll()
         vaultMgr.indexUpdater = IndexUpdater(index)
 
-        try await vaultMgr.createPageType(name: "Notes", icon: nil)
-        guard let pageType = vaultMgr.types.first else {
-            Issue.record("Expected at least one page type after createPageType")
+        try await vaultMgr.createPageCollection(name: "Notes", icon: nil)
+        guard let pageCollection = vaultMgr.types.first else {
+            Issue.record("Expected at least one page type after createPageCollection")
             return
         }
 
@@ -200,13 +200,13 @@ struct IndexUpdaterWiringTests {
         let propAID = ReservedPropertyID.mintUserPropertyID()
         let propBID = ReservedPropertyID.mintUserPropertyID()
         try await vaultMgr.addProperty(
-            PropertyDefinition(id: propAID, name: "Alpha", type: .number), to: pageType.id)
+            PropertyDefinition(id: propAID, name: "Alpha", type: .number), to: pageCollection.id)
         try await vaultMgr.addProperty(
-            PropertyDefinition(id: propBID, name: "Beta", type: .number), to: pageType.id)
+            PropertyDefinition(id: propBID, name: "Beta", type: .number), to: pageCollection.id)
 
         // Reload the manager's in-memory type to get the true ordering and index.
-        guard let typeAfterAdd = vaultMgr.types.first(where: { $0.id == pageType.id }) else {
-            Issue.record("PageType missing after addProperty calls")
+        guard let typeAfterAdd = vaultMgr.types.first(where: { $0.id == pageCollection.id }) else {
+            Issue.record("PageCollection missing after addProperty calls")
             return
         }
         guard let posABefore = typeAfterAdd.properties.firstIndex(where: { $0.id == propAID }),
@@ -219,7 +219,7 @@ struct IndexUpdaterWiringTests {
         #expect(posABefore < posBBefore, "Alpha should precede Beta after sequential addProperty")
 
         // Move Beta before Alpha (toIndex = posABefore moves Beta to Alpha's slot).
-        try await vaultMgr.reorderProperty(id: propBID, in: pageType.id, toIndex: posABefore)
+        try await vaultMgr.reorderProperty(id: propBID, in: pageCollection.id, toIndex: posABefore)
 
         // Read positions from the index for both properties.
         let posAInIndex = try await index.dbQueue.read { db in

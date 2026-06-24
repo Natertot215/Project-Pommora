@@ -22,11 +22,11 @@ enum PageOpenRouter {
     /// edit-conflict guard. Static so it's unit-testable without
     /// bootstrapping the sidebar.
     static func destination(
-        for vault: PageType,
+        for pageCollection: PageCollection,
         page: PageMeta,
         currentSelection: SidebarSelection
     ) -> PageOpenDestination {
-        switch vault.openIn ?? .window {
+        switch pageCollection.openIn ?? .window {
         case .window:
             return .detailPane
         case .compact:
@@ -42,13 +42,13 @@ enum PageOpenRouter {
     @discardableResult
     static func routeOpen(
         _ page: PageMeta,
-        vault: PageType,
+        pageCollection: PageCollection,
         collection: PageSet?,
         set: PageSet?,
         selection: inout SidebarSelection,
         openPreview: (PageRef) -> Void
     ) -> PageOpenDestination {
-        let routed = destination(for: vault, page: page, currentSelection: selection)
+        let routed = destination(for: pageCollection, page: page, currentSelection: selection)
         switch routed {
         case .detailPane:
             let resolved = SidebarSelection.page(page)
@@ -57,11 +57,11 @@ enum PageOpenRouter {
             let ref: PageRef =
                 switch (collection, set) {
                 case (let collection?, let set?):
-                    PageRef(page: page, in: set, collection: collection, vault: vault)
+                    PageRef(page: page, in: set, collection: collection, pageCollection: pageCollection)
                 case (let collection?, nil):
-                    PageRef(page: page, in: collection, vault: vault)
+                    PageRef(page: page, in: collection, pageCollection: pageCollection)
                 case (nil, _):
-                    PageRef(page: page, inVaultRoot: vault)
+                    PageRef(page: page, inCollectionRoot: pageCollection)
                 }
             openPreview(ref)
         case .suppressed:
@@ -79,20 +79,20 @@ enum PageOpenRouter {
         _ page: PageMeta,
         selection: inout SidebarSelection,
         content: PageContentManager,
-        vaultManager: PageTypeManager,
+        collectionManager: PageCollectionManager,
         setManager: PageSetManager,
         openPreview: (PageRef) -> Void
     ) -> PageOpenDestination {
         guard
             let parent = content.resolveParent(
-                for: page, pageTypeManager: vaultManager, pageSetManager: setManager)
+                for: page, collectionManager: collectionManager, pageSetManager: setManager)
         else {
             let resolved = SidebarSelection.page(page)
             if selection != resolved { selection = resolved }
             return .detailPane
         }
         return routeOpen(
-            page, vault: parent.vault, collection: parent.collection, set: parent.set,
+            page, pageCollection: parent.pageCollection, collection: parent.collection, set: parent.set,
             selection: &selection, openPreview: openPreview)
     }
 }

@@ -29,8 +29,8 @@ struct PageOpenRouterTests {
         )
     }
 
-    private func makeVault(openIn: OpenInMode? = nil) -> PageType {
-        PageType(
+    private func makeVault(openIn: OpenInMode? = nil) -> PageCollection {
+        PageCollection(
             id: ULID.generate(), title: "Vault", icon: nil,
             properties: [], views: [], modifiedAt: Date(),
             openIn: openIn
@@ -91,16 +91,16 @@ struct PageOpenRouterTests {
     func routeOpenCompactOpensPreview() {
         let vault = makeVault(openIn: .compact)
         let page = makePage()
-        var selection = SidebarSelection.pageType(vault)
+        var selection = SidebarSelection.pageCollection(vault)
         var opened: [PageRef] = []
 
         let routed = PageOpenRouter.routeOpen(
-            page, vault: vault, collection: nil, set: nil, selection: &selection
+            page, pageCollection: vault, collection: nil, set: nil, selection: &selection
         ) { opened.append($0) }
 
         #expect(routed == .previewCard)
-        #expect(opened == [PageRef(page: page, inVaultRoot: vault)])
-        #expect(selection == .pageType(vault))
+        #expect(opened == [PageRef(page: page, inCollectionRoot: vault)])
+        #expect(selection == .pageCollection(vault))
     }
 
     @Test("routeOpen carries the collection into the preview ref")
@@ -115,10 +115,10 @@ struct PageOpenRouterTests {
         var opened: [PageRef] = []
 
         PageOpenRouter.routeOpen(
-            page, vault: vault, collection: collection, set: nil, selection: &selection
+            page, pageCollection: vault, collection: collection, set: nil, selection: &selection
         ) { opened.append($0) }
 
-        #expect(opened == [PageRef(page: page, in: collection, vault: vault)])
+        #expect(opened == [PageRef(page: page, in: collection, pageCollection: vault)])
     }
 
     @Test("routeOpen on a .window vault selects into the detail pane, no preview")
@@ -129,7 +129,7 @@ struct PageOpenRouterTests {
         var opened: [PageRef] = []
 
         let routed = PageOpenRouter.routeOpen(
-            page, vault: vault, collection: nil, set: nil, selection: &selection
+            page, pageCollection: vault, collection: nil, set: nil, selection: &selection
         ) { opened.append($0) }
 
         #expect(routed == .detailPane)
@@ -145,7 +145,7 @@ struct PageOpenRouterTests {
         var opened: [PageRef] = []
 
         let routed = PageOpenRouter.routeOpen(
-            page, vault: vault, collection: nil, set: nil, selection: &selection
+            page, pageCollection: vault, collection: nil, set: nil, selection: &selection
         ) { opened.append($0) }
 
         #expect(routed == .suppressed)

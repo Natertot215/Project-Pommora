@@ -17,7 +17,7 @@ struct PageSetRecursiveIndexTests {
     // MARK: - 4-deep fixture
 
     /// Builds:
-    ///   Notes (PageType)
+    ///   Notes (PageCollection)
     ///   └── L1 (_pagecollection.json)        depth-1
     ///       └── L2 (_pageset.json)           depth-2
     ///           └── L3 (_pageset.json)       depth-3
@@ -31,17 +31,17 @@ struct PageSetRecursiveIndexTests {
     ) {
         let nexus = try TempNexus.make()
 
-        let pageTypeManager = PageTypeManager(nexus: nexus)
+        let collectionManager = PageCollectionManager(nexus: nexus)
         let setManager = PageSetManager(nexus: nexus)
-        setManager.pageTypeProvider = { [weak pageTypeManager] in pageTypeManager?.types ?? [] }
-        pageTypeManager.pageSetManager = setManager
-        await pageTypeManager.loadAll()
-        try await pageTypeManager.createPageType(name: "Notes", icon: nil)
-        let pt = pageTypeManager.types.first!
+        setManager.pageTypeProvider = { [weak collectionManager] in collectionManager?.types ?? [] }
+        collectionManager.pageSetManager = setManager
+        await collectionManager.loadAll()
+        try await collectionManager.createPageCollection(name: "Notes", icon: nil)
+        let pt = collectionManager.types.first!
 
         // L1: depth-1 set created as a collection (uses _pagecollection.json sidecar)
-        try await pageTypeManager.createPageCollection(name: "L1", inPageType: pt)
-        let l1 = pageTypeManager.pageCollections(in: pt).first!
+        try await collectionManager.createPageCollection(name: "L1", inPageCollection: pt)
+        let l1 = collectionManager.pageCollections(in: pt).first!
 
         func makeSet(name: String, parentID: String, inFolder: URL) throws -> PageSet {
             let folder = inFolder.appendingPathComponent(name, isDirectory: true)

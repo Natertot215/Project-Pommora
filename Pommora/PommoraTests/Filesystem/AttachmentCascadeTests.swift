@@ -16,7 +16,7 @@ struct AttachmentCascadeTests {
         let (nexus, vault, coll, manager) = try await setupPage()
         defer { TempNexus.cleanup(nexus) }
 
-        try await manager.createPage(name: "MyCascadePage", in: coll, vault: vault)
+        try await manager.createPage(name: "MyCascadePage", in: coll, pageCollection: vault)
         guard let page = manager.pages(inCollection: coll).first else {
             Issue.record("Page not created")
             return
@@ -120,9 +120,9 @@ struct AttachmentCascadeTests {
 
     // MARK: - Setup helpers
 
-    private func setupPage() async throws -> (Nexus, PageType, PageSet, PageContentManager) {
+    private func setupPage() async throws -> (Nexus, PageCollection, PageSet, PageContentManager) {
         let nexus = try TempNexus.make()
-        let vault = PageType(
+        let vault = PageCollection(
             id: ULID.generate(), title: "V", icon: nil,
             properties: [], views: [], modifiedAt: Date())
         let vaultFolder = NexusPaths.vaultFolderURL(forTitle: "V", in: nexus)

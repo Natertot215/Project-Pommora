@@ -10,7 +10,7 @@
 //  A file we can't read can't be carrying the property value, so skipping it is
 //  lossless (the canonical schema-sidecar strip is staged separately).
 //
-//  This is the SINGLE source of that guard, shared by the `PageTypeManager`
+//  This is the SINGLE source of that guard, shared by the `PageCollectionManager`
 //  delete-property + change-type loops. The per-Type load / strip /
 //  encode stays inline at each call site (it genuinely differs — YAML+`PageFrontmatter`
 //  vs JSON+`AgendaTask`/`AgendaEvent`); only the resilient iteration is hoisted.

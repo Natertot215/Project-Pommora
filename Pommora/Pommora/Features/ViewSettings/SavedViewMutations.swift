@@ -38,7 +38,7 @@ enum SavedViewMutations {
     /// Scrubs every dangling reference to a now-deleted schema `propertyID`
     /// from a single view's config so the resolvers never see an id without a
     /// backing definition. The single source for delete-time view cleanup —
-    /// `PageTypeManager.deleteProperty` maps this across all of a container's
+    /// `PageCollectionManager.deleteProperty` maps this across all of a container's
     /// views.
     ///
     /// - Drops `sort` criteria whose `propertyID` matches (clearing `sort` to

@@ -1,7 +1,7 @@
 // Pommora/Pommora/Vaults/SavedView.swift
 import Foundation
 
-/// A saved view configuration on a PageType / PageCollection. A container holds
+/// A saved view configuration on a PageCollection / PageCollection. A container holds
 /// MULTIPLE saved views (the Views dropdown switches + manages them); Table and
 /// Gallery are the rendered types, and `sort` / `filter` / `group` are live (the
 /// Sort / Filter / Group panes + the view pipeline).
@@ -159,7 +159,7 @@ struct SavedView: Codable, Equatable, Hashable, Identifiable, Sendable {
     ///
     /// `defaultSort` folds the parent Type's legacy `default_sort` sidecar
     /// field into the minted view's `sort` so the previously-persisted default
-    /// ordering carries forward. `PageType.defaultSort` keeps DECODING but is
+    /// ordering carries forward. `PageCollection.defaultSort` keeps DECODING but is
     /// never written again — the SavedView's `sort` is now authoritative.
     static func defaultTable(
         visiblePropertyIDs: [String],

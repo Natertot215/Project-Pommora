@@ -14,15 +14,15 @@ final class FrontmatterInspectorViewModel {
     var draftTier3: [String]
 
     let page: PageMeta
-    let vault: PageType
+    let pageCollection: PageCollection
     let onSave: ((PageFrontmatter) -> Void)?
 
     private var saveTask: Task<Void, Never>?
     private static let debounce: Duration = .milliseconds(300)
 
-    init(page: PageMeta, vault: PageType, onSave: ((PageFrontmatter) -> Void)?) {
+    init(page: PageMeta, pageCollection: PageCollection, onSave: ((PageFrontmatter) -> Void)?) {
         self.page = page
-        self.vault = vault
+        self.pageCollection = pageCollection
         self.onSave = onSave
         self.draftProperties = page.frontmatter.properties
         self.draftTier1 = page.frontmatter.tier1
@@ -90,7 +90,7 @@ final class FrontmatterInspectorViewModel {
 
     // MARK: - Schema accessor
 
-    var schemaProperties: [PropertyDefinition] { vault.properties }
+    var schemaProperties: [PropertyDefinition] { pageCollection.properties }
 }
 
 // MARK: - FrontmatterInspector
@@ -106,7 +106,7 @@ final class FrontmatterInspectorViewModel {
 /// a real save closure when wiring up.
 struct FrontmatterInspector: View {
     let page: PageMeta
-    let vault: PageType
+    let pageCollection: PageCollection
     let index: PommoraIndex?
     let relationDisplay: ContextDisplayResolver?
     let onSave: ((PageFrontmatter) -> Void)?
@@ -117,7 +117,7 @@ struct FrontmatterInspector: View {
     let compact: Bool
 
     @Environment(AreaManager.self) private var areaManager
-    @Environment(PageTypeManager.self) private var vaultManager
+    @Environment(PageCollectionManager.self) private var collectionManager
 
     @State private var vm: FrontmatterInspectorViewModel?
     @State private var addPropertyOpen = false
@@ -126,14 +126,14 @@ struct FrontmatterInspector: View {
 
     init(
         page: PageMeta,
-        vault: PageType,
+        pageCollection: PageCollection,
         index: PommoraIndex? = nil,
         relationDisplay: ContextDisplayResolver? = nil,
         onSave: ((PageFrontmatter) -> Void)? = nil,
         compact: Bool = false
     ) {
         self.page = page
-        self.vault = vault
+        self.pageCollection = pageCollection
         self.index = index
         self.relationDisplay = relationDisplay
         self.onSave = onSave
@@ -267,7 +267,7 @@ struct FrontmatterInspector: View {
     /// snapshot passed at init) so any schema edit — from the affordance
     /// below or View Settings — appears immediately in every mount.
     private var liveProperties: [PropertyDefinition] {
-        vaultManager.types.first(where: { $0.id == vault.id })?.properties ?? vault.properties
+        collectionManager.types.first(where: { $0.id == pageCollection.id })?.properties ?? pageCollection.properties
     }
 
     /// "Add Property" — small secondary label under the property rows.
@@ -299,7 +299,7 @@ struct FrontmatterInspector: View {
                     Task {
                         do {
                             try await PropertyCreation.commitDefault(
-                                type, toTypeID: vault.id, manager: vaultManager)
+                                type, toTypeID: pageCollection.id, manager: collectionManager)
                             addPropertyOpen = false
                         } catch {
                             addPropertyError = PropertyEditorErrorMessage.string(for: error)
@@ -321,7 +321,7 @@ struct FrontmatterInspector: View {
 
     private func initVM() {
         if vm == nil {
-            vm = FrontmatterInspectorViewModel(page: page, vault: vault, onSave: onSave)
+            vm = FrontmatterInspectorViewModel(page: page, pageCollection: pageCollection, onSave: onSave)
         }
     }
 

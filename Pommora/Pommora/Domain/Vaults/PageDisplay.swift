@@ -1,6 +1,6 @@
 import Foundation
 
-/// Per-vault default for how Pages open (`open_in` on the PageType sidecar).
+/// Per-vault default for how Pages open (`open_in` on the PageCollection sidecar).
 /// Tight raw-value enum (enum+switch HARD RULE): two shipping modes, no
 /// tolerant arm — an unrecognized on-disk value fails decode loudly.
 enum OpenInMode: String, Codable, Sendable, CaseIterable {

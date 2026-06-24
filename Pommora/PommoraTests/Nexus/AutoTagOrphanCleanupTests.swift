@@ -25,7 +25,7 @@ struct AutoTagOrphanCleanupTests {
 
     // MARK: - Helpers
 
-    private func writePageTypeSidecar(at folder: URL) throws {
+    private func writePageCollectionSidecar(at folder: URL) throws {
         try FixtureFiles.writeJSON(
             #"{"id":"01HABCPAGETYPE","modified_at":"2026-05-01T00:00:00Z","properties":[],"views":[]}"#,
             to: folder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename)
@@ -60,13 +60,13 @@ struct AutoTagOrphanCleanupTests {
     // MARK: - 1. Clean folder untouched (Page Type)
 
     @Test("clean _pagetype.json-only folder is left untouched")
-    func cleanPageTypeFolderUntouched() throws {
+    func cleanPageCollectionFolderUntouched() throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
 
         let typeFolder = nexus.rootURL.appendingPathComponent("Notes", isDirectory: true)
         try FileManager.default.createDirectory(at: typeFolder, withIntermediateDirectories: true)
-        try writePageTypeSidecar(at: typeFolder)
+        try writePageCollectionSidecar(at: typeFolder)
 
         let ptMeta = typeFolder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename)
         let pcMeta = typeFolder.appendingPathComponent(
@@ -76,7 +76,7 @@ struct AutoTagOrphanCleanupTests {
 
         #expect(exists(ptMeta))
         #expect(!exists(pcMeta))
-        let pt = try PageType.load(from: ptMeta)
+        let pt = try PageCollection.load(from: ptMeta)
         #expect(pt.id == "01HABCPAGETYPE")
     }
 
@@ -93,7 +93,7 @@ struct AutoTagOrphanCleanupTests {
         // (PagesV2): the loose .md must stay byte-stamp-free.
         let typeFolder = nexus.rootURL.appendingPathComponent("Notes", isDirectory: true)
         try FileManager.default.createDirectory(at: typeFolder, withIntermediateDirectories: true)
-        try writePageTypeSidecar(at: typeFolder)
+        try writePageCollectionSidecar(at: typeFolder)
         try writeStrayPageSetSidecar(at: typeFolder)
 
         let ptMeta = typeFolder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename)
@@ -107,7 +107,7 @@ struct AutoTagOrphanCleanupTests {
 
         #expect(!exists(strayMeta))
         #expect(exists(ptMeta))
-        let pt = try PageType.load(from: ptMeta)
+        let pt = try PageCollection.load(from: ptMeta)
         #expect(pt.id == "01HABCPAGETYPE")
         // PagesV2 pin: the retired stamp pass must NOT write a Class key.
         #expect(try classValue(at: file) == nil)
@@ -122,7 +122,7 @@ struct AutoTagOrphanCleanupTests {
 
         let typeFolder = nexus.rootURL.appendingPathComponent("Notes", isDirectory: true)
         try FileManager.default.createDirectory(at: typeFolder, withIntermediateDirectories: true)
-        try writePageTypeSidecar(at: typeFolder)
+        try writePageCollectionSidecar(at: typeFolder)
         try writeStrayPageSetSidecar(at: typeFolder)
 
         let ptMeta = typeFolder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename)
@@ -155,7 +155,7 @@ struct AutoTagOrphanCleanupTests {
         let typeFolder = nexus.rootURL.appendingPathComponent("Notes", isDirectory: true)
         let collFolder = typeFolder.appendingPathComponent("Sources", isDirectory: true)
         try FileManager.default.createDirectory(at: collFolder, withIntermediateDirectories: true)
-        try writePageTypeSidecar(at: typeFolder)
+        try writePageCollectionSidecar(at: typeFolder)
         try FixtureFiles.writeJSON(
             #"{"id":"01HABCREALCOLL","type_id":"01HABCPAGETYPE","modified_at":"2026-05-01T00:00:00Z","properties":[],"views":[]}"#,
             to: collFolder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename)

@@ -99,21 +99,21 @@ struct DefaultSortConfigTests {
 
     // MARK: - Test 4: pageTypeAbsentDefaultSortDecodesToNil
 
-    @Test("PageType without default_sort field decodes to nil defaultSort")
+    @Test("PageCollection without default_sort field decodes to nil defaultSort")
     func pageTypeAbsentDefaultSortDecodesToNil() throws {
         let json = pageTypeJSON(withDefaultSort: false)
         let data = try #require(json.data(using: .utf8))
-        var pt = try jsonDecoder().decode(PageType.self, from: data)
+        var pt = try jsonDecoder().decode(PageCollection.self, from: data)
         pt.title = "TestVault"  // title comes from the folder name, not the sidecar JSON
         #expect(pt.defaultSort == nil)
     }
 
     // MARK: - Test 5: pageTypePresentDefaultSortRoundTrips
 
-    @Test("PageType with default_sort field encodes and decodes the field correctly")
+    @Test("PageCollection with default_sort field encodes and decodes the field correctly")
     func pageTypePresentDefaultSortRoundTrips() throws {
         let sort = DefaultSortConfig(propertyID: "prop_xyz", direction: .ascending)
-        var pt = PageType(
+        var pt = PageCollection(
             id: "01HQ000000000000000000AAA",
             title: "TestVault",
             icon: nil,
@@ -123,7 +123,7 @@ struct DefaultSortConfigTests {
             defaultSort: sort
         )
         let data = try jsonEncoder().encode(pt)
-        var decoded = try jsonDecoder().decode(PageType.self, from: data)
+        var decoded = try jsonDecoder().decode(PageCollection.self, from: data)
         decoded.title = pt.title
         #expect(decoded.defaultSort == sort)
     }

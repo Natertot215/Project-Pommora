@@ -37,7 +37,7 @@ struct IndexQueryTests {
         let results = try await IndexQuery(idx).filter(
             [
                 .equals(propertyID: "prop_A", value: .select("active"))
-            ], in: .pageType("PT1"))
+            ], in: .pageCollection("PT1"))
 
         #expect(results.count == 2)
         let ids = Set(results.map(\.id))
@@ -65,7 +65,7 @@ struct IndexQueryTests {
         let results = try await IndexQuery(idx).filter(
             [
                 .notInSet(propertyID: "priority", values: [.select("high")])
-            ], in: .pageType("PT2"))
+            ], in: .pageCollection("PT2"))
 
         #expect(results.count == 2)
         let ids = Set(results.map(\.id))
@@ -93,7 +93,7 @@ struct IndexQueryTests {
         let results = try await IndexQuery(idx).filter(
             [
                 .inSet(propertyID: "priority", values: [.select("high"), .select("low")])
-            ], in: .pageType("PT7"))
+            ], in: .pageCollection("PT7"))
 
         #expect(results.count == 2)
         let ids = Set(results.map(\.id))
@@ -125,7 +125,7 @@ struct IndexQueryTests {
                     .equals(propertyID: "status", value: .select("active")),
                     .equals(propertyID: "priority", value: .select("high")),
                 ])
-            ], in: .pageType("PT3"))
+            ], in: .pageCollection("PT3"))
 
         #expect(results.count == 1)
         #expect(results[0].id == "P20")
@@ -155,7 +155,7 @@ struct IndexQueryTests {
                     .equals(propertyID: "tag", value: .select("alpha")),
                     .equals(propertyID: "tag", value: .select("gamma")),
                 ])
-            ], in: .pageType("PT4"))
+            ], in: .pageCollection("PT4"))
 
         #expect(results.count == 2)
         let ids = Set(results.map(\.id))
@@ -182,14 +182,14 @@ struct IndexQueryTests {
         let existsResults = try await IndexQuery(idx).filter(
             [
                 .exists(propertyID: "tag")
-            ], in: .pageType("PT5"))
+            ], in: .pageCollection("PT5"))
         #expect(existsResults.count == 1)
         #expect(existsResults[0].id == "P40")
 
         let nullResults = try await IndexQuery(idx).filter(
             [
                 .isNull(propertyID: "tag")
-            ], in: .pageType("PT5"))
+            ], in: .pageCollection("PT5"))
         #expect(nullResults.count == 1)
         #expect(nullResults[0].id == "P41")
     }
@@ -212,7 +212,7 @@ struct IndexQueryTests {
                     """)
         }
 
-        let results = try await IndexQuery(idx).sortBy("rank", direction: .ascending, in: .pageType("PT6"))
+        let results = try await IndexQuery(idx).sortBy("rank", direction: .ascending, in: .pageCollection("PT6"))
         #expect(results.map(\.id) == ["P51", "P52", "P50"])
     }
 
@@ -272,7 +272,7 @@ struct IndexQueryTests {
             sourceID: "PT_SRC",
             sourceKind: .pageType,
             destTypeID: "PT_DST",
-            destTypeKind: .pageType
+            destTypeKind: .pageCollection
         )
 
         let strippedIDs = Set(report.strippedPropertyIDs)

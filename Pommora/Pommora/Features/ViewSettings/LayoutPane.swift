@@ -20,12 +20,12 @@ import SwiftUI
 ///     later pass).
 ///
 /// Every read/write resolves the active view by stable ID off the live
-/// `PageTypeManager` + `ActiveViewStore` and persists through `updateView`.
+/// `PageCollectionManager` + `ActiveViewStore` and persists through `updateView`.
 struct LayoutPane: View {
     let scope: ViewSettingsScope
     @Binding var path: [ViewSettingsRoute]
 
-    @Environment(PageTypeManager.self) private var pageTypeManager
+    @Environment(PageCollectionManager.self) private var collectionManager
     @Environment(TierConfigManager.self) private var tierConfigManager
     @Environment(ActiveViewStore.self) private var activeViewStore
 
@@ -203,7 +203,7 @@ struct LayoutPane: View {
         guard let view = currentView(), let cid = containerID() else { return }
         let viewID = view.id
         do {
-            try await pageTypeManager.updateView(viewID, in: cid, transform: transform)
+            try await collectionManager.updateView(viewID, in: cid, transform: transform)
             commitError = nil
         } catch {
             commitError = PropertyEditorErrorMessage.string(for: error)
@@ -215,7 +215,7 @@ struct LayoutPane: View {
     /// Resolves the ACTIVE view via the shared resolver — edits whichever view
     /// the user is viewing.
     private func currentView() -> SavedView? {
-        activeViewStore.resolvedActiveView(for: scope, manager: pageTypeManager)
+        activeViewStore.resolvedActiveView(for: scope, manager: collectionManager)
     }
 
     /// The full toggleable column set: user properties + tier relations +
@@ -223,7 +223,7 @@ struct LayoutPane: View {
     /// schema.
     private func resolvedProperties() -> [PropertyDefinition] {
         guard let typeID = parentTypeID() else { return [] }
-        return pageTypeManager.types.first(where: { $0.id == typeID })?
+        return collectionManager.types.first(where: { $0.id == typeID })?
             .resolvedProperties(tierConfig: tierConfigManager.config) ?? []
     }
 
@@ -231,10 +231,10 @@ struct LayoutPane: View {
     /// Display Banner toggle is meaningless (and disabled) without one.
     private var containerHasBanner: Bool {
         guard let cid = containerID() else { return false }
-        if let t = pageTypeManager.types.first(where: { $0.id == cid }) {
+        if let t = collectionManager.types.first(where: { $0.id == cid }) {
             return t.banner != nil
         }
-        for cols in pageTypeManager.pageCollectionsByType.values {
+        for cols in collectionManager.pageCollectionsByType.values {
             if let c = cols.first(where: { $0.id == cid }) { return c.banner != nil }
         }
         return false

@@ -15,11 +15,11 @@ import Testing
         try AtomicJSON.write(s, to: NexusPaths.settingsFileURL(in: nexus))
     }
 
-    /// Creates a PageType folder on disk (sidecar idiom — mirrors LoadAllIndexSyncTests).
-    private func makePageType(_ title: String, id: String, in nexus: Nexus) throws {
+    /// Creates a PageCollection folder on disk (sidecar idiom — mirrors LoadAllIndexSyncTests).
+    private func makePageCollection(_ title: String, id: String, in nexus: Nexus) throws {
         let folder = NexusPaths.vaultFolderURL(forTitle: title, in: nexus)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        let pt = PageType(id: id, title: title, icon: nil, properties: [], views: [], modifiedAt: Date())
+        let pt = PageCollection(id: id, title: title, icon: nil, properties: [], views: [], modifiedAt: Date())
         try pt.save(to: folder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename))
     }
 
@@ -29,7 +29,7 @@ import Testing
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
         // A recognized (kept) Type folder...
-        try makePageType("MyVault", id: "PT_V", in: nexus)
+        try makePageCollection("MyVault", id: "PT_V", in: nexus)
         // ...with a depth-1 sub-folder carrying a legacy collection sidecar that
         // cleanupLegacyOrphans would normally delete as an orphan.
         let priv = NexusPaths.vaultFolderURL(forTitle: "MyVault", in: nexus)
@@ -48,8 +48,8 @@ import Testing
     @Test func excludedFolderAbsentFromIndexAfterBuild() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
-        try makePageType("Notes", id: "PT_NOTES", in: nexus)
-        try makePageType("Archive", id: "PT_ARCHIVE", in: nexus)
+        try makePageCollection("Notes", id: "PT_NOTES", in: nexus)
+        try makePageCollection("Archive", id: "PT_ARCHIVE", in: nexus)
         try setExcluded(["Archive"], in: nexus)
 
         let (index, _) = try PommoraIndex.open(at: nexus.rootURL)
@@ -68,16 +68,16 @@ import Testing
         #expect(archive == 0)
     }
 
-    // MARK: - PageTypeManager.loadAll(filter:) exclusion tests
+    // MARK: - PageCollectionManager.loadAll(filter:) exclusion tests
 
-    @Test func excludedTypeAbsentFromPageTypeLoadAll() async throws {
+    @Test func excludedTypeAbsentFromPageCollectionLoadAll() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
-        try makePageType("Notes", id: "PT_NOTES", in: nexus)
-        try makePageType("Archive", id: "PT_ARCHIVE", in: nexus)
+        try makePageCollection("Notes", id: "PT_NOTES", in: nexus)
+        try makePageCollection("Archive", id: "PT_ARCHIVE", in: nexus)
         try setExcluded(["Archive"], in: nexus)
 
-        let mgr = PageTypeManager(nexus: nexus)
+        let mgr = PageCollectionManager(nexus: nexus)
         await mgr.loadAll(filter: FolderFilter.load(for: nexus))
         #expect(mgr.types.contains { $0.title == "Notes" })
         #expect(!mgr.types.contains { $0.title == "Archive" })
@@ -86,15 +86,15 @@ import Testing
     @Test func removingFromListReExposesType() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
-        try makePageType("Archive", id: "PT_ARCHIVE", in: nexus)
+        try makePageCollection("Archive", id: "PT_ARCHIVE", in: nexus)
 
         try setExcluded(["Archive"], in: nexus)
-        let m1 = PageTypeManager(nexus: nexus)
+        let m1 = PageCollectionManager(nexus: nexus)
         await m1.loadAll(filter: FolderFilter.load(for: nexus))
         #expect(!m1.types.contains { $0.title == "Archive" })
 
         try setExcluded([], in: nexus)
-        let m2 = PageTypeManager(nexus: nexus)
+        let m2 = PageCollectionManager(nexus: nexus)
         await m2.loadAll(filter: FolderFilter.load(for: nexus))
         #expect(m2.types.contains { $0.title == "Archive" })
     }
@@ -103,8 +103,8 @@ import Testing
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
 
-        // Create the "Notes" PageType.
-        try makePageType("Notes", id: "PT_NOTES_COL", in: nexus)
+        // Create the "Notes" PageCollection.
+        try makePageCollection("Notes", id: "PT_NOTES_COL", in: nexus)
 
         // Create two sub-folder collections inside "Notes": "Inbox" and "Archive".
         let inboxFolder = NexusPaths.collectionFolderURL(
@@ -135,7 +135,7 @@ import Testing
         try setExcluded(["Notes/Archive"], in: nexus)
 
         let filter = FolderFilter.load(for: nexus)
-        let mgr = PageTypeManager(nexus: nexus)
+        let mgr = PageCollectionManager(nexus: nexus)
         let setManager = PageSetManager(nexus: nexus)
         setManager.pageTypeProvider = { [weak mgr] in mgr?.types ?? [] }
         mgr.pageSetManager = setManager
@@ -153,7 +153,7 @@ import Testing
     @Test func excludedNestedFolderPagesDoNotRollUp() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
-        try makePageType("Notes", id: "PT_NOTES", in: nexus)
+        try makePageCollection("Notes", id: "PT_NOTES", in: nexus)
 
         // A kept page directly in Notes/ — should remain visible.
         let notesFolder = NexusPaths.vaultFolderURL(forTitle: "Notes", in: nexus)
@@ -166,7 +166,7 @@ import Testing
 
         try setExcluded(["Notes/Scratch"], in: nexus)
 
-        let pt = PageType(id: "PT_NOTES", title: "Notes", icon: nil, properties: [], views: [], modifiedAt: Date())
+        let pt = PageCollection(id: "PT_NOTES", title: "Notes", icon: nil, properties: [], views: [], modifiedAt: Date())
         let pcm = PageContentManager(nexus: nexus, contextProvider: { .empty })
         await pcm.loadAll(for: pt)
 
@@ -211,8 +211,8 @@ import Testing
             try FileManager.default.createDirectory(
                 at: nexus.rootURL.appendingPathComponent(name), withIntermediateDirectories: true)
         }
-        try makePageType("Notes", id: "PT_NOTES", in: nexus)
-        let ptm = PageTypeManager(nexus: nexus)
+        try makePageCollection("Notes", id: "PT_NOTES", in: nexus)
+        let ptm = PageCollectionManager(nexus: nexus)
         await ptm.loadAll(filter: FolderFilter.load(for: nexus))  // empty user exclusion list
         #expect(ptm.types.contains { $0.title == "Notes" })
         #expect(!ptm.types.contains { $0.title == ".obsidian" })
@@ -242,7 +242,7 @@ import Testing
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
 
-        // A top-level folder with no sidecar — autoTag would tag it as a PageType.
+        // A top-level folder with no sidecar — autoTag would tag it as a PageCollection.
         let archive = nexus.rootURL.appendingPathComponent("Archive")
         try FileManager.default.createDirectory(at: archive, withIntermediateDirectories: true)
 

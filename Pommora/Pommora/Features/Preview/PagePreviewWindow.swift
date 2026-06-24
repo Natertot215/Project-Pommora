@@ -56,7 +56,7 @@ struct PagePreviewContent: View {
     let ref: PageRef
 
     @Environment(PageContentManager.self) private var contentManager
-    @Environment(PageTypeManager.self) private var vaultManager
+    @Environment(PageCollectionManager.self) private var collectionManager
     @Environment(PageSetManager.self) private var setManager
     @Environment(MainWindowRouter.self) private var router
     @Environment(ContextDisplayResolver.self) private var contextResolver
@@ -65,7 +65,7 @@ struct PagePreviewContent: View {
     /// Same VM + saver the main `PageEditorView` uses — unlocked edits flow
     /// through the identical debounced `ContentManager.updatePage` path.
     @State private var viewModel: PageEditorViewModel?
-    @State private var vault: PageType?
+    @State private var activePageCollection: PageCollection?
     @State private var collection: PageSet?
     @State private var set: PageSet?
     @State private var loadFailed = false
@@ -312,7 +312,7 @@ struct PagePreviewContent: View {
 
     /// Non-navigable context path ("Vault › Collection › Set").
     private var breadcrumb: String {
-        [vault?.title, collection?.title, set?.title]
+        [activePageCollection?.title, collection?.title, set?.title]
             .compactMap { $0 }
             .joined(separator: " › ")
     }
@@ -321,20 +321,20 @@ struct PagePreviewContent: View {
 
     @ViewBuilder
     private var inspectorContent: some View {
-        if let vm = viewModel, let vault = liveVault {
+        if let vm = viewModel, let vault = livePageCollection {
             // The REAL pages inspector, mounted as-is — parity with the
             // main window by construction, not imitation. Same grouped Form,
             // same editors, same Add Property affordance, same debounced
             // save path (compact typographic scale).
             FrontmatterInspector(
                 page: vm.page,
-                vault: vault,
+                pageCollection: vault,
                 index: contentManager.indexUpdater?.index,
                 relationDisplay: contextResolver,
                 onSave: { updated in
                     Task {
                         try? await contentManager.updatePageFrontmatter(
-                            vm.page, frontmatter: updated, vault: vault, collection: collection,
+                            vm.page, frontmatter: updated, pageCollection: vault, collection: collection,
                             set: set)
                         if let refreshed = currentMeta() { vm.page = refreshed }
                     }
@@ -353,9 +353,9 @@ struct PagePreviewContent: View {
     /// snapshot) so schema changes — e.g. a property added through the
     /// inspector's affordance — re-render this window's inspector
     /// immediately.
-    private var liveVault: PageType? {
-        guard let vault else { return nil }
-        return vaultManager.types.first { $0.id == vault.id } ?? vault
+    private var livePageCollection: PageCollection? {
+        guard let activePageCollection else { return nil }
+        return collectionManager.types.first { $0.id == activePageCollection.id } ?? activePageCollection
     }
 
     // MARK: - Context-menu commands (title area + body area)
@@ -436,20 +436,20 @@ struct PagePreviewContent: View {
         // Every peek opens locked — the fresh-defaults contract for the panel.
         isLocked = true
         if ref.resolve(
-            vaultManager: vaultManager, contentManager: contentManager, setManager: setManager)
+            collectionManager: collectionManager, contentManager: contentManager, setManager: setManager)
             == nil
         {
             await loadContainer()
         }
         guard
             let resolved = ref.resolve(
-                vaultManager: vaultManager, contentManager: contentManager,
+                collectionManager: collectionManager, contentManager: contentManager,
                 setManager: setManager),
             let pageFile = try? PageFile.loadLenient(
                 from: resolved.page.url, nexusRoot: contentManager.nexus.rootURL)
         else {
             viewModel = nil
-            vault = nil
+            activePageCollection = nil
             collection = nil
             set = nil
             loadFailed = true
@@ -458,13 +458,13 @@ struct PagePreviewContent: View {
 
         let saver = ContentManagerPageSaver(
             contentManager: contentManager,
-            vault: resolved.vault,
+            pageCollection: resolved.pageCollection,
             collection: resolved.collection,
             set: resolved.set
         )
         let vm = PageEditorViewModel(page: resolved.page, body: pageFile.body, saver: saver)
         viewModel = vm
-        vault = resolved.vault
+        activePageCollection = resolved.pageCollection
         collection = resolved.collection
         set = resolved.set
         titleDraft = resolved.page.title
@@ -479,9 +479,9 @@ struct PagePreviewContent: View {
     /// cold here — a Set the manager doesn't know falls back to the Collection
     /// load (whose walk excludes Set subtrees) and resolves as load-failed.
     private func loadContainer() async {
-        guard let v = vaultManager.types.first(where: { $0.id == ref.vaultID }) else { return }
+        guard let v = collectionManager.types.first(where: { $0.id == ref.vaultID }) else { return }
         guard let cid = ref.collectionID,
-            let c = vaultManager.pageCollections(in: v).first(where: { $0.id == cid })
+            let c = collectionManager.pageCollections(in: v).first(where: { $0.id == cid })
         else {
             await contentManager.loadAll(for: v)
             return
@@ -510,20 +510,20 @@ struct PagePreviewContent: View {
     /// mutation (rename / icon / frontmatter) so the VM re-serializes current
     /// frontmatter on the next body save, not a stale copy.
     private func currentMeta() -> PageMeta? {
-        guard let vm = viewModel, let vault else { return nil }
+        guard let vm = viewModel, let activePageCollection = livePageCollection else { return nil }
         if let set {
             return contentManager.pages(in: set).first { $0.id == vm.page.id }
         }
         if let collection {
             return contentManager.pages(inCollection: collection).first { $0.id == vm.page.id }
         }
-        return contentManager.pages(in: vault).first { $0.id == vm.page.id }
+        return contentManager.pages(in: activePageCollection).first { $0.id == vm.page.id }
     }
 
     private func commitIcon(_ newIcon: String?) async {
-        guard let vm = viewModel, let vault else { return }
+        guard let vm = viewModel, let activePageCollection = livePageCollection else { return }
         try? await contentManager.updatePageIcon(
-            vm.page, to: newIcon, vault: vault, collection: collection, set: set)
+            vm.page, to: newIcon, pageCollection: activePageCollection, collection: collection, set: set)
         if let updated = currentMeta() { vm.page = updated }
     }
 
@@ -531,7 +531,7 @@ struct PagePreviewContent: View {
     /// `.md` via the same manager path as the main editor. Idempotent (guards
     /// unchanged/empty input) so Enter + blur can both fire.
     private func commitRename() async {
-        guard let vm = viewModel, let vault else { return }
+        guard let vm = viewModel, let activePageCollection = livePageCollection else { return }
         let oldTitle = vm.page.title
         let newTitle = titleDraft.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !newTitle.isEmpty else {
@@ -542,11 +542,11 @@ struct PagePreviewContent: View {
         do {
             if let set, let collection {
                 try await contentManager.renamePage(
-                    vm.page, to: newTitle, in: set, collection: collection, vault: vault)
+                    vm.page, to: newTitle, in: set, collection: collection, pageCollection: activePageCollection)
             } else if let collection {
-                try await contentManager.renamePage(vm.page, to: newTitle, in: collection, vault: vault)
+                try await contentManager.renamePage(vm.page, to: newTitle, in: collection, pageCollection: activePageCollection)
             } else {
-                try await contentManager.renamePage(vm.page, to: newTitle, inVaultRoot: vault)
+                try await contentManager.renamePage(vm.page, to: newTitle, inCollectionRoot: activePageCollection)
             }
             if let updated = currentMeta() {
                 vm.page = updated

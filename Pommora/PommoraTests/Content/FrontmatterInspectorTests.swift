@@ -39,8 +39,8 @@ struct FrontmatterInspectorTests {
         )
     }
 
-    private func makeVault(properties: [PropertyDefinition] = []) -> PageType {
-        PageType(
+    private func makeVault(properties: [PropertyDefinition] = []) -> PageCollection {
+        PageCollection(
             id: ULID.generate(),
             title: "Test Vault",
             icon: nil,
@@ -66,7 +66,7 @@ struct FrontmatterInspectorTests {
         let page = makePageMeta(frontmatter: frontmatter)
         let vault = makeVault(properties: vaultProps)
         var captured: [PageFrontmatter] = []
-        let vm = FrontmatterInspectorViewModel(page: page, vault: vault, onSave: { fm in
+        let vm = FrontmatterInspectorViewModel(page: page, pageCollection: vault, onSave: { fm in
             captured.append(fm)
         })
         return (vm, { captured })
