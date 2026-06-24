@@ -594,9 +594,9 @@ enum NexusAdopter {
         )
     }
 
-    // MARK: - autoTagMissingSidecars (silent three-tier auto-tag)
+    // MARK: - autoTagMissingSidecars (silent auto-tag at any depth)
 
-    /// Silent three-level walk that writes missing per-kind sidecars so
+    /// Silent recursive walk that writes missing per-kind sidecars so
     /// Finder-built structure is first-class on the next launch. The launch
     /// caller runs it UNCONDITIONALLY after `runAdoptionIfNeeded` (whether the
     /// adoption preview was shown / confirmed / declined) and BEFORE
@@ -608,12 +608,11 @@ enum NexusAdopter {
     /// `adoptionExcludedSubFolderNames` set (`node_modules`, `.trash`).
     ///
     /// **Depth-aware kind selection:**
-    /// - Depth 0 unknown → content-sniff via `contentSniff` → always
-    ///   `_pagetype.json` (sidecar-less folders adopt as Page Types).
+    /// - Depth 0 → `_pagetype.json` (sidecar-less folders adopt as Page Types).
     /// - Depth 1, parent has `_pagetype.json` → write `_pagecollection.json`.
-    /// - Depth 2, parent has `_pagecollection.json` → write `_pageset.json`.
-    /// - Depth 3+ folders stay sidecar-less — Types, Collections, and Sets
-    ///   are the only auto-tagged kinds; deeper folders roll up into the Set.
+    /// - Depth 2+, parent has `_pageset.json` (or `_pagecollection.json` for the
+    ///   first Set tier) → write `_pageset.json`. Recursion is unbounded: every
+    ///   sidecar-less sub-folder at any depth becomes a Set.
     ///
     /// **Paradigm-shift note:** overrides the previous "non-Pommora folders
     /// at root stay invisible to discovery" rule. Anything at the Nexus
@@ -661,21 +660,15 @@ enum NexusAdopter {
     }
 
     /// Walks the Collections inside `typeFolder` and writes missing
-    /// `_pagecollection.json` sidecars, then descends one more level so each
-    /// Collection's Sets get tagged too. Three tiers total — auto-tagging
-    /// stops at the Set level.
+    /// `_pagecollection.json` sidecars, then recurses unboundedly so every
+    /// nested Set folder at any depth gets tagged.
     private static func walkDepth1(_ typeFolder: URL, now: Date, filter: FolderFilter = .empty) {
-        // Re-read parent id after depth-0 write — the type sidecar should
-        // now exist (or have existed before this run).
         guard let typeID = loadTypeParentID(at: typeFolder) else { return }
         let children = (try? Filesystem.childFolders(of: typeFolder, folderFilter: filter)) ?? []
         for child in children where !shouldSkipForAutoTag(child) {
             tagDepth1IfMissing(child, typeID: typeID, now: now)
-            // Descend AFTER tagging so a freshly-tagged Collection immediately
-            // gets its Sets tagged in the same pass. Re-read the collection id
-            // from the sidecar that now exists (or pre-existed).
             if let collectionID = loadCollectionParentID(at: child) {
-                walkDepth2(child, collectionID: collectionID, now: now, filter: filter)
+                walkSets(child, parentSetID: collectionID, now: now, filter: filter)
             }
         }
     }
@@ -696,28 +689,31 @@ enum NexusAdopter {
         }
     }
 
-    /// Walks the Sets inside `collectionFolder` and writes missing
-    /// `_pageset.json` sidecars. Depth-3+ folders stay sidecar-less — they
-    /// roll up into the Set above them.
-    private static func walkDepth2(
-        _ collectionFolder: URL, collectionID: String, now: Date, filter: FolderFilter = .empty
+    /// Recursively walks sub-folders inside `setFolder`, writing missing
+    /// `_pageset.json` sidecars at every depth. Recurses into each tagged child
+    /// so the walk is unbounded — all sidecar-less sub-folders become Sets.
+    private static func walkSets(
+        _ setFolder: URL, parentSetID: String, now: Date, filter: FolderFilter = .empty
     ) {
-        let children = (try? Filesystem.childFolders(of: collectionFolder, folderFilter: filter)) ?? []
+        let children = (try? Filesystem.childFolders(of: setFolder, folderFilter: filter)) ?? []
         for child in children where !shouldSkipForAutoTag(child) {
-            tagDepth2IfMissing(child, collectionID: collectionID, now: now)
+            tagSetIfMissing(child, parentSetID: parentSetID, now: now)
+            if let childID = loadSetParentID(at: child) {
+                walkSets(child, parentSetID: childID, now: now, filter: filter)
+            }
         }
     }
 
     /// Writes `_pageset.json` if the folder has no recognized sidecar.
-    private static func tagDepth2IfMissing(
-        _ folder: URL, collectionID: String, now: Date
+    private static func tagSetIfMissing(
+        _ folder: URL, parentSetID: String, now: Date
     ) {
         let existing = recognizedSidecarsAt(folder)
         guard existing.isEmpty else { return }
         let title = folder.lastPathComponent
         do {
             try writeAutoTagSetSidecar(
-                at: folder, title: title, collectionID: collectionID, now: now
+                at: folder, title: title, collectionID: parentSetID, now: now
             )
         } catch {
             logAutoTagFailure(error, at: folder, depth: 2)
@@ -747,6 +743,17 @@ enum NexusAdopter {
         )
         guard let pc = try? PageSet.load(from: pcURL) else { return nil }
         return pc.id
+    }
+
+    /// Reads the `_pageset.json` sidecar to extract the id used as FK on
+    /// freshly-tagged child Set sidecars at depth-2+. Returns nil if absent or
+    /// decoding fails (silent — failures don't abort).
+    private static func loadSetParentID(at folder: URL) -> String? {
+        let psURL = folder.appendingPathComponent(
+            NexusPaths.pageSetSidecarFilename, isDirectory: false
+        )
+        guard let ps = try? PageSet.load(from: psURL) else { return nil }
+        return ps.id
     }
 
     private static func writeAutoTagTypeSidecar(

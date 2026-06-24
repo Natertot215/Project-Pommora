@@ -61,7 +61,7 @@ struct NexusAdopterAutoTagTests {
 
     // MARK: - Three-tier Pages round-trip
 
-    @Test("three-tier structure auto-tags Type + Collection + Set; depth-3 stays bare")
+    @Test("three-tier structure auto-tags Type + Collection + Set; depth-3 also gets a Set sidecar")
     func threeTierRoundTrip() throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
@@ -94,20 +94,12 @@ struct NexusAdopterAutoTagTests {
         #expect(ps.parentID == pc.id)
         #expect(ps.title == "Drafts")
 
-        // Depth-3 folder inside the Set stays sidecar-less.
-        #expect(
-            !FileManager.default.fileExists(
-                atPath: deepFolder.appendingPathComponent(NexusPaths.pageSetSidecarFilename).path
-            )
+        // Depth-3 folder also gets a _pageset.json, parented to the depth-2 Set.
+        let deepSet = try PageSet.load(
+            from: deepFolder.appendingPathComponent(NexusPaths.pageSetSidecarFilename)
         )
-        #expect(
-            !FileManager.default.fileExists(
-                atPath:
-                    deepFolder
-                    .appendingPathComponent(NexusPaths.pageCollectionSidecarFilename)
-                    .path
-            )
-        )
+        #expect(deepSet.parentID == ps.id)
+        #expect(deepSet.title == "Deep")
     }
 
     @Test("an existing _pageset.json is not overwritten on re-run")
@@ -286,5 +278,93 @@ struct NexusAdopterAutoTagTests {
         #expect(FileManager.default.fileExists(atPath: pcMeta.path))
         let pc = try PageSet.load(from: pcMeta)
         #expect(pc.parentID == knownID)
+    }
+
+    // MARK: - Arbitrary-depth recursion (task 1.6)
+
+    @Test("Type/A/B/C/page.md — A gets _pagecollection, B and C get _pageset, page stays in C")
+    func deepRecursionABC() throws {
+        let nexus = try TempNexus.make()
+        defer { TempNexus.cleanup(nexus) }
+
+        let typeFolder = nexus.rootURL.appendingPathComponent("Vault", isDirectory: true)
+        let aFolder = typeFolder.appendingPathComponent("A", isDirectory: true)
+        let bFolder = aFolder.appendingPathComponent("B", isDirectory: true)
+        let cFolder = bFolder.appendingPathComponent("C", isDirectory: true)
+        try FileManager.default.createDirectory(at: cFolder, withIntermediateDirectories: true)
+        try FixtureFiles.write("# Page\n", to: cFolder.appendingPathComponent("page.md"))
+
+        NexusAdopter.autoTagMissingSidecars(at: nexus.rootURL)
+
+        let pt = try PageType.load(
+            from: typeFolder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename)
+        )
+        let pa = try PageSet.load(
+            from: aFolder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename)
+        )
+        let pb = try PageSet.load(
+            from: bFolder.appendingPathComponent(NexusPaths.pageSetSidecarFilename)
+        )
+        let pc = try PageSet.load(
+            from: cFolder.appendingPathComponent(NexusPaths.pageSetSidecarFilename)
+        )
+
+        #expect(pa.parentID == pt.id)
+        #expect(pb.parentID == pa.id)
+        #expect(pc.parentID == pb.id)
+        #expect(FileManager.default.fileExists(atPath: cFolder.appendingPathComponent("page.md").path))
+    }
+
+    @Test("deep recursion is idempotent — second pass is a no-op")
+    func deepRecursionIdempotent() throws {
+        let nexus = try TempNexus.make()
+        defer { TempNexus.cleanup(nexus) }
+
+        let typeFolder = nexus.rootURL.appendingPathComponent("Vault", isDirectory: true)
+        let cFolder = typeFolder
+            .appendingPathComponent("A", isDirectory: true)
+            .appendingPathComponent("B", isDirectory: true)
+            .appendingPathComponent("C", isDirectory: true)
+        try FileManager.default.createDirectory(at: cFolder, withIntermediateDirectories: true)
+
+        NexusAdopter.autoTagMissingSidecars(at: nexus.rootURL)
+        let pcMeta = cFolder.appendingPathComponent(NexusPaths.pageSetSidecarFilename)
+        let pc1 = try PageSet.load(from: pcMeta)
+
+        NexusAdopter.autoTagMissingSidecars(at: nexus.rootURL)
+        let pc2 = try PageSet.load(from: pcMeta)
+
+        #expect(pc1.id == pc2.id)
+        #expect(pc1.parentID == pc2.parentID)
+    }
+
+    @Test("Finder-duplicate at depth — Set nested inside another Set gets fresh ULID on load")
+    func finderDuplicateDeepSet() async throws {
+        let nexus = try TempNexus.make()
+        defer { TempNexus.cleanup(nexus) }
+
+        let typeManager = PageTypeManager(nexus: nexus)
+        let setManager = PageSetManager(nexus: nexus)
+        setManager.pageTypeProvider = { [weak typeManager] in typeManager?.types ?? [] }
+        typeManager.pageSetManager = setManager
+
+        await typeManager.loadAll()
+        try await typeManager.createPageType(name: "Vault", icon: nil)
+        let pageType = typeManager.types.first!
+        try await typeManager.createPageCollection(name: "A", inPageType: pageType)
+        let collection = typeManager.pageCollections(in: pageType).first!
+        let parentSet = try await setManager.createPageSet(name: "B", in: collection)
+        let deepSet = try await setManager.createPageSet(name: "C", in: parentSet)
+
+        // Finder-duplicate the deep (depth-3) Set folder next to its sibling.
+        let copyFolder = parentSet.folderURL.appendingPathComponent("C 2", isDirectory: true)
+        try FileManager.default.copyItem(at: deepSet.folderURL, to: copyFolder)
+
+        await setManager.loadAll(types: typeManager.types)
+
+        let deepSets = setManager.pageSets(in: parentSet)
+        #expect(deepSets.count == 2)
+        #expect(Set(deepSets.map(\.id)).count == 2)
+        #expect(deepSets.filter { $0.id == deepSet.id }.count == 1)
     }
 }
