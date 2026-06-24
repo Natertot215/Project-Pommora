@@ -96,9 +96,44 @@ struct GalleryView: View {
             VStack(alignment: .leading, spacing: PUI.Spacing.md) {
                 header(for: group)
                 if !collapsed.contains(group.id) {
-                    grid(for: group)
+                    groupBody(for: group)
                 }
             }
+        }
+    }
+
+    /// Renders the body of a structural group: direct items first, then any
+    /// child Sub-Sets as labeled sub-bands (no card nesting — Sub-Sets appear
+    /// as section dividers with their own flat grid).
+    ///
+    /// Uses `AnyView` at the recursion boundary (`subBand` ↔ `groupBody`) to
+    /// break the mutual self-referential opaque-return cycle that otherwise
+    /// prevents the compiler from inferring a concrete `some View`.
+    @ViewBuilder
+    private func groupBody(for group: ResolvedGroup) -> some View {
+        if let children = group.children, !children.isEmpty {
+            VStack(alignment: .leading, spacing: PUI.Spacing.xl) {
+                if !group.items.isEmpty {
+                    grid(items: group.items, group: group)
+                }
+                ForEach(children) { child in
+                    AnyView(subBand(for: child))
+                }
+            }
+        } else {
+            grid(for: group)
+        }
+    }
+
+    /// A labeled sub-band for a child Set inside a parent gallery section.
+    /// Sub-Sets are structural dividers; they recurse into their own children.
+    private func subBand(for child: ResolvedGroup) -> some View {
+        VStack(alignment: .leading, spacing: PUI.Spacing.sm) {
+            Text(child.title)
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, PUI.Spacing.sm)
+            AnyView(groupBody(for: child))
         }
     }
 
@@ -140,8 +175,11 @@ struct GalleryView: View {
     private func grid(for group: ResolvedGroup) -> some View {
         // Vault scope nests Sets under Collection groups; the gallery flattens to
         // ONE section level so no Set page is dropped.
-        let items = group.flattenedItems
-        return LazyVGrid(columns: gridColumns, alignment: .leading, spacing: PUI.Spacing.xl) {
+        grid(items: group.flattenedItems, group: group)
+    }
+
+    private func grid(items: [ViewItem], group: ResolvedGroup) -> some View {
+        LazyVGrid(columns: gridColumns, alignment: .leading, spacing: PUI.Spacing.xl) {
             ForEach(Array(items.enumerated()), id: \.element.id) { offset, item in
                 card(for: item, in: group, at: offset)
             }

@@ -88,8 +88,27 @@ enum ViewItemSource {
             )
         }
 
-        // Each set's pages — collection scope carries no gallery chip label.
-        for set in sets.pageSets(in: collection) {
+        // Recurse through all Sets at any depth; each page carries the immediate
+        // parent Set (used by GroupResolver to reconstruct the nesting).
+        appendSetItems(
+            from: sets.pageSets(in: collection),
+            collection: collection, vault: vault,
+            content: content, sets: sets, into: &items
+        )
+        return items
+    }
+
+    /// Appends pages for `children` and all their descendants, stamping each
+    /// page's parent as its immediate set (so GroupResolver can tree-walk).
+    private static func appendSetItems(
+        from children: [PageSet],
+        collection: PageSet,
+        vault: PageType,
+        content: PageContentManager,
+        sets: PageSetManager,
+        into items: inout [ViewItem]
+    ) {
+        for set in children {
             items += content.pages(in: set).map { page in
                 ViewItem(
                     page: page,
@@ -97,7 +116,11 @@ enum ViewItemSource {
                     setLabel: nil
                 )
             }
+            appendSetItems(
+                from: sets.pageSets(in: set),
+                collection: collection, vault: vault,
+                content: content, sets: sets, into: &items
+            )
         }
-        return items
     }
 }

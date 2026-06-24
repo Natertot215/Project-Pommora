@@ -94,6 +94,19 @@ enum VPFixture {
         )
     }
 
+    /// A ViewItem whose page sits inside a sub-set (Set whose parent is another Set).
+    /// `collection` is the depth-1 collection the whole chain ultimately belongs to.
+    static func item(
+        _ id: String, title: String, inSubSet subSet: PageSet, of collection: PageSet,
+        properties: [String: PropertyValue] = [:]
+    ) -> ViewItem {
+        ViewItem(
+            page: meta(id: id, title: title, properties: properties),
+            parent: .set(subSet, collection: collection, vault: vault(collection.parentID)),
+            setLabel: nil
+        )
+    }
+
     /// A ViewItem at the vault root (no Collection).
     static func rootItem(_ id: String, title: String) -> ViewItem {
         ViewItem(

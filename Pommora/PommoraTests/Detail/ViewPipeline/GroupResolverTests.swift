@@ -189,4 +189,89 @@ struct GroupResolverTests {
             items: items, config: .structural, scope: .collection, sort: nil)
         #expect(groups[0].items.map(\.id) == ["p3", "p1"])  // input order kept
     }
+
+    // MARK: - N-deep structural grouping
+
+    @Test("4-deep tree: SetA→SubB→SubC each get their own group level with correct items")
+    func fourDeepStructuralGrouping() {
+        // Type → Collection (collA) → SetA → SubB → SubC, pages at each level.
+        let setA = VPFixture.set("set_A", title: "SetA", collection: "coll_A")
+        let subB = PageSet(
+            id: "sub_B", parentID: "set_A", title: "SubB",
+            folderURL: URL(fileURLWithPath: "/"), modifiedAt: Date(timeIntervalSince1970: 0))
+        let subC = PageSet(
+            id: "sub_C", parentID: "sub_B", title: "SubC",
+            folderURL: URL(fileURLWithPath: "/"), modifiedAt: Date(timeIntervalSince1970: 0))
+
+        let items = [
+            VPFixture.item("loose", title: "Loose", in: collA),        // collection root
+            VPFixture.item("pA", title: "InSetA", in: setA, of: collA), // SetA direct
+            VPFixture.item("pB", title: "InSubB", inSubSet: subB, of: collA), // SubB
+            VPFixture.item("pC", title: "InSubC", inSubSet: subC, of: collA), // SubC
+        ]
+
+        let groups = GroupResolver.resolve(items: items, config: .structural, scope: .collection)
+
+        // Top level: SetA group + trailing ungrouped band.
+        #expect(groups.count == 2)
+        let setAGroup = groups[0]
+        #expect(setAGroup.id == "set_A")
+        #expect(setAGroup.items.map(\.id) == ["pA"])
+
+        // SetA → SubB child.
+        let subBGroup = setAGroup.children?.first
+        #expect(subBGroup?.id == "sub_B")
+        #expect(subBGroup?.items.map(\.id) == ["pB"])
+
+        // SubB → SubC child.
+        let subCGroup = subBGroup?.children?.first
+        #expect(subCGroup?.id == "sub_C")
+        #expect(subCGroup?.items.map(\.id) == ["pC"])
+
+        // SubC has no further children.
+        #expect(subCGroup?.children == nil)
+
+        // Trailing ungrouped band carries the collection-root loose page.
+        let ungrouped = groups[1]
+        #expect(ungrouped.id == GroupResolver.ungroupedID)
+        #expect(ungrouped.items.map(\.id) == ["loose"])
+    }
+
+    @Test("collapse at depth-3 collapses only that node, siblings and ancestors unaffected")
+    func collapseAtDepthThreeIsIsolated() {
+        let setA = VPFixture.set("set_A", title: "SetA", collection: "coll_A")
+        let subB = PageSet(
+            id: "sub_B", parentID: "set_A", title: "SubB",
+            folderURL: URL(fileURLWithPath: "/"), modifiedAt: Date(timeIntervalSince1970: 0))
+        let subC = PageSet(
+            id: "sub_C", parentID: "sub_B", title: "SubC",
+            folderURL: URL(fileURLWithPath: "/"), modifiedAt: Date(timeIntervalSince1970: 0))
+        let subD = PageSet(
+            id: "sub_D", parentID: "sub_B", title: "SubD",
+            folderURL: URL(fileURLWithPath: "/"), modifiedAt: Date(timeIntervalSince1970: 0))
+
+        let items = [
+            VPFixture.item("pA", title: "InSetA", in: setA, of: collA),
+            VPFixture.item("pB", title: "InSubB", inSubSet: subB, of: collA),
+            VPFixture.item("pC", title: "InSubC", inSubSet: subC, of: collA),
+            VPFixture.item("pD", title: "InSubD", inSubSet: subD, of: collA),
+        ]
+
+        // Collapse only subC's id.
+        let groups = GroupResolver.resolve(
+            items: items, config: .structural, scope: .collection, collapsed: ["sub_C"])
+
+        let setAGroup = groups[0]
+        #expect(!setAGroup.isCollapsed)
+
+        let subBGroup = setAGroup.children?.first
+        #expect(subBGroup?.isCollapsed == false)
+
+        // Find subC and subD among subB's children.
+        let subCGroup = subBGroup?.children?.first(where: { $0.id == "sub_C" })
+        let subDGroup = subBGroup?.children?.first(where: { $0.id == "sub_D" })
+
+        #expect(subCGroup?.isCollapsed == true)   // only subC collapsed
+        #expect(subDGroup?.isCollapsed == false)  // sibling unaffected
+    }
 }

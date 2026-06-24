@@ -368,11 +368,16 @@ struct CollectionScope: DetailScope {
     }
 
     func warmCaches(content: PageContentManager, sets: PageSetManager, types: PageTypeManager) async {
-        // Root pages + every Set's pages — Set rows render with their pages as
-        // disclosure children, so their caches must be warm.
         await content.loadAll(forCollection: collection)
-        for set in sets.pageSets(in: collection) {
+        await warmSetCaches(from: sets.pageSets(in: collection), content: content, sets: sets)
+    }
+
+    private func warmSetCaches(
+        from children: [PageSet], content: PageContentManager, sets: PageSetManager
+    ) async {
+        for set in children {
             await content.loadAll(for: set)
+            await warmSetCaches(from: sets.pageSets(in: set), content: content, sets: sets)
         }
     }
 

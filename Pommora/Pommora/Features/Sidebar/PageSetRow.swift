@@ -1,9 +1,25 @@
 import SwiftUI
 
-/// Sidebar row for a PageSet — a disclosure of its member Pages. Sets are
-/// non-selectable: the header passes `tag: nil` and is `.selectionDisabled`, and
-/// there is NO SelectionChrome (the call site PageSetRow tags the row).
-/// `.selectionDisabled` goes on the LABEL (the `SidebarRow`), NOT the
+// MARK: - Unified disclosure item
+
+private enum SetDisclosureItem: Identifiable {
+    case set(PageSet)
+    case page(PageMeta)
+
+    var id: String {
+        switch self {
+        case .set(let s): return "s:\(s.id)"
+        case .page(let p): return "p:\(p.id)"
+        }
+    }
+}
+
+// MARK: - PageSetRow
+
+/// Sidebar row for a PageSet — a disclosure of its member Sets (recursively)
+/// and Pages. Sets are non-selectable: the header passes `tag: nil` and is
+/// `.selectionDisabled`, and there is NO SelectionChrome (the call site tags
+/// the row). `.selectionDisabled` goes on the LABEL (the `SidebarRow`), NOT the
 /// DisclosureGroup — row traits on a multi-row container propagate to the
 /// generated child rows, which would disable the Pages inside.
 struct PageSetRow: View {
@@ -23,24 +39,40 @@ struct PageSetRow: View {
     @State private var expanded: Bool = false
     @State private var isCreatingPage: Bool = false
 
+    private var disclosureItems: [SetDisclosureItem] {
+        pageSetManager.pageSets(in: set).map { .set($0) }
+            + contentManager.pages(in: set).map { .page($0) }
+    }
+
     var body: some View {
         DisclosureGroup(isExpanded: $expanded) {
-            ForEach(contentManager.pages(in: set)) { page in
-                PageRow(
-                    page: page,
-                    parent: .set(set, collection: parentCollection, vault: parentVault),
-                    selection: $selection,
-                    editingID: $editingID,
-                    justCreatedID: $justCreatedID
-                )
-                .tag(SelectionTag.page(page.id))
+            ForEach(disclosureItems) { item in
+                switch item {
+                case .set(let childSet):
+                    PageSetRow(
+                        set: childSet,
+                        parentCollection: parentCollection,
+                        parentVault: parentVault,
+                        selection: $selection,
+                        editingID: $editingID,
+                        justCreatedID: $justCreatedID,
+                        presentedSheet: $presentedSheet,
+                        confirmingDelete: $confirmingDelete
+                    )
+                    .tag(SelectionTag.set(childSet.id))
+                case .page(let page):
+                    PageRow(
+                        page: page,
+                        parent: .set(set, collection: parentCollection, vault: parentVault),
+                        selection: $selection,
+                        editingID: $editingID,
+                        justCreatedID: $justCreatedID
+                    )
+                    .tag(SelectionTag.page(page.id))
+                }
             }
             .onMove { source, destination in
-                withAnimation(.snappy) {
-                    contentManager.reorderPages(
-                        in: set, fromOffsets: source, toOffset: destination
-                    )
-                }
+                reorder(fromOffsets: source, toOffset: destination)
             }
         } label: {
             SidebarRow(
@@ -112,6 +144,31 @@ struct PageSetRow: View {
     /// @ViewBuilder closure per quirk #12 (GRDB String overload pollution).
     private func isCurrentCollection(_ collection: PageSet) -> Bool {
         collection.id == parentCollection.id
+    }
+
+    /// Routes a drag-reorder within this Set: child Sets reorder above, Pages
+    /// below. Cross-zone drags are silently rejected.
+    private func reorder(fromOffsets source: IndexSet, toOffset destination: Int) {
+        let items = disclosureItems
+        let setCount = pageSetManager.pageSets(in: set).count
+
+        let allSets = source.allSatisfy { $0 < setCount }
+        let allPages = source.allSatisfy { $0 >= setCount }
+        guard allSets || allPages else { return }
+
+        withAnimation(.snappy) {
+            if allSets {
+                pageSetManager.reorderPageSets(
+                    in: set, fromOffsets: source,
+                    toOffset: min(destination, setCount)
+                )
+            } else {
+                let pageCount = items.count - setCount
+                let localSource = IndexSet(source.map { $0 - setCount })
+                let localDest = min(max(destination - setCount, 0), pageCount)
+                contentManager.reorderPages(in: set, fromOffsets: localSource, toOffset: localDest)
+            }
+        }
     }
 
     /// Whole-Set move. Same-vault targets move immediately; a cross-vault target

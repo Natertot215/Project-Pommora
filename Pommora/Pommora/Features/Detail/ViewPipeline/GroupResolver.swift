@@ -152,66 +152,113 @@ enum GroupResolver {
         return groups
     }
 
-    /// COLLECTION scope: one group per Set + a root "ungrouped" band for pages in
-    /// no Set. If the collection has ZERO Sets → ONE ungrouped band with NO header
-    /// (today's flat look).
+    /// COLLECTION scope: one group per Set (recursing into child Sets at any
+    /// depth) + a trailing "ungrouped" band for pages directly in the Collection.
+    /// Zero top-level Sets → one headerless ungrouped band (flat look).
     private static func structuralCollection(
         _ items: [ViewItem],
         sorter: ViewSortComparator.GroupSorter?,
         collapsed: Set<String>
     ) -> [ResolvedGroup] {
-        var setOrder: [String] = []
-        var sets: [String: PageSet] = [:]
-        var setItems: [String: [ViewItem]] = [:]
+        // Collect all PageSet objects seen across items, indexed by their own id.
+        // Build a child-order map (parentID → ordered list of child set ids) using
+        // the ORDER in which items were fed (mirrors the manager's ordered arrays).
+        var allSets: [String: PageSet] = [:]
+        var childOrder: [String: [String]] = [:]  // parentID → [childSetID]
+        var itemsBySet: [String: [ViewItem]] = [:]
         var rootItems: [ViewItem] = []
 
         for item in items {
             if case .set(let set, _, _) = item.parent {
-                if sets[set.id] == nil {
-                    sets[set.id] = set
-                    setOrder.append(set.id)
+                if allSets[set.id] == nil {
+                    allSets[set.id] = set
+                    childOrder[set.parentID, default: []].append(set.id)
                 }
-                setItems[set.id, default: []].append(item)
+                itemsBySet[set.id, default: []].append(item)
             } else {
                 rootItems.append(item)
             }
         }
 
-        // Zero sets → a single headerless ungrouped band (flat look).
-        guard !setOrder.isEmpty else {
+        // Collect the top-level set ids: those whose parentID is NOT another set
+        // (i.e. their parent is the collection itself, not a set in allSets).
+        // We use childOrder keyed on the collection boundary — any parentID not
+        // present in allSets is the collection root.
+        let topSetIDs: [String] = {
+            // allSets keys are all set ids; top-level sets are those not in allSets
+            // as a value (their parent is the collection, not another set).
+            let allSetIDs = Set(allSets.keys)
+            var top: [String] = []
+            var seen: Set<String> = []
+            for item in items {
+                if case .set(let set, _, _) = item.parent {
+                    // Walk up the parent chain to find the depth-1 ancestor.
+                    var current = set
+                    while allSetIDs.contains(current.parentID) {
+                        guard let parent = allSets[current.parentID] else { break }
+                        current = parent
+                    }
+                    if seen.insert(current.id).inserted { top.append(current.id) }
+                }
+            }
+            return top
+        }()
+
+        guard !topSetIDs.isEmpty else {
             guard !rootItems.isEmpty else { return [] }
             return [
                 ResolvedGroup(
-                    id: ungroupedID,
-                    title: "",
-                    kind: .ungrouped,
+                    id: ungroupedID, title: "", kind: .ungrouped,
                     items: sorted(rootItems, sorter),
                     isCollapsed: collapsed.contains(ungroupedID)
                 )
             ]
         }
 
-        var groups: [ResolvedGroup] = setOrder.map { sid in
-            let set = sets[sid]!
-            return ResolvedGroup(
-                id: set.id,
-                title: set.title,
-                kind: .structuralSet(set),
-                items: sorted(setItems[sid] ?? [], sorter),
-                isCollapsed: collapsed.contains(set.id)
-            )
+        var groups: [ResolvedGroup] = topSetIDs.compactMap { sid in
+            allSets[sid].map {
+                buildSetGroup(
+                    $0, allSets: allSets, childOrder: childOrder,
+                    itemsBySet: itemsBySet, sorter: sorter, collapsed: collapsed
+                )
+            }
         }
         if !rootItems.isEmpty {
             groups.append(
                 ResolvedGroup(
-                    id: ungroupedID,
-                    title: "",
-                    kind: .ungrouped,
+                    id: ungroupedID, title: "", kind: .ungrouped,
                     items: sorted(rootItems, sorter),
                     isCollapsed: collapsed.contains(ungroupedID)
                 ))
         }
         return groups
+    }
+
+    /// Builds a `ResolvedGroup` for `set`, recursing into its child Sets.
+    private static func buildSetGroup(
+        _ set: PageSet,
+        allSets: [String: PageSet],
+        childOrder: [String: [String]],
+        itemsBySet: [String: [ViewItem]],
+        sorter: ViewSortComparator.GroupSorter?,
+        collapsed: Set<String>
+    ) -> ResolvedGroup {
+        let children: [ResolvedGroup] = (childOrder[set.id] ?? []).compactMap { cid in
+            allSets[cid].map {
+                buildSetGroup(
+                    $0, allSets: allSets, childOrder: childOrder,
+                    itemsBySet: itemsBySet, sorter: sorter, collapsed: collapsed
+                )
+            }
+        }
+        return ResolvedGroup(
+            id: set.id,
+            title: set.title,
+            kind: .structuralSet(set),
+            items: sorted(itemsBySet[set.id] ?? [], sorter),
+            children: children.isEmpty ? nil : children,
+            isCollapsed: collapsed.contains(set.id)
+        )
     }
 
     private static func register(
