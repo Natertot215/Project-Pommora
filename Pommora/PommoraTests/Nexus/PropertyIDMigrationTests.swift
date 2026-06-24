@@ -26,7 +26,7 @@ import Testing
     ) throws -> URL {
         let folder = nexusRoot.appendingPathComponent(title, isDirectory: true)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        let sidecar = folder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename)
+        let sidecar = folder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename)
 
         // Write a raw legacy JSON shape: properties have empty id (or no id key
         // at all if schemaVersion < 1). Both produce id == "" after decode.
@@ -91,7 +91,7 @@ import Testing
         #expect(report.failedTypes.isEmpty)
 
         // Verify schema gained prop_<ulid> IDs
-        let pt = try PageCollection.load(from: folder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename))
+        let pt = try PageCollection.load(from: folder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename))
         #expect(pt.schemaVersion == 2)
         #expect(pt.properties.allSatisfy { $0.id.hasPrefix("prop_") })
 
@@ -140,7 +140,7 @@ import Testing
 
         let pf = try PageFile.load(from: pageURL)
         // Known property rekeyed
-        let pt = try PageCollection.load(from: folder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename))
+        let pt = try PageCollection.load(from: folder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename))
         let statusID = pt.properties.first(where: { $0.name == "Status" })!.id
         #expect(pf.frontmatter.properties[statusID] == .select("a"))
         // Orphan preserved under its original key
@@ -162,7 +162,7 @@ import Testing
             ],
             views: [], modifiedAt: Date()
         )
-        try alreadyMigrated.save(to: folder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename))
+        try alreadyMigrated.save(to: folder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename))
 
         let report = PropertyIDMigration.runIfNeeded(at: nexus)
         #expect(report.pageTypesScanned == 1)
@@ -222,7 +222,7 @@ import Testing
 
         // Snapshot file contents before scan
         let pageContentBefore = try String(contentsOf: pageURL, encoding: .utf8)
-        let sidecarURL = pageFolder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename)
+        let sidecarURL = pageFolder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename)
         let sidecarContentBefore = try String(contentsOf: sidecarURL, encoding: .utf8)
 
         // Scan twice — both should be pure
@@ -254,7 +254,7 @@ import Testing
         #expect(report.memberFilesRewritten == 1)
 
         // Same end state as runIfNeeded would produce
-        let pt = try PageCollection.load(from: pageFolder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename))
+        let pt = try PageCollection.load(from: pageFolder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename))
         #expect(pt.schemaVersion == 2)
         let statusID = pt.properties.first(where: { $0.name == "Status" })!.id
         let pf = try PageFile.load(from: pageURL)
@@ -294,7 +294,7 @@ import Testing
     ) throws -> URL {
         let folder = nexusRoot.appendingPathComponent(title, isDirectory: true)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        let sidecar = folder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename)
+        let sidecar = folder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename)
         let propsJSON: [[String: Any]] = properties.map {
             ["id": $0.id, "name": $0.name, "type": $0.type.rawValue]
         }
@@ -330,7 +330,7 @@ import Testing
         #expect(report.typesMigrated == 1)
         #expect(report.propertiesMinted == 0)
 
-        let pt = try PageCollection.load(from: folder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename))
+        let pt = try PageCollection.load(from: folder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename))
         #expect(pt.schemaVersion == 2)
         #expect(pt.properties.first?.id == "prop_01HSTATUS")  // preserved
     }
@@ -391,7 +391,7 @@ import Testing
 
         // Legit property is rekeyed (not name-keyed any more, not the orphan key).
         let pt = try PageCollection.load(
-            from: folder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename))
+            from: folder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename))
         let statusID = pt.properties.first(where: { $0.name == "Status" })!.id
         #expect(pf.frontmatter.properties[statusID] == .select("active"), "legit property survives rekeyed")
 

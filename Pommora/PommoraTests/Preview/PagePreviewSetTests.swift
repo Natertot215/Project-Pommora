@@ -184,7 +184,7 @@ struct PagePreviewSetTests {
             id: ULID.generate(), parentID: pageCollection.id, title: title,
             folderURL: folderURL, modifiedAt: Date()
         )
-        try coll.save(to: folderURL.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename))
+        try coll.save(to: folderURL.appendingPathComponent(NexusPaths.pageSetSidecarFilename))
         if let index { try IndexUpdater(index).upsertPageCollection(coll) }
         return coll
     }

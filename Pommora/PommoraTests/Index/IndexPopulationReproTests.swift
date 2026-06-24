@@ -62,7 +62,7 @@ struct IndexPopulationReproTests {
             id: vaultID, title: vaultName, icon: nil,
             properties: [], views: [], modifiedAt: Date()
         )
-        try pc.save(to: vaultFolder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename))
+        try pc.save(to: vaultFolder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename))
 
         // --- Seed a VALID Page Collection inside the Vault. ---
         let collID = ULID.generate()
@@ -72,7 +72,7 @@ struct IndexPopulationReproTests {
         let collection = PageSet(
             id: collID, parentID: vaultID, title: collName, folderURL: collFolder, modifiedAt: Date()
         )
-        try collection.save(to: collFolder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename))
+        try collection.save(to: collFolder.appendingPathComponent(NexusPaths.pageSetSidecarFilename))
 
         // --- Seed one VALID Page (.md) inside the Collection. ---
         let pageID = ULID.generate()
@@ -180,7 +180,7 @@ struct IndexPopulationReproTests {
             id: vaultID, title: vaultName, icon: nil,
             properties: [], views: [], modifiedAt: Date()
         )
-        try pc.save(to: vaultFolder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename))
+        try pc.save(to: vaultFolder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename))
 
         // --- MALFORMED Page Collection: the `_pagecollection.json` EXISTS (so
         // PageContentManager's Type-root walk excludes this folder — exclusion
@@ -201,7 +201,7 @@ struct IndexPopulationReproTests {
             """
         try FixtureFiles.writeJSON(
             malformedCollSidecar,
-            to: collFolder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename)
+            to: collFolder.appendingPathComponent(NexusPaths.pageSetSidecarFilename)
         )
 
         // --- One Page inside the malformed Collection. ---

@@ -77,7 +77,7 @@ struct ContentSniffTests {
 
         NexusAdopter.autoTagMissingSidecars(at: nexus.rootURL)
 
-        let ptMeta = folder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename)
+        let ptMeta = folder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename)
         let itMeta = folder.appendingPathComponent("_itemtype.json")
         #expect(FileManager.default.fileExists(atPath: ptMeta.path))
         #expect(!FileManager.default.fileExists(atPath: itMeta.path))

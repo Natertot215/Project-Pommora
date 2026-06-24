@@ -71,7 +71,7 @@ struct ContainerIDHealerTests {
             cols.map {
                 try PageSet.load(
                     from: $0.folderURL.appendingPathComponent(
-                        NexusPaths.pageCollectionSidecarFilename)
+                        NexusPaths.pageSetSidecarFilename)
                 ).id
             })
         #expect(diskIDs == ids)
@@ -83,7 +83,7 @@ struct ContainerIDHealerTests {
             cols.map {
                 try PageSet.load(
                     from: $0.folderURL.appendingPathComponent(
-                        NexusPaths.pageCollectionSidecarFilename)
+                        NexusPaths.pageSetSidecarFilename)
                 ).id
             })
         #expect(diskIDs2 == diskIDs)

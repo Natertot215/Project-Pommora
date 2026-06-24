@@ -43,7 +43,7 @@ struct CollectionIconSetterTests {
 
         // --- On-disk assertion: reload sidecar directly ---
         let sidecarURL = collection.folderURL
-            .appendingPathComponent(NexusPaths.pageCollectionSidecarFilename)
+            .appendingPathComponent(NexusPaths.pageSetSidecarFilename)
         let reloaded = try PageSet.load(from: sidecarURL)
         #expect(reloaded.icon == "star.fill")
     }

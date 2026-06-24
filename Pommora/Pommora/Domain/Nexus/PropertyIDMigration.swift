@@ -143,7 +143,7 @@ enum PropertyIDMigration {
         var pageTypesScanned = 0
 
         for folder in Filesystem.rootTypeFolders(at: nexusRoot) {
-            let pageSidecar = folder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename)
+            let pageSidecar = folder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename)
 
             if FileManager.default.fileExists(atPath: pageSidecar.path) {
                 pageTypesScanned += 1

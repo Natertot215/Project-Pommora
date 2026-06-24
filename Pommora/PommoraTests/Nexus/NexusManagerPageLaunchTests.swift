@@ -104,7 +104,7 @@ struct NexusManagerPageLaunchTests {
         // autoTag stamped the Finder folder as a vault...
         #expect(
             FileManager.default.fileExists(
-                atPath: vault.appendingPathComponent(NexusPaths.pageTypeSidecarFilename).path))
+                atPath: vault.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename).path))
         // ...and the frontmatter-less page is in the index on THIS launch
         // (`IndexBuilder` reads members via `PageFile.loadLenient`).
         #expect(try await pageCount(manager, title: "Dropped") == 1)
@@ -136,7 +136,7 @@ struct NexusManagerPageLaunchTests {
         // and `openIndex` run unconditionally after it.
         #expect(
             FileManager.default.fileExists(
-                atPath: vault.appendingPathComponent(NexusPaths.pageTypeSidecarFilename).path))
+                atPath: vault.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename).path))
         #expect(try await pageCount(manager, title: "Dropped") == 1)
     }
 }

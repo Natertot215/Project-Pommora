@@ -210,7 +210,7 @@ struct PageContentManagerTests {
             folderURL: collFolder,
             modifiedAt: Date()
         )
-        try coll.save(to: collFolder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename))
+        try coll.save(to: collFolder.appendingPathComponent(NexusPaths.pageSetSidecarFilename))
 
         let manager = PageContentManager(nexus: nexus, contextProvider: { NexusContext.empty })
         return (nexus, vault, coll, manager)

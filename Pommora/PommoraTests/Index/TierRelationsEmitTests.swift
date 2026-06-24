@@ -307,7 +307,7 @@ struct TierRelationsEmitTests {
             id: ULID.generate(), title: "Notes", icon: nil,
             properties: [], views: [], modifiedAt: Date()
         )
-        try pc.save(to: typeFolder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename))
+        try pc.save(to: typeFolder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename))
 
         let pageID = ULID.generate()
         let frontmatter = PageFrontmatter(
@@ -352,7 +352,7 @@ struct TierRelationsEmitTests {
             ] as [String: Any],
             options: [.prettyPrinted])
         try sidecarData.write(
-            to: typeFolder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename),
+            to: typeFolder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename),
             options: [.atomic])
 
         let areaID = ULID.generate()
@@ -377,7 +377,7 @@ struct TierRelationsEmitTests {
         // Now index the migrated nexus.
         let updater = IndexUpdater(idx)
         let pt = try PageCollection.load(
-            from: typeFolder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename))
+            from: typeFolder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename))
         try updater.upsertPageCollection(pt)
 
         let pageURL = typeFolder.appendingPathComponent("Doc.md")

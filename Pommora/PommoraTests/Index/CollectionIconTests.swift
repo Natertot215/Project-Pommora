@@ -25,7 +25,7 @@ struct CollectionIconTests {
         let folder = NexusPaths.vaultFolderURL(forTitle: "Notes", in: nexus)
             .appendingPathComponent("Daily", isDirectory: true)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        let url = folder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename)
+        let url = folder.appendingPathComponent(NexusPaths.pageSetSidecarFilename)
 
         let coll = PageSet(
             id: ULID.generate(), parentID: ULID.generate(), title: "Daily",

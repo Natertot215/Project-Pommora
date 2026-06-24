@@ -126,7 +126,7 @@ struct NexusAdopterTests {
         let rename = try #require(plan.inPlaceRenames.first)
         #expect(canonical(rename.folderURL) == canonical(folder))
         #expect(rename.oldSidecar == "_vault.json")
-        #expect(rename.newSidecar == NexusPaths.pageTypeSidecarFilename)
+        #expect(rename.newSidecar == NexusPaths.pageCollectionSidecarFilename)
         #expect(rename.depth == .type)
     }
 
@@ -151,8 +151,8 @@ struct NexusAdopterTests {
         #expect(plan.inPlaceRenames.count == 2)
         let typeRename = plan.inPlaceRenames.first { $0.depth == .type }
         let collRename = plan.inPlaceRenames.first { $0.depth == .collection }
-        #expect(typeRename?.newSidecar == NexusPaths.pageTypeSidecarFilename)
-        #expect(collRename?.newSidecar == NexusPaths.pageCollectionSidecarFilename)
+        #expect(typeRename?.newSidecar == NexusPaths.pageCollectionSidecarFilename)
+        #expect(collRename?.newSidecar == NexusPaths.pageSetSidecarFilename)
     }
 
     // MARK: - scan: paradigmV2 wrapper
@@ -178,7 +178,7 @@ struct NexusAdopterTests {
         #expect(move.sourceURL.lastPathComponent == "Recipes")
         #expect(move.destURL.lastPathComponent == "Recipes")
         #expect(move.typeSidecar == .pageCollection)
-        #expect(move.collectionSidecar == .pageSetContainer)
+        #expect(move.collectionSidecar == .pageSet)
     }
 
     @Test("scan classifies Agenda/ Tasks + Events as wrapper-unwrap with per-singleton sidecars")
@@ -223,7 +223,7 @@ struct NexusAdopterTests {
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         try FixtureFiles.writeJSON(
             #"{"id":"01HV","modified_at":"2026-05-01T00:00:00Z","properties":[],"views":[]}"#,
-            to: folder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename)
+            to: folder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename)
         )
 
         let plan = try NexusAdopter.scan(nexusRoot: nexus.rootURL)
@@ -249,11 +249,11 @@ struct NexusAdopterTests {
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         try FixtureFiles.writeJSON(
             #"{"id":"01HV","modified_at":"2026-05-01T00:00:00Z","properties":[],"views":[]}"#,
-            to: folder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename)
+            to: folder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename)
         )
         try FixtureFiles.writeJSON(
             #"{"id":"01HC","type_id":"01HV","modified_at":"2026-05-01T00:00:00Z"}"#,
-            to: folder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename)
+            to: folder.appendingPathComponent(NexusPaths.pageSetSidecarFilename)
         )
 
         let plan = try NexusAdopter.scan(nexusRoot: nexus.rootURL)
@@ -274,9 +274,9 @@ struct NexusAdopterTests {
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         try FixtureFiles.writeJSON(
             #"{"id":"01HV","modified_at":"2026-05-01T00:00:00Z","properties":[],"views":[]}"#,
-            to: folder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename)
+            to: folder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename)
         )
-        let orphanURL = folder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename)
+        let orphanURL = folder.appendingPathComponent(NexusPaths.pageSetSidecarFilename)
         try FixtureFiles.writeJSON(
             #"{"id":"01HC","type_id":"01HV","modified_at":"2026-05-01T00:00:00Z"}"#,
             to: orphanURL
@@ -287,7 +287,7 @@ struct NexusAdopterTests {
         _ = NexusAdopter.apply(plan)
         #expect(FileManager.default.fileExists(atPath: orphanURL.path) == false)
         // Authoritative sidecar preserved
-        let typeURL = folder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename)
+        let typeURL = folder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename)
         #expect(FileManager.default.fileExists(atPath: typeURL.path) == true)
     }
 
@@ -322,7 +322,7 @@ struct NexusAdopterTests {
         let plan = try NexusAdopter.scan(nexusRoot: nexus.rootURL)
         let result = NexusAdopter.apply(plan)
 
-        let sidecar = folder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename)
+        let sidecar = folder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename)
         #expect(FileManager.default.fileExists(atPath: sidecar.path))
         let pc = try PageCollection.load(from: sidecar)
         #expect(pc.title == "Recipes")
@@ -343,7 +343,7 @@ struct NexusAdopterTests {
         let plan = try NexusAdopter.scan(nexusRoot: nexus.rootURL)
         let result = NexusAdopter.apply(plan)
 
-        let newSidecar = folder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename)
+        let newSidecar = folder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename)
         let oldSidecar = folder.appendingPathComponent("_vault.json")
         #expect(FileManager.default.fileExists(atPath: newSidecar.path))
         #expect(!FileManager.default.fileExists(atPath: oldSidecar.path))
@@ -369,7 +369,7 @@ struct NexusAdopterTests {
         let result = NexusAdopter.apply(plan)
 
         let movedRoot = nexus.rootURL.appendingPathComponent("Recipes", isDirectory: true)
-        let sidecar = movedRoot.appendingPathComponent(NexusPaths.pageTypeSidecarFilename)
+        let sidecar = movedRoot.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename)
         #expect(FileManager.default.fileExists(atPath: movedRoot.path))
         #expect(FileManager.default.fileExists(atPath: sidecar.path))
         #expect(FileManager.default.fileExists(atPath: movedRoot.appendingPathComponent("Soup.md").path))
@@ -538,13 +538,13 @@ struct NexusAdopterTests {
         #expect(FileManager.default.fileExists(atPath: items.path))
         #expect(
             FileManager.default.fileExists(
-                atPath: items.appendingPathComponent(NexusPaths.pageTypeSidecarFilename).path))
+                atPath: items.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename).path))
 
         // Archives at root with only _pagetype.json (legacy orphans deleted).
         let archivesNew = nexus.rootURL.appendingPathComponent("Archives", isDirectory: true)
         #expect(
             FileManager.default.fileExists(
-                atPath: archivesNew.appendingPathComponent(NexusPaths.pageTypeSidecarFilename).path))
+                atPath: archivesNew.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename).path))
         #expect(!FileManager.default.fileExists(atPath: archivesNew.appendingPathComponent("_vault.json").path))
         #expect(!FileManager.default.fileExists(atPath: archivesNew.appendingPathComponent("_schema.json").path))
 
@@ -553,7 +553,7 @@ struct NexusAdopterTests {
         let planningNew = materialsNew.appendingPathComponent("Planning", isDirectory: true)
         #expect(
             FileManager.default.fileExists(
-                atPath: planningNew.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename).path))
+                atPath: planningNew.appendingPathComponent(NexusPaths.pageSetSidecarFilename).path))
         #expect(!FileManager.default.fileExists(atPath: planningNew.appendingPathComponent("_collection.json").path))
         #expect(!FileManager.default.fileExists(atPath: planningNew.appendingPathComponent("_schema.json").path))
 
@@ -592,7 +592,7 @@ struct NexusAdopterTests {
         try FileManager.default.createDirectory(at: flat, withIntermediateDirectories: true)
         try FixtureFiles.writeJSON(
             #"{"id":"01HVF","modified_at":"2026-05-01T00:00:00Z","properties":[],"views":[]}"#,
-            to: flat.appendingPathComponent(NexusPaths.pageTypeSidecarFilename)
+            to: flat.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename)
         )
 
         let plan = try NexusAdopter.scan(nexusRoot: nexus.rootURL)
@@ -601,15 +601,15 @@ struct NexusAdopterTests {
         // Fresh got a sidecar.
         #expect(
             FileManager.default.fileExists(
-                atPath: fresh.appendingPathComponent(NexusPaths.pageTypeSidecarFilename).path))
+                atPath: fresh.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename).path))
         // Legacy renamed.
         #expect(
             FileManager.default.fileExists(
-                atPath: legacy.appendingPathComponent(NexusPaths.pageTypeSidecarFilename).path))
+                atPath: legacy.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename).path))
         #expect(!FileManager.default.fileExists(atPath: legacy.appendingPathComponent("_vault.json").path))
         // Flat untouched.
         #expect(
-            FileManager.default.fileExists(atPath: flat.appendingPathComponent(NexusPaths.pageTypeSidecarFilename).path)
+            FileManager.default.fileExists(atPath: flat.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename).path)
         )
     }
 

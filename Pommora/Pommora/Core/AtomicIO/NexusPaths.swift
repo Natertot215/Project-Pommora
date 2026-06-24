@@ -256,10 +256,10 @@ enum NexusPaths {
         pageTypeFolderURL(in: nexus.rootURL, typeFolderName: title)
     }
 
-    /// `<nexus>/<typeFolderName>/_pagetype.json` — PageCollection schema sidecar.
+    /// `<nexus>/<typeFolderName>/_pagecollection.json` — PageCollection schema sidecar.
     static func pageTypeMetadataURL(in nexusRoot: URL, typeFolderName: String) -> URL {
         pageTypeFolderURL(in: nexusRoot, typeFolderName: typeFolderName)
-            .appendingPathComponent(pageTypeSidecarFilename, isDirectory: false)
+            .appendingPathComponent(pageCollectionSidecarFilename, isDirectory: false)
     }
 
     /// Nexus-typed convenience overload.

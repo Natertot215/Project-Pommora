@@ -39,15 +39,13 @@ import Foundation
 /// a single source of truth.
 enum AdoptedSidecarKind: Sendable, Equatable {
     case pageCollection
-    case pageSetContainer
     case pageSet
     case taskConfig
     case eventConfig
 
     var filename: String {
         switch self {
-        case .pageCollection: return NexusPaths.pageTypeSidecarFilename
-        case .pageSetContainer: return NexusPaths.pageCollectionSidecarFilename
+        case .pageCollection: return NexusPaths.pageCollectionSidecarFilename
         case .pageSet: return NexusPaths.pageSetSidecarFilename
         case .taskConfig: return NexusPaths.taskConfigSidecarFilename
         case .eventConfig: return NexusPaths.eventConfigSidecarFilename
@@ -384,7 +382,7 @@ enum NexusAdopter {
                 PlannedInPlaceRename(
                     folderURL: folder,
                     oldSidecar: legacyVaultSidecarFilename,
-                    newSidecar: NexusPaths.pageTypeSidecarFilename,
+                    newSidecar: NexusPaths.pageCollectionSidecarFilename,
                     depth: .type
                 )
             )
@@ -399,7 +397,7 @@ enum NexusAdopter {
                         PlannedInPlaceRename(
                             folderURL: sub,
                             oldSidecar: legacyCollectionSidecarFilename,
-                            newSidecar: NexusPaths.pageCollectionSidecarFilename,
+                            newSidecar: NexusPaths.pageSetSidecarFilename,
                             depth: .collection
                         )
                     )
@@ -442,7 +440,7 @@ enum NexusAdopter {
             switch kind {
             case .pages:
                 typeSidecar = .pageCollection
-                collectionSidecar = .pageSetContainer
+                collectionSidecar = .pageSet
             case .agenda:
                 // Tasks/Events sub-folders — name-discriminated since Agenda
                 // is sidecar-asymmetric. Default to Tasks for unknown names
@@ -498,7 +496,6 @@ enum NexusAdopter {
         // natural-parent inference rule.
         let allKinds: [AdoptedSidecarKind] = [
             .pageCollection, .taskConfig, .eventConfig,
-            .pageSetContainer,
             .pageSet,
         ]
         for kind in allKinds {
@@ -727,7 +724,7 @@ enum NexusAdopter {
     /// doesn't exist or decoding fails (silent — failures don't abort).
     private static func loadTypeParentID(at folder: URL) -> String? {
         let ptURL = folder.appendingPathComponent(
-            NexusPaths.pageTypeSidecarFilename, isDirectory: false
+            NexusPaths.pageCollectionSidecarFilename, isDirectory: false
         )
         guard let pt = try? PageCollection.load(from: ptURL) else { return nil }
         return pt.id
@@ -739,7 +736,7 @@ enum NexusAdopter {
     /// don't abort).
     private static func loadCollectionParentID(at folder: URL) -> String? {
         let pcURL = folder.appendingPathComponent(
-            NexusPaths.pageCollectionSidecarFilename, isDirectory: false
+            NexusPaths.pageSetSidecarFilename, isDirectory: false
         )
         guard let pc = try? PageSet.load(from: pcURL) else { return nil }
         return pc.id
@@ -760,7 +757,7 @@ enum NexusAdopter {
         at folder: URL, title: String, now: Date
     ) throws {
         let metaURL = folder.appendingPathComponent(
-            NexusPaths.pageTypeSidecarFilename, isDirectory: false)
+            NexusPaths.pageCollectionSidecarFilename, isDirectory: false)
         try Filesystem.writeMetadataIntoExistingFolder(
             metadataURL: metaURL,
             metadata: PageCollection(
@@ -777,7 +774,7 @@ enum NexusAdopter {
         now: Date
     ) throws {
         let metaURL = folder.appendingPathComponent(
-            NexusPaths.pageCollectionSidecarFilename, isDirectory: false)
+            NexusPaths.pageSetSidecarFilename, isDirectory: false)
         try Filesystem.writeMetadataIntoExistingFolder(
             metadataURL: metaURL,
             metadata: PageSet(
@@ -859,7 +856,7 @@ enum NexusAdopter {
             try Filesystem.writeMetadataIntoExistingFolder(
                 metadataURL: metaURL, metadata: AgendaEventSchema.defaultSeed()
             )
-        case .pageSetContainer, .pageSet:
+        case .pageSet:
             // Fresh PageCollection / PageSet writes are not initiated by the
             // LEGACY adopter for top-level folders — those land via creation
             // flows inside the app, or via the silent `autoTagMissingSidecars`

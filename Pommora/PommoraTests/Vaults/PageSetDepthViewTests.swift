@@ -41,7 +41,7 @@ struct PageSetDepthViewTests {
             id: ULID.generate(), parentID: pageCollection.id, title: title,
             folderURL: folderURL, modifiedAt: Date()
         )
-        try coll.save(to: folderURL.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename))
+        try coll.save(to: folderURL.appendingPathComponent(NexusPaths.pageSetSidecarFilename))
         if let index { try IndexUpdater(index).upsertPageCollection(coll) }
         return coll
     }
@@ -317,7 +317,7 @@ struct PageSetDepthViewTests {
         var promoted = try PageSet.load(
             from: promotedFolder.appendingPathComponent(NexusPaths.pageSetSidecarFilename))
         promoted.parentID = vault.id
-        try promoted.save(to: promotedFolder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename))
+        try promoted.save(to: promotedFolder.appendingPathComponent(NexusPaths.pageSetSidecarFilename))
 
         // Reload — SubSet is now depth-1 (parentID = vault.id ∈ topTierIDs).
         await setManager.loadAll(types: [vault])

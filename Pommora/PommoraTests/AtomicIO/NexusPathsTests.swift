@@ -194,7 +194,7 @@ struct NexusPathsTests {
         let meta = NexusPaths.pageTypeMetadataURL(
             in: nexus.rootURL, typeFolderName: "Recipes"
         )
-        #expect(meta.lastPathComponent == NexusPaths.pageTypeSidecarFilename)
+        #expect(meta.lastPathComponent == NexusPaths.pageCollectionSidecarFilename)
         #expect(meta.deletingLastPathComponent() == folder)
     }
 
@@ -231,7 +231,7 @@ struct NexusPathsTests {
         #expect(folder.lastPathComponent == "Planner")
         #expect(folder.deletingLastPathComponent().path == nexus.rootURL.path)
         let meta = NexusPaths.vaultMetadataURL(forTitle: "Planner", in: nexus)
-        #expect(meta.lastPathComponent == NexusPaths.pageTypeSidecarFilename)
+        #expect(meta.lastPathComponent == NexusPaths.pageCollectionSidecarFilename)
         #expect(meta.deletingLastPathComponent() == folder)
     }
 

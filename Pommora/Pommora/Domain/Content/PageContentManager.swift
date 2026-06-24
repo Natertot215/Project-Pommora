@@ -252,7 +252,7 @@ final class PageContentManager {
             }
             let freshOrder = Self.freshPageOrder(
                 from: collection.folderURL.appendingPathComponent(
-                    NexusPaths.pageCollectionSidecarFilename),
+                    NexusPaths.pageSetSidecarFilename),
                 as: PageSet.self, fallback: collection.pageOrder)
             let pageMetas = OrderResolver.resolve(
                 unsortedPages,
@@ -333,7 +333,7 @@ final class PageContentManager {
         // handle inside PageContentManager.
         let allSubs = (try? Filesystem.childFolders(of: folder)) ?? []
         let collectionFolders = allSubs.filter { sub in
-            Filesystem.fileExists(at: sub.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename))
+            Filesystem.fileExists(at: sub.appendingPathComponent(NexusPaths.pageSetSidecarFilename))
         }
         let excludedCollectionFolders = Set(collectionFolders.map { $0.standardizedFileURL })
         do {
@@ -360,7 +360,7 @@ final class PageContentManager {
             // re-entry resolve reflects the persisted order instead of reverting to
             // the stale snapshot. Files are canonical.
             let freshOrder = Self.freshPageOrder(
-                from: folder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename),
+                from: folder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename),
                 as: PageCollection.self, fallback: pageCollection.pageOrder)
             let pageMetas = OrderResolver.resolve(
                 unsortedPages,

@@ -78,7 +78,7 @@ final class PageCollectionManager {
             var loadedTypes: [PageCollection] = []
 
             for folder in topLevel {
-                let metaURL = folder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename)
+                let metaURL = folder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename)
                 guard Filesystem.fileExists(at: metaURL),
                     var pc = try? PageCollection.load(from: metaURL)
                 else { continue }

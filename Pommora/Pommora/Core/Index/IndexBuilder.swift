@@ -153,22 +153,18 @@ final class IndexBuilder {
 
         for folder in topLevel
         where !folder.lastPathComponent.hasPrefix(".") && !folder.lastPathComponent.hasPrefix("_") {
-            let metaURL = folder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename)
+            let metaURL = folder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename)
             guard Filesystem.fileExists(at: metaURL),
                 let pc = try? PageCollection.load(from: metaURL)
             else { continue }
 
-            // Depth-1 sets — sub-folders of the type carrying `_pagecollection.json` OR
-            // `_pageset.json`. Both sidecar filenames are tried so existing on-disk
-            // structures (which used `_pagecollection.json` at depth-1) continue to work.
+            // Depth-1 sets — sub-folders of the Collection carrying `_pageset.json`.
             let subFolders = (try? Filesystem.childFolders(of: folder, folderFilter: filter)) ?? []
             var depthOneSets: [PageSetSnapshot] = []
             for sub in subFolders where !sub.lastPathComponent.hasPrefix("_") && !sub.lastPathComponent.hasPrefix(".") {
-                let collURL = sub.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename)
                 let setURL = sub.appendingPathComponent(NexusPaths.pageSetSidecarFilename)
-                let sidecarURL = Filesystem.fileExists(at: collURL) ? collURL : setURL
-                guard Filesystem.fileExists(at: sidecarURL),
-                    let set = try? PageSet.load(from: sidecarURL)
+                guard Filesystem.fileExists(at: setURL),
+                    let set = try? PageSet.load(from: setURL)
                 else { continue }
 
                 let snap = collectSetSnapshot(

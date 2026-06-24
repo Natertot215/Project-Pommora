@@ -120,7 +120,7 @@ extension PageCollection {
         let topLevel = (try? Filesystem.childFolders(of: nexus.rootURL)) ?? []
         for folder in topLevel
         where !folder.lastPathComponent.hasPrefix(".") && !folder.lastPathComponent.hasPrefix("_") {
-            let metaURL = folder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename)
+            let metaURL = folder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename)
             guard Filesystem.fileExists(at: metaURL),
                 let pc = try? PageCollection.load(from: metaURL),
                 pc.id == id

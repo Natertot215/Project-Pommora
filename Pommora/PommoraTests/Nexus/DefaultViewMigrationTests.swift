@@ -38,7 +38,7 @@ struct DefaultViewMigrationTests {
             views: [],
             modifiedAt: Date()
         )
-        let sidecarURL = folder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename)
+        let sidecarURL = folder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename)
         try pc.save(to: sidecarURL)
 
         let manager = PageCollectionManager(nexus: nexus)
@@ -81,7 +81,7 @@ struct DefaultViewMigrationTests {
             views: [existing],
             modifiedAt: Date()
         )
-        try pc.save(to:folder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename))
+        try pc.save(to:folder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename))
 
         let manager = PageCollectionManager(nexus: nexus)
         await manager.loadAll()
@@ -106,7 +106,7 @@ struct DefaultViewMigrationTests {
             views: [],
             modifiedAt: Date()
         )
-        try pc.save(to:vaultFolder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename))
+        try pc.save(to:vaultFolder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename))
 
         let collID = ULID.generate()
         let collFolder = vaultFolder.appendingPathComponent("Inbox", isDirectory: true)
@@ -118,7 +118,7 @@ struct DefaultViewMigrationTests {
             folderURL: collFolder,
             modifiedAt: Date()
         )
-        let collSidecar = collFolder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename)
+        let collSidecar = collFolder.appendingPathComponent(NexusPaths.pageSetSidecarFilename)
         try collection.save(to: collSidecar)
 
         let manager = PageCollectionManager(nexus: nexus)
@@ -153,7 +153,7 @@ struct DefaultViewMigrationTests {
             id: vaultID, title: "Vault", icon: nil,
             properties: [], views: [], modifiedAt: Date()
         )
-        try pc.save(to:folder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename))
+        try pc.save(to:folder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename))
 
         let manager = PageCollectionManager(nexus: nexus)
         await manager.loadAll()

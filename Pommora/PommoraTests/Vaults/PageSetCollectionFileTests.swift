@@ -14,7 +14,7 @@ struct PageCollectionTests {
             .appendingPathComponent("Planner", isDirectory: true)
             .appendingPathComponent("Tasks", isDirectory: true)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        let metaURL = folder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename)
+        let metaURL = folder.appendingPathComponent(NexusPaths.pageSetSidecarFilename)
 
         let original = PageSet(
             id: "01HCOLL",
@@ -41,7 +41,7 @@ struct PageCollectionTests {
             .appendingPathComponent("V", isDirectory: true)
             .appendingPathComponent("C", isDirectory: true)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        let metaURL = folder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename)
+        let metaURL = folder.appendingPathComponent(NexusPaths.pageSetSidecarFilename)
 
         try PageSet(
             id: "01H", parentID: "01HV", title: "C",
@@ -64,7 +64,7 @@ struct PageCollectionTests {
             .appendingPathComponent("V", isDirectory: true)
             .appendingPathComponent("Side Projects", isDirectory: true)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        let metaURL = folder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename)
+        let metaURL = folder.appendingPathComponent(NexusPaths.pageSetSidecarFilename)
 
         try PageSet(
             id: "01H", parentID: "01HV", title: "Side Projects",
@@ -83,7 +83,7 @@ struct PageCollectionTests {
             .appendingPathComponent("V", isDirectory: true)
             .appendingPathComponent("X", isDirectory: true)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        let metaURL = folder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename)
+        let metaURL = folder.appendingPathComponent(NexusPaths.pageSetSidecarFilename)
 
         try PageSet(
             id: "01H", parentID: "01HV", title: "X",
@@ -102,7 +102,7 @@ struct PageCollectionTests {
             .appendingPathComponent("V", isDirectory: true)
             .appendingPathComponent("C", isDirectory: true)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        let metaURL = folder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename)
+        let metaURL = folder.appendingPathComponent(NexusPaths.pageSetSidecarFilename)
 
         try PageSet(
             id: "01H", parentID: "01HV", title: "C",

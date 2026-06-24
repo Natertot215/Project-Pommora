@@ -20,6 +20,10 @@ struct PageSet: Codable, Equatable, Identifiable, Hashable, Sendable {
         case schemaVersion = "schema_version"
         case pageOrder = "page_order"
         case setOrder = "set_order"
+        // Pre-Phase-3 parent-ref spellings — decode-only, retained so the
+        // one-shot SidecarRenameMigration can read legacy sidecars and rewrite
+        // them to `parent_id`. Never encoded; discovery only ever sees the
+        // canonical key post-migration.
         case legacyVaultID = "vault_id"
         case legacyTypeID = "type_id"
         case legacyCollectionID = "collection_id"

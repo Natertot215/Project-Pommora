@@ -47,7 +47,7 @@ struct LoadAllIndexSyncTests {
             views: [],
             modifiedAt: Date()
         )
-        let sidecarURL = folder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename)
+        let sidecarURL = folder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename)
         try pc.save(to: sidecarURL)
 
         // Confirm the DB starts empty.
@@ -103,7 +103,7 @@ struct LoadAllIndexSyncTests {
         let vaultFolder = NexusPaths.vaultFolderURL(forTitle: vaultName, in: nexus)
         try FileManager.default.createDirectory(at: vaultFolder, withIntermediateDirectories: true)
         let pc = PageCollection(id: vaultID, title: vaultName, icon: nil, properties: [], views: [], modifiedAt: Date())
-        try pc.save(to:vaultFolder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename))
+        try pc.save(to:vaultFolder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename))
 
         // PageSet sub-folder + sidecar on disk.
         let collID = ULID.generate()
@@ -111,7 +111,7 @@ struct LoadAllIndexSyncTests {
         let collFolder = vaultFolder.appendingPathComponent(collName, isDirectory: true)
         try FileManager.default.createDirectory(at: collFolder, withIntermediateDirectories: true)
         let collection = PageSet(id: collID, parentID: vaultID, title: collName, folderURL: collFolder, modifiedAt: Date())
-        try collection.save(to: collFolder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename))
+        try collection.save(to: collFolder.appendingPathComponent(NexusPaths.pageSetSidecarFilename))
 
         // Wire + load: collections are owned by PageSetManager.
         let manager = PageCollectionManager(nexus: nexus)
@@ -187,7 +187,7 @@ struct LoadAllIndexSyncTests {
         let folder = NexusPaths.vaultFolderURL(forTitle: "Vault", in: nexus)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         let pc = PageCollection(id: vaultID, title: "Vault", icon: nil, properties: [], views: [], modifiedAt: Date())
-        try pc.save(to:folder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename))
+        try pc.save(to:folder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename))
 
         let manager = PageCollectionManager(nexus: nexus)
         manager.indexUpdater = IndexUpdater(index)

@@ -94,7 +94,7 @@ struct RebuildResilienceTests {
             id: vaultID, title: vaultName, icon: nil,
             properties: [], views: [], modifiedAt: Date()
         )
-        try pc.save(to: vaultFolder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename))
+        try pc.save(to: vaultFolder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename))
 
         // --- Seed TWO Page `.md` files in the Vault whose frontmatter carries
         // the SAME `id` (a realistic legacy/adoption primary-key collision).

@@ -413,7 +413,7 @@ struct AdoptionPreviewView: View {
 
     private var pageTypeMigrationCount: Int {
         let fresh = plan.freshSidecars.filter { $0.kind == .pageCollection }.count
-        let renames = plan.inPlaceRenames.filter { $0.newSidecar == NexusPaths.pageTypeSidecarFilename }.count
+        let renames = plan.inPlaceRenames.filter { $0.newSidecar == NexusPaths.pageCollectionSidecarFilename }.count
         let unwraps = plan.unwrapSteps
             .filter { $0.wrapperKind == .pages }
             .reduce(0) { $0 + $1.moves.count }
@@ -437,7 +437,7 @@ struct AdoptionPreviewView: View {
 
     private func iconForSidecar(_ kind: AdoptedSidecarKind) -> String {
         switch kind {
-        case .pageCollection, .pageSetContainer, .pageSet: return "folder.fill"
+        case .pageCollection, .pageSet: return "folder.fill"
         case .taskConfig: return "checkmark.circle"
         case .eventConfig: return "calendar"
         }
@@ -446,7 +446,6 @@ struct AdoptionPreviewView: View {
     private func labelForSidecar(_ kind: AdoptedSidecarKind) -> String {
         switch kind {
         case .pageCollection: return labels.pageCollection.singular
-        case .pageSetContainer: return labels.pageSet.singular
         case .pageSet: return labels.pageSet.singular
         case .taskConfig: return labels.agendaTask.plural
         case .eventConfig: return labels.agendaEvent.plural

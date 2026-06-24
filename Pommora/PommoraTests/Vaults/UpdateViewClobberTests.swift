@@ -59,7 +59,7 @@ struct UpdateViewClobberTests {
 
         // Assert on the sidecar read FRESH from disk (not either in-memory cache).
         let sidecarURL = coll.folderURL.appendingPathComponent(
-            NexusPaths.pageCollectionSidecarFilename)
+            NexusPaths.pageSetSidecarFilename)
         let fresh = try PageSet.load(from: sidecarURL)
         #expect(fresh.pageOrder == reordered)
         #expect(fresh.views.first(where: { $0.id == viewID })?.columnWidths?["_title"] == 200)
@@ -95,7 +95,7 @@ struct UpdateViewClobberTests {
             folderURL: folderURL, modifiedAt: Date()
         )
         coll.views = views
-        try coll.save(to: folderURL.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename))
+        try coll.save(to: folderURL.appendingPathComponent(NexusPaths.pageSetSidecarFilename))
         return coll
     }
 

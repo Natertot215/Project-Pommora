@@ -52,13 +52,13 @@ struct CollectionTypeIDReconcileTests {
             views: [],
             modifiedAt: Date()
         )
-        try pc.save(to: vaultFolder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename))
+        try pc.save(to: vaultFolder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename))
 
         // Collection sub-folder whose sidecar `type_id` = wrongTypeID (drift).
         let collName = "Drifted Collection"
         let collFolder = vaultFolder.appendingPathComponent(collName, isDirectory: true)
         try FileManager.default.createDirectory(at: collFolder, withIntermediateDirectories: true)
-        let collMetaURL = collFolder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename)
+        let collMetaURL = collFolder.appendingPathComponent(NexusPaths.pageSetSidecarFilename)
         let drifted = PageSet(
             id: ULID.generate(),
             parentID: wrongTypeID,  // <- points at the vanished old vault id
@@ -103,12 +103,12 @@ struct CollectionTypeIDReconcileTests {
         let pc = PageCollection(
             id: vaultID, title: vaultName, icon: nil, properties: [], views: [], modifiedAt: Date()
         )
-        try pc.save(to: vaultFolder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename))
+        try pc.save(to: vaultFolder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename))
 
         let collName = "Correct Collection"
         let collFolder = vaultFolder.appendingPathComponent(collName, isDirectory: true)
         try FileManager.default.createDirectory(at: collFolder, withIntermediateDirectories: true)
-        let collMetaURL = collFolder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename)
+        let collMetaURL = collFolder.appendingPathComponent(NexusPaths.pageSetSidecarFilename)
         let correct = PageSet(
             id: ULID.generate(),
             parentID: vaultID,  // already correct

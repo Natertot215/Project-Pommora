@@ -181,7 +181,7 @@ struct PageSetManagerTests {
 
         let collSidecar = try PageSet.load(
             from: fx.collection.folderURL.appendingPathComponent(
-                NexusPaths.pageCollectionSidecarFilename))
+                NexusPaths.pageSetSidecarFilename))
         #expect(collSidecar.setOrder == ids)
 
         // A fresh load resolves the persisted order.

@@ -36,14 +36,14 @@ struct NexusAdopterAutoTagTests {
 
         NexusAdopter.autoTagMissingSidecars(at: nexus.rootURL)
 
-        let ptMeta = typeFolder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename)
+        let ptMeta = typeFolder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename)
         #expect(FileManager.default.fileExists(atPath: ptMeta.path))
         let pt = try PageCollection.load(from: ptMeta)
         #expect(!pt.id.isEmpty)
         #expect(pt.title == "Research")
 
         let pcMeta = collFolder.appendingPathComponent(
-            NexusPaths.pageCollectionSidecarFilename
+            NexusPaths.pageSetSidecarFilename
         )
         #expect(FileManager.default.fileExists(atPath: pcMeta.path))
         let pc = try PageSet.load(from: pcMeta)
@@ -82,10 +82,10 @@ struct NexusAdopterAutoTagTests {
 
         // All three sidecars exist with correct parent-id chaining.
         let pt = try PageCollection.load(
-            from: typeFolder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename)
+            from: typeFolder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename)
         )
         let pc = try PageSet.load(
-            from: collFolder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename)
+            from: collFolder.appendingPathComponent(NexusPaths.pageSetSidecarFilename)
         )
         let ps = try PageSet.load(
             from: setFolder.appendingPathComponent(NexusPaths.pageSetSidecarFilename)
@@ -174,8 +174,8 @@ struct NexusAdopterAutoTagTests {
 
         NexusAdopter.autoTagMissingSidecars(at: nexus.rootURL)
         let ptMeta = collFolder.deletingLastPathComponent()
-            .appendingPathComponent(NexusPaths.pageTypeSidecarFilename)
-        let pcMeta = collFolder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename)
+            .appendingPathComponent(NexusPaths.pageCollectionSidecarFilename)
+        let pcMeta = collFolder.appendingPathComponent(NexusPaths.pageSetSidecarFilename)
         let pt1 = try PageCollection.load(from: ptMeta)
         let pc1 = try PageSet.load(from: pcMeta)
 
@@ -201,7 +201,7 @@ struct NexusAdopterAutoTagTests {
 
         NexusAdopter.autoTagMissingSidecars(at: nexus.rootURL)
 
-        let metaURL = obsidian.appendingPathComponent(NexusPaths.pageTypeSidecarFilename)
+        let metaURL = obsidian.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename)
         #expect(!FileManager.default.fileExists(atPath: metaURL.path))
     }
 
@@ -215,7 +215,7 @@ struct NexusAdopterAutoTagTests {
 
         NexusAdopter.autoTagMissingSidecars(at: nexus.rootURL)
 
-        let metaURL = misc.appendingPathComponent(NexusPaths.pageTypeSidecarFilename)
+        let metaURL = misc.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename)
         #expect(!FileManager.default.fileExists(atPath: metaURL.path))
     }
 
@@ -233,12 +233,12 @@ struct NexusAdopterAutoTagTests {
 
         #expect(
             FileManager.default.fileExists(
-                atPath: typeFolder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename).path
+                atPath: typeFolder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename).path
             )
         )
         #expect(
             !FileManager.default.fileExists(
-                atPath: inner.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename).path
+                atPath: inner.appendingPathComponent(NexusPaths.pageSetSidecarFilename).path
             )
         )
     }
@@ -259,7 +259,7 @@ struct NexusAdopterAutoTagTests {
             id: knownID, title: "Research", icon: nil,
             properties: [], views: [], modifiedAt: now
         )
-        try pt.save(to: typeFolder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename))
+        try pt.save(to: typeFolder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename))
 
         // Then add a Collection sub-folder WITHOUT a sidecar.
         let collFolder = typeFolder.appendingPathComponent("Sources", isDirectory: true)
@@ -269,12 +269,12 @@ struct NexusAdopterAutoTagTests {
 
         // Type sidecar's ID is preserved.
         let reloadedPT = try PageCollection.load(
-            from: typeFolder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename)
+            from: typeFolder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename)
         )
         #expect(reloadedPT.id == knownID)
 
         // Collection sidecar now exists with FK to the existing Type.
-        let pcMeta = collFolder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename)
+        let pcMeta = collFolder.appendingPathComponent(NexusPaths.pageSetSidecarFilename)
         #expect(FileManager.default.fileExists(atPath: pcMeta.path))
         let pc = try PageSet.load(from: pcMeta)
         #expect(pc.parentID == knownID)
@@ -297,10 +297,10 @@ struct NexusAdopterAutoTagTests {
         NexusAdopter.autoTagMissingSidecars(at: nexus.rootURL)
 
         let pt = try PageCollection.load(
-            from: typeFolder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename)
+            from: typeFolder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename)
         )
         let pa = try PageSet.load(
-            from: aFolder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename)
+            from: aFolder.appendingPathComponent(NexusPaths.pageSetSidecarFilename)
         )
         let pb = try PageSet.load(
             from: bFolder.appendingPathComponent(NexusPaths.pageSetSidecarFilename)

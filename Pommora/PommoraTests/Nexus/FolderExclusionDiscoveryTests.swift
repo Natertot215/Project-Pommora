@@ -20,7 +20,7 @@ import Testing
         let folder = NexusPaths.vaultFolderURL(forTitle: title, in: nexus)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         let pt = PageCollection(id: id, title: title, icon: nil, properties: [], views: [], modifiedAt: Date())
-        try pt.save(to: folder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename))
+        try pt.save(to: folder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename))
     }
 
     /// autoTag's depth-1 `cleanupLegacyOrphans` must not delete legacy sidecars
@@ -128,8 +128,8 @@ import Testing
             folderURL: archiveFolder,
             modifiedAt: Date()
         )
-        try inbox.save(to: inboxFolder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename))
-        try archive.save(to: archiveFolder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename))
+        try inbox.save(to: inboxFolder.appendingPathComponent(NexusPaths.pageSetSidecarFilename))
+        try archive.save(to: archiveFolder.appendingPathComponent(NexusPaths.pageSetSidecarFilename))
 
         // Exclude the nested "Notes/Archive" sub-folder.
         try setExcluded(["Notes/Archive"], in: nexus)
@@ -262,7 +262,7 @@ import Testing
             at: nexus.rootURL, filter: FolderFilter.load(for: tempNexus))
 
         // Sidecar must NOT have been written — the folder stays untagged.
-        let sidecar = archive.appendingPathComponent(NexusPaths.pageTypeSidecarFilename)
+        let sidecar = archive.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename)
         #expect(!FileManager.default.fileExists(atPath: sidecar.path))
 
         // The .md file must be untouched — same path, same content.

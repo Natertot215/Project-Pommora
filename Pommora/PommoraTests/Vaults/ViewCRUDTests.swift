@@ -187,7 +187,7 @@ struct ViewCRUDTests {
         let added = try await types.addView(type: .table, to: coll.id)
 
         let sidecarURL = coll.folderURL.appendingPathComponent(
-            NexusPaths.pageCollectionSidecarFilename)
+            NexusPaths.pageSetSidecarFilename)
         let fresh = try PageSet.load(from: sidecarURL)
         #expect(fresh.views.count == 2)
         #expect(fresh.views.last?.id == added.id)
@@ -218,7 +218,7 @@ struct ViewCRUDTests {
             id: ULID.generate(), parentID: pageCollection.id, title: title,
             folderURL: folderURL, modifiedAt: Date())
         coll.views = views
-        try coll.save(to: folderURL.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename))
+        try coll.save(to: folderURL.appendingPathComponent(NexusPaths.pageSetSidecarFilename))
         return coll
     }
 }

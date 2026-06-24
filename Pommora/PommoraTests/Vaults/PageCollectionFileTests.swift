@@ -12,7 +12,7 @@ struct PageCollectionFileTests {
         defer { TempNexus.cleanup(nexus) }
         let folder = nexus.rootURL.appendingPathComponent("Planner", isDirectory: true)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        let metaURL = folder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename)
+        let metaURL = folder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename)
 
         let original = PageCollection(
             id: "01HVAULT",
@@ -49,7 +49,7 @@ struct PageCollectionFileTests {
         defer { TempNexus.cleanup(nexus) }
         let folder = nexus.rootURL.appendingPathComponent("Materials", isDirectory: true)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        let metaURL = folder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename)
+        let metaURL = folder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename)
 
         try PageCollection(id: "01H", title: "Materials", icon: nil, properties: [], views: [], modifiedAt: Date())
             .save(to: metaURL)
@@ -85,7 +85,7 @@ struct PageCollectionFileTests {
         defer { TempNexus.cleanup(nexus) }
         let folder = nexus.rootURL.appendingPathComponent("Empty", isDirectory: true)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        let metaURL = folder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename)
+        let metaURL = folder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename)
 
         let v = PageCollection(id: "01H", title: "Empty", icon: nil, properties: [], views: [], modifiedAt: Date())
         try v.save(to: metaURL)

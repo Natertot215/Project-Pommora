@@ -195,7 +195,7 @@ struct UnlinkTierTests {
         let coll = PageSet(
             id: ULID.generate(), parentID: pageCollection.id, title: "C", folderURL: folder, modifiedAt: Date()
         )
-        try coll.save(to: folder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename))
+        try coll.save(to: folder.appendingPathComponent(NexusPaths.pageSetSidecarFilename))
         try IndexUpdater(index).upsertPageCollection(coll)
         return coll
     }

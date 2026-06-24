@@ -78,7 +78,7 @@ final class PageSetManager {
                     .filter { !$0.lastPathComponent.hasPrefix("_") }
                     .filter { !$0.lastPathComponent.hasPrefix(".") }
                     .compactMap { sub -> PageSet? in
-                        let collMetaURL = sub.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename)
+                        let collMetaURL = sub.appendingPathComponent(NexusPaths.pageSetSidecarFilename)
                         if !Filesystem.fileExists(at: collMetaURL) {
                             let fresh = PageSet(
                                 id: ULID.generate(),
@@ -116,7 +116,7 @@ final class PageSetManager {
                     save: {
                         try $0.save(
                             to: $0.folderURL.appendingPathComponent(
-                                NexusPaths.pageCollectionSidecarFilename))
+                                NexusPaths.pageSetSidecarFilename))
                     }
                 )
                 let orderedCols = OrderResolver.resolve(
@@ -185,7 +185,7 @@ final class PageSetManager {
                 folderURL: folder,
                 modifiedAt: now
             )
-            let metaURL = folder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename)
+            let metaURL = folder.appendingPathComponent(NexusPaths.pageSetSidecarFilename)
             try Filesystem.createFolderWithMetadata(
                 folderURL: folder, metadataURL: metaURL, metadata: coll
             )
@@ -227,7 +227,7 @@ final class PageSetManager {
             updated.title = newName
             updated.folderURL = newURL
             updated.modifiedAt = Date()
-            let metaURL = newURL.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename)
+            let metaURL = newURL.appendingPathComponent(NexusPaths.pageSetSidecarFilename)
             do {
                 try updated.save(to: metaURL)
             } catch let saveError {
@@ -301,7 +301,7 @@ final class PageSetManager {
             updated.icon = icon
             updated.modifiedAt = Date()
             let metaURL = collection.folderURL
-                .appendingPathComponent(NexusPaths.pageCollectionSidecarFilename)
+                .appendingPathComponent(NexusPaths.pageSetSidecarFilename)
             try updated.save(to: metaURL)
             if let updater = indexUpdater {
                 do { try updater.upsertPageCollection(updated) } catch { self.pendingError = error }
@@ -334,7 +334,7 @@ final class PageSetManager {
             for (typeID, cols) in pageCollectionsByType {
                 if let ci = cols.firstIndex(where: { $0.id == collectionID }) {
                     let meta = cols[ci].folderURL.appendingPathComponent(
-                        NexusPaths.pageCollectionSidecarFilename)
+                        NexusPaths.pageSetSidecarFilename)
                     var coll = try PageSet.load(from: meta)
                     let result = try transform(&coll.views)
                     coll.modifiedAt = Date()
@@ -417,7 +417,7 @@ final class PageSetManager {
             for (typeID, cols) in pageCollectionsByType {
                 if let ci = cols.firstIndex(where: { $0.id == collectionID }) {
                     let meta = cols[ci].folderURL.appendingPathComponent(
-                        NexusPaths.pageCollectionSidecarFilename
+                        NexusPaths.pageSetSidecarFilename
                     )
                     var coll = try PageSet.load(from: meta)
                     coll.banner = path
@@ -510,7 +510,7 @@ final class PageSetManager {
             if let i = arr.firstIndex(where: { $0.id == set.id }) {
                 arr[i] = updated
                 let parentMetaURL = newURL.deletingLastPathComponent()
-                    .appendingPathComponent(NexusPaths.pageCollectionSidecarFilename)
+                    .appendingPathComponent(NexusPaths.pageSetSidecarFilename)
                 arr = OrderResolver.resolve(
                     arr,
                     persistedOrder: (try? PageSet.load(from: parentMetaURL))?.setOrder,
@@ -586,7 +586,7 @@ final class PageSetManager {
             try Filesystem.guardNoFile(at: dest, else: PageSetValidator.ValidationError.duplicateTitle)
         }
 
-        let parentMetaURL = collectionFolder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename)
+        let parentMetaURL = collectionFolder.appendingPathComponent(NexusPaths.pageSetSidecarFilename)
         let parentCollection = try? PageSet.load(from: parentMetaURL)
         let nexusRoot = nexus.rootURL
 
@@ -817,10 +817,7 @@ final class PageSetManager {
             .filter { !$0.lastPathComponent.hasPrefix(".") }
             .compactMap { sub -> PageSet? in
                 let setMetaURL = sub.appendingPathComponent(NexusPaths.pageSetSidecarFilename)
-                let collMetaURL = sub.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename)
-                let resolvedMetaURL = Filesystem.fileExists(at: setMetaURL) ? setMetaURL
-                    : Filesystem.fileExists(at: collMetaURL) ? collMetaURL
-                    : nil
+                let resolvedMetaURL = Filesystem.fileExists(at: setMetaURL) ? setMetaURL : nil
                 let metaURL: URL
                 if let url = resolvedMetaURL {
                     metaURL = url

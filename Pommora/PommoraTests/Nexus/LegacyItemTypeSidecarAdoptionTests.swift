@@ -81,7 +81,7 @@ struct LegacyItemTypeSidecarAdoptionTests {
 
         NexusAdopter.autoTagMissingSidecars(at: nexus.rootURL)
 
-        let pageTypeSidecar = folder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename)
+        let pageTypeSidecar = folder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename)
         let staleItemSidecar = folder.appendingPathComponent("_itemtype.json")
         #expect(FileManager.default.fileExists(atPath: pageTypeSidecar.path))
         // `_itemtype.json` is not a recognized legacy orphan — it stays, inert.

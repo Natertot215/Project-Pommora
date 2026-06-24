@@ -147,7 +147,7 @@ struct ViewItemSourceTests {
             id: ULID.generate(), parentID: pageCollection.id, title: title,
             folderURL: folderURL, modifiedAt: Date()
         )
-        try coll.save(to: folderURL.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename))
+        try coll.save(to: folderURL.appendingPathComponent(NexusPaths.pageSetSidecarFilename))
         return coll
     }
 

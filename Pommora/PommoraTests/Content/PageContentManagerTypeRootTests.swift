@@ -69,7 +69,7 @@ struct PageContentManagerTypeRootTests {
             modifiedAt: Date()
         )
         // Sidecar so PageCollection discovery would treat this as a real PageSet
-        try coll.save(to: collFolder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename))
+        try coll.save(to: collFolder.appendingPathComponent(NexusPaths.pageSetSidecarFilename))
         try FixtureFiles.write(
             "---\nid: 01HINNER\ncreated_at: 2025-01-01T00:00:00Z\n---\n\nbody\n",
             to: NexusPaths.pageFileURL(forTitle: "InnerPage", in: collFolder)

@@ -28,7 +28,7 @@ struct AutoTagOrphanCleanupTests {
     private func writePageCollectionSidecar(at folder: URL) throws {
         try FixtureFiles.writeJSON(
             #"{"id":"01HABCPAGETYPE","modified_at":"2026-05-01T00:00:00Z","properties":[],"views":[]}"#,
-            to: folder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename)
+            to: folder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename)
         )
     }
 
@@ -38,7 +38,7 @@ struct AutoTagOrphanCleanupTests {
     private func writeStrayPageSetSidecar(at folder: URL) throws {
         try FixtureFiles.writeJSON(
             #"{"id":"01HABCSTRAYCOLL","type_id":"01HDANGLING","modified_at":"2026-05-28T00:00:00Z","properties":[],"views":[]}"#,
-            to: folder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename)
+            to: folder.appendingPathComponent(NexusPaths.pageSetSidecarFilename)
         )
     }
 
@@ -68,9 +68,9 @@ struct AutoTagOrphanCleanupTests {
         try FileManager.default.createDirectory(at: typeFolder, withIntermediateDirectories: true)
         try writePageCollectionSidecar(at: typeFolder)
 
-        let ptMeta = typeFolder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename)
+        let ptMeta = typeFolder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename)
         let pcMeta = typeFolder.appendingPathComponent(
-            NexusPaths.pageCollectionSidecarFilename)
+            NexusPaths.pageSetSidecarFilename)
 
         NexusAdopter.autoTagMissingSidecars(at: nexus.rootURL)
 
@@ -96,9 +96,9 @@ struct AutoTagOrphanCleanupTests {
         try writePageCollectionSidecar(at: typeFolder)
         try writeStrayPageSetSidecar(at: typeFolder)
 
-        let ptMeta = typeFolder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename)
+        let ptMeta = typeFolder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename)
         let strayMeta = typeFolder.appendingPathComponent(
-            NexusPaths.pageCollectionSidecarFilename)
+            NexusPaths.pageSetSidecarFilename)
 
         let file = typeFolder.appendingPathComponent("page.md")
         try FixtureFiles.write("# Heading\n", to: file)
@@ -125,9 +125,9 @@ struct AutoTagOrphanCleanupTests {
         try writePageCollectionSidecar(at: typeFolder)
         try writeStrayPageSetSidecar(at: typeFolder)
 
-        let ptMeta = typeFolder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename)
+        let ptMeta = typeFolder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename)
         let strayMeta = typeFolder.appendingPathComponent(
-            NexusPaths.pageCollectionSidecarFilename)
+            NexusPaths.pageSetSidecarFilename)
 
         NexusAdopter.autoTagMissingSidecars(at: nexus.rootURL)
         #expect(!exists(strayMeta))
@@ -158,10 +158,10 @@ struct AutoTagOrphanCleanupTests {
         try writePageCollectionSidecar(at: typeFolder)
         try FixtureFiles.writeJSON(
             #"{"id":"01HABCREALCOLL","type_id":"01HABCPAGETYPE","modified_at":"2026-05-01T00:00:00Z","properties":[],"views":[]}"#,
-            to: collFolder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename)
+            to: collFolder.appendingPathComponent(NexusPaths.pageSetSidecarFilename)
         )
 
-        let pcMeta = collFolder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename)
+        let pcMeta = collFolder.appendingPathComponent(NexusPaths.pageSetSidecarFilename)
         #expect(exists(pcMeta))
 
         NexusAdopter.autoTagMissingSidecars(at: nexus.rootURL)

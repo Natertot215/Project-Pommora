@@ -4,9 +4,8 @@ import Foundation
 ///
 /// Top-level sidebar order (Areas / Topics / Page Collections) lives on
 /// `<nexus>/.nexus/state.json`. Per-container child order lives on each
-/// container's own per-kind sidecar:
-///   - PageCollection  → `_pagetype.json`
-///   - PageSet (depth-1) → `_pagecollection.json`; deeper Sub-Sets → `_pageset.json`
+/// container's own sidecar — `_pagecollection.json` for the top Collection,
+/// `_pageset.json` for every Set at any depth.
 ///
 /// Every write is a read-modify-atomic-write round-trip so concurrent writes
 /// by sibling managers don't get clobbered.
@@ -54,7 +53,7 @@ enum OrderPersister {
     }
 
     static func setPageOrder(_ order: [String], inCollection collection: PageSet) throws {
-        try mutateSet(collection, sidecar: NexusPaths.pageCollectionSidecarFilename) { c in
+        try mutateSet(collection, sidecar: NexusPaths.pageSetSidecarFilename) { c in
             c.pageOrder = order.isEmpty ? nil : order
         }
     }
@@ -68,21 +67,9 @@ enum OrderPersister {
     // MARK: - PageSet (sidecar JSON)
 
     static func setPageSetOrder(_ order: [String], in collection: PageSet) throws {
-        let sidecar = resolvedSidecar(for: collection.folderURL)
-        try mutateSet(collection, sidecar: sidecar) { c in
+        try mutateSet(collection, sidecar: NexusPaths.pageSetSidecarFilename) { c in
             c.setOrder = order.isEmpty ? nil : order
         }
-    }
-
-    /// Resolves the sidecar filename for a container folder by checking what actually
-    /// exists on disk — `_pageset.json` first (depth-2+), falling back to
-    /// `_pagecollection.json` (depth-1). Safe when neither exists: the write will
-    /// simply create the `_pagecollection.json` at that path.
-    private static func resolvedSidecar(for folderURL: URL) -> String {
-        let setURL = folderURL.appendingPathComponent(NexusPaths.pageSetSidecarFilename)
-        return FileManager.default.fileExists(atPath: setURL.path)
-            ? NexusPaths.pageSetSidecarFilename
-            : NexusPaths.pageCollectionSidecarFilename
     }
 
     static func setPageOrder(_ order: [String], in set: PageSet) throws {
