@@ -26,7 +26,7 @@ enum OrderPersister {
         }
     }
 
-    static func setVaultOrder(_ order: [String], in nexus: Nexus) throws {
+    static func setCollectionOrder(_ order: [String], in nexus: Nexus) throws {
         try mutateNexusState(in: nexus) { state in
             state.collectionOrder = order.isEmpty ? nil : order
         }
@@ -58,7 +58,7 @@ enum OrderPersister {
         }
     }
 
-    static func setPageOrder(_ order: [String], inVaultRoot pageCollection: PageCollection, nexus: Nexus) throws {
+    static func setPageOrder(_ order: [String], inCollectionRoot pageCollection: PageCollection, nexus: Nexus) throws {
         try mutatePageCollection(pageCollection, nexus: nexus) { t in
             t.pageOrder = order.isEmpty ? nil : order
         }
@@ -104,7 +104,7 @@ enum OrderPersister {
         nexus: Nexus,
         _ mutate: (inout PageCollection) -> Void
     ) throws {
-        let url = NexusPaths.vaultMetadataURL(forTitle: pageCollection.title, in: nexus)
+        let url = NexusPaths.collectionMetadataURL(forTitle: pageCollection.title, in: nexus)
         var updated = try PageCollection.load(from: url)
         mutate(&updated)
         try updated.save(to: url)

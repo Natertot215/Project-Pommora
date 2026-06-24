@@ -228,7 +228,7 @@ struct EditPropertyPane: View {
     /// `OptionEditPopover` (no chevron-push navigation per Nathan's
     /// 2026-05-26 direction).
     private func addSelectOption() async {
-        guard let typeID = parentTypeID() else { return }
+        guard let collectionID = parentCollectionID() else { return }
         let newValue = "opt_\(ULID.generate())"
         let newOption = PropertyDefinition.SelectOption(
             value: newValue,
@@ -236,7 +236,7 @@ struct EditPropertyPane: View {
             color: nil
         )
         do {
-            try await collectionManager.updateProperty(id: propertyID, in: typeID) { def in
+            try await collectionManager.updateProperty(id: propertyID, in: collectionID) { def in
                 def.selectOptions = (def.selectOptions ?? []) + [newOption]
             }
             commitError = nil
@@ -248,7 +248,7 @@ struct EditPropertyPane: View {
     /// Mints a new Status option inside the given group. User double-clicks
     /// the chip to rename + color via the inline `OptionEditPopover`.
     private func addStatusOption(in groupID: PropertyDefinition.StatusGroupID) async {
-        guard let typeID = parentTypeID() else { return }
+        guard let collectionID = parentCollectionID() else { return }
         let newValue = "opt_\(ULID.generate())"
         let newOption = PropertyDefinition.StatusOption(
             value: newValue,
@@ -257,7 +257,7 @@ struct EditPropertyPane: View {
             groupID: groupID
         )
         do {
-            try await collectionManager.updateProperty(id: propertyID, in: typeID) { def in
+            try await collectionManager.updateProperty(id: propertyID, in: collectionID) { def in
                 var groups = def.statusGroups ?? []
                 if let i = groups.firstIndex(where: { $0.id == groupID }) {
                     groups[i].options.append(newOption)
@@ -522,13 +522,13 @@ struct EditPropertyPane: View {
     // MARK: - Lookups
 
     private func currentDefinition() -> PropertyDefinition? {
-        guard let typeID = parentTypeID() else { return nil }
+        guard let collectionID = parentCollectionID() else { return nil }
         return collectionManager.types
-            .first(where: { $0.id == typeID })?
+            .first(where: { $0.id == collectionID })?
             .properties.first(where: { $0.id == propertyID })
     }
 
-    private func parentTypeID() -> String? { scope.schemaTypeID }
+    private func parentCollectionID() -> String? { scope.schemaCollectionID }
 
     // MARK: - Bindings
 
@@ -615,9 +615,9 @@ struct EditPropertyPane: View {
     // MARK: - Commits
 
     private func applyTransform(_ transform: @escaping (inout PropertyDefinition) -> Void) async {
-        guard let typeID = parentTypeID() else { return }
+        guard let collectionID = parentCollectionID() else { return }
         do {
-            try await collectionManager.updateProperty(id: propertyID, in: typeID, transform: transform)
+            try await collectionManager.updateProperty(id: propertyID, in: collectionID, transform: transform)
             commitError = nil
         } catch {
             commitError = PropertyEditorErrorMessage.string(for: error)
@@ -625,13 +625,13 @@ struct EditPropertyPane: View {
     }
 
     private func commitRename() async {
-        guard let typeID = parentTypeID() else { return }
+        guard let collectionID = parentCollectionID() else { return }
         let trimmed = draftName.trimmingCharacters(in: .whitespaces)
         // Skip empty + no-op renames so Enter / blur / disappear can all fire
         // without double-writing or clobbering with an unchanged value.
         guard !trimmed.isEmpty, trimmed != currentDefinition()?.name else { return }
         do {
-            try await collectionManager.renameProperty(id: propertyID, in: typeID, to: trimmed)
+            try await collectionManager.renameProperty(id: propertyID, in: collectionID, to: trimmed)
             commitError = nil
         } catch {
             commitError = PropertyEditorErrorMessage.string(for: error)
@@ -639,7 +639,7 @@ struct EditPropertyPane: View {
     }
 
     private func commitDelete() async {
-        guard let typeID = parentTypeID() else { return }
+        guard let collectionID = parentCollectionID() else { return }
         // Pop FIRST, then await the disk delete. If we awaited delete first,
         // the manager's `types` array mutates while this pane is still
         // mounted; the body re-renders against `currentDefinition() == nil`
@@ -648,16 +648,16 @@ struct EditPropertyPane: View {
         // disk delete completes off-screen.
         if !path.isEmpty { path.removeLast() }
         do {
-            try await collectionManager.deleteProperty(id: propertyID, in: typeID)
+            try await collectionManager.deleteProperty(id: propertyID, in: collectionID)
         } catch {
             commitError = PropertyEditorErrorMessage.string(for: error)
         }
     }
 
     private func commitDuplicate() async {
-        guard let typeID = parentTypeID() else { return }
+        guard let collectionID = parentCollectionID() else { return }
         do {
-            try await collectionManager.duplicateProperty(id: propertyID, in: typeID)
+            try await collectionManager.duplicateProperty(id: propertyID, in: collectionID)
             if !path.isEmpty { path.removeLast() }
         } catch {
             commitError = PropertyEditorErrorMessage.string(for: error)

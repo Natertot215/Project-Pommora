@@ -321,20 +321,20 @@ struct PagePreviewContent: View {
 
     @ViewBuilder
     private var inspectorContent: some View {
-        if let vm = viewModel, let vault = livePageCollection {
+        if let vm = viewModel, let pageCollection = livePageCollection {
             // The REAL pages inspector, mounted as-is — parity with the
             // main window by construction, not imitation. Same grouped Form,
             // same editors, same Add Property affordance, same debounced
             // save path (compact typographic scale).
             FrontmatterInspector(
                 page: vm.page,
-                pageCollection: vault,
+                pageCollection: pageCollection,
                 index: contentManager.indexUpdater?.index,
                 relationDisplay: contextResolver,
                 onSave: { updated in
                     Task {
                         try? await contentManager.updatePageFrontmatter(
-                            vm.page, frontmatter: updated, pageCollection: vault, collection: collection,
+                            vm.page, frontmatter: updated, pageCollection: pageCollection, collection: collection,
                             set: set)
                         if let refreshed = currentMeta() { vm.page = refreshed }
                     }
@@ -349,7 +349,7 @@ struct PagePreviewContent: View {
         }
     }
 
-    /// The vault resolved LIVE from the manager (not the load()-time
+    /// The collection resolved LIVE from the manager (not the load()-time
     /// snapshot) so schema changes — e.g. a property added through the
     /// inspector's affordance — re-render this window's inspector
     /// immediately.
@@ -420,7 +420,7 @@ struct PagePreviewContent: View {
 
     // MARK: - Data load + commits
 
-    /// Resolve the ref → live page/vault/collection/set, lazily loading the
+    /// Resolve the ref → live page/collection/collection/set, lazily loading the
     /// container's page cache first when needed (a preview can open before
     /// the sidebar/detail ever browsed that container), then build the editor
     /// VM on the same saver path as `PageEditorHost`.
@@ -479,8 +479,8 @@ struct PagePreviewContent: View {
     /// cold here — a Set the manager doesn't know falls back to the Collection
     /// load (whose walk excludes Set subtrees) and resolves as load-failed.
     private func loadContainer() async {
-        guard let v = collectionManager.types.first(where: { $0.id == ref.vaultID }) else { return }
-        guard let cid = ref.collectionID,
+        guard let v = collectionManager.types.first(where: { $0.id == ref.collectionID }) else { return }
+        guard let cid = ref.depthOneSetID,
             let c = collectionManager.pageCollections(in: v).first(where: { $0.id == cid })
         else {
             await contentManager.loadAll(for: v)

@@ -149,7 +149,7 @@ enum TableColumnResolver {
     }
 
     /// Default column width per kind, used when `columnWidths` has no entry.
-    /// Derived from the native vault `Table`'s ideal widths (property 120/ideal,
+    /// Derived from the native collection `Table`'s ideal widths (property 120/ideal,
     /// Modified 180/ideal); Title leads wider; tiers match user properties.
     static func defaultWidth(for kind: ResolvedColumn.Kind) -> Double {
         switch kind {

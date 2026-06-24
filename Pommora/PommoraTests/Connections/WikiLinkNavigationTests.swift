@@ -24,42 +24,42 @@ struct WikiLinkNavigationTests {
         let nexus = try TempNexus.make()
         let (index, _) = try PommoraIndex.open(at: nexus.rootURL)
 
-        let vault = PageCollection(
+        let collection = PageCollection(
             id: ULID.generate(), title: "V", icon: nil,
             properties: [], views: [], modifiedAt: Date()
         )
-        let vaultFolder = NexusPaths.vaultFolderURL(forTitle: "V", in: nexus)
-        try FileManager.default.createDirectory(at: vaultFolder, withIntermediateDirectories: true)
-        try vault.save(to: NexusPaths.vaultMetadataURL(forTitle: "V", in: nexus))
+        let collectionFolder = NexusPaths.collectionFolderURL(forTitle: "V", in: nexus)
+        try FileManager.default.createDirectory(at: collectionFolder, withIntermediateDirectories: true)
+        try collection.save(to: NexusPaths.collectionMetadataURL(forTitle: "V", in: nexus))
 
-        let collFolder = NexusPaths.collectionFolderURL(forTitle: "C", inVaultTitled: "V", in: nexus)
+        let collFolder = NexusPaths.setFolderURL(forTitle: "C", inCollectionTitled: "V", in: nexus)
         try FileManager.default.createDirectory(at: collFolder, withIntermediateDirectories: true)
         let coll = PageSet(
             id: ULID.generate(),
-            parentID: vault.id,
+            parentID: collection.id,
             title: "C",
             folderURL: collFolder,
             modifiedAt: Date()
         )
 
         let updater = IndexUpdater(index)
-        try updater.upsertPageCollection(vault)
+        try updater.upsertPageCollection(collection)
         try updater.upsertPageCollection(coll)
 
         let manager = PageContentManager(nexus: nexus, contextProvider: { NexusContext.empty })
         manager.indexUpdater = updater
 
-        return (nexus, vault, coll, manager, index)
+        return (nexus, collection, coll, manager, index)
     }
 
     // MARK: - Test 1: resolves a real on-disk page
 
     @Test("clicking a resolved title returns the page selection")
     func resolvesExistingTitle() async throws {
-        let (nexus, vault, coll, manager, index) = try await setup()
+        let (nexus, collection, coll, manager, index) = try await setup()
         defer { TempNexus.cleanup(nexus) }
 
-        let target = try await manager.createPage(name: "Target", in: coll, pageCollection: vault)
+        let target = try await manager.createPage(name: "Target", in: coll, pageCollection: collection)
 
         let selection = await WikiLinkPageOpener.pageSelection(
             forTitle: "Target", index: index, nexusRootURL: nexus.rootURL)
@@ -89,16 +89,16 @@ struct WikiLinkNavigationTests {
 
     @Test("clicking an ambiguous duplicate title returns nil")
     func duplicateTitleReturnsNil() async throws {
-        let (nexus, vault, coll, manager, index) = try await setup()
+        let (nexus, collection, coll, manager, index) = try await setup()
         defer { TempNexus.cleanup(nexus) }
 
         // One real on-disk page named "Dupe"…
-        let first = try await manager.createPage(name: "Dupe", in: coll, pageCollection: vault)
-        // …plus a second index row with the SAME title under the Vault root.
+        let first = try await manager.createPage(name: "Dupe", in: coll, pageCollection: collection)
+        // …plus a second index row with the SAME title under the Collection root.
         // resolveUniqueTitle must now find 2 matches and return nil (ambiguous).
         let twin = PageMeta(
             id: ULID.generate(), title: "Dupe", url: first.url, frontmatter: first.frontmatter)
-        try IndexUpdater(index).upsertPage(twin, pageCollectionID: vault.id)
+        try IndexUpdater(index).upsertPage(twin, pageCollectionID: collection.id)
 
         let selection = await WikiLinkPageOpener.pageSelection(
             forTitle: "Dupe", index: index, nexusRootURL: nexus.rootURL)

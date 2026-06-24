@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 
-/// Production table renderer for the Vault + Collection detail views — a thin
+/// Production table renderer for the Collection + Collection detail views — a thin
 /// `NSViewRepresentable` over a view-based `NSOutlineView`. Replaces the hand-rolled
 /// SwiftUI table: disclosure folding, column resize / reorder, alternating row fills,
 /// and keyboard navigation are native AppKit, while the per-view column layout

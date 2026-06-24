@@ -3,7 +3,7 @@
 //  PommoraTests
 //
 //  Pure-value coverage for the gallery card's zone partition + the gallery
-//  renderer's vault-scope flatten guarantee. No disk, no SwiftUI.
+//  renderer's collection-scope flatten guarantee. No disk, no SwiftUI.
 //
 
 import Foundation
@@ -130,7 +130,7 @@ import Testing
         #expect(ids.count == fullSchema.count)
     }
 
-    // MARK: - Vault-scope flatten lossless guarantee
+    // MARK: - Collection-scope flatten lossless guarantee
 
     @Test func flattenedItemsLosesNoSetPage() {
         let coll = VPFixture.collection("coll_1", title: "Coll")

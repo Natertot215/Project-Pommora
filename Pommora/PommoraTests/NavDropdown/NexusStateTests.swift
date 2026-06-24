@@ -82,7 +82,7 @@ struct NexusStateTests {
     }
 
     @Test("decodes legacy 'vault_order' key into collectionOrder (backward-compat)")
-    func decodesLegacyVaultOrderKey() throws {
+    func decodesLegacyCollectionOrderKey() throws {
         // Pre-Phase-3 state.json named the Collections-section sidebar reorder
         // "vault_order"; the decoder falls back so the user's order survives.
         let json = #"{"schemaVersion":1,"recents":[],"pinned":[],"vault_order":["c1","c2"]}"#

@@ -345,7 +345,7 @@ struct NexusAdopterAutoTagTests {
 
         let typeManager = PageCollectionManager(nexus: nexus)
         let setManager = PageSetManager(nexus: nexus)
-        setManager.pageTypeProvider = { [weak typeManager] in typeManager?.types ?? [] }
+        setManager.pageCollectionProvider = { [weak typeManager] in typeManager?.types ?? [] }
         typeManager.pageSetManager = setManager
 
         await typeManager.loadAll()

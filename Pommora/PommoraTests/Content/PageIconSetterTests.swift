@@ -28,11 +28,11 @@ struct PageIconSetterTests {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
 
-        let (vault, _, manager) = try await makePageSetup(nexus: nexus)
-        try await manager.createPage(name: "RootNotes", inCollectionRoot: vault)
-        let page = manager.pages(in: vault).first!
+        let (collection, _, manager) = try await makePageSetup(nexus: nexus)
+        try await manager.createPage(name: "RootNotes", inCollectionRoot: collection)
+        let page = manager.pages(in: collection).first!
 
-        try await manager.updatePageIcon(page, to: "star.fill", pageCollection: vault, collection: nil)
+        try await manager.updatePageIcon(page, to: "star.fill", pageCollection: collection, collection: nil)
 
         // On-disk assertion: reload the .md frontmatter directly.
         let reloaded = try PageFile.load(from: page.url)
@@ -45,11 +45,11 @@ struct PageIconSetterTests {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
 
-        let (vault, coll, manager) = try await makePageSetup(nexus: nexus)
-        try await manager.createPage(name: "Notes", in: coll, pageCollection: vault)
+        let (collection, coll, manager) = try await makePageSetup(nexus: nexus)
+        try await manager.createPage(name: "Notes", in: coll, pageCollection: collection)
         let page = manager.pages(inCollection: coll).first!
 
-        try await manager.updatePageIcon(page, to: "star.fill", pageCollection: vault, collection: coll)
+        try await manager.updatePageIcon(page, to: "star.fill", pageCollection: collection, collection: coll)
 
         let reloaded = try PageFile.load(from: page.url)
         #expect(reloaded.frontmatter.icon == "star.fill")
@@ -62,24 +62,24 @@ struct PageIconSetterTests {
     private func makePageSetup(nexus: Nexus) async throws
         -> (PageCollection, PageSet, PageContentManager)
     {
-        let vault = PageCollection(
+        let collection = PageCollection(
             id: ULID.generate(), title: "V", icon: nil,
             properties: [], views: [], modifiedAt: Date())
-        let vaultFolder = NexusPaths.vaultFolderURL(forTitle: "V", in: nexus)
-        try FileManager.default.createDirectory(at: vaultFolder, withIntermediateDirectories: true)
-        try vault.save(to: NexusPaths.vaultMetadataURL(forTitle: "V", in: nexus))
+        let collectionFolder = NexusPaths.collectionFolderURL(forTitle: "V", in: nexus)
+        try FileManager.default.createDirectory(at: collectionFolder, withIntermediateDirectories: true)
+        try collection.save(to: NexusPaths.collectionMetadataURL(forTitle: "V", in: nexus))
 
-        let collFolder = NexusPaths.collectionFolderURL(forTitle: "C", inVaultTitled: "V", in: nexus)
+        let collFolder = NexusPaths.setFolderURL(forTitle: "C", inCollectionTitled: "V", in: nexus)
         try FileManager.default.createDirectory(at: collFolder, withIntermediateDirectories: true)
         let coll = PageSet(
             id: ULID.generate(),
-            parentID: vault.id,
+            parentID: collection.id,
             title: "C",
             folderURL: collFolder,
             modifiedAt: Date()
         )
 
         let manager = PageContentManager(nexus: nexus, contextProvider: { NexusContext.empty })
-        return (vault, coll, manager)
+        return (collection, coll, manager)
     }
 }

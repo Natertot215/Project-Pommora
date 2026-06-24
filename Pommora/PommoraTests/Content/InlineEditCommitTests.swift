@@ -30,20 +30,20 @@ struct InlineEditCommitTests {
 
     @Test("updatePageProperty: edit lands in cache + disk, preserving body + foreign frontmatter")
     func propertyPersistsAndPreserves() async throws {
-        let (nexus, vault, manager) = try await setup()
+        let (nexus, collection, manager) = try await setup()
         defer { TempNexus.cleanup(nexus) }
 
-        try await manager.createPage(name: "P", inCollectionRoot: vault)
-        let page = manager.pages(in: vault).first!
+        try await manager.createPage(name: "P", inCollectionRoot: collection)
+        let page = manager.pages(in: collection).first!
         try seedBodyAndForeign(at: page.url, id: page.frontmatter.id)
 
         let propID = ReservedPropertyID.mintUserPropertyID()
         try await manager.updatePageProperty(
             page, propertyID: propID, newValue: .number(42),
-            pageCollection: vault, collection: nil)
+            pageCollection: collection, collection: nil)
 
         // Cache (what the cells render) reflects the edit.
-        let cached = manager.pages(in: vault).first { $0.id == page.id }
+        let cached = manager.pages(in: collection).first { $0.id == page.id }
         #expect(cached?.frontmatter.properties[propID] == .number(42))
 
         // Disk reflects it too; body + foreign frontmatter survive.
@@ -55,20 +55,20 @@ struct InlineEditCommitTests {
 
     @Test("updatePageProperty: cache reflects the edit even when the disk write fails (optimistic, decoupled)")
     func propertyCacheDecoupledFromDisk() async throws {
-        let (nexus, vault, manager) = try await setup()
+        let (nexus, collection, manager) = try await setup()
         defer { TempNexus.cleanup(nexus) }
 
-        try await manager.createPage(name: "P", inCollectionRoot: vault)
-        let page = manager.pages(in: vault).first!
+        try await manager.createPage(name: "P", inCollectionRoot: collection)
+        let page = manager.pages(in: collection).first!
         // Remove the file so any disk round-trip throws.
         try FileManager.default.removeItem(at: page.url)
 
         let propID = ReservedPropertyID.mintUserPropertyID()
         try? await manager.updatePageProperty(
             page, propertyID: propID, newValue: .number(7),
-            pageCollection: vault, collection: nil)
+            pageCollection: collection, collection: nil)
 
-        let cached = manager.pages(in: vault).first { $0.id == page.id }
+        let cached = manager.pages(in: collection).first { $0.id == page.id }
         #expect(
             cached?.frontmatter.properties[propID] == .number(7),
             "the in-memory cache must reflect the edit without depending on a disk round-trip")
@@ -79,20 +79,20 @@ struct InlineEditCommitTests {
 
     @Test("updatePageFrontmatter: edit lands in cache + disk, preserving body + foreign frontmatter")
     func frontmatterPersistsAndPreserves() async throws {
-        let (nexus, vault, manager) = try await setup()
+        let (nexus, collection, manager) = try await setup()
         defer { TempNexus.cleanup(nexus) }
 
-        try await manager.createPage(name: "P", inCollectionRoot: vault)
-        let page = manager.pages(in: vault).first!
+        try await manager.createPage(name: "P", inCollectionRoot: collection)
+        let page = manager.pages(in: collection).first!
         try seedBodyAndForeign(at: page.url, id: page.frontmatter.id)
 
         let propID = ReservedPropertyID.mintUserPropertyID()
         var fm = page.frontmatter
         fm.properties[propID] = .number(99)
         try await manager.updatePageFrontmatter(
-            page, frontmatter: fm, pageCollection: vault, collection: nil)
+            page, frontmatter: fm, pageCollection: collection, collection: nil)
 
-        let cached = manager.pages(in: vault).first { $0.id == page.id }
+        let cached = manager.pages(in: collection).first { $0.id == page.id }
         #expect(cached?.frontmatter.properties[propID] == .number(99))
 
         let reloaded = try PageFile.load(from: page.url)
@@ -103,20 +103,20 @@ struct InlineEditCommitTests {
 
     @Test("updatePageFrontmatter: cache reflects the edit even when the disk write fails (optimistic, decoupled)")
     func frontmatterCacheDecoupledFromDisk() async throws {
-        let (nexus, vault, manager) = try await setup()
+        let (nexus, collection, manager) = try await setup()
         defer { TempNexus.cleanup(nexus) }
 
-        try await manager.createPage(name: "P", inCollectionRoot: vault)
-        let page = manager.pages(in: vault).first!
+        try await manager.createPage(name: "P", inCollectionRoot: collection)
+        let page = manager.pages(in: collection).first!
         try FileManager.default.removeItem(at: page.url)
 
         let propID = ReservedPropertyID.mintUserPropertyID()
         var fm = page.frontmatter
         fm.properties[propID] = .number(13)
         try? await manager.updatePageFrontmatter(
-            page, frontmatter: fm, pageCollection: vault, collection: nil)
+            page, frontmatter: fm, pageCollection: collection, collection: nil)
 
-        let cached = manager.pages(in: vault).first { $0.id == page.id }
+        let cached = manager.pages(in: collection).first { $0.id == page.id }
         #expect(cached?.frontmatter.properties[propID] == .number(13))
         #expect(manager.pendingError != nil)
     }
@@ -125,15 +125,15 @@ struct InlineEditCommitTests {
 
     private func setup() async throws -> (Nexus, PageCollection, PageContentManager) {
         let nexus = try TempNexus.make()
-        let vault = PageCollection(
+        let collection = PageCollection(
             id: ULID.generate(), title: "V", icon: nil,
             properties: [], views: [], modifiedAt: Date())
-        let vaultFolder = NexusPaths.vaultFolderURL(forTitle: "V", in: nexus)
-        try FileManager.default.createDirectory(at: vaultFolder, withIntermediateDirectories: true)
-        try vault.save(to: NexusPaths.vaultMetadataURL(forTitle: "V", in: nexus))
+        let collectionFolder = NexusPaths.collectionFolderURL(forTitle: "V", in: nexus)
+        try FileManager.default.createDirectory(at: collectionFolder, withIntermediateDirectories: true)
+        try collection.save(to: NexusPaths.collectionMetadataURL(forTitle: "V", in: nexus))
 
         let manager = PageContentManager(nexus: nexus, contextProvider: { NexusContext.empty })
-        return (nexus, vault, manager)
+        return (nexus, collection, manager)
     }
 
     /// Overwrites the page file with a real body + a foreign (plugin) `tags` key

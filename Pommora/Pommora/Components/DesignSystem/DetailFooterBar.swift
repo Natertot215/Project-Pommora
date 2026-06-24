@@ -19,7 +19,7 @@ struct FooterCrumb {
 
 // MARK: - FooterBreadcrumbView
 
-/// Renders `[Vault] › [Collection] › [Page]` breadcrumb segments inline.
+/// Renders `[Collection] › [Collection] › [Page]` breadcrumb segments inline.
 /// Tappable segments call their `action`; the current/last segment has no action.
 /// Ghost segments (trail) render tertiary.
 struct FooterBreadcrumbView: View {

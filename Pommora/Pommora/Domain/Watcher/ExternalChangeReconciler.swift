@@ -29,11 +29,13 @@ final class ExternalChangeReconciler {
     }
 
     /// A Page scope to reload + reindex surgically, carrying the parent ids
-    /// `IndexUpdater.upsertPage` needs.
+    /// `IndexUpdater.upsertPage` needs. `collectionID` is always the top
+    /// PageCollection id (the `pageCollectionID` FK); `parentSetID` is the
+    /// immediate container Set for a deeper page.
     enum Scope: Hashable {
-        case collection(id: String, typeID: String)
-        case set(id: String, collectionID: String, typeID: String)
-        case typeRoot(id: String)
+        case depthOneSet(id: String, collectionID: String)
+        case deeperSet(id: String, parentSetID: String, collectionID: String)
+        case collectionRoot(id: String)
     }
 
     private unowned let env: NexusEnvironment
@@ -178,23 +180,23 @@ final class ExternalChangeReconciler {
     private func reloadAndIndex(_ scope: Scope, updater: IndexUpdater) async {
         let content = env.contentManager
         switch scope {
-        case .collection(let id, let typeID):
-            guard let col = collection(id: id, typeID: typeID) else { return }
-            await content.loadAll(forCollection: col)
+        case .depthOneSet(let id, let collectionID):
+            guard let set = depthOneSet(id: id, collectionID: collectionID) else { return }
+            await content.loadAll(forCollection: set)
             syncScope(
                 content.pagesByCollection[id] ?? [],
-                pageCollectionID: typeID, pageSetID: id, updater: updater)
-        case .set(let id, let collectionID, let typeID):
-            guard let set = pageSet(id: id, collectionID: collectionID) else { return }
+                pageCollectionID: collectionID, pageSetID: id, updater: updater)
+        case .deeperSet(let id, let parentSetID, let collectionID):
+            guard let set = childSet(id: id, parentSetID: parentSetID) else { return }
             await content.loadAll(for: set)
             syncScope(
                 content.pagesBySet[id] ?? [],
-                pageCollectionID: typeID, pageSetID: id, updater: updater)
-        case .typeRoot(let id):
+                pageCollectionID: collectionID, pageSetID: id, updater: updater)
+        case .collectionRoot(let id):
             guard let type = env.collectionManager.types.first(where: { $0.id == id }) else { return }
             await content.loadAll(for: type)
             syncScope(
-                content.pagesByTypeRoot[id] ?? [],
+                content.pagesByCollectionRoot[id] ?? [],
                 pageCollectionID: id, pageSetID: nil, updater: updater)
         }
     }
@@ -236,20 +238,20 @@ final class ExternalChangeReconciler {
     /// a not-yet-loaded container → coarse).
     private func resolveScope(for url: URL, nexus: Nexus) -> Scope? {
         let parent = url.deletingLastPathComponent().standardizedFileURL.path
-        for (collectionID, sets) in env.pageSetManager.pageSetsByCollection {
+        for (parentSetID, sets) in env.pageSetManager.childSetsByParentSet {
             for set in sets where isUnder(parent, set.folderURL) {
-                guard let typeID = typeID(ofCollection: collectionID) else { return nil }
-                return .set(id: set.id, collectionID: collectionID, typeID: typeID)
+                guard let collectionID = collectionID(ofDepthOneSet: parentSetID) else { return nil }
+                return .deeperSet(id: set.id, parentSetID: parentSetID, collectionID: collectionID)
             }
         }
-        for (typeID, cols) in env.collectionManager.pageCollectionsByType {
-            for col in cols where isUnder(parent, col.folderURL) {
-                return .collection(id: col.id, typeID: typeID)
+        for (collectionID, sets) in env.collectionManager.depthOneSetsByCollection {
+            for set in sets where isUnder(parent, set.folderURL) {
+                return .depthOneSet(id: set.id, collectionID: collectionID)
             }
         }
         for type in env.collectionManager.types
-        where isUnder(parent, NexusPaths.vaultFolderURL(forTitle: type.title, in: nexus)) {
-            return .typeRoot(id: type.id)
+        where isUnder(parent, NexusPaths.collectionFolderURL(forTitle: type.title, in: nexus)) {
+            return .collectionRoot(id: type.id)
         }
         return nil
     }
@@ -260,20 +262,20 @@ final class ExternalChangeReconciler {
         return path == f || path.hasPrefix(f + "/")
     }
 
-    private func typeID(ofCollection collectionID: String) -> String? {
-        for (typeID, cols) in env.collectionManager.pageCollectionsByType
-        where cols.contains(where: { $0.id == collectionID }) {
-            return typeID
+    private func collectionID(ofDepthOneSet depthOneSetID: String) -> String? {
+        for (collectionID, sets) in env.collectionManager.depthOneSetsByCollection
+        where sets.contains(where: { $0.id == depthOneSetID }) {
+            return collectionID
         }
         return nil
     }
 
-    private func collection(id: String, typeID: String) -> PageSet? {
-        (env.collectionManager.pageCollectionsByType[typeID] ?? []).first { $0.id == id }
+    private func depthOneSet(id: String, collectionID: String) -> PageSet? {
+        (env.collectionManager.depthOneSetsByCollection[collectionID] ?? []).first { $0.id == id }
     }
 
-    private func pageSet(id: String, collectionID: String) -> PageSet? {
-        (env.pageSetManager.pageSetsByCollection[collectionID] ?? []).first { $0.id == id }
+    private func childSet(id: String, parentSetID: String) -> PageSet? {
+        (env.pageSetManager.childSetsByParentSet[parentSetID] ?? []).first { $0.id == id }
     }
 
     // MARK: - Editors + loaded scopes
@@ -294,16 +296,16 @@ final class ExternalChangeReconciler {
     /// list picks up external changes after a coarse rebuild.
     private func reloadLoadedPageScopes() async {
         let content = env.contentManager
-        let collections = env.collectionManager.pageCollectionsByType.values.flatMap { $0 }
+        let collections = env.collectionManager.depthOneSetsByCollection.values.flatMap { $0 }
         for id in Array(content.pagesByCollection.keys) {
             guard let collection = collections.first(where: { $0.id == id }) else { continue }
             await content.loadAll(forCollection: collection)
         }
-        for id in Array(content.pagesByTypeRoot.keys) {
+        for id in Array(content.pagesByCollectionRoot.keys) {
             guard let type = env.collectionManager.types.first(where: { $0.id == id }) else { continue }
             await content.loadAll(for: type)
         }
-        let sets = env.pageSetManager.pageSetsByCollection.values.flatMap { $0 }
+        let sets = env.pageSetManager.childSetsByParentSet.values.flatMap { $0 }
         for id in Array(content.pagesBySet.keys) {
             guard let set = sets.first(where: { $0.id == id }) else { continue }
             await content.loadAll(for: set)

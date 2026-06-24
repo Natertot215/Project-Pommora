@@ -8,7 +8,7 @@ import SwiftUI
 /// Layout: each `ResolvedGroup` becomes a collapsible section (disclosure
 /// header, parity with the table's group rows); the section body is a
 /// `LazyVGrid` of `GalleryCard`s at `cardSize.columnsPerRow` per row (8 / 6 / 4
-/// for small / medium / large). In **vault scope** the pipeline nests Sets under
+/// for small / medium / large). In **collection scope** the pipeline nests Sets under
 /// a Collection group, so each Collection section flattens via
 /// `group.flattenedItems` (ONE section level per Collection — Sets folded in,
 /// each card carrying its `setLabel` chip).
@@ -38,7 +38,7 @@ struct GalleryView: View {
     let groupMenu: (ResolvedGroup) -> AnyView
     /// Cover-area menu for a card (Set / Change / Remove Cover). The detail view
     /// builds it with the page's container ref so the cover writes route to the
-    /// right vault / collection / set.
+    /// right collection / collection / set.
     let coverMenu: (ViewItem) -> AnyView
     let persistCollapsed: (_ collapsedIDs: [String]) -> Void
 
@@ -173,7 +173,7 @@ struct GalleryView: View {
     // MARK: - Grid
 
     private func grid(for group: ResolvedGroup) -> some View {
-        // Vault scope nests Sets under Collection groups; the gallery flattens to
+        // Collection scope nests Sets under Collection groups; the gallery flattens to
         // ONE section level so no Set page is dropped.
         grid(items: group.flattenedItems, group: group)
     }

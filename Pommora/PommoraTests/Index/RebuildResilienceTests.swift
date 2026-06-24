@@ -34,7 +34,7 @@
 //  not in the manager `loadAll` sync path).
 //
 //  How the throwing row is forced: TWO Page `.md` files are written into one
-//  Vault whose frontmatter carries the SAME `id`. `PageFrontmatter.id` decodes
+//  Collection whose frontmatter carries the SAME `id`. `PageFrontmatter.id` decodes
 //  straight from the file (`decode(String.self, forKey: .id)`), so both files
 //  produce `PageSnapshot`s sharing that id. `pages.id` is `TEXT PRIMARY KEY`
 //  (`IndexSchema.pagesDDL`) and `IndexBuilder.insertPage` emits a plain
@@ -85,18 +85,18 @@ struct RebuildResilienceTests {
             id: topicID, title: topicName, icon: nil, blocks: [], modifiedAt: Date()
         ).save(to: NexusPaths.topicMetadataURL(forTitle: topicName, in: nexus))
 
-        // --- Seed a VALID Vault (PageCollection) at the nexus root. ---
-        let vaultID = ULID.generate()
-        let vaultName = "Notes"
-        let vaultFolder = NexusPaths.vaultFolderURL(forTitle: vaultName, in: nexus)
-        try FileManager.default.createDirectory(at: vaultFolder, withIntermediateDirectories: true)
+        // --- Seed a VALID Collection (PageCollection) at the nexus root. ---
+        let collectionID = ULID.generate()
+        let collectionName = "Notes"
+        let collectionFolder = NexusPaths.collectionFolderURL(forTitle: collectionName, in: nexus)
+        try FileManager.default.createDirectory(at: collectionFolder, withIntermediateDirectories: true)
         let pc = PageCollection(
-            id: vaultID, title: vaultName, icon: nil,
+            id: collectionID, title: collectionName, icon: nil,
             properties: [], views: [], modifiedAt: Date()
         )
-        try pc.save(to: vaultFolder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename))
+        try pc.save(to: collectionFolder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename))
 
-        // --- Seed TWO Page `.md` files in the Vault whose frontmatter carries
+        // --- Seed TWO Page `.md` files in the Collection whose frontmatter carries
         // the SAME `id` (a realistic legacy/adoption primary-key collision).
         // `PageFrontmatter.id` decodes straight from each file, so both produce
         // PageSnapshots with the same id; `pages.id` is TEXT PRIMARY KEY, so
@@ -109,13 +109,13 @@ struct RebuildResilienceTests {
             properties: [:], createdAt: Date()
         )
         try PageFile(frontmatter: frontmatterA, body: "# First\n")
-            .save(to: vaultFolder.appendingPathComponent("First.md"))
+            .save(to: collectionFolder.appendingPathComponent("First.md"))
         let frontmatterB = PageFrontmatter(
             id: duplicateID, icon: nil, tier1: [], tier2: [], tier3: [],
             properties: [:], createdAt: Date()
         )
         try PageFile(frontmatter: frontmatterB, body: "# Second\n")
-            .save(to: vaultFolder.appendingPathComponent("Second.md"))
+            .save(to: collectionFolder.appendingPathComponent("Second.md"))
 
         // --- Run the real rebuild. With the resilient-rebuild fix, `populate`
         // skips the duplicate-PK page instead of rolling the whole transaction

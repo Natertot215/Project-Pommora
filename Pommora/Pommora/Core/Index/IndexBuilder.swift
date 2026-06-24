@@ -192,7 +192,7 @@ final class IndexBuilder {
     }
 
     /// Recursively builds a `PageSetSnapshot` for `set`, walking child sub-folders
-    /// at any depth. Depth-1 sets carry `parentTypeID`; deeper sets carry `parentSetID`.
+    /// at any depth. Depth-1 sets carry `parentCollectionID`; deeper sets carry `parentSetID`.
     private static func collectSetSnapshot(
         _ set: PageSet,
         folder: URL,

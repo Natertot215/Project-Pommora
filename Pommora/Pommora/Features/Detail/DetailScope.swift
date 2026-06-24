@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// The container a detail view renders. A `ViewSurface` renders ONE scope —
-/// vault (a PageCollection's whole tree) or collection (one PageCollection's Sets +
+/// collection (a PageCollection's whole tree) or collection (one PageCollection's Sets +
 /// loose pages). Everything that genuinely differs between the two detail views
 /// lives here as a slot; `ViewSurface` reads `scope.<slot>` and never branches
 /// on which scope it is.
@@ -18,12 +18,12 @@ protocol DetailScope {
 
     // MARK: - Live entities (resolved by id off the @Observable manager)
 
-    /// The live PageCollection supplying schema + tier columns. Vault scope: this
-    /// container; collection scope: the parent vault (Collections inherit schema).
+    /// The live PageCollection supplying schema + tier columns. Collection scope: this
+    /// container; collection scope: the parent collection (Collections inherit schema).
     func schemaSource(_ types: PageCollectionManager) -> PageCollection
 
     /// The live container's stable id — feeds `tableIdentity`, `editView`, and
-    /// the `.task` warm-up id. Vault scope: the Type id; collection scope: the
+    /// the `.task` warm-up id. Collection scope: the Type id; collection scope: the
     /// live Collection id.
     func containerID(_ types: PageCollectionManager) -> String
 
@@ -35,7 +35,7 @@ protocol DetailScope {
     var headerIcon: String { get }
     var headerTitle: String { get }
 
-    /// Commit a new title for this scope's header container (vault / collection).
+    /// Commit a new title for this scope's header container (collection / collection).
     func renameHeader(to newName: String, types: PageCollectionManager) async throws
     /// Commit a new icon for this scope's header container.
     func updateHeaderIcon(to icon: String?, types: PageCollectionManager) async throws
@@ -43,7 +43,7 @@ protocol DetailScope {
     // MARK: - Rename alert
 
     /// The quote glyphs wrapping the renamed title in the rename alert message.
-    /// Preserved per-scope verbatim: vault uses curly “ ”, collection uses
+    /// Preserved per-scope verbatim: collection uses curly “ ”, collection uses
     /// straight " " (an incidental original divergence, NOT unified here).
     var renameQuotes: (open: String, close: String) { get }
 
@@ -60,7 +60,7 @@ protocol DetailScope {
 
     // MARK: - Cache warm-up
 
-    /// Loads every cache the scope's table renders. Vault scope nests two levels
+    /// Loads every cache the scope's table renders. Collection scope nests two levels
     /// (collections, then their sets); collection scope nests one (its sets).
     func warmCaches(content: PageContentManager, sets: PageSetManager, types: PageCollectionManager) async
 
@@ -74,7 +74,7 @@ protocol DetailScope {
     // MARK: - Footer
 
     /// The breadcrumb segments for this scope's footer. `select` navigates the
-    /// sidebar (e.g. tap the vault crumb or the ghost trail page).
+    /// sidebar (e.g. tap the collection crumb or the ghost trail page).
     func footerCrumbs(
         trailPage: PageMeta?, content: PageContentManager,
         sets: PageSetManager,
@@ -119,7 +119,7 @@ enum RowTarget: Hashable {
     case container(ContainerRef)
 }
 
-/// A container row's target — a Collection (vault scope) or a Set (collection
+/// A container row's target — a Collection (collection scope) or a Set (collection
 /// scope). The only scope-specific arm of `RowTarget`.
 enum ContainerRef: Hashable {
     case collection(PageSet)
@@ -165,7 +165,7 @@ enum ContainerMenuAction {
 
 // MARK: - Delete confirmation payload
 
-/// The shared confirmation dialog's contents. `single` is the vault-scope
+/// The shared confirmation dialog's contents. `single` is the collection-scope
 /// Collection delete (one destructive button); `setTwoMode` is the collection-
 /// scope Set delete (Set-only vs. Set-and-Pages). The shared `.confirmationDialog`
 /// switches on this to render the matching buttons.
@@ -183,9 +183,9 @@ struct DeleteConfirmation {
     }
 }
 
-// MARK: - Vault scope
+// MARK: - Collection scope
 
-/// Vault detail (`PageCollectionDetailView`). Spans every Collection + its Sets, plus
+/// Collection detail (`PageCollectionDetailView`). Spans every Collection + its Sets, plus
 /// the Type's root pages.
 struct PageCollectionScope: DetailScope {
     let pageCollection: PageCollection
@@ -212,7 +212,7 @@ struct PageCollectionScope: DetailScope {
         try await types.updatePageCollectionIcon(pageCollection, to: icon)
     }
 
-    // Vault uses curly quotes (preserved verbatim).
+    // Collection uses curly quotes (preserved verbatim).
     var renameQuotes: (open: String, close: String) { ("\u{201C}", "\u{201D}") }
 
     func itemScope(_ types: PageCollectionManager) -> ViewItemScope {
@@ -237,7 +237,7 @@ struct PageCollectionScope: DetailScope {
     }
 
     func warmCaches(content: PageContentManager, sets: PageSetManager, types: PageCollectionManager) async {
-        // Type-root pages + every Collection's pages + every Set's pages — vault
+        // Type-root pages + every Collection's pages + every Set's pages — collection
         // scope nests Sets under their Collection, so their caches must be warm.
         await content.loadAll(for: pageCollection)
         for coll in types.pageCollections(in: pageCollection) {
@@ -297,7 +297,7 @@ struct PageCollectionScope: DetailScope {
     }
 
     func deleteConfirmation(for ref: ContainerRef, settings: SettingsManager) -> DeleteConfirmation? {
-        // Vault scope only ever deletes Sets; a Set ref is unreachable from a
+        // Collection scope only ever deletes Sets; a Set ref is unreachable from a
         // non-collection ref. Degrade to nil rather than crash if that ever slips —
         // assertionFailure flags it in debug, release no-ops.
         guard case .collection(let coll) = ref else {
@@ -315,7 +315,7 @@ struct PageCollectionScope: DetailScope {
 // MARK: - Collection scope
 
 /// Collection detail (`CollectionSetDetailView`). Spans one Collection's Sets +
-/// its loose root pages. Inherits schema from the parent vault.
+/// its loose root pages. Inherits schema from the parent collection.
 struct CollectionScope: DetailScope {
     let collection: PageSet
     let pageCollection: PageCollection

@@ -1,6 +1,6 @@
 import Foundation
 
-/// Property type catalog for Vault schemas. Shared across Pages and Agenda.
+/// Property type catalog for Collection schemas. Shared across Pages and Agenda.
 /// Stored on disk as raw lowercase string.
 enum PropertyType: String, Codable, CaseIterable, Hashable, Sendable {
     case number

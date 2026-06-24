@@ -16,7 +16,7 @@ enum GroupDropPlanner {
     /// property rewrite. Mirrors `ResolvedGroup.Kind` minus the entity payloads
     /// the planner doesn't need (it routes by `PageParent`, supplied separately).
     enum GroupContext: Equatable, Sendable {
-        /// A structural container (Collection or Set, or the vault root). Carries
+        /// A structural container (Collection or Set, or the collection root). Carries
         /// the `PageParent` a move would target.
         case structural(PageParent)
         /// A property bucket — `value` nil = the `_ungrouped` "No <Property>" bucket.

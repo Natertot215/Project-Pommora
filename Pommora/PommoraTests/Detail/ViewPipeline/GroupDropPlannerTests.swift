@@ -8,7 +8,7 @@ struct GroupDropPlannerTests {
 
     // MARK: - Fixtures
 
-    private func vault(_ id: String = "type1") -> PageCollection {
+    private func pageCollection(_ id: String = "type1") -> PageCollection {
         PageCollection(
             id: id, title: "Notes", icon: nil,
             properties: [], views: [], modifiedAt: Date())
@@ -30,7 +30,7 @@ struct GroupDropPlannerTests {
 
     @Test("A non-page (group-row) source is never a drag source → .none")
     func nonPageSourceIsNone() {
-        let v = vault()
+        let v = pageCollection()
         let coll = collection("c1", in: v)
         let parent = PageParent.collection(coll, pageCollection: v)
         let source = GroupDropPlanner.Source(
@@ -50,7 +50,7 @@ struct GroupDropPlannerTests {
 
     @Test("An empty page-id set → .none")
     func emptyPageIDsIsNone() {
-        let v = vault()
+        let v = pageCollection()
         let coll = collection("c1", in: v)
         let parent = PageParent.collection(coll, pageCollection: v)
         let source = GroupDropPlanner.Source(
@@ -70,7 +70,7 @@ struct GroupDropPlannerTests {
 
     @Test("Same structural container + manual sort → .reorder")
     func reorderSameContainerManual() {
-        let v = vault()
+        let v = pageCollection()
         let coll = collection("c1", in: v)
         let parent = PageParent.collection(coll, pageCollection: v)
         let source = GroupDropPlanner.Source(
@@ -88,7 +88,7 @@ struct GroupDropPlannerTests {
 
     @Test("Same container but sort != nil → reorder blocked → .none")
     func reorderBlockedWhenSorted() {
-        let v = vault()
+        let v = pageCollection()
         let coll = collection("c1", in: v)
         let parent = PageParent.collection(coll, pageCollection: v)
         let source = GroupDropPlanner.Source(
@@ -106,7 +106,7 @@ struct GroupDropPlannerTests {
 
     @Test("Same property bucket + manual sort → .reorder")
     func reorderSamePropertyBucketManual() {
-        let v = vault()
+        let v = pageCollection()
         let coll = collection("c1", in: v)
         let parent = PageParent.collection(coll, pageCollection: v)
         let source = GroupDropPlanner.Source(
@@ -126,7 +126,7 @@ struct GroupDropPlannerTests {
 
     @Test("Drop into a different structural group → .move")
     func moveToOtherStructuralGroup() {
-        let v = vault()
+        let v = pageCollection()
         let coll = collection("c1", in: v)
         let other = collection("c2", in: v)
         let sourceParent = PageParent.collection(coll, pageCollection: v)
@@ -146,7 +146,7 @@ struct GroupDropPlannerTests {
 
     @Test("Move into a Set from the collection root")
     func moveIntoSet() {
-        let v = vault()
+        let v = pageCollection()
         let coll = collection("c1", in: v)
         let s = set("s1", in: coll)
         let sourceParent = PageParent.collection(coll, pageCollection: v)
@@ -168,7 +168,7 @@ struct GroupDropPlannerTests {
 
     @Test("Drop into a different property bucket → .rewriteProperty(value)")
     func rewriteToPropertyBucket() {
-        let v = vault()
+        let v = pageCollection()
         let coll = collection("c1", in: v)
         let parent = PageParent.collection(coll, pageCollection: v)
         let source = GroupDropPlanner.Source(
@@ -186,7 +186,7 @@ struct GroupDropPlannerTests {
 
     @Test("Drop into the ungrouped bucket → .rewriteProperty(value: nil)")
     func rewriteToUngroupedBucketIsNil() {
-        let v = vault()
+        let v = pageCollection()
         let coll = collection("c1", in: v)
         let parent = PageParent.collection(coll, pageCollection: v)
         let source = GroupDropPlanner.Source(
@@ -204,7 +204,7 @@ struct GroupDropPlannerTests {
 
     @Test("Property-bucket drop with no known group property → .none")
     func propertyBucketWithoutGroupPropertyIsNone() {
-        let v = vault()
+        let v = pageCollection()
         let coll = collection("c1", in: v)
         let parent = PageParent.collection(coll, pageCollection: v)
         let source = GroupDropPlanner.Source(

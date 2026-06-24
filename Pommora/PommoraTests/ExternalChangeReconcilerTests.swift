@@ -80,29 +80,29 @@ struct ExternalChangeReconcilerTests {
         let env = NexusEnvironment(nexus: nexus, nexusManager: NexusManager())
         let reconciler = ExternalChangeReconciler(env: env, nexusID: nexus.id)
 
-        let vaultFolder = try makeVault(titled: "Notes", in: nexus)
+        let collectionFolder = try makeCollection(titled: "Notes", in: nexus)
         await env.collectionManager.loadAll()
-        let existing = vaultFolder.appendingPathComponent("Kept.md")
+        let existing = collectionFolder.appendingPathComponent("Kept.md")
         try writePage(at: existing)
 
         // A batch of purely existing Pages in a known scope is surgical-eligible…
         #expect(reconciler.surgicalScopes(for: [existing], nexus: nexus) != nil)
         // …but one gone path in the same batch drops the whole batch to coarse —
         // the fallback that re-points a moved open editor by stable id.
-        let gone = vaultFolder.appendingPathComponent("Moved.md")  // never written
+        let gone = collectionFolder.appendingPathComponent("Moved.md")  // never written
         #expect(reconciler.surgicalScopes(for: [existing, gone], nexus: nexus) == nil)
     }
 
     // MARK: - Fixtures
 
-    /// Creates a vault (PageCollection) folder + sidecar on disk; returns the folder URL.
-    private func makeVault(titled title: String, in nexus: Nexus) throws -> URL {
-        let folder = NexusPaths.vaultFolderURL(forTitle: title, in: nexus)
+    /// Creates a collection (PageCollection) folder + sidecar on disk; returns the folder URL.
+    private func makeCollection(titled title: String, in nexus: Nexus) throws -> URL {
+        let folder = NexusPaths.collectionFolderURL(forTitle: title, in: nexus)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        let vault = PageCollection(
+        let collection = PageCollection(
             id: ULID.generate(), title: title, icon: nil,
             properties: [], views: [], modifiedAt: Date())
-        try vault.save(to: NexusPaths.vaultMetadataURL(forTitle: title, in: nexus))
+        try collection.save(to: NexusPaths.collectionMetadataURL(forTitle: title, in: nexus))
         return folder
     }
 

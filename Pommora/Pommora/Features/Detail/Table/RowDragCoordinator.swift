@@ -157,7 +157,7 @@ final class RowDragCoordinator {
     /// `CollectionSetDetailView` call this with the knowledge only they hold —
     /// the active view's `group` config + `sort`, and a `structuralParent`
     /// resolver that maps a structural `ResolvedGroup` to its `PageParent` (it
-    /// knows the scope's vault / collection). Returns nil when the drag is
+    /// knows the scope's collection / collection). Returns nil when the drag is
     /// invalid (no items, or the source page isn't resolvable to a group).
     static func makeContext(
         draggedItems: [ViewItem],

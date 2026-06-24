@@ -17,7 +17,7 @@ import Testing
 
     /// Creates a PageCollection folder on disk (sidecar idiom — mirrors LoadAllIndexSyncTests).
     private func makePageCollection(_ title: String, id: String, in nexus: Nexus) throws {
-        let folder = NexusPaths.vaultFolderURL(forTitle: title, in: nexus)
+        let folder = NexusPaths.collectionFolderURL(forTitle: title, in: nexus)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         let pt = PageCollection(id: id, title: title, icon: nil, properties: [], views: [], modifiedAt: Date())
         try pt.save(to: folder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename))
@@ -32,7 +32,7 @@ import Testing
         try makePageCollection("MyVault", id: "PT_V", in: nexus)
         // ...with a depth-1 sub-folder carrying a legacy collection sidecar that
         // cleanupLegacyOrphans would normally delete as an orphan.
-        let priv = NexusPaths.vaultFolderURL(forTitle: "MyVault", in: nexus)
+        let priv = NexusPaths.collectionFolderURL(forTitle: "MyVault", in: nexus)
             .appendingPathComponent("Private")
         try FileManager.default.createDirectory(at: priv, withIntermediateDirectories: true)
         let legacy = priv.appendingPathComponent("_collection.json")
@@ -107,10 +107,10 @@ import Testing
         try makePageCollection("Notes", id: "PT_NOTES_COL", in: nexus)
 
         // Create two sub-folder collections inside "Notes": "Inbox" and "Archive".
-        let inboxFolder = NexusPaths.collectionFolderURL(
-            forTitle: "Inbox", inVaultTitled: "Notes", in: nexus)
-        let archiveFolder = NexusPaths.collectionFolderURL(
-            forTitle: "Archive", inVaultTitled: "Notes", in: nexus)
+        let inboxFolder = NexusPaths.setFolderURL(
+            forTitle: "Inbox", inCollectionTitled: "Notes", in: nexus)
+        let archiveFolder = NexusPaths.setFolderURL(
+            forTitle: "Archive", inCollectionTitled: "Notes", in: nexus)
         try FileManager.default.createDirectory(at: inboxFolder, withIntermediateDirectories: true)
         try FileManager.default.createDirectory(at: archiveFolder, withIntermediateDirectories: true)
 
@@ -137,7 +137,7 @@ import Testing
         let filter = FolderFilter.load(for: nexus)
         let mgr = PageCollectionManager(nexus: nexus)
         let setManager = PageSetManager(nexus: nexus)
-        setManager.pageTypeProvider = { [weak mgr] in mgr?.types ?? [] }
+        setManager.pageCollectionProvider = { [weak mgr] in mgr?.types ?? [] }
         mgr.pageSetManager = setManager
         await mgr.loadAll(filter: filter)
         await setManager.loadAll(types: mgr.types, filter: filter)
@@ -156,7 +156,7 @@ import Testing
         try makePageCollection("Notes", id: "PT_NOTES", in: nexus)
 
         // A kept page directly in Notes/ — should remain visible.
-        let notesFolder = NexusPaths.vaultFolderURL(forTitle: "Notes", in: nexus)
+        let notesFolder = NexusPaths.collectionFolderURL(forTitle: "Notes", in: nexus)
         try FixtureFiles.write("# kept", to: notesFolder.appendingPathComponent("kept.md"))
 
         // A page inside an excluded nested sub-folder — must NOT roll up.

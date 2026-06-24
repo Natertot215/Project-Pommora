@@ -58,7 +58,7 @@ struct FolderFilter: Sendable, Equatable {
 
     // MARK: - Normalization
 
-    /// Normalizes a raw user entry; nil for empty/invalid or vault-escaping (`..`).
+    /// Normalizes a raw user entry; nil for empty/invalid or collection-escaping (`..`).
     static func normalizeEntry(_ raw: String) -> String? {
         var s = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         s = s.replacingOccurrences(of: "\\", with: "/")

@@ -36,27 +36,27 @@ struct ReorderPropertyParity {
         await manager.loadAll()
 
         try await manager.createPageCollection(name: "Notes", icon: nil)
-        let typeID = manager.types.first!.id
+        let collectionID = manager.types.first!.id
 
         // Seed three user properties in order A, B, C.
-        try await manager.addProperty(makeNumberProp(name: "Alpha"), to: typeID)
-        try await manager.addProperty(makeNumberProp(name: "Beta"), to: typeID)
-        try await manager.addProperty(makeNumberProp(name: "Gamma"), to: typeID)
+        try await manager.addProperty(makeNumberProp(name: "Alpha"), to: collectionID)
+        try await manager.addProperty(makeNumberProp(name: "Beta"), to: collectionID)
+        try await manager.addProperty(makeNumberProp(name: "Gamma"), to: collectionID)
 
-        let props = manager.types.first { $0.id == typeID }!.properties
+        let props = manager.types.first { $0.id == collectionID }!.properties
         let idA = props[0].id
         let idB = props[1].id
         let idC = props[2].id
 
         // Move B (index 1) → index 0.
-        try await manager.reorderProperty(id: idB, in: typeID, toIndex: 0)
+        try await manager.reorderProperty(id: idB, in: collectionID, toIndex: 0)
 
         // (a) In-memory order is [B, A, C].
-        let inMemory = manager.types.first { $0.id == typeID }!.properties
+        let inMemory = manager.types.first { $0.id == collectionID }!.properties
         #expect(inMemory.map(\.id) == [idB, idA, idC])
 
         // (b) On-disk order matches — reload via PageCollection.load.
-        let metaURL = NexusPaths.vaultMetadataURL(forTitle: "Notes", in: nexus)
+        let metaURL = NexusPaths.collectionMetadataURL(forTitle: "Notes", in: nexus)
         let reloaded = try PageCollection.load(from: metaURL)
         #expect(reloaded.properties.map(\.id) == [idB, idA, idC])
 
@@ -72,14 +72,14 @@ struct ReorderPropertyParity {
         await manager.loadAll()
 
         try await manager.createPageCollection(name: "Notes", icon: nil)
-        let typeID = manager.types.first!.id
+        let collectionID = manager.types.first!.id
 
-        try await manager.addProperty(makeNumberProp(name: "Alpha"), to: typeID)
-        try await manager.addProperty(makeNumberProp(name: "Beta"), to: typeID)
-        try await manager.addProperty(makeNumberProp(name: "Gamma"), to: typeID)
+        try await manager.addProperty(makeNumberProp(name: "Alpha"), to: collectionID)
+        try await manager.addProperty(makeNumberProp(name: "Beta"), to: collectionID)
+        try await manager.addProperty(makeNumberProp(name: "Gamma"), to: collectionID)
 
         await #expect(throws: PageCollectionManagerError.propertyNotFound) {
-            try await manager.reorderProperty(id: "prop_nonexistent", in: typeID, toIndex: 0)
+            try await manager.reorderProperty(id: "prop_nonexistent", in: collectionID, toIndex: 0)
         }
     }
 
@@ -92,7 +92,7 @@ struct ReorderPropertyParity {
         let manager = AgendaTaskManager(nexus: nexus)
         await manager.loadAll()
 
-        // Seed three user properties in order A, B, C (singleton schema — no typeID).
+        // Seed three user properties in order A, B, C (singleton schema — no collectionID).
         try await manager.addProperty(makeNumberProp(name: "Alpha"))
         try await manager.addProperty(makeNumberProp(name: "Beta"))
         try await manager.addProperty(makeNumberProp(name: "Gamma"))
@@ -147,7 +147,7 @@ struct ReorderPropertyParity {
         let manager = AgendaEventManager(nexus: nexus)
         await manager.loadAll()
 
-        // Seed three user properties in order A, B, C (singleton schema — no typeID).
+        // Seed three user properties in order A, B, C (singleton schema — no collectionID).
         try await manager.addProperty(makeNumberProp(name: "Alpha"))
         try await manager.addProperty(makeNumberProp(name: "Beta"))
         try await manager.addProperty(makeNumberProp(name: "Gamma"))
@@ -202,27 +202,27 @@ struct ReorderPropertyParity {
         await manager.loadAll()
 
         try await manager.createPageCollection(name: "Notes", icon: nil)
-        let typeID = manager.types.first!.id
+        let collectionID = manager.types.first!.id
 
         // Seed three user properties in order A, B, C.
-        try await manager.addProperty(makeNumberProp(name: "Alpha"), to: typeID)
-        try await manager.addProperty(makeNumberProp(name: "Beta"), to: typeID)
-        try await manager.addProperty(makeNumberProp(name: "Gamma"), to: typeID)
+        try await manager.addProperty(makeNumberProp(name: "Alpha"), to: collectionID)
+        try await manager.addProperty(makeNumberProp(name: "Beta"), to: collectionID)
+        try await manager.addProperty(makeNumberProp(name: "Gamma"), to: collectionID)
 
-        let props = manager.types.first { $0.id == typeID }!.properties
+        let props = manager.types.first { $0.id == collectionID }!.properties
         let idA = props[0].id
         let idB = props[1].id
         let idC = props[2].id
 
         // Move A to a wildly out-of-range index — implementation clamps to count-1 (last).
-        try await manager.reorderProperty(id: idA, in: typeID, toIndex: 999)
+        try await manager.reorderProperty(id: idA, in: collectionID, toIndex: 999)
 
         // (a) In-memory order is [B, C, A] — A was clamped to the last slot.
-        let inMemory = manager.types.first { $0.id == typeID }!.properties
+        let inMemory = manager.types.first { $0.id == collectionID }!.properties
         #expect(inMemory.map(\.id) == [idB, idC, idA])
 
         // (b) On-disk order matches — reload via PageCollection.load.
-        let metaURL = NexusPaths.vaultMetadataURL(forTitle: "Notes", in: nexus)
+        let metaURL = NexusPaths.collectionMetadataURL(forTitle: "Notes", in: nexus)
         let reloaded = try PageCollection.load(from: metaURL)
         #expect(reloaded.properties.map(\.id) == [idB, idC, idA])
 
@@ -237,7 +237,7 @@ struct ReorderPropertyParity {
         let manager = AgendaTaskManager(nexus: nexus)
         await manager.loadAll()
 
-        // Seed three user properties in order A, B, C (singleton schema — no typeID).
+        // Seed three user properties in order A, B, C (singleton schema — no collectionID).
         try await manager.addProperty(makeNumberProp(name: "Alpha"))
         try await manager.addProperty(makeNumberProp(name: "Beta"))
         try await manager.addProperty(makeNumberProp(name: "Gamma"))

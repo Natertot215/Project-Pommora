@@ -385,7 +385,7 @@ private struct WindowsGallery: View {
     }
 
     /// Opens a sample `PagePreview` window for the first resolvable Page
-    /// (vault roots first, then collections). No-op when no Nexus is open or
+    /// (collection roots first, then collections). No-op when no Nexus is open or
     /// no Page exists. The window takes focus itself — no raise needed.
     private func openSamplePreviewWindow() {
         guard let env = AppGlobals.current else { return }

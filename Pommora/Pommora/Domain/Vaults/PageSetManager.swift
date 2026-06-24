@@ -15,9 +15,9 @@ enum SetDeleteMode {
 @Observable
 final class PageSetManager {
     /// Depth-1: Collections keyed by their parent PageCollection id.
-    private(set) var pageCollectionsByType: [String: [PageSet]] = [:]
+    private(set) var depthOneSetsByCollection: [String: [PageSet]] = [:]
     /// Depth-2+: Sets keyed by their parent PageSet id.
-    private(set) var pageSetsByCollection: [String: [PageSet]] = [:]
+    private(set) var childSetsByParentSet: [String: [PageSet]] = [:]
     var pendingError: (any Error)?
 
     /// IDs of all top-tier PageCollections. A PageSet is view-eligible iff
@@ -38,7 +38,7 @@ final class PageSetManager {
 
     /// Closure supplying the current PageCollection array. Wired by NexusEnvironment
     /// so Collection reorders and renames can read the parent type's `collectionOrder`.
-    @ObservationIgnored var pageTypeProvider: (() -> [PageCollection])?
+    @ObservationIgnored var pageCollectionProvider: (() -> [PageCollection])?
 
     init(nexus: Nexus) {
         self.nexus = nexus
@@ -49,11 +49,11 @@ final class PageSetManager {
     }
 
     func pageCollections(in pageCollection: PageCollection) -> [PageSet] {
-        pageCollectionsByType[pageCollection.id] ?? []
+        depthOneSetsByCollection[pageCollection.id] ?? []
     }
 
     func pageSets(in collection: PageSet) -> [PageSet] {
-        pageSetsByCollection[collection.id] ?? []
+        childSetsByParentSet[collection.id] ?? []
     }
 
     // MARK: - Load
@@ -71,7 +71,7 @@ final class PageSetManager {
             var seenSetIDs: Set<String> = []
 
             for pageCollection in types {
-                let typeFolder = NexusPaths.vaultFolderURL(forTitle: pageCollection.title, in: nexus)
+                let typeFolder = NexusPaths.collectionFolderURL(forTitle: pageCollection.title, in: nexus)
                 let parentPropertyIDs = pageCollection.properties.map(\.id)
 
                 var cols = try Filesystem.childFolders(of: typeFolder, folderFilter: filter)
@@ -134,8 +134,8 @@ final class PageSetManager {
                 }
             }
 
-            self.pageCollectionsByType = loadedCols
-            self.pageSetsByCollection = loadedSets
+            self.depthOneSetsByCollection = loadedCols
+            self.childSetsByParentSet = loadedSets
             self.pendingError = nil
 
             if let updater = indexUpdater {
@@ -151,19 +151,19 @@ final class PageSetManager {
                 }
             }
         } catch {
-            self.pageCollectionsByType = [:]
-            self.pageSetsByCollection = [:]
+            self.depthOneSetsByCollection = [:]
+            self.childSetsByParentSet = [:]
             self.pendingError = error
         }
     }
 
     /// Drops a PageCollection's Collections and all their child Sets from the caches.
     /// Called when the parent PageCollection is deleted.
-    func removeCollections(forType typeID: String) {
-        for collection in pageCollectionsByType[typeID] ?? [] {
-            pageSetsByCollection.removeValue(forKey: collection.id)
+    func removeCollections(forType collectionID: String) {
+        for collection in depthOneSetsByCollection[collectionID] ?? [] {
+            childSetsByParentSet.removeValue(forKey: collection.id)
         }
-        pageCollectionsByType.removeValue(forKey: typeID)
+        depthOneSetsByCollection.removeValue(forKey: collectionID)
     }
 
     // MARK: - Collection CRUD
@@ -171,11 +171,11 @@ final class PageSetManager {
     @discardableResult
     func createPageCollection(name: String, inPageCollection pageCollection: PageCollection) async throws -> PageSet {
         do {
-            let existing = pageCollectionsByType[pageCollection.id] ?? []
+            let existing = depthOneSetsByCollection[pageCollection.id] ?? []
             try CollectionSetValidator.validate(title: name, existingInType: existing)
 
-            let folder = NexusPaths.collectionFolderURL(
-                forTitle: name, inVaultTitled: pageCollection.title, in: nexus
+            let folder = NexusPaths.setFolderURL(
+                forTitle: name, inCollectionTitled: pageCollection.title, in: nexus
             )
             let now = Date()
             let coll = PageSet(
@@ -201,8 +201,8 @@ final class PageSetManager {
                 persistedOrder: pageCollection.collectionOrder,
                 titleKeyPath: \PageSet.title
             )
-            pageCollectionsByType[pageCollection.id] = arr
-            pageSetsByCollection[coll.id] = []
+            depthOneSetsByCollection[pageCollection.id] = arr
+            childSetsByParentSet[coll.id] = []
             return coll
         } catch {
             self.pendingError = error
@@ -212,14 +212,14 @@ final class PageSetManager {
 
     func renamePageCollection(_ collection: PageSet, to newName: String) async throws {
         do {
-            let pageCollection = pageTypeProvider?().first(where: { $0.id == collection.parentID })
-            let existing = pageCollectionsByType[collection.parentID] ?? []
+            let pageCollection = pageCollectionProvider?().first(where: { $0.id == collection.parentID })
+            let existing = depthOneSetsByCollection[collection.parentID] ?? []
             try CollectionSetValidator.validate(
                 title: newName, existingInType: existing, excluding: collection
             )
 
-            let newURL = NexusPaths.collectionFolderURL(
-                forTitle: newName, inVaultTitled: pageCollection?.title ?? collection.title, in: nexus
+            let newURL = NexusPaths.setFolderURL(
+                forTitle: newName, inCollectionTitled: pageCollection?.title ?? collection.title, in: nexus
             )
             try Filesystem.renameFolder(from: collection.folderURL, to: newURL)
 
@@ -254,7 +254,7 @@ final class PageSetManager {
                     titleKeyPath: \PageSet.title
                 )
             }
-            pageCollectionsByType[collection.parentID] = arr
+            depthOneSetsByCollection[collection.parentID] = arr
             // Rebuild child Set URLs since the collection folder moved.
             rebuildFolderURLs(for: updated)
         } catch {
@@ -271,10 +271,10 @@ final class PageSetManager {
             if let updater = indexUpdater {
                 do { try updater.deletePageSet(id: collection.id) } catch { self.pendingError = error }
             }
-            var arr = pageCollectionsByType[collection.parentID] ?? []
+            var arr = depthOneSetsByCollection[collection.parentID] ?? []
             arr.removeAll { $0.id == collection.id }
-            pageCollectionsByType[collection.parentID] = arr
-            pageSetsByCollection.removeValue(forKey: collection.id)
+            depthOneSetsByCollection[collection.parentID] = arr
+            childSetsByParentSet.removeValue(forKey: collection.id)
         } catch {
             self.pendingError = error
             throw error
@@ -282,11 +282,11 @@ final class PageSetManager {
     }
 
     func reorderPageCollections(in pageCollection: PageCollection, fromOffsets source: IndexSet, toOffset destination: Int) {
-        var arr = pageCollectionsByType[pageCollection.id] ?? []
+        var arr = depthOneSetsByCollection[pageCollection.id] ?? []
         let before = arr
         arr.move(fromOffsets: source, toOffset: destination)
         guard arr != before else { return }
-        pageCollectionsByType[pageCollection.id] = arr
+        depthOneSetsByCollection[pageCollection.id] = arr
         do {
             try OrderPersister.setPageCollectionOrder(arr.map(\.id), in: pageCollection, nexus: nexus)
         } catch {
@@ -306,11 +306,11 @@ final class PageSetManager {
             if let updater = indexUpdater {
                 do { try updater.upsertPageCollection(updated) } catch { self.pendingError = error }
             }
-            var arr = pageCollectionsByType[collection.parentID] ?? []
+            var arr = depthOneSetsByCollection[collection.parentID] ?? []
             if let i = arr.firstIndex(where: { $0.id == collection.id }) {
                 arr[i] = updated
             }
-            pageCollectionsByType[collection.parentID] = arr
+            depthOneSetsByCollection[collection.parentID] = arr
         } catch {
             self.pendingError = error
             throw error
@@ -320,7 +320,7 @@ final class PageSetManager {
     // MARK: - Collection View CRUD
 
     func views(in collectionID: String) -> [SavedView] {
-        for cols in pageCollectionsByType.values {
+        for cols in depthOneSetsByCollection.values {
             if let c = cols.first(where: { $0.id == collectionID }) { return c.views }
         }
         return []
@@ -331,7 +331,7 @@ final class PageSetManager {
         transform: (inout [SavedView]) throws -> Result
     ) throws -> Result {
         return try withPendingError {
-            for (typeID, cols) in pageCollectionsByType {
+            for (topCollectionID, cols) in depthOneSetsByCollection {
                 if let ci = cols.firstIndex(where: { $0.id == collectionID }) {
                     let meta = cols[ci].folderURL.appendingPathComponent(
                         NexusPaths.pageSetSidecarFilename)
@@ -339,7 +339,7 @@ final class PageSetManager {
                     let result = try transform(&coll.views)
                     coll.modifiedAt = Date()
                     try coll.save(to: meta)
-                    pageCollectionsByType[typeID]?[ci] = coll
+                    depthOneSetsByCollection[topCollectionID]?[ci] = coll
                     return result
                 }
             }
@@ -414,7 +414,7 @@ final class PageSetManager {
 
     func setBannerForCollection(_ path: String?, collectionID: String) throws {
         try withPendingError {
-            for (typeID, cols) in pageCollectionsByType {
+            for (topCollectionID, cols) in depthOneSetsByCollection {
                 if let ci = cols.firstIndex(where: { $0.id == collectionID }) {
                     let meta = cols[ci].folderURL.appendingPathComponent(
                         NexusPaths.pageSetSidecarFilename
@@ -423,7 +423,7 @@ final class PageSetManager {
                     coll.banner = path
                     coll.modifiedAt = Date()
                     try coll.save(to: meta)
-                    pageCollectionsByType[typeID]?[ci] = coll
+                    depthOneSetsByCollection[topCollectionID]?[ci] = coll
                     return
                 }
             }
@@ -436,7 +436,7 @@ final class PageSetManager {
     @discardableResult
     func createPageSet(name: String, in collection: PageSet) async throws -> PageSet {
         do {
-            let existing = pageSetsByCollection[collection.id] ?? []
+            let existing = childSetsByParentSet[collection.id] ?? []
             try PageSetValidator.validate(title: name, existingInCollection: existing)
 
             let folder = collection.folderURL.appendingPathComponent(name, isDirectory: true)
@@ -464,7 +464,7 @@ final class PageSetManager {
                 persistedOrder: collection.setOrder,
                 titleKeyPath: \PageSet.title
             )
-            pageSetsByCollection[collection.id] = arr
+            childSetsByParentSet[collection.id] = arr
             return set
         } catch {
             self.pendingError = error
@@ -474,7 +474,7 @@ final class PageSetManager {
 
     func renamePageSet(_ set: PageSet, to newName: String) async throws {
         do {
-            let existing = pageSetsByCollection[set.parentID] ?? []
+            let existing = childSetsByParentSet[set.parentID] ?? []
             try PageSetValidator.validate(
                 title: newName, existingInCollection: existing, excluding: set
             )
@@ -517,7 +517,7 @@ final class PageSetManager {
                     titleKeyPath: \PageSet.title
                 )
             }
-            pageSetsByCollection[set.parentID] = arr
+            childSetsByParentSet[set.parentID] = arr
         } catch {
             if !(error is RenameAtomicityError) {
                 self.pendingError = error
@@ -536,11 +536,11 @@ final class PageSetManager {
             if let updater = indexUpdater {
                 do { try updater.upsertPageSet(updated) } catch { self.pendingError = error }
             }
-            var arr = pageSetsByCollection[set.parentID] ?? []
+            var arr = childSetsByParentSet[set.parentID] ?? []
             if let i = arr.firstIndex(where: { $0.id == set.id }) {
                 arr[i] = updated
             }
-            pageSetsByCollection[set.parentID] = arr
+            childSetsByParentSet[set.parentID] = arr
         } catch {
             self.pendingError = error
             throw error
@@ -559,9 +559,9 @@ final class PageSetManager {
             if let updater = indexUpdater {
                 do { try updater.deletePageSet(id: set.id) } catch { self.pendingError = error }
             }
-            var arr = pageSetsByCollection[set.parentID] ?? []
+            var arr = childSetsByParentSet[set.parentID] ?? []
             arr.removeAll { $0.id == set.id }
-            pageSetsByCollection[set.parentID] = arr
+            childSetsByParentSet[set.parentID] = arr
         } catch {
             self.pendingError = error
             throw error
@@ -704,18 +704,18 @@ final class PageSetManager {
                 }
             }
 
-            var sourceArr = pageSetsByCollection[sourceCollectionID] ?? []
+            var sourceArr = childSetsByParentSet[sourceCollectionID] ?? []
             sourceArr.removeAll { $0.id == set.id }
-            pageSetsByCollection[sourceCollectionID] = sourceArr
+            childSetsByParentSet[sourceCollectionID] = sourceArr
 
-            var destArr = pageSetsByCollection[destination.id] ?? []
+            var destArr = childSetsByParentSet[destination.id] ?? []
             destArr.append(updated)
             destArr = OrderResolver.resolve(
                 destArr,
                 persistedOrder: destination.setOrder,
                 titleKeyPath: \PageSet.title
             )
-            pageSetsByCollection[destination.id] = destArr
+            childSetsByParentSet[destination.id] = destArr
 
             // If the Set was previously recorded as a depth-1 Collection in
             // Recents (topTierIDs contains its old parentID), prune that entry —
@@ -736,11 +736,11 @@ final class PageSetManager {
     // MARK: - Reorder
 
     func reorderPageSets(in collection: PageSet, fromOffsets source: IndexSet, toOffset destination: Int) {
-        var arr = pageSetsByCollection[collection.id] ?? []
+        var arr = childSetsByParentSet[collection.id] ?? []
         let before = arr
         arr.move(fromOffsets: source, toOffset: destination)
         guard arr != before else { return }
-        pageSetsByCollection[collection.id] = arr
+        childSetsByParentSet[collection.id] = arr
         do {
             try OrderPersister.setPageSetOrder(arr.map(\.id), in: collection)
         } catch {
@@ -754,8 +754,8 @@ final class PageSetManager {
     /// Collection's folder. Invoked after a Collection or Page Type rename
     /// moves the folders on disk.
     func rebuildFolderURLs(for collection: PageSet) {
-        guard let sets = pageSetsByCollection[collection.id] else { return }
-        pageSetsByCollection[collection.id] = sets.map { set in
+        guard let sets = childSetsByParentSet[collection.id] else { return }
+        childSetsByParentSet[collection.id] = sets.map { set in
             var updated = set
             updated.folderURL = collection.folderURL.appendingPathComponent(set.title, isDirectory: true)
             return updated
@@ -764,14 +764,14 @@ final class PageSetManager {
 
     /// Rebuilds all Collection folder URLs under a renamed PageCollection, and
     /// propagates the new URLs down to child Sets.
-    func rebuildFolderURLsForTypeRename(typeID: String, newTypeFolder: URL) {
-        guard let cols = pageCollectionsByType[typeID] else { return }
+    func rebuildFolderURLsForTypeRename(collectionID: String, newTypeFolder: URL) {
+        guard let cols = depthOneSetsByCollection[collectionID] else { return }
         let rebuilt = cols.map { c -> PageSet in
             var updated = c
             updated.folderURL = newTypeFolder.appendingPathComponent(c.title, isDirectory: true)
             return updated
         }
-        pageCollectionsByType[typeID] = rebuilt
+        depthOneSetsByCollection[collectionID] = rebuilt
         for updatedColl in rebuilt {
             rebuildFolderURLs(for: updatedColl)
         }
@@ -781,7 +781,7 @@ final class PageSetManager {
 
     /// Look up any loaded Set by id across all parent buckets.
     func findSet(byID id: String) -> PageSet? {
-        for sets in pageSetsByCollection.values {
+        for sets in childSetsByParentSet.values {
             if let s = sets.first(where: { $0.id == id }) { return s }
         }
         return nil

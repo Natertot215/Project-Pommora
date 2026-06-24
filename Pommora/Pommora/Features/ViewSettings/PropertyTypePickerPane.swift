@@ -52,14 +52,14 @@ struct PropertyTypePickerPane: View {
 
     private func commit(_ type: PropertyType) async {
         // Non-storage scopes shouldn't reach this pane.
-        guard let typeID = schemaTypeID else { return }
+        guard let collectionID = schemaCollectionID else { return }
 
         let definition: PropertyDefinition
         do {
             // Shared mint + seed + commit path (`PropertyCreation`) — also
             // used by the inspector's Add Property affordance.
             definition = try await PropertyCreation.commitDefault(
-                type, toTypeID: typeID, manager: collectionManager)
+                type, toCollectionID: collectionID, manager: collectionManager)
         } catch {
             commitError = PropertyEditorErrorMessage.string(for: error)
             return
@@ -75,6 +75,6 @@ struct PropertyTypePickerPane: View {
 
     /// The Type schema that owns this scope's properties (Collections inherit
     /// from their parent Type). `nil` for non-storage scopes.
-    private var schemaTypeID: String? { scope.schemaTypeID }
+    private var schemaCollectionID: String? { scope.schemaCollectionID }
 
 }

@@ -6,7 +6,7 @@ struct SidebarDetailView: View {
     @Binding var editingID: String?
     @Binding var justCreatedID: String?
     /// Last page viewed; surfaces as a ghost breadcrumb trail in the parent
-    /// collection or vault view so the user can tap back to it.
+    /// collection or collection view so the user can tap back to it.
     @State private var pageTrail: PageMeta? = nil
 
     @Environment(PageCollectionManager.self) private var collectionManager
@@ -71,9 +71,9 @@ struct SidebarDetailView: View {
                 )
 
             case .collection(let c):
-                // We need the parent Vault here too. Find it via PageCollectionManager
-                // (primary: typeID match; fallback: parent-folder-name match).
-                if let v = lookupVault(forCollection: c) {
+                // We need the parent Collection here too. Find it via PageCollectionManager
+                // (primary: collectionID match; fallback: parent-folder-name match).
+                if let v = lookupCollection(forCollection: c) {
                     CollectionSetDetailView(
                         collection: c,
                         pageCollection: v,
@@ -91,7 +91,7 @@ struct SidebarDetailView: View {
                         Text("Collection title: \(c.title)")
                             .font(.caption)
                             .foregroundStyle(.secondary)
-                        Text("Collection typeID: \(c.parentID)")
+                        Text("Collection collectionID: \(c.parentID)")
                             .font(.caption.monospaced())
                             .foregroundStyle(.secondary)
                         Text("Parent folder name: \(c.folderURL.deletingLastPathComponent().lastPathComponent)")
@@ -134,7 +134,7 @@ struct SidebarDetailView: View {
 
     /// Find the PageCollection that owns this PageCollection.
     ///
-    /// Primary: match by `typeID` (the relationship stored on disk in
+    /// Primary: match by `collectionID` (the relationship stored on disk in
     /// `_pagecollection.json`).
     ///
     /// Fallback: match by parent folder name. PageCollection sub-folders sit
@@ -144,7 +144,7 @@ struct SidebarDetailView: View {
     /// current PageCollection id (e.g. ID was regenerated during a re-init, or
     /// the user manually rebuilt the PageCollection while keeping the Collection
     /// folder intact).
-    private func lookupVault(forCollection c: PageSet) -> PageCollection? {
+    private func lookupCollection(forCollection c: PageSet) -> PageCollection? {
         if let v = collectionManager.types.first(where: { $0.id == c.parentID }) {
             return v
         }

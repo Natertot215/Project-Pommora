@@ -45,7 +45,7 @@ import Testing
     }
 
     @Test func normalizeEntryDropsInvalidAndFolds() {
-        // Requirement #4: empty / vault-escaping entries are dropped outright.
+        // Requirement #4: empty / collection-escaping entries are dropped outright.
         #expect(FolderFilter.normalizeEntry("") == nil)
         #expect(FolderFilter.normalizeEntry("   ") == nil)
         #expect(FolderFilter.normalizeEntry("/") == nil)

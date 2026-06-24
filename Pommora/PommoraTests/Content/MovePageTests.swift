@@ -22,16 +22,16 @@ struct MovePageTests {
         let propA = PropertyDefinition(id: "prop_aaa", name: "Priority", type: .select)
         let propB = PropertyDefinition(id: "prop_bbb", name: "Status", type: .status)
         let propC = PropertyDefinition(id: "prop_ccc", name: "Due", type: .date)
-        let vault = try makePageCollection(
+        let collection = try makePageCollection(
             nexus: nexus, title: "Tasks",
             properties: [propA, propB, propC]
         )
 
         let collA = try makePageSet(
-            nexus: nexus, title: "CollA", in: vault
+            nexus: nexus, title: "CollA", in: collection
         )
         let collB = try makePageSet(
-            nexus: nexus, title: "CollB", in: vault
+            nexus: nexus, title: "CollB", in: collection
         )
 
         let manager = PageContentManager(nexus: nexus, contextProvider: { NexusContext.empty })
@@ -55,7 +55,7 @@ struct MovePageTests {
         manager.pagesByCollection[collA.id] = [page]
         manager.pagesByCollection[collB.id] = []
 
-        try await manager.movePageBetweenCollections(page, from: collA, to: collB, in: vault)
+        try await manager.movePageBetweenCollections(page, from: collA, to: collB, in: collection)
 
         #expect(!FileManager.default.fileExists(atPath: srcURL.path))
         let dstURL = NexusPaths.pageFileURL(forTitle: "MyPage", in: collB.folderURL)
@@ -102,14 +102,14 @@ struct MovePageTests {
         let pageFile = PageFile(frontmatter: fm, body: "body text", title: "Doc")
         let srcURL = NexusPaths.pageFileURL(
             forTitle: "Doc",
-            in: NexusPaths.vaultFolderURL(forTitle: "TypeA", in: nexus)
+            in: NexusPaths.collectionFolderURL(forTitle: "TypeA", in: nexus)
         )
         try pageFile.save(to: srcURL)
 
         let page = PageMeta(id: pageID, title: "Doc", url: srcURL, frontmatter: fm)
         let manager = PageContentManager(nexus: nexus, contextProvider: { NexusContext.empty })
-        manager.pagesByTypeRoot[typeA.id] = [page]
-        manager.pagesByTypeRoot[typeB.id] = []
+        manager.pagesByCollectionRoot[typeA.id] = [page]
+        manager.pagesByCollectionRoot[typeB.id] = []
 
         try await manager.movePageAcrossTypes(
             page,
@@ -121,7 +121,7 @@ struct MovePageTests {
         #expect(!FileManager.default.fileExists(atPath: srcURL.path))
         let dstURL = NexusPaths.pageFileURL(
             forTitle: "Doc",
-            in: NexusPaths.vaultFolderURL(forTitle: "TypeB", in: nexus)
+            in: NexusPaths.collectionFolderURL(forTitle: "TypeB", in: nexus)
         )
         #expect(FileManager.default.fileExists(atPath: dstURL.path))
 
@@ -134,8 +134,8 @@ struct MovePageTests {
         #expect(loaded.frontmatter.properties["prop_004"] == nil)
 
         // In-memory caches updated.
-        #expect(manager.pagesByTypeRoot[typeA.id]?.isEmpty == true)
-        #expect(manager.pagesByTypeRoot[typeB.id]?.count == 1)
+        #expect(manager.pagesByCollectionRoot[typeA.id]?.isEmpty == true)
+        #expect(manager.pagesByCollectionRoot[typeB.id]?.count == 1)
     }
 
     // MARK: - H.1.4: Rollback on transaction failure
@@ -162,13 +162,13 @@ struct MovePageTests {
         )
         let srcURL = NexusPaths.pageFileURL(
             forTitle: "PageX",
-            in: NexusPaths.vaultFolderURL(forTitle: "SourceType", in: nexus)
+            in: NexusPaths.collectionFolderURL(forTitle: "SourceType", in: nexus)
         )
         try PageFile(frontmatter: fm, body: "original", title: "PageX").save(to: srcURL)
 
         let page = PageMeta(id: pageID, title: "PageX", url: srcURL, frontmatter: fm)
         let manager = PageContentManager(nexus: nexus, contextProvider: { NexusContext.empty })
-        manager.pagesByTypeRoot[typeA.id] = [page]
+        manager.pagesByCollectionRoot[typeA.id] = [page]
 
         // The move should throw because the destination folder doesn't exist.
         var threw = false
@@ -201,9 +201,9 @@ struct MovePageTests {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
 
-        let vault = try makePageCollection(nexus: nexus, title: "Tasks", properties: [])
-        let collA = try makePageSet(nexus: nexus, title: "CollA", in: vault)
-        let collB = try makePageSet(nexus: nexus, title: "CollB", in: vault)
+        let collection = try makePageCollection(nexus: nexus, title: "Tasks", properties: [])
+        let collA = try makePageSet(nexus: nexus, title: "CollA", in: collection)
+        let collB = try makePageSet(nexus: nexus, title: "CollB", in: collection)
 
         let manager = PageContentManager(nexus: nexus, contextProvider: { NexusContext.empty })
 
@@ -226,7 +226,7 @@ struct MovePageTests {
         ]
 
         await #expect(throws: PageCRUDError.duplicateTitle) {
-            try await manager.movePageBetweenCollections(srcPage, from: collA, to: collB, in: vault)
+            try await manager.movePageBetweenCollections(srcPage, from: collA, to: collB, in: collection)
         }
 
         // Neither file was clobbered: both bodies + both files survive.
@@ -260,7 +260,7 @@ struct MovePageTests {
         let pageID = ULID.generate()
         let srcURL = NexusPaths.pageFileURL(
             forTitle: "Doc",
-            in: NexusPaths.vaultFolderURL(forTitle: "TypeA", in: nexus)
+            in: NexusPaths.collectionFolderURL(forTitle: "TypeA", in: nexus)
         )
         let raw = """
             ---
@@ -284,8 +284,8 @@ struct MovePageTests {
 
         let page = PageMeta(id: pageID, title: "Doc", url: srcURL, frontmatter: loadedSrc.frontmatter)
         let manager = PageContentManager(nexus: nexus, contextProvider: { NexusContext.empty })
-        manager.pagesByTypeRoot[typeA.id] = [page]
-        manager.pagesByTypeRoot[typeB.id] = []
+        manager.pagesByCollectionRoot[typeA.id] = [page]
+        manager.pagesByCollectionRoot[typeB.id] = []
 
         try await manager.movePageAcrossTypes(
             page,
@@ -295,7 +295,7 @@ struct MovePageTests {
 
         let dstURL = NexusPaths.pageFileURL(
             forTitle: "Doc",
-            in: NexusPaths.vaultFolderURL(forTitle: "TypeB", in: nexus)
+            in: NexusPaths.collectionFolderURL(forTitle: "TypeB", in: nexus)
         )
         #expect(FileManager.default.fileExists(atPath: dstURL.path))
 
@@ -318,14 +318,14 @@ struct MovePageTests {
         title: String,
         properties: [PropertyDefinition]
     ) throws -> PageCollection {
-        let vault = PageCollection(
+        let collection = PageCollection(
             id: ULID.generate(), title: title, icon: nil,
             properties: properties, views: [], modifiedAt: Date()
         )
-        let folderURL = NexusPaths.vaultFolderURL(forTitle: title, in: nexus)
+        let folderURL = NexusPaths.collectionFolderURL(forTitle: title, in: nexus)
         try FileManager.default.createDirectory(at: folderURL, withIntermediateDirectories: true)
-        try vault.save(to: NexusPaths.vaultMetadataURL(forTitle: title, in: nexus))
-        return vault
+        try collection.save(to: NexusPaths.collectionMetadataURL(forTitle: title, in: nexus))
+        return collection
     }
 
     @discardableResult
@@ -334,9 +334,9 @@ struct MovePageTests {
         title: String,
         in pageCollection: PageCollection
     ) throws -> PageSet {
-        let folderURL = NexusPaths.collectionFolderURL(
+        let folderURL = NexusPaths.setFolderURL(
             forTitle: title,
-            inVaultTitled: pageCollection.title,
+            inCollectionTitled: pageCollection.title,
             in: nexus
         )
         try FileManager.default.createDirectory(at: folderURL, withIntermediateDirectories: true)

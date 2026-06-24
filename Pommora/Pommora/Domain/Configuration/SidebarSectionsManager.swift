@@ -1,13 +1,13 @@
 import Foundation
 import Observation
 
-/// Loads, persists, and mutates the user sidebar sections that group Vaults
+/// Loads, persists, and mutates the user sidebar sections that group Collections
 /// (PagesV2 P9). Mirrors `SavedConfigManager`: `load()` seeds + first-writes
 /// the default config, `save()` writes atomically, and every failure lands in
 /// `pendingError` for the sidebar toast.
 ///
 /// All mutations enforce single-membership (ratified decision #6): moving a
-/// vault into a section strips it from every other section in the same config
+/// collection into a section strips it from every other section in the same config
 /// write — one mutation, one save.
 @MainActor
 @Observable
@@ -54,7 +54,7 @@ final class SidebarSectionsManager {
     @discardableResult
     func createSection(label: String) async throws -> SidebarSectionsConfig.Section {
         let section = SidebarSectionsConfig.Section(
-            id: ULID.generate(), label: label, vaultIDs: []
+            id: ULID.generate(), label: label, collectionIDs: []
         )
         config.sections.append(section)
         try await save()
@@ -67,40 +67,40 @@ final class SidebarSectionsManager {
         try await save()
     }
 
-    /// Removes the section. Its vaults return to the default Vaults section
+    /// Removes the section. Its collections return to the default Collections section
     /// implicitly — membership lived only in the deleted record
-    /// (navigation-only; no vault data is touched).
+    /// (navigation-only; no collection data is touched).
     func deleteSection(id: String) async throws {
         guard config.sections.contains(where: { $0.id == id }) else { return }
         config.sections.removeAll { $0.id == id }
         try await save()
     }
 
-    /// Single-membership move modeled as ONE mutation: strips `vaultID` from
+    /// Single-membership move modeled as ONE mutation: strips `collectionID` from
     /// every section, then appends it to the target — so moving A→B removes
-    /// the vault from A and adds it to B in a single config write.
-    func moveVault(id vaultID: String, toSection sectionID: String) async throws {
+    /// the collection from A and adds it to B in a single config write.
+    func moveCollection(id collectionID: String, toSection sectionID: String) async throws {
         guard let target = config.sections.firstIndex(where: { $0.id == sectionID }) else { return }
         for i in config.sections.indices {
-            config.sections[i].vaultIDs.removeAll { $0 == vaultID }
+            config.sections[i].collectionIDs.removeAll { $0 == collectionID }
         }
-        config.sections[target].vaultIDs.append(vaultID)
+        config.sections[target].collectionIDs.append(collectionID)
         try await save()
     }
 
-    /// "Remove from Section" — strips `vaultID` from every section so the
-    /// vault returns to the default Vaults section.
-    func removeVaultFromSections(id vaultID: String) async throws {
-        guard config.groupedVaultIDs.contains(vaultID) else { return }
+    /// "Remove from Section" — strips `collectionID` from every section so the
+    /// collection returns to the default Collections section.
+    func removeCollectionFromSections(id collectionID: String) async throws {
+        guard config.groupedCollectionIDs.contains(collectionID) else { return }
         for i in config.sections.indices {
-            config.sections[i].vaultIDs.removeAll { $0 == vaultID }
+            config.sections[i].collectionIDs.removeAll { $0 == collectionID }
         }
         try await save()
     }
 
-    /// The user section currently holding `vaultID`, if any (single-membership
+    /// The user section currently holding `collectionID`, if any (single-membership
     /// guarantees at most one).
-    func section(containing vaultID: String) -> SidebarSectionsConfig.Section? {
-        config.sections.first { $0.vaultIDs.contains(vaultID) }
+    func section(containing collectionID: String) -> SidebarSectionsConfig.Section? {
+        config.sections.first { $0.collectionIDs.contains(collectionID) }
     }
 }

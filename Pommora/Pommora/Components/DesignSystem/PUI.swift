@@ -96,7 +96,7 @@ enum PUI {
     // MARK: - Detail header (storage-view title + icon region)
 
     enum DetailHeader {
-        /// Title + icon font for the storage detail header (Vault / Collection).
+        /// Title + icon font for the storage detail header (Collection / Collection).
         /// `.title` ≈ 22 pt on macOS; bumped from `.title2` (17 pt) 2026-06-13 per
         /// Nathan's "increase the title-bar size across all views".
         static let titleFont: Font = .title.bold()

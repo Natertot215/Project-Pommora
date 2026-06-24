@@ -14,7 +14,7 @@
 //  Shape classifier (per locked decision #7):
 //    1. Fresh             — no recognized sidecar; content-sniff always picks
 //                           Pages.
-//    2. Legacy v0.2       — folder carries `_vault.json` at root (pre-ParadigmV2
+//    2. Legacy v0.2       — folder carries `_collection.json` at root (pre-ParadigmV2
 //                           PageCollection sidecar). Sub-folders may carry
 //                           `_collection.json`. Renamed in place to per-kind
 //                           sidecars.
@@ -63,7 +63,7 @@ struct PlannedFreshSidecar: Equatable, Sendable, Identifiable {
     var id: String { folderURL.path }
 }
 
-/// A folder carrying a legacy v0.2 sidecar (`_vault.json` / `_collection.json`)
+/// A folder carrying a legacy v0.2 sidecar (`_collection.json` / `_collection.json`)
 /// — adoption renames the file in place to the per-kind flat-layout name.
 struct PlannedInPlaceRename: Equatable, Sendable, Identifiable {
     var folderURL: URL
@@ -140,7 +140,7 @@ struct AdoptionPlan: Equatable, Sendable, Identifiable {
     var nexusRoot: URL
     /// Shape #1: empty/content-only folders that need a fresh sidecar written.
     var freshSidecars: [PlannedFreshSidecar]
-    /// Shape #2: legacy `_vault.json` / `_collection.json` renames in place.
+    /// Shape #2: legacy `_collection.json` / `_collection.json` renames in place.
     var inPlaceRenames: [PlannedInPlaceRename]
     /// Shape #3: paradigmV2 wrapper folders to unwrap to root.
     var unwrapSteps: [PlannedUnwrap]
@@ -335,7 +335,7 @@ enum NexusAdopter {
         // folder as wrapper and warn).
         // Guard: only treat the folder as a ParadigmV2 wrapper when it
         // actually has wrapper-shaped children (sub-folders carrying one of
-        // the pre-flat legacy sidecars: `_schema.json`, `_vault.json`, or
+        // the pre-flat legacy sidecars: `_schema.json`, `_collection.json`, or
         // `_collection.json`). A user-created folder that happens to be named
         // "Pages" or "Agenda" but contains regular `.md` / `.json` content
         // must NOT trigger the destructive wrapper-unwrap path.
@@ -354,7 +354,7 @@ enum NexusAdopter {
 
         // Inspect the folder's top-level sidecars.
         let topLevelSidecars = recognizedSidecarsAt(folder)
-        let hasLegacyVault = Filesystem.fileExists(
+        let hasLegacyCollection = Filesystem.fileExists(
             at: folder.appendingPathComponent(legacyVaultSidecarFilename, isDirectory: false)
         )
 
@@ -376,8 +376,8 @@ enum NexusAdopter {
             return
         }
 
-        // Shape #2 — legacy v0.2 (`_vault.json` at root).
-        if hasLegacyVault {
+        // Shape #2 — legacy v0.2 (`_collection.json` at root).
+        if hasLegacyCollection {
             inPlaceRenames.append(
                 PlannedInPlaceRename(
                     folderURL: folder,
@@ -660,10 +660,10 @@ enum NexusAdopter {
     /// `_pagecollection.json` sidecars, then recurses unboundedly so every
     /// nested Set folder at any depth gets tagged.
     private static func walkDepth1(_ typeFolder: URL, now: Date, filter: FolderFilter = .empty) {
-        guard let typeID = loadTypeParentID(at: typeFolder) else { return }
+        guard let collectionID = loadTypeParentID(at: typeFolder) else { return }
         let children = (try? Filesystem.childFolders(of: typeFolder, folderFilter: filter)) ?? []
         for child in children where !shouldSkipForAutoTag(child) {
-            tagDepth1IfMissing(child, typeID: typeID, now: now)
+            tagDepth1IfMissing(child, collectionID: collectionID, now: now)
             if let collectionID = loadCollectionParentID(at: child) {
                 walkSets(child, parentSetID: collectionID, now: now, filter: filter)
             }
@@ -672,14 +672,14 @@ enum NexusAdopter {
 
     /// Writes `_pagecollection.json` if the folder has no recognized sidecar.
     private static func tagDepth1IfMissing(
-        _ folder: URL, typeID: String, now: Date
+        _ folder: URL, collectionID: String, now: Date
     ) {
         let existing = recognizedSidecarsAt(folder)
         guard existing.isEmpty else { return }
         let title = folder.lastPathComponent
         do {
             try writeAutoTagCollectionSidecar(
-                at: folder, title: title, typeID: typeID, now: now
+                at: folder, title: title, collectionID: collectionID, now: now
             )
         } catch {
             logAutoTagFailure(error, at: folder, depth: 1)
@@ -770,7 +770,7 @@ enum NexusAdopter {
     private static func writeAutoTagCollectionSidecar(
         at folder: URL,
         title: String,
-        typeID: String,
+        collectionID: String,
         now: Date
     ) throws {
         let metaURL = folder.appendingPathComponent(
@@ -779,7 +779,7 @@ enum NexusAdopter {
             metadataURL: metaURL,
             metadata: PageSet(
                 id: ULID.generate(),
-                parentID: typeID,
+                parentID: collectionID,
                 title: title,
                 folderURL: folder,
                 modifiedAt: now
@@ -972,7 +972,7 @@ enum NexusAdopter {
     /// Deletes orphan sidecars co-located with the authoritative per-kind
     /// sidecar on an already-flat folder. Two categories of orphan:
     ///
-    /// 1. **Legacy sidecars** — `_vault.json` / `_collection.json` / `_schema.json`
+    /// 1. **Legacy sidecars** — `_collection.json` / `_collection.json` / `_schema.json`
     ///    left over from earlier paradigm states (Nathan's nexus state when
     ///    paradigmV2 added `_schema.json` without removing the pre-existing
     ///    legacy files; or when flatlayout renamed `_schema.json` to per-kind
@@ -1063,7 +1063,7 @@ enum NexusAdopter {
 
     /// Returns `true` when at least one non-hidden child folder of `folder`
     /// carries one of the pre-flat legacy sidecar files: `_schema.json`
-    /// (ParadigmV2 unified sidecar), `_vault.json` (pre-ParadigmV2 PageCollection
+    /// (ParadigmV2 unified sidecar), `_collection.json` (pre-ParadigmV2 PageCollection
     /// sidecar), or `_collection.json` (pre-ParadigmV2 Collection sidecar).
     ///
     /// This is the structural guard that prevents user-created folders named

@@ -39,13 +39,13 @@ struct NexusPathsTests {
 
     @Test("per-kind sidecar filenames are stable + distinct")
     func perKindSidecarFilenames() {
-        #expect(NexusPaths.pageTypeSidecarFilename == "_pagetype.json")
+        #expect(NexusPaths.legacyPageTypeSidecarFilename == "_pagetype.json")
         #expect(NexusPaths.pageCollectionSidecarFilename == "_pagecollection.json")
         #expect(NexusPaths.taskConfigSidecarFilename == "_taskconfig.json")
         #expect(NexusPaths.eventConfigSidecarFilename == "_eventconfig.json")
         // All four should be distinct.
         let all: Set<String> = [
-            NexusPaths.pageTypeSidecarFilename,
+            NexusPaths.legacyPageTypeSidecarFilename,
             NexusPaths.pageCollectionSidecarFilename,
             NexusPaths.taskConfigSidecarFilename,
             NexusPaths.eventConfigSidecarFilename,
@@ -180,74 +180,46 @@ struct NexusPathsTests {
 
     // MARK: - PageCollection / PageSet (flatlayout: rooted at the nexus root)
 
-    @Test("pageTypeFolderURL sits at the nexus root (no wrapper)")
-    func pageTypeFolderShape() throws {
+    @Test("collectionFolderURL sits at the nexus root (no wrapper)")
+    func collectionFolderShape() throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
-        let folder = NexusPaths.pageTypeFolderURL(
-            in: nexus.rootURL, typeFolderName: "Recipes"
+        let folder = NexusPaths.collectionFolderURL(
+            in: nexus.rootURL, collectionFolderName: "Recipes"
         )
         #expect(folder.lastPathComponent == "Recipes")
         #expect(folder.deletingLastPathComponent().path == nexus.rootURL.path)
 
         // metadata URL co-located using the per-kind PageCollection sidecar
-        let meta = NexusPaths.pageTypeMetadataURL(
-            in: nexus.rootURL, typeFolderName: "Recipes"
+        let meta = NexusPaths.collectionMetadataURL(
+            in: nexus.rootURL, collectionFolderName: "Recipes"
         )
         #expect(meta.lastPathComponent == NexusPaths.pageCollectionSidecarFilename)
         #expect(meta.deletingLastPathComponent() == folder)
+
+        // nexus-typed overloads route to the same flat layout
+        #expect(NexusPaths.collectionFolderURL(forTitle: "Recipes", in: nexus) == folder)
+        #expect(NexusPaths.collectionMetadataURL(forTitle: "Recipes", in: nexus) == meta)
     }
 
-    @Test("pageCollectionFolderURL nests inside <Type>/<Collection> at root")
-    func pageCollectionFolderShape() throws {
+    @Test("setFolderURL nests inside <Collection>/<Set> at root")
+    func setFolderShape() throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
-        let folder = NexusPaths.pageCollectionFolderURL(
+        let folder = NexusPaths.setFolderURL(
             in: nexus.rootURL,
-            typeFolderName: "Recipes",
-            collectionFolderName: "Dinners"
+            collectionFolderName: "Recipes",
+            setFolderName: "Dinners"
         )
         #expect(folder.lastPathComponent == "Dinners")
         #expect(folder.deletingLastPathComponent().lastPathComponent == "Recipes")
         #expect(
             folder.deletingLastPathComponent().deletingLastPathComponent().path == nexus.rootURL.path
         )
-
-        // metadata sidecar uses the per-kind PageSet name
-        let meta = NexusPaths.pageCollectionMetadataURL(
-            in: nexus.rootURL,
-            typeFolderName: "Recipes",
-            collectionFolderName: "Dinners"
-        )
-        #expect(meta.lastPathComponent == NexusPaths.pageCollectionSidecarFilename)
-        #expect(meta.deletingLastPathComponent() == folder)
-    }
-
-    @Test("legacy vaultFolderURL / vaultMetadataURL aliases route to the flat layout")
-    func legacyVaultAliasesRootAtNexus() throws {
-        let nexus = try TempNexus.make()
-        defer { TempNexus.cleanup(nexus) }
-        let folder = NexusPaths.vaultFolderURL(forTitle: "Planner", in: nexus)
-        #expect(folder.lastPathComponent == "Planner")
-        #expect(folder.deletingLastPathComponent().path == nexus.rootURL.path)
-        let meta = NexusPaths.vaultMetadataURL(forTitle: "Planner", in: nexus)
-        #expect(meta.lastPathComponent == NexusPaths.pageCollectionSidecarFilename)
-        #expect(meta.deletingLastPathComponent() == folder)
-    }
-
-    @Test("legacy collectionFolderURL nests inside <Vault>/<Collection> at root")
-    func legacyCollectionAliasRootsAtNexus() throws {
-        let nexus = try TempNexus.make()
-        defer { TempNexus.cleanup(nexus) }
-        let url = NexusPaths.collectionFolderURL(
-            forTitle: "Tasks",
-            inVaultTitled: "Planner",
-            in: nexus
-        )
-        #expect(url.lastPathComponent == "Tasks")
-        #expect(url.deletingLastPathComponent().lastPathComponent == "Planner")
+        // nexus-typed overload routes to the same nesting
         #expect(
-            url.deletingLastPathComponent().deletingLastPathComponent().path == nexus.rootURL.path
+            NexusPaths.setFolderURL(forTitle: "Dinners", inCollectionTitled: "Recipes", in: nexus)
+                == folder
         )
     }
 
@@ -255,8 +227,8 @@ struct NexusPathsTests {
     func contentFilePaths() throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
-        let collection = NexusPaths.collectionFolderURL(
-            forTitle: "Tasks", inVaultTitled: "Planner", in: nexus
+        let collection = NexusPaths.setFolderURL(
+            forTitle: "Tasks", inCollectionTitled: "Planner", in: nexus
         )
         let page = NexusPaths.pageFileURL(forTitle: "Notes", in: collection)
         #expect(page.lastPathComponent == "Notes.md")

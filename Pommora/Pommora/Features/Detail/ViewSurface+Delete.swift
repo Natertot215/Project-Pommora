@@ -1,7 +1,7 @@
 import SwiftUI
 
 extension ViewSurface {
-    /// The active container-delete confirmation payload (vault: single Collection
+    /// The active container-delete confirmation payload (collection: single Collection
     /// delete; collection: two-mode Set delete), nil when nothing is pending.
     var deleteConfirmation: DeleteConfirmation? {
         guard let ref = deleteTarget else { return nil }
@@ -54,7 +54,7 @@ extension ViewSurface {
     }
 
     /// Direct page delete (containers route through the confirmation dialog). Routes
-    /// purely off the stamped parent — uniform across scopes; `.vaultRoot` can't
+    /// purely off the stamped parent — uniform across scopes; `.collectionRoot` can't
     /// occur in collection scope but is harmless.
     func delete(_ target: RowTarget) async {
         guard case .page(let item) = target else { return }

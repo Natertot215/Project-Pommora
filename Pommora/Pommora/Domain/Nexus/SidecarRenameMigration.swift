@@ -59,13 +59,13 @@ enum SidecarRenameMigration {
     // MARK: - Scan
 
     private static func isPageCollectionRoot(_ folder: URL) -> Bool {
-        sidecarExists(folder, NexusPaths.pageTypeSidecarFilename)
+        sidecarExists(folder, NexusPaths.legacyPageTypeSidecarFilename)
             || sidecarExists(folder, NexusPaths.pageCollectionSidecarFilename)
     }
 
     private static func collectAffected(in folder: URL, depth: Int, into out: inout [URL]) {
         if depth == 0 {
-            let legacy = folder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename)
+            let legacy = folder.appendingPathComponent(NexusPaths.legacyPageTypeSidecarFilename)
             if FileManager.default.fileExists(atPath: legacy.path) { out.append(legacy) }
         } else {
             let legacyColl = folder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename)
@@ -86,7 +86,7 @@ enum SidecarRenameMigration {
     private static func migrateCollection(_ root: URL, into report: inout Report) throws {
         for child in childFolders(root) { try migrateSetFolder(child, into: &report) }  // descendants first
 
-        let legacyTop = root.appendingPathComponent(NexusPaths.pageTypeSidecarFilename)
+        let legacyTop = root.appendingPathComponent(NexusPaths.legacyPageTypeSidecarFilename)
         guard FileManager.default.fileExists(atPath: legacyTop.path) else { return }
         let target = root.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename)
         let collection = try PageCollection.load(from: legacyTop)

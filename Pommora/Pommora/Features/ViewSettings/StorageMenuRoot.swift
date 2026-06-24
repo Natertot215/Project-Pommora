@@ -75,7 +75,7 @@ struct StorageMenuRoot: View {
         }
     }
 
-    /// Pinned open-in footer (vault-scoped, decision #2): an `Open Pages In`
+    /// Pinned open-in footer (collection-scoped, decision #2): an `Open Pages In`
     /// selector below a trailing divider, rendered as the shared
     /// `LabeledMenuSelector` (label left, value-dropdown right) so it reads
     /// identically to the Edit-Property "Display As" picker. Writes
@@ -212,7 +212,7 @@ struct StorageMenuRoot: View {
             return .pageCollection(collectionManager.types.first(where: { $0.id == t.id }) ?? t)
         case .pageSet(let c):
             return .pageSet(
-                collectionManager.pageCollectionsByType[c.parentID]?.first(where: { $0.id == c.id }) ?? c)
+                collectionManager.depthOneSetsByCollection[c.parentID]?.first(where: { $0.id == c.id }) ?? c)
         default:
             return scope
         }

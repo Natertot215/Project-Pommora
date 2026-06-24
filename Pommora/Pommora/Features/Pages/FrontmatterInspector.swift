@@ -263,7 +263,7 @@ struct FrontmatterInspector: View {
         }
     }
 
-    /// Schema rows resolved LIVE from the manager (not the `vault`
+    /// Schema rows resolved LIVE from the manager (not the `collection`
     /// snapshot passed at init) so any schema edit — from the affordance
     /// below or View Settings — appears immediately in every mount.
     private var liveProperties: [PropertyDefinition] {
@@ -299,7 +299,7 @@ struct FrontmatterInspector: View {
                     Task {
                         do {
                             try await PropertyCreation.commitDefault(
-                                type, toTypeID: pageCollection.id, manager: collectionManager)
+                                type, toCollectionID: pageCollection.id, manager: collectionManager)
                             addPropertyOpen = false
                         } catch {
                             addPropertyError = PropertyEditorErrorMessage.string(for: error)

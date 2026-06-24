@@ -59,7 +59,7 @@ struct UILabelThreadingTests {
     // MARK: - Test 4: Customizing the top-tier label propagates
 
     @Test("Customizing pageCollection label persists and is readable on next load")
-    func customizeVaultLabelPersists() async throws {
+    func customizeCollectionLabelPersists() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
 

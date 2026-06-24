@@ -28,7 +28,7 @@ struct PageCollection: Codable, Equatable, Identifiable, Hashable, Sendable {
     /// fall back to `DefaultSortConfig.legacyDefault` (`_modified_at desc`).
     /// Phase J wires this to column-header sort persistence.
     var defaultSort: DefaultSortConfig?
-    /// Per-vault default for how Pages open: `.compact` (PagePreview window)
+    /// Per-collection default for how Pages open: `.compact` (PagePreview window)
     /// or `.window` (main detail pane). Absent on legacy sidecars
     /// (decodeIfPresent → nil); callers default at read time.
     var openIn: OpenInMode?

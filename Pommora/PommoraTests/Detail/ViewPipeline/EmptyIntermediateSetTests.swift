@@ -21,8 +21,8 @@ struct EmptyIntermediateSetTests {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
 
-        let vault = try makePageCollection(nexus: nexus, title: "Notes")
-        let coll = try makePageCollection(nexus: nexus, title: "Inbox", in: vault)
+        let collection = try makePageCollection(nexus: nexus, title: "Notes")
+        let coll = try makePageCollection(nexus: nexus, title: "Inbox", in: collection)
 
         // SetA has no direct pages but has SubB as a child.
         let setA = try makePageSet(title: "SetA", in: coll)
@@ -34,10 +34,10 @@ struct EmptyIntermediateSetTests {
         let (content, sets) = managers(nexus: nexus)
         await content.loadAll(for: setA)
         await content.loadAll(for: subB)
-        await sets.loadAll(types: [vault])
+        await sets.loadAll(types: [collection])
 
         let items = ViewItemSource.items(
-            for: .collection(coll, pageCollection: vault),
+            for: .collection(coll, pageCollection: collection),
             content: content,
             sets: sets,
             collections: { _ in [coll] }
@@ -74,7 +74,7 @@ struct EmptyIntermediateSetTests {
         // Structural anchor for SetA (no page, isStructuralAnchor: true).
         let anchor = ViewItem(
             page: VPFixture.meta(id: "_anchor_set_A", title: ""),
-            parent: .set(setA, collection: collA, pageCollection: VPFixture.vault("vault_1")),
+            parent: .set(setA, collection: collA, pageCollection: VPFixture.pageCollection("vault_1")),
             setLabel: nil,
             isStructuralAnchor: true
         )
@@ -118,13 +118,13 @@ struct EmptyIntermediateSetTests {
 
         let anchorA = ViewItem(
             page: VPFixture.meta(id: "_anchor_set_A", title: ""),
-            parent: .set(setA, collection: collA, pageCollection: VPFixture.vault("vault_1")),
+            parent: .set(setA, collection: collA, pageCollection: VPFixture.pageCollection("vault_1")),
             setLabel: nil,
             isStructuralAnchor: true
         )
         let anchorB = ViewItem(
             page: VPFixture.meta(id: "_anchor_sub_B", title: ""),
-            parent: .set(subB, collection: collA, pageCollection: VPFixture.vault("vault_1")),
+            parent: .set(subB, collection: collA, pageCollection: VPFixture.pageCollection("vault_1")),
             setLabel: nil,
             isStructuralAnchor: true
         )
@@ -154,20 +154,20 @@ struct EmptyIntermediateSetTests {
 
     @discardableResult
     private func makePageCollection(nexus: Nexus, title: String) throws -> PageCollection {
-        let vault = PageCollection(
+        let collection = PageCollection(
             id: ULID.generate(), title: title, icon: nil,
             properties: [], views: [], modifiedAt: Date()
         )
-        let folderURL = NexusPaths.vaultFolderURL(forTitle: title, in: nexus)
+        let folderURL = NexusPaths.collectionFolderURL(forTitle: title, in: nexus)
         try FileManager.default.createDirectory(at: folderURL, withIntermediateDirectories: true)
-        try vault.save(to: NexusPaths.vaultMetadataURL(forTitle: title, in: nexus))
-        return vault
+        try collection.save(to: NexusPaths.collectionMetadataURL(forTitle: title, in: nexus))
+        return collection
     }
 
     @discardableResult
     private func makePageCollection(nexus: Nexus, title: String, in pageCollection: PageCollection) throws -> PageSet {
-        let folderURL = NexusPaths.collectionFolderURL(
-            forTitle: title, inVaultTitled: pageCollection.title, in: nexus)
+        let folderURL = NexusPaths.setFolderURL(
+            forTitle: title, inCollectionTitled: pageCollection.title, in: nexus)
         try FileManager.default.createDirectory(at: folderURL, withIntermediateDirectories: true)
         let coll = PageSet(
             id: ULID.generate(), parentID: pageCollection.id, title: title,

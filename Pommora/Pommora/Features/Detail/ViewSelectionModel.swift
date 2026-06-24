@@ -12,7 +12,7 @@ import Foundation
 ///
 /// `order` is the FLATTENED visible row order — the linear sequence of page ids
 /// exactly as the renderer draws them (groups in resolved order, items within a
-/// group, then each child group's items for vault scope). The renderer keeps it
+/// group, then each child group's items for collection scope). The renderer keeps it
 /// in sync from the same `[ResolvedGroup]` it draws. ⇧-range and arrow nav both
 /// walk this list, so they always match what's on screen.
 @MainActor

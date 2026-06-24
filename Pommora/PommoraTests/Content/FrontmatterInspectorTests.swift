@@ -39,7 +39,7 @@ struct FrontmatterInspectorTests {
         )
     }
 
-    private func makeVault(properties: [PropertyDefinition] = []) -> PageCollection {
+    private func makeCollection(properties: [PropertyDefinition] = []) -> PageCollection {
         PageCollection(
             id: ULID.generate(),
             title: "Test Vault",
@@ -60,13 +60,13 @@ struct FrontmatterInspectorTests {
 
     private func makeVM(
         properties: [String: PropertyValue] = [:],
-        vaultProps: [PropertyDefinition] = []
+        collectionProps: [PropertyDefinition] = []
     ) -> (vm: FrontmatterInspectorViewModel, saved: () -> [PageFrontmatter]) {
         let frontmatter = makeFrontmatter(properties: properties)
         let page = makePageMeta(frontmatter: frontmatter)
-        let vault = makeVault(properties: vaultProps)
+        let collection = makeCollection(properties: collectionProps)
         var captured: [PageFrontmatter] = []
-        let vm = FrontmatterInspectorViewModel(page: page, pageCollection: vault, onSave: { fm in
+        let vm = FrontmatterInspectorViewModel(page: page, pageCollection: collection, onSave: { fm in
             captured.append(fm)
         })
         return (vm, { captured })
@@ -76,35 +76,35 @@ struct FrontmatterInspectorTests {
 
     @Test("handlePropertyChange updates draftProperties for .number type")
     func numberPropertyEditable() {
-        let (vm, _) = makeVM(vaultProps: [makeDef(id: "prop_score", name: "Score", type: .number)])
+        let (vm, _) = makeVM(collectionProps: [makeDef(id: "prop_score", name: "Score", type: .number)])
         vm.handlePropertyChange("prop_score", .number(99.0))
         #expect(vm.draftProperties["prop_score"] == .number(99.0))
     }
 
     @Test("handlePropertyChange updates draftProperties for .checkbox type")
     func checkboxPropertyEditable() {
-        let (vm, _) = makeVM(vaultProps: [makeDef(id: "prop_done", name: "Done", type: .checkbox)])
+        let (vm, _) = makeVM(collectionProps: [makeDef(id: "prop_done", name: "Done", type: .checkbox)])
         vm.handlePropertyChange("prop_done", .checkbox(true))
         #expect(vm.draftProperties["prop_done"] == .checkbox(true))
     }
 
     @Test("handlePropertyChange updates draftProperties for .select type")
     func selectPropertyEditable() {
-        let (vm, _) = makeVM(vaultProps: [makeDef(id: "prop_cat", name: "Category", type: .select)])
+        let (vm, _) = makeVM(collectionProps: [makeDef(id: "prop_cat", name: "Category", type: .select)])
         vm.handlePropertyChange("prop_cat", .select("urgent"))
         #expect(vm.draftProperties["prop_cat"] == .select("urgent"))
     }
 
     @Test("handlePropertyChange updates draftProperties for .multiSelect type")
     func multiSelectPropertyEditable() {
-        let (vm, _) = makeVM(vaultProps: [makeDef(id: "prop_tags", name: "Tags", type: .multiSelect)])
+        let (vm, _) = makeVM(collectionProps: [makeDef(id: "prop_tags", name: "Tags", type: .multiSelect)])
         vm.handlePropertyChange("prop_tags", .multiSelect(["a", "b"]))
         #expect(vm.draftProperties["prop_tags"] == .multiSelect(["a", "b"]))
     }
 
     @Test("handlePropertyChange updates draftProperties for .status type")
     func statusPropertyEditable() {
-        let (vm, _) = makeVM(vaultProps: [makeDef(id: "prop_st", name: "Status", type: .status)])
+        let (vm, _) = makeVM(collectionProps: [makeDef(id: "prop_st", name: "Status", type: .status)])
         vm.handlePropertyChange("prop_st", .status("in_progress"))
         #expect(vm.draftProperties["prop_st"] == .status("in_progress"))
     }
@@ -112,7 +112,7 @@ struct FrontmatterInspectorTests {
     @Test("handlePropertyChange updates draftProperties for .date type")
     func datePropertyEditable() {
         let d = Date(timeIntervalSince1970: 86400)
-        let (vm, _) = makeVM(vaultProps: [makeDef(id: "prop_dt", name: "Date", type: .date)])
+        let (vm, _) = makeVM(collectionProps: [makeDef(id: "prop_dt", name: "Date", type: .date)])
         vm.handlePropertyChange("prop_dt", .date(d))
         #expect(vm.draftProperties["prop_dt"] == .date(d))
     }
@@ -120,7 +120,7 @@ struct FrontmatterInspectorTests {
     @Test("handlePropertyChange updates draftProperties for .datetime type")
     func datetimePropertyEditable() {
         let d = Date(timeIntervalSince1970: 86400)
-        let (vm, _) = makeVM(vaultProps: [makeDef(id: "prop_dtt", name: "DateTime", type: .datetime)])
+        let (vm, _) = makeVM(collectionProps: [makeDef(id: "prop_dtt", name: "DateTime", type: .datetime)])
         vm.handlePropertyChange("prop_dtt", .datetime(d))
         #expect(vm.draftProperties["prop_dtt"] == .datetime(d))
     }
@@ -128,21 +128,21 @@ struct FrontmatterInspectorTests {
     @Test("handlePropertyChange updates draftProperties for .url type")
     func urlPropertyEditable() {
         let url = URL(string: "https://example.com")!
-        let (vm, _) = makeVM(vaultProps: [makeDef(id: "prop_url", name: "Link", type: .url)])
+        let (vm, _) = makeVM(collectionProps: [makeDef(id: "prop_url", name: "Link", type: .url)])
         vm.handlePropertyChange("prop_url", .url(url))
         #expect(vm.draftProperties["prop_url"] == .url(url))
     }
 
     @Test("handlePropertyChange updates draftProperties for .relation type")
     func relationPropertyEditable() {
-        let (vm, _) = makeVM(vaultProps: [makeDef(id: "prop_rel", name: "Linked", type: .relation)])
+        let (vm, _) = makeVM(collectionProps: [makeDef(id: "prop_rel", name: "Linked", type: .relation)])
         vm.handlePropertyChange("prop_rel", .relation(["01HREF"]))
         #expect(vm.draftProperties["prop_rel"] == .relation(["01HREF"]))
     }
 
     @Test("handlePropertyChange updates draftProperties for .file type")
     func filePropertyEditable() {
-        let (vm, _) = makeVM(vaultProps: [makeDef(id: "prop_file", name: "Attach", type: .file)])
+        let (vm, _) = makeVM(collectionProps: [makeDef(id: "prop_file", name: "Attach", type: .file)])
         let refs: [FileRef] = []
         vm.handlePropertyChange("prop_file", .file(refs))
         #expect(vm.draftProperties["prop_file"] == .file(refs))
@@ -150,7 +150,7 @@ struct FrontmatterInspectorTests {
 
     @Test("handlePropertyChange updates draftProperties for .lastEditedTime (virtual, read-only)")
     func lastEditedTimeAccessible() {
-        let (vm, _) = makeVM(vaultProps: [makeDef(id: "prop_let", name: "Modified", type: .lastEditedTime)])
+        let (vm, _) = makeVM(collectionProps: [makeDef(id: "prop_let", name: "Modified", type: .lastEditedTime)])
         // lastEditedTime is virtual — handler accepts it without crashing
         vm.handlePropertyChange("prop_let", .lastEditedTime)
         #expect(vm.draftProperties["prop_let"] == .lastEditedTime)
@@ -160,7 +160,7 @@ struct FrontmatterInspectorTests {
 
     @Test("handlePropertyChange → scheduleSave — flushNow calls onSave with updated frontmatter")
     func editTriggersOnSaveCallback() {
-        let (vm, saved) = makeVM(vaultProps: [makeDef(id: "prop_x", name: "X")])
+        let (vm, saved) = makeVM(collectionProps: [makeDef(id: "prop_x", name: "X")])
         vm.handlePropertyChange("prop_x", .number(7.0))
         vm.flushNow()  // simulate debounce expiry synchronously
 
@@ -173,7 +173,7 @@ struct FrontmatterInspectorTests {
 
     @Test("onSave callback not called without flushing (mock/spy isolation)")
     func saveMocked() {
-        let (vm, saved) = makeVM(vaultProps: [makeDef(id: "prop_y", name: "Y")])
+        let (vm, saved) = makeVM(collectionProps: [makeDef(id: "prop_y", name: "Y")])
         vm.handlePropertyChange("prop_y", .number(5.0))
         // Do NOT flush — debounce task is pending but has NOT fired
         // (Task.sleep won't complete in a synchronous test loop)
@@ -200,7 +200,7 @@ struct FrontmatterInspectorTests {
             makeDef(id: "p10", name: "LastEdited", type: .lastEditedTime),
             makeDef(id: "p11", name: "File", type: .file),
         ]
-        let (vm, _) = makeVM(vaultProps: defs)
+        let (vm, _) = makeVM(collectionProps: defs)
 
         let now = Date()
         vm.handlePropertyChange("p1", .number(1))
@@ -223,7 +223,7 @@ struct FrontmatterInspectorTests {
     @Test("schemaProperties returns vault.properties")
     func schemaAccessor() {
         let defs = [makeDef(id: "p1", name: "A"), makeDef(id: "p2", name: "B")]
-        let (vm, _) = makeVM(vaultProps: defs)
+        let (vm, _) = makeVM(collectionProps: defs)
         #expect(vm.schemaProperties.count == 2)
         #expect(vm.schemaProperties[0].id == "p1")
     }
@@ -237,7 +237,7 @@ struct FrontmatterInspectorTests {
 
     @Test("select pick saves immediately — no debounce")
     func selectPickCommitsImmediately() {
-        let (vm, saved) = makeVM(vaultProps: [makeDef(id: "prop_cat", name: "Category", type: .select)])
+        let (vm, saved) = makeVM(collectionProps: [makeDef(id: "prop_cat", name: "Category", type: .select)])
         vm.handlePropertyChange("prop_cat", .select("urgent"))
         #expect(saved().count == 1)
         #expect(saved().last?.properties["prop_cat"] == .select("urgent"))
@@ -245,14 +245,14 @@ struct FrontmatterInspectorTests {
 
     @Test("status pick saves immediately — no debounce")
     func statusPickCommitsImmediately() {
-        let (vm, saved) = makeVM(vaultProps: [makeDef(id: "prop_st", name: "Status", type: .status)])
+        let (vm, saved) = makeVM(collectionProps: [makeDef(id: "prop_st", name: "Status", type: .status)])
         vm.handlePropertyChange("prop_st", .status("done"))
         #expect(saved().count == 1)
     }
 
     @Test("checkbox toggle saves immediately — no debounce")
     func checkboxToggleCommitsImmediately() {
-        let (vm, saved) = makeVM(vaultProps: [makeDef(id: "prop_done", name: "Done", type: .checkbox)])
+        let (vm, saved) = makeVM(collectionProps: [makeDef(id: "prop_done", name: "Done", type: .checkbox)])
         vm.handlePropertyChange("prop_done", .checkbox(true))
         #expect(saved().count == 1)
     }
@@ -263,7 +263,7 @@ struct FrontmatterInspectorTests {
 
     @Test("number edit debounces — no immediate save")
     func numberEditDebounces() {
-        let (vm, saved) = makeVM(vaultProps: [makeDef(id: "prop_n", name: "N", type: .number)])
+        let (vm, saved) = makeVM(collectionProps: [makeDef(id: "prop_n", name: "N", type: .number)])
         vm.handlePropertyChange("prop_n", .number(12))
         #expect(saved().isEmpty)
         _ = vm
@@ -271,7 +271,7 @@ struct FrontmatterInspectorTests {
 
     @Test("url edit debounces — no immediate save")
     func urlEditDebounces() {
-        let (vm, saved) = makeVM(vaultProps: [makeDef(id: "prop_u", name: "U", type: .url)])
+        let (vm, saved) = makeVM(collectionProps: [makeDef(id: "prop_u", name: "U", type: .url)])
         vm.handlePropertyChange("prop_u", .url(URL(string: "https://a.com")!))
         #expect(saved().isEmpty)
         _ = vm

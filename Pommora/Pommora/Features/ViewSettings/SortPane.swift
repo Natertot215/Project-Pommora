@@ -125,9 +125,9 @@ struct SortPane: View {
     /// they have no meaningful ordering). Reserved columns are surfaced via the
     /// fixed presets, so they're filtered out here.
     private func sortableProperties() -> [PropertyDefinition] {
-        guard let typeID = parentTypeID() else { return [] }
+        guard let collectionID = parentCollectionID() else { return [] }
         let schema: [PropertyDefinition] =
-            collectionManager.types.first(where: { $0.id == typeID })?
+            collectionManager.types.first(where: { $0.id == collectionID })?
             .resolvedProperties(tierConfig: tierConfigManager.config) ?? []
         return schema.filter { def in
             !ReservedPropertyID.isReserved(def.id) && def.type.isSortable
@@ -136,7 +136,7 @@ struct SortPane: View {
 
     private func containerID() -> String? { scope.containerID }
 
-    private func parentTypeID() -> String? { scope.schemaTypeID }
+    private func parentCollectionID() -> String? { scope.schemaCollectionID }
 }
 
 // MARK: - SortPreset

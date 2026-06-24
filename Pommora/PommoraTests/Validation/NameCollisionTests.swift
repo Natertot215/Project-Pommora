@@ -19,39 +19,39 @@ struct NameCollisionTests {
 
     @Test("createPage duplicate title in same Page Type (type-root) throws + original body survives")
     func pageCreateDuplicateInTypeRootPreservesBody() async throws {
-        let (nexus, vault, manager) = try await setupPageCollectionRoot()
+        let (nexus, collection, manager) = try await setupPageCollectionRoot()
         defer { TempNexus.cleanup(nexus) }
 
         // Original page + a real body written to disk.
-        try await manager.createPage(name: "Notes", inCollectionRoot: vault)
-        let url = NexusPaths.pageFileURL(forTitle: "Notes", in: pageTypeFolder(nexus, vault))
-        let original = manager.pages(in: vault).first { $0.title == "Notes" }!
-        try await manager.updatePage(original, body: "PRECIOUS BODY", inCollectionRoot: vault)
+        try await manager.createPage(name: "Notes", inCollectionRoot: collection)
+        let url = NexusPaths.pageFileURL(forTitle: "Notes", in: pageTypeFolder(nexus, collection))
+        let original = manager.pages(in: collection).first { $0.title == "Notes" }!
+        try await manager.updatePage(original, body: "PRECIOUS BODY", inCollectionRoot: collection)
 
         // Colliding create must throw.
         await #expect(throws: PageCRUDError.duplicateTitle) {
-            _ = try await manager.createPage(name: "Notes", inCollectionRoot: vault)
+            _ = try await manager.createPage(name: "Notes", inCollectionRoot: collection)
         }
 
         // Original file's body must be intact (NOT clobbered) + still one page.
         let reloaded = try PageFile.load(from: url)
         #expect(reloaded.body == "PRECIOUS BODY")
         #expect(reloaded.frontmatter.id == original.id)
-        #expect(manager.pages(in: vault).count == 1)
+        #expect(manager.pages(in: collection).count == 1)
     }
 
     @Test("createPage duplicate title in same Page Collection throws + original body survives")
     func pageCreateDuplicateInCollectionPreservesBody() async throws {
-        let (nexus, vault, coll, manager) = try await setupPageSet()
+        let (nexus, collection, coll, manager) = try await setupPageSet()
         defer { TempNexus.cleanup(nexus) }
 
-        try await manager.createPage(name: "Notes", in: coll, pageCollection: vault)
+        try await manager.createPage(name: "Notes", in: coll, pageCollection: collection)
         let url = NexusPaths.pageFileURL(forTitle: "Notes", in: coll.folderURL)
         let original = manager.pages(inCollection: coll).first!
-        try await manager.updatePage(original, body: "PRECIOUS BODY", in: coll, pageCollection: vault)
+        try await manager.updatePage(original, body: "PRECIOUS BODY", in: coll, pageCollection: collection)
 
         await #expect(throws: PageCRUDError.duplicateTitle) {
-            _ = try await manager.createPage(name: "Notes", in: coll, pageCollection: vault)
+            _ = try await manager.createPage(name: "Notes", in: coll, pageCollection: collection)
         }
 
         let reloaded = try PageFile.load(from: url)
@@ -62,19 +62,19 @@ struct NameCollisionTests {
 
     @Test("renamePage onto an existing sibling's title throws + both files intact")
     func pageRenameOntoSiblingRejected() async throws {
-        let (nexus, vault, coll, manager) = try await setupPageSet()
+        let (nexus, collection, coll, manager) = try await setupPageSet()
         defer { TempNexus.cleanup(nexus) }
 
-        try await manager.createPage(name: "Notes", in: coll, pageCollection: vault)
-        try await manager.createPage(name: "Ideas", in: coll, pageCollection: vault)
+        try await manager.createPage(name: "Notes", in: coll, pageCollection: collection)
+        try await manager.createPage(name: "Ideas", in: coll, pageCollection: collection)
         let notes = manager.pages(inCollection: coll).first { $0.title == "Notes" }!
         let ideas = manager.pages(inCollection: coll).first { $0.title == "Ideas" }!
-        try await manager.updatePage(notes, body: "NOTES BODY", in: coll, pageCollection: vault)
-        try await manager.updatePage(ideas, body: "IDEAS BODY", in: coll, pageCollection: vault)
+        try await manager.updatePage(notes, body: "NOTES BODY", in: coll, pageCollection: collection)
+        try await manager.updatePage(ideas, body: "IDEAS BODY", in: coll, pageCollection: collection)
 
         // Rename "Ideas" → "Notes" (collides with the other page) must throw.
         await #expect(throws: PageCRUDError.duplicateTitle) {
-            try await manager.renamePage(ideas, to: "Notes", in: coll, pageCollection: vault)
+            try await manager.renamePage(ideas, to: "Notes", in: coll, pageCollection: collection)
         }
 
         // Both files survive with their original bodies + titles.
@@ -89,47 +89,47 @@ struct NameCollisionTests {
 
     @Test("createPage collision is case-insensitive (Notes vs notes)")
     func pageCreateCaseInsensitiveRejected() async throws {
-        let (nexus, vault, coll, manager) = try await setupPageSet()
+        let (nexus, collection, coll, manager) = try await setupPageSet()
         defer { TempNexus.cleanup(nexus) }
 
-        try await manager.createPage(name: "Notes", in: coll, pageCollection: vault)
+        try await manager.createPage(name: "Notes", in: coll, pageCollection: collection)
         await #expect(throws: PageCRUDError.duplicateTitle) {
-            _ = try await manager.createPage(name: "notes", in: coll, pageCollection: vault)
+            _ = try await manager.createPage(name: "notes", in: coll, pageCollection: collection)
         }
         #expect(manager.pages(inCollection: coll).count == 1)
     }
 
     @Test("same Page title in DIFFERENT containers is allowed")
     func pageSameTitleDifferentContainersAllowed() async throws {
-        let (nexus, vault, coll, manager) = try await setupPageSet()
+        let (nexus, collection, coll, manager) = try await setupPageSet()
         defer { TempNexus.cleanup(nexus) }
 
         // One in the collection, one in the type-root — different containers.
-        try await manager.createPage(name: "Notes", in: coll, pageCollection: vault)
-        try await manager.createPage(name: "Notes", inCollectionRoot: vault)
+        try await manager.createPage(name: "Notes", in: coll, pageCollection: collection)
+        try await manager.createPage(name: "Notes", inCollectionRoot: collection)
 
         #expect(manager.pages(inCollection: coll).count == 1)
-        #expect(manager.pages(in: vault).count == 1)
+        #expect(manager.pages(in: collection).count == 1)
         #expect(
             FileManager.default.fileExists(
                 atPath: NexusPaths.pageFileURL(forTitle: "Notes", in: coll.folderURL).path))
         #expect(
             FileManager.default.fileExists(
-                atPath: NexusPaths.pageFileURL(forTitle: "Notes", in: pageTypeFolder(nexus, vault)).path
+                atPath: NexusPaths.pageFileURL(forTitle: "Notes", in: pageTypeFolder(nexus, collection)).path
             ))
     }
 
     @Test("renamePage to its OWN current title does not throw")
     func pageRenameToOwnTitleAllowed() async throws {
-        let (nexus, vault, coll, manager) = try await setupPageSet()
+        let (nexus, collection, coll, manager) = try await setupPageSet()
         defer { TempNexus.cleanup(nexus) }
 
-        try await manager.createPage(name: "Notes", in: coll, pageCollection: vault)
+        try await manager.createPage(name: "Notes", in: coll, pageCollection: collection)
         let page = manager.pages(inCollection: coll).first!
-        try await manager.updatePage(page, body: "BODY", in: coll, pageCollection: vault)
+        try await manager.updatePage(page, body: "BODY", in: coll, pageCollection: collection)
 
         // Renaming to the same title is a no-op rename — must NOT false-positive.
-        try await manager.renamePage(page, to: "Notes", in: coll, pageCollection: vault)
+        try await manager.renamePage(page, to: "Notes", in: coll, pageCollection: collection)
 
         let url = NexusPaths.pageFileURL(forTitle: "Notes", in: coll.folderURL)
         #expect(FileManager.default.fileExists(atPath: url.path))
@@ -142,15 +142,15 @@ struct NameCollisionTests {
         // FIX 1 regression: on a case-insensitive volume (APFS) a self-recase
         // resolves `fileExists(at:)` to the SAME underlying file; renameFile must
         // recase in place via moveItem, NOT throw destinationExists.
-        let (nexus, vault, coll, manager) = try await setupPageSet()
+        let (nexus, collection, coll, manager) = try await setupPageSet()
         defer { TempNexus.cleanup(nexus) }
 
-        try await manager.createPage(name: "notes", in: coll, pageCollection: vault)
+        try await manager.createPage(name: "notes", in: coll, pageCollection: collection)
         let page = manager.pages(inCollection: coll).first { $0.title == "notes" }!
-        try await manager.updatePage(page, body: "PRECIOUS BODY", in: coll, pageCollection: vault)
+        try await manager.updatePage(page, body: "PRECIOUS BODY", in: coll, pageCollection: collection)
 
         // Recase: lowercase → titlecase. Same entity, different-case title.
-        try await manager.renamePage(page, to: "Notes", in: coll, pageCollection: vault)
+        try await manager.renamePage(page, to: "Notes", in: coll, pageCollection: collection)
 
         // File is recased on disk (the stored filename now reads "Notes.md") and
         // the body survived the in-place move.
@@ -168,19 +168,19 @@ struct NameCollisionTests {
         // Companion to FIX 1: a recase of one's OWN file is allowed, but renaming
         // onto a *different* sibling that happens to differ only in case is still
         // a collision and must throw (no clobber).
-        let (nexus, vault, coll, manager) = try await setupPageSet()
+        let (nexus, collection, coll, manager) = try await setupPageSet()
         defer { TempNexus.cleanup(nexus) }
 
-        try await manager.createPage(name: "Notes", in: coll, pageCollection: vault)
-        try await manager.createPage(name: "Ideas", in: coll, pageCollection: vault)
+        try await manager.createPage(name: "Notes", in: coll, pageCollection: collection)
+        try await manager.createPage(name: "Ideas", in: coll, pageCollection: collection)
         let notes = manager.pages(inCollection: coll).first { $0.title == "Notes" }!
         let ideas = manager.pages(inCollection: coll).first { $0.title == "Ideas" }!
-        try await manager.updatePage(notes, body: "NOTES BODY", in: coll, pageCollection: vault)
-        try await manager.updatePage(ideas, body: "IDEAS BODY", in: coll, pageCollection: vault)
+        try await manager.updatePage(notes, body: "NOTES BODY", in: coll, pageCollection: collection)
+        try await manager.updatePage(ideas, body: "IDEAS BODY", in: coll, pageCollection: collection)
 
         // Rename "Ideas" → "notes" (case-variant of the OTHER page) must throw.
         await #expect(throws: PageCRUDError.duplicateTitle) {
-            try await manager.renamePage(ideas, to: "notes", in: coll, pageCollection: vault)
+            try await manager.renamePage(ideas, to: "notes", in: coll, pageCollection: collection)
         }
 
         // Both originals intact.
@@ -232,7 +232,7 @@ struct NameCollisionTests {
     }
 
     private func pageTypeFolder(_ nexus: Nexus, _ pageCollection: PageCollection) -> URL {
-        NexusPaths.pageTypeFolderURL(in: nexus.rootURL, typeFolderName: pageCollection.title)
+        NexusPaths.collectionFolderURL(in: nexus.rootURL, collectionFolderName: pageCollection.title)
     }
 
     private static func fm(_ id: String) -> PageFrontmatter {
@@ -244,32 +244,32 @@ struct NameCollisionTests {
         -> (Nexus, PageCollection, PageSet, PageContentManager)
     {
         let nexus = try TempNexus.make()
-        let vault = PageCollection(
+        let collection = PageCollection(
             id: ULID.generate(), title: "V", icon: nil, properties: [], views: [], modifiedAt: Date())
-        let vaultFolder = NexusPaths.vaultFolderURL(forTitle: "V", in: nexus)
-        try FileManager.default.createDirectory(at: vaultFolder, withIntermediateDirectories: true)
-        try vault.save(to: NexusPaths.vaultMetadataURL(forTitle: "V", in: nexus))
+        let collectionFolder = NexusPaths.collectionFolderURL(forTitle: "V", in: nexus)
+        try FileManager.default.createDirectory(at: collectionFolder, withIntermediateDirectories: true)
+        try collection.save(to: NexusPaths.collectionMetadataURL(forTitle: "V", in: nexus))
 
-        let collFolder = NexusPaths.collectionFolderURL(forTitle: "C", inVaultTitled: "V", in: nexus)
+        let collFolder = NexusPaths.setFolderURL(forTitle: "C", inCollectionTitled: "V", in: nexus)
         try FileManager.default.createDirectory(at: collFolder, withIntermediateDirectories: true)
         let coll = PageSet(
-            id: ULID.generate(), parentID: vault.id, title: "C", folderURL: collFolder,
+            id: ULID.generate(), parentID: collection.id, title: "C", folderURL: collFolder,
             modifiedAt: Date())
 
         let manager = PageContentManager(nexus: nexus, contextProvider: { NexusContext.empty })
-        return (nexus, vault, coll, manager)
+        return (nexus, collection, coll, manager)
     }
 
     private func setupPageCollectionRoot() async throws -> (Nexus, PageCollection, PageContentManager) {
         let nexus = try TempNexus.make()
-        let vault = PageCollection(
+        let collection = PageCollection(
             id: ULID.generate(), title: "V", icon: nil, properties: [], views: [], modifiedAt: Date())
-        let vaultFolder = NexusPaths.vaultFolderURL(forTitle: "V", in: nexus)
-        try FileManager.default.createDirectory(at: vaultFolder, withIntermediateDirectories: true)
-        try vault.save(to: NexusPaths.vaultMetadataURL(forTitle: "V", in: nexus))
+        let collectionFolder = NexusPaths.collectionFolderURL(forTitle: "V", in: nexus)
+        try FileManager.default.createDirectory(at: collectionFolder, withIntermediateDirectories: true)
+        try collection.save(to: NexusPaths.collectionMetadataURL(forTitle: "V", in: nexus))
 
         let manager = PageContentManager(nexus: nexus, contextProvider: { NexusContext.empty })
-        return (nexus, vault, manager)
+        return (nexus, collection, manager)
     }
 
 }

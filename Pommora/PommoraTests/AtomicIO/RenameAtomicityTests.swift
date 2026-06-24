@@ -87,7 +87,7 @@ struct RenameAtomicityTests {
     }
 
     @Test("PageCollectionManager rename failure (duplicate target) sets pendingError + folder stays at old name")
-    func vaultRenameFailureRollback() async throws {
+    func collectionRenameFailureRollback() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
         let manager = PageCollectionManager(nexus: nexus)
@@ -102,7 +102,7 @@ struct RenameAtomicityTests {
         }
 
         #expect(manager.pendingError != nil)
-        let alphaFolder = NexusPaths.vaultFolderURL(forTitle: "Alpha", in: nexus)
+        let alphaFolder = NexusPaths.collectionFolderURL(forTitle: "Alpha", in: nexus)
         #expect(FileManager.default.fileExists(atPath: alphaFolder.path))
     }
 }

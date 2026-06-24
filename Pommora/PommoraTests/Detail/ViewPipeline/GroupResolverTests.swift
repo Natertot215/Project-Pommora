@@ -16,7 +16,7 @@ struct GroupResolverTests {
 
     // MARK: - Structural: VAULT scope (Collection → Set children)
 
-    @Test func structuralVaultGroupsByCollectionWithNestedSets() {
+    @Test func structuralCollectionGroupsByCollectionWithNestedSets() {
         let setX = VPFixture.set("set_X", title: "X", collection: "coll_A")
         let items = [
             VPFixture.item("p1", title: "Loose", in: collA),
@@ -40,7 +40,7 @@ struct GroupResolverTests {
         #expect(beta.items.map(\.id) == ["p3"])
     }
 
-    @Test func structuralVaultRootPagesGoInTrailingUngroupedBand() {
+    @Test func structuralCollectionRootPagesGoInTrailingUngroupedBand() {
         let items = [
             VPFixture.item("p1", title: "InColl", in: collA),
             VPFixture.rootItem("p2", title: "Root"),

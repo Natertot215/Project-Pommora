@@ -11,14 +11,14 @@ struct NexusContext: Sendable {
     var lookupArea: @Sendable (String) -> Area?
     var lookupTopic: @Sendable (String) -> Topic?
     var lookupProject: @Sendable (String) -> Project?
-    var lookupVault: @Sendable (String) -> PageCollection?
+    var lookupCollection: @Sendable (String) -> PageCollection?
 
     /// Sentinel context with all lookups returning nil — for tests / standalone validation.
     static let empty = NexusContext(
         lookupArea: { _ in nil },
         lookupTopic: { _ in nil },
         lookupProject: { _ in nil },
-        lookupVault: { _ in nil }
+        lookupCollection: { _ in nil }
     )
 
     /// Builds a context that resolves PageCollection targets from disk via the
@@ -42,9 +42,9 @@ struct NexusContext: Sendable {
             // closure is invoked only synchronously from the @MainActor schema
             // managers that call PropertyDefinitionValidator, so asserting main-actor
             // isolation is sound and keeps `find` the single resolution path.
-            lookupVault: { typeID in
+            lookupCollection: { collectionID in
                 MainActor.assumeIsolated {
-                    PageCollection.find(id: typeID, in: Nexus(id: id, rootURL: rootURL))
+                    PageCollection.find(id: collectionID, in: Nexus(id: id, rootURL: rootURL))
                 }
             }
         )

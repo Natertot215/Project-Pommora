@@ -99,7 +99,7 @@ struct AdoptionPreviewView: View {
             // Per-side migration counts (entity-oriented).
             HStack(spacing: PUI.Spacing.xxxl) {
                 summaryStat(
-                    count: pageTypeMigrationCount,
+                    count: pageCollectionMigrationCount,
                     label: labels.pageCollection.singular,
                     systemImage: "folder.fill"
                 )
@@ -270,7 +270,7 @@ struct AdoptionPreviewView: View {
                     + "to key properties by ID. Orphan property values preserved."
             )
             VStack(alignment: .leading, spacing: PUI.Spacing.sm) {
-                ForEach(Array(migrationPlan.pageTypeMigrations.enumerated()), id: \.offset) { _, m in
+                ForEach(Array(migrationPlan.pageCollectionMigrations.enumerated()), id: \.offset) { _, m in
                     propertyMigrationRow(m)
                 }
             }
@@ -283,7 +283,7 @@ struct AdoptionPreviewView: View {
                 .foregroundStyle(.secondary)
                 .frame(width: 16)
             VStack(alignment: .leading, spacing: 1) {
-                Text(m.typeTitle)
+                Text(m.collectionTitle)
                     .font(.callout)
                 HStack(spacing: PUI.Spacing.sm) {
                     Text("\(m.propertiesToMint) propert\(m.propertiesToMint == 1 ? "y" : "ies") to mint")
@@ -411,7 +411,7 @@ struct AdoptionPreviewView: View {
 
     // MARK: - Label helpers
 
-    private var pageTypeMigrationCount: Int {
+    private var pageCollectionMigrationCount: Int {
         let fresh = plan.freshSidecars.filter { $0.kind == .pageCollection }.count
         let renames = plan.inPlaceRenames.filter { $0.newSidecar == NexusPaths.pageCollectionSidecarFilename }.count
         let unwraps = plan.unwrapSteps

@@ -41,7 +41,7 @@ struct IndexPopulationReproTests {
 
     // MARK: - Test A — clean-nexus structural population
 
-    /// Isolates STRUCTURAL gaps. A fully VALID nexus (one Vault → one Page
+    /// Isolates STRUCTURAL gaps. A fully VALID nexus (one Collection → one Page
     /// Collection → one Page; one Area at tier 1; one Topic at tier 2) is
     /// loaded through every manager in app order, all sharing one IndexUpdater
     /// over a fresh (schema-only, zero-row) index. If loadAll populates the
@@ -53,24 +53,24 @@ struct IndexPopulationReproTests {
         defer { TempNexus.cleanup(nexus) }
         let (index, _) = try PommoraIndex.open(at: nexus.rootURL)
 
-        // --- Seed a VALID Vault (PageCollection) at the nexus root, via save(to:). ---
-        let vaultID = ULID.generate()
-        let vaultName = "Notes"
-        let vaultFolder = NexusPaths.vaultFolderURL(forTitle: vaultName, in: nexus)
-        try FileManager.default.createDirectory(at: vaultFolder, withIntermediateDirectories: true)
+        // --- Seed a VALID Collection (PageCollection) at the nexus root, via save(to:). ---
+        let collectionID = ULID.generate()
+        let collectionName = "Notes"
+        let collectionFolder = NexusPaths.collectionFolderURL(forTitle: collectionName, in: nexus)
+        try FileManager.default.createDirectory(at: collectionFolder, withIntermediateDirectories: true)
         let pc = PageCollection(
-            id: vaultID, title: vaultName, icon: nil,
+            id: collectionID, title: collectionName, icon: nil,
             properties: [], views: [], modifiedAt: Date()
         )
-        try pc.save(to: vaultFolder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename))
+        try pc.save(to: collectionFolder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename))
 
-        // --- Seed a VALID Page Collection inside the Vault. ---
+        // --- Seed a VALID Page Collection inside the Collection. ---
         let collID = ULID.generate()
         let collName = "Daily"
-        let collFolder = vaultFolder.appendingPathComponent(collName, isDirectory: true)
+        let collFolder = collectionFolder.appendingPathComponent(collName, isDirectory: true)
         try FileManager.default.createDirectory(at: collFolder, withIntermediateDirectories: true)
         let collection = PageSet(
-            id: collID, parentID: vaultID, title: collName, folderURL: collFolder, modifiedAt: Date()
+            id: collID, parentID: collectionID, title: collName, folderURL: collFolder, modifiedAt: Date()
         )
         try collection.save(to: collFolder.appendingPathComponent(NexusPaths.pageSetSidecarFilename))
 
@@ -107,7 +107,7 @@ struct IndexPopulationReproTests {
         collectionManager.indexUpdater = IndexUpdater(index)
         let pageSetManager = PageSetManager(nexus: nexus)
         pageSetManager.indexUpdater = IndexUpdater(index)
-        pageSetManager.pageTypeProvider = { [weak collectionManager] in collectionManager?.types ?? [] }
+        pageSetManager.pageCollectionProvider = { [weak collectionManager] in collectionManager?.types ?? [] }
         collectionManager.pageSetManager = pageSetManager
         let pageContentManager = PageContentManager(nexus: nexus, contextProvider: { NexusContext.empty })
         pageContentManager.indexUpdater = IndexUpdater(index)
@@ -119,11 +119,11 @@ struct IndexPopulationReproTests {
         // --- Run loadAll in the order the app does. ---
         await collectionManager.loadAll()
         await pageSetManager.loadAll(types: collectionManager.types)
-        let loadedVault = try #require(collectionManager.types.first { $0.id == vaultID })
+        let loadedPageCollection = try #require(collectionManager.types.first { $0.id == collectionID })
         let loadedCollection = try #require(
-            collectionManager.pageCollections(in: loadedVault).first { $0.id == collID }
+            collectionManager.pageCollections(in: loadedPageCollection).first { $0.id == collID }
         )
-        await pageContentManager.loadAll(for: loadedVault)
+        await pageContentManager.loadAll(for: loadedPageCollection)
         await pageContentManager.loadAll(forCollection: loadedCollection)
         await areaManager.loadAll()
         await topicManager.loadAll()
@@ -142,12 +142,12 @@ struct IndexPopulationReproTests {
             pageContentManager.pages(inCollection: loadedCollection).first { $0.id == pageID }
         )
         // Use a tier value (a built-in, always-present relation property) so we
-        // never depend on a user property existing on a brand-new Vault.
+        // never depend on a user property existing on a brand-new Collection.
         try await pageContentManager.updatePageProperty(
             loadedPage,
             propertyID: ReservedPropertyID.tier1,
             newValue: .relation([areaID]),
-            pageCollection: loadedVault,
+            pageCollection: loadedPageCollection,
             collection: loadedCollection
         )
         // updatePageProperty swallows an index FK failure onto pendingError
@@ -165,22 +165,22 @@ struct IndexPopulationReproTests {
     /// `try?` skips it — it never lands in `page_collections`. A child Page
     /// upsert that still carries that Collection's id hits the
     /// `pages.page_collection_id` FK; Task 8 Bug B makes that NON-fatal — the page
-    /// is retried without the missing collection and still indexed under its Vault.
+    /// is retried without the missing collection and still indexed under its Collection.
     @Test func malformedCollectionSidecarOrphansChildPages() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
         let (index, _) = try PommoraIndex.open(at: nexus.rootURL)
 
-        // --- VALID Vault. ---
-        let vaultID = ULID.generate()
-        let vaultName = "Notes"
-        let vaultFolder = NexusPaths.vaultFolderURL(forTitle: vaultName, in: nexus)
-        try FileManager.default.createDirectory(at: vaultFolder, withIntermediateDirectories: true)
+        // --- VALID Collection. ---
+        let collectionID = ULID.generate()
+        let collectionName = "Notes"
+        let collectionFolder = NexusPaths.collectionFolderURL(forTitle: collectionName, in: nexus)
+        try FileManager.default.createDirectory(at: collectionFolder, withIntermediateDirectories: true)
         let pc = PageCollection(
-            id: vaultID, title: vaultName, icon: nil,
+            id: collectionID, title: collectionName, icon: nil,
             properties: [], views: [], modifiedAt: Date()
         )
-        try pc.save(to: vaultFolder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename))
+        try pc.save(to: collectionFolder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename))
 
         // --- MALFORMED Page Collection: the `_pagecollection.json` EXISTS (so
         // PageContentManager's Type-root walk excludes this folder — exclusion
@@ -190,11 +190,11 @@ struct IndexPopulationReproTests {
         // page can reference it directly in the upsert below. ---
         let orphanCollID = ULID.generate()
         let collName = "Broken"
-        let collFolder = vaultFolder.appendingPathComponent(collName, isDirectory: true)
+        let collFolder = collectionFolder.appendingPathComponent(collName, isDirectory: true)
         try FileManager.default.createDirectory(at: collFolder, withIntermediateDirectories: true)
         let malformedCollSidecar = """
             {
-              "type_id": "\(vaultID)",
+              "type_id": "\(collectionID)",
               "modified_at": "2026-05-29T00:00:00Z",
               "schema_version": 1
             }
@@ -218,20 +218,20 @@ struct IndexPopulationReproTests {
         collectionManager.indexUpdater = IndexUpdater(index)
         let pageSetManager = PageSetManager(nexus: nexus)
         pageSetManager.indexUpdater = IndexUpdater(index)
-        pageSetManager.pageTypeProvider = { [weak collectionManager] in collectionManager?.types ?? [] }
+        pageSetManager.pageCollectionProvider = { [weak collectionManager] in collectionManager?.types ?? [] }
         collectionManager.pageSetManager = pageSetManager
         let pageContentManager = PageContentManager(nexus: nexus, contextProvider: { NexusContext.empty })
         pageContentManager.indexUpdater = IndexUpdater(index)
 
         await collectionManager.loadAll()
         await pageSetManager.loadAll(types: collectionManager.types)
-        let loadedVault = try #require(collectionManager.types.first { $0.id == vaultID })
-        await pageContentManager.loadAll(for: loadedVault)
-        await pageContentManager.loadAll(for: loadedVault)  // harmless idempotent re-run; no Collection to load
+        let loadedPageCollection = try #require(collectionManager.types.first { $0.id == collectionID })
+        await pageContentManager.loadAll(for: loadedPageCollection)
+        await pageContentManager.loadAll(for: loadedPageCollection)  // harmless idempotent re-run; no Collection to load
 
         // --- ASSERT: the malformed Collection is ABSENT from the in-memory
         // load AND from the `page_sets` index table (v15: depth-1 sets land there). ---
-        #expect(collectionManager.pageCollections(in: loadedVault).isEmpty)
+        #expect(collectionManager.pageCollections(in: loadedPageCollection).isEmpty)
         let collRowCount = try await index.dbQueue.read { db in
             try Int.fetchOne(
                 db, sql: "SELECT COUNT(*) FROM page_sets WHERE id = ?", arguments: [orphanCollID]
@@ -243,16 +243,16 @@ struct IndexPopulationReproTests {
         // that references the (missing) Collection id THROWS SQLite error 19
         // (FOREIGN KEY constraint failed). Call IndexUpdater.upsertPage
         // directly — updatePageProperty swallows the index error onto
-        // pendingError rather than rethrowing. The Vault itself IS in the index
+        // pendingError rather than rethrowing. The Collection itself IS in the index
         // (PageCollectionManager.loadAll synced it), so the violation is isolated to
         // the page_collection_id FK. ---
         let orphanMeta = PageMeta(
             id: pageID, title: "Orphan", url: pageURL, frontmatter: pageFrontmatter
         )
         // Post-fix (Task 8 Bug B): upsertPage tolerates the orphaned-set FK.
-        // The Vault IS indexed, so the page is retried with the dangling set NULLed out.
+        // The Collection IS indexed, so the page is retried with the dangling set NULLed out.
         try IndexUpdater(index).upsertPage(
-            orphanMeta, pageCollectionID: vaultID, pageSetID: orphanCollID
+            orphanMeta, pageCollectionID: collectionID, pageSetID: orphanCollID
         )
         let pageRowCount = try await index.dbQueue.read { db in
             try Int.fetchOne(
@@ -265,7 +265,7 @@ struct IndexPopulationReproTests {
                 db, sql: "SELECT page_set_id FROM pages WHERE id = ?", arguments: [pageID]
             )
         }
-        #expect(pageSetForPage == nil)  // dangling set FK nulled; page kept under vault
+        #expect(pageSetForPage == nil)  // dangling set FK nulled; page kept under collection
     }
 
     // MARK: - Test C — malformed Topic sidecar leaves tier-2 picker empty

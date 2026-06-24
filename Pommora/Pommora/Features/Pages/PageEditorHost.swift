@@ -3,7 +3,7 @@ import SwiftUI
 /// Bridges sidebar selection (a `PageMeta`) to a live `PageEditorViewModel`.
 ///
 /// Responsibilities:
-/// - Resolve the Page's parent Vault + Collection (so `ContentManagerPageSaver`
+/// - Resolve the Page's parent Collection + Collection (so `ContentManagerPageSaver`
 ///   can route to the right `updatePage` variant).
 /// - Load the Page's body from disk via `PageFile.load`.
 /// - On selection change to a different Page, flush the previous VM's pending
@@ -29,9 +29,9 @@ struct PageEditorHost: View {
 
     var body: some View {
         Group {
-            if let vm = viewModel, let vault = resolvedPageCollection {
+            if let vm = viewModel, let collection = resolvedPageCollection {
                 PageEditorView(
-                    viewModel: vm, pageCollection: vault, collection: resolvedCollection,
+                    viewModel: vm, pageCollection: collection, collection: resolvedCollection,
                     set: resolvedSet, selection: $selection)
                     // Force a full teardown + rebuild of PageEditorView when
                     // the loaded Page changes — guarantees @State (titleDraft)

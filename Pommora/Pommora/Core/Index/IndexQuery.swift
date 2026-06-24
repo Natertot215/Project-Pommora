@@ -174,7 +174,7 @@ struct IndexQuery: Sendable {
                 }
                 return EntityContainer(
                     entityTitle: row["title"], kind: .page,
-                    typeID: collectionID, typeTitle: collectionTitle,
+                    collectionID: collectionID, collectionTitle: collectionTitle,
                     setID: setID, setTitle: setTitle
                 )
 
@@ -450,13 +450,13 @@ struct GroupedEntities: Sendable, Equatable {
 /// The on-disk container of a Page, resolved from the index by
 /// `IndexQuery.entityContainer(id:kind:)`. Titles derive the folder URL via
 /// `NexusPaths`; IDs re-supply `IndexUpdater.upsert…` after a mutation.
-/// `typeID`/`typeTitle` identify the owning PageCollection; `setID`/`setTitle`
+/// `collectionID`/`collectionTitle` identify the owning PageCollection; `setID`/`setTitle`
 /// are `nil` for any Page outside a Set.
 struct EntityContainer: Equatable, Sendable {
     let entityTitle: String
     let kind: EntityKind  // `.page`
-    let typeID: String
-    let typeTitle: String
+    let collectionID: String
+    let collectionTitle: String
     let setID: String?
     let setTitle: String?
 }

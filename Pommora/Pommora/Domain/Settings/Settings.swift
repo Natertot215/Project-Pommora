@@ -27,7 +27,7 @@ struct Settings: Codable, Equatable, Hashable, Sendable {
     /// here ahead of the Settings editor so the future toggle row binds
     /// to an existing field rather than triggering a migration.
     var showPageIcon: Bool
-    /// Vault-relative folder paths excluded from discovery. Empty by default.
+    /// Collection-relative folder paths excluded from discovery. Empty by default.
     /// Paths are anchored to the nexus root (e.g. "Archive", "Projects/Old").
     var excludedFolders: [String]
     /// Per-Nexus profile image shown in the sidebar header — a nexus-relative

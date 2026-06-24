@@ -4,7 +4,7 @@
 //
 //  Verifies ViewItemSource's parent + setLabel stamping in both scopes. Uses a
 //  TempNexus + real managers (the source reads the live page caches), mirroring
-//  the hand-built Vault/Collection/Set fixtures in PageSetContentTests.
+//  the hand-built Collection/Collection/Set fixtures in PageSetContentTests.
 //
 
 import Foundation
@@ -16,30 +16,30 @@ import Testing
 @Suite("ViewItemSourceTests")
 struct ViewItemSourceTests {
 
-    // MARK: - Vault scope
+    // MARK: - Collection scope
 
     @Test("vault scope stamps every parent kind + setLabel only on set pages")
-    func vaultScopeStampsParentsAndSetLabels() async throws {
+    func collectionScopeStampsParentsAndSetLabels() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
 
-        let vault = try makePageCollection(nexus: nexus, title: "Notes")
-        let coll = try makePageCollection(nexus: nexus, title: "Inbox", in: vault)
+        let collection = try makePageCollection(nexus: nexus, title: "Notes")
+        let coll = try makePageCollection(nexus: nexus, title: "Inbox", in: collection)
         let set = try makePageSet(title: "Drafts", in: coll)
 
-        let vaultFolder = NexusPaths.vaultFolderURL(forTitle: vault.title, in: nexus)
-        _ = try writePage(titled: "RootPage", in: vaultFolder)
+        let collectionFolder = NexusPaths.collectionFolderURL(forTitle: collection.title, in: nexus)
+        _ = try writePage(titled: "RootPage", in: collectionFolder)
         _ = try writePage(titled: "CollPage", in: coll.folderURL)
         _ = try writePage(titled: "SetPage", in: set.folderURL)
 
         let (content, sets) = managers(nexus: nexus)
-        await content.loadAll(for: vault)
+        await content.loadAll(for: collection)
         await content.loadAll(forCollection: coll)
         await content.loadAll(for: set)
-        await sets.loadAll(types: [vault])
+        await sets.loadAll(types: [collection])
 
         let items = ViewItemSource.items(
-            for: .pageCollection(vault),
+            for: .pageCollection(collection),
             content: content,
             sets: sets,
             collections: { _ in [coll] }
@@ -47,7 +47,7 @@ struct ViewItemSourceTests {
 
         let byTitle = Dictionary(uniqueKeysWithValues: items.map { ($0.page.title, $0) })
 
-        // Vault-root page.
+        // Collection-root page.
         let root = try #require(byTitle["RootPage"])
         guard case .collectionRoot = root.parent else { return #expect(Bool(false), "expected collectionRoot") }
         #expect(root.setLabel == nil)
@@ -77,8 +77,8 @@ struct ViewItemSourceTests {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
 
-        let vault = try makePageCollection(nexus: nexus, title: "Notes")
-        let coll = try makePageCollection(nexus: nexus, title: "Inbox", in: vault)
+        let collection = try makePageCollection(nexus: nexus, title: "Notes")
+        let coll = try makePageCollection(nexus: nexus, title: "Inbox", in: collection)
         let set = try makePageSet(title: "Drafts", in: coll)
 
         _ = try writePage(titled: "CollPage", in: coll.folderURL)
@@ -87,10 +87,10 @@ struct ViewItemSourceTests {
         let (content, sets) = managers(nexus: nexus)
         await content.loadAll(forCollection: coll)
         await content.loadAll(for: set)
-        await sets.loadAll(types: [vault])
+        await sets.loadAll(types: [collection])
 
         let items = ViewItemSource.items(
-            for: .collection(coll, pageCollection: vault),
+            for: .collection(coll, pageCollection: collection),
             content: content,
             sets: sets,
             collections: { _ in [coll] }
@@ -124,14 +124,14 @@ struct ViewItemSourceTests {
 
     @discardableResult
     private func makePageCollection(nexus: Nexus, title: String) throws -> PageCollection {
-        let vault = PageCollection(
+        let collection = PageCollection(
             id: ULID.generate(), title: title, icon: nil,
             properties: [], views: [], modifiedAt: Date()
         )
-        let folderURL = NexusPaths.vaultFolderURL(forTitle: title, in: nexus)
+        let folderURL = NexusPaths.collectionFolderURL(forTitle: title, in: nexus)
         try FileManager.default.createDirectory(at: folderURL, withIntermediateDirectories: true)
-        try vault.save(to: NexusPaths.vaultMetadataURL(forTitle: title, in: nexus))
-        return vault
+        try collection.save(to: NexusPaths.collectionMetadataURL(forTitle: title, in: nexus))
+        return collection
     }
 
     @discardableResult
@@ -140,8 +140,8 @@ struct ViewItemSourceTests {
     ) throws
         -> PageSet
     {
-        let folderURL = NexusPaths.collectionFolderURL(
-            forTitle: title, inVaultTitled: pageCollection.title, in: nexus)
+        let folderURL = NexusPaths.setFolderURL(
+            forTitle: title, inCollectionTitled: pageCollection.title, in: nexus)
         try FileManager.default.createDirectory(at: folderURL, withIntermediateDirectories: true)
         let coll = PageSet(
             id: ULID.generate(), parentID: pageCollection.id, title: title,

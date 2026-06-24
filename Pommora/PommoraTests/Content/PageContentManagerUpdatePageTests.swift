@@ -10,13 +10,13 @@ struct PageContentManagerUpdatePageTests {
 
     @Test("updatePage persists body to disk (PageSet-scoped)")
     func updatePagePersistsBodyToDisk() async throws {
-        let (nexus, vault, coll, manager) = try await setup()
+        let (nexus, collection, coll, manager) = try await setup()
         defer { TempNexus.cleanup(nexus) }
 
-        try await manager.createPage(name: "Notes", in: coll, pageCollection: vault)
+        try await manager.createPage(name: "Notes", in: coll, pageCollection: collection)
         let page = manager.pages(inCollection: coll).first!
 
-        try await manager.updatePage(page, body: "Hello world", in: coll, pageCollection: vault)
+        try await manager.updatePage(page, body: "Hello world", in: coll, pageCollection: collection)
 
         let reloaded = try PageFile.load(from: page.url)
         #expect(reloaded.body == "Hello world")
@@ -24,15 +24,15 @@ struct PageContentManagerUpdatePageTests {
 
     @Test("updatePage preserves frontmatter (id, createdAt, properties, tiers)")
     func updatePagePreservesFrontmatter() async throws {
-        let (nexus, vault, coll, manager) = try await setup()
+        let (nexus, collection, coll, manager) = try await setup()
         defer { TempNexus.cleanup(nexus) }
 
-        try await manager.createPage(name: "Notes", in: coll, pageCollection: vault)
+        try await manager.createPage(name: "Notes", in: coll, pageCollection: collection)
         let page = manager.pages(inCollection: coll).first!
         let originalID = page.frontmatter.id
         let originalCreatedAt = page.frontmatter.createdAt
 
-        try await manager.updatePage(page, body: "Some new body content", in: coll, pageCollection: vault)
+        try await manager.updatePage(page, body: "Some new body content", in: coll, pageCollection: collection)
 
         let reloaded = try PageFile.load(from: page.url)
         #expect(reloaded.frontmatter.id == originalID)
@@ -47,14 +47,14 @@ struct PageContentManagerUpdatePageTests {
     }
 
     @Test("updatePage persists body to disk (vault-root)")
-    func updatePageInVaultRootPersists() async throws {
-        let (nexus, vault, _, manager) = try await setup()
+    func updatePageInCollectionRootPersists() async throws {
+        let (nexus, collection, _, manager) = try await setup()
         defer { TempNexus.cleanup(nexus) }
 
-        try await manager.createPage(name: "RootNotes", inCollectionRoot: vault)
-        let page = manager.pages(in: vault).first!
+        try await manager.createPage(name: "RootNotes", inCollectionRoot: collection)
+        let page = manager.pages(in: collection).first!
 
-        try await manager.updatePage(page, body: "Root body", inCollectionRoot: vault)
+        try await manager.updatePage(page, body: "Root body", inCollectionRoot: collection)
 
         let reloaded = try PageFile.load(from: page.url)
         #expect(reloaded.body == "Root body")
@@ -63,10 +63,10 @@ struct PageContentManagerUpdatePageTests {
 
     @Test("updatePage validator failure surfaces pendingError")
     func validatorFailureSurfacesPendingError() async throws {
-        let (nexus, vault, coll, manager) = try await setup()
+        let (nexus, collection, coll, manager) = try await setup()
         defer { TempNexus.cleanup(nexus) }
 
-        try await manager.createPage(name: "Notes", in: coll, pageCollection: vault)
+        try await manager.createPage(name: "Notes", in: coll, pageCollection: collection)
         let page = manager.pages(inCollection: coll).first!
 
         // Mutate the in-memory PageMeta to carry an invalid title — the validator
@@ -81,7 +81,7 @@ struct PageContentManagerUpdatePageTests {
         )
 
         await #expect(throws: (any Error).self) {
-            try await manager.updatePage(badPage, body: "anything", in: coll, pageCollection: vault)
+            try await manager.updatePage(badPage, body: "anything", in: coll, pageCollection: collection)
         }
         #expect(manager.pendingError != nil)
 
@@ -92,10 +92,10 @@ struct PageContentManagerUpdatePageTests {
 
     @Test("updatePage IO failure surfaces pendingError")
     func ioFailureSurfacesPendingError() async throws {
-        let (nexus, vault, coll, manager) = try await setup()
+        let (nexus, collection, coll, manager) = try await setup()
         defer { TempNexus.cleanup(nexus) }
 
-        try await manager.createPage(name: "Notes", in: coll, pageCollection: vault)
+        try await manager.createPage(name: "Notes", in: coll, pageCollection: collection)
         let page = manager.pages(inCollection: coll).first!
 
         // Delete the PageSet folder out from under us — `pageFile.save(to:)`
@@ -104,31 +104,31 @@ struct PageContentManagerUpdatePageTests {
         try FileManager.default.removeItem(at: coll.folderURL)
 
         await #expect(throws: (any Error).self) {
-            try await manager.updatePage(page, body: "anything", in: coll, pageCollection: vault)
+            try await manager.updatePage(page, body: "anything", in: coll, pageCollection: collection)
         }
         #expect(manager.pendingError != nil)
     }
 
     private func setup() async throws -> (Nexus, PageCollection, PageSet, PageContentManager) {
         let nexus = try TempNexus.make()
-        let vault = PageCollection(
+        let collection = PageCollection(
             id: ULID.generate(), title: "V", icon: nil,
             properties: [], views: [], modifiedAt: Date())
-        let vaultFolder = NexusPaths.vaultFolderURL(forTitle: "V", in: nexus)
-        try FileManager.default.createDirectory(at: vaultFolder, withIntermediateDirectories: true)
-        try vault.save(to: NexusPaths.vaultMetadataURL(forTitle: "V", in: nexus))
+        let collectionFolder = NexusPaths.collectionFolderURL(forTitle: "V", in: nexus)
+        try FileManager.default.createDirectory(at: collectionFolder, withIntermediateDirectories: true)
+        try collection.save(to: NexusPaths.collectionMetadataURL(forTitle: "V", in: nexus))
 
-        let collFolder = NexusPaths.collectionFolderURL(forTitle: "C", inVaultTitled: "V", in: nexus)
+        let collFolder = NexusPaths.setFolderURL(forTitle: "C", inCollectionTitled: "V", in: nexus)
         try FileManager.default.createDirectory(at: collFolder, withIntermediateDirectories: true)
         let coll = PageSet(
             id: ULID.generate(),
-            parentID: vault.id,
+            parentID: collection.id,
             title: "C",
             folderURL: collFolder,
             modifiedAt: Date()
         )
 
         let manager = PageContentManager(nexus: nexus, contextProvider: { NexusContext.empty })
-        return (nexus, vault, coll, manager)
+        return (nexus, collection, coll, manager)
     }
 }

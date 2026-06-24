@@ -43,7 +43,7 @@ struct EntityStateRefTests {
     }
 
     @Test("legacy 'vault' kind decodes as .collection (top tier)")
-    func legacyVaultKindMapsToCollection() {
+    func legacyCollectionKindMapsToCollection() {
         // Pre-Phase-3 state.json wrote the top container as "vault".
         #expect(EntityStateRef(kind: "vault", id: "x", title: "y").typedKind == .collection)
     }

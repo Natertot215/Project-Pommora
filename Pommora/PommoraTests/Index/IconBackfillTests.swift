@@ -40,7 +40,7 @@ struct IconBackfillTests {
         try await collectionManager.createPageCollection(name: "Notes", icon: nil)
         let pt = collectionManager.types.first { $0.title == "Notes" }!
         _ = pt
-        let typeFolder = NexusPaths.vaultFolderURL(forTitle: "Notes", in: nexus)
+        let typeFolder = NexusPaths.collectionFolderURL(forTitle: "Notes", in: nexus)
 
         let pageID = ULID.generate()
         let fm = PageFrontmatter(

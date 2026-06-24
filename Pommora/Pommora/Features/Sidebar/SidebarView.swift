@@ -64,7 +64,7 @@ struct SidebarView: View {
                     presentedSheet: $presentedSheet,
                     confirmingDelete: $confirmingDelete
                 )
-                VaultsSection(
+                CollectionsSection(
                     selection: $selection,
                     editingID: $editingID,
                     justCreatedID: $justCreatedID,
@@ -72,7 +72,7 @@ struct SidebarView: View {
                     confirmingDelete: $confirmingDelete
                 )
                 ForEach(sidebarSectionsManager.config.sections) { userSection in
-                    UserVaultSection(
+                    UserCollectionSection(
                         section: userSection,
                         selection: $selection,
                         editingID: $editingID,
@@ -218,13 +218,13 @@ struct SidebarView: View {
                 }
             }
             cancelButton
-        case .moveSet(let s, let dest, let destPageCollection, let srcVault, _):
+        case .moveSet(let s, let dest, let destPageCollection, let srcCollection, _):
             Button("Move", role: .destructive) {
                 Task {
                     do {
                         try await pageSetManager.moveSet(
                             s, to: dest, destinationPageCollection: destPageCollection,
-                            sourcePageCollection: srcVault, contentManager: contentManager)
+                            sourcePageCollection: srcCollection, contentManager: contentManager)
                     } catch { /* pendingError set by manager; toast surfaces */  }
                     confirmingDelete = nil
                 }
@@ -247,7 +247,7 @@ struct SidebarView: View {
 
 // MARK: - Sections
 
-struct VaultsSection: View {
+struct CollectionsSection: View {
     @Binding var selection: SidebarSelection
     @Binding var editingID: String?
     @Binding var justCreatedID: String?
@@ -262,10 +262,10 @@ struct VaultsSection: View {
     @State private var isCreating: Bool = false
     @State private var isCreatingSection: Bool = false
 
-    /// The default Vaults section shows only UNGROUPED PageCollections — those not
+    /// The default Collections section shows only UNGROUPED PageCollections — those not
     /// claimed by any user section (single-membership).
     private var ungroupedTypes: [PageCollection] {
-        let grouped = sectionsManager.config.groupedVaultIDs
+        let grouped = sectionsManager.config.groupedCollectionIDs
         return collectionManager.types.filter { !grouped.contains($0.id) }
     }
 
@@ -373,16 +373,16 @@ struct VaultsSection: View {
     }
 }
 
-// MARK: - UserVaultSection
+// MARK: - UserCollectionSection
 
 /// One user-created sidebar section grouping PageCollections — a sibling `Section`
-/// with the same shape as `VaultsSection` (quirk #6: row shapes inside a Section
+/// with the same shape as `CollectionsSection` (quirk #6: row shapes inside a Section
 /// must stay homogeneous; selection chrome at the row file level per quirk #7).
 ///
-/// Membership is navigation-only: `section.vaultIDs` resolve to live
+/// Membership is navigation-only: `section.collectionIDs` resolve to live
 /// `PageCollection`s in section order; dangling IDs skip-render. An empty section
 /// keeps its header visible so a freshly created section can be inline-renamed.
-struct UserVaultSection: View {
+struct UserCollectionSection: View {
     let section: SidebarSectionsConfig.Section
     @Binding var selection: SidebarSelection
     @Binding var editingID: String?
@@ -394,10 +394,10 @@ struct UserVaultSection: View {
 
     @State private var expanded: Bool = true
 
-    /// `vaultIDs` resolved to live PageCollections in section order; dangling IDs skipped.
+    /// `collectionIDs` resolved to live PageCollections in section order; dangling IDs skipped.
     private var resolvedTypes: [PageCollection] {
         let types = collectionManager.types
-        return section.vaultIDs.compactMap { id in
+        return section.collectionIDs.compactMap { id in
             types.first(where: { $0.id == id })
         }
     }
@@ -427,8 +427,8 @@ struct UserVaultSection: View {
     }
 }
 
-/// Header for a user vault section — flips into inline-rename when `editingID == section.id`.
-/// Delete is navigation-only: the section's PageCollections return to the default Vaults section.
+/// Header for a user collection section — flips into inline-rename when `editingID == section.id`.
+/// Delete is navigation-only: the section's PageCollections return to the default Collections section.
 private struct UserSectionHeader: View {
     let section: SidebarSectionsConfig.Section
     @Binding var editingID: String?
@@ -602,9 +602,9 @@ struct SelectionChrome: View {
 
 // MARK: - SectionHeader
 
-/// Section header strip used by Areas / Topics / Vaults — secondary-styled title, trailing
+/// Section header strip used by Areas / Topics / Collections — secondary-styled title, trailing
 /// "+" on hover, and a section-wide right-click context menu. `extraMenu` is appended to
-/// that menu (the Vaults header uses it for "Add Section"); defaults to empty.
+/// that menu (the Collections header uses it for "Add Section"); defaults to empty.
 private struct SectionHeader<ExtraMenu: View>: View {
     let title: String
     let onAdd: () -> Void

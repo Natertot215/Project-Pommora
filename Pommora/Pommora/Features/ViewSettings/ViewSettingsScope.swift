@@ -38,7 +38,7 @@ extension ViewSettingsScope {
 
     /// The schema-owning PageCollection's id — the top PageCollection owns the
     /// schema; nested PageSets inherit it via `parentID`. `nil` for non-container scopes.
-    var schemaTypeID: String? {
+    var schemaCollectionID: String? {
         switch self {
         case .pageCollection(let t): return t.id
         case .pageSet(let c): return c.parentID

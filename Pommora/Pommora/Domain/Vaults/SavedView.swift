@@ -1,4 +1,4 @@
-// Pommora/Pommora/Vaults/SavedView.swift
+// Pommora/Pommora/Collections/SavedView.swift
 import Foundation
 
 /// A saved view configuration on a PageCollection / PageCollection. A container holds

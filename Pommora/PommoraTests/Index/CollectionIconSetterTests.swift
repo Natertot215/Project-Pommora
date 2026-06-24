@@ -23,10 +23,10 @@ struct CollectionIconSetterTests {
         defer { TempNexus.cleanup(nexus) }
 
         // Build a PageCollection + PageSet via normal CRUD so
-        // pageCollectionsByType is populated and the sidecar exists on disk.
+        // depthOneSetsByCollection is populated and the sidecar exists on disk.
         let manager = PageCollectionManager(nexus: nexus)
         let setManager = PageSetManager(nexus: nexus)
-        setManager.pageTypeProvider = { [weak manager] in manager?.types ?? [] }
+        setManager.pageCollectionProvider = { [weak manager] in manager?.types ?? [] }
         manager.pageSetManager = setManager
         await manager.loadAll()
         try await manager.createPageCollection(name: "Notes", icon: nil)

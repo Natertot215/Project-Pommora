@@ -4,29 +4,29 @@ import Testing
 
 @testable import Pommora
 
-/// Whole-Set moves between PageSets (Sets Task 9): same-vault folder
+/// Whole-Set moves between PageSets (Sets Task 9): same-collection folder
 /// relocation with byte-identical Pages, pre-move destination collision,
-/// and cross-vault moves with the per-page name-matched property strip
+/// and cross-collection moves with the per-page name-matched property strip
 /// (count previewed via `moveStripTotal`).
 ///
-/// Fixtures mirror `PageSetContentTests` (hand-built Vault/Collection/Set
+/// Fixtures mirror `PageSetContentTests` (hand-built Collection/Collection/Set
 /// folders, index-seeded parents for FK-bearing upserts).
 @MainActor
 @Suite("PageSetMoveTests")
 struct PageSetMoveTests {
 
-    // MARK: - Same-vault move
+    // MARK: - Same-collection move
 
     @Test("Same-vault moveSet relocates the folder, re-points sidecar + index, keeps Page bytes identical")
-    func sameVaultMove() async throws {
+    func sameCollectionMove() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
         let (index, _) = try PommoraIndex.open(at: nexus.rootURL)
         let updater = IndexUpdater(index)
 
-        let vault = try makePageCollection(nexus: nexus, title: "Notes", index: index)
-        let source = try makePageCollection(nexus: nexus, title: "Inbox", in: vault, index: index)
-        let dest = try makePageCollection(nexus: nexus, title: "Archive", in: vault, index: index)
+        let collection = try makePageCollection(nexus: nexus, title: "Notes", index: index)
+        let source = try makePageCollection(nexus: nexus, title: "Inbox", in: collection, index: index)
+        let dest = try makePageCollection(nexus: nexus, title: "Archive", in: collection, index: index)
         let set = try makePageSet(title: "Drafts", in: source, index: index)
         let pageID = try writePage(titled: "Doc", in: set.folderURL)
 
@@ -34,19 +34,19 @@ struct PageSetMoveTests {
         contentManager.indexUpdater = updater
         let setManager = PageSetManager(nexus: nexus)
         setManager.indexUpdater = updater
-        await setManager.loadAll(types: [vault])
+        await setManager.loadAll(types: [collection])
 
         // Index the Page under the Set first — the row being re-pointed.
         let pageURL = NexusPaths.pageFileURL(forTitle: "Doc", in: set.folderURL)
         let pf = try PageFile.load(from: pageURL)
         try updater.upsertPage(
             PageMeta(id: pageID, title: "Doc", url: pageURL, frontmatter: pf.frontmatter),
-            pageCollectionID: vault.id, pageSetID: set.id)
+            pageCollectionID: collection.id, pageSetID: set.id)
         let originalBytes = try Data(contentsOf: pageURL)
 
         let loadedSet = try #require(setManager.pageSets(in: source).first)
         try await setManager.moveSet(
-            loadedSet, to: dest, destinationPageCollection: vault, sourcePageCollection: vault,
+            loadedSet, to: dest, destinationPageCollection: collection, sourcePageCollection: collection,
             contentManager: contentManager)
 
         // Folder relocated on disk.
@@ -67,7 +67,7 @@ struct PageSetMoveTests {
         // Hoist ids before the dbQueue closures (@Sendable).
         let setID = set.id
         let destID = dest.id
-        let vaultID = vault.id
+        let collectionID = collection.id
         let movedPageID = pageID
 
         // Index: Set row re-pointed; Page row re-pointed with page_set_id intact.
@@ -78,7 +78,7 @@ struct PageSetMoveTests {
         let pageRow = try await index.dbQueue.read { db in
             try Row.fetchOne(db, sql: "SELECT * FROM pages WHERE id = ?", arguments: [movedPageID])
         }
-        #expect(pageRow?["page_collection_id"] as String? == vaultID)
+        #expect(pageRow?["page_collection_id"] as String? == collectionID)
         #expect(pageRow?["page_set_id"] as String? == setID)
 
         // Caches: out of the source bucket, into the destination with the new
@@ -96,9 +96,9 @@ struct PageSetMoveTests {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
 
-        let vault = try makePageCollection(nexus: nexus, title: "Notes")
-        let source = try makePageCollection(nexus: nexus, title: "Inbox", in: vault)
-        let dest = try makePageCollection(nexus: nexus, title: "Archive", in: vault)
+        let collection = try makePageCollection(nexus: nexus, title: "Notes")
+        let source = try makePageCollection(nexus: nexus, title: "Inbox", in: collection)
+        let dest = try makePageCollection(nexus: nexus, title: "Archive", in: collection)
         let set = try makePageSet(title: "Drafts", in: source)
         _ = try writePage(titled: "Doc", in: set.folderURL)
         // The destination already holds a same-titled Set.
@@ -106,12 +106,12 @@ struct PageSetMoveTests {
 
         let contentManager = PageContentManager(nexus: nexus, contextProvider: { NexusContext.empty })
         let setManager = PageSetManager(nexus: nexus)
-        await setManager.loadAll(types: [vault])
+        await setManager.loadAll(types: [collection])
 
         let loadedSet = try #require(setManager.pageSets(in: source).first)
         await #expect(throws: PageSetValidator.ValidationError.duplicateTitle) {
             try await setManager.moveSet(
-                loadedSet, to: dest, destinationPageCollection: vault, sourcePageCollection: vault,
+                loadedSet, to: dest, destinationPageCollection: collection, sourcePageCollection: collection,
                 contentManager: contentManager)
         }
 
@@ -124,26 +124,26 @@ struct PageSetMoveTests {
         #expect(setManager.pageSets(in: dest).count == 1)
     }
 
-    // MARK: - Cross-vault move (with strip)
+    // MARK: - Cross-collection move (with strip)
 
     @Test("Cross-vault moveSet strips per-page values absent from the destination schema; moveStripTotal matches")
-    func crossVaultMoveStrips() async throws {
+    func crossCollectionMoveStrips() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
         let (index, _) = try PommoraIndex.open(at: nexus.rootURL)
         let updater = IndexUpdater(index)
 
-        // "Status" exists only on VaultA; "Priority" exists on both BY NAME
+        // "Status" exists only on CollectionA; "Priority" exists on both BY NAME
         // (different ids), so its values survive the move.
         let onlyA = PropertyDefinition(id: "prop_only_a", name: "Status", type: .status)
         let sharedA = PropertyDefinition(id: "prop_shared_a", name: "Priority", type: .select)
         let sharedB = PropertyDefinition(id: "prop_shared_b", name: "Priority", type: .select)
-        let vaultA = try makePageCollection(
-            nexus: nexus, title: "VaultA", properties: [onlyA, sharedA], index: index)
-        let vaultB = try makePageCollection(
-            nexus: nexus, title: "VaultB", properties: [sharedB], index: index)
-        let collA = try makePageCollection(nexus: nexus, title: "CollA", in: vaultA, index: index)
-        let collB = try makePageCollection(nexus: nexus, title: "CollB", in: vaultB, index: index)
+        let collectionA = try makePageCollection(
+            nexus: nexus, title: "CollectionA", properties: [onlyA, sharedA], index: index)
+        let collectionB = try makePageCollection(
+            nexus: nexus, title: "CollectionB", properties: [sharedB], index: index)
+        let collA = try makePageCollection(nexus: nexus, title: "CollA", in: collectionA, index: index)
+        let collB = try makePageCollection(nexus: nexus, title: "CollB", in: collectionB, index: index)
         let set = try makePageSet(title: "Drafts", in: collA, index: index)
 
         // Two Pages carry the doomed value (one alongside the keeper); a
@@ -159,14 +159,14 @@ struct PageSetMoveTests {
         contentManager.indexUpdater = updater
         let setManager = PageSetManager(nexus: nexus)
         setManager.indexUpdater = updater
-        await setManager.loadAll(types: [vaultA, vaultB])
+        await setManager.loadAll(types: [collectionA, collectionB])
 
         let loadedSet = try #require(setManager.pageSets(in: collA).first)
-        let total = try await setManager.moveStripTotal(for: loadedSet, from: vaultA, to: vaultB)
+        let total = try await setManager.moveStripTotal(for: loadedSet, from: collectionA, to: collectionB)
         #expect(total == 2)
 
         try await setManager.moveSet(
-            loadedSet, to: collB, destinationPageCollection: vaultB, sourcePageCollection: vaultA,
+            loadedSet, to: collB, destinationPageCollection: collectionB, sourcePageCollection: collectionA,
             contentManager: contentManager)
 
         // Stripped on disk; the name-shared value survived.
@@ -178,31 +178,31 @@ struct PageSetMoveTests {
         #expect(two.frontmatter.properties["prop_only_a"] == nil)
 
         // Hoist ids before the dbQueue closure (@Sendable).
-        let vaultBID = vaultB.id
+        let collectionBID = collectionB.id
         let collBID = collB.id
         let setID = set.id
         let movedPageID = strippedPageID
 
-        // Page rows re-indexed under the destination Vault/Collection/Set.
+        // Page rows re-indexed under the destination Collection/Collection/Set.
         let row = try await index.dbQueue.read { db in
             try Row.fetchOne(db, sql: "SELECT * FROM pages WHERE id = ?", arguments: [movedPageID])
         }
-        #expect(row?["page_collection_id"] as String? == vaultBID)
+        #expect(row?["page_collection_id"] as String? == collectionBID)
         #expect(row?["page_set_id"] as String? == setID)
     }
 
     @Test("Cross-vault moveSet with no schema gap reports zero and moves byte-identical")
-    func crossVaultZeroStripMovesClean() async throws {
+    func crossCollectionZeroStripMovesClean() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
 
-        // Same property NAME on both vaults — nothing to strip.
+        // Same property NAME on both collections — nothing to strip.
         let propA = PropertyDefinition(id: "prop_a", name: "Priority", type: .select)
         let propB = PropertyDefinition(id: "prop_b", name: "Priority", type: .select)
-        let vaultA = try makePageCollection(nexus: nexus, title: "VaultA", properties: [propA])
-        let vaultB = try makePageCollection(nexus: nexus, title: "VaultB", properties: [propB])
-        let collA = try makePageCollection(nexus: nexus, title: "CollA", in: vaultA)
-        let collB = try makePageCollection(nexus: nexus, title: "CollB", in: vaultB)
+        let collectionA = try makePageCollection(nexus: nexus, title: "CollectionA", properties: [propA])
+        let collectionB = try makePageCollection(nexus: nexus, title: "CollectionB", properties: [propB])
+        let collA = try makePageCollection(nexus: nexus, title: "CollA", in: collectionA)
+        let collB = try makePageCollection(nexus: nexus, title: "CollB", in: collectionB)
         let set = try makePageSet(title: "Drafts", in: collA)
         _ = try writePage(
             titled: "Doc", in: set.folderURL, properties: ["prop_a": .select("high")])
@@ -211,14 +211,14 @@ struct PageSetMoveTests {
 
         let contentManager = PageContentManager(nexus: nexus, contextProvider: { NexusContext.empty })
         let setManager = PageSetManager(nexus: nexus)
-        await setManager.loadAll(types: [vaultA, vaultB])
+        await setManager.loadAll(types: [collectionA, collectionB])
 
         let loadedSet = try #require(setManager.pageSets(in: collA).first)
-        let total = try await setManager.moveStripTotal(for: loadedSet, from: vaultA, to: vaultB)
+        let total = try await setManager.moveStripTotal(for: loadedSet, from: collectionA, to: collectionB)
         #expect(total == 0)
 
         try await setManager.moveSet(
-            loadedSet, to: collB, destinationPageCollection: vaultB, sourcePageCollection: vaultA,
+            loadedSet, to: collB, destinationPageCollection: collectionB, sourcePageCollection: collectionA,
             contentManager: contentManager)
 
         let newFolder = collB.folderURL.appendingPathComponent("Drafts", isDirectory: true)
@@ -237,15 +237,15 @@ struct PageSetMoveTests {
         properties: [PropertyDefinition] = [],
         index: PommoraIndex? = nil
     ) throws -> PageCollection {
-        let vault = PageCollection(
+        let collection = PageCollection(
             id: ULID.generate(), title: title, icon: nil,
             properties: properties, views: [], modifiedAt: Date()
         )
-        let folderURL = NexusPaths.vaultFolderURL(forTitle: title, in: nexus)
+        let folderURL = NexusPaths.collectionFolderURL(forTitle: title, in: nexus)
         try FileManager.default.createDirectory(at: folderURL, withIntermediateDirectories: true)
-        try vault.save(to: NexusPaths.vaultMetadataURL(forTitle: title, in: nexus))
-        if let index { try IndexUpdater(index).upsertPageCollection(vault) }
-        return vault
+        try collection.save(to: NexusPaths.collectionMetadataURL(forTitle: title, in: nexus))
+        if let index { try IndexUpdater(index).upsertPageCollection(collection) }
+        return collection
     }
 
     @discardableResult
@@ -255,8 +255,8 @@ struct PageSetMoveTests {
         in pageCollection: PageCollection,
         index: PommoraIndex? = nil
     ) throws -> PageSet {
-        let folderURL = NexusPaths.collectionFolderURL(
-            forTitle: title, inVaultTitled: pageCollection.title, in: nexus
+        let folderURL = NexusPaths.setFolderURL(
+            forTitle: title, inCollectionTitled: pageCollection.title, in: nexus
         )
         try FileManager.default.createDirectory(at: folderURL, withIntermediateDirectories: true)
         let coll = PageSet(

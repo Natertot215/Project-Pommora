@@ -10,11 +10,11 @@ enum ViewItemScope {
 
 /// Builds the `[ViewItem]` currency the custom table + gallery consume, reading
 /// the `@Observable` page caches (already `OrderResolver`-resolved = manual
-/// order) and stamping each page's structural `PageParent` + vault-scope
+/// order) and stamping each page's structural `PageParent` + collection-scope
 /// `setLabel`. Pure of grouping/filtering/sorting (downstream pipeline) — its
 /// only job is fetch + parent stamping.
 ///
-/// Vault scope: type-root pages + every collection's loose pages + every set's
+/// Collection scope: type-root pages + every collection's loose pages + every set's
 /// pages. Collection scope: that collection's root pages + every set's pages.
 @MainActor
 enum ViewItemSource {
@@ -26,15 +26,15 @@ enum ViewItemSource {
     ) -> [ViewItem] {
         switch scope {
         case .pageCollection(let pageCollection):
-            return vaultItems(pageCollection, content: content, sets: sets, collections: collections)
+            return collectionItems(pageCollection, content: content, sets: sets, collections: collections)
         case .collection(let collection, let pageCollection):
             return collectionItems(collection, pageCollection: pageCollection, content: content, sets: sets)
         }
     }
 
-    // MARK: - Vault scope
+    // MARK: - Collection scope
 
-    private static func vaultItems(
+    private static func collectionItems(
         _ pageCollection: PageCollection,
         content: PageContentManager,
         sets: PageSetManager,

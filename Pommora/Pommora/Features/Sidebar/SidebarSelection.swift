@@ -102,7 +102,7 @@ extension SidebarSelection {
         for pages in cm.pagesBySet.values {
             if let page = pages.first(where: { $0.id == id }) { return .page(page) }
         }
-        for pages in cm.pagesByTypeRoot.values {
+        for pages in cm.pagesByCollectionRoot.values {
             if let page = pages.first(where: { $0.id == id }) { return .page(page) }
         }
         return nil

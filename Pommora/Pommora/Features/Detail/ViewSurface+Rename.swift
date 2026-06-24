@@ -39,7 +39,7 @@ extension ViewSurface {
                     try await renameContainer(ref, to: newName)
                 case .page(let item):
                     // Route purely off the stamped parent — uniform across scopes.
-                    // `.vaultRoot` can't occur in collection scope but is harmless.
+                    // `.collectionRoot` can't occur in collection scope but is harmless.
                     switch item.parent {
                     case .collection(let coll, let t):
                         try await contentManager.renamePage(item.page, to: newName, in: coll, pageCollection: t)

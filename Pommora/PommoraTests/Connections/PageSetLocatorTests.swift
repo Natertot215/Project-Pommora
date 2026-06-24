@@ -4,8 +4,8 @@ import Testing
 @testable import Pommora
 
 /// ConnectionFileLocator resolves a Page's `.md` URL through the Set layer:
-/// a Set page's folder folds Type/Collection/Set via `NexusPaths.pageSetFolderURL`,
-/// while Collection-root and Vault-root pages keep their existing derivations.
+/// a Set page's folder folds the Collection/Set nesting on disk, while
+/// depth-1 Set-root and Collection-root pages keep their existing derivations.
 /// Fixture mirrors `PageSetIndexTests` — Set folder + sidecar laid down directly
 /// on disk (no manager CRUD surface for Sets), then indexed via IndexBuilder.
 @Suite("PageSetLocator")
@@ -14,20 +14,20 @@ struct PageSetLocatorTests {
 
     // MARK: - Fixture
 
-    /// Builds a nexus with Vault "Notes" + Collection "Inbox" + Set "Drafts",
-    /// holding one Page at each level: in the Set, at the Collection root,
-    /// and at the Vault root.
+    /// Builds a nexus with Collection "Notes" + depth-1 Set "Inbox" + Set "Drafts",
+    /// holding one Page at each level: in the Set, at the depth-1 Set root,
+    /// and at the Collection root.
     private func setup() async throws -> (
         nexus: Nexus, idx: PommoraIndex,
         setPage: (id: String, url: URL),
-        collectionPage: (id: String, url: URL),
-        vaultPage: (id: String, url: URL)
+        depthOneSetPage: (id: String, url: URL),
+        collectionRootPage: (id: String, url: URL)
     ) {
         let nexus = try TempNexus.make()
 
         let collectionManager = PageCollectionManager(nexus: nexus)
         let setManager = PageSetManager(nexus: nexus)
-        setManager.pageTypeProvider = { [weak collectionManager] in collectionManager?.types ?? [] }
+        setManager.pageCollectionProvider = { [weak collectionManager] in collectionManager?.types ?? [] }
         collectionManager.pageSetManager = setManager
         await collectionManager.loadAll()
         try await collectionManager.createPageCollection(name: "Notes", icon: nil)
@@ -56,13 +56,13 @@ struct PageSetLocatorTests {
             return (fm.id, url)
         }
         let setPage = try writePage(titled: "Set Page", in: setFolder)
-        let collectionPage = try writePage(titled: "Coll Page", in: coll.folderURL)
-        let vaultPage = try writePage(
-            titled: "Root Page", in: NexusPaths.vaultFolderURL(forTitle: "Notes", in: nexus))
+        let depthOneSetPage = try writePage(titled: "Coll Page", in: coll.folderURL)
+        let collectionRootPage = try writePage(
+            titled: "Root Page", in: NexusPaths.collectionFolderURL(forTitle: "Notes", in: nexus))
 
         let (idx, _) = try PommoraIndex.open(at: nexus.rootURL)
         try await IndexBuilder.populate(index: idx, from: nexus)
-        return (nexus, idx, setPage, collectionPage, vaultPage)
+        return (nexus, idx, setPage, depthOneSetPage, collectionRootPage)
     }
 
     private func locate(id: String, idx: PommoraIndex, nexus: Nexus) async throws -> URL? {
@@ -83,22 +83,22 @@ struct PageSetLocatorTests {
 
     // MARK: - Test 2: regression — a Collection-root page still locates
 
+    @Test func locatesDepthOneSetPage() async throws {
+        let fx = try await setup()
+        defer { TempNexus.cleanup(fx.nexus) }
+
+        let located = try await locate(id: fx.depthOneSetPage.id, idx: fx.idx, nexus: fx.nexus)
+        #expect(located?.standardizedFileURL.path == fx.depthOneSetPage.url.standardizedFileURL.path)
+    }
+
+    // MARK: - Test 3: regression — a Collection-root page still locates
+
     @Test func locatesCollectionRootPage() async throws {
         let fx = try await setup()
         defer { TempNexus.cleanup(fx.nexus) }
 
-        let located = try await locate(id: fx.collectionPage.id, idx: fx.idx, nexus: fx.nexus)
-        #expect(located?.standardizedFileURL.path == fx.collectionPage.url.standardizedFileURL.path)
-    }
-
-    // MARK: - Test 3: regression — a Vault-root page still locates
-
-    @Test func locatesVaultRootPage() async throws {
-        let fx = try await setup()
-        defer { TempNexus.cleanup(fx.nexus) }
-
-        let located = try await locate(id: fx.vaultPage.id, idx: fx.idx, nexus: fx.nexus)
-        #expect(located?.standardizedFileURL.path == fx.vaultPage.url.standardizedFileURL.path)
+        let located = try await locate(id: fx.collectionRootPage.id, idx: fx.idx, nexus: fx.nexus)
+        #expect(located?.standardizedFileURL.path == fx.collectionRootPage.url.standardizedFileURL.path)
     }
 
     // MARK: - Test 4: end-to-end — a wikilink to a Set page opens it

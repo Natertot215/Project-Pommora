@@ -28,14 +28,14 @@ struct ConnectionCascadeTests {
         let (index, _) = try PommoraIndex.open(at: nexus.rootURL)
         let updater = IndexUpdater(index)
 
-        let vault = try makeVault(in: nexus, index: index)
+        let collection = try makeCollection(in: nexus, index: index)
         let pageManager = PageContentManager(nexus: nexus, contextProvider: { NexusContext.empty })
         pageManager.indexUpdater = updater
 
         // Target page, plus a page source A that links [[Target]].
-        let target = try await pageManager.createPage(name: "Target", inCollectionRoot: vault)
-        let pageA = try await pageManager.createPage(name: "A", inCollectionRoot: vault)
-        try await pageManager.updatePage(pageA, body: "see [[Target]] here", inCollectionRoot: vault)
+        let target = try await pageManager.createPage(name: "Target", inCollectionRoot: collection)
+        let pageA = try await pageManager.createPage(name: "A", inCollectionRoot: collection)
+        try await pageManager.updatePage(pageA, body: "see [[Target]] here", inCollectionRoot: collection)
 
         // Sanity: A → Target resolved before the rename.
         let beforeA = try await IndexQuery(index).outgoingConnections(sourceID: pageA.id)
@@ -43,10 +43,10 @@ struct ConnectionCascadeTests {
         #expect(beforeA.first?.targetID == target.id)
 
         // Rename Target → Renamed.
-        try await pageManager.renamePage(target, to: "Renamed", inCollectionRoot: vault)
+        try await pageManager.renamePage(target, to: "Renamed", inCollectionRoot: collection)
 
         // (1) Page source A's .md now links [[Renamed]] and not [[Target]].
-        let aFolder = NexusPaths.pageTypeFolderURL(in: nexus.rootURL, typeFolderName: vault.title)
+        let aFolder = NexusPaths.collectionFolderURL(in: nexus.rootURL, collectionFolderName: collection.title)
         let aURL = NexusPaths.pageFileURL(forTitle: "A", in: aFolder)
         let aContent = try String(contentsOf: aURL, encoding: .utf8)
         #expect(aContent.contains("[[Renamed]]"))
@@ -85,15 +85,15 @@ struct ConnectionCascadeTests {
 
     // MARK: - Fixtures (mirror UnlinkTierTests)
 
-    private func makeVault(in nexus: Nexus, index: PommoraIndex) throws -> PageCollection {
-        let vault = PageCollection(
+    private func makeCollection(in nexus: Nexus, index: PommoraIndex) throws -> PageCollection {
+        let collection = PageCollection(
             id: ULID.generate(), title: "V", icon: nil,
             properties: [], views: [], modifiedAt: Date()
         )
-        let folder = NexusPaths.vaultFolderURL(forTitle: "V", in: nexus)
+        let folder = NexusPaths.collectionFolderURL(forTitle: "V", in: nexus)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        try vault.save(to: NexusPaths.vaultMetadataURL(forTitle: "V", in: nexus))
-        try IndexUpdater(index).upsertPageCollection(vault)
-        return vault
+        try collection.save(to: NexusPaths.collectionMetadataURL(forTitle: "V", in: nexus))
+        try IndexUpdater(index).upsertPageCollection(collection)
+        return collection
     }
 }

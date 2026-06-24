@@ -24,12 +24,12 @@ struct ContainerIDHealerTests {
         let collection: PageSet
     }
 
-    /// Vault "Notes" + Collection "Inbox" via CRUD; both managers loaded.
+    /// Collection "Notes" + Collection "Inbox" via CRUD; both managers loaded.
     private func makeFixture() async throws -> Fixture {
         let nexus = try TempNexus.make()
         let typeManager = PageCollectionManager(nexus: nexus)
         let setManager = PageSetManager(nexus: nexus)
-        setManager.pageTypeProvider = { [weak typeManager] in typeManager?.types ?? [] }
+        setManager.pageCollectionProvider = { [weak typeManager] in typeManager?.types ?? [] }
         typeManager.pageSetManager = setManager
         await typeManager.loadAll()
         try await typeManager.createPageCollection(name: "Notes", icon: nil)

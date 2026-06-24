@@ -3,7 +3,7 @@ import Testing
 
 @testable import Pommora
 
-/// `excludedFolders` (vault-relative folder-exclusion list) contract:
+/// `excludedFolders` (collection-relative folder-exclusion list) contract:
 /// - fresh nexus seeds an empty list at the current defaults version,
 /// - the field round-trips as a snake_case array in JSON,
 /// - legacy files lacking the key migrate to the current version with an

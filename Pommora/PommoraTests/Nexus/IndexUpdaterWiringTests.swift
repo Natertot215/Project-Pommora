@@ -34,7 +34,7 @@ struct IndexUpdaterWiringTests {
         defer { TempNexus.cleanup(nexus) }
 
         // Build the 4 managers exactly as constructManagers does.
-        let vaultMgr = PageCollectionManager(nexus: nexus)
+        let collectionMgr = PageCollectionManager(nexus: nexus)
         let agendaTaskMgr = AgendaTaskManager(nexus: nexus)
         let agendaEventMgr = AgendaEventManager(nexus: nexus)
 
@@ -43,18 +43,18 @@ struct IndexUpdaterWiringTests {
                 lookupArea: { _ in nil },
                 lookupTopic: { _ in nil },
                 lookupProject: { _ in nil },
-                lookupVault: { _ in nil }
+                lookupCollection: { _ in nil }
             )
         }
 
         // Replicate the Phase E.7.5 wiring block from constructManagers.
         let updater: IndexUpdater? = IndexUpdater(index)
-        vaultMgr.indexUpdater = updater
+        collectionMgr.indexUpdater = updater
         contentMgr.indexUpdater = updater
         agendaTaskMgr.indexUpdater = updater
         agendaEventMgr.indexUpdater = updater
 
-        #expect(vaultMgr.indexUpdater != nil)
+        #expect(collectionMgr.indexUpdater != nil)
         #expect(contentMgr.indexUpdater != nil)
         #expect(agendaTaskMgr.indexUpdater != nil)
         #expect(agendaEventMgr.indexUpdater != nil)
@@ -68,12 +68,12 @@ struct IndexUpdaterWiringTests {
         let (nexus, index) = try makeTempIndex()
         defer { TempNexus.cleanup(nexus) }
 
-        let vaultMgr = PageCollectionManager(nexus: nexus)
-        await vaultMgr.loadAll()
+        let collectionMgr = PageCollectionManager(nexus: nexus)
+        await collectionMgr.loadAll()
 
-        vaultMgr.indexUpdater = IndexUpdater(index)
+        collectionMgr.indexUpdater = IndexUpdater(index)
 
-        try await vaultMgr.createPageCollection(name: "Research", icon: nil)
+        try await collectionMgr.createPageCollection(name: "Research", icon: nil)
 
         let count = try await index.dbQueue.read { db in
             try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM page_collections WHERE title = ?", arguments: ["Research"]) ?? 0
@@ -91,7 +91,7 @@ struct IndexUpdaterWiringTests {
 
         // Build managers and apply nil updater — mirrors the .map path when
         // currentIndex is nil (Optional<PommoraIndex>.none.map { ... } = nil).
-        let vaultMgr = PageCollectionManager(nexus: nexus)
+        let collectionMgr = PageCollectionManager(nexus: nexus)
         let agendaTaskMgr = AgendaTaskManager(nexus: nexus)
         let agendaEventMgr = AgendaEventManager(nexus: nexus)
 
@@ -100,26 +100,26 @@ struct IndexUpdaterWiringTests {
                 lookupArea: { _ in nil },
                 lookupTopic: { _ in nil },
                 lookupProject: { _ in nil },
-                lookupVault: { _ in nil }
+                lookupCollection: { _ in nil }
             )
         }
 
         let updater: IndexUpdater? = nil  // simulates degraded mode
-        vaultMgr.indexUpdater = updater
+        collectionMgr.indexUpdater = updater
         contentMgr.indexUpdater = updater
         agendaTaskMgr.indexUpdater = updater
         agendaEventMgr.indexUpdater = updater
 
-        #expect(vaultMgr.indexUpdater == nil)
+        #expect(collectionMgr.indexUpdater == nil)
         #expect(contentMgr.indexUpdater == nil)
         #expect(agendaTaskMgr.indexUpdater == nil)
         #expect(agendaEventMgr.indexUpdater == nil)
 
         // A mutation with nil indexUpdater must not crash.
-        await vaultMgr.loadAll()
-        try await vaultMgr.createPageCollection(name: "Notes", icon: nil)
+        await collectionMgr.loadAll()
+        try await collectionMgr.createPageCollection(name: "Notes", icon: nil)
         // If we reach here without throwing, the degraded path is safe.
-        #expect(vaultMgr.types.count == 1)
+        #expect(collectionMgr.types.count == 1)
     }
 
     // MARK: - Test 4: deleteProperty removes the property_definitions row (PageCollectionManager)
@@ -132,13 +132,13 @@ struct IndexUpdaterWiringTests {
         let (nexus, index) = try makeTempIndex()
         defer { TempNexus.cleanup(nexus) }
 
-        let vaultMgr = PageCollectionManager(nexus: nexus)
-        await vaultMgr.loadAll()
-        vaultMgr.indexUpdater = IndexUpdater(index)
+        let collectionMgr = PageCollectionManager(nexus: nexus)
+        await collectionMgr.loadAll()
+        collectionMgr.indexUpdater = IndexUpdater(index)
 
-        // Create a PageCollection so we have a typeID to operate on.
-        try await vaultMgr.createPageCollection(name: "Journal", icon: nil)
-        guard let pageCollection = vaultMgr.types.first else {
+        // Create a PageCollection so we have a collectionID to operate on.
+        try await collectionMgr.createPageCollection(name: "Journal", icon: nil)
+        guard let pageCollection = collectionMgr.types.first else {
             Issue.record("Expected at least one page type after createPageCollection")
             return
         }
@@ -146,7 +146,7 @@ struct IndexUpdaterWiringTests {
         // Add a user property — this writes a property_definitions row via upsert.
         let propID = ReservedPropertyID.mintUserPropertyID()
         let def = PropertyDefinition(id: propID, name: "Priority", type: .number)
-        try await vaultMgr.addProperty(def, to: pageCollection.id)
+        try await collectionMgr.addProperty(def, to: pageCollection.id)
 
         // Confirm the row exists in the index before deletion.
         let countBefore = try await index.dbQueue.read { db in
@@ -159,7 +159,7 @@ struct IndexUpdaterWiringTests {
         #expect(countBefore == 1, "property_definitions row must exist after addProperty")
 
         // Delete the property — must call indexUpdater.deletePropertyDefinition(id:).
-        try await vaultMgr.deleteProperty(id: propID, in: pageCollection.id)
+        try await collectionMgr.deleteProperty(id: propID, in: pageCollection.id)
 
         // Assert the row is gone.
         let countAfter = try await index.dbQueue.read { db in
@@ -186,12 +186,12 @@ struct IndexUpdaterWiringTests {
         let (nexus, index) = try makeTempIndex()
         defer { TempNexus.cleanup(nexus) }
 
-        let vaultMgr = PageCollectionManager(nexus: nexus)
-        await vaultMgr.loadAll()
-        vaultMgr.indexUpdater = IndexUpdater(index)
+        let collectionMgr = PageCollectionManager(nexus: nexus)
+        await collectionMgr.loadAll()
+        collectionMgr.indexUpdater = IndexUpdater(index)
 
-        try await vaultMgr.createPageCollection(name: "Notes", icon: nil)
-        guard let pageCollection = vaultMgr.types.first else {
+        try await collectionMgr.createPageCollection(name: "Notes", icon: nil)
+        guard let pageCollection = collectionMgr.types.first else {
             Issue.record("Expected at least one page type after createPageCollection")
             return
         }
@@ -199,13 +199,13 @@ struct IndexUpdaterWiringTests {
         // Add two user properties — each addProperty call upserts a row with position.
         let propAID = ReservedPropertyID.mintUserPropertyID()
         let propBID = ReservedPropertyID.mintUserPropertyID()
-        try await vaultMgr.addProperty(
+        try await collectionMgr.addProperty(
             PropertyDefinition(id: propAID, name: "Alpha", type: .number), to: pageCollection.id)
-        try await vaultMgr.addProperty(
+        try await collectionMgr.addProperty(
             PropertyDefinition(id: propBID, name: "Beta", type: .number), to: pageCollection.id)
 
         // Reload the manager's in-memory type to get the true ordering and index.
-        guard let typeAfterAdd = vaultMgr.types.first(where: { $0.id == pageCollection.id }) else {
+        guard let typeAfterAdd = collectionMgr.types.first(where: { $0.id == pageCollection.id }) else {
             Issue.record("PageCollection missing after addProperty calls")
             return
         }
@@ -219,7 +219,7 @@ struct IndexUpdaterWiringTests {
         #expect(posABefore < posBBefore, "Alpha should precede Beta after sequential addProperty")
 
         // Move Beta before Alpha (toIndex = posABefore moves Beta to Alpha's slot).
-        try await vaultMgr.reorderProperty(id: propBID, in: pageCollection.id, toIndex: posABefore)
+        try await collectionMgr.reorderProperty(id: propBID, in: pageCollection.id, toIndex: posABefore)
 
         // Read positions from the index for both properties.
         let posAInIndex = try await index.dbQueue.read { db in

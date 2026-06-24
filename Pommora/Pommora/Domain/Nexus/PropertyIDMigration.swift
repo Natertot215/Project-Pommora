@@ -52,41 +52,41 @@ enum PropertyIDMigration {
 
     struct Plan: Sendable, Equatable {
         var nexusRoot: URL
-        /// Page Types that need migration (subset of `pageTypesScanned`).
-        var pageTypeMigrations: [TypeMigration]
+        /// Page Types that need migration (subset of `pageCollectionsScanned`).
+        var pageCollectionMigrations: [TypeMigration]
         /// TOTAL Page Type folders enumerated at the nexus root, including
         /// ones that turned out to need no migration. Surfaced into Report
         /// to preserve the legacy `runIfNeeded` semantic.
-        var pageTypesScanned: Int
+        var pageCollectionsScanned: Int
 
         var hasAnyMigration: Bool {
-            !pageTypeMigrations.isEmpty
+            !pageCollectionMigrations.isEmpty
         }
 
         var totalTypes: Int {
-            pageTypeMigrations.count
+            pageCollectionMigrations.count
         }
 
         var totalPropertiesToMint: Int {
-            pageTypeMigrations.reduce(0) { $0 + $1.propertiesToMint }
+            pageCollectionMigrations.reduce(0) { $0 + $1.propertiesToMint }
         }
 
         var totalMemberFileCandidates: Int {
-            pageTypeMigrations.reduce(0) { $0 + $1.memberFileCandidates }
+            pageCollectionMigrations.reduce(0) { $0 + $1.memberFileCandidates }
         }
 
         static func empty(at root: URL) -> Plan {
             Plan(
                 nexusRoot: root,
-                pageTypeMigrations: [],
-                pageTypesScanned: 0
+                pageCollectionMigrations: [],
+                pageCollectionsScanned: 0
             )
         }
     }
 
     struct TypeMigration: Sendable, Equatable {
         var typeFolderURL: URL
-        var typeTitle: String  // folder name; for preview display
+        var collectionTitle: String  // folder name; for preview display
         var sidecarURL: URL
 
         /// Count of properties whose `id` was empty and got freshly minted
@@ -111,7 +111,7 @@ enum PropertyIDMigration {
     // MARK: - Report (post-apply)
 
     struct Report: Sendable, Equatable {
-        var pageTypesScanned: Int
+        var pageCollectionsScanned: Int
         var typesMigrated: Int
         var propertiesMinted: Int
         var memberFilesRewritten: Int
@@ -121,7 +121,7 @@ enum PropertyIDMigration {
         var noOp: Bool { !didAnyWork && failedTypes.isEmpty }
 
         static let empty = Report(
-            pageTypesScanned: 0,
+            pageCollectionsScanned: 0,
             typesMigrated: 0, propertiesMinted: 0,
             memberFilesRewritten: 0, failedTypes: []
         )
@@ -136,27 +136,27 @@ enum PropertyIDMigration {
 
     /// Pure scan — computes a Plan covering every Type that needs migration.
     /// No disk writes; safe to call repeatedly. The Plan also carries the
-    /// `pageTypesScanned` total (including Types that didn't need migration)
+    /// `pageCollectionsScanned` total (including Types that didn't need migration)
     /// so the post-apply Report preserves the legacy "scanned" semantic.
     static func scan(at nexusRoot: URL) -> Plan {
-        var pageTypeMigrations: [TypeMigration] = []
-        var pageTypesScanned = 0
+        var pageCollectionMigrations: [TypeMigration] = []
+        var pageCollectionsScanned = 0
 
         for folder in Filesystem.rootTypeFolders(at: nexusRoot) {
             let pageSidecar = folder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename)
 
             if FileManager.default.fileExists(atPath: pageSidecar.path) {
-                pageTypesScanned += 1
+                pageCollectionsScanned += 1
                 if let m = scanPageCollection(at: folder, sidecarURL: pageSidecar) {
-                    pageTypeMigrations.append(m)
+                    pageCollectionMigrations.append(m)
                 }
             }
         }
 
         return Plan(
             nexusRoot: nexusRoot,
-            pageTypeMigrations: pageTypeMigrations,
-            pageTypesScanned: pageTypesScanned
+            pageCollectionMigrations: pageCollectionMigrations,
+            pageCollectionsScanned: pageCollectionsScanned
         )
     }
 
@@ -166,9 +166,9 @@ enum PropertyIDMigration {
     /// already had ID-keyed properties).
     static func apply(_ plan: Plan) -> Report {
         var report = Report.empty
-        report.pageTypesScanned = plan.pageTypesScanned
+        report.pageCollectionsScanned = plan.pageCollectionsScanned
 
-        for migration in plan.pageTypeMigrations {
+        for migration in plan.pageCollectionMigrations {
             applyPageCollection(migration, into: &report)
         }
         return report
@@ -197,7 +197,7 @@ enum PropertyIDMigration {
         let candidateCount = enumeratePageMembers(in: folder).count
         return TypeMigration(
             typeFolderURL: folder,
-            typeTitle: folder.lastPathComponent,
+            collectionTitle: folder.lastPathComponent,
             sidecarURL: sidecarURL,
             propertiesToMint: mintResult.minted,
             memberFileCandidates: candidateCount,

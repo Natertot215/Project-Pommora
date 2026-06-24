@@ -32,7 +32,7 @@ extension PageContentManager {
     }
 
     /// Nexus-wide per-kind uniqueness (Connections invariant). Index-backed so it
-    /// sees every vault, loaded or not. Container-scoped `enforceTitleUniqueness`
+    /// sees every collection, loaded or not. Container-scoped `enforceTitleUniqueness`
     /// still runs for the in-memory sibling fast-path; this is the authority.
     private func enforceNexusWideTitleUniqueness(_ title: String, excludingID: String?) async throws {
         guard let updater = indexUpdater else { return }  // index optional in some test harnesses
@@ -270,7 +270,7 @@ extension PageContentManager {
     // MARK: - Page CRUD (PageSet-scoped)
     //
     // Mirrors the PageSet-scoped methods above. A Set shares its
-    // Collection's vault schema, so `vault` drives validation and `collection`
+    // Collection's collection schema, so `collection` drives validation and `collection`
     // only scopes the index row; the index upsert carries `pageSetID`.
 
     @discardableResult
@@ -353,9 +353,9 @@ extension PageContentManager {
 
     func deletePage(_ page: PageMeta, inCollectionRoot pageCollection: PageCollection) async throws {
         try await deletePageCore(page) {
-            var arr = self.pagesByTypeRoot[pageCollection.id] ?? []
+            var arr = self.pagesByCollectionRoot[pageCollection.id] ?? []
             arr.removeAll { $0.id == page.id }
-            self.pagesByTypeRoot[pageCollection.id] = arr
+            self.pagesByCollectionRoot[pageCollection.id] = arr
         }
     }
 
@@ -396,7 +396,7 @@ extension PageContentManager {
     /// frontmatter preserved, atomic, in-memory cache mutated after success.
     func updatePage(_ page: PageMeta, body: String, inCollectionRoot pageCollection: PageCollection) async throws {
         do {
-            let existing = pagesByTypeRoot[pageCollection.id] ?? []
+            let existing = pagesByCollectionRoot[pageCollection.id] ?? []
             try PageValidator.validate(
                 title: page.title,
                 tier1: page.frontmatter.tier1, tier2: page.frontmatter.tier2,
@@ -426,7 +426,7 @@ extension PageContentManager {
             if let i = arr.firstIndex(where: { $0.id == page.id }) {
                 arr[i] = page
             }
-            pagesByTypeRoot[pageCollection.id] = arr
+            pagesByCollectionRoot[pageCollection.id] = arr
         } catch {
             self.pendingError = error
             throw error
@@ -435,7 +435,7 @@ extension PageContentManager {
 
     // MARK: - Move (same-Type, strip-free)
 
-    /// Moves `page` between any two locations inside the SAME PageCollection — vault
+    /// Moves `page` between any two locations inside the SAME PageCollection — collection
     /// root, PageSet root, or PageSet. No property strip — every
     /// location shares the Type's schema. The file is atomically rewritten at
     /// the destination (foreign frontmatter preserved by value); on failure
@@ -518,7 +518,7 @@ extension PageContentManager {
             page, from: .collection(source, pageCollection: pageCollection), to: .collection(destination, pageCollection: pageCollection))
     }
 
-    /// Moves `page` from anywhere in the vault (vault root, Collection root,
+    /// Moves `page` from anywhere in the collection (collection root, Collection root,
     /// or another Set) into `set`.
     func movePageToSet(
         _ page: PageMeta,
@@ -530,8 +530,8 @@ extension PageContentManager {
         try await movePage(page, from: source, to: .set(set, collection: collection, pageCollection: pageCollection))
     }
 
-    /// Moves `page` out of `set` to anywhere in the vault (Collection root or
-    /// vault root — or another Set, equivalent to `movePageToSet`).
+    /// Moves `page` out of `set` to anywhere in the collection (Collection root or
+    /// collection root — or another Set, equivalent to `movePageToSet`).
     func movePageOutOfSet(
         _ page: PageMeta,
         from set: PageSet,
@@ -557,7 +557,7 @@ extension PageContentManager {
         switch parent {
         case .collection(let coll, _): return pagesByCollection[coll.id] ?? []
         case .set(let set, _, _): return pagesBySet[set.id] ?? []
-        case .collectionRoot(let pc): return pagesByTypeRoot[pc.id] ?? []
+        case .collectionRoot(let pc): return pagesByCollectionRoot[pc.id] ?? []
         }
     }
 
@@ -565,7 +565,7 @@ extension PageContentManager {
         switch parent {
         case .collection(let coll, _): pagesByCollection[coll.id] = pages
         case .set(let set, _, _): pagesBySet[set.id] = pages
-        case .collectionRoot(let pc): pagesByTypeRoot[pc.id] = pages
+        case .collectionRoot(let pc): pagesByCollectionRoot[pc.id] = pages
         }
     }
 
@@ -657,9 +657,9 @@ extension PageContentManager {
                 arr.removeAll { $0.id == page.id }
                 pagesByCollection[srcColl.id] = arr
             } else {
-                var arr = pagesByTypeRoot[source.id] ?? []
+                var arr = pagesByCollectionRoot[source.id] ?? []
                 arr.removeAll { $0.id == page.id }
-                pagesByTypeRoot[source.id] = arr
+                pagesByCollectionRoot[source.id] = arr
             }
 
             if let dstColl = toCollection {
@@ -672,14 +672,14 @@ extension PageContentManager {
                 )
                 pagesByCollection[dstColl.id] = arr
             } else {
-                var arr = pagesByTypeRoot[destination.id] ?? []
+                var arr = pagesByCollectionRoot[destination.id] ?? []
                 arr.append(updated)
                 arr = OrderResolver.resolve(
                     arr,
                     persistedOrder: destination.pageOrder,
                     titleKeyPath: \PageMeta.title
                 )
-                pagesByTypeRoot[destination.id] = arr
+                pagesByCollectionRoot[destination.id] = arr
             }
         } catch {
             self.pendingError = error
@@ -809,11 +809,11 @@ extension PageContentManager {
                 pagesByCollection[collection.id] = arr
             }
         } else {
-            if var arr = pagesByTypeRoot[pageCollection.id],
+            if var arr = pagesByCollectionRoot[pageCollection.id],
                 let i = arr.firstIndex(where: { $0.id == updated.id })
             {
                 arr[i] = updated
-                pagesByTypeRoot[pageCollection.id] = arr
+                pagesByCollectionRoot[pageCollection.id] = arr
             }
         }
     }
@@ -888,7 +888,7 @@ extension PageContentManager {
                     do {
                         try updater.upsertPage(
                             updatedMeta,
-                            pageCollectionID: container.typeID,
+                            pageCollectionID: container.collectionID,
                             pageSetID: container.setID
                         )
                     } catch {
@@ -923,11 +923,11 @@ extension PageContentManager {
             } else if var arr = pagesByCollection[setID], let i = arr.firstIndex(where: { $0.id == updated.id }) {
                 arr[i] = updated; pagesByCollection[setID] = arr
             }
-        } else if var arr = pagesByTypeRoot[container.typeID],
+        } else if var arr = pagesByCollectionRoot[container.collectionID],
             let i = arr.firstIndex(where: { $0.id == updated.id })
         {
             arr[i] = updated
-            pagesByTypeRoot[container.typeID] = arr
+            pagesByCollectionRoot[container.collectionID] = arr
         }
     }
 }

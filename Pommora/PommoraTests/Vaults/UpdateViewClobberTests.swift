@@ -7,7 +7,7 @@ import Testing
 ///
 /// Drag-reorder persists `page_order` straight to the Collection sidecar via
 /// `OrderPersister.setPageOrder` (a disk read-modify-write). `PageCollectionManager`'s
-/// in-memory `pageCollectionsByType` cache keeps the STALE pre-reorder order.
+/// in-memory `depthOneSetsByCollection` cache keeps the STALE pre-reorder order.
 /// Before the fix, `updateView` saved that cached struct back to disk, clobbering
 /// the freshly-written `page_order`. The fix makes `updateView` load the sidecar
 /// FRESH from disk before transforming, so a concurrent reorder survives.
@@ -23,11 +23,11 @@ struct UpdateViewClobberTests {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
 
-        // Vault + Collection with one SavedView + two pages, all on disk.
+        // Collection + Collection with one SavedView + two pages, all on disk.
         let viewID = "view_\(ULID.generate())"
-        let vault = try makePageCollection(nexus: nexus, title: "Notes")
+        let collection = try makePageCollection(nexus: nexus, title: "Notes")
         let coll = try makePageSet(
-            nexus: nexus, title: "Inbox", in: vault,
+            nexus: nexus, title: "Inbox", in: collection,
             views: [SavedView(id: viewID)]
         )
         _ = try writePage(titled: "One", in: coll.folderURL)
@@ -39,11 +39,11 @@ struct UpdateViewClobberTests {
         #expect(initial.count == 2)
 
         // Set manager caches the Collection BEFORE the reorder, so its
-        // `pageCollectionsByType` entry holds the stale pre-reorder order — the
+        // `depthOneSetsByCollection` entry holds the stale pre-reorder order — the
         // exact production precondition for the clobber.
         let types = PageCollectionManager(nexus: nexus)
         let setManager = PageSetManager(nexus: nexus)
-        setManager.pageTypeProvider = { [weak types] in types?.types ?? [] }
+        setManager.pageCollectionProvider = { [weak types] in types?.types ?? [] }
         types.pageSetManager = setManager
         await types.loadAll()
         await setManager.loadAll(types: types.types)
@@ -69,14 +69,14 @@ struct UpdateViewClobberTests {
 
     @discardableResult
     private func makePageCollection(nexus: Nexus, title: String) throws -> PageCollection {
-        let vault = PageCollection(
+        let collection = PageCollection(
             id: ULID.generate(), title: title, icon: nil,
             properties: [], views: [], modifiedAt: Date()
         )
-        let folderURL = NexusPaths.vaultFolderURL(forTitle: title, in: nexus)
+        let folderURL = NexusPaths.collectionFolderURL(forTitle: title, in: nexus)
         try FileManager.default.createDirectory(at: folderURL, withIntermediateDirectories: true)
-        try vault.save(to: NexusPaths.vaultMetadataURL(forTitle: title, in: nexus))
-        return vault
+        try collection.save(to: NexusPaths.collectionMetadataURL(forTitle: title, in: nexus))
+        return collection
     }
 
     @discardableResult
@@ -86,8 +86,8 @@ struct UpdateViewClobberTests {
         in pageCollection: PageCollection,
         views: [SavedView]
     ) throws -> PageSet {
-        let folderURL = NexusPaths.collectionFolderURL(
-            forTitle: title, inVaultTitled: pageCollection.title, in: nexus
+        let folderURL = NexusPaths.setFolderURL(
+            forTitle: title, inCollectionTitled: pageCollection.title, in: nexus
         )
         try FileManager.default.createDirectory(at: folderURL, withIntermediateDirectories: true)
         var coll = PageSet(

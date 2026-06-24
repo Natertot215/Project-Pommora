@@ -43,7 +43,7 @@ final class CollectionSettingsViewModel {
     // MARK: - Private tracking
 
     /// The page-type ID these edits apply to.
-    let typeID: String
+    let collectionID: String
 
     /// The original snapshot — used to detect no-op Saves.
     private let originalProperties: [PropertyDefinition]
@@ -57,7 +57,7 @@ final class CollectionSettingsViewModel {
     // MARK: - Init
 
     init(pageCollection: PageCollection) {
-        self.typeID = pageCollection.id
+        self.collectionID = pageCollection.id
         self.draftProperties = pageCollection.properties
         self.originalProperties = pageCollection.properties
     }
@@ -165,19 +165,19 @@ final class CollectionSettingsViewModel {
         do {
             // 1. Deletes
             for propID in pendingDeletes {
-                try await manager.deleteProperty(id: propID, in: typeID)
+                try await manager.deleteProperty(id: propID, in: collectionID)
             }
             // 2. Renames
             for op in pendingRenames {
-                try await manager.renameProperty(id: op.id, in: typeID, to: op.name)
+                try await manager.renameProperty(id: op.id, in: collectionID, to: op.name)
             }
             // 3. Reorders — replay in index order
             for op in pendingReorders {
-                try await manager.reorderProperty(id: op.id, in: typeID, toIndex: op.toIndex)
+                try await manager.reorderProperty(id: op.id, in: collectionID, toIndex: op.toIndex)
             }
             // 4. Adds
             for def in pendingAdds {
-                try await manager.addProperty(def, to: typeID)
+                try await manager.addProperty(def, to: collectionID)
             }
 
             // Clear pending ops after successful save.
@@ -323,7 +323,7 @@ private struct CollectionSettingsPropertiesSection: View {
             } else {
                 VStack(spacing: 0) {
                     ForEach(vm.draftProperties) { def in
-                        VaultSettingsPropertyRow(
+                        CollectionSettingsPropertyRow(
                             definition: def,
                             isRenaming: vm.renamingID == def.id,
                             renameBuffer: vm.renamingID == def.id ? $vm.renameBuffer : .constant(""),
@@ -351,7 +351,7 @@ private struct CollectionSettingsPropertiesSection: View {
 
             // New-property inline config (shown after type is picked)
             if vm.pendingNewType != nil {
-                VaultSettingsNewPropertyConfig(vm: vm)
+                CollectionSettingsNewPropertyConfig(vm: vm)
             }
 
             // Type picker or Add button
@@ -389,9 +389,9 @@ private struct CollectionSettingsPropertiesSection: View {
     }
 }
 
-// MARK: - VaultSettingsPropertyRow
+// MARK: - CollectionSettingsPropertyRow
 
-private struct VaultSettingsPropertyRow: View {
+private struct CollectionSettingsPropertyRow: View {
     let definition: PropertyDefinition
     let isRenaming: Bool
     @Binding var renameBuffer: String
@@ -425,7 +425,7 @@ private struct VaultSettingsPropertyRow: View {
                     .font(.callout)
                 Spacer()
                 // Type badge
-                VaultPropertyTypeBadge(type: definition.type)
+                CollectionPropertyTypeBadge(type: definition.type)
             }
 
             // Row menu
@@ -449,9 +449,9 @@ private struct VaultSettingsPropertyRow: View {
     }
 }
 
-// MARK: - VaultPropertyTypeBadge
+// MARK: - CollectionPropertyTypeBadge
 
-private struct VaultPropertyTypeBadge: View {
+private struct CollectionPropertyTypeBadge: View {
     let type: PropertyType
 
     var body: some View {
@@ -466,11 +466,11 @@ private struct VaultPropertyTypeBadge: View {
     }
 }
 
-// MARK: - VaultSettingsNewPropertyConfig
+// MARK: - CollectionSettingsNewPropertyConfig
 
 /// Inline sub-view for configuring a new property before adding it.
 /// Shown after a property type is chosen in `PropertyTypePicker`.
-private struct VaultSettingsNewPropertyConfig: View {
+private struct CollectionSettingsNewPropertyConfig: View {
     @Bindable var vm: CollectionSettingsViewModel
 
     var body: some View {

@@ -35,7 +35,7 @@ struct ManagerCreateReturnContractTests {
         defer { TempNexus.cleanup(nexus) }
         let manager = PageCollectionManager(nexus: nexus)
         let setManager = PageSetManager(nexus: nexus)
-        setManager.pageTypeProvider = { [weak manager] in manager?.types ?? [] }
+        setManager.pageCollectionProvider = { [weak manager] in manager?.types ?? [] }
         manager.pageSetManager = setManager
         await manager.loadAll()
         let pt = try await manager.createPageCollection(name: "Planner", icon: nil)

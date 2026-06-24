@@ -40,22 +40,22 @@ struct NexusManagerPageLaunchTests {
         return (nexus.rootURL, nexus)
     }
 
-    /// A Finder-built vault: a bare folder (no sidecar) holding one
+    /// A Finder-built collection: a bare folder (no sidecar) holding one
     /// frontmatter-less `.md` page. Never touched by CRUD.
-    private func makeFinderVault(
+    private func makeFinderCollection(
         in root: URL, folder: String, page: String
     ) throws -> URL {
-        let vault = root.appendingPathComponent(folder, isDirectory: true)
-        try FileManager.default.createDirectory(at: vault, withIntermediateDirectories: true)
-        try FixtureFiles.write("# \(page)\n", to: vault.appendingPathComponent("\(page).md"))
-        return vault
+        let collection = root.appendingPathComponent(folder, isDirectory: true)
+        try FileManager.default.createDirectory(at: collection, withIntermediateDirectories: true)
+        try FixtureFiles.write("# \(page)\n", to: collection.appendingPathComponent("\(page).md"))
+        return collection
     }
 
     /// Drives the post-bookmark launch tail exactly as `runLaunchMigrations` +
     /// `openIndex` do, awaiting the adoption-preview continuation when a
     /// preview is expected. `expectsPreview` is computed by the caller from the
     /// same scan rules `runAdoptionIfNeeded` uses (fresh sidecars never trip
-    /// the gate; legacy `_vault.json` renames do), so the resolve is
+    /// the gate; legacy `_collection.json` renames do), so the resolve is
     /// deterministic — no racy poll-or-not.
     private func runLaunchTail(
         _ manager: NexusManager, at root: URL, nexus: Nexus,
@@ -86,14 +86,14 @@ struct NexusManagerPageLaunchTests {
         }
     }
 
-    // MARK: - Finder-built vault + page indexed on launch open
+    // MARK: - Finder-built collection + page indexed on launch open
 
     @Test("a page dropped into a Finder-built vault (never CRUD-created) is indexed on launch open")
     func finderDroppedPageIndexedOnLaunchOpen() async throws {
         let (root, nexus) = try makeInitializedNexusRoot()
         defer { try? FileManager.default.removeItem(at: root) }
 
-        let vault = try makeFinderVault(in: root, folder: "Notes", page: "Dropped")
+        let collection = try makeFinderCollection(in: root, folder: "Notes", page: "Dropped")
 
         let manager = NexusManager()
         // A sidecar-less fresh folder is excluded from `hasAnythingToAdopt` —
@@ -101,10 +101,10 @@ struct NexusManagerPageLaunchTests {
         await runLaunchTail(
             manager, at: root, nexus: nexus, confirm: true, expectsPreview: false)
 
-        // autoTag stamped the Finder folder as a vault...
+        // autoTag stamped the Finder folder as a collection...
         #expect(
             FileManager.default.fileExists(
-                atPath: vault.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename).path))
+                atPath: collection.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename).path))
         // ...and the frontmatter-less page is in the index on THIS launch
         // (`IndexBuilder` reads members via `PageFile.loadLenient`).
         #expect(try await pageCount(manager, title: "Dropped") == 1)
@@ -117,7 +117,7 @@ struct NexusManagerPageLaunchTests {
         let (root, nexus) = try makeInitializedNexusRoot()
         defer { try? FileManager.default.removeItem(at: root) }
 
-        // A legacy `_vault.json` folder forces the adoption preview (an
+        // A legacy `_collection.json` folder forces the adoption preview (an
         // `inPlaceRename` trips `hasAnythingToAdopt`), giving the test a real
         // consent gate to DECLINE. Independently, a Finder-built folder holds
         // the page the silent tail must still pick up.
@@ -126,7 +126,7 @@ struct NexusManagerPageLaunchTests {
         try FixtureFiles.writeJSON(
             #"{"id":"01HLEGACYVAULT","title":"Legacy","modified_at":"2026-05-01T00:00:00Z"}"#,
             to: legacy.appendingPathComponent("_vault.json"))
-        let vault = try makeFinderVault(in: root, folder: "Inbox", page: "Dropped")
+        let collection = try makeFinderCollection(in: root, folder: "Inbox", page: "Dropped")
 
         let manager = NexusManager()
         await runLaunchTail(
@@ -136,7 +136,7 @@ struct NexusManagerPageLaunchTests {
         // and `openIndex` run unconditionally after it.
         #expect(
             FileManager.default.fileExists(
-                atPath: vault.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename).path))
+                atPath: collection.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename).path))
         #expect(try await pageCount(manager, title: "Dropped") == 1)
     }
 }

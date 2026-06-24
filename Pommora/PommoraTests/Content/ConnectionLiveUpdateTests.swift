@@ -26,34 +26,34 @@ struct ConnectionLiveUpdateTests {
         let nexus = try TempNexus.make()
         let (index, _) = try PommoraIndex.open(at: nexus.rootURL)
 
-        let vault = PageCollection(
+        let collection = PageCollection(
             id: ULID.generate(), title: "V", icon: nil,
             properties: [], views: [], modifiedAt: Date()
         )
-        let vaultFolder = NexusPaths.vaultFolderURL(forTitle: "V", in: nexus)
-        try FileManager.default.createDirectory(at: vaultFolder, withIntermediateDirectories: true)
-        try vault.save(to: NexusPaths.vaultMetadataURL(forTitle: "V", in: nexus))
+        let collectionFolder = NexusPaths.collectionFolderURL(forTitle: "V", in: nexus)
+        try FileManager.default.createDirectory(at: collectionFolder, withIntermediateDirectories: true)
+        try collection.save(to: NexusPaths.collectionMetadataURL(forTitle: "V", in: nexus))
 
-        let collFolder = NexusPaths.collectionFolderURL(forTitle: "C", inVaultTitled: "V", in: nexus)
+        let collFolder = NexusPaths.setFolderURL(forTitle: "C", inCollectionTitled: "V", in: nexus)
         try FileManager.default.createDirectory(at: collFolder, withIntermediateDirectories: true)
         let coll = PageSet(
             id: ULID.generate(),
-            parentID: vault.id,
+            parentID: collection.id,
             title: "C",
             folderURL: collFolder,
             modifiedAt: Date()
         )
 
-        // Seed the index with the vault + collection so FK constraints pass
+        // Seed the index with the collection + collection so FK constraints pass
         // when the manager calls upsertPage.
         let updater = IndexUpdater(index)
-        try updater.upsertPageCollection(vault)
+        try updater.upsertPageCollection(collection)
         try updater.upsertPageCollection(coll)
 
         let manager = PageContentManager(nexus: nexus, contextProvider: { NexusContext.empty })
         manager.indexUpdater = updater
 
-        return (nexus, vault, coll, manager, index)
+        return (nexus, collection, coll, manager, index)
     }
 
     // MARK: - Test 1: live resolve on body edit
@@ -62,15 +62,15 @@ struct ConnectionLiveUpdateTests {
     /// no rebuild required.
     @Test("reconcileConnections fires on updatePage")
     func liveResolveOnBodyEdit() async throws {
-        let (nexus, vault, coll, manager, index) = try await setup()
+        let (nexus, collection, coll, manager, index) = try await setup()
         defer { TempNexus.cleanup(nexus) }
 
         // Create Target and page A.
-        let target = try await manager.createPage(name: "Target", in: coll, pageCollection: vault)
-        let pageA = try await manager.createPage(name: "A", in: coll, pageCollection: vault)
+        let target = try await manager.createPage(name: "Target", in: coll, pageCollection: collection)
+        let pageA = try await manager.createPage(name: "A", in: coll, pageCollection: collection)
 
         // Write a body into A that links [[Target]].
-        try await manager.updatePage(pageA, body: "[[Target]]", in: coll, pageCollection: vault)
+        try await manager.updatePage(pageA, body: "[[Target]]", in: coll, pageCollection: collection)
 
         // The connection edge from A → Target must be resolved immediately.
         let aID = pageA.id
@@ -89,12 +89,12 @@ struct ConnectionLiveUpdateTests {
     /// createPage — no rebuild required.
     @Test("activateConnections fires on createPage")
     func activateOnCreate() async throws {
-        let (nexus, vault, coll, manager, index) = try await setup()
+        let (nexus, collection, coll, manager, index) = try await setup()
         defer { TempNexus.cleanup(nexus) }
 
         // Create page C and give it a body with a pending phantom link.
-        let pageC = try await manager.createPage(name: "C", in: coll, pageCollection: vault)
-        try await manager.updatePage(pageC, body: "[[Pending]]", in: coll, pageCollection: vault)
+        let pageC = try await manager.createPage(name: "C", in: coll, pageCollection: collection)
+        try await manager.updatePage(pageC, body: "[[Pending]]", in: coll, pageCollection: collection)
 
         // Verify the edge is phantom before the target exists.
         let cID = pageC.id
@@ -104,7 +104,7 @@ struct ConnectionLiveUpdateTests {
         #expect(beforeCreate[0].targetID == nil)
 
         // Create the target — activateConnections should flip the phantom to resolved.
-        let pending = try await manager.createPage(name: "Pending", in: coll, pageCollection: vault)
+        let pending = try await manager.createPage(name: "Pending", in: coll, pageCollection: collection)
 
         let afterCreate = try await IndexQuery(index).outgoingConnections(sourceID: cID)
         #expect(afterCreate.count == 1)
@@ -118,13 +118,13 @@ struct ConnectionLiveUpdateTests {
     /// Deleting a resolved target turns its inbound edge back to phantom.
     @Test("deactivateConnections fires on deletePage")
     func deactivateOnDelete() async throws {
-        let (nexus, vault, coll, manager, index) = try await setup()
+        let (nexus, collection, coll, manager, index) = try await setup()
         defer { TempNexus.cleanup(nexus) }
 
         // Create Target and A → Target resolved edge.
-        let target = try await manager.createPage(name: "Target", in: coll, pageCollection: vault)
-        let pageA = try await manager.createPage(name: "A", in: coll, pageCollection: vault)
-        try await manager.updatePage(pageA, body: "[[Target]]", in: coll, pageCollection: vault)
+        let target = try await manager.createPage(name: "Target", in: coll, pageCollection: collection)
+        let pageA = try await manager.createPage(name: "A", in: coll, pageCollection: collection)
+        try await manager.updatePage(pageA, body: "[[Target]]", in: coll, pageCollection: collection)
 
         let aID = pageA.id
         let before = try await IndexQuery(index).outgoingConnections(sourceID: aID)

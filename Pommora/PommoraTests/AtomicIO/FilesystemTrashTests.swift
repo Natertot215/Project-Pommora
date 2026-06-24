@@ -25,14 +25,14 @@ struct FilesystemTrashTests {
     func movesFolder() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
-        let vault = nexus.rootURL.appendingPathComponent("Materials")
-        try FileManager.default.createDirectory(at: vault, withIntermediateDirectories: true)
-        let nested = vault.appendingPathComponent("Notes.md")
+        let collection = nexus.rootURL.appendingPathComponent("Materials")
+        try FileManager.default.createDirectory(at: collection, withIntermediateDirectories: true)
+        let nested = collection.appendingPathComponent("Notes.md")
         try "data".write(to: nested, atomically: true, encoding: .utf8)
 
-        let dest = try Filesystem.moveToTrash(vault, in: nexus)
+        let dest = try Filesystem.moveToTrash(collection, in: nexus)
 
-        #expect(!FileManager.default.fileExists(atPath: vault.path))
+        #expect(!FileManager.default.fileExists(atPath: collection.path))
         #expect(FileManager.default.fileExists(atPath: dest.path))
         #expect(dest.path.contains("/.trash/Materials"))
         let restoredNote = dest.appendingPathComponent("Notes.md")

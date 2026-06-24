@@ -88,7 +88,7 @@ enum GroupResolver {
 
     /// VAULT scope: group by Collection; that Collection's Sets nest as `children`.
     /// Pages not in any Set sit in the Collection group's own `items`. Pages at the
-    /// vault root (no Collection) collect in a trailing ungrouped band.
+    /// collection root (no Collection) collect in a trailing ungrouped band.
     private static func structuralPageCollection(
         _ items: [ViewItem],
         sorter: ViewSortComparator.GroupSorter?,

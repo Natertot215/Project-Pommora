@@ -36,7 +36,7 @@ struct PageCollectionManagerSchemaCRUDTests {
         #expect(stored.name == "Priority")
         #expect(stored.id.hasPrefix("prop_"))
 
-        let meta = NexusPaths.vaultMetadataURL(forTitle: "Notes", in: nexus)
+        let meta = NexusPaths.collectionMetadataURL(forTitle: "Notes", in: nexus)
         let reloaded = try PageCollection.load(from: meta)
         #expect(reloaded.properties.count == 1)
         #expect(reloaded.properties[0].name == "Priority")
@@ -60,7 +60,7 @@ struct PageCollectionManagerSchemaCRUDTests {
         let storedPropID = manager.types.first { $0.id == pageCollection.id }!.properties[0].id
 
         // Write a fake Page file into the PageCollection folder referencing the property.
-        let pageTypeFolder = NexusPaths.vaultFolderURL(forTitle: "Notes", in: nexus)
+        let pageTypeFolder = NexusPaths.collectionFolderURL(forTitle: "Notes", in: nexus)
         let pageFile = pageTypeFolder.appendingPathComponent("Page1.md")
         let fm = PageFrontmatter(
             id: ULID.generate(), icon: nil,
@@ -80,7 +80,7 @@ struct PageCollectionManagerSchemaCRUDTests {
 
         let updatedType = manager.types.first { $0.id == pageCollection.id }!
         #expect(updatedType.properties[0].name == "Rating")
-        let meta = NexusPaths.vaultMetadataURL(forTitle: "Notes", in: nexus)
+        let meta = NexusPaths.collectionMetadataURL(forTitle: "Notes", in: nexus)
         let reloaded = try PageCollection.load(from: meta)
         #expect(reloaded.properties[0].name == "Rating")
     }
@@ -127,7 +127,7 @@ struct PageCollectionManagerSchemaCRUDTests {
         let storedPropID = manager.types.first { $0.id == pageCollection.id }!.properties[0].id
 
         // Write a fake Page file with a numeric value for the property.
-        let pageTypeFolder = NexusPaths.vaultFolderURL(forTitle: "Tracker", in: nexus)
+        let pageTypeFolder = NexusPaths.collectionFolderURL(forTitle: "Tracker", in: nexus)
         let pageFile = pageTypeFolder.appendingPathComponent("Entry1.md")
         let fm = PageFrontmatter(
             id: ULID.generate(), icon: nil,

@@ -15,7 +15,7 @@ import Foundation
 /// global default (closed). App-level rather than per-nexus to keep the shape
 /// flat — same nexus opened on two machines is fine to diverge inspector state.
 ///
-/// Vault-portable per-nexus state (open tabs, sidebar collapsed state)
+/// Collection-portable per-nexus state (open tabs, sidebar collapsed state)
 /// would live separately at `<nexus>/.nexus/state.json` if we needed it;
 /// no per-nexus state file exists yet — extend this type for v0.2 needs.
 struct AppState: Codable, Equatable {

@@ -22,7 +22,7 @@ struct CollectionIconTests {
     @Test func pageCollectionIconRoundTripsThroughSidecar() throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
-        let folder = NexusPaths.vaultFolderURL(forTitle: "Notes", in: nexus)
+        let folder = NexusPaths.collectionFolderURL(forTitle: "Notes", in: nexus)
             .appendingPathComponent("Daily", isDirectory: true)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         let url = folder.appendingPathComponent(NexusPaths.pageSetSidecarFilename)

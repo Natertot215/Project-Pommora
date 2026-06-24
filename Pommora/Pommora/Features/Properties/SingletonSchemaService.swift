@@ -49,7 +49,7 @@ protocol SingletonSchemaAdapter: AnyObject {
     /// the singleton folder, staging the rewrites into `tx`. The load / strip /
     /// re-encode lives inside this method, wrapped in `MemberFileStrip.forEach` so
     /// an unreadable member never aborts the mutation (singletons have one schema,
-    /// so no `typeID` is needed).
+    /// so no `collectionID` is needed).
     func stripPropertyFromMembers(_ propertyID: String, into tx: SchemaTransaction) throws
 
     // MARK: Guards / validation

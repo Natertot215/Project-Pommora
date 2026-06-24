@@ -4,7 +4,7 @@ import Foundation
 /// group, and render it. Pure value — no SwiftUI, no disk. Both renderers (custom
 /// table + gallery) consume `[ResolvedGroup]` built from these.
 ///
-/// `setLabel` is the vault-scope gallery chip: in vault scope a gallery flattens
+/// `setLabel` is the collection-scope gallery chip: in collection scope a gallery flattens
 /// every Collection/Set into ONE section, so each card carries the label of the
 /// Set it lives in (nil for pages sitting directly in a Collection).
 struct ViewItem: Identifiable, Equatable, Hashable, Sendable {

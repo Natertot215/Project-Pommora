@@ -92,10 +92,10 @@ struct PageSetRow: View {
                 Button("Edit Icon") { presentedSheet = .editIcon(.pageSet(set)) }
                 Divider()
                 Menu("Move to…") {
-                    ForEach(collectionManager.types) { vault in
-                        ForEach(collectionManager.pageCollections(in: vault)) { collection in
-                            Button("\(vault.title) › \(collection.title)") {
-                                moveTo(collection, pageCollection: vault)
+                    ForEach(collectionManager.types) { pageCollection in
+                        ForEach(collectionManager.pageCollections(in: pageCollection)) { collection in
+                            Button("\(pageCollection.title) › \(collection.title)") {
+                                moveTo(collection, pageCollection: pageCollection)
                             }
                             .disabled(isCurrentCollection(collection))
                         }
@@ -169,7 +169,7 @@ struct PageSetRow: View {
         }
     }
 
-    /// Whole-Set move. Same-vault targets move immediately; a cross-vault target
+    /// Whole-Set move. Same-collection targets move immediately; a cross-collection target
     /// first counts the property values the move would strip — non-zero routes
     /// through the confirmation dialog, zero proceeds directly.
     private func moveTo(_ collection: PageSet, pageCollection: PageCollection) {

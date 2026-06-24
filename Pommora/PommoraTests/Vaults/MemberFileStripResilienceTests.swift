@@ -43,8 +43,8 @@ struct MemberFileStripResilienceTests {
         let propID = manager.types.first { $0.title == "Notes" }!
             .properties.first { $0.type == .number }!.id
 
-        let vaultFolder = NexusPaths.vaultFolderURL(forTitle: "Notes", in: nexus)
-        let plainURL = vaultFolder.appendingPathComponent("Plain Note.md")
+        let collectionFolder = NexusPaths.collectionFolderURL(forTitle: "Notes", in: nexus)
+        let plainURL = collectionFolder.appendingPathComponent("Plain Note.md")
         try "Plain markdown, no frontmatter.\n"
             .write(to: plainURL, atomically: true, encoding: .utf8)
 

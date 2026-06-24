@@ -8,8 +8,8 @@ enum SidebarConfirmation: Identifiable {
     case deletePageCollection(PageCollection, collectionCount: Int)
     case deleteCollection(PageSet)
     case deleteSet(PageSet)
-    /// Cross-vault whole-Set move that would strip `stripCount` property
-    /// values not present in the destination Vault's schema.
+    /// Cross-collection whole-Set move that would strip `stripCount` property
+    /// values not present in the destination Collection's schema.
     case moveSet(
         PageSet, destination: PageSet, destinationPageCollection: PageCollection,
         sourcePageCollection: PageCollection, stripCount: Int)
@@ -19,7 +19,7 @@ enum SidebarConfirmation: Identifiable {
         case .deleteArea(let s): return "deleteArea-\(s.id)"
         case .deleteTopic(let t): return "deleteTopic-\(t.id)"
         case .deleteProject(let p): return "deleteProject-\(p.id)"
-        case .deletePageCollection(let v, _): return "deleteVault-\(v.id)"
+        case .deletePageCollection(let v, _): return "deleteCollection-\(v.id)"
         case .deleteCollection(let c): return "deleteCollection-\(c.id)"
         case .deleteSet(let s): return "deleteSet-\(s.id)"
         case .moveSet(let s, _, _, _, _): return "moveSet-\(s.id)"

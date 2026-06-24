@@ -13,7 +13,7 @@
 //      deliberately excluded from `hasAnythingToAdopt` — NO consent gate.
 //    - `autoTagMissingSidecars` silently writes `_pagetype.json` alongside.
 //    - The stale `_itemtype.json` is left INERT on disk (`cleanupLegacyOrphans`
-//      deletes only `_vault.json` / `_schema.json` / `_collection.json`).
+//      deletes only `_collection.json` / `_schema.json` / `_collection.json`).
 //    - The folder's `.md` members index as PAGES (parent-sidecar authority;
 //      the legacy `Class: item` stamp is non-authoritative).
 //

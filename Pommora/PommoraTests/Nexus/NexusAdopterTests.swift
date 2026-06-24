@@ -111,7 +111,7 @@ struct NexusAdopterTests {
     // MARK: - scan: legacy v0.2 (in-place rename)
 
     @Test("scan classifies folder with _vault.json as legacy-v0.2 in-place rename")
-    func scanLegacyVaultSidecar() throws {
+    func scanLegacyCollectionSidecar() throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
         let folder = nexus.rootURL.appendingPathComponent("Recipes", isDirectory: true)
@@ -470,9 +470,9 @@ struct NexusAdopterTests {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
 
-        // <nexus>/Pages/Archives/ with BOTH _vault.json + _schema.json (Nathan's
+        // <nexus>/Pages/Archives/ with BOTH _collection.json + _schema.json (Nathan's
         // real-disk scenario — paradigmV2 added _schema.json but didn't delete
-        // the pre-existing _vault.json).
+        // the pre-existing _collection.json).
         let pages = nexus.rootURL.appendingPathComponent("Pages", isDirectory: true)
         let archives = pages.appendingPathComponent("Archives", isDirectory: true)
         try FileManager.default.createDirectory(at: archives, withIntermediateDirectories: true)
@@ -619,7 +619,7 @@ struct NexusAdopterTests {
     func userNamedPagesFolderIsNotUnwrapped() throws {
         // A user folder coincidentally named "Pages" that carries only regular
         // .md content must NOT be destructively unwrapped. The structural guard
-        // checks for _schema.json / _vault.json / _collection.json in children;
+        // checks for _schema.json / _collection.json / _collection.json in children;
         // none present here → falls through to fresh PageCollection classification.
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
@@ -642,7 +642,7 @@ struct NexusAdopterTests {
         // A user folder named "Items" with regular .json content (no legacy
         // child sidecars) must NOT be unwrapped — the wrapper-unwrap decision
         // is gated solely on `folderHasWrapperShapedChildren` (presence of a
-        // legacy `_schema.json` / `_vault.json` / `_collection.json` in a child
+        // legacy `_schema.json` / `_collection.json` / `_collection.json` in a child
         // folder), which is absent here. The folder falls through to fresh
         // classification. Items-as-Markdown change: a sidecar-less folder now
         // adopts as a Page Type (the unwrap decision never consulted `.kind`).
@@ -760,8 +760,8 @@ struct NexusAdopterTests {
         #expect(result.failedCount == 0)
 
         // MyVault was moved to root.
-        let movedVault = nexus.rootURL.appendingPathComponent("MyVault", isDirectory: true)
-        #expect(FileManager.default.fileExists(atPath: movedVault.path))
+        let movedCollection = nexus.rootURL.appendingPathComponent("MyVault", isDirectory: true)
+        #expect(FileManager.default.fileExists(atPath: movedCollection.path))
 
         // Pages/ is NOT deleted — RandomEssay.md kept it non-empty.
         #expect(

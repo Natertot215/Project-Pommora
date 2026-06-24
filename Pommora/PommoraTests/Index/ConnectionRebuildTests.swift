@@ -14,13 +14,13 @@ struct ConnectionRebuildTests {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
 
-        // Seed a PageCollection "Notes" so the vault is discovered during the filesystem walk.
+        // Seed a PageCollection "Notes" so the collection is discovered during the filesystem walk.
         let collectionManager = PageCollectionManager(nexus: nexus)
         await collectionManager.loadAll()
         try await collectionManager.createPageCollection(name: "Notes", icon: nil)
 
-        // Vault folder for writing page files directly (mirrors RebuildResilienceTests fixture pattern).
-        let vaultFolder = NexusPaths.vaultFolderURL(forTitle: "Notes", in: nexus)
+        // Collection folder for writing page files directly (mirrors RebuildResilienceTests fixture pattern).
+        let collectionFolder = NexusPaths.collectionFolderURL(forTitle: "Notes", in: nexus)
 
         let now = Date()
 
@@ -34,7 +34,7 @@ struct ConnectionRebuildTests {
         )
         try AtomicYAMLMarkdown.write(
             frontmatter: otherFM, body: "",
-            to: NexusPaths.pageFileURL(forTitle: "Other", in: vaultFolder))
+            to: NexusPaths.pageFileURL(forTitle: "Other", in: collectionFolder))
 
         // "Source" page — body contains [[Other]], which should resolve to otherID.
         let sourceID = ULID.generate()
@@ -46,7 +46,7 @@ struct ConnectionRebuildTests {
         )
         try AtomicYAMLMarkdown.write(
             frontmatter: sourceFM, body: "[[Other]]",
-            to: NexusPaths.pageFileURL(forTitle: "Source", in: vaultFolder))
+            to: NexusPaths.pageFileURL(forTitle: "Source", in: collectionFolder))
 
         let (idx, _) = try PommoraIndex.open(at: nexus.rootURL)
         try await IndexBuilder.populate(index: idx, from: nexus)

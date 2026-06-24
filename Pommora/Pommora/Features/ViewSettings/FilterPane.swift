@@ -270,9 +270,9 @@ enum ViewSettingsProperties {
         manager: PageCollectionManager,
         tierConfig: TierConfig
     ) -> [PropertyDefinition] {
-        guard let typeID = parentTypeID(scope) else { return [] }
+        guard let collectionID = parentCollectionID(scope) else { return [] }
         let resolved =
-            manager.types.first(where: { $0.id == typeID })?
+            manager.types.first(where: { $0.id == collectionID })?
             .resolvedProperties(tierConfig: tierConfig) ?? []
         let recent = PropertyDefinition(
             id: ReservedPropertyID.modifiedAt, name: "Last edited", type: .lastEditedTime,
@@ -280,7 +280,7 @@ enum ViewSettingsProperties {
         return resolved + [recent]
     }
 
-    private static func parentTypeID(_ scope: ViewSettingsScope) -> String? { scope.schemaTypeID }
+    private static func parentCollectionID(_ scope: ViewSettingsScope) -> String? { scope.schemaCollectionID }
 }
 
 // MARK: - FilterRuleRow

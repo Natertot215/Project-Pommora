@@ -1,12 +1,12 @@
 import SwiftUI
 
-/// Where a page-tap routes, per the page's vault `open_in` mode.
+/// Where a page-tap routes, per the page's collection `open_in` mode.
 enum PageOpenDestination: Equatable {
-    /// `.window` vault (or unset) — render in the main detail pane.
+    /// `.window` collection (or unset) — render in the main detail pane.
     case detailPane
-    /// `.compact` vault — open (or focus) the page's PagePreview window.
+    /// `.compact` collection — open (or focus) the page's PagePreview window.
     case previewCard
-    /// `.compact` vault but the page is currently shown in the main detail
+    /// `.compact` collection but the page is currently shown in the main detail
     /// pane — the edit-conflict guard: a main-pane page never previews.
     case suppressed
 }
@@ -18,7 +18,7 @@ enum PageOpenDestination: Equatable {
 /// routing stays unit-testable); `.suppressed` is the edit-conflict no-op.
 @MainActor
 enum PageOpenRouter {
-    /// Pure routing per the vault's `open_in` mode, including the
+    /// Pure routing per the collection's `open_in` mode, including the
     /// edit-conflict guard. Static so it's unit-testable without
     /// bootstrapping the sidebar.
     static func destination(
@@ -71,7 +71,7 @@ enum PageOpenRouter {
     }
 
     /// Parent-resolving variant for call sites that only hold the page
-    /// (sidebar rows, vault-detail rows that mix root and collection pages).
+    /// (sidebar rows, collection-detail rows that mix root and collection pages).
     /// An unresolvable parent (page deleted mid-tap) falls back to the
     /// detail pane.
     @discardableResult

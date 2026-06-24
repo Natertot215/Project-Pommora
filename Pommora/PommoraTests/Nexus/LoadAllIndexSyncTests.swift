@@ -35,12 +35,12 @@ struct LoadAllIndexSyncTests {
         // Write a PageCollection sidecar directly to disk — bypassing
         // createPageCollection (which would upsert via CRUD). This mirrors the
         // post-adoption / external-folder state.
-        let vaultID = ULID.generate()
+        let collectionID = ULID.generate()
         let folderName = "Adopted Vault"
-        let folder = NexusPaths.vaultFolderURL(forTitle: folderName, in: nexus)
+        let folder = NexusPaths.collectionFolderURL(forTitle: folderName, in: nexus)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         let pc = PageCollection(
-            id: vaultID,
+            id: collectionID,
             title: folderName,
             icon: nil,
             properties: [],
@@ -61,13 +61,13 @@ struct LoadAllIndexSyncTests {
         manager.indexUpdater = IndexUpdater(index)
         await manager.loadAll()
 
-        // Post-loadAll: page_collections should now contain the vault.
+        // Post-loadAll: page_collections should now contain the collection.
         let postCount = try await index.dbQueue.read { db in
-            try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM page_collections WHERE id = ?", arguments: [vaultID]) ?? -1
+            try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM page_collections WHERE id = ?", arguments: [collectionID]) ?? -1
         }
         #expect(postCount == 1)
 
-        // And subsequent upsertPage with this vault.id must NOT throw a
+        // And subsequent upsertPage with this collection.id must NOT throw a
         // foreign-key violation — this is the original symptom.
         let pageMeta = PageMeta(
             id: ULID.generate(),
@@ -76,7 +76,7 @@ struct LoadAllIndexSyncTests {
             frontmatter: PageFrontmatter(id: ULID.generate(), icon: nil, tier1: [], tier2: [], tier3: [], properties: [:], createdAt: Date())
         )
         let updater = IndexUpdater(index)
-        try updater.upsertPage(pageMeta, pageCollectionID: vaultID)
+        try updater.upsertPage(pageMeta, pageCollectionID: collectionID)
 
         // Verify the page row landed. Hoist pageMeta.id to a local `let`
         // because the @MainActor-isolated suite's properties can't be
@@ -98,19 +98,19 @@ struct LoadAllIndexSyncTests {
         let (index, _) = try PommoraIndex.open(at: nexus.rootURL)
 
         // PageCollection folder + sidecar on disk.
-        let vaultID = ULID.generate()
-        let vaultName = "Adopted Vault"
-        let vaultFolder = NexusPaths.vaultFolderURL(forTitle: vaultName, in: nexus)
-        try FileManager.default.createDirectory(at: vaultFolder, withIntermediateDirectories: true)
-        let pc = PageCollection(id: vaultID, title: vaultName, icon: nil, properties: [], views: [], modifiedAt: Date())
-        try pc.save(to:vaultFolder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename))
+        let collectionID = ULID.generate()
+        let collectionName = "Adopted Vault"
+        let collectionFolder = NexusPaths.collectionFolderURL(forTitle: collectionName, in: nexus)
+        try FileManager.default.createDirectory(at: collectionFolder, withIntermediateDirectories: true)
+        let pc = PageCollection(id: collectionID, title: collectionName, icon: nil, properties: [], views: [], modifiedAt: Date())
+        try pc.save(to:collectionFolder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename))
 
         // PageSet sub-folder + sidecar on disk.
         let collID = ULID.generate()
         let collName = "Adopted Collection"
-        let collFolder = vaultFolder.appendingPathComponent(collName, isDirectory: true)
+        let collFolder = collectionFolder.appendingPathComponent(collName, isDirectory: true)
         try FileManager.default.createDirectory(at: collFolder, withIntermediateDirectories: true)
-        let collection = PageSet(id: collID, parentID: vaultID, title: collName, folderURL: collFolder, modifiedAt: Date())
+        let collection = PageSet(id: collID, parentID: collectionID, title: collName, folderURL: collFolder, modifiedAt: Date())
         try collection.save(to: collFolder.appendingPathComponent(NexusPaths.pageSetSidecarFilename))
 
         // Wire + load: collections are owned by PageSetManager.
@@ -118,14 +118,14 @@ struct LoadAllIndexSyncTests {
         manager.indexUpdater = IndexUpdater(index)
         let setManager = PageSetManager(nexus: nexus)
         setManager.indexUpdater = IndexUpdater(index)
-        setManager.pageTypeProvider = { [weak manager] in manager?.types ?? [] }
+        setManager.pageCollectionProvider = { [weak manager] in manager?.types ?? [] }
         manager.pageSetManager = setManager
         await manager.loadAll()
         await setManager.loadAll(types: manager.types)
 
         // Both the collection AND the depth-1 set should be in the index now.
         let counts = try await index.dbQueue.read { db -> (Int, Int) in
-            let t = try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM page_collections WHERE id = ?", arguments: [vaultID]) ?? -1
+            let t = try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM page_collections WHERE id = ?", arguments: [collectionID]) ?? -1
             let c = try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM page_sets WHERE id = ?", arguments: [collID]) ?? -1
             return (t, c)
         }
@@ -139,7 +139,7 @@ struct LoadAllIndexSyncTests {
             url: collFolder.appendingPathComponent("TestPage.md"),
             frontmatter: PageFrontmatter(id: ULID.generate(), icon: nil, tier1: [], tier2: [], tier3: [], properties: [:], createdAt: Date())
         )
-        try IndexUpdater(index).upsertPage(pageMeta, pageCollectionID: vaultID, pageSetID: collID)
+        try IndexUpdater(index).upsertPage(pageMeta, pageCollectionID: collectionID, pageSetID: collID)
     }
 
     // MARK: - Project (tier-3 contexts) sync
@@ -183,10 +183,10 @@ struct LoadAllIndexSyncTests {
         defer { TempNexus.cleanup(nexus) }
         let (index, _) = try PommoraIndex.open(at: nexus.rootURL)
 
-        let vaultID = ULID.generate()
-        let folder = NexusPaths.vaultFolderURL(forTitle: "Vault", in: nexus)
+        let collectionID = ULID.generate()
+        let folder = NexusPaths.collectionFolderURL(forTitle: "Vault", in: nexus)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        let pc = PageCollection(id: vaultID, title: "Vault", icon: nil, properties: [], views: [], modifiedAt: Date())
+        let pc = PageCollection(id: collectionID, title: "Vault", icon: nil, properties: [], views: [], modifiedAt: Date())
         try pc.save(to:folder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename))
 
         let manager = PageCollectionManager(nexus: nexus)
@@ -195,7 +195,7 @@ struct LoadAllIndexSyncTests {
         await manager.loadAll()  // second pass should be a no-op
 
         let count = try await index.dbQueue.read { db in
-            try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM page_collections WHERE id = ?", arguments: [vaultID]) ?? -1
+            try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM page_collections WHERE id = ?", arguments: [collectionID]) ?? -1
         }
         #expect(count == 1)
     }

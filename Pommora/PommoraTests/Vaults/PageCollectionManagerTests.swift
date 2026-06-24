@@ -13,7 +13,7 @@ struct PageCollectionManagerTests {
     private func makeManager(nexus: Nexus) async -> PageCollectionManager {
         let manager = PageCollectionManager(nexus: nexus)
         let setManager = PageSetManager(nexus: nexus)
-        setManager.pageTypeProvider = { [weak manager] in manager?.types ?? [] }
+        setManager.pageCollectionProvider = { [weak manager] in manager?.types ?? [] }
         manager.pageSetManager = setManager
         await manager.loadAll()
         await setManager.loadAll(types: manager.types)
@@ -27,8 +27,8 @@ struct PageCollectionManagerTests {
         let manager = await makeManager(nexus: nexus)
 
         try await manager.createPageCollection(name: "Planner", icon: "folder")
-        let folder = NexusPaths.vaultFolderURL(forTitle: "Planner", in: nexus)
-        let meta = NexusPaths.vaultMetadataURL(forTitle: "Planner", in: nexus)
+        let folder = NexusPaths.collectionFolderURL(forTitle: "Planner", in: nexus)
+        let meta = NexusPaths.collectionMetadataURL(forTitle: "Planner", in: nexus)
         #expect(FileManager.default.fileExists(atPath: folder.path))
         #expect(FileManager.default.fileExists(atPath: meta.path))
         #expect(manager.types.count == 1)
@@ -45,8 +45,8 @@ struct PageCollectionManagerTests {
         let pageCollection = manager.types.first!
         try await manager.createPageCollection(name: "Tasks", inPageCollection: pageCollection)
 
-        let folder = NexusPaths.collectionFolderURL(
-            forTitle: "Tasks", inVaultTitled: "Planner", in: nexus
+        let folder = NexusPaths.setFolderURL(
+            forTitle: "Tasks", inCollectionTitled: "Planner", in: nexus
         )
         #expect(FileManager.default.fileExists(atPath: folder.path))
         let cols = manager.pageCollections(in: pageCollection)
@@ -65,7 +65,7 @@ struct PageCollectionManagerTests {
         try await manager.createPageCollection(name: "Tasks", inPageCollection: pageCollection)
 
         try await manager.renamePageCollection(pageCollection, to: "Schedule")
-        let newFolder = NexusPaths.vaultFolderURL(forTitle: "Schedule", in: nexus)
+        let newFolder = NexusPaths.collectionFolderURL(forTitle: "Schedule", in: nexus)
         #expect(FileManager.default.fileExists(atPath: newFolder.path))
         // PageSet still present under new PageCollection folder
         let renamedType = manager.types.first!
@@ -85,7 +85,7 @@ struct PageCollectionManagerTests {
         try await manager.createPageCollection(name: "Tasks", inPageCollection: pageCollection)
 
         try await manager.deletePageCollection(pageCollection)
-        let folder = NexusPaths.vaultFolderURL(forTitle: "Planner", in: nexus)
+        let folder = NexusPaths.collectionFolderURL(forTitle: "Planner", in: nexus)
         #expect(!FileManager.default.fileExists(atPath: folder.path))
         #expect(manager.types.isEmpty)
 
@@ -121,8 +121,8 @@ struct PageCollectionManagerTests {
         let coll = manager.pageCollections(in: pageCollection).first!
 
         try await manager.renamePageCollection(coll, to: "To-dos")
-        let newFolder = NexusPaths.collectionFolderURL(
-            forTitle: "To-dos", inVaultTitled: "Planner", in: nexus
+        let newFolder = NexusPaths.setFolderURL(
+            forTitle: "To-dos", inCollectionTitled: "Planner", in: nexus
         )
         #expect(FileManager.default.fileExists(atPath: newFolder.path))
         #expect(manager.pageCollections(in: pageCollection).first?.title == "To-dos")
@@ -166,8 +166,8 @@ struct PageCollectionManagerTests {
         let coll = manager.pageCollections(in: pageCollection).first!
 
         try await manager.deletePageCollection(coll)
-        let folder = NexusPaths.collectionFolderURL(
-            forTitle: "Tasks", inVaultTitled: "Planner", in: nexus
+        let folder = NexusPaths.setFolderURL(
+            forTitle: "Tasks", inCollectionTitled: "Planner", in: nexus
         )
         #expect(!FileManager.default.fileExists(atPath: folder.path))
         #expect(manager.pageCollections(in: pageCollection).isEmpty)
@@ -212,14 +212,14 @@ struct PageCollectionManagerTests {
         defer { TempNexus.cleanup(nexus) }
         let manager = await makeManager(nexus: nexus)
         try await manager.createPageCollection(name: "Planner", icon: nil)
-        let vault = manager.types.first!
-        #expect(vault.openIn == nil)  // absent on fresh sidecars
+        let collection = manager.types.first!
+        #expect(collection.openIn == nil)  // absent on fresh sidecars
 
-        try await manager.setOpenIn(.compact, forPageCollection: vault.id)
+        try await manager.setOpenIn(.compact, forPageCollection: collection.id)
         #expect(manager.types.first?.openIn == .compact)
 
         // The sidecar carries the raw value under the snake_case key.
-        let meta = NexusPaths.vaultMetadataURL(forTitle: "Planner", in: nexus)
+        let meta = NexusPaths.collectionMetadataURL(forTitle: "Planner", in: nexus)
         let json =
             try JSONSerialization.jsonObject(with: Data(contentsOf: meta)) as? [String: Any]
         #expect(json?["open_in"] as? String == "compact")
@@ -229,7 +229,7 @@ struct PageCollectionManagerTests {
         #expect(reloaded.types.first?.openIn == .compact)
 
         // Flipping back persists too — on disk, not just in memory.
-        try await manager.setOpenIn(.window, forPageCollection: vault.id)
+        try await manager.setOpenIn(.window, forPageCollection: collection.id)
         #expect(manager.types.first?.openIn == .window)
         let flipped = PageCollectionManager(nexus: nexus)
         await flipped.loadAll()

@@ -25,14 +25,14 @@ struct SidebarSectionsManagerTests {
         let m = SidebarSectionsManager(nexus: nexus)
         await m.load()
         let section = try await m.createSection(label: "Work")
-        try await m.moveVault(id: "vault-1", toSection: section.id)
+        try await m.moveCollection(id: "vault-1", toSection: section.id)
 
         let reloaded = SidebarSectionsManager(nexus: nexus)
         await reloaded.load()
         #expect(reloaded.config == m.config)
         #expect(reloaded.config.sections.count == 1)
         #expect(reloaded.config.sections[0].label == "Work")
-        #expect(reloaded.config.sections[0].vaultIDs == ["vault-1"])
+        #expect(reloaded.config.sections[0].collectionIDs == ["vault-1"])
     }
 
     @Test("single membership — moving a vault into section B removes it from section A")
@@ -43,10 +43,10 @@ struct SidebarSectionsManagerTests {
         await m.load()
         let a = try await m.createSection(label: "A")
         let b = try await m.createSection(label: "B")
-        try await m.moveVault(id: "vault-1", toSection: a.id)
-        try await m.moveVault(id: "vault-1", toSection: b.id)
-        #expect(m.config.sections.first(where: { $0.id == a.id })?.vaultIDs == [])
-        #expect(m.config.sections.first(where: { $0.id == b.id })?.vaultIDs == ["vault-1"])
+        try await m.moveCollection(id: "vault-1", toSection: a.id)
+        try await m.moveCollection(id: "vault-1", toSection: b.id)
+        #expect(m.config.sections.first(where: { $0.id == a.id })?.collectionIDs == [])
+        #expect(m.config.sections.first(where: { $0.id == b.id })?.collectionIDs == ["vault-1"])
         #expect(m.section(containing: "vault-1")?.id == b.id)
     }
 
@@ -57,9 +57,9 @@ struct SidebarSectionsManagerTests {
         let m = SidebarSectionsManager(nexus: nexus)
         await m.load()
         let a = try await m.createSection(label: "A")
-        try await m.moveVault(id: "vault-1", toSection: a.id)
-        try await m.moveVault(id: "vault-1", toSection: a.id)
-        #expect(m.config.sections.first(where: { $0.id == a.id })?.vaultIDs == ["vault-1"])
+        try await m.moveCollection(id: "vault-1", toSection: a.id)
+        try await m.moveCollection(id: "vault-1", toSection: a.id)
+        #expect(m.config.sections.first(where: { $0.id == a.id })?.collectionIDs == ["vault-1"])
     }
 
     @Test("remove from sections returns the vault to the default section")
@@ -69,9 +69,9 @@ struct SidebarSectionsManagerTests {
         let m = SidebarSectionsManager(nexus: nexus)
         await m.load()
         let a = try await m.createSection(label: "A")
-        try await m.moveVault(id: "vault-1", toSection: a.id)
-        try await m.removeVaultFromSections(id: "vault-1")
-        #expect(m.config.groupedVaultIDs.isEmpty)
+        try await m.moveCollection(id: "vault-1", toSection: a.id)
+        try await m.removeCollectionFromSections(id: "vault-1")
+        #expect(m.config.groupedCollectionIDs.isEmpty)
         #expect(m.section(containing: "vault-1") == nil)
         // The (now empty) section itself survives.
         #expect(m.config.sections.map(\.id) == [a.id])
@@ -85,11 +85,11 @@ struct SidebarSectionsManagerTests {
         await m.load()
         let a = try await m.createSection(label: "A")
         let b = try await m.createSection(label: "B")
-        try await m.moveVault(id: "vault-1", toSection: a.id)
-        try await m.moveVault(id: "vault-2", toSection: b.id)
+        try await m.moveCollection(id: "vault-1", toSection: a.id)
+        try await m.moveCollection(id: "vault-2", toSection: b.id)
         try await m.deleteSection(id: a.id)
         #expect(m.config.sections.map(\.id) == [b.id])
-        #expect(m.config.groupedVaultIDs == ["vault-2"])
+        #expect(m.config.groupedCollectionIDs == ["vault-2"])
         #expect(m.section(containing: "vault-1") == nil)
     }
 
@@ -110,21 +110,21 @@ struct SidebarSectionsManagerTests {
     func danglingIDsPreserved() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
-        // Simulate a config left behind by a deleted vault: the ID lingers.
+        // Simulate a config left behind by a deleted collection: the ID lingers.
         let stale = SidebarSectionsConfig(sections: [
-            .init(id: "s1", label: "Stuff", vaultIDs: ["dead-vault", "live-vault"])
+            .init(id: "s1", label: "Stuff", collectionIDs: ["dead-vault", "live-vault"])
         ])
         try AtomicJSON.write(stale, to: NexusPaths.sidebarSectionsURL(in: nexus))
 
         let m = SidebarSectionsManager(nexus: nexus)
         await m.load()
         // Config is NOT self-healed — the dangling ID is preserved and the
-        // vault stays out of the default section; the sidebar skip-renders it.
-        #expect(m.config.sections.first?.vaultIDs == ["dead-vault", "live-vault"])
-        #expect(m.config.groupedVaultIDs.contains("dead-vault"))
+        // collection stays out of the default section; the sidebar skip-renders it.
+        #expect(m.config.sections.first?.collectionIDs == ["dead-vault", "live-vault"])
+        #expect(m.config.groupedCollectionIDs.contains("dead-vault"))
         // Mutations still work around the dangling entry.
-        try await m.removeVaultFromSections(id: "live-vault")
-        #expect(m.config.sections.first?.vaultIDs == ["dead-vault"])
+        try await m.removeCollectionFromSections(id: "live-vault")
+        #expect(m.config.sections.first?.collectionIDs == ["dead-vault"])
     }
 
     @Test("mutations targeting a nonexistent section are no-ops")
@@ -133,7 +133,7 @@ struct SidebarSectionsManagerTests {
         defer { TempNexus.cleanup(nexus) }
         let m = SidebarSectionsManager(nexus: nexus)
         await m.load()
-        try await m.moveVault(id: "vault-1", toSection: "nope")
+        try await m.moveCollection(id: "vault-1", toSection: "nope")
         try await m.renameSection(id: "nope", to: "X")
         try await m.deleteSection(id: "nope")
         #expect(m.config == SidebarSectionsConfig.defaultSeed())

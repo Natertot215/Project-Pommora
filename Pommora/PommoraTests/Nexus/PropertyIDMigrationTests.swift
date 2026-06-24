@@ -67,7 +67,7 @@ import Testing
         defer { try? FileManager.default.removeItem(at: nexus) }
         let report = PropertyIDMigration.runIfNeeded(at: nexus)
         #expect(report.noOp)
-        #expect(report.pageTypesScanned == 0)
+        #expect(report.pageCollectionsScanned == 0)
     }
 
     @Test func migratesNameKeyedPageProperties() throws {
@@ -84,7 +84,7 @@ import Testing
 
         let report = PropertyIDMigration.runIfNeeded(at: nexus)
 
-        #expect(report.pageTypesScanned == 1)
+        #expect(report.pageCollectionsScanned == 1)
         #expect(report.typesMigrated == 1)
         #expect(report.propertiesMinted == 2)
         #expect(report.memberFilesRewritten == 1)
@@ -165,7 +165,7 @@ import Testing
         try alreadyMigrated.save(to: folder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename))
 
         let report = PropertyIDMigration.runIfNeeded(at: nexus)
-        #expect(report.pageTypesScanned == 1)
+        #expect(report.pageCollectionsScanned == 1)
         #expect(report.typesMigrated == 0)
         #expect(report.propertiesMinted == 0)
     }
@@ -180,7 +180,7 @@ import Testing
         #expect(plan.totalTypes == 0)
         #expect(plan.totalPropertiesToMint == 0)
         #expect(plan.totalMemberFileCandidates == 0)
-        #expect(plan.pageTypeMigrations.isEmpty)
+        #expect(plan.pageCollectionMigrations.isEmpty)
     }
 
     @Test func scanReportsAccurateCountsBeforeApply() throws {
@@ -204,10 +204,10 @@ import Testing
         #expect(plan.totalMemberFileCandidates == 2)  // 2 pages
 
         // Per-Type accuracy
-        #expect(plan.pageTypeMigrations.count == 1)
-        #expect(plan.pageTypeMigrations[0].propertiesToMint == 2)
-        #expect(plan.pageTypeMigrations[0].memberFileCandidates == 2)
-        #expect(plan.pageTypeMigrations[0].typeTitle == "Notes")
+        #expect(plan.pageCollectionMigrations.count == 1)
+        #expect(plan.pageCollectionMigrations[0].propertiesToMint == 2)
+        #expect(plan.pageCollectionMigrations[0].memberFileCandidates == 2)
+        #expect(plan.pageCollectionMigrations[0].collectionTitle == "Notes")
     }
 
     @Test func scanIsPureNoDiskWrites() throws {
@@ -248,7 +248,7 @@ import Testing
         let plan = PropertyIDMigration.scan(at: nexus)
         let report = PropertyIDMigration.apply(plan)
 
-        #expect(report.pageTypesScanned == 1)
+        #expect(report.pageCollectionsScanned == 1)
         #expect(report.typesMigrated == 1)
         #expect(report.propertiesMinted == 1)
         #expect(report.memberFilesRewritten == 1)
@@ -323,8 +323,8 @@ import Testing
 
         let plan = PropertyIDMigration.scan(at: nexus)
         #expect(plan.hasAnyMigration)
-        #expect(plan.pageTypeMigrations.count == 1)
-        #expect(plan.pageTypeMigrations[0].propertiesToMint == 0)  // IDs already present
+        #expect(plan.pageCollectionMigrations.count == 1)
+        #expect(plan.pageCollectionMigrations[0].propertiesToMint == 0)  // IDs already present
 
         let report = PropertyIDMigration.apply(plan)
         #expect(report.typesMigrated == 1)

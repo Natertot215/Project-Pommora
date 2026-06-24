@@ -24,7 +24,7 @@ final class RecentsManager {
     }
 
     /// Top of the store, capped for dropdown rendering. Storage containers
-    /// (Vault / Collection / Type / Set) participate in the back/forward stack
+    /// (Collection / Collection / Type / Set) participate in the back/forward stack
     /// and persist in `entries`, but are hidden here: the dropdown is a
     /// quick-jump list for content leaves (Pages), while containers are reached
     /// via the sidebar. One structure, two projections.
@@ -51,7 +51,7 @@ final class RecentsManager {
             let state = try AtomicJSON.decode(NexusState.self, from: url)
             // Drop entries whose kind is no longer steppable (anything outside
             // recordableKinds, including retired kinds that decode as unknown).
-            // Pages + storage containers (Vault / Collection) are kept; old
+            // Pages + storage containers (Collection / Collection) are kept; old
             // state.json files self-heal on the next save.
             let filtered = state.recents.filter { ref in
                 guard let kind = ref.typedKind else { return false }

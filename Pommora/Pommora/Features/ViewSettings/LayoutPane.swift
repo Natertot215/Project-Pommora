@@ -222,8 +222,8 @@ struct LayoutPane: View {
     /// Modified (Cover excluded), built once from the parent Type's resolved
     /// schema.
     private func resolvedProperties() -> [PropertyDefinition] {
-        guard let typeID = parentTypeID() else { return [] }
-        return collectionManager.types.first(where: { $0.id == typeID })?
+        guard let collectionID = parentCollectionID() else { return [] }
+        return collectionManager.types.first(where: { $0.id == collectionID })?
             .resolvedProperties(tierConfig: tierConfigManager.config) ?? []
     }
 
@@ -234,7 +234,7 @@ struct LayoutPane: View {
         if let t = collectionManager.types.first(where: { $0.id == cid }) {
             return t.banner != nil
         }
-        for cols in collectionManager.pageCollectionsByType.values {
+        for cols in collectionManager.depthOneSetsByCollection.values {
             if let c = cols.first(where: { $0.id == cid }) { return c.banner != nil }
         }
         return false
@@ -242,7 +242,7 @@ struct LayoutPane: View {
 
     private func containerID() -> String? { scope.containerID }
 
-    private func parentTypeID() -> String? { scope.schemaTypeID }
+    private func parentCollectionID() -> String? { scope.schemaCollectionID }
 }
 
 // MARK: - Rows

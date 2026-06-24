@@ -26,14 +26,14 @@ struct PageSetRecursiveIndexTests {
     ///               └── L3 Page.md
     private func setupFourDeep() async throws -> (
         nexus: Nexus, idx: PommoraIndex,
-        typeID: String, l1ID: String, l2ID: String, l3ID: String, l4ID: String,
+        collectionID: String, l1ID: String, l2ID: String, l3ID: String, l4ID: String,
         l3PageID: String
     ) {
         let nexus = try TempNexus.make()
 
         let collectionManager = PageCollectionManager(nexus: nexus)
         let setManager = PageSetManager(nexus: nexus)
-        setManager.pageTypeProvider = { [weak collectionManager] in collectionManager?.types ?? [] }
+        setManager.pageCollectionProvider = { [weak collectionManager] in collectionManager?.types ?? [] }
         collectionManager.pageSetManager = setManager
         await collectionManager.loadAll()
         try await collectionManager.createPageCollection(name: "Notes", icon: nil)
@@ -108,7 +108,7 @@ struct PageSetRecursiveIndexTests {
         let l1Row = try await fx.idx.dbQueue.read { db in
             try Row.fetchOne(db, sql: "SELECT * FROM page_sets WHERE id = ?", arguments: [fx.l1ID])
         }
-        #expect(l1Row?["parent_collection_id"] as String? == fx.typeID)
+        #expect(l1Row?["parent_collection_id"] as String? == fx.collectionID)
         #expect(l1Row?["parent_set_id"] as String? == nil)
     }
 
@@ -148,7 +148,7 @@ struct PageSetRecursiveIndexTests {
         }
         // L3 page's immediate parent is L3 (depth-3 set)
         #expect(pageRow?["page_set_id"] as String? == fx.l3ID)
-        #expect(pageRow?["page_collection_id"] as String? == fx.typeID)
+        #expect(pageRow?["page_collection_id"] as String? == fx.collectionID)
     }
 
     // MARK: - .pageSet query filter

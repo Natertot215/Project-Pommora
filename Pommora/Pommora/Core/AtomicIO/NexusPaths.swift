@@ -7,7 +7,7 @@ enum NexusPaths {
     // MARK: - Per-kind sidecar filenames (flatlayout)
 
     /// `_pagetype.json` — PageCollection folder sidecar.
-    static let pageTypeSidecarFilename = "_pagetype.json"
+    static let legacyPageTypeSidecarFilename = "_pagetype.json"
     /// `_pagecollection.json` — PageCollection sub-folder sidecar.
     static let pageCollectionSidecarFilename = "_pagecollection.json"
     /// `_pageset.json` — PageSet sub-folder sidecar.
@@ -245,105 +245,49 @@ enum NexusPaths {
 
     // MARK: - PageCollection / PageSet / Content paths (flatlayout)
 
-    /// `<nexus>/<typeFolderName>/` — PageCollection folder (flatlayout: lives at the
-    /// nexus root, no wrapper segment).
-    static func pageTypeFolderURL(in nexusRoot: URL, typeFolderName: String) -> URL {
-        nexusRoot.appendingPathComponent(typeFolderName, isDirectory: true)
+    /// `<nexus>/<collectionFolderName>/` — PageCollection folder (flatlayout: lives
+    /// at the nexus root, no wrapper segment).
+    static func collectionFolderURL(in nexusRoot: URL, collectionFolderName: String) -> URL {
+        nexusRoot.appendingPathComponent(collectionFolderName, isDirectory: true)
     }
 
-    /// Nexus-typed convenience overload — bridges legacy `(forTitle:in:nexus:)` callers.
-    static func pageTypeFolderURL(forTitle title: String, in nexus: Nexus) -> URL {
-        pageTypeFolderURL(in: nexus.rootURL, typeFolderName: title)
+    /// Nexus-typed convenience overload.
+    static func collectionFolderURL(forTitle title: String, in nexus: Nexus) -> URL {
+        collectionFolderURL(in: nexus.rootURL, collectionFolderName: title)
     }
 
-    /// `<nexus>/<typeFolderName>/_pagecollection.json` — PageCollection schema sidecar.
-    static func pageTypeMetadataURL(in nexusRoot: URL, typeFolderName: String) -> URL {
-        pageTypeFolderURL(in: nexusRoot, typeFolderName: typeFolderName)
+    /// `<nexus>/<collectionFolderName>/_pagecollection.json` — PageCollection schema sidecar.
+    static func collectionMetadataURL(in nexusRoot: URL, collectionFolderName: String) -> URL {
+        collectionFolderURL(in: nexusRoot, collectionFolderName: collectionFolderName)
             .appendingPathComponent(pageCollectionSidecarFilename, isDirectory: false)
     }
 
     /// Nexus-typed convenience overload.
-    static func pageTypeMetadataURL(forTitle title: String, in nexus: Nexus) -> URL {
-        pageTypeMetadataURL(in: nexus.rootURL, typeFolderName: title)
+    static func collectionMetadataURL(forTitle title: String, in nexus: Nexus) -> URL {
+        collectionMetadataURL(in: nexus.rootURL, collectionFolderName: title)
     }
 
-    /// `<nexus>/<typeFolderName>/<collectionFolderName>/` — PageCollection folder
-    /// (still nested inside its parent PageCollection folder).
-    static func pageCollectionFolderURL(
-        in nexusRoot: URL,
-        typeFolderName: String,
-        collectionFolderName: String
-    ) -> URL {
-        pageTypeFolderURL(in: nexusRoot, typeFolderName: typeFolderName)
-            .appendingPathComponent(collectionFolderName, isDirectory: true)
-    }
-
-    /// Nexus-typed convenience overload (legacy parameter shape).
-    static func pageCollectionFolderURL(
-        forTitle title: String,
-        inPageCollectionTitled pageTypeTitle: String,
-        in nexus: Nexus
-    ) -> URL {
-        pageCollectionFolderURL(
-            in: nexus.rootURL,
-            typeFolderName: pageTypeTitle,
-            collectionFolderName: title
-        )
-    }
-
-    /// `<nexus>/<typeFolderName>/<collectionFolderName>/_pagecollection.json` — PageCollection schema sidecar.
-    static func pageCollectionMetadataURL(
-        in nexusRoot: URL,
-        typeFolderName: String,
-        collectionFolderName: String
-    ) -> URL {
-        pageCollectionFolderURL(
-            in: nexusRoot,
-            typeFolderName: typeFolderName,
-            collectionFolderName: collectionFolderName
-        )
-        .appendingPathComponent(pageCollectionSidecarFilename, isDirectory: false)
-    }
-
-    /// `<nexus>/<typeFolderName>/<collectionFolderName>/<setFolderName>/` — PageSet folder
+    /// `<nexus>/<collectionFolderName>/<setFolderName>/` — depth-1 Set folder
     /// (nested inside its parent PageCollection folder).
-    static func pageSetFolderURL(
+    static func setFolderURL(
         in nexusRoot: URL,
-        typeFolderName: String,
         collectionFolderName: String,
         setFolderName: String
     ) -> URL {
-        pageCollectionFolderURL(
-            in: nexusRoot,
-            typeFolderName: typeFolderName,
-            collectionFolderName: collectionFolderName
-        )
-        .appendingPathComponent(setFolderName, isDirectory: true)
+        collectionFolderURL(in: nexusRoot, collectionFolderName: collectionFolderName)
+            .appendingPathComponent(setFolderName, isDirectory: true)
     }
 
-    // MARK: - Legacy aliases (pre-ParadigmV2 vocabulary)
-    //
-    // Call sites still use `vaultFolderURL` / `vaultMetadataURL` /
-    // `collectionFolderURL(forTitle:inVaultTitled:in:)` — a code-rename pass
-    // will retire these once all callers are updated.
-
-    static func vaultFolderURL(forTitle title: String, in nexus: Nexus) -> URL {
-        pageTypeFolderURL(in: nexus.rootURL, typeFolderName: title)
-    }
-
-    static func vaultMetadataURL(forTitle title: String, in nexus: Nexus) -> URL {
-        pageTypeMetadataURL(in: nexus.rootURL, typeFolderName: title)
-    }
-
-    static func collectionFolderURL(
+    /// Nexus-typed convenience overload.
+    static func setFolderURL(
         forTitle title: String,
-        inVaultTitled vaultTitle: String,
+        inCollectionTitled collectionTitle: String,
         in nexus: Nexus
     ) -> URL {
-        pageCollectionFolderURL(
+        setFolderURL(
             in: nexus.rootURL,
-            typeFolderName: vaultTitle,
-            collectionFolderName: title
+            collectionFolderName: collectionTitle,
+            setFolderName: title
         )
     }
 

@@ -18,14 +18,14 @@ struct PageSetManagerTests {
         let collection: PageSet
     }
 
-    /// Vault "Notes" + Collection "Inbox" via CRUD; both managers loaded.
+    /// Collection "Notes" + Collection "Inbox" via CRUD; both managers loaded.
     private func makeFixture(indexUpdater: IndexUpdater? = nil) async throws -> Fixture {
         let nexus = try TempNexus.make()
         let typeManager = PageCollectionManager(nexus: nexus)
         typeManager.indexUpdater = indexUpdater
         let setManager = PageSetManager(nexus: nexus)
         setManager.indexUpdater = indexUpdater
-        setManager.pageTypeProvider = { [weak typeManager] in typeManager?.types ?? [] }
+        setManager.pageCollectionProvider = { [weak typeManager] in typeManager?.types ?? [] }
         typeManager.pageSetManager = setManager
         await typeManager.loadAll()
         try await typeManager.createPageCollection(name: "Notes", icon: nil)
@@ -40,7 +40,7 @@ struct PageSetManagerTests {
     }
 
     /// Same fixture with a live SQLite index wired into both managers, so the
-    /// Vault + Collection CRUD upserts populate the FK parents.
+    /// Collection + Collection CRUD upserts populate the FK parents.
     private func makeIndexedFixture() async throws -> (fx: Fixture, index: PommoraIndex) {
         let nexus = try TempNexus.make()
         let (index, _) = try PommoraIndex.open(at: nexus.rootURL)
@@ -49,7 +49,7 @@ struct PageSetManagerTests {
         typeManager.indexUpdater = updater
         let setManager = PageSetManager(nexus: nexus)
         setManager.indexUpdater = updater
-        setManager.pageTypeProvider = { [weak typeManager] in typeManager?.types ?? [] }
+        setManager.pageCollectionProvider = { [weak typeManager] in typeManager?.types ?? [] }
         typeManager.pageSetManager = setManager
         await typeManager.loadAll()
         try await typeManager.createPageCollection(name: "Notes", icon: nil)
@@ -256,11 +256,11 @@ struct PageSetManagerTests {
         // Index: page re-pointed (set cleared); the Set's row is gone. Depth-1
         // Collections share `page_sets` (parent_collection_id set), so count only
         // depth-2+ Sets (parent_set_id NOT NULL) to assert the Set's row left.
-        let vaultID = fx.pageCollection.id
+        let collectionID = fx.pageCollection.id
         let row = try await index.dbQueue.read { db in
             try Row.fetchOne(db, sql: "SELECT * FROM pages WHERE id = ?", arguments: [pageID])
         }
-        #expect(row?["page_collection_id"] as String? == vaultID)
+        #expect(row?["page_collection_id"] as String? == collectionID)
         #expect(row?["page_set_id"] as String? == fx.collection.id)
         let setCount = try await index.dbQueue.read { db in
             try Int.fetchOne(

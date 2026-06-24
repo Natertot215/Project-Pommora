@@ -50,24 +50,24 @@ struct CollectionSettingsSheetTests {
         var calls: [Call] = []
         var shouldThrow: (any Error)?
 
-        func addProperty(_ definition: PropertyDefinition, to typeID: String) async throws {
+        func addProperty(_ definition: PropertyDefinition, to collectionID: String) async throws {
             if let err = shouldThrow { throw err }
-            calls.append(Call(kind: .add(definition, typeID)))
+            calls.append(Call(kind: .add(definition, collectionID)))
         }
 
-        func renameProperty(id propertyID: String, in typeID: String, to newName: String) async throws {
+        func renameProperty(id propertyID: String, in collectionID: String, to newName: String) async throws {
             if let err = shouldThrow { throw err }
-            calls.append(Call(kind: .rename(propertyID, typeID, newName)))
+            calls.append(Call(kind: .rename(propertyID, collectionID, newName)))
         }
 
-        func deleteProperty(id propertyID: String, in typeID: String) async throws {
+        func deleteProperty(id propertyID: String, in collectionID: String) async throws {
             if let err = shouldThrow { throw err }
-            calls.append(Call(kind: .delete(propertyID, typeID)))
+            calls.append(Call(kind: .delete(propertyID, collectionID)))
         }
 
-        func reorderProperty(id propertyID: String, in typeID: String, toIndex newIndex: Int) async throws {
+        func reorderProperty(id propertyID: String, in collectionID: String, toIndex newIndex: Int) async throws {
             if let err = shouldThrow { throw err }
-            calls.append(Call(kind: .reorder(propertyID, typeID, newIndex)))
+            calls.append(Call(kind: .reorder(propertyID, collectionID, newIndex)))
         }
     }
 

@@ -21,7 +21,7 @@ struct IndexBuilderTests {
 
         let collectionManager = PageCollectionManager(nexus: nexus)
         let setManager = PageSetManager(nexus: nexus)
-        setManager.pageTypeProvider = { [weak collectionManager] in collectionManager?.types ?? [] }
+        setManager.pageCollectionProvider = { [weak collectionManager] in collectionManager?.types ?? [] }
         collectionManager.pageSetManager = setManager
         await collectionManager.loadAll()
         try await collectionManager.createPageCollection(name: "Notes", icon: nil)
@@ -157,7 +157,7 @@ struct IndexBuilderTests {
 
         let collectionManager = PageCollectionManager(nexus: nexus)
         let setManager = PageSetManager(nexus: nexus)
-        setManager.pageTypeProvider = { [weak collectionManager] in collectionManager?.types ?? [] }
+        setManager.pageCollectionProvider = { [weak collectionManager] in collectionManager?.types ?? [] }
         collectionManager.pageSetManager = setManager
         await collectionManager.loadAll()
         try await collectionManager.createPageCollection(name: "Notes", icon: nil)
@@ -191,7 +191,7 @@ struct IndexBuilderTests {
 
         let collectionManager = PageCollectionManager(nexus: nexus)
         let setManager = PageSetManager(nexus: nexus)
-        setManager.pageTypeProvider = { [weak collectionManager] in collectionManager?.types ?? [] }
+        setManager.pageCollectionProvider = { [weak collectionManager] in collectionManager?.types ?? [] }
         collectionManager.pageSetManager = setManager
         await collectionManager.loadAll()
         try await collectionManager.createPageCollection(name: "Notes", icon: nil)
@@ -200,7 +200,7 @@ struct IndexBuilderTests {
         let coll = collectionManager.pageCollections(in: pt).first!
 
         // One real page to keep + one loose meta file to exclude by path — mirrors
-        // CLAUDE.md sitting beside real specs in a vault root.
+        // CLAUDE.md sitting beside real specs in a collection root.
         let keepURL = NexusPaths.pageFileURL(forTitle: "Keep Me", in: coll.folderURL)
         let dropURL = NexusPaths.pageFileURL(forTitle: "CLAUDE", in: coll.folderURL)
         try "kept\n".write(to: keepURL, atomically: true, encoding: .utf8)
@@ -377,7 +377,7 @@ struct IndexBuilderTests {
         // Create a page type + collection + one page with tier1 populated.
         let collectionManager = PageCollectionManager(nexus: nexus)
         let setManager = PageSetManager(nexus: nexus)
-        setManager.pageTypeProvider = { [weak collectionManager] in collectionManager?.types ?? [] }
+        setManager.pageCollectionProvider = { [weak collectionManager] in collectionManager?.types ?? [] }
         collectionManager.pageSetManager = setManager
         await collectionManager.loadAll()
         try await collectionManager.createPageCollection(name: "Notes", icon: nil)

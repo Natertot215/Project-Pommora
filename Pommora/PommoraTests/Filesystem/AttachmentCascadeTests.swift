@@ -13,10 +13,10 @@ struct AttachmentCascadeTests {
 
     @Test("deletePage cascades attachments folder to trash")
     func deletePageCascadesAttachments() async throws {
-        let (nexus, vault, coll, manager) = try await setupPage()
+        let (nexus, collection, coll, manager) = try await setupPage()
         defer { TempNexus.cleanup(nexus) }
 
-        try await manager.createPage(name: "MyCascadePage", in: coll, pageCollection: vault)
+        try await manager.createPage(name: "MyCascadePage", in: coll, pageCollection: collection)
         guard let page = manager.pages(inCollection: coll).first else {
             Issue.record("Page not created")
             return
@@ -122,24 +122,24 @@ struct AttachmentCascadeTests {
 
     private func setupPage() async throws -> (Nexus, PageCollection, PageSet, PageContentManager) {
         let nexus = try TempNexus.make()
-        let vault = PageCollection(
+        let collection = PageCollection(
             id: ULID.generate(), title: "V", icon: nil,
             properties: [], views: [], modifiedAt: Date())
-        let vaultFolder = NexusPaths.vaultFolderURL(forTitle: "V", in: nexus)
-        try FileManager.default.createDirectory(at: vaultFolder, withIntermediateDirectories: true)
-        try vault.save(to: NexusPaths.vaultMetadataURL(forTitle: "V", in: nexus))
+        let collectionFolder = NexusPaths.collectionFolderURL(forTitle: "V", in: nexus)
+        try FileManager.default.createDirectory(at: collectionFolder, withIntermediateDirectories: true)
+        try collection.save(to: NexusPaths.collectionMetadataURL(forTitle: "V", in: nexus))
 
-        let collFolder = NexusPaths.collectionFolderURL(forTitle: "C", inVaultTitled: "V", in: nexus)
+        let collFolder = NexusPaths.setFolderURL(forTitle: "C", inCollectionTitled: "V", in: nexus)
         try FileManager.default.createDirectory(at: collFolder, withIntermediateDirectories: true)
         let coll = PageSet(
             id: ULID.generate(),
-            parentID: vault.id,
+            parentID: collection.id,
             title: "C",
             folderURL: collFolder,
             modifiedAt: Date()
         )
 
         let manager = PageContentManager(nexus: nexus, contextProvider: { NexusContext.empty })
-        return (nexus, vault, coll, manager)
+        return (nexus, collection, coll, manager)
     }
 }

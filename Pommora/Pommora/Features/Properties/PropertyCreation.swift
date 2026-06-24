@@ -57,18 +57,18 @@ enum PropertyCreation {
     }
 
     /// Mint + commit a default property of `type` onto the Type schema that
-    /// owns `typeID`. Returns the committed definition (with its real ULID)
+    /// owns `collectionID`. Returns the committed definition (with its real ULID)
     /// so callers can route to post-create configuration.
     @discardableResult
     static func commitDefault(
-        _ type: PropertyType, toTypeID typeID: String, manager: PageCollectionManager
+        _ type: PropertyType, toCollectionID collectionID: String, manager: PageCollectionManager
     ) async throws -> PropertyDefinition {
         var definition = makeDefaultDefinition(for: type)
         // Mint up-front so the caller's route argument carries a real ULID —
         // the manager would otherwise mint internally and the value would be
         // lost at the struct-by-value boundary.
         definition.id = ReservedPropertyID.mintUserPropertyID()
-        try await manager.addProperty(definition, to: typeID)
+        try await manager.addProperty(definition, to: collectionID)
         return definition
     }
 }

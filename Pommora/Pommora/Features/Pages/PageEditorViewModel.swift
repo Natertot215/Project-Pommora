@@ -164,7 +164,7 @@ final class PageEditorViewModel {
 
 /// Indirection layer between PageEditorViewModel and ContentManager. Lets tests
 /// inject a stub without spinning up a real ContentManager + on-disk Nexus,
-/// and lets the production wiring decide Collection-scoped vs. vault-root save
+/// and lets the production wiring decide Collection-scoped vs. collection-root save
 /// at construction time rather than per-call.
 @MainActor
 protocol PageSaver: AnyObject, Sendable {
@@ -173,7 +173,7 @@ protocol PageSaver: AnyObject, Sendable {
 
 /// Production PageSaver — routes to the appropriate PageContentManager variant
 /// based on whether the Page lives inside a Set, a Collection, or directly in
-/// the Vault root. The Set route is load-bearing: saving a Set page through
+/// the Collection root. The Set route is load-bearing: saving a Set page through
 /// the Collection overload would re-point its index row's `page_set_id` to nil.
 @MainActor
 final class ContentManagerPageSaver: PageSaver {
@@ -184,7 +184,7 @@ final class ContentManagerPageSaver: PageSaver {
     /// When provided, each save resolves the Page's CURRENT container by id
     /// (index-backed) so an external or in-app move to a different scope follows the
     /// live location instead of the scope captured when the editor opened. The
-    /// vault/collection/set above are the open-time fallback if resolution can't
+    /// collection/collection/set above are the open-time fallback if resolution can't
     /// place the Page.
     private let collectionManager: PageCollectionManager?
     private let pageSetManager: PageSetManager?

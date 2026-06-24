@@ -21,17 +21,17 @@ struct RelationCommitRoutingTests {
 
     @Test("page: commit .relation([id]) for a tier id writes ROOT tier1, not properties")
     func pageTierRelationRoutesToRoot() async throws {
-        let (nexus, vault, manager) = try await setupPageCollectionRoot()
+        let (nexus, collection, manager) = try await setupPageCollectionRoot()
         defer { TempNexus.cleanup(nexus) }
 
-        try await manager.createPage(name: "P", inCollectionRoot: vault)
-        let page = manager.pages(in: vault).first!
+        try await manager.createPage(name: "P", inCollectionRoot: collection)
+        let page = manager.pages(in: collection).first!
 
         try await manager.updatePageProperty(
             page,
             propertyID: ReservedPropertyID.tier1,
             newValue: .relation(["01TARGET"]),
-            pageCollection: vault,
+            pageCollection: collection,
             collection: nil
         )
 
@@ -42,18 +42,18 @@ struct RelationCommitRoutingTests {
 
     @Test("page: commit .relation([id]) for a user relation id stores it in properties")
     func pageUserRelationRoutesToProperties() async throws {
-        let (nexus, vault, manager) = try await setupPageCollectionRoot()
+        let (nexus, collection, manager) = try await setupPageCollectionRoot()
         defer { TempNexus.cleanup(nexus) }
 
-        try await manager.createPage(name: "P", inCollectionRoot: vault)
-        let page = manager.pages(in: vault).first!
+        try await manager.createPage(name: "P", inCollectionRoot: collection)
+        let page = manager.pages(in: collection).first!
         let propID = ReservedPropertyID.mintUserPropertyID()
 
         try await manager.updatePageProperty(
             page,
             propertyID: propID,
             newValue: .relation(["01TARGET"]),
-            pageCollection: vault,
+            pageCollection: collection,
             collection: nil
         )
 
@@ -65,26 +65,26 @@ struct RelationCommitRoutingTests {
 
     @Test("page: commit .relation([]) for a tier clears root tier1 to []")
     func pageEmptyTierRelationClearsRoot() async throws {
-        let (nexus, vault, manager) = try await setupPageCollectionRoot()
+        let (nexus, collection, manager) = try await setupPageCollectionRoot()
         defer { TempNexus.cleanup(nexus) }
 
-        try await manager.createPage(name: "P", inCollectionRoot: vault)
-        let page = manager.pages(in: vault).first!
+        try await manager.createPage(name: "P", inCollectionRoot: collection)
+        let page = manager.pages(in: collection).first!
 
         // Seed a non-empty tier first, then clear it via an empty .relation.
         try await manager.updatePageProperty(
             page,
             propertyID: ReservedPropertyID.tier1,
             newValue: .relation(["01TARGET"]),
-            pageCollection: vault,
+            pageCollection: collection,
             collection: nil
         )
-        let seeded = manager.pages(in: vault).first!
+        let seeded = manager.pages(in: collection).first!
         try await manager.updatePageProperty(
             seeded,
             propertyID: ReservedPropertyID.tier1,
             newValue: .relation([]),
-            pageCollection: vault,
+            pageCollection: collection,
             collection: nil
         )
 
@@ -95,26 +95,26 @@ struct RelationCommitRoutingTests {
 
     @Test("page: commit .relation([]) for a user relation omits the key")
     func pageEmptyUserRelationOmitsKey() async throws {
-        let (nexus, vault, manager) = try await setupPageCollectionRoot()
+        let (nexus, collection, manager) = try await setupPageCollectionRoot()
         defer { TempNexus.cleanup(nexus) }
 
-        try await manager.createPage(name: "P", inCollectionRoot: vault)
-        let page = manager.pages(in: vault).first!
+        try await manager.createPage(name: "P", inCollectionRoot: collection)
+        let page = manager.pages(in: collection).first!
         let propID = ReservedPropertyID.mintUserPropertyID()
 
         try await manager.updatePageProperty(
             page,
             propertyID: propID,
             newValue: .relation(["01TARGET"]),
-            pageCollection: vault,
+            pageCollection: collection,
             collection: nil
         )
-        let seeded = manager.pages(in: vault).first!
+        let seeded = manager.pages(in: collection).first!
         try await manager.updatePageProperty(
             seeded,
             propertyID: propID,
             newValue: .relation([]),
-            pageCollection: vault,
+            pageCollection: collection,
             collection: nil
         )
 
@@ -126,18 +126,18 @@ struct RelationCommitRoutingTests {
     // MARK: - Harness
 
     /// Page-Type-root harness — mirrors PageContentManagerUpdatePageTests.setup
-    /// (vault-root variant; no collection materialized).
+    /// (collection-root variant; no collection materialized).
     private func setupPageCollectionRoot() async throws -> (Nexus, PageCollection, PageContentManager) {
         let nexus = try TempNexus.make()
-        let vault = PageCollection(
+        let collection = PageCollection(
             id: ULID.generate(), title: "V", icon: nil,
             properties: [], views: [], modifiedAt: Date())
-        let vaultFolder = NexusPaths.vaultFolderURL(forTitle: "V", in: nexus)
-        try FileManager.default.createDirectory(at: vaultFolder, withIntermediateDirectories: true)
-        try vault.save(to: NexusPaths.vaultMetadataURL(forTitle: "V", in: nexus))
+        let collectionFolder = NexusPaths.collectionFolderURL(forTitle: "V", in: nexus)
+        try FileManager.default.createDirectory(at: collectionFolder, withIntermediateDirectories: true)
+        try collection.save(to: NexusPaths.collectionMetadataURL(forTitle: "V", in: nexus))
 
         let manager = PageContentManager(nexus: nexus, contextProvider: { NexusContext.empty })
-        return (nexus, vault, manager)
+        return (nexus, collection, manager)
     }
 
 }

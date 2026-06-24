@@ -15,9 +15,9 @@ extension PageParent {
     /// The owning Page Type — every case carries it.
     var pageCollection: PageCollection {
         switch self {
-        case .collection(_, let vault): return vault
-        case .set(_, _, let vault): return vault
-        case .collectionRoot(let vault): return vault
+        case .collection(_, let collection): return collection
+        case .set(_, _, let collection): return collection
+        case .collectionRoot(let collection): return collection
         }
     }
 
@@ -64,7 +64,7 @@ extension PageParent {
         switch self {
         case .collection(let coll, _): return coll.pageOrder
         case .set(let set, _, _): return set.pageOrder
-        case .collectionRoot(let vault): return vault.pageOrder
+        case .collectionRoot(let collection): return collection.pageOrder
         }
     }
 }

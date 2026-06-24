@@ -26,7 +26,7 @@ struct PageEditorView: View {
     // re-renders, which breaks sidebar page switching.
     @Bindable var viewModel: PageEditorViewModel
     let pageCollection: PageCollection
-    /// nil = vault-root Page (no Collection parent)
+    /// nil = collection-root Page (no Collection parent)
     let collection: PageSet?
     /// nil = Page outside any Set. Non-nil implies `collection` is non-nil
     /// (Sets only live inside Collections); routes saves/renames through the
@@ -185,7 +185,7 @@ struct PageEditorView: View {
         let body: String
     }
 
-    /// Breadcrumb segments for the stats bar footer. Vault and depth-1
+    /// Breadcrumb segments for the stats bar footer. Collection and depth-1
     /// Collection ancestors are tappable; depth-2+ Set segments are plain
     /// (no detail surface). Walks the full Set ancestor chain so pages nested
     /// at arbitrary depth show the complete path.
@@ -527,7 +527,7 @@ struct PageEditorView: View {
     }
 
     /// The current PageMeta freshly resolved from the manager cache by id — the
-    /// set-vs-collection-vs-vault-root branch in one place. Used after a manager
+    /// set-vs-collection-vs-collection-root branch in one place. Used after a manager
     /// mutation (icon edit / rename) to refresh `viewModel.page` so the next
     /// body save re-serializes current frontmatter, not a stale copy.
     private func currentPageMetaFromCache() -> PageMeta? {

@@ -17,14 +17,14 @@ struct PageSetIndexTests {
     /// Collection root — the pair exercises both sides of `page_set_id`.
     private func setup() async throws -> (
         nexus: Nexus, idx: PommoraIndex,
-        typeID: String, collectionID: String, setID: String,
+        collectionID: String, depthOneSetID: String, setID: String,
         setPageID: String, rootPageID: String
     ) {
         let nexus = try TempNexus.make()
 
         let collectionManager = PageCollectionManager(nexus: nexus)
         let setManager = PageSetManager(nexus: nexus)
-        setManager.pageTypeProvider = { [weak collectionManager] in collectionManager?.types ?? [] }
+        setManager.pageCollectionProvider = { [weak collectionManager] in collectionManager?.types ?? [] }
         collectionManager.pageSetManager = setManager
         await collectionManager.loadAll()
         try await collectionManager.createPageCollection(name: "Notes", icon: nil)
@@ -90,9 +90,9 @@ struct PageSetIndexTests {
 
         // Depth-1 set row: parent_collection_id set, parent_set_id null.
         let collRow = try await fx.idx.dbQueue.read { db in
-            try Row.fetchOne(db, sql: "SELECT * FROM page_sets WHERE id = ?", arguments: [fx.collectionID])
+            try Row.fetchOne(db, sql: "SELECT * FROM page_sets WHERE id = ?", arguments: [fx.depthOneSetID])
         }
-        #expect(collRow?["parent_collection_id"] as String? == fx.typeID)
+        #expect(collRow?["parent_collection_id"] as String? == fx.collectionID)
         #expect(collRow?["parent_set_id"] as String? == nil)
         #expect(collRow?["title"] as String? == "Inbox")
 
@@ -100,23 +100,23 @@ struct PageSetIndexTests {
         let setRow = try await fx.idx.dbQueue.read { db in
             try Row.fetchOne(db, sql: "SELECT * FROM page_sets WHERE id = ?", arguments: [fx.setID])
         }
-        #expect(setRow?["parent_set_id"] as String? == fx.collectionID)
+        #expect(setRow?["parent_set_id"] as String? == fx.depthOneSetID)
         #expect(setRow?["parent_collection_id"] as String? == nil)
         #expect(setRow?["title"] as String? == "Drafts")
 
-        // Every page carries page_collection_id (top-tier vault) + page_set_id (immediate set).
+        // Every page carries page_collection_id (top-tier collection) + page_set_id (immediate set).
         let setPageRow = try await fx.idx.dbQueue.read { db in
             try Row.fetchOne(db, sql: "SELECT * FROM pages WHERE id = ?", arguments: [fx.setPageID])
         }
-        #expect(setPageRow?["page_collection_id"] as String? == fx.typeID)
+        #expect(setPageRow?["page_collection_id"] as String? == fx.collectionID)
         #expect(setPageRow?["page_set_id"] as String? == fx.setID)
 
-        // The root page (in the depth-1 set) carries the vault id + depth-1 set id.
+        // The root page (in the depth-1 set) carries the collection id + depth-1 set id.
         let rootPageRow = try await fx.idx.dbQueue.read { db in
             try Row.fetchOne(db, sql: "SELECT * FROM pages WHERE id = ?", arguments: [fx.rootPageID])
         }
-        #expect(rootPageRow?["page_collection_id"] as String? == fx.typeID)
-        #expect(rootPageRow?["page_set_id"] as String? == fx.collectionID)
+        #expect(rootPageRow?["page_collection_id"] as String? == fx.collectionID)
+        #expect(rootPageRow?["page_set_id"] as String? == fx.depthOneSetID)
     }
 
     @Test func populateExcludesSetPagesFromCollectionRollup() async throws {
@@ -131,7 +131,7 @@ struct PageSetIndexTests {
             try Int.fetchOne(
                 db,
                 sql: "SELECT COUNT(*) FROM pages WHERE page_set_id = ?",
-                arguments: [fx.collectionID]
+                arguments: [fx.depthOneSetID]
             ) ?? -1
         }
         #expect(rootScoped == 1)
@@ -148,14 +148,14 @@ struct PageSetIndexTests {
 
         // The depth-2 Set page: type resolved, set resolved via page_set_id.
         let setContainer = try await query.entityContainer(id: fx.setPageID, kind: .page)
-        #expect(setContainer?.typeID == fx.typeID)
-        #expect(setContainer?.typeTitle == "Notes")
+        #expect(setContainer?.collectionID == fx.collectionID)
+        #expect(setContainer?.collectionTitle == "Notes")
         #expect(setContainer?.setID == fx.setID)
         #expect(setContainer?.setTitle == "Drafts")
 
-        // The depth-1 Set page (root page of "Inbox"): page_set_id = collectionID.
+        // The depth-1 Set page (root page of "Inbox"): page_set_id = depthOneSetID.
         let rootContainer = try await query.entityContainer(id: fx.rootPageID, kind: .page)
-        #expect(rootContainer?.setID == fx.collectionID)
+        #expect(rootContainer?.setID == fx.depthOneSetID)
         #expect(rootContainer?.setTitle == "Inbox")
     }
 
@@ -194,7 +194,7 @@ struct PageSetIndexTests {
         let pt = Fixtures.pageCollection()
         try updater.upsertPageCollection(pt)
 
-        // The set FK dangles — the page still indexes under its Vault (page_collection_id=pt.id,
+        // The set FK dangles — the page still indexes under its Collection (page_collection_id=pt.id,
         // page_set_id=nil) with the dangling set FK NULLed out.
         let meta = Fixtures.pageMeta()
         try updater.upsertPage(meta, pageCollectionID: pt.id, pageSetID: ULID.generate())

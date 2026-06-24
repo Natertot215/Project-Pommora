@@ -27,18 +27,18 @@ struct FilterGroupPaneTests {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
         let viewID = "view_\(ULID.generate())"
-        let vault = try makePageCollection(nexus: nexus, title: "Notes", views: [SavedView(id: viewID)])
+        let collection = try makePageCollection(nexus: nexus, title: "Notes", views: [SavedView(id: viewID)])
 
         let types = PageCollectionManager(nexus: nexus)
         await types.loadAll()
 
-        try await types.updateView(viewID, in: vault.id) { v in
+        try await types.updateView(viewID, in: collection.id) { v in
             v.filter = FilterGroup(
                 match: .all,
                 rules: [FilterRule(propertyID: "prop_status", op: "is", value: "open")])
         }
 
-        let fresh = try reloadVault(nexus: nexus, title: "Notes")
+        let fresh = try reloadCollection(nexus: nexus, title: "Notes")
         let filter = try #require(fresh.views.first(where: { $0.id == viewID })?.filter)
         #expect(filter.match == .all)
         #expect(filter.rules.count == 1)
@@ -52,7 +52,7 @@ struct FilterGroupPaneTests {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
         let viewID = "view_\(ULID.generate())"
-        let vault = try makePageCollection(
+        let collection = try makePageCollection(
             nexus: nexus, title: "Notes",
             views: [
                 SavedView(
@@ -65,9 +65,9 @@ struct FilterGroupPaneTests {
         await types.loadAll()
 
         // Pane clears `filter` to nil when the rewritten group is empty + .all.
-        try await types.updateView(viewID, in: vault.id) { v in v.filter = nil }
+        try await types.updateView(viewID, in: collection.id) { v in v.filter = nil }
 
-        let fresh = try reloadVault(nexus: nexus, title: "Notes")
+        let fresh = try reloadCollection(nexus: nexus, title: "Notes")
         #expect(fresh.views.first(where: { $0.id == viewID })?.filter == nil)
     }
 
@@ -76,7 +76,7 @@ struct FilterGroupPaneTests {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
         let viewID = "view_\(ULID.generate())"
-        let vault = try makePageCollection(
+        let collection = try makePageCollection(
             nexus: nexus, title: "Notes",
             views: [
                 SavedView(
@@ -88,11 +88,11 @@ struct FilterGroupPaneTests {
         let types = PageCollectionManager(nexus: nexus)
         await types.loadAll()
 
-        try await types.updateView(viewID, in: vault.id) { v in
+        try await types.updateView(viewID, in: collection.id) { v in
             v.filter?.match = .any
         }
 
-        let fresh = try reloadVault(nexus: nexus, title: "Notes")
+        let fresh = try reloadCollection(nexus: nexus, title: "Notes")
         #expect(fresh.views.first(where: { $0.id == viewID })?.filter?.match == .any)
     }
 
@@ -103,16 +103,16 @@ struct FilterGroupPaneTests {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
         let viewID = "view_\(ULID.generate())"
-        let vault = try makePageCollection(
+        let collection = try makePageCollection(
             nexus: nexus, title: "Notes",
             views: [SavedView(id: viewID, group: .flat)])
 
         let types = PageCollectionManager(nexus: nexus)
         await types.loadAll()
 
-        try await types.updateView(viewID, in: vault.id) { v in v.group = .structural }
+        try await types.updateView(viewID, in: collection.id) { v in v.group = .structural }
 
-        let fresh = try reloadVault(nexus: nexus, title: "Notes")
+        let fresh = try reloadCollection(nexus: nexus, title: "Notes")
         #expect(fresh.views.first(where: { $0.id == viewID })?.group == .structural)
     }
 
@@ -121,16 +121,16 @@ struct FilterGroupPaneTests {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
         let viewID = "view_\(ULID.generate())"
-        let vault = try makePageCollection(nexus: nexus, title: "Notes", views: [SavedView(id: viewID)])
+        let collection = try makePageCollection(nexus: nexus, title: "Notes", views: [SavedView(id: viewID)])
 
         let types = PageCollectionManager(nexus: nexus)
         await types.loadAll()
 
-        try await types.updateView(viewID, in: vault.id) { v in
+        try await types.updateView(viewID, in: collection.id) { v in
             v.group = .property(PropertyGrouping(propertyID: "prop_status", order: nil))
         }
 
-        let fresh = try reloadVault(nexus: nexus, title: "Notes")
+        let fresh = try reloadCollection(nexus: nexus, title: "Notes")
         guard case .some(.property(let grouping)) = fresh.views.first(where: { $0.id == viewID })?.group
         else {
             Issue.record("expected .property grouping")
@@ -144,16 +144,16 @@ struct FilterGroupPaneTests {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
         let viewID = "view_\(ULID.generate())"
-        let vault = try makePageCollection(
+        let collection = try makePageCollection(
             nexus: nexus, title: "Notes",
             views: [SavedView(id: viewID, group: .structural)])
 
         let types = PageCollectionManager(nexus: nexus)
         await types.loadAll()
 
-        try await types.updateView(viewID, in: vault.id) { v in v.group = .flat }
+        try await types.updateView(viewID, in: collection.id) { v in v.group = .flat }
 
-        let fresh = try reloadVault(nexus: nexus, title: "Notes")
+        let fresh = try reloadCollection(nexus: nexus, title: "Notes")
         #expect(fresh.views.first(where: { $0.id == viewID })?.group == .flat)
     }
 
@@ -164,19 +164,19 @@ struct FilterGroupPaneTests {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
         let viewID = "view_\(ULID.generate())"
-        let vault = try makePageCollection(nexus: nexus, title: "Notes", views: [SavedView(id: viewID)])
+        let collection = try makePageCollection(nexus: nexus, title: "Notes", views: [SavedView(id: viewID)])
 
         let types = PageCollectionManager(nexus: nexus)
         await types.loadAll()
 
         // Collapse: id present.
-        try await types.updateView(viewID, in: vault.id) { v in v.collapsedGroups = ["grp_a"] }
-        var fresh = try reloadVault(nexus: nexus, title: "Notes")
+        try await types.updateView(viewID, in: collection.id) { v in v.collapsedGroups = ["grp_a"] }
+        var fresh = try reloadCollection(nexus: nexus, title: "Notes")
         #expect(fresh.views.first(where: { $0.id == viewID })?.collapsedGroups == ["grp_a"])
 
         // Expand back to empty: cleared to nil (the persistCollapsed contract).
-        try await types.updateView(viewID, in: vault.id) { v in v.collapsedGroups = nil }
-        fresh = try reloadVault(nexus: nexus, title: "Notes")
+        try await types.updateView(viewID, in: collection.id) { v in v.collapsedGroups = nil }
+        fresh = try reloadCollection(nexus: nexus, title: "Notes")
         #expect(fresh.views.first(where: { $0.id == viewID })?.collapsedGroups == nil)
     }
 
@@ -188,16 +188,16 @@ struct FilterGroupPaneTests {
         title: String,
         views: [SavedView]
     ) throws -> PageCollection {
-        let vault = PageCollection(
+        let collection = PageCollection(
             id: ULID.generate(), title: title, icon: nil,
             properties: [], views: views, modifiedAt: Date())
-        let folderURL = NexusPaths.vaultFolderURL(forTitle: title, in: nexus)
+        let folderURL = NexusPaths.collectionFolderURL(forTitle: title, in: nexus)
         try FileManager.default.createDirectory(at: folderURL, withIntermediateDirectories: true)
-        try vault.save(to: NexusPaths.vaultMetadataURL(forTitle: title, in: nexus))
-        return vault
+        try collection.save(to: NexusPaths.collectionMetadataURL(forTitle: title, in: nexus))
+        return collection
     }
 
-    private func reloadVault(nexus: Nexus, title: String) throws -> PageCollection {
-        try PageCollection.load(from: NexusPaths.vaultMetadataURL(forTitle: title, in: nexus))
+    private func reloadCollection(nexus: Nexus, title: String) throws -> PageCollection {
+        try PageCollection.load(from: NexusPaths.collectionMetadataURL(forTitle: title, in: nexus))
     }
 }

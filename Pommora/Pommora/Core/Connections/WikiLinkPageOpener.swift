@@ -2,7 +2,7 @@ import Foundation
 
 /// Resolves a clicked `[[Title]]` to a navigable page selection. Reuses the index
 /// (resolveUniqueTitle + entityContainer) and D1's ConnectionFileLocator, then loads
-/// the page fresh from disk — so a link to a page in an unloaded vault still opens.
+/// the page fresh from disk — so a link to a page in an unloaded collection still opens.
 /// Returns nil for a phantom / ambiguous-duplicate / unreadable target (caller no-ops).
 enum WikiLinkPageOpener {
     @MainActor

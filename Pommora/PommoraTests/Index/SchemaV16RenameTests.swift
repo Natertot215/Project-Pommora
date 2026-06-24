@@ -9,7 +9,7 @@ import Testing
 /// Proves:
 /// - `page_collections` is the top-tier table (formerly `page_types`).
 /// - `page_sets` rows carry exactly one of `parent_collection_id` / `parent_set_id`.
-/// - Every page indexes with `page_collection_id` (top-tier vault) + `page_set_id`
+/// - Every page indexes with `page_collection_id` (top-tier collection) + `page_set_id`
 ///   (immediate set, nullable).
 /// - A `.pageCollection` filter returns only top-level pages; a `.pageSet` filter
 ///   returns only that set's direct pages.
@@ -20,30 +20,30 @@ struct SchemaV16RenameTests {
     // MARK: - Fixture
 
     /// Builds:
-    ///   Vault (page_collections)
-    ///   └── Depth1 (page_sets, parent_collection_id = vault)
+    ///   Collection (page_collections)
+    ///   └── Depth1 (page_sets, parent_collection_id = collection)
     ///       └── Depth2 (page_sets, parent_set_id = depth1)
     ///           └── Deep Page.md
     ///       └── Shallow Page.md    ← direct child of Depth1
-    ///   └── Root Page.md           ← direct child of vault (no set)
+    ///   └── Root Page.md           ← direct child of collection (no set)
     private func setup() async throws -> (
         nexus: Nexus, idx: PommoraIndex,
-        vaultID: String, depth1ID: String, depth2ID: String,
+        collectionID: String, depth1ID: String, depth2ID: String,
         rootPageID: String, shallowPageID: String, deepPageID: String
     ) {
         let nexus = try TempNexus.make()
 
         let collectionManager = PageCollectionManager(nexus: nexus)
         let setManager = PageSetManager(nexus: nexus)
-        setManager.pageTypeProvider = { [weak collectionManager] in collectionManager?.types ?? [] }
+        setManager.pageCollectionProvider = { [weak collectionManager] in collectionManager?.types ?? [] }
         collectionManager.pageSetManager = setManager
         await collectionManager.loadAll()
         try await collectionManager.createPageCollection(name: "Vault", icon: nil)
-        let vault = collectionManager.types.first!
+        let collection = collectionManager.types.first!
 
         // Depth-1: depth-1 set created as a collection (_pagecollection.json sidecar).
-        try await collectionManager.createPageCollection(name: "Depth1", inPageCollection: vault)
-        let depth1 = collectionManager.pageCollections(in: vault).first!
+        try await collectionManager.createPageCollection(name: "Depth1", inPageCollection: collection)
+        let depth1 = collectionManager.pageCollections(in: collection).first!
 
         // Depth-2: a raw PageSet inside Depth1.
         let depth2Folder = depth1.folderURL.appendingPathComponent("Depth2", isDirectory: true)
@@ -68,13 +68,13 @@ struct SchemaV16RenameTests {
             return fm.id
         }
 
-        let vaultFolder = NexusPaths.pageTypeFolderURL(forTitle: vault.title, in: nexus)
-        let rootPageID = try writePage(title: "Root Page", in: vaultFolder)
+        let collectionFolder = NexusPaths.collectionFolderURL(forTitle: collection.title, in: nexus)
+        let rootPageID = try writePage(title: "Root Page", in: collectionFolder)
         let shallowPageID = try writePage(title: "Shallow Page", in: depth1.folderURL)
         let deepPageID = try writePage(title: "Deep Page", in: depth2Folder)
 
         let (idx, _) = try PommoraIndex.open(at: nexus.rootURL)
-        return (nexus, idx, vault.id, depth1.id, depth2.id, rootPageID, shallowPageID, deepPageID)
+        return (nexus, idx, collection.id, depth1.id, depth2.id, rootPageID, shallowPageID, deepPageID)
     }
 
     // MARK: - Schema shape
@@ -87,7 +87,7 @@ struct SchemaV16RenameTests {
 
         let count = try await fx.idx.dbQueue.read { db in
             try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM page_collections WHERE id = ?",
-                             arguments: [fx.vaultID]) ?? 0
+                             arguments: [fx.collectionID]) ?? 0
         }
         #expect(count == 1, "vault must land in page_collections")
     }
@@ -102,7 +102,7 @@ struct SchemaV16RenameTests {
             try Row.fetchOne(db, sql: "SELECT parent_collection_id, parent_set_id FROM page_sets WHERE id = ?",
                              arguments: [fx.depth1ID])
         }
-        #expect(row?["parent_collection_id"] as String? == fx.vaultID)
+        #expect(row?["parent_collection_id"] as String? == fx.collectionID)
         #expect(row?["parent_set_id"] as String? == nil)
     }
 
@@ -141,7 +141,7 @@ struct SchemaV16RenameTests {
 
     // MARK: - Page FKs
 
-    @Test func rootPageIndexesWithVaultIDAndNoSet() async throws {
+    @Test func rootPageIndexesWithCollectionIDAndNoSet() async throws {
         let fx = try await setup()
         defer { TempNexus.cleanup(fx.nexus) }
 
@@ -151,7 +151,7 @@ struct SchemaV16RenameTests {
             try Row.fetchOne(db, sql: "SELECT page_collection_id, page_set_id FROM pages WHERE id = ?",
                              arguments: [fx.rootPageID])
         }
-        #expect(row?["page_collection_id"] as String? == fx.vaultID)
+        #expect(row?["page_collection_id"] as String? == fx.collectionID)
         #expect(row?["page_set_id"] as String? == nil)
     }
 
@@ -165,7 +165,7 @@ struct SchemaV16RenameTests {
             try Row.fetchOne(db, sql: "SELECT page_collection_id, page_set_id FROM pages WHERE id = ?",
                              arguments: [fx.shallowPageID])
         }
-        #expect(row?["page_collection_id"] as String? == fx.vaultID)
+        #expect(row?["page_collection_id"] as String? == fx.collectionID)
         #expect(row?["page_set_id"] as String? == fx.depth1ID)
     }
 
@@ -179,19 +179,19 @@ struct SchemaV16RenameTests {
             try Row.fetchOne(db, sql: "SELECT page_collection_id, page_set_id FROM pages WHERE id = ?",
                              arguments: [fx.deepPageID])
         }
-        #expect(row?["page_collection_id"] as String? == fx.vaultID)
+        #expect(row?["page_collection_id"] as String? == fx.collectionID)
         #expect(row?["page_set_id"] as String? == fx.depth2ID)
     }
 
     // MARK: - Query filters
 
-    @Test func topTierFilterReturnsOnlyRootPageForVault() async throws {
+    @Test func topTierFilterReturnsOnlyRootPageForCollection() async throws {
         let fx = try await setup()
         defer { TempNexus.cleanup(fx.nexus) }
 
         try await IndexBuilder.populate(index: fx.idx, from: fx.nexus)
 
-        let results = try await IndexQuery(fx.idx).filter([], in: .pageCollection(fx.vaultID))
+        let results = try await IndexQuery(fx.idx).filter([], in: .pageCollection(fx.collectionID))
         #expect(results.count == 1)
         #expect(results.first?.id == fx.rootPageID, "pageCollection filter must return only vault-root pages, not set pages")
     }

@@ -91,28 +91,28 @@ final class NexusEnvironment {
     init(nexus: Nexus, nexusManager: NexusManager) {
         let areaMgr = AreaManager(nexus: nexus)
         let projectMgr = ProjectManager(nexus: nexus)
-        let vaultMgr = PageCollectionManager(nexus: nexus)
+        let collectionMgr = PageCollectionManager(nexus: nexus)
         let pageSetMgr = PageSetManager(nexus: nexus)
 
         // Wire cross-manager references so delegation and URL rebuilds work.
-        vaultMgr.pageSetManager = pageSetMgr
-        pageSetMgr.pageTypeProvider = { [vaultMgr] in vaultMgr.types }
+        collectionMgr.pageSetManager = pageSetMgr
+        pageSetMgr.pageCollectionProvider = { [collectionMgr] in collectionMgr.types }
 
         let topicMgr = TopicManager(nexus: nexus)
 
         // PageContentManager needs Area + Topic + Project + Page Type for tier validation.
         // Same snapshot pattern as TopicManager: outer closure reads live state on
         // MainActor; inner @Sendable closures use value-type snapshots.
-        let contentMgr: PageContentManager = PageContentManager(nexus: nexus) { [areaMgr, vaultMgr, projectMgr] in
+        let contentMgr: PageContentManager = PageContentManager(nexus: nexus) { [areaMgr, collectionMgr, projectMgr] in
             let areas = areaMgr.areas
-            let types = vaultMgr.types
+            let types = collectionMgr.types
             let topics = topicMgr.topics
             let projectsSnapshot = projectMgr.projects
             return NexusContext(
                 lookupArea: { id in areas.first { $0.id == id } },
                 lookupTopic: { id in topics.first { $0.id == id } },
                 lookupProject: { id in projectsSnapshot.first(where: { $0.id == id }) },
-                lookupVault: { id in types.first { $0.id == id } }
+                lookupCollection: { id in types.first { $0.id == id } }
             )
         }
 
@@ -149,7 +149,7 @@ final class NexusEnvironment {
         areaMgr.indexUpdater = updater
         topicMgr.indexUpdater = updater
         projectMgr.indexUpdater = updater
-        vaultMgr.indexUpdater = updater
+        collectionMgr.indexUpdater = updater
         pageSetMgr.indexUpdater = updater
         contentMgr.indexUpdater = updater
         agendaTaskMgr.indexUpdater = updater
@@ -165,7 +165,7 @@ final class NexusEnvironment {
         self.areaManager = areaMgr
         self.topicManager = topicMgr
         self.projectManager = projectMgr
-        self.collectionManager = vaultMgr
+        self.collectionManager = collectionMgr
         self.pageSetManager = pageSetMgr
         self.contentManager = contentMgr
         self.agendaTaskManager = agendaTaskMgr
@@ -186,7 +186,7 @@ final class NexusEnvironment {
         // them without restructuring the ContentView dependency graph.
         AppGlobals.publish(
             contentManager: contentMgr,
-            collectionManager: vaultMgr,
+            collectionManager: collectionMgr,
             areaManager: areaMgr,
             topicManager: topicMgr,
             recentsManager: recentsMgr,
@@ -199,7 +199,7 @@ final class NexusEnvironment {
         // the parallel load task fires.
         let folderFilter = FolderFilter.load(for: nexus)
 
-        // Initial load — vaults first (PageSet discovery walks the loaded
+        // Initial load — collections first (PageSet discovery walks the loaded
         // Collections), then everything else in parallel.
         // PageContentManager loads per-collection lazily on detail-view appear.
         Task { [weak self] in
@@ -218,7 +218,7 @@ final class NexusEnvironment {
     /// Reloads every in-memory manager from disk — structure, Contexts, Agenda,
     /// and per-Nexus config. The single source of truth for the load set, shared
     /// by the initial load and the file-watcher reconcile so the two never drift.
-    /// Vault loads first (PageSet discovery needs its Collections); the rest run
+    /// Collection loads first (PageSet discovery needs its Collections); the rest run
     /// in parallel.
     func reloadAllManagers(filter: FolderFilter) async {
         await collectionManager.loadAll(filter: filter)

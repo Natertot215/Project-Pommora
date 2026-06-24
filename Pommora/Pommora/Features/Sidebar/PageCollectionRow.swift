@@ -5,7 +5,7 @@ import SwiftUI
 /// Sets and Pages in a single ordered list for the PageCollection disclosure body —
 /// Sets render above Pages. Single ForEach + .onMove avoids the dual-ForEach SwiftUI
 /// bug where only the first ForEach's .onMove is honoured.
-private enum VaultDisclosureItem: Identifiable {
+private enum CollectionDisclosureItem: Identifiable {
     case collection(PageSet)
     case page(PageMeta)
 
@@ -41,7 +41,7 @@ struct PageCollectionRow: View {
 
     // Sets first, then PageCollection-root pages — single ForEach + one .onMove
     // (SwiftUI honours only the first sibling ForEach's .onMove in a disclosure).
-    private var disclosureItems: [VaultDisclosureItem] {
+    private var disclosureItems: [CollectionDisclosureItem] {
         collectionManager.pageCollections(in: pageCollection).map { .collection($0) }
             + contentManager.pages(in: pageCollection).map { .page($0) }
     }
@@ -193,9 +193,9 @@ struct PageCollectionRow: View {
         }
     }
 
-    // MARK: - User vault sections
+    // MARK: - User collection sections
 
-    /// The user section currently holding this vault, if any (single-membership).
+    /// The user section currently holding this collection, if any (single-membership).
     private var currentSectionID: String? {
         sectionsManager.section(containing: pageCollection.id)?.id
     }
@@ -210,7 +210,7 @@ struct PageCollectionRow: View {
     private func moveToSection(_ sectionID: String) {
         Task {
             do {
-                try await sectionsManager.moveVault(id: pageCollection.id, toSection: sectionID)
+                try await sectionsManager.moveCollection(id: pageCollection.id, toSection: sectionID)
             } catch {
                 // pendingError set by manager; toast surfaces.
             }
@@ -220,7 +220,7 @@ struct PageCollectionRow: View {
     private func removeFromSection() {
         Task {
             do {
-                try await sectionsManager.removeVaultFromSections(id: pageCollection.id)
+                try await sectionsManager.removeCollectionFromSections(id: pageCollection.id)
             } catch {
                 // pendingError set by manager; toast surfaces.
             }
@@ -253,7 +253,7 @@ struct PageCollectionRow: View {
                 let rawLocal = destination - collectionCount
                 let localDestination = min(max(rawLocal, 0), pageCount)
                 contentManager.reorderPages(
-                    inVaultRoot: pageCollection,
+                    inCollectionRoot: pageCollection,
                     fromOffsets: localSource,
                     toOffset: localDestination
                 )

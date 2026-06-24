@@ -225,7 +225,7 @@ final class NexusManager {
     /// Routes a freshly-picked URL through init (empty/silent or non-empty/confirm)
     /// or load (existing `.nexus/`), then always runs the adoption scan so
     /// existing folders without `_schema.json` sidecars (or carrying legacy
-    /// `_vault.json` / `_collection.json` files from the pre-ParadigmV2
+    /// `_collection.json` / `_collection.json` files from the pre-ParadigmV2
     /// layout) can be adopted into the flat layout (Obsidian-parity).
     private func openPicked(at url: URL) async {
         let nexusConfigDir = url.appendingPathComponent(".nexus", isDirectory: true)
@@ -302,7 +302,7 @@ final class NexusManager {
     /// BEFORE `openIndex`.
     ///
     /// - `runAdoptionIfNeeded` — re-opening a pre-feature Nexus is the primary
-    ///   case (no `_schema.json` sidecars yet; may carry legacy `_vault.json` /
+    ///   case (no `_schema.json` sidecars yet; may carry legacy `_collection.json` /
     ///   `_collection.json`). Idempotent: a fully-adopted Nexus produces an empty
     ///   plan and skips the sheet.
     /// - `autoTagMissingSidecars` (F.1.j) — silent pass, runs whether the

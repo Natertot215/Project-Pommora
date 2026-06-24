@@ -6,7 +6,7 @@ import SwiftUI  // for Array.move(fromOffsets:toOffset:) used by reorderProperty
 /// Per-side dependencies the per-type schema property-mutation methods need.
 ///
 /// `PageCollectionManager` is a "per-type" schema manager: it holds
-/// `types: [Type]` keyed by a `typeID`, and its five property-mutation
+/// `types: [Type]` keyed by a `collectionID`, and its five property-mutation
 /// methods (`addProperty`, `renameProperty`, `deleteProperty`, `reorderProperty`,
 /// `changeType`) persist the sidecar and assign `types[i] = updated` (there is
 /// NO `rebuildTypesByID` / `commitInMemory` hook — commit is uniform).
@@ -15,7 +15,7 @@ import SwiftUI  // for Array.move(fromOffsets:toOffset:) used by reorderProperty
 ///
 /// This is the per-type analogue of `SingletonSchemaAdapter`. It differs from the
 /// singleton adapter by:
-/// - taking a `typeID` on every read/commit (and throwing `errTypeNotFound` when
+/// - taking a `collectionID` on every read/commit (and throwing `errTypeNotFound` when
 ///   the type is absent), rather than operating on one implicit `schema`;
 /// - having NO builtin-property guard (`canDelete`) — per-type managers permit
 ///   deleting any property — and NO `commitInMemory` / `rebuildTypesByID` hook.
@@ -27,9 +27,9 @@ protocol PerTypeSchemaAdapter: AnyObject {
 
     // MARK: Type / schema read
 
-    /// The property definitions of the type identified by `typeID`. Throws
+    /// The property definitions of the type identified by `collectionID`. Throws
     /// `errTypeNotFound` when no such type exists.
-    func properties(forTypeID typeID: String) throws -> [PropertyDefinition]
+    func properties(forCollectionID collectionID: String) throws -> [PropertyDefinition]
 
     // MARK: Schema persist
 
@@ -39,35 +39,35 @@ protocol PerTypeSchemaAdapter: AnyObject {
     /// `rebuildTypesByID`). Used by the schema-only paths (`addProperty`,
     /// `renameProperty`, `reorderProperty`, lossless `changeType`). Throws
     /// `errTypeNotFound` when the type is absent.
-    func commitType(properties: [PropertyDefinition], forTypeID typeID: String) throws
+    func commitType(properties: [PropertyDefinition], forCollectionID collectionID: String) throws
 
     /// Build the updated type (with `properties` substituted in and `modifiedAt`
     /// bumped) and **stage** its sidecar write into `tx` rather than writing it
     /// immediately. Used by the transactional paths (`deleteProperty`, lossy
     /// `changeType`) so the sidecar and member-file rewrites commit atomically
     /// together. Throws `errTypeNotFound` when the type is absent.
-    func stageType(properties: [PropertyDefinition], forTypeID typeID: String, into tx: SchemaTransaction) throws
+    func stageType(properties: [PropertyDefinition], forCollectionID collectionID: String, into tx: SchemaTransaction) throws
 
     /// Assign the in-memory `types[i]` to the value previously staged via
     /// `stageType` once `tx.commit()` has succeeded. Carries the same
     /// `properties` + bumped `modifiedAt` as the staged sidecar.
-    func commitStagedType(forTypeID typeID: String)
+    func commitStagedType(forCollectionID collectionID: String)
 
     // MARK: Member files
 
     /// All member files (`.md` Pages) belonging to the type identified by
-    /// `typeID`. Throws `errTypeNotFound` when the type is absent.
-    func memberFiles(forTypeID typeID: String) throws -> [URL]
+    /// `collectionID`. Throws `errTypeNotFound` when the type is absent.
+    func memberFiles(forCollectionID collectionID: String) throws -> [URL]
 
     /// Strip `propertyID` from every member file of the type identified by
-    /// `typeID`, staging the rewrites into `tx`. The load / strip / re-encode
+    /// `collectionID`, staging the rewrites into `tx`. The load / strip / re-encode
     /// lives entirely inside this method (preserving the Markdown body),
     /// wrapped in `MemberFileStrip.forEach` so an unreadable member never
     /// aborts the mutation. Throws `errTypeNotFound` when the type is absent
     /// (URL resolution failure), but not for per-member decode failures
     /// (those are skipped resiliently).
     func stripPropertyFromMembers(
-        _ propertyID: String, forTypeID typeID: String, into tx: SchemaTransaction) throws
+        _ propertyID: String, forCollectionID collectionID: String, into tx: SchemaTransaction) throws
 
     // MARK: Index
 
@@ -119,10 +119,10 @@ enum PerTypeSchemaService {
     @MainActor
     static func addProperty(
         _ definition: PropertyDefinition,
-        in typeID: String,
+        in collectionID: String,
         on adapter: any PerTypeSchemaAdapter
     ) throws {
-        let typeProperties = try adapter.properties(forTypeID: typeID)
+        let typeProperties = try adapter.properties(forCollectionID: collectionID)
 
         var def = definition
         if def.id.isEmpty {
@@ -135,14 +135,14 @@ enum PerTypeSchemaService {
         var properties = typeProperties
         properties.append(def)
 
-        try adapter.commitType(properties: properties, forTypeID: typeID)
+        try adapter.commitType(properties: properties, forCollectionID: collectionID)
 
         if let updater = adapter.indexUpdater {
             let position = properties.count - 1
             do {
                 try updater.upsertPropertyDefinition(
                     def,
-                    owningTypeID: typeID,
+                    owningTypeID: collectionID,
                     owningTypeKind: adapter.indexOwningTypeKind,
                     position: position)
             } catch { adapter.recordIndexError(error) }
@@ -156,11 +156,11 @@ enum PerTypeSchemaService {
     @MainActor
     static func renameProperty(
         id propertyID: String,
-        in typeID: String,
+        in collectionID: String,
         to newName: String,
         on adapter: any PerTypeSchemaAdapter
     ) throws {
-        let typeProperties = try adapter.properties(forTypeID: typeID)
+        let typeProperties = try adapter.properties(forCollectionID: collectionID)
         guard let propIndex = typeProperties.firstIndex(where: { $0.id == propertyID }) else {
             throw adapter.errPropertyNotFound
         }
@@ -182,13 +182,13 @@ enum PerTypeSchemaService {
         var properties = typeProperties
         properties[propIndex] = renamedDef
 
-        try adapter.commitType(properties: properties, forTypeID: typeID)
+        try adapter.commitType(properties: properties, forCollectionID: collectionID)
 
         if let updater = adapter.indexUpdater {
             do {
                 try updater.upsertPropertyDefinition(
                     renamedDef,
-                    owningTypeID: typeID,
+                    owningTypeID: collectionID,
                     owningTypeKind: adapter.indexOwningTypeKind,
                     position: propIndex)
             } catch { adapter.recordIndexError(error) }
@@ -202,10 +202,10 @@ enum PerTypeSchemaService {
     @MainActor
     static func deleteProperty(
         id propertyID: String,
-        in typeID: String,
+        in collectionID: String,
         on adapter: any PerTypeSchemaAdapter
     ) throws {
-        let typeProperties = try adapter.properties(forTypeID: typeID)
+        let typeProperties = try adapter.properties(forCollectionID: collectionID)
         guard let propIndex = typeProperties.firstIndex(where: { $0.id == propertyID }) else {
             throw adapter.errPropertyNotFound
         }
@@ -216,12 +216,12 @@ enum PerTypeSchemaService {
         let tx = SchemaTransaction()
 
         // Stage updated schema sidecar.
-        try adapter.stageType(properties: properties, forTypeID: typeID, into: tx)
+        try adapter.stageType(properties: properties, forCollectionID: collectionID, into: tx)
 
         // Stage member-file rewrites: strip the property key from every member
         // file. The load / strip / re-encode (preserving the Page body) lives
         // inside the adapter, wrapped in `MemberFileStrip.forEach`.
-        try adapter.stripPropertyFromMembers(propertyID, forTypeID: typeID, into: tx)
+        try adapter.stripPropertyFromMembers(propertyID, forCollectionID: collectionID, into: tx)
 
         try tx.commit()
 
@@ -231,7 +231,7 @@ enum PerTypeSchemaService {
             }
         }
 
-        adapter.commitStagedType(forTypeID: typeID)
+        adapter.commitStagedType(forCollectionID: collectionID)
     }
 
     // MARK: - Reorder property
@@ -241,11 +241,11 @@ enum PerTypeSchemaService {
     @MainActor
     static func reorderProperty(
         id propertyID: String,
-        in typeID: String,
+        in collectionID: String,
         toIndex newIndex: Int,
         on adapter: any PerTypeSchemaAdapter
     ) throws {
-        let typeProperties = try adapter.properties(forTypeID: typeID)
+        let typeProperties = try adapter.properties(forCollectionID: collectionID)
         guard let propIndex = typeProperties.firstIndex(where: { $0.id == propertyID }) else {
             throw adapter.errPropertyNotFound
         }
@@ -258,14 +258,14 @@ enum PerTypeSchemaService {
             fromOffsets: IndexSet(integer: propIndex),
             toOffset: clampedIndex > propIndex ? clampedIndex + 1 : clampedIndex)
 
-        try adapter.commitType(properties: props, forTypeID: typeID)
+        try adapter.commitType(properties: props, forCollectionID: collectionID)
 
         if let updater = adapter.indexUpdater {
             for (pos, def) in props.enumerated() {
                 do {
                     try updater.upsertPropertyDefinition(
                         def,
-                        owningTypeID: typeID,
+                        owningTypeID: collectionID,
                         owningTypeKind: adapter.indexOwningTypeKind,
                         position: pos)
                 } catch { adapter.recordIndexError(error) }
@@ -287,12 +287,12 @@ enum PerTypeSchemaService {
     @MainActor
     static func changeType(
         of propertyID: String,
-        in typeID: String,
+        in collectionID: String,
         to newType: PropertyType,
         dropConflictingValues: Bool = false,
         on adapter: any PerTypeSchemaAdapter
     ) throws {
-        let typeProperties = try adapter.properties(forTypeID: typeID)
+        let typeProperties = try adapter.properties(forCollectionID: collectionID)
         guard let propIndex = typeProperties.firstIndex(where: { $0.id == propertyID }) else {
             throw adapter.errPropertyNotFound
         }
@@ -303,13 +303,13 @@ enum PerTypeSchemaService {
             // Lossless: schema-only write to bump modifiedAt.
             var properties = typeProperties
             properties[propIndex].type = newType
-            try adapter.commitType(properties: properties, forTypeID: typeID)
+            try adapter.commitType(properties: properties, forCollectionID: collectionID)
             if let updater = adapter.indexUpdater {
                 let def = properties[propIndex]
                 do {
                     try updater.upsertPropertyDefinition(
                         def,
-                        owningTypeID: typeID,
+                        owningTypeID: collectionID,
                         owningTypeKind: adapter.indexOwningTypeKind,
                         position: propIndex)
                 } catch { adapter.recordIndexError(error) }
@@ -328,12 +328,12 @@ enum PerTypeSchemaService {
         let tx = SchemaTransaction()
 
         // Stage updated schema sidecar.
-        try adapter.stageType(properties: properties, forTypeID: typeID, into: tx)
+        try adapter.stageType(properties: properties, forCollectionID: collectionID, into: tx)
 
         // Stage member-file rewrites: strip the conflicting property value from
         // every member file so no stale cross-type value lingers. The per-side
         // load / strip / re-encode lives inside the adapter.
-        try adapter.stripPropertyFromMembers(propertyID, forTypeID: typeID, into: tx)
+        try adapter.stripPropertyFromMembers(propertyID, forCollectionID: collectionID, into: tx)
 
         try tx.commit()
 
@@ -342,12 +342,12 @@ enum PerTypeSchemaService {
             do {
                 try updater.upsertPropertyDefinition(
                     def,
-                    owningTypeID: typeID,
+                    owningTypeID: collectionID,
                     owningTypeKind: adapter.indexOwningTypeKind,
                     position: propIndex)
             } catch { adapter.recordIndexError(error) }
         }
 
-        adapter.commitStagedType(forTypeID: typeID)
+        adapter.commitStagedType(forCollectionID: collectionID)
     }
 }

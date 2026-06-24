@@ -208,21 +208,21 @@ struct NavigationButton: View {
                 onOpen(sel)
                 return
             }
-            // Lazy-load fallback: pages/collections in vaults the user hasn't
+            // Lazy-load fallback: pages/collections in collections the user hasn't
             // visited this session aren't in ContentManager's dicts yet. Walk
-            // every vault + collection until the lookup succeeds. (A future
+            // every collection + collection until the lookup succeeds. (A future
             // SQLite-backed lookup makes this O(1) and removes the walk entirely.)
             Task { @MainActor in
                 guard let cm = AppGlobals.contentManager,
                     let vm = AppGlobals.collectionManager
                 else { return }
-                for vault in vm.types {
-                    await cm.loadAll(for: vault)
+                for collection in vm.types {
+                    await cm.loadAll(for: collection)
                     if let sel = SidebarSelection(stateRef: ref, lookup: lookup) {
                         onOpen(sel)
                         return
                     }
-                    for col in vm.pageCollections(in: vault) {
+                    for col in vm.pageCollections(in: collection) {
                         await cm.loadAll(forCollection: col)
                         if let sel = SidebarSelection(stateRef: ref, lookup: lookup) {
                             onOpen(sel)

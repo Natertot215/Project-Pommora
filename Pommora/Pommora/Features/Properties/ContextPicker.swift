@@ -2,7 +2,7 @@ import SwiftUI
 
 /// Scope-aware context-link value picker — a chromeless liquid-glass dropdown styled
 /// like a native macOS menu. Data-driven via `IndexQuery.entitiesByContextTargetGrouped`:
-/// `.pageType` scopes show Collection rows that pop out a member panel
+/// `.pageCollection` scopes show Collection rows that pop out a member panel
 /// to the side (macOS-submenu style) with loose pages below an inset
 /// divider; every other scope (tiers, agenda) renders a flat list (no submenu).
 ///

@@ -19,7 +19,7 @@ import Foundation
 /// ```
 ///
 /// Per-nexus subdirectories are marked `isExcludedFromBackup = true` so backup
-/// systems skip the regeneratable index. The vault folder itself stays purely
+/// systems skip the regeneratable index. The collection folder itself stays purely
 /// canonical content; this directory is the app's private mirror/cache space.
 enum NexusStore {
     enum StoreError: Swift.Error {

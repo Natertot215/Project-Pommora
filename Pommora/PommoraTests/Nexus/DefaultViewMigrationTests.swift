@@ -24,11 +24,11 @@ struct DefaultViewMigrationTests {
         defer { TempNexus.cleanup(nexus) }
 
         // PageCollection written to disk with views = [] (matches pre-v0.3.1 sidecars).
-        let vaultID = ULID.generate()
-        let folder = NexusPaths.vaultFolderURL(forTitle: "Books", in: nexus)
+        let collectionID = ULID.generate()
+        let folder = NexusPaths.collectionFolderURL(forTitle: "Books", in: nexus)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         let pc = PageCollection(
-            id: vaultID,
+            id: collectionID,
             title: "Books",
             icon: nil,
             properties: [
@@ -62,8 +62,8 @@ struct DefaultViewMigrationTests {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
 
-        let vaultID = ULID.generate()
-        let folder = NexusPaths.vaultFolderURL(forTitle: "Notes", in: nexus)
+        let collectionID = ULID.generate()
+        let folder = NexusPaths.collectionFolderURL(forTitle: "Notes", in: nexus)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         let existing = SavedView(
             id: "view_01HEXISTING",
@@ -74,7 +74,7 @@ struct DefaultViewMigrationTests {
             hiddenProperties: []
         )
         let pc = PageCollection(
-            id: vaultID,
+            id: collectionID,
             title: "Notes",
             icon: nil,
             properties: [],
@@ -95,25 +95,25 @@ struct DefaultViewMigrationTests {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
 
-        let vaultID = ULID.generate()
-        let vaultFolder = NexusPaths.vaultFolderURL(forTitle: "Drafts", in: nexus)
-        try FileManager.default.createDirectory(at: vaultFolder, withIntermediateDirectories: true)
+        let collectionID = ULID.generate()
+        let collectionFolder = NexusPaths.collectionFolderURL(forTitle: "Drafts", in: nexus)
+        try FileManager.default.createDirectory(at: collectionFolder, withIntermediateDirectories: true)
         let pc = PageCollection(
-            id: vaultID,
+            id: collectionID,
             title: "Drafts",
             icon: nil,
             properties: [PropertyDefinition(id: "prop_01HSTATUS", name: "Stage", type: .status)],
             views: [],
             modifiedAt: Date()
         )
-        try pc.save(to:vaultFolder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename))
+        try pc.save(to:collectionFolder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename))
 
         let collID = ULID.generate()
-        let collFolder = vaultFolder.appendingPathComponent("Inbox", isDirectory: true)
+        let collFolder = collectionFolder.appendingPathComponent("Inbox", isDirectory: true)
         try FileManager.default.createDirectory(at: collFolder, withIntermediateDirectories: true)
         let collection = PageSet(
             id: collID,
-            parentID: vaultID,
+            parentID: collectionID,
             title: "Inbox",
             folderURL: collFolder,
             modifiedAt: Date()
@@ -123,12 +123,12 @@ struct DefaultViewMigrationTests {
 
         let manager = PageCollectionManager(nexus: nexus)
         let setManager = PageSetManager(nexus: nexus)
-        setManager.pageTypeProvider = { [weak manager] in manager?.types ?? [] }
+        setManager.pageCollectionProvider = { [weak manager] in manager?.types ?? [] }
         manager.pageSetManager = setManager
         await manager.loadAll()
         await setManager.loadAll(types: manager.types)
 
-        let loadedColl = try #require(manager.pageCollectionsByType[vaultID]?.first)
+        let loadedColl = try #require(manager.depthOneSetsByCollection[collectionID]?.first)
         #expect(loadedColl.views.count == 1)
         #expect(loadedColl.views[0].type == .table)
         // Collection inherits parent's property IDs as the starting visible
@@ -146,11 +146,11 @@ struct DefaultViewMigrationTests {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
 
-        let vaultID = ULID.generate()
-        let folder = NexusPaths.vaultFolderURL(forTitle: "Vault", in: nexus)
+        let collectionID = ULID.generate()
+        let folder = NexusPaths.collectionFolderURL(forTitle: "Vault", in: nexus)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         let pc = PageCollection(
-            id: vaultID, title: "Vault", icon: nil,
+            id: collectionID, title: "Vault", icon: nil,
             properties: [], views: [], modifiedAt: Date()
         )
         try pc.save(to:folder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename))

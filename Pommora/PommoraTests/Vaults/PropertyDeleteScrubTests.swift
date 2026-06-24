@@ -26,19 +26,19 @@ struct PropertyDeleteScrubTests {
         let manager = PageCollectionManager(nexus: nexus)
         await manager.loadAll()
         try await manager.createPageCollection(name: "Notes", icon: nil)
-        let typeID = manager.types.first!.id
+        let collectionID = manager.types.first!.id
 
         // Add the property we'll later delete.
         try await manager.addProperty(
-            PropertyDefinition(id: "", name: "Priority", type: .number), to: typeID)
-        let propID = manager.types.first { $0.id == typeID }!.properties[0].id
+            PropertyDefinition(id: "", name: "Priority", type: .number), to: collectionID)
+        let propID = manager.types.first { $0.id == collectionID }!.properties[0].id
 
         // Add a view and configure it to reference the property in EVERY place
         // the scrub must touch: group, sort, propertyOrder, hiddenProperties,
         // columnWidths. `collapsedGroups` carries a non-property group key that
         // must survive untouched.
-        let view = try await manager.addView(type: .table, to: typeID)
-        try await manager.updateView(view.id, in: typeID) { v in
+        let view = try await manager.addView(type: .table, to: collectionID)
+        try await manager.updateView(view.id, in: collectionID) { v in
             v.group = .property(PropertyGrouping(propertyID: propID, order: nil))
             v.sort = [
                 SortCriterion(propertyID: propID, direction: .ascending),
@@ -51,10 +51,10 @@ struct PropertyDeleteScrubTests {
         }
 
         // Delete the property — the scrub runs as part of this call.
-        try await manager.deleteProperty(id: propID, in: typeID)
+        try await manager.deleteProperty(id: propID, in: collectionID)
 
         // Assert on the sidecar read FRESH from disk.
-        let meta = NexusPaths.vaultMetadataURL(forTitle: "Notes", in: nexus)
+        let meta = NexusPaths.collectionMetadataURL(forTitle: "Notes", in: nexus)
         let reloaded = try PageCollection.load(from: meta)
         let scrubbed = try #require(reloaded.views.first { $0.id == view.id })
 

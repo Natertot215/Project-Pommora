@@ -70,19 +70,19 @@ struct PropertiesListPane: View {
         return all.filter { $0.name.localizedCaseInsensitiveContains(trimmed) }
     }
 
-    /// Resolves the parent Type's properties for any storage scope by
-    /// looking up the live Type from the manager via its stable ID.
+    /// Resolves the parent Collection's properties for any storage scope by
+    /// looking up the live Collection from the manager via its stable ID.
     ///
-    /// Critical: the scope's payload (e.g. `t` in `.pageType(let t)`) is a
+    /// Critical: the scope's payload (e.g. `t` in `.pageCollection(let t)`) is a
     /// snapshot taken when the popover opened. Reading `t.properties`
     /// directly would render stale state after any in-popover mutation —
     /// delete / add / rename / duplicate all write through the manager
     /// then leave this list re-rendering against the original snapshot.
     /// Always extract the stable type ID and re-query the manager.
     private func resolvedProperties() -> [PropertyDefinition] {
-        guard let typeID = scopeTypeID() else { return [] }
+        guard let collectionID = scopeCollectionID() else { return [] }
         let resolved =
-            collectionManager.types.first(where: { $0.id == typeID })?
+            collectionManager.types.first(where: { $0.id == collectionID })?
             .resolvedProperties(tierConfig: tierConfigManager.config) ?? []
         // Schema-only: reserved/built-in columns (tiers + Modified + the rest)
         // are non-editable, so they're excluded from this list. Their per-view
@@ -90,7 +90,7 @@ struct PropertiesListPane: View {
         return resolved.filter { !ReservedPropertyID.isReserved($0.id) }
     }
 
-    private func scopeTypeID() -> String? { scope.schemaTypeID }
+    private func scopeCollectionID() -> String? { scope.schemaCollectionID }
 
     @ViewBuilder
     private var emptyState: some View {

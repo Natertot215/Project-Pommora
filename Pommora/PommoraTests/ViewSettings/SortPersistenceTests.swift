@@ -29,16 +29,16 @@ struct SortPersistenceTests {
         defer { TempNexus.cleanup(nexus) }
 
         let viewID = "view_\(ULID.generate())"
-        let vault = try makePageCollection(nexus: nexus, title: "Notes", views: [SavedView(id: viewID)])
+        let collection = try makePageCollection(nexus: nexus, title: "Notes", views: [SavedView(id: viewID)])
 
         let types = PageCollectionManager(nexus: nexus)
         await types.loadAll()
 
-        try await types.updateView(viewID, in: vault.id) { v in
+        try await types.updateView(viewID, in: collection.id) { v in
             v.sort = [SortCriterion(propertyID: "prop_due", direction: .ascending)]
         }
 
-        let fresh = try reloadVault(nexus: nexus, title: "Notes")
+        let fresh = try reloadCollection(nexus: nexus, title: "Notes")
         let sort = try #require(fresh.views.first(where: { $0.id == viewID })?.sort)
         #expect(sort.count == 1)
         #expect(sort.first?.propertyID == "prop_due")
@@ -51,7 +51,7 @@ struct SortPersistenceTests {
         defer { TempNexus.cleanup(nexus) }
 
         let viewID = "view_\(ULID.generate())"
-        let vault = try makePageCollection(
+        let collection = try makePageCollection(
             nexus: nexus, title: "Notes",
             views: [SavedView(id: viewID, sort: [SortCriterion(propertyID: "prop_due", direction: .ascending)])]
         )
@@ -60,11 +60,11 @@ struct SortPersistenceTests {
         await types.loadAll()
 
         // Pick "Title A→Z" over an existing property sort.
-        try await types.updateView(viewID, in: vault.id) { v in
+        try await types.updateView(viewID, in: collection.id) { v in
             v.sort = [SortCriterion(propertyID: ReservedPropertyID.title, direction: .ascending)]
         }
 
-        let fresh = try reloadVault(nexus: nexus, title: "Notes")
+        let fresh = try reloadCollection(nexus: nexus, title: "Notes")
         let sort = try #require(fresh.views.first(where: { $0.id == viewID })?.sort)
         #expect(sort.count == 1)
         #expect(sort.first?.propertyID == ReservedPropertyID.title)
@@ -77,7 +77,7 @@ struct SortPersistenceTests {
         defer { TempNexus.cleanup(nexus) }
 
         let viewID = "view_\(ULID.generate())"
-        let vault = try makePageCollection(
+        let collection = try makePageCollection(
             nexus: nexus, title: "Notes",
             views: [
                 SavedView(
@@ -88,11 +88,11 @@ struct SortPersistenceTests {
         let types = PageCollectionManager(nexus: nexus)
         await types.loadAll()
 
-        try await types.updateView(viewID, in: vault.id) { v in
+        try await types.updateView(viewID, in: collection.id) { v in
             v.sort = nil
         }
 
-        let fresh = try reloadVault(nexus: nexus, title: "Notes")
+        let fresh = try reloadCollection(nexus: nexus, title: "Notes")
         #expect(fresh.views.first(where: { $0.id == viewID })?.sort == nil)
     }
 
@@ -118,7 +118,7 @@ struct SortPersistenceTests {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
 
-        // Vault with a default_sort sidecar field and NO views (forces mint).
+        // Collection with a default_sort sidecar field and NO views (forces mint).
         _ = try makePageCollection(
             nexus: nexus, title: "Notes", views: [],
             defaultSort: DefaultSortConfig(propertyID: "_id", direction: .ascending)
@@ -143,18 +143,18 @@ struct SortPersistenceTests {
         views: [SavedView],
         defaultSort: DefaultSortConfig? = nil
     ) throws -> PageCollection {
-        let vault = PageCollection(
+        let collection = PageCollection(
             id: ULID.generate(), title: title, icon: nil,
             properties: [], views: views, modifiedAt: Date(),
             defaultSort: defaultSort
         )
-        let folderURL = NexusPaths.vaultFolderURL(forTitle: title, in: nexus)
+        let folderURL = NexusPaths.collectionFolderURL(forTitle: title, in: nexus)
         try FileManager.default.createDirectory(at: folderURL, withIntermediateDirectories: true)
-        try vault.save(to: NexusPaths.vaultMetadataURL(forTitle: title, in: nexus))
-        return vault
+        try collection.save(to: NexusPaths.collectionMetadataURL(forTitle: title, in: nexus))
+        return collection
     }
 
-    private func reloadVault(nexus: Nexus, title: String) throws -> PageCollection {
-        try PageCollection.load(from: NexusPaths.vaultMetadataURL(forTitle: title, in: nexus))
+    private func reloadCollection(nexus: Nexus, title: String) throws -> PageCollection {
+        try PageCollection.load(from: NexusPaths.collectionMetadataURL(forTitle: title, in: nexus))
     }
 }

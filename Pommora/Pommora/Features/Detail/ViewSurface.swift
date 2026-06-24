@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// The single shared detail view behind `PageCollectionDetailView` (vault scope) and
+/// The single shared detail view behind `PageCollectionDetailView` (collection scope) and
 /// `CollectionSetDetailView` (collection scope). Owns the whole render skeleton,
 /// the pipeline computeds, the drag/cover/rename/delete machinery, and ALL view
 /// state. Everything that genuinely differs between the two scopes is read off
@@ -467,7 +467,7 @@ struct ViewSurface<Scope: DetailScope>: View {
     }
 
     /// Stub-and-edit "New <container>" trigger from the footer (a Collection in
-    /// vault scope, a Set in collection scope).
+    /// collection scope, a Set in collection scope).
     private func createContainer() {
         guard !isCreatingContainer else { return }
         isCreatingContainer = true
@@ -505,7 +505,7 @@ struct ViewSurface<Scope: DetailScope>: View {
     }
 
     private func handleDoubleTap(_ item: ViewItem) {
-        // Open-in routing: rows here mix vault-root, collection, and set pages.
+        // Open-in routing: rows here mix collection-root, collection, and set pages.
         // The item's stamped parent carries the exact ref, so route directly.
         PageOpenRouter.routeOpen(
             item.page, pageCollection: item.parent.pageCollection,

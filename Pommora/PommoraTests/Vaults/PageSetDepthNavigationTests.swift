@@ -14,23 +14,23 @@ struct PageSetDepthNavigationTests {
 
     @discardableResult
     private func makePageCollection(nexus: Nexus, title: String, index: PommoraIndex? = nil) throws -> PageCollection {
-        let vault = PageCollection(
+        let collection = PageCollection(
             id: ULID.generate(), title: title, icon: nil,
             properties: [], views: [], modifiedAt: Date()
         )
-        let folderURL = NexusPaths.vaultFolderURL(forTitle: title, in: nexus)
+        let folderURL = NexusPaths.collectionFolderURL(forTitle: title, in: nexus)
         try FileManager.default.createDirectory(at: folderURL, withIntermediateDirectories: true)
-        try vault.save(to: NexusPaths.vaultMetadataURL(forTitle: title, in: nexus))
-        if let index { try IndexUpdater(index).upsertPageCollection(vault) }
-        return vault
+        try collection.save(to: NexusPaths.collectionMetadataURL(forTitle: title, in: nexus))
+        if let index { try IndexUpdater(index).upsertPageCollection(collection) }
+        return collection
     }
 
     @discardableResult
     private func makePageCollection(
         nexus: Nexus, title: String, in pageCollection: PageCollection, index: PommoraIndex? = nil
     ) throws -> PageSet {
-        let folderURL = NexusPaths.collectionFolderURL(
-            forTitle: title, inVaultTitled: pageCollection.title, in: nexus)
+        let folderURL = NexusPaths.setFolderURL(
+            forTitle: title, inCollectionTitled: pageCollection.title, in: nexus)
         try FileManager.default.createDirectory(at: folderURL, withIntermediateDirectories: true)
         let coll = PageSet(
             id: ULID.generate(), parentID: pageCollection.id, title: title,
@@ -78,15 +78,15 @@ struct PageSetDepthNavigationTests {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
 
-        let vault = try makePageCollection(nexus: nexus, title: "Notes")
-        let coll = try makePageCollection(nexus: nexus, title: "Inbox", in: vault)
+        let collection = try makePageCollection(nexus: nexus, title: "Notes")
+        let coll = try makePageCollection(nexus: nexus, title: "Inbox", in: collection)
         _ = try makePageSet(title: "SubSet", in: coll)
 
         let setManager = PageSetManager(nexus: nexus)
-        await setManager.loadAll(types: [vault])
+        await setManager.loadAll(types: [collection])
 
-        // depth-1 Collection is in topTierIDs check (parentID = vault.id ∈ topTierIDs)
-        #expect(setManager.topTierIDs.contains(vault.id))
+        // depth-1 Collection is in topTierIDs check (parentID = collection.id ∈ topTierIDs)
+        #expect(setManager.topTierIDs.contains(collection.id))
         #expect(setManager.topTierIDs.contains(coll.parentID), "depth-1 Collection must be view-eligible")
 
         // The .collection tag resolves to a real SidebarSelection when the manager is wired.
@@ -117,9 +117,9 @@ struct PageSetDepthNavigationTests {
         let (index, _) = try PommoraIndex.open(at: nexus.rootURL)
         let updater = IndexUpdater(index)
 
-        let vault = try makePageCollection(nexus: nexus, title: "Notes", index: index)
-        let source = try makePageCollection(nexus: nexus, title: "Inbox", in: vault, index: index)
-        let dest = try makePageCollection(nexus: nexus, title: "Archive", in: vault, index: index)
+        let collection = try makePageCollection(nexus: nexus, title: "Notes", index: index)
+        let source = try makePageCollection(nexus: nexus, title: "Inbox", in: collection, index: index)
+        let dest = try makePageCollection(nexus: nexus, title: "Archive", in: collection, index: index)
         let movingSet = try makePageSet(title: "Drafts", in: source, index: index)
 
         let recents = RecentsManager(nexus: nexus)
@@ -139,7 +139,7 @@ struct PageSetDepthNavigationTests {
         let setManager = PageSetManager(nexus: nexus)
         setManager.indexUpdater = updater
         setManager.recentsManager = recents
-        await setManager.loadAll(types: [vault])
+        await setManager.loadAll(types: [collection])
 
         // Re-seed: a page entry (not collection) that should survive untouched.
         let pageRef = EntityStateRef(kind: .page, id: "page_xyz", title: "Survivor")
@@ -149,7 +149,7 @@ struct PageSetDepthNavigationTests {
             setManager.pageSets(in: source).first(where: { $0.id == movingSet.id }))
         try await setManager.moveSet(
             loadedMoving, to: dest,
-            destinationPageCollection: vault, sourcePageCollection: vault,
+            destinationPageCollection: collection, sourcePageCollection: collection,
             contentManager: contentManager)
 
         // Page entries are untouched — depth-2→depth-2 move does not prune.
@@ -165,13 +165,13 @@ struct PageSetDepthNavigationTests {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
 
-        let vault = try makePageCollection(nexus: nexus, title: "Notes")
-        let coll = try makePageCollection(nexus: nexus, title: "Inbox", in: vault)
+        let collection = try makePageCollection(nexus: nexus, title: "Notes")
+        let coll = try makePageCollection(nexus: nexus, title: "Inbox", in: collection)
         let setA = try makePageSet(title: "Alpha", in: coll)
         let setB = try makePageSet(title: "Beta", in: setA)
 
         let setManager = PageSetManager(nexus: nexus)
-        await setManager.loadAll(types: [vault])
+        await setManager.loadAll(types: [collection])
 
         let loadedSetA = try #require(setManager.pageSets(in: coll).first(where: { $0.id == setA.id }))
         let loadedSetB = try #require(setManager.pageSets(in: loadedSetA).first(where: { $0.id == setB.id }))
@@ -182,10 +182,10 @@ struct PageSetDepthNavigationTests {
         #expect(ancestors.first?.id == setA.id, "ancestor must be setA")
 
         // The full breadcrumb chain for a page inside setB:
-        // vault › coll › setA › setB › page
+        // collection › coll › setA › setB › page
         // Depth-1 Collection (coll) is clickable; depth-2+ Sets are plain.
         // Simulate the breadcrumb build logic:
-        var crumbs: [String] = [vault.title, coll.title]
+        var crumbs: [String] = [collection.title, coll.title]
         for ancestor in ancestors { crumbs.append(ancestor.title) }
         crumbs.append(loadedSetB.title)
         crumbs.append("My Page")
@@ -202,8 +202,8 @@ struct PageSetDepthNavigationTests {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
 
-        let vault = try makePageCollection(nexus: nexus, title: "Notes")
-        let coll = try makePageCollection(nexus: nexus, title: "Inbox", in: vault)
+        let collection = try makePageCollection(nexus: nexus, title: "Notes")
+        let coll = try makePageCollection(nexus: nexus, title: "Inbox", in: collection)
         let setA = try makePageSet(title: "Alpha", in: coll)
         let setB = try makePageSet(title: "Beta", in: setA)
         let pageID = try writePage(titled: "DeepPage", in: setB.folderURL)
@@ -213,10 +213,10 @@ struct PageSetDepthNavigationTests {
 
         let collectionManager = PageCollectionManager(nexus: nexus)
         let setManager = PageSetManager(nexus: nexus)
-        setManager.pageTypeProvider = { [weak collectionManager] in collectionManager?.types ?? [] }
+        setManager.pageCollectionProvider = { [weak collectionManager] in collectionManager?.types ?? [] }
         collectionManager.pageSetManager = setManager
         await collectionManager.loadAll()
-        await setManager.loadAll(types: [vault])
+        await setManager.loadAll(types: [collection])
 
         let fm = PageFrontmatter(
             id: pageID, icon: nil, tier1: [], tier2: [], tier3: [],
@@ -227,7 +227,7 @@ struct PageSetDepthNavigationTests {
         let result = manager.resolveParent(
             for: page, collectionManager: collectionManager, pageSetManager: setManager)
 
-        #expect(result?.pageCollection.id == vault.id, "vault must resolve")
+        #expect(result?.pageCollection.id == collection.id, "vault must resolve")
         #expect(result?.collection?.id == coll.id, "collection must resolve")
         #expect(result?.set?.id == setB.id, "deepest set (Beta) must resolve, not Alpha")
     }

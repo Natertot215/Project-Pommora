@@ -49,8 +49,8 @@ struct ConnectionLiveRefreshTests {
         defer { TempNexus.cleanup(nexus) }
         let (index, _) = try PommoraIndex.open(at: nexus.rootURL)
 
-        let vault = try makeVault(in: nexus, index: index, title: "V")
-        let coll = try makePageSet(in: nexus, pageCollection: vault, index: index, title: "C")
+        let collection = try makeCollection(in: nexus, index: index, title: "V")
+        let coll = try makePageSet(in: nexus, pageCollection: collection, index: index, title: "C")
         let manager = PageContentManager(nexus: nexus, contextProvider: { NexusContext.empty })
         manager.indexUpdater = IndexUpdater(index)
 
@@ -61,11 +61,11 @@ struct ConnectionLiveRefreshTests {
         defer { counter.stop() }
 
         let before = counter.count
-        let page = try await manager.createPage(name: "Alpha", in: coll, pageCollection: vault)
+        let page = try await manager.createPage(name: "Alpha", in: coll, pageCollection: collection)
         #expect(counter.count == before + 1)
 
         let afterCreate = counter.count
-        try await manager.renamePage(page, to: "Beta", in: coll, pageCollection: vault)
+        try await manager.renamePage(page, to: "Beta", in: coll, pageCollection: collection)
         #expect(counter.count == afterCreate + 1)
 
         // delete — the renamed page now lives at title "Beta".
@@ -79,22 +79,22 @@ struct ConnectionLiveRefreshTests {
 
     // MARK: - Fixtures (mirror NexusWideUniquenessTests)
 
-    private func makeVault(in nexus: Nexus, index: PommoraIndex, title: String) throws -> PageCollection {
-        let vault = PageCollection(
+    private func makeCollection(in nexus: Nexus, index: PommoraIndex, title: String) throws -> PageCollection {
+        let collection = PageCollection(
             id: ULID.generate(), title: title, icon: nil,
             properties: [], views: [], modifiedAt: Date()
         )
-        let folder = NexusPaths.vaultFolderURL(forTitle: title, in: nexus)
+        let folder = NexusPaths.collectionFolderURL(forTitle: title, in: nexus)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        try vault.save(to: NexusPaths.vaultMetadataURL(forTitle: title, in: nexus))
-        try IndexUpdater(index).upsertPageCollection(vault)
-        return vault
+        try collection.save(to: NexusPaths.collectionMetadataURL(forTitle: title, in: nexus))
+        try IndexUpdater(index).upsertPageCollection(collection)
+        return collection
     }
 
     private func makePageSet(
         in nexus: Nexus, pageCollection: PageCollection, index: PommoraIndex, title: String
     ) throws -> PageSet {
-        let folder = NexusPaths.collectionFolderURL(forTitle: title, inVaultTitled: pageCollection.title, in: nexus)
+        let folder = NexusPaths.setFolderURL(forTitle: title, inCollectionTitled: pageCollection.title, in: nexus)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         let coll = PageSet(
             id: ULID.generate(), parentID: pageCollection.id, title: title, folderURL: folder, modifiedAt: Date()
