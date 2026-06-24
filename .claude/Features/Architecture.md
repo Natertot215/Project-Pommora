@@ -21,9 +21,9 @@ A Nexus is a single folder. Pommora opens it via picker (security-scoped bookmar
 ```
 <picked nexus folder>/                  ← canonical content; syncs with cloud
   <Collection>/                         ← Page Collection (top folder, identified by sidecar)
-    _pagetype.json                      ← shared property schema (legacy name → _pagecollection.json post-migration)
+    _pagecollection.json                ← shared property schema (Collection)
     <Set>/                              ← Page Set (depth-1; carries its own views[])
-      _pagecollection.json              ← set metadata + views[] + set_order (legacy name → _pageset.json post-migration)
+      _pageset.json                     ← set metadata + views[] + set_order (depth-1 Set)
       <SubSet>/                         ← Sub-Set (deeper; plain, recursive — any depth)
         _pageset.json                   ← set metadata (id + parent_id + icon + page_order)
         <Page>.md                       ← Page nested in a Sub-Set
@@ -58,7 +58,7 @@ A Nexus is a single folder. Pommora opens it via picker (security-scoped bookmar
   state.json                            ← security-scoped bookmark + recent-nexuses
 ```
 
-**Classification by sidecar + folder position.** A root folder carrying a Pages sidecar IS a Page Collection — regardless of folder name; folders rename freely via Finder. The per-kind sidecar filenames (`_pagecollection.json` / `_pageset.json` / `_taskconfig.json` / `_eventconfig.json`) are the kind discriminators (the legacy `_pagetype.json` is read as a Collection pending the deferred on-disk rename → [[PageCollections]]). A Collection nests Page Sets to **any depth** — every sidecar-bearing sub-folder is a Set (tier = folder depth, not filename); there is no depth cap and no roll-up (→ `// Features//PageSets.md`).
+**Classification by sidecar + folder position.** A root folder carrying a Pages sidecar IS a Page Collection — regardless of folder name; folders rename freely via Finder. The per-kind sidecar filenames (`_pagecollection.json` / `_pageset.json` / `_taskconfig.json` / `_eventconfig.json`) are the kind discriminators (the retired `_pagetype.json` is converted to `_pagecollection.json` by a one-shot migration on first open → [[PageCollections]]). A Collection nests Page Sets to **any depth** — every sidecar-bearing sub-folder is a Set (tier = folder depth, not filename); there is no depth cap and no roll-up (→ `// Features//PageSets.md`).
 
 **No wrapper folders.** Page Collections and the Tasks / Events singletons all live as siblings at the nexus root — there is no `Pages/` or `Agenda/` container folder.
 

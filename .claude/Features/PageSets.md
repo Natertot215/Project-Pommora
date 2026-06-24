@@ -7,7 +7,7 @@ The recursive sub-container on the Pages side. A Page Set is a folder inside a [
 
 UI labels: **"Set"** + **"Sub-Set"** ("Sub-Set" derived from the Set label). A Set carries no schema — it inherits the parent Collection's whole (Set-local overrides are a Prospect → [[Prospects]]). The top tier + schema → [[PageCollections]].
 
-> **Naming lineage + sidecars.** The old three-tier model (Vault → Collection → Set) collapsed to two: a Collection nesting recursive Sets — old `PageCollection` (middle) + `PageSet` (bottom) merged into one recursive `PageSet` (→ `History.md`). **A Set's depth is its folder position, not its sidecar filename.** On disk today a depth-1 Set's sidecar is the legacy `_pagecollection.json` and deeper Sets' is `_pageset.json`; a deferred Phase-3 migration unifies every Set sidecar to `_pageset.json` (discovery dual-reads meanwhile). This spec names the target (`_pageset.json`).
+> **Naming lineage + sidecars.** The old three-tier model (Vault → Collection → Set) collapsed to two: a Collection nesting recursive Sets — old `PageCollection` (middle) + `PageSet` (bottom) merged into one recursive `PageSet` (→ `History.md`). **A Set's depth is its folder position, not its sidecar filename.** Every Set at any depth carries `_pageset.json`; a one-shot migration converts any legacy depth-1 `_pagecollection.json` to it on first open.
 
 ---
 

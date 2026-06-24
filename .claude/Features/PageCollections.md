@@ -4,7 +4,7 @@ The operational layer's **Pages-side** schema-bearing top tier. A Page Collectio
 
 **UI label:** Page Collections render as **"Collection"** by default (renameable via Settings). Doc prose says "Page Collection" / "Collection" for the top tier; a nested Set is a "Set" (depth-1) or "Sub-Set" (deeper) → [[PageSets]]. Maps to PARA's "Resources" alongside Agenda.
 
-> **Naming lineage + on-disk sidecars.** The top tier was "Page Type" / "Vault" before the rename (→ `History.md`). **A container's tier is its folder position, NOT its sidecar filename.** The filenames are mid-migration: on disk today a Collection's sidecar is the legacy `_pagetype.json`, a depth-1 Set's is `_pagecollection.json`, deeper Sets' is `_pageset.json`. A deferred Phase-3 migration (deepest-first, gated on React parity) renames them to the target — **`_pagecollection.json`** (Collection) + **`_pageset.json`** (every Set); discovery dual-reads all names meanwhile. Elsewhere this spec names the *target* sidecars.
+> **Naming lineage + on-disk sidecars.** The top tier was "Page Type" / "Vault" before the rename (→ `History.md`). **A container's tier is its folder position, not its sidecar filename.** The canonical sidecars are **`_pagecollection.json`** (Collection) + **`_pageset.json`** (every Set at any depth). A one-shot migration unifies any legacy nexus on first open — the retired `_pagetype.json` (old top) and the old depth-1 `_pagecollection.json` are converted deepest-first; `_pagetype.json` is read only by that migrator.
 
 ---
 
@@ -27,9 +27,9 @@ Collections live as siblings at the nexus root — no `Pages/` wrapper. Discover
 ```
 <nexus-root>/
   Assignments/              ← Page Collection (top folder)
-    _pagetype.json          ← schema sidecar (legacy name → _pagecollection.json post-migration)
+    _pagecollection.json    ← schema sidecar (Collection)
     Spring-2026/            ← Set (depth-1; carries its own views)
-      _pagecollection.json  ← set metadata + views[] (legacy name → _pageset.json post-migration)
+      _pageset.json         ← set metadata + views[] (depth-1 Set)
       Midterm-Prep/         ← Sub-Set (deeper; plain)
         _pageset.json
         Exam-Review.md      ← Page nested in a Sub-Set

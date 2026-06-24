@@ -151,17 +151,17 @@ History-navigation is flagged during back/forward stepping so cursor movement do
 
 **File:** `<nexus>/.nexus/state.json` — per-nexus, nexus-portable. Separate from the machine-level `state.json` under Application Support (managed by `AppState`) — two layers, two files.
 
-The Codable container (`NexusState`) holds a `schemaVersion`, a `recents` array, a `pinned` array, a top-level `cursor` (Recents position for back/forward; 0 = newest), and per-section sidebar-reorder arrays (`areaOrder` / `topicOrder` / `vaultOrder`; nil until the user reorders).
+The Codable container (`NexusState`) holds a `schemaVersion`, a `recents` array, a `pinned` array, a top-level `cursor` (Recents position for back/forward; 0 = newest), and per-section sidebar-reorder arrays (`areaOrder` / `topicOrder` / `collectionOrder`; nil until the user reorders).
 
 **`EntityStateRef` fields** (`kind` / `id` / `title`):
 
-- `kind` — raw String mapped to the `Kind` enum (`page` / `vault` / `collection` / `area` / `topic` / `project` / `agenda`). The raw String allows forward-compat — an unknown or retired kind decodes to no typed kind and is skipped.
+- `kind` — raw String mapped to the `Kind` enum (`page` / `collection` / `set` / `area` / `topic` / `project` / `agenda`). The raw String allows forward-compat — an unknown or retired kind decodes to no typed kind and is skipped; the pre-Phase-3 `vault` (top container) decodes to `collection`.
 - `id` — ULID of the underlying entity (rename-safe).
 - `title` — denormalized, refreshed on resolve; used for orphan display after deletion.
 
 Equality / hash is by `(kind, id)` — a renamed entity stays the same record. Writes go through the shared atomic-write contract (temp file + atomic rename) used by the other `.nexus/` config managers.
 
-**Backward-compat:** the legacy `favorites` key decodes into `pinned` — the decoder reads `pinned` first then falls back, and the encoder writes only `pinned`, so the legacy key disappears on first save.
+**Backward-compat:** legacy keys decode then disappear on first save (the encoder writes only the new key): `favorites` → `pinned`, and `vault_order` → `collection_order`. Likewise a persisted `kind: "vault"` decodes to the `.collection` tier.
 
 ---
 
