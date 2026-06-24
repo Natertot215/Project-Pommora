@@ -10,6 +10,21 @@
 
 #### Session Summary
 
+**6-24 (Swift + React) — Collections/Sets rename finished; the app now migrates an old Nexus on its own.**
+
+In plain terms: the long-running "Page Types / Vaults → Collections" rename is now fully done and merged to `main` (local, not yet pushed) — code, tests, and docs, with nothing left half-renamed.
+
+The headline is a new **auto-migration**. The first time you open the app on a Nexus built before this change, it quietly upgrades the hidden config files on disk — the old top-level `_pagetype.json` becomes `_pagecollection.json`, and every Set folder (at any depth) is unified to `_pageset.json`. It copies the affected files to a temp backup first and deletes that backup only once the rename succeeds (and keeps it if anything fails), so your real data migrates itself, safely, with no manual step. With every Nexus landing on one clean naming scheme, the app dropped the old "read both formats" code.
+
+What came with it:
+- **~500 leftover internal `vault`/`type` names** in the Swift code swept to `collection`/`set` — cosmetic, behaviour-identical, 1,347 tests stayed green. The `Domain/Vaults` and test folders were renamed too; the only "Vault" left is the small shim that upgrades old *settings* labels.
+- **A real bug the rename exposed:** the folder-adopter was deleting legitimate Sets because two internal cases pointed at the same filename. The test suite caught it; fixed.
+- **Docs + mirror cleanup:** the PRD and a few specs still described the retired three-tier model (I'd under-swept them earlier) — all corrected. The Obsidian mirror script never deleted notes when their source doc was removed, so a stale `PageTypes` note lingered in the vault. Fixed the script to move orphans to the vault `.trash`, and cleared the existing ones.
+
+**React:** already reading the new on-disk format (you confirmed it's caught up), so the shared Nexus stays compatible — both builds now speak the same two-name (`_pagecollection.json` / `_pageset.json`) scheme. Locked decisions → `History.md`.
+
+---
+
 **6-21 (Swift, continued) — toolbar/Navigation reorg + Phases H/F/D/E of the refactoring program. 10 commits on `refactoring-phase-b` (NOT pushed); 1,294 tests green throughout.**
 
 Opened post-compaction continuing the refactoring roadmap, with a parallel React session live in the `pommora-main-preview` worktree — its `MarkdownPM/Styles.css` plus Nathan's own one-line `NexusState.swift` comment trim sat uncommitted in the tree all session and were left untouched (never bundled into a Swift commit).
