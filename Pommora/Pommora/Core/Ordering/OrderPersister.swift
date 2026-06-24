@@ -70,9 +70,21 @@ enum OrderPersister {
     // MARK: - PageSet (sidecar JSON)
 
     static func setPageSetOrder(_ order: [String], in collection: PageSet) throws {
-        try mutateSet(collection, sidecar: NexusPaths.pageCollectionSidecarFilename) { c in
+        let sidecar = resolvedSidecar(for: collection.folderURL)
+        try mutateSet(collection, sidecar: sidecar) { c in
             c.setOrder = order.isEmpty ? nil : order
         }
+    }
+
+    /// Resolves the sidecar filename for a container folder by checking what actually
+    /// exists on disk — `_pageset.json` first (depth-2+), falling back to
+    /// `_pagecollection.json` (depth-1). Safe when neither exists: the write will
+    /// simply create the `_pagecollection.json` at that path.
+    private static func resolvedSidecar(for folderURL: URL) -> String {
+        let setURL = folderURL.appendingPathComponent(NexusPaths.pageSetSidecarFilename)
+        return FileManager.default.fileExists(atPath: setURL.path)
+            ? NexusPaths.pageSetSidecarFilename
+            : NexusPaths.pageCollectionSidecarFilename
     }
 
     static func setPageOrder(_ order: [String], in set: PageSet) throws {

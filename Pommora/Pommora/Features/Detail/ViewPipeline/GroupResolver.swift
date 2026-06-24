@@ -31,11 +31,13 @@ enum GroupResolver {
             guard schema.contains(where: { $0.id == grouping.propertyID }) else {
                 return structural(items, scope: scope, sorter: sorter, collapsed: collapsed)
             }
+            let realItems = items.filter { !$0.isStructuralAnchor }
             return property(
-                items, grouping: grouping, schema: schema,
+                realItems, grouping: grouping, schema: schema,
                 sorter: sorter, collapsed: collapsed)
         case .some(.flat):
-            return flat(items, sorter: sorter, collapsed: collapsed)
+            let realItems = items.filter { !$0.isStructuralAnchor }
+            return flat(realItems, sorter: sorter, collapsed: collapsed)
         }
     }
 
@@ -103,17 +105,17 @@ enum GroupResolver {
         for item in items {
             switch item.parent {
             case .vaultRoot:
-                rootItems.append(item)
+                if !item.isStructuralAnchor { rootItems.append(item) }
             case .collection(let coll, _):
                 register(coll, &collectionOrder, &collections)
-                directItems[coll.id, default: []].append(item)
+                if !item.isStructuralAnchor { directItems[coll.id, default: []].append(item) }
             case .set(let set, let coll, _):
                 register(coll, &collectionOrder, &collections)
                 if sets[set.id] == nil {
                     sets[set.id] = set
                     setOrder[coll.id, default: []].append(set.id)
                 }
-                setItems[set.id, default: []].append(item)
+                if !item.isStructuralAnchor { setItems[set.id, default: []].append(item) }
             }
         }
 
@@ -174,8 +176,10 @@ enum GroupResolver {
                     allSets[set.id] = set
                     childOrder[set.parentID, default: []].append(set.id)
                 }
-                itemsBySet[set.id, default: []].append(item)
-            } else {
+                if !item.isStructuralAnchor {
+                    itemsBySet[set.id, default: []].append(item)
+                }
+            } else if !item.isStructuralAnchor {
                 rootItems.append(item)
             }
         }
