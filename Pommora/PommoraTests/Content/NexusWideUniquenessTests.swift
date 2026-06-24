@@ -65,7 +65,7 @@ struct NexusWideUniquenessTests {
             id: ULID.generate(), parentID: vault.id, title: title, folderURL: folder, modifiedAt: Date()
         )
         try coll.save(to: folder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename))
-        try IndexUpdater(index).upsertPageSet(coll)
+        try IndexUpdater(index).upsertPageCollection(coll)
         return coll
     }
 

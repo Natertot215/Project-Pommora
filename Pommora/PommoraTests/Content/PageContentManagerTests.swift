@@ -141,7 +141,7 @@ struct PageContentManagerTests {
                 sql: "INSERT OR IGNORE INTO page_types (id, title, modified_at) VALUES (?, ?, ?)",
                 arguments: [vaultID, vaultTitle, ts])
             try db.execute(
-                sql: "INSERT OR IGNORE INTO page_collections (id, page_type_id, title, modified_at) VALUES (?, ?, ?, ?)",
+                sql: "INSERT OR IGNORE INTO page_sets (id, parent_type_id, title, modified_at) VALUES (?, ?, ?, ?)",
                 arguments: [collID, vaultID, collTitle, ts])
             try db.execute(
                 sql: "INSERT INTO pages (id, page_type_id, page_collection_id, title, modified_at) VALUES (?, ?, ?, ?, ?)",

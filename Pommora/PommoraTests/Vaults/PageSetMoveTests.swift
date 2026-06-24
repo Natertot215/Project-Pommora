@@ -73,7 +73,7 @@ struct PageSetMoveTests {
         let setRow = try await index.dbQueue.read { db in
             try Row.fetchOne(db, sql: "SELECT * FROM page_sets WHERE id = ?", arguments: [setID])
         }
-        #expect(setRow?["page_collection_id"] as String? == destID)
+        #expect(setRow?["parent_set_id"] as String? == destID)
         let pageRow = try await index.dbQueue.read { db in
             try Row.fetchOne(db, sql: "SELECT * FROM pages WHERE id = ?", arguments: [movedPageID])
         }

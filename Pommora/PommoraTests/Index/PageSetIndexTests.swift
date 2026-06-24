@@ -76,40 +76,47 @@ struct PageSetIndexTests {
 
         try await IndexBuilder.populate(index: fx.idx, from: fx.nexus)
 
-        // Every container table is populated.
+        // page_sets holds both depth-1 (collection) and depth-2 (set) rows.
         let counts = try await fx.idx.dbQueue.read { db in
             (
                 types: try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM page_types") ?? -1,
-                collections: try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM page_collections") ?? -1,
                 sets: try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM page_sets") ?? -1,
                 pages: try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM pages") ?? -1
             )
         }
         #expect(counts.types == 1)
-        #expect(counts.collections == 1)
-        #expect(counts.sets == 1)
+        #expect(counts.sets == 2)  // depth-1 (Inbox) + depth-2 (Drafts)
         #expect(counts.pages == 2)
 
-        // page_sets row carries the parent Collection FK + folder-derived title.
+        // Depth-1 set row: parent_type_id set, parent_set_id null.
+        let collRow = try await fx.idx.dbQueue.read { db in
+            try Row.fetchOne(db, sql: "SELECT * FROM page_sets WHERE id = ?", arguments: [fx.collectionID])
+        }
+        #expect(collRow?["parent_type_id"] as String? == fx.typeID)
+        #expect(collRow?["parent_set_id"] as String? == nil)
+        #expect(collRow?["title"] as String? == "Inbox")
+
+        // Depth-2 set row: parent_set_id set, parent_type_id null.
         let setRow = try await fx.idx.dbQueue.read { db in
             try Row.fetchOne(db, sql: "SELECT * FROM page_sets WHERE id = ?", arguments: [fx.setID])
         }
-        #expect(setRow?["page_collection_id"] as String? == fx.collectionID)
+        #expect(setRow?["parent_set_id"] as String? == fx.collectionID)
+        #expect(setRow?["parent_type_id"] as String? == nil)
         #expect(setRow?["title"] as String? == "Drafts")
 
-        // The Set page carries all three container FKs; the root page has no set.
+        // The Set page carries type + set FKs; page_collection_id is null (set pages
+        // are indexed purely by page_set_id from v15 onward).
         let setPageRow = try await fx.idx.dbQueue.read { db in
             try Row.fetchOne(db, sql: "SELECT * FROM pages WHERE id = ?", arguments: [fx.setPageID])
         }
         #expect(setPageRow?["page_type_id"] as String? == fx.typeID)
-        #expect(setPageRow?["page_collection_id"] as String? == fx.collectionID)
         #expect(setPageRow?["page_set_id"] as String? == fx.setID)
 
+        // The root page (in the depth-1 set) also has page_set_id set.
         let rootPageRow = try await fx.idx.dbQueue.read { db in
             try Row.fetchOne(db, sql: "SELECT * FROM pages WHERE id = ?", arguments: [fx.rootPageID])
         }
-        #expect(rootPageRow?["page_set_id"] as String? == nil)
-        #expect(rootPageRow?["page_collection_id"] as String? == fx.collectionID)
+        #expect(rootPageRow?["page_set_id"] as String? == fx.collectionID)
     }
 
     @Test func populateExcludesSetPagesFromCollectionRollup() async throws {
@@ -118,12 +125,12 @@ struct PageSetIndexTests {
 
         try await IndexBuilder.populate(index: fx.idx, from: fx.nexus)
 
-        // Exactly one page rolls up at the Collection root — the Set page must
-        // not double-count into the Collection's own (set-less) scope.
+        // Exactly one page is scoped to the depth-1 set (Inbox) directly —
+        // the depth-2 Set page must not roll up into the depth-1 Set's scope.
         let rootScoped = try await fx.idx.dbQueue.read { db in
             try Int.fetchOne(
                 db,
-                sql: "SELECT COUNT(*) FROM pages WHERE page_collection_id = ? AND page_set_id IS NULL",
+                sql: "SELECT COUNT(*) FROM pages WHERE page_set_id = ?",
                 arguments: [fx.collectionID]
             ) ?? -1
         }
@@ -139,19 +146,17 @@ struct PageSetIndexTests {
         try await IndexBuilder.populate(index: fx.idx, from: fx.nexus)
         let query = IndexQuery(fx.idx)
 
+        // The depth-2 Set page: type resolved, set resolved via page_set_id.
         let setContainer = try await query.entityContainer(id: fx.setPageID, kind: .page)
         #expect(setContainer?.typeID == fx.typeID)
         #expect(setContainer?.typeTitle == "Notes")
-        #expect(setContainer?.collectionID == fx.collectionID)
-        #expect(setContainer?.collectionTitle == "Inbox")
         #expect(setContainer?.setID == fx.setID)
         #expect(setContainer?.setTitle == "Drafts")
 
-        // A Collection-root page resolves with nil set fields.
+        // The depth-1 Set page (root page of "Inbox"): page_set_id = collectionID.
         let rootContainer = try await query.entityContainer(id: fx.rootPageID, kind: .page)
-        #expect(rootContainer?.collectionID == fx.collectionID)
-        #expect(rootContainer?.setID == nil)
-        #expect(rootContainer?.setTitle == nil)
+        #expect(rootContainer?.setID == fx.collectionID)
+        #expect(rootContainer?.setTitle == "Inbox")
     }
 
     // MARK: - IndexUpdater fallback chain
@@ -165,7 +170,7 @@ struct PageSetIndexTests {
         let pt = Fixtures.pageType()
         try updater.upsertPageType(pt)
         let pc = Fixtures.pageCollection(parentID: pt.id)
-        try updater.upsertPageSet(pc)
+        try updater.upsertPageCollection(pc)
 
         // The set FK dangles (never indexed) — the page must still land,
         // scoped to its Collection, without throwing.
@@ -212,7 +217,7 @@ struct PageSetIndexTests {
         let pt = Fixtures.pageType()
         try updater.upsertPageType(pt)
         let pc = Fixtures.pageCollection(parentID: pt.id)
-        try updater.upsertPageSet(pc)
+        try updater.upsertPageCollection(pc)
 
         let set = PageSet(
             id: ULID.generate(), parentID: pc.id, title: "Drafts",
@@ -225,7 +230,8 @@ struct PageSetIndexTests {
         let row = try await idx.dbQueue.read { db in
             try Row.fetchOne(db, sql: "SELECT * FROM page_sets WHERE id = ?", arguments: [setID])
         }
-        #expect(row?["page_collection_id"] as String? == pc.id)
+        #expect(row?["parent_set_id"] as String? == pc.id)
+        #expect(row?["parent_type_id"] as String? == nil)
         #expect(row?["title"] as String? == "Drafts")
 
         // Re-upsert (rename) updates in place — no cascade fires on the member FK.
@@ -239,9 +245,10 @@ struct PageSetIndexTests {
         }
         #expect(title == "Outbox")
 
-        try updater.deletePageSet(id: set.id)
+        try updater.deletePageSet(id: setID)
         let count = try await idx.dbQueue.read { db in
-            try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM page_sets") ?? -1
+            // pc (depth-1) still exists; only the depth-2 set was deleted.
+            try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM page_sets WHERE id = ?", arguments: [setID]) ?? -1
         }
         #expect(count == 0)
     }

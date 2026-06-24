@@ -123,10 +123,10 @@ struct LoadAllIndexSyncTests {
         await manager.loadAll()
         await setManager.loadAll(types: manager.types)
 
-        // Both type AND collection should be in the index now.
+        // Both type AND collection (depth-1 set) should be in the index now.
         let counts = try await index.dbQueue.read { db -> (Int, Int) in
             let t = try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM page_types WHERE id = ?", arguments: [vaultID]) ?? -1
-            let c = try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM page_collections WHERE id = ?", arguments: [collID]) ?? -1
+            let c = try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM page_sets WHERE id = ?", arguments: [collID]) ?? -1
             return (t, c)
         }
         #expect(counts.0 == 1)

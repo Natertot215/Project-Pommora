@@ -10,7 +10,7 @@ import Testing
 ///
 /// `INSERT OR REPLACE` on an existing primary key DELETEs the existing row
 /// (firing every `ON DELETE CASCADE` / `ON DELETE SET NULL` child FK) then
-/// re-inserts. The parent tables (`page_types` / `page_collections`) are
+/// re-inserts. The parent tables (`page_types` / `page_sets`) are
 /// cascade parents of pages, so re-upserting an already-present parent — which
 /// `loadAll` does on every launch as a defensive index sync (quirk #14) —
 /// cascade-wiped (or NULLed) every child page. The fix converts the parent
@@ -73,7 +73,7 @@ struct IndexParentUpsertCascadeTests {
         let pt = Fixtures.pageType()
         try updater.upsertPageType(pt)
         let pc = Fixtures.pageCollection(parentID: pt.id)
-        try updater.upsertPageSet(pc)
+        try updater.upsertPageCollection(pc)
 
         let pageMeta = Fixtures.pageMeta(title: "Filed Page")
         try updater.upsertPage(pageMeta, pageTypeID: pt.id, pageCollectionID: pc.id)
@@ -89,7 +89,7 @@ struct IndexParentUpsertCascadeTests {
 
         // Re-upsert the SAME page collection — `ON DELETE SET NULL` would NULL the
         // child's page_collection_id under INSERT OR REPLACE.
-        try updater.upsertPageSet(pc)
+        try updater.upsertPageCollection(pc)
 
         let pagesAfter = try count("pages", in: idx)
         let after = try pageCollectionID(of: pageID, in: idx)

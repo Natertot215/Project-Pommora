@@ -67,13 +67,14 @@ struct IndexUpdaterTests {
         let pt = Fixtures.pageType()
         try updater.upsertPageType(pt)
         let pc = Fixtures.pageCollection(parentID: pt.id)
-        try updater.upsertPageSet(pc)
+        try updater.upsertPageCollection(pc)
 
-        let count = try countRows(in: "page_collections", db: idx)
+        let count = try countRows(in: "page_sets", db: idx)
         #expect(count == 1)
-        let row = try firstRow(in: "page_collections", db: idx)
+        let row = try firstRow(in: "page_sets", db: idx)
         #expect(row?["id"] as String? == pc.id)
-        #expect(row?["page_type_id"] as String? == pt.id)
+        #expect(row?["parent_type_id"] as String? == pt.id)
+        #expect(row?["parent_set_id"] as String? == nil)
     }
 
     @Test func upsertPageSetPersistsEntitySchemaVersion() async throws {
@@ -90,9 +91,9 @@ struct IndexUpdaterTests {
         let pc = PageSet(
             id: ULID.generate(), parentID: pt.id, title: "Migrated",
             folderURL: folderURL, modifiedAt: Date(), schemaVersion: 7)
-        try updater.upsertPageSet(pc)
+        try updater.upsertPageCollection(pc)
 
-        let row = try firstRow(in: "page_collections", db: idx, where: "id = '\(pc.id)'")
+        let row = try firstRow(in: "page_sets", db: idx, where: "id = '\(pc.id)'")
         #expect(row?["schema_version"] as Int? == 7)
     }
 
@@ -105,10 +106,10 @@ struct IndexUpdaterTests {
         let pt = Fixtures.pageType()
         try updater.upsertPageType(pt)
         let pc = Fixtures.pageCollection(parentID: pt.id)
-        try updater.upsertPageSet(pc)
+        try updater.upsertPageCollection(pc)
         try updater.deletePageSet(id: pc.id)
 
-        let count = try countRows(in: "page_collections", db: idx)
+        let count = try countRows(in: "page_sets", db: idx)
         #expect(count == 0)
     }
 
@@ -138,7 +139,7 @@ struct IndexUpdaterTests {
         let pt = Fixtures.pageType()
         try updater.upsertPageType(pt)
         let pc = Fixtures.pageCollection(parentID: pt.id)
-        try updater.upsertPageSet(pc)
+        try updater.upsertPageCollection(pc)
 
         let rootPage = Fixtures.pageMeta(title: "Root")
         let collectionPage = Fixtures.pageMeta(title: "InCollection")

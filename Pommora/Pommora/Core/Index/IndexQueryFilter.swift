@@ -54,6 +54,7 @@ enum FilterBuilder {
         switch target {
         case .pageType(let id): return ("pages", "id", "title", "page_type_id = ?", [id])
         case .pageCollection(let id): return ("pages", "id", "title", "page_collection_id = ?", [id])
+        case .pageSet(let id): return ("pages", "id", "title", "page_set_id = ?", [id])
         case .agendaTasks: return ("agenda_tasks", "id", "title", "", [])
         case .agendaEvents: return ("agenda_events", "id", "title", "", [])
         case .contextTier(let t): return ("contexts", "id", "title", "tier = ?", [t])
@@ -62,7 +63,7 @@ enum FilterBuilder {
 
     nonisolated static func targetEntityKind(_ target: TargetRef) -> EntityKind {
         switch target {
-        case .pageType, .pageCollection: return .page
+        case .pageType, .pageCollection, .pageSet: return .page
         case .agendaTasks: return .agendaTask
         case .agendaEvents: return .agendaEvent
         case .contextTier(let t): return t == 1 ? .area : (t == 2 ? .topic : .project)

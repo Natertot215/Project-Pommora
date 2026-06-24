@@ -12,18 +12,8 @@ private struct PageTypeSnapshot: Sendable {
     let modifiedAt: Date
     let schemaVersion: Int
     let properties: [PropertyDefinition]
-    let collections: [PageCollectionSnapshot]
-    let directPages: [PageSnapshot]
-}
-
-private struct PageCollectionSnapshot: Sendable {
-    let id: String
-    let title: String
-    let icon: String?
-    let modifiedAt: Date
-    let schemaVersion: Int
     let sets: [PageSetSnapshot]
-    let pages: [PageSnapshot]
+    let directPages: [PageSnapshot]
 }
 
 private struct PageSetSnapshot: Sendable {
@@ -32,6 +22,10 @@ private struct PageSetSnapshot: Sendable {
     let icon: String?
     let modifiedAt: Date
     let schemaVersion: Int
+    // exactly one of parentTypeID / parentSetID is non-nil
+    let parentTypeID: String?
+    let parentSetID: String?
+    let children: [PageSetSnapshot]
     let pages: [PageSnapshot]
 }
 
@@ -165,56 +159,27 @@ final class IndexBuilder {
                 let pageType = try? PageType.load(from: metaURL)
             else { continue }
 
-            // Collections
+            // Depth-1 sets — sub-folders of the type carrying `_pagecollection.json` OR
+            // `_pageset.json`. Both sidecar filenames are tried so existing on-disk
+            // structures (which used `_pagecollection.json` at depth-1) continue to work.
             let subFolders = (try? Filesystem.childFolders(of: folder, folderFilter: filter)) ?? []
-            var collections: [PageCollectionSnapshot] = []
+            var depthOneSets: [PageSetSnapshot] = []
             for sub in subFolders where !sub.lastPathComponent.hasPrefix("_") && !sub.lastPathComponent.hasPrefix(".") {
                 let collURL = sub.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename)
-                guard Filesystem.fileExists(at: collURL),
-                    let coll = try? PageSet.load(from: collURL)
+                let setURL = sub.appendingPathComponent(NexusPaths.pageSetSidecarFilename)
+                let sidecarURL = Filesystem.fileExists(at: collURL) ? collURL : setURL
+                guard Filesystem.fileExists(at: sidecarURL),
+                    let set = try? PageSet.load(from: sidecarURL)
                 else { continue }
 
-                // Sets — direct child folders of the Collection carrying `_pageset.json`.
-                // Their pages roll up under the Set; the Collection's own roll-up below
-                // collects only IMMEDIATE child files (Filesystem.children is non-recursive),
-                // so set subtrees stay out of it — the same structural exclusion that keeps
-                // collection folders out of the type-root walk.
-                let setFolders = (try? Filesystem.childFolders(of: sub, folderFilter: filter)) ?? []
-                var sets: [PageSetSnapshot] = []
-                for setFolder in setFolders
-                where !setFolder.lastPathComponent.hasPrefix("_") && !setFolder.lastPathComponent.hasPrefix(".") {
-                    let setURL = setFolder.appendingPathComponent(NexusPaths.pageSetSidecarFilename)
-                    guard Filesystem.fileExists(at: setURL),
-                        let set = try? PageSet.load(from: setURL)
-                    else { continue }
-                    let setPages = collectPagesInFolder(
-                        setFolder, pageTypeID: pageType.id, collectionID: coll.id, setID: set.id,
-                        nexusRoot: root, filter: filter)
-                    sets.append(
-                        PageSetSnapshot(
-                            id: set.id,
-                            title: set.title,
-                            icon: set.icon,
-                            modifiedAt: set.modifiedAt,
-                            schemaVersion: set.schemaVersion,
-                            pages: setPages
-                        ))
-                }
-
-                let pages = collectPagesInFolder(sub, pageTypeID: pageType.id, collectionID: coll.id, nexusRoot: root, filter: filter)
-                collections.append(
-                    PageCollectionSnapshot(
-                        id: coll.id,
-                        title: coll.title,
-                        icon: coll.icon,
-                        modifiedAt: coll.modifiedAt,
-                        schemaVersion: coll.schemaVersion,
-                        sets: sets,
-                        pages: pages
-                    ))
+                let snap = collectSetSnapshot(
+                    set, folder: sub, parentTypeID: pageType.id, parentSetID: nil,
+                    pageTypeID: pageType.id, nexusRoot: root, filter: filter)
+                depthOneSets.append(snap)
             }
 
-            let directPages = collectPagesInFolder(folder, pageTypeID: pageType.id, collectionID: nil, nexusRoot: root, filter: filter)
+            let directPages = collectPagesInFolder(
+                folder, pageTypeID: pageType.id, collectionID: nil, nexusRoot: root, filter: filter)
 
             result.append(
                 PageTypeSnapshot(
@@ -224,11 +189,50 @@ final class IndexBuilder {
                     modifiedAt: pageType.modifiedAt,
                     schemaVersion: pageType.schemaVersion,
                     properties: pageType.properties,
-                    collections: collections,
+                    sets: depthOneSets,
                     directPages: directPages
                 ))
         }
         return result
+    }
+
+    /// Recursively builds a `PageSetSnapshot` for `set`, walking child sub-folders
+    /// at any depth. Depth-1 sets carry `parentTypeID`; deeper sets carry `parentSetID`.
+    private static func collectSetSnapshot(
+        _ set: PageSet,
+        folder: URL,
+        parentTypeID: String?,
+        parentSetID: String?,
+        pageTypeID: String,
+        nexusRoot: URL,
+        filter: FolderFilter
+    ) -> PageSetSnapshot {
+        let subFolders = (try? Filesystem.childFolders(of: folder, folderFilter: filter)) ?? []
+        var children: [PageSetSnapshot] = []
+        for sub in subFolders where !sub.lastPathComponent.hasPrefix("_") && !sub.lastPathComponent.hasPrefix(".") {
+            let subSetURL = sub.appendingPathComponent(NexusPaths.pageSetSidecarFilename)
+            guard Filesystem.fileExists(at: subSetURL),
+                let child = try? PageSet.load(from: subSetURL)
+            else { continue }
+            let childSnap = collectSetSnapshot(
+                child, folder: sub, parentTypeID: nil, parentSetID: set.id,
+                pageTypeID: pageTypeID, nexusRoot: nexusRoot, filter: filter)
+            children.append(childSnap)
+        }
+        let pages = collectPagesInFolder(
+            folder, pageTypeID: pageTypeID, collectionID: nil, setID: set.id,
+            nexusRoot: nexusRoot, filter: filter)
+        return PageSetSnapshot(
+            id: set.id,
+            title: set.title,
+            icon: set.icon,
+            modifiedAt: set.modifiedAt,
+            schemaVersion: set.schemaVersion,
+            parentTypeID: parentTypeID,
+            parentSetID: parentSetID,
+            children: children,
+            pages: pages
+        )
     }
 
     private static func collectPagesInFolder(
@@ -457,25 +461,8 @@ final class IndexBuilder {
                 db, properties: pt.properties,
                 owningTypeID: pt.id, owningTypeKind: "page_type")
 
-            for coll in pt.collections {
-                guard
-                    attemptInsert(
-                        "page_collection \(coll.title) [\(coll.id)]",
-                        {
-                            try db.execute(
-                                literal: """
-                                    INSERT INTO page_collections (id, page_type_id, title, icon, modified_at, schema_version)
-                                    VALUES (\(coll.id), \(pt.id), \(coll.title), \(coll.icon), \(iso8601(coll.modifiedAt)), \(coll.schemaVersion))
-                                    """
-                            )
-                        })
-                else { continue }
-                for set in coll.sets {
-                    insertPageSet(db, set: set, collectionID: coll.id)
-                }
-                for page in coll.pages {
-                    insertPage(db, page: page)
-                }
+            for set in pt.sets {
+                insertPageSet(db, set: set)
             }
             for page in pt.directPages {
                 insertPage(db, page: page)
@@ -483,21 +470,24 @@ final class IndexBuilder {
         }
     }
 
-    private nonisolated static func insertPageSet(_ db: Database, set: PageSetSnapshot, collectionID: String) {
-        // Parent must land before its pages; if it can't, skip the subtree —
-        // the pages would only FK-fail (same guard as the collection insert).
+    /// Inserts a set row into `page_sets`, recursively inserting its children and pages.
+    /// Uses `parent_type_id` for depth-1 sets and `parent_set_id` for deeper ones.
+    private nonisolated static func insertPageSet(_ db: Database, set: PageSetSnapshot) {
         guard
             attemptInsert(
                 "page_set \(set.title) [\(set.id)]",
                 {
                     try db.execute(
                         literal: """
-                            INSERT INTO page_sets (id, page_collection_id, title, icon, modified_at, schema_version)
-                            VALUES (\(set.id), \(collectionID), \(set.title), \(set.icon), \(iso8601(set.modifiedAt)), \(set.schemaVersion))
+                            INSERT INTO page_sets (id, parent_type_id, parent_set_id, title, icon, modified_at, schema_version)
+                            VALUES (\(set.id), \(set.parentTypeID), \(set.parentSetID), \(set.title), \(set.icon), \(iso8601(set.modifiedAt)), \(set.schemaVersion))
                             """
                     )
                 })
         else { return }
+        for child in set.children {
+            insertPageSet(db, set: child)
+        }
         for page in set.pages {
             insertPage(db, page: page)
         }
@@ -576,15 +566,7 @@ final class IndexBuilder {
 
     private nonisolated static func insertTierContextLinks(_ db: Database, snapshot: NexusSnapshot) {
         for pt in snapshot.pageTypes {
-            for coll in pt.collections {
-                for page in coll.pages + coll.sets.flatMap(\.pages) {
-                    insertTierContextLinkRows(
-                        db, sourceID: page.id, sourceKind: "page",
-                        tier1: page.tier1, tier2: page.tier2, tier3: page.tier3,
-                        modifiedAt: page.modifiedAt)
-                }
-            }
-            for page in pt.directPages {
+            for page in allPages(in: pt.sets) + pt.directPages {
                 insertTierContextLinkRows(
                     db, sourceID: page.id, sourceKind: "page",
                     tier1: page.tier1, tier2: page.tier2, tier3: page.tier3,
@@ -603,6 +585,11 @@ final class IndexBuilder {
                 tier1: event.tier1, tier2: event.tier2, tier3: event.tier3,
                 modifiedAt: event.modifiedAt)
         }
+    }
+
+    /// Recursively collects all pages from a set tree.
+    private nonisolated static func allPages(in sets: [PageSetSnapshot]) -> [PageSnapshot] {
+        sets.flatMap { set in set.pages + allPages(in: set.children) }
     }
 
     /// Emits one `context_links` row per tier value.
@@ -668,12 +655,9 @@ final class IndexBuilder {
             }
         }
         for pt in snapshot.pageTypes {
-            for coll in pt.collections {
-                for p in coll.pages + coll.sets.flatMap(\.pages) {
-                    emit(sourceID: p.id, sourceTitle: p.title, body: p.body)
-                }
+            for p in allPages(in: pt.sets) + pt.directPages {
+                emit(sourceID: p.id, sourceTitle: p.title, body: p.body)
             }
-            for p in pt.directPages { emit(sourceID: p.id, sourceTitle: p.title, body: p.body) }
         }
     }
 

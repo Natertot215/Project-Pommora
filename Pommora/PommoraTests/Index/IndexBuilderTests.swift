@@ -116,18 +116,18 @@ struct IndexBuilderTests {
         try await IndexBuilder.populate(index: idx, from: nexus)
 
         let count = try await idx.dbQueue.read { db in
-            try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM page_collections") ?? -1
+            try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM page_sets") ?? -1
         }
         #expect(count == 1)
 
-        // Verify FK: page_collection.page_type_id matches the page_type row.
+        // Verify FK: depth-1 set has parent_type_id pointing to the page_type.
         let matched = try await idx.dbQueue.read { db in
             try Int.fetchOne(
                 db,
                 sql: """
-                    SELECT COUNT(*) FROM page_collections pc
-                    JOIN page_types pt ON pc.page_type_id = pt.id
-                    WHERE pt.title = 'Notes' AND pc.title = 'Inbox'
+                    SELECT COUNT(*) FROM page_sets ps
+                    JOIN page_types pt ON ps.parent_type_id = pt.id
+                    WHERE pt.title = 'Notes' AND ps.title = 'Inbox'
                     """) ?? 0
         }
         #expect(matched == 1)

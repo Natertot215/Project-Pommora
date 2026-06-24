@@ -230,11 +230,11 @@ struct IndexPopulationReproTests {
         await pageContentManager.loadAll(for: loadedVault)  // harmless idempotent re-run; no Collection to load
 
         // --- ASSERT: the malformed Collection is ABSENT from the in-memory
-        // load AND from the `page_collections` index table. ---
+        // load AND from the `page_sets` index table (v15: depth-1 sets land there). ---
         #expect(pageTypeManager.pageCollections(in: loadedVault).isEmpty)
         let collRowCount = try await index.dbQueue.read { db in
             try Int.fetchOne(
-                db, sql: "SELECT COUNT(*) FROM page_collections WHERE id = ?", arguments: [orphanCollID]
+                db, sql: "SELECT COUNT(*) FROM page_sets WHERE id = ?", arguments: [orphanCollID]
             ) ?? -1
         }
         #expect(collRowCount == 0)

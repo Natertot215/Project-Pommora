@@ -75,17 +75,20 @@ struct IndexUpdater: Sendable {
         }
     }
 
-    // MARK: - PageCollection
+    // MARK: - PageCollection (depth-1 set — parent is a PageType)
 
+    /// Upserts a depth-1 `PageSet` (formerly called a Collection) into `page_sets`
+    /// with `parent_type_id = pc.parentID`. The vestigial `page_collections` table
+    /// is no longer written to from v15 onward.
     func upsertPageCollection(_ pc: PageSet) throws {
         try index.dbQueue.write { db in
             try db.execute(
                 sql: """
-                    INSERT INTO page_collections
-                        (id, page_type_id, title, icon, modified_at, schema_version)
-                    VALUES (?, ?, ?, ?, ?, ?)
+                    INSERT INTO page_sets
+                        (id, parent_type_id, parent_set_id, title, icon, modified_at, schema_version)
+                    VALUES (?, ?, NULL, ?, ?, ?, ?)
                     ON CONFLICT(id) DO UPDATE SET
-                        page_type_id = excluded.page_type_id, title = excluded.title,
+                        parent_type_id = excluded.parent_type_id, title = excluded.title,
                         icon = excluded.icon, modified_at = excluded.modified_at,
                         schema_version = excluded.schema_version
                     """,
@@ -97,23 +100,24 @@ struct IndexUpdater: Sendable {
     func deletePageCollection(id: String) throws {
         try index.dbQueue.write { db in
             try db.execute(
-                sql: "DELETE FROM page_collections WHERE id = ?",
+                sql: "DELETE FROM page_sets WHERE id = ?",
                 arguments: [id]
             )
         }
     }
 
-    // MARK: - PageSet
+    // MARK: - PageSet (depth-2+ set — parent is another PageSet)
 
+    /// Upserts a depth-2+ `PageSet` into `page_sets` with `parent_set_id = set.parentID`.
     func upsertPageSet(_ set: PageSet) throws {
         try index.dbQueue.write { db in
             try db.execute(
                 sql: """
                     INSERT INTO page_sets
-                        (id, page_collection_id, title, icon, modified_at, schema_version)
-                    VALUES (?, ?, ?, ?, ?, ?)
+                        (id, parent_type_id, parent_set_id, title, icon, modified_at, schema_version)
+                    VALUES (?, NULL, ?, ?, ?, ?, ?)
                     ON CONFLICT(id) DO UPDATE SET
-                        page_collection_id = excluded.page_collection_id, title = excluded.title,
+                        parent_set_id = excluded.parent_set_id, title = excluded.title,
                         icon = excluded.icon, modified_at = excluded.modified_at,
                         schema_version = excluded.schema_version
                     """,

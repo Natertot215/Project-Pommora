@@ -168,10 +168,13 @@ struct IndexQuery: Sendable {
                 let collectionID: String? = row["page_collection_id"]
                 var collectionTitle: String?
                 if let collectionID {
-                    collectionTitle = try String.fetchOne(
+                    // page_collections is vestigial (v15+); fall back to page_sets
+                    let fromLegacy = try String.fetchOne(
                         db, sql: "SELECT title FROM page_collections WHERE id = ?",
-                        arguments: [collectionID]
-                    )
+                        arguments: [collectionID])
+                    collectionTitle = try fromLegacy ?? String.fetchOne(
+                        db, sql: "SELECT title FROM page_sets WHERE id = ?",
+                        arguments: [collectionID])
                 }
                 let setID: String? = row["page_set_id"]
                 var setTitle: String?
@@ -476,6 +479,7 @@ struct EntityContainer: Equatable, Sendable {
 enum TargetRef: Sendable {
     case pageType(String)
     case pageCollection(String)
+    case pageSet(String)
     case agendaTasks
     case agendaEvents
     case contextTier(Int)

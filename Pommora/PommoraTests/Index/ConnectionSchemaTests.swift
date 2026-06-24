@@ -17,7 +17,7 @@ import Testing
     }
 
     // Tripwire: forces a deliberate update whenever the index schema version
-    // bumps. v14 (2026-06-11) = Sets — new page_sets table + pages.page_set_id;
-    // pre-v14 DBs delete + recreate on open, no migration.
-    @Test func schemaVersionIsFourteen() { #expect(PommoraIndex.currentSchemaVersion == 14) }
+    // bumps. v15 (2026-06-23) = recursive page_sets — depth-1 via parent_type_id,
+    // deeper via parent_set_id; pre-v15 DBs delete + recreate on open, no migration.
+    @Test func schemaVersionIsFifteen() { #expect(PommoraIndex.currentSchemaVersion == 15) }
 }

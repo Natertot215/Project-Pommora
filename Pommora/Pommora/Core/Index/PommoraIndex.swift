@@ -104,7 +104,15 @@ final class PommoraIndex: @unchecked Sendable {
     // 13 → 14 forces one delete+rebuild so existing DBs gain the table/column
     // and IndexBuilder backfills sets from the sidecars. No data migration
     // (regeneratable).
-    static let currentSchemaVersion: Int = 14
+    //
+    // v15: recursive page_sets — depth-1 via parent_type_id, deeper via parent_set_id.
+    // `page_sets` now has `parent_type_id` (nullable FK→page_types) and `parent_set_id`
+    // (nullable self-ref FK→page_sets) instead of the old `page_collection_id`; exactly
+    // one of the two is non-null per row. `set_order` column added. `page_collections`
+    // table remains in the schema as a vestigial stub (Phase-2 task 2.4 drops/renames
+    // it); nothing writes to it from v15 onward. IndexBuilder walks sets recursively at
+    // any depth. Bumping 14 → 15 forces one delete+rebuild. No data migration.
+    static let currentSchemaVersion: Int = 15
 
     let dbQueue: DatabaseQueue  // GRDB connection pool (serialized writes, concurrent reads)
     let dbURL: URL

@@ -44,7 +44,7 @@ struct WikiLinkNavigationTests {
 
         let updater = IndexUpdater(index)
         try updater.upsertPageType(vault)
-        try updater.upsertPageSet(coll)
+        try updater.upsertPageCollection(coll)
 
         let manager = PageContentManager(nexus: nexus, contextProvider: { NexusContext.empty })
         manager.indexUpdater = updater
