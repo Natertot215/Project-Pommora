@@ -20,15 +20,15 @@ A Nexus is a single folder. Pommora opens it via picker (security-scoped bookmar
 
 ```
 <picked nexus folder>/                  ← canonical content; syncs with cloud
-  <Type>/                               ← Page Type (root folder, identified by sidecar)
-    _pagetype.json                      ← shared property schema
-    <Collection>/                       ← Page Collection (sub-folder)
-      _pagecollection.json              ← collection metadata + per-Collection views[] + set_order
-      <Set>/                            ← Page Set (optional schema-less sub-folder)
-        _pageset.json                   ← set metadata (id + collection_id + icon + page_order)
-        <Page>.md                       ← Page inside a Page Set
-      <Page>.md                         ← Page at Collection root
-    <Page>.md                           ← Page directly in Page Type
+  <Collection>/                         ← Page Collection (top folder, identified by sidecar)
+    _pagetype.json                      ← shared property schema (legacy name → _pagecollection.json post-migration)
+    <Set>/                              ← Page Set (depth-1; carries its own views[])
+      _pagecollection.json              ← set metadata + views[] + set_order (legacy name → _pageset.json post-migration)
+      <SubSet>/                         ← Sub-Set (deeper; plain, recursive — any depth)
+        _pageset.json                   ← set metadata (id + parent_id + icon + page_order)
+        <Page>.md                       ← Page nested in a Sub-Set
+      <Page>.md                         ← Page at the Set root
+    <Page>.md                           ← Page directly in the Collection root
 
   <Tasks>/                              ← Tasks singleton (folder + _taskconfig.json)
     _taskconfig.json
@@ -58,23 +58,23 @@ A Nexus is a single folder. Pommora opens it via picker (security-scoped bookmar
   state.json                            ← security-scoped bookmark + recent-nexuses
 ```
 
-**Classification by sidecar filename alone.** A root folder containing `_pagetype.json` IS a Page Type — regardless of folder name; folders rename freely via Finder. The five per-kind sidecar filenames (`_pagetype.json` / `_pagecollection.json` / `_pageset.json` / `_taskconfig.json` / `_eventconfig.json`) are the kind discriminators. Container depth is strictly three levels — depth-2 folders inside a Collection are Page Sets; deeper folders are sidecar-less and roll up into the nearest Set (→ `// Features//Sets.md`).
+**Classification by sidecar + folder position.** A root folder carrying a Pages sidecar IS a Page Collection — regardless of folder name; folders rename freely via Finder. The per-kind sidecar filenames (`_pagecollection.json` / `_pageset.json` / `_taskconfig.json` / `_eventconfig.json`) are the kind discriminators (the legacy `_pagetype.json` is read as a Collection pending the deferred on-disk rename → [[PageCollections]]). A Collection nests Page Sets to **any depth** — every sidecar-bearing sub-folder is a Set (tier = folder depth, not filename); there is no depth cap and no roll-up (→ `// Features//PageSets.md`).
 
-**No wrapper folders.** Page Types and the Tasks / Events singletons all live as siblings at the nexus root — there is no `Pages/` or `Agenda/` container folder.
+**No wrapper folders.** Page Collections and the Tasks / Events singletons all live as siblings at the nexus root — there is no `Pages/` or `Agenda/` container folder.
 
 **Hidden + private.** `.nexus/` and `.trash/` are hidden from the sidebar and from non-Pommora tools by convention (matches `.obsidian/`).
 
-**User folder exclusion.** Beyond the built-in skips (dot/underscore-prefixed + `node_modules`), the user can exclude arbitrary folders via `excluded_folders` on `settings.json` — anchored, vault-relative paths Pommora ignores *completely* at any depth: never adopted, shown, indexed, walked, or auto-tagged. One subtractive filter (case-insensitive + NFC, ancestor-walk subtree match, `..`-escape rejected) loads directly from disk — so it works in the index-rebuild pass that runs before the per-Nexus environment exists. Internal `.nexus/` Context reads never consult it. Editing UI is deferred to Settings.
+**User folder exclusion.** Beyond the built-in skips (dot/underscore-prefixed + `node_modules`), the user can exclude arbitrary folders via `excluded_folders` on `settings.json` — anchored, nexus-relative paths Pommora ignores *completely* at any depth: never adopted, shown, indexed, walked, or auto-tagged. One subtractive filter (case-insensitive + NFC, ancestor-walk subtree match, `..`-escape rejected) loads directly from disk — so it works in the index-rebuild pass that runs before the per-Nexus environment exists. Internal `.nexus/` Context reads never consult it. Editing UI is deferred to Settings.
 
 ---
 
 #### Manager + cache layer
 
-One per-entity manager per kind owns the in-memory cache for that kind: it loads files at app start, mirrors to the SQLite index, and writes atomically on every mutation. There is a manager for each operational + organization kind (Page Types + Collections, Page Sets, Page content, Tasks, Events, the three Context tiers) plus the Homepage and Settings singletons; each is sourced from its corresponding files/sidecars on disk.
+One per-entity manager per kind owns the in-memory cache for that kind: it loads files at app start, mirrors to the SQLite index, and writes atomically on every mutation. There is a manager for each operational + organization kind (Page Collections, Page Sets, Page content, Tasks, Events, the three Context tiers) plus the Homepage and Settings singletons; each is sourced from its corresponding files/sidecars on disk.
 
 Managers are `@MainActor` `@Observable`; SwiftUI views observe them directly via `@Environment`. Heavy services (the SQLite index, parsers) stay in DI to avoid re-init on view rebuild. Manager ownership + injection is centralized — see CLAUDE.md branch quirk #15.
 
-**Full load mirrors parents to the SQLite index.** Invariant: after a full disk-load, every in-memory parent (Page Type / Page Collection) is also present in its SQLite table. The manager defensively re-upserts parents after load (idempotent; failures swallowed since the index is regeneratable). Without this, page CRUD into a vault that arrived outside CRUD (adoption / external Finder folders) triggers an FK-constraint failure.
+**Full load mirrors parents to the SQLite index.** Invariant: after a full disk-load, every in-memory parent (Page Collection / Page Set) is also present in its SQLite table. The manager defensively re-upserts parents after load (idempotent; failures swallowed since the index is regeneratable). Without this, page CRUD into a Collection that arrived outside CRUD (adoption / external Finder folders) triggers an FK-constraint failure.
 
 ---
 
@@ -116,7 +116,7 @@ External + out-of-band on-disk changes (Obsidian / vim / Finder / cloud-sync) pr
 
 #### Adoption — opening any folder as a Nexus
 
-When a folder is first opened as a Nexus, the adopter classifies each root folder independently: fresh (no recognized sidecar → content-sniff picks a Page Type), unrecognized sidecar (auto-tagged as a Page Type, the foreign sidecar staying **inert on disk**), or already flat (no-op). Idempotent, per-folder atomic, safe to re-run on partial state; hidden folders skipped. Preview-before-commit shows per-Type counts + warnings; fully-flat Nexuses skip the sheet silently. Full per-shape detail → `// Features//PageTypes.md` § "Adopting existing folders".
+When a folder is first opened as a Nexus, the adopter classifies each root folder independently: fresh (no recognized sidecar → content-sniff picks a Page Collection), unrecognized sidecar (auto-tagged as a Page Collection, the foreign sidecar staying **inert on disk**), or already flat (no-op). Idempotent, per-folder atomic, safe to re-run on partial state; hidden folders skipped. Preview-before-commit shows per-Collection counts + warnings; fully-flat Nexuses skip the sheet silently. Full per-shape detail → `// Features//PageCollections.md` § "Adopting existing folders".
 
 **Kind authority = the folder sidecar, not the extension.** A `.md` file's kind comes from its parent folder's sidecar (`_pagetype.json` → Page), never from frontmatter. Any kind-like frontmatter key is treated as preserved foreign frontmatter — carried by value, never written by Pommora.
 

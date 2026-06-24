@@ -8,13 +8,13 @@ SwiftUI patterns for per-entity CRUD UI — file format → sidebar UI → valid
 
 "Open in preview" is a generic affordance backed by **one shared primitive** — the `PagePreview` child panel opened via the preview-open path (spec → `Features/Pages.md` § "Opening behavior") — not a per-feature one.
 
-**Rule:** for any entity kind (Page, Page Type, Page Collection, and each Context tier, Task, Event), preview support for that kind ships on the shared primitive **before** any "open in preview" UI is wired for it. CRUD may land independently; the preview affordance waits. Half-wired feature-specific window plumbing rots when requirements shift — one project-wide primitive, bolt feature surfaces onto it. Today only Pages have preview support, routed per-vault via `open_in`.
+**Rule:** for any entity kind (Page, Page Collection, Page Set, and each Context tier, Task, Event), preview support for that kind ships on the shared primitive **before** any "open in preview" UI is wired for it. CRUD may land independently; the preview affordance waits. Half-wired feature-specific window plumbing rots when requirements shift — one project-wide primitive, bolt feature surfaces onto it. Today only Pages have preview support, routed per-collection via `open_in`.
 
 ---
 
 #### Manager pattern — per entity, `@MainActor @Observable`
 
-Every new entity (each Context tier, Page Type, Page Collection, Page, Task, Event, Homepage, Settings, …) gets its own `@MainActor @Observable final class` manager mirroring `NexusManager`'s shape. Per-entity, not one unified store — this narrows state-driven updates so changing one entity doesn't re-evaluate unrelated sidebar sections.
+Every new entity (each Context tier, Page Collection, Page Set, Page, Task, Event, Homepage, Settings, …) gets its own `@MainActor @Observable final class` manager mirroring `NexusManager`'s shape. Per-entity, not one unified store — this narrows state-driven updates so changing one entity doesn't re-evaluate unrelated sidebar sections.
 
 The shape: a `private(set)` array of the entity, a `pendingError: (any Error)?`, an injected `Nexus`, and `async`/`async throws` methods for `loadAll`, `create` (`@discardableResult`, returns the new entity), `rename`, `update*`, and `delete`.
 
@@ -22,7 +22,7 @@ Inject the active Nexus at construction; **the init does NOT kick its own load**
 
 **`pendingError` scope:** set from `loadAll`/`load` AND from every CRUD method — each catch block assigns `self.pendingError = error` before rethrowing. A sidebar-level toast (`SidebarToast`) surfaces it transiently, so failed context-menu renames/deletes are never silent. Sheet-level forms additionally use a per-view error-message `@State` for inline display at the point of edit.
 
-**Property-schema mutation is shared, not per-manager.** The five schema methods — add / rename / delete / reorder property + change type — are NOT reimplemented per manager. They live in two shared `@MainActor` services: a per-type schema service (Page Type, keyed by type ID) and a singleton schema service (Task / Event, single schema). Each manager supplies a small per-side adapter (metadata URL, concrete error enum, member-file strip, index owning-kind) and keeps its exact public signatures + concrete error enum + the `pendingError`-set-then-rethrow wrapper via a one-line delegator. Entity-level CRUD (create/rename/delete the Type or Collection itself) stays per-manager.
+**Property-schema mutation is shared, not per-manager.** The five schema methods — add / rename / delete / reorder property + change type — are NOT reimplemented per manager. They live in two shared `@MainActor` services: a per-collection schema service (the schema-bearing Collection, keyed by its ID) and a singleton schema service (Task / Event, single schema). Each manager supplies a small per-side adapter (metadata URL, concrete error enum, member-file strip, index owning-kind) and keeps its exact public signatures + concrete error enum + the `pendingError`-set-then-rethrow wrapper via a one-line delegator. Entity-level CRUD (create/rename/delete the Collection or Set itself) stays per-manager.
 
 ---
 
@@ -64,7 +64,7 @@ Creation triggers use the stub-and-inline-rename coordinator (`Core/CRUD/CreateW
 
 #### Folder + file atomicity (multi-step filesystem ops)
 
-Creating a folder-backed entity (a Context tier, a Vault) is **two steps** — create the folder, then write the metadata sidecar. `Data.write(.atomic)` only atomicizes the write; the combined op needs **best-effort rollback** on failure + **idempotent recovery** on load.
+Creating a folder-backed entity (a Context tier, a Collection) is **two steps** — create the folder, then write the metadata sidecar. `Data.write(.atomic)` only atomicizes the write; the combined op needs **best-effort rollback** on failure + **idempotent recovery** on load.
 
 The pattern: create the directory, then in a `do` block build the entity and write its sidecar; on any thrown error in that block, `try?`-remove the orphaned folder before rethrowing.
 
@@ -78,7 +78,7 @@ Renames that touch two filesystem ops (folder/file rename + metadata save) follo
 
 Page `cover` and container `banner` are the same asset-CRUD shape — a nexus-relative path string on the entity (`cover` on Page frontmatter; `banner` on the container sidecar). The image lives under the nexus assets directory, keyed by entity ID; both flows share `CoverAssetStore` (collision-safe naming + a hard-cap size guard) and `AssetURLResolver` for path→URL (DRY).
 
-- **Container banner CRUD routes through the Page Type manager's set-banner method** (handles both container kinds via a fresh read-modify-write of the sidecar — `banner` isn't indexed, so no SQLite upsert). Page covers persist via the page-frontmatter update path.
+- **Container banner CRUD routes through the owning container manager's set-banner method** (handles both container kinds — Collection and depth-1 Set — via a fresh read-modify-write of the sidecar — `banner` isn't indexed, so no SQLite upsert). Page covers persist via the page-frontmatter update path.
 - **Set / Change — copy first, then write the field.** The store copies the source into the entity's asset folder **inside the security-scoped window** (the synchronous copy completes before the `defer` closes the scope; only the field-persist hops to a `Task`). The returned relative path is written to `cover` / `banner` only after the copy succeeds.
 - **Delete-AFTER-write discipline.** On Change or Remove, the new path (or `nil`) is written FIRST, and the store removes the previously-referenced asset **only after that write succeeds** — so a failed write never leaves the field pointing at a deleted file, and never orphans the old file before the new one commits. Delete is containment-guarded (only removes files under the entity's own asset dir) and no-ops on nil/missing.
 - **UI mirror.** The container banner view shows a hover-revealed "Add Banner" affordance in the empty state and a Change / Remove context menu when set — mirroring the page-level cover flow. Copy failures surface via the manager's `pendingError` → `SidebarToast`.

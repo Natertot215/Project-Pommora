@@ -64,7 +64,7 @@ Keystroke → body change → short debounce → content-manager update path →
 
 **System integration** (free via the text view): Writing Tools, Look Up, Translate, spell/grammar/autocorrect with per-token suppression for code and LaTeX, IME, dynamic light/dark colors, drag-to-select. The find-highlighting bus is present; the Pommora-side find palette is deferred.
 
-**Stats footer:** a hover-revealed chevron at the bottom-right toggles a thin bar — a Finder-style `Vault › Collection › Page` breadcrumb on the left, line/word/character counts on the right. Lines count raw source; words and characters count rendered prose (syntax stripped, structural separators excluded). Counts compute only while open, debounced. Open state persists globally. Clickable breadcrumb navigation was tried and dropped (it routed into detail surfaces where the editor isn't wired).
+**Stats footer:** a hover-revealed chevron at the bottom-right toggles a thin bar — a Finder-style `Collection › Set › Page` breadcrumb on the left, line/word/character counts on the right. Lines count raw source; words and characters count rendered prose (syntax stripped, structural separators excluded). Counts compute only while open, debounced. Open state persists globally. Clickable breadcrumb navigation was tried and dropped (it routed into detail surfaces where the editor isn't wired).
 
 ---
 

@@ -18,13 +18,13 @@ Each entity belongs to one Type. Every Type carries a schema in its per-kind sid
 
 | Type | Schema sidecar |
 |---|---|
-| Page Type | `<Type>/_pagetype.json` |
+| Page Collection | `<Collection>/_pagecollection.json` |
 | Task (singleton) | `<Tasks>/_taskconfig.json` |
 | Event (singleton) | `<Events>/_eventconfig.json` |
 
 Schemas declare which properties exist on the Type, what type each property is, and any per-type config (option lists, relation targets, etc.). Member entities store property VALUES conforming to that schema.
 
-Page Collections do not carry their own property schemas — they inherit from their parent Type. Their sidecar (`_pagecollection.json`) carries id, parent-Type linkage, an optional `icon` (mirrored into SQLite for the context picker), and per-view config (`views[]`).
+Sets do not carry their own property schemas — they inherit from their parent Collection. Their sidecar (`_pageset.json`) carries id, parent linkage, an optional `icon` (mirrored into SQLite for the context picker), and per-view config (`views[]` — honored on depth-1 Sets only).
 
 ---
 
@@ -187,7 +187,7 @@ Group position first (`upcoming < in_progress < done` ascending), then option or
 |---|---|---|
 | **Task** (`_taskconfig.json`) | **Yes** — required, non-deletable. | Default seed includes the 3 groups with one starter option each. EventKit sync (deferred) maps the 3 groups to `EKReminder.isCompleted`: `upcoming` / `in_progress` → `false`; `done` → `true`. |
 | **Event** (`_eventconfig.json`) | **Yes** — required, non-deletable. | Same 3 EventKit-aligned groups as Task. User-set (decoupled from `start_at` / `end_at` date math — the user marks status to track their own engagement with the event). EventKit mapping deferred. |
-| **Page Types** | **No.** | Not auto-seeded. Users add manually via Vault Settings. When added, the same 3-group structure applies. |
+| **Page Collections** | **No.** | Not auto-seeded. Users add manually via Collection Settings. When added, the same 3-group structure applies. |
 
 Reserved property ID `_status` on both the Task and Event schemas. Users cannot delete it via the schema editor.
 
@@ -231,7 +231,7 @@ For Select and Multi-select, schema option order defines sort behavior — drag-
 
 | Edit layer | Save model | UX |
 |---|---|---|
-| **Schema edits** (Collection level — rename property, change type, add/delete property, edit options) | Save-required | Collection Settings sheet stages edits into a draft; explicit Save commits inside an atomic transaction; Cancel discards. Concurrent-open forbidden — only one Type's Settings sheet open at a time per window. |
+| **Schema edits** (Collection level — rename property, change type, add/delete property, edit options) | Save-required | Collection Settings sheet stages edits into a draft; explicit Save commits inside an atomic transaction; Cancel discards. Concurrent-open forbidden — only one Collection's Settings sheet open at a time per window. |
 | **Value edits** (entity level — setting a property value on a specific Page) | Live-save | Pickers commit on click; text inputs debounce-save after typing stops. No Save button. Invalid values render with a red border; failed saves silently revert; recovery on next valid keystroke. |
 
 ---
@@ -255,7 +255,7 @@ Schema mutations that touch multiple files (type-change with value-drop / delete
 
 #### Moving content between Types
 
-Moving a Page across Page Types strips properties not in the destination schema. Confirmation warning lists what will be stripped; user can cancel, add the property to the destination first, or accept. Within the same Type (between Page Collections), no strip — schema is shared. There is no quarantine, orphan archive, or undo-strip.
+Moving a Page across Page Collections strips properties not in the destination schema. Confirmation warning lists what will be stripped; user can cancel, add the property to the destination first, or accept. Within the same Collection (between Sets, at any depth), no strip — schema is shared. There is no quarantine, orphan archive, or undo-strip.
 
 **Move-strip is schema-scoped; foreign-key preservation is everything else.** The strip only voids Pommora's own *schema properties* the destination doesn't define. Non-schema frontmatter keys — plugin/foreign keys an external tool wrote onto the `.md` file — are preserved by value on every Page write path, including a cross-Type move (they ride along via the source URL). The two mechanisms are orthogonal: the schema layer governs what Pommora-owned properties survive a move; foreign-key preservation guarantees Pommora never culls a key it doesn't model. (Yams round-trips by value — flow→block reflow + comment drop on a foreign file's first re-serialization; content is safe, exact styling/comments are not.)
 
@@ -307,14 +307,14 @@ Properties + view configuration spans four surfaces:
 
 ##### 1. Collection Settings (schema editor)
 
-The schema editor for a Collection. Reached from the Type detail view toolbar gear button, the Type row's right-click menu, or the "+ Property" column header in the detail-pane Table view. UI label: "Vault Settings…" by default.
+The schema editor for a Collection. Reached from the Collection detail view toolbar gear button, the Collection row's right-click menu, or the "+ Property" column header in the detail-pane Table view. UI label: "Collection Settings…" by default.
 
 | Section | Contents |
 |---|---|
 | **Edit Properties** | Add / rename / type-change / delete / reorder properties. Per-property icon (`IconPicker`). Per-type config (options, tier reverse name + icon, status groups, etc.). |
 | **Templates** | Empty wiring — placeholder anchor for future content templates. Reserved post-v1. |
 
-Save-required + concurrent-open forbidden (only one Type's Settings sheet open at a time per window).
+Save-required + concurrent-open forbidden (only one Collection's Settings sheet open at a time per window).
 
 ##### 2. Collection View Settings (per-view config)
 
@@ -325,7 +325,7 @@ The popover is active-view-scoped (resolved via `ActiveViewStore`). Full pane sp
 | Section | Contents |
 |---|---|
 | **Edit Properties** | **Schema-only** CRUD pane (Notion-format: icon+title row + Type + Options + Duplicate/Delete footer). Per-type config as before. Tier columns and Modified are removed from its list (non-editable), and it carries no visibility toggles. |
-| **Layout** | Per-view: Display Banner toggle, Card Size (gallery), the **Property Visibility** eye-list (show/hide + drag-order over user properties + tier columns + Modified; `_title` non-hideable, cover never listed), and a muted Wrap Text row. The vault-scoped open-in selector ("Open Pages In") sits here. |
+| **Layout** | Per-view: Display Banner toggle, Card Size (gallery), the **Property Visibility** eye-list (show/hide + drag-order over user properties + tier columns + Modified; `_title` non-hideable, cover never listed), and a muted Wrap Text row. The collection-scoped open-in selector ("Open Pages In") sits here. |
 | **Sort** | Per-view single picker — Manual / Title A→Z / Z→A / Created / Recent / any property asc·desc. |
 | **Filter** | Per-view flat rule list + Match All/Any, conservative per-type operators. |
 | **Group** | Per-view — Default (structural) / property picker / Remove Grouping. |
@@ -337,7 +337,7 @@ The standalone Property Visibility pane is folded into Layout.
 - `displayAs: DisplayVariant?` (Status-only) — rendering variant: `.box` = colored dot + label (default); `.select` = colored chip + label (same as Select); `.chip` = icon-only chip using a placeholder icon (final per-group icons + Settings config are a Prospect). Other property types ignore this field.
 - `dateFormat: DateFormat?` (Date only) — date-portion display, picker-labelled by format-type name (no "Default" row): a short date, a full weekday-and-year date, and the two numeric `DD/MM/YYYY` / `MM/DD/YYYY` orderings. Defaults to the full date. Legacy date-format values migrate on decode.
 - `timeFormat: TimeFormat?` (Date only) — time-portion display ("Display Time"): none (date only, default), 12-hour, or 24-hour. None stores a date-only value; 12h/24h store a with-time value.
-- `views: [SavedView]` (on `PageType` / `PageCollection`) — each Collection's view config is independent of its parent Type's.
+- `views: [SavedView]` (on `PageCollection` + depth-1 `PageSet`) — each container's view config is independent of its parent's.
 
 **Chip primitives** (`Pommora/Components/Chips/`):
 
@@ -348,7 +348,7 @@ The standalone Property Visibility pane is folded into Layout.
 
 **Option color palette** — disk persistence keeps a fixed colour set; the render layer maps it onto a fixed chip palette (`gray` maps to the default colour, lossy). The option-edit popover's colour-swatch grid exposes the selectable palette (excluding the default + accent colours) plus a "No color" affordance. Flat palette.
 
-A per-Type default sort lives on the Type sidecar (`default_sort: { property_id, direction }`) as a fallback before per-view sort rules land.
+A per-Collection default sort lives on the Collection sidecar (`default_sort: { property_id, direction }`) as a fallback before per-view sort rules land.
 
 ##### 3. Collection Views (saved views)
 
@@ -376,9 +376,9 @@ Sort-by-property in the detail-pane Table view. Click a column header to sort; c
 - **Relation** — alphabetical on the resolved current title of the first target value
 - **File / Attachment** — by count, then by `original_name` of the first file
 
-##### Per-Type default sort
+##### Per-Collection default sort
 
-Persists in the Type's per-kind sidecar as a top-level `default_sort: { property_id: "prop_...", direction: "ascending" | "descending" }`. Full per-view sort with saved-view configs is deferred.
+Persists in the Collection's per-kind sidecar as a top-level `default_sort: { property_id: "prop_...", direction: "ascending" | "descending" }`. Full per-view sort with saved-view configs is deferred.
 
 ##### Hidden-property-used-for-sort-or-group-by = auto-show
 

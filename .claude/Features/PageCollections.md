@@ -1,10 +1,10 @@
 ### Page Collections
 
-The operational layer's **Pages-side** schema-bearing top tier. A Page Collection is a folder containing a `_pagecollection.json` sidecar that defines the property schema shared by every Page inside it (at any depth). Inside a Collection, **Page Sets** nest to any depth as organizing sub-folders (`_pageset.json`; full spec → [[PageSets]]) — they inherit the Collection's schema and never carry their own.
+The operational layer's **Pages-side** schema-bearing top tier. A Page Collection is a top-level folder whose sidecar defines the property schema shared by every Page inside it (at any depth). Inside a Collection, **Page Sets** nest to any depth as organizing sub-folders (full spec → [[PageSets]]) — they inherit the Collection's schema and never carry their own. (On-disk sidecar filenames + the pending migration → the lineage note below.)
 
 **UI label:** Page Collections render as **"Collection"** by default (renameable via Settings). Doc prose says "Page Collection" / "Collection" for the top tier; a nested Set is a "Set" (depth-1) or "Sub-Set" (deeper) → [[PageSets]]. Maps to PARA's "Resources" alongside Agenda.
 
-> **Naming lineage.** The top tier was "Page Type" / "Vault" before the Collections/Sets rename (→ `History.md`). The on-disk sidecar rename `_pagetype.json`→`_pagecollection.json` is a deferred migration (deepest-first, gated on React parity); until it runs, discovery dual-reads both names.
+> **Naming lineage + on-disk sidecars.** The top tier was "Page Type" / "Vault" before the rename (→ `History.md`). **A container's tier is its folder position, NOT its sidecar filename.** The filenames are mid-migration: on disk today a Collection's sidecar is the legacy `_pagetype.json`, a depth-1 Set's is `_pagecollection.json`, deeper Sets' is `_pageset.json`. A deferred Phase-3 migration (deepest-first, gated on React parity) renames them to the target — **`_pagecollection.json`** (Collection) + **`_pageset.json`** (every Set); discovery dual-reads all names meanwhile. Elsewhere this spec names the *target* sidecars.
 
 ---
 
@@ -22,15 +22,15 @@ The schema lives **only** on the Collection; Sets inherit it whole (Set-local ov
 
 #### On disk
 
-Collections live as siblings at the nexus root — no `Pages/` wrapper. Discovery is sidecar-driven: any root folder carrying `_pagecollection.json` is a Collection regardless of folder name. Folder name = title everywhere; UI renames rename folders on disk. A Page directly in the Collection root (not inside a Set) is allowed — Sets are optional grouping.
+Collections live as siblings at the nexus root — no `Pages/` wrapper. Discovery is **position-driven**: any root folder carrying a recognized Pages sidecar is a Collection; its sub-folders are Sets at any depth (tier = folder depth, not filename — see the lineage note). Folder name = title everywhere; UI renames rename folders on disk. A Page directly in the Collection root (not inside a Set) is allowed — Sets are optional grouping.
 
 ```
 <nexus-root>/
-  Assignments/              ← Page Collection (root folder; identified by sidecar)
-    _pagecollection.json
+  Assignments/              ← Page Collection (top folder)
+    _pagetype.json          ← schema sidecar (legacy name → _pagecollection.json post-migration)
     Spring-2026/            ← Set (depth-1; carries its own views)
-      _pageset.json
-      Midterm-Prep/         ← Sub-Set (depth-2+; plain)
+      _pagecollection.json  ← set metadata + views[] (legacy name → _pageset.json post-migration)
+      Midterm-Prep/         ← Sub-Set (deeper; plain)
         _pageset.json
         Exam-Review.md      ← Page nested in a Sub-Set
       Essay-1.md            ← Page at the Set root

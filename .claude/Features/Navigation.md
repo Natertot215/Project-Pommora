@@ -44,7 +44,7 @@ A glyph button — one segment of the trailing toolbar capsule (view-settings ·
 │   [ Pinned │ Recents ]                  │  ← segmented picker
 ├─────────────────────────────────────────┤
 │  ▦  Stoic Reflections          Page    │
-│  📖 Reading List               Vault    │
+│  📖 Reading List               Collection│
 │  🎨 Studio                     Area     │
 │  ▦  Q3 Plan                    Page    │
 │  📚 Productivity               Topic    │
@@ -84,16 +84,16 @@ Pinned and Recents lists render from `@State` snapshot arrays refreshed when the
 
 On double-click, the handler dispatches by the row's kind:
 
-- **Page / Vault / Area / Topic / Project / Collection** — closes the popover and calls the open closure with a `SidebarSelection`. ContentView's closure writes its selection `@State`; the main detail pane swaps.
+- **Page / Collection / Set / Area / Topic / Project** — closes the popover and calls the open closure with a `SidebarSelection`. ContentView's closure writes its selection `@State`; the main detail pane swaps.
 - **Agenda / none** — no-op (deferred).
 
 The open action passes a snapshot through the popover host; load-bearing, don't remove.
 
 The dropdown **bypasses the back/forward router** — writing through that `@Observable` from the popover host doesn't fire ContentView's `.onChange` reliably (same root cause as the snapshot pattern). The router stays for back/forward, driven from the main toolbar view host where the change fires reliably.
 
-If selection-building returns nil for a page or collection (the host vault's content lazy-loads per-collection on detail-view appear), the handler falls back to an async walk of the vaults, loading each vault + collection and retrying at each step.
+If selection-building returns nil for a page or set (the host Collection's content lazy-loads per-Set on detail-view appear), the handler falls back to an async walk of the Collections, loading each Collection + Set and retrying at each step.
 
-The dropdown always opens Pages in the main detail pane — it does not consult the vault's `open_in` mode. PagePreview windows are routed from sidebar page-taps only ([[Pages]] § "Opening behavior").
+The dropdown always opens Pages in the main detail pane — it does not consult the Collection's `open_in` mode. PagePreview windows are routed from sidebar page-taps only ([[Pages]] § "Opening behavior").
 
 ---
 
@@ -108,14 +108,14 @@ The dropdown always opens Pages in the main detail pane — it does not consult 
 
 History-navigation is flagged during back/forward stepping so cursor movement doesn't re-record the older entity (which would reset the cursor to 0 and break LRU order).
 
-**What records:** Pages plus the storage containers (Vault / Collection). Contexts (Areas / Topics / Projects) stay out — they're reached via the sidebar. Containers are recorded and steppable (Back/Forward walks them) but **hidden from the dropdown's Recents list**, so the dropdown shows Pages only.
+**What records:** Pages plus the storage containers (Collection / Set). Contexts (Areas / Topics / Projects) stay out — they're reached via the sidebar. Containers are recorded and steppable (Back/Forward walks them) but **hidden from the dropdown's Recents list**, so the dropdown shows Pages only.
 
 ---
 
 #### Pinned rules
 
 - **Uncapped, insertion-ordered.** Drag-reorder is wired but doesn't fire end-to-end inside the popover (see Deferred).
-- **Single entry point**: right-click any row (Pinned or Recents tab) → "Pin {kind}". Also mirrored on Page rows in the Vault / Collection detail views.
+- **Single entry point**: right-click any row (Pinned or Recents tab) → "Pin {kind}". Also mirrored on Page rows in the Collection / Set detail views.
 - **Separate Codable array** — NOT a flag on Recents entries. Falling off the Recents cap does not un-pin.
 - **Open flow identical to Recents** — single = highlight, double = route to main detail pane.
 - **Removal**: right-click in the Pinned tab → "Unpin {kind}" → removed from Pinned (stays in Recents if within cap).
@@ -127,8 +127,8 @@ History-navigation is flagged during back/forward stepping so cursor movement do
 | Entity kind | Chip text | Recorded into Recents? | Shown in Recents list? | Openable from dropdown? |
 |---|---|---|---|---|
 | Page | "Page" | ✓ (main-frame land) | ✓ | ✓ |
-| Vault | "Vault" | ✓ (steppable) | ✗ (container — hidden) | ✓ (from Pinned) |
 | Collection | "Collection" | ✓ (steppable) | ✗ (container — hidden) | ✓ (from Pinned) |
+| Set | "Set" | ✓ (steppable) | ✗ (container — hidden) | ✓ (from Pinned) |
 | Area / Topic / Project | "Area" / "Topic" / "Project" | ✗ — reached via sidebar | — | ✓ (legacy pins still resolve) |
 | Agenda | **"Task"** | ✗ (deferred) | — | ✗ (deferred) |
 | Homepage | — | excluded | — | never |
@@ -149,7 +149,7 @@ History-navigation is flagged during back/forward stepping so cursor movement do
 
 #### Persistence
 
-**File:** `<nexus>/.nexus/state.json` — per-nexus, vault-portable. Separate from the machine-level `state.json` under Application Support (managed by `AppState`) — two layers, two files.
+**File:** `<nexus>/.nexus/state.json` — per-nexus, nexus-portable. Separate from the machine-level `state.json` under Application Support (managed by `AppState`) — two layers, two files.
 
 The Codable container (`NexusState`) holds a `schemaVersion`, a `recents` array, a `pinned` array, a top-level `cursor` (Recents position for back/forward; 0 = newest), and per-section sidebar-reorder arrays (`areaOrder` / `topicOrder` / `vaultOrder`; nil until the user reorders).
 
@@ -172,7 +172,7 @@ Distinct classifications, not redundant:
 | Concept | Surface | Data | Trigger |
 |---|---|---|---|
 | **Saved** (sidebar) | `Saved` section in sidebar — fixed-three pins | `SavedConfig` (`.nexus/saved-config.json`) | System-defined (Homepage / Calendar / Recents) |
-| **Pinned** (dropdown) | Pinned tab in dropdown panel | `PinnedManager` (`.nexus/state.json`) | User right-clicks rows in dropdown OR Page rows in Vault/Collection detail views |
+| **Pinned** (dropdown) | Pinned tab in dropdown panel | `PinnedManager` (`.nexus/state.json`) | User right-clicks rows in dropdown OR Page rows in Collection/Set detail views |
 | **Recents** (dropdown) | Recents tab in dropdown panel | `RecentsManager` (`.nexus/state.json`) | Auto — main-frame land |
 | **Recents** (sidebar full-frame view, deferred) | Saved-section `Recents` pin → full-frame view | Same data as dropdown Recents | n/a — read-only view of the same store |
 
@@ -182,7 +182,7 @@ The sidebar `Recents` pin and the dropdown Recents share `RecentsManager` but re
 
 #### Page-row context menu
 
-The page row's context menu in the Vault / Collection detail views offers edit-title, edit-icon, pin / unpin, and delete (destructive, no confirmation, mirroring the sidebar).
+The page row's context menu in the Collection / Set detail views offers edit-title, edit-icon, pin / unpin, and delete (destructive, no confirmation, mirroring the sidebar).
 
 ---
 

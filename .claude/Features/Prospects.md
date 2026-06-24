@@ -20,16 +20,16 @@
 On native TextKit 2, hosting a non-text view inline requires custom layout-attachment work — materially harder than on a JS editor. Feasible if Pommora ever pivots to BlockNote / Tiptap, where node-component approach applies directly. See `// ReactInfo// Editor.md` for the React-pivot path.
 
 #### Cloud sync (Supabase or otherwise)
-**Description:** Additive translation layer that maps the local file model to a cloud database. The mapping mirrors the local SQLite shape (matching Notion / Airtable / AFFiNE convention): a single shared `pages` table with `page_type_id` + `properties` JSONB; each Page Type's `_pagetype.json` → a row in a `types` table; each Context (Area / Topic / Project) → one row in a `tiers` table with the block tree as a JSON column. v1's on-disk model is designed to make this non-disruptive when it arrives — sync becomes pure translation, not redesign.
+**Description:** Additive translation layer that maps the local file model to a cloud database. The mapping mirrors the local SQLite shape (matching Notion / Airtable / AFFiNE convention): a single shared `pages` table with `page_collection_id` + `properties` JSONB; each Page Collection's `_pagecollection.json` → a row in a `collections` table; each Context (Area / Topic / Project) → one row in a `tiers` table with the block tree as a JSON column. v1's on-disk model is designed to make this non-disruptive when it arrives — sync becomes pure translation, not redesign.
 
 #### Mobile companion (iOS / iPad)
 **Description:** Real long-term intent. Read + edit access to the nexus from mobile. Same Swift Package codebase ships to iPad and iOS with platform adaptations — the natural growth path on the current stack. React pivot path → `// ReactInfo// ReactInfo.md`.
 
 #### Sub-pages (nested Page hierarchy)
-**Description:** v2 candidate. Allow a Page to contain other Pages as children — Notion-style nesting. Filesystem realization: a sub-folder named after the parent Page holds its children. v1 keeps Pages flat within a Page Type or Page Collection (no nesting), with linking handling "this Page belongs to that Page" relationships. Sub-pages complicate the membership rules (is a child Page in the same Page Type as its parent? what if the parent moves?) — worth implementing once the flat model is well-exercised in practice.
+**Description:** v2 candidate. Allow a Page to contain other Pages as children — Notion-style nesting. Filesystem realization: a sub-folder named after the parent Page holds its children. v1 keeps Pages as flat files within their Collection or Set (no Page-in-Page nesting), with linking handling "this Page belongs to that Page" relationships. Sub-pages complicate the membership rules (is a child Page in the same Collection as its parent? what if the parent moves?) — worth implementing once the flat model is well-exercised in practice.
 
 #### Per-page open-in override
-**Description:** `open_in` is per-vault today — every Page in a vault opens the same way (`compact` PagePreview card vs `window` detail pane). A page-level override would let one Page differ from its vault's default (e.g. a long-form Page in an otherwise compact vault). Worth revisiting once the per-vault model is exercised; a single segmented toggle per vault may prove sufficient.
+**Description:** `open_in` is per-collection today — every Page in a Collection opens the same way (`compact` PagePreview card vs `window` detail pane). A page-level override would let one Page differ from its Collection's default (e.g. a long-form Page in an otherwise compact Collection). Worth revisiting once the per-collection model is exercised; a single segmented toggle per Collection may prove sufficient.
 
 #### Full Settings UI
 **Description:** The Settings scaffold ships with storage + label wiring only — `.nexus/settings.json` persists the user-overridable UI labels and accent color, and the Settings manager threads those labels into the sidebar, sheets, and detail panes. There is no editing UI yet; defaults are baked in and overrides must be edited by hand in the JSON file.
@@ -37,17 +37,17 @@ On native TextKit 2, hosting a non-text view inline requires custom layout-attac
 The full Settings UI brings:
 
 - **Accent color picker** — replace the JSON-edited hex value with a swatch grid + custom color well, plus live preview across selection chrome and link styling.
-- **Label rename forms** — text inputs for every renameable label (the Areas / Topics / Vaults section headings, "Vault" / "Collection" defaults, "Task" / "Event" defaults, tier labels). Per-Nexus scope.
+- **Label rename forms** — text inputs for every renameable label (the Areas / Topics / Collections section headings, "Collection" / "Set" defaults, "Task" / "Event" defaults, tier labels). Per-Nexus scope.
 - **Tier-config consolidation** — the existing `.nexus/tier-config.json` (Area / Topic / Project label customization) folds into the same Settings surface so all label customization lives in one place.
 
 #### Custom color picker for Select / Multi-select properties
 **Description:** v1 uses a fixed-style palette. A custom hex picker for option colors could come post-v1 — useful if users want brand-specific palettes or finer distinction across many options. Likely gated by the Full Settings UI work.
 
 #### Pulldown "show empty schema entries" toggle
-**Description:** The Pages-main-view Pulldown is lazy in v1 (hides empty schema entries; "+ Add property" picker reveals them). Inspectors (the main-pane `FrontmatterInspector` and the PagePreview inspector) are eager in v1 (already show every schema property). A per-Type setting that switches the Pulldown to eager mode (matching Inspector behavior) would help users explore the full schema inline on the Page main view — useful for densely-populated Page Types where the user wants to fill in many properties per Page without opening the picker. Post-v1.
+**Description:** The Pages-main-view Pulldown is lazy in v1 (hides empty schema entries; "+ Add property" picker reveals them). Inspectors (the main-pane `FrontmatterInspector` and the PagePreview inspector) are eager in v1 (already show every schema property). A per-Collection setting that switches the Pulldown to eager mode (matching Inspector behavior) would help users explore the full schema inline on the Page main view — useful for densely-populated Collections where the user wants to fill in many properties per Page without opening the picker. Post-v1.
 
 #### Pinned-property zone for the PagePreview card
-**Description:** A configurable set of properties surfaced in a dedicated zone of the `PagePreview` card, with a vault-level default schema overridable per-collection. Deliberately dropped: the card's default-open inspector gives the same glance-level functionality without a stored schema, an editor UI, or override rules. Revisit only if the open-inspector affordance proves insufficient in practice.
+**Description:** A configurable set of properties surfaced in a dedicated zone of the `PagePreview` card, with a collection-level default schema overridable per-set. Deliberately dropped: the card's default-open inspector gives the same glance-level functionality without a stored schema, an editor UI, or override rules. Revisit only if the open-inspector affordance proves insufficient in practice.
 
 #### Board view: drag-to-rewrite-frontmatter
 **Description:** Planned post-v1.0 feature. Board view (kanban) ships as the visual layout — cards grouped by a property's options; moving a card between columns is done by editing the card's property via the card UI. Drag-to-rewrite-frontmatter (dragging a card across kanban columns to mutate the source's property value directly) is the higher-fidelity UX, but it requires the property edit / atomic write loop to be hardened first. Deferred until those foundations stabilize.

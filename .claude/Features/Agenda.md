@@ -29,7 +29,7 @@ Both folders are eagerly created on launch — `loadAll` ensures the folder exis
 
 #### Schema (config sidecar)
 
-Each sidecar carries `properties` — the same shape as Page Types. The default seed is exactly one built-in, non-deletable property: `_status` (Status type); everything else is user-defined. Tier relations merge in via `BuiltInContextLinkProperties` for surfaces that show them.
+Each sidecar carries `properties` — the same shape as Page Collections. The default seed is exactly one built-in, non-deletable property: `_status` (Status type); everything else is user-defined. Tier relations merge in via `BuiltInContextLinkProperties` for surfaces that show them.
 
 The `_status` structure (3 fixed EventKit-aligned groups — Upcoming / In Progress / Done — renameable labels, the 3-slot rule, `EKReminder.isCompleted` mapping) is canonical in [[Properties]] § "Status property type". Agenda-specific:
 

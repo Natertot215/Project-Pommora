@@ -107,7 +107,7 @@ Tier relations are stored by ID (rename-safe); body connections are plain `[[Tit
 
 #### Sidebar shape
 
-Four top-level groups (three carry a heading; labels renameable via the Settings scaffold), plus user-creatable vault sections:
+Four top-level groups (three carry a heading; labels renameable via the Settings scaffold), plus user-creatable Collection sections:
 
 - **Pinned (heading-less, at top)** — fixed entries (Homepage, Calendar, Recents); labels renamable. Section wrapper persists for future user-pinning
 - **Contexts** — one section containing one disclosure row per tier; each tier row is never selectable and toggles its own disclosure only; each tier's entities render as flat leaf rows inside their disclosure

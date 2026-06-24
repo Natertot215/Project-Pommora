@@ -1,6 +1,6 @@
 ## Views
 
-The detail-pane surfacing layer for Pages. Every storage container (Page Type / Page Collection) carries one or more **saved views** in its sidecar; a toolbar Views dropdown switches between them. Two renderers ship — a **Table** and a **Gallery** — both fed by one pure in-memory pipeline.
+The detail-pane surfacing layer for Pages. Every view-bearing container (a Page Collection or a depth-1 Page Set) carries one or more **saved views** in its sidecar; a toolbar Views dropdown switches between them. Two renderers ship — a **Table** and a **Gallery** — both fed by one pure in-memory pipeline.
 
 ---
 
@@ -22,7 +22,7 @@ One pure, unit-tested pipeline with no SwiftUI dependency feeds both renderers: 
 
 - **Fetch** reads the in-memory manager caches (already manual-order-resolved) and stamps each item with its parent and Set label. It runs entirely off cached frontmatter, so any property edit recomputes the view instantly with no extra disk reads — the SQLite index isn't in this path.
 - **Filter** applies the flat rule list under Match All / Any with conservative per-type operators; an unknown operator is a no-op.
-- **Group** produces the resolved groups. **Structural** (default): at vault scope, group by Collection with Sets nested as children; at collection scope, group by Set plus an ungrouped root band (zero Sets collapses to one headerless band — the flat look). **Property** (groupable types only, single-value) flattens to buckets ordered by the chosen mode — configured, reversed, or explicit manual order. The empty bucket follows the empty-placement setting and is dropped by hide-empty; an unset checkbox routes to its false bucket rather than an empty one. A missing or non-groupable property falls back to structural. **Flat** is a single group.
+- **Group** produces the resolved groups. **Structural** (default): at collection scope, group by depth-1 Set with deeper Sub-Sets nested as children; at set scope, group by Sub-Set plus an ungrouped root band (zero Sub-Sets collapses to one headerless band — the flat look). **Property** (groupable types only, single-value) flattens to buckets ordered by the chosen mode — configured, reversed, or explicit manual order. The empty bucket follows the empty-placement setting and is dropped by hide-empty; an unset checkbox routes to its false bucket rather than an empty one. A missing or non-groupable property falls back to structural. **Flat** is a single group.
 - **Sort** orders within each group; nil means manual order, otherwise the relevant preset or property comparator applies.
 
 Mutations route through existing manager APIs (reorder, structural move, property rewrite). A view-config save reads the sidecar fresh before persisting, so a whole-struct save can't clobber a page reorder that landed between reads.
@@ -33,7 +33,7 @@ Mutations route through existing manager APIs (reorder, structural move, propert
 
 A native AppKit outline/table view styled to match the macOS Table look, with a few deliberate behavior tweaks. SwiftUI cell content is hosted inside the AppKit rows, so cells reuse the same property editors as the rest of the app.
 
-- **Group headers** render as native-style disclosure rows (chevron + grouping value + count) that scroll with the content rather than pinning. The container affordances the old Collection/Set rows carried (Open / Edit Title / Edit Icon / Delete) migrate onto these group rows.
+- **Group headers** render as native-style disclosure rows (chevron + grouping value + count) that scroll with the content rather than pinning. The container affordances the old per-container sidebar rows carried (Open / Edit Title / Edit Icon / Delete) migrate onto these group rows.
 - **Rows** reuse the shared property cell editors unchanged (display-first, commit-on-dismiss popovers); native alternating striping is on. Rename is context-menu only — no click-to-edit on the Title cell; the icon click opens the icon picker. The table has no cover access.
 - **Columns** resolve from the view's property order plus schema, each header carrying its property-type glyph. Dragging a trailing handle resizes to a minimum width with the result persisted on release; dragging a header reorders columns; right-click offers Hide Column (Title exempt).
 - **Selection + keyboard** — multi-select with an anchor (plain / modifier / shift click), arrow navigation, type-select, double-click to open.
@@ -44,7 +44,7 @@ A native AppKit outline/table view styled to match the macOS Table look, with a 
 
 A grid of cards, one section per resolved group (same disclosure headers and collapse as the table).
 
-- **Card anatomy** — cover area (only when Show Cover is on; an empty fill when no cover is set) → header (icon + title) → property zones: **chips** (select / multi-select / status / tier relations, plus the Set-label chip at vault scope), **meta** (dates / number / checkbox), **links** (url). Zones follow the view's property order, respect the hidden set, always exclude cover, and are fully interactive — the same popover editors as table cells assign and remove values on the card.
+- **Card anatomy** — cover area (only when Show Cover is on; an empty fill when no cover is set) → header (icon + title) → property zones: **chips** (select / multi-select / status / tier relations, plus the Set-label chip at collection scope), **meta** (dates / number / checkbox), **links** (url). Zones follow the view's property order, respect the hidden set, always exclude cover, and are fully interactive — the same popover editors as table cells assign and remove values on the card.
 - **Interaction** — single click selects; double-click on the title renames inline, double-click elsewhere opens; the icon click edits the icon; right-click the card is the page context menu; right-click the visible cover area is Set / Change / Remove Cover.
 - Covers load through an image pipeline that resizes and disk-caches across launches.
 
@@ -73,7 +73,7 @@ Toolbar / Views-button / banner chrome is current-state observation, not settled
 The View Settings popover is active-view-scoped:
 
 - **Edit Properties** — schema-only: add / rename / type-change / delete / reorder properties. The tier columns and Modified are excluded (non-editable); it carries no visibility toggles.
-- **Layout** — per-view display config: Display Banner, Card Size (gallery), the Property Visibility eye-list (per-view show/hide plus drag-order over all columns — user properties, tier columns, and Modified; Title pinned non-hideable; cover never listed), and a muted Wrap Text row (dynamic row heights are a later pass). The vault-scoped open-in selector is labeled Open Pages In.
+- **Layout** — per-view display config: Display Banner, Card Size (gallery), the Property Visibility eye-list (per-view show/hide plus drag-order over all columns — user properties, tier columns, and Modified; Title pinned non-hideable; cover never listed), and a muted Wrap Text row (dynamic row heights are a later pass). The collection-scoped open-in selector is labeled Open Pages In.
 - **Sort** — a single picker: Manual, Title A→Z / Z→A, Created, Recent, or any property ascending/descending.
 - **Filter** — flat rule list plus Match All / Any.
 - **Group** — a Grouping toggle (off is the structural default) disclosing an inline property picker, a per-type Order popout, a Date By popout, a manual Options reorder list, and a bottom-pinned empty-group footer (hide-empty, empty Top/Bottom). View-side rendering of the groups ships in both table and gallery; group-header manual drag remains pending.

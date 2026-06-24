@@ -6,7 +6,7 @@
 
 A small single-pane entry point — think Things 3 / Drafts / a web clipper — that creates an operational entity directly into the nexus without opening the full app. It is **another entry point on the existing data layer, not a new feature stack**: it reuses the same create operations and property-assignment UI as the main app.
 
-Three capture kinds: **Page** (scoped to a Vault, optionally a Collection), **Task**, **Event**. Tasks and Events are top-level (no container to pick). Capture is title + properties first — not a body editor; prose continues in the main window.
+Three capture kinds: **Page** (scoped to a Collection, optionally a Set), **Task**, **Event**. Tasks and Events are top-level (no container to pick). Capture is title + properties first — not a body editor; prose continues in the main window.
 
 #### Foundational principle — single-owner nexus access
 
@@ -24,15 +24,15 @@ Presenting it as a menu-bar utility is a *presentation* choice, separate from th
 
 #### Capture flow
 
-1. **Pick kind + scope.** Page → Vault (optionally Collection); Task / Event → top-level.
-2. **Fill the entity.** Title + property fields for that Type.
+1. **Pick kind + scope.** Page → Collection (optionally Set); Task / Event → top-level.
+2. **Fill the entity.** Title + property fields for that Collection.
 3. **Save.** Lands in the nexus immediately.
 
-Title + Icon show first (universal across all three); location + properties fill in once a kind is picked. A Type can carry many properties, so the pane shows a compact subset with a `…` **"show all"** affordance revealing the full schema on demand. What defines the subset is open — the original pinning mechanism no longer exists (→ [[Prospects]]); declaration order is the fallback.
+Title + Icon show first (universal across all three); location + properties fill in once a kind is picked. A Collection can carry many properties, so the pane shows a compact subset with a `…` **"show all"** affordance revealing the full schema on demand. What defines the subset is open — the original pinning mechanism no longer exists (→ [[Prospects]]); declaration order is the fallback.
 
 #### Web capture (browser / share sheet)
 
-Extends naturally to web clipping — a page's **title, URL, description, and selected text** into a new Page (e.g. a Bookmarks Vault) or a Task / Event. The capturer is always a courier. Candidate routes, chosen at spec time, can coexist:
+Extends naturally to web clipping — a page's **title, URL, description, and selected text** into a new Page (e.g. a Bookmarks Collection) or a Task / Event. The capturer is always a courier. Candidate routes, chosen at spec time, can coexist:
 
 - **Browser extension via native messaging** — the established web-clipper pattern (Obsidian, Notion, Raindrop). Most seamless; most setup.
 - **System Share Extension** — Apple-native: Share sheet → "Add to Pommora," reachable anywhere, no browser toolchain.
