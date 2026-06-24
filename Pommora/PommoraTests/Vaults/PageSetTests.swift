@@ -232,6 +232,21 @@ struct PageSetDecoderEraTests {
         #expect(decoded.schemaVersion == original.schemaVersion)
     }
 
+    @Test("Decode blob where parent_id is a number (not string) → throws, not silent fallthrough")
+    func decodeMalformedParentIDThrows() throws {
+        let json = """
+        {
+          "id": "01HBAD01",
+          "parent_id": 42,
+          "modified_at": "2024-05-01T00:00:00Z",
+          "schema_version": 1
+        }
+        """
+        #expect(throws: (any Error).self) {
+            try makeDecoder().decode(PageSet.self, from: Data(json.utf8))
+        }
+    }
+
     @Test("Decode blob with none of the four parent keys → throws")
     func decodeNoParentKeyThrows() throws {
         let json = """

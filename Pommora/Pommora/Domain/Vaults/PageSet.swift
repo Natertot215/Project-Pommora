@@ -54,13 +54,13 @@ struct PageSet: Codable, Equatable, Identifiable, Hashable, Sendable {
     init(from decoder: any Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         self.id = try c.decode(String.self, forKey: .id)
-        if let v = try? c.decode(String.self, forKey: .parentID) {
+        if let v = try c.decodeIfPresent(String.self, forKey: .parentID) {
             self.parentID = v
-        } else if let v = try? c.decode(String.self, forKey: .legacyVaultID) {
+        } else if let v = try c.decodeIfPresent(String.self, forKey: .legacyVaultID) {
             self.parentID = v
-        } else if let v = try? c.decode(String.self, forKey: .legacyTypeID) {
+        } else if let v = try c.decodeIfPresent(String.self, forKey: .legacyTypeID) {
             self.parentID = v
-        } else if let v = try? c.decode(String.self, forKey: .legacyCollectionID) {
+        } else if let v = try c.decodeIfPresent(String.self, forKey: .legacyCollectionID) {
             self.parentID = v
         } else {
             throw DecodingError.keyNotFound(
