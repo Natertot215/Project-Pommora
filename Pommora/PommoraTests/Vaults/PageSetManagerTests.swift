@@ -439,4 +439,46 @@ struct PageSetManagerTests {
             FileManager.default.fileExists(
                 atPath: cached.folderURL.appendingPathComponent(NexusPaths.pageSetSidecarFilename).path))
     }
+
+    // MARK: - Recursive discovery
+
+    @Test("loadAll discovers arbitrarily nested PageSets and chains parentIDs correctly")
+    func recursiveSetDiscovery() async throws {
+        let fx = try await makeFixture()
+        defer { TempNexus.cleanup(fx.nexus) }
+
+        // Build: Notes/Inbox/SetA/SubB/SubC/page.md — each subfolder has a _pageset.json.
+        let setAFolder = fx.collection.folderURL.appendingPathComponent("SetA", isDirectory: true)
+        let subBFolder = setAFolder.appendingPathComponent("SubB", isDirectory: true)
+        let subCFolder = subBFolder.appendingPathComponent("SubC", isDirectory: true)
+        try FileManager.default.createDirectory(at: subCFolder, withIntermediateDirectories: true)
+
+        let setA = PageSet(id: ULID.generate(), parentID: fx.collection.id, title: "SetA", folderURL: setAFolder, modifiedAt: Date())
+        let subB = PageSet(id: ULID.generate(), parentID: setA.id, title: "SubB", folderURL: subBFolder, modifiedAt: Date())
+        let subC = PageSet(id: ULID.generate(), parentID: subB.id, title: "SubC", folderURL: subCFolder, modifiedAt: Date())
+
+        try setA.save(to: setAFolder.appendingPathComponent(NexusPaths.pageSetSidecarFilename))
+        try subB.save(to: subBFolder.appendingPathComponent(NexusPaths.pageSetSidecarFilename))
+        try subC.save(to: subCFolder.appendingPathComponent(NexusPaths.pageSetSidecarFilename))
+
+        _ = try writePage(titled: "page", in: subCFolder)
+
+        await fx.setManager.loadAll(types: fx.typeManager.types)
+
+        let setsUnderCollection = fx.setManager.pageSets(in: fx.collection)
+        let loadedA = try #require(setsUnderCollection.first(where: { $0.title == "SetA" }))
+        #expect(loadedA.parentID == fx.collection.id)
+
+        let setsUnderA = fx.setManager.pageSets(in: loadedA)
+        let loadedB = try #require(setsUnderA.first(where: { $0.title == "SubB" }))
+        #expect(loadedB.parentID == loadedA.id)
+
+        let setsUnderB = fx.setManager.pageSets(in: loadedB)
+        let loadedC = try #require(setsUnderB.first(where: { $0.title == "SubC" }))
+        #expect(loadedC.parentID == loadedB.id)
+
+        // A page in SubC is reachable via its folder URL.
+        let pageURL = NexusPaths.pageFileURL(forTitle: "page", in: loadedC.folderURL)
+        #expect(FileManager.default.fileExists(atPath: pageURL.path))
+    }
 }

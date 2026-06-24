@@ -45,8 +45,8 @@ final class PageSetManager {
 
     // MARK: - Load
 
-    /// Discovers depth-1 PageCollections as direct children of each PageType folder,
-    /// and depth-2 PageSets as direct children of each Collection folder.
+    /// Discovers PageCollections as direct children of each PageType folder,
+    /// then recurses arbitrarily deep into each Set's child folders.
     /// Missing sidecars are healed in place; drifted parent IDs are re-pointed.
     func loadAll(types: [PageType], filter: FolderFilter = .empty) async {
         do {
@@ -112,46 +112,10 @@ final class PageSetManager {
                 )
                 loadedCols[pageType.id] = orderedCols
 
-                // Depth-2: discover Sets under each Collection
                 for collection in orderedCols {
-                    var sets = try Filesystem.childFolders(of: collection.folderURL, folderFilter: filter)
-                        .filter { !$0.lastPathComponent.hasPrefix("_") }
-                        .filter { !$0.lastPathComponent.hasPrefix(".") }
-                        .compactMap { sub -> PageSet? in
-                            let metaURL = sub.appendingPathComponent(NexusPaths.pageSetSidecarFilename)
-                            if !Filesystem.fileExists(at: metaURL) {
-                                let fresh = PageSet(
-                                    id: ULID.generate(),
-                                    parentID: collection.id,
-                                    title: sub.lastPathComponent,
-                                    folderURL: sub,
-                                    modifiedAt: Date()
-                                )
-                                try? Filesystem.writeMetadataIntoExistingFolder(
-                                    metadataURL: metaURL, metadata: fresh
-                                )
-                            }
-                            guard var set = try? PageSet.load(from: metaURL) else { return nil }
-                            if set.parentID != collection.id {
-                                set.parentID = collection.id
-                                try? set.save(to: metaURL)
-                            }
-                            return set
-                        }
-
-                    sets = ContainerIDHealer.heal(
-                        sets, seen: &seenSetIDs,
-                        reID: { $0.id = ULID.generate() },
-                        save: {
-                            try $0.save(
-                                to: $0.folderURL.appendingPathComponent(
-                                    NexusPaths.pageSetSidecarFilename))
-                        }
-                    )
-                    loadedSets[collection.id] = OrderResolver.resolve(
-                        sets,
-                        persistedOrder: collection.setOrder,
-                        titleKeyPath: \PageSet.title
+                    try discoverChildSets(
+                        of: collection, filter: filter,
+                        seenSetIDs: &seenSetIDs, loadedSets: &loadedSets
                     )
                 }
             }
@@ -795,6 +759,56 @@ final class PageSetManager {
     }
 
     // MARK: - Private helpers
+
+    /// Discovers all sidecar-bearing child folders of `parent` as PageSets,
+    /// writes them into `loadedSets` keyed by `parent.id`, then recurses into
+    /// each discovered set. Accepts both `_pagecollection.json` (depth-1 alias)
+    /// and `_pageset.json` so mixed-sidecar vaults load correctly at any depth.
+    private func discoverChildSets(
+        of parent: PageSet,
+        filter: FolderFilter,
+        seenSetIDs: inout Set<String>,
+        loadedSets: inout [String: [PageSet]]
+    ) throws {
+        var sets = try Filesystem.childFolders(of: parent.folderURL, folderFilter: filter)
+            .filter { !$0.lastPathComponent.hasPrefix("_") }
+            .filter { !$0.lastPathComponent.hasPrefix(".") }
+            .compactMap { sub -> PageSet? in
+                let setMetaURL = sub.appendingPathComponent(NexusPaths.pageSetSidecarFilename)
+                let collMetaURL = sub.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename)
+                let resolvedMetaURL = Filesystem.fileExists(at: setMetaURL) ? setMetaURL
+                    : Filesystem.fileExists(at: collMetaURL) ? collMetaURL
+                    : nil
+                guard let metaURL = resolvedMetaURL else { return nil }
+                guard var set = try? PageSet.load(from: metaURL) else { return nil }
+                if set.parentID != parent.id {
+                    set.parentID = parent.id
+                    try? set.save(to: metaURL)
+                }
+                return set
+            }
+
+        sets = ContainerIDHealer.heal(
+            sets, seen: &seenSetIDs,
+            reID: { $0.id = ULID.generate() },
+            save: {
+                try $0.save(
+                    to: $0.folderURL.appendingPathComponent(NexusPaths.pageSetSidecarFilename))
+            }
+        )
+        loadedSets[parent.id] = OrderResolver.resolve(
+            sets,
+            persistedOrder: parent.setOrder,
+            titleKeyPath: \PageSet.title
+        )
+
+        for set in sets {
+            try discoverChildSets(
+                of: set, filter: filter,
+                seenSetIDs: &seenSetIDs, loadedSets: &loadedSets
+            )
+        }
+    }
 
     @discardableResult
     private func withPendingError<T>(
