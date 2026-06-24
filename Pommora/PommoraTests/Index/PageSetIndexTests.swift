@@ -79,43 +79,43 @@ struct PageSetIndexTests {
         // page_sets holds both depth-1 (collection) and depth-2 (set) rows.
         let counts = try await fx.idx.dbQueue.read { db in
             (
-                types: try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM page_types") ?? -1,
+                collections: try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM page_collections") ?? -1,
                 sets: try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM page_sets") ?? -1,
                 pages: try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM pages") ?? -1
             )
         }
-        #expect(counts.types == 1)
+        #expect(counts.collections == 1)
         #expect(counts.sets == 2)  // depth-1 (Inbox) + depth-2 (Drafts)
         #expect(counts.pages == 2)
 
-        // Depth-1 set row: parent_type_id set, parent_set_id null.
+        // Depth-1 set row: parent_collection_id set, parent_set_id null.
         let collRow = try await fx.idx.dbQueue.read { db in
             try Row.fetchOne(db, sql: "SELECT * FROM page_sets WHERE id = ?", arguments: [fx.collectionID])
         }
-        #expect(collRow?["parent_type_id"] as String? == fx.typeID)
+        #expect(collRow?["parent_collection_id"] as String? == fx.typeID)
         #expect(collRow?["parent_set_id"] as String? == nil)
         #expect(collRow?["title"] as String? == "Inbox")
 
-        // Depth-2 set row: parent_set_id set, parent_type_id null.
+        // Depth-2 set row: parent_set_id set, parent_collection_id null.
         let setRow = try await fx.idx.dbQueue.read { db in
             try Row.fetchOne(db, sql: "SELECT * FROM page_sets WHERE id = ?", arguments: [fx.setID])
         }
         #expect(setRow?["parent_set_id"] as String? == fx.collectionID)
-        #expect(setRow?["parent_type_id"] as String? == nil)
+        #expect(setRow?["parent_collection_id"] as String? == nil)
         #expect(setRow?["title"] as String? == "Drafts")
 
-        // The Set page carries type + set FKs; page_collection_id is null (set pages
-        // are indexed purely by page_set_id from v15 onward).
+        // Every page carries page_collection_id (top-tier vault) + page_set_id (immediate set).
         let setPageRow = try await fx.idx.dbQueue.read { db in
             try Row.fetchOne(db, sql: "SELECT * FROM pages WHERE id = ?", arguments: [fx.setPageID])
         }
-        #expect(setPageRow?["page_type_id"] as String? == fx.typeID)
+        #expect(setPageRow?["page_collection_id"] as String? == fx.typeID)
         #expect(setPageRow?["page_set_id"] as String? == fx.setID)
 
-        // The root page (in the depth-1 set) also has page_set_id set.
+        // The root page (in the depth-1 set) carries the vault id + depth-1 set id.
         let rootPageRow = try await fx.idx.dbQueue.read { db in
             try Row.fetchOne(db, sql: "SELECT * FROM pages WHERE id = ?", arguments: [fx.rootPageID])
         }
+        #expect(rootPageRow?["page_collection_id"] as String? == fx.typeID)
         #expect(rootPageRow?["page_set_id"] as String? == fx.collectionID)
     }
 
@@ -175,13 +175,13 @@ struct PageSetIndexTests {
         // The set FK dangles (never indexed) — the page must still land,
         // scoped to its Collection, without throwing.
         let meta = Fixtures.pageMeta()
-        try updater.upsertPage(meta, pageTypeID: pt.id, pageCollectionID: pc.id, pageSetID: ULID.generate())
+        try updater.upsertPage(meta, pageCollectionID: pt.id, pageSetID: ULID.generate())
 
         let pageID = meta.id
         let row = try await idx.dbQueue.read { db in
             try Row.fetchOne(db, sql: "SELECT * FROM pages WHERE id = ?", arguments: [pageID])
         }
-        #expect(row?["page_collection_id"] as String? == pc.id)
+        #expect(row?["page_collection_id"] as String? == pt.id)
         #expect(row?["page_set_id"] as String? == nil)
     }
 
@@ -194,17 +194,16 @@ struct PageSetIndexTests {
         let pt = Fixtures.pageCollection()
         try updater.upsertPageCollection(pt)
 
-        // Both the set AND collection FKs dangle — the page still indexes
-        // under its Vault alone.
+        // The set FK dangles — the page still indexes under its Vault (page_collection_id=pt.id,
+        // page_set_id=nil) with the dangling set FK NULLed out.
         let meta = Fixtures.pageMeta()
-        try updater.upsertPage(meta, pageTypeID: pt.id, pageCollectionID: ULID.generate(), pageSetID: ULID.generate())
+        try updater.upsertPage(meta, pageCollectionID: pt.id, pageSetID: ULID.generate())
 
         let pageID = meta.id
         let row = try await idx.dbQueue.read { db in
             try Row.fetchOne(db, sql: "SELECT * FROM pages WHERE id = ?", arguments: [pageID])
         }
-        #expect(row?["page_type_id"] as String? == pt.id)
-        #expect(row?["page_collection_id"] as String? == nil)
+        #expect(row?["page_collection_id"] as String? == pt.id)
         #expect(row?["page_set_id"] as String? == nil)
     }
 
@@ -231,7 +230,7 @@ struct PageSetIndexTests {
             try Row.fetchOne(db, sql: "SELECT * FROM page_sets WHERE id = ?", arguments: [setID])
         }
         #expect(row?["parent_set_id"] as String? == pc.id)
-        #expect(row?["parent_type_id"] as String? == nil)
+        #expect(row?["parent_collection_id"] as String? == nil)
         #expect(row?["title"] as String? == "Drafts")
 
         // Re-upsert (rename) updates in place — no cascade fires on the member FK.

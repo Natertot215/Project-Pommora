@@ -52,7 +52,7 @@ struct LoadAllIndexSyncTests {
 
         // Confirm the DB starts empty.
         let initialCount = try await index.dbQueue.read { db in
-            try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM page_types") ?? -1
+            try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM page_collections") ?? -1
         }
         #expect(initialCount == 0)
 
@@ -61,9 +61,9 @@ struct LoadAllIndexSyncTests {
         manager.indexUpdater = IndexUpdater(index)
         await manager.loadAll()
 
-        // Post-loadAll: page_types should now contain the vault.
+        // Post-loadAll: page_collections should now contain the vault.
         let postCount = try await index.dbQueue.read { db in
-            try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM page_types WHERE id = ?", arguments: [vaultID]) ?? -1
+            try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM page_collections WHERE id = ?", arguments: [vaultID]) ?? -1
         }
         #expect(postCount == 1)
 
@@ -76,7 +76,7 @@ struct LoadAllIndexSyncTests {
             frontmatter: PageFrontmatter(id: ULID.generate(), icon: nil, tier1: [], tier2: [], tier3: [], properties: [:], createdAt: Date())
         )
         let updater = IndexUpdater(index)
-        try updater.upsertPage(pageMeta, pageTypeID: vaultID, pageCollectionID: nil)
+        try updater.upsertPage(pageMeta, pageCollectionID: vaultID)
 
         // Verify the page row landed. Hoist pageMeta.id to a local `let`
         // because the @MainActor-isolated suite's properties can't be
@@ -123,9 +123,9 @@ struct LoadAllIndexSyncTests {
         await manager.loadAll()
         await setManager.loadAll(types: manager.types)
 
-        // Both type AND collection (depth-1 set) should be in the index now.
+        // Both the collection AND the depth-1 set should be in the index now.
         let counts = try await index.dbQueue.read { db -> (Int, Int) in
-            let t = try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM page_types WHERE id = ?", arguments: [vaultID]) ?? -1
+            let t = try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM page_collections WHERE id = ?", arguments: [vaultID]) ?? -1
             let c = try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM page_sets WHERE id = ?", arguments: [collID]) ?? -1
             return (t, c)
         }
@@ -139,7 +139,7 @@ struct LoadAllIndexSyncTests {
             url: collFolder.appendingPathComponent("TestPage.md"),
             frontmatter: PageFrontmatter(id: ULID.generate(), icon: nil, tier1: [], tier2: [], tier3: [], properties: [:], createdAt: Date())
         )
-        try IndexUpdater(index).upsertPage(pageMeta, pageTypeID: vaultID, pageCollectionID: collID)
+        try IndexUpdater(index).upsertPage(pageMeta, pageCollectionID: vaultID, pageSetID: collID)
     }
 
     // MARK: - Project (tier-3 contexts) sync
@@ -195,7 +195,7 @@ struct LoadAllIndexSyncTests {
         await manager.loadAll()  // second pass should be a no-op
 
         let count = try await index.dbQueue.read { db in
-            try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM page_types WHERE id = ?", arguments: [vaultID]) ?? -1
+            try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM page_collections WHERE id = ?", arguments: [vaultID]) ?? -1
         }
         #expect(count == 1)
     }

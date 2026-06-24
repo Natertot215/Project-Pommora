@@ -17,10 +17,10 @@ struct ConnectionQueryTests {
         let now = iso.string(from: Date())
         try index.dbQueue.write { db in
             try db.execute(
-                sql: "INSERT OR IGNORE INTO page_types (id, title, modified_at) VALUES (?, ?, ?)",
+                sql: "INSERT OR IGNORE INTO page_collections (id, title, modified_at) VALUES (?, ?, ?)",
                 arguments: ["pt-test", "TestVault", now])
             try db.execute(
-                sql: "INSERT INTO pages (id, page_type_id, title, modified_at) VALUES (?, ?, ?, ?)",
+                sql: "INSERT INTO pages (id, page_collection_id, title, modified_at) VALUES (?, ?, ?, ?)",
                 arguments: [id, "pt-test", title, now])
         }
     }

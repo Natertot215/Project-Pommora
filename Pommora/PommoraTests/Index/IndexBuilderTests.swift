@@ -87,7 +87,7 @@ struct IndexBuilderTests {
         try await IndexBuilder.populate(index: idx, from: nexus)
 
         let pageTypeCount = try await idx.dbQueue.read { db in
-            try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM page_types") ?? -1
+            try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM page_collections") ?? -1
         }
         #expect(pageTypeCount == 0)
 
@@ -104,7 +104,7 @@ struct IndexBuilderTests {
         try await IndexBuilder.populate(index: idx, from: nexus)
 
         let count = try await idx.dbQueue.read { db in
-            try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM page_types") ?? -1
+            try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM page_collections") ?? -1
         }
         #expect(count == 1)
     }
@@ -120,14 +120,14 @@ struct IndexBuilderTests {
         }
         #expect(count == 1)
 
-        // Verify FK: depth-1 set has parent_type_id pointing to the page_type.
+        // Verify FK: depth-1 set has parent_collection_id pointing to the page_collection.
         let matched = try await idx.dbQueue.read { db in
             try Int.fetchOne(
                 db,
                 sql: """
                     SELECT COUNT(*) FROM page_sets ps
-                    JOIN page_types pt ON ps.parent_type_id = pt.id
-                    WHERE pt.title = 'Notes' AND ps.title = 'Inbox'
+                    JOIN page_collections pc ON ps.parent_collection_id = pc.id
+                    WHERE pc.title = 'Notes' AND ps.title = 'Inbox'
                     """) ?? 0
         }
         #expect(matched == 1)
@@ -145,10 +145,10 @@ struct IndexBuilderTests {
         #expect(count == 2)
 
         // All pages must be linked to the one PageCollection.
-        let withTypeCount = try await idx.dbQueue.read { db in
-            try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM pages WHERE page_type_id IS NOT NULL") ?? 0
+        let withCollectionCount = try await idx.dbQueue.read { db in
+            try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM pages WHERE page_collection_id IS NOT NULL") ?? 0
         }
-        #expect(withTypeCount == 2)
+        #expect(withCollectionCount == 2)
     }
 
     @Test func populateIndexesFrontmatterlessAdoptedPage() async throws {
@@ -264,9 +264,9 @@ struct IndexBuilderTests {
         try await IndexBuilder.populate(index: idx, from: nexus)
 
         let pageTypeCount = try await idx.dbQueue.read { db in
-            try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM page_types") ?? -1
+            try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM page_collections") ?? -1
         }
-        #expect(pageTypeCount == 1, "Duplicate page_types rows after second populate")
+        #expect(pageTypeCount == 1, "Duplicate page_collections rows after second populate")
 
         let pageCount = try await idx.dbQueue.read { db in
             try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM pages") ?? -1

@@ -7,7 +7,7 @@ import Testing
 /// TDD tests for task 1.8 — recursive page_sets index (v15).
 ///
 /// - 4-deep set fixture proves every row has exactly one of
-///   `parent_type_id`/`parent_set_id` set, and a depth-3 page indexes
+///   `parent_collection_id`/`parent_set_id` set, and a depth-3 page indexes
 ///   with the right `page_set_id`.
 /// - `.pageSet(id)` query returns that Set's direct pages.
 @Suite("PageSetRecursiveIndex")
@@ -89,13 +89,13 @@ struct PageSetRecursiveIndexTests {
         try await IndexBuilder.populate(index: fx.idx, from: fx.nexus)
 
         let rows = try await fx.idx.dbQueue.read { db in
-            try Row.fetchAll(db, sql: "SELECT id, parent_type_id, parent_set_id FROM page_sets")
+            try Row.fetchAll(db, sql: "SELECT id, parent_collection_id, parent_set_id FROM page_sets")
         }
         for row in rows {
-            let typeID: String? = row["parent_type_id"]
+            let collectionID: String? = row["parent_collection_id"]
             let setID: String? = row["parent_set_id"]
             // Exactly one of them is non-null
-            #expect((typeID == nil) != (setID == nil), "Set row \(row["id"] as String) must have exactly one parent column set")
+            #expect((collectionID == nil) != (setID == nil), "Set row \(row["id"] as String) must have exactly one parent column set")
         }
     }
 
@@ -108,7 +108,7 @@ struct PageSetRecursiveIndexTests {
         let l1Row = try await fx.idx.dbQueue.read { db in
             try Row.fetchOne(db, sql: "SELECT * FROM page_sets WHERE id = ?", arguments: [fx.l1ID])
         }
-        #expect(l1Row?["parent_type_id"] as String? == fx.typeID)
+        #expect(l1Row?["parent_collection_id"] as String? == fx.typeID)
         #expect(l1Row?["parent_set_id"] as String? == nil)
     }
 
@@ -122,19 +122,19 @@ struct PageSetRecursiveIndexTests {
             try Row.fetchOne(db, sql: "SELECT * FROM page_sets WHERE id = ?", arguments: [fx.l2ID])
         }
         #expect(l2Row?["parent_set_id"] as String? == fx.l1ID)
-        #expect(l2Row?["parent_type_id"] as String? == nil)
+        #expect(l2Row?["parent_collection_id"] as String? == nil)
 
         let l3Row = try await fx.idx.dbQueue.read { db in
             try Row.fetchOne(db, sql: "SELECT * FROM page_sets WHERE id = ?", arguments: [fx.l3ID])
         }
         #expect(l3Row?["parent_set_id"] as String? == fx.l2ID)
-        #expect(l3Row?["parent_type_id"] as String? == nil)
+        #expect(l3Row?["parent_collection_id"] as String? == nil)
 
         let l4Row = try await fx.idx.dbQueue.read { db in
             try Row.fetchOne(db, sql: "SELECT * FROM page_sets WHERE id = ?", arguments: [fx.l4ID])
         }
         #expect(l4Row?["parent_set_id"] as String? == fx.l3ID)
-        #expect(l4Row?["parent_type_id"] as String? == nil)
+        #expect(l4Row?["parent_collection_id"] as String? == nil)
     }
 
     @Test func depthThreePageIndexesWithImmediateParentSetID() async throws {
@@ -148,7 +148,7 @@ struct PageSetRecursiveIndexTests {
         }
         // L3 page's immediate parent is L3 (depth-3 set)
         #expect(pageRow?["page_set_id"] as String? == fx.l3ID)
-        #expect(pageRow?["page_type_id"] as String? == fx.typeID)
+        #expect(pageRow?["page_collection_id"] as String? == fx.typeID)
     }
 
     // MARK: - .pageSet query filter

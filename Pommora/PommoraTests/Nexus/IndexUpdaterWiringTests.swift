@@ -63,7 +63,7 @@ struct IndexUpdaterWiringTests {
     // MARK: - Test 2: mutation via manager propagates to index
 
     /// Wire a PageCollectionManager with indexUpdater; call createPageCollection; verify
-    /// the row appears in page_types via a direct GRDB read.
+    /// the row appears in page_collections via a direct GRDB read.
     @Test func mutationViaManagerPropagatesToIndex() async throws {
         let (nexus, index) = try makeTempIndex()
         defer { TempNexus.cleanup(nexus) }
@@ -76,7 +76,7 @@ struct IndexUpdaterWiringTests {
         try await vaultMgr.createPageCollection(name: "Research", icon: nil)
 
         let count = try await index.dbQueue.read { db in
-            try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM page_types WHERE title = ?", arguments: ["Research"]) ?? 0
+            try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM page_collections WHERE title = ?", arguments: ["Research"]) ?? 0
         }
         #expect(count == 1)
     }

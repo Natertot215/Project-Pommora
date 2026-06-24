@@ -54,7 +54,7 @@ struct IndexUpdater: Sendable {
         try index.dbQueue.write { db in
             try db.execute(
                 sql: """
-                    INSERT INTO page_types
+                    INSERT INTO page_collections
                         (id, title, icon, modified_at, schema_version)
                     VALUES (?, ?, ?, ?, ?)
                     ON CONFLICT(id) DO UPDATE SET
@@ -69,7 +69,7 @@ struct IndexUpdater: Sendable {
     func deletePageCollection(id: String) throws {
         try index.dbQueue.write { db in
             try db.execute(
-                sql: "DELETE FROM page_types WHERE id = ?",
+                sql: "DELETE FROM page_collections WHERE id = ?",
                 arguments: [id]
             )
         }
@@ -78,17 +78,16 @@ struct IndexUpdater: Sendable {
     // MARK: - PageCollection (depth-1 set — parent is a PageCollection)
 
     /// Upserts a depth-1 `PageSet` (formerly called a Collection) into `page_sets`
-    /// with `parent_type_id = pc.parentID`. The vestigial `page_collections` table
-    /// is no longer written to from v15 onward.
+    /// with `parent_collection_id = pc.parentID`.
     func upsertPageCollection(_ pc: PageSet) throws {
         try index.dbQueue.write { db in
             try db.execute(
                 sql: """
                     INSERT INTO page_sets
-                        (id, parent_type_id, parent_set_id, title, icon, modified_at, schema_version)
+                        (id, parent_collection_id, parent_set_id, title, icon, modified_at, schema_version)
                     VALUES (?, ?, NULL, ?, ?, ?, ?)
                     ON CONFLICT(id) DO UPDATE SET
-                        parent_type_id = excluded.parent_type_id, title = excluded.title,
+                        parent_collection_id = excluded.parent_collection_id, title = excluded.title,
                         icon = excluded.icon, modified_at = excluded.modified_at,
                         schema_version = excluded.schema_version
                     """,
@@ -114,7 +113,7 @@ struct IndexUpdater: Sendable {
             try db.execute(
                 sql: """
                     INSERT INTO page_sets
-                        (id, parent_type_id, parent_set_id, title, icon, modified_at, schema_version)
+                        (id, parent_collection_id, parent_set_id, title, icon, modified_at, schema_version)
                     VALUES (?, NULL, ?, ?, ?, ?, ?)
                     ON CONFLICT(id) DO UPDATE SET
                         parent_set_id = excluded.parent_set_id, title = excluded.title,
@@ -139,8 +138,7 @@ struct IndexUpdater: Sendable {
 
     func upsertPage(
         _ meta: PageMeta,
-        pageTypeID: String,
-        pageCollectionID: String?,
+        pageCollectionID: String,
         pageSetID: String? = nil
     ) throws {
         let propsJSON = propertiesJSON(meta.frontmatter.properties)
@@ -148,16 +146,16 @@ struct IndexUpdater: Sendable {
             (try? FileManager.default.attributesOfItem(atPath: meta.url.path)[.modificationDate] as? Date).map {
                 iso($0)
             } ?? nowISO()
-        func write(collectionID: String?, setID: String?) throws {
+        func write(setID: String?) throws {
             try index.dbQueue.write { db in
                 try db.execute(
                     sql: """
                         INSERT OR REPLACE INTO pages
-                            (id, page_type_id, page_collection_id, page_set_id, title, icon, properties, modified_at)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                            (id, page_collection_id, page_set_id, title, icon, properties, modified_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?)
                         """,
                     arguments: [
-                        meta.id, pageTypeID, collectionID, setID, meta.title, meta.frontmatter.icon, propsJSON,
+                        meta.id, pageCollectionID, setID, meta.title, meta.frontmatter.icon, propsJSON,
                         modifiedAt,
                     ]
                 )
@@ -172,13 +170,11 @@ struct IndexUpdater: Sendable {
                 )
             }
         }
-        // The index is a regeneratable cache — a parent (page_type / page_collection /
-        // page_set) that isn't indexed yet must NEVER be fatal (it surfaced as the
-        // "FOREIGN KEY constraint failed" toast). Fall back scope by scope: drop the
-        // set first (keep the Collection), then the collection too (keep the Vault);
-        // if the Vault itself is missing, skip + log.
+        // The index is a regeneratable cache — a parent (page_collection / page_set)
+        // that isn't indexed yet must NEVER be fatal. Fall back: drop the set first
+        // (keep the Collection); if the Collection itself is missing, skip + log.
         do {
-            try write(collectionID: pageCollectionID, setID: pageSetID)
+            try write(setID: pageSetID)
             return
         } catch let error as DatabaseError where error.resultCode == .SQLITE_CONSTRAINT {
             Self.log.error(
@@ -187,7 +183,7 @@ struct IndexUpdater: Sendable {
         }
         if pageSetID != nil {
             do {
-                try write(collectionID: pageCollectionID, setID: nil)
+                try write(setID: nil)
                 return
             } catch {
                 Self.log.error(
@@ -195,14 +191,9 @@ struct IndexUpdater: Sendable {
                 )
             }
         }
-        guard pageCollectionID != nil else { return }
-        do {
-            try write(collectionID: nil, setID: nil)
-        } catch {
-            Self.log.error(
-                "upsertPage skipped page \(meta.id, privacy: .public) — parent type unindexed: \(String(describing: error), privacy: .public)"
-            )
-        }
+        Self.log.error(
+            "upsertPage skipped page \(meta.id, privacy: .public) — parent collection unindexed"
+        )
     }
 
     func deletePage(id: String) throws {
@@ -213,28 +204,19 @@ struct IndexUpdater: Sendable {
         }
     }
 
-    /// Page ids the index currently holds for one scope — a Type root excludes its
-    /// Collection/Set pages, a Collection excludes its Set pages. The surgical
-    /// reconcile uses this to delete rows whose file vanished from the scope.
-    func pageIDs(pageTypeID: String, pageCollectionID: String?, pageSetID: String?) throws
-        -> [String]
-    {
+    /// Page ids the index currently holds for one scope — a Collection root excludes
+    /// its Set pages. The surgical reconcile uses this to delete rows whose file
+    /// vanished from the scope.
+    func pageIDs(pageCollectionID: String, pageSetID: String?) throws -> [String] {
         try index.dbQueue.read { db in
             if let pageSetID {
                 return try String.fetchAll(
                     db, sql: "SELECT id FROM pages WHERE page_set_id = ?", arguments: [pageSetID])
             }
-            if let pageCollectionID {
-                return try String.fetchAll(
-                    db,
-                    sql: "SELECT id FROM pages WHERE page_collection_id = ? AND page_set_id IS NULL",
-                    arguments: [pageCollectionID])
-            }
             return try String.fetchAll(
                 db,
-                sql:
-                    "SELECT id FROM pages WHERE page_type_id = ? AND page_collection_id IS NULL AND page_set_id IS NULL",
-                arguments: [pageTypeID])
+                sql: "SELECT id FROM pages WHERE page_collection_id = ? AND page_set_id IS NULL",
+                arguments: [pageCollectionID])
         }
     }
 

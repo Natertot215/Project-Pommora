@@ -10,8 +10,8 @@ struct ConnectionReconcileTests {
 
     // MARK: - Helpers
 
-    /// Insert a pages row (with its required page_type parent) so reconcile's
-    /// title lookup finds it. `pages.page_type_id` is NOT NULL + FK to page_types,
+    /// Insert a pages row (with its required page_collection parent) so reconcile's
+    /// title lookup finds it. `pages.page_collection_id` is NOT NULL + FK to page_collections,
     /// so seed a shared parent row first (INSERT OR IGNORE — idempotent across calls).
     private func insertPage(id: String, title: String, index: PommoraIndex) throws {
         let iso = ISO8601DateFormatter()
@@ -19,11 +19,11 @@ struct ConnectionReconcileTests {
         let now = iso.string(from: Date())
         try index.dbQueue.write { db in
             try db.execute(
-                sql: "INSERT OR IGNORE INTO page_types (id, title, modified_at) VALUES (?, ?, ?)",
-                arguments: ["pt-test", "TestVault", now])
+                sql: "INSERT OR IGNORE INTO page_collections (id, title, modified_at) VALUES (?, ?, ?)",
+                arguments: ["pc-test", "TestVault", now])
             try db.execute(
-                sql: "INSERT INTO pages (id, page_type_id, title, modified_at) VALUES (?, ?, ?, ?)",
-                arguments: [id, "pt-test", title, now])
+                sql: "INSERT INTO pages (id, page_collection_id, title, modified_at) VALUES (?, ?, ?, ?)",
+                arguments: [id, "pc-test", title, now])
         }
     }
 

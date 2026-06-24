@@ -82,7 +82,7 @@ struct PommoraIndexTests {
         defer { try? FileManager.default.removeItem(at: root) }
         let (index, _) = try PommoraIndex.open(at: root)
         let expected: [String] = [
-            "meta", "page_types", "page_collections",
+            "meta", "page_collections",
             "pages", "agenda_tasks", "agenda_events", "contexts",
             "context_links", "property_definitions",
         ]

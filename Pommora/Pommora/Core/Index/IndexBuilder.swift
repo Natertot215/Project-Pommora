@@ -22,8 +22,8 @@ private struct PageSetSnapshot: Sendable {
     let icon: String?
     let modifiedAt: Date
     let schemaVersion: Int
-    // exactly one of parentTypeID / parentSetID is non-nil
-    let parentTypeID: String?
+    // exactly one of parentCollectionID / parentSetID is non-nil
+    let parentCollectionID: String?
     let parentSetID: String?
     let children: [PageSetSnapshot]
     let pages: [PageSnapshot]
@@ -36,8 +36,7 @@ private struct PageSnapshot: Sendable {
     let body: String
     let properties: [String: PropertyValue]
     let modifiedAt: Date
-    let pageTypeID: String
-    let collectionID: String?
+    let pageCollectionID: String
     let setID: String?
     let tier1: [String]
     let tier2: [String]
@@ -173,13 +172,13 @@ final class IndexBuilder {
                 else { continue }
 
                 let snap = collectSetSnapshot(
-                    set, folder: sub, parentTypeID: pc.id, parentSetID: nil,
-                    pageTypeID: pc.id, nexusRoot: root, filter: filter)
+                    set, folder: sub, parentCollectionID: pc.id, parentSetID: nil,
+                    pageCollectionID: pc.id, nexusRoot: root, filter: filter)
                 depthOneSets.append(snap)
             }
 
             let directPages = collectPagesInFolder(
-                folder, pageTypeID: pc.id, collectionID: nil, nexusRoot: root, filter: filter)
+                folder, pageCollectionID: pc.id, nexusRoot: root, filter: filter)
 
             result.append(
                 PageCollectionSnapshot(
@@ -201,9 +200,9 @@ final class IndexBuilder {
     private static func collectSetSnapshot(
         _ set: PageSet,
         folder: URL,
-        parentTypeID: String?,
+        parentCollectionID: String?,
         parentSetID: String?,
-        pageTypeID: String,
+        pageCollectionID: String,
         nexusRoot: URL,
         filter: FolderFilter
     ) -> PageSetSnapshot {
@@ -215,12 +214,12 @@ final class IndexBuilder {
                 let child = try? PageSet.load(from: subSetURL)
             else { continue }
             let childSnap = collectSetSnapshot(
-                child, folder: sub, parentTypeID: nil, parentSetID: set.id,
-                pageTypeID: pageTypeID, nexusRoot: nexusRoot, filter: filter)
+                child, folder: sub, parentCollectionID: nil, parentSetID: set.id,
+                pageCollectionID: pageCollectionID, nexusRoot: nexusRoot, filter: filter)
             children.append(childSnap)
         }
         let pages = collectPagesInFolder(
-            folder, pageTypeID: pageTypeID, collectionID: nil, setID: set.id,
+            folder, pageCollectionID: pageCollectionID, setID: set.id,
             nexusRoot: nexusRoot, filter: filter)
         return PageSetSnapshot(
             id: set.id,
@@ -228,7 +227,7 @@ final class IndexBuilder {
             icon: set.icon,
             modifiedAt: set.modifiedAt,
             schemaVersion: set.schemaVersion,
-            parentTypeID: parentTypeID,
+            parentCollectionID: parentCollectionID,
             parentSetID: parentSetID,
             children: children,
             pages: pages
@@ -237,8 +236,7 @@ final class IndexBuilder {
 
     private static func collectPagesInFolder(
         _ folderURL: URL,
-        pageTypeID: String,
-        collectionID: String?,
+        pageCollectionID: String,
         setID: String? = nil,
         nexusRoot: URL,
         filter: FolderFilter
@@ -272,8 +270,7 @@ final class IndexBuilder {
                 body: pf.body,
                 properties: fm.properties,
                 modifiedAt: fm.modifiedAt ?? fm.createdAt,
-                pageTypeID: pageTypeID,
-                collectionID: collectionID,
+                pageCollectionID: pageCollectionID,
                 setID: setID,
                 tier1: fm.tier1,
                 tier2: fm.tier2,
@@ -433,11 +430,10 @@ final class IndexBuilder {
         try db.execute(sql: "DELETE FROM property_definitions")
         try db.execute(sql: "DELETE FROM pages")
         try db.execute(sql: "DELETE FROM page_sets")
-        try db.execute(sql: "DELETE FROM page_collections")
         try db.execute(sql: "DELETE FROM agenda_tasks")
         try db.execute(sql: "DELETE FROM agenda_events")
         try db.execute(sql: "DELETE FROM contexts")
-        try db.execute(sql: "DELETE FROM page_types")
+        try db.execute(sql: "DELETE FROM page_collections")
     }
 
     private nonisolated static func insertPageCollections(_ db: Database, snapshot: NexusSnapshot) {
@@ -446,11 +442,11 @@ final class IndexBuilder {
             // id), skip the whole subtree — the children would only FK-fail.
             guard
                 attemptInsert(
-                    "page_type \(pt.title) [\(pt.id)]",
+                    "page_collection \(pt.title) [\(pt.id)]",
                     {
                         try db.execute(
                             literal: """
-                                INSERT INTO page_types (id, title, icon, modified_at, schema_version)
+                                INSERT INTO page_collections (id, title, icon, modified_at, schema_version)
                                 VALUES (\(pt.id), \(pt.title), \(pt.icon), \(iso8601(pt.modifiedAt)), \(pt.schemaVersion))
                                 """
                         )
@@ -471,7 +467,7 @@ final class IndexBuilder {
     }
 
     /// Inserts a set row into `page_sets`, recursively inserting its children and pages.
-    /// Uses `parent_type_id` for depth-1 sets and `parent_set_id` for deeper ones.
+    /// Uses `parent_collection_id` for depth-1 sets and `parent_set_id` for deeper ones.
     private nonisolated static func insertPageSet(_ db: Database, set: PageSetSnapshot) {
         guard
             attemptInsert(
@@ -479,8 +475,8 @@ final class IndexBuilder {
                 {
                     try db.execute(
                         literal: """
-                            INSERT INTO page_sets (id, parent_type_id, parent_set_id, title, icon, modified_at, schema_version)
-                            VALUES (\(set.id), \(set.parentTypeID), \(set.parentSetID), \(set.title), \(set.icon), \(iso8601(set.modifiedAt)), \(set.schemaVersion))
+                            INSERT INTO page_sets (id, parent_collection_id, parent_set_id, title, icon, modified_at, schema_version)
+                            VALUES (\(set.id), \(set.parentCollectionID), \(set.parentSetID), \(set.title), \(set.icon), \(iso8601(set.modifiedAt)), \(set.schemaVersion))
                             """
                     )
                 })
@@ -500,8 +496,8 @@ final class IndexBuilder {
             {
                 try db.execute(
                     literal: """
-                        INSERT INTO pages (id, page_type_id, page_collection_id, page_set_id, title, icon, properties, modified_at)
-                        VALUES (\(page.id), \(page.pageTypeID), \(page.collectionID), \(page.setID), \(page.title), \(page.icon), \(propsJSON), \(iso8601(page.modifiedAt)))
+                        INSERT INTO pages (id, page_collection_id, page_set_id, title, icon, properties, modified_at)
+                        VALUES (\(page.id), \(page.pageCollectionID), \(page.setID), \(page.title), \(page.icon), \(propsJSON), \(iso8601(page.modifiedAt)))
                         """
                 )
             })

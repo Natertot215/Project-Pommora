@@ -183,37 +183,34 @@ final class ExternalChangeReconciler {
             await content.loadAll(forCollection: col)
             syncScope(
                 content.pagesByCollection[id] ?? [],
-                pageTypeID: typeID, pageCollectionID: id, pageSetID: nil, updater: updater)
+                pageCollectionID: typeID, pageSetID: id, updater: updater)
         case .set(let id, let collectionID, let typeID):
             guard let set = pageSet(id: id, collectionID: collectionID) else { return }
             await content.loadAll(for: set)
             syncScope(
                 content.pagesBySet[id] ?? [],
-                pageTypeID: typeID, pageCollectionID: collectionID, pageSetID: id, updater: updater)
+                pageCollectionID: typeID, pageSetID: id, updater: updater)
         case .typeRoot(let id):
             guard let type = env.collectionManager.types.first(where: { $0.id == id }) else { return }
             await content.loadAll(for: type)
             syncScope(
                 content.pagesByTypeRoot[id] ?? [],
-                pageTypeID: id, pageCollectionID: nil, pageSetID: nil, updater: updater)
+                pageCollectionID: id, pageSetID: nil, updater: updater)
         }
     }
 
     /// Upserts a scope's on-disk Pages, then deletes any index row whose file is no
     /// longer present in that scope (set-sync).
     private func syncScope(
-        _ metas: [PageMeta], pageTypeID: String, pageCollectionID: String?, pageSetID: String?,
+        _ metas: [PageMeta], pageCollectionID: String, pageSetID: String?,
         updater: IndexUpdater
     ) {
         for meta in metas {
-            try? updater.upsertPage(
-                meta, pageTypeID: pageTypeID, pageCollectionID: pageCollectionID,
-                pageSetID: pageSetID)
+            try? updater.upsertPage(meta, pageCollectionID: pageCollectionID, pageSetID: pageSetID)
         }
         let diskIDs = Set(metas.map(\.id))
         guard
-            let indexed = try? updater.pageIDs(
-                pageTypeID: pageTypeID, pageCollectionID: pageCollectionID, pageSetID: pageSetID)
+            let indexed = try? updater.pageIDs(pageCollectionID: pageCollectionID, pageSetID: pageSetID)
         else { return }
         for staleID in indexed where !diskIDs.contains(staleID) {
             try? updater.deletePage(id: staleID)

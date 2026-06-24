@@ -60,7 +60,7 @@ struct TierRelationsEmitTests {
             createdAt: Date()
         )
         let meta = PageMeta(id: pageID, title: "Doc", url: url, frontmatter: frontmatter)
-        try updater.upsertPage(meta, pageTypeID: pt.id, pageCollectionID: nil)
+        try updater.upsertPage(meta, pageCollectionID: pt.id)
 
         // The relations row exists and carries the reserved tier property id + area target kind.
         let count = try tierRelationCount(targetID: contextID, propertyID: ReservedPropertyID.tier1, db: idx)
@@ -103,7 +103,7 @@ struct TierRelationsEmitTests {
             createdAt: Date()
         )
         let meta = PageMeta(id: pageID, title: "Widget", url: url, frontmatter: frontmatter)
-        try updater.upsertPage(meta, pageTypeID: pt.id, pageCollectionID: nil)
+        try updater.upsertPage(meta, pageCollectionID: pt.id)
 
         #expect(try tierRelationCount(targetID: topicID, propertyID: ReservedPropertyID.tier2, db: idx) == 1)
         #expect(try tierRelationCount(targetID: projectID, propertyID: ReservedPropertyID.tier3, db: idx) == 1)
@@ -187,9 +187,9 @@ struct TierRelationsEmitTests {
             createdAt: Date()
         )
         let meta = PageMeta(id: pageID, title: "Doc", url: url, frontmatter: frontmatter)
-        try updater.upsertPage(meta, pageTypeID: pt.id, pageCollectionID: nil)
+        try updater.upsertPage(meta, pageCollectionID: pt.id)
         // Re-index the same page (e.g. an unrelated edit) — DELETE-then-reinsert must not duplicate.
-        try updater.upsertPage(meta, pageTypeID: pt.id, pageCollectionID: nil)
+        try updater.upsertPage(meta, pageCollectionID: pt.id)
 
         #expect(try tierRelationCount(targetID: contextID, propertyID: ReservedPropertyID.tier1, db: idx) == 1)
     }
@@ -226,7 +226,7 @@ struct TierRelationsEmitTests {
             createdAt: Date()
         )
         let meta = PageMeta(id: pageID, title: "Doc", url: url, frontmatter: frontmatter)
-        try updater.upsertPage(meta, pageTypeID: pt.id, pageCollectionID: nil)
+        try updater.upsertPage(meta, pageCollectionID: pt.id)
 
         // The user-relation value must NOT appear in relations.
         let userRelCount = try await idx.dbQueue.read { db in
@@ -270,7 +270,7 @@ struct TierRelationsEmitTests {
             createdAt: Date()
         )
         let meta = PageMeta(id: pageID, title: "Doc", url: url, frontmatter: frontmatter)
-        try updater.upsertPage(meta, pageTypeID: pt.id, pageCollectionID: nil)
+        try updater.upsertPage(meta, pageCollectionID: pt.id)
 
         // Exactly one row — the tier1 row — must exist.
         #expect(try relationCount(sourceID: pageID, db: idx) == 1)
@@ -385,7 +385,7 @@ struct TierRelationsEmitTests {
         let meta = PageMeta(
             id: pageID, title: "Doc", url: pageURL,
             frontmatter: reloadedFile.frontmatter)
-        try updater.upsertPage(meta, pageTypeID: pt.id, pageCollectionID: nil)
+        try updater.upsertPage(meta, pageCollectionID: pt.id)
 
         // Tier row must exist.
         #expect(

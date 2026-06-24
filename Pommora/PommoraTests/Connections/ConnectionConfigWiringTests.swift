@@ -22,11 +22,11 @@ struct ConnectionConfigWiringTests {
         let ts = now()
         try index.dbQueue.write { db in
             try db.execute(
-                sql: "INSERT OR IGNORE INTO page_types (id, title, modified_at) VALUES (?, ?, ?)",
-                arguments: ["pt-test", "TestVault", ts])
+                sql: "INSERT OR IGNORE INTO page_collections (id, title, modified_at) VALUES (?, ?, ?)",
+                arguments: ["pc-test", "TestVault", ts])
             try db.execute(
-                sql: "INSERT INTO pages (id, page_type_id, title, modified_at) VALUES (?, ?, ?, ?)",
-                arguments: [id, "pt-test", title, ts])
+                sql: "INSERT INTO pages (id, page_collection_id, title, modified_at) VALUES (?, ?, ?, ?)",
+                arguments: [id, "pc-test", title, ts])
         }
     }
 

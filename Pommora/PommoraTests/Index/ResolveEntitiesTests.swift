@@ -24,9 +24,9 @@ struct ResolveEntitiesTests {
         defer { try? FileManager.default.removeItem(at: dir) }
 
         try await idx.dbQueue.write { db in
-            try db.execute(sql: "INSERT INTO page_types (id, title, modified_at) VALUES (?,?,?)",
+            try db.execute(sql: "INSERT INTO page_collections (id, title, modified_at) VALUES (?,?,?)",
                            arguments: ["PT1", "Notes", "2026-05-29T00:00:00Z"])
-            try db.execute(sql: "INSERT INTO pages (id, title, icon, page_type_id, modified_at) VALUES (?,?,?,?,?)",
+            try db.execute(sql: "INSERT INTO pages (id, title, icon, page_collection_id, modified_at) VALUES (?,?,?,?,?)",
                            arguments: ["P1", "My Page", "doc.text", "PT1", "2026-05-29T00:00:00Z"])
             try db.execute(sql: "INSERT INTO contexts (id, title, icon, tier) VALUES (?,?,?,?)",
                            arguments: ["S1", "Work", "square.stack.3d.up", 1])

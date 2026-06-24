@@ -55,6 +55,10 @@ extension PageParent {
         }
     }
 
+    /// The immediate PageSet id for a Page row's `page_set_id` column — the
+    /// depth-1 set for `.collection`, the deeper set for `.set`, nil at root.
+    var immediateSetID: String? { setID ?? collectionID }
+
     /// Persisted display order for direct child Pages at this location.
     var pageOrder: [String]? {
         switch self {

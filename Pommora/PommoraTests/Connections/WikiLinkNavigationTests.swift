@@ -98,7 +98,7 @@ struct WikiLinkNavigationTests {
         // resolveUniqueTitle must now find 2 matches and return nil (ambiguous).
         let twin = PageMeta(
             id: ULID.generate(), title: "Dupe", url: first.url, frontmatter: first.frontmatter)
-        try IndexUpdater(index).upsertPage(twin, pageTypeID: vault.id, pageCollectionID: nil)
+        try IndexUpdater(index).upsertPage(twin, pageCollectionID: vault.id)
 
         let selection = await WikiLinkPageOpener.pageSelection(
             forTitle: "Dupe", index: index, nexusRootURL: nexus.rootURL)

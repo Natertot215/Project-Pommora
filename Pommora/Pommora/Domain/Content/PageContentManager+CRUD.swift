@@ -89,8 +89,7 @@ extension PageContentManager {
             if let updater = indexUpdater {
                 do {
                     try updater.upsertPage(
-                        meta, pageTypeID: parent.pageCollection.id, pageCollectionID: parent.collectionID,
-                        pageSetID: parent.setID)
+                        meta, pageCollectionID: parent.pageCollection.id, pageSetID: parent.immediateSetID)
                 } catch { self.pendingError = error }
                 do { try updater.activateConnections(targetID: meta.id, targetKind: "page", targetTitle: name) } catch {
                     self.pendingError = error
@@ -174,8 +173,7 @@ extension PageContentManager {
             if let updater = indexUpdater {
                 do {
                     try updater.upsertPage(
-                        updated, pageTypeID: parent.pageCollection.id, pageCollectionID: parent.collectionID,
-                        pageSetID: parent.setID)
+                        updated, pageCollectionID: parent.pageCollection.id, pageSetID: parent.immediateSetID)
                 } catch { self.pendingError = error }
                 do {
                     try updater.activateConnections(
@@ -245,7 +243,7 @@ extension PageContentManager {
             try pageFile.save(to: page.url)
 
             if let updater = indexUpdater {
-                do { try updater.upsertPage(page, pageTypeID: pageCollection.id, pageCollectionID: collection.id) } catch {
+                do { try updater.upsertPage(page, pageCollectionID: pageCollection.id, pageSetID: collection.id) } catch {
                     self.pendingError = error
                 }
                 do {
@@ -319,7 +317,7 @@ extension PageContentManager {
             if let updater = indexUpdater {
                 do {
                     try updater.upsertPage(
-                        page, pageTypeID: pageCollection.id, pageCollectionID: collection.id, pageSetID: set.id)
+                        page, pageCollectionID: pageCollection.id, pageSetID: set.id)
                 } catch {
                     self.pendingError = error
                 }
@@ -413,7 +411,7 @@ extension PageContentManager {
             try pageFile.save(to: page.url)
 
             if let updater = indexUpdater {
-                do { try updater.upsertPage(page, pageTypeID: pageCollection.id, pageCollectionID: nil) } catch {
+                do { try updater.upsertPage(page, pageCollectionID: pageCollection.id) } catch {
                     self.pendingError = error
                 }
                 do {
@@ -482,9 +480,8 @@ extension PageContentManager {
                 do {
                     try updater.upsertPage(
                         updated,
-                        pageTypeID: destination.pageCollection.id,
-                        pageCollectionID: destination.collectionID,
-                        pageSetID: destination.setID
+                        pageCollectionID: destination.pageCollection.id,
+                        pageSetID: destination.immediateSetID
                     )
                 } catch {
                     self.pendingError = error
@@ -646,8 +643,8 @@ extension PageContentManager {
                 do {
                     try updater.upsertPage(
                         updated,
-                        pageTypeID: destination.id,
-                        pageCollectionID: toCollection?.id
+                        pageCollectionID: destination.id,
+                        pageSetID: toCollection?.id
                     )
                 } catch {
                     self.pendingError = error
@@ -778,8 +775,8 @@ extension PageContentManager {
             if let updater = indexUpdater {
                 do {
                     try updater.upsertPage(
-                        updatedMeta, pageTypeID: pageCollection.id, pageCollectionID: collection?.id,
-                        pageSetID: set?.id)
+                        updatedMeta, pageCollectionID: pageCollection.id,
+                        pageSetID: set?.id ?? collection?.id)
                 } catch {
                     self.pendingError = error
                 }
@@ -891,8 +888,7 @@ extension PageContentManager {
                     do {
                         try updater.upsertPage(
                             updatedMeta,
-                            pageTypeID: container.typeID,
-                            pageCollectionID: container.collectionID,
+                            pageCollectionID: container.typeID,
                             pageSetID: container.setID
                         )
                     } catch {

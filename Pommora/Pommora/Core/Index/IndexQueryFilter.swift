@@ -52,7 +52,7 @@ enum FilterBuilder {
         -> (String, String, String, String, [any DatabaseValueConvertible])
     {
         switch target {
-        case .pageCollection(let id): return ("pages", "id", "title", "page_type_id = ?", [id])
+        case .pageCollection(let id): return ("pages", "id", "title", "page_collection_id = ? AND page_set_id IS NULL", [id])
         case .pageSetCollection(let id): return ("pages", "id", "title", "page_collection_id = ?", [id])
         case .pageSet(let id): return ("pages", "id", "title", "page_set_id = ?", [id])
         case .agendaTasks: return ("agenda_tasks", "id", "title", "", [])

@@ -35,9 +35,9 @@ struct IndexUpdaterTests {
         let pt = Fixtures.pageCollection()
         try updater.upsertPageCollection(pt)
 
-        let count = try countRows(in: "page_types", db: idx)
+        let count = try countRows(in: "page_collections", db: idx)
         #expect(count == 1)
-        let row = try firstRow(in: "page_types", db: idx)
+        let row = try firstRow(in: "page_collections", db: idx)
         #expect(row?["id"] as String? == pt.id)
         #expect(row?["title"] as String? == "Notes")
     }
@@ -52,7 +52,7 @@ struct IndexUpdaterTests {
         try updater.upsertPageCollection(pt)
         try updater.deletePageCollection(id: pt.id)
 
-        let count = try countRows(in: "page_types", db: idx)
+        let count = try countRows(in: "page_collections", db: idx)
         #expect(count == 0)
     }
 
@@ -73,7 +73,7 @@ struct IndexUpdaterTests {
         #expect(count == 1)
         let row = try firstRow(in: "page_sets", db: idx)
         #expect(row?["id"] as String? == pc.id)
-        #expect(row?["parent_type_id"] as String? == pt.id)
+        #expect(row?["parent_collection_id"] as String? == pt.id)
         #expect(row?["parent_set_id"] as String? == nil)
     }
 
@@ -143,16 +143,15 @@ struct IndexUpdaterTests {
 
         let rootPage = Fixtures.pageMeta(title: "Root")
         let collectionPage = Fixtures.pageMeta(title: "InCollection")
-        try updater.upsertPage(rootPage, pageTypeID: pt.id, pageCollectionID: nil, pageSetID: nil)
-        try updater.upsertPage(
-            collectionPage, pageTypeID: pt.id, pageCollectionID: pc.id, pageSetID: nil)
+        try updater.upsertPage(rootPage, pageCollectionID: pt.id, pageSetID: nil)
+        try updater.upsertPage(collectionPage, pageCollectionID: pt.id, pageSetID: pc.id)
 
         // Type-root scope excludes the Collection page.
-        let rootIDs = try updater.pageIDs(pageTypeID: pt.id, pageCollectionID: nil, pageSetID: nil)
+        let rootIDs = try updater.pageIDs(pageCollectionID: pt.id, pageSetID: nil)
         #expect(rootIDs == [rootPage.id])
 
         // Collection scope returns only its own page.
-        let colIDs = try updater.pageIDs(pageTypeID: pt.id, pageCollectionID: pc.id, pageSetID: nil)
+        let colIDs = try updater.pageIDs(pageCollectionID: pt.id, pageSetID: pc.id)
         #expect(colIDs == [collectionPage.id])
     }
 
@@ -171,9 +170,9 @@ struct IndexUpdaterTests {
         pt.modifiedAt = Date()
         try updater.upsertPageCollection(pt)
 
-        let count = try countRows(in: "page_types", db: idx)
-        #expect(count == 1, "upsert should replace — not duplicate")
-        let row = try firstRow(in: "page_types", db: idx)
+        let count = try countRows(in: "page_collections", db: idx)
+        #expect(count == 1, "upsert should update — not duplicate")
+        let row = try firstRow(in: "page_collections", db: idx)
         #expect(row?["title"] as String? == "New Name")
     }
 
@@ -333,7 +332,7 @@ struct IndexUpdaterTests {
             createdAt: Date()
         )
         let meta = PageMeta(id: pageID, title: "Doc", url: url, frontmatter: frontmatter)
-        try updater.upsertPage(meta, pageTypeID: pt.id, pageCollectionID: nil)
+        try updater.upsertPage(meta, pageCollectionID: pt.id)
 
         // The page's tier1 value emits one `context_links` row carrying the reserved
         // tier-1 property id and the Context as target.

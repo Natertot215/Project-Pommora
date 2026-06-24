@@ -41,7 +41,7 @@ struct PageSetMoveTests {
         let pf = try PageFile.load(from: pageURL)
         try updater.upsertPage(
             PageMeta(id: pageID, title: "Doc", url: pageURL, frontmatter: pf.frontmatter),
-            pageTypeID: vault.id, pageCollectionID: source.id, pageSetID: set.id)
+            pageCollectionID: vault.id, pageSetID: set.id)
         let originalBytes = try Data(contentsOf: pageURL)
 
         let loadedSet = try #require(setManager.pageSets(in: source).first)
@@ -186,8 +186,7 @@ struct PageSetMoveTests {
         let row = try await index.dbQueue.read { db in
             try Row.fetchOne(db, sql: "SELECT * FROM pages WHERE id = ?", arguments: [movedPageID])
         }
-        #expect(row?["page_type_id"] as String? == vaultBID)
-        #expect(row?["page_collection_id"] as String? == collBID)
+        #expect(row?["page_collection_id"] as String? == vaultBID)
         #expect(row?["page_set_id"] as String? == setID)
     }
 

@@ -112,7 +112,11 @@ final class PommoraIndex: @unchecked Sendable {
     // table remains in the schema as a vestigial stub (Phase-2 task 2.4 drops/renames
     // it); nothing writes to it from v15 onward. IndexBuilder walks sets recursively at
     // any depth. Bumping 14 → 15 forces one delete+rebuild. No data migration.
-    static let currentSchemaVersion: Int = 15
+    //
+    // v16: page_types→page_collections rename; vestigial page_collections stub dropped;
+    // page_sets.parent_type_id→parent_collection_id; pages cleaned to two container
+    // columns (page_collection_id FK→page_collections, page_set_id FK→page_sets).
+    static let currentSchemaVersion: Int = 16
 
     let dbQueue: DatabaseQueue  // GRDB connection pool (serialized writes, concurrent reads)
     let dbURL: URL

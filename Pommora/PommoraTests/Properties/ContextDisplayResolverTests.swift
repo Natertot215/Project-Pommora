@@ -23,15 +23,15 @@ struct ContextDisplayResolverTests {
         let (dir, idx) = try await setupIndex()
         defer { try? FileManager.default.removeItem(at: dir) }
 
-        // Seed a page P1 ("Doc", icon "star"). page_type_id is an enforced FK and
-        // modified_at is NOT NULL, so seed the parent page_type + modified_at first.
+        // Seed a page P1 ("Doc", icon "star"). page_collection_id is an enforced FK and
+        // modified_at is NOT NULL, so seed the parent page_collection + modified_at first.
         try await idx.dbQueue.write { db in
             try db.execute(
-                sql: "INSERT INTO page_types (id, title, modified_at) VALUES (?,?,?)",
-                arguments: ["PT1", "Notes", "2026-05-29T00:00:00Z"])
+                sql: "INSERT INTO page_collections (id, title, modified_at) VALUES (?,?,?)",
+                arguments: ["PC1", "Notes", "2026-05-29T00:00:00Z"])
             try db.execute(
-                sql: "INSERT INTO pages (id, title, icon, page_type_id, modified_at) VALUES (?,?,?,?,?)",
-                arguments: ["P1", "Doc", "star", "PT1", "2026-05-29T00:00:00Z"])
+                sql: "INSERT INTO pages (id, title, icon, page_collection_id, modified_at) VALUES (?,?,?,?,?)",
+                arguments: ["P1", "Doc", "star", "PC1", "2026-05-29T00:00:00Z"])
         }
 
         let resolver = ContextDisplayResolver(index: { idx })

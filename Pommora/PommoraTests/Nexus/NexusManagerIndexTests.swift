@@ -65,7 +65,7 @@ struct NexusManagerIndexTests {
 
         // Fresh open always triggers populate (needsRebuild == true on new DB).
         let ptCount = try await idx.dbQueue.read { db in
-            try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM page_types") ?? -1
+            try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM page_collections") ?? -1
         }
         #expect(ptCount == 1)
     }

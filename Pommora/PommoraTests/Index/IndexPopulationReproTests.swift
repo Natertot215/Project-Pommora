@@ -249,11 +249,10 @@ struct IndexPopulationReproTests {
         let orphanMeta = PageMeta(
             id: pageID, title: "Orphan", url: pageURL, frontmatter: pageFrontmatter
         )
-        // Post-fix (Task 8 Bug B): upsertPage tolerates the orphaned-collection FK.
-        // The Vault (page_type) IS indexed, so the page is retried WITHOUT the missing
-        // collection and still lands under its type — no throw, no toast.
+        // Post-fix (Task 8 Bug B): upsertPage tolerates the orphaned-set FK.
+        // The Vault IS indexed, so the page is retried with the dangling set NULLed out.
         try IndexUpdater(index).upsertPage(
-            orphanMeta, pageTypeID: vaultID, pageCollectionID: orphanCollID
+            orphanMeta, pageCollectionID: vaultID, pageSetID: orphanCollID
         )
         let pageRowCount = try await index.dbQueue.read { db in
             try Int.fetchOne(
@@ -261,12 +260,12 @@ struct IndexPopulationReproTests {
             ) ?? 0
         }
         #expect(pageRowCount == 1)
-        let pageCollForPage = try await index.dbQueue.read { db in
+        let pageSetForPage = try await index.dbQueue.read { db in
             try String.fetchOne(
-                db, sql: "SELECT page_collection_id FROM pages WHERE id = ?", arguments: [pageID]
+                db, sql: "SELECT page_set_id FROM pages WHERE id = ?", arguments: [pageID]
             )
         }
-        #expect(pageCollForPage == nil)  // missing collection nulled; page kept under its Vault
+        #expect(pageSetForPage == nil)  // dangling set FK nulled; page kept under vault
     }
 
     // MARK: - Test C — malformed Topic sidecar leaves tier-2 picker empty

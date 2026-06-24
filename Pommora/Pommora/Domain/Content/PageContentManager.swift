@@ -112,8 +112,8 @@ final class PageContentManager {
             page.url, collectionManager: collectionManager, pageSetManager: pageSetManager)
     }
 
-    /// Index-based parent resolution: queries page_type_id / page_collection_id /
-    /// page_set_id directly, then matches them to the in-memory objects.
+    /// Index-based parent resolution: queries page_collection_id / page_set_id
+    /// directly, then matches them to the in-memory objects.
     private func resolveParentFromIndex(
         pageID: String, collectionManager: PageCollectionManager, pageSetManager: PageSetManager?,
         index: PommoraIndex
@@ -121,16 +121,22 @@ final class PageContentManager {
         guard
             let row = try? index.dbQueue.read({ db in
                 try Row.fetchOne(
-                    db, sql: "SELECT page_type_id, page_collection_id, page_set_id FROM pages WHERE id = ?",
+                    db, sql: "SELECT page_collection_id, page_set_id FROM pages WHERE id = ?",
                     arguments: [pageID])
             })
         else { return nil }
-        let typeID: String = row["page_type_id"]
-        let collectionID: String? = row["page_collection_id"]
+        let collectionID: String = row["page_collection_id"]
         let setID: String? = row["page_set_id"]
-        guard let vault = collectionManager.types.first(where: { $0.id == typeID })
+        guard let vault = collectionManager.types.first(where: { $0.id == collectionID })
         else { return nil }
-        if let collID = collectionID,
+        // If it's a set-rooted page, look up the owning depth-1 collection from page_sets.
+        let depthOneCollectionID = setID.flatMap { sid in
+            try? index.dbQueue.read { db in
+                try String.fetchOne(
+                    db, sql: "SELECT parent_collection_id FROM page_sets WHERE id = ?", arguments: [sid])
+            }
+        }
+        if let collID = depthOneCollectionID,
             let coll = collectionManager.pageCollections(in: vault).first(where: { $0.id == collID })
         {
             let set = setID.flatMap { sid in

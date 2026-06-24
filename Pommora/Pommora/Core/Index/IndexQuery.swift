@@ -21,7 +21,6 @@ struct IndexQuery: Sendable {
         // target — see RelationTargetKind.string), so real rows resolve via
         // the keys above. These fine-grained keys stay snake_case for
         // consistency with `FilterBuilder.entityKindFromString`.
-        "page_type": "page_types",
         "page_collection": "page_collections",
         "page_set": "page_sets",
     ]
@@ -156,26 +155,15 @@ struct IndexQuery: Sendable {
                 guard
                     let row = try Row.fetchOne(
                         db,
-                        sql: "SELECT title, page_type_id, page_collection_id, page_set_id FROM pages WHERE id = ?",
+                        sql: "SELECT title, page_collection_id, page_set_id FROM pages WHERE id = ?",
                         arguments: [id]
                     )
                 else { return nil }
-                let typeID: String = row["page_type_id"]
-                let typeTitle = try String.fetchOne(
-                    db, sql: "SELECT title FROM page_types WHERE id = ?", arguments: [typeID]
+                let collectionID: String = row["page_collection_id"]
+                let collectionTitle = try String.fetchOne(
+                    db, sql: "SELECT title FROM page_collections WHERE id = ?", arguments: [collectionID]
                 )
-                guard let typeTitle else { return nil }
-                let collectionID: String? = row["page_collection_id"]
-                var collectionTitle: String?
-                if let collectionID {
-                    // page_collections is vestigial (v15+); fall back to page_sets
-                    let fromLegacy = try String.fetchOne(
-                        db, sql: "SELECT title FROM page_collections WHERE id = ?",
-                        arguments: [collectionID])
-                    collectionTitle = try fromLegacy ?? String.fetchOne(
-                        db, sql: "SELECT title FROM page_sets WHERE id = ?",
-                        arguments: [collectionID])
-                }
+                guard let collectionTitle else { return nil }
                 let setID: String? = row["page_set_id"]
                 var setTitle: String?
                 if let setID {
@@ -186,7 +174,7 @@ struct IndexQuery: Sendable {
                 }
                 return EntityContainer(
                     entityTitle: row["title"], kind: .page,
-                    typeID: typeID, typeTitle: typeTitle,
+                    typeID: collectionID, typeTitle: collectionTitle,
                     collectionID: collectionID, collectionTitle: collectionTitle,
                     setID: setID, setTitle: setTitle
                 )

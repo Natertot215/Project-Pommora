@@ -24,10 +24,10 @@ struct IndexQueryTests {
 
         try await idx.dbQueue.write { db in
             try db.execute(
-                sql: "INSERT INTO page_types(id, title, modified_at) VALUES ('PT1', 'Notes', '2026-05-24T00:00:00Z')")
+                sql: "INSERT INTO page_collections(id, title, modified_at) VALUES ('PT1', 'Notes', '2026-05-24T00:00:00Z')")
             try db.execute(
                 sql: """
-                        INSERT INTO pages(id, page_type_id, title, properties, modified_at) VALUES
+                        INSERT INTO pages(id, page_collection_id, title, properties, modified_at) VALUES
                         ('P1', 'PT1', 'One',   '{"prop_A":"active"}',   '2026-05-24T00:00:00Z'),
                         ('P2', 'PT1', 'Two',   '{"prop_A":"archived"}', '2026-05-24T00:00:00Z'),
                         ('P3', 'PT1', 'Three', '{"prop_A":"active"}',   '2026-05-24T00:00:00Z')
@@ -52,10 +52,10 @@ struct IndexQueryTests {
 
         try await idx.dbQueue.write { db in
             try db.execute(
-                sql: "INSERT INTO page_types(id, title, modified_at) VALUES ('PT2', 'Docs', '2026-05-24T00:00:00Z')")
+                sql: "INSERT INTO page_collections(id, title, modified_at) VALUES ('PT2', 'Docs', '2026-05-24T00:00:00Z')")
             try db.execute(
                 sql: """
-                        INSERT INTO pages(id, page_type_id, title, properties, modified_at) VALUES
+                        INSERT INTO pages(id, page_collection_id, title, properties, modified_at) VALUES
                         ('P10', 'PT2', 'A', '{"priority":"high"}',   '2026-05-24T00:00:00Z'),
                         ('P11', 'PT2', 'B', '{"priority":"medium"}', '2026-05-24T00:00:00Z'),
                         ('P12', 'PT2', 'C', '{"priority":"low"}',    '2026-05-24T00:00:00Z')
@@ -80,10 +80,10 @@ struct IndexQueryTests {
 
         try await idx.dbQueue.write { db in
             try db.execute(
-                sql: "INSERT INTO page_types(id, title, modified_at) VALUES ('PT7', 'Tickets', '2026-06-10T00:00:00Z')")
+                sql: "INSERT INTO page_collections(id, title, modified_at) VALUES ('PT7', 'Tickets', '2026-06-10T00:00:00Z')")
             try db.execute(
                 sql: """
-                        INSERT INTO pages(id, page_type_id, title, properties, modified_at) VALUES
+                        INSERT INTO pages(id, page_collection_id, title, properties, modified_at) VALUES
                         ('P70', 'PT7', 'A', '{"priority":"high"}',   '2026-06-10T00:00:00Z'),
                         ('P71', 'PT7', 'B', '{"priority":"medium"}', '2026-06-10T00:00:00Z'),
                         ('P72', 'PT7', 'C', '{"priority":"low"}',    '2026-06-10T00:00:00Z')
@@ -108,11 +108,11 @@ struct IndexQueryTests {
 
         try await idx.dbQueue.write { db in
             try db.execute(
-                sql: "INSERT INTO page_types(id, title, modified_at) VALUES ('PT3', 'Projects', '2026-05-24T00:00:00Z')"
+                sql: "INSERT INTO page_collections(id, title, modified_at) VALUES ('PT3', 'Projects', '2026-05-24T00:00:00Z')"
             )
             try db.execute(
                 sql: """
-                        INSERT INTO pages(id, page_type_id, title, properties, modified_at) VALUES
+                        INSERT INTO pages(id, page_collection_id, title, properties, modified_at) VALUES
                         ('P20', 'PT3', 'AA', '{"status":"active","priority":"high"}',   '2026-05-24T00:00:00Z'),
                         ('P21', 'PT3', 'AB', '{"status":"active","priority":"low"}',    '2026-05-24T00:00:00Z'),
                         ('P22', 'PT3', 'BA', '{"status":"archived","priority":"high"}', '2026-05-24T00:00:00Z')
@@ -139,10 +139,10 @@ struct IndexQueryTests {
 
         try await idx.dbQueue.write { db in
             try db.execute(
-                sql: "INSERT INTO page_types(id, title, modified_at) VALUES ('PT4', 'Misc', '2026-05-24T00:00:00Z')")
+                sql: "INSERT INTO page_collections(id, title, modified_at) VALUES ('PT4', 'Misc', '2026-05-24T00:00:00Z')")
             try db.execute(
                 sql: """
-                        INSERT INTO pages(id, page_type_id, title, properties, modified_at) VALUES
+                        INSERT INTO pages(id, page_collection_id, title, properties, modified_at) VALUES
                         ('P30', 'PT4', 'X', '{"tag":"alpha"}', '2026-05-24T00:00:00Z'),
                         ('P31', 'PT4', 'Y', '{"tag":"beta"}',  '2026-05-24T00:00:00Z'),
                         ('P32', 'PT4', 'Z', '{"tag":"gamma"}', '2026-05-24T00:00:00Z')
@@ -170,10 +170,10 @@ struct IndexQueryTests {
 
         try await idx.dbQueue.write { db in
             try db.execute(
-                sql: "INSERT INTO page_types(id, title, modified_at) VALUES ('PT5', 'Notes', '2026-05-24T00:00:00Z')")
+                sql: "INSERT INTO page_collections(id, title, modified_at) VALUES ('PT5', 'Notes', '2026-05-24T00:00:00Z')")
             try db.execute(
                 sql: """
-                        INSERT INTO pages(id, page_type_id, title, properties, modified_at) VALUES
+                        INSERT INTO pages(id, page_collection_id, title, properties, modified_at) VALUES
                         ('P40', 'PT5', 'WithTag',    '{"tag":"yes"}', '2026-05-24T00:00:00Z'),
                         ('P41', 'PT5', 'WithoutTag', '{}',            '2026-05-24T00:00:00Z')
                     """)
@@ -202,10 +202,10 @@ struct IndexQueryTests {
 
         try await idx.dbQueue.write { db in
             try db.execute(
-                sql: "INSERT INTO page_types(id, title, modified_at) VALUES ('PT6', 'Sorted', '2026-05-24T00:00:00Z')")
+                sql: "INSERT INTO page_collections(id, title, modified_at) VALUES ('PT6', 'Sorted', '2026-05-24T00:00:00Z')")
             try db.execute(
                 sql: """
-                        INSERT INTO pages(id, page_type_id, title, properties, modified_at) VALUES
+                        INSERT INTO pages(id, page_collection_id, title, properties, modified_at) VALUES
                         ('P50', 'PT6', 'C-Page', '{"rank":3}', '2026-05-24T01:00:00Z'),
                         ('P51', 'PT6', 'A-Page', '{"rank":1}', '2026-05-24T00:00:00Z'),
                         ('P52', 'PT6', 'B-Page', '{"rank":2}', '2026-05-24T00:30:00Z')
@@ -247,10 +247,10 @@ struct IndexQueryTests {
         try await idx.dbQueue.write { db in
             try db.execute(
                 sql:
-                    "INSERT INTO page_types(id, title, modified_at) VALUES ('PT_SRC', 'Source', '2026-05-24T00:00:00Z')"
+                    "INSERT INTO page_collections(id, title, modified_at) VALUES ('PT_SRC', 'Source', '2026-05-24T00:00:00Z')"
             )
             try db.execute(
-                sql: "INSERT INTO page_types(id, title, modified_at) VALUES ('PT_DST', 'Dest', '2026-05-24T00:00:00Z')")
+                sql: "INSERT INTO page_collections(id, title, modified_at) VALUES ('PT_DST', 'Dest', '2026-05-24T00:00:00Z')")
             // Property IDs are globally unique. Move-strip identifies "shared"
             // properties by NAME (a Page keeps property values where the
             // destination has a property of the same name), not by ID.
@@ -291,10 +291,10 @@ struct IndexQueryTests {
         try await idx.dbQueue.write { db in
             // Seed one page. Then a relation pointing to a non-existent page.
             try db.execute(
-                sql: "INSERT INTO page_types(id, title, modified_at) VALUES ('PT_BL', 'BL', '2026-05-24T00:00:00Z')")
+                sql: "INSERT INTO page_collections(id, title, modified_at) VALUES ('PT_BL', 'BL', '2026-05-24T00:00:00Z')")
             try db.execute(
                 sql: """
-                        INSERT INTO pages(id, page_type_id, title, properties, modified_at) VALUES
+                        INSERT INTO pages(id, page_collection_id, title, properties, modified_at) VALUES
                         ('PBL1', 'PT_BL', 'Real Page', '{}', '2026-05-24T00:00:00Z')
                     """)
             // Valid relation: PBL1 → PBL1 (self, but still valid)
@@ -324,10 +324,10 @@ struct IndexQueryTests {
             // Two pages that point AT the shared target "TARGET1";
             // plus a third relation pointing elsewhere (must be excluded).
             try db.execute(
-                sql: "INSERT INTO page_types(id, title, modified_at) VALUES ('PT_IR', 'IR', '2026-05-24T00:00:00Z')")
+                sql: "INSERT INTO page_collections(id, title, modified_at) VALUES ('PT_IR', 'IR', '2026-05-24T00:00:00Z')")
             try db.execute(
                 sql: """
-                        INSERT INTO pages(id, page_type_id, title, properties, modified_at) VALUES
+                        INSERT INTO pages(id, page_collection_id, title, properties, modified_at) VALUES
                         ('PSRC1', 'PT_IR', 'Source Page One', '{}', '2026-05-24T00:00:00Z'),
                         ('PSRC2', 'PT_IR', 'Source Page Two', '{}', '2026-05-24T00:00:00Z'),
                         ('POTHER', 'PT_IR', 'Other Page',     '{}', '2026-05-24T00:00:00Z')

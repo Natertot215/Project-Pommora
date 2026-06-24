@@ -607,7 +607,7 @@ final class PageSetManager {
                     id: pf.frontmatter.id, title: pf.title, url: dest, frontmatter: pf.frontmatter
                 )
                 try? updater.upsertPage(
-                    meta, pageTypeID: parent.parentID, pageCollectionID: parent.id, pageSetID: nil
+                    meta, pageCollectionID: parent.parentID, pageSetID: parent.id
                 )
             }
         }
@@ -703,8 +703,7 @@ final class PageSetManager {
                     do {
                         try updater.upsertPage(
                             meta,
-                            pageTypeID: destinationPageCollection.id,
-                            pageCollectionID: destination.id,
+                            pageCollectionID: destinationPageCollection.id,
                             pageSetID: updated.id
                         )
                     } catch { self.pendingError = error }

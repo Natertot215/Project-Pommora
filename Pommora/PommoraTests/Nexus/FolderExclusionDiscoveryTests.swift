@@ -59,10 +59,10 @@ import Testing
         let notesID = "PT_NOTES"
         let archiveID = "PT_ARCHIVE"
         let notes = try await index.dbQueue.read { db in
-            try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM page_types WHERE id = ?", arguments: [notesID]) ?? -1
+            try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM page_collections WHERE id = ?", arguments: [notesID]) ?? -1
         }
         let archive = try await index.dbQueue.read { db in
-            try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM page_types WHERE id = ?", arguments: [archiveID]) ?? -1
+            try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM page_collections WHERE id = ?", arguments: [archiveID]) ?? -1
         }
         #expect(notes == 1)
         #expect(archive == 0)

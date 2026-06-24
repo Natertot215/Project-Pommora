@@ -10,7 +10,7 @@ import Testing
 ///
 /// `INSERT OR REPLACE` on an existing primary key DELETEs the existing row
 /// (firing every `ON DELETE CASCADE` / `ON DELETE SET NULL` child FK) then
-/// re-inserts. The parent tables (`page_types` / `page_sets`) are
+/// re-inserts. The parent tables (`page_collections` / `page_sets`) are
 /// cascade parents of pages, so re-upserting an already-present parent — which
 /// `loadAll` does on every launch as a defensive index sync (quirk #14) —
 /// cascade-wiped (or NULLed) every child page. The fix converts the parent
@@ -28,14 +28,14 @@ struct IndexParentUpsertCascadeTests {
         }
     }
 
-    /// The `page_collection_id` currently stored for `pageID` (nil if the column is NULL
+    /// The `page_set_id` currently stored for `pageID` (nil if the column is NULL
     /// or the row is gone). Wrapped in a non-isolated helper so the synchronous
     /// `dbQueue.read` overload resolves cleanly inside the @MainActor suite.
-    private func pageCollectionID(of pageID: String, in index: PommoraIndex) throws -> String? {
+    private func pageSetID(of pageID: String, in index: PommoraIndex) throws -> String? {
         try index.dbQueue.read { db in
             let row = try Row.fetchOne(
-                db, sql: "SELECT page_collection_id FROM pages WHERE id = ?", arguments: [pageID])
-            return row?["page_collection_id"] as String?
+                db, sql: "SELECT page_set_id FROM pages WHERE id = ?", arguments: [pageID])
+            return row?["page_set_id"] as String?
         }
     }
 
@@ -49,19 +49,19 @@ struct IndexParentUpsertCascadeTests {
 
         let pt = Fixtures.pageCollection()
         try updater.upsertPageCollection(pt)
-        try updater.upsertPage(Fixtures.pageMeta(title: "Page One"), pageTypeID: pt.id, pageCollectionID: nil)
-        try updater.upsertPage(Fixtures.pageMeta(title: "Page Two"), pageTypeID: pt.id, pageCollectionID: nil)
+        try updater.upsertPage(Fixtures.pageMeta(title: "Page One"), pageCollectionID: pt.id)
+        try updater.upsertPage(Fixtures.pageMeta(title: "Page Two"), pageCollectionID: pt.id)
 
         let pagesBefore = try count("pages", in: idx)
         #expect(pagesBefore == 2)
 
-        // Re-upsert the SAME page type — simulating loadAll's defensive re-sync.
+        // Re-upsert the SAME page collection — simulating loadAll's defensive re-sync.
         try updater.upsertPageCollection(pt)
 
         let pagesAfter = try count("pages", in: idx)
-        let typesAfter = try count("page_types", in: idx)
-        #expect(pagesAfter == 2, "re-upserting the parent page type must not cascade-wipe child pages")
-        #expect(typesAfter == 1, "re-upsert must update in place, not duplicate")
+        let collectionsAfter = try count("page_collections", in: idx)
+        #expect(pagesAfter == 2, "re-upserting the parent page collection must not cascade-wipe child pages")
+        #expect(collectionsAfter == 1, "re-upsert must update in place, not duplicate")
     }
 
     @Test func reUpsertPageSetPreservesChildLinkage() async throws {
@@ -76,27 +76,27 @@ struct IndexParentUpsertCascadeTests {
         try updater.upsertPageCollection(pc)
 
         let pageMeta = Fixtures.pageMeta(title: "Filed Page")
-        try updater.upsertPage(pageMeta, pageTypeID: pt.id, pageCollectionID: pc.id)
+        try updater.upsertPage(pageMeta, pageCollectionID: pt.id, pageSetID: pc.id)
 
         // Hoist ids out before the read helpers (quirk #5: @MainActor local
         // captured in a Sendable closure is a strict-concurrency error).
         let pageID = pageMeta.id
-        let collectionID = pc.id
+        let setID = pc.id
 
-        // Sanity: the page is filed under the collection.
-        let before = try pageCollectionID(of: pageID, in: idx)
-        #expect(before == collectionID)
+        // Sanity: the page is filed under the set.
+        let before = try pageSetID(of: pageID, in: idx)
+        #expect(before == setID)
 
-        // Re-upsert the SAME page collection — `ON DELETE SET NULL` would NULL the
-        // child's page_collection_id under INSERT OR REPLACE.
+        // Re-upsert the SAME depth-1 set — `ON DELETE SET NULL` would NULL the
+        // child's page_set_id under INSERT OR REPLACE.
         try updater.upsertPageCollection(pc)
 
         let pagesAfter = try count("pages", in: idx)
-        let after = try pageCollectionID(of: pageID, in: idx)
-        #expect(pagesAfter == 1, "re-upserting the collection must not delete the child page")
+        let after = try pageSetID(of: pageID, in: idx)
+        #expect(pagesAfter == 1, "re-upserting the set must not delete the child page")
         #expect(
-            after == collectionID,
-            "re-upserting the collection must not NULL the child page's page_collection_id"
+            after == setID,
+            "re-upserting the set must not NULL the child page's page_set_id"
         )
     }
 }

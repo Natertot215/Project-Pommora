@@ -17,17 +17,17 @@ struct ConnectionResolverTests {
         return iso.string(from: Date())
     }
 
-    /// Insert a pages row (with its required page_type parent). `pages.page_type_id`
+    /// Insert a pages row (with its required page_collection parent). `pages.page_collection_id`
     /// is NOT NULL + FK, so seed a shared parent first (INSERT OR IGNORE — idempotent).
     private func insertPage(id: String, title: String, index: PommoraIndex) throws {
         let ts = now()
         try index.dbQueue.write { db in
             try db.execute(
-                sql: "INSERT OR IGNORE INTO page_types (id, title, modified_at) VALUES (?, ?, ?)",
-                arguments: ["pt-test", "TestVault", ts])
+                sql: "INSERT OR IGNORE INTO page_collections (id, title, modified_at) VALUES (?, ?, ?)",
+                arguments: ["pc-test", "TestVault", ts])
             try db.execute(
-                sql: "INSERT INTO pages (id, page_type_id, title, modified_at) VALUES (?, ?, ?, ?)",
-                arguments: [id, "pt-test", title, ts])
+                sql: "INSERT INTO pages (id, page_collection_id, title, modified_at) VALUES (?, ?, ?, ?)",
+                arguments: [id, "pc-test", title, ts])
         }
     }
 
