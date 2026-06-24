@@ -96,6 +96,9 @@ async function readDirectPages(absDir: string, relDir: string): Promise<PageNode
   return out
 }
 
+// ---------- LEGACY 3-tier reads (produce `vaults` during the migration window; deleted
+//            in the contract step once index/CRUD/renderer consume `collections`) ----------
+
 /** Roll-up: `.md` in `absDir` plus all non-excluded sub-folders (depth-cap spillover). */
 async function collectMdDeep(absDir: string, relDir: string, excluded: string[]): Promise<PageNode[]> {
   let pages = await readDirectPages(absDir, relDir)
@@ -108,9 +111,7 @@ async function collectMdDeep(absDir: string, relDir: string, excluded: string[])
   return pages
 }
 
-// ---------- container reads (pageType -> collection -> set) ----------
-
-async function readSet(
+async function legacyReadSet(
   absDir: string,
   relDir: string,
   name: string,
@@ -119,7 +120,6 @@ async function readSet(
   fb: Fallback
 ): Promise<SetNode> {
   const meta = sidecarMode ? ((await readJsonObject(join(absDir, SIDECAR_FILENAME.set))) ?? {}) : {}
-  // A set is the depth cap: its own .md + any deeper folders roll up.
   const pages = await collectMdDeep(absDir, relDir, excluded)
   return {
     kind: 'set',
@@ -132,7 +132,7 @@ async function readSet(
   }
 }
 
-async function readCollection(
+async function legacyReadCollection(
   absDir: string,
   relDir: string,
   name: string,
@@ -149,10 +149,8 @@ async function readCollection(
     if (!e.isDirectory()) continue
     const rel = `${relDir}/${e.name}`
     if (shouldSkipDir(e.name, rel, excluded)) continue
-    const isSet = sidecarMode
-      ? await pathExists(join(absDir, e.name, SIDECAR_FILENAME.set))
-      : true
-    if (isSet) sets.push(await readSet(join(absDir, e.name), rel, e.name, sidecarMode, excluded, fb))
+    const isSet = sidecarMode ? await pathExists(join(absDir, e.name, SIDECAR_FILENAME.set)) : true
+    if (isSet) sets.push(await legacyReadSet(join(absDir, e.name), rel, e.name, sidecarMode, excluded, fb))
     else rollup.push({ abs: join(absDir, e.name), rel })
   }
   let pages = await readDirectPages(absDir, relDir)
@@ -169,7 +167,7 @@ async function readCollection(
   }
 }
 
-async function readPageType(
+async function legacyReadPageType(
   absDir: string,
   relDir: string,
   name: string,
@@ -190,7 +188,7 @@ async function readPageType(
       ? await pathExists(join(absDir, e.name, SIDECAR_FILENAME.collection))
       : true
     if (isCollection)
-      collections.push(await readCollection(join(absDir, e.name), rel, e.name, sidecarMode, excluded, fb))
+      collections.push(await legacyReadCollection(join(absDir, e.name), rel, e.name, sidecarMode, excluded, fb))
     else rollup.push({ abs: join(absDir, e.name), rel })
   }
   let pages = await readDirectPages(absDir, relDir)
@@ -203,6 +201,79 @@ async function readPageType(
     path: relDir,
     banner: asString(meta.banner),
     collections: resolveOrder(collections, asStringArray(meta.collection_order), fb),
+    pages: resolveOrder(pages, asStringArray(meta.page_order), fb)
+  }
+}
+
+// ---------- container reads (2-tier: Collection -> recursive Set) ----------
+
+/** Every non-excluded subfolder of a Collection or Set is itself a Set (position-driven,
+ *  any depth). Shared by the Collection root and every Set level — the recursion. */
+async function readChildSets(
+  absDir: string,
+  relDir: string,
+  sidecarMode: boolean,
+  excluded: string[],
+  fb: Fallback
+): Promise<SetNode[]> {
+  const sets: SetNode[] = []
+  for (const e of await listEntries(absDir)) {
+    if (!e.isDirectory()) continue
+    const rel = `${relDir}/${e.name}`
+    if (shouldSkipDir(e.name, rel, excluded)) continue
+    sets.push(await readSet(join(absDir, e.name), rel, e.name, sidecarMode, excluded, fb))
+  }
+  return sets
+}
+
+async function readSet(
+  absDir: string,
+  relDir: string,
+  name: string,
+  sidecarMode: boolean,
+  excluded: string[],
+  fb: Fallback
+): Promise<SetNode> {
+  const meta = sidecarMode ? ((await readJsonObject(join(absDir, SIDECAR_FILENAME.set))) ?? {}) : {}
+  const sets = await readChildSets(absDir, relDir, sidecarMode, excluded, fb)
+  const pages = await readDirectPages(absDir, relDir)
+  return {
+    kind: 'set',
+    selectable: false,
+    id: asString(meta.id) ?? adoptedId(relDir),
+    title: name,
+    icon: asString(meta.icon),
+    path: relDir,
+    banner: asString(meta.banner),
+    sets: resolveOrder(sets, asStringArray(meta.set_order), fb),
+    pages: resolveOrder(pages, asStringArray(meta.page_order), fb)
+  }
+}
+
+async function readPageCollection(
+  absDir: string,
+  relDir: string,
+  name: string,
+  sidecarMode: boolean,
+  excluded: string[],
+  fb: Fallback
+): Promise<CollectionNode> {
+  const meta = sidecarMode
+    ? ((await readJsonObject(join(absDir, SIDECAR_FILENAME.collection))) ?? {})
+    : {}
+  const sets = await readChildSets(absDir, relDir, sidecarMode, excluded, fb)
+  const pages = await readDirectPages(absDir, relDir)
+  return {
+    kind: 'collection',
+    id: asString(meta.id) ?? adoptedId(relDir),
+    title: name,
+    icon: asString(meta.icon),
+    path: relDir,
+    banner: asString(meta.banner),
+    properties: Array.isArray(meta.properties)
+      ? (meta.properties as CollectionNode['properties'])
+      : undefined,
+    sets: resolveOrder(sets, asStringArray(meta.set_order), fb),
     pages: resolveOrder(pages, asStringArray(meta.page_order), fb)
   }
 }
@@ -309,38 +380,55 @@ export async function readNexus(root: string): Promise<NexusTree> {
     areas: await readTier<AreaNode>(root, 'areas', 'area', sidecarMode, excluded, asStringArray(state.area_order), fb)
   }
 
-  // Vaults (flat at root). Agenda singletons are discovered but NOT surfaced.
+  // Top-level containers, built side by side during the migration window: legacy 3-tier
+  // `vaults` (gated by `_pagetype.json`; raw/structure mode produces none) and the new
+  // 2-tier `collections` (gated by `_pagecollection.json`; raw mode treats every root
+  // folder as a Collection). A given nexus is in exactly one format, so only one list
+  // populates. Agenda singletons are discovered but NOT surfaced.
   const allTypes: PageTypeNode[] = []
+  const allCollections: CollectionNode[] = []
   for (const e of await listEntries(root)) {
     if (!e.isDirectory()) continue
     if (shouldSkipDir(e.name, e.name, excluded)) continue
+    const abs = join(root, e.name)
     const hasAgendaSidecar =
-      (await pathExists(join(root, e.name, SIDECAR_FILENAME.taskConfig))) ||
-      (await pathExists(join(root, e.name, SIDECAR_FILENAME.eventConfig)))
-    const isPageType = sidecarMode
-      ? await pathExists(join(root, e.name, SIDECAR_FILENAME.pageType))
-      : true
-    // Agenda singletons are discovered but not surfaced. A task/event sidecar is
-    // authoritative; the conventional name applies only when the folder isn't an
-    // explicit PageType (so an adopted PageType named "Tasks" still surfaces).
+      (await pathExists(join(abs, SIDECAR_FILENAME.taskConfig))) ||
+      (await pathExists(join(abs, SIDECAR_FILENAME.eventConfig)))
     if (hasAgendaSidecar) continue
-    if (AGENDA_FOLDER_NAMES.has(e.name) && !(sidecarMode && isPageType)) continue
-    if (!isPageType) continue
-    allTypes.push(await readPageType(join(root, e.name), e.name, e.name, sidecarMode, excluded, fb))
+    const isPageType = sidecarMode ? await pathExists(join(abs, SIDECAR_FILENAME.pageType)) : false
+    const isCollection = sidecarMode ? await pathExists(join(abs, SIDECAR_FILENAME.collection)) : true
+    if (AGENDA_FOLDER_NAMES.has(e.name) && !(sidecarMode && (isPageType || isCollection))) continue
+    if (isCollection) allCollections.push(await readPageCollection(abs, e.name, e.name, sidecarMode, excluded, fb))
+    else if (isPageType) allTypes.push(await legacyReadPageType(abs, e.name, e.name, sidecarMode, excluded, fb))
   }
   const orderedTypes = resolveOrder(allTypes, asStringArray(state.vault_order), fb)
+  const collectionOrder = asStringArray(state.collection_order) ?? asStringArray(state.vault_order)
+  const orderedCollections = resolveOrder(allCollections, collectionOrder, fb)
 
-  // Partition into user sections vs ungrouped.
-  const rawSections = (sectionsConfig.sections as { id: string; label: string; vaultIDs?: string[] }[]) ?? []
-  const claimed = new Set<string>()
+  // Partition into user sections vs ungrouped. (sidebar-sections keys by `collectionIDs`,
+  // falling back to the legacy `vaultIDs` for the migration window.)
+  const rawSections =
+    (sectionsConfig.sections as {
+      id: string
+      label: string
+      collectionIDs?: string[]
+      vaultIDs?: string[]
+    }[]) ?? []
+  const claimedV = new Set<string>()
+  const claimedC = new Set<string>()
   const userSections: UserSection[] = rawSections.map((s) => {
     const vaults = (s.vaultIDs ?? [])
-      .map((vid) => orderedTypes.find((t) => t.id === vid))
+      .map((id) => orderedTypes.find((t) => t.id === id))
       .filter((t): t is PageTypeNode => !!t)
-    vaults.forEach((v) => claimed.add(v.id))
-    return { id: s.id, label: s.label, vaults }
+    const collections = (s.collectionIDs ?? s.vaultIDs ?? [])
+      .map((id) => orderedCollections.find((c) => c.id === id))
+      .filter((c): c is CollectionNode => !!c)
+    vaults.forEach((v) => claimedV.add(v.id))
+    collections.forEach((c) => claimedC.add(c.id))
+    return { id: s.id, label: s.label, vaults, collections }
   })
-  const vaults = orderedTypes.filter((t) => !claimed.has(t.id))
+  const vaults = orderedTypes.filter((t) => !claimedV.has(t.id))
+  const collections = orderedCollections.filter((c) => !claimedC.has(c.id))
 
   return {
     nexus: { id, rootPath: root, name: basename(root), description, photo },
@@ -348,6 +436,7 @@ export async function readNexus(root: string): Promise<NexusTree> {
     saved,
     contexts,
     vaults,
+    collections,
     userSections,
     labels,
     accent
