@@ -16,9 +16,13 @@ enum SetDeleteMode {
 final class PageSetManager {
     /// Depth-1: Collections keyed by their parent PageType id.
     private(set) var pageCollectionsByType: [String: [PageSet]] = [:]
-    /// Depth-2: Sets keyed by their parent PageCollection id.
+    /// Depth-2+: Sets keyed by their parent PageSet id.
     private(set) var pageSetsByCollection: [String: [PageSet]] = [:]
     var pendingError: (any Error)?
+
+    /// IDs of all top-tier PageTypes. A PageSet is view-eligible iff
+    /// `topTierIDs.contains(set.parentID)` — O(1) at render time.
+    private(set) var topTierIDs: Set<String> = []
 
     private let nexus: Nexus
 
@@ -33,6 +37,16 @@ final class PageSetManager {
 
     init(nexus: Nexus) {
         self.nexus = nexus
+    }
+
+    /// True iff `set` is a depth-1 Collection (its parent is a top-tier PageType)
+    /// and therefore eligible to carry and render saved views.
+    func isViewEligible(_ set: PageSet) -> Bool {
+        topTierIDs.contains(set.parentID)
+    }
+
+    private func refreshTopTierIDs(from types: [PageType]) {
+        topTierIDs = Set(types.map(\.id))
     }
 
     func pageCollections(in pageType: PageType) -> [PageSet] {
@@ -50,6 +64,8 @@ final class PageSetManager {
     /// Missing sidecars are healed in place; drifted parent IDs are re-pointed.
     func loadAll(types: [PageType], filter: FolderFilter = .empty) async {
         do {
+            refreshTopTierIDs(from: types)
+
             var loadedCols: [String: [PageSet]] = [:]
             var loadedSets: [String: [PageSet]] = [:]
             var seenCollectionIDs: Set<String> = []
@@ -84,7 +100,7 @@ final class PageSetManager {
                             collection.parentID = pageType.id
                             try? collection.save(to: collMetaURL)
                         }
-                        if collection.views.isEmpty {
+                        if collection.views.isEmpty && topTierIDs.contains(collection.parentID) {
                             collection.views = [
                                 SavedView.defaultTable(
                                     visiblePropertyIDs: parentPropertyIDs,
