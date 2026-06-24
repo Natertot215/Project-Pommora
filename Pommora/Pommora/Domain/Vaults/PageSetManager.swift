@@ -57,6 +57,7 @@ final class PageSetManager {
 
             for pageType in types {
                 let typeFolder = NexusPaths.vaultFolderURL(forTitle: pageType.title, in: nexus)
+                do { let __m = "PMDBG typeFolder=\(typeFolder.path) exists=\(FileManager.default.fileExists(atPath: typeFolder.path)) children=\((try? Filesystem.childFolders(of: typeFolder, folderFilter: filter))?.map(\.lastPathComponent) ?? [])\n"; let __p = (NSTemporaryDirectory() as NSString).appendingPathComponent("pmdbg_loadall.txt"); if !FileManager.default.fileExists(atPath: __p) { FileManager.default.createFile(atPath: __p, contents: nil) }; if let __h = FileHandle(forWritingAtPath: __p) { __h.seekToEndOfFile(); __h.write(__m.data(using: .utf8)!); try? __h.close() } } // DEBUG_INSTRUMENT
                 let parentPropertyIDs = pageType.properties.map(\.id)
 
                 var cols = try Filesystem.childFolders(of: typeFolder, folderFilter: filter)
@@ -156,13 +157,14 @@ final class PageSetManager {
             }
 
             self.pageCollectionsByType = loadedCols
+            do { let __m = "PMDBG loadAll types=\(types.map(\.title)) loadedCols=\(loadedCols.mapValues { $0.map(\.title) })\n"; let __p = (NSTemporaryDirectory() as NSString).appendingPathComponent("pmdbg_loadall.txt"); if !FileManager.default.fileExists(atPath: __p) { FileManager.default.createFile(atPath: __p, contents: nil) }; if let __h = FileHandle(forWritingAtPath: __p) { __h.seekToEndOfFile(); __h.write(__m.data(using: .utf8)!); try? __h.close() } } // DEBUG_INSTRUMENT
             self.pageSetsByCollection = loadedSets
             self.pendingError = nil
 
             if let updater = indexUpdater {
                 for cols in loadedCols.values {
                     for col in cols {
-                        try? updater.upsertPageCollection(col)
+                        do { try updater.upsertPageCollection(col) } catch { let __m = "PMDBG upsertCollection FAILED \(col.title): \(error)\n"; let __p = (NSTemporaryDirectory() as NSString).appendingPathComponent("pmdbg_loadall.txt"); if !FileManager.default.fileExists(atPath: __p) { FileManager.default.createFile(atPath: __p, contents: nil) }; if let __h = FileHandle(forWritingAtPath: __p) { __h.seekToEndOfFile(); __h.write(__m.data(using: .utf8)!); try? __h.close() } } // DEBUG_INSTRUMENT
                     }
                 }
                 for sets in loadedSets.values {
@@ -178,63 +180,13 @@ final class PageSetManager {
         }
     }
 
-    /// Backward-compatible overload for tests: loads only depth-2 Sets for the
-    /// provided collections, without touching `pageCollectionsByType`.
-    func loadAll(collections: [PageCollection], filter: FolderFilter = .empty) async {
-        do {
-            var loaded: [String: [PageSet]] = [:]
-            var seenSetIDs: Set<String> = []
-            for collection in collections {
-                var sets = try Filesystem.childFolders(of: collection.folderURL, folderFilter: filter)
-                    .filter { !$0.lastPathComponent.hasPrefix("_") }
-                    .filter { !$0.lastPathComponent.hasPrefix(".") }
-                    .compactMap { sub -> PageSet? in
-                        let metaURL = sub.appendingPathComponent(NexusPaths.pageSetSidecarFilename)
-                        if !Filesystem.fileExists(at: metaURL) {
-                            let fresh = PageSet(
-                                id: ULID.generate(),
-                                collectionID: collection.id,
-                                title: sub.lastPathComponent,
-                                folderURL: sub,
-                                modifiedAt: Date()
-                            )
-                            try? Filesystem.writeMetadataIntoExistingFolder(
-                                metadataURL: metaURL, metadata: fresh
-                            )
-                        }
-                        guard var set = try? PageSet.load(from: metaURL) else { return nil }
-                        if set.collectionID != collection.id {
-                            set.collectionID = collection.id
-                            try? set.save(to: metaURL)
-                        }
-                        return set
-                    }
-                sets = ContainerIDHealer.heal(
-                    sets, seen: &seenSetIDs,
-                    reID: { $0.id = ULID.generate() },
-                    save: {
-                        try $0.save(
-                            to: $0.folderURL.appendingPathComponent(
-                                NexusPaths.pageSetSidecarFilename))
-                    }
-                )
-                loaded[collection.id] = OrderResolver.resolve(
-                    sets,
-                    persistedOrder: collection.setOrder,
-                    titleKeyPath: \PageSet.title
-                )
-            }
-            self.pageSetsByCollection = loaded
-            self.pendingError = nil
-            if let updater = indexUpdater {
-                for sets in loaded.values {
-                    for set in sets { try? updater.upsertPageSet(set) }
-                }
-            }
-        } catch {
-            self.pageSetsByCollection = [:]
-            self.pendingError = error
+    /// Drops a PageType's Collections and all their child Sets from the caches.
+    /// Called when the parent PageType is deleted.
+    func removeCollections(forType typeID: String) {
+        for collection in pageCollectionsByType[typeID] ?? [] {
+            pageSetsByCollection.removeValue(forKey: collection.id)
         }
+        pageCollectionsByType.removeValue(forKey: typeID)
     }
 
     // MARK: - Collection CRUD

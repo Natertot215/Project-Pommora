@@ -105,6 +105,10 @@ struct IndexPopulationReproTests {
         // Injection mirrors LoadAllIndexSyncTests (`manager.indexUpdater = IndexUpdater(index)`).
         let pageTypeManager = PageTypeManager(nexus: nexus)
         pageTypeManager.indexUpdater = IndexUpdater(index)
+        let pageSetManager = PageSetManager(nexus: nexus)
+        pageSetManager.indexUpdater = IndexUpdater(index)
+        pageSetManager.pageTypeProvider = { [weak pageTypeManager] in pageTypeManager?.types ?? [] }
+        pageTypeManager.pageSetManager = pageSetManager
         let pageContentManager = PageContentManager(nexus: nexus, contextProvider: { NexusContext.empty })
         pageContentManager.indexUpdater = IndexUpdater(index)
         let areaManager = AreaManager(nexus: nexus)
@@ -114,6 +118,7 @@ struct IndexPopulationReproTests {
 
         // --- Run loadAll in the order the app does. ---
         await pageTypeManager.loadAll()
+        await pageSetManager.loadAll(types: pageTypeManager.types)
         let loadedVault = try #require(pageTypeManager.types.first { $0.id == vaultID })
         let loadedCollection = try #require(
             pageTypeManager.pageCollections(in: loadedVault).first { $0.id == collID }
@@ -211,10 +216,15 @@ struct IndexPopulationReproTests {
         // --- Wire + load. ---
         let pageTypeManager = PageTypeManager(nexus: nexus)
         pageTypeManager.indexUpdater = IndexUpdater(index)
+        let pageSetManager = PageSetManager(nexus: nexus)
+        pageSetManager.indexUpdater = IndexUpdater(index)
+        pageSetManager.pageTypeProvider = { [weak pageTypeManager] in pageTypeManager?.types ?? [] }
+        pageTypeManager.pageSetManager = pageSetManager
         let pageContentManager = PageContentManager(nexus: nexus, contextProvider: { NexusContext.empty })
         pageContentManager.indexUpdater = IndexUpdater(index)
 
         await pageTypeManager.loadAll()
+        await pageSetManager.loadAll(types: pageTypeManager.types)
         let loadedVault = try #require(pageTypeManager.types.first { $0.id == vaultID })
         await pageContentManager.loadAll(for: loadedVault)
         await pageContentManager.loadAll(for: loadedVault)  // harmless idempotent re-run; no Collection to load

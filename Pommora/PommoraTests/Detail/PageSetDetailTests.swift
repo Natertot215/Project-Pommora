@@ -70,9 +70,11 @@ struct PageSetDetailTests {
         // Managers the saver resolves the Page's live scope against.
         let typeMgr = PageTypeManager(nexus: nexus)
         typeMgr.indexUpdater = IndexUpdater(index)
-        await typeMgr.loadAll()
         let setMgr = PageSetManager(nexus: nexus)
-        await setMgr.loadAll(collections: typeMgr.pageCollectionsByType.values.flatMap { $0 })
+        setMgr.pageTypeProvider = { [weak typeMgr] in typeMgr?.types ?? [] }
+        typeMgr.pageSetManager = setMgr
+        await typeMgr.loadAll()
+        await setMgr.loadAll(types: typeMgr.types)
 
         // Captured scope is STALE — it claims Collection-scoped (set: nil), which a
         // captured-only saver would route through, nulling page_set_id. With managers,
@@ -140,9 +142,11 @@ struct PageSetDetailTests {
         let meta = try await manager.createPage(name: "Doc", in: set, collection: coll, vault: vault)
 
         let vaultManager = PageTypeManager(nexus: nexus)
-        await vaultManager.loadAll()
         let setManager = PageSetManager(nexus: nexus)
-        await setManager.loadAll(collections: [coll])
+        setManager.pageTypeProvider = { [weak vaultManager] in vaultManager?.types ?? [] }
+        vaultManager.pageSetManager = setManager
+        await vaultManager.loadAll()
+        await setManager.loadAll(types: [vault])
 
         let result = manager.resolveParent(
             for: meta, pageTypeManager: vaultManager, pageSetManager: setManager)
@@ -165,9 +169,11 @@ struct PageSetDetailTests {
         let manager = PageContentManager(nexus: nexus, contextProvider: { NexusContext.empty })
 
         let vaultManager = PageTypeManager(nexus: nexus)
-        await vaultManager.loadAll()
         let setManager = PageSetManager(nexus: nexus)
-        await setManager.loadAll(collections: [coll])
+        setManager.pageTypeProvider = { [weak vaultManager] in vaultManager?.types ?? [] }
+        vaultManager.pageSetManager = setManager
+        await vaultManager.loadAll()
+        await setManager.loadAll(types: [vault])
 
         let fm = PageFrontmatter(
             id: pageID, icon: nil, tier1: [], tier2: [], tier3: [],

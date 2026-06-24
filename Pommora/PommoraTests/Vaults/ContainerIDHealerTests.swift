@@ -28,13 +28,15 @@ struct ContainerIDHealerTests {
     private func makeFixture() async throws -> Fixture {
         let nexus = try TempNexus.make()
         let typeManager = PageTypeManager(nexus: nexus)
+        let setManager = PageSetManager(nexus: nexus)
+        setManager.pageTypeProvider = { [weak typeManager] in typeManager?.types ?? [] }
+        typeManager.pageSetManager = setManager
         await typeManager.loadAll()
         try await typeManager.createPageType(name: "Notes", icon: nil)
         let pageType = typeManager.types.first!
         try await typeManager.createPageCollection(name: "Inbox", inPageType: pageType)
         let collection = typeManager.pageCollections(in: pageType).first!
-        let setManager = PageSetManager(nexus: nexus)
-        await setManager.loadAll(collections: [collection])
+        await setManager.loadAll(types: typeManager.types)
         return Fixture(
             nexus: nexus, typeManager: typeManager, setManager: setManager,
             pageType: pageType, collection: collection
@@ -54,6 +56,7 @@ struct ContainerIDHealerTests {
         try FileManager.default.copyItem(at: fx.collection.folderURL, to: copyFolder)
 
         await fx.typeManager.loadAll()
+        await fx.setManager.loadAll(types: fx.typeManager.types)
 
         // Cache: two Collections, distinct ids, exactly one keeps the original.
         let pageType = fx.typeManager.types.first!
@@ -75,6 +78,7 @@ struct ContainerIDHealerTests {
 
         // Idempotent: a second load leaves both disk ids unchanged.
         await fx.typeManager.loadAll()
+        await fx.setManager.loadAll(types: fx.typeManager.types)
         let diskIDs2 = try Set(
             cols.map {
                 try PageCollection.load(
@@ -97,7 +101,7 @@ struct ContainerIDHealerTests {
             "Drafts 2", isDirectory: true)
         try FileManager.default.copyItem(at: set.folderURL, to: copyFolder)
 
-        await fx.setManager.loadAll(collections: [fx.collection])
+        await fx.setManager.loadAll(types: fx.typeManager.types)
 
         // Cache: two Sets, distinct ids, exactly one keeps the original.
         let sets = fx.setManager.pageSets(in: fx.collection)
@@ -116,7 +120,7 @@ struct ContainerIDHealerTests {
         #expect(diskIDs == ids)
 
         // Idempotent: a second load leaves both disk ids unchanged.
-        await fx.setManager.loadAll(collections: [fx.collection])
+        await fx.setManager.loadAll(types: fx.typeManager.types)
         let diskIDs2 = try Set(
             sets.map {
                 try PageSet.load(
@@ -138,6 +142,7 @@ struct ContainerIDHealerTests {
         try FileManager.default.copyItem(at: typeFolder, to: copyFolder)
 
         await fx.typeManager.loadAll()
+        await fx.setManager.loadAll(types: fx.typeManager.types)
 
         // Two Types with distinct ids; exactly one keeps the original.
         let types = fx.typeManager.types

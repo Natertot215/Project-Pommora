@@ -7,12 +7,24 @@ import Testing
 @Suite("PageTypeManager")
 struct PageTypeManagerTests {
 
+    /// Builds a PageTypeManager with its PageSetManager wired (the sole owner of
+    /// Collection storage/CRUD), loaded against `nexus`. Mirrors production wiring.
+    @discardableResult
+    private func makeManager(nexus: Nexus) async -> PageTypeManager {
+        let manager = PageTypeManager(nexus: nexus)
+        let setManager = PageSetManager(nexus: nexus)
+        setManager.pageTypeProvider = { [weak manager] in manager?.types ?? [] }
+        manager.pageSetManager = setManager
+        await manager.loadAll()
+        await setManager.loadAll(types: manager.types)
+        return manager
+    }
+
     @Test("createPageType writes folder + _pagetype.json")
     func createPageType() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
-        let manager = PageTypeManager(nexus: nexus)
-        await manager.loadAll()
+        let manager = await makeManager(nexus: nexus)
 
         try await manager.createPageType(name: "Planner", icon: "folder")
         let folder = NexusPaths.vaultFolderURL(forTitle: "Planner", in: nexus)
@@ -27,8 +39,7 @@ struct PageTypeManagerTests {
     func createPageCollection() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
-        let manager = PageTypeManager(nexus: nexus)
-        await manager.loadAll()
+        let manager = await makeManager(nexus: nexus)
 
         try await manager.createPageType(name: "Planner", icon: nil)
         let pageType = manager.types.first!
@@ -47,8 +58,7 @@ struct PageTypeManagerTests {
     func renamePageType() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
-        let manager = PageTypeManager(nexus: nexus)
-        await manager.loadAll()
+        let manager = await makeManager(nexus: nexus)
 
         try await manager.createPageType(name: "Planner", icon: nil)
         let pageType = manager.types.first!
@@ -68,8 +78,7 @@ struct PageTypeManagerTests {
     func deletePageType() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
-        let manager = PageTypeManager(nexus: nexus)
-        await manager.loadAll()
+        let manager = await makeManager(nexus: nexus)
 
         try await manager.createPageType(name: "Planner", icon: nil)
         let pageType = manager.types.first!
@@ -97,8 +106,7 @@ struct PageTypeManagerTests {
             at: nexus.rootURL.appendingPathComponent("NotAVault", isDirectory: true),
             withIntermediateDirectories: true
         )
-        let manager = PageTypeManager(nexus: nexus)
-        await manager.loadAll()
+        let manager = await makeManager(nexus: nexus)
         #expect(manager.types.isEmpty)
     }
 
@@ -106,8 +114,7 @@ struct PageTypeManagerTests {
     func renamePageCollection() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
-        let manager = PageTypeManager(nexus: nexus)
-        await manager.loadAll()
+        let manager = await makeManager(nexus: nexus)
         try await manager.createPageType(name: "Planner", icon: nil)
         let pageType = manager.types.first!
         try await manager.createPageCollection(name: "Tasks", inPageType: pageType)
@@ -125,8 +132,7 @@ struct PageTypeManagerTests {
     func renamePageCollectionPreservesOverrides() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
-        let manager = PageTypeManager(nexus: nexus)
-        await manager.loadAll()
+        let manager = await makeManager(nexus: nexus)
         try await manager.createPageType(name: "Planner", icon: nil)
         let pageType = manager.types.first!
         try await manager.createPageCollection(name: "Tasks", inPageType: pageType)
@@ -143,8 +149,7 @@ struct PageTypeManagerTests {
         #expect(renamed.icon == "doc")
 
         // ...and it survives a reload-from-disk.
-        let reloaded = PageTypeManager(nexus: nexus)
-        await reloaded.loadAll()
+        let reloaded = await makeManager(nexus: nexus)
         let fromDisk = reloaded.pageCollections(in: reloaded.types.first!).first!
         #expect(fromDisk.title == "To-dos")
         #expect(fromDisk.icon == "doc")
@@ -154,8 +159,7 @@ struct PageTypeManagerTests {
     func deletePageCollection() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
-        let manager = PageTypeManager(nexus: nexus)
-        await manager.loadAll()
+        let manager = await makeManager(nexus: nexus)
         try await manager.createPageType(name: "Planner", icon: nil)
         let pageType = manager.types.first!
         try await manager.createPageCollection(name: "Tasks", inPageType: pageType)
@@ -179,8 +183,7 @@ struct PageTypeManagerTests {
     func reorderPageCollections() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
-        let manager = PageTypeManager(nexus: nexus)
-        await manager.loadAll()
+        let manager = await makeManager(nexus: nexus)
         try await manager.createPageType(name: "Planner", icon: nil)
         let pageType = manager.types.first!
         try await manager.createPageCollection(name: "Alpha", inPageType: pageType)
@@ -207,8 +210,7 @@ struct PageTypeManagerTests {
     func setOpenInPersists() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
-        let manager = PageTypeManager(nexus: nexus)
-        await manager.loadAll()
+        let manager = await makeManager(nexus: nexus)
         try await manager.createPageType(name: "Planner", icon: nil)
         let vault = manager.types.first!
         #expect(vault.openIn == nil)  // absent on fresh sidecars
@@ -223,8 +225,7 @@ struct PageTypeManagerTests {
         #expect(json?["open_in"] as? String == "compact")
 
         // A fresh manager reload reflects the persisted mode.
-        let reloaded = PageTypeManager(nexus: nexus)
-        await reloaded.loadAll()
+        let reloaded = await makeManager(nexus: nexus)
         #expect(reloaded.types.first?.openIn == .compact)
 
         // Flipping back persists too — on disk, not just in memory.

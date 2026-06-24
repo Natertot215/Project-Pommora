@@ -38,14 +38,18 @@ struct UpdateViewClobberTests {
         let initial = pages.pages(inCollection: coll).map(\.id)
         #expect(initial.count == 2)
 
-        // Type manager caches the Collection BEFORE the reorder, so its
+        // Set manager caches the Collection BEFORE the reorder, so its
         // `pageCollectionsByType` entry holds the stale pre-reorder order — the
         // exact production precondition for the clobber.
         let types = PageTypeManager(nexus: nexus)
+        let setManager = PageSetManager(nexus: nexus)
+        setManager.pageTypeProvider = { [weak types] in types?.types ?? [] }
+        types.pageSetManager = setManager
         await types.loadAll()
+        await setManager.loadAll(types: types.types)
 
         // Now drag-reorder: writes the new `page_order` straight to the sidecar
-        // on disk. The type manager's cache is now stale.
+        // on disk. The set manager's cache is now stale.
         pages.reorderPages(inCollection: coll, fromOffsets: IndexSet(integer: 0), toOffset: 2)
         let reordered = pages.pages(inCollection: coll).map(\.id)
         #expect(reordered == [initial[1], initial[0]])

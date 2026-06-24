@@ -23,14 +23,16 @@ struct PageSetManagerTests {
         let nexus = try TempNexus.make()
         let typeManager = PageTypeManager(nexus: nexus)
         typeManager.indexUpdater = indexUpdater
+        let setManager = PageSetManager(nexus: nexus)
+        setManager.indexUpdater = indexUpdater
+        setManager.pageTypeProvider = { [weak typeManager] in typeManager?.types ?? [] }
+        typeManager.pageSetManager = setManager
         await typeManager.loadAll()
         try await typeManager.createPageType(name: "Notes", icon: nil)
         let pageType = typeManager.types.first!
         try await typeManager.createPageCollection(name: "Inbox", inPageType: pageType)
         let collection = typeManager.pageCollections(in: pageType).first!
-        let setManager = PageSetManager(nexus: nexus)
-        setManager.indexUpdater = indexUpdater
-        await setManager.loadAll(collections: [collection])
+        await setManager.loadAll(types: typeManager.types)
         return Fixture(
             nexus: nexus, typeManager: typeManager, setManager: setManager,
             pageType: pageType, collection: collection
@@ -45,14 +47,16 @@ struct PageSetManagerTests {
         let updater = IndexUpdater(index)
         let typeManager = PageTypeManager(nexus: nexus)
         typeManager.indexUpdater = updater
+        let setManager = PageSetManager(nexus: nexus)
+        setManager.indexUpdater = updater
+        setManager.pageTypeProvider = { [weak typeManager] in typeManager?.types ?? [] }
+        typeManager.pageSetManager = setManager
         await typeManager.loadAll()
         try await typeManager.createPageType(name: "Notes", icon: nil)
         let pageType = typeManager.types.first!
         try await typeManager.createPageCollection(name: "Inbox", inPageType: pageType)
         let collection = typeManager.pageCollections(in: pageType).first!
-        let setManager = PageSetManager(nexus: nexus)
-        setManager.indexUpdater = updater
-        await setManager.loadAll(collections: [collection])
+        await setManager.loadAll(types: typeManager.types)
         let fx = Fixture(
             nexus: nexus, typeManager: typeManager, setManager: setManager,
             pageType: pageType, collection: collection
@@ -91,7 +95,7 @@ struct PageSetManagerTests {
 
         // A fresh manager loads the same Set back from disk.
         let reloaded = PageSetManager(nexus: fx.nexus)
-        await reloaded.loadAll(collections: [fx.collection])
+        await reloaded.loadAll(types: fx.typeManager.types)
         #expect(reloaded.pageSets(in: fx.collection).map(\.id) == [set.id])
         #expect(reloaded.pageSets(in: fx.collection).first?.title == "Drafts")
     }
@@ -182,7 +186,7 @@ struct PageSetManagerTests {
 
         // A fresh load resolves the persisted order.
         let reloaded = PageSetManager(nexus: fx.nexus)
-        await reloaded.loadAll(collections: [collSidecar])
+        await reloaded.loadAll(types: fx.typeManager.types)
         #expect(reloaded.pageSets(in: collSidecar).map(\.id) == ids)
     }
 
@@ -323,7 +327,7 @@ struct PageSetManagerTests {
         let sidecarURL = set.folderURL.appendingPathComponent(NexusPaths.pageSetSidecarFilename)
         try FileManager.default.removeItem(at: sidecarURL)
 
-        await fx.setManager.loadAll(collections: [fx.collection])
+        await fx.setManager.loadAll(types: fx.typeManager.types)
 
         #expect(FileManager.default.fileExists(atPath: sidecarURL.path))
         let sets = fx.setManager.pageSets(in: fx.collection)
@@ -344,7 +348,7 @@ struct PageSetManagerTests {
         drifted.collectionID = ULID.generate()
         try drifted.save(to: sidecarURL)
 
-        await fx.setManager.loadAll(collections: [fx.collection])
+        await fx.setManager.loadAll(types: fx.typeManager.types)
 
         #expect(fx.setManager.pageSets(in: fx.collection).first?.collectionID == fx.collection.id)
         #expect(try PageSet.load(from: sidecarURL).collectionID == fx.collection.id)
@@ -374,7 +378,7 @@ struct PageSetManagerTests {
         }
         #expect(pre == 0)
 
-        await fx.setManager.loadAll(collections: [fx.collection])
+        await fx.setManager.loadAll(types: fx.typeManager.types)
 
         let post = try await index.dbQueue.read { db in
             try Int.fetchOne(
@@ -399,12 +403,10 @@ struct PageSetManagerTests {
 
     // MARK: - Folder-URL rebuild on parent rename
 
-    @Test("Collection rename fires onCollectionFolderChanged and rebuilds Set URLs")
+    @Test("Collection rename rebuilds child Set URLs")
     func collectionRenameRebuildsSetURLs() async throws {
         let fx = try await makeFixture()
         defer { TempNexus.cleanup(fx.nexus) }
-        let setManager = fx.setManager
-        fx.typeManager.onCollectionFolderChanged = { setManager.rebuildFolderURLs(for: $0) }
 
         let set = try await fx.setManager.createPageSet(name: "Drafts", in: fx.collection)
         try await fx.typeManager.renamePageCollection(fx.collection, to: "Archive")
@@ -419,12 +421,10 @@ struct PageSetManagerTests {
                 atPath: cached.folderURL.appendingPathComponent(NexusPaths.pageSetSidecarFilename).path))
     }
 
-    @Test("Page Type rename fires the hook for each rebuilt Collection")
+    @Test("Page Type rename rebuilds each Collection's child Set URLs")
     func typeRenameRebuildsSetURLs() async throws {
         let fx = try await makeFixture()
         defer { TempNexus.cleanup(fx.nexus) }
-        let setManager = fx.setManager
-        fx.typeManager.onCollectionFolderChanged = { setManager.rebuildFolderURLs(for: $0) }
 
         let set = try await fx.setManager.createPageSet(name: "Drafts", in: fx.collection)
         try await fx.typeManager.renamePageType(fx.pageType, to: "Journal")

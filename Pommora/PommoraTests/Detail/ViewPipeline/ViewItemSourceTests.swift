@@ -36,7 +36,7 @@ struct ViewItemSourceTests {
         await content.loadAll(for: vault)
         await content.loadAll(forCollection: coll)
         await content.loadAll(for: set)
-        await sets.loadAll(collections: [coll])
+        await sets.loadAll(types: [vault])
 
         let items = ViewItemSource.items(
             for: .vault(vault),
@@ -87,7 +87,7 @@ struct ViewItemSourceTests {
         let (content, sets) = managers(nexus: nexus)
         await content.loadAll(forCollection: coll)
         await content.loadAll(for: set)
-        await sets.loadAll(collections: [coll])
+        await sets.loadAll(types: [vault])
 
         let items = ViewItemSource.items(
             for: .collection(coll, vault: vault),

@@ -83,9 +83,11 @@ struct PagePreviewSetTests {
         let meta = try await manager.createPage(name: "Doc", in: set, collection: coll, vault: vault)
 
         let vaultManager = PageTypeManager(nexus: nexus)
-        await vaultManager.loadAll()
         let setManager = PageSetManager(nexus: nexus)
-        await setManager.loadAll(collections: [coll])
+        setManager.pageTypeProvider = { [weak vaultManager] in vaultManager?.types ?? [] }
+        vaultManager.pageSetManager = setManager
+        await vaultManager.loadAll()
+        await setManager.loadAll(types: [vault])
 
         // A COLD content manager + loadAll(for: set) mirrors the preview
         // opening a Set page before any sidebar/detail browse populated the
@@ -120,9 +122,11 @@ struct PagePreviewSetTests {
         let meta = try await manager.createPage(name: "Draft", in: set, collection: coll, vault: vault)
 
         let vaultManager = PageTypeManager(nexus: nexus)
-        await vaultManager.loadAll()
         let setManager = PageSetManager(nexus: nexus)
-        await setManager.loadAll(collections: [coll])
+        setManager.pageTypeProvider = { [weak vaultManager] in vaultManager?.types ?? [] }
+        vaultManager.pageSetManager = setManager
+        await vaultManager.loadAll()
+        await setManager.loadAll(types: [vault])
 
         let ref = PageRef(page: meta, in: set, collection: coll, vault: vault)
         let resolved = try #require(

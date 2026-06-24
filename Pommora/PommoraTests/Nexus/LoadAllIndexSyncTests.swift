@@ -90,8 +90,8 @@ struct LoadAllIndexSyncTests {
     }
 
     /// Same scenario for a PageCollection nested inside a PageType — the
-    /// loadAll must sync BOTH levels (type + collection) so page CRUD
-    /// into a collection doesn't FK-fail on `page_collection_id`.
+    /// loadAll pair (PageTypeManager then PageSetManager) must sync BOTH levels
+    /// so page CRUD into a collection doesn't FK-fail on `page_collection_id`.
     @Test func pageTypeManagerLoadAllSyncsCollectionsToo() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
@@ -113,10 +113,15 @@ struct LoadAllIndexSyncTests {
         let collection = PageCollection(id: collID, typeID: vaultID, title: collName, folderURL: collFolder, modifiedAt: Date())
         try collection.save(to: collFolder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename))
 
-        // Wire + load.
+        // Wire + load: collections are owned by PageSetManager.
         let manager = PageTypeManager(nexus: nexus)
         manager.indexUpdater = IndexUpdater(index)
+        let setManager = PageSetManager(nexus: nexus)
+        setManager.indexUpdater = IndexUpdater(index)
+        setManager.pageTypeProvider = { [weak manager] in manager?.types ?? [] }
+        manager.pageSetManager = setManager
         await manager.loadAll()
+        await setManager.loadAll(types: manager.types)
 
         // Both type AND collection should be in the index now.
         let counts = try await index.dbQueue.read { db -> (Int, Int) in

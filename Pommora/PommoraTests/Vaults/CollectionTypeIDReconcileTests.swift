@@ -70,7 +70,11 @@ struct CollectionTypeIDReconcileTests {
 
         // Load. No index wired — reconcile is about type_id, not the SQLite index.
         let manager = PageTypeManager(nexus: nexus)
+        let setManager = PageSetManager(nexus: nexus)
+        setManager.pageTypeProvider = { [weak manager] in manager?.types ?? [] }
+        manager.pageSetManager = setManager
         await manager.loadAll()
+        await setManager.loadAll(types: manager.types)
 
         // Resolve the loaded vault by title so we hand the right PageType to
         // pageCollections(in:).
@@ -115,7 +119,11 @@ struct CollectionTypeIDReconcileTests {
         try correct.save(to: collMetaURL)
 
         let manager = PageTypeManager(nexus: nexus)
+        let setManager = PageSetManager(nexus: nexus)
+        setManager.pageTypeProvider = { [weak manager] in manager?.types ?? [] }
+        manager.pageSetManager = setManager
         await manager.loadAll()
+        await setManager.loadAll(types: manager.types)
 
         let loadedVault = try #require(manager.types.first(where: { $0.title == vaultName }))
         #expect(manager.pageCollections(in: loadedVault).first?.typeID == vaultID)

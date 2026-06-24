@@ -134,8 +134,13 @@ import Testing
         // Exclude the nested "Notes/Archive" sub-folder.
         try setExcluded(["Notes/Archive"], in: nexus)
 
+        let filter = FolderFilter.load(for: nexus)
         let mgr = PageTypeManager(nexus: nexus)
-        await mgr.loadAll(filter: FolderFilter.load(for: nexus))
+        let setManager = PageSetManager(nexus: nexus)
+        setManager.pageTypeProvider = { [weak mgr] in mgr?.types ?? [] }
+        mgr.pageSetManager = setManager
+        await mgr.loadAll(filter: filter)
+        await setManager.loadAll(types: mgr.types, filter: filter)
 
         let notesType = try #require(mgr.types.first { $0.title == "Notes" })
         let cols = mgr.pageCollections(in: notesType)

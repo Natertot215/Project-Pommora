@@ -34,7 +34,7 @@ struct PageSetMoveTests {
         contentManager.indexUpdater = updater
         let setManager = PageSetManager(nexus: nexus)
         setManager.indexUpdater = updater
-        await setManager.loadAll(collections: [source, dest])
+        await setManager.loadAll(types: [vault])
 
         // Index the Page under the Set first — the row being re-pointed.
         let pageURL = NexusPaths.pageFileURL(forTitle: "Doc", in: set.folderURL)
@@ -105,7 +105,7 @@ struct PageSetMoveTests {
 
         let contentManager = PageContentManager(nexus: nexus, contextProvider: { NexusContext.empty })
         let setManager = PageSetManager(nexus: nexus)
-        await setManager.loadAll(collections: [source, dest])
+        await setManager.loadAll(types: [vault])
 
         let loadedSet = try #require(setManager.pageSets(in: source).first)
         await #expect(throws: PageSetValidator.ValidationError.duplicateTitle) {
@@ -158,7 +158,7 @@ struct PageSetMoveTests {
         contentManager.indexUpdater = updater
         let setManager = PageSetManager(nexus: nexus)
         setManager.indexUpdater = updater
-        await setManager.loadAll(collections: [collA, collB])
+        await setManager.loadAll(types: [vaultA, vaultB])
 
         let loadedSet = try #require(setManager.pageSets(in: collA).first)
         let total = try await setManager.moveStripTotal(for: loadedSet, from: vaultA, to: vaultB)
@@ -211,7 +211,7 @@ struct PageSetMoveTests {
 
         let contentManager = PageContentManager(nexus: nexus, contextProvider: { NexusContext.empty })
         let setManager = PageSetManager(nexus: nexus)
-        await setManager.loadAll(collections: [collA, collB])
+        await setManager.loadAll(types: [vaultA, vaultB])
 
         let loadedSet = try #require(setManager.pageSets(in: collA).first)
         let total = try await setManager.moveStripTotal(for: loadedSet, from: vaultA, to: vaultB)

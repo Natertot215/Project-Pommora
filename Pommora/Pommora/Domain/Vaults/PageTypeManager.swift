@@ -6,20 +6,15 @@ import SwiftUI  // for Array.move(fromOffsets:toOffset:) used by reorderPageType
 @Observable
 final class PageTypeManager {
     private(set) var types: [PageType] = []
-    /// Depth-1 collections keyed by PageType id. Populated by `loadAll` for backward
-    /// compatibility; PageSetManager is the authoritative owner for CRUD. When
-    /// `pageSetManager` is wired (production), reads from PageSetManager's live dict
-    /// instead so mutations are reflected immediately.
-    private var _pageCollectionsByType: [String: [PageCollection]] = [:]
+    /// Depth-1 collections keyed by PageType id, delegated to the sole owner
+    /// `PageSetManager`. Empty until `pageSetManager` is wired.
     var pageCollectionsByType: [String: [PageCollection]] {
-        if let setManager = pageSetManager {
-            var result: [String: [PageCollection]] = [:]
-            for typeID in types.map(\.id) {
-                result[typeID] = setManager.pageCollectionsByType[typeID] ?? []
-            }
-            return result
+        guard let setManager = pageSetManager else { return [:] }
+        var result: [String: [PageCollection]] = [:]
+        for typeID in types.map(\.id) {
+            result[typeID] = setManager.pageCollectionsByType[typeID] ?? []
         }
-        return _pageCollectionsByType
+        return result
     }
     var pendingError: (any Error)?
 
@@ -30,14 +25,8 @@ final class PageTypeManager {
     var indexUpdater: IndexUpdater?
 
     /// Injected by NexusEnvironment after both managers are created.
-    /// Collection CRUD and discovery delegate to PageSetManager when wired.
+    /// Collection CRUD and discovery delegate to PageSetManager, the sole owner.
     @ObservationIgnored var pageSetManager: PageSetManager?
-
-    /// Fired after a rename moves a PageCollection's folder on disk (its own
-    /// rename, or its parent Page Type's) with the updated collection.
-    /// Used by tests that wire it manually; in production, URL rebuilds are
-    /// handled by PageSetManager directly.
-    var onCollectionFolderChanged: (@MainActor (PageCollection) -> Void)?
 
     @ObservationIgnored fileprivate var _schemaAdapter: PageSchemaAdapter?
 
@@ -46,23 +35,14 @@ final class PageTypeManager {
     }
 
     func pageCollections(in pageType: PageType) -> [PageCollection] {
-        if let setManager = pageSetManager {
-            return setManager.pageCollections(in: pageType)
-        }
-        return _pageCollectionsByType[pageType.id] ?? []
+        pageSetManager?.pageCollections(in: pageType) ?? []
     }
 
     /// The saved views on a view-bearing container, looked up by id across BOTH
     /// PageTypes and PageCollections. Empty when the id matches no container.
     func views(in containerID: String) -> [SavedView] {
         if let t = types.first(where: { $0.id == containerID }) { return t.views }
-        if let setManager = pageSetManager {
-            return setManager.views(in: containerID)
-        }
-        for cols in _pageCollectionsByType.values {
-            if let c = cols.first(where: { $0.id == containerID }) { return c.views }
-        }
-        return []
+        return pageSetManager?.views(in: containerID) ?? []
     }
 
     func reloadTypeFromDisk(id: String) {
@@ -95,7 +75,6 @@ final class PageTypeManager {
                 .filter { !$0.lastPathComponent.hasPrefix(".") }
                 .filter { !$0.lastPathComponent.hasPrefix("_") }
 
-            var typeFolders: [URL] = []
             var loadedTypes: [PageType] = []
 
             for folder in topLevel {
@@ -113,7 +92,6 @@ final class PageTypeManager {
                     ]
                     try? pageType.save(to: metaURL)
                 }
-                typeFolders.append(folder)
                 loadedTypes.append(pageType)
             }
 
@@ -124,83 +102,20 @@ final class PageTypeManager {
                 save: { try $0.save(to: NexusPaths.vaultMetadataURL(forTitle: $0.title, in: nexus)) }
             )
 
-            // Discover collections for backward compat: tests that call loadAll() and then
-            // read pageCollectionsByType before pageSetManager is wired need this populated.
-            var loadedCols: [String: [PageCollection]] = [:]
-            var seenCollectionIDs: Set<String> = []
-
-            for (folder, pageType) in zip(typeFolders, loadedTypes) {
-                let parentPropertyIDs = pageType.properties.map(\.id)
-                var cols = try Filesystem.childFolders(of: folder, folderFilter: filter)
-                    .filter { !$0.lastPathComponent.hasPrefix("_") }
-                    .filter { !$0.lastPathComponent.hasPrefix(".") }
-                    .compactMap { sub -> PageCollection? in
-                        let collMetaURL = sub.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename)
-                        if !Filesystem.fileExists(at: collMetaURL) {
-                            let fresh = PageCollection(
-                                id: ULID.generate(),
-                                typeID: pageType.id,
-                                title: sub.lastPathComponent,
-                                folderURL: sub,
-                                modifiedAt: Date()
-                            )
-                            try? Filesystem.writeMetadataIntoExistingFolder(
-                                metadataURL: collMetaURL, metadata: fresh
-                            )
-                        }
-                        guard var collection = try? PageCollection.load(from: collMetaURL) else {
-                            return nil
-                        }
-                        if collection.typeID != pageType.id {
-                            collection.typeID = pageType.id
-                            try? collection.save(to: collMetaURL)
-                        }
-                        if collection.views.isEmpty {
-                            collection.views = [
-                                SavedView.defaultTable(
-                                    visiblePropertyIDs: parentPropertyIDs,
-                                    defaultSort: pageType.defaultSort
-                                )
-                            ]
-                            try? collection.save(to: collMetaURL)
-                        }
-                        return collection
-                    }
-                cols = ContainerIDHealer.heal(
-                    cols, seen: &seenCollectionIDs,
-                    reID: { $0.id = ULID.generate() },
-                    save: {
-                        try $0.save(
-                            to: $0.folderURL.appendingPathComponent(
-                                NexusPaths.pageCollectionSidecarFilename))
-                    }
-                )
-                loadedCols[pageType.id] = OrderResolver.resolve(
-                    cols,
-                    persistedOrder: pageType.collectionOrder,
-                    titleKeyPath: \PageCollection.title
-                )
-            }
-
             self.types = OrderResolver.resolve(
                 loadedTypes,
                 persistedOrder: readPersistedPageTypeOrder(),
                 titleKeyPath: \PageType.title
             )
-            self._pageCollectionsByType = loadedCols
             self.pendingError = nil
 
             if let updater = indexUpdater {
                 for pageType in self.types {
                     try? updater.upsertPageType(pageType)
-                    for collection in loadedCols[pageType.id] ?? [] {
-                        try? updater.upsertPageCollection(collection)
-                    }
                 }
             }
         } catch {
             self.types = []
-            self._pageCollectionsByType = [:]
             self.pendingError = error
         }
     }
@@ -229,7 +144,6 @@ final class PageTypeManager {
             }
 
             types.append(pageType)
-            _pageCollectionsByType[pageType.id] = []
             types = OrderResolver.resolve(
                 types,
                 persistedOrder: readPersistedPageTypeOrder(),
@@ -270,17 +184,7 @@ final class PageTypeManager {
 
             if let i = types.firstIndex(where: { $0.id == pageType.id }) {
                 types[i] = updated
-                if let setManager = pageSetManager {
-                    setManager.rebuildFolderURLsForTypeRename(typeID: pageType.id, newTypeFolder: newFolder)
-                } else if let oldCols = _pageCollectionsByType[pageType.id] {
-                    let rebuilt = oldCols.map { c -> PageCollection in
-                        var u = c
-                        u.folderURL = newFolder.appendingPathComponent(c.title, isDirectory: true)
-                        return u
-                    }
-                    _pageCollectionsByType[pageType.id] = rebuilt
-                    rebuilt.forEach { onCollectionFolderChanged?($0) }
-                }
+                pageSetManager?.rebuildFolderURLsForTypeRename(typeID: pageType.id, newTypeFolder: newFolder)
                 types = OrderResolver.resolve(
                     types,
                     persistedOrder: readPersistedPageTypeOrder(),
@@ -314,7 +218,7 @@ final class PageTypeManager {
                 do { try updater.deletePageType(id: pageType.id) } catch { self.pendingError = error }
             }
             types.removeAll { $0.id == pageType.id }
-            _pageCollectionsByType.removeValue(forKey: pageType.id)
+            pageSetManager?.removeCollections(forType: pageType.id)
         }
     }
 
@@ -322,110 +226,18 @@ final class PageTypeManager {
 
     @discardableResult
     func createPageCollection(name: String, inPageType pageType: PageType) async throws -> PageCollection {
-        if let setManager = pageSetManager {
-            return try await setManager.createPageCollection(name: name, inPageType: pageType)
-        }
-        return try withPendingError {
-            let existing = _pageCollectionsByType[pageType.id] ?? []
-            try PageCollectionValidator.validate(title: name, existingInType: existing)
-
-            let folder = NexusPaths.collectionFolderURL(
-                forTitle: name, inVaultTitled: pageType.title, in: nexus
-            )
-            let now = Date()
-            let coll = PageCollection(
-                id: ULID.generate(),
-                typeID: pageType.id,
-                title: name,
-                folderURL: folder,
-                modifiedAt: now
-            )
-            let metaURL = folder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename)
-            try Filesystem.createFolderWithMetadata(
-                folderURL: folder, metadataURL: metaURL, metadata: coll
-            )
-
-            if let updater = indexUpdater {
-                do { try updater.upsertPageCollection(coll) } catch { self.pendingError = error }
-            }
-
-            var arr = existing
-            arr.append(coll)
-            arr = OrderResolver.resolve(
-                arr,
-                persistedOrder: pageType.collectionOrder,
-                titleKeyPath: \PageCollection.title
-            )
-            _pageCollectionsByType[pageType.id] = arr
-            return coll
-        }
+        guard let setManager = pageSetManager else { throw PageTypeManagerError.typeNotFound }
+        return try await setManager.createPageCollection(name: name, inPageType: pageType)
     }
 
     func renamePageCollection(_ collection: PageCollection, to newName: String) async throws {
-        if let setManager = pageSetManager {
-            return try await setManager.renamePageCollection(collection, to: newName)
-        }
-        try withPendingError(skipIf: { $0 is RenameAtomicityError }) {
-            guard let pageType = types.first(where: { $0.id == collection.typeID }) else { return }
-            let existing = _pageCollectionsByType[pageType.id] ?? []
-            try PageCollectionValidator.validate(
-                title: newName, existingInType: existing, excluding: collection
-            )
-
-            let newURL = NexusPaths.collectionFolderURL(
-                forTitle: newName, inVaultTitled: pageType.title, in: nexus
-            )
-            try Filesystem.renameFolder(from: collection.folderURL, to: newURL)
-
-            var updated = collection
-            updated.title = newName
-            updated.folderURL = newURL
-            updated.modifiedAt = Date()
-            let metaURL = newURL.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename)
-            do {
-                try updated.save(to: metaURL)
-            } catch let saveError {
-                do {
-                    try Filesystem.renameFolder(from: newURL, to: collection.folderURL)
-                    throw saveError
-                } catch let revertError {
-                    let combined = RenameAtomicityError(saveError: saveError, revertError: revertError)
-                    self.pendingError = combined
-                    throw combined
-                }
-            }
-
-            if let updater = indexUpdater {
-                do { try updater.upsertPageCollection(updated) } catch { self.pendingError = error }
-            }
-
-            var arr = existing
-            if let i = arr.firstIndex(where: { $0.id == collection.id }) {
-                arr[i] = updated
-                arr = OrderResolver.resolve(
-                    arr,
-                    persistedOrder: pageType.collectionOrder,
-                    titleKeyPath: \PageCollection.title
-                )
-            }
-            _pageCollectionsByType[pageType.id] = arr
-            onCollectionFolderChanged?(updated)
-        }
+        guard let setManager = pageSetManager else { throw PageTypeManagerError.typeNotFound }
+        return try await setManager.renamePageCollection(collection, to: newName)
     }
 
     func deletePageCollection(_ collection: PageCollection) async throws {
-        if let setManager = pageSetManager {
-            return try await setManager.deletePageCollection(collection)
-        }
-        try withPendingError {
-            try Filesystem.moveToTrash(collection.folderURL, in: nexus)
-            if let updater = indexUpdater {
-                do { try updater.deletePageCollection(id: collection.id) } catch { self.pendingError = error }
-            }
-            var arr = _pageCollectionsByType[collection.typeID] ?? []
-            arr.removeAll { $0.id == collection.id }
-            _pageCollectionsByType[collection.typeID] = arr
-        }
+        guard let setManager = pageSetManager else { throw PageTypeManagerError.typeNotFound }
+        return try await setManager.deletePageCollection(collection)
     }
 
     func reorderPageTypes(fromOffsets source: IndexSet, toOffset destination: Int) {
@@ -441,45 +253,12 @@ final class PageTypeManager {
     }
 
     func reorderPageCollections(in pageType: PageType, fromOffsets source: IndexSet, toOffset destination: Int) {
-        if let setManager = pageSetManager {
-            setManager.reorderPageCollections(in: pageType, fromOffsets: source, toOffset: destination)
-            return
-        }
-        var arr = _pageCollectionsByType[pageType.id] ?? []
-        let before = arr
-        arr.move(fromOffsets: source, toOffset: destination)
-        guard arr != before else { return }
-        _pageCollectionsByType[pageType.id] = arr
-        do {
-            try OrderPersister.setPageCollectionOrder(arr.map(\.id), in: pageType, nexus: nexus)
-            if let i = types.firstIndex(where: { $0.id == pageType.id }) {
-                types[i].collectionOrder = arr.map(\.id)
-            }
-        } catch {
-            self.pendingError = error
-        }
+        pageSetManager?.reorderPageCollections(in: pageType, fromOffsets: source, toOffset: destination)
     }
 
     func updatePageCollectionIcon(_ collection: PageCollection, to icon: String?) async throws {
-        if let setManager = pageSetManager {
-            return try await setManager.updatePageCollectionIcon(collection, to: icon)
-        }
-        try withPendingError {
-            var updated = collection
-            updated.icon = icon
-            updated.modifiedAt = Date()
-            let metaURL = collection.folderURL
-                .appendingPathComponent(NexusPaths.pageCollectionSidecarFilename)
-            try updated.save(to: metaURL)
-            if let updater = indexUpdater {
-                do { try updater.upsertPageCollection(updated) } catch { self.pendingError = error }
-            }
-            var arr = _pageCollectionsByType[collection.typeID] ?? []
-            if let i = arr.firstIndex(where: { $0.id == collection.id }) {
-                arr[i] = updated
-            }
-            _pageCollectionsByType[collection.typeID] = arr
-        }
+        guard let setManager = pageSetManager else { throw PageTypeManagerError.typeNotFound }
+        return try await setManager.updatePageCollectionIcon(collection, to: icon)
     }
 
     // MARK: - Open-in
@@ -513,19 +292,6 @@ final class PageTypeManager {
             if let setManager = pageSetManager {
                 try setManager.setBannerForCollection(path, collectionID: containerID)
                 return
-            }
-            for (typeID, cols) in _pageCollectionsByType {
-                if let ci = cols.firstIndex(where: { $0.id == containerID }) {
-                    let meta = cols[ci].folderURL.appendingPathComponent(
-                        NexusPaths.pageCollectionSidecarFilename
-                    )
-                    var coll = try PageCollection.load(from: meta)
-                    coll.banner = path
-                    coll.modifiedAt = Date()
-                    try coll.save(to: meta)
-                    _pageCollectionsByType[typeID]?[ci] = coll
-                    return
-                }
             }
             throw PageTypeManagerError.typeNotFound
         }
@@ -598,18 +364,6 @@ extension PageTypeManager {
             }
             if let setManager = pageSetManager {
                 return try setManager.mutateCollectionViews(in: containerID, transform: transform)
-            }
-            for (typeID, cols) in _pageCollectionsByType {
-                if let ci = cols.firstIndex(where: { $0.id == containerID }) {
-                    let meta = cols[ci].folderURL.appendingPathComponent(
-                        NexusPaths.pageCollectionSidecarFilename)
-                    var coll = try PageCollection.load(from: meta)
-                    let result = try transform(&coll.views)
-                    coll.modifiedAt = Date()
-                    try coll.save(to: meta)
-                    _pageCollectionsByType[typeID]?[ci] = coll
-                    return result
-                }
             }
             throw PageTypeManagerError.typeNotFound
         }

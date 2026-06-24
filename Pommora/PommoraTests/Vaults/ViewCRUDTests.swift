@@ -178,7 +178,11 @@ struct ViewCRUDTests {
             nexus: nexus, title: "Inbox", in: vault, views: [SavedView(id: seed)])
 
         let types = PageTypeManager(nexus: nexus)
+        let setManager = PageSetManager(nexus: nexus)
+        setManager.pageTypeProvider = { [weak types] in types?.types ?? [] }
+        types.pageSetManager = setManager
         await types.loadAll()
+        await setManager.loadAll(types: types.types)
 
         let added = try await types.addView(type: .table, to: coll.id)
 

@@ -150,7 +150,11 @@ struct PageContentManagerTests {
         manager.indexUpdater = IndexUpdater(index)
 
         let vaultManager = PageTypeManager(nexus: nexus)
+        let setManager = PageSetManager(nexus: nexus)
+        setManager.pageTypeProvider = { [weak vaultManager] in vaultManager?.types ?? [] }
+        vaultManager.pageSetManager = setManager
         await vaultManager.loadAll()
+        await setManager.loadAll(types: vaultManager.types)
         #expect(manager.pages(inCollection: coll).isEmpty)
 
         let fm = PageFrontmatter(

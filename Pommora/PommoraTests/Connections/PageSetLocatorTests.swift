@@ -26,6 +26,9 @@ struct PageSetLocatorTests {
         let nexus = try TempNexus.make()
 
         let pageTypeManager = PageTypeManager(nexus: nexus)
+        let setManager = PageSetManager(nexus: nexus)
+        setManager.pageTypeProvider = { [weak pageTypeManager] in pageTypeManager?.types ?? [] }
+        pageTypeManager.pageSetManager = setManager
         await pageTypeManager.loadAll()
         try await pageTypeManager.createPageType(name: "Notes", icon: nil)
         let pt = pageTypeManager.types.first!

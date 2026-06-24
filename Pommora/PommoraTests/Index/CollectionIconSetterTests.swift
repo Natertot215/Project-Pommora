@@ -25,6 +25,9 @@ struct CollectionIconSetterTests {
         // Build a PageType + PageCollection via normal CRUD so
         // pageCollectionsByType is populated and the sidecar exists on disk.
         let manager = PageTypeManager(nexus: nexus)
+        let setManager = PageSetManager(nexus: nexus)
+        setManager.pageTypeProvider = { [weak manager] in manager?.types ?? [] }
+        manager.pageSetManager = setManager
         await manager.loadAll()
         try await manager.createPageType(name: "Notes", icon: nil)
         let pageType = manager.types.first!
