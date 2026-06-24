@@ -15,7 +15,7 @@ struct PageSetManagerTests {
         let typeManager: PageTypeManager
         let setManager: PageSetManager
         let pageType: PageType
-        let collection: PageCollection
+        let collection: PageSet
     }
 
     /// Vault "Notes" + Collection "Inbox" via CRUD; both managers loaded.
@@ -90,7 +90,7 @@ struct PageSetManagerTests {
         #expect(
             FileManager.default.fileExists(
                 atPath: folder.appendingPathComponent(NexusPaths.pageSetSidecarFilename).path))
-        #expect(set.collectionID == fx.collection.id)
+        #expect(set.parentID == fx.collection.id)
         #expect(fx.setManager.pageSets(in: fx.collection).map(\.id) == [set.id])
 
         // A fresh manager loads the same Set back from disk.
@@ -179,7 +179,7 @@ struct PageSetManagerTests {
         let ids = fx.setManager.pageSets(in: fx.collection).map(\.id)
         #expect(ids == [initial[1], initial[0]])
 
-        let collSidecar = try PageCollection.load(
+        let collSidecar = try PageSet.load(
             from: fx.collection.folderURL.appendingPathComponent(
                 NexusPaths.pageCollectionSidecarFilename))
         #expect(collSidecar.setOrder == ids)
@@ -333,7 +333,7 @@ struct PageSetManagerTests {
         let sets = fx.setManager.pageSets(in: fx.collection)
         #expect(sets.count == 1)
         #expect(sets.first?.title == "Drafts")
-        #expect(sets.first?.collectionID == fx.collection.id)
+        #expect(sets.first?.parentID == fx.collection.id)
     }
 
     @Test("loadAll heals collection_id drift")
@@ -345,13 +345,13 @@ struct PageSetManagerTests {
         // Re-point the sidecar at a vanished Collection id (re-adoption scenario).
         let sidecarURL = set.folderURL.appendingPathComponent(NexusPaths.pageSetSidecarFilename)
         var drifted = try PageSet.load(from: sidecarURL)
-        drifted.collectionID = ULID.generate()
+        drifted.parentID = ULID.generate()
         try drifted.save(to: sidecarURL)
 
         await fx.setManager.loadAll(types: fx.typeManager.types)
 
-        #expect(fx.setManager.pageSets(in: fx.collection).first?.collectionID == fx.collection.id)
-        #expect(try PageSet.load(from: sidecarURL).collectionID == fx.collection.id)
+        #expect(fx.setManager.pageSets(in: fx.collection).first?.parentID == fx.collection.id)
+        #expect(try PageSet.load(from: sidecarURL).parentID == fx.collection.id)
     }
 
     // MARK: - Defensive index sync
@@ -366,7 +366,7 @@ struct PageSetManagerTests {
         let setFolder = fx.collection.folderURL.appendingPathComponent("Drafts", isDirectory: true)
         try FileManager.default.createDirectory(at: setFolder, withIntermediateDirectories: true)
         let set = PageSet(
-            id: ULID.generate(), collectionID: fx.collection.id, title: "Drafts",
+            id: ULID.generate(), parentID: fx.collection.id, title: "Drafts",
             folderURL: setFolder, modifiedAt: Date()
         )
         try set.save(to: setFolder.appendingPathComponent(NexusPaths.pageSetSidecarFilename))

@@ -8,7 +8,7 @@ import Testing
 /// the Pinned + Recents stores so pins/recents no longer show the old name.
 ///
 /// Fixture mirrors `ConnectionLiveUpdateTests.setup()` (TempNexus + PommoraIndex
-/// + one PageType + one PageCollection seeded into the index + a
+/// + one PageType + one PageSet seeded into the index + a
 /// `PageContentManager` with `indexUpdater` set), plus a `PinnedManager` +
 /// `RecentsManager` injected onto the manager.
 @MainActor
@@ -18,7 +18,7 @@ struct RenamePinRefreshTests {
     private func setup() async throws -> (
         nexus: Nexus,
         vault: PageType,
-        coll: PageCollection,
+        coll: PageSet,
         manager: PageContentManager,
         pinned: PinnedManager,
         recents: RecentsManager
@@ -36,9 +36,9 @@ struct RenamePinRefreshTests {
 
         let collFolder = NexusPaths.collectionFolderURL(forTitle: "C", inVaultTitled: "V", in: nexus)
         try FileManager.default.createDirectory(at: collFolder, withIntermediateDirectories: true)
-        let coll = PageCollection(
+        let coll = PageSet(
             id: ULID.generate(),
-            typeID: vault.id,
+            parentID: vault.id,
             title: "C",
             folderURL: collFolder,
             modifiedAt: Date()
@@ -46,7 +46,7 @@ struct RenamePinRefreshTests {
 
         let updater = IndexUpdater(index)
         try updater.upsertPageType(vault)
-        try updater.upsertPageCollection(coll)
+        try updater.upsertPageSet(coll)
 
         let manager = PageContentManager(nexus: nexus, contextProvider: { NexusContext.empty })
         manager.indexUpdater = updater

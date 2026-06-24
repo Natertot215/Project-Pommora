@@ -91,7 +91,7 @@ struct SidebarDetailView: View {
                         Text("Collection title: \(c.title)")
                             .font(.caption)
                             .foregroundStyle(.secondary)
-                        Text("Collection typeID: \(c.typeID)")
+                        Text("Collection typeID: \(c.parentID)")
                             .font(.caption.monospaced())
                             .foregroundStyle(.secondary)
                         Text("Parent folder name: \(c.folderURL.deletingLastPathComponent().lastPathComponent)")
@@ -144,8 +144,8 @@ struct SidebarDetailView: View {
     /// current PageType id (e.g. ID was regenerated during a re-init, or
     /// the user manually rebuilt the PageType while keeping the Collection
     /// folder intact).
-    private func lookupVault(forCollection c: PageCollection) -> PageType? {
-        if let v = vaultManager.types.first(where: { $0.id == c.typeID }) {
+    private func lookupVault(forCollection c: PageSet) -> PageType? {
+        if let v = vaultManager.types.first(where: { $0.id == c.parentID }) {
             return v
         }
         let parentFolderName = c.folderURL.deletingLastPathComponent().lastPathComponent

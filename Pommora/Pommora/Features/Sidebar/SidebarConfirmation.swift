@@ -6,12 +6,12 @@ enum SidebarConfirmation: Identifiable {
     case deleteTopic(Topic)
     case deleteProject(Project)
     case deleteVault(PageType, collectionCount: Int)
-    case deleteCollection(PageCollection)
+    case deleteCollection(PageSet)
     case deleteSet(PageSet)
     /// Cross-vault whole-Set move that would strip `stripCount` property
     /// values not present in the destination Vault's schema.
     case moveSet(
-        PageSet, destination: PageCollection, destinationVault: PageType,
+        PageSet, destination: PageSet, destinationVault: PageType,
         sourceVault: PageType, stripCount: Int)
 
     var id: String {

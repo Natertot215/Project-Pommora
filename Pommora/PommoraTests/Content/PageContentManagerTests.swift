@@ -4,7 +4,7 @@ import GRDB
 
 @testable import Pommora
 
-/// Pages-side CRUD tests for PageContentManager (PageCollection-scoped).
+/// Pages-side CRUD tests for PageContentManager (PageSet-scoped).
 @MainActor
 @Suite("PageContentManager")
 struct PageContentManagerTests {
@@ -60,12 +60,12 @@ struct PageContentManagerTests {
         #expect(!FileManager.default.fileExists(atPath: pageURL.path))
 
         // File now in .trash, preserving relative path under nexus root
-        // (flatlayout: PageType + PageCollection folders live at the nexus root).
+        // (flatlayout: PageType + PageSet folders live at the nexus root).
         let trashPage = NexusPaths.trashDir(in: nexus).appendingPathComponent("V/C/P.md")
         #expect(FileManager.default.fileExists(atPath: trashPage.path))
     }
 
-    @Test("loadAll discovers existing .md in a PageCollection")
+    @Test("loadAll discovers existing .md in a PageSet")
     func loadExisting() async throws {
         let (nexus, _, coll, manager) = try await setup()
         defer { TempNexus.cleanup(nexus) }
@@ -192,7 +192,7 @@ struct PageContentManagerTests {
         #expect(result?.vault.id == vault.id)
     }
 
-    private func setup() async throws -> (Nexus, PageType, PageCollection, PageContentManager) {
+    private func setup() async throws -> (Nexus, PageType, PageSet, PageContentManager) {
         let nexus = try TempNexus.make()
         let vault = PageType(
             id: ULID.generate(), title: "V", icon: nil,
@@ -203,9 +203,9 @@ struct PageContentManagerTests {
 
         let collFolder = NexusPaths.collectionFolderURL(forTitle: "C", inVaultTitled: "V", in: nexus)
         try FileManager.default.createDirectory(at: collFolder, withIntermediateDirectories: true)
-        let coll = PageCollection(
+        let coll = PageSet(
             id: ULID.generate(),
-            typeID: vault.id,
+            parentID: vault.id,
             title: "C",
             folderURL: collFolder,
             modifiedAt: Date()

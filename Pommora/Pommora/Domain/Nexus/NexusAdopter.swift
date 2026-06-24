@@ -745,7 +745,7 @@ enum NexusAdopter {
         let pcURL = folder.appendingPathComponent(
             NexusPaths.pageCollectionSidecarFilename, isDirectory: false
         )
-        guard let pc = try? PageCollection.load(from: pcURL) else { return nil }
+        guard let pc = try? PageSet.load(from: pcURL) else { return nil }
         return pc.id
     }
 
@@ -773,9 +773,9 @@ enum NexusAdopter {
             NexusPaths.pageCollectionSidecarFilename, isDirectory: false)
         try Filesystem.writeMetadataIntoExistingFolder(
             metadataURL: metaURL,
-            metadata: PageCollection(
+            metadata: PageSet(
                 id: ULID.generate(),
-                typeID: typeID,
+                parentID: typeID,
                 title: title,
                 folderURL: folder,
                 modifiedAt: now
@@ -795,7 +795,7 @@ enum NexusAdopter {
             metadataURL: metaURL,
             metadata: PageSet(
                 id: ULID.generate(),
-                collectionID: collectionID,
+                parentID: collectionID,
                 title: title,
                 folderURL: folder,
                 modifiedAt: now

@@ -5,7 +5,7 @@ import SwiftUI
 /// `ViewSurface`); its only job is to keep the public init `SidebarDetailView`
 /// calls byte-identical while delegating the whole render to the shared surface.
 struct PageCollectionDetailView: View {
-    let collection: PageCollection
+    let collection: PageSet
     let vault: PageType
     @Binding var selection: SidebarSelection
     @Binding var presentedSheet: SidebarSheet?

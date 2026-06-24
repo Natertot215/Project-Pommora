@@ -330,13 +330,13 @@ struct PageSetContentTests {
         title: String,
         in vault: PageType,
         index: PommoraIndex? = nil
-    ) throws -> PageCollection {
+    ) throws -> PageSet {
         let folderURL = NexusPaths.collectionFolderURL(
             forTitle: title, inVaultTitled: vault.title, in: nexus
         )
         try FileManager.default.createDirectory(at: folderURL, withIntermediateDirectories: true)
-        let coll = PageCollection(
-            id: ULID.generate(), typeID: vault.id, title: title,
+        let coll = PageSet(
+            id: ULID.generate(), parentID: vault.id, title: title,
             folderURL: folderURL, modifiedAt: Date()
         )
         try coll.save(to: folderURL.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename))
@@ -347,13 +347,13 @@ struct PageSetContentTests {
     @discardableResult
     private func makePageSet(
         title: String,
-        in collection: PageCollection,
+        in collection: PageSet,
         index: PommoraIndex? = nil
     ) throws -> PageSet {
         let folderURL = collection.folderURL.appendingPathComponent(title, isDirectory: true)
         try FileManager.default.createDirectory(at: folderURL, withIntermediateDirectories: true)
         let set = PageSet(
-            id: ULID.generate(), collectionID: collection.id, title: title,
+            id: ULID.generate(), parentID: collection.id, title: title,
             folderURL: folderURL, modifiedAt: Date()
         )
         try set.save(to: folderURL.appendingPathComponent(NexusPaths.pageSetSidecarFilename))

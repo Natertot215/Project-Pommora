@@ -38,7 +38,7 @@ struct PageSetLocatorTests {
         let setFolder = coll.folderURL.appendingPathComponent("Drafts", isDirectory: true)
         try FileManager.default.createDirectory(at: setFolder, withIntermediateDirectories: true)
         let set = PageSet(
-            id: ULID.generate(), collectionID: coll.id, title: "Drafts",
+            id: ULID.generate(), parentID: coll.id, title: "Drafts",
             folderURL: setFolder, modifiedAt: Date()
         )
         try set.save(to: setFolder.appendingPathComponent(NexusPaths.pageSetSidecarFilename))

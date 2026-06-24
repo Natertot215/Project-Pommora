@@ -26,7 +26,7 @@ struct UpdateViewClobberTests {
         // Vault + Collection with one SavedView + two pages, all on disk.
         let viewID = "view_\(ULID.generate())"
         let vault = try makePageType(nexus: nexus, title: "Notes")
-        let coll = try makePageCollection(
+        let coll = try makePageSet(
             nexus: nexus, title: "Inbox", in: vault,
             views: [SavedView(id: viewID)]
         )
@@ -60,7 +60,7 @@ struct UpdateViewClobberTests {
         // Assert on the sidecar read FRESH from disk (not either in-memory cache).
         let sidecarURL = coll.folderURL.appendingPathComponent(
             NexusPaths.pageCollectionSidecarFilename)
-        let fresh = try PageCollection.load(from: sidecarURL)
+        let fresh = try PageSet.load(from: sidecarURL)
         #expect(fresh.pageOrder == reordered)
         #expect(fresh.views.first(where: { $0.id == viewID })?.columnWidths?["_title"] == 200)
     }
@@ -80,18 +80,18 @@ struct UpdateViewClobberTests {
     }
 
     @discardableResult
-    private func makePageCollection(
+    private func makePageSet(
         nexus: Nexus,
         title: String,
         in vault: PageType,
         views: [SavedView]
-    ) throws -> PageCollection {
+    ) throws -> PageSet {
         let folderURL = NexusPaths.collectionFolderURL(
             forTitle: title, inVaultTitled: vault.title, in: nexus
         )
         try FileManager.default.createDirectory(at: folderURL, withIntermediateDirectories: true)
-        var coll = PageCollection(
-            id: ULID.generate(), typeID: vault.id, title: title,
+        var coll = PageSet(
+            id: ULID.generate(), parentID: vault.id, title: title,
             folderURL: folderURL, modifiedAt: Date()
         )
         coll.views = views

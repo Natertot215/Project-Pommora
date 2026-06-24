@@ -35,8 +35,8 @@ struct PageTypeManagerTests {
         #expect(manager.types.first?.title == "Planner")
     }
 
-    @Test("createPageCollection creates folder inside PageType")
-    func createPageCollection() async throws {
+    @Test("createPageSet creates folder inside PageType")
+    func createPageSet() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
         let manager = await makeManager(nexus: nexus)
@@ -67,7 +67,7 @@ struct PageTypeManagerTests {
         try await manager.renamePageType(pageType, to: "Schedule")
         let newFolder = NexusPaths.vaultFolderURL(forTitle: "Schedule", in: nexus)
         #expect(FileManager.default.fileExists(atPath: newFolder.path))
-        // PageCollection still present under new PageType folder
+        // PageSet still present under new PageType folder
         let renamedType = manager.types.first!
         let cols = manager.pageCollections(in: renamedType)
         #expect(cols.count == 1)
@@ -110,8 +110,8 @@ struct PageTypeManagerTests {
         #expect(manager.types.isEmpty)
     }
 
-    @Test("renamePageCollection moves the folder")
-    func renamePageCollection() async throws {
+    @Test("renamePageSet moves the folder")
+    func renamePageSet() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
         let manager = await makeManager(nexus: nexus)
@@ -128,8 +128,8 @@ struct PageTypeManagerTests {
         #expect(manager.pageCollections(in: pageType).first?.title == "To-dos")
     }
 
-    @Test("renamePageCollection preserves icon (cache + disk)")
-    func renamePageCollectionPreservesOverrides() async throws {
+    @Test("renamePageSet preserves icon (cache + disk)")
+    func renamePageSetPreservesOverrides() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
         let manager = await makeManager(nexus: nexus)
@@ -155,8 +155,8 @@ struct PageTypeManagerTests {
         #expect(fromDisk.icon == "doc")
     }
 
-    @Test("deletePageCollection removes folder")
-    func deletePageCollection() async throws {
+    @Test("deletePageSet removes folder")
+    func deletePageSet() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
         let manager = await makeManager(nexus: nexus)
@@ -173,14 +173,14 @@ struct PageTypeManagerTests {
         #expect(manager.pageCollections(in: pageType).isEmpty)
 
         // Folder now in .trash, preserving relative path under nexus root
-        // (flatlayout: PageCollection folder lives inside <nexus>/<Type>/).
+        // (flatlayout: PageSet folder lives inside <nexus>/<Type>/).
         let trashFolder = NexusPaths.trashDir(in: nexus)
             .appendingPathComponent("Planner/Tasks")
         #expect(FileManager.default.fileExists(atPath: trashFolder.path))
     }
 
-    @Test("reorderPageCollections swaps order in the manager")
-    func reorderPageCollections() async throws {
+    @Test("reorderPageSets swaps order in the manager")
+    func reorderPageSets() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
         let manager = await makeManager(nexus: nexus)

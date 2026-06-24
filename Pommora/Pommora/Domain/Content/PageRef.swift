@@ -26,7 +26,7 @@ extension PageRef {
         vaultManager: PageTypeManager,
         contentManager: PageContentManager,
         setManager: PageSetManager
-    ) -> (page: PageMeta, vault: PageType, collection: PageCollection?, set: PageSet?)? {
+    ) -> (page: PageMeta, vault: PageType, collection: PageSet?, set: PageSet?)? {
         guard let vault = vaultManager.types.first(where: { $0.id == vaultID }) else {
             return nil
         }
@@ -62,15 +62,15 @@ extension PageRef {
     }
 
     /// Construct a PageRef for a Page inside a PageSet.
-    init(page: PageMeta, in set: PageSet, collection: PageCollection, vault: PageType) {
+    init(page: PageMeta, in set: PageSet, collection: PageSet, vault: PageType) {
         self.pageID = page.id
         self.vaultID = vault.id
         self.collectionID = collection.id
         self.setID = set.id
     }
 
-    /// Construct a PageRef from a resolved PageMeta + its parent Vault/PageCollection.
-    init(page: PageMeta, in collection: PageCollection, vault: PageType) {
+    /// Construct a PageRef from a resolved PageMeta + its parent Vault/PageSet.
+    init(page: PageMeta, in collection: PageSet, vault: PageType) {
         self.pageID = page.id
         self.vaultID = vault.id
         self.collectionID = collection.id

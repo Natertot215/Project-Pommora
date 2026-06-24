@@ -29,8 +29,8 @@ struct ManagerCreateReturnContractTests {
         #expect(returned.title == "Planner")
     }
 
-    @Test("PageTypeManager.createPageCollection returns the new PageCollection")
-    func createPageCollectionReturns() async throws {
+    @Test("PageTypeManager.createPageSet returns the new PageSet")
+    func createPageSetReturns() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
         let manager = PageTypeManager(nexus: nexus)
@@ -43,7 +43,7 @@ struct ManagerCreateReturnContractTests {
         let returned = try await manager.createPageCollection(name: "Tasks", inPageType: pt)
         #expect(manager.pageCollections(in: pt).contains(where: { $0.id == returned.id }))
         #expect(returned.title == "Tasks")
-        #expect(returned.typeID == pt.id)
+        #expect(returned.parentID == pt.id)
     }
 
     @Test("AreaManager.create returns the new Area")

@@ -16,7 +16,7 @@ enum ViewScope: Equatable, Sendable {
 /// renderer flattens via `flattenedItems` (vault scope renders ONE section level).
 struct ResolvedGroup: Identifiable, Equatable, Sendable {
     enum Kind: Equatable, Sendable {
-        case structuralCollection(PageCollection)
+        case structuralCollection(PageSet)
         case structuralSet(PageSet)
         case propertyBucket(value: String?)
         case ungrouped

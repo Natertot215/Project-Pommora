@@ -4,7 +4,7 @@ import Testing
 
 struct ViewSettingsScopeTests {
     private let vault = Fixtures.pageType(id: "vault_1")
-    private let collection = Fixtures.pageCollection(id: "coll_1", typeID: "vault_1")
+    private let collection = Fixtures.pageCollection(id: "coll_1", parentID: "vault_1")
 
     @Test func containerIDIsTheEntitysOwnID() {
         #expect(ViewSettingsScope.pageType(vault).containerID == "vault_1")

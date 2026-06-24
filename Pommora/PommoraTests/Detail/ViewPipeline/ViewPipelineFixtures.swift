@@ -18,16 +18,16 @@ enum VPFixture {
         )
     }
 
-    static func collection(_ id: String, title: String, vault: String = "vault_1") -> PageCollection {
-        PageCollection(
-            id: id, typeID: vault, title: title,
+    static func collection(_ id: String, title: String, vault: String = "vault_1") -> PageSet {
+        PageSet(
+            id: id, parentID: vault, title: title,
             folderURL: URL(fileURLWithPath: "/"), modifiedAt: Date(timeIntervalSince1970: 0)
         )
     }
 
     static func set(_ id: String, title: String, collection: String) -> PageSet {
         PageSet(
-            id: id, collectionID: collection, title: title,
+            id: id, parentID: collection, title: title,
             folderURL: URL(fileURLWithPath: "/"), modifiedAt: Date(timeIntervalSince1970: 0)
         )
     }
@@ -68,7 +68,7 @@ enum VPFixture {
 
     /// A ViewItem whose page sits directly in a Collection.
     static func item(
-        _ id: String, title: String, in collection: PageCollection,
+        _ id: String, title: String, in collection: PageSet,
         properties: [String: PropertyValue] = [:],
         tier1: [String] = [], modifiedAt: Date? = nil,
         createdAt: Date = Date(timeIntervalSince1970: 0)
@@ -77,19 +77,19 @@ enum VPFixture {
             page: meta(
                 id: id, title: title, properties: properties,
                 tier1: tier1, createdAt: createdAt, modifiedAt: modifiedAt),
-            parent: .collection(collection, vault: vault(collection.typeID)),
+            parent: .collection(collection, vault: vault(collection.parentID)),
             setLabel: nil
         )
     }
 
     /// A ViewItem whose page sits inside a Set of a Collection.
     static func item(
-        _ id: String, title: String, in set: PageSet, of collection: PageCollection,
+        _ id: String, title: String, in set: PageSet, of collection: PageSet,
         properties: [String: PropertyValue] = [:]
     ) -> ViewItem {
         ViewItem(
             page: meta(id: id, title: title, properties: properties),
-            parent: .set(set, collection: collection, vault: vault(collection.typeID)),
+            parent: .set(set, collection: collection, vault: vault(collection.parentID)),
             setLabel: set.title
         )
     }

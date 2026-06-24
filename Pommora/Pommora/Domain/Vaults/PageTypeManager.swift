@@ -8,9 +8,9 @@ final class PageTypeManager {
     private(set) var types: [PageType] = []
     /// Depth-1 collections keyed by PageType id, delegated to the sole owner
     /// `PageSetManager`. Empty until `pageSetManager` is wired.
-    var pageCollectionsByType: [String: [PageCollection]] {
+    var pageCollectionsByType: [String: [PageSet]] {
         guard let setManager = pageSetManager else { return [:] }
-        var result: [String: [PageCollection]] = [:]
+        var result: [String: [PageSet]] = [:]
         for typeID in types.map(\.id) {
             result[typeID] = setManager.pageCollectionsByType[typeID] ?? []
         }
@@ -34,7 +34,7 @@ final class PageTypeManager {
         self.nexus = nexus
     }
 
-    func pageCollections(in pageType: PageType) -> [PageCollection] {
+    func pageCollections(in pageType: PageType) -> [PageSet] {
         pageSetManager?.pageCollections(in: pageType) ?? []
     }
 
@@ -225,17 +225,17 @@ final class PageTypeManager {
     // MARK: - PageCollection CRUD
 
     @discardableResult
-    func createPageCollection(name: String, inPageType pageType: PageType) async throws -> PageCollection {
+    func createPageCollection(name: String, inPageType pageType: PageType) async throws -> PageSet {
         guard let setManager = pageSetManager else { throw PageTypeManagerError.typeNotFound }
         return try await setManager.createPageCollection(name: name, inPageType: pageType)
     }
 
-    func renamePageCollection(_ collection: PageCollection, to newName: String) async throws {
+    func renamePageCollection(_ collection: PageSet, to newName: String) async throws {
         guard let setManager = pageSetManager else { throw PageTypeManagerError.typeNotFound }
         return try await setManager.renamePageCollection(collection, to: newName)
     }
 
-    func deletePageCollection(_ collection: PageCollection) async throws {
+    func deletePageCollection(_ collection: PageSet) async throws {
         guard let setManager = pageSetManager else { throw PageTypeManagerError.typeNotFound }
         return try await setManager.deletePageCollection(collection)
     }
@@ -256,7 +256,7 @@ final class PageTypeManager {
         pageSetManager?.reorderPageCollections(in: pageType, fromOffsets: source, toOffset: destination)
     }
 
-    func updatePageCollectionIcon(_ collection: PageCollection, to icon: String?) async throws {
+    func updatePageCollectionIcon(_ collection: PageSet, to icon: String?) async throws {
         guard let setManager = pageSetManager else { throw PageTypeManagerError.typeNotFound }
         return try await setManager.updatePageCollectionIcon(collection, to: icon)
     }

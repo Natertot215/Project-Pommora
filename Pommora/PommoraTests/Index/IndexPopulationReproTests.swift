@@ -69,8 +69,8 @@ struct IndexPopulationReproTests {
         let collName = "Daily"
         let collFolder = vaultFolder.appendingPathComponent(collName, isDirectory: true)
         try FileManager.default.createDirectory(at: collFolder, withIntermediateDirectories: true)
-        let collection = PageCollection(
-            id: collID, typeID: vaultID, title: collName, folderURL: collFolder, modifiedAt: Date()
+        let collection = PageSet(
+            id: collID, parentID: vaultID, title: collName, folderURL: collFolder, modifiedAt: Date()
         )
         try collection.save(to: collFolder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename))
 
@@ -160,8 +160,8 @@ struct IndexPopulationReproTests {
 
     /// Reproduces the FK error via decode-skip. A Page Collection whose
     /// `_pagecollection.json` OMITS the required `id` field
-    /// (`PageCollection.init(from:)` → `c.decode(String.self, forKey: .id)`,
-    /// non-optional) makes `PageCollection.load` throw, so PageTypeManager's
+    /// (`PageSet.init(from:)` → `c.decode(String.self, forKey: .id)`,
+    /// non-optional) makes `PageSet.load` throw, so PageTypeManager's
     /// `try?` skips it — it never lands in `page_collections`. A child Page
     /// upsert that still carries that Collection's id hits the
     /// `pages.page_collection_id` FK; Task 8 Bug B makes that NON-fatal — the page
@@ -185,7 +185,7 @@ struct IndexPopulationReproTests {
         // --- MALFORMED Page Collection: the `_pagecollection.json` EXISTS (so
         // PageContentManager's Type-root walk excludes this folder — exclusion
         // keys on sidecar PRESENCE, not decodability) but OMITS the required
-        // `id` field, so `PageCollection.load` throws and PageTypeManager's
+        // `id` field, so `PageSet.load` throws and PageTypeManager's
         // `try?` skips it. We pin a known collection id so the orphaned child
         // page can reference it directly in the upsert below. ---
         let orphanCollID = ULID.generate()

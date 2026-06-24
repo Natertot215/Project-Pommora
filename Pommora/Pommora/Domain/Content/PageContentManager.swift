@@ -73,7 +73,7 @@ final class PageContentManager {
         return nil
     }
 
-    func pages(inCollection collection: PageCollection) -> [PageMeta] {
+    func pages(inCollection collection: PageSet) -> [PageMeta] {
         pagesByCollection[collection.id] ?? []
     }
 
@@ -99,7 +99,7 @@ final class PageContentManager {
     func resolveParent(
         for page: PageMeta, pageTypeManager: PageTypeManager, pageSetManager: PageSetManager? = nil
     )
-        -> (vault: PageType, collection: PageCollection?, set: PageSet?)?
+        -> (vault: PageType, collection: PageSet?, set: PageSet?)?
     {
         if let index = indexUpdater?.index,
             let result = resolveParentFromIndex(
@@ -117,7 +117,7 @@ final class PageContentManager {
     private func resolveParentFromIndex(
         pageID: String, pageTypeManager: PageTypeManager, pageSetManager: PageSetManager?,
         index: PommoraIndex
-    ) -> (vault: PageType, collection: PageCollection?, set: PageSet?)? {
+    ) -> (vault: PageType, collection: PageSet?, set: PageSet?)? {
         guard
             let row = try? index.dbQueue.read({ db in
                 try Row.fetchOne(
@@ -145,7 +145,7 @@ final class PageContentManager {
     /// launch so folder-path prefix matching is always complete.
     private func resolveParentByURL(
         _ pageURL: URL, pageTypeManager: PageTypeManager, pageSetManager: PageSetManager?
-    ) -> (vault: PageType, collection: PageCollection?, set: PageSet?)? {
+    ) -> (vault: PageType, collection: PageSet?, set: PageSet?)? {
         let canonical = pageURL.standardizedFileURL.path
         for pageType in pageTypeManager.types {
             let vaultPath = folderURL(for: pageType).standardizedFileURL.path + "/"
@@ -188,7 +188,7 @@ final class PageContentManager {
     /// frontmatter still surface; missing `id` is synthesized deterministically
     /// from the file's path relative to the Nexus root (stable across launches,
     /// not written back until the user edits).
-    func loadAll(forCollection collection: PageCollection) async {
+    func loadAll(forCollection collection: PageSet) async {
         let nexusRoot = nexus.rootURL
         // Discover PageSet sub-folders by sidecar presence so we exclude
         // their subtrees from the Collection walk — same shape as the
@@ -218,7 +218,7 @@ final class PageContentManager {
             let freshOrder = Self.freshPageOrder(
                 from: collection.folderURL.appendingPathComponent(
                     NexusPaths.pageCollectionSidecarFilename),
-                as: PageCollection.self, fallback: collection.pageOrder)
+                as: PageSet.self, fallback: collection.pageOrder)
             let pageMetas = OrderResolver.resolve(
                 unsortedPages,
                 persistedOrder: freshOrder,
@@ -351,7 +351,7 @@ final class PageContentManager {
     /// `.onMove(perform:)` signature. New ID order persists to the parent
     /// PageCollection's `_pagecollection.json` sidecar.
     func reorderPages(
-        inCollection collection: PageCollection,
+        inCollection collection: PageSet,
         fromOffsets source: IndexSet,
         toOffset destination: Int
     ) {

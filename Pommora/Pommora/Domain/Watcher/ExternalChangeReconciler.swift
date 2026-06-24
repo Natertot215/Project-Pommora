@@ -271,7 +271,7 @@ final class ExternalChangeReconciler {
         return nil
     }
 
-    private func collection(id: String, typeID: String) -> PageCollection? {
+    private func collection(id: String, typeID: String) -> PageSet? {
         (env.vaultManager.pageCollectionsByType[typeID] ?? []).first { $0.id == id }
     }
 

@@ -122,7 +122,7 @@ enum RowTarget: Hashable {
 /// A container row's target — a Collection (vault scope) or a Set (collection
 /// scope). The only scope-specific arm of `RowTarget`.
 enum ContainerRef: Hashable {
-    case collection(PageCollection)
+    case collection(PageSet)
     case set(PageSet)
 
     var title: String {
@@ -176,10 +176,10 @@ struct DeleteConfirmation {
 
     enum Mode {
         /// One destructive "Delete" that deletes the container directly.
-        case single(PageCollection)
+        case single(PageSet)
         /// Two-mode Set delete — "Delete Set Only" (rehome pages) vs.
         /// "Delete Set and Pages" (destructive).
-        case setTwoMode(PageSet, collection: PageCollection)
+        case setTwoMode(PageSet, collection: PageSet)
     }
 }
 
@@ -228,7 +228,7 @@ struct VaultScope: DetailScope {
         case .structuralSet(let set):
             guard
                 let coll = types.pageCollections(in: schemaSource(types))
-                    .first(where: { $0.id == set.collectionID })
+                    .first(where: { $0.id == set.parentID })
             else { return nil }
             return .set(set, collection: coll, vault: pageType)
         default:
@@ -318,14 +318,14 @@ struct VaultScope: DetailScope {
 /// Collection detail (`PageCollectionDetailView`). Spans one Collection's Sets +
 /// its loose root pages. Inherits schema from the parent vault.
 struct CollectionScope: DetailScope {
-    let collection: PageCollection
+    let collection: PageSet
     let vault: PageType
 
     private func liveVault(_ types: PageTypeManager) -> PageType {
         types.types.first { $0.id == vault.id } ?? vault
     }
 
-    private func liveCollection(_ types: PageTypeManager) -> PageCollection {
+    private func liveCollection(_ types: PageTypeManager) -> PageSet {
         types.pageCollections(in: liveVault(types)).first { $0.id == collection.id } ?? collection
     }
 

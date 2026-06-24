@@ -27,11 +27,11 @@ struct CollectionIconTests {
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         let url = folder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename)
 
-        let coll = PageCollection(
-            id: ULID.generate(), typeID: ULID.generate(), title: "Daily",
+        let coll = PageSet(
+            id: ULID.generate(), parentID: ULID.generate(), title: "Daily",
             folderURL: folder, modifiedAt: Date(), icon: "star")
         try coll.save(to: url)
-        let loaded = try PageCollection.load(from: url)
+        let loaded = try PageSet.load(from: url)
 
         #expect(loaded.icon == "star")
     }

@@ -93,7 +93,7 @@ enum GroupResolver {
         collapsed: Set<String>
     ) -> [ResolvedGroup] {
         var collectionOrder: [String] = []
-        var collections: [String: PageCollection] = [:]
+        var collections: [String: PageSet] = [:]
         var directItems: [String: [ViewItem]] = [:]  // collectionID → loose pages
         var setOrder: [String: [String]] = [:]  // collectionID → ordered set ids
         var sets: [String: PageSet] = [:]  // setID → set
@@ -215,9 +215,9 @@ enum GroupResolver {
     }
 
     private static func register(
-        _ coll: PageCollection,
+        _ coll: PageSet,
         _ order: inout [String],
-        _ map: inout [String: PageCollection]
+        _ map: inout [String: PageSet]
     ) {
         if map[coll.id] == nil {
             map[coll.id] = coll

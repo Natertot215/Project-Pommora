@@ -35,7 +35,7 @@ struct AutoTagOrphanCleanupTests {
     /// Writes a depth-0 stray `_pagecollection.json` — the inert orphan shape
     /// (dangling `type_id` pointing at nothing reachable here). Auto-tag must
     /// delete it because it is co-located with a real Type sidecar.
-    private func writeStrayPageCollectionSidecar(at folder: URL) throws {
+    private func writeStrayPageSetSidecar(at folder: URL) throws {
         try FixtureFiles.writeJSON(
             #"{"id":"01HABCSTRAYCOLL","type_id":"01HDANGLING","modified_at":"2026-05-28T00:00:00Z","properties":[],"views":[]}"#,
             to: folder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename)
@@ -94,7 +94,7 @@ struct AutoTagOrphanCleanupTests {
         let typeFolder = nexus.rootURL.appendingPathComponent("Notes", isDirectory: true)
         try FileManager.default.createDirectory(at: typeFolder, withIntermediateDirectories: true)
         try writePageTypeSidecar(at: typeFolder)
-        try writeStrayPageCollectionSidecar(at: typeFolder)
+        try writeStrayPageSetSidecar(at: typeFolder)
 
         let ptMeta = typeFolder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename)
         let strayMeta = typeFolder.appendingPathComponent(
@@ -123,7 +123,7 @@ struct AutoTagOrphanCleanupTests {
         let typeFolder = nexus.rootURL.appendingPathComponent("Notes", isDirectory: true)
         try FileManager.default.createDirectory(at: typeFolder, withIntermediateDirectories: true)
         try writePageTypeSidecar(at: typeFolder)
-        try writeStrayPageCollectionSidecar(at: typeFolder)
+        try writeStrayPageSetSidecar(at: typeFolder)
 
         let ptMeta = typeFolder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename)
         let strayMeta = typeFolder.appendingPathComponent(
@@ -168,7 +168,7 @@ struct AutoTagOrphanCleanupTests {
 
         // The legitimate depth-1 collection sidecar survives.
         #expect(exists(pcMeta))
-        let pc = try PageCollection.load(from: pcMeta)
+        let pc = try PageSet.load(from: pcMeta)
         #expect(pc.id == "01HABCREALCOLL")
     }
 }

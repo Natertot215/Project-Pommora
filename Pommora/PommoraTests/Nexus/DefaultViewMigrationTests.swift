@@ -17,7 +17,7 @@ import Testing
 @Suite("loadAll mints default views when missing")
 struct DefaultViewMigrationTests {
 
-    // MARK: - PageType + PageCollection
+    // MARK: - PageType + PageSet
 
     @Test func pageTypeWithoutViewsGetsDefaultTableView() async throws {
         let nexus = try TempNexus.make()
@@ -111,9 +111,9 @@ struct DefaultViewMigrationTests {
         let collID = ULID.generate()
         let collFolder = vaultFolder.appendingPathComponent("Inbox", isDirectory: true)
         try FileManager.default.createDirectory(at: collFolder, withIntermediateDirectories: true)
-        let collection = PageCollection(
+        let collection = PageSet(
             id: collID,
-            typeID: vaultID,
+            parentID: vaultID,
             title: "Inbox",
             folderURL: collFolder,
             modifiedAt: Date()
@@ -136,7 +136,7 @@ struct DefaultViewMigrationTests {
         #expect(loadedColl.views[0].propertyOrder == ["_title", "prop_01HSTATUS"])
 
         // Persisted, not just in-memory.
-        let reloaded = try PageCollection.load(from: collSidecar)
+        let reloaded = try PageSet.load(from: collSidecar)
         #expect(reloaded.views.count == 1)
     }
 

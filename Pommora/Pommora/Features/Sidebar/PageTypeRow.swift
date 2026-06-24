@@ -7,7 +7,7 @@ import SwiftUI
 /// .onMove handles both, avoiding the dual-ForEach SwiftUI bug where only the
 /// first ForEach's .onMove binding is honoured.
 private enum VaultDisclosureItem: Identifiable {
-    case collection(PageCollection)
+    case collection(PageSet)
     case page(PageMeta)
 
     var id: String {

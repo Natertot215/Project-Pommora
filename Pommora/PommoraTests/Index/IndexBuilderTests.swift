@@ -10,7 +10,7 @@ struct IndexBuilderTests {
 
     // MARK: - Fixture setup
 
-    /// Builds a small nexus with 1 PageType "Notes" + 1 PageCollection "Inbox"
+    /// Builds a small nexus with 1 PageType "Notes" + 1 PageSet "Inbox"
     /// + 2 Pages, and 1 LEGACY item-side folder "Tasks" (raw `_itemtype.json`
     /// sidecar + 2 member `.md` files, written byte-for-byte — the Item types
     /// are deleted). The legacy folder exists to prove `populate` IGNORES
@@ -109,7 +109,7 @@ struct IndexBuilderTests {
         #expect(count == 1)
     }
 
-    @Test func populateIndexesPageCollections() async throws {
+    @Test func populateIndexesPageSets() async throws {
         let (nexus, idx) = try await setup()
         defer { TempNexus.cleanup(nexus) }
 

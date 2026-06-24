@@ -24,26 +24,26 @@ enum Fixtures {
 
     static func pageCollection(
         id: String = ULID.generate(),
-        typeID: String,
+        parentID: String,
         title: String = "Archive",
         folderURL: URL? = nil,
         modifiedAt: Date = Date()
-    ) -> PageCollection {
-        PageCollection(
-            id: id, typeID: typeID, title: title,
+    ) -> PageSet {
+        PageSet(
+            id: id, parentID: parentID, title: title,
             folderURL: folderURL ?? dummyFolderURL(), modifiedAt: modifiedAt
         )
     }
 
     static func pageSet(
         id: String = ULID.generate(),
-        collectionID: String,
+        parentID: String,
         title: String = "Set",
         folderURL: URL? = nil,
         modifiedAt: Date = Date()
     ) -> PageSet {
         PageSet(
-            id: id, collectionID: collectionID, title: title,
+            id: id, parentID: parentID, title: title,
             folderURL: folderURL ?? dummyFolderURL(), modifiedAt: modifiedAt
         )
     }

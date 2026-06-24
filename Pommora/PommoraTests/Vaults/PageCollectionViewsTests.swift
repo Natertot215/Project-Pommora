@@ -4,16 +4,16 @@ import Testing
 @testable import Pommora
 
 /// Codable + round-trip coverage for the `views: [SavedView]` field on
-/// `PageCollection` (Task 4, Phase A — v0.3.1).
+/// `PageSet` (Task 4, Phase A — v0.3.1).
 ///
 /// Each Collection is INDEPENDENT of its parent Type — its own `views[0]`
 /// config separate from the Type's. Pre-v0.3.1 sidecars predate the field
 /// and must decode as `[]` so loadAll can mint a default-view migration.
-@Suite("PageCollection views[]") struct PageCollectionViewsTests {
-    private func pageCollection(views: [SavedView] = []) -> PageCollection {
-        PageCollection(
+@Suite("PageSet views[]") struct PageSetViewsTests {
+    private func pageCollection(views: [SavedView] = []) -> PageSet {
+        PageSet(
             id: "01HPC",
-            typeID: "01HPT",
+            parentID: "01HPT",
             title: "Drafts",
             folderURL: URL(fileURLWithPath: "/tmp/nexus/Drafts"),
             modifiedAt: Date(timeIntervalSince1970: 1_700_000_000),
@@ -32,7 +32,7 @@ import Testing
         )
     }
 
-    // MARK: - PageCollection.views
+    // MARK: - PageSet.views
 
     @Test func pageCollectionRoundTripsViews() throws {
         let c = pageCollection(views: [makeView()])
@@ -41,7 +41,7 @@ import Testing
         #expect(s.contains(#""views":["#))
         #expect(s.contains(#""id":"view_01HVIEW""#))
 
-        let decoded = try JSONDecoder().decode(PageCollection.self, from: data)
+        let decoded = try JSONDecoder().decode(PageSet.self, from: data)
         #expect(decoded.views.count == 1)
         #expect(decoded.views[0].id == "view_01HVIEW")
     }
@@ -58,7 +58,7 @@ import Testing
             """#.data(using: .utf8)!
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
-        let decoded = try decoder.decode(PageCollection.self, from: json)
+        let decoded = try decoder.decode(PageSet.self, from: json)
         #expect(decoded.views.isEmpty)
     }
 

@@ -2,7 +2,7 @@
 //  CollectionIconSetterTests.swift
 //  PommoraTests
 //
-//  F1. Tests that updatePageCollectionIcon persists the icon to the sidecar
+//  F1. Tests that updatePageSetIcon persists the icon to the sidecar
 //  on disk and syncs the in-memory collection array.
 //
 //  Struct name MATCHES the filename so `-only-testing:PommoraTests/CollectionIconSetterTests`
@@ -18,11 +18,11 @@ import Testing
 @Suite("CollectionIconSetterTests")
 struct CollectionIconSetterTests {
 
-    @Test func updatePageCollectionIconPersistsToDiskAndMemory() async throws {
+    @Test func updatePageSetIconPersistsToDiskAndMemory() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
 
-        // Build a PageType + PageCollection via normal CRUD so
+        // Build a PageType + PageSet via normal CRUD so
         // pageCollectionsByType is populated and the sidecar exists on disk.
         let manager = PageTypeManager(nexus: nexus)
         let setManager = PageSetManager(nexus: nexus)
@@ -44,7 +44,7 @@ struct CollectionIconSetterTests {
         // --- On-disk assertion: reload sidecar directly ---
         let sidecarURL = collection.folderURL
             .appendingPathComponent(NexusPaths.pageCollectionSidecarFilename)
-        let reloaded = try PageCollection.load(from: sidecarURL)
+        let reloaded = try PageSet.load(from: sidecarURL)
         #expect(reloaded.icon == "star.fill")
     }
 }

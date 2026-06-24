@@ -4,7 +4,7 @@ import Testing
 
 @testable import Pommora
 
-/// Whole-Set moves between PageCollections (Sets Task 9): same-vault folder
+/// Whole-Set moves between PageSets (Sets Task 9): same-vault folder
 /// relocation with byte-identical Pages, pre-move destination collision,
 /// and cross-vault moves with the per-page name-matched property strip
 /// (count previewed via `moveStripTotal`).
@@ -58,7 +58,7 @@ struct PageSetMoveTests {
         let sidecar = try PageSet.load(
             from: newFolder.appendingPathComponent(NexusPaths.pageSetSidecarFilename))
         #expect(sidecar.id == set.id)
-        #expect(sidecar.collectionID == dest.id)
+        #expect(sidecar.parentID == dest.id)
 
         // Strip-free: the moved Page is byte-identical at the new path.
         let movedURL = NexusPaths.pageFileURL(forTitle: "Doc", in: newFolder)
@@ -254,13 +254,13 @@ struct PageSetMoveTests {
         title: String,
         in vault: PageType,
         index: PommoraIndex? = nil
-    ) throws -> PageCollection {
+    ) throws -> PageSet {
         let folderURL = NexusPaths.collectionFolderURL(
             forTitle: title, inVaultTitled: vault.title, in: nexus
         )
         try FileManager.default.createDirectory(at: folderURL, withIntermediateDirectories: true)
-        let coll = PageCollection(
-            id: ULID.generate(), typeID: vault.id, title: title,
+        let coll = PageSet(
+            id: ULID.generate(), parentID: vault.id, title: title,
             folderURL: folderURL, modifiedAt: Date()
         )
         try coll.save(to: folderURL.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename))
@@ -271,13 +271,13 @@ struct PageSetMoveTests {
     @discardableResult
     private func makePageSet(
         title: String,
-        in collection: PageCollection,
+        in collection: PageSet,
         index: PommoraIndex? = nil
     ) throws -> PageSet {
         let folderURL = collection.folderURL.appendingPathComponent(title, isDirectory: true)
         try FileManager.default.createDirectory(at: folderURL, withIntermediateDirectories: true)
         let set = PageSet(
-            id: ULID.generate(), collectionID: collection.id, title: title,
+            id: ULID.generate(), parentID: collection.id, title: title,
             folderURL: folderURL, modifiedAt: Date()
         )
         try set.save(to: folderURL.appendingPathComponent(NexusPaths.pageSetSidecarFilename))

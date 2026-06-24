@@ -19,7 +19,7 @@ import UniformTypeIdentifiers
 struct CoverPicker: View {
     let page: PageMeta
     let vault: PageType
-    let collection: PageCollection?
+    let collection: PageSet?
     let set: PageSet?
     let nexus: Nexus
     @Binding var isPresenting: Bool

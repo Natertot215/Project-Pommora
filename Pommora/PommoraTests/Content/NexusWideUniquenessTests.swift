@@ -29,8 +29,8 @@ struct NexusWideUniquenessTests {
 
         let v1 = try makeVault(in: nexus, index: index, title: "V1")
         let v2 = try makeVault(in: nexus, index: index, title: "V2")
-        let c1 = try makePageCollection(in: nexus, vault: v1, index: index, title: "C1")
-        let c2 = try makePageCollection(in: nexus, vault: v2, index: index, title: "C2")
+        let c1 = try makePageSet(in: nexus, vault: v1, index: index, title: "C1")
+        let c2 = try makePageSet(in: nexus, vault: v2, index: index, title: "C2")
 
         let manager = PageContentManager(nexus: nexus, contextProvider: { NexusContext.empty })
         manager.indexUpdater = IndexUpdater(index)
@@ -56,16 +56,16 @@ struct NexusWideUniquenessTests {
         return vault
     }
 
-    private func makePageCollection(
+    private func makePageSet(
         in nexus: Nexus, vault: PageType, index: PommoraIndex, title: String
-    ) throws -> PageCollection {
+    ) throws -> PageSet {
         let folder = NexusPaths.collectionFolderURL(forTitle: title, inVaultTitled: vault.title, in: nexus)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        let coll = PageCollection(
-            id: ULID.generate(), typeID: vault.id, title: title, folderURL: folder, modifiedAt: Date()
+        let coll = PageSet(
+            id: ULID.generate(), parentID: vault.id, title: title, folderURL: folder, modifiedAt: Date()
         )
         try coll.save(to: folder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename))
-        try IndexUpdater(index).upsertPageCollection(coll)
+        try IndexUpdater(index).upsertPageSet(coll)
         return coll
     }
 

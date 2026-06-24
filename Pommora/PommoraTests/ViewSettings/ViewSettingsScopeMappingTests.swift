@@ -77,10 +77,10 @@ struct ViewSettingsScopeMappingTests {
         #expect(scope == .pageType(t))
     }
 
-    @Test("collection (PageCollection) selection maps to .pageCollection scope carrying the entity")
-    func collectionMapsToPageCollection() {
-        let c = PageCollection(
-            id: "01HPC", typeID: "01HPT", title: "Drafts",
+    @Test("collection (PageSet) selection maps to .pageCollection scope carrying the entity")
+    func collectionMapsToPageSet() {
+        let c = PageSet(
+            id: "01HPC", parentID: "01HPT", title: "Drafts",
             folderURL: URL(fileURLWithPath: "/tmp/Drafts"),
             modifiedAt: Date()
         )

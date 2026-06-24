@@ -167,14 +167,14 @@ struct ViewCRUDTests {
 
     // MARK: - Collection container parity
 
-    @Test("addView resolves a PageCollection container too")
+    @Test("addView resolves a PageSet container too")
     func addViewOnCollection() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
 
         let seed = "view_\(ULID.generate())"
         let vault = try makePageType(nexus: nexus, title: "Notes", views: [])
-        let coll = try makePageCollection(
+        let coll = try makePageSet(
             nexus: nexus, title: "Inbox", in: vault, views: [SavedView(id: seed)])
 
         let types = PageTypeManager(nexus: nexus)
@@ -188,7 +188,7 @@ struct ViewCRUDTests {
 
         let sidecarURL = coll.folderURL.appendingPathComponent(
             NexusPaths.pageCollectionSidecarFilename)
-        let fresh = try PageCollection.load(from: sidecarURL)
+        let fresh = try PageSet.load(from: sidecarURL)
         #expect(fresh.views.count == 2)
         #expect(fresh.views.last?.id == added.id)
     }
@@ -208,14 +208,14 @@ struct ViewCRUDTests {
     }
 
     @discardableResult
-    private func makePageCollection(
+    private func makePageSet(
         nexus: Nexus, title: String, in vault: PageType, views: [SavedView]
-    ) throws -> PageCollection {
+    ) throws -> PageSet {
         let folderURL = NexusPaths.collectionFolderURL(
             forTitle: title, inVaultTitled: vault.title, in: nexus)
         try FileManager.default.createDirectory(at: folderURL, withIntermediateDirectories: true)
-        var coll = PageCollection(
-            id: ULID.generate(), typeID: vault.id, title: title,
+        var coll = PageSet(
+            id: ULID.generate(), parentID: vault.id, title: title,
             folderURL: folderURL, modifiedAt: Date())
         coll.views = views
         try coll.save(to: folderURL.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename))

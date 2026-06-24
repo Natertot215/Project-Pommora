@@ -4,7 +4,7 @@ import Testing
 @testable import Pommora
 
 /// Covers the cover/banner DATA fields: PageFrontmatter `cover` round-trips and
-/// is registered in `modeledKeys`; `banner` round-trips on PageType + PageCollection.
+/// is registered in `modeledKeys`; `banner` round-trips on PageType + PageSet.
 @Suite("CoverFieldTests")
 struct CoverFieldTests {
 
@@ -50,16 +50,16 @@ struct CoverFieldTests {
         #expect(decoded.banner == ".nexus/assets/ID/banner.jpg")
     }
 
-    @Test("bannerRoundTripsOnPageCollection")
-    func bannerRoundTripsOnPageCollection() throws {
-        let collection = PageCollection(
-            id: ULID.generate(), typeID: ULID.generate(),
+    @Test("bannerRoundTripsOnPageSet")
+    func bannerRoundTripsOnPageSet() throws {
+        let collection = PageSet(
+            id: ULID.generate(), parentID: ULID.generate(),
             title: "C", folderURL: URL(fileURLWithPath: "/tmp/C"),
             modifiedAt: Date(),
             banner: ".nexus/assets/ID/banner.png"
         )
         let data = try JSONEncoder().encode(collection)
-        let decoded = try JSONDecoder().decode(PageCollection.self, from: data)
+        let decoded = try JSONDecoder().decode(PageSet.self, from: data)
         #expect(decoded.banner == ".nexus/assets/ID/banner.png")
     }
 }

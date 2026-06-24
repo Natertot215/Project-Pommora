@@ -42,7 +42,7 @@ struct NameCollisionTests {
 
     @Test("createPage duplicate title in same Page Collection throws + original body survives")
     func pageCreateDuplicateInCollectionPreservesBody() async throws {
-        let (nexus, vault, coll, manager) = try await setupPageCollection()
+        let (nexus, vault, coll, manager) = try await setupPageSet()
         defer { TempNexus.cleanup(nexus) }
 
         try await manager.createPage(name: "Notes", in: coll, vault: vault)
@@ -62,7 +62,7 @@ struct NameCollisionTests {
 
     @Test("renamePage onto an existing sibling's title throws + both files intact")
     func pageRenameOntoSiblingRejected() async throws {
-        let (nexus, vault, coll, manager) = try await setupPageCollection()
+        let (nexus, vault, coll, manager) = try await setupPageSet()
         defer { TempNexus.cleanup(nexus) }
 
         try await manager.createPage(name: "Notes", in: coll, vault: vault)
@@ -89,7 +89,7 @@ struct NameCollisionTests {
 
     @Test("createPage collision is case-insensitive (Notes vs notes)")
     func pageCreateCaseInsensitiveRejected() async throws {
-        let (nexus, vault, coll, manager) = try await setupPageCollection()
+        let (nexus, vault, coll, manager) = try await setupPageSet()
         defer { TempNexus.cleanup(nexus) }
 
         try await manager.createPage(name: "Notes", in: coll, vault: vault)
@@ -101,7 +101,7 @@ struct NameCollisionTests {
 
     @Test("same Page title in DIFFERENT containers is allowed")
     func pageSameTitleDifferentContainersAllowed() async throws {
-        let (nexus, vault, coll, manager) = try await setupPageCollection()
+        let (nexus, vault, coll, manager) = try await setupPageSet()
         defer { TempNexus.cleanup(nexus) }
 
         // One in the collection, one in the type-root — different containers.
@@ -121,7 +121,7 @@ struct NameCollisionTests {
 
     @Test("renamePage to its OWN current title does not throw")
     func pageRenameToOwnTitleAllowed() async throws {
-        let (nexus, vault, coll, manager) = try await setupPageCollection()
+        let (nexus, vault, coll, manager) = try await setupPageSet()
         defer { TempNexus.cleanup(nexus) }
 
         try await manager.createPage(name: "Notes", in: coll, vault: vault)
@@ -142,7 +142,7 @@ struct NameCollisionTests {
         // FIX 1 regression: on a case-insensitive volume (APFS) a self-recase
         // resolves `fileExists(at:)` to the SAME underlying file; renameFile must
         // recase in place via moveItem, NOT throw destinationExists.
-        let (nexus, vault, coll, manager) = try await setupPageCollection()
+        let (nexus, vault, coll, manager) = try await setupPageSet()
         defer { TempNexus.cleanup(nexus) }
 
         try await manager.createPage(name: "notes", in: coll, vault: vault)
@@ -168,7 +168,7 @@ struct NameCollisionTests {
         // Companion to FIX 1: a recase of one's OWN file is allowed, but renaming
         // onto a *different* sibling that happens to differ only in case is still
         // a collision and must throw (no clobber).
-        let (nexus, vault, coll, manager) = try await setupPageCollection()
+        let (nexus, vault, coll, manager) = try await setupPageSet()
         defer { TempNexus.cleanup(nexus) }
 
         try await manager.createPage(name: "Notes", in: coll, vault: vault)
@@ -240,8 +240,8 @@ struct NameCollisionTests {
             id: id, icon: nil, tier1: [], tier2: [], tier3: [], properties: [:], createdAt: Date())
     }
 
-    private func setupPageCollection() async throws
-        -> (Nexus, PageType, PageCollection, PageContentManager)
+    private func setupPageSet() async throws
+        -> (Nexus, PageType, PageSet, PageContentManager)
     {
         let nexus = try TempNexus.make()
         let vault = PageType(
@@ -252,8 +252,8 @@ struct NameCollisionTests {
 
         let collFolder = NexusPaths.collectionFolderURL(forTitle: "C", inVaultTitled: "V", in: nexus)
         try FileManager.default.createDirectory(at: collFolder, withIntermediateDirectories: true)
-        let coll = PageCollection(
-            id: ULID.generate(), typeID: vault.id, title: "C", folderURL: collFolder,
+        let coll = PageSet(
+            id: ULID.generate(), parentID: vault.id, title: "C", folderURL: collFolder,
             modifiedAt: Date())
 
         let manager = PageContentManager(nexus: nexus, contextProvider: { NexusContext.empty })

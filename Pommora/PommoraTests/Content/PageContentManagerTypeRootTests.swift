@@ -4,7 +4,7 @@ import Testing
 @testable import Pommora
 
 /// PageType-root Pages (sitting directly in a PageType folder, not inside a
-/// PageCollection sub-folder). Mirrors PageContentManagerTests but uses the
+/// PageSet sub-folder). Mirrors PageContentManagerTests but uses the
 /// parallel `(inVaultRoot:)` overloads + `pages(in: vault)` accessors.
 ///
 /// The legacy "VaultRoot" filename mirrors `pagesByTypeRoot` storage; the
@@ -44,7 +44,7 @@ struct PageContentManagerTypeRootTests {
         #expect(titles == ["Alpha", "Beta"])  // sorted
     }
 
-    @Test("loadAll for a vault ignores PageCollection sub-folder contents")
+    @Test("loadAll for a vault ignores PageSet sub-folder contents")
     func loadAllForVaultIgnoresCollectionContents() async throws {
         let (nexus, vault, manager) = try await setup()
         defer { TempNexus.cleanup(nexus) }
@@ -56,19 +56,19 @@ struct PageContentManagerTypeRootTests {
             to: NexusPaths.pageFileURL(forTitle: "RootPage", in: vaultFolder)
         )
 
-        // One PageCollection sub-folder containing one Page
+        // One PageSet sub-folder containing one Page
         let collFolder = NexusPaths.collectionFolderURL(
             forTitle: "Inner", inVaultTitled: vault.title, in: nexus
         )
         try FileManager.default.createDirectory(at: collFolder, withIntermediateDirectories: true)
-        let coll = PageCollection(
+        let coll = PageSet(
             id: ULID.generate(),
-            typeID: vault.id,
+            parentID: vault.id,
             title: "Inner",
             folderURL: collFolder,
             modifiedAt: Date()
         )
-        // Sidecar so PageType discovery would treat this as a real PageCollection
+        // Sidecar so PageType discovery would treat this as a real PageSet
         try coll.save(to: collFolder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename))
         try FixtureFiles.write(
             "---\nid: 01HINNER\ncreated_at: 2025-01-01T00:00:00Z\n---\n\nbody\n",

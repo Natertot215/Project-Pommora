@@ -9,7 +9,7 @@ enum SidebarSelection: Equatable, Hashable, Sendable {
     case topic(Topic)
     case project(Project)
     case pageType(PageType)
-    case collection(PageCollection)
+    case collection(PageSet)
     case page(PageMeta)
 }
 

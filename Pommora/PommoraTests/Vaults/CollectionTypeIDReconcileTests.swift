@@ -4,7 +4,7 @@
 //
 //  RED baseline (failing until the fix lands).
 //
-//  Bug pinned: a PageCollection lives in a sub-folder inside its parent Type
+//  Bug pinned: a PageSet lives in a sub-folder inside its parent Type
 //  folder and carries a `type_id` in its sidecar. After a Type (vault)
 //  re-adoption the Type can mint a NEW `id`, while the collection's stored
 //  `type_id` keeps pointing at the OLD (now-vanished) Type id — so property /
@@ -59,9 +59,9 @@ struct CollectionTypeIDReconcileTests {
         let collFolder = vaultFolder.appendingPathComponent(collName, isDirectory: true)
         try FileManager.default.createDirectory(at: collFolder, withIntermediateDirectories: true)
         let collMetaURL = collFolder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename)
-        let drifted = PageCollection(
+        let drifted = PageSet(
             id: ULID.generate(),
-            typeID: wrongTypeID,  // <- points at the vanished old vault id
+            parentID: wrongTypeID,  // <- points at the vanished old vault id
             title: collName,
             folderURL: collFolder,
             modifiedAt: Date()
@@ -83,11 +83,11 @@ struct CollectionTypeIDReconcileTests {
 
         // (a) IN MEMORY: the collection's typeID must be reconciled to V.
         let loadedColl = manager.pageCollections(in: loadedVault).first
-        #expect(loadedColl?.typeID == vaultID)
+        #expect(loadedColl?.parentID == vaultID)
 
         // (b) ON DISK: reloading the sidecar must also show V (re-saved).
-        let reloaded = try PageCollection.load(from: collMetaURL)
-        #expect(reloaded.typeID == vaultID)
+        let reloaded = try PageSet.load(from: collMetaURL)
+        #expect(reloaded.parentID == vaultID)
     }
 
     /// Control / idempotence: a second collection whose `type_id` already == V
@@ -109,9 +109,9 @@ struct CollectionTypeIDReconcileTests {
         let collFolder = vaultFolder.appendingPathComponent(collName, isDirectory: true)
         try FileManager.default.createDirectory(at: collFolder, withIntermediateDirectories: true)
         let collMetaURL = collFolder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename)
-        let correct = PageCollection(
+        let correct = PageSet(
             id: ULID.generate(),
-            typeID: vaultID,  // already correct
+            parentID: vaultID,  // already correct
             title: collName,
             folderURL: collFolder,
             modifiedAt: Date()
@@ -126,9 +126,9 @@ struct CollectionTypeIDReconcileTests {
         await setManager.loadAll(types: manager.types)
 
         let loadedVault = try #require(manager.types.first(where: { $0.title == vaultName }))
-        #expect(manager.pageCollections(in: loadedVault).first?.typeID == vaultID)
-        let reloaded = try PageCollection.load(from: collMetaURL)
-        #expect(reloaded.typeID == vaultID)
+        #expect(manager.pageCollections(in: loadedVault).first?.parentID == vaultID)
+        let reloaded = try PageSet.load(from: collMetaURL)
+        #expect(reloaded.parentID == vaultID)
     }
 
 }

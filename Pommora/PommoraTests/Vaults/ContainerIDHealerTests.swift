@@ -21,7 +21,7 @@ struct ContainerIDHealerTests {
         let typeManager: PageTypeManager
         let setManager: PageSetManager
         let pageType: PageType
-        let collection: PageCollection
+        let collection: PageSet
     }
 
     /// Vault "Notes" + Collection "Inbox" via CRUD; both managers loaded.
@@ -69,7 +69,7 @@ struct ContainerIDHealerTests {
         // Disk: both sidecars carry the distinct cache ids.
         let diskIDs = try Set(
             cols.map {
-                try PageCollection.load(
+                try PageSet.load(
                     from: $0.folderURL.appendingPathComponent(
                         NexusPaths.pageCollectionSidecarFilename)
                 ).id
@@ -81,7 +81,7 @@ struct ContainerIDHealerTests {
         await fx.setManager.loadAll(types: fx.typeManager.types)
         let diskIDs2 = try Set(
             cols.map {
-                try PageCollection.load(
+                try PageSet.load(
                     from: $0.folderURL.appendingPathComponent(
                         NexusPaths.pageCollectionSidecarFilename)
                 ).id
@@ -157,7 +157,7 @@ struct ContainerIDHealerTests {
         #expect(Set(allCols.map(\.id)).count == 2)
         for type in types {
             for col in fx.typeManager.pageCollections(in: type) {
-                #expect(col.typeID == type.id)
+                #expect(col.parentID == type.id)
             }
         }
     }

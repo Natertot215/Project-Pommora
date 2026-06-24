@@ -24,9 +24,9 @@ struct PageCollectionValidatorTests {
     @Test("duplicate within PageType throws")
     func duplicate() {
         let existing = [
-            PageCollection(
+            PageSet(
                 id: ULID.generate(),
-                typeID: "01HV",
+                parentID: "01HV",
                 title: "Tasks",
                 folderURL: URL(fileURLWithPath: "/tmp/V/Tasks", isDirectory: true),
                 modifiedAt: Date()

@@ -21,7 +21,7 @@ private enum CollectionDisclosureItem: Identifiable {
 // MARK: - PageCollectionRow
 
 struct PageCollectionRow: View {
-    let collection: PageCollection
+    let collection: PageSet
     let parentVault: PageType
     @Binding var selection: SidebarSelection
     @Binding var editingID: String?

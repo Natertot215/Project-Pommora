@@ -7,7 +7,7 @@ import Foundation
 /// own. Per-container child order lives on each container's own per-kind
 /// sidecar:
 ///   - PageType  → `_pagetype.json`
-///   - PageCollection → `_pagecollection.json`
+///   - PageSet → `_pagecollection.json`
 ///
 /// Every write is a read-modify-atomic-write round-trip: the file is
 /// re-decoded just before mutation so concurrent writes by sibling managers
@@ -47,7 +47,7 @@ enum OrderPersister {
         }
     }
 
-    // MARK: - PageCollection / Page-Type-root Pages (sidecar JSON)
+    // MARK: - PageSet / Page-Type-root Pages (sidecar JSON)
 
     static func setPageCollectionOrder(_ order: [String], in pageType: PageType, nexus: Nexus) throws {
         try mutatePageType(pageType, nexus: nexus) { t in
@@ -55,8 +55,8 @@ enum OrderPersister {
         }
     }
 
-    static func setPageOrder(_ order: [String], inCollection collection: PageCollection) throws {
-        try mutatePageCollection(collection) { c in
+    static func setPageOrder(_ order: [String], inCollection collection: PageSet) throws {
+        try mutateSet(collection, sidecar: NexusPaths.pageCollectionSidecarFilename) { c in
             c.pageOrder = order.isEmpty ? nil : order
         }
     }
@@ -69,14 +69,14 @@ enum OrderPersister {
 
     // MARK: - PageSet (sidecar JSON)
 
-    static func setPageSetOrder(_ order: [String], in collection: PageCollection) throws {
-        try mutatePageCollection(collection) { c in
+    static func setPageSetOrder(_ order: [String], in collection: PageSet) throws {
+        try mutateSet(collection, sidecar: NexusPaths.pageCollectionSidecarFilename) { c in
             c.setOrder = order.isEmpty ? nil : order
         }
     }
 
     static func setPageOrder(_ order: [String], in set: PageSet) throws {
-        try mutatePageSet(set) { s in
+        try mutateSet(set, sidecar: NexusPaths.pageSetSidecarFilename) { s in
             s.pageOrder = order.isEmpty ? nil : order
         }
     }
@@ -113,21 +113,12 @@ enum OrderPersister {
         try updated.save(to: url)
     }
 
-    private static func mutatePageCollection(
-        _ collection: PageCollection,
-        _ mutate: (inout PageCollection) -> Void
-    ) throws {
-        let url = collection.folderURL.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename)
-        var updated = try PageCollection.load(from: url)
-        mutate(&updated)
-        try updated.save(to: url)
-    }
-
-    private static func mutatePageSet(
+    private static func mutateSet(
         _ set: PageSet,
+        sidecar: String,
         _ mutate: (inout PageSet) -> Void
     ) throws {
-        let url = set.folderURL.appendingPathComponent(NexusPaths.pageSetSidecarFilename)
+        let url = set.folderURL.appendingPathComponent(sidecar)
         var updated = try PageSet.load(from: url)
         mutate(&updated)
         try updated.save(to: url)

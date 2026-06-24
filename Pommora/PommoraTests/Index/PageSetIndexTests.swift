@@ -12,7 +12,7 @@ struct PageSetIndexTests {
 
     // MARK: - Fixture setup
 
-    /// Builds a nexus with 1 PageType "Notes" + 1 PageCollection "Inbox"
+    /// Builds a nexus with 1 PageType "Notes" + 1 PageSet "Inbox"
     /// + 1 PageSet "Drafts" inside it. One Page lives in the Set, one at the
     /// Collection root — the pair exercises both sides of `page_set_id`.
     private func setup() async throws -> (
@@ -38,7 +38,7 @@ struct PageSetIndexTests {
         let setFolder = coll.folderURL.appendingPathComponent("Drafts", isDirectory: true)
         try FileManager.default.createDirectory(at: setFolder, withIntermediateDirectories: true)
         let set = PageSet(
-            id: ULID.generate(), collectionID: coll.id, title: "Drafts",
+            id: ULID.generate(), parentID: coll.id, title: "Drafts",
             folderURL: setFolder, modifiedAt: Date()
         )
         try set.save(to: setFolder.appendingPathComponent(NexusPaths.pageSetSidecarFilename))
@@ -164,8 +164,8 @@ struct PageSetIndexTests {
 
         let pt = Fixtures.pageType()
         try updater.upsertPageType(pt)
-        let pc = Fixtures.pageCollection(typeID: pt.id)
-        try updater.upsertPageCollection(pc)
+        let pc = Fixtures.pageCollection(parentID: pt.id)
+        try updater.upsertPageSet(pc)
 
         // The set FK dangles (never indexed) — the page must still land,
         // scoped to its Collection, without throwing.
@@ -211,11 +211,11 @@ struct PageSetIndexTests {
 
         let pt = Fixtures.pageType()
         try updater.upsertPageType(pt)
-        let pc = Fixtures.pageCollection(typeID: pt.id)
-        try updater.upsertPageCollection(pc)
+        let pc = Fixtures.pageCollection(parentID: pt.id)
+        try updater.upsertPageSet(pc)
 
         let set = PageSet(
-            id: ULID.generate(), collectionID: pc.id, title: "Drafts",
+            id: ULID.generate(), parentID: pc.id, title: "Drafts",
             folderURL: URL(fileURLWithPath: "/tmp/dummy-\(UUID().uuidString)"),
             modifiedAt: Date()
         )

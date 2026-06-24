@@ -43,7 +43,7 @@ enum PageOpenRouter {
     static func routeOpen(
         _ page: PageMeta,
         vault: PageType,
-        collection: PageCollection?,
+        collection: PageSet?,
         set: PageSet?,
         selection: inout SidebarSelection,
         openPreview: (PageRef) -> Void

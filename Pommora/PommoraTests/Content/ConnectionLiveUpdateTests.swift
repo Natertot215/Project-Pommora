@@ -8,7 +8,7 @@ import Testing
 /// PageContentManager CRUD (no rebuild required).
 ///
 /// Fixture mirrors `PageContentManagerTests.setup()` — TempNexus + one
-/// PageType + one PageCollection — and wires an `IndexUpdater` to the manager
+/// PageType + one PageSet — and wires an `IndexUpdater` to the manager
 /// so each CRUD call drives the connection index in-process.
 @MainActor
 @Suite("ConnectionLiveUpdateTests")
@@ -19,7 +19,7 @@ struct ConnectionLiveUpdateTests {
     private func setup() async throws -> (
         nexus: Nexus,
         vault: PageType,
-        coll: PageCollection,
+        coll: PageSet,
         manager: PageContentManager,
         index: PommoraIndex
     ) {
@@ -36,9 +36,9 @@ struct ConnectionLiveUpdateTests {
 
         let collFolder = NexusPaths.collectionFolderURL(forTitle: "C", inVaultTitled: "V", in: nexus)
         try FileManager.default.createDirectory(at: collFolder, withIntermediateDirectories: true)
-        let coll = PageCollection(
+        let coll = PageSet(
             id: ULID.generate(),
-            typeID: vault.id,
+            parentID: vault.id,
             title: "C",
             folderURL: collFolder,
             modifiedAt: Date()
@@ -48,7 +48,7 @@ struct ConnectionLiveUpdateTests {
         // when the manager calls upsertPage.
         let updater = IndexUpdater(index)
         try updater.upsertPageType(vault)
-        try updater.upsertPageCollection(coll)
+        try updater.upsertPageSet(coll)
 
         let manager = PageContentManager(nexus: nexus, contextProvider: { NexusContext.empty })
         manager.indexUpdater = updater

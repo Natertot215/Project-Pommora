@@ -3,8 +3,8 @@ import Testing
 @testable import Pommora
 
 /// Verifies the EC2 `schema_version` forward-compat field on the non-Agenda
-/// sidecars (PageType, PageCollection). PageType is stamped `2`
-/// (Relations-redesign re-migration bump); PageCollection stays on `1` (no
+/// sidecars (PageType, PageSet). PageType is stamped `2`
+/// (Relations-redesign re-migration bump); PageSet stays on `1` (no
 /// schema change). Legacy sidecars still decode missing versions as `0`.
 /// AgendaTaskSchema + AgendaEventSchema were already on `schemaVersion: 1`
 /// (camelCase on-disk key, pre-existing convention) — those are not retested
@@ -47,11 +47,11 @@ import Testing
         #expect(pt.schemaVersion == 0)
     }
 
-    // MARK: - PageCollection
+    // MARK: - PageSet
 
     @Test func pageCollectionFreshDefaultsToSchemaVersion1() {
-        let pc = PageCollection(
-            id: "01HC", typeID: "01HP", title: "X",
+        let pc = PageSet(
+            id: "01HC", parentID: "01HP", title: "X",
             folderURL: URL(fileURLWithPath: "/tmp"), modifiedAt: Date()
         )
         #expect(pc.schemaVersion == 1)
@@ -67,7 +67,7 @@ import Testing
         """#.data(using: .utf8)!
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
-        let pc = try decoder.decode(PageCollection.self, from: json)
+        let pc = try decoder.decode(PageSet.self, from: json)
         #expect(pc.schemaVersion == 0)
     }
 

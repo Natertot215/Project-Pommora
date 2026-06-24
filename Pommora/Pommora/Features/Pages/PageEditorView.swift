@@ -27,7 +27,7 @@ struct PageEditorView: View {
     @Bindable var viewModel: PageEditorViewModel
     let vault: PageType
     /// nil = vault-root Page (no Collection parent)
-    let collection: PageCollection?
+    let collection: PageSet?
     /// nil = Page outside any Set. Non-nil implies `collection` is non-nil
     /// (Sets only live inside Collections); routes saves/renames through the
     /// Set-scoped overloads so the index row keeps its `page_set_id`.
@@ -129,7 +129,7 @@ struct PageEditorView: View {
     init(
         viewModel: PageEditorViewModel,
         vault: PageType,
-        collection: PageCollection?,
+        collection: PageSet?,
         set: PageSet? = nil,
         selection: Binding<SidebarSelection>
     ) {

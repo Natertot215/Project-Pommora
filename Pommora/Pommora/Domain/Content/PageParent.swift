@@ -1,13 +1,13 @@
 import Foundation
 
 /// Where a Page lives inside a Page Type. The spec allows Content to sit
-/// directly in a Page Type's root folder, inside a PageCollection sub-folder,
-/// OR inside a PageSet sub-folder of a PageCollection; this enum lets sidebar
+/// directly in a Page Type's root folder, inside a PageSet sub-folder,
+/// OR inside a PageSet sub-folder of a PageSet; this enum lets sidebar
 /// rows and sheets route create/rename/delete calls to the correct
 /// ContentManager overload without leaking that branching into UI code.
 enum PageParent: Hashable {
-    case collection(PageCollection, vault: PageType)
-    case set(PageSet, collection: PageCollection, vault: PageType)
+    case collection(PageSet, vault: PageType)
+    case set(PageSet, collection: PageSet, vault: PageType)
     case vaultRoot(PageType)
 }
 
@@ -21,7 +21,7 @@ extension PageParent {
         }
     }
 
-    /// The enclosing PageCollection's id, nil at the vault root.
+    /// The enclosing PageSet's id, nil at the vault root.
     var collectionID: String? {
         switch self {
         case .collection(let coll, _): return coll.id
@@ -46,8 +46,8 @@ extension PageParent {
         }
     }
 
-    /// The enclosing PageCollection, nil at the vault root.
-    var collection: PageCollection? {
+    /// The enclosing PageSet, nil at the vault root.
+    var collection: PageSet? {
         switch self {
         case .collection(let coll, _): return coll
         case .set(_, let coll, _): return coll

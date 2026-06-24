@@ -77,7 +77,7 @@ struct IndexUpdater: Sendable {
 
     // MARK: - PageCollection
 
-    func upsertPageCollection(_ pc: PageCollection) throws {
+    func upsertPageCollection(_ pc: PageSet) throws {
         try index.dbQueue.write { db in
             try db.execute(
                 sql: """
@@ -89,7 +89,7 @@ struct IndexUpdater: Sendable {
                         icon = excluded.icon, modified_at = excluded.modified_at,
                         schema_version = excluded.schema_version
                     """,
-                arguments: [pc.id, pc.typeID, pc.title, pc.icon, iso(pc.modifiedAt), pc.schemaVersion]
+                arguments: [pc.id, pc.parentID, pc.title, pc.icon, iso(pc.modifiedAt), pc.schemaVersion]
             )
         }
     }
@@ -117,7 +117,7 @@ struct IndexUpdater: Sendable {
                         icon = excluded.icon, modified_at = excluded.modified_at,
                         schema_version = excluded.schema_version
                     """,
-                arguments: [set.id, set.collectionID, set.title, set.icon, iso(set.modifiedAt), set.schemaVersion]
+                arguments: [set.id, set.parentID, set.title, set.icon, iso(set.modifiedAt), set.schemaVersion]
             )
         }
     }

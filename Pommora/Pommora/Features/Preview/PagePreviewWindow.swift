@@ -66,7 +66,7 @@ struct PagePreviewContent: View {
     /// through the identical debounced `ContentManager.updatePage` path.
     @State private var viewModel: PageEditorViewModel?
     @State private var vault: PageType?
-    @State private var collection: PageCollection?
+    @State private var collection: PageSet?
     @State private var set: PageSet?
     @State private var loadFailed = false
 

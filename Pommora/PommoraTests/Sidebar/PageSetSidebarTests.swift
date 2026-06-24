@@ -16,7 +16,7 @@ struct PageSetSidebarTests {
         let nexus: Nexus
         let typeManager: PageTypeManager
         let setManager: PageSetManager
-        let collection: PageCollection
+        let collection: PageSet
     }
 
     /// Vault "Notes" + Collection "Inbox" via CRUD; both managers loaded.

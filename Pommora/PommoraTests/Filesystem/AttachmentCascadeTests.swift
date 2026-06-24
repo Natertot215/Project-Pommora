@@ -120,7 +120,7 @@ struct AttachmentCascadeTests {
 
     // MARK: - Setup helpers
 
-    private func setupPage() async throws -> (Nexus, PageType, PageCollection, PageContentManager) {
+    private func setupPage() async throws -> (Nexus, PageType, PageSet, PageContentManager) {
         let nexus = try TempNexus.make()
         let vault = PageType(
             id: ULID.generate(), title: "V", icon: nil,
@@ -131,9 +131,9 @@ struct AttachmentCascadeTests {
 
         let collFolder = NexusPaths.collectionFolderURL(forTitle: "C", inVaultTitled: "V", in: nexus)
         try FileManager.default.createDirectory(at: collFolder, withIntermediateDirectories: true)
-        let coll = PageCollection(
+        let coll = PageSet(
             id: ULID.generate(),
-            typeID: vault.id,
+            parentID: vault.id,
             title: "C",
             folderURL: collFolder,
             modifiedAt: Date()

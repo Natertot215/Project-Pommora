@@ -3,7 +3,7 @@
 //  PommoraTests
 //
 //  Tests that updatePageIcon persists the icon to the Page's .md frontmatter
-//  on disk, at the Type root and inside a PageCollection.
+//  on disk, at the Type root and inside a PageSet.
 //
 //  Struct name MATCHES the filename so `-only-testing:PommoraTests/PageIconSetterTests`
 //  resolves correctly (quirk #17).
@@ -39,7 +39,7 @@ struct PageIconSetterTests {
         #expect(reloaded.frontmatter.icon == "star.fill")
     }
 
-    // MARK: - Test 2: Page inside a PageCollection
+    // MARK: - Test 2: Page inside a PageSet
 
     @Test func updatePageIconPersistsToDisk_inCollection() async throws {
         let nexus = try TempNexus.make()
@@ -57,10 +57,10 @@ struct PageIconSetterTests {
 
     // MARK: - Helpers
 
-    /// Builds a PageType + a PageCollection on disk and a PageContentManager
+    /// Builds a PageType + a PageSet on disk and a PageContentManager
     /// (mirrors PageContentManagerUpdatePageTests.setup).
     private func makePageSetup(nexus: Nexus) async throws
-        -> (PageType, PageCollection, PageContentManager)
+        -> (PageType, PageSet, PageContentManager)
     {
         let vault = PageType(
             id: ULID.generate(), title: "V", icon: nil,
@@ -71,9 +71,9 @@ struct PageIconSetterTests {
 
         let collFolder = NexusPaths.collectionFolderURL(forTitle: "C", inVaultTitled: "V", in: nexus)
         try FileManager.default.createDirectory(at: collFolder, withIntermediateDirectories: true)
-        let coll = PageCollection(
+        let coll = PageSet(
             id: ULID.generate(),
-            typeID: vault.id,
+            parentID: vault.id,
             title: "C",
             folderURL: collFolder,
             modifiedAt: Date()

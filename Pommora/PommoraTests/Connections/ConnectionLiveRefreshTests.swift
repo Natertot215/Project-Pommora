@@ -50,7 +50,7 @@ struct ConnectionLiveRefreshTests {
         let (index, _) = try PommoraIndex.open(at: nexus.rootURL)
 
         let vault = try makeVault(in: nexus, index: index, title: "V")
-        let coll = try makePageCollection(in: nexus, vault: vault, index: index, title: "C")
+        let coll = try makePageSet(in: nexus, vault: vault, index: index, title: "C")
         let manager = PageContentManager(nexus: nexus, contextProvider: { NexusContext.empty })
         manager.indexUpdater = IndexUpdater(index)
 
@@ -91,16 +91,16 @@ struct ConnectionLiveRefreshTests {
         return vault
     }
 
-    private func makePageCollection(
+    private func makePageSet(
         in nexus: Nexus, vault: PageType, index: PommoraIndex, title: String
-    ) throws -> PageCollection {
+    ) throws -> PageSet {
         let folder = NexusPaths.collectionFolderURL(forTitle: title, inVaultTitled: vault.title, in: nexus)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        let coll = PageCollection(
-            id: ULID.generate(), typeID: vault.id, title: title, folderURL: folder, modifiedAt: Date()
+        let coll = PageSet(
+            id: ULID.generate(), parentID: vault.id, title: title, folderURL: folder, modifiedAt: Date()
         )
         try coll.save(to: folder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename))
-        try IndexUpdater(index).upsertPageCollection(coll)
+        try IndexUpdater(index).upsertPageSet(coll)
         return coll
     }
 

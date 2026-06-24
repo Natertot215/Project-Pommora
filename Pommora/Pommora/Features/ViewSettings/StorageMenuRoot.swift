@@ -211,7 +211,7 @@ struct StorageMenuRoot: View {
             return .pageType(pageTypeManager.types.first(where: { $0.id == t.id }) ?? t)
         case .pageCollection(let c):
             return .pageCollection(
-                pageTypeManager.pageCollectionsByType[c.typeID]?.first(where: { $0.id == c.id }) ?? c)
+                pageTypeManager.pageCollectionsByType[c.parentID]?.first(where: { $0.id == c.id }) ?? c)
         default:
             return scope
         }

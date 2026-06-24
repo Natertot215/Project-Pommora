@@ -21,7 +21,7 @@ import Testing
 @Suite("loadAll syncs parents to index")
 struct LoadAllIndexSyncTests {
 
-    // MARK: - PageType / PageCollection sync
+    // MARK: - PageType / PageSet sync
 
     /// Simulates the adoption / external-folder scenario: a PageType folder
     /// + sidecar lives on disk but was never created via the app's CRUD
@@ -89,7 +89,7 @@ struct LoadAllIndexSyncTests {
         #expect(pageCount == 1)
     }
 
-    /// Same scenario for a PageCollection nested inside a PageType — the
+    /// Same scenario for a PageSet nested inside a PageType — the
     /// loadAll pair (PageTypeManager then PageSetManager) must sync BOTH levels
     /// so page CRUD into a collection doesn't FK-fail on `page_collection_id`.
     @Test func pageTypeManagerLoadAllSyncsCollectionsToo() async throws {
@@ -105,12 +105,12 @@ struct LoadAllIndexSyncTests {
         let pageType = PageType(id: vaultID, title: vaultName, icon: nil, properties: [], views: [], modifiedAt: Date())
         try pageType.save(to: vaultFolder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename))
 
-        // PageCollection sub-folder + sidecar on disk.
+        // PageSet sub-folder + sidecar on disk.
         let collID = ULID.generate()
         let collName = "Adopted Collection"
         let collFolder = vaultFolder.appendingPathComponent(collName, isDirectory: true)
         try FileManager.default.createDirectory(at: collFolder, withIntermediateDirectories: true)
-        let collection = PageCollection(id: collID, typeID: vaultID, title: collName, folderURL: collFolder, modifiedAt: Date())
+        let collection = PageSet(id: collID, parentID: vaultID, title: collName, folderURL: collFolder, modifiedAt: Date())
         try collection.save(to: collFolder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename))
 
         // Wire + load: collections are owned by PageSetManager.

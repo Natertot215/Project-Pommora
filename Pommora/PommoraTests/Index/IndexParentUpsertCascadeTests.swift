@@ -64,7 +64,7 @@ struct IndexParentUpsertCascadeTests {
         #expect(typesAfter == 1, "re-upsert must update in place, not duplicate")
     }
 
-    @Test func reUpsertPageCollectionPreservesChildLinkage() async throws {
+    @Test func reUpsertPageSetPreservesChildLinkage() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
         let idx = try Fixtures.index(at: nexus)
@@ -72,8 +72,8 @@ struct IndexParentUpsertCascadeTests {
 
         let pt = Fixtures.pageType()
         try updater.upsertPageType(pt)
-        let pc = Fixtures.pageCollection(typeID: pt.id)
-        try updater.upsertPageCollection(pc)
+        let pc = Fixtures.pageCollection(parentID: pt.id)
+        try updater.upsertPageSet(pc)
 
         let pageMeta = Fixtures.pageMeta(title: "Filed Page")
         try updater.upsertPage(pageMeta, pageTypeID: pt.id, pageCollectionID: pc.id)
@@ -89,7 +89,7 @@ struct IndexParentUpsertCascadeTests {
 
         // Re-upsert the SAME page collection — `ON DELETE SET NULL` would NULL the
         // child's page_collection_id under INSERT OR REPLACE.
-        try updater.upsertPageCollection(pc)
+        try updater.upsertPageSet(pc)
 
         let pagesAfter = try count("pages", in: idx)
         let after = try pageCollectionID(of: pageID, in: idx)

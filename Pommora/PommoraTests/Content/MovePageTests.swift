@@ -27,10 +27,10 @@ struct MovePageTests {
             properties: [propA, propB, propC]
         )
 
-        let collA = try makePageCollection(
+        let collA = try makePageSet(
             nexus: nexus, title: "CollA", in: vault
         )
-        let collB = try makePageCollection(
+        let collB = try makePageSet(
             nexus: nexus, title: "CollB", in: vault
         )
 
@@ -202,8 +202,8 @@ struct MovePageTests {
         defer { TempNexus.cleanup(nexus) }
 
         let vault = try makePageType(nexus: nexus, title: "Tasks", properties: [])
-        let collA = try makePageCollection(nexus: nexus, title: "CollA", in: vault)
-        let collB = try makePageCollection(nexus: nexus, title: "CollB", in: vault)
+        let collA = try makePageSet(nexus: nexus, title: "CollA", in: vault)
+        let collB = try makePageSet(nexus: nexus, title: "CollB", in: vault)
 
         let manager = PageContentManager(nexus: nexus, contextProvider: { NexusContext.empty })
 
@@ -329,20 +329,20 @@ struct MovePageTests {
     }
 
     @discardableResult
-    private func makePageCollection(
+    private func makePageSet(
         nexus: Nexus,
         title: String,
         in vault: PageType
-    ) throws -> PageCollection {
+    ) throws -> PageSet {
         let folderURL = NexusPaths.collectionFolderURL(
             forTitle: title,
             inVaultTitled: vault.title,
             in: nexus
         )
         try FileManager.default.createDirectory(at: folderURL, withIntermediateDirectories: true)
-        let coll = PageCollection(
+        let coll = PageSet(
             id: ULID.generate(),
-            typeID: vault.id,
+            parentID: vault.id,
             title: title,
             folderURL: folderURL,
             modifiedAt: Date()

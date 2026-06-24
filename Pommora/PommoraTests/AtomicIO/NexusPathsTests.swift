@@ -178,7 +178,7 @@ struct NexusPathsTests {
         #expect(meta.deletingLastPathComponent().lastPathComponent == "Productivity")
     }
 
-    // MARK: - PageType / PageCollection (flatlayout: rooted at the nexus root)
+    // MARK: - PageType / PageSet (flatlayout: rooted at the nexus root)
 
     @Test("pageTypeFolderURL sits at the nexus root (no wrapper)")
     func pageTypeFolderShape() throws {
@@ -213,7 +213,7 @@ struct NexusPathsTests {
             folder.deletingLastPathComponent().deletingLastPathComponent().path == nexus.rootURL.path
         )
 
-        // metadata sidecar uses the per-kind PageCollection name
+        // metadata sidecar uses the per-kind PageSet name
         let meta = NexusPaths.pageCollectionMetadataURL(
             in: nexus.rootURL,
             typeFolderName: "Recipes",
@@ -251,7 +251,7 @@ struct NexusPathsTests {
         )
     }
 
-    @Test("pageFileURL uses the .md extension inside a PageCollection")
+    @Test("pageFileURL uses the .md extension inside a PageSet")
     func contentFilePaths() throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }

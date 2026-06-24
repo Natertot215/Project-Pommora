@@ -5,7 +5,7 @@ import Foundation
 /// container values the source needs to walk the caches and stamp parents.
 enum ViewItemScope {
     case vault(PageType)
-    case collection(PageCollection, vault: PageType)
+    case collection(PageSet, vault: PageType)
 }
 
 /// Builds the `[ViewItem]` currency the custom table + gallery consume, reading
@@ -22,7 +22,7 @@ enum ViewItemSource {
         for scope: ViewItemScope,
         content: PageContentManager,
         sets: PageSetManager,
-        collections: (PageType) -> [PageCollection]
+        collections: (PageType) -> [PageSet]
     ) -> [ViewItem] {
         switch scope {
         case .vault(let vault):
@@ -38,7 +38,7 @@ enum ViewItemSource {
         _ vault: PageType,
         content: PageContentManager,
         sets: PageSetManager,
-        collections: (PageType) -> [PageCollection]
+        collections: (PageType) -> [PageSet]
     ) -> [ViewItem] {
         var items: [ViewItem] = []
 
@@ -72,7 +72,7 @@ enum ViewItemSource {
     // MARK: - Collection scope
 
     private static func collectionItems(
-        _ collection: PageCollection,
+        _ collection: PageSet,
         vault: PageType,
         content: PageContentManager,
         sets: PageSetManager

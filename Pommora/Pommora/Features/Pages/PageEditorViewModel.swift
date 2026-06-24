@@ -179,7 +179,7 @@ protocol PageSaver: AnyObject, Sendable {
 final class ContentManagerPageSaver: PageSaver {
     private let contentManager: PageContentManager
     private let vault: PageType
-    private let collection: PageCollection?
+    private let collection: PageSet?
     private let set: PageSet?
     /// When provided, each save resolves the Page's CURRENT container by id
     /// (index-backed) so an external or in-app move to a different scope follows the
@@ -190,7 +190,7 @@ final class ContentManagerPageSaver: PageSaver {
     private let pageSetManager: PageSetManager?
 
     init(
-        contentManager: PageContentManager, vault: PageType, collection: PageCollection?,
+        contentManager: PageContentManager, vault: PageType, collection: PageSet?,
         set: PageSet? = nil, pageTypeManager: PageTypeManager? = nil,
         pageSetManager: PageSetManager? = nil
     ) {

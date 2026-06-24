@@ -171,7 +171,7 @@ final class IndexBuilder {
             for sub in subFolders where !sub.lastPathComponent.hasPrefix("_") && !sub.lastPathComponent.hasPrefix(".") {
                 let collURL = sub.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename)
                 guard Filesystem.fileExists(at: collURL),
-                    let coll = try? PageCollection.load(from: collURL)
+                    let coll = try? PageSet.load(from: collURL)
                 else { continue }
 
                 // Sets — direct child folders of the Collection carrying `_pageset.json`.

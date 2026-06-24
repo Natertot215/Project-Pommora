@@ -71,7 +71,7 @@ struct UnlinkTierTests {
         let (index, _) = try PommoraIndex.open(at: nexus.rootURL)
 
         let vault = try makeVault(in: nexus, index: index)
-        let coll = try makePageCollection(in: nexus, vault: vault, index: index)
+        let coll = try makePageSet(in: nexus, vault: vault, index: index)
         let manager = PageContentManager(nexus: nexus, contextProvider: { NexusContext.empty })
         manager.indexUpdater = IndexUpdater(index)
 
@@ -189,14 +189,14 @@ struct UnlinkTierTests {
         return vault
     }
 
-    private func makePageCollection(in nexus: Nexus, vault: PageType, index: PommoraIndex) throws -> PageCollection {
+    private func makePageSet(in nexus: Nexus, vault: PageType, index: PommoraIndex) throws -> PageSet {
         let folder = NexusPaths.collectionFolderURL(forTitle: "C", inVaultTitled: vault.title, in: nexus)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        let coll = PageCollection(
-            id: ULID.generate(), typeID: vault.id, title: "C", folderURL: folder, modifiedAt: Date()
+        let coll = PageSet(
+            id: ULID.generate(), parentID: vault.id, title: "C", folderURL: folder, modifiedAt: Date()
         )
         try coll.save(to: folder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename))
-        try IndexUpdater(index).upsertPageCollection(coll)
+        try IndexUpdater(index).upsertPageSet(coll)
         return coll
     }
 
@@ -204,7 +204,7 @@ struct UnlinkTierTests {
     /// (`updatePageProperty` → `setRelationIDs` adapter + index re-upsert).
     private func setPageTier(
         _ manager: PageContentManager, _ page: PageMeta, tier: Int, ids: [String],
-        vault: PageType, collection: PageCollection? = nil
+        vault: PageType, collection: PageSet? = nil
     ) async throws {
         let propID = ReservedPropertyID.tierPropertyID(forTier: tier)!
         try await manager.updatePageProperty(

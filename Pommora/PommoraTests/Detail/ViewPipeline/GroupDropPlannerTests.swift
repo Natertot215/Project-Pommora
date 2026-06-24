@@ -14,15 +14,15 @@ struct GroupDropPlannerTests {
             properties: [], views: [], modifiedAt: Date())
     }
 
-    private func collection(_ id: String, in vault: PageType) -> PageCollection {
-        PageCollection(
-            id: id, typeID: vault.id, title: id,
+    private func collection(_ id: String, in vault: PageType) -> PageSet {
+        PageSet(
+            id: id, parentID: vault.id, title: id,
             folderURL: URL(fileURLWithPath: "/tmp/\(id)"), modifiedAt: Date())
     }
 
-    private func set(_ id: String, in collection: PageCollection) -> PageSet {
+    private func set(_ id: String, in collection: PageSet) -> PageSet {
         PageSet(
-            id: id, collectionID: collection.id, title: id,
+            id: id, parentID: collection.id, title: id,
             folderURL: URL(fileURLWithPath: "/tmp/\(id)"), modifiedAt: Date())
     }
 

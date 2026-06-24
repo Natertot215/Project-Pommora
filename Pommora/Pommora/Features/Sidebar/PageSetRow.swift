@@ -2,13 +2,13 @@ import SwiftUI
 
 /// Sidebar row for a PageSet — a disclosure of its member Pages. Sets are
 /// non-selectable: the header passes `tag: nil` and is `.selectionDisabled`, and
-/// there is NO SelectionChrome (the call site PageCollectionRow tags the row).
+/// there is NO SelectionChrome (the call site PageSetRow tags the row).
 /// `.selectionDisabled` goes on the LABEL (the `SidebarRow`), NOT the
 /// DisclosureGroup — row traits on a multi-row container propagate to the
 /// generated child rows, which would disable the Pages inside.
 struct PageSetRow: View {
     let set: PageSet
-    let parentCollection: PageCollection
+    let parentCollection: PageSet
     let parentVault: PageType
     @Binding var selection: SidebarSelection
     @Binding var editingID: String?
@@ -110,14 +110,14 @@ struct PageSetRow: View {
 
     /// Plain-value helper for the move menu's `disabled` check — kept out of the
     /// @ViewBuilder closure per quirk #12 (GRDB String overload pollution).
-    private func isCurrentCollection(_ collection: PageCollection) -> Bool {
+    private func isCurrentCollection(_ collection: PageSet) -> Bool {
         collection.id == parentCollection.id
     }
 
     /// Whole-Set move. Same-vault targets move immediately; a cross-vault target
     /// first counts the property values the move would strip — non-zero routes
     /// through the confirmation dialog, zero proceeds directly.
-    private func moveTo(_ collection: PageCollection, vault: PageType) {
+    private func moveTo(_ collection: PageSet, vault: PageType) {
         Task {
             do {
                 if vault.id != parentVault.id {

@@ -23,7 +23,7 @@ struct PageEditorHost: View {
 
     @State private var viewModel: PageEditorViewModel?
     @State private var resolvedVault: PageType?
-    @State private var resolvedCollection: PageCollection?
+    @State private var resolvedCollection: PageSet?
     @State private var resolvedSet: PageSet?
     @State private var loadFailed = false
 

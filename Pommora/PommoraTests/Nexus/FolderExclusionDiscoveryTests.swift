@@ -114,16 +114,16 @@ import Testing
         try FileManager.default.createDirectory(at: inboxFolder, withIntermediateDirectories: true)
         try FileManager.default.createDirectory(at: archiveFolder, withIntermediateDirectories: true)
 
-        let inbox = PageCollection(
+        let inbox = PageSet(
             id: ULID.generate(),
-            typeID: "PT_NOTES_COL",
+            parentID: "PT_NOTES_COL",
             title: "Inbox",
             folderURL: inboxFolder,
             modifiedAt: Date()
         )
-        let archive = PageCollection(
+        let archive = PageSet(
             id: ULID.generate(),
-            typeID: "PT_NOTES_COL",
+            parentID: "PT_NOTES_COL",
             title: "Archive",
             folderURL: archiveFolder,
             modifiedAt: Date()

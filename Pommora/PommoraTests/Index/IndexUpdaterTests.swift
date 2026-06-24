@@ -56,9 +56,9 @@ struct IndexUpdaterTests {
         #expect(count == 0)
     }
 
-    // MARK: - PageCollection
+    // MARK: - PageSet
 
-    @Test func createPageCollectionIndexesARow() async throws {
+    @Test func createPageSetIndexesARow() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
         let idx = try Fixtures.index(at: nexus)
@@ -66,8 +66,8 @@ struct IndexUpdaterTests {
 
         let pt = Fixtures.pageType()
         try updater.upsertPageType(pt)
-        let pc = Fixtures.pageCollection(typeID: pt.id)
-        try updater.upsertPageCollection(pc)
+        let pc = Fixtures.pageCollection(parentID: pt.id)
+        try updater.upsertPageSet(pc)
 
         let count = try countRows(in: "page_collections", db: idx)
         #expect(count == 1)
@@ -76,7 +76,7 @@ struct IndexUpdaterTests {
         #expect(row?["page_type_id"] as String? == pt.id)
     }
 
-    @Test func upsertPageCollectionPersistsEntitySchemaVersion() async throws {
+    @Test func upsertPageSetPersistsEntitySchemaVersion() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
         let idx = try Fixtures.index(at: nexus)
@@ -87,16 +87,16 @@ struct IndexUpdaterTests {
 
         // A schemaVersion ≠ the previously-hardcoded literal 1.
         let folderURL = URL(fileURLWithPath: "/tmp/dummy-\(UUID().uuidString)")
-        let pc = PageCollection(
-            id: ULID.generate(), typeID: pt.id, title: "Migrated",
+        let pc = PageSet(
+            id: ULID.generate(), parentID: pt.id, title: "Migrated",
             folderURL: folderURL, modifiedAt: Date(), schemaVersion: 7)
-        try updater.upsertPageCollection(pc)
+        try updater.upsertPageSet(pc)
 
         let row = try firstRow(in: "page_collections", db: idx, where: "id = '\(pc.id)'")
         #expect(row?["schema_version"] as Int? == 7)
     }
 
-    @Test func deletePageCollectionRemovesRow() async throws {
+    @Test func deletePageSetRemovesRow() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
         let idx = try Fixtures.index(at: nexus)
@@ -104,9 +104,9 @@ struct IndexUpdaterTests {
 
         let pt = Fixtures.pageType()
         try updater.upsertPageType(pt)
-        let pc = Fixtures.pageCollection(typeID: pt.id)
-        try updater.upsertPageCollection(pc)
-        try updater.deletePageCollection(id: pc.id)
+        let pc = Fixtures.pageCollection(parentID: pt.id)
+        try updater.upsertPageSet(pc)
+        try updater.deletePageSet(id: pc.id)
 
         let count = try countRows(in: "page_collections", db: idx)
         #expect(count == 0)
@@ -137,8 +137,8 @@ struct IndexUpdaterTests {
 
         let pt = Fixtures.pageType()
         try updater.upsertPageType(pt)
-        let pc = Fixtures.pageCollection(typeID: pt.id)
-        try updater.upsertPageCollection(pc)
+        let pc = Fixtures.pageCollection(parentID: pt.id)
+        try updater.upsertPageSet(pc)
 
         let rootPage = Fixtures.pageMeta(title: "Root")
         let collectionPage = Fixtures.pageMeta(title: "InCollection")

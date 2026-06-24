@@ -106,8 +106,8 @@ struct PageOpenRouterTests {
     @Test("routeOpen carries the collection into the preview ref")
     func routeOpenCarriesCollection() {
         let vault = makeVault(openIn: .compact)
-        let collection = PageCollection(
-            id: ULID.generate(), typeID: vault.id, title: "Set",
+        let collection = PageSet(
+            id: ULID.generate(), parentID: vault.id, title: "Set",
             folderURL: URL(fileURLWithPath: "/tmp/Vault/Set"), modifiedAt: Date()
         )
         let page = makePage()

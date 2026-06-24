@@ -46,9 +46,9 @@ struct NexusAdopterAutoTagTests {
             NexusPaths.pageCollectionSidecarFilename
         )
         #expect(FileManager.default.fileExists(atPath: pcMeta.path))
-        let pc = try PageCollection.load(from: pcMeta)
+        let pc = try PageSet.load(from: pcMeta)
         #expect(!pc.id.isEmpty)
-        #expect(pc.typeID == pt.id)
+        #expect(pc.parentID == pt.id)
         #expect(pc.title == "Sources")
 
         // The markdown file at the collection path is preserved.
@@ -84,14 +84,14 @@ struct NexusAdopterAutoTagTests {
         let pt = try PageType.load(
             from: typeFolder.appendingPathComponent(NexusPaths.pageTypeSidecarFilename)
         )
-        let pc = try PageCollection.load(
+        let pc = try PageSet.load(
             from: collFolder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename)
         )
         let ps = try PageSet.load(
             from: setFolder.appendingPathComponent(NexusPaths.pageSetSidecarFilename)
         )
-        #expect(pc.typeID == pt.id)
-        #expect(ps.collectionID == pc.id)
+        #expect(pc.parentID == pt.id)
+        #expect(ps.parentID == pc.id)
         #expect(ps.title == "Drafts")
 
         // Depth-3 folder inside the Set stays sidecar-less.
@@ -131,7 +131,7 @@ struct NexusAdopterAutoTagTests {
         let ps2 = try PageSet.load(from: psMeta)
 
         #expect(ps1.id == ps2.id)
-        #expect(ps1.collectionID == ps2.collectionID)
+        #expect(ps1.parentID == ps2.parentID)
     }
 
     @Test("a FolderFilter-excluded folder at depth 2 is untouched")
@@ -185,16 +185,16 @@ struct NexusAdopterAutoTagTests {
             .appendingPathComponent(NexusPaths.pageTypeSidecarFilename)
         let pcMeta = collFolder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename)
         let pt1 = try PageType.load(from: ptMeta)
-        let pc1 = try PageCollection.load(from: pcMeta)
+        let pc1 = try PageSet.load(from: pcMeta)
 
         NexusAdopter.autoTagMissingSidecars(at: nexus.rootURL)
         let pt2 = try PageType.load(from: ptMeta)
-        let pc2 = try PageCollection.load(from: pcMeta)
+        let pc2 = try PageSet.load(from: pcMeta)
 
         // IDs preserved across passes — sidecars not rewritten.
         #expect(pt1.id == pt2.id)
         #expect(pc1.id == pc2.id)
-        #expect(pc1.typeID == pc2.typeID)
+        #expect(pc1.parentID == pc2.parentID)
     }
 
     // MARK: - Exclusion rules
@@ -284,7 +284,7 @@ struct NexusAdopterAutoTagTests {
         // Collection sidecar now exists with FK to the existing Type.
         let pcMeta = collFolder.appendingPathComponent(NexusPaths.pageCollectionSidecarFilename)
         #expect(FileManager.default.fileExists(atPath: pcMeta.path))
-        let pc = try PageCollection.load(from: pcMeta)
-        #expect(pc.typeID == knownID)
+        let pc = try PageSet.load(from: pcMeta)
+        #expect(pc.parentID == knownID)
     }
 }

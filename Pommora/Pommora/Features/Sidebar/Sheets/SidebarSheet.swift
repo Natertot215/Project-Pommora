@@ -18,10 +18,10 @@ enum SidebarSheet: Identifiable {
         case topic(Topic)
         case project(Project)
         case pageType(PageType)
-        case pageCollection(PageCollection)
+        case pageCollection(PageSet)
         case pageSet(PageSet)
-        case page(PageMeta, vault: PageType, collection: PageCollection?, set: PageSet?)
-        /// A SavedView on a container (PageType or PageCollection). Carries IDs
+        case page(PageMeta, vault: PageType, collection: PageSet?, set: PageSet?)
+        /// A SavedView on a container (PageType or PageSet). Carries IDs
         /// only — the icon write routes through `PageTypeManager.updateView`,
         /// which resolves the container by ID across both kinds.
         case savedView(viewID: String, containerID: String)

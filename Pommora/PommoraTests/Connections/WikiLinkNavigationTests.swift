@@ -17,7 +17,7 @@ struct WikiLinkNavigationTests {
     private func setup() async throws -> (
         nexus: Nexus,
         vault: PageType,
-        coll: PageCollection,
+        coll: PageSet,
         manager: PageContentManager,
         index: PommoraIndex
     ) {
@@ -34,9 +34,9 @@ struct WikiLinkNavigationTests {
 
         let collFolder = NexusPaths.collectionFolderURL(forTitle: "C", inVaultTitled: "V", in: nexus)
         try FileManager.default.createDirectory(at: collFolder, withIntermediateDirectories: true)
-        let coll = PageCollection(
+        let coll = PageSet(
             id: ULID.generate(),
-            typeID: vault.id,
+            parentID: vault.id,
             title: "C",
             folderURL: collFolder,
             modifiedAt: Date()
@@ -44,7 +44,7 @@ struct WikiLinkNavigationTests {
 
         let updater = IndexUpdater(index)
         try updater.upsertPageType(vault)
-        try updater.upsertPageCollection(coll)
+        try updater.upsertPageSet(coll)
 
         let manager = PageContentManager(nexus: nexus, contextProvider: { NexusContext.empty })
         manager.indexUpdater = updater

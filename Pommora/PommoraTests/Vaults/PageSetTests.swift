@@ -19,7 +19,7 @@ struct PageSetTests {
 
         let original = PageSet(
             id: "01HSET",
-            collectionID: "01HCOLL",
+            parentID: "01HCOLL",
             title: "Weekly",
             folderURL: folder,
             modifiedAt: Date(timeIntervalSince1970: 1716480000),
@@ -31,7 +31,7 @@ struct PageSetTests {
 
         let loaded = try PageSet.load(from: metaURL)
         #expect(loaded.id == "01HSET")
-        #expect(loaded.collectionID == "01HCOLL")
+        #expect(loaded.parentID == "01HCOLL")
         #expect(loaded.title == "Weekly")
         #expect(loaded.folderURL == folder)
         #expect(loaded.modifiedAt == Date(timeIntervalSince1970: 1716480000))
@@ -52,7 +52,7 @@ struct PageSetTests {
         let metaURL = folder.appendingPathComponent(NexusPaths.pageSetSidecarFilename)
 
         try PageSet(
-            id: "01H", collectionID: "01HC", title: "S",
+            id: "01H", parentID: "01HC", title: "S",
             folderURL: folder, modifiedAt: Date(),
             pageOrder: ["01HP"]
         ).save(to: metaURL)
@@ -80,7 +80,7 @@ struct PageSetTests {
         let metaURL = folder.appendingPathComponent(NexusPaths.pageSetSidecarFilename)
 
         try PageSet(
-            id: "01H", collectionID: "01HC", title: "Side Quests",
+            id: "01H", parentID: "01HC", title: "Side Quests",
             folderURL: folder, modifiedAt: Date()
         ).save(to: metaURL)
 
@@ -101,7 +101,7 @@ struct PageSetTests {
         let metaURL = folder.appendingPathComponent(NexusPaths.pageSetSidecarFilename)
 
         try PageSet(
-            id: "01H", collectionID: "01HC", title: "S",
+            id: "01H", parentID: "01HC", title: "S",
             folderURL: folder, modifiedAt: Date()
         ).save(to: metaURL)
 
@@ -122,7 +122,7 @@ struct PageSetTests {
         let metaURL = folder.appendingPathComponent(NexusPaths.pageSetSidecarFilename)
 
         try PageSet(
-            id: "01H", collectionID: "01HC", title: "S",
+            id: "01H", parentID: "01HC", title: "S",
             folderURL: folder, modifiedAt: Date()
         ).save(to: metaURL)
 
