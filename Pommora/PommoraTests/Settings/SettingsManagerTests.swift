@@ -21,8 +21,8 @@ struct SettingsManagerTests {
         #expect(FileManager.default.fileExists(atPath: url.path))
         #expect(m.settings.version == 1)
         #expect(m.settings.accentColor == nil)
-        #expect(m.settings.labels.pageType.singular == "Vault")
         #expect(m.settings.labels.pageCollection.singular == "Collection")
+        #expect(m.settings.labels.pageSet.singular == "Set")
         #expect(m.pendingError == nil)
     }
 
@@ -34,14 +34,14 @@ struct SettingsManagerTests {
         // Write a pre-existing settings file with a non-default accent + label.
         var seeded = Settings.defaultSeed()
         seeded.accentColor = .green
-        seeded.labels.pageType = LabelPair(singular: "Library", plural: "Libraries")
+        seeded.labels.pageCollection = LabelPair(singular: "Library", plural: "Libraries")
         try AtomicJSON.write(seeded, to: NexusPaths.settingsFileURL(in: nexus))
 
         let m = SettingsManager(nexus: nexus)
         await m.loadOrSeed()
 
         #expect(m.settings.accentColor == .green)
-        #expect(m.settings.labels.pageType.singular == "Library")
+        #expect(m.settings.labels.pageCollection.singular == "Library")
         #expect(m.pendingError == nil)
     }
 
@@ -96,16 +96,16 @@ struct SettingsManagerTests {
         await m.loadOrSeed()
 
         let newLabel = LabelPair(singular: "Library", plural: "Libraries")
-        await m.updateLabel(\.pageType, to: newLabel)
+        await m.updateLabel(\.pageCollection, to: newLabel)
 
-        #expect(m.settings.labels.pageType == newLabel)
+        #expect(m.settings.labels.pageCollection == newLabel)
 
         let reloaded = try AtomicJSON.decode(
             Settings.self,
             from: NexusPaths.settingsFileURL(in: nexus)
         )
-        #expect(reloaded.labels.pageType.singular == "Library")
-        #expect(reloaded.labels.pageType.plural == "Libraries")
+        #expect(reloaded.labels.pageCollection.singular == "Library")
+        #expect(reloaded.labels.pageCollection.plural == "Libraries")
     }
 
     @Test("updateLabel preserves untouched label pairs")
@@ -121,8 +121,8 @@ struct SettingsManagerTests {
 
         #expect(m.settings.labels.agendaTask == todo)
         // Pages-side labels stay default.
-        #expect(m.settings.labels.pageType.singular == "Vault")
         #expect(m.settings.labels.pageCollection.singular == "Collection")
+        #expect(m.settings.labels.pageSet.singular == "Set")
         // Sibling Agenda label stays default.
         #expect(m.settings.labels.agendaEvent.singular == "Event")
     }
@@ -158,11 +158,11 @@ struct SettingsManagerTests {
         let first = SettingsManager(nexus: nexus)
         await first.loadOrSeed()
         await first.updateAccentColor(.orange)
-        await first.updateLabel(\.pageType, to: LabelPair(singular: "Kind", plural: "Kinds"))
+        await first.updateLabel(\.pageCollection, to: LabelPair(singular: "Kind", plural: "Kinds"))
 
         let second = SettingsManager(nexus: nexus)
         await second.loadOrSeed()
         #expect(second.settings.accentColor == .orange)
-        #expect(second.settings.labels.pageType.singular == "Kind")
+        #expect(second.settings.labels.pageCollection.singular == "Kind")
     }
 }

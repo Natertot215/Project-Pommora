@@ -87,13 +87,13 @@ struct PageCollectionRow: View {
                 justCreatedID: $justCreatedID,
                 onRename: { try await collectionManager.renamePageCollection(pageCollection, to: $0) }
             ) {
-                let pageTypeLabel = settingsManager.settings.labels.pageType.singular
-                let collectionLabel = settingsManager.settings.labels.pageCollection.singular
-                // Vault creation is intentionally NOT offered here — the only way
-                // to create a Vault is the "+" in the Pages section header
-                // (SidebarView.createPageCollection). A Vault's menu creates its
-                // children (Collections + Pages) only.
-                Button("New \(collectionLabel)") { createPageCollection() }
+                let pageCollectionLabel = settingsManager.settings.labels.pageCollection.singular
+                let setLabel = settingsManager.settings.labels.pageSet.singular
+                // Top-tier Collection creation is NOT offered here — the only way
+                // to create a Collection is the "+" in the Pages section header
+                // (SidebarView.createPageCollection). A Collection's menu creates its
+                // children (Sets + Pages) only.
+                Button("New \(setLabel)") { createPageCollection() }
                     .disabled(isCreatingCollection)
                 Button("New Page") { createPage() }
                     .disabled(isCreatingPage)
@@ -114,7 +114,7 @@ struct PageCollectionRow: View {
                     }
                 }
                 Divider()
-                Button("\(pageTypeLabel) Settings…") {
+                Button("\(pageCollectionLabel) Settings…") {
                     showingCollectionSettings = true
                 }
                 Divider()
@@ -172,11 +172,11 @@ struct PageCollectionRow: View {
         }
     }
 
-    /// Stub-and-edit "New PageCollection" trigger.
+    /// Stub-and-edit "New Set" trigger.
     private func createPageCollection() {
         guard !isCreatingCollection else { return }
         isCreatingCollection = true
-        let label = settingsManager.settings.labels.pageCollection.singular
+        let label = settingsManager.settings.labels.pageSet.singular
         let existing = collectionManager.pageCollections(in: pageCollection).map(\.title)
         let title = DefaultTitleResolver.resolve(label: label, existingTitles: existing)
         Task {

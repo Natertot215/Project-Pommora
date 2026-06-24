@@ -44,7 +44,7 @@ struct Settings: Codable, Equatable, Hashable, Sendable {
 
     /// The defaults version shipped with the current build.  Increment this
     /// whenever a default value changes and add a migration step in `migrate(_:)`.
-    static let currentDefaultsVersion: Int = 5
+    static let currentDefaultsVersion: Int = 6
 
     // MARK: - Codable
 
@@ -174,6 +174,21 @@ struct Settings: Codable, Equatable, Hashable, Sendable {
             // Brand-new fields — absent in older files, decoded as nil / "",
             // which already equal the new defaults, so nothing to rewrite.
             s.defaultsVersion = 5
+        }
+
+        if s.defaultsVersion < 6 {
+            // v5→v6: Pages tier collapsed from three to two.
+            // `pageCollection` (top tier) and `pageSet` (recursive Set) remain;
+            // the old middle `pageCollection` is dropped.
+            // The decode-time init(from:) in SettingsLabels already carries the
+            // old `page_type` value into `pageCollection` for old files, so the
+            // top-tier label is correct by the time we reach this step.
+            // Only `sidebar_sections.pages` needs a default-value update:
+            // "Vaults" → "Collections".
+            if s.labels.sidebarSections.pages == "Vaults" {
+                s.labels.sidebarSections.pages = "Collections"
+            }
+            s.defaultsVersion = 6
         }
 
         // Clamp to current in case intermediate versions were skipped.

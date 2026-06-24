@@ -332,7 +332,7 @@ struct VaultsSection: View {
     private func createPageCollection() {
         guard !isCreating else { return }
         isCreating = true
-        let label = settingsManager.settings.labels.pageType.singular
+        let label = settingsManager.settings.labels.pageCollection.singular
         let existing = collectionManager.types.map(\.title)
         let title = DefaultTitleResolver.resolve(label: label, existingTitles: existing)
         Task {

@@ -274,7 +274,7 @@ struct PageCollectionScope: DetailScope {
     }
 
     func containerCreateLabel(_ settings: SettingsManager) -> String {
-        settings.settings.labels.pageCollection.singular
+        settings.settings.labels.pageSet.singular
     }
 
     func createPage(title: String, content: PageContentManager) async throws -> PageMeta {
@@ -297,15 +297,14 @@ struct PageCollectionScope: DetailScope {
     }
 
     func deleteConfirmation(for ref: ContainerRef, settings: SettingsManager) -> DeleteConfirmation? {
-        // Vault scope only ever deletes Collections; a Set ref is unreachable
-        // (containerActions emits only Collection refs, the sole writer of
-        // deleteTarget). Degrade to nil rather than crash if that ever slips —
+        // Vault scope only ever deletes Sets; a Set ref is unreachable from a
+        // non-collection ref. Degrade to nil rather than crash if that ever slips —
         // assertionFailure flags it in debug, release no-ops.
         guard case .collection(let coll) = ref else {
             assertionFailure("PageCollectionScope received a non-Collection ContainerRef")
             return nil
         }
-        let label = settings.settings.labels.pageCollection.singular
+        let label = settings.settings.labels.pageSet.singular
         return DeleteConfirmation(
             title: "Delete \(label) \"\(coll.title)\"?",
             message: "All Pages inside will be deleted.",

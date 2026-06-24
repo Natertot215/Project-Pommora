@@ -203,4 +203,122 @@ struct SettingsManagerAutoMigrationTests {
         #expect(m.settings.profileSubtitle == String(repeating: "x", count: 30))
         #expect(m.pendingError == nil)
     }
+
+    // MARK: - Three-to-two tier collapse (v5 → v6)
+
+    @Test("old three-tier defaults migrate to new two-tier defaults without crashing")
+    func oldThreeTierDefaultsMigrateCleanly() async throws {
+        let nexus = try TempNexus.make()
+        defer { TempNexus.cleanup(nexus) }
+
+        // Old file: page_type = "Vault" (old default), page_collection = "Collection"
+        // (old middle tier), page_set = "Set". Sidebar pages = "Vaults" (old default).
+        let oldJSON = """
+        {
+          "version": 1,
+          "defaults_version": 5,
+          "labels": {
+            "sidebar_sections": { "pages": "Vaults", "areas": "Areas", "topics": "Topics" },
+            "page_type":        { "singular": "Vault",       "plural": "Vaults"       },
+            "page_collection":  { "singular": "Collection",  "plural": "Collections"  },
+            "page_set":         { "singular": "Set",         "plural": "Sets"         },
+            "project":          { "singular": "Project",     "plural": "Projects"     },
+            "agenda_task":      { "singular": "Task",        "plural": "Tasks"        },
+            "agenda_event":     { "singular": "Event",       "plural": "Events"       }
+          },
+          "modified_at": "2026-01-01T00:00:00Z"
+        }
+        """
+        let url = NexusPaths.settingsFileURL(in: nexus)
+        try oldJSON.data(using: .utf8)!.write(to: url)
+
+        let m = SettingsManager(nexus: nexus)
+        await m.loadOrSeed()
+
+        #expect(m.pendingError == nil)
+        #expect(m.settings.defaultsVersion == Settings.currentDefaultsVersion)
+        // page_type was the default "Vault" → new top-tier defaults to "Collection".
+        #expect(m.settings.labels.pageCollection.singular == "Collection")
+        #expect(m.settings.labels.pageCollection.plural   == "Collections")
+        // page_set unchanged.
+        #expect(m.settings.labels.pageSet.singular == "Set")
+        #expect(m.settings.labels.pageSet.plural   == "Sets")
+        // sidebar.pages migrated from old default "Vaults" → "Collections".
+        #expect(m.settings.labels.sidebarSections.pages == "Collections")
+    }
+
+    @Test("user-customized page_type carries to new top-tier pageCollection")
+    func customPageTypeCarriesToPageCollection() async throws {
+        let nexus = try TempNexus.make()
+        defer { TempNexus.cleanup(nexus) }
+
+        // User renamed "Vault" → "Workspace" in the old three-tier schema.
+        let oldJSON = """
+        {
+          "version": 1,
+          "defaults_version": 5,
+          "labels": {
+            "sidebar_sections": { "pages": "Workspaces", "areas": "Areas", "topics": "Topics" },
+            "page_type":        { "singular": "Workspace",   "plural": "Workspaces"   },
+            "page_collection":  { "singular": "Collection",  "plural": "Collections"  },
+            "page_set":         { "singular": "Set",         "plural": "Sets"         },
+            "project":          { "singular": "Project",     "plural": "Projects"     },
+            "agenda_task":      { "singular": "Task",        "plural": "Tasks"        },
+            "agenda_event":     { "singular": "Event",       "plural": "Events"       }
+          },
+          "modified_at": "2026-01-01T00:00:00Z"
+        }
+        """
+        let url = NexusPaths.settingsFileURL(in: nexus)
+        try oldJSON.data(using: .utf8)!.write(to: url)
+
+        let m = SettingsManager(nexus: nexus)
+        await m.loadOrSeed()
+
+        #expect(m.pendingError == nil)
+        #expect(m.settings.defaultsVersion == Settings.currentDefaultsVersion)
+        // Customized page_type "Workspace" carries into new top-tier pageCollection.
+        #expect(m.settings.labels.pageCollection.singular == "Workspace")
+        #expect(m.settings.labels.pageCollection.plural   == "Workspaces")
+        // User-customized sidebar.pages "Workspaces" is NOT the old default "Vaults" →
+        // migration does not overwrite it.
+        #expect(m.settings.labels.sidebarSections.pages == "Workspaces")
+    }
+
+    @Test("user-customized page_set survives three-to-two migration")
+    func customPageSetSurvivesMigration() async throws {
+        let nexus = try TempNexus.make()
+        defer { TempNexus.cleanup(nexus) }
+
+        // User renamed "Set" → "Chapter".
+        let oldJSON = """
+        {
+          "version": 1,
+          "defaults_version": 5,
+          "labels": {
+            "sidebar_sections": { "pages": "Vaults", "areas": "Areas", "topics": "Topics" },
+            "page_type":        { "singular": "Vault",       "plural": "Vaults"       },
+            "page_collection":  { "singular": "Collection",  "plural": "Collections"  },
+            "page_set":         { "singular": "Chapter",     "plural": "Chapters"     },
+            "project":          { "singular": "Project",     "plural": "Projects"     },
+            "agenda_task":      { "singular": "Task",        "plural": "Tasks"        },
+            "agenda_event":     { "singular": "Event",       "plural": "Events"       }
+          },
+          "modified_at": "2026-01-01T00:00:00Z"
+        }
+        """
+        let url = NexusPaths.settingsFileURL(in: nexus)
+        try oldJSON.data(using: .utf8)!.write(to: url)
+
+        let m = SettingsManager(nexus: nexus)
+        await m.loadOrSeed()
+
+        #expect(m.pendingError == nil)
+        #expect(m.settings.defaultsVersion == Settings.currentDefaultsVersion)
+        // Customized page_set "Chapter" survives unchanged.
+        #expect(m.settings.labels.pageSet.singular == "Chapter")
+        #expect(m.settings.labels.pageSet.plural   == "Chapters")
+        // Top tier defaults to "Collection" (old page_type was default "Vault").
+        #expect(m.settings.labels.pageCollection.singular == "Collection")
+    }
 }

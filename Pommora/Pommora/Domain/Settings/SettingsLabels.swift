@@ -2,8 +2,9 @@ import Foundation
 
 struct SettingsLabels: Codable, Equatable, Hashable, Sendable {
     var sidebarSections: SidebarSectionLabels
-    var pageType: LabelPair
+    /// Top-tier Pages label (user-facing "Collection"). Formerly `page_type` / "Vault".
     var pageCollection: LabelPair
+    /// Recursive Set label. Nested Sets derive "Sub-Set" as `"Sub-" + pageSet.singular` — not stored.
     var pageSet: LabelPair
     var project: LabelPair
     var agendaTask: LabelPair
@@ -11,7 +12,6 @@ struct SettingsLabels: Codable, Equatable, Hashable, Sendable {
 
     enum CodingKeys: String, CodingKey {
         case sidebarSections = "sidebar_sections"
-        case pageType = "page_type"
         case pageCollection = "page_collection"
         case pageSet = "page_set"
         case project
@@ -22,7 +22,6 @@ struct SettingsLabels: Codable, Equatable, Hashable, Sendable {
     static func defaults() -> SettingsLabels {
         SettingsLabels(
             sidebarSections: SidebarSectionLabels.defaults(),
-            pageType: LabelPair(singular: "Vault", plural: "Vaults"),
             pageCollection: LabelPair(singular: "Collection", plural: "Collections"),
             pageSet: LabelPair(singular: "Set", plural: "Sets"),
             project: LabelPair(singular: "Project", plural: "Projects"),
@@ -35,7 +34,6 @@ struct SettingsLabels: Codable, Equatable, Hashable, Sendable {
 
     init(
         sidebarSections: SidebarSectionLabels,
-        pageType: LabelPair,
         pageCollection: LabelPair,
         pageSet: LabelPair,
         project: LabelPair,
@@ -43,7 +41,6 @@ struct SettingsLabels: Codable, Equatable, Hashable, Sendable {
         agendaEvent: LabelPair
     ) {
         self.sidebarSections = sidebarSections
-        self.pageType = pageType
         self.pageCollection = pageCollection
         self.pageSet = pageSet
         self.project = project
@@ -51,14 +48,22 @@ struct SettingsLabels: Codable, Equatable, Hashable, Sendable {
         self.agendaEvent = agendaEvent
     }
 
+    // Used only during decoding to read the retired `page_type` key from old files.
+    private enum LegacyCodingKeys: String, CodingKey {
+        case pageType = "page_type"
+    }
+
+    private static let oldPageTypeDefault = LabelPair(singular: "Vault", plural: "Vaults")
+    private static let newPageCollectionDefault = LabelPair(singular: "Collection", plural: "Collections")
+
     init(from decoder: any Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         sidebarSections = try c.decode(SidebarSectionLabels.self, forKey: .sidebarSections)
-        pageType = try c.decode(LabelPair.self, forKey: .pageType)
-        pageCollection = try c.decode(LabelPair.self, forKey: .pageCollection)
-        // Older files lack `page_set` — decode with the default, mirroring
-        // SidebarSectionLabels' areas/topics. The decoded value equals the
-        // new default, so no defaultsVersion bump or migration step needed.
+        // Old files carry `page_type` (top tier) + `page_collection` (middle tier).
+        // If `page_type` is present and the user customized it off "Vault", carry
+        // it into `pageCollection`. If it was the default "Vault" (or absent),
+        // use `page_collection` for new-format files, or the new default otherwise.
+        pageCollection = Self.resolvePageCollection(from: decoder, primaryContainer: c)
         pageSet =
             (try? c.decode(LabelPair.self, forKey: .pageSet))
             ?? LabelPair(singular: "Set", plural: "Sets")
@@ -66,13 +71,28 @@ struct SettingsLabels: Codable, Equatable, Hashable, Sendable {
         agendaTask = try c.decode(LabelPair.self, forKey: .agendaTask)
         agendaEvent = try c.decode(LabelPair.self, forKey: .agendaEvent)
     }
+
+    private static func resolvePageCollection(
+        from decoder: any Decoder,
+        primaryContainer c: KeyedDecodingContainer<CodingKeys>
+    ) -> LabelPair {
+        // Try to read the retired `page_type` key (exists in old three-tier files).
+        if let legacyC = try? decoder.container(keyedBy: LegacyCodingKeys.self),
+           let oldPageType = try? legacyC.decodeIfPresent(LabelPair.self, forKey: .pageType)
+        {
+            // User customized the top tier off "Vault" → carry the value forward.
+            if oldPageType != Self.oldPageTypeDefault {
+                return oldPageType
+            }
+            // Old default "Vault" → migrate to new default "Collection".
+            return Self.newPageCollectionDefault
+        }
+        // New-format file: `page_collection` already holds the top-tier label.
+        return (try? c.decode(LabelPair.self, forKey: .pageCollection)) ?? Self.newPageCollectionDefault
+    }
 }
 
-// Pages-side renders the distinctive "Vault" + generic "Collection" pair.
-// agendaTask + agendaEvent labels are kept here for Calendar's eventual UI consumption;
-// they're dormant in v0.3.0 (no sidebar Agenda section per Phase 8.3).
-// Legacy settings.json files may still carry retired label keys —
-// Codable ignores unlisted keys, so they decode cleanly and drop on next write.
+// agendaTask + agendaEvent labels are kept for Calendar's eventual UI consumption.
 
 struct SidebarSectionLabels: Codable, Equatable, Hashable, Sendable {
     var areas: String
@@ -82,9 +102,7 @@ struct SidebarSectionLabels: Codable, Equatable, Hashable, Sendable {
     // surface via the Calendar pin entry; Calendar UI ships in a follow-up plan.
 
     static func defaults() -> SidebarSectionLabels {
-        // Pages-side section header defaults to its container-plural signature
-        // word "Vaults" — renameable via Settings.
-        SidebarSectionLabels(areas: "Areas", topics: "Topics", pages: "Vaults")
+        SidebarSectionLabels(areas: "Areas", topics: "Topics", pages: "Collections")
     }
 
     // MARK: - Codable

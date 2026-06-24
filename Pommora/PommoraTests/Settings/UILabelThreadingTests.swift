@@ -30,35 +30,35 @@ struct UILabelThreadingTests {
         #expect(labels.sidebarSections.areas == defaults.sidebarSections.areas)
         #expect(labels.sidebarSections.topics == defaults.sidebarSections.topics)
         #expect(labels.sidebarSections.pages  == defaults.sidebarSections.pages)
-        #expect(labels.pageType.singular      == defaults.pageType.singular)
         #expect(labels.pageCollection.singular == defaults.pageCollection.singular)
+        #expect(labels.pageSet.singular       == defaults.pageSet.singular)
         #expect(labels.agendaTask.singular    == defaults.agendaTask.singular)
         #expect(labels.agendaEvent.singular   == defaults.agendaEvent.singular)
     }
 
     // MARK: - Test 2: Default sidebar section values are correct strings
 
-    @Test("Default sidebar section labels are Areas / Topics / Vaults")
+    @Test("Default sidebar section labels are Areas / Topics / Collections")
     func defaultSidebarSectionStrings() async throws {
         let m = try await makeSettingsManager()
         let s = m.settings.labels.sidebarSections
         #expect(s.areas == "Areas")
         #expect(s.topics == "Topics")
-        #expect(s.pages  == "Vaults")
+        #expect(s.pages  == "Collections")
     }
 
-    // MARK: - Test 3: Default page-type label is "Vault"
+    // MARK: - Test 3: Default top-tier label is "Collection"
 
-    @Test("Default pageType label is Vault / Vaults")
+    @Test("Default pageCollection label is Collection / Collections")
     func defaultPageCollectionLabel() async throws {
         let m = try await makeSettingsManager()
-        #expect(m.settings.labels.pageType.singular == "Vault")
-        #expect(m.settings.labels.pageType.plural   == "Vaults")
+        #expect(m.settings.labels.pageCollection.singular == "Collection")
+        #expect(m.settings.labels.pageCollection.plural   == "Collections")
     }
 
-    // MARK: - Test 4: Customizing the "Vault" label propagates
+    // MARK: - Test 4: Customizing the top-tier label propagates
 
-    @Test("Customizing pageType label persists and is readable on next load")
+    @Test("Customizing pageCollection label persists and is readable on next load")
     func customizeVaultLabelPersists() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
@@ -66,14 +66,14 @@ struct UILabelThreadingTests {
         let m = SettingsManager(nexus: nexus)
         await m.loadOrSeed()
 
-        await m.updateLabel(\.pageType, to: LabelPair(singular: "Library", plural: "Libraries"))
+        await m.updateLabel(\.pageCollection, to: LabelPair(singular: "Library", plural: "Libraries"))
 
-        #expect(m.settings.labels.pageType.singular == "Library")
+        #expect(m.settings.labels.pageCollection.singular == "Library")
 
         // Re-read from a second manager instance — verifies on-disk persistence.
         let m2 = SettingsManager(nexus: nexus)
         await m2.loadOrSeed()
-        #expect(m2.settings.labels.pageType.singular == "Library")
+        #expect(m2.settings.labels.pageCollection.singular == "Library")
     }
 
     // MARK: - Test 5: Customizing the "Areas" section label propagates
@@ -103,12 +103,12 @@ struct UILabelThreadingTests {
     func updatingOneLabelPreservesOthers() async throws {
         let m = try await makeSettingsManager()
 
-        await m.updateLabel(\.pageType, to: LabelPair(singular: "Note Folder", plural: "Note Folders"))
+        await m.updateLabel(\.pageCollection, to: LabelPair(singular: "Note Folder", plural: "Note Folders"))
 
         // Untouched labels should be unchanged.
-        #expect(m.settings.labels.pageCollection.singular == "Collection")
+        #expect(m.settings.labels.pageSet.singular == "Set")
         #expect(m.settings.labels.agendaTask.singular == "Task")
-        #expect(m.settings.labels.sidebarSections.pages == "Vaults")
+        #expect(m.settings.labels.sidebarSections.pages == "Collections")
     }
 
     // MARK: - Test 7: agendaTask label defaults to "Task"
@@ -164,7 +164,8 @@ struct UILabelThreadingTests {
     @Test("Decoding legacy settings without areas/topics fields uses safe defaults")
     func legacyDecodeHasSafeDefaults() throws {
         // Simulate a legacy settings file that lacks `areas` and `topics`
-        // in the sidebar_sections block.
+        // in the sidebar_sections block. Also carries the old three-tier
+        // `page_type` + `page_collection` keys.
         let json = """
         {
           "version": 1,
@@ -191,9 +192,13 @@ struct UILabelThreadingTests {
         let decoded = try decoder.decode(Settings.self, from: json)
         #expect(decoded.labels.sidebarSections.areas == "Areas")
         #expect(decoded.labels.sidebarSections.topics == "Topics")
+        // sidebar.pages carries the raw JSON value; migration (via SettingsManager)
+        // updates "Vaults" → "Collections", but raw decode preserves it.
         #expect(decoded.labels.sidebarSections.pages  == "Vaults")
-        // `page_set` is also absent from the legacy block — decodes to the
-        // default pair (no defaultsVersion bump; absent → default by design).
+        // Old `page_type` was the default "Vault" → maps to new default "Collection".
+        #expect(decoded.labels.pageCollection.singular == "Collection")
+        #expect(decoded.labels.pageCollection.plural   == "Collections")
+        // `page_set` is absent → defaults.
         #expect(decoded.labels.pageSet.singular == "Set")
         #expect(decoded.labels.pageSet.plural   == "Sets")
     }

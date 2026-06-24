@@ -100,7 +100,7 @@ struct AdoptionPreviewView: View {
             HStack(spacing: PUI.Spacing.xxxl) {
                 summaryStat(
                     count: pageTypeMigrationCount,
-                    label: labels.pageType.singular,
+                    label: labels.pageCollection.singular,
                     systemImage: "folder.fill"
                 )
                 summaryStat(
@@ -445,8 +445,8 @@ struct AdoptionPreviewView: View {
 
     private func labelForSidecar(_ kind: AdoptedSidecarKind) -> String {
         switch kind {
-        case .pageCollection: return labels.pageType.singular
-        case .pageSetCollection: return labels.pageCollection.singular
+        case .pageCollection: return labels.pageCollection.singular
+        case .pageSetCollection: return labels.pageSet.singular
         case .pageSet: return labels.pageSet.singular
         case .taskConfig: return labels.agendaTask.plural
         case .eventConfig: return labels.agendaEvent.plural
