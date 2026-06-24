@@ -11,7 +11,7 @@ import { splitFrontmatter } from '../readNexus'
 import { splitEnvelope } from '../io/pageFile'
 import { readJsonObject } from '../io/atomicWrite'
 import { readSidecar } from '../sidecarIO'
-import { pageTypeSidecar, pageCollectionSidecar, pageSetSidecar } from '@shared/schemas'
+import { pageCollectionSidecar, pageSetSidecar } from '@shared/schemas'
 import { SIDECAR_FILENAME } from '../paths'
 import { agendaTask, agendaEvent, AGENDA_SUFFIX } from '@shared/agenda'
 import { parseDefinitions } from '../properties/schema'
@@ -21,12 +21,11 @@ import { connectionEdges } from '../connections/edges'
 import { normalizeTitle } from '@shared/connections'
 import { pathExists } from './../crud/util'
 import type { PropertyDefinition } from '@shared/properties'
-import type { PageTypeNode } from '@shared/types'
+import type { CollectionNode, SetNode } from '@shared/types'
 import { openIndex } from './open'
 import { stampSchemaVersion } from './schema'
 import { transact, type Db } from './db'
 import {
-  upsertPageType,
   upsertCollection,
   upsertSet,
   upsertPage,
@@ -48,7 +47,7 @@ interface ContextData {
   title: string
   icon?: string
 }
-interface TypeData {
+interface CollectionData {
   id: string
   title: string
   icon?: string
@@ -56,9 +55,10 @@ interface TypeData {
   schemaVersion?: number
   defs: PropertyDefinition[]
 }
-interface ContainerData {
+interface SetData {
   id: string
-  parentId: string
+  parentCollectionId?: string
+  parentSetId?: string
   title: string
   icon?: string
   modifiedAt: string
@@ -66,8 +66,7 @@ interface ContainerData {
 }
 interface PageData {
   id: string
-  pageTypeId: string
-  collectionId?: string
+  collectionId: string
   setId?: string
   title: string
   icon?: string
@@ -78,9 +77,8 @@ interface PageData {
 }
 interface NexusData {
   contexts: ContextData[]
-  types: TypeData[]
-  collections: ContainerData[]
-  sets: ContainerData[]
+  collections: CollectionData[]
+  sets: SetData[]
   pages: PageData[]
 }
 
@@ -96,59 +94,57 @@ async function collectNexusData(nexusRoot: string): Promise<NexusData> {
     ...tree.contexts.projects.map((p) => ({ id: p.id, tier: 3, title: p.title, icon: p.icon }))
   ]
 
-  const allTypes: PageTypeNode[] = [...tree.vaults, ...tree.userSections.flatMap((s) => s.vaults)]
-  const types: TypeData[] = []
-  const collections: ContainerData[] = []
-  const sets: ContainerData[] = []
+  const allCollections: CollectionNode[] = [
+    ...(tree.collections ?? []),
+    ...tree.userSections.flatMap((s) => s.collections ?? [])
+  ]
+  const collections: CollectionData[] = []
+  const sets: SetData[] = []
   const pages: PageData[] = []
 
-  for (const type of allTypes) {
-    const typeFolder = join(nexusRoot, type.title)
-    const sc = await readSidecar(typeFolder, 'pageType', pageTypeSidecar)
-    types.push({
-      id: type.id,
-      title: type.title,
-      icon: type.icon,
-      modifiedAt: str(sc?.modified_at) || EPOCH,
-      schemaVersion: sc?.schema_version,
-      defs: parseDefinitions(sc?.property_definitions)
+  // Recurse a Set subtree (Model A): each Set references exactly one parent — its Collection
+  // (depth-1) or its parent Set (deeper); every page records the owning top Collection +
+  // its immediate Set. Pages at the Collection root carry no setId.
+  const walkSet = async (
+    node: SetNode,
+    topCollectionId: string,
+    parent: { collectionId?: string; setId?: string }
+  ): Promise<void> => {
+    const ssc = await readSidecar(join(nexusRoot, node.path), 'set', pageSetSidecar)
+    sets.push({
+      id: node.id,
+      parentCollectionId: parent.collectionId,
+      parentSetId: parent.setId,
+      title: node.title,
+      icon: node.icon,
+      modifiedAt: str(ssc?.modified_at) || EPOCH,
+      schemaVersion: ssc?.schema_version
     })
-    for (const page of type.pages) pages.push(await readPageData(nexusRoot, page, type.id))
-    for (const coll of type.collections) {
-      const collFolder = join(typeFolder, coll.title)
-      const csc = await readSidecar(collFolder, 'collection', pageCollectionSidecar)
-      collections.push({
-        id: coll.id,
-        parentId: type.id,
-        title: coll.title,
-        icon: coll.icon,
-        modifiedAt: str(csc?.modified_at) || EPOCH,
-        schemaVersion: csc?.schema_version
-      })
-      for (const page of coll.pages) pages.push(await readPageData(nexusRoot, page, type.id, coll.id))
-      for (const set of coll.sets) {
-        const ssc = await readSidecar(join(collFolder, set.title), 'set', pageSetSidecar)
-        sets.push({
-          id: set.id,
-          parentId: coll.id,
-          title: set.title,
-          icon: set.icon,
-          modifiedAt: str(ssc?.modified_at) || EPOCH,
-          schemaVersion: ssc?.schema_version
-        })
-        for (const page of set.pages) pages.push(await readPageData(nexusRoot, page, type.id, coll.id, set.id))
-      }
-    }
+    for (const page of node.pages) pages.push(await readPageData(nexusRoot, page, topCollectionId, node.id))
+    for (const child of node.sets ?? []) await walkSet(child, topCollectionId, { setId: node.id })
   }
 
-  return { contexts, types, collections, sets, pages }
+  for (const coll of allCollections) {
+    const csc = await readSidecar(join(nexusRoot, coll.path), 'collection', pageCollectionSidecar)
+    collections.push({
+      id: coll.id,
+      title: coll.title,
+      icon: coll.icon,
+      modifiedAt: str(csc?.modified_at) || EPOCH,
+      schemaVersion: csc?.schema_version,
+      defs: parseDefinitions(csc?.properties)
+    })
+    for (const page of coll.pages) pages.push(await readPageData(nexusRoot, page, coll.id))
+    for (const set of coll.sets) await walkSet(set, coll.id, { collectionId: coll.id })
+  }
+
+  return { contexts, collections, sets, pages }
 }
 
 async function readPageData(
   nexusRoot: string,
   page: { id: string; title: string; icon?: string; path: string },
-  pageTypeId: string,
-  collectionId?: string,
+  collectionId: string,
   setId?: string
 ): Promise<PageData> {
   let content = ''
@@ -160,7 +156,6 @@ async function readPageData(
   const fm = splitFrontmatter(content)
   return {
     id: page.id,
-    pageTypeId,
     collectionId,
     setId,
     title: page.title,
@@ -301,23 +296,22 @@ export async function buildIndex(db: Db, nexusRoot: string): Promise<void> {
 
   transact(db, () => {
     for (const c of data.contexts) upsertContext(db, c)
-    for (const t of data.types) {
-      upsertPageType(db, t)
-      t.defs.forEach((def, position) =>
+    for (const c of data.collections) {
+      upsertCollection(db, c)
+      c.defs.forEach((def, position) =>
         upsertPropertyDefinition(db, {
           id: def.id,
-          owningTypeId: t.id,
-          owningTypeKind: 'page_type',
+          owningTypeId: c.id,
+          owningTypeKind: 'page_collection',
           name: def.name,
           type: def.type,
           config: configOf(def),
           position,
-          modifiedAt: t.modifiedAt
+          modifiedAt: c.modifiedAt
         })
       )
     }
-    for (const c of data.collections) upsertCollection(db, { ...c, pageTypeId: c.parentId })
-    for (const s of data.sets) upsertSet(db, { ...s, collectionId: s.parentId })
+    for (const s of data.sets) upsertSet(db, s)
     for (const p of data.pages) {
       upsertPage(db, p)
       replaceContextLinks(db, p.id, tierLinks(p.id, 'page', p.tiers, p.modifiedAt))

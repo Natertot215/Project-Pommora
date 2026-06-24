@@ -14,7 +14,7 @@ const tableNames = (d: Db): string[] =>
   )
 
 describe('applySchema', () => {
-  it('creates all 11 tables', () => {
+  it('creates all 10 tables (Model A — no page_types)', () => {
     db = openDb(':memory:')
     expect(db).not.toBeNull()
     if (!db) return
@@ -28,7 +28,6 @@ describe('applySchema', () => {
       'meta',
       'page_collections',
       'page_sets',
-      'page_types',
       'pages',
       'property_definitions'
     ])

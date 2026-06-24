@@ -6,13 +6,23 @@ import { rebuildIndex } from './build'
 import { writeJson } from '../io/atomicWrite'
 import { nexusDir, nexusConfig, NEXUS_CONFIG_FILES, contextTierDir } from '../paths'
 import { createFolderEntity } from '../crud/folderEntity'
+import { addProperty } from '../crud/schema'
 import { createPage, updatePageProperty, setPageTier } from '../crud/page'
 import { createAgendaItem, setAgendaTier, updateAgendaProperty } from '../crud/agendaEntity'
-import { defaultStatusSeed } from '@shared/properties'
+import { defaultStatusSeed, type PropertyDefinition } from '@shared/properties'
 import type { Db } from './db'
 
 let root: string
-const ids: { type?: string; score?: string; a?: string; b?: string; work?: string; task?: string } = {}
+const ids: {
+  collection?: string
+  score?: string
+  set?: string
+  setPage?: string
+  a?: string
+  b?: string
+  work?: string
+  task?: string
+} = {}
 
 beforeEach(async () => {
   root = await mkdtemp(join(tmpdir(), 'pom-index-build-'))
@@ -20,21 +30,28 @@ beforeEach(async () => {
   await mkdir(nexusDir(root), { recursive: true })
   await writeJson(nexusConfig(root, NEXUS_CONFIG_FILES.identity), { id: 'nx', created_at: '2026-01-01T00:00:00.000Z' })
 
-  // Legacy 3-tier index fixture: the index still reads `vaults` until the Model A migration
-  // (Task 4). Write the property schema directly — addProperty now targets Collections.
-  ids.score = 'prop_score'
-  const type = await createFolderEntity(root, 'pageType', 'Notes', {
-    property_definitions: [{ id: ids.score, name: 'Score', type: 'number' }]
-  })
-  if (!type.ok) throw new Error('setup: type')
-  ids.type = type.value.id
+  // 2-tier Model A fixture: a Collection (schema-bearing) with two root pages + a depth-1 Set
+  // holding one page (exercises page_sets.parent_collection_id + pages.page_set_id).
+  const coll = await createFolderEntity(root, 'collection', 'Notes')
+  if (!coll.ok) throw new Error('setup: collection')
+  ids.collection = coll.value.id
+  const score = await addProperty(coll.value.path, { id: '', name: 'Score', type: 'number' } as PropertyDefinition)
+  if (!score.ok) throw new Error('setup: prop')
+  ids.score = score.value.id
 
-  const a = await createPage(type.value.path, 'PageA', { body: 'see [[PageB]] and [[PageA]]' })
-  const b = await createPage(type.value.path, 'PageB')
+  const a = await createPage(coll.value.path, 'PageA', { body: 'see [[PageB]] and [[PageA]]' })
+  const b = await createPage(coll.value.path, 'PageB')
   if (!a.ok || !b.ok) throw new Error('setup: pages')
   ids.a = a.value.id
   ids.b = b.value.id
   await updatePageProperty(a.value.path, ids.score, { kind: 'number', value: 5 })
+
+  const daily = await createFolderEntity(coll.value.path, 'set', 'Daily', { parent_id: ids.collection })
+  if (!daily.ok) throw new Error('setup: set')
+  ids.set = daily.value.id
+  const sp = await createPage(daily.value.path, 'Entry')
+  if (!sp.ok) throw new Error('setup: setpage')
+  ids.setPage = sp.value.id
 
   const work = await createFolderEntity(contextTierDir(root, 'areas'), 'area', 'Work', { tier: 1 })
   if (!work.ok) throw new Error('setup: area')
@@ -65,9 +82,22 @@ describe('rebuildIndex (cold build)', () => {
     expect(db).not.toBeNull()
     if (!db) return
 
-    // Structure
-    expect(get(db, 'SELECT title FROM page_types WHERE id = ?', ids.type)?.title).toBe('Notes')
-    expect((get(db, 'SELECT COUNT(*) c FROM pages') as { c: number }).c).toBe(2)
+    // Structure (Model A)
+    expect(get(db, 'SELECT title FROM page_collections WHERE id = ?', ids.collection)?.title).toBe('Notes')
+    expect((get(db, 'SELECT COUNT(*) c FROM pages') as { c: number }).c).toBe(3)
+    // The depth-1 Set references its Collection; its page records both ids; a root page has no set.
+    expect(get(db, 'SELECT parent_collection_id, parent_set_id FROM page_sets WHERE id = ?', ids.set)).toMatchObject({
+      parent_collection_id: ids.collection,
+      parent_set_id: null
+    })
+    expect(get(db, 'SELECT page_collection_id, page_set_id FROM pages WHERE id = ?', ids.setPage)).toMatchObject({
+      page_collection_id: ids.collection,
+      page_set_id: ids.set
+    })
+    expect(get(db, 'SELECT page_collection_id, page_set_id FROM pages WHERE id = ?', ids.a)).toMatchObject({
+      page_collection_id: ids.collection,
+      page_set_id: null
+    })
 
     // Page properties (number encoded bare)
     const a = get(db, 'SELECT properties FROM pages WHERE id = ?', ids.a)
@@ -107,7 +137,7 @@ describe('rebuildIndex (cold build)', () => {
     const second = await rebuildIndex(root)
     expect(second).not.toBeNull()
     // Data still present ⇒ it reused rather than wiping + rebuilding empty.
-    expect(second && (get(second, 'SELECT COUNT(*) c FROM pages') as { c: number }).c).toBe(2)
+    expect(second && (get(second, 'SELECT COUNT(*) c FROM pages') as { c: number }).c).toBe(3)
     second?.close()
   })
 })

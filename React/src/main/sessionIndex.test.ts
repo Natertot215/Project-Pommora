@@ -11,7 +11,7 @@ beforeEach(async () => {
   await mkdir(join(root, 'Notes'), { recursive: true })
   await writeFile(join(root, '.nexus', 'nexus.json'), JSON.stringify({ schemaVersion: 1, id: 'nx', createdAt: '2026' }))
   await writeFile(join(root, '.nexus', 'settings.json'), '{}')
-  await writeFile(join(root, 'Notes', '_pagetype.json'), JSON.stringify({ id: 'pt' }))
+  await writeFile(join(root, 'Notes', '_pagecollection.json'), JSON.stringify({ id: 'col-notes' }))
   await writeFile(join(root, 'Notes', 'Hello.md'), '---\nid: pg1\n---\n\nbody')
 })
 afterEach(async () => {
