@@ -160,7 +160,6 @@ enum FilterBuilder {
 
     nonisolated static func entityKindToOwningTypeKind(_ kind: EntityKind) -> String {
         switch kind {
-        case .pageType: return "page_type"
         case .pageCollection: return "page_collection"
         case .pageSet: return "page_set"
         case .agendaTask: return "agenda_task"
@@ -177,7 +176,6 @@ enum FilterBuilder {
         case "page": return .page
         case "agenda_task": return .agendaTask
         case "agenda_event": return .agendaEvent
-        case "page_type": return .pageType
         case "page_collection": return .pageCollection
         case "page_set": return .pageSet
         case "area": return .area

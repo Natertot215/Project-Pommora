@@ -124,7 +124,7 @@ struct SidebarSectionLabels: Codable, Equatable, Hashable, Sendable {
         // A retired section key may also be present; it's simply not decoded.
         areas = (try? c.decode(String.self, forKey: .areas)) ?? "Areas"
         topics = (try? c.decode(String.self, forKey: .topics)) ?? "Topics"
-        pages = try c.decode(String.self, forKey: .pages)
+        pages = (try? c.decode(String.self, forKey: .pages)) ?? "Collections"
     }
 }
 

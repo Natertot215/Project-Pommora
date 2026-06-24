@@ -8,12 +8,8 @@ enum ConnectionFileLocator {
         let folder: URL
         switch kind {
         case .page:
-            folder = container.collectionTitle.map { collection in
-                container.setTitle.map {
-                    NexusPaths.pageSetFolderURL(in: nexusRoot, typeFolderName: container.typeTitle, collectionFolderName: collection, setFolderName: $0)
-                } ?? NexusPaths.pageCollectionFolderURL(in: nexusRoot, typeFolderName: container.typeTitle, collectionFolderName: collection)
-            } ?? NexusPaths.pageTypeFolderURL(in: nexusRoot, typeFolderName: container.typeTitle)
-        case .agendaTask, .agendaEvent, .pageType, .pageCollection, .pageSet, .area, .topic, .project:
+            folder = NexusPaths.pageTypeFolderURL(in: nexusRoot, typeFolderName: container.typeTitle)
+        case .agendaTask, .agendaEvent, .pageCollection, .pageSet, .area, .topic, .project:
             return nil
         }
         let candidate = NexusPaths.pageFileURL(forTitle: container.entityTitle, in: folder)

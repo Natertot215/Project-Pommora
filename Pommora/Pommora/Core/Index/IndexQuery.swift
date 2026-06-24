@@ -175,11 +175,10 @@ struct IndexQuery: Sendable {
                 return EntityContainer(
                     entityTitle: row["title"], kind: .page,
                     typeID: collectionID, typeTitle: collectionTitle,
-                    collectionID: collectionID, collectionTitle: collectionTitle,
                     setID: setID, setTitle: setTitle
                 )
 
-            case .agendaTask, .agendaEvent, .pageType,
+            case .agendaTask, .agendaEvent,
                 .pageCollection, .pageSet, .area, .topic, .project:
                 return nil
             }
@@ -409,7 +408,7 @@ enum FilterCriterion: Sendable {
 enum SortDirection: String, Codable, Equatable, Hashable, Sendable { case ascending, descending }
 
 enum EntityKind: String, Codable, Sendable {
-    case page, agendaTask, agendaEvent, pageType,
+    case page, agendaTask, agendaEvent,
         pageCollection, pageSet, area, topic, project
 }
 
@@ -451,15 +450,13 @@ struct GroupedEntities: Sendable, Equatable {
 /// The on-disk container of a Page, resolved from the index by
 /// `IndexQuery.entityContainer(id:kind:)`. Titles derive the folder URL via
 /// `NexusPaths`; IDs re-supply `IndexUpdater.upsert…` after a mutation.
-/// `collectionTitle`/`collectionID` are `nil` for Type-root entities;
-/// `setID`/`setTitle` are `nil` for any Page outside a Set.
+/// `typeID`/`typeTitle` identify the owning PageCollection; `setID`/`setTitle`
+/// are `nil` for any Page outside a Set.
 struct EntityContainer: Equatable, Sendable {
     let entityTitle: String
     let kind: EntityKind  // `.page`
     let typeID: String
     let typeTitle: String
-    let collectionID: String?
-    let collectionTitle: String?
     let setID: String?
     let setTitle: String?
 }

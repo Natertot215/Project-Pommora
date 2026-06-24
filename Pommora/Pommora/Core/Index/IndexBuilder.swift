@@ -455,7 +455,7 @@ final class IndexBuilder {
 
             insertPropertyDefinitions(
                 db, properties: pt.properties,
-                owningTypeID: pt.id, owningTypeKind: "page_type")
+                owningTypeID: pt.id, owningTypeKind: "page_collection")
 
             for set in pt.sets {
                 insertPageSet(db, set: set)

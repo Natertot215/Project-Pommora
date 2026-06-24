@@ -918,26 +918,16 @@ extension PageContentManager {
     /// isn't loaded — the on-disk write + index upsert are the source of truth.
     private func refreshPageCache(_ updated: PageMeta, container: EntityContainer) {
         if let setID = container.setID {
-            if var arr = pagesBySet[setID],
-                let i = arr.firstIndex(where: { $0.id == updated.id })
-            {
-                arr[i] = updated
-                pagesBySet[setID] = arr
+            if var arr = pagesBySet[setID], let i = arr.firstIndex(where: { $0.id == updated.id }) {
+                arr[i] = updated; pagesBySet[setID] = arr
+            } else if var arr = pagesByCollection[setID], let i = arr.firstIndex(where: { $0.id == updated.id }) {
+                arr[i] = updated; pagesByCollection[setID] = arr
             }
-        } else if let collectionID = container.collectionID {
-            if var arr = pagesByCollection[collectionID],
-                let i = arr.firstIndex(where: { $0.id == updated.id })
-            {
-                arr[i] = updated
-                pagesByCollection[collectionID] = arr
-            }
-        } else {
-            if var arr = pagesByTypeRoot[container.typeID],
-                let i = arr.firstIndex(where: { $0.id == updated.id })
-            {
-                arr[i] = updated
-                pagesByTypeRoot[container.typeID] = arr
-            }
+        } else if var arr = pagesByTypeRoot[container.typeID],
+            let i = arr.firstIndex(where: { $0.id == updated.id })
+        {
+            arr[i] = updated
+            pagesByTypeRoot[container.typeID] = arr
         }
     }
 }

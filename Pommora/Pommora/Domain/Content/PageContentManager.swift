@@ -129,22 +129,36 @@ final class PageContentManager {
         let setID: String? = row["page_set_id"]
         guard let vault = collectionManager.types.first(where: { $0.id == collectionID })
         else { return nil }
-        // If it's a set-rooted page, look up the owning depth-1 collection from page_sets.
-        let depthOneCollectionID = setID.flatMap { sid in
-            try? index.dbQueue.read { db in
-                try String.fetchOne(
-                    db, sql: "SELECT parent_collection_id FROM page_sets WHERE id = ?", arguments: [sid])
-            }
+        // Walk the page_sets chain up from the immediate set to its depth-1
+        // collection (the set whose parent is the vault, not another set), so
+        // pages nested in depth-2+ sets still resolve their owning collection.
+        guard let setID,
+            let depthOneCollectionID = depthOneCollectionID(forSet: setID, index: index),
+            let coll = collectionManager.pageCollections(in: vault).first(where: { $0.id == depthOneCollectionID })
+        else {
+            return (vault, nil, nil)
         }
-        if let collID = depthOneCollectionID,
-            let coll = collectionManager.pageCollections(in: vault).first(where: { $0.id == collID })
-        {
-            let set = setID.flatMap { sid in
-                pageSetManager?.pageSets(in: coll).first { $0.id == sid }
-            }
-            return (vault, coll, set)
+        let set = pageSetManager?.pageSets(in: coll).first { $0.id == setID }
+        return (vault, coll, set)
+    }
+
+    /// Climbs the `page_sets` parent chain from `setID` to the depth-1 set —
+    /// the one whose parent is the vault (`parent_collection_id` non-null) — and
+    /// returns ITS id, which is the owning collection. Nil if the chain breaks.
+    private func depthOneCollectionID(forSet setID: String, index: PommoraIndex) -> String? {
+        var current: String? = setID
+        while let sid = current {
+            guard
+                let row = try? index.dbQueue.read({ db in
+                    try Row.fetchOne(
+                        db, sql: "SELECT parent_collection_id, parent_set_id FROM page_sets WHERE id = ?",
+                        arguments: [sid])
+                })
+            else { return nil }
+            if row["parent_collection_id"] as String? != nil { return sid }
+            current = row["parent_set_id"]
         }
-        return (vault, nil, nil)
+        return nil
     }
 
     /// URL-based fallback when no index is available. All PageCollections are loaded at

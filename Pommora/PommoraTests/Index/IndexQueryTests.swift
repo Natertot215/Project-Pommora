@@ -260,17 +260,17 @@ struct IndexQueryTests {
             try db.execute(
                 sql: """
                         INSERT INTO property_definitions(id, owning_type_id, owning_type_kind, name, type, modified_at) VALUES
-                        ('prop_A_SRC', 'PT_SRC', 'page_type', 'Alpha', 'select', '2026-05-24T00:00:00Z'),
-                        ('prop_B_SRC', 'PT_SRC', 'page_type', 'Beta',  'select', '2026-05-24T00:00:00Z'),
-                        ('prop_C_SRC', 'PT_SRC', 'page_type', 'Gamma', 'select', '2026-05-24T00:00:00Z'),
-                        ('prop_B_DST', 'PT_DST', 'page_type', 'Beta',  'select', '2026-05-24T00:00:00Z'),
-                        ('prop_D_DST', 'PT_DST', 'page_type', 'Delta', 'select', '2026-05-24T00:00:00Z')
+                        ('prop_A_SRC', 'PT_SRC', 'page_collection', 'Alpha', 'select', '2026-05-24T00:00:00Z'),
+                        ('prop_B_SRC', 'PT_SRC', 'page_collection', 'Beta',  'select', '2026-05-24T00:00:00Z'),
+                        ('prop_C_SRC', 'PT_SRC', 'page_collection', 'Gamma', 'select', '2026-05-24T00:00:00Z'),
+                        ('prop_B_DST', 'PT_DST', 'page_collection', 'Beta',  'select', '2026-05-24T00:00:00Z'),
+                        ('prop_D_DST', 'PT_DST', 'page_collection', 'Delta', 'select', '2026-05-24T00:00:00Z')
                     """)
         }
 
         let report = try await IndexQuery(idx).moveStripCount(
             sourceID: "PT_SRC",
-            sourceKind: .pageType,
+            sourceKind: .pageCollection,
             destTypeID: "PT_DST",
             destTypeKind: .pageCollection
         )

@@ -448,7 +448,7 @@ extension PageCollectionManager {
                 let position = updatedType.properties.count - 1
                 do {
                     try updater.upsertPropertyDefinition(
-                        duplicated, owningTypeID: typeID, owningTypeKind: "page_type", position: position
+                        duplicated, owningTypeID: typeID, owningTypeKind: "page_collection", position: position
                     )
                 } catch { self.pendingError = error }
             }
@@ -488,7 +488,7 @@ extension PageCollectionManager {
             if let updater = indexUpdater {
                 do {
                     try updater.upsertPropertyDefinition(
-                        updatedDef, owningTypeID: typeID, owningTypeKind: "page_type", position: j
+                        updatedDef, owningTypeID: typeID, owningTypeKind: "page_collection", position: j
                     )
                 } catch { self.pendingError = error }
             }
@@ -612,7 +612,7 @@ extension PageCollectionManager {
             }
         }
 
-        var indexOwningTypeKind: String { "page_type" }
+        var indexOwningTypeKind: String { "page_collection" }
         var indexUpdater: IndexUpdater? { m.indexUpdater }
         var validationContext: NexusContext { NexusContext.forTypeResolution(in: m.nexus) }
         var errTypeNotFound: any Error { PageCollectionManagerError.typeNotFound }

@@ -441,7 +441,7 @@ struct IndexBuilderTests {
         let count = try await idx.dbQueue.read { db in
             try Int.fetchOne(
                 db,
-                sql: "SELECT COUNT(*) FROM property_definitions WHERE owning_type_kind = 'page_type'"
+                sql: "SELECT COUNT(*) FROM property_definitions WHERE owning_type_kind = 'page_collection'"
             ) ?? -1
         }
         #expect(count == 1)
@@ -449,7 +449,7 @@ struct IndexBuilderTests {
         let name = try await idx.dbQueue.read { db in
             try String.fetchOne(
                 db,
-                sql: "SELECT name FROM property_definitions WHERE owning_type_kind = 'page_type'"
+                sql: "SELECT name FROM property_definitions WHERE owning_type_kind = 'page_collection'"
             )
         }
         #expect(name == "Status")

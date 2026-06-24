@@ -71,7 +71,7 @@ protocol PerTypeSchemaAdapter: AnyObject {
 
     // MARK: Index
 
-    var indexOwningTypeKind: String { get }  // "page_type"
+    var indexOwningTypeKind: String { get }  // "page_collection"
     var indexUpdater: IndexUpdater? { get }
 
     // MARK: Validation
