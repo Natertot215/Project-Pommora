@@ -223,12 +223,12 @@ struct SidebarView: View {
                 }
             }
             cancelButton
-        case .moveSet(let s, let dest, let destVault, let srcVault, _):
+        case .moveSet(let s, let dest, let destPageCollection, let srcVault, _):
             Button("Move", role: .destructive) {
                 Task {
                     do {
                         try await pageSetManager.moveSet(
-                            s, to: dest, destinationPageCollection: destVault,
+                            s, to: dest, destinationPageCollection: destPageCollection,
                             sourcePageCollection: srcVault, contentManager: contentManager)
                     } catch { /* pendingError set by manager; toast surfaces */  }
                     confirmingDelete = nil

@@ -292,7 +292,7 @@ struct FrontmatterInspector: View {
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .help("Add a property to this Vault's schema")
+            .help("Add a property to this Collection's schema")
             .popover(isPresented: $addPropertyOpen, arrowEdge: .bottom) {
                 PropertyTypePicker(selected: $addPropertySelection) { type in
                     addPropertyError = nil

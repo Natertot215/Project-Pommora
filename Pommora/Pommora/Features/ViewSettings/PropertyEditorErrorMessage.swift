@@ -42,7 +42,7 @@ enum PropertyEditorErrorMessage {
     nonisolated private static func string(for error: PageCollectionManagerError) -> String {
         switch error {
         case .typeNotFound:
-            return "The Vault for this property was just removed."
+            return "The Collection for this property was just removed."
         case .propertyNotFound:
             return "This property was just removed."
         case .lossyChangeRequiresConfirmation:

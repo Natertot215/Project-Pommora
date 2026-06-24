@@ -32,11 +32,11 @@ enum SidebarConfirmation: Identifiable {
         case .deleteArea(let s): return "Delete Area \"\(s.title)\"?"
         case .deleteTopic(let t): return "Delete Topic \"\(t.title)\"?"
         case .deleteProject(let p): return "Delete Project \"\(p.title)\"?"
-        case .deletePageCollection(let v, _): return "Delete Vault \"\(v.title)\"?"
+        case .deletePageCollection(let v, _): return "Delete Collection \"\(v.title)\"?"
         case .deleteCollection(let c): return "Delete Collection \"\(c.title)\"?"
         case .deleteSet(let s): return "Delete Set \"\(s.title)\"?"
-        case .moveSet(let s, let dest, let destVault, _, _):
-            return "Move Set \"\(s.title)\" to \(destVault.title) › \(dest.title)?"
+        case .moveSet(let s, let dest, let destPageCollection, _, _):
+            return "Move Set \"\(s.title)\" to \(destPageCollection.title) › \(dest.title)?"
         }
     }
 

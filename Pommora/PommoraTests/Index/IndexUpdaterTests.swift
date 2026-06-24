@@ -253,7 +253,7 @@ struct IndexUpdaterTests {
             name: "Priority",
             type: .number
         )
-        try updater.upsertPropertyDefinition(def, owningTypeID: pt.id, owningTypeKind: "page_type", position: 0)
+        try updater.upsertPropertyDefinition(def, owningTypeID: pt.id, owningTypeKind: "page_collection", position: 0)
 
         let count = try countRows(in: "property_definitions", db: idx)
         #expect(count == 1)
@@ -276,10 +276,10 @@ struct IndexUpdaterTests {
             name: "Old Name",
             type: .url
         )
-        try updater.upsertPropertyDefinition(def, owningTypeID: pt.id, owningTypeKind: "page_type", position: 0)
+        try updater.upsertPropertyDefinition(def, owningTypeID: pt.id, owningTypeKind: "page_collection", position: 0)
 
         def.name = "New Name"
-        try updater.upsertPropertyDefinition(def, owningTypeID: pt.id, owningTypeKind: "page_type", position: 0)
+        try updater.upsertPropertyDefinition(def, owningTypeID: pt.id, owningTypeKind: "page_collection", position: 0)
 
         let count = try countRows(in: "property_definitions", db: idx)
         #expect(count == 1, "rename should upsert, not duplicate")
@@ -304,7 +304,7 @@ struct IndexUpdaterTests {
                 PropertyDefinition.SelectOption(value: "alpha", label: "Alpha", color: nil)
             ]
         )
-        try updater.upsertPropertyDefinition(def, owningTypeID: pt.id, owningTypeKind: "page_type", position: 0)
+        try updater.upsertPropertyDefinition(def, owningTypeID: pt.id, owningTypeKind: "page_collection", position: 0)
         try updater.deletePropertyDefinition(id: def.id)
 
         let count = try countRows(in: "property_definitions", db: idx)

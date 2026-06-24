@@ -69,7 +69,7 @@ struct EntityRow: View {
     private var chipText: String {
         switch ref.typedKind {
         case .page: return "Page"
-        case .vault: return "Vault"
+        case .vault: return "Collection"
         case .area: return "Area"
         case .topic: return "Topic"
         case .project: return "Project"
