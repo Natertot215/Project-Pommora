@@ -2,11 +2,11 @@
 
 #### Overview
 
-A simpler Notion that's also a more capable Obsidian. **2-layer PARA-aligned domain model** (locked 2026-05-16; ParadigmV2 2026-05-22; Contexts Decoupling — free-standing tiers + Space→Area rename — 2026-06-10):
+A simpler Notion that's also a more capable Obsidian. **2-layer PARA-aligned domain model** (locked 2026-05-16; ParadigmV2 2026-05-22; Contexts Decoupling — free-standing tiers + Space→Area rename — 2026-06-10; Collections/Sets rename + infinite nesting — 2026-06-24):
 
 - **Organization layer — Contexts** (3 tiers): Areas (1) / Topics (2) / **Projects** (3). Three **free-standing** tiers — no containment, no parents; each a folder with a config sidecar (`_area.json` / `_topic.json` / `_project.json`). Per-tier labels user-configurable per Nexus. (Context→context relations are a deferred design pass.)
 - **Operational layer — Pages + Agenda**:
-  - **Pages** — `.md` files (YAML frontmatter + body via `AtomicYAMLMarkdown`) inside Page Types; Page Collections organize within, optionally subdivided by Page Sets (schema-less; inherit everything from the Collection). UI labels: **"Vault"** + **"Collection"** + **"Set"** (renameable via Settings).
+  - **Pages** — `.md` files (YAML frontmatter + body via `AtomicYAMLMarkdown`) inside **Collections** — the schema-bearing top tier (`PageCollection`, `_pagecollection.json`). A Collection nests **Sets** to any depth: a recursive `PageSet` (`_pageset.json`) where the first level is a **Set** and deeper levels are **Sub-Sets**. Only depth-1 Sets carry their own views/sorting; deeper Sub-Sets are plain organizing folders. Schema lives only on the Collection; all Sets inherit it. UI labels: **"Collection"** + **"Set"** (renameable via Settings; "Sub-Set" is derived). Full spec → `// Features//PageCollections.md` + `// Features//PageSets.md`.
   - **Agenda** — the parent schema holding **Tasks** (`.task.json`, EKReminder-shaped) and **Events** (`.event.json`, EKEvent-shaped). Data layer shipped; sidebar surfacing is consolidated into the Calendar pin entry (no separate Agenda sidebar heading).
 - **Singleton — Homepage**: composed-blocks dashboard at `.nexus/homepage.json`.
 - **Settings scaffold** (`.nexus/settings.json`): per-Nexus user-overridable UI labels + accent color (storage + label wiring shipped; full editing UI planned).
