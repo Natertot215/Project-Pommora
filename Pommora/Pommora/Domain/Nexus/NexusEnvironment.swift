@@ -94,11 +94,9 @@ final class NexusEnvironment {
         let vaultMgr = PageTypeManager(nexus: nexus)
         let pageSetMgr = PageSetManager(nexus: nexus)
 
-        // Collection folder moves (its own rename, or its parent Type's)
-        // re-derive the cached child-Set folder URLs.
-        vaultMgr.onCollectionFolderChanged = { [pageSetMgr] collection in
-            pageSetMgr.rebuildFolderURLs(for: collection)
-        }
+        // Wire cross-manager references so delegation and URL rebuilds work.
+        vaultMgr.pageSetManager = pageSetMgr
+        pageSetMgr.pageTypeProvider = { [vaultMgr] in vaultMgr.types }
 
         let topicMgr = TopicManager(nexus: nexus)
 
@@ -223,9 +221,7 @@ final class NexusEnvironment {
     /// in parallel.
     func reloadAllManagers(filter: FolderFilter) async {
         await vaultManager.loadAll(filter: filter)
-        await pageSetManager.loadAll(
-            collections: vaultManager.pageCollectionsByType.values.flatMap { $0 },
-            filter: filter)
+        await pageSetManager.loadAll(types: vaultManager.types, filter: filter)
         async let areas: Void = areaManager.loadAll()
         async let topics: Void = topicManager.loadAll()
         async let projects: Void = projectManager.loadAll()
