@@ -14,7 +14,7 @@ struct PageContentManagerUpdatePageTests {
         defer { TempNexus.cleanup(nexus) }
 
         try await manager.createPage(name: "Notes", in: coll, vault: vault)
-        let page = manager.pages(in: coll).first!
+        let page = manager.pages(inCollection: coll).first!
 
         try await manager.updatePage(page, body: "Hello world", in: coll, vault: vault)
 
@@ -28,7 +28,7 @@ struct PageContentManagerUpdatePageTests {
         defer { TempNexus.cleanup(nexus) }
 
         try await manager.createPage(name: "Notes", in: coll, vault: vault)
-        let page = manager.pages(in: coll).first!
+        let page = manager.pages(inCollection: coll).first!
         let originalID = page.frontmatter.id
         let originalCreatedAt = page.frontmatter.createdAt
 
@@ -67,7 +67,7 @@ struct PageContentManagerUpdatePageTests {
         defer { TempNexus.cleanup(nexus) }
 
         try await manager.createPage(name: "Notes", in: coll, vault: vault)
-        let page = manager.pages(in: coll).first!
+        let page = manager.pages(inCollection: coll).first!
 
         // Mutate the in-memory PageMeta to carry an invalid title — the validator
         // should reject it. (Real callers wouldn't do this, but a corrupted
@@ -96,7 +96,7 @@ struct PageContentManagerUpdatePageTests {
         defer { TempNexus.cleanup(nexus) }
 
         try await manager.createPage(name: "Notes", in: coll, vault: vault)
-        let page = manager.pages(in: coll).first!
+        let page = manager.pages(inCollection: coll).first!
 
         // Delete the PageCollection folder out from under us — `pageFile.save(to:)`
         // writes via atomic temp-file + rename, which requires the parent dir

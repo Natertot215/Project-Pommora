@@ -49,7 +49,7 @@ enum ViewItemSource {
 
         // Each collection: its loose pages, then each of its sets' pages.
         for collection in collections(vault) {
-            items += content.pages(in: collection).map { page in
+            items += content.pages(inCollection: collection).map { page in
                 ViewItem(
                     page: page,
                     parent: .collection(collection, vault: vault),
@@ -80,7 +80,7 @@ enum ViewItemSource {
         var items: [ViewItem] = []
 
         // Collection-root (loose) pages.
-        items += content.pages(in: collection).map { page in
+        items += content.pages(inCollection: collection).map { page in
             ViewItem(
                 page: page,
                 parent: .collection(collection, vault: vault),

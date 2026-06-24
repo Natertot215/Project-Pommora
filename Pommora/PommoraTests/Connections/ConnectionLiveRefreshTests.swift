@@ -73,7 +73,7 @@ struct ConnectionLiveRefreshTests {
         renamed.title = "Beta"
         renamed.url = NexusPaths.pageFileURL(forTitle: "Beta", in: coll.folderURL)
         let afterRename = counter.count
-        try await manager.deletePage(renamed, in: coll)
+        try await manager.deletePage(renamed, inCollection: coll)
         #expect(counter.count == afterRename + 1)
     }
 

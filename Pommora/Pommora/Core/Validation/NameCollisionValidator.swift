@@ -22,7 +22,6 @@ extension AgendaEvent: NameCollisionCandidate {}
 extension Area: NameCollisionCandidate {}
 extension Topic: NameCollisionCandidate {}
 extension PageType: NameCollisionCandidate {}
-extension PageCollection: NameCollisionCandidate {}
 extension PageSet: NameCollisionCandidate {}
 
 // MARK: - Title ordering

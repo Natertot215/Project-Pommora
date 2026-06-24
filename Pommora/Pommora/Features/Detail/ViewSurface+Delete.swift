@@ -35,7 +35,7 @@ extension ViewSurface {
                         try await pageSetManager.deletePageSet(set, mode: .setOnly)
                         // Rehomed Pages land in the Collection root on disk + in
                         // the index; refresh the cache so they surface now.
-                        await contentManager.loadAll(for: coll)
+                        await contentManager.loadAll(forCollection: coll)
                     } catch {}
                     deleteTarget = nil
                 }
@@ -44,7 +44,7 @@ extension ViewSurface {
                 Task {
                     do {
                         try await pageSetManager.deletePageSet(set, mode: .withPages)
-                        await contentManager.loadAll(for: coll)
+                        await contentManager.loadAll(forCollection: coll)
                     } catch {}
                     deleteTarget = nil
                 }
@@ -61,7 +61,7 @@ extension ViewSurface {
         do {
             switch item.parent {
             case .collection(let coll, _):
-                try await contentManager.deletePage(item.page, in: coll)
+                try await contentManager.deletePage(item.page, inCollection: coll)
             case .set(let set, _, _):
                 try await contentManager.deletePage(item.page, in: set)
             case .vaultRoot(let t):

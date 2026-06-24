@@ -34,7 +34,7 @@ struct ViewItemSourceTests {
 
         let (content, sets) = managers(nexus: nexus)
         await content.loadAll(for: vault)
-        await content.loadAll(for: coll)
+        await content.loadAll(forCollection: coll)
         await content.loadAll(for: set)
         await sets.loadAll(collections: [coll])
 
@@ -85,7 +85,7 @@ struct ViewItemSourceTests {
         _ = try writePage(titled: "SetPage", in: set.folderURL)
 
         let (content, sets) = managers(nexus: nexus)
-        await content.loadAll(for: coll)
+        await content.loadAll(forCollection: coll)
         await content.loadAll(for: set)
         await sets.loadAll(collections: [coll])
 

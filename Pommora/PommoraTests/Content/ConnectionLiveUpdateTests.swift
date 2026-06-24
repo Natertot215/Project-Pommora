@@ -131,7 +131,7 @@ struct ConnectionLiveUpdateTests {
         #expect(before.first?.resolved == true)
 
         // Delete Target — the edge must revert to phantom.
-        try await manager.deletePage(target, in: coll)
+        try await manager.deletePage(target, inCollection: coll)
 
         let after = try await IndexQuery(index).outgoingConnections(sourceID: aID)
         #expect(after.count == 1)

@@ -73,7 +73,7 @@ final class PageContentManager {
         return nil
     }
 
-    func pages(in collection: PageCollection) -> [PageMeta] {
+    func pages(inCollection collection: PageCollection) -> [PageMeta] {
         pagesByCollection[collection.id] ?? []
     }
 
@@ -188,7 +188,7 @@ final class PageContentManager {
     /// frontmatter still surface; missing `id` is synthesized deterministically
     /// from the file's path relative to the Nexus root (stable across launches,
     /// not written back until the user edits).
-    func loadAll(for collection: PageCollection) async {
+    func loadAll(forCollection collection: PageCollection) async {
         let nexusRoot = nexus.rootURL
         // Discover PageSet sub-folders by sidecar presence so we exclude
         // their subtrees from the Collection walk — same shape as the
@@ -351,7 +351,7 @@ final class PageContentManager {
     /// `.onMove(perform:)` signature. New ID order persists to the parent
     /// PageCollection's `_pagecollection.json` sidecar.
     func reorderPages(
-        in collection: PageCollection,
+        inCollection collection: PageCollection,
         fromOffsets source: IndexSet,
         toOffset destination: Int
     ) {
@@ -361,7 +361,7 @@ final class PageContentManager {
         guard arr != before else { return }
         pagesByCollection[collection.id] = arr
         do {
-            try OrderPersister.setPageOrder(arr.map(\.id), in: collection)
+            try OrderPersister.setPageOrder(arr.map(\.id), inCollection: collection)
         } catch {
             self.pendingError = error
         }
@@ -486,7 +486,7 @@ final class PageContentManager {
             switch parent {
             case .collection(let coll, _):
                 pagesByCollection[coll.id] = pages
-                try OrderPersister.setPageOrder(pages.map(\.id), in: coll)
+                try OrderPersister.setPageOrder(pages.map(\.id), inCollection: coll)
             case .set(let set, _, _):
                 pagesBySet[set.id] = pages
                 try OrderPersister.setPageOrder(pages.map(\.id), in: set)

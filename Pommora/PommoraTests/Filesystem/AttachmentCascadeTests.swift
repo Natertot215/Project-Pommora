@@ -17,7 +17,7 @@ struct AttachmentCascadeTests {
         defer { TempNexus.cleanup(nexus) }
 
         try await manager.createPage(name: "MyCascadePage", in: coll, vault: vault)
-        guard let page = manager.pages(in: coll).first else {
+        guard let page = manager.pages(inCollection: coll).first else {
             Issue.record("Page not created")
             return
         }
@@ -28,7 +28,7 @@ struct AttachmentCascadeTests {
         try Data("hello".utf8).write(to: dummyFile)
         #expect(FileManager.default.fileExists(atPath: attachDir.path))
 
-        try await manager.deletePage(page, in: coll)
+        try await manager.deletePage(page, inCollection: coll)
 
         #expect(!FileManager.default.fileExists(atPath: attachDir.path))
 

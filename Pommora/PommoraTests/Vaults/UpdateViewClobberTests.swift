@@ -34,8 +34,8 @@ struct UpdateViewClobberTests {
         _ = try writePage(titled: "Two", in: coll.folderURL)
 
         let pages = PageContentManager(nexus: nexus, contextProvider: { NexusContext.empty })
-        await pages.loadAll(for: coll)
-        let initial = pages.pages(in: coll).map(\.id)
+        await pages.loadAll(forCollection: coll)
+        let initial = pages.pages(inCollection: coll).map(\.id)
         #expect(initial.count == 2)
 
         // Type manager caches the Collection BEFORE the reorder, so its
@@ -46,8 +46,8 @@ struct UpdateViewClobberTests {
 
         // Now drag-reorder: writes the new `page_order` straight to the sidecar
         // on disk. The type manager's cache is now stale.
-        pages.reorderPages(in: coll, fromOffsets: IndexSet(integer: 0), toOffset: 2)
-        let reordered = pages.pages(in: coll).map(\.id)
+        pages.reorderPages(inCollection: coll, fromOffsets: IndexSet(integer: 0), toOffset: 2)
+        let reordered = pages.pages(inCollection: coll).map(\.id)
         #expect(reordered == [initial[1], initial[0]])
 
         // Edit a SavedView on the Collection — the path that used to clobber.

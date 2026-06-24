@@ -33,7 +33,7 @@ struct PageCollectionTests {
         #expect(loaded.modifiedAt == Date(timeIntervalSince1970: 1716480000))
     }
 
-    @Test("PageCollection on-disk JSON uses snake_case for type_id + modified_at")
+    @Test("PageCollection on-disk JSON uses snake_case for parent_id + modified_at")
     func snakeCaseKeys() throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
@@ -49,9 +49,9 @@ struct PageCollectionTests {
         ).save(to: metaURL)
 
         let raw = try String(contentsOf: metaURL, encoding: .utf8)
-        #expect(raw.contains("\"type_id\""))
+        #expect(raw.contains("\"parent_id\""))
         #expect(raw.contains("\"modified_at\""))
-        #expect(!raw.contains("\"typeID\""))
+        #expect(!raw.contains("\"parentID\""))
         #expect(!raw.contains("\"title\""))  // title not persisted
         #expect(!raw.contains("\"folderURL\""))  // folderURL not persisted
     }

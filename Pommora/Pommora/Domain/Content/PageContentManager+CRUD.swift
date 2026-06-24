@@ -208,7 +208,7 @@ extension PageContentManager {
         try await renamePage(page, to: newName, in: .collection(collection, vault: vault))
     }
 
-    func deletePage(_ page: PageMeta, in collection: PageCollection) async throws {
+    func deletePage(_ page: PageMeta, inCollection collection: PageCollection) async throws {
         try await deletePageCore(page) {
             var arr = self.pagesByCollection[collection.id] ?? []
             arr.removeAll { $0.id == page.id }

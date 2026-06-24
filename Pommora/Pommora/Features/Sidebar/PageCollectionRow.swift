@@ -42,7 +42,7 @@ struct PageCollectionRow: View {
     // list PageTypeRow uses one level up.
     private var disclosureItems: [CollectionDisclosureItem] {
         pageSetManager.pageSets(in: collection).map { .set($0) }
-            + contentManager.pages(in: collection).map { .page($0) }
+            + contentManager.pages(inCollection: collection).map { .page($0) }
     }
 
     var body: some View {
@@ -112,7 +112,7 @@ struct PageCollectionRow: View {
         )
         // Load on row appearance so Pages are available even when collapsed.
         .task {
-            await contentManager.loadAll(for: collection)
+            await contentManager.loadAll(forCollection: collection)
         }
     }
 
@@ -120,7 +120,7 @@ struct PageCollectionRow: View {
     private func createPage() {
         guard !isCreatingPage else { return }
         isCreatingPage = true
-        let existing = contentManager.pages(in: collection).map(\.title)
+        let existing = contentManager.pages(inCollection: collection).map(\.title)
         let title = DefaultTitleResolver.resolve(label: "Page", existingTitles: existing)
         Task {
             defer { isCreatingPage = false }
@@ -193,7 +193,7 @@ struct PageCollectionRow: View {
                 let rawLocal = destination - setCount
                 let localDestination = min(max(rawLocal, 0), pageCount)
                 contentManager.reorderPages(
-                    in: collection,
+                    inCollection: collection,
                     fromOffsets: localSource,
                     toOffset: localDestination
                 )

@@ -23,8 +23,8 @@
                         return
                     }
                     for collection in env.vaultManager.pageCollections(in: vault) {
-                        await env.contentManager.loadAll(for: collection)
-                        if let page = env.contentManager.pages(in: collection).first {
+                        await env.contentManager.loadAll(forCollection: collection)
+                        if let page = env.contentManager.pages(inCollection: collection).first {
                             open(PageRef(page: page, in: collection, vault: vault))
                             return
                         }

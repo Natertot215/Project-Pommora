@@ -241,7 +241,7 @@ struct VaultScope: DetailScope {
         // scope nests Sets under their Collection, so their caches must be warm.
         await content.loadAll(for: pageType)
         for coll in types.pageCollections(in: pageType) {
-            await content.loadAll(for: coll)
+            await content.loadAll(forCollection: coll)
             for set in sets.pageSets(in: coll) {
                 await content.loadAll(for: set)
             }
@@ -370,7 +370,7 @@ struct CollectionScope: DetailScope {
     func warmCaches(content: PageContentManager, sets: PageSetManager, types: PageTypeManager) async {
         // Root pages + every Set's pages — Set rows render with their pages as
         // disclosure children, so their caches must be warm.
-        await content.loadAll(for: collection)
+        await content.loadAll(forCollection: collection)
         for set in sets.pageSets(in: collection) {
             await content.loadAll(for: set)
         }
@@ -397,7 +397,7 @@ struct CollectionScope: DetailScope {
             FooterCrumb(title: collection.title),
         ]
         if let trail = trailPage {
-            if content.pages(in: collection).contains(where: { $0.id == trail.id }) {
+            if content.pages(inCollection: collection).contains(where: { $0.id == trail.id }) {
                 crumbs.append(FooterCrumb(title: trail.title, isGhost: true) { select(.page(trail)) })
             } else if let set = setContaining(pageID: trail.id, content: content, sets: sets) {
                 // Trail page lives in one of this collection's Sets — show the Set
@@ -429,7 +429,7 @@ struct CollectionScope: DetailScope {
     }
 
     func existingPageTitles(_ content: PageContentManager) -> [String] {
-        content.pages(in: collection).map(\.title)
+        content.pages(inCollection: collection).map(\.title)
     }
 
     func createContainer(

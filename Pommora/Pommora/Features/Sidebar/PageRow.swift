@@ -58,7 +58,7 @@ struct PageRow: View {
         do {
             switch parent {
             case .collection(let coll, _):
-                try await contentManager.deletePage(page, in: coll)
+                try await contentManager.deletePage(page, inCollection: coll)
             case .set(let set, _, _):
                 try await contentManager.deletePage(page, in: set)
             case .vaultRoot(let vault):

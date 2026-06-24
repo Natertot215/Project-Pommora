@@ -55,7 +55,7 @@ enum OrderPersister {
         }
     }
 
-    static func setPageOrder(_ order: [String], in collection: PageCollection) throws {
+    static func setPageOrder(_ order: [String], inCollection collection: PageCollection) throws {
         try mutatePageCollection(collection) { c in
             c.pageOrder = order.isEmpty ? nil : order
         }

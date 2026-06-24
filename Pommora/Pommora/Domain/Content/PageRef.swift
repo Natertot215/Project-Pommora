@@ -45,7 +45,7 @@ extension PageRef {
             guard
                 let collection = vaultManager.pageCollections(in: vault)
                     .first(where: { $0.id == collectionID }),
-                let page = contentManager.pages(in: collection)
+                let page = contentManager.pages(inCollection: collection)
                     .first(where: { $0.id == pageID })
             else { return nil }
             return (page, vault, collection, nil)

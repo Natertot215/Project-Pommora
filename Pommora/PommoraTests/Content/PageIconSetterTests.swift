@@ -47,7 +47,7 @@ struct PageIconSetterTests {
 
         let (vault, coll, manager) = try await makePageSetup(nexus: nexus)
         try await manager.createPage(name: "Notes", in: coll, vault: vault)
-        let page = manager.pages(in: coll).first!
+        let page = manager.pages(inCollection: coll).first!
 
         try await manager.updatePageIcon(page, to: "star.fill", vault: vault, collection: coll)
 

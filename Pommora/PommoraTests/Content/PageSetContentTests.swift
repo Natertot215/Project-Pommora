@@ -37,10 +37,10 @@ struct PageSetContentTests {
 
         let manager = PageContentManager(nexus: nexus, contextProvider: { NexusContext.empty })
         await manager.loadAll(for: set)
-        await manager.loadAll(for: coll)
+        await manager.loadAll(forCollection: coll)
 
         #expect(Set(manager.pages(in: set).map(\.title)) == ["SetPage", "DeepPage"])
-        #expect(manager.pages(in: coll).map(\.title) == ["RootPage"])
+        #expect(manager.pages(inCollection: coll).map(\.title) == ["RootPage"])
     }
 
     // MARK: - Set-scoped CRUD
@@ -167,7 +167,7 @@ struct PageSetContentTests {
         try await manager.movePageToSet(
             page, from: .collection(coll, vault: vault), to: setA, collection: coll, vault: vault)
         let inSetA = try currentMeta(manager.pages(in: setA))
-        #expect(manager.pages(in: coll).isEmpty)
+        #expect(manager.pages(inCollection: coll).isEmpty)
         try assertPreserved(at: inSetA.url)
 
         // 2. SetA → SetB.
@@ -180,7 +180,7 @@ struct PageSetContentTests {
         // 3. SetB → Collection root.
         try await manager.movePageOutOfSet(
             inSetB, from: setB, collection: coll, vault: vault, to: .collection(coll, vault: vault))
-        let backInColl = try currentMeta(manager.pages(in: coll))
+        let backInColl = try currentMeta(manager.pages(inCollection: coll))
         #expect(manager.pages(in: setB).isEmpty)
         try assertPreserved(at: backInColl.url)
 

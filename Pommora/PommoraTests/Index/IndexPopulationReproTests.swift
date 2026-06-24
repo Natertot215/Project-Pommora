@@ -119,7 +119,7 @@ struct IndexPopulationReproTests {
             pageTypeManager.pageCollections(in: loadedVault).first { $0.id == collID }
         )
         await pageContentManager.loadAll(for: loadedVault)
-        await pageContentManager.loadAll(for: loadedCollection)
+        await pageContentManager.loadAll(forCollection: loadedCollection)
         await areaManager.loadAll()
         await topicManager.loadAll()
 
@@ -134,7 +134,7 @@ struct IndexPopulationReproTests {
         // throw (no FK error 19). The seeded Page lives in the Collection; the
         // loaded PageMeta is fetched from the content manager's cache. ---
         let loadedPage = try #require(
-            pageContentManager.pages(in: loadedCollection).first { $0.id == pageID }
+            pageContentManager.pages(inCollection: loadedCollection).first { $0.id == pageID }
         )
         // Use a tier value (a built-in, always-present relation property) so we
         // never depend on a user property existing on a brand-new Vault.

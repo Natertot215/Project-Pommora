@@ -9,6 +9,5 @@ protocol PageOrderSidecar {
     static func load(from metadataURL: URL) throws -> Self
 }
 
-extension PageCollection: PageOrderSidecar {}
 extension PageSet: PageOrderSidecar {}
 extension PageType: PageOrderSidecar {}

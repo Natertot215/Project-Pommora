@@ -223,7 +223,7 @@ struct NavigationButton: View {
                         return
                     }
                     for col in vm.pageCollections(in: vault) {
-                        await cm.loadAll(for: col)
+                        await cm.loadAll(forCollection: col)
                         if let sel = SidebarSelection(stateRef: ref, lookup: lookup) {
                             onOpen(sel)
                             return

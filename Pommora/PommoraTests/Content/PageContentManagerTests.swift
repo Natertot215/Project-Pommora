@@ -17,7 +17,7 @@ struct PageContentManagerTests {
         try await manager.createPage(name: "Notes", in: coll, vault: vault)
         let url = NexusPaths.pageFileURL(forTitle: "Notes", in: coll.folderURL)
         #expect(FileManager.default.fileExists(atPath: url.path))
-        let pages = manager.pages(in: coll)
+        let pages = manager.pages(inCollection: coll)
         #expect(pages.count == 1)
         #expect(pages.first?.title == "Notes")
 
@@ -32,7 +32,7 @@ struct PageContentManagerTests {
         let (nexus, vault, coll, manager) = try await setup()
         defer { TempNexus.cleanup(nexus) }
         try await manager.createPage(name: "Notes", in: coll, vault: vault)
-        let page = manager.pages(in: coll).first!
+        let page = manager.pages(inCollection: coll).first!
 
         try await manager.renamePage(page, to: "Ideas", in: coll, vault: vault)
         #expect(
@@ -43,7 +43,7 @@ struct PageContentManagerTests {
             FileManager.default.fileExists(
                 atPath: NexusPaths.pageFileURL(forTitle: "Ideas", in: coll.folderURL).path
             ))
-        #expect(manager.pages(in: coll).first?.title == "Ideas")
+        #expect(manager.pages(inCollection: coll).first?.title == "Ideas")
     }
 
     @Test("deletePage removes file")
@@ -51,12 +51,12 @@ struct PageContentManagerTests {
         let (nexus, vault, coll, manager) = try await setup()
         defer { TempNexus.cleanup(nexus) }
         try await manager.createPage(name: "P", in: coll, vault: vault)
-        let page = manager.pages(in: coll).first!
+        let page = manager.pages(inCollection: coll).first!
         let pageURL = NexusPaths.pageFileURL(forTitle: "P", in: coll.folderURL)
 
-        try await manager.deletePage(page, in: coll)
+        try await manager.deletePage(page, inCollection: coll)
 
-        #expect(manager.pages(in: coll).isEmpty)
+        #expect(manager.pages(inCollection: coll).isEmpty)
         #expect(!FileManager.default.fileExists(atPath: pageURL.path))
 
         // File now in .trash, preserving relative path under nexus root
@@ -74,8 +74,8 @@ struct PageContentManagerTests {
             to: NexusPaths.pageFileURL(forTitle: "Pre", in: coll.folderURL)
         )
 
-        await manager.loadAll(for: coll)
-        #expect(manager.pages(in: coll).count == 1)
+        await manager.loadAll(forCollection: coll)
+        #expect(manager.pages(inCollection: coll).count == 1)
     }
 
     // MARK: - resolveParent (index-based path)
@@ -151,7 +151,7 @@ struct PageContentManagerTests {
 
         let vaultManager = PageTypeManager(nexus: nexus)
         await vaultManager.loadAll()
-        #expect(manager.pages(in: coll).isEmpty)
+        #expect(manager.pages(inCollection: coll).isEmpty)
 
         let fm = PageFrontmatter(
             id: pageID, icon: nil, tier1: [], tier2: [], tier3: [],

@@ -47,7 +47,7 @@ struct NameCollisionTests {
 
         try await manager.createPage(name: "Notes", in: coll, vault: vault)
         let url = NexusPaths.pageFileURL(forTitle: "Notes", in: coll.folderURL)
-        let original = manager.pages(in: coll).first!
+        let original = manager.pages(inCollection: coll).first!
         try await manager.updatePage(original, body: "PRECIOUS BODY", in: coll, vault: vault)
 
         await #expect(throws: PageCRUDError.duplicateTitle) {
@@ -57,7 +57,7 @@ struct NameCollisionTests {
         let reloaded = try PageFile.load(from: url)
         #expect(reloaded.body == "PRECIOUS BODY")
         #expect(reloaded.frontmatter.id == original.id)
-        #expect(manager.pages(in: coll).count == 1)
+        #expect(manager.pages(inCollection: coll).count == 1)
     }
 
     @Test("renamePage onto an existing sibling's title throws + both files intact")
@@ -67,8 +67,8 @@ struct NameCollisionTests {
 
         try await manager.createPage(name: "Notes", in: coll, vault: vault)
         try await manager.createPage(name: "Ideas", in: coll, vault: vault)
-        let notes = manager.pages(in: coll).first { $0.title == "Notes" }!
-        let ideas = manager.pages(in: coll).first { $0.title == "Ideas" }!
+        let notes = manager.pages(inCollection: coll).first { $0.title == "Notes" }!
+        let ideas = manager.pages(inCollection: coll).first { $0.title == "Ideas" }!
         try await manager.updatePage(notes, body: "NOTES BODY", in: coll, vault: vault)
         try await manager.updatePage(ideas, body: "IDEAS BODY", in: coll, vault: vault)
 
@@ -84,7 +84,7 @@ struct NameCollisionTests {
         #expect(FileManager.default.fileExists(atPath: ideasURL.path))
         #expect(try PageFile.load(from: notesURL).body == "NOTES BODY")
         #expect(try PageFile.load(from: ideasURL).body == "IDEAS BODY")
-        #expect(manager.pages(in: coll).count == 2)
+        #expect(manager.pages(inCollection: coll).count == 2)
     }
 
     @Test("createPage collision is case-insensitive (Notes vs notes)")
@@ -96,7 +96,7 @@ struct NameCollisionTests {
         await #expect(throws: PageCRUDError.duplicateTitle) {
             _ = try await manager.createPage(name: "notes", in: coll, vault: vault)
         }
-        #expect(manager.pages(in: coll).count == 1)
+        #expect(manager.pages(inCollection: coll).count == 1)
     }
 
     @Test("same Page title in DIFFERENT containers is allowed")
@@ -108,7 +108,7 @@ struct NameCollisionTests {
         try await manager.createPage(name: "Notes", in: coll, vault: vault)
         try await manager.createPage(name: "Notes", inVaultRoot: vault)
 
-        #expect(manager.pages(in: coll).count == 1)
+        #expect(manager.pages(inCollection: coll).count == 1)
         #expect(manager.pages(in: vault).count == 1)
         #expect(
             FileManager.default.fileExists(
@@ -125,7 +125,7 @@ struct NameCollisionTests {
         defer { TempNexus.cleanup(nexus) }
 
         try await manager.createPage(name: "Notes", in: coll, vault: vault)
-        let page = manager.pages(in: coll).first!
+        let page = manager.pages(inCollection: coll).first!
         try await manager.updatePage(page, body: "BODY", in: coll, vault: vault)
 
         // Renaming to the same title is a no-op rename — must NOT false-positive.
@@ -134,7 +134,7 @@ struct NameCollisionTests {
         let url = NexusPaths.pageFileURL(forTitle: "Notes", in: coll.folderURL)
         #expect(FileManager.default.fileExists(atPath: url.path))
         #expect(try PageFile.load(from: url).body == "BODY")
-        #expect(manager.pages(in: coll).count == 1)
+        #expect(manager.pages(inCollection: coll).count == 1)
     }
 
     @Test("renamePage case-only recase (notes → Notes) succeeds + recases file + body intact")
@@ -146,7 +146,7 @@ struct NameCollisionTests {
         defer { TempNexus.cleanup(nexus) }
 
         try await manager.createPage(name: "notes", in: coll, vault: vault)
-        let page = manager.pages(in: coll).first { $0.title == "notes" }!
+        let page = manager.pages(inCollection: coll).first { $0.title == "notes" }!
         try await manager.updatePage(page, body: "PRECIOUS BODY", in: coll, vault: vault)
 
         // Recase: lowercase → titlecase. Same entity, different-case title.
@@ -159,8 +159,8 @@ struct NameCollisionTests {
         let onDiskName = try storedFilename(in: coll.folderURL, matching: "notes.md")
         #expect(onDiskName == "Notes.md")
         #expect(try PageFile.load(from: recasedURL).body == "PRECIOUS BODY")
-        #expect(manager.pages(in: coll).count == 1)
-        #expect(manager.pages(in: coll).first?.title == "Notes")
+        #expect(manager.pages(inCollection: coll).count == 1)
+        #expect(manager.pages(inCollection: coll).first?.title == "Notes")
     }
 
     @Test("renamePage onto a DIFFERENT sibling whose title differs only in case still throws")
@@ -173,8 +173,8 @@ struct NameCollisionTests {
 
         try await manager.createPage(name: "Notes", in: coll, vault: vault)
         try await manager.createPage(name: "Ideas", in: coll, vault: vault)
-        let notes = manager.pages(in: coll).first { $0.title == "Notes" }!
-        let ideas = manager.pages(in: coll).first { $0.title == "Ideas" }!
+        let notes = manager.pages(inCollection: coll).first { $0.title == "Notes" }!
+        let ideas = manager.pages(inCollection: coll).first { $0.title == "Ideas" }!
         try await manager.updatePage(notes, body: "NOTES BODY", in: coll, vault: vault)
         try await manager.updatePage(ideas, body: "IDEAS BODY", in: coll, vault: vault)
 
@@ -188,7 +188,7 @@ struct NameCollisionTests {
         let ideasURL = NexusPaths.pageFileURL(forTitle: "Ideas", in: coll.folderURL)
         #expect(try PageFile.load(from: notesURL).body == "NOTES BODY")
         #expect(try PageFile.load(from: ideasURL).body == "IDEAS BODY")
-        #expect(manager.pages(in: coll).count == 2)
+        #expect(manager.pages(inCollection: coll).count == 2)
     }
 
     // MARK: - Shared validator: direct unit coverage

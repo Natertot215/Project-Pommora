@@ -76,10 +76,10 @@ struct PageContentManagerTypeRootTests {
         )
 
         await manager.loadAll(for: vault)
-        await manager.loadAll(for: coll)
+        await manager.loadAll(forCollection: coll)
 
         let rootPages = manager.pages(in: vault)
-        let collPages = manager.pages(in: coll)
+        let collPages = manager.pages(inCollection: coll)
         #expect(rootPages.count == 1)
         #expect(rootPages.first?.title == "RootPage")
         #expect(collPages.count == 1)

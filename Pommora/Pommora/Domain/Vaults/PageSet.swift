@@ -100,6 +100,12 @@ extension PageSet {
         set { parentID = newValue }
     }
 
+    // Backward-compatibility alias — callers migrating from typeID → parentID.
+    var typeID: String {
+        get { parentID }
+        set { parentID = newValue }
+    }
+
     // Convenience init preserving the old collectionID: label for callers not yet updated.
     init(
         id: String,
@@ -120,6 +126,35 @@ extension PageSet {
             schemaVersion: schemaVersion,
             icon: icon,
             pageOrder: pageOrder
+        )
+    }
+
+    // Convenience init preserving the old typeID: label for PageCollection callers not yet updated.
+    init(
+        id: String,
+        typeID: String,
+        title: String,
+        folderURL: URL,
+        modifiedAt: Date,
+        schemaVersion: Int = SchemaVersion.pageCollection,
+        icon: String? = nil,
+        pageOrder: [String]? = nil,
+        setOrder: [String]? = nil,
+        views: [SavedView] = [],
+        banner: String? = nil
+    ) {
+        self.init(
+            id: id,
+            parentID: typeID,
+            title: title,
+            folderURL: folderURL,
+            modifiedAt: modifiedAt,
+            schemaVersion: schemaVersion,
+            icon: icon,
+            pageOrder: pageOrder,
+            setOrder: setOrder,
+            views: views,
+            banner: banner
         )
     }
 }

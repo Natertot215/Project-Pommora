@@ -180,7 +180,7 @@ final class ExternalChangeReconciler {
         switch scope {
         case .collection(let id, let typeID):
             guard let col = collection(id: id, typeID: typeID) else { return }
-            await content.loadAll(for: col)
+            await content.loadAll(forCollection: col)
             syncScope(
                 content.pagesByCollection[id] ?? [],
                 pageTypeID: typeID, pageCollectionID: id, pageSetID: nil, updater: updater)
@@ -300,7 +300,7 @@ final class ExternalChangeReconciler {
         let collections = env.vaultManager.pageCollectionsByType.values.flatMap { $0 }
         for id in Array(content.pagesByCollection.keys) {
             guard let collection = collections.first(where: { $0.id == id }) else { continue }
-            await content.loadAll(for: collection)
+            await content.loadAll(forCollection: collection)
         }
         for id in Array(content.pagesByTypeRoot.keys) {
             guard let type = env.vaultManager.types.first(where: { $0.id == id }) else { continue }

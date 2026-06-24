@@ -529,7 +529,7 @@ struct PageEditorView: View {
         if let set {
             return contentManager.pages(in: set).first { $0.id == viewModel.page.id }
         } else if let collection {
-            return contentManager.pages(in: collection).first { $0.id == viewModel.page.id }
+            return contentManager.pages(inCollection: collection).first { $0.id == viewModel.page.id }
         } else {
             return contentManager.pages(in: vault).first { $0.id == viewModel.page.id }
         }

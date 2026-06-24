@@ -491,7 +491,7 @@ struct PagePreviewContent: View {
         {
             await contentManager.loadAll(for: s)
         } else {
-            await contentManager.loadAll(for: c)
+            await contentManager.loadAll(forCollection: c)
         }
     }
 
@@ -515,7 +515,7 @@ struct PagePreviewContent: View {
             return contentManager.pages(in: set).first { $0.id == vm.page.id }
         }
         if let collection {
-            return contentManager.pages(in: collection).first { $0.id == vm.page.id }
+            return contentManager.pages(inCollection: collection).first { $0.id == vm.page.id }
         }
         return contentManager.pages(in: vault).first { $0.id == vm.page.id }
     }
