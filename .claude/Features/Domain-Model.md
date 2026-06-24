@@ -1,6 +1,6 @@
 ### Domain Model
 
-Pommora is organized as **two layers** with PARA-aligned naming. The organization layer (Contexts) holds categorical anchors; the operational layer (Page Types + Agenda) holds the actual data. Operational entities relate to organization entities via per-tier multi-relation fields.
+Pommora is organized as **two layers** with PARA-aligned naming. The organization layer (Contexts) holds categorical anchors; the operational layer (Page Collections + Agenda) holds the actual data. Operational entities relate to organization entities via per-tier multi-relation fields.
 
 Per-entity detail → dedicated docs in `// Features//`.
 
@@ -14,7 +14,7 @@ Per-entity detail → dedicated docs in `// Features//`.
 | Areas | **Areas** (tier 1) | Organization |
 | Projects | **Topics** (tier 2) | Organization |
 | (specifics) | **Projects** (tier 3) | Organization |
-| Resources | **Page Types + Agenda** | Operational |
+| Resources | **Page Collections + Agenda** | Operational |
 | (dashboard) | **Homepage** | Singleton |
 | Archive | `.trash/` | Singleton |
 
@@ -40,12 +40,11 @@ On-disk shape, sidebar, validation, and tier config → `Contexts.md`.
 
 | Entity | Role | Default UI label |
 |---|---|---|
-| **Page Type** | Schema-bearing container for Pages | **"Vault"** |
-| **Page Collection** | Organizational sub-folder inside a Page Type | "Collection" |
-| **Page Set** | Optional schema-less sub-folder inside a Page Collection; identity + icon only, everything else inherits from the Collection | "Set" |
+| **Page Collection** | Schema-bearing top container for Pages | **"Collection"** |
+| **Page Set** | Recursive sub-folder inside a Collection (any depth); schema-less, inherits everything. Depth-1 carries its own views; deeper is plain | "Set" / "Sub-Set" |
 | **Page** | Markdown document with prose + frontmatter | "Page" |
 
-The Page Type's property schema applies to every Page inside it — Collections and Sets both inherit it. Collections own their saved `views`; Sets carry no schema or settings. On-disk shapes → [[Architecture]]; Type/Collection detail → [[PageTypes]]; Set mechanics → [[Sets]]; the page document → [[Pages]].
+The Collection's property schema applies to every Page inside it (at any depth) — all Sets inherit it. Only a depth-1 Set owns its saved `views`; deeper Sub-Sets carry none. On-disk shapes → [[Architecture]]; the top tier + schema → [[PageCollections]]; recursive Set mechanics → [[PageSets]]; the page document → [[Pages]].
 
 #### Operational layer — Agenda
 
@@ -62,9 +61,9 @@ Detail → [[Agenda]]; the property catalog across all kinds → [[Properties]].
 
 | Layer | Use |
 |---|---|
-| **Code + data** | `PageType` / `PageCollection` / `PageSet` — exact literal names in JSON keys, sidecar fields, file references. |
-| **Docs prose** | "Page Type" / "Page Collection" / "Page Set" (or "Type" / "Collection" / "Set" where unambiguous) |
-| **UI label (default)** | **"Vault"** + "Collection" + "Set", all user-renameable via Settings. |
+| **Code + data** | `PageCollection` (top) / `PageSet` (recursive) — exact literal names in JSON keys, sidecar fields, file references. `PageType` is retired. |
+| **Docs prose** | "Page Collection" / "Page Set" (or "Collection" / "Set" / "Sub-Set" where unambiguous) |
+| **UI label (default)** | **"Collection"** + "Set" (+ derived "Sub-Set"), user-renameable via Settings. |
 
 ---
 
@@ -100,7 +99,7 @@ Operational entities (Pages, Tasks, Events) tag Contexts via **per-tier multi-re
 | Page → Page (`[[ ]]` connection) | plain `[[Title]]` in body, resolved by globally-unique title — see [[Connections]] | Inline reference |
 | Operational entity → Context (tier N) | `tierN: [<id>, ...]` at the frontmatter / JSON root | Categorical assignment |
 | Context → Context | None — tiers are free-standing; context→context relations are deferred | — |
-| Page → Page Type / Page Collection / Page Set | Implicit by file location | Membership |
+| Page → Page Collection / Page Set | Implicit by file location | Membership |
 
 Tier relations are stored by ID (rename-safe); body connections are plain `[[Title]]` on disk, rename-safe via cascade — full rules in [[Connections]].
 
@@ -112,10 +111,10 @@ Four top-level groups (three carry a heading; labels renameable via the Settings
 
 - **Pinned (heading-less, at top)** — fixed entries (Homepage, Calendar, Recents); labels renamable. Section wrapper persists for future user-pinning
 - **Contexts** — one section containing one disclosure row per tier; each tier row is never selectable and toggles its own disclosure only; each tier's entities render as flat leaf rows inside their disclosure
-- **Vaults** — chevron-disclosure showing Page Types (UI label "Vault"); each Vault discloses Pages (in Type root) + Page Collections (UI label "Collection"); each Collection discloses Page Sets (UI label "Set"; expandable, never selectable) + its Pages; each Set discloses its Pages
-- **User sections** — user-created sibling sections that group Vaults for navigation only (`.nexus/sidebar-sections.json`; single-membership; ungrouped Vaults stay in the default Vaults section). Detail → `Sidebar.md`
+- **Collections** — chevron-disclosure showing Page Collections (UI label "Collection"); each Collection discloses its root Pages + its Sets (UI label "Set"); each Set discloses its Sub-Sets (recursively) + its Pages — a depth-1 Set is selectable, deeper Sub-Sets are expand-only
+- **User sections** — user-created sibling sections that group Collections for navigation only (`.nexus/sidebar-sections.json`; single-membership; ungrouped Collections stay in the default Collections section). Detail → `Sidebar.md`
 
-There are no wrapper folders on disk — Page Types and the Agenda singletons live as siblings at the nexus root; the section headings are pure UI groupings with no on-disk counterpart.
+There are no wrapper folders on disk — Page Collections and the Agenda singletons live as siblings at the nexus root; the section headings are pure UI groupings with no on-disk counterpart.
 
 Agenda has **no** sidebar section. Tasks + Events surface via the Calendar entry in the Pinned section (Calendar UI ships in a follow-up plan) — they do **not** appear as sidebar leaves.
 

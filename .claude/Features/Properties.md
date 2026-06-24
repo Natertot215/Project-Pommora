@@ -211,9 +211,9 @@ Option creation, renaming, recoloring, deletion, and reorder happen only via the
 
 Three commit paths:
 
-1. **Vault / Type Settings → Edit Properties → expand property → option list** — canonical. Drag-reorder, "+ Add option", per-option color picker, rename TextField, delete. Batched with the sheet's Save.
+1. **Collection Settings → Edit Properties → expand property → option list** — canonical. Drag-reorder, "+ Add option", per-option color picker, rename TextField, delete. Batched with the sheet's Save.
 2. **Right-click a property LABEL** (inspector row, panel row) → "Add option…" — small structured popover (Name + Color + Group-for-Status + Save / Cancel) with its own commit boundary.
-3. **Right-click a property VALUE** (pill, chip, status indicator) → "Edit options…" — routes to Vault / Type Settings → Edit Properties at that property's row. Value pickers themselves do not accept typed new options; they show a "Manage options…" link routing to the same destination.
+3. **Right-click a property VALUE** (pill, chip, status indicator) → "Edit options…" — routes to Collection Settings → Edit Properties at that property's row. Value pickers themselves do not accept typed new options; they show a "Manage options…" link routing to the same destination.
 
 For Status, the editor also exposes per-group label TextFields + drag-between-groups across Upcoming / In Progress / Done.
 
@@ -231,7 +231,7 @@ For Select and Multi-select, schema option order defines sort behavior — drag-
 
 | Edit layer | Save model | UX |
 |---|---|---|
-| **Schema edits** (Vault / Type level — rename property, change type, add/delete property, edit options) | Save-required | Vault / Type Settings sheet stages edits into a draft; explicit Save commits inside an atomic transaction; Cancel discards. Concurrent-open forbidden — only one Type's Settings sheet open at a time per window. |
+| **Schema edits** (Collection level — rename property, change type, add/delete property, edit options) | Save-required | Collection Settings sheet stages edits into a draft; explicit Save commits inside an atomic transaction; Cancel discards. Concurrent-open forbidden — only one Type's Settings sheet open at a time per window. |
 | **Value edits** (entity level — setting a property value on a specific Page) | Live-save | Pickers commit on click; text inputs debounce-save after typing stops. No Save button. Invalid values render with a red border; failed saves silently revert; recovery on next valid keystroke. |
 
 ---
@@ -301,13 +301,13 @@ Enforced at every write to a Type's per-kind sidecar (schema-level) and to each 
 
 ---
 
-#### Vault / Type settings architecture
+#### Collection settings architecture
 
 Properties + view configuration spans four surfaces:
 
-##### 1. Vault / Type Settings (schema editor)
+##### 1. Collection Settings (schema editor)
 
-The schema editor for a Vault / Type. Reached from the Type detail view toolbar gear button, the Type row's right-click menu, or the "+ Property" column header in the detail-pane Table view. UI label: "Vault Settings…" by default.
+The schema editor for a Collection. Reached from the Type detail view toolbar gear button, the Type row's right-click menu, or the "+ Property" column header in the detail-pane Table view. UI label: "Vault Settings…" by default.
 
 | Section | Contents |
 |---|---|
@@ -316,7 +316,7 @@ The schema editor for a Vault / Type. Reached from the Type detail view toolbar 
 
 Save-required + concurrent-open forbidden (only one Type's Settings sheet open at a time per window).
 
-##### 2. Vault / Type View Settings (per-view config)
+##### 2. Collection View Settings (per-view config)
 
 Per-view configuration via the consolidated `slider.horizontal.3` toolbar button popover at ContentView level. The button is statically positioned in the existing primary-action Liquid Glass capsule beside Navigation + Inspector toggle; its popover content adapts to the currently-selected surface via `ViewSettingsScope`.
 
@@ -350,9 +350,9 @@ The standalone Property Visibility pane is folded into Layout.
 
 A per-Type default sort lives on the Type sidecar (`default_sort: { property_id, direction }`) as a fallback before per-view sort rules land.
 
-##### 3. Vault / Type Views (saved views)
+##### 3. Collection Views (saved views)
 
-Multiple saved views per Vault / Type, Notion-database-views model. Each view carries its own config (Sort / Filter / Group / Layout, property order + hidden set) and a path to the schema settings (Vault / Type Settings is accessible from any view).
+Multiple saved views per Collection, Notion-database-views model. Each view carries its own config (Sort / Filter / Group / Layout, property order + hidden set) and a path to the schema settings (Collection Settings is accessible from any view).
 
 View definitions persist in the per-kind sidecar as `views[]` (SavedView v2). Multi-view CRUD + a toolbar Views dropdown switcher ship; Table and Gallery render, Board / List / Cards are muted. Full spec → [[Views]].
 
@@ -433,7 +433,7 @@ The full property data layer (all 10 types, ID-truth identity, schema CRUD on al
 #### Cross-references
 
 - [[Domain-Model]] — 2-layer domain model overview
-- [[PageTypes]] — Page Type + Page Collection container layer
+- [[PageCollections]] — Page Collection + Page Set container layer
 - [[Agenda]] — Task + Event split; per-side schemas
 - [[Contexts]] — Areas / Topics / Projects tier system
 - [[Pages]] — on-disk shape, connection mechanics

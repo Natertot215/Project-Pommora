@@ -76,7 +76,7 @@ Full ship detail → [[History]].
 The second operational side deleted, not migrated — Page is the only operational entity beside Agenda. `[[` is the sole connection syntax; per-vault `open_in` routes page-taps to **PagePreview** (a real `NSPanel` — AppKit is required for no-dim child-window behavior with no traffic-light / Dock / Window-menu presence, child-attached above the main window, mounting the shared inspector at compact scale) or the main detail pane. User-creatable sidebar sections group Vaults (navigation-only). Launch/state hardening alongside. Full record → [[History]].
 
 ##### v0.4.1 — Sets
-The third operational tier: Vault → Collection → **Set** (optional) → Pages. A Set is a schema-less folder inside a Collection (identity + icon + order only; views / settings / open-in all inherit from the Collection). Strict three levels — deeper folders stay sidecar-less and roll up into the nearest Set. In-vault page moves are strip-free; whole-Set moves between Collections; adoption auto-tags. Bundled hardening mints fresh ULIDs for Finder-duplicated container sidecars. Spec → [[Sets]].
+The original third operational tier: Vault → Collection → **Set** (optional) → Pages — a schema-less folder, strict three levels. **Superseded** by the Collections/Sets rename + infinite nesting — the three tiers collapsed to a **Collection** nesting recursive **Sets** (depth-1 "Set", deeper "Sub-Set") → [[History]]; current spec → [[PageCollections]] + [[PageSets]].
 
 ---
 

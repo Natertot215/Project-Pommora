@@ -1,6 +1,6 @@
 ### Pages
 
-A Page is one Markdown file inside a [[PageTypes|Page Type]] — the only operational entity that holds free prose content. A Page **belongs to one Page Type** (the Type whose folder it physically lives in). Pages conform to their Page Type's property schema.
+A Page is one Markdown file inside a [[PageCollections|Page Collection]] — the only operational entity that holds free prose content. A Page **belongs to one Collection** (the Collection whose folder it physically lives in, at any nesting depth). Pages conform to their Collection's property schema.
 
 ---
 
@@ -69,9 +69,9 @@ A Page's properties surface as the **property panel** in the editor's pop-out **
 
 #### Opening behavior
 
-**Routing is per-vault.** Each vault declares an open mode on its `_pagetype.json` sidecar (`compact` | `window`; absent = `window`), set by the vault's footer toggle (→ [[PageTypes]] "Open-in mode"). One shared open-path resolves every page-tap — sidebar single-click, detail-table double-click, and the Component Library all route through it — and decides whether the tap lands in the main detail pane or an in-window preview card. Pages inside a Page Set route identically; a save never re-points a page's set.
+**Routing is per-Collection.** Each Collection declares an open mode on its `_pagecollection.json` sidecar (`compact` | `window`; absent = `window`), set by the Collection's footer toggle (→ [[PageCollections]] "Open-in mode"). One shared open-path resolves every page-tap — sidebar single-click, detail-table double-click, and the Component Library all route through it — and decides whether the tap lands in the main detail pane or an in-window preview card. Pages inside a Set route identically; a save never re-points a page's set.
 
-**`window` (default) — detail pane (single Page at a time).** Clicking a Page row in the sidebar opens the Page in the existing detail pane, replacing the Page Collection / Page Type / Context detail view for that selection. Only one Page is open at a time in the main window; switching to a different Page closes the previous one (its body is already auto-saved by the editor's debounce loop).
+**`window` (default) — detail pane (single Page at a time).** Clicking a Page row in the sidebar opens the Page in the existing detail pane, replacing the Collection / Set / Context detail view for that selection. Only one Page is open at a time in the main window; switching to a different Page closes the previous one (its body is already auto-saved by the editor's debounce loop).
 
 **`compact` — preview card.** The Page opens in a **preview card**: one reusable, resizable panel that retargets when you peek another Page. The panel is **child-attached to the main window** and **never acts as a main app window** — clicking it from another app refocuses Pommora, but it never demotes or dims the main window, so preview and main read as a single focus unit. It rides main-window moves, hides with the main window, and closes with it and on Nexus switch; it never floats over other apps and has no Dock, Window-menu, or fullscreen presence. Chrome is minimal: a renameable proxy title (double-click to edit; filename = title), a proxy icon, a footer breadcrumb + lock, and two capsule buttons (close, inspector). The body is the shared editor, read-only on open.
 
@@ -86,15 +86,15 @@ A Page's properties surface as the **property panel** in the editor's pop-out **
 
 #### Hierarchy
 
-Pages live at three depths inside a Page Type: the Type root, a Page Collection root, or a Page Set inside a Collection (the optional third container level — see [[Sets]]). The hierarchy stops there — depth-3+ folders are sidecar-less and their pages roll up into the nearest Set. No forced sub-page nesting; sub-pages (nested Page hierarchy) are a v2 candidate (see [[Prospects]]).
+Pages live at any depth inside a Collection: the Collection root, or a Set / Sub-Set nested to any depth (see [[PageSets]]). No forced sub-page nesting; sub-pages (a nested *Page* hierarchy) are a v2 candidate (see [[Prospects]]).
 
 ---
 
 #### Sidebar visibility
 
-Pages are the only operational entity with sidebar leaf visibility — they appear as `doc.text` leaf rows under their parent Page Type (root), Page Collection, or Page Set. **Tasks and Events do NOT appear in the sidebar** — they surface via the Calendar pin entry. A Page row is a leaf — v1 has no sub-pages. Disclosure structure → [[PageTypes]] § "Sidebar treatment".
+Pages are the only operational entity with sidebar leaf visibility — they appear as `doc.text` leaf rows under their parent Collection or Set (at any depth). **Tasks and Events do NOT appear in the sidebar** — they surface via the Calendar pin entry. A Page row is a leaf — v1 has no sub-pages. Disclosure structure → [[PageCollections]] § "Sidebar treatment".
 
-Right-click on a Page row in the sidebar gives Rename / Delete; right-click in a Page Type or Page Collection detail view gives Rename / Pin (or Unpin) / Delete. For full sidebar layout + creation affordances → [[Sidebar]].
+Right-click on a Page row in the sidebar gives Rename / Delete; right-click in a Collection or Set detail view gives Rename / Pin (or Unpin) / Delete. For full sidebar layout + creation affordances → [[Sidebar]].
 
 ---
 
