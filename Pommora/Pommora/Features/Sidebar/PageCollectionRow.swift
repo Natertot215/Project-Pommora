@@ -2,10 +2,9 @@ import SwiftUI
 
 // MARK: - Unified disclosure item
 
-/// Combines PageCollections and Pages into a single ordered list for the
-/// PageCollection disclosure body. Collections render ABOVE Pages. A single ForEach +
-/// .onMove handles both, avoiding the dual-ForEach SwiftUI bug where only the
-/// first ForEach's .onMove binding is honoured.
+/// Sets and Pages in a single ordered list for the PageCollection disclosure body —
+/// Sets render above Pages. Single ForEach + .onMove avoids the dual-ForEach SwiftUI
+/// bug where only the first ForEach's .onMove is honoured.
 private enum VaultDisclosureItem: Identifiable {
     case collection(PageSet)
     case page(PageMeta)
@@ -40,7 +39,7 @@ struct PageCollectionRow: View {
     @State private var isCreatingCollection: Bool = false
     @State private var isCreatingPage: Bool = false
 
-    // Collections first, then vault-root pages — single ForEach + one .onMove
+    // Sets first, then PageCollection-root pages — single ForEach + one .onMove
     // (SwiftUI honours only the first sibling ForEach's .onMove in a disclosure).
     private var disclosureItems: [VaultDisclosureItem] {
         collectionManager.pageCollections(in: pageCollection).map { .collection($0) }
@@ -89,17 +88,13 @@ struct PageCollectionRow: View {
             ) {
                 let pageCollectionLabel = settingsManager.settings.labels.pageCollection.singular
                 let setLabel = settingsManager.settings.labels.pageSet.singular
-                // Top-tier Collection creation is NOT offered here — the only way
-                // to create a Collection is the "+" in the Pages section header
-                // (SidebarView.createPageCollection). A Collection's menu creates its
-                // children (Sets + Pages) only.
+                // Top-tier PageCollection creation is NOT offered here — only via the
+                // "+" in the Pages section header. This menu creates children (Sets + Pages) only.
                 Button("New \(setLabel)") { createPageCollection() }
                     .disabled(isCreatingCollection)
                 Button("New Page") { createPage() }
                     .disabled(isCreatingPage)
-                // User vault sections (PagesV2 P9, navigation-only). Hidden until
-                // at least one section exists; "Remove from Section" appears only
-                // while this vault is grouped.
+                // Hidden until at least one user section exists.
                 if !sectionsManager.config.sections.isEmpty {
                     Divider()
                     Menu("Move to Section") {
@@ -132,7 +127,6 @@ struct PageCollectionRow: View {
                 isSelected: SelectionTag.pageCollection(pageCollection.id).matches(selection)
             )
         )
-        // Load Page-Type-root Pages when the row appears, regardless of disclosure.
         .task {
             await contentManager.loadAll(for: pageCollection)
         }
@@ -199,21 +193,20 @@ struct PageCollectionRow: View {
         }
     }
 
-    // MARK: - User vault sections (PagesV2 P9)
+    // MARK: - User vault sections
 
     /// The user section currently holding this vault, if any (single-membership).
     private var currentSectionID: String? {
         sectionsManager.section(containing: pageCollection.id)?.id
     }
 
-    /// Plain-value helper for the context-menu `disabled` check — kept out of the
-    /// @ViewBuilder closure per quirk #9 (GRDB String overload pollution).
+    /// Plain-value helper for the context-menu `disabled` check — kept out of @ViewBuilder
+    /// per quirk #9 (GRDB String overload pollution).
     private func isInSection(_ sectionID: String) -> Bool {
         currentSectionID == sectionID
     }
 
-    /// Single-membership move (one manager mutation). Navigation-only — the vault
-    /// folder never moves on disk.
+    /// Single-membership section move (navigation-only — the folder never moves on disk).
     private func moveToSection(_ sectionID: String) {
         Task {
             do {
@@ -224,7 +217,6 @@ struct PageCollectionRow: View {
         }
     }
 
-    /// Returns the vault to the default Vaults section.
     private func removeFromSection() {
         Task {
             do {

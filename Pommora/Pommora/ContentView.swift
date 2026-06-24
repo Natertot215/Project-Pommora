@@ -11,16 +11,11 @@ struct ContentView: View {
     @State private var sidebarSelection: SidebarSelection = .none
     @State private var presentedSheet: SidebarSheet?
 
-    // Inline-rename + stub-and-edit CRUD state. Lifted to ContentView (was
-    // SidebarView-local pre-F.0) so detail-view footer "+" triggers can flip
-    // the matching sidebar row into rename mode after a stub-create. Both
-    // bindings cascade into SidebarView (and its sections/rows) AND into
-    // SidebarDetailView (and its detail views).
-    //
-    // `editingID` is set non-nil when a single row is in inline-rename mode.
-    // `justCreatedID` is set non-nil when the row in rename mode was just
-    // freshly stub-created; RenameableRow reads it to select-all-on-focus so
-    // the user's first keystroke replaces the default title.
+    // Inline-rename + stub-and-edit CRUD state. Lifted to ContentView so
+    // detail-view footer "+" triggers can flip the matching sidebar row into
+    // rename mode after a stub-create.
+    // `justCreatedID` signals RenameableRow to select-all-on-focus so the user's
+    // first keystroke replaces the default title.
     @State private var editingID: String? = nil
     @State private var justCreatedID: String? = nil
     /// Inspector toggle. Per-Page persistence: loaded from AppState on
@@ -30,14 +25,10 @@ struct ContentView: View {
     /// inside the detail sub-view.
     @State private var inspectorPresented = false
 
-    /// Single owner + injector for every per-Nexus manager/resolver. Replaces
-    /// the former ~16 individual `@State …Manager?` optionals + their scattered
-    /// `.environment(...)` injects. Reconstructed whenever `currentNexus`
-    /// changes (see `.onChange` → `rebuildEnvironment`); nil while no Nexus is
-    /// open. Every manager is reached via `nexusEnvironment?.someManager`, and
-    /// every descendant's `@Environment(X.self)` is satisfied in ONE place by
-    /// `.injectNexusEnvironment(env)` (eliminates the forgotten-inject SIGTRAP,
-    /// quirk #11). See `NexusEnvironment.swift`.
+    /// Single owner + injector for every per-Nexus manager/resolver. Reconstructed
+    /// when `currentNexus` changes; nil while no Nexus is open. Satisfies all
+    /// descendant `@Environment` values in ONE place via `.injectNexusEnvironment(env)`
+    /// (eliminates the forgotten-inject SIGTRAP, quirk #11).
     @State private var nexusEnvironment: NexusEnvironment?
 
     /// Maps a `SidebarSelection` to a `ViewSettingsScope`. Static + pure so the
@@ -105,11 +96,8 @@ struct ContentView: View {
         .help("Toggle Inspector (⌥⌘0)")
     }
 
-    /// The **Views** pill — a standalone toolbar item, kept OUT of the
-    /// `.primaryAction` trio (see `mainToolbar`). Welding it into the trio's item
-    /// made the trio's rendered width depend on whether the Views pill was present,
-    /// condensing the trio on the container views where Views appears. Standalone,
-    /// the trio's width is fully decoupled and stable.
+    /// The **Views** pill — standalone so the trio's width stays decoupled from
+    /// whether Views is visible (welding them condensed the trio on container views).
     @ViewBuilder
     private var viewsButtonCapsule: some View {
         if let env = nexusEnvironment {
@@ -122,11 +110,8 @@ struct ContentView: View {
         }
     }
 
-    /// The settings·nav·inspector **trio** — the `.primaryAction` item the
-    /// inspector folds. Isolated from the Views pill so its width is identical
-    /// whether or not the Views button is present (the welded version condensed
-    /// here). Glassed once via `.glassEffect`; the system's shared toolbar glass is
-    /// suppressed per-item in `mainToolbar` via `.sharedBackgroundVisibility`.
+    /// The settings·nav·inspector **trio** — the `.primaryAction` item the inspector folds.
+    /// Width is stable independent of the Views pill (welding them condensed it).
     @ViewBuilder
     private var trioCapsule: some View {
         if let env = nexusEnvironment {
@@ -157,23 +142,10 @@ struct ContentView: View {
         }
     }
 
-    /// The window toolbar — extracted into its own `@ToolbarContentBuilder` so the
-    /// `body` modifier chain stays under the Swift type-checker's inference budget.
-    ///
-    /// Back/Forward lead in the `.navigation` group; a `.flexible` spacer pushes
-    /// the trailing cluster over (macOS 26 has no native trailing placement). The
-    /// cluster is TWO independent items — the Views pill and the
-    /// settings·nav·inspector trio (`.primaryAction`) — kept separate ON PURPOSE:
-    /// welding them made the trio's width track the Views pill's presence and
-    /// condensed it on container views. Hosted on the detail column;
-    /// `.sharedBackgroundVisibility(.hidden)` on each item suppresses the system's
-    /// shared glass so only the custom `.glassEffect` pills render.
-    ///
-    /// KNOWN QUIRK: both items live in the trailing region, which the inspector
-    /// adopts — so toggling the inspector folds the Views pill in alongside the
-    /// trio (it does not stay in the main window). macOS exposes no
-    /// content-trailing slot to pin it outside the adopted region; accepted as the
-    /// tradeoff for the stable, un-condensed trio. See `// Guidelines //Design.md`.
+    /// Window toolbar. Views pill and trio are TWO separate items — welding them condensed
+    /// the trio on container views. KNOWN QUIRK: both live in the trailing region the inspector
+    /// adopts, so toggling the inspector folds the Views pill in too. macOS exposes no
+    /// content-trailing slot to avoid this; accepted tradeoff. See `// Guidelines //Design.md`.
     @ToolbarContentBuilder
     private var mainToolbar: some ToolbarContent {
         ToolbarItemGroup(placement: .navigation) {
@@ -182,15 +154,12 @@ struct ContentView: View {
             }
         }
         ToolbarSpacer(.flexible)
-        // Views pill — its own item, so the trio's width never depends on it.
         if showsViewControls {
             ToolbarItem {
                 viewsButtonCapsule
             }
             .sharedBackgroundVisibility(.hidden)
         }
-        // The trio — the `.primaryAction` the inspector folds; standalone, its
-        // width is identical with or without the Views pill present.
         ToolbarItem(placement: .primaryAction) {
             trioCapsule
         }
@@ -205,12 +174,8 @@ struct ContentView: View {
                 .navigationSplitViewColumnWidth(min: 180, ideal: 240, max: 330)
         } detail: {
             detail
-                // Toolbar hosted on the DETAIL column — not the split-view root and
-                // not the inspector. On the split-view root, `.primaryAction` anchors
-                // to the narrow sidebar (primary) column and folds the cluster into
-                // the » overflow; on the inspector, the inspector owns the toolbar
-                // context and re-glues / leaks the buttons. The detail host resolves
-                // `.primaryAction` to the detail's region — confirmed correct.
+                    // Hosted on the DETAIL column — on the split-view root, `.primaryAction`
+                // anchors to the sidebar and folds into overflow; on the inspector it leaks.
                 .toolbar { mainToolbar }
         }
         .tint(currentAccent)
@@ -324,10 +289,8 @@ struct ContentView: View {
 
     @ViewBuilder
     private var inspectorContent: some View {
-        // FrontmatterInspector is the only inspector content in v0.2.7.
-        // Resolves vault for the selected Page via ContentManager's walker.
-        // Non-Page selections fall through to an empty view (inspector pane
-        // stays in the scene tree to avoid layout jumps when toggling).
+        // Non-Page selections fall through to Color.clear so the inspector
+        // pane stays in the scene tree (avoids layout jumps when toggling).
         if case .page(let p) = sidebarSelection,
             let env = nexusEnvironment,
             let resolved = env.contentManager.resolveParent(
@@ -376,11 +339,6 @@ struct ContentView: View {
         nexusEnvironment?.settingsManager.settings.accentColor?.color ?? .accentColor
     }
 
-    /// (Re)build the per-Nexus manager container when `currentNexus` changes.
-    /// nil clears the environment (no Nexus open); a value constructs a fresh
-    /// `NexusEnvironment`, which performs all manager construction, cross-manager
-    /// wiring, AppGlobals publish, and the parallel initial-load `Task` in its
-    /// initializer (formerly `constructManagers`). See `NexusEnvironment.swift`.
     private func rebuildEnvironment(for nexus: Nexus?) {
         // Stop the outgoing Nexus's file watcher deterministically (on the main
         // actor) before the env is dropped. The switch path also re-overwrites
@@ -418,9 +376,7 @@ struct ContentView: View {
     }
 }
 
-/// Transient HUD shown over the sidebar while `NexusManager.isIndexing`
-/// is true. Mirrors the Obsidian-style "indexing…" feedback the user expects
-/// on Nexus open. Auto-fades in/out via the caller's `.animation` modifier.
+/// Transient HUD shown over the sidebar while `NexusManager.isIndexing` is true.
 private struct IndexingHUD: View {
     var body: some View {
         HStack(spacing: PUI.Spacing.md) {

@@ -71,10 +71,6 @@ struct SidebarView: View {
                     presentedSheet: $presentedSheet,
                     confirmingDelete: $confirmingDelete
                 )
-                // User vault sections (PagesV2 P9) — each a SIBLING Section
-                // with the IDENTICAL `Section(isExpanded:) { rows } header:`
-                // shape as VaultsSection, reusing PageCollectionRow unchanged
-                // (quirk #6: never mix row shapes inside one Section).
                 ForEach(sidebarSectionsManager.config.sections) { userSection in
                     UserVaultSection(
                         section: userSection,
@@ -101,11 +97,10 @@ struct SidebarView: View {
                     return
                 }
                 guard let resolved = SidebarSelection(tag: newTag, lookup: lookup) else { return }
-                // Open-in routing (V8): a page tap consults its vault's
-                // `open_in` mode — `.window` renders in the detail pane
-                // (selection change), `.compact` opens/focuses a PagePreview
-                // card WITHOUT moving the selection. The edit-conflict guard
-                // (`.suppressed`) keeps a main-pane page from ever previewing.
+                // A page tap consults its PageCollection's `open_in` mode —
+                // `.window` renders in the detail pane (selection change),
+                // `.compact` opens/focuses a PagePreview card WITHOUT moving
+                // the selection. `.suppressed` keeps a main-pane page from ever previewing.
                 if case .page(let p) = resolved {
                     let routed = PageOpenRouter.routeOpen(
                         p, selection: &selection,
@@ -267,8 +262,8 @@ struct VaultsSection: View {
     @State private var isCreating: Bool = false
     @State private var isCreatingSection: Bool = false
 
-    /// The default Vaults section shows only UNGROUPED vaults — those not
-    /// claimed by any user section (PagesV2 P9, single-membership).
+    /// The default Vaults section shows only UNGROUPED PageCollections — those not
+    /// claimed by any user section (single-membership).
     private var ungroupedTypes: [PageCollection] {
         let grouped = sectionsManager.config.groupedVaultIDs
         return collectionManager.types.filter { !grouped.contains($0.id) }
@@ -307,9 +302,8 @@ struct VaultsSection: View {
     }
 
     /// Translates drag offsets from the displayed (ungrouped-only) list back
-    /// into `collectionManager.types` offsets before forwarding to the existing
-    /// full-array reorder. When no vault is grouped the mapping is the
-    /// identity, preserving pre-P9 behavior exactly.
+    /// into `collectionManager.types` offsets before forwarding to the full-array reorder.
+    /// When no PageCollection is grouped the mapping is the identity.
     private func reorderUngrouped(fromOffsets source: IndexSet, toOffset destination: Int) {
         let displayed = ungroupedTypes
         let full = collectionManager.types
@@ -353,10 +347,8 @@ struct VaultsSection: View {
         }
     }
 
-    /// Stub-and-edit "Add Section" trigger (PagesV2 P9). Creates a uniquely
-    /// labelled empty user section, then flips its header into inline-rename
-    /// mode with the default label pre-selected — the same
-    /// `CreateWithInlineEdit` flow every other "New X" uses.
+    /// Stub-and-edit "Add Section" trigger — creates a uniquely labelled empty
+    /// user section, then flips its header into inline-rename mode.
     private func createUserSection() {
         guard !isCreatingSection else { return }
         isCreatingSection = true
@@ -381,19 +373,15 @@ struct VaultsSection: View {
     }
 }
 
-// MARK: - UserVaultSection (PagesV2 P9)
+// MARK: - UserVaultSection
 
-/// One user-created sidebar section grouping Vaults — a SIBLING `Section`
-/// with the IDENTICAL `Section(isExpanded:) { rows } header:` shape as
-/// `VaultsSection`, reusing `PageCollectionRow` unchanged (quirk #6: row shapes
-/// inside a Section must stay homogeneous; selection chrome stays at the
-/// row file level per quirk #7).
+/// One user-created sidebar section grouping PageCollections — a sibling `Section`
+/// with the same shape as `VaultsSection` (quirk #6: row shapes inside a Section
+/// must stay homogeneous; selection chrome at the row file level per quirk #7).
 ///
 /// Membership is navigation-only: `section.vaultIDs` resolve to live
-/// `PageCollection`s in section order; dangling IDs (a deleted vault's ID left in
-/// the config) skip-render. An EMPTY section renders its header with zero
-/// rows — zero rows is trivially homogeneous, and the header must stay
-/// visible so a freshly created section can be inline-renamed.
+/// `PageCollection`s in section order; dangling IDs skip-render. An empty section
+/// keeps its header visible so a freshly created section can be inline-renamed.
 struct UserVaultSection: View {
     let section: SidebarSectionsConfig.Section
     @Binding var selection: SidebarSelection
@@ -406,8 +394,7 @@ struct UserVaultSection: View {
 
     @State private var expanded: Bool = true
 
-    /// `vaultIDs` resolved to live PageCollections in section order. Dangling IDs
-    /// are skipped (skip-render policy — the config is not self-healed).
+    /// `vaultIDs` resolved to live PageCollections in section order; dangling IDs skipped.
     private var resolvedTypes: [PageCollection] {
         let types = collectionManager.types
         return section.vaultIDs.compactMap { id in
@@ -440,12 +427,8 @@ struct UserVaultSection: View {
     }
 }
 
-/// Header for a user vault section: secondary-styled label matching
-/// `SectionHeader`'s strip, flipping into an inline-rename `TextField` when
-/// `editingID == section.id` (mirrors the `RenameableRow` commit/cancel/
-/// focus-loss contract, minus the icon slot — headers carry no symbol).
-/// Context menu: Rename Section / Delete Section (delete is navigation-only —
-/// the section's vaults return to the default Vaults section).
+/// Header for a user vault section — flips into inline-rename when `editingID == section.id`.
+/// Delete is navigation-only: the section's PageCollections return to the default Vaults section.
 private struct UserSectionHeader: View {
     let section: SidebarSectionsConfig.Section
     @Binding var editingID: String?
@@ -619,13 +602,9 @@ struct SelectionChrome: View {
 
 // MARK: - SectionHeader
 
-/// Section header strip used by Areas / Topics / Vaults: secondary-styled title,
-/// trailing "+" button that fades in on hover (matching the disclosure-chevron's
-/// hover affordance), and a section-wide right-click context menu offering the
-/// same action regardless of hover state. `extraMenu` is an optional ViewBuilder
-/// slot appended to that context menu (the Vaults header uses it for
-/// "Add Section", PagesV2 P9); it defaults to empty so the other call sites
-/// stay unchanged.
+/// Section header strip used by Areas / Topics / Vaults — secondary-styled title, trailing
+/// "+" on hover, and a section-wide right-click context menu. `extraMenu` is appended to
+/// that menu (the Vaults header uses it for "Add Section"); defaults to empty.
 private struct SectionHeader<ExtraMenu: View>: View {
     let title: String
     let onAdd: () -> Void

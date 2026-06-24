@@ -1,17 +1,15 @@
 import Foundation
 
-/// Writes drag-reorder results to the appropriate sidecar JSON (v0.2.8.0).
+/// Writes drag-reorder results to the appropriate sidecar JSON.
 ///
-/// Top-level sidebar order (Areas / Topics / Page Types) lives on
-/// `<nexus>/.nexus/state.json` — the same file PinnedManager and RecentsManager
-/// own. Per-container child order lives on each container's own per-kind
-/// sidecar:
+/// Top-level sidebar order (Areas / Topics / Page Collections) lives on
+/// `<nexus>/.nexus/state.json`. Per-container child order lives on each
+/// container's own per-kind sidecar:
 ///   - PageCollection  → `_pagetype.json`
-///   - PageSet → `_pagecollection.json`
+///   - PageSet (depth-1) → `_pagecollection.json`; deeper Sub-Sets → `_pageset.json`
 ///
-/// Every write is a read-modify-atomic-write round-trip: the file is
-/// re-decoded just before mutation so concurrent writes by sibling managers
-/// (PinnedManager, etc.) don't get clobbered.
+/// Every write is a read-modify-atomic-write round-trip so concurrent writes
+/// by sibling managers don't get clobbered.
 @MainActor
 enum OrderPersister {
 

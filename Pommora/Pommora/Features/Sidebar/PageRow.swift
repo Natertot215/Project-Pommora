@@ -31,8 +31,6 @@ struct PageRow: View {
             editingID: $editingID,
             justCreatedID: $justCreatedID,
             onRename: { newTitle in
-                // Resolve the parent-specific manager overload; the row stays
-                // unaware of which PageContentManager rename is dispatched.
                 switch parent {
                 case .collection(let coll, let vault):
                     try await contentManager.renamePage(page, to: newTitle, in: coll, pageCollection: vault)

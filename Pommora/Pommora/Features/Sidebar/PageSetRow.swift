@@ -108,7 +108,6 @@ struct PageSetRow: View {
             }
             .selectionDisabled(true)
         }
-        // Load on row appearance so Pages are available even when collapsed.
         .task {
             await contentManager.loadAll(for: set)
         }
@@ -140,8 +139,7 @@ struct PageSetRow: View {
         }
     }
 
-    /// Plain-value helper for the move menu's `disabled` check — kept out of the
-    /// @ViewBuilder closure per quirk #12 (GRDB String overload pollution).
+    /// Kept out of @ViewBuilder per quirk #12 (GRDB String overload pollution).
     private func isCurrentCollection(_ collection: PageSet) -> Bool {
         collection.id == parentCollection.id
     }

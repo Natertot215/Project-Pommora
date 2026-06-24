@@ -45,8 +45,7 @@ enum NexusPaths {
         nexusConfigDir(in: nexus).appendingPathComponent("saved-config.json", isDirectory: false)
     }
 
-    /// `<nexus>/.nexus/state.json` — per-nexus app state (Navigation
-    /// Recents/Pinned for v0.2.7.2.1; future per-nexus state lands here).
+    /// `<nexus>/.nexus/state.json` — per-nexus app state (navigation recents/pinned + future per-nexus state).
     static func nexusStateURL(in nexus: Nexus) -> URL {
         nexusConfigDir(in: nexus).appendingPathComponent("state.json", isDirectory: false)
     }
@@ -55,16 +54,14 @@ enum NexusPaths {
         nexusConfigDir(in: nexus).appendingPathComponent("homepage.json", isDirectory: false)
     }
 
-    /// `<nexus>/.nexus/settings.json` — per-Nexus user preferences (Phase 7).
-    /// Loaded by SettingsManager; seeded with `Settings.defaultSeed()` on first
-    /// launch when no file is present.
+    /// `<nexus>/.nexus/settings.json` — per-Nexus user preferences.
+    /// Loaded by SettingsManager; seeded with `Settings.defaultSeed()` on first launch.
     static func settingsFileURL(in nexus: Nexus) -> URL {
         nexusConfigDir(in: nexus).appendingPathComponent("settings.json", isDirectory: false)
     }
 
-    /// `<nexus>/.nexus/sidebar-sections.json` — user-creatable sidebar
-    /// sections grouping Vaults (navigation-only; PagesV2 P9). Loaded by
-    /// SidebarSectionsManager; seeded empty on first launch.
+    /// `<nexus>/.nexus/sidebar-sections.json` — user-creatable sidebar sections grouping
+    /// PageCollections (navigation-only). Loaded by SidebarSectionsManager; seeded empty on first launch.
     static func sidebarSectionsURL(in nexus: Nexus) -> URL {
         nexusConfigDir(in: nexus).appendingPathComponent(
             "sidebar-sections.json", isDirectory: false)
@@ -132,10 +129,8 @@ enum NexusPaths {
     }
 
     /// Folder URL of the Tasks singleton — the unique folder at the nexus root
-    /// carrying `_taskconfig.json`. Falls back to `<nexus>/Tasks/` (default
-    /// name) when none is present; the manager seeds the sidecar on launch
-    /// per locked decision #9, after which discovery returns the seeded folder
-    /// (and survives a Finder rename of that folder).
+    /// carrying `_taskconfig.json`. Falls back to `<nexus>/Tasks/` when none is
+    /// present; survives a Finder rename of that folder once the sidecar is seeded.
     static func tasksDir(in nexus: Nexus) -> URL {
         singletonDir(
             in: nexus.rootURL,
@@ -248,7 +243,7 @@ enum NexusPaths {
             .appendingPathComponent("_project.json", isDirectory: false)
     }
 
-    // MARK: - PageCollection / PageCollection / Content paths (flatlayout)
+    // MARK: - PageCollection / PageSet / Content paths (flatlayout)
 
     /// `<nexus>/<typeFolderName>/` — PageCollection folder (flatlayout: lives at the
     /// nexus root, no wrapper segment).
@@ -328,11 +323,9 @@ enum NexusPaths {
 
     // MARK: - Legacy aliases (pre-ParadigmV2 vocabulary)
     //
-    // Existing call sites still use `vaultFolderURL` / `vaultMetadataURL` /
-    // `collectionFolderURL(forTitle:inVaultTitled:in:)`. Phase 6 redirects
-    // them to the new `Pages/` wrapper so on-disk layout shifts in one step;
-    // a follow-up rename pass will retire the legacy names. Keeping the
-    // aliases here is the stub-and-progressively-replace seam.
+    // Call sites still use `vaultFolderURL` / `vaultMetadataURL` /
+    // `collectionFolderURL(forTitle:inVaultTitled:in:)` — a code-rename pass
+    // will retire these once all callers are updated.
 
     static func vaultFolderURL(forTitle title: String, in nexus: Nexus) -> URL {
         pageTypeFolderURL(in: nexus.rootURL, typeFolderName: title)

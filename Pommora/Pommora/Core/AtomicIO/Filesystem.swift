@@ -306,8 +306,7 @@ enum Filesystem {
     /// Hidden files are skipped via `.skipsHiddenFiles`.
     ///
     /// Used by the adoption flow to count `.md` and `.json` descendants of a
-    /// Vault folder, and by `ContentManager` to surface deeply-nested Pages
-    /// under their nearest Collection.
+    /// PageCollection folder, and by `ContentManager` to surface deeply-nested Pages.
     static func descendantFiles(
         of folderURL: URL,
         excluding excludedFolderURLs: Set<URL> = [],

@@ -26,9 +26,8 @@ enum ViewSettingsScope: Equatable, Sendable {
 }
 
 extension ViewSettingsScope {
-    /// The container whose SavedView config this scope edits — the entity's own
-    /// id (Vault or Collection). `nil` for non-container scopes. One source for
-    /// the per-pane `containerID()` switch the View Settings panes used to repeat.
+    /// The container whose SavedView config this scope edits — the entity's own id.
+    /// `nil` for non-container scopes.
     var containerID: String? {
         switch self {
         case .pageCollection(let t): return t.id
@@ -37,9 +36,8 @@ extension ViewSettingsScope {
         }
     }
 
-    /// The schema-owning Type's id — a Vault owns its schema; a Collection
-    /// inherits its parent Vault's (`typeID`). `nil` for non-container scopes.
-    /// One source for the per-pane `parentTypeID()` / `scopeTypeID()` switch.
+    /// The schema-owning PageCollection's id — the top PageCollection owns the
+    /// schema; nested PageSets inherit it via `parentID`. `nil` for non-container scopes.
     var schemaTypeID: String? {
         switch self {
         case .pageCollection(let t): return t.id
