@@ -85,7 +85,7 @@ struct ViewSettingsScopeMappingTests {
             modifiedAt: Date()
         )
         let scope = ContentView.viewSettingsScope(for: .collection(c))
-        #expect(scope == .pageSetCollection(c))
+        #expect(scope == .pageSet(c))
     }
 
     @Test("page selection maps to .page scope")

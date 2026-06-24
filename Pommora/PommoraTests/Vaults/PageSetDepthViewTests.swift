@@ -94,10 +94,10 @@ struct PageSetDepthViewTests {
         let loaded = setManager.pageCollections(in: vault).first(where: { $0.id == coll.id })
         #expect(loaded != nil)
         #expect(!(loaded?.views.isEmpty ?? true), "depth-1 Collection must get a default view seeded")
-        #expect(setManager.isViewEligible(loaded!))
+        #expect(setManager.topTierIDs.contains(loaded!.parentID))
     }
 
-    @Test("depth-2 Sub-Set with hand-placed views[] does NOT render them (isViewEligible false)")
+    @Test("depth-2 Sub-Set with hand-placed views[] does NOT render them (not in topTierIDs)")
     func depth2SubSetWithViewsIsNotEligible() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
@@ -123,7 +123,7 @@ struct PageSetDepthViewTests {
         #expect(loaded != nil)
         // The views are still in the sidecar (not stripped), but eligibility is false.
         #expect(!loaded!.views.isEmpty, "views[] stay in sidecar — no stripping")
-        #expect(!setManager.isViewEligible(loaded!), "depth-2 Sub-Set must NOT be view-eligible")
+        #expect(!setManager.topTierIDs.contains(loaded!.parentID), "depth-2 Sub-Set must NOT be view-eligible")
     }
 
     @Test("depth-2 Sub-Set is NOT seeded views by loadAll even when views[] is empty")
@@ -141,7 +141,7 @@ struct PageSetDepthViewTests {
         let loaded = setManager.pageSets(in: coll).first
         #expect(loaded != nil)
         #expect(loaded!.views.isEmpty, "loadAll must NOT seed views for depth-2 Sub-Sets")
-        #expect(!setManager.isViewEligible(loaded!))
+        #expect(!setManager.topTierIDs.contains(loaded!.parentID))
     }
 
     // MARK: - Move: depth changes flip eligibility (views dormant, sidecar unchanged)
@@ -173,7 +173,7 @@ struct PageSetDepthViewTests {
         await setManager.loadAll(types: [vault])
 
         let loadedDrafts = try #require(setManager.pageSets(in: collA).first(where: { $0.id == drafts.id }))
-        #expect(!setManager.isViewEligible(loadedDrafts), "depth-2 Drafts must be ineligible before move")
+        #expect(!setManager.topTierIDs.contains(loadedDrafts.parentID), "depth-2 Drafts must be ineligible before move")
 
         // Move Drafts to become a child of Archive (depth-3).
         let loadedArchive = try #require(setManager.pageSets(in: collB).first(where: { $0.id == archive.id }))
@@ -186,7 +186,7 @@ struct PageSetDepthViewTests {
         // Still ineligible at depth-3.
         let movedSet = setManager.pageSets(in: loadedArchive).first(where: { $0.id == drafts.id })
         #expect(movedSet != nil)
-        #expect(!setManager.isViewEligible(movedSet!), "depth-3 Set must still be ineligible")
+        #expect(!setManager.topTierIDs.contains(movedSet!.parentID), "depth-3 Set must still be ineligible")
 
         // Sidecar views[] are unchanged on disk — dormant, not stripped.
         let newFolder = archive.folderURL.appendingPathComponent("Drafts", isDirectory: true)
@@ -195,7 +195,7 @@ struct PageSetDepthViewTests {
         #expect(!reloadedSidecar.views.isEmpty, "views[] must survive the move unchanged on disk")
     }
 
-    @Test("isViewEligible flips when parentID changes from non-top-tier to top-tier (O(1) render-time check)")
+    @Test("topTierIDs.contains flips when parentID changes from non-top-tier to top-tier (O(1) render-time check)")
     func eligibilityFlipsWithParentIDChange() async throws {
         let nexus = try TempNexus.make()
         defer { TempNexus.cleanup(nexus) }
@@ -211,12 +211,12 @@ struct PageSetDepthViewTests {
             id: ULID.generate(), parentID: coll.id, title: "Sub",
             folderURL: coll.folderURL.appendingPathComponent("Sub"), modifiedAt: Date()
         )
-        #expect(!setManager.isViewEligible(depthTwoSet))
+        #expect(!setManager.topTierIDs.contains(depthTwoSet.parentID))
 
         // Same Set, re-parented to the vault (depth-1) — eligible.
         var promoted = depthTwoSet
         promoted.parentID = vault.id
-        #expect(setManager.isViewEligible(promoted))
+        #expect(setManager.topTierIDs.contains(promoted.parentID))
     }
 
     // MARK: - Promotion: delete intermediate Set → depth-2 child becomes depth-1
@@ -258,7 +258,7 @@ struct PageSetDepthViewTests {
 
         let loadedInterm = try #require(setManager.pageSets(in: coll).first(where: { $0.id == interm.id }))
         let loadedSub = try #require(setManager.pageSets(in: loadedInterm).first(where: { $0.id == subSet.id }))
-        #expect(!setManager.isViewEligible(loadedSub), "SubSet starts ineligible at depth-3")
+        #expect(!setManager.topTierIDs.contains(loadedSub.parentID), "SubSet starts ineligible at depth-3")
 
         // Deleting the intermediate Set (setOnly) rehomes SubSet's folder into Inbox.
         // (setOnly rehomes .md Pages, not Sub-Sets — the folder move is the promotion.)
@@ -281,7 +281,7 @@ struct PageSetDepthViewTests {
         let reloadedSub = setManager.pageSets(in: coll).first(where: { $0.id == subSet.id })
         #expect(reloadedSub != nil)
         // depth-2: parentID = coll.id (a Collection, not a PageCollection) → still ineligible
-        #expect(!setManager.isViewEligible(reloadedSub!), "depth-2 is still ineligible")
+        #expect(!setManager.topTierIDs.contains(reloadedSub!.parentID), "depth-2 is still ineligible")
         // The sidecar views[] are still present — dormant, not stripped.
         #expect(!reloadedSub!.views.isEmpty, "dormant views must survive on disk")
     }
@@ -308,7 +308,7 @@ struct PageSetDepthViewTests {
         await setManager.loadAll(types: [vault])
 
         let loadedSub = try #require(setManager.pageSets(in: coll).first(where: { $0.id == subSet.id }))
-        #expect(!setManager.isViewEligible(loadedSub), "depth-2 must be ineligible")
+        #expect(!setManager.topTierIDs.contains(loadedSub.parentID), "depth-2 must be ineligible")
 
         // Promote SubSet to depth-1: move its folder to the vault root, re-point parentID.
         let vaultFolder = NexusPaths.vaultFolderURL(forTitle: "Notes", in: nexus)
@@ -324,7 +324,7 @@ struct PageSetDepthViewTests {
 
         let elevatedColl = setManager.pageCollections(in: vault).first(where: { $0.id == subSet.id })
         #expect(elevatedColl != nil, "promoted Set must appear as a Collection")
-        #expect(setManager.isViewEligible(elevatedColl!), "promoted to depth-1 must be view-eligible")
+        #expect(setManager.topTierIDs.contains(elevatedColl!.parentID), "promoted to depth-1 must be view-eligible")
         // dormant views re-surface at render time — no re-serialization needed.
         #expect(!elevatedColl!.views.isEmpty, "dormant views must re-surface on eligibility flip")
     }

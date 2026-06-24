@@ -18,9 +18,9 @@ private enum CollectionDisclosureItem: Identifiable {
     }
 }
 
-// MARK: - PageSetCollectionRow
+// MARK: - CollectionSetRow
 
-struct PageSetCollectionRow: View {
+struct CollectionSetRow: View {
     let collection: PageSet
     let parentPageCollection: PageCollection
     @Binding var selection: SidebarSelection
@@ -98,7 +98,7 @@ struct PageSetCollectionRow: View {
                     .disabled(isCreatingPage)
                 Divider()
                 Button("Edit Title") { editingID = collection.id }
-                Button("Edit Icon") { presentedSheet = .editIcon(.pageSetCollection(collection)) }
+                Button("Edit Icon") { presentedSheet = .editIcon(.collectionSet(collection)) }
                 Divider()
                 Button("Delete", role: .destructive) {
                     confirmingDelete = .deleteCollection(collection)

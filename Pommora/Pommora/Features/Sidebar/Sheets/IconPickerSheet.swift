@@ -52,7 +52,7 @@ struct IconPickerSheet: View {
         case .topic(let t): return t.icon
         case .project(let p): return p.icon
         case .pageCollection(let t): return t.icon
-        case .pageSetCollection(let c): return c.icon
+        case .collectionSet(let c): return c.icon
         case .pageSet(let s): return s.icon
         case .page(let p, _, _, _): return p.frontmatter.icon
         case .savedView(let viewID, let containerID):
@@ -84,7 +84,7 @@ struct IconPickerSheet: View {
             await attempt { try await projectManager.updateIcon(p, to: newIcon) }
         case .pageCollection(let t):
             await attempt { try await collectionManager.updatePageCollectionIcon(t, to: newIcon) }
-        case .pageSetCollection(let c):
+        case .collectionSet(let c):
             await attempt { try await collectionManager.updatePageCollectionIcon(c, to: newIcon) }
         case .pageSet(let s):
             await attempt { try await pageSetManager.updatePageSetIcon(s, to: newIcon) }

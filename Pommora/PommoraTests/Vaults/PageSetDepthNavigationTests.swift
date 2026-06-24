@@ -87,7 +87,7 @@ struct PageSetDepthNavigationTests {
 
         // depth-1 Collection is in topTierIDs check (parentID = vault.id ∈ topTierIDs)
         #expect(setManager.topTierIDs.contains(vault.id))
-        #expect(setManager.isViewEligible(coll), "depth-1 Collection must be view-eligible")
+        #expect(setManager.topTierIDs.contains(coll.parentID), "depth-1 Collection must be view-eligible")
 
         // The .collection tag resolves to a real SidebarSelection when the manager is wired.
         let tag = SelectionTag.collection(coll.id)
@@ -95,7 +95,7 @@ struct PageSetDepthNavigationTests {
         // being produced by init?(_ SidebarSelection:), so matches always returns false.
         let depthTwoSet = setManager.pageSets(in: coll).first
         #expect(depthTwoSet != nil)
-        #expect(!setManager.isViewEligible(depthTwoSet!), "depth-2 Set must NOT be view-eligible")
+        #expect(!setManager.topTierIDs.contains(depthTwoSet!.parentID), "depth-2 Set must NOT be view-eligible")
 
         // SelectionTag.set matches no SidebarSelection.
         let setTag = SelectionTag.set(depthTwoSet!.id)

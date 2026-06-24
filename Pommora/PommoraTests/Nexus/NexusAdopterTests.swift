@@ -178,7 +178,7 @@ struct NexusAdopterTests {
         #expect(move.sourceURL.lastPathComponent == "Recipes")
         #expect(move.destURL.lastPathComponent == "Recipes")
         #expect(move.typeSidecar == .pageCollection)
-        #expect(move.collectionSidecar == .pageSetCollection)
+        #expect(move.collectionSidecar == .pageSetContainer)
     }
 
     @Test("scan classifies Agenda/ Tasks + Events as wrapper-unwrap with per-singleton sidecars")

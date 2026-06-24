@@ -39,7 +39,7 @@ import Foundation
 /// a single source of truth.
 enum AdoptedSidecarKind: Sendable, Equatable {
     case pageCollection
-    case pageSetCollection
+    case pageSetContainer
     case pageSet
     case taskConfig
     case eventConfig
@@ -47,7 +47,7 @@ enum AdoptedSidecarKind: Sendable, Equatable {
     var filename: String {
         switch self {
         case .pageCollection: return NexusPaths.pageTypeSidecarFilename
-        case .pageSetCollection: return NexusPaths.pageCollectionSidecarFilename
+        case .pageSetContainer: return NexusPaths.pageCollectionSidecarFilename
         case .pageSet: return NexusPaths.pageSetSidecarFilename
         case .taskConfig: return NexusPaths.taskConfigSidecarFilename
         case .eventConfig: return NexusPaths.eventConfigSidecarFilename
@@ -442,7 +442,7 @@ enum NexusAdopter {
             switch kind {
             case .pages:
                 typeSidecar = .pageCollection
-                collectionSidecar = .pageSetCollection
+                collectionSidecar = .pageSetContainer
             case .agenda:
                 // Tasks/Events sub-folders — name-discriminated since Agenda
                 // is sidecar-asymmetric. Default to Tasks for unknown names
@@ -498,7 +498,7 @@ enum NexusAdopter {
         // natural-parent inference rule.
         let allKinds: [AdoptedSidecarKind] = [
             .pageCollection, .taskConfig, .eventConfig,
-            .pageSetCollection,
+            .pageSetContainer,
             .pageSet,
         ]
         for kind in allKinds {
@@ -859,7 +859,7 @@ enum NexusAdopter {
             try Filesystem.writeMetadataIntoExistingFolder(
                 metadataURL: metaURL, metadata: AgendaEventSchema.defaultSeed()
             )
-        case .pageSetCollection, .pageSet:
+        case .pageSetContainer, .pageSet:
             // Fresh PageCollection / PageSet writes are not initiated by the
             // LEGACY adopter for top-level folders — those land via creation
             // flows inside the app, or via the silent `autoTagMissingSidecars`

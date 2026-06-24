@@ -44,12 +44,6 @@ final class PageSetManager {
         self.nexus = nexus
     }
 
-    /// True iff `set` is a depth-1 Collection (its parent is a top-tier PageCollection)
-    /// and therefore eligible to carry and render saved views.
-    func isViewEligible(_ set: PageSet) -> Bool {
-        topTierIDs.contains(set.parentID)
-    }
-
     private func refreshTopTierIDs(from types: [PageCollection]) {
         topTierIDs = Set(types.map(\.id))
     }
@@ -178,7 +172,7 @@ final class PageSetManager {
     func createPageCollection(name: String, inPageCollection pageCollection: PageCollection) async throws -> PageSet {
         do {
             let existing = pageCollectionsByType[pageCollection.id] ?? []
-            try PageSetCollectionValidator.validate(title: name, existingInType: existing)
+            try CollectionSetValidator.validate(title: name, existingInType: existing)
 
             let folder = NexusPaths.collectionFolderURL(
                 forTitle: name, inVaultTitled: pageCollection.title, in: nexus
@@ -220,7 +214,7 @@ final class PageSetManager {
         do {
             let pageCollection = pageTypeProvider?().first(where: { $0.id == collection.parentID })
             let existing = pageCollectionsByType[collection.parentID] ?? []
-            try PageSetCollectionValidator.validate(
+            try CollectionSetValidator.validate(
                 title: newName, existingInType: existing, excluding: collection
             )
 
@@ -275,7 +269,7 @@ final class PageSetManager {
         do {
             try Filesystem.moveToTrash(collection.folderURL, in: nexus)
             if let updater = indexUpdater {
-                do { try updater.deletePageSetCollection(id: collection.id) } catch { self.pendingError = error }
+                do { try updater.deletePageSet(id: collection.id) } catch { self.pendingError = error }
             }
             var arr = pageCollectionsByType[collection.parentID] ?? []
             arr.removeAll { $0.id == collection.id }

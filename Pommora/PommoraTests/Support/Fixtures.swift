@@ -22,7 +22,7 @@ enum Fixtures {
         )
     }
 
-    static func pageSetCollection(
+    static func pageSetAsCollection(
         id: String = ULID.generate(),
         parentID: String,
         title: String = "Archive",

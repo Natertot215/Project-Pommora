@@ -143,7 +143,7 @@ enum ContainerRef: Hashable {
     /// The icon-edit sheet target for this container kind.
     var iconTarget: SidebarSheet.IconTarget {
         switch self {
-        case .collection(let coll): return .pageSetCollection(coll)
+        case .collection(let coll): return .collectionSet(coll)
         case .set(let set): return .pageSet(set)
         }
     }
@@ -314,7 +314,7 @@ struct PageCollectionScope: DetailScope {
 
 // MARK: - Collection scope
 
-/// Collection detail (`PageSetCollectionDetailView`). Spans one Collection's Sets +
+/// Collection detail (`CollectionSetDetailView`). Spans one Collection's Sets +
 /// its loose root pages. Inherits schema from the parent vault.
 struct CollectionScope: DetailScope {
     let collection: PageSet

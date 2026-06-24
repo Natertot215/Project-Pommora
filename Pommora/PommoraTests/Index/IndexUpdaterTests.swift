@@ -66,7 +66,7 @@ struct IndexUpdaterTests {
 
         let pt = Fixtures.pageCollection()
         try updater.upsertPageCollection(pt)
-        let pc = Fixtures.pageSetCollection(parentID: pt.id)
+        let pc = Fixtures.pageSetAsCollection(parentID: pt.id)
         try updater.upsertPageCollection(pc)
 
         let count = try countRows(in: "page_sets", db: idx)
@@ -105,7 +105,7 @@ struct IndexUpdaterTests {
 
         let pt = Fixtures.pageCollection()
         try updater.upsertPageCollection(pt)
-        let pc = Fixtures.pageSetCollection(parentID: pt.id)
+        let pc = Fixtures.pageSetAsCollection(parentID: pt.id)
         try updater.upsertPageCollection(pc)
         try updater.deletePageSet(id: pc.id)
 
@@ -138,7 +138,7 @@ struct IndexUpdaterTests {
 
         let pt = Fixtures.pageCollection()
         try updater.upsertPageCollection(pt)
-        let pc = Fixtures.pageSetCollection(parentID: pt.id)
+        let pc = Fixtures.pageSetAsCollection(parentID: pt.id)
         try updater.upsertPageCollection(pc)
 
         let rootPage = Fixtures.pageMeta(title: "Root")

@@ -17,7 +17,7 @@ import Foundation
 enum ViewSettingsScope: Equatable, Sendable {
     case none
     case pageCollection(PageCollection)
-    case pageSetCollection(PageSet)
+    case pageSet(PageSet)
     case page
     case area
     case topic
@@ -32,7 +32,7 @@ extension ViewSettingsScope {
     var containerID: String? {
         switch self {
         case .pageCollection(let t): return t.id
-        case .pageSetCollection(let c): return c.id
+        case .pageSet(let c): return c.id
         default: return nil
         }
     }
@@ -43,7 +43,7 @@ extension ViewSettingsScope {
     var schemaTypeID: String? {
         switch self {
         case .pageCollection(let t): return t.id
-        case .pageSetCollection(let c): return c.parentID
+        case .pageSet(let c): return c.parentID
         default: return nil
         }
     }

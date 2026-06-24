@@ -46,7 +46,7 @@ struct ViewSettingsPopover: View {
     @ViewBuilder
     private var rootContent: some View {
         switch scope {
-        case .pageCollection, .pageSetCollection:
+        case .pageCollection, .pageSet:
             StorageMenuRoot(scope: scope, path: $path)
         default:
             // Non-storage scopes: empty 300x360 shell retained from chrome slice.

@@ -1,6 +1,6 @@
 import Foundation
 
-enum PageSetCollectionValidator {
+enum CollectionSetValidator {
     enum ValidationError: Error, Equatable {
         case emptyTitle
         case invalidTitleCharacters

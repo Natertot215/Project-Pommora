@@ -96,15 +96,6 @@ struct IndexUpdater: Sendable {
         }
     }
 
-    func deletePageSetCollection(id: String) throws {
-        try index.dbQueue.write { db in
-            try db.execute(
-                sql: "DELETE FROM page_sets WHERE id = ?",
-                arguments: [id]
-            )
-        }
-    }
-
     // MARK: - PageSet (depth-2+ set — parent is another PageSet)
 
     /// Upserts a depth-2+ `PageSet` into `page_sets` with `parent_set_id = set.parentID`.

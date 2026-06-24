@@ -62,7 +62,7 @@ struct ContentView: View {
         case .pageCollection(let t):
             return .pageCollection(t)
         case .collection(let c):
-            return .pageSetCollection(c)
+            return .pageSet(c)
         case .page:
             return .page
         }
@@ -152,7 +152,7 @@ struct ContentView: View {
     /// views that own SavedViews.
     private var showsViewControls: Bool {
         switch currentViewSettingsScope {
-        case .pageCollection, .pageSetCollection: return true
+        case .pageCollection, .pageSet: return true
         default: return false
         }
     }

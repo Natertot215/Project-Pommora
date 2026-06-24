@@ -463,7 +463,7 @@ struct EntityContainer: Equatable, Sendable {
 
 enum TargetRef: Sendable {
     case pageCollection(String)
-    case pageSetCollection(String)
+    case pageCollectionAll(String)
     case pageSet(String)
     case agendaTasks
     case agendaEvents

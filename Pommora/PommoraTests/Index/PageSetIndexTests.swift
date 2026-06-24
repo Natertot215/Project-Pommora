@@ -169,7 +169,7 @@ struct PageSetIndexTests {
 
         let pt = Fixtures.pageCollection()
         try updater.upsertPageCollection(pt)
-        let pc = Fixtures.pageSetCollection(parentID: pt.id)
+        let pc = Fixtures.pageSetAsCollection(parentID: pt.id)
         try updater.upsertPageCollection(pc)
 
         // The set FK dangles (never indexed) — the page must still land,
@@ -215,7 +215,7 @@ struct PageSetIndexTests {
 
         let pt = Fixtures.pageCollection()
         try updater.upsertPageCollection(pt)
-        let pc = Fixtures.pageSetCollection(parentID: pt.id)
+        let pc = Fixtures.pageSetAsCollection(parentID: pt.id)
         try updater.upsertPageCollection(pc)
 
         let set = PageSet(

@@ -31,7 +31,7 @@ import Foundation
 /// ```
 ///
 /// The caller writes the `editingID` binding inside `onCreate`. The matching
-/// row file (e.g. `PageSetCollectionRow`) gates rename-mode on
+/// row file (e.g. `CollectionSetRow`) gates rename-mode on
 /// `editingID == entity.id`; `RenameableRow.onAppear` then auto-focuses its
 /// `TextField`. Esc and click-away both call the row's `cancel()`, which
 /// resets `editingID` to `nil` — the stub entity stays created with the

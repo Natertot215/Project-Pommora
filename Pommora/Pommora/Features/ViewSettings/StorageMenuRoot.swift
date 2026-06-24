@@ -186,7 +186,7 @@ struct StorageMenuRoot: View {
     private var headerTitle: String {
         switch liveScope {
         case .pageCollection(let t): return t.title
-        case .pageSetCollection(let c): return c.title
+        case .pageSet(let c): return c.title
         default: return "View Settings"
         }
     }
@@ -194,7 +194,7 @@ struct StorageMenuRoot: View {
     private var headerIcon: String {
         switch liveScope {
         case .pageCollection(let t): return t.icon ?? "folder"
-        case .pageSetCollection(let c): return c.icon ?? "folder"
+        case .pageSet(let c): return c.icon ?? "folder"
         default: return "slider.horizontal.3"
         }
     }
@@ -209,8 +209,8 @@ struct StorageMenuRoot: View {
         switch scope {
         case .pageCollection(let t):
             return .pageCollection(collectionManager.types.first(where: { $0.id == t.id }) ?? t)
-        case .pageSetCollection(let c):
-            return .pageSetCollection(
+        case .pageSet(let c):
+            return .pageSet(
                 collectionManager.pageCollectionsByType[c.parentID]?.first(where: { $0.id == c.id }) ?? c)
         default:
             return scope

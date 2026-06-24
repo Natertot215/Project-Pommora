@@ -74,7 +74,7 @@ struct SidebarDetailView: View {
                 // We need the parent Vault here too. Find it via PageCollectionManager
                 // (primary: typeID match; fallback: parent-folder-name match).
                 if let v = lookupVault(forCollection: c) {
-                    PageSetCollectionDetailView(
+                    CollectionSetDetailView(
                         collection: c,
                         pageCollection: v,
                         selection: $selection,

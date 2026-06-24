@@ -3,21 +3,21 @@ import Testing
 
 @testable import Pommora
 
-@Suite("PageSetCollectionValidator")
-struct PageSetCollectionValidatorTests {
+@Suite("CollectionSetValidator")
+struct CollectionSetValidatorTests {
 
     @Test("valid title in empty PageCollection passes")
     func valid() throws {
-        try PageSetCollectionValidator.validate(title: "Tasks", existingInType: [])
+        try CollectionSetValidator.validate(title: "Tasks", existingInType: [])
     }
 
     @Test("title rules apply")
     func titleRules() {
-        #expect(throws: PageSetCollectionValidator.ValidationError.emptyTitle) {
-            try PageSetCollectionValidator.validate(title: "", existingInType: [])
+        #expect(throws: CollectionSetValidator.ValidationError.emptyTitle) {
+            try CollectionSetValidator.validate(title: "", existingInType: [])
         }
-        #expect(throws: PageSetCollectionValidator.ValidationError.invalidTitleCharacters) {
-            try PageSetCollectionValidator.validate(title: "A/B", existingInType: [])
+        #expect(throws: CollectionSetValidator.ValidationError.invalidTitleCharacters) {
+            try CollectionSetValidator.validate(title: "A/B", existingInType: [])
         }
     }
 
@@ -32,8 +32,8 @@ struct PageSetCollectionValidatorTests {
                 modifiedAt: Date()
             )
         ]
-        #expect(throws: PageSetCollectionValidator.ValidationError.duplicateTitle) {
-            try PageSetCollectionValidator.validate(title: "tasks", existingInType: existing)
+        #expect(throws: CollectionSetValidator.ValidationError.duplicateTitle) {
+            try CollectionSetValidator.validate(title: "tasks", existingInType: existing)
         }
     }
 }

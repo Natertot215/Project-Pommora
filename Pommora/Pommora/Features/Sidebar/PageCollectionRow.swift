@@ -52,7 +52,7 @@ struct PageCollectionRow: View {
             ForEach(disclosureItems) { item in
                 switch item {
                 case .collection(let coll):
-                    PageSetCollectionRow(
+                    CollectionSetRow(
                         collection: coll,
                         parentPageCollection: pageCollection,
                         selection: $selection,

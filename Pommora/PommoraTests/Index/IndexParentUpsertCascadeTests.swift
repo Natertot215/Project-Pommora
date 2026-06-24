@@ -72,7 +72,7 @@ struct IndexParentUpsertCascadeTests {
 
         let pt = Fixtures.pageCollection()
         try updater.upsertPageCollection(pt)
-        let pc = Fixtures.pageSetCollection(parentID: pt.id)
+        let pc = Fixtures.pageSetAsCollection(parentID: pt.id)
         try updater.upsertPageCollection(pc)
 
         let pageMeta = Fixtures.pageMeta(title: "Filed Page")

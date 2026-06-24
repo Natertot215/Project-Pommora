@@ -58,7 +58,7 @@ struct ViewsDropdownButton: View {
     private var containerID: String? {
         switch scope {
         case .pageCollection(let t): return t.id
-        case .pageSetCollection(let c): return c.id
+        case .pageSet(let c): return c.id
         default: return nil
         }
     }

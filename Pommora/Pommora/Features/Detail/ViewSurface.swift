@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// The single shared detail view behind `PageCollectionDetailView` (vault scope) and
-/// `PageSetCollectionDetailView` (collection scope). Owns the whole render skeleton,
+/// `CollectionSetDetailView` (collection scope). Owns the whole render skeleton,
 /// the pipeline computeds, the drag/cover/rename/delete machinery, and ALL view
 /// state. Everything that genuinely differs between the two scopes is read off
 /// the injected `scope` (a `DetailScope` value witness) or off each item's

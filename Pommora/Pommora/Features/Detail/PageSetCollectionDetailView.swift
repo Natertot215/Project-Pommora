@@ -4,7 +4,7 @@ import SwiftUI
 /// Holds no state and no environment of its own (everything lives in
 /// `ViewSurface`); its only job is to keep the public init `SidebarDetailView`
 /// calls byte-identical while delegating the whole render to the shared surface.
-struct PageSetCollectionDetailView: View {
+struct CollectionSetDetailView: View {
     let collection: PageSet
     let pageCollection: PageCollection
     @Binding var selection: SidebarSelection

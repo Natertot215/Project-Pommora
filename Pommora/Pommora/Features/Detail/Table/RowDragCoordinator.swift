@@ -154,7 +154,7 @@ final class RowDragCoordinator {
 
     /// Build a `DropContext` for a drop of `draggedItems` onto `targetGroup` at
     /// `insertionIndex`. Pure: both `PageCollectionDetailView` and
-    /// `PageSetCollectionDetailView` call this with the knowledge only they hold —
+    /// `CollectionSetDetailView` call this with the knowledge only they hold —
     /// the active view's `group` config + `sort`, and a `structuralParent`
     /// resolver that maps a structural `ResolvedGroup` to its `PageParent` (it
     /// knows the scope's vault / collection). Returns nil when the drag is

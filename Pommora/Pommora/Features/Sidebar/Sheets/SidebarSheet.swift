@@ -18,7 +18,7 @@ enum SidebarSheet: Identifiable {
         case topic(Topic)
         case project(Project)
         case pageCollection(PageCollection)
-        case pageSetCollection(PageSet)
+        case collectionSet(PageSet)
         case pageSet(PageSet)
         case page(PageMeta, pageCollection: PageCollection, collection: PageSet?, set: PageSet?)
         /// A SavedView on a container (PageCollection or PageSet). Carries IDs
@@ -35,7 +35,7 @@ enum SidebarSheet: Identifiable {
             case .topic(let t): return "editIcon-topic-\(t.id)"
             case .project(let p): return "editIcon-project-\(p.id)"
             case .pageCollection(let t): return "editIcon-pageCollection-\(t.id)"
-            case .pageSetCollection(let c): return "editIcon-pageSetCollection-\(c.id)"
+            case .collectionSet(let c): return "editIcon-collectionSet-\(c.id)"
             case .pageSet(let s): return "editIcon-pageSet-\(s.id)"
             case .page(let p, _, _, _): return "editIcon-page-\(p.id)"
             case .savedView(let viewID, let containerID):
