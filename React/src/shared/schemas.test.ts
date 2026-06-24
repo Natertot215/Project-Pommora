@@ -30,6 +30,25 @@ describe('folder sidecar schemas', () => {
     const v = { id: 'S1', collection_id: 'C1', page_order: ['p1'] }
     expect(pageSetSidecar.parse(v)).toMatchObject(v)
   })
+
+  it('page collection accepts the 2-tier properties schema (Swift key) + order arrays', () => {
+    const v = {
+      id: 'C1',
+      properties: [{ id: 'p1', name: 'Status', type: 'select' }],
+      set_order: ['s1'],
+      page_order: ['p1']
+    }
+    expect(pageCollectionSidecar.parse(v)).toMatchObject(v)
+  })
+
+  it('page set accepts the 2-tier parent_id + set_order, still reads legacy collection_id', () => {
+    const v = { id: 'S1', parent_id: 'C1', set_order: ['s2'], page_order: ['p1'] }
+    expect(pageSetSidecar.parse(v)).toMatchObject(v)
+    expect(pageSetSidecar.parse({ id: 'S2', collection_id: 'C1' })).toMatchObject({
+      id: 'S2',
+      collection_id: 'C1'
+    })
+  })
 })
 
 describe('context sidecar schemas', () => {

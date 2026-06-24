@@ -1,6 +1,8 @@
 // Single source of truth for the cross-process contract.
 // Imported by main, preload, and renderer — NO fs, NO React here.
 
+import type { PropertyDefinition } from './properties'
+
 export type NodeKind =
   | 'saved'
   | 'area'
@@ -107,6 +109,9 @@ export interface PageNode extends PathNode {
 export interface SetNode extends PathNode {
   kind: 'set'
   selectable: false
+  /** Child Sets nested at any depth (2-tier recursion). Optional during the migration
+   *  window; populated by the recursive read. */
+  sets?: SetNode[]
   pages: PageNode[]
 }
 
@@ -114,6 +119,9 @@ export interface CollectionNode extends PathNode {
   kind: 'collection'
   sets: SetNode[] // rendered before pages
   pages: PageNode[]
+  /** The property schema every Page inside inherits (2-tier top tier). Read from the
+   *  Collection sidecar's `properties`. */
+  properties?: PropertyDefinition[]
 }
 
 export interface PageTypeNode extends PathNode {
@@ -126,6 +134,8 @@ export interface UserSection {
   id: string
   label: string
   vaults: PageTypeNode[]
+  /** 2-tier replacement for `vaults` (additive during migration; the read populates one). */
+  collections?: CollectionNode[]
 }
 
 export interface NexusLabels {
@@ -151,6 +161,9 @@ export interface NexusTree {
   }
   /** Ungrouped PageTypes (those not assigned to a user section). */
   vaults: PageTypeNode[]
+  /** 2-tier replacement for `vaults` — ungrouped top-tier Collections (additive during
+   *  migration; the recursive read populates one of the two). */
+  collections?: CollectionNode[]
   userSections: UserSection[]
   labels: NexusLabels
   /** Resolved app accent from .nexus/settings.json (defaults to DEFAULT_ACCENT). */

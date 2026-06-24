@@ -36,18 +36,34 @@ export const pageTypeSidecar = baseSidecar.extend({
 })
 export type PageTypeSidecar = z.infer<typeof pageTypeSidecar>
 
+// Post-rename (Swift 2-tier) `_pagecollection.json` is the schema-bearing TOP tier.
+// `type_id`/`vault_id` are retained read-only for the migration window (a top Collection
+// has no parent). The schema lives in `properties` (Swift's key); loose per-def, matching
+// the old `property_definitions` (per-def codec is parseDefinitions).
 export const pageCollectionSidecar = baseSidecar.extend({
-  type_id: z.string().optional(),
+  type_id: z.string().optional(), // legacy (pre-2-tier middle-tier parent pointer)
   vault_id: z.string().optional(), // legacy fallback for type_id
   banner: z.string().optional(),
   set_order: ulidList,
-  page_order: ulidList
+  page_order: ulidList,
+  properties: z.array(z.looseObject({})).optional(),
+  default_sort: z.looseObject({}).optional(),
+  views: z.array(z.looseObject({})).optional(),
+  open_in: z.enum(['compact', 'window']).optional()
 })
 export type PageCollectionSidecar = z.infer<typeof pageCollectionSidecar>
 
+// Post-rename `_pageset.json` is the RECURSIVE tier at any depth. `parent_id` is the
+// immediate parent (a Collection at depth-1, a Set deeper); `collection_id` is the
+// retained legacy key. `set_order` orders child Sets; `views`/`banner` apply only at
+// depth-1 (ignored deeper — read leniently, never seeded).
 export const pageSetSidecar = baseSidecar.extend({
-  collection_id: z.string().optional(),
-  page_order: ulidList
+  collection_id: z.string().optional(), // legacy (pre-2-tier parent pointer)
+  parent_id: z.string().optional(),
+  page_order: ulidList,
+  set_order: ulidList,
+  banner: z.string().optional(),
+  views: z.array(z.looseObject({})).optional()
 })
 export type PageSetSidecar = z.infer<typeof pageSetSidecar>
 
