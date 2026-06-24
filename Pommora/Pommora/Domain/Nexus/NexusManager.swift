@@ -309,6 +309,11 @@ final class NexusManager {
     ///   preview was shown / confirmed / declined; writes missing per-kind
     ///   sidecars so Finder-built structure is first-class.
     private func runLaunchMigrations(at url: URL) async {
+        // Phase-3 sidecar unification — runs first so adoption + indexing only
+        // ever see the new `_pagecollection.json` / `_pageset.json` scheme.
+        // Idempotent + one-shot; on failure it retains a temp backup and leaves
+        // the tree readable (dual-read tolerates the partially renamed state).
+        try? SidecarRenameMigration.migrateIfNeeded(at: url)
         await runAdoptionIfNeeded(at: url)
         let tempNexus = Nexus(id: "", rootURL: url)
         let filter = FolderFilter.load(for: tempNexus)
