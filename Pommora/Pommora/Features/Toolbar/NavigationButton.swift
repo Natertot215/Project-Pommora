@@ -164,7 +164,7 @@ struct NavigationButton: View {
     @ViewBuilder
     private var recentsList: some View {
         if recentsSnapshot.isEmpty {
-            Text("Open a page to populate Recents. Vaults, collections, and sets stay in Back/Forward.")
+            Text("Open a page to populate Recents. Collections and sets stay in Back/Forward.")
                 .font(.callout)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
