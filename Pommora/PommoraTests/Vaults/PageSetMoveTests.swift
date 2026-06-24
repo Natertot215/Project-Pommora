@@ -67,6 +67,7 @@ struct PageSetMoveTests {
         // Hoist ids before the dbQueue closures (@Sendable).
         let setID = set.id
         let destID = dest.id
+        let vaultID = vault.id
         let movedPageID = pageID
 
         // Index: Set row re-pointed; Page row re-pointed with page_set_id intact.
@@ -77,7 +78,7 @@ struct PageSetMoveTests {
         let pageRow = try await index.dbQueue.read { db in
             try Row.fetchOne(db, sql: "SELECT * FROM pages WHERE id = ?", arguments: [movedPageID])
         }
-        #expect(pageRow?["page_collection_id"] as String? == destID)
+        #expect(pageRow?["page_collection_id"] as String? == vaultID)
         #expect(pageRow?["page_set_id"] as String? == setID)
 
         // Caches: out of the source bucket, into the destination with the new

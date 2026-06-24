@@ -66,12 +66,12 @@ struct PageSetContentTests {
         #expect(manager.pages(in: set).map(\.id) == [meta.id])
 
         let pageID = meta.id  // hoist before the dbQueue closure (@Sendable)
-        let collID = coll.id
+        let vaultID = vault.id
         let setID = set.id
         let createdRow = try await index.dbQueue.read { db in
             try Row.fetchOne(db, sql: "SELECT * FROM pages WHERE id = ?", arguments: [pageID])
         }
-        #expect(createdRow?["page_collection_id"] as String? == collID)
+        #expect(createdRow?["page_collection_id"] as String? == vaultID)
         #expect(createdRow?["page_set_id"] as String? == setID)
 
         // Rename.
@@ -230,7 +230,7 @@ struct PageSetContentTests {
             try Row.fetchOne(db, sql: "SELECT * FROM pages WHERE id = ?", arguments: [pageID])
         }
         #expect(rootRow?["page_set_id"] as String? == nil)
-        #expect(rootRow?["page_collection_id"] as String? == nil)
+        #expect(rootRow?["page_collection_id"] as String? == vault.id)
         #expect(manager.pages(in: vault).map(\.id) == [pageID])
     }
 

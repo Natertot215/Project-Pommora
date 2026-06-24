@@ -140,12 +140,12 @@ struct PagePreviewSetTests {
         try await saver.save(page: resolved.page, body: "previewed edit")
 
         let pageID = meta.id  // hoist before the dbQueue closure (@Sendable)
-        let collID = coll.id
+        let vaultID = vault.id
         let setID = set.id
         let row = try await index.dbQueue.read { db in
             try Row.fetchOne(db, sql: "SELECT * FROM pages WHERE id = ?", arguments: [pageID])
         }
-        #expect(row?["page_collection_id"] as String? == collID)
+        #expect(row?["page_collection_id"] as String? == vaultID)
         #expect(row?["page_set_id"] as String? == setID)
         #expect(try PageFile.load(from: meta.url).body == "previewed edit")
     }

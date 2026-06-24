@@ -261,7 +261,7 @@ struct PageSetManagerTests {
             try Row.fetchOne(db, sql: "SELECT * FROM pages WHERE id = ?", arguments: [pageID])
         }
         #expect(row?["page_collection_id"] as String? == vaultID)
-        #expect(row?["page_set_id"] as String? == nil)
+        #expect(row?["page_set_id"] as String? == fx.collection.id)
         let setCount = try await index.dbQueue.read { db in
             try Int.fetchOne(
                 db, sql: "SELECT COUNT(*) FROM page_sets WHERE parent_set_id IS NOT NULL") ?? -1
