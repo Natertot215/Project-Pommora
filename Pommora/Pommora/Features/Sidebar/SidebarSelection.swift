@@ -118,11 +118,11 @@ extension SidebarSelection {
         let resolved: SidebarSelection?
         switch stateRef.typedKind {
         case .page: resolved = Self.resolvePage(id: stateRef.id, lookup: lookup)
-        case .vault: resolved = Self.resolvePageCollection(id: stateRef.id, lookup: lookup)
+        case .collection: resolved = Self.resolvePageCollection(id: stateRef.id, lookup: lookup)
         case .area: resolved = Self.resolveArea(id: stateRef.id, lookup: lookup)
         case .topic: resolved = Self.resolveTopic(id: stateRef.id, lookup: lookup)
         case .project: resolved = Self.resolveProject(id: stateRef.id, lookup: lookup)
-        case .collection: resolved = Self.resolveCollection(id: stateRef.id, lookup: lookup)
+        case .set: resolved = Self.resolveCollection(id: stateRef.id, lookup: lookup)
         case .agenda, .none: resolved = nil
         }
         guard let resolved else { return nil }

@@ -300,7 +300,7 @@ final class PageCollectionManager {
     private func readPersistedPageCollectionOrder() -> [String]? {
         let url = NexusPaths.nexusStateURL(in: nexus)
         guard FileManager.default.fileExists(atPath: url.path) else { return nil }
-        return (try? AtomicJSON.decode(NexusState.self, from: url))?.vaultOrder
+        return (try? AtomicJSON.decode(NexusState.self, from: url))?.collectionOrder
     }
 
 }

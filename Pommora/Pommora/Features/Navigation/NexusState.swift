@@ -6,10 +6,10 @@ import Foundation
 /// future v0.2 patches that may add new top-level fields, and
 /// backwards-compat with future schema bumps).
 ///
-/// Backward-compat note: the `favorites` key was renamed to `pinned` at
-/// v0.2.7.2.1. The decoder still accepts the legacy `favorites` key so
-/// state.json files written before the rename rehydrate cleanly; the
-/// encoder only writes `pinned`, so the legacy key disappears on first save.
+/// Backward-compat note: two keys were renamed and their legacy spellings are
+/// still accepted on decode (the encoder writes only the new key, so the legacy
+/// one disappears on first save): `favorites` → `pinned`, and `vault_order` →
+/// `collection_order` (the Collections-section sidebar reorder).
 struct NexusState: Codable, Equatable, Sendable {
     var schemaVersion: Int = 1
     var recents: [EntityStateRef] = []
@@ -19,7 +19,7 @@ struct NexusState: Codable, Equatable, Sendable {
     var areaOrder: [String]?
     var topicOrder: [String]?
     var projectOrder: [String]?
-    var vaultOrder: [String]?
+    var collectionOrder: [String]?
 
     // Last-active SavedView per container (containerID → viewID). Session state:
     // persisted here rather than in the container sidecar so a tab-click never
@@ -37,7 +37,8 @@ struct NexusState: Codable, Equatable, Sendable {
         case areaOrder = "area_order"
         case topicOrder = "topic_order"
         case projectOrder = "project_order"
-        case vaultOrder = "vault_order"
+        case collectionOrder = "collection_order"
+        case collectionOrderLegacy = "vault_order"
         case activeViews = "active_views"
     }
 
@@ -53,7 +54,9 @@ struct NexusState: Codable, Equatable, Sendable {
         self.areaOrder = try c.decodeIfPresent([String].self, forKey: .areaOrder)
         self.topicOrder = try c.decodeIfPresent([String].self, forKey: .topicOrder)
         self.projectOrder = try c.decodeIfPresent([String].self, forKey: .projectOrder)
-        self.vaultOrder = try c.decodeIfPresent([String].self, forKey: .vaultOrder)
+        self.collectionOrder =
+            try c.decodeIfPresent([String].self, forKey: .collectionOrder)
+            ?? c.decodeIfPresent([String].self, forKey: .collectionOrderLegacy)
         self.activeViews = try c.decodeIfPresent([String: String].self, forKey: .activeViews) ?? [:]
     }
 
@@ -66,7 +69,7 @@ struct NexusState: Codable, Equatable, Sendable {
         try c.encodeIfPresent(areaOrder, forKey: .areaOrder)
         try c.encodeIfPresent(topicOrder, forKey: .topicOrder)
         try c.encodeIfPresent(projectOrder, forKey: .projectOrder)
-        try c.encodeIfPresent(vaultOrder, forKey: .vaultOrder)
+        try c.encodeIfPresent(collectionOrder, forKey: .collectionOrder)
         if !activeViews.isEmpty {
             try c.encode(activeViews, forKey: .activeViews)
         }

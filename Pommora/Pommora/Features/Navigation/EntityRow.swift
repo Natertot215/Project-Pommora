@@ -56,12 +56,12 @@ struct EntityRow: View {
     private var defaultIcon: String {
         switch ref.typedKind {
         case .page: return "doc.text"
-        case .vault: return "book"
+        case .collection: return "book"
         case .area: return "rectangle.3.group"
         case .topic: return "folder"
         case .project: return "folder"
         case .agenda: return "calendar"
-        case .collection: return "tray.2"
+        case .set: return "tray.2"
         case nil: return "questionmark.circle"
         }
     }
@@ -69,12 +69,12 @@ struct EntityRow: View {
     private var chipText: String {
         switch ref.typedKind {
         case .page: return "Page"
-        case .vault: return "Collection"
+        case .collection: return "Collection"
         case .area: return "Area"
         case .topic: return "Topic"
         case .project: return "Project"
         case .agenda: return "Task"
-        case .collection: return "Collection"
+        case .set: return "Set"
         case nil: return ref.kind
         }
     }

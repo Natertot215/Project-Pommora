@@ -152,8 +152,8 @@ struct RecentsManagerTests {
         #expect(m.entries.isEmpty)
         // Pages + both storage containers do.
         m.record(EntityStateRef(kind: .page, id: "P", title: "Page"))
-        m.record(EntityStateRef(kind: .vault, id: "V", title: "Vault"))
-        m.record(EntityStateRef(kind: .collection, id: "C", title: "Collection"))
+        m.record(EntityStateRef(kind: .collection, id: "V", title: "Collection"))
+        m.record(EntityStateRef(kind: .set, id: "C", title: "Set"))
         #expect(m.entries.count == 3)
     }
 
@@ -164,7 +164,7 @@ struct RecentsManagerTests {
         var seed = NexusState()
         seed.recents = [
             EntityStateRef(kind: .page, id: "keepPage", title: "Page"),
-            EntityStateRef(kind: .vault, id: "keepVault", title: "Vault"),
+            EntityStateRef(kind: .collection, id: "keepCollection", title: "Collection"),
             EntityStateRef(kind: .topic, id: "dropTopic", title: "Topic"),
             // Retired wire kind persisted by an older build — decodes as
             // unknown (typedKind == nil) and must be stripped on load.
@@ -176,7 +176,7 @@ struct RecentsManagerTests {
         let m = RecentsManager(nexus: nexus)
         await m.load()
         #expect(m.entries.count == 2)
-        #expect(m.entries.map(\.id) == ["keepPage", "keepVault"])
+        #expect(m.entries.map(\.id) == ["keepPage", "keepCollection"])
     }
 
     @Test("dropdownTop returns first 100 entries")
@@ -199,8 +199,8 @@ struct RecentsManagerTests {
         let m = RecentsManager(nexus: nexus)
         await m.load()
         m.record(EntityStateRef(kind: .page, id: "P", title: "Page"))
-        m.record(EntityStateRef(kind: .vault, id: "V", title: "Vault"))
-        m.record(EntityStateRef(kind: .collection, id: "C", title: "Collection"))
+        m.record(EntityStateRef(kind: .collection, id: "V", title: "Collection"))
+        m.record(EntityStateRef(kind: .set, id: "C", title: "Set"))
         // The Page + both containers are steppable (present in entries / the Back-Forward stack)…
         #expect(m.entries.count == 3)
         // …but only the Page surfaces in the dropdown projection — every container kind is hidden.

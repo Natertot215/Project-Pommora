@@ -203,7 +203,7 @@ struct NavigationButton: View {
         switch ref.typedKind {
         case .agenda, .none:
             return
-        case .page, .vault, .area, .topic, .project, .collection:
+        case .page, .collection, .area, .topic, .project, .set:
             if let sel = SidebarSelection(stateRef: ref, lookup: lookup) {
                 onOpen(sel)
                 return

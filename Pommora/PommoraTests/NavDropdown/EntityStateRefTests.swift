@@ -41,4 +41,16 @@ struct EntityStateRefTests {
         #expect(a == b)
         #expect(a.hashValue == b.hashValue)
     }
+
+    @Test("legacy 'vault' kind decodes as .collection (top tier)")
+    func legacyVaultKindMapsToCollection() {
+        // Pre-Phase-3 state.json wrote the top container as "vault".
+        #expect(EntityStateRef(kind: "vault", id: "x", title: "y").typedKind == .collection)
+    }
+
+    @Test("new container kinds resolve: collection (top) + set (depth-1)")
+    func newContainerKinds() {
+        #expect(EntityStateRef(kind: .collection, id: "x", title: "y").typedKind == .collection)
+        #expect(EntityStateRef(kind: .set, id: "x", title: "y").typedKind == .set)
+    }
 }

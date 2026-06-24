@@ -69,16 +69,16 @@ final class RecentsManager {
 
     /// Kinds that enter the shared `entries` list — i.e. what the Back/Forward
     /// stack steps through and what persists to state.json. Pages plus the
-    /// storage containers (Vault / Collection). Contexts (Areas / Topics /
+    /// storage containers (Collection / Set). Contexts (Areas / Topics /
     /// Projects) stay out — they're reached via the sidebar.
     static let recordableKinds: Set<EntityStateRef.Kind> = [
-        .page, .vault, .collection,
+        .page, .collection, .set,
     ]
 
     /// Storage containers recorded into `entries` (steppable) but hidden from
     /// the Recents dropdown projection (see `dropdownTop`).
     static let containerKinds: Set<EntityStateRef.Kind> = [
-        .vault, .collection,
+        .collection, .set,
     ]
 
     func record(_ ref: EntityStateRef) {

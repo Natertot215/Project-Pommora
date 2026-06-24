@@ -80,7 +80,7 @@ struct BackForwardButtons: View {
         switch ref.typedKind {
         case .agenda, .none:
             return  // skip — nothing to route
-        case .page, .vault, .area, .topic, .project, .collection:
+        case .page, .collection, .area, .topic, .project, .set:
             break
         }
 

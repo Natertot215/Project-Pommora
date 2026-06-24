@@ -29,7 +29,7 @@ enum OrderPersister {
 
     static func setVaultOrder(_ order: [String], in nexus: Nexus) throws {
         try mutateNexusState(in: nexus) { state in
-            state.vaultOrder = order.isEmpty ? nil : order
+            state.collectionOrder = order.isEmpty ? nil : order
         }
     }
 

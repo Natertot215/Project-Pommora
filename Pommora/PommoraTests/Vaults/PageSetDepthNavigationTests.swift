@@ -124,12 +124,12 @@ struct PageSetDepthNavigationTests {
 
         let recents = RecentsManager(nexus: nexus)
 
-        // 1. Direct prune mechanism: seed a .collection entry for movingSet (simulating it
-        //    was once recorded as a depth-1 Collection), then prune it.
-        let staleRef = EntityStateRef(kind: .collection, id: movingSet.id, title: "Drafts")
+        // 1. Direct prune mechanism: seed a .set entry for movingSet (simulating it
+        //    was once recorded as a depth-1 Set), then prune it.
+        let staleRef = EntityStateRef(kind: .set, id: movingSet.id, title: "Drafts")
         recents.record(staleRef)
         #expect(recents.entries.contains(staleRef), "stale entry must be present before prune")
-        recents.prune(kind: EntityStateRef.Kind.collection.rawValue, id: movingSet.id)
+        recents.prune(kind: EntityStateRef.Kind.set.rawValue, id: movingSet.id)
         #expect(!recents.entries.contains(staleRef), "stale entry must be removed after prune")
 
         // 2. Integrated path — depth-2 → depth-2 move (source.parentID = source.id ∉ topTierIDs)

@@ -20,7 +20,7 @@ struct NexusStateTests {
         var s = NexusState()
         s.recents = [
             EntityStateRef(kind: .page, id: "01HF", title: "Page A"),
-            EntityStateRef(kind: .vault, id: "01HG", title: "Vault B"),
+            EntityStateRef(kind: .collection, id: "01HG", title: "Collection B"),
         ]
         s.pinned = [EntityStateRef(kind: .page, id: "01HF", title: "Page A")]
         s.cursor = 1
@@ -79,5 +79,24 @@ struct NexusStateTests {
         let json = #"{"schemaVersion":1,"recents":[],"pinned":[],"cursor":0}"#
         let decoded = try JSONDecoder().decode(NexusState.self, from: Data(json.utf8))
         #expect(decoded.projectOrder == nil)
+    }
+
+    @Test("decodes legacy 'vault_order' key into collectionOrder (backward-compat)")
+    func decodesLegacyVaultOrderKey() throws {
+        // Pre-Phase-3 state.json named the Collections-section sidebar reorder
+        // "vault_order"; the decoder falls back so the user's order survives.
+        let json = #"{"schemaVersion":1,"recents":[],"pinned":[],"vault_order":["c1","c2"]}"#
+        let decoded = try JSONDecoder().decode(NexusState.self, from: Data(json.utf8))
+        #expect(decoded.collectionOrder == ["c1", "c2"])
+    }
+
+    @Test("encoder writes 'collection_order' (legacy 'vault_order' not emitted)")
+    func encoderWritesCollectionOrderKey() throws {
+        var s = NexusState()
+        s.collectionOrder = ["c1", "c2"]
+        let data = try JSONEncoder().encode(s)
+        let json = String(data: data, encoding: .utf8) ?? ""
+        #expect(json.contains("\"collection_order\""))
+        #expect(!json.contains("\"vault_order\""))
     }
 }

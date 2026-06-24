@@ -14,10 +14,16 @@ struct EntityStateRef: Codable, Hashable, Sendable {
         // Persisted state.json entries with retired kinds decode as an
         // unknown kind (typedKind == nil) and are skipped — forward-compatible
         // by design.
-        case page, vault, collection, area, topic, project, agenda
+        case page, collection, set, area, topic, project, agenda
     }
 
-    var typedKind: Kind? { Kind(rawValue: kind) }
+    var typedKind: Kind? {
+        // Legacy decode: pre-Phase-3 state.json wrote the top container as
+        // "vault" — it still resolves to the top `.collection` tier. New writes
+        // use "collection" (top) / "set" (depth-1).
+        if kind == "vault" { return .collection }
+        return Kind(rawValue: kind)
+    }
 
     init(kind: String, id: String, title: String) {
         self.kind = kind
@@ -45,11 +51,11 @@ extension EntityStateRef {
         switch sel {
         case .none, .savedKey: return nil
         case .page(let p): self.init(kind: .page, id: p.id, title: p.title)
-        case .pageCollection(let t): self.init(kind: .vault, id: t.id, title: t.title)
+        case .pageCollection(let t): self.init(kind: .collection, id: t.id, title: t.title)
         case .area(let s): self.init(kind: .area, id: s.id, title: s.title)
         case .topic(let t): self.init(kind: .topic, id: t.id, title: t.title)
         case .project(let p): self.init(kind: .project, id: p.id, title: p.title)
-        case .collection(let c): self.init(kind: .collection, id: c.id, title: c.title)
+        case .collection(let c): self.init(kind: .set, id: c.id, title: c.title)
         }
     }
 }
