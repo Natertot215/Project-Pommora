@@ -12,7 +12,7 @@ import {
 import { createFolderEntity } from './folderEntity'
 import { createPage, updatePageProperty } from './page'
 import { readSidecar } from '../sidecarIO'
-import { pageTypeSidecar } from '@shared/schemas'
+import { pageCollectionSidecar } from '@shared/schemas'
 import { parseDefinitions } from '../properties/schema'
 import { splitFrontmatter } from '../readNexus'
 import type { PropertyDefinition } from '@shared/properties'
@@ -21,7 +21,7 @@ let root: string
 let notes: string
 beforeEach(async () => {
   root = await mkdtemp(join(tmpdir(), 'pom-schema-'))
-  const c = await createFolderEntity(root, 'pageType', 'Notes')
+  const c = await createFolderEntity(root, 'collection', 'Notes')
   if (!c.ok) throw new Error('setup failed')
   notes = c.value.path
 })
@@ -30,7 +30,7 @@ afterEach(async () => {
 })
 
 const defs = async (): Promise<PropertyDefinition[]> =>
-  parseDefinitions((await readSidecar(notes, 'pageType', pageTypeSidecar))?.property_definitions)
+  parseDefinitions((await readSidecar(notes, 'collection', pageCollectionSidecar))?.properties)
 
 const def = (over: Partial<PropertyDefinition> & { name: string; type: PropertyDefinition['type'] }) =>
   ({ id: '', ...over }) as PropertyDefinition

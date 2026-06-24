@@ -20,9 +20,16 @@ export type BannerOwnerKind = 'pageType' | 'collection' | 'area' | 'topic' | 'pr
  *  SidecarKind names exactly, so main passes them straight to createFolderEntity. */
 export type MutableContainerKind = 'pageType' | 'collection' | 'set'
 
-/** Top-level order groups, persisted in `.nexus/state.json` — vaults + the three context tiers.
- *  Single source for the union spelled across the engine, store, and IPC (and re-used in main). */
-export type StateOrderKey = 'vault_order' | 'area_order' | 'topic_order' | 'project_order'
+/** Top-level order groups, persisted in `.nexus/state.json` — top containers + the three
+ *  context tiers. `collection_order` is the 2-tier top key; `vault_order` is the legacy
+ *  3-tier key, retained for the migration window. Single source for the union spelled across
+ *  the engine, store, and IPC (and re-used in main). */
+export type StateOrderKey =
+  | 'collection_order'
+  | 'vault_order'
+  | 'area_order'
+  | 'topic_order'
+  | 'project_order'
 /** Within-container child-order keys carried by reorderChildren — collections on a vault, sets on a collection. */
 export type ChildOrderKey = 'collection_order' | 'set_order'
 

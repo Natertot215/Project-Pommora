@@ -33,6 +33,11 @@ describe('setStateOrder', () => {
     expect(state.vault_order).toEqual(['a'])
     expect(state.area_order).toEqual(['x', 'y'])
   })
+
+  it('persists collection_order — the 2-tier top-level key readNexus reads', async () => {
+    await setStateOrder(root, 'collection_order', ['c2', 'c1'])
+    expect((await readState()).collection_order).toEqual(['c2', 'c1'])
+  })
 })
 
 describe('setContainerOrder', () => {

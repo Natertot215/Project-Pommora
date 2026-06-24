@@ -42,6 +42,17 @@ const CONTEXT_TIER: Record<'area' | 'topic' | 'project', 1 | 2 | 3> = { area: 1,
 const CONTEXT_KIND_BY_TIER: Record<1 | 2 | 3, SidecarKind> = { 1: 'area', 2: 'topic', 3: 'project' }
 const TIER_DIR: Record<1 | 2 | 3, ContextTier> = { 1: 'areas', 2: 'topics', 3: 'projects' }
 
+/** A nested Set's `parent_id` = its parent container's sidecar id (a Collection at depth-1,
+ *  a Set deeper). Position is authoritative (both builds heal parent_id from it), so a missing
+ *  parent sidecar is non-fatal — the create just omits the field. */
+async function parentContainerId(parentDir: string): Promise<string | undefined> {
+  for (const kind of ['collection', 'set'] as const) {
+    const sc = await readJsonObject(join(parentDir, SIDECAR_FILENAME[kind]))
+    if (sc && typeof sc.id === 'string') return sc.id
+  }
+  return undefined
+}
+
 /** POSIX-join a nexus-relative parent with a child basename (`''` parent = the root). */
 const relJoin = (parent: string, child: string): string => (parent ? `${parent}/${child}` : child)
 
@@ -129,10 +140,18 @@ async function dispatch(req: MutateRequest, deps: MutateDeps, root: string): Pro
     }
 
     case 'createContainer': {
-      // '' parentPath = the nexus root (new vault). See createPage.
+      // '' parentPath = the nexus root (new top-level Collection). See createPage.
       const parent = await resolveUnderRoot(root, req.parentPath || '.')
       if (!parent.ok) return relay(parent)
-      const r = await createDisambiguated(req.name, (name) => createFolderEntity(parent.value, req.kind, name))
+      // A nested Set carries parent_id; a top-level Collection has no parent.
+      const extra: Record<string, unknown> = {}
+      if (req.kind === 'set') {
+        const pid = await parentContainerId(parent.value)
+        if (pid) extra.parent_id = pid
+      }
+      const r = await createDisambiguated(req.name, (name) =>
+        createFolderEntity(parent.value, req.kind, name, extra)
+      )
       if (!r.ok) return relay(r)
       void refreshSessionIndex(root)
       return { ok: true, created: { id: r.value.id, path: relJoin(req.parentPath, basename(r.value.path)) } }

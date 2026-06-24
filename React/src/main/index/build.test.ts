@@ -6,10 +6,9 @@ import { rebuildIndex } from './build'
 import { writeJson } from '../io/atomicWrite'
 import { nexusDir, nexusConfig, NEXUS_CONFIG_FILES, contextTierDir } from '../paths'
 import { createFolderEntity } from '../crud/folderEntity'
-import { addProperty } from '../crud/schema'
 import { createPage, updatePageProperty, setPageTier } from '../crud/page'
 import { createAgendaItem, setAgendaTier, updateAgendaProperty } from '../crud/agendaEntity'
-import { defaultStatusSeed, type PropertyDefinition } from '@shared/properties'
+import { defaultStatusSeed } from '@shared/properties'
 import type { Db } from './db'
 
 let root: string
@@ -21,12 +20,14 @@ beforeEach(async () => {
   await mkdir(nexusDir(root), { recursive: true })
   await writeJson(nexusConfig(root, NEXUS_CONFIG_FILES.identity), { id: 'nx', created_at: '2026-01-01T00:00:00.000Z' })
 
-  const type = await createFolderEntity(root, 'pageType', 'Notes')
+  // Legacy 3-tier index fixture: the index still reads `vaults` until the Model A migration
+  // (Task 4). Write the property schema directly — addProperty now targets Collections.
+  ids.score = 'prop_score'
+  const type = await createFolderEntity(root, 'pageType', 'Notes', {
+    property_definitions: [{ id: ids.score, name: 'Score', type: 'number' }]
+  })
   if (!type.ok) throw new Error('setup: type')
   ids.type = type.value.id
-  const score = await addProperty(type.value.path, { id: '', name: 'Score', type: 'number' } as PropertyDefinition)
-  if (!score.ok) throw new Error('setup: prop')
-  ids.score = score.value.id
 
   const a = await createPage(type.value.path, 'PageA', { body: 'see [[PageB]] and [[PageA]]' })
   const b = await createPage(type.value.path, 'PageB')
