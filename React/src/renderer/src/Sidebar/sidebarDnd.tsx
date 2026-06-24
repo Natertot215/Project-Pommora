@@ -13,13 +13,14 @@ import { ACTIVATION } from '@renderer/design-system/interactions/shared'
 import { announce } from '@renderer/design-system/interactions/a11y'
 import type { NexusTree } from '@shared/types'
 import type { MutateRequest } from '@shared/mutate'
-import { buildIndex, nextOrder, collectionOf, slotInGroup, type Entry, type Index, type MeasuredRow } from './sidebarDndModel'
+import { buildIndex, nextOrder, setContainerOf, isSelfOrDescendant, slotInGroup, type Entry, type Index, type MeasuredRow } from './sidebarDndModel'
 
 // Sidebar drag-and-drop — the "sidebar" behavior (chosen 2026-06-19): an Apple-style insertion
 // LINE marks the exact drop, the picked-up row stays muted in place, and a ghost rides the cursor.
 // No row displacement. EVERY sidebar entity is draggable and reorders within its parent heading —
-// pages (within a folder; also reparent across folders), collections (in a vault), sets (in a
-// collection), vaults, and the three context tiers. The commit routes to the right order store.
+// pages (within a folder; also reparent across folders), Sets (reorder/reparent across Collections
+// and Sets), top-level Collections, and the three context tiers. The commit routes to the right
+// order store.
 
 const LINE_INSET_RIGHT = 12
 const BASE_INDENT = 8 // MenuItem's base left padding
@@ -131,17 +132,16 @@ export function SidebarDnd({
       }
     }
 
-    // Sets: reorder within a collection, or move to another collection in the SAME vault. A set
-    // may never land at vault root / top level / another vault — those resolve to no target.
+    // Sets: reorder within their container, or reparent into any Collection or Set (except the
+    // dragged set's own subtree → cycle). A Set may never land on a context or the top level.
     if (dragged.kind === 'set') {
       const over = nearest(measured)
       const overEntry = idx.byId.get(over.id)
       if (!overEntry) return null
-      const target = collectionOf(overEntry, idx)
-      if (!target || !target.parentId) return null
-      const setVaultId = dragged.parentId ? idx.byId.get(dragged.parentId)?.parentId ?? null : null
-      if (target.parentId !== setVaultId) return null // a different vault → blocked
-      const group = target.containerIds // the target collection's sets, in order
+      const target = setContainerOf(overEntry, idx)
+      if (!target) return null
+      if (isSelfOrDescendant(target.id, g.id, idx)) return null // no cycles
+      const group = target.containerIds // the target container's child Sets, in order
       let beforeId: string | null
       let lineY: number
       if (overEntry.kind === 'set') {
@@ -149,7 +149,7 @@ export function SidebarDnd({
         beforeId = slot.beforeId
         lineY = slot.edge - contentTop
       } else {
-        // over the collection header (or one of its pages) → the head of its sets
+        // over the container header (or one of its pages) → the head of its Sets
         beforeId = group.find((id) => id !== g.id) ?? null
         const headerRect = measured.find((m) => m.id === target.id)
         lineY = (headerRect ? headerRect.bottom : over.bottom) - contentTop
@@ -326,14 +326,13 @@ const base = (p: string): string => {
 }
 const sameOrder = (a: string[], b: string[]): boolean => a.length === b.length && a.every((x, i) => x === b[i])
 
-// The ordered sibling group a collection / vault / context entity reorders within. (Sets
-// have their own reparent-aware branch in computeTarget and never reach here.)
+// The ordered sibling group a Collection / context entity reorders within — all top-level groups
+// held in `.nexus/state.json`. (Sets have their own reparent-aware branch in computeTarget and
+// never reach here.)
 function siblingGroup(dragged: Entry, idx: Index): string[] {
   switch (dragged.kind) {
     case 'collection':
-      return dragged.parentId ? idx.byId.get(dragged.parentId)?.containerIds ?? [] : []
-    case 'vault':
-      return idx.vaultIds
+      return idx.collectionIds
     case 'area':
       return idx.areaIds
     case 'topic':
@@ -345,17 +344,12 @@ function siblingGroup(dragged: Entry, idx: Index): string[] {
   }
 }
 
-// The commit for a non-page reorder — collection_order on the parent vault, state.json for the
-// top-level groups. (Sets reorder/move via the moveSet branch in computeTarget, not here.)
-function reorderCommit(dragged: Entry, idx: Index, order: string[]): MutateRequest | null {
+// The commit for a non-page reorder — every top-level group is held in `.nexus/state.json`.
+// (Sets reorder/move via the moveSet branch in computeTarget, not here.)
+function reorderCommit(dragged: Entry, _idx: Index, order: string[]): MutateRequest | null {
   switch (dragged.kind) {
-    case 'collection': {
-      const parent = dragged.parentId ? idx.byId.get(dragged.parentId) : null
-      if (!parent) return null
-      return { op: 'reorderChildren', parentPath: parent.path, key: 'collection_order', order }
-    }
-    case 'vault':
-      return { op: 'reorderTop', key: 'vault_order', order }
+    case 'collection':
+      return { op: 'reorderTop', key: 'collection_order', order }
     case 'area':
       return { op: 'reorderTop', key: 'area_order', order }
     case 'topic':

@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { NexusTree, PageDetail, SelectionState } from '@shared/types'
+import type { NexusTree, PageDetail, SelectionState, SetNode } from '@shared/types'
 import { DEFAULT_NEW_NAME, type MutableKind, type MutateRequest } from '@shared/mutate'
 import { reconcileSelection } from './selection'
 import { applyAccent, applySystemAccent } from './design-system/accent'
@@ -23,14 +23,27 @@ function readStoredSidebarWidth(): number {
 export type SelectTarget =
   | { kind: 'homepage' }
   | { kind: 'context'; id: string }
-  | { kind: 'vault'; id: string }
   | { kind: 'collection'; id: string }
+  | { kind: 'set'; id: string; path: string }
   | { kind: 'page'; id: string; path: string }
 
-/** A PageType's nexus-relative path by id, searched across ungrouped + sectioned vaults. */
-function findVaultPath(tree: NexusTree, id: string): string | null {
-  const all = [...tree.vaults, ...tree.userSections.flatMap((s) => s.vaults)]
-  return all.find((v) => v.id === id)?.path ?? null
+/** Nexus-relative path of a top Collection or any nested Set by id (ungrouped + sectioned). */
+function findContainerPath(tree: NexusTree, id: string): string | null {
+  const cols = [...(tree.collections ?? []), ...tree.userSections.flatMap((s) => s.collections ?? [])]
+  const inSets = (sets: SetNode[] | undefined): string | null => {
+    for (const s of sets ?? []) {
+      if (s.id === id) return s.path
+      const deep = inSets(s.sets)
+      if (deep) return deep
+    }
+    return null
+  }
+  for (const c of cols) {
+    if (c.id === id) return c.path
+    const hit = inSets(c.sets)
+    if (hit) return hit
+  }
+  return null
 }
 
 /** Lifecycle of the on-demand page-detail fetch for the current page selection. */
@@ -60,8 +73,8 @@ interface SessionState {
   reloadPage: () => Promise<void>
   /** Create a page in the selected container (or the selected page's parent), then select it. */
   newPage: () => Promise<void>
-  /** Create a top-level vault (page type at the nexus root), then inline-rename it. */
-  newVault: () => Promise<void>
+  /** Create a top-level Collection at the nexus root, then inline-rename it. */
+  newCollection: () => Promise<void>
 
   /** The path of the sidebar row in inline-rename edit mode, or null. */
   renamingPath: string | null
@@ -178,18 +191,13 @@ export const useSession = create<SessionState>((set, get) => {
           // A context (area/topic/project) renders a blank page from the loaded tree — no fetch.
           set({ selection: { kind: 'context', id: target.id }, pageStatus: 'idle', pageDetail: null, pageError: undefined })
           return
-        case 'vault':
-          // Vault detail is a view rendered from the already-loaded tree — no fetch.
-          set({
-            selection: { kind: 'vault', id: target.id },
-            pageStatus: 'idle',
-            pageDetail: null,
-            pageError: undefined
-          })
-          return
         case 'collection':
           // Collection detail renders from the loaded tree (banner + its pages) — no fetch.
           set({ selection: { kind: 'collection', id: target.id }, pageStatus: 'idle', pageDetail: null, pageError: undefined })
+          return
+        case 'set':
+          // A depth-1 Set's detail renders from the loaded tree (banner + its pages) — no fetch.
+          set({ selection: { kind: 'set', id: target.id, path: target.path }, pageStatus: 'idle', pageDetail: null, pageError: undefined })
           return
         case 'page': {
           set({
@@ -220,13 +228,13 @@ export const useSession = create<SessionState>((set, get) => {
     newPage: async () => {
       const { tree, selection } = get()
       if (!tree) return
-      // Target container: the selected vault, the selected page's parent folder, else the
-      // first vault. (Page paths are POSIX, so the parent is the path minus its last segment.)
+      // Target container: the selected Collection/Set, the selected page's parent folder, else the
+      // first Collection. (Page paths are POSIX, so the parent is the path minus its last segment.)
       let parentPath: string | null = null
-      if (selection.kind === 'vault') parentPath = findVaultPath(tree, selection.id)
+      if (selection.kind === 'collection' || selection.kind === 'set') parentPath = findContainerPath(tree, selection.id)
       else if (selection.kind === 'page') parentPath = selection.path.split('/').slice(0, -1).join('/')
       if (parentPath === null) {
-        parentPath = tree.vaults[0]?.path ?? tree.userSections.flatMap((s) => s.vaults)[0]?.path ?? null
+        parentPath = (tree.collections ?? [])[0]?.path ?? tree.userSections.flatMap((s) => s.collections ?? [])[0]?.path ?? null
       }
       if (parentPath === null) return // no container to create into
       // main disambiguates the name on collision; select the new page once it lands.
@@ -235,9 +243,9 @@ export const useSession = create<SessionState>((set, get) => {
       )
     },
 
-    newVault: async () => {
-      // create a top-level vault, then drop it straight into inline-rename mode
-      await get().mutate({ op: 'createContainer', parentPath: '', kind: 'pageType', name: DEFAULT_NEW_NAME }, (created) =>
+    newCollection: async () => {
+      // create a top-level Collection, then drop it straight into inline-rename mode
+      await get().mutate({ op: 'createContainer', parentPath: '', kind: 'collection', name: DEFAULT_NEW_NAME }, (created) =>
         get().beginRename(created.path)
       )
     },

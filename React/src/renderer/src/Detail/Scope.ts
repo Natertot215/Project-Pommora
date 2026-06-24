@@ -1,4 +1,4 @@
-import type { CollectionNode, NexusTree, PageTypeNode } from '@shared/types'
+import type { CollectionNode, NexusTree, SetNode } from '@shared/types'
 import type { BannerOwnerKind } from '@shared/mutate'
 
 // Resolving a selection to the entity it points at, and the banner owner for any view. The
@@ -12,24 +12,31 @@ export interface BannerOwner {
   banner?: string
 }
 
-/** Find a vault (PageTypeNode) by id across the ungrouped vaults + user sections. */
-export function findVault(tree: NexusTree | null, id: string): PageTypeNode | undefined {
-  if (!tree) return undefined
-  const inDefault = tree.vaults.find((v) => v.id === id)
-  if (inDefault) return inDefault
-  for (const sec of tree.userSections) {
-    const hit = sec.vaults.find((v) => v.id === id)
-    if (hit) return hit
-  }
-  return undefined
+/** Every top Collection across ungrouped + user sections. */
+function allCollections(tree: NexusTree): CollectionNode[] {
+  return [...(tree.collections ?? []), ...tree.userSections.flatMap((s) => s.collections ?? [])]
 }
 
-/** Find a collection by id across every vault's collections (ungrouped + user sections). */
+/** Find a top Collection by id (ungrouped + user sections). */
 export function findCollection(tree: NexusTree | null, id: string): CollectionNode | undefined {
   if (!tree) return undefined
-  for (const v of [...tree.vaults, ...tree.userSections.flatMap((s) => s.vaults)]) {
-    const col = v.collections.find((c) => c.id === id)
-    if (col) return col
+  return allCollections(tree).find((c) => c.id === id)
+}
+
+/** Find a Set by id at any depth under the tree's Collections (recursive). */
+export function findSet(tree: NexusTree | null, id: string): SetNode | undefined {
+  if (!tree) return undefined
+  const search = (sets: SetNode[] | undefined): SetNode | undefined => {
+    for (const s of sets ?? []) {
+      if (s.id === id) return s
+      const deep = search(s.sets)
+      if (deep) return deep
+    }
+    return undefined
+  }
+  for (const c of allCollections(tree)) {
+    const hit = search(c.sets)
+    if (hit) return hit
   }
   return undefined
 }
@@ -46,7 +53,7 @@ export function findContext(tree: NexusTree | null, id: string): BannerOwner | n
   return null
 }
 
-/** The banner owner for a page container (vault or collection) — same shape; kind from the node. */
-export function containerOwner(node: PageTypeNode | CollectionNode): BannerOwner {
+/** The banner owner for a page container (Collection or Set) — same shape; kind from the node. */
+export function containerOwner(node: CollectionNode | SetNode): BannerOwner {
   return { path: node.path, kind: node.kind, name: node.title, banner: node.banner }
 }

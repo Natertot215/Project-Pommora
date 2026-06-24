@@ -1,5 +1,5 @@
 import { normalizeTitle, type LinkStatus } from '@shared/connections'
-import type { NexusTree, PageTypeNode } from '@shared/types'
+import type { CollectionNode, NexusTree, SetNode } from '@shared/types'
 
 export interface ConnPage {
   id: string
@@ -27,14 +27,16 @@ export function flattenPages(tree: NexusTree): ConnPage[] {
   const add = (p: { id: string; title: string; path: string; icon?: string }): void => {
     out.push({ id: p.id, title: p.title, path: p.path, icon: p.icon })
   }
-  const walkVault = (v: PageTypeNode): void => {
-    for (const c of v.collections) {
-      c.pages.forEach(add)
-      for (const s of c.sets) s.pages.forEach(add)
-    }
+  const walkSet = (s: SetNode): void => {
+    s.pages.forEach(add)
+    for (const sub of s.sets ?? []) walkSet(sub)
   }
-  tree.vaults.forEach(walkVault)
-  tree.userSections.forEach((sec) => sec.vaults.forEach(walkVault))
+  const walkCollection = (c: CollectionNode): void => {
+    c.pages.forEach(add)
+    for (const s of c.sets) walkSet(s)
+  }
+  ;(tree.collections ?? []).forEach(walkCollection)
+  tree.userSections.forEach((sec) => (sec.collections ?? []).forEach(walkCollection))
   return out
 }
 

@@ -108,7 +108,6 @@ export interface PageNode extends PathNode {
 
 export interface SetNode extends PathNode {
   kind: 'set'
-  selectable: false
   /** Child Sets nested at any depth (2-tier recursion). Optional during the migration
    *  window; populated by the recursive read. */
   sets?: SetNode[]
@@ -190,8 +189,10 @@ export type SelectionState =
   | { kind: 'none' }
   | { kind: 'homepage' }
   | { kind: 'context'; id: string }
-  | { kind: 'vault'; id: string }
   | { kind: 'collection'; id: string }
+  /** A depth-1 Set (direct child of a Collection) — the only selectable Set; deeper
+   *  Sub-Sets are expand-only. Carries `path` for rename-safe reconciliation, like a page. */
+  | { kind: 'set'; id: string; path: string }
   | { kind: 'page'; id: string; path: string }
 
 /** A single page's full content, read on demand for the detail view. */

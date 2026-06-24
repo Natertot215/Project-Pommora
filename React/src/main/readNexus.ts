@@ -123,7 +123,6 @@ async function legacyReadSet(
   const pages = await collectMdDeep(absDir, relDir, excluded)
   return {
     kind: 'set',
-    selectable: false,
     id: asString(meta.id) ?? adoptedId(relDir),
     title: name,
     icon: asString(meta.icon),
@@ -239,7 +238,6 @@ async function readSet(
   const pages = await readDirectPages(absDir, relDir)
   return {
     kind: 'set',
-    selectable: false,
     id: asString(meta.id) ?? adoptedId(relDir),
     title: name,
     icon: asString(meta.icon),

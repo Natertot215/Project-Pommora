@@ -2,23 +2,31 @@
 // selection can be stale: the entity was deleted (its id is gone) or renamed/moved (its id
 // survives but its path changed). Pure + dependency-free so it's unit-tested without a DOM.
 
-import type { NexusTree, PageNode, PageTypeNode, SelectionState } from '@shared/types'
+import type { CollectionNode, NexusTree, PageNode, SelectionState, SetNode } from '@shared/types'
 
-/** Every PageType across ungrouped vaults + user sections. */
-function allVaults(tree: NexusTree): PageTypeNode[] {
-  return [...tree.vaults, ...tree.userSections.flatMap((s) => s.vaults)]
+/** Every top Collection across ungrouped + user sections. */
+function allCollections(tree: NexusTree): CollectionNode[] {
+  return [...(tree.collections ?? []), ...tree.userSections.flatMap((s) => s.collections ?? [])]
 }
 
-/** Every page in the tree (vault-direct + collection-direct + set pages). */
-function allPages(tree: NexusTree): PageNode[] {
-  const pages: PageNode[] = []
-  for (const v of allVaults(tree)) {
-    pages.push(...v.pages)
-    for (const c of v.collections) {
-      pages.push(...c.pages)
-      for (const s of c.sets) pages.push(...s.pages)
+/** Every Set at any depth under the tree's Collections (the recursive flatten). */
+function allSets(tree: NexusTree): SetNode[] {
+  const out: SetNode[] = []
+  const walk = (sets: SetNode[] | undefined): void => {
+    for (const s of sets ?? []) {
+      out.push(s)
+      walk(s.sets)
     }
   }
+  for (const c of allCollections(tree)) walk(c.sets)
+  return out
+}
+
+/** Every page in the tree (Collection-direct + every nested Set's pages). */
+function allPages(tree: NexusTree): PageNode[] {
+  const pages: PageNode[] = []
+  for (const c of allCollections(tree)) pages.push(...c.pages)
+  for (const s of allSets(tree)) pages.push(...s.pages)
   return pages
 }
 
@@ -38,10 +46,14 @@ export function reconcileSelection(tree: NexusTree, selection: SelectionState): 
       return [...tree.contexts.areas, ...tree.contexts.topics, ...tree.contexts.projects].some((c) => c.id === selection.id)
         ? selection
         : { kind: 'none' }
-    case 'vault':
-      return allVaults(tree).some((v) => v.id === selection.id) ? selection : { kind: 'none' }
     case 'collection':
-      return allVaults(tree).some((v) => v.collections.some((c) => c.id === selection.id)) ? selection : { kind: 'none' }
+      return allCollections(tree).some((c) => c.id === selection.id) ? selection : { kind: 'none' }
+    case 'set': {
+      // Id-keyed (rename-safe); refresh the path when a selected Set was moved/renamed.
+      const set = allSets(tree).find((s) => s.id === selection.id)
+      if (!set) return { kind: 'none' }
+      return set.path === selection.path ? selection : { kind: 'set', id: set.id, path: set.path }
+    }
     case 'page': {
       const page = allPages(tree).find((p) => p.id === selection.id)
       if (!page) return { kind: 'none' }
