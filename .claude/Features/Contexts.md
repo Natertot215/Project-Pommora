@@ -94,9 +94,9 @@ There is no parent, containment, or tier-relation validation — the tiers are f
 
 #### Tier config
 
-Per-Nexus tier labels live at `.nexus/tier-config.json` — one entry per tier carrying `level`, `singular`, `plural`, and `exposed`:
+`.nexus/tier-config.json` holds one entry per tier — `level`, `singular`, `plural`, `exposed`. Its `singular`/`plural` feed the **property system** — a context relation column's display name resolves sidecar override → tier-config plural → `Tier N` fallback. The **sidebar tier/section headers** are labeled separately from `settings.labels` (the Settings label source), not from here.
 
-- `singular` / `plural` — separate inputs; the UI picks one by context.
+- `singular` / `plural` — separate inputs; the property layer picks one by context.
 - `exposed: false` hides a tier from CRUD/UI without breaking the schema.
 
 ---

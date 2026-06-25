@@ -4,6 +4,10 @@ Changelog + the home for locked decisions — what shipped and when, newest firs
 
 > Everything below the **v0.4.2 Views** milestone is post-version incremental work on the v0.4.x line, not new version cuts.
 
+#### `modified_at` optional on entity sidecars (2026-06-25, branch `main`)
+
+`modified_at` is kept (still written on every encode) but is **no longer a hard decode requirement** on any entity model (PageCollection, PageSet, Area, Topic, Project, AgendaTask, AgendaEvent, Settings). `AtomicJSON.decode(_:from:)` injects the file's mtime via the new `CodingUserInfoKey.fileModificationDate`; each model decodes it `(try? …) ?? file-mtime ?? now`. **Why:** a sidecar lacking it — e.g. one written by the React build, which doesn't stamp it — threw `keyNotFound` and silently dropped the whole entity, surfacing as empty Collections + "data couldn't be read because it is missing" when a React-touched nexus opened in Swift. The mtime fallback is stable (unlike load-time `now`), so sort-by-`_modified_at` holds; this mirrors how Pages already derive modified-time. Regression-tested in `ModifiedAtFallbackTests`.
+
 #### Collections / Sets / Sub-Sets — rename + infinite nesting (2026-06-23→24, branch `collections-sets-rename`)
 
 The Pages model collapses from three tiers to **two**: a schema-bearing **Collection** (top — was `PageType`/"Vault") and a **recursive `PageSet`** ("Set" at depth-1, "Sub-Set" nested), nesting to any depth — old `PageCollection` + `PageSet` merged into one type. Discovery, rendering, adoption, navigation, and the index recurse on the real folder tree (cycle-proof by construction). Only depth-1 Sets carry views; deeper Sub-Sets are plain. `PageType` is retired (along with `EntityKind.pageType`, the vestigial `page_collections` table, and the dead `topTierIDs` view-helper); UI labels collapse to **Collection / Set** ("Sub-Set" derived). SQLite **schema v16** (delete-and-rebuild): `page_types`→`page_collections`, recursive `page_sets` (`parent_collection_id` | `parent_set_id`, exactly one non-null). Full spec → `// Features//PageCollections.md` + `// Features//PageSets.md`.

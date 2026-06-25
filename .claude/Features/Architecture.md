@@ -41,7 +41,7 @@ A Nexus is a single folder. Pommora opens it via picker (security-scoped bookmar
   .nexus/                               ← app-internal config + index (nexus-portable; syncs)
     nexus.json                          ← ULID + createdAt
     state.json                          ← session state (open tabs, sidebar UI, Recents)
-    settings.json                       ← per-Nexus UI labels + accent color + excluded_folders
+    settings.json                       ← per-Nexus UI labels + accent color + excluded_folders + profile image/subtitle
     tier-config.json                    ← Contexts tier labels (singular + plural)
     saved-config.json                   ← Saved-section entry labels
     homepage.json                       ← singleton Homepage entity (composed blocks)
