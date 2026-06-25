@@ -176,15 +176,20 @@ Make a Swift nexus open in React with accent, labels, profile, homepage, and sec
 - [ ] **Step 2-4:** Implement the three reads; update every renderer site reading `labels.vaults`/`labels.collection`/`labels.set`/`accent` to the new shapes. Green.
 - [ ] **Step 5: Commit** — `feat(react): settings reads aligned — accent_color, structured SettingsLabels, saved-config items[]`
 
-### Task 12: Config-file reads — sidebar-sections + nexus.json identity
+### Task 12: Config-file reads + identity-on-open — sidebar-sections + nexus.json (both directions)
 
-**Files:** Modify `React/src/main/readNexus.ts` (sections + identity reads) + `paths.ts` if needed; Test `readNexus.test.ts`.
+**Files:** Create `React/src/main/identity.ts` (`ensureIdentity` + `defaultIdentity`); Modify `React/src/main/index.ts` (`adoptNexus` hook), `React/src/main/readNexus.ts` (sections + identity reads), `React/src/main/mutate.ts` + `React/src/main/index.ts:479` (route the two lazy `() => ({ id: newId() })` create-defaults through the shared helper, DRY); Test `readNexus.test.ts` + `identity.test.ts`.
 
-**Interfaces:** sidebar-sections (camelCase) = `{sections:[{id,label,collectionIDs:string[]}]}` (was `vaultIDs`). nexus.json (camelCase) = `{schemaVersion,id,createdAt}` — read `id`+`createdAt`; stop reading `description`/`photo` here (moved to Task 13).
+**Why this task carries the bidirectional goal.** Swift creates `nexus.json` eagerly on open (`NexusManager.openPicked` → `NexusIdentity(id: ULID.generate()).save()` when absent). React today **never** creates it on open — only lazily, as a `{ id }`-only side-effect of the first description/photo edit, missing `schemaVersion`+`createdAt`. So a React-touched folder drifts from Swift's expected shape, and a raw folder opened in React leaves `readNexus` in raw mode (its stamped sidecars ignored). Closing this is what lets the **same folder open in either app with no conflict / no re-migration churn** — the plan's actual end goal.
 
-- [ ] **Step 1: Failing tests** — a section `{id,label,collectionIDs:["c1"]}` claims collection `c1`; nexus `{schemaVersion,id,createdAt}` sets `id`+`createdAt` and absence of description/photo doesn't blank the header.
-- [ ] **Step 2-4:** Read/write `collectionIDs`; update the `userSections` partition; read camelCase identity. Green.
-- [ ] **Step 5: Commit** — `feat(react): config-file reads aligned — sidebar collectionIDs + nexus.json camelCase identity`
+**Interfaces:**
+- **identity-on-open (write):** `ensureIdentity(root)` — if `.nexus/nexus.json` is absent, write Swift's exact shape `{ schemaVersion: 1, id: <ULID>, createdAt: <now> }`; if present, **backfill only missing** `schemaVersion`/`createdAt` (never touch an existing `id`, never rewrite a complete file → no churn). Runs in `adoptNexus` right after `openSession`, **before** `stampAdopted`. `createdAt` encoding **must match Swift's `AtomicJSON` `JSONEncoder.dateEncodingStrategy`** so Swift's `NexusIdentity.load` decodes it without throwing — VERIFY that strategy against `AtomicJSON.swift` at implementation time; do not assume ISO-8601.
+- **identity (read):** nexus.json (camelCase) = `{schemaVersion,id,createdAt}` — read `id`+`createdAt`; stop reading `description`/`photo` here (moved to Task 13).
+- **sidebar-sections (camelCase):** `{sections:[{id,label,collectionIDs:string[]}]}` (was `vaultIDs`).
+
+- [ ] **Step 1: Failing tests** — `identity.test.ts`: absent → `ensureIdentity` writes `{schemaVersion:1,id:<ulid>,createdAt}`; a `{id}`-only file gains `schemaVersion`+`createdAt` with `id` unchanged; a complete file is byte-identical after a second call (no churn). `readNexus.test.ts`: a section `{id,label,collectionIDs:["c1"]}` claims collection `c1`; nexus `{schemaVersion,id,createdAt}` sets `id`+`createdAt`; absence of description/photo doesn't blank the header.
+- [ ] **Step 2-4:** Implement `ensureIdentity`/`defaultIdentity`; hook into `adoptNexus`; route the two lazy create-defaults through `defaultIdentity`; read camelCase identity + `collectionIDs`; update the `userSections` partition. Green (test + typecheck).
+- [ ] **Step 5: Commit** — `feat(react): identity-on-open (Swift shape) + config reads aligned — collectionIDs, camelCase nexus.json`
 
 ### Task 13: Profile pic + subtitle — parity with Swift (read + write + render)
 
@@ -210,7 +215,7 @@ Make a Swift nexus open in React with accent, labels, profile, homepage, and sec
 
 - [ ] **Step 1:** Full `npm test` green (≥511, adjusted).
 - [ ] **Step 2:** Launch React on a **Swift-managed** nexus (real one, or `~/test` post-conversion): confirm Collections/Sets render, accent applies, custom tier/entity labels show, profile pic + subtitle render, homepage banner + blocks survive a banner change, user sidebar sections resolve. Screenshot.
-- [ ] **Step 3:** Reverse check: after React edits (create page, set profile pic, reorder), reopen in Swift — no data loss, no re-migration churn.
+- [ ] **Step 3:** Bidirectional no-conflict proof (the end goal): after React edits (create page, set profile pic, reorder) reopen in Swift — no data loss, no re-migration churn, no spurious identity rewrite. Then the reverse: open a **raw** folder in React first (identity + sidecars get stamped), then open that same folder in Swift — Swift finds a valid `nexus.json` + ULID-stamped entities and runs a no-op adoption (nothing to migrate). Same folder, either app, no conflict.
 
 ---
 
