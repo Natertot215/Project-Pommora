@@ -27,6 +27,7 @@ import { splitEnvelope, mergeFrontmatter, readFrontmatterFields } from './io/pag
 import { basenameNoMd } from './coerce'
 import { contextTierDir, nexusConfig, SIDECAR_FILENAME, NEXUS_CONFIG_FILES, type ContextTier, type SidecarKind } from './paths'
 import { ensureIdentity } from './identity'
+import { defaultSettingsSeed } from './settings'
 import { ok, fail, type Result } from '@shared/result'
 import type { MutateRequest, MutateResult } from '@shared/mutate'
 import type { TrashMode } from './appConfig'
@@ -221,7 +222,7 @@ async function dispatch(req: MutateRequest, deps: MutateDeps, root: string): Pro
       const subtitle = req.subtitle.slice(0, 30)
       await mutateJson<Record<string, unknown>>(
         nexusConfig(root, NEXUS_CONFIG_FILES.settings),
-        () => ({}),
+        defaultSettingsSeed,
         (cur) => ({ ...cur, profile_subtitle: subtitle })
       )
       return { ok: true }
@@ -239,10 +240,10 @@ async function dispatch(req: MutateRequest, deps: MutateDeps, root: string): Pro
         if (!rel) return fault('Unsupported image data.')
         // Set the field first, then delete a replaced file — a failed write never leaves
         // profile_image pointing at a deleted file (mirrors the banner/cover ordering).
-        await mutateJson<Record<string, unknown>>(settingsPath, () => ({}), (cur) => ({ ...cur, profile_image: rel }))
+        await mutateJson<Record<string, unknown>>(settingsPath, defaultSettingsSeed, (cur) => ({ ...cur, profile_image: rel }))
         if (prev && prev !== rel) await rm(join(root, prev), { force: true }).catch(() => {})
       } else {
-        await mutateJson<Record<string, unknown>>(settingsPath, () => ({}), (cur) => {
+        await mutateJson<Record<string, unknown>>(settingsPath, defaultSettingsSeed, (cur) => {
           const next = { ...cur }
           delete next.profile_image
           return next

@@ -13,6 +13,7 @@ import { sessionRoot, openSession, resolveRestorePath, isExistingDir } from './s
 import { openSessionIndex, closeSessionIndex } from './sessionIndex'
 import { stampAdopted } from './adopt'
 import { ensureIdentity } from './identity'
+import { ensureSettings } from './settings'
 import { startWatcher, stopWatcher } from './watcher'
 import { resolveUnderRoot } from './pathSafety'
 import { updatePageBody } from './crud/page'
@@ -173,13 +174,15 @@ ipcMain.handle('nexus:state', async (): Promise<NexusState> => {
 // push it onto the recents (deduped, capped) + the OS Recent Documents list.
 async function adoptNexus(path: string): Promise<void> {
   openSession(path)
-  // Ensure `.nexus/nexus.json` exists in Swift's shape before anything reads it (matches
-  // Swift's eager create-on-open) — this is what flips a raw folder into sidecar mode and
-  // lets the same folder open in either app. Best-effort: a failure must not block open.
+  // Ensure `.nexus/nexus.json` + `settings.json` exist in Swift's shape before anything reads
+  // them (matches Swift's eager create-on-open): identity flips a raw folder into sidecar mode;
+  // a full settings file keeps Swift's decoder from reseeding (losing data) when it later opens
+  // the same folder. Best-effort: a failure must not block open.
   try {
     await ensureIdentity(path)
+    await ensureSettings(path)
   } catch (e) {
-    console.error('ensureIdentity failed:', e)
+    console.error('ensure config-on-open failed:', e)
   }
   // Stamp any un-adopted entity (raw folder / externally-authored page) with a real ULID
   // before the index reads it, so the index + every later write capture a stable id rather

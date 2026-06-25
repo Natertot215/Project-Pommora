@@ -11,8 +11,9 @@ import { nexusDir, nexusConfig, NEXUS_CONFIG_FILES } from './paths'
 
 // Swift `AtomicJSON` uses `.iso8601` (ISO8601DateFormatter, internet-date-time, NO
 // fractional seconds). JS `toISOString()` appends milliseconds, which Swift's default
-// .iso8601 decoder rejects — strip them so Swift can read our timestamp.
-function swiftISODate(): string {
+// .iso8601 decoder rejects — strip them so Swift can read our timestamp. Shared by every
+// .nexus config writer that emits a Swift-decodable date.
+export function swiftISODate(): string {
   return new Date().toISOString().replace(/\.\d{3}Z$/, 'Z')
 }
 
