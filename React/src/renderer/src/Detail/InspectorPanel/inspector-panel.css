@@ -23,13 +23,8 @@
   transition: none;
 }
 
-.inspector-head {
-  padding: 12px 16px 8px;
-  font-weight: var(--weight-emphasized);
-  color: var(--label-primary);
-}
 .inspector-body {
-  padding: 0 16px 16px;
+  padding: 16px;
 }
 
 /* Invisible edge-drag resize strip at the inspector's left edge — mirror of .sidebar-resize. */

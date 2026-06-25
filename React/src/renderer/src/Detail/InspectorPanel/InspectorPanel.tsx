@@ -11,7 +11,6 @@ import './inspector-panel.css'
 export function InspectorPanel({ open }: { open: boolean }): React.JSX.Element {
   return (
     <GlassWindow className="inspector-glass" aria-hidden={!open}>
-      <div className="inspector-head">Inspector</div>
       <div className="inspector-body" />
     </GlassWindow>
   )
