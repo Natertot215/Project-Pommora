@@ -1,19 +1,24 @@
 import { vars as colorVars } from './color.css'
 import { font, text } from './typography.css'
 import { chip, chipColor, chipCheckbox } from './chip.css'
+import { size, type IconSize, type ButtonSize } from './size.css'
 import { tint, tintAt, TINT_STEPS, type TintStep } from './tint'
 import './theme-vars.css' // bridges tokens → stable CSS vars for plain-CSS consumers
 
 /**
- * The single token object. Read scalar values as `vars.color.*` and
- * `vars.font.*` (e.g. `vars.color.solid.blue`, `vars.color.label.primary`,
- * `vars.font.weight.semibold`, `vars.font.scale.body.size`). One import:
+ * The single token object. Read scalar values as `vars.color.*`, `vars.font.*`,
+ * and `vars.size.*` (e.g. `vars.color.solid.blue`, `vars.font.weight.semibold`,
+ * `vars.size.icon.md`, `vars.size.control.button.large.height`). One import:
  *   import { vars, text, chip, chipColor } from '@renderer/design-system/tokens'
  */
 export const vars = {
   ...colorVars,
-  font
+  font,
+  size
 }
+
+/** Size aliases — `IconSize` for `<Icon size>`, `ButtonSize` for a control's `size`. */
+export type { IconSize, ButtonSize }
 
 /** Composed text-style class names — `text.body.standard`, `text.headline.emphasized`. */
 export { text }

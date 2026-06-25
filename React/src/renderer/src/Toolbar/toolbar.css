@@ -1,0 +1,48 @@
+/* The two persistent toolbar clusters float over the titlebar drag strip. The bar
+   itself is click-through (pointer-events:none) so empty space still drags the window;
+   each cluster opts back into pointer events AND out of the drag region. */
+.app-toolbar {
+  position: absolute;
+  /* Cluster tops align with the sidebar's top edge (both inset by --glass-inset). */
+  top: var(--glass-inset);
+  /* Hug the sidebar's right edge (clusters then sit a small gap in via padding). */
+  left: calc(var(--glass-inset) + var(--sidebar-width));
+  right: 0;
+  height: var(--toolbar-h);
+  z-index: 3;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  /* Back/Forward hugs the sidebar (tight left); trio sits a small gap off the window edge. */
+  padding: 0 10px 0 4px;
+  pointer-events: none;
+  transition: left var(--duration-base) var(--ease-standard);
+}
+.shell.sidebar-hidden .app-toolbar {
+  left: 0;
+  /* Clear the traffic lights + the expand toggle when the sidebar is off. */
+  padding-left: 84px;
+}
+.shell.is-resizing .app-toolbar {
+  transition: none;
+}
+
+.app-toolbar-cluster {
+  position: relative; /* anchors the trio popovers */
+  pointer-events: auto;
+  -webkit-app-region: no-drag;
+}
+
+/* Back/Forward read as recessed control glyphs (secondary) alongside the brighter trio. */
+.app-toolbar-cluster--nav button {
+  color: var(--label-secondary);
+}
+
+/* Placeholder body for the Navigation / Settings panels until their real content lands. */
+.toolbar-panel-stub {
+  min-width: 200px;
+  padding: 28px 16px;
+  text-align: center;
+  color: var(--label-secondary);
+  font-size: 12px;
+}

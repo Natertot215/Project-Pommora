@@ -20,6 +20,7 @@ import {
   EllipsisVertical,
   Tag,
   PanelLeft,
+  PanelRight,
   SquareDashed,
   CircleX,
   Copy,
@@ -37,6 +38,7 @@ import {
   type LucideIcon,
   type LucideProps
 } from 'lucide-react'
+import { size as sizeTokens, type IconSize } from '../tokens/size.css'
 
 /**
  * Curated icon set — Lucide (https://lucide.dev/icons). The single source of
@@ -66,6 +68,7 @@ export const icons = {
   'ellipsis-vertical': EllipsisVertical,
   tag: Tag,
   'panel-left': PanelLeft,
+  'panel-right': PanelRight,
   'square-dashed': SquareDashed,
   'circle-x': CircleX,
   copy: Copy,
@@ -91,12 +94,28 @@ export const asIconName = (value: unknown): IconName | undefined =>
 /** As `asIconName`, but falls back to a default when the value isn't a known icon. */
 export const iconNameOr = (value: unknown, fallback: IconName): IconName => asIconName(value) ?? fallback
 
+const iconSizeVars = sizeTokens.icon
+const isIconSize = (v: unknown): v is IconSize => typeof v === 'string' && v in iconSizeVars
+
 /**
- * Render a curated icon by name: `<Icon name="folder-closed" />`. Size defaults to
- * `1em`, so an icon follows the font-size (and, via `currentColor`, the colour) of
- * its context — the type scale drives it. Pass `size={N}` to override.
+ * Render a curated icon by name: `<Icon name="folder-closed" />`.
+ *
+ * Size resolution:
+ * - **Named step** (`size="md"`) routes to the icon-size token — set as the glyph's
+ *   `font-size` while lucide stays at `1em`, so one source (`size.icon.*`) drives it.
+ * - **Default** (`1em`) follows the context font-size (the type scale).
+ * - **Number / CSS length** (`size={18}`) passes straight through as an escape hatch.
+ * Colour follows `currentColor` in every case.
  */
-export function Icon({ name, size = '1em', ...rest }: { name: IconName } & LucideProps): React.JSX.Element {
+export function Icon({
+  name,
+  size = '1em',
+  style,
+  ...rest
+}: { name: IconName; size?: IconSize | LucideProps['size'] } & Omit<LucideProps, 'size'>): React.JSX.Element {
   const Glyph = icons[name]
-  return <Glyph size={size} {...rest} />
+  if (isIconSize(size)) {
+    return <Glyph size="1em" {...rest} style={{ ...style, fontSize: iconSizeVars[size] }} />
+  }
+  return <Glyph size={size} {...rest} style={style} />
 }

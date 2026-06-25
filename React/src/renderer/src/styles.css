@@ -11,6 +11,7 @@
   --main-bg: var(--bg-window); /* the background.window token via the theme-vars bridge — single source (@shared/theme) */
   --glass-inset: 5px; /* gap from the window edges */
   --glass-radius: 12px; /* matched to the macOS window corner (≈ window radius − inset) */
+  --toolbar-h: 38px; /* the top strip: titlebar drag region + floating toolbar clusters */
 }
 
 * {
@@ -68,7 +69,7 @@ textarea,
      (Overlaying stole the hover from the collapse button as the cursor approached it.) */
   left: calc(var(--glass-inset) + var(--sidebar-width) + var(--glass-inset));
   right: 0;
-  height: 38px;
+  height: var(--toolbar-h);
   z-index: 2;
   -webkit-app-region: drag;
   transition: left var(--duration-base) var(--ease-standard);

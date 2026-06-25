@@ -29,6 +29,7 @@ Pommora's React icons come from **Lucide** ([lucide.dev/icons](https://lucide.de
 - `ellipsis-vertical`
 - `tag`
 - `panel-left` (Needs Edits)
+- `panel-right` (Trio Button, Inspector toggle)
 - `square-dashed` (Needs Edits)
 - `circle-x`
 - `copy`

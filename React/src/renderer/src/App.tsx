@@ -3,11 +3,16 @@ import { useSession } from './store'
 import { Surface } from './Components/Surface'
 import { Sidebar } from './Sidebar/Sidebar'
 import { DetailPane } from './Detail/DetailPane'
+import { Toolbar } from './Toolbar/Toolbar'
+import { Inspector } from './Inspector/Inspector'
 import { Icon } from '@renderer/design-system/symbols'
 
 export function App(): React.JSX.Element {
   const { status, tree, error, sidebarVisible, sidebarWidth, setSidebarWidth, load, applyTree, choose, openDropped, toggleSidebar, newPage, beginRename } =
     useSession()
+
+  // Inspector toggle — window chrome state. Placeholder pane this pass (empty, slides in).
+  const [inspectorOpen, setInspectorOpen] = useState(false)
 
   // Edge-drag resize (no visible handle). `resizing` suspends the collapse transition so
   // the panel tracks the cursor 1:1; the store clamps to the Swift min/max + persists.
@@ -82,6 +87,10 @@ export function App(): React.JSX.Element {
     >
       {/* Draggable top strip so the frameless window can be moved from anywhere along the top. */}
       <div className="titlebar" />
+      {/* Persistent toolbar clusters float over the strip (Back/Forward + Navigation·Settings·Inspector). */}
+      {status === 'ready' && (
+        <Toolbar inspectorOpen={inspectorOpen} onToggleInspector={() => setInspectorOpen((v) => !v)} />
+      )}
       <main className="content-pane">
         <DetailPane />
       </main>
@@ -139,6 +148,8 @@ export function App(): React.JSX.Element {
       >
         <Icon name="log-out" size={18} />
       </button>
+      {/* Trailing inspector pane — empty placeholder, slides in when toggled from the trio. */}
+      {status === 'ready' && <Inspector open={inspectorOpen} />}
     </div>
   )
 }

@@ -2,6 +2,7 @@ import { globalStyle } from '@vanilla-extract/css'
 import { DEFAULT_ACCENT } from '@shared/types'
 import { vars as colorVars } from './color.css'
 import { font } from './typography.css'
+import { size } from './size.css'
 import { TINT_STEPS } from './tint'
 import { duration, easing } from './motion'
 
@@ -60,6 +61,12 @@ globalStyle(':root', {
     '--weight-bold': font.weight.bold,
     // Type sizes plain CSS needs (single-sourced from the scale); add more as consumers appear.
     '--text-title3-size': font.scale.title3.size,
+    // Icon-size ladder — so plain-CSS glyphs (e.g. the fold chevron) route to the same steps.
+    '--icon-xs': size.icon.xs,
+    '--icon-sm': size.icon.sm,
+    '--icon-md': size.icon.md,
+    '--icon-lg': size.icon.lg,
+    '--icon-xl': size.icon.xl,
     // Motion — shared durations + easing so every transition reads as one system.
     '--duration-fast': duration.fast,
     '--duration-base': duration.base,
