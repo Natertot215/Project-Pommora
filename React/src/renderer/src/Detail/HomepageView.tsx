@@ -1,6 +1,5 @@
 import type { NexusTree } from '@shared/types'
 import { DetailScaffold } from './DetailScaffold'
-import { GlassOpticsSliders } from './GlassOpticsSliders'
 
 /**
  * The homepage view — the live nexus entity (the sidebar header). v1 renders a blank page under
@@ -8,8 +7,6 @@ import { GlassOpticsSliders } from './GlassOpticsSliders'
  */
 export function HomepageView({ tree }: { tree: NexusTree | null }): React.JSX.Element {
   return (
-    <DetailScaffold owner={{ path: '', kind: 'homepage', name: tree?.nexus.name ?? 'Home', banner: tree?.homepage.banner }}>
-      <GlassOpticsSliders />
-    </DetailScaffold>
+    <DetailScaffold owner={{ path: '', kind: 'homepage', name: tree?.nexus.name ?? 'Home', banner: tree?.homepage.banner }} />
   )
 }
