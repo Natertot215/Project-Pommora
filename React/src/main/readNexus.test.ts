@@ -138,17 +138,83 @@ describe('readNexus — accent setting', () => {
   }
   afterAll(() => roots.forEach((r) => rmSync(r, { recursive: true, force: true })))
 
-  it('reads a valid spectrum accent', async () => {
-    expect((await readNexus(mk({ accent: 'blue' }))).accent).toBe('blue')
+  it('reads the shared accent_color key (React-native value passes through)', async () => {
+    expect((await readNexus(mk({ accent_color: 'blue' }))).accent).toBe('blue')
+    expect((await readNexus(mk({ accent_color: 'lavender' }))).accent).toBe('lavender')
+  })
+  it('maps Swift-only accent values onto React tokens', async () => {
+    expect((await readNexus(mk({ accent_color: 'gray' }))).accent).toBe('grey')
+    expect((await readNexus(mk({ accent_color: 'pink' }))).accent).toBe('purple')
   })
   it('passes through system', async () => {
-    expect((await readNexus(mk({ accent: 'system' }))).accent).toBe('system')
+    expect((await readNexus(mk({ accent_color: 'system' }))).accent).toBe('system')
   })
   it('defaults when the accent is invalid', async () => {
-    expect((await readNexus(mk({ accent: 'chartreuse' }))).accent).toBe('lavender')
+    expect((await readNexus(mk({ accent_color: 'chartreuse' }))).accent).toBe('lavender')
   })
-  it('defaults when the accent is absent', async () => {
+  it('defaults when accent_color is absent', async () => {
     expect((await readNexus(mk({}))).accent).toBe('lavender')
+  })
+})
+
+describe('readNexus — structured labels (Swift SettingsLabels shape)', () => {
+  const roots: string[] = []
+  const mk = (settings: object): string => {
+    const root = mkdtempSync(join(tmpdir(), 'pom-labels-'))
+    roots.push(root)
+    d(join(root, '.nexus'))
+    w(join(root, '.nexus', 'nexus.json'), JSON.stringify({ schemaVersion: 1, id: 'nxl', createdAt: '2026' }))
+    w(join(root, '.nexus', 'settings.json'), JSON.stringify(settings))
+    return root
+  }
+  afterAll(() => roots.forEach((r) => rmSync(r, { recursive: true, force: true })))
+
+  it('parses a Swift labels blob into the structured shape', async () => {
+    const t = await readNexus(
+      mk({
+        labels: {
+          sidebar_sections: { areas: 'Spaces', topics: 'Themes', pages: 'Libraries' },
+          page_collection: { singular: 'Library', plural: 'Libraries' },
+          page_set: { singular: 'Shelf', plural: 'Shelves' },
+          project: { singular: 'Initiative', plural: 'Initiatives' },
+          agenda_task: { singular: 'Todo', plural: 'Todos' },
+          agenda_event: { singular: 'Happening', plural: 'Happenings' }
+        }
+      })
+    )
+    expect(t.labels.sidebarSections).toEqual({ areas: 'Spaces', topics: 'Themes', pages: 'Libraries' })
+    expect(t.labels.pageCollection).toEqual({ singular: 'Library', plural: 'Libraries' })
+    expect(t.labels.pageSet).toEqual({ singular: 'Shelf', plural: 'Shelves' })
+    expect(t.labels.project).toEqual({ singular: 'Initiative', plural: 'Initiatives' })
+    expect(t.labels.agendaTask).toEqual({ singular: 'Todo', plural: 'Todos' })
+    expect(t.labels.agendaEvent).toEqual({ singular: 'Happening', plural: 'Happenings' })
+  })
+
+  it('falls back to Swift defaults on missing keys (pages default "Collections")', async () => {
+    const t = await readNexus(mk({}))
+    expect(t.labels.sidebarSections).toEqual({ areas: 'Areas', topics: 'Topics', pages: 'Collections' })
+    expect(t.labels.pageCollection).toEqual({ singular: 'Collection', plural: 'Collections' })
+    expect(t.labels.pageSet).toEqual({ singular: 'Set', plural: 'Sets' })
+    expect(t.labels.project.plural).toBe('Projects')
+  })
+})
+
+describe('readNexus — saved-config items[] (Swift shape)', () => {
+  const roots: string[] = []
+  const mk = (savedConfig: object): string => {
+    const root = mkdtempSync(join(tmpdir(), 'pom-saved-'))
+    roots.push(root)
+    d(join(root, '.nexus'))
+    w(join(root, '.nexus', 'nexus.json'), JSON.stringify({ schemaVersion: 1, id: 'nxs', createdAt: '2026' }))
+    w(join(root, '.nexus', 'saved-config.json'), JSON.stringify(savedConfig))
+    return root
+  }
+  afterAll(() => roots.forEach((r) => rmSync(r, { recursive: true, force: true })))
+
+  it('resolves a saved label from items[{key,label}]', async () => {
+    const t = await readNexus(mk({ schemaVersion: 1, items: [{ key: 'homepage', label: 'Home' }] }))
+    expect(t.saved.find((s) => s.key === 'homepage')?.title).toBe('Home')
+    expect(t.saved.find((s) => s.key === 'calendar')?.title).toBe('Calendar') // default for unlisted
   })
 })
 

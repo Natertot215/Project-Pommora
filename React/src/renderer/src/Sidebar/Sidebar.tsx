@@ -420,17 +420,17 @@ export function Sidebar({ tree }: { tree: NexusTree }): React.JSX.Element {
             the header "+" pops a picker to create any tier. */}
         <div className="section">
           <SectionHeader label="Contexts" onAdd={newContext} />
-          <TierDisclosure tierKey="areas" label={tree.labels.areas}>
+          <TierDisclosure tierKey="areas" label={tree.labels.sidebarSections.areas}>
             {tree.contexts.areas.map((a: AreaNode) => (
               <ContextRow key={a.id} node={a} swatch={a.color} />
             ))}
           </TierDisclosure>
-          <TierDisclosure tierKey="topics" label={tree.labels.topics}>
+          <TierDisclosure tierKey="topics" label={tree.labels.sidebarSections.topics}>
             {tree.contexts.topics.map((t: TopicNode) => (
               <ContextRow key={t.id} node={t} />
             ))}
           </TierDisclosure>
-          <TierDisclosure tierKey="projects" label={tree.labels.projects}>
+          <TierDisclosure tierKey="projects" label={tree.labels.project.plural}>
             {tree.contexts.projects.map((p: ProjectNode) => (
               <ContextRow key={p.id} node={p} />
             ))}
@@ -438,7 +438,7 @@ export function Sidebar({ tree }: { tree: NexusTree }): React.JSX.Element {
         </div>
 
         <div className="section">
-          <SectionHeader label={tree.labels.collection} onAdd={newCollection} />
+          <SectionHeader label={tree.labels.sidebarSections.pages} onAdd={newCollection} />
           {(tree.collections ?? []).map((c) => (
             <CollectionRow
               key={c.id}

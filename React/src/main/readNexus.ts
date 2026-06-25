@@ -7,10 +7,13 @@ import { readdir, readFile } from 'node:fs/promises'
 import { basename, join } from 'node:path'
 import { parse as parseYaml } from 'yaml'
 import type {
+  AccentColor,
   AccentSetting,
   AreaColor,
   AreaNode,
   CollectionNode,
+  LabelPair,
+  NexusLabels,
   NexusTree,
   PageNode,
   ProjectNode,
@@ -42,6 +45,43 @@ const ACCENT_COLOR_SET = new Set<string>(ACCENT_COLORS)
 // ---------- low-level helpers ----------
 
 const AREA_COLOR_SET = new Set<AreaColor>(AREA_COLORS)
+
+// Swift `accent_color` values that aren't in React's own palette → nearest React token.
+// React's own values (including the 6 that overlap Swift) pass through unchanged; React
+// keeps its own accent vocabulary, this only maps Swift's extras on read.
+const SWIFT_ONLY_ACCENT: Record<string, AccentColor> = { pink: 'purple', gray: 'grey' }
+
+function resolveAccent(raw: string | undefined): AccentSetting {
+  if (raw === 'system') return 'system'
+  if (raw != null && ACCENT_COLOR_SET.has(raw)) return raw as AccentColor
+  if (raw != null && raw in SWIFT_ONLY_ACCENT) return SWIFT_ONLY_ACCENT[raw]
+  return DEFAULT_ACCENT
+}
+
+// Parse Swift's nested snake_case `settings.labels` into the structured camelCase
+// NexusLabels, defaulting per-field so a partial/absent blob still yields full labels.
+function readLabels(raw: unknown): NexusLabels {
+  const obj = (v: unknown): Record<string, unknown> =>
+    v != null && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : {}
+  const pair = (v: unknown, fallback: LabelPair): LabelPair => {
+    const o = obj(v)
+    return { singular: asString(o.singular) ?? fallback.singular, plural: asString(o.plural) ?? fallback.plural }
+  }
+  const L = obj(raw)
+  const ss = obj(L.sidebar_sections)
+  return {
+    sidebarSections: {
+      areas: asString(ss.areas) ?? DEFAULT_LABELS.sidebarSections.areas,
+      topics: asString(ss.topics) ?? DEFAULT_LABELS.sidebarSections.topics,
+      pages: asString(ss.pages) ?? DEFAULT_LABELS.sidebarSections.pages
+    },
+    pageCollection: pair(L.page_collection, DEFAULT_LABELS.pageCollection),
+    pageSet: pair(L.page_set, DEFAULT_LABELS.pageSet),
+    project: pair(L.project, DEFAULT_LABELS.project),
+    agendaTask: pair(L.agenda_task, DEFAULT_LABELS.agendaTask),
+    agendaEvent: pair(L.agenda_event, DEFAULT_LABELS.agendaEvent)
+  }
+}
 
 async function listEntries(dir: string): Promise<import('node:fs').Dirent[]> {
   try {
@@ -231,23 +271,23 @@ export async function readNexus(root: string): Promise<NexusTree> {
 
   const settings = (await readJsonObject(nexusConfig(root, NEXUS_CONFIG_FILES.settings))) ?? {}
   const excluded = asStringArray(settings.excluded_folders) ?? []
-  const userLabels =
-    settings.labels && typeof settings.labels === 'object' && !Array.isArray(settings.labels)
-      ? (settings.labels as Record<string, string>)
-      : {}
-  const labels = { ...DEFAULT_LABELS, ...userLabels }
-  const accentRaw = asString(settings.accent)
-  const accent: AccentSetting =
-    accentRaw === 'system' || (accentRaw != null && ACCENT_COLOR_SET.has(accentRaw))
-      ? (accentRaw as AccentSetting)
-      : DEFAULT_ACCENT
+  const labels = readLabels(settings.labels)
+  const accent = resolveAccent(asString(settings.accent_color))
   const state = (await readJsonObject(nexusConfig(root, NEXUS_CONFIG_FILES.state))) ?? {}
   const savedConfig = (await readJsonObject(nexusConfig(root, NEXUS_CONFIG_FILES.savedConfig))) ?? {}
   const sectionsConfig = (await readJsonObject(nexusConfig(root, NEXUS_CONFIG_FILES.sidebarSections))) ?? {}
   const homepageConfig = (await readJsonObject(nexusConfig(root, NEXUS_CONFIG_FILES.homepage))) ?? {}
 
-  // Saved strip — 3 fixed, code-keyed rows (inert in Phase 1).
-  const savedLabels = (savedConfig.labels as Record<string, string>) ?? {}
+  // Saved strip — 3 fixed, code-keyed rows; labels come from saved-config `items[{key,label}]`.
+  const savedItems = Array.isArray(savedConfig.items)
+    ? (savedConfig.items as { key?: unknown; label?: unknown }[])
+    : []
+  const savedLabelByKey = new Map<string, string>()
+  for (const it of savedItems) {
+    const k = asString(it?.key)
+    const l = asString(it?.label)
+    if (k && l) savedLabelByKey.set(k, l)
+  }
   const saved: SavedNode[] = (
     [
       { key: 'homepage', title: 'Homepage', icon: 'house' },
@@ -258,7 +298,7 @@ export async function readNexus(root: string): Promise<NexusTree> {
     kind: 'saved',
     id: `saved-${s.key}`,
     key: s.key,
-    title: savedLabels[s.key] ?? s.title,
+    title: savedLabelByKey.get(s.key) ?? s.title,
     icon: s.icon
   }))
 

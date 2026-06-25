@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import type { NexusTree, SelectionState } from '@shared/types'
+import { DEFAULT_LABELS } from '@shared/types'
 import { reconcileSelection } from './selection'
 
 /** A minimal tree with one Collection holding the given top-level pages. */
@@ -20,7 +21,7 @@ function tree(pages: { id: string; path: string }[]): NexusTree {
       }
     ],
     userSections: [],
-    labels: { areas: 'Areas', topics: 'Topics', projects: 'Projects', collection: 'Collection', set: 'Set' },
+    labels: DEFAULT_LABELS,
     accent: 'lavender'
   }
 }

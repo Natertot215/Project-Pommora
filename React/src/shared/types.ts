@@ -129,12 +129,31 @@ export interface UserSection {
   collections: CollectionNode[]
 }
 
-export interface NexusLabels {
+/** A user-facing entity name in both forms (mirrors Swift `LabelPair`). */
+export interface LabelPair {
+  singular: string
+  plural: string
+}
+
+/** Sidebar section headers (mirrors Swift `SidebarSectionLabels`). `pages` is the
+ *  Collections-section header — distinct from `pageCollection.plural`. No `projects`
+ *  here: the Projects tier header comes from `project.plural`. */
+export interface SidebarSectionLabels {
   areas: string
   topics: string
-  projects: string
-  collection: string
-  set: string
+  pages: string
+}
+
+/** Per-Nexus UI labels, structured to match Swift `SettingsLabels` (read from
+ *  `settings.labels.{sidebar_sections,page_collection,page_set,project,agenda_task,agenda_event}`).
+ *  "Sub-Set" is derived as `"Sub-" + pageSet.singular`, never stored. */
+export interface NexusLabels {
+  sidebarSections: SidebarSectionLabels
+  pageCollection: LabelPair
+  pageSet: LabelPair
+  project: LabelPair
+  agendaTask: LabelPair
+  agendaEvent: LabelPair
 }
 
 export interface NexusTree {
@@ -263,9 +282,15 @@ export interface ResolvedGroup {
 }
 
 export const DEFAULT_LABELS: NexusLabels = {
-  areas: 'Areas',
-  topics: 'Topics',
-  projects: 'Projects',
-  collection: 'Collection',
-  set: 'Set'
+  sidebarSections: { areas: 'Areas', topics: 'Topics', pages: 'Collections' },
+  pageCollection: { singular: 'Collection', plural: 'Collections' },
+  pageSet: { singular: 'Set', plural: 'Sets' },
+  project: { singular: 'Project', plural: 'Projects' },
+  agendaTask: { singular: 'Task', plural: 'Tasks' },
+  agendaEvent: { singular: 'Event', plural: 'Events' }
+}
+
+/** The derived Sub-Set label (deeper Sets); never stored — Swift derives it the same way. */
+export function subSetLabel(labels: NexusLabels): string {
+  return 'Sub-' + labels.pageSet.singular
 }
