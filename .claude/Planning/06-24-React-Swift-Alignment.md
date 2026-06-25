@@ -243,10 +243,12 @@ Make a Swift nexus open in React with accent, labels, profile, homepage, and sec
 - **T13 `b3dd3ea`** — profile pic + subtitle: migrated the sidebar header off `nexus.json` (photo.png + description) onto Swift's `settings.profile_image` + `settings.profile_subtitle`, served via `nexus-asset://`. New `setProfileImage`/`setProfileSubtitle` mutate ops (read-merge-write settings, ≤30 chars); dropped `saveNexusPhoto` IPC + photo.png path. `NexusTree.nexus` now `{id,rootPath,name,profileImage,profileSubtitle}`.
 - **T14 `df3a4da`** — homepage `setBanner` was already read-merge-write (spreads `cur`); added a proving test that `blocks`/`icon`/`schemaVersion` round-trip.
 
-**T15 (only remaining) is interactive — needs a live launch + Swift cross-check, NOT yet done:**
-- Restart the dev server (T11–T14 are main-process; HMR won't show them) on a Swift-managed nexus → confirm Collections/Sets render, accent applies, custom labels show, profile pic + subtitle render, homepage banner+blocks survive a banner change, user sections resolve. Screenshot.
-- Bidirectional no-conflict proof: React edits → reopen in Swift (no churn / no spurious identity or settings rewrite); raw folder opened in React first → Swift then runs a no-op adoption.
-- **Post-functional UIX review of the live profile header is mandatory before Phase-3 closeout.**
+**Live launch done (against `~/test-2tier`) — clean:** build green, app opened with zero main-process errors; `ensureIdentity` backfilled `nexus.json` with a Swift-shape `createdAt` (ISO-8601, no ms — verified on disk); `stampAdopted` left zero `adopted-` ids; the profile write works (asset copied + `settings.profile_image` recorded). It exposed a partial-`settings.json` gap (React had written only `profile_image`; Swift's decoder requires version+labels+modified_at → would reseed and lose data) — now CLOSED by:
+- **`ensureSettings` (`…`)** — new `settings.ts`, mirrors `ensureIdentity`: seeds/backfills version+defaults_version+labels(snake from `DEFAULT_LABELS`)+modified_at, complete file left byte-identical. Hooked into `adoptNexus` after `ensureIdentity`. Profile-write `mutateJson` defaults now use the full seed, so settings can never be written partial. Gate: 537 tests / 66 files, typecheck clean. Re-opening `~/test-2tier` self-heals its partial settings.
+
+**Only remaining for true bidirectional closeout (needs the Swift app, interactive):**
+- Open `~/test-2tier` (post-React-edits) in **Swift** → confirm it opens with NO reseed/migration churn and the profile pic + subtitle show.
+- **Post-functional UIX review of the live profile header** (Nathan saw it briefly + set a pic; a deliberate visual pass still pending).
 
 ---
 
