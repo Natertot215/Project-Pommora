@@ -1,12 +1,7 @@
-// Open-time adopter: a single write-pass (run at open, never inside the read walk) that
-// mints a real ULID for every operational entity still lacking a persisted id — pages
-// authored outside Pommora and raw folders with no sidecar. It walks parents-before-
-// children so a child Set's healed `parent_id` points at the parent's freshly-minted id.
-//
-// Scope is ULID-stamping ONLY (not Swift's full shape-classifier NexusAdopter): folder
-// position decides kind — a root child is a Collection, anything nested is a Set. It
-// reuses the existing atomic writers and is idempotent: an entity already carrying an id
-// on disk is left byte-identical, so a second pass is a no-op.
+// Open-time write-pass that stamps a real ULID into every entity still lacking a persisted
+// id (raw folder → sidecar, externally-authored page → frontmatter id). Walks parents
+// before children so a Set's healed parent_id points at the parent's fresh id. Idempotent;
+// folder position decides kind — a root child is a Collection, anything nested is a Set.
 
 import { readdir, readFile } from 'node:fs/promises'
 import type { Dirent } from 'node:fs'
@@ -70,17 +65,14 @@ async function stampTree(
   const self = await stampFolder(absDir, kind, parentId)
   let count = self.wrote ? 1 : 0
 
-  const entries = await listEntries(absDir)
-  for (const e of entries) {
+  for (const e of await listEntries(absDir)) {
     if (e.isFile() && !e.name.startsWith('_') && e.name.toLowerCase().endsWith('.md')) {
       if (await stampPage(join(absDir, e.name))) count++
+    } else if (e.isDirectory()) {
+      const childRel = `${relDir}/${e.name}`
+      if (!shouldSkipDir(e.name, childRel, excluded))
+        count += await stampTree(join(absDir, e.name), childRel, 'set', self.id, excluded)
     }
-  }
-  for (const e of entries) {
-    if (!e.isDirectory()) continue
-    const childRel = `${relDir}/${e.name}`
-    if (shouldSkipDir(e.name, childRel, excluded)) continue
-    count += await stampTree(join(absDir, e.name), childRel, 'set', self.id, excluded)
   }
   return count
 }
