@@ -3,8 +3,9 @@
    each cluster opts back into pointer events AND out of the drag region. */
 .app-toolbar {
   position: absolute;
-  /* Cluster tops align with the sidebar's top edge (both inset by --glass-inset). */
-  top: var(--glass-inset);
+  /* Cluster tops sit on the sidebar/inspector glass top edge — glass-inset + a 2px optical
+     nudge (the liquid-glass pill reads ~2px high against the frost panels otherwise). */
+  top: calc(var(--glass-inset) + 2px);
   /* Hug the sidebar's right edge (clusters then sit a small gap in via padding). */
   left: calc(var(--glass-inset) + var(--sidebar-width));
   right: 0;

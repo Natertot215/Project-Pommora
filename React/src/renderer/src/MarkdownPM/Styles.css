@@ -85,6 +85,10 @@
    Derived from --toolbar-h (+ breathing room) — KNOB: the trailing addend nudges the button down. */
 .mdpm-header:not(.has-banner) {
   padding-top: calc(var(--toolbar-h) + 10px);
+  /* Mirror the title's 14px bottom gap below the divider so the first body line isn't jammed
+     against it — the divider then sits with equal space above and below. (offsetHeight feeds
+     --header-zone, so this padding pushes the body's top down too.) */
+  padding-bottom: 14px;
 }
 .mdpm-add-banner {
   height: 24px;
