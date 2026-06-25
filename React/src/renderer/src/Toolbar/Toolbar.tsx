@@ -39,7 +39,7 @@ export function Toolbar({
   return (
     <div className="app-toolbar">
       <div className="app-toolbar-cluster app-toolbar-cluster--nav">
-        <SegmentedSymbol segments={backForward} paddingX="6px" />
+        <SegmentedSymbol segments={backForward} paddingX="6px" iconSize="lg" />
       </div>
       <div className="app-toolbar-cluster" ref={trioRef}>
         <SegmentedSymbol segments={trio} />

@@ -1,7 +1,7 @@
 import { Fragment } from 'react'
 import { GlassControls } from '../../materials'
 import { Icon, type IconName } from '../../symbols'
-import { vars, text, type ButtonSize } from '../../tokens'
+import { vars, text, type ButtonSize, type IconSize } from '../../tokens'
 import * as s from './segmented.css'
 
 /** One segment of a segmented control. `active` is accepted but never drawn (no
@@ -21,6 +21,8 @@ type SegmentedProps = {
   size?: ButtonSize
   /** Override the size bundle's horizontal segment padding (e.g. a tighter Back/Forward). */
   paddingX?: string
+  /** Override the glyph size only (geometry unchanged) — e.g. larger Back/Forward chevrons. */
+  iconSize?: IconSize
   className?: string
 }
 
@@ -28,6 +30,7 @@ function Segmented({
   segments,
   size = 'button-large',
   paddingX,
+  iconSize,
   withLabel,
   className
 }: SegmentedProps & { withLabel: boolean }): React.JSX.Element {
@@ -35,7 +38,7 @@ function Segmented({
   return (
     <GlassControls
       className={className ? `${s.container} ${className}` : s.container}
-      style={{ height: g.height, borderRadius: g.radius }}
+      style={{ height: g.height, borderRadius: g.radius, display: 'flex', alignItems: 'center' }}
     >
       {segments.map((seg, i) => (
         <Fragment key={`${i}-${seg.icon}`}>
@@ -49,7 +52,7 @@ function Segmented({
               height: g.segmentHeight,
               borderRadius: g.segmentRadius,
               paddingInline: paddingX ?? g.paddingX,
-              fontSize: g.icon
+              fontSize: iconSize ? vars.size.icon[iconSize] : g.icon
             }}
             onClick={seg.onClick}
             disabled={seg.disabled}
