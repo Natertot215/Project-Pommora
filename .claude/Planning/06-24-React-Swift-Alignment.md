@@ -235,7 +235,22 @@ Make a Swift nexus open in React with accent, labels, profile, homepage, and sec
 
 ---
 
-## Execution State — Phase 2 complete (Tasks 8–10 shipped; at the Phase 2 checkpoint)
+## Execution State — Phase 3 code-complete (T11–T14 shipped + green; T15 = interactive verify)
+
+**Phase 3 config-layer alignment done** (all on `pommora-react`, gate green at each: 534 tests / 65 files, typecheck node+web clean):
+- **T11 `06d2c9d`** — settings reads aligned: `accent_color` (React keeps its own palette/tokens; Swift's `pink`→`purple`, `gray`→`grey` mapped on read only), structured `NexusLabels` (mirrors Swift `SettingsLabels`; sidebar Pages header now `sidebar_sections.pages`), saved-config `items[{key,label}]`.
+- **T12 `…`** — identity-on-open: new `identity.ts` `ensureIdentity` (writes Swift's `{schemaVersion,id,createdAt}` when absent, backfills missing keys, never churns a complete file). `createdAt` is ISO-8601 **with milliseconds stripped** — Swift's `.iso8601` decoder rejects fractional seconds (verified against `AtomicJSON.swift`). Hooked into `adoptNexus` after `openSession`, before `stampAdopted`. `defaultIdentity` reused by the two lazy create-defaults (DRY).
+- **T13 `b3dd3ea`** — profile pic + subtitle: migrated the sidebar header off `nexus.json` (photo.png + description) onto Swift's `settings.profile_image` + `settings.profile_subtitle`, served via `nexus-asset://`. New `setProfileImage`/`setProfileSubtitle` mutate ops (read-merge-write settings, ≤30 chars); dropped `saveNexusPhoto` IPC + photo.png path. `NexusTree.nexus` now `{id,rootPath,name,profileImage,profileSubtitle}`.
+- **T14 `df3a4da`** — homepage `setBanner` was already read-merge-write (spreads `cur`); added a proving test that `blocks`/`icon`/`schemaVersion` round-trip.
+
+**T15 (only remaining) is interactive — needs a live launch + Swift cross-check, NOT yet done:**
+- Restart the dev server (T11–T14 are main-process; HMR won't show them) on a Swift-managed nexus → confirm Collections/Sets render, accent applies, custom labels show, profile pic + subtitle render, homepage banner+blocks survive a banner change, user sections resolve. Screenshot.
+- Bidirectional no-conflict proof: React edits → reopen in Swift (no churn / no spurious identity or settings rewrite); raw folder opened in React first → Swift then runs a no-op adoption.
+- **Post-functional UIX review of the live profile header is mandatory before Phase-3 closeout.**
+
+---
+
+## Execution State — Phase 2 complete (Tasks 8–10 shipped)
 
 **Phase 2 done.** Adopted→ULID is closed on both builds.
 - **T8 (Swift, `main` `ca9372b`):** `PageStamperTests` now asserts the index-build stamp path persists a real ULID (no `adopted-` on disk) and that a failed write keeps the deterministic `adopted-<hash>` id, stable across reloads. Suite = 5 tests, green via builder agent.
