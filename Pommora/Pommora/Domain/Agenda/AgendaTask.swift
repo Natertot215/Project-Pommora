@@ -109,7 +109,7 @@ struct AgendaTask: Codable, Equatable, Identifiable, Hashable, Sendable {
         self.tier2 = try c.decodeIfPresent([String].self, forKey: .tier2) ?? []
         self.tier3 = try c.decodeIfPresent([String].self, forKey: .tier3) ?? []
         self.createdAt = try c.decode(Date.self, forKey: .createdAt)
-        self.modifiedAt = try c.decode(Date.self, forKey: .modifiedAt)
+        self.modifiedAt = (try? c.decode(Date.self, forKey: .modifiedAt)) ?? (decoder.userInfo[.fileModificationDate] as? Date) ?? Date()
         self.properties = try c.decodeIfPresent([String: PropertyValue].self, forKey: .properties) ?? [:]
     }
 

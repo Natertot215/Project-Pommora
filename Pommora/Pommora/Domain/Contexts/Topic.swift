@@ -37,7 +37,7 @@ struct Topic: Codable, Equatable, Identifiable, Hashable, Sendable {
         self.title = ""
         self.icon = try c.decodeIfPresent(String.self, forKey: .icon)
         self.blocks = try c.decodeIfPresent([ContextBlock].self, forKey: .blocks) ?? []
-        self.modifiedAt = try c.decode(Date.self, forKey: .modifiedAt)
+        self.modifiedAt = (try? c.decode(Date.self, forKey: .modifiedAt)) ?? (decoder.userInfo[.fileModificationDate] as? Date) ?? Date()
     }
 
     func encode(to encoder: any Encoder) throws {

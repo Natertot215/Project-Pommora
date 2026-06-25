@@ -74,7 +74,7 @@ struct PageSet: Codable, Equatable, Identifiable, Hashable, Sendable {
         }
         self.title = ""
         self.folderURL = URL(fileURLWithPath: "/")
-        self.modifiedAt = try c.decode(Date.self, forKey: .modifiedAt)
+        self.modifiedAt = (try? c.decode(Date.self, forKey: .modifiedAt)) ?? (decoder.userInfo[.fileModificationDate] as? Date) ?? Date()
         self.schemaVersion = (try? c.decode(Int.self, forKey: .schemaVersion)) ?? 0
         self.icon = try c.decodeIfPresent(String.self, forKey: .icon)
         self.pageOrder = try c.decodeIfPresent([String].self, forKey: .pageOrder)

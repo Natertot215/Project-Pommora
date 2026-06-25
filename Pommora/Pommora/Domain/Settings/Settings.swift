@@ -99,7 +99,7 @@ struct Settings: Codable, Equatable, Hashable, Sendable {
         // so migration has nothing to rewrite — see migrate(_:) v4→v5).
         profileImage = (try? c.decodeIfPresent(String.self, forKey: .profileImage)) ?? nil
         profileSubtitle = (try? c.decode(String.self, forKey: .profileSubtitle)) ?? ""
-        modifiedAt = try c.decode(Date.self, forKey: .modifiedAt)
+        modifiedAt = (try? c.decode(Date.self, forKey: .modifiedAt)) ?? (decoder.userInfo[.fileModificationDate] as? Date) ?? Date()
     }
 
     // MARK: - Default seed

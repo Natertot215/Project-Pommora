@@ -78,7 +78,7 @@ struct PageCollection: Codable, Equatable, Identifiable, Hashable, Sendable {
         self.properties = (try c.decodeIfPresent([PropertyDefinition].self, forKey: .properties) ?? [])
             .droppingUserRelations()
         self.views = try c.decodeIfPresent([SavedView].self, forKey: .views) ?? []
-        self.modifiedAt = try c.decode(Date.self, forKey: .modifiedAt)
+        self.modifiedAt = (try? c.decode(Date.self, forKey: .modifiedAt)) ?? (decoder.userInfo[.fileModificationDate] as? Date) ?? Date()
         self.schemaVersion = (try? c.decode(Int.self, forKey: .schemaVersion)) ?? 0
         self.collectionOrder = try c.decodeIfPresent([String].self, forKey: .collectionOrder)
         self.pageOrder = try c.decodeIfPresent([String].self, forKey: .pageOrder)
