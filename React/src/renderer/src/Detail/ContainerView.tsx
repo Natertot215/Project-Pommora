@@ -11,7 +11,7 @@ import { containerOwner } from './Scope'
  */
 export function ContainerView({ source }: { source: CollectionNode | SetNode }): React.JSX.Element {
   return (
-    <DetailScaffold owner={containerOwner(source)}>
+    <DetailScaffold owner={containerOwner(source)} lockedHeader>
       <TableView source={source} />
     </DetailScaffold>
   )

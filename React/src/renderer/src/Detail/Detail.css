@@ -32,13 +32,37 @@
     padding-left var(--duration-base) var(--ease-standard),
     padding-right var(--duration-base) var(--ease-standard);
 }
-/* With a banner the full-bleed image already clears the toolbar, so the body sits just under it. */
-.detail-scroll.has-banner .detail-body {
+/* A header (banner image or banner-less title) already clears the toolbar, so the body sits just
+   under it; without a header the body itself clears the toolbar (38px). */
+.detail-scroll.has-header .detail-body {
   padding-top: 16px;
 }
+
+/* Locked-header content-views (collections / sets / contexts): the banner + title are a pinned
+   header and the body (table) scrolls beneath, so the banner stays put while you scroll. */
+.detail-locked {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.detail-locked-head {
+  flex: none;
+}
+.detail-locked-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 16px var(--content-inset-right) 28px var(--content-inset);
+  transition:
+    padding-left var(--duration-base) var(--ease-standard),
+    padding-right var(--duration-base) var(--ease-standard);
+}
+
 /* During an edge-drag resize, track the cursor 1:1 (no easing lag). */
 .shell.is-resizing .detail,
-.shell.is-resizing .detail-body {
+.shell.is-resizing .detail-body,
+.shell.is-resizing .detail-locked-body {
   transition: none;
 }
 

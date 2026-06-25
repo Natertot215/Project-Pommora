@@ -7,5 +7,5 @@ import { findContext } from './Scope'
  * are future work. (Swift: ContextDetailPlaceholder.)
  */
 export function ContextView({ tree, id }: { tree: NexusTree | null; id: string }): React.JSX.Element {
-  return <DetailScaffold owner={findContext(tree, id)} />
+  return <DetailScaffold owner={findContext(tree, id)} lockedHeader />
 }

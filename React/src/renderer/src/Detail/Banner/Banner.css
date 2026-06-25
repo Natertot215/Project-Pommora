@@ -33,8 +33,29 @@
   transition: none;
 }
 
-/* No-banner affordance — a slim strip at the top of the body; the button reveals on hover
-   (mirrors Swift's opacity-on-hover Add Banner). In the body so it clears the titlebar. */
+/* No-banner header — the title always shows (a banner-less view still names itself), with the
+   hover Add-Banner strip above it. Self-pads (clears the floating toolbar + content insets) since
+   it sits as the view's header, not inside the padded body. */
+.banner-empty {
+  padding: calc(var(--toolbar-h) + 10px) var(--content-inset-right) 14px var(--content-inset);
+  transition:
+    padding-left var(--duration-base) var(--ease-standard),
+    padding-right var(--duration-base) var(--ease-standard);
+}
+.shell.is-resizing .banner-empty {
+  transition: none;
+}
+.banner-empty-title {
+  font-size: 28px;
+  font-weight: var(--weight-semibold);
+  line-height: 1.2;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The hover-revealed Add-Banner button (mirrors Swift's opacity-on-hover affordance). */
 .add-banner-strip {
   height: 24px;
   display: flex;
