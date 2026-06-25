@@ -510,6 +510,16 @@ enum NexusAdopter {
     /// The adopted kind for a sidecar-less fresh folder — always `.pageCollection`.
     /// Callers early-return when a recognized sidecar exists, so a sidecar-less
     /// folder always adopts as a PageCollection — no content walk needed.
+    // A sidecar-less folder adopts as a Page Collection. Folders carrying an agenda config
+    // (`_taskconfig.json` / `_eventconfig.json`) never reach here — recognizedSidecarsAt
+    // classifies them as already-flat agenda first, so a user could even name a Collection
+    // "Tasks"/"Events" and it stays a Collection. Discrimination is config-driven, never by name.
+    //
+    // DEFERRED: this guards at the FOLDER level only. Once Tasks/Events are fully implemented,
+    // adoption must ALSO scope individual FILES to a kind via an explicit discriminator
+    // (extension `.task.json`/`.event.json`, a filename prefix, or frontmatter) — not infer
+    // kind from the parent folder. The on-disk discriminator choice is open; see
+    // .claude/Features/Architecture.md § "Agenda is discriminated by config sidecar".
     private static func contentSniff(_ folder: URL) -> AdoptedSidecarKind {
         .pageCollection
     }
