@@ -308,6 +308,17 @@ describe('handleMutate — review-round hardening', () => {
     expect(await pathExists(join(root, prevPath))).toBe(false)
   })
 
+  it('homepage setBanner preserves blocks/icon/schemaVersion (read-merge-write)', async () => {
+    await writeFile(join(root, '.nexus', 'homepage.json'), JSON.stringify({ schemaVersion: 2, icon: 'house', blocks: [{ t: 'x' }] }))
+    const r = await handleMutate({ op: 'setBanner', kind: 'homepage', path: '', dataUrl: 'data:image/png;base64,iVBORw0KGgo=' }, nexusDeps)
+    expect(r.ok).toBe(true)
+    const cfg = JSON.parse(await read('.nexus/homepage.json'))
+    expect(cfg.banner).toMatch(/^\.nexus\/assets\/homepage\/banner-.+\.png$/)
+    expect(cfg.blocks).toEqual([{ t: 'x' }]) // Swift's blocks round-trip untouched
+    expect(cfg.icon).toBe('house')
+    expect(cfg.schemaVersion).toBe(2)
+  })
+
   it('a malformed op returns a clean fault, not a throw', async () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const r = await handleMutate({ op: 'bogus' } as any, nexusDeps)
