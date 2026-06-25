@@ -13,6 +13,7 @@ import { newId } from './ids'
 import { readAppConfig, writeAppConfig, addRecent, DEFAULT_TRASH_MODE } from './appConfig'
 import { sessionRoot, openSession, resolveRestorePath, isExistingDir } from './session'
 import { openSessionIndex, closeSessionIndex } from './sessionIndex'
+import { stampAdopted } from './adopt'
 import { startWatcher, stopWatcher } from './watcher'
 import { resolveUnderRoot } from './pathSafety'
 import { updatePageBody } from './crud/page'
@@ -173,6 +174,14 @@ ipcMain.handle('nexus:state', async (): Promise<NexusState> => {
 // push it onto the recents (deduped, capped) + the OS Recent Documents list.
 async function adoptNexus(path: string): Promise<void> {
   openSession(path)
+  // Stamp any un-adopted entity (raw folder / externally-authored page) with a real ULID
+  // before the index reads it, so the index + every later write capture a stable id rather
+  // than a transient `adopted-` placeholder. Best-effort: a stamp failure must not block open.
+  try {
+    await stampAdopted(path)
+  } catch (e) {
+    console.error('Adopt/stamp pass failed:', e)
+  }
   // Open (cold-build if needed) the index for the new session. Best-effort + off the read
   // path — the renderer's tree comes from readNexus, so a null index just means no live
   // query acceleration until the next rebuild. Replaces any prior session's handle.
