@@ -73,4 +73,25 @@ describe('stampAdopted', () => {
     expect(await coll(join(root, 'Excluded'))).toBeNull()
     expect(await set(join(root, 'Excluded'))).toBeNull()
   })
+
+  it('never fabricates a Collection on an Agenda singleton (identified by config sidecar)', async () => {
+    await mkdir(join(root, 'My Tasks'), { recursive: true })
+    await writeFile(join(root, 'My Tasks', '_taskconfig.json'), '{}')
+    await writeFile(join(root, 'My Tasks', 'Submit.task.json'), '{}')
+    await stampAdopted(root)
+    expect(await coll(join(root, 'My Tasks'))).toBeNull() // no _pagecollection.json written
+  })
+
+  it('never fabricates a Collection on an empty, sidecar-less folder', async () => {
+    await mkdir(join(root, 'Stray'), { recursive: true }) // no pages, no subfolders, no sidecar
+    await stampAdopted(root)
+    expect(await coll(join(root, 'Stray'))).toBeNull()
+  })
+
+  it('adopts a content-bearing folder named "Tasks" with no agenda config (name not reserved)', async () => {
+    await mkdir(join(root, 'Tasks'), { recursive: true })
+    await writeFile(join(root, 'Tasks', 'Note.md'), '# a real page')
+    await stampAdopted(root)
+    expect((await coll(join(root, 'Tasks')))?.id).toBeTruthy() // adopted as a normal Collection
+  })
 })

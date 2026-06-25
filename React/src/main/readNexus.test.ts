@@ -26,8 +26,10 @@ beforeAll(() => {
   d(join(raw, 'Collection B'))
   d(join(raw, '_internal'))
   w(join(raw, '_internal', 'x.md'), 'should be skipped')
+  // Agenda singleton — hidden from Collections by its CONFIG sidecar, not its name.
   d(join(raw, 'Tasks'))
-  w(join(raw, 'Tasks', 't.md'), 'agenda — hidden')
+  w(join(raw, 'Tasks', '_taskconfig.json'), '{}')
+  w(join(raw, 'Tasks', 'Submit.task.json'), '{}')
 
   // --- sidecar-driven nexus (2-tier: _pagecollection.json top, recursive _pageset.json) ---
   sidecar = mkdtempSync(join(tmpdir(), 'pom-sc-'))
@@ -115,6 +117,40 @@ describe('readNexus — sidecar mode', () => {
     expect(notes.properties?.length).toBe(1)
     expect((notes.properties?.[0] as { name?: string })?.name).toBe('Status')
     expect(t.contexts.areas[0]?.color).toBe('blue')
+  })
+})
+
+describe('readNexus — agenda is config-driven, never name-reserved', () => {
+  const roots: string[] = []
+  const mk = (build: (root: string) => void): string => {
+    const root = mkdtempSync(join(tmpdir(), 'pom-agenda-'))
+    roots.push(root)
+    d(join(root, '.nexus'))
+    w(join(root, '.nexus', 'nexus.json'), JSON.stringify({ schemaVersion: 1, id: 'nxg', createdAt: '2026' }))
+    build(root)
+    return root
+  }
+  afterAll(() => roots.forEach((r) => rmSync(r, { recursive: true, force: true })))
+
+  it('hides a folder carrying _taskconfig/_eventconfig, whatever its name', async () => {
+    const root = mk((r) => {
+      d(join(r, 'My Reminders'))
+      w(join(r, 'My Reminders', '_taskconfig.json'), '{}') // renamed Tasks singleton
+      d(join(r, 'Real'))
+      w(join(r, 'Real', '_pagecollection.json'), JSON.stringify({ id: 'c' }))
+    })
+    expect((await readNexus(root)).collections!.map((c) => c.title)).toEqual(['Real'])
+  })
+
+  it('shows a folder NAMED Agenda/Tasks that has a collection sidecar + no agenda config', async () => {
+    const root = mk((r) => {
+      d(join(r, 'Agenda'))
+      w(join(r, 'Agenda', '_pagecollection.json'), JSON.stringify({ id: 'a' }))
+      d(join(r, 'Tasks'))
+      w(join(r, 'Tasks', '_pagecollection.json'), JSON.stringify({ id: 't' }))
+    })
+    // The names aren't reserved — only the agenda config sidecar hides a folder.
+    expect((await readNexus(root)).collections!.map((c) => c.title).sort()).toEqual(['Agenda', 'Tasks'])
   })
 })
 

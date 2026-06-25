@@ -12,7 +12,7 @@ import { writeSidecar } from './sidecarIO'
 import { splitEnvelope, mergeFrontmatter, readFrontmatterFields } from './io/pageFile'
 import { asString, asStringArray } from './coerce'
 import { shouldSkipDir } from './exclusion'
-import { AGENDA_FOLDER_NAMES, NEXUS_CONFIG_FILES, SIDECAR_FILENAME, nexusConfig } from './paths'
+import { NEXUS_CONFIG_FILES, SIDECAR_FILENAME, nexusConfig } from './paths'
 
 type FolderKind = 'collection' | 'set'
 
@@ -90,15 +90,29 @@ export async function stampAdopted(root: string): Promise<{ stamped: number }> {
   for (const e of await listEntries(root)) {
     if (!e.isDirectory()) continue
     if (shouldSkipDir(e.name, e.name, excluded)) continue
-    if (AGENDA_FOLDER_NAMES.has(e.name)) continue
     const abs = join(root, e.name)
+    // Agenda singletons are identified by their config sidecar (never by name) — skip them.
     if (
       (await pathExists(join(abs, SIDECAR_FILENAME.taskConfig))) ||
       (await pathExists(join(abs, SIDECAR_FILENAME.eventConfig)))
     ) {
-      continue // Agenda singleton, not a Collection
+      continue
+    }
+    // Don't fabricate a Collection from an empty, sidecar-less folder (stray junk). One that
+    // already has a sidecar, or holds pages/subfolders, is real content and gets adopted.
+    if (!(await pathExists(join(abs, SIDECAR_FILENAME.collection))) && (await isEmptyOfContent(abs, e.name, excluded))) {
+      continue
     }
     stamped += await stampTree(abs, e.name, 'collection', null, excluded)
   }
   return { stamped }
+}
+
+/** True when a folder holds no adoptable content: no `.md` pages and no non-excluded subfolders. */
+async function isEmptyOfContent(absDir: string, relDir: string, excluded: string[]): Promise<boolean> {
+  for (const e of await listEntries(absDir)) {
+    if (e.isFile() && !e.name.startsWith('_') && e.name.toLowerCase().endsWith('.md')) return false
+    if (e.isDirectory() && !shouldSkipDir(e.name, `${relDir}/${e.name}`, excluded)) return false
+  }
+  return true
 }

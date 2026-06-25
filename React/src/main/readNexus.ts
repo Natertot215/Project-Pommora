@@ -29,7 +29,6 @@ import { asString, asStringArray, basenameNoMd } from './coerce'
 import { shouldSkipDir } from './exclusion'
 import { resolveOrder } from './order'
 import {
-  AGENDA_FOLDER_NAMES,
   contextTierDir,
   NEXUS_CONFIG_FILES,
   nexusConfig,
@@ -301,7 +300,8 @@ export async function readNexus(root: string): Promise<NexusTree> {
   }
 
   // Top-level Collections (gated by `_pagecollection.json`; raw mode treats every root folder
-  // as a Collection). Agenda singletons are discovered but NOT surfaced.
+  // as a Collection). Agenda singletons are identified ONLY by their config sidecar
+  // (`_taskconfig`/`_eventconfig`) — never by folder name — and are not surfaced as Collections.
   const allCollections: CollectionNode[] = []
   for (const e of await listEntries(root)) {
     if (!e.isDirectory()) continue
@@ -312,7 +312,6 @@ export async function readNexus(root: string): Promise<NexusTree> {
       (await pathExists(join(abs, SIDECAR_FILENAME.eventConfig)))
     if (hasAgendaSidecar) continue
     const isCollection = sidecarMode ? await pathExists(join(abs, SIDECAR_FILENAME.collection)) : true
-    if (AGENDA_FOLDER_NAMES.has(e.name) && !(sidecarMode && isCollection)) continue
     if (isCollection) allCollections.push(await readPageCollection(abs, e.name, e.name, sidecarMode, excluded, fb))
   }
   const orderedCollections = resolveOrder(allCollections, asStringArray(state.collection_order), fb)

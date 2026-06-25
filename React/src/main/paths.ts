@@ -25,9 +25,6 @@ export const SIDECAR_FILENAME: Record<SidecarKind, string> = {
   eventConfig: '_eventconfig.json'
 }
 
-/** Conventional folder names for the agenda singletons (fallback when no sidecar). */
-export const AGENDA_FOLDER_NAMES = new Set(['Tasks', 'Events', 'Agenda'])
-
 export function nexusDir(root: string): string {
   return join(root, '.nexus')
 }
