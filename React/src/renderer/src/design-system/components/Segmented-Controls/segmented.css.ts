@@ -26,6 +26,8 @@ export const segment = style({
   flexShrink: 0,
   padding: 0,
   border: 'none',
+  // Toolbar chrome — no focus ring (clicking then pressing a key would otherwise reveal one).
+  outline: 'none',
   background: 'transparent',
   color: vars.color.label.primary,
   cursor: 'default',

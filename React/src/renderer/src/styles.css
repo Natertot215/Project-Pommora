@@ -47,6 +47,10 @@ textarea,
 .shell {
   position: relative;
   height: 100vh;
+  /* App-level clip: zero scroll at the shell. The floating sidebar/inspector park off-screen via
+     transform; without this their off-screen box adds a horizontal scroll region. Inner scrollers
+     (detail, editor, tables) keep their own overflow. */
+  overflow: hidden;
   background: var(--main-bg);
   /* THE single content gutter — one value reused by every detail view (spaces, homepage, tables)
      + the editor. Matches the Swift app's shared horizontal inset (24pt). Change here only. */
