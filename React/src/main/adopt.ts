@@ -92,6 +92,11 @@ export async function stampAdopted(root: string): Promise<{ stamped: number }> {
     if (shouldSkipDir(e.name, e.name, excluded)) continue
     const abs = join(root, e.name)
     // Agenda singletons are identified by their config sidecar (never by name) — skip them.
+    // DEFERRED: this guards at the FOLDER level only. Once Tasks/Events are fully implemented,
+    // adoption must ALSO scope individual FILES to a kind via an explicit discriminator
+    // (extension `.task.json`/`.event.json`, a filename prefix, or frontmatter) — not infer
+    // kind from the parent folder. The on-disk discriminator choice is open; see
+    // React/.claude/Features/Architecture.md § "Agenda discrimination".
     if (
       (await pathExists(join(abs, SIDECAR_FILENAME.taskConfig))) ||
       (await pathExists(join(abs, SIDECAR_FILENAME.eventConfig)))

@@ -18,7 +18,15 @@ A single recursive, **read-only** walk (`src/main/readNexus.ts`). Supports two m
 
 Supporting pure modules: `paths.ts` (layout), `exclusion.ts` (skip dot/underscore/node_modules + user-excluded folders, NFC + case-fold segment-prefix), `order.ts` (persisted order then title/id fallback; **title fallback for adopted entities** whose ids are non-meaningful hashes).
 
-Load-bearing behaviors: lenient frontmatter (no fence → all body; unterminated → graceful empty); the **roll-up rule** (loose `.md` in non-container subfolders rolls up; Collection/Set folders load as nodes) with a 3-level depth cap (pageType → collection → set); agenda singletons (`Tasks`/`Events`/`Agenda`) discovered but **not surfaced** (a `_pagetype.json` outranks the conventional name); `path` (nexus-relative POSIX) on every `PageNode` so pages can be opened.
+Load-bearing behaviors: lenient frontmatter (no fence → all body; unterminated → graceful empty); the **roll-up rule** (loose `.md` in non-container subfolders rolls up; Collection/Set folders load as nodes) with a 3-level depth cap (pageType → collection → set); agenda singletons discovered but **not surfaced**, identified *solely* by their config sidecar (`_taskconfig.json` / `_eventconfig.json`) — never by folder name (see "Agenda discrimination" below); `path` (nexus-relative POSIX) on every `PageNode` so pages can be opened.
+
+### Agenda discrimination (config-driven, never name-based)
+
+Tasks and Events are Agenda entities — a third kind, distinct from Collections and Contexts. They live as **sibling singleton folders at the nexus root** (no `Agenda/` wrapper) and are identified *only* by their config sidecar (`_taskconfig.json` / `_eventconfig.json`); the folder names are renameable defaults, never reserved. Every collection path — the read walk (`readNexus`), the open-time adopter (`adopt.ts`), and on-creation — skips a folder *iff* it carries an agenda config sidecar. So a user could even name a Page Collection "Tasks" or "Events" and it's correctly a Collection (it carries `_pagecollection.json`, not the agenda config). No name is reserved in either build.
+
+> **Deferred — per-file kind discrimination.** Classification is *folder-level* today (by sidecar). It does not yet discriminate individual *files* within a folder by kind. When Tasks / Events are fully implemented, the adopter MUST gain an explicit per-file discriminator — extension (`.task.json` / `.event.json`), filename prefix, or frontmatter key — so each file's kind (task / event / page) is unambiguous, not inferred from its parent folder. Not built now; the on-disk discriminator choice is open and may change.
+
+> **Note:** the read-engine + `NexusTree` descriptions above predate the Collections/Sets rename (they still say Vault / PageType / 3-tier / `_pagetype.json` / roll-up + depth cap). The current model is 2-tier — Collection → recursive Set — matching the Swift `Features/Architecture.md`. This doc needs a Phase-1 refresh pass beyond this agenda note.
 
 ### The `NexusTree` contract
 
