@@ -170,28 +170,33 @@ ipcMain.handle('nexus:state', async (): Promise<NexusState> => {
   }
 })
 
-// Open a chosen nexus folder: make it the session, persist it as last-opened, and
-// push it onto the recents (deduped, capped) + the OS Recent Documents list.
-async function adoptNexus(path: string): Promise<void> {
-  openSession(path)
-  // Ensure `.nexus/nexus.json` + `settings.json` exist in Swift's shape before anything reads
-  // them (matches Swift's eager create-on-open): identity flips a raw folder into sidecar mode;
-  // a full settings file keeps Swift's decoder from reseeding (losing data) when it later opens
-  // the same folder. Best-effort: a failure must not block open.
+// Open-time prep shared by EVERY path that opens a nexus (explicit open + launch-restore),
+// run after openSession and before the index reads anything:
+//   1. Ensure `.nexus/nexus.json` + `settings.json` exist in Swift's shape (matches Swift's
+//      eager create-on-open) — identity flips a raw folder into sidecar mode; a full settings
+//      file keeps Swift's decoder from reseeding (losing data) when it later opens the folder.
+//   2. Stamp any un-adopted entity (raw folder / externally-authored page) with a real ULID so
+//      the index + every later write capture a stable id, not a transient `adopted-` placeholder.
+// Best-effort: a failure here must never block opening the folder.
+async function prepareOpenedNexus(path: string): Promise<void> {
   try {
     await ensureIdentity(path)
     await ensureSettings(path)
   } catch (e) {
     console.error('ensure config-on-open failed:', e)
   }
-  // Stamp any un-adopted entity (raw folder / externally-authored page) with a real ULID
-  // before the index reads it, so the index + every later write capture a stable id rather
-  // than a transient `adopted-` placeholder. Best-effort: a stamp failure must not block open.
   try {
     await stampAdopted(path)
   } catch (e) {
     console.error('Adopt/stamp pass failed:', e)
   }
+}
+
+// Open a chosen nexus folder: make it the session, persist it as last-opened, and
+// push it onto the recents (deduped, capped) + the OS Recent Documents list.
+async function adoptNexus(path: string): Promise<void> {
+  openSession(path)
+  await prepareOpenedNexus(path)
   // Open (cold-build if needed) the index for the new session. Best-effort + off the read
   // path — the renderer's tree comes from readNexus, so a null index just means no live
   // query acceleration until the next rebuild. Replaces any prior session's handle.
@@ -515,6 +520,7 @@ app
       const restore = await resolveRestorePath(config)
       if (restore) {
         openSession(restore)
+        await prepareOpenedNexus(restore) // same ensure+stamp prep as an explicit open
         await openSessionIndex(restore)
       }
     } catch (e) {
