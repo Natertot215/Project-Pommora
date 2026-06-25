@@ -64,4 +64,44 @@ struct PageStamperTests {
         #expect(raw.contains("cssclass"))
         #expect(raw.contains("id:"))  // real id introduced
     }
+
+    @Test("Index-build stamp path persists a real ULID; the adopted- placeholder never lands on disk")
+    func stampInPlacePersistsULID() throws {
+        let root = try tempRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let url = root.appendingPathComponent("Note.md")
+        try "# Heading\n\nbody".write(to: url, atomically: true, encoding: .utf8)
+
+        let loaded = try PageFile.loadLenient(from: url, nexusRoot: root)
+        #expect(loaded.frontmatter.id.hasPrefix("adopted-"))  // deterministic placeholder pre-stamp
+
+        let stamped = PageStamper.stampInPlace(loaded, at: url)  // the path the index build uses
+        #expect(!stamped.frontmatter.id.hasPrefix("adopted-"))  // returned id is a real ULID
+
+        let reloaded = try PageFile.load(from: url)
+        #expect(reloaded.frontmatter.id == stamped.frontmatter.id)  // and it persisted
+        #expect(!reloaded.frontmatter.id.hasPrefix("adopted-"))  // never an adopted- id on disk
+    }
+
+    @Test("A failed write keeps the deterministic adopted- id, stable across reloads")
+    func failedWriteKeepsDeterministicID() throws {
+        let root = try tempRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let url = root.appendingPathComponent("Note.md")
+        try "# Heading\n\nbody".write(to: url, atomically: true, encoding: .utf8)
+
+        let first = try PageFile.loadLenient(from: url, nexusRoot: root)
+        let second = try PageFile.loadLenient(from: url, nexusRoot: root)
+        #expect(first.frontmatter.id.hasPrefix("adopted-"))
+        #expect(first.frontmatter.id == second.frontmatter.id)  // deterministic across reloads
+
+        // A regular file where a directory is expected makes any save beneath it throw.
+        let blocker = root.appendingPathComponent("blocker")
+        try "x".write(to: blocker, atomically: true, encoding: .utf8)
+        let unwritable = blocker.appendingPathComponent("Note.md")
+
+        let result = PageStamper.stampInPlace(first, at: unwritable)
+        #expect(result.frontmatter.id == first.frontmatter.id)  // failed write → original id kept
+        #expect(result.frontmatter.id.hasPrefix("adopted-"))
+    }
 }
