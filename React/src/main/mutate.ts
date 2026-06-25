@@ -26,7 +26,7 @@ import { trashWithTimestamp, pathExists, readJsonObject, mutateJson, atomicWrite
 import { splitEnvelope, mergeFrontmatter, readFrontmatterFields } from './io/pageFile'
 import { basenameNoMd } from './coerce'
 import { contextTierDir, nexusConfig, SIDECAR_FILENAME, NEXUS_CONFIG_FILES, type ContextTier, type SidecarKind } from './paths'
-import { defaultIdentity } from './identity'
+import { ensureIdentity } from './identity'
 import { ok, fail, type Result } from '@shared/result'
 import type { MutateRequest, MutateResult } from '@shared/mutate'
 import type { TrashMode } from './appConfig'
@@ -64,14 +64,14 @@ function decodeImageDataUrl(dataUrl: string): { ext: string; buffer: Buffer } | 
   return { ext: subtype === 'jpeg' ? 'jpg' : subtype, buffer: Buffer.from(m[2], 'base64') }
 }
 
-/** Decode + atomically write a banner image into `.nexus/assets/<key>/banner-<token>.<ext>`;
+/** Decode + atomically write an image into `.nexus/assets/<key>/<prefix>-<token>.<ext>`;
  *  returns the nexus-relative path, or null if the data URL isn't a supported image. A FRESH
- *  filename per write is deliberate: a stable name (`banner.<ext>`) gave every image the same
- *  URL, so the renderer's <img> served the browser-cached previous image on Change/replace. */
-async function writeBannerAsset(root: string, assetKey: string, dataUrl: string): Promise<string | null> {
+ *  filename per write is deliberate: a stable name gave every image the same URL, so the
+ *  renderer's <img> served the browser-cached previous image on Change/replace. */
+async function writeImageAsset(root: string, assetKey: string, dataUrl: string, prefix: string): Promise<string | null> {
   const decoded = decodeImageDataUrl(dataUrl)
   if (!decoded) return null
-  const file = `banner-${Math.random().toString(36).slice(2, 10)}.${decoded.ext}`
+  const file = `${prefix}-${Math.random().toString(36).slice(2, 10)}.${decoded.ext}`
   const rel = `.nexus/assets/${assetKey}/${file}`
   const absAsset = join(root, '.nexus', 'assets', assetKey, file)
   await mkdir(dirname(absAsset), { recursive: true })
@@ -215,11 +215,40 @@ async function dispatch(req: MutateRequest, deps: MutateDeps, root: string): Pro
       return { ok: true }
     }
 
-    case 'setNexusDescription': {
-      // Merge the description into .nexus/nexus.json, preserving every other key (foreign
-      // fields included). A missing file starts from a full Swift-shaped identity.
-      await mutateJson<Record<string, unknown>>(nexusConfig(root, NEXUS_CONFIG_FILES.identity), defaultIdentity, (cur) => ({ ...cur, description: req.description }))
-      void refreshSessionIndex(root)
+    case 'setProfileSubtitle': {
+      // Read-merge-write settings.json (≤30 chars), preserving every other key so Swift's
+      // version/defaults_version/labels/modified_at survive (no migration churn on re-open).
+      const subtitle = req.subtitle.slice(0, 30)
+      await mutateJson<Record<string, unknown>>(
+        nexusConfig(root, NEXUS_CONFIG_FILES.settings),
+        () => ({}),
+        (cur) => ({ ...cur, profile_subtitle: subtitle })
+      )
+      return { ok: true }
+    }
+
+    case 'setProfileImage': {
+      // Profile avatar → `.nexus/assets/<nexusID>/profile-<token>.<ext>` (Swift's per-nexus asset
+      // dir), path recorded in settings.profile_image (read-merge-write, other keys preserved).
+      const settingsPath = nexusConfig(root, NEXUS_CONFIG_FILES.settings)
+      const existing = await readJsonObject(settingsPath)
+      const prev = typeof existing?.profile_image === 'string' ? existing.profile_image : null
+      if (req.dataUrl) {
+        const { id: nexusId } = await ensureIdentity(root)
+        const rel = await writeImageAsset(root, nexusId, req.dataUrl, 'profile')
+        if (!rel) return fault('Unsupported image data.')
+        // Set the field first, then delete a replaced file — a failed write never leaves
+        // profile_image pointing at a deleted file (mirrors the banner/cover ordering).
+        await mutateJson<Record<string, unknown>>(settingsPath, () => ({}), (cur) => ({ ...cur, profile_image: rel }))
+        if (prev && prev !== rel) await rm(join(root, prev), { force: true }).catch(() => {})
+      } else {
+        await mutateJson<Record<string, unknown>>(settingsPath, () => ({}), (cur) => {
+          const next = { ...cur }
+          delete next.profile_image
+          return next
+        })
+        if (prev) await rm(join(root, prev), { force: true }).catch(() => {})
+      }
       return { ok: true }
     }
 
@@ -241,7 +270,7 @@ async function dispatch(req: MutateRequest, deps: MutateDeps, root: string): Pro
         if (!id) return fault('That page has no id to key its banner.')
         const prev = typeof fields.cover === 'string' ? fields.cover : null
         if (req.dataUrl) {
-          const rel = await writeBannerAsset(root, id, req.dataUrl)
+          const rel = await writeImageAsset(root, id, req.dataUrl, 'banner')
           if (!rel) return fault('Unsupported image data.')
           await atomicWriteFile(resolved.value, mergeFrontmatter(existing, { cover: rel }, ['cover'], body))
           if (prev && prev !== rel) await rm(join(root, prev), { force: true }).catch(() => {})
@@ -277,7 +306,7 @@ async function dispatch(req: MutateRequest, deps: MutateDeps, root: string): Pro
       }
       const prev = typeof existing?.banner === 'string' ? existing.banner : null
       if (req.dataUrl) {
-        const rel = await writeBannerAsset(root, assetKey, req.dataUrl)
+        const rel = await writeImageAsset(root, assetKey, req.dataUrl, 'banner')
         if (!rel) return fault('Unsupported image data.')
         // Set the field first; only THEN delete a replaced file, so a failed write never
         // leaves `banner` pointing at a deleted file (mirrors the cover/photo ordering).

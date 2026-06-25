@@ -218,6 +218,31 @@ describe('readNexus — saved-config items[] (Swift shape)', () => {
   })
 })
 
+describe('readNexus — profile (from settings, Swift parity)', () => {
+  const roots: string[] = []
+  const mk = (settings: object): string => {
+    const root = mkdtempSync(join(tmpdir(), 'pom-profile-'))
+    roots.push(root)
+    d(join(root, '.nexus'))
+    w(join(root, '.nexus', 'nexus.json'), JSON.stringify({ schemaVersion: 1, id: 'nxp', createdAt: '2026' }))
+    w(join(root, '.nexus', 'settings.json'), JSON.stringify(settings))
+    return root
+  }
+  afterAll(() => roots.forEach((r) => rmSync(r, { recursive: true, force: true })))
+
+  it('reads profile_image (rel path) + profile_subtitle from settings', async () => {
+    const t = await readNexus(mk({ profile_image: '.nexus/assets/nxp/profile-abc.png', profile_subtitle: 'Mine' }))
+    expect(t.nexus.profileImage).toBe('.nexus/assets/nxp/profile-abc.png')
+    expect(t.nexus.profileSubtitle).toBe('Mine')
+  })
+
+  it('defaults to null image + empty subtitle when absent', async () => {
+    const t = await readNexus(mk({}))
+    expect(t.nexus.profileImage).toBeNull()
+    expect(t.nexus.profileSubtitle).toBe('')
+  })
+})
+
 describe('readNexus — container paths (nexus-relative, for mutation addressing)', () => {
   let root: string
   beforeAll(() => {

@@ -5,27 +5,30 @@ import { EditableInput } from '../Components/EditableInput'
 import { PhotoCropModal } from '../Components/PhotoCropModal'
 import * as s from './nexusHeader.css'
 
+const assetUrl = (rel: string): string => `nexus-asset://nexus/${encodeURI(rel)}`
+
 /**
- * The nexus header at the top of the sidebar (replaces the Homepage stub): a circular photo beside
- * the nexus title (its root folder name) over an optional description. Figma node 432:1919.
- * Right-click the photo → native "Add Photo" → image picker → circular crop → saved into `.nexus/`.
- * Double-click the title to rename the folder; double-click the description to set a 50-char blurb.
+ * The nexus header at the top of the sidebar: a circular profile photo beside the nexus title
+ * (its root folder name) over an optional subtitle. Profile image + subtitle live in
+ * `.nexus/settings.json` (Swift parity), served via nexus-asset://. Right-click the photo →
+ * native picker → circular crop. Double-click the title to rename the folder; double-click the
+ * subtitle to set a ≤30-char blurb.
  */
 export function NexusHeader({
   name,
-  description,
-  photo
+  profileImage,
+  profileSubtitle
 }: {
   name: string
-  description: string
-  photo: string | null
+  profileImage: string | null
+  profileSubtitle: string
 }): React.JSX.Element {
   const load = useSession((st) => st.load)
   const mutate = useSession((st) => st.mutate)
   const select = useSession((st) => st.select)
   const selected = useSession((st) => st.selection.kind === 'homepage')
   const [cropImage, setCropImage] = useState<string | null>(null)
-  const [editing, setEditing] = useState<'title' | 'description' | null>(null)
+  const [editing, setEditing] = useState<'title' | 'subtitle' | null>(null)
 
   const pickPhoto = (e: React.MouseEvent): void => {
     e.preventDefault()
@@ -35,10 +38,8 @@ export function NexusHeader({
   }
 
   const saveCrop = async (dataUrl: string): Promise<void> => {
-    const res = await window.nexus.saveNexusPhoto(dataUrl)
     setCropImage(null)
-    if (!res.ok) await window.nexus.showError(res.error)
-    else await load()
+    await mutate({ op: 'setProfileImage', dataUrl }) // store.mutate refetches the tree
   }
 
   const commitTitle = (next: string): void => {
@@ -50,18 +51,20 @@ export function NexusHeader({
     })
   }
 
-  const commitDescription = (next: string): void => {
+  const commitSubtitle = (next: string): void => {
     setEditing(null)
-    if (next !== description) void mutate({ op: 'setNexusDescription', description: next })
+    if (next !== profileSubtitle) void mutate({ op: 'setProfileSubtitle', subtitle: next })
   }
+
+  const photoUrl = profileImage ? assetUrl(profileImage) : null
 
   return (
     <div
       className={selected ? `${s.header} ${s.headerSelected}` : s.header}
       onClick={() => void select({ kind: 'homepage' })}
     >
-      <span className={photo ? s.photo : `${s.photo} ${s.photoEmpty}`} onContextMenu={pickPhoto} title="Right-click to add a photo">
-        {photo ? <img className={s.photoImg} src={photo} alt="" /> : <Icon name="square-dashed" size={20} />}
+      <span className={photoUrl ? s.photo : `${s.photo} ${s.photoEmpty}`} onContextMenu={pickPhoto} title="Right-click to add a photo">
+        {photoUrl ? <img className={s.photoImg} src={photoUrl} alt="" /> : <Icon name="square-dashed" size={20} />}
       </span>
       <div className={s.textBlock}>
         {editing === 'title' ? (
@@ -71,15 +74,15 @@ export function NexusHeader({
             {name}
           </span>
         )}
-        {editing === 'description' ? (
-          <EditableInput value={description} className={s.descriptionInput} maxLength={50} onCommit={commitDescription} onCancel={() => setEditing(null)} />
+        {editing === 'subtitle' ? (
+          <EditableInput value={profileSubtitle} className={s.descriptionInput} maxLength={30} onCommit={commitSubtitle} onCancel={() => setEditing(null)} />
         ) : (
           <span
-            className={description ? s.description : s.descriptionEmpty}
-            onDoubleClick={() => setEditing('description')}
-            title="Double-click to edit description"
+            className={profileSubtitle ? s.description : s.descriptionEmpty}
+            onDoubleClick={() => setEditing('subtitle')}
+            title="Double-click to edit subtitle"
           >
-            {description || 'Description'}
+            {profileSubtitle || 'Subtitle'}
           </span>
         )}
       </div>

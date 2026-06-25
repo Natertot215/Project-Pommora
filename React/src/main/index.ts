@@ -7,13 +7,12 @@ import type { MutateRequest, MutateResult, ContextTarget } from '@shared/mutate'
 import { WINDOW_BG } from '@shared/theme'
 import { readNexus } from './readNexus'
 import { readPage } from './readPage'
-import { atomicWriteBinary, mutateJson, pathExists } from './io/atomicWrite'
-import { nexusConfig, nexusDir, NEXUS_CONFIG_FILES } from './paths'
+import { pathExists } from './io/atomicWrite'
 import { readAppConfig, writeAppConfig, addRecent, DEFAULT_TRASH_MODE } from './appConfig'
 import { sessionRoot, openSession, resolveRestorePath, isExistingDir } from './session'
 import { openSessionIndex, closeSessionIndex } from './sessionIndex'
 import { stampAdopted } from './adopt'
-import { ensureIdentity, defaultIdentity } from './identity'
+import { ensureIdentity } from './identity'
 import { startWatcher, stopWatcher } from './watcher'
 import { resolveUnderRoot } from './pathSafety'
 import { updatePageBody } from './crud/page'
@@ -474,22 +473,6 @@ ipcMain.handle('table-menu', async (e, ctx: TableMenuContext) => {
   return win ? popTableMenu(win, ctx) : null
 })
 
-// Persist a cropped PNG data URL: write .nexus/photo.png atomically, then record
-// `photo: "photo.png"` in nexus.json. Never throws across the boundary.
-ipcMain.handle('nexus:saveNexusPhoto', async (_e, dataUrl: string): Promise<{ ok: true } | { ok: false; error: string }> => {
-  const root = sessionRoot()
-  if (root === null) return { ok: false, error: 'No nexus is open.' }
-  try {
-    const m = /^data:image\/png;base64,(.+)$/s.exec(dataUrl)
-    if (!m) return { ok: false, error: 'Invalid image data.' }
-    const buf = Buffer.from(m[1], 'base64')
-    await atomicWriteBinary(join(nexusDir(root), 'photo.png'), buf)
-    await mutateJson<Record<string, unknown>>(nexusConfig(root, NEXUS_CONFIG_FILES.identity), defaultIdentity, (cur) => ({ ...cur, photo: 'photo.png' }))
-    return { ok: true }
-  } catch (err) {
-    return { ok: false, error: err instanceof Error ? err.message : String(err) }
-  }
-})
 
 // Rename the OPEN nexus's ROOT folder within its parent dir, then RE-POINT the live session
 // to the new path. A dedicated IPC (not a mutate op) because it re-targets the whole session:

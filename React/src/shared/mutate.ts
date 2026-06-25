@@ -38,8 +38,12 @@ export type MutateRequest =
   | { op: 'createContext'; tier: 1 | 2 | 3; name: string }
   | { op: 'rename'; path: string; kind: MutableKind; newName: string }
   | { op: 'delete'; path: string; kind: MutableKind }
-  // Set the nexus description, written into `.nexus/nexus.json` (merged, not clobbered).
-  | { op: 'setNexusDescription'; description: string }
+  // Set/clear the nexus profile image (sidebar header avatar). dataUrl set ⇒ decode + copy
+  // into `.nexus/assets/<nexusID>/profile-<token>.<ext>` + record the rel path in
+  // `settings.profile_image`; null ⇒ clear the field + delete the file. Matches Swift.
+  | { op: 'setProfileImage'; dataUrl: string | null }
+  // Set the nexus profile subtitle (≤30 chars, enforced) in `settings.profile_subtitle`.
+  | { op: 'setProfileSubtitle'; subtitle: string }
   // Set or clear an entity's banner. dataUrl set ⇒ decode + copy into `.nexus/assets/<key>/
   // banner.<ext>` + record that path in the owner's config (folder sidecar, homepage.json, or — for
   // a page — the `cover` key in its `.md` frontmatter); null ⇒ clear the field + delete the file.

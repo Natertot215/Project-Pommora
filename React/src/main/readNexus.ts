@@ -255,24 +255,15 @@ export async function readNexus(root: string): Promise<NexusTree> {
   const sidecarMode = !!asString(identity?.id)
   const id = sidecarMode ? (identity!.id as string) : adoptedId(root)
   const fb: Fallback = sidecarMode ? 'id' : 'title'
-  // Nexus name = root folder basename (filename = title); description is the user-set blurb.
-  const description = asString(identity?.description) ?? ''
-  // The saved photo is always PNG (the crop exports image/png to .nexus/photo.png).
-  const photoFile = asString(identity?.photo)
-  let photo: string | null = null
-  if (photoFile) {
-    try {
-      const buf = await readFile(join(nexusDir(root), photoFile))
-      photo = `data:image/png;base64,${buf.toString('base64')}`
-    } catch {
-      photo = null
-    }
-  }
 
   const settings = (await readJsonObject(nexusConfig(root, NEXUS_CONFIG_FILES.settings))) ?? {}
   const excluded = asStringArray(settings.excluded_folders) ?? []
   const labels = readLabels(settings.labels)
   const accent = resolveAccent(asString(settings.accent_color))
+  // Profile image + subtitle live in settings (Swift parity), not nexus.json. profileImage is a
+  // nexus-relative asset path the renderer serves via nexus-asset://; subtitle is plain text.
+  const profileImage = asString(settings.profile_image) ?? null
+  const profileSubtitle = asString(settings.profile_subtitle) ?? ''
   const state = (await readJsonObject(nexusConfig(root, NEXUS_CONFIG_FILES.state))) ?? {}
   const savedConfig = (await readJsonObject(nexusConfig(root, NEXUS_CONFIG_FILES.savedConfig))) ?? {}
   const sectionsConfig = (await readJsonObject(nexusConfig(root, NEXUS_CONFIG_FILES.sidebarSections))) ?? {}
@@ -339,7 +330,7 @@ export async function readNexus(root: string): Promise<NexusTree> {
   const collections = orderedCollections.filter((c) => !claimed.has(c.id))
 
   return {
-    nexus: { id, rootPath: root, name: basename(root), description, photo },
+    nexus: { id, rootPath: root, name: basename(root), profileImage, profileSubtitle },
     homepage: { banner: asString(homepageConfig.banner) },
     saved,
     contexts,

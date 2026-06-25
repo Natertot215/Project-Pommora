@@ -410,7 +410,7 @@ export function Sidebar({ tree }: { tree: NexusTree }): React.JSX.Element {
     <nav className="sidebar">
       {/* Nexus header. Calendar/Recents stubs are hidden until a later UIX pass. */}
       <div className="section">
-        <NexusHeader name={tree.nexus.name} description={tree.nexus.description} photo={tree.nexus.photo} />
+        <NexusHeader name={tree.nexus.name} profileImage={tree.nexus.profileImage} profileSubtitle={tree.nexus.profileSubtitle} />
       </div>
 
       {/* Drag to reorder any entity within its parent heading (or a page across folders); an

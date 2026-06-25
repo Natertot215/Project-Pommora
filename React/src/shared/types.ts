@@ -157,9 +157,10 @@ export interface NexusLabels {
 }
 
 export interface NexusTree {
-  /** `name` is the root folder's basename (filename = title); `description` is the
-   *  user-set blurb persisted in `.nexus/nexus.json` ('' when unset). */
-  nexus: { id: string; rootPath: string; name: string; description: string; photo: string | null }
+  /** `name` is the root folder's basename (filename = title). `profileImage` is a
+   *  nexus-relative path into `.nexus/assets/<id>/` (or null) and `profileSubtitle` a
+   *  ≤30-char blurb — both from `.nexus/settings.json`, matching Swift (not nexus.json). */
+  nexus: { id: string; rootPath: string; name: string; profileImage: string | null; profileSubtitle: string }
   /** Homepage singleton (`.nexus/homepage.json`) — v1 surfaces just its optional banner. */
   homepage: { banner?: string }
   saved: SavedNode[]

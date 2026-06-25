@@ -276,23 +276,36 @@ describe('handleMutate — review-round hardening', () => {
     expect(await pathExists(join(root, 'Notes/Daily/Beta.md'))).toBe(true)
   })
 
-  it('setNexusDescription merges description into nexus.json, preserving the other keys', async () => {
-    const r = await handleMutate({ op: 'setNexusDescription', description: 'A second brain.' }, nexusDeps)
+  it('setProfileSubtitle writes settings.profile_subtitle, preserving other settings keys', async () => {
+    await writeFile(join(root, '.nexus', 'settings.json'), JSON.stringify({ version: 1, accent_color: 'blue' }))
+    const r = await handleMutate({ op: 'setProfileSubtitle', subtitle: 'A second brain.' }, nexusDeps)
     expect(r.ok).toBe(true)
-    const cfg = JSON.parse(await read('.nexus/nexus.json'))
-    expect(cfg.description).toBe('A second brain.')
-    expect(cfg.id).toBe('nx') // existing keys untouched
-    expect(cfg.schemaVersion).toBe(1)
+    const cfg = JSON.parse(await read('.nexus/settings.json'))
+    expect(cfg.profile_subtitle).toBe('A second brain.')
+    expect(cfg.accent_color).toBe('blue') // foreign keys preserved (no Swift migration churn)
+    expect(cfg.version).toBe(1)
   })
 
-  it('setNexusDescription on a missing nexus.json starts from a minted id', async () => {
-    await rm(join(root, '.nexus', 'nexus.json'), { force: true })
-    const r = await handleMutate({ op: 'setNexusDescription', description: 'Fresh.' }, nexusDeps)
+  it('setProfileSubtitle clamps to 30 chars', async () => {
+    await handleMutate({ op: 'setProfileSubtitle', subtitle: 'x'.repeat(50) }, nexusDeps)
+    expect(JSON.parse(await read('.nexus/settings.json')).profile_subtitle.length).toBe(30)
+  })
+
+  it('setProfileImage copies the image under .nexus/assets/<nexusID>/ and records the path', async () => {
+    const r = await handleMutate({ op: 'setProfileImage', dataUrl: 'data:image/png;base64,iVBORw0KGgo=' }, nexusDeps)
     expect(r.ok).toBe(true)
-    const cfg = JSON.parse(await read('.nexus/nexus.json'))
-    expect(cfg.description).toBe('Fresh.')
-    expect(typeof cfg.id).toBe('string')
-    expect(cfg.id.length).toBeGreaterThan(0)
+    const cfg = JSON.parse(await read('.nexus/settings.json'))
+    expect(cfg.profile_image).toMatch(/^\.nexus\/assets\/nx\/profile-.+\.png$/)
+    expect(await pathExists(join(root, cfg.profile_image))).toBe(true)
+  })
+
+  it('setProfileImage null clears the field + deletes the file', async () => {
+    await handleMutate({ op: 'setProfileImage', dataUrl: 'data:image/png;base64,iVBORw0KGgo=' }, nexusDeps)
+    const prevPath = JSON.parse(await read('.nexus/settings.json')).profile_image
+    const r = await handleMutate({ op: 'setProfileImage', dataUrl: null }, nexusDeps)
+    expect(r.ok).toBe(true)
+    expect(JSON.parse(await read('.nexus/settings.json')).profile_image).toBeUndefined()
+    expect(await pathExists(join(root, prevPath))).toBe(false)
   })
 
   it('a malformed op returns a clean fault, not a throw', async () => {
