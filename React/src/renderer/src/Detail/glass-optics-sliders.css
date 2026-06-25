@@ -1,0 +1,58 @@
+.glass-optics-sliders {
+  max-width: 560px;
+  margin-top: 12px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: #14161cf2;
+  border: 1px solid #ffffff1a;
+}
+.gos-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.gos-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--label-primary);
+}
+.gos-copy {
+  font-size: 11px;
+  color: var(--label-secondary);
+  background: #ffffff14;
+  border: 1px solid #ffffff1a;
+  border-radius: 6px;
+  padding: 3px 10px;
+  cursor: pointer;
+}
+.gos-copy:hover {
+  background: #ffffff22;
+  color: var(--label-primary);
+}
+.gos-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px 20px;
+}
+.gos-row {
+  display: grid;
+  grid-template-columns: 72px 1fr 32px;
+  align-items: center;
+  gap: 8px;
+}
+.gos-label {
+  font-size: 11px;
+  color: var(--label-secondary);
+}
+.gos-val {
+  font-size: 11px;
+  font-family: ui-monospace, SFMono-Regular, monospace;
+  color: var(--label-tertiary);
+  text-align: right;
+}
+.gos-row input[type='range'] {
+  width: 100%;
+  height: 14px;
+  accent-color: #5b9dff;
+}
