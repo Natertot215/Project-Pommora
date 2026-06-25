@@ -9,11 +9,11 @@ import { readNexus } from './readNexus'
 import { readPage } from './readPage'
 import { atomicWriteBinary, mutateJson, pathExists } from './io/atomicWrite'
 import { nexusConfig, nexusDir, NEXUS_CONFIG_FILES } from './paths'
-import { newId } from './ids'
 import { readAppConfig, writeAppConfig, addRecent, DEFAULT_TRASH_MODE } from './appConfig'
 import { sessionRoot, openSession, resolveRestorePath, isExistingDir } from './session'
 import { openSessionIndex, closeSessionIndex } from './sessionIndex'
 import { stampAdopted } from './adopt'
+import { ensureIdentity, defaultIdentity } from './identity'
 import { startWatcher, stopWatcher } from './watcher'
 import { resolveUnderRoot } from './pathSafety'
 import { updatePageBody } from './crud/page'
@@ -174,6 +174,14 @@ ipcMain.handle('nexus:state', async (): Promise<NexusState> => {
 // push it onto the recents (deduped, capped) + the OS Recent Documents list.
 async function adoptNexus(path: string): Promise<void> {
   openSession(path)
+  // Ensure `.nexus/nexus.json` exists in Swift's shape before anything reads it (matches
+  // Swift's eager create-on-open) — this is what flips a raw folder into sidecar mode and
+  // lets the same folder open in either app. Best-effort: a failure must not block open.
+  try {
+    await ensureIdentity(path)
+  } catch (e) {
+    console.error('ensureIdentity failed:', e)
+  }
   // Stamp any un-adopted entity (raw folder / externally-authored page) with a real ULID
   // before the index reads it, so the index + every later write capture a stable id rather
   // than a transient `adopted-` placeholder. Best-effort: a stamp failure must not block open.
@@ -476,7 +484,7 @@ ipcMain.handle('nexus:saveNexusPhoto', async (_e, dataUrl: string): Promise<{ ok
     if (!m) return { ok: false, error: 'Invalid image data.' }
     const buf = Buffer.from(m[1], 'base64')
     await atomicWriteBinary(join(nexusDir(root), 'photo.png'), buf)
-    await mutateJson<Record<string, unknown>>(nexusConfig(root, NEXUS_CONFIG_FILES.identity), () => ({ id: newId() }), (cur) => ({ ...cur, photo: 'photo.png' }))
+    await mutateJson<Record<string, unknown>>(nexusConfig(root, NEXUS_CONFIG_FILES.identity), defaultIdentity, (cur) => ({ ...cur, photo: 'photo.png' }))
     return { ok: true }
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : String(err) }

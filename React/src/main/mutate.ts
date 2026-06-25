@@ -26,7 +26,7 @@ import { trashWithTimestamp, pathExists, readJsonObject, mutateJson, atomicWrite
 import { splitEnvelope, mergeFrontmatter, readFrontmatterFields } from './io/pageFile'
 import { basenameNoMd } from './coerce'
 import { contextTierDir, nexusConfig, SIDECAR_FILENAME, NEXUS_CONFIG_FILES, type ContextTier, type SidecarKind } from './paths'
-import { newId } from './ids'
+import { defaultIdentity } from './identity'
 import { ok, fail, type Result } from '@shared/result'
 import type { MutateRequest, MutateResult } from '@shared/mutate'
 import type { TrashMode } from './appConfig'
@@ -217,8 +217,8 @@ async function dispatch(req: MutateRequest, deps: MutateDeps, root: string): Pro
 
     case 'setNexusDescription': {
       // Merge the description into .nexus/nexus.json, preserving every other key (foreign
-      // fields included). A missing file starts from a minted id so the nexus stays identified.
-      await mutateJson<Record<string, unknown>>(nexusConfig(root, NEXUS_CONFIG_FILES.identity), () => ({ id: newId() }), (cur) => ({ ...cur, description: req.description }))
+      // fields included). A missing file starts from a full Swift-shaped identity.
+      await mutateJson<Record<string, unknown>>(nexusConfig(root, NEXUS_CONFIG_FILES.identity), defaultIdentity, (cur) => ({ ...cur, description: req.description }))
       void refreshSessionIndex(root)
       return { ok: true }
     }
