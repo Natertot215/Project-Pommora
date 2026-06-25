@@ -81,9 +81,10 @@
 }
 
 /* No-banner state: a hover-revealed Add-Banner strip above the title, then an inset divider. */
-/* No-banner header clears the toolbar, then the hover Add-Banner strip. KNOB: padding-top raises/lowers the button. */
+/* No-banner header clears the floating toolbar so the Add-Banner strip never tucks under it.
+   Derived from --toolbar-h (+ breathing room) — KNOB: the trailing addend nudges the button down. */
 .mdpm-header:not(.has-banner) {
-  padding-top: 28px;
+  padding-top: calc(var(--toolbar-h) + 10px);
 }
 .mdpm-add-banner {
   height: 24px;

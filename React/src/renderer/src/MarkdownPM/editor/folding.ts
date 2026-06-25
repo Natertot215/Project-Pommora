@@ -261,8 +261,17 @@ class ChevronMarker extends GutterMarker {
   }
 }
 
+// Reserves the fold gutter's width on pages with no foldable headings. Without it the empty
+// gutter collapses to 0 and the body text slides 20px left off --content-inset (the title's edge).
+class SpacerMarker extends GutterMarker {
+  toDOM(): HTMLElement {
+    return document.createElement('span')
+  }
+}
+
 const foldGutterExt = gutter({
   class: 'cm-foldGutter',
+  initialSpacer: () => new SpacerMarker(),
   markers: (view) => {
     const b = new RangeSetBuilder<GutterMarker>()
     for (const s of sectionsOf(view.state.doc)) b.add(s.from, s.from, new ChevronMarker(chevronOpen(view.state, s.from)))
