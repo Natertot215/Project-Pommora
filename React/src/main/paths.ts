@@ -9,7 +9,6 @@ export type SidecarKind =
   | 'area'
   | 'topic'
   | 'project'
-  | 'pageType'
   | 'collection'
   | 'set'
   | 'taskConfig'
@@ -20,15 +19,11 @@ export const SIDECAR_FILENAME: Record<SidecarKind, string> = {
   area: '_area.json',
   topic: '_topic.json',
   project: '_project.json',
-  pageType: '_pagetype.json',
   collection: '_pagecollection.json',
   set: '_pageset.json',
   taskConfig: '_taskconfig.json',
   eventConfig: '_eventconfig.json'
 }
-
-/** Conventional folder names for the agenda singletons (fallback when no sidecar). */
-export const AGENDA_FOLDER_NAMES = new Set(['Tasks', 'Events', 'Agenda'])
 
 export function nexusDir(root: string): string {
   return join(root, '.nexus')

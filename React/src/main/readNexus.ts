@@ -7,13 +7,15 @@ import { readdir, readFile } from 'node:fs/promises'
 import { basename, join } from 'node:path'
 import { parse as parseYaml } from 'yaml'
 import type {
+  AccentColor,
   AccentSetting,
   AreaColor,
   AreaNode,
   CollectionNode,
+  LabelPair,
+  NexusLabels,
   NexusTree,
   PageNode,
-  PageTypeNode,
   ProjectNode,
   SavedNode,
   SetNode,
@@ -27,7 +29,6 @@ import { asString, asStringArray, basenameNoMd } from './coerce'
 import { shouldSkipDir } from './exclusion'
 import { resolveOrder } from './order'
 import {
-  AGENDA_FOLDER_NAMES,
   contextTierDir,
   NEXUS_CONFIG_FILES,
   nexusConfig,
@@ -43,6 +44,43 @@ const ACCENT_COLOR_SET = new Set<string>(ACCENT_COLORS)
 // ---------- low-level helpers ----------
 
 const AREA_COLOR_SET = new Set<AreaColor>(AREA_COLORS)
+
+// Swift `accent_color` values that aren't in React's own palette → nearest React token.
+// React's own values (including the 6 that overlap Swift) pass through unchanged; React
+// keeps its own accent vocabulary, this only maps Swift's extras on read.
+const SWIFT_ONLY_ACCENT: Record<string, AccentColor> = { pink: 'purple', gray: 'grey' }
+
+function resolveAccent(raw: string | undefined): AccentSetting {
+  if (raw === 'system') return 'system'
+  if (raw != null && ACCENT_COLOR_SET.has(raw)) return raw as AccentColor
+  if (raw != null && raw in SWIFT_ONLY_ACCENT) return SWIFT_ONLY_ACCENT[raw]
+  return DEFAULT_ACCENT
+}
+
+// Parse Swift's nested snake_case `settings.labels` into the structured camelCase
+// NexusLabels, defaulting per-field so a partial/absent blob still yields full labels.
+function readLabels(raw: unknown): NexusLabels {
+  const obj = (v: unknown): Record<string, unknown> =>
+    v != null && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : {}
+  const pair = (v: unknown, fallback: LabelPair): LabelPair => {
+    const o = obj(v)
+    return { singular: asString(o.singular) ?? fallback.singular, plural: asString(o.plural) ?? fallback.plural }
+  }
+  const L = obj(raw)
+  const ss = obj(L.sidebar_sections)
+  return {
+    sidebarSections: {
+      areas: asString(ss.areas) ?? DEFAULT_LABELS.sidebarSections.areas,
+      topics: asString(ss.topics) ?? DEFAULT_LABELS.sidebarSections.topics,
+      pages: asString(ss.pages) ?? DEFAULT_LABELS.sidebarSections.pages
+    },
+    pageCollection: pair(L.page_collection, DEFAULT_LABELS.pageCollection),
+    pageSet: pair(L.page_set, DEFAULT_LABELS.pageSet),
+    project: pair(L.project, DEFAULT_LABELS.project),
+    agendaTask: pair(L.agenda_task, DEFAULT_LABELS.agendaTask),
+    agendaEvent: pair(L.agenda_event, DEFAULT_LABELS.agendaEvent)
+  }
+}
 
 async function listEntries(dir: string): Promise<import('node:fs').Dirent[]> {
   try {
@@ -96,19 +134,26 @@ async function readDirectPages(absDir: string, relDir: string): Promise<PageNode
   return out
 }
 
-/** Roll-up: `.md` in `absDir` plus all non-excluded sub-folders (depth-cap spillover). */
-async function collectMdDeep(absDir: string, relDir: string, excluded: string[]): Promise<PageNode[]> {
-  let pages = await readDirectPages(absDir, relDir)
+// ---------- container reads (2-tier: Collection -> recursive Set) ----------
+
+/** Every non-excluded subfolder of a Collection or Set is itself a Set (position-driven,
+ *  any depth). Shared by the Collection root and every Set level — the recursion. */
+async function readChildSets(
+  absDir: string,
+  relDir: string,
+  sidecarMode: boolean,
+  excluded: string[],
+  fb: Fallback
+): Promise<SetNode[]> {
+  const sets: SetNode[] = []
   for (const e of await listEntries(absDir)) {
     if (!e.isDirectory()) continue
-    const rel = relDir ? `${relDir}/${e.name}` : e.name
+    const rel = `${relDir}/${e.name}`
     if (shouldSkipDir(e.name, rel, excluded)) continue
-    pages = pages.concat(await collectMdDeep(join(absDir, e.name), rel, excluded))
+    sets.push(await readSet(join(absDir, e.name), rel, e.name, sidecarMode, excluded, fb))
   }
-  return pages
+  return sets
 }
-
-// ---------- container reads (pageType -> collection -> set) ----------
 
 async function readSet(
   absDir: string,
@@ -119,46 +164,10 @@ async function readSet(
   fb: Fallback
 ): Promise<SetNode> {
   const meta = sidecarMode ? ((await readJsonObject(join(absDir, SIDECAR_FILENAME.set))) ?? {}) : {}
-  // A set is the depth cap: its own .md + any deeper folders roll up.
-  const pages = await collectMdDeep(absDir, relDir, excluded)
+  const sets = await readChildSets(absDir, relDir, sidecarMode, excluded, fb)
+  const pages = await readDirectPages(absDir, relDir)
   return {
     kind: 'set',
-    selectable: false,
-    id: asString(meta.id) ?? adoptedId(relDir),
-    title: name,
-    icon: asString(meta.icon),
-    path: relDir,
-    pages: resolveOrder(pages, asStringArray(meta.page_order), fb)
-  }
-}
-
-async function readCollection(
-  absDir: string,
-  relDir: string,
-  name: string,
-  sidecarMode: boolean,
-  excluded: string[],
-  fb: Fallback
-): Promise<CollectionNode> {
-  const meta = sidecarMode
-    ? ((await readJsonObject(join(absDir, SIDECAR_FILENAME.collection))) ?? {})
-    : {}
-  const sets: SetNode[] = []
-  const rollup: { abs: string; rel: string }[] = []
-  for (const e of await listEntries(absDir)) {
-    if (!e.isDirectory()) continue
-    const rel = `${relDir}/${e.name}`
-    if (shouldSkipDir(e.name, rel, excluded)) continue
-    const isSet = sidecarMode
-      ? await pathExists(join(absDir, e.name, SIDECAR_FILENAME.set))
-      : true
-    if (isSet) sets.push(await readSet(join(absDir, e.name), rel, e.name, sidecarMode, excluded, fb))
-    else rollup.push({ abs: join(absDir, e.name), rel })
-  }
-  let pages = await readDirectPages(absDir, relDir)
-  for (const r of rollup) pages = pages.concat(await collectMdDeep(r.abs, r.rel, excluded))
-  return {
-    kind: 'collection',
     id: asString(meta.id) ?? adoptedId(relDir),
     title: name,
     icon: asString(meta.icon),
@@ -169,40 +178,30 @@ async function readCollection(
   }
 }
 
-async function readPageType(
+async function readPageCollection(
   absDir: string,
   relDir: string,
   name: string,
   sidecarMode: boolean,
   excluded: string[],
   fb: Fallback
-): Promise<PageTypeNode> {
+): Promise<CollectionNode> {
   const meta = sidecarMode
-    ? ((await readJsonObject(join(absDir, SIDECAR_FILENAME.pageType))) ?? {})
+    ? ((await readJsonObject(join(absDir, SIDECAR_FILENAME.collection))) ?? {})
     : {}
-  const collections: CollectionNode[] = []
-  const rollup: { abs: string; rel: string }[] = []
-  for (const e of await listEntries(absDir)) {
-    if (!e.isDirectory()) continue
-    const rel = `${relDir}/${e.name}`
-    if (shouldSkipDir(e.name, rel, excluded)) continue
-    const isCollection = sidecarMode
-      ? await pathExists(join(absDir, e.name, SIDECAR_FILENAME.collection))
-      : true
-    if (isCollection)
-      collections.push(await readCollection(join(absDir, e.name), rel, e.name, sidecarMode, excluded, fb))
-    else rollup.push({ abs: join(absDir, e.name), rel })
-  }
-  let pages = await readDirectPages(absDir, relDir)
-  for (const r of rollup) pages = pages.concat(await collectMdDeep(r.abs, r.rel, excluded))
+  const sets = await readChildSets(absDir, relDir, sidecarMode, excluded, fb)
+  const pages = await readDirectPages(absDir, relDir)
   return {
-    kind: 'pageType',
+    kind: 'collection',
     id: asString(meta.id) ?? adoptedId(relDir),
     title: name,
     icon: asString(meta.icon),
     path: relDir,
     banner: asString(meta.banner),
-    collections: resolveOrder(collections, asStringArray(meta.collection_order), fb),
+    properties: Array.isArray(meta.properties)
+      ? (meta.properties as CollectionNode['properties'])
+      : undefined,
+    sets: resolveOrder(sets, asStringArray(meta.set_order), fb),
     pages: resolveOrder(pages, asStringArray(meta.page_order), fb)
   }
 }
@@ -255,39 +254,30 @@ export async function readNexus(root: string): Promise<NexusTree> {
   const sidecarMode = !!asString(identity?.id)
   const id = sidecarMode ? (identity!.id as string) : adoptedId(root)
   const fb: Fallback = sidecarMode ? 'id' : 'title'
-  // Nexus name = root folder basename (filename = title); description is the user-set blurb.
-  const description = asString(identity?.description) ?? ''
-  // The saved photo is always PNG (the crop exports image/png to .nexus/photo.png).
-  const photoFile = asString(identity?.photo)
-  let photo: string | null = null
-  if (photoFile) {
-    try {
-      const buf = await readFile(join(nexusDir(root), photoFile))
-      photo = `data:image/png;base64,${buf.toString('base64')}`
-    } catch {
-      photo = null
-    }
-  }
 
   const settings = (await readJsonObject(nexusConfig(root, NEXUS_CONFIG_FILES.settings))) ?? {}
   const excluded = asStringArray(settings.excluded_folders) ?? []
-  const userLabels =
-    settings.labels && typeof settings.labels === 'object' && !Array.isArray(settings.labels)
-      ? (settings.labels as Record<string, string>)
-      : {}
-  const labels = { ...DEFAULT_LABELS, ...userLabels }
-  const accentRaw = asString(settings.accent)
-  const accent: AccentSetting =
-    accentRaw === 'system' || (accentRaw != null && ACCENT_COLOR_SET.has(accentRaw))
-      ? (accentRaw as AccentSetting)
-      : DEFAULT_ACCENT
+  const labels = readLabels(settings.labels)
+  const accent = resolveAccent(asString(settings.accent_color))
+  // Profile image + subtitle live in settings (Swift parity), not nexus.json. profileImage is a
+  // nexus-relative asset path the renderer serves via nexus-asset://; subtitle is plain text.
+  const profileImage = asString(settings.profile_image) ?? null
+  const profileSubtitle = asString(settings.profile_subtitle) ?? ''
   const state = (await readJsonObject(nexusConfig(root, NEXUS_CONFIG_FILES.state))) ?? {}
   const savedConfig = (await readJsonObject(nexusConfig(root, NEXUS_CONFIG_FILES.savedConfig))) ?? {}
   const sectionsConfig = (await readJsonObject(nexusConfig(root, NEXUS_CONFIG_FILES.sidebarSections))) ?? {}
   const homepageConfig = (await readJsonObject(nexusConfig(root, NEXUS_CONFIG_FILES.homepage))) ?? {}
 
-  // Saved strip — 3 fixed, code-keyed rows (inert in Phase 1).
-  const savedLabels = (savedConfig.labels as Record<string, string>) ?? {}
+  // Saved strip — 3 fixed, code-keyed rows; labels come from saved-config `items[{key,label}]`.
+  const savedItems = Array.isArray(savedConfig.items)
+    ? (savedConfig.items as { key?: unknown; label?: unknown }[])
+    : []
+  const savedLabelByKey = new Map<string, string>()
+  for (const it of savedItems) {
+    const k = asString(it?.key)
+    const l = asString(it?.label)
+    if (k && l) savedLabelByKey.set(k, l)
+  }
   const saved: SavedNode[] = (
     [
       { key: 'homepage', title: 'Homepage', icon: 'house' },
@@ -298,7 +288,7 @@ export async function readNexus(root: string): Promise<NexusTree> {
     kind: 'saved',
     id: `saved-${s.key}`,
     key: s.key,
-    title: savedLabels[s.key] ?? s.title,
+    title: savedLabelByKey.get(s.key) ?? s.title,
     icon: s.icon
   }))
 
@@ -309,45 +299,41 @@ export async function readNexus(root: string): Promise<NexusTree> {
     areas: await readTier<AreaNode>(root, 'areas', 'area', sidecarMode, excluded, asStringArray(state.area_order), fb)
   }
 
-  // Vaults (flat at root). Agenda singletons are discovered but NOT surfaced.
-  const allTypes: PageTypeNode[] = []
+  // Top-level Collections (gated by `_pagecollection.json`; raw mode treats every root folder
+  // as a Collection). Agenda singletons are identified ONLY by their config sidecar
+  // (`_taskconfig`/`_eventconfig`) — never by folder name — and are not surfaced as Collections.
+  const allCollections: CollectionNode[] = []
   for (const e of await listEntries(root)) {
     if (!e.isDirectory()) continue
     if (shouldSkipDir(e.name, e.name, excluded)) continue
+    const abs = join(root, e.name)
     const hasAgendaSidecar =
-      (await pathExists(join(root, e.name, SIDECAR_FILENAME.taskConfig))) ||
-      (await pathExists(join(root, e.name, SIDECAR_FILENAME.eventConfig)))
-    const isPageType = sidecarMode
-      ? await pathExists(join(root, e.name, SIDECAR_FILENAME.pageType))
-      : true
-    // Agenda singletons are discovered but not surfaced. A task/event sidecar is
-    // authoritative; the conventional name applies only when the folder isn't an
-    // explicit PageType (so an adopted PageType named "Tasks" still surfaces).
+      (await pathExists(join(abs, SIDECAR_FILENAME.taskConfig))) ||
+      (await pathExists(join(abs, SIDECAR_FILENAME.eventConfig)))
     if (hasAgendaSidecar) continue
-    if (AGENDA_FOLDER_NAMES.has(e.name) && !(sidecarMode && isPageType)) continue
-    if (!isPageType) continue
-    allTypes.push(await readPageType(join(root, e.name), e.name, e.name, sidecarMode, excluded, fb))
+    const isCollection = sidecarMode ? await pathExists(join(abs, SIDECAR_FILENAME.collection)) : true
+    if (isCollection) allCollections.push(await readPageCollection(abs, e.name, e.name, sidecarMode, excluded, fb))
   }
-  const orderedTypes = resolveOrder(allTypes, asStringArray(state.vault_order), fb)
+  const orderedCollections = resolveOrder(allCollections, asStringArray(state.collection_order), fb)
 
-  // Partition into user sections vs ungrouped.
-  const rawSections = (sectionsConfig.sections as { id: string; label: string; vaultIDs?: string[] }[]) ?? []
+  // Partition into user sections vs ungrouped (sidebar-sections keys by `collectionIDs`).
+  const rawSections = (sectionsConfig.sections as { id: string; label: string; collectionIDs?: string[] }[]) ?? []
   const claimed = new Set<string>()
   const userSections: UserSection[] = rawSections.map((s) => {
-    const vaults = (s.vaultIDs ?? [])
-      .map((vid) => orderedTypes.find((t) => t.id === vid))
-      .filter((t): t is PageTypeNode => !!t)
-    vaults.forEach((v) => claimed.add(v.id))
-    return { id: s.id, label: s.label, vaults }
+    const collections = (s.collectionIDs ?? [])
+      .map((id) => orderedCollections.find((c) => c.id === id))
+      .filter((c): c is CollectionNode => !!c)
+    collections.forEach((c) => claimed.add(c.id))
+    return { id: s.id, label: s.label, collections }
   })
-  const vaults = orderedTypes.filter((t) => !claimed.has(t.id))
+  const collections = orderedCollections.filter((c) => !claimed.has(c.id))
 
   return {
-    nexus: { id, rootPath: root, name: basename(root), description, photo },
+    nexus: { id, rootPath: root, name: basename(root), profileImage, profileSubtitle },
     homepage: { banner: asString(homepageConfig.banner) },
     saved,
     contexts,
-    vaults,
+    collections,
     userSections,
     labels,
     accent

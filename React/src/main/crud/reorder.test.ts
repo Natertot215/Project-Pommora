@@ -5,7 +5,7 @@ import { join } from 'node:path'
 import { setStateOrder, setContainerOrder, setChildOrder } from './reorder'
 import { createFolderEntity } from './folderEntity'
 import { readSidecar } from '../sidecarIO'
-import { pageTypeSidecar, pageSetSidecar } from '@shared/schemas'
+import { pageCollectionSidecar, pageSetSidecar } from '@shared/schemas'
 import { nexusConfig, NEXUS_CONFIG_FILES } from '../paths'
 
 let root: string
@@ -22,26 +22,31 @@ async function readState(): Promise<Record<string, unknown>> {
 
 describe('setStateOrder', () => {
   it('persists a top-level order to .nexus/state.json (creating .nexus)', async () => {
-    await setStateOrder(root, 'vault_order', ['b', 'a', 'c'])
-    expect((await readState()).vault_order).toEqual(['b', 'a', 'c'])
+    await setStateOrder(root, 'collection_order', ['b', 'a', 'c'])
+    expect((await readState()).collection_order).toEqual(['b', 'a', 'c'])
   })
 
   it('does not clobber other state keys (read-modify-write)', async () => {
-    await setStateOrder(root, 'vault_order', ['a'])
+    await setStateOrder(root, 'collection_order', ['a'])
     await setStateOrder(root, 'area_order', ['x', 'y'])
     const state = await readState()
-    expect(state.vault_order).toEqual(['a'])
+    expect(state.collection_order).toEqual(['a'])
     expect(state.area_order).toEqual(['x', 'y'])
+  })
+
+  it('never persists adopted- placeholder ids', async () => {
+    await setStateOrder(root, 'collection_order', ['01ABC', 'adopted-deadbeef', '01XYZ'])
+    expect((await readState()).collection_order).toEqual(['01ABC', '01XYZ'])
   })
 })
 
 describe('setContainerOrder', () => {
   it('persists page_order to a container sidecar, preserving other keys', async () => {
-    const c = await createFolderEntity(root, 'pageType', 'Notes', { icon: 'box' })
+    const c = await createFolderEntity(root, 'collection', 'Notes', { icon: 'box' })
     if (!c.ok) throw new Error('setup failed')
-    const r = await setContainerOrder(c.value.path, 'pageType', pageTypeSidecar, 'page_order', ['p2', 'p1'])
+    const r = await setContainerOrder(c.value.path, 'collection', pageCollectionSidecar, 'page_order', ['p2', 'p1'])
     expect(r.ok).toBe(true)
-    expect(await readSidecar(c.value.path, 'pageType', pageTypeSidecar)).toMatchObject({
+    expect(await readSidecar(c.value.path, 'collection', pageCollectionSidecar)).toMatchObject({
       id: c.value.id,
       icon: 'box',
       page_order: ['p2', 'p1']
@@ -58,17 +63,26 @@ describe('setChildOrder', () => {
     expect(await readSidecar(s.value.path, 'set', pageSetSidecar)).toMatchObject({ page_order: ['p3', 'p1', 'p2'] })
   })
 
-  it('writes collection_order to a vault (pageType) sidecar', async () => {
-    const v = await createFolderEntity(root, 'pageType', 'Vault', { icon: 'box' })
-    if (!v.ok) throw new Error('setup failed')
-    const r = await setChildOrder(v.value.path, 'collection_order', ['c2', 'c1'])
+  it('writes set_order to a collection sidecar', async () => {
+    const c = await createFolderEntity(root, 'collection', 'Notes', { icon: 'box' })
+    if (!c.ok) throw new Error('setup failed')
+    const r = await setChildOrder(c.value.path, 'set_order', ['s2', 's1'])
     expect(r.ok).toBe(true)
-    expect(await readSidecar(v.value.path, 'pageType', pageTypeSidecar)).toMatchObject({ collection_order: ['c2', 'c1'] })
+    expect(await readSidecar(c.value.path, 'collection', pageCollectionSidecar)).toMatchObject({ set_order: ['s2', 's1'] })
   })
 
   it('is a tolerated no-op for a folder with no recognized sidecar', async () => {
     const raw = join(root, 'Raw')
     await mkdir(raw, { recursive: true })
     expect((await setChildOrder(raw, 'page_order', ['p1'])).ok).toBe(true)
+  })
+
+  it('strips adopted- placeholder ids before writing', async () => {
+    const c = await createFolderEntity(root, 'collection', 'Notes')
+    if (!c.ok) throw new Error('setup failed')
+    await setChildOrder(c.value.path, 'set_order', ['s1', 'adopted-cafe', 's2'])
+    expect(await readSidecar(c.value.path, 'collection', pageCollectionSidecar)).toMatchObject({
+      set_order: ['s1', 's2']
+    })
   })
 })

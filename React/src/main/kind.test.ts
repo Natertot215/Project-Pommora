@@ -22,8 +22,8 @@ async function folderWith(sidecarFile: string): Promise<string> {
 }
 
 describe('resolveKind', () => {
-  it('resolves a page type by its sidecar', async () => {
-    expect(await resolveKind(await folderWith(SIDECAR_FILENAME.pageType))).toBe('pageType')
+  it('resolves a page collection by its sidecar', async () => {
+    expect(await resolveKind(await folderWith(SIDECAR_FILENAME.collection))).toBe('collection')
   })
 
   it('resolves a context tier by its sidecar', async () => {

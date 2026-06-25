@@ -2,9 +2,9 @@
 // `buildIndex` flattens the tree into everything commit + the indicator need; `nextOrder`
 // computes a sibling group's new order after a drop.
 
-import type { CollectionNode, NexusTree, PageNode, PageTypeNode, SetNode } from '@shared/types'
+import type { CollectionNode, NexusTree, PageNode, SetNode } from '@shared/types'
 
-export type Kind = 'vault' | 'collection' | 'set' | 'page' | 'area' | 'topic' | 'project'
+export type Kind = 'collection' | 'set' | 'page' | 'area' | 'topic' | 'project'
 export type Entry = {
   id: string // the entry's own id (also its key in `byId`) — lets a row identify itself
   kind: Kind
@@ -13,41 +13,38 @@ export type Entry = {
   parentId: string | null
   parentPath: string | null
   pageIds: string[] // direct child pages in order ([] for non-containers)
-  containerIds: string[] // direct child containers in order — vault→collections, collection→sets ([] else)
+  containerIds: string[] // direct child Sets in order — Collection→sets, Set→sub-sets ([] else)
 }
 export type Index = {
   byId: Map<string, Entry>
   // Top-level reorder groups (ordered ids), persisted in `.nexus/state.json`.
-  vaultIds: string[]
+  collectionIds: string[]
   areaIds: string[]
   topicIds: string[]
   projectIds: string[]
 }
 
-/** Id-keyed index + top-level groups. Depths match the sidebar's rendered indent (vault 0 →
- *  its pages 1; nested deeper). Contexts are leaf rows at depth 1, nested under their tier
- *  disclosure (Areas / Topics / Projects) which sits at depth 0 below the Contexts heading. */
+/** Id-keyed index + top-level groups. Depths match the sidebar's rendered indent (Collection 0 →
+ *  its Sets 1 → Sub-Sets 2 …; pages one deeper than their container). Contexts are leaf rows at
+ *  depth 1, nested under their tier disclosure (Areas / Topics / Projects) at depth 0. */
 export function buildIndex(tree: NexusTree): Index {
   const byId = new Map<string, Entry>()
   const addPages = (pages: PageNode[], parentId: string, parentPath: string, depth: number): void => {
     for (const p of pages) byId.set(p.id, { id: p.id, kind: 'page', path: p.path, depth, parentId, parentPath, pageIds: [], containerIds: [] })
   }
   const walkSet = (s: SetNode, parentId: string, parentPath: string, depth: number): void => {
-    byId.set(s.id, { id: s.id, kind: 'set', path: s.path, depth, parentId, parentPath, pageIds: s.pages.map((p) => p.id), containerIds: [] })
+    const subs = s.sets ?? []
+    byId.set(s.id, { id: s.id, kind: 'set', path: s.path, depth, parentId, parentPath, pageIds: s.pages.map((p) => p.id), containerIds: subs.map((x) => x.id) })
     addPages(s.pages, s.id, s.path, depth + 1)
+    for (const sub of subs) walkSet(sub, s.id, s.path, depth + 1)
   }
-  const walkCollection = (c: CollectionNode, parentId: string, parentPath: string, depth: number): void => {
-    byId.set(c.id, { id: c.id, kind: 'collection', path: c.path, depth, parentId, parentPath, pageIds: c.pages.map((p) => p.id), containerIds: c.sets.map((s) => s.id) })
-    addPages(c.pages, c.id, c.path, depth + 1)
-    for (const s of c.sets) walkSet(s, c.id, c.path, depth + 1)
+  const walkCollection = (c: CollectionNode): void => {
+    byId.set(c.id, { id: c.id, kind: 'collection', path: c.path, depth: 0, parentId: null, parentPath: null, pageIds: c.pages.map((p) => p.id), containerIds: c.sets.map((s) => s.id) })
+    addPages(c.pages, c.id, c.path, 1)
+    for (const s of c.sets) walkSet(s, c.id, c.path, 1)
   }
-  const walkVault = (v: PageTypeNode): void => {
-    byId.set(v.id, { id: v.id, kind: 'vault', path: v.path, depth: 0, parentId: null, parentPath: null, pageIds: v.pages.map((p) => p.id), containerIds: v.collections.map((c) => c.id) })
-    addPages(v.pages, v.id, v.path, 1)
-    for (const c of v.collections) walkCollection(c, v.id, v.path, 1)
-  }
-  const vaults = [...tree.vaults, ...tree.userSections.flatMap((s) => s.vaults)]
-  for (const v of vaults) walkVault(v)
+  const collections = [...(tree.collections ?? []), ...tree.userSections.flatMap((s) => s.collections ?? [])]
+  for (const c of collections) walkCollection(c)
 
   const addContexts = (nodes: ReadonlyArray<{ id: string; path: string }>, kind: Kind): string[] => {
     for (const n of nodes) byId.set(n.id, { id: n.id, kind, path: n.path, depth: 1, parentId: null, parentPath: null, pageIds: [], containerIds: [] })
@@ -55,7 +52,7 @@ export function buildIndex(tree: NexusTree): Index {
   }
   return {
     byId,
-    vaultIds: vaults.map((v) => v.id),
+    collectionIds: collections.map((c) => c.id),
     areaIds: addContexts(tree.contexts.areas, 'area'),
     topicIds: addContexts(tree.contexts.topics, 'topic'),
     projectIds: addContexts(tree.contexts.projects, 'project')
@@ -90,11 +87,12 @@ export function slotInGroup(
   return { beforeId, edge: before ? over.top : over.bottom }
 }
 
-/** The collection a dragged set would land in, resolved from whatever row the pointer is over:
- *  the collection itself, a hovered set's parent collection, or a hovered page's collection.
- *  Returns null for anything not inside a collection (vault root, a context, the top level) —
- *  a set may never live there, so such a drop has no valid target. */
-export function collectionOf(entry: Entry, idx: Index): Entry | null {
+/** The container (Collection or Set) a dragged Set would join, resolved from whatever row the
+ *  pointer is over: the Collection/Set itself for a container header, a hovered Set's parent
+ *  (reorder beside it), or a hovered page's parent container. Returns null for a context — a Set
+ *  may only live inside a Collection or another Set. The caller guards against self/descendant
+ *  drops (cycles). */
+export function setContainerOf(entry: Entry, idx: Index): Entry | null {
   switch (entry.kind) {
     case 'collection':
       return entry
@@ -103,11 +101,20 @@ export function collectionOf(entry: Entry, idx: Index): Entry | null {
     case 'page': {
       const parent = entry.parentId ? idx.byId.get(entry.parentId) ?? null : null
       if (!parent) return null
-      if (parent.kind === 'collection') return parent
-      if (parent.kind === 'set') return parent.parentId ? idx.byId.get(parent.parentId) ?? null : null
-      return null // a page sitting at vault root → not inside a collection
+      return parent.kind === 'collection' || parent.kind === 'set' ? parent : null
     }
     default:
-      return null // vault / area / topic / project
+      return null // area / topic / project
   }
+}
+
+/** True when `targetId` is `ancestorId` itself or one of its descendants — walks parent links up
+ *  from the target. Blocks dropping a Set into its own subtree. */
+export function isSelfOrDescendant(targetId: string, ancestorId: string, idx: Index): boolean {
+  let cur: string | null = targetId
+  while (cur) {
+    if (cur === ancestorId) return true
+    cur = idx.byId.get(cur)?.parentId ?? null
+  }
+  return false
 }

@@ -47,9 +47,6 @@ const api = {
   titleMenu: (): Promise<'rename' | 'editIcon' | null> => ipcRenderer.invoke('nexus:titleMenu'),
   // Pop the table grip's native right-click menu → the chosen action (null if dismissed).
   tableMenu: (ctx: TableMenuContext): Promise<TableMenuAction | null> => ipcRenderer.invoke('table-menu', ctx),
-  // Persist a (cropped) PNG data URL to .nexus/photo.png + record it in nexus.json.
-  saveNexusPhoto: (dataUrl: string): Promise<{ ok: true } | { ok: false; error: string }> =>
-    ipcRenderer.invoke('nexus:saveNexusPhoto', dataUrl),
   // Rename the open nexus's root folder + re-point the live session to the new path.
   renameNexus: (newName: string): Promise<{ ok: true } | { ok: false; error: string }> =>
     ipcRenderer.invoke('nexus:rename', newName),

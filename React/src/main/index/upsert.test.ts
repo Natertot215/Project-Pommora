@@ -2,7 +2,6 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { openDb, type Db } from './db'
 import { applySchema } from './schema'
 import {
-  upsertPageType,
   upsertCollection,
   upsertSet,
   upsertPage,
@@ -27,39 +26,43 @@ const count = (table: string, where = '', ...args: unknown[]): number =>
   (db.prepare(`SELECT COUNT(*) c FROM ${table} ${where}`).get(...args) as { c: number }).c
 
 describe('entity upserts', () => {
-  it('writes the type→collection→set→page hierarchy with FKs + JSON properties', () => {
-    upsertPageType(db, { id: 'ty', title: 'Notes', modifiedAt: 'M' })
-    upsertCollection(db, { id: 'co', pageTypeId: 'ty', title: 'Coll', modifiedAt: 'M' })
-    upsertSet(db, { id: 'se', collectionId: 'co', title: 'Set', modifiedAt: 'M' })
+  it('writes the collection→set→sub-set→page hierarchy (Model A) with JSON properties', () => {
+    upsertCollection(db, { id: 'co', title: 'Coll', modifiedAt: 'M' })
+    upsertSet(db, { id: 'se', parentCollectionId: 'co', title: 'Set', modifiedAt: 'M' })
+    upsertSet(db, { id: 'sub', parentSetId: 'se', title: 'SubSet', modifiedAt: 'M' })
     upsertPage(db, {
       id: 'pg',
-      pageTypeId: 'ty',
       collectionId: 'co',
-      setId: 'se',
+      setId: 'sub',
       title: 'Page',
       properties: { prop_x: { $status: 'todo' } },
       modifiedAt: 'M'
     })
+    const set = one('SELECT * FROM page_sets WHERE id = ?', 'se')
+    expect(set.parent_collection_id).toBe('co')
+    expect(set.parent_set_id).toBeNull()
+    const sub = one('SELECT * FROM page_sets WHERE id = ?', 'sub')
+    expect(sub.parent_set_id).toBe('se')
+    expect(sub.parent_collection_id).toBeNull()
     const row = one('SELECT * FROM pages WHERE id = ?', 'pg')
-    expect(row.page_type_id).toBe('ty')
     expect(row.page_collection_id).toBe('co')
-    expect(row.page_set_id).toBe('se')
+    expect(row.page_set_id).toBe('sub')
     expect(JSON.parse(row.properties as string)).toEqual({ prop_x: { $status: 'todo' } })
   })
 
   it('is INSERT OR REPLACE (same id ⇒ one row, latest wins)', () => {
-    upsertPageType(db, { id: 'ty', title: 'Old', modifiedAt: 'M' })
-    upsertPageType(db, { id: 'ty', title: 'New', modifiedAt: 'M2' })
-    expect(count('page_types')).toBe(1)
-    expect(one('SELECT title FROM page_types WHERE id = ?', 'ty').title).toBe('New')
+    upsertCollection(db, { id: 'co', title: 'Old', modifiedAt: 'M' })
+    upsertCollection(db, { id: 'co', title: 'New', modifiedAt: 'M2' })
+    expect(count('page_collections')).toBe(1)
+    expect(one('SELECT title FROM page_collections WHERE id = ?', 'co').title).toBe('New')
   })
 
   it('writes contexts + property definitions', () => {
     upsertContext(db, { id: 'cx', tier: 1, title: 'Area' })
     upsertPropertyDefinition(db, {
       id: 'prop_x',
-      owningTypeId: 'ty',
-      owningTypeKind: 'page_type',
+      owningTypeId: 'co',
+      owningTypeKind: 'page_collection',
       name: 'Score',
       type: 'number',
       position: 0,

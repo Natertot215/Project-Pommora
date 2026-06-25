@@ -8,7 +8,6 @@ import type {
   CollectionNode,
   NexusTree,
   PageNode,
-  PageTypeNode,
   SelectionState,
   SetNode,
   TopicNode,
@@ -63,12 +62,12 @@ function RowTitle({ path, kind, title }: { path: string; kind: MutableKind; titl
 
 // --- selection helpers ----------------------------------------------------
 
-function isVaultSelected(sel: SelectionState, id: string): boolean {
-  return sel.kind === 'vault' && sel.id === id
-}
-
 function isCollectionSelected(sel: SelectionState, id: string): boolean {
   return sel.kind === 'collection' && sel.id === id
+}
+
+function isSetSelected(sel: SelectionState, id: string): boolean {
+  return sel.kind === 'set' && sel.id === id
 }
 
 function isPageSelected(sel: SelectionState, id: string): boolean {
@@ -259,8 +258,8 @@ function PageRow({
 }
 
 // Shared container header — folder-aware icon + drop-target registration + the
-// Disclosure shell. SetRow / CollectionRow / VaultRow differ only in default icon,
-// children, and (vault only) selection.
+// Disclosure shell. CollectionRow / SetRow differ only in default icon, children,
+// and which selection they carry.
 function ContainerRow({
   node,
   defaultIcon,
@@ -296,9 +295,20 @@ function ContainerRow({
   )
 }
 
-function SetRow({ set, depth, selection, onSelectPage }: { set: SetNode; depth: number; selection: SelectionState; onSelectPage: (page: PageNode) => void }): React.JSX.Element {
+// A Set row. Only depth-1 Sets (direct children of a Collection, `selectable`) open a view; deeper
+// Sub-Sets are expand-only organizing folders. Renders its sub-sets recursively, then its pages.
+function SetRow({ set, depth, selectable, selection, onSelectSet, onSelectPage }: { set: SetNode; depth: number; selectable: boolean; selection: SelectionState; onSelectSet: (set: SetNode) => void; onSelectPage: (page: PageNode) => void }): React.JSX.Element {
   return (
-    <ContainerRow node={set} defaultIcon="folder-closed" depth={depth}>
+    <ContainerRow
+      node={set}
+      defaultIcon="folder-closed"
+      depth={depth}
+      selected={selectable && isSetSelected(selection, set.id)}
+      onSelect={selectable ? () => onSelectSet(set) : undefined}
+    >
+      {(set.sets ?? []).map((s) => (
+        <SetRow key={s.id} set={s} depth={depth + 1} selectable={false} selection={selection} onSelectSet={onSelectSet} onSelectPage={onSelectPage} />
+      ))}
       {set.pages.map((p) => (
         <PageRow key={p.id} page={p} depth={depth + 1} selection={selection} onSelectPage={onSelectPage} />
       ))}
@@ -306,26 +316,15 @@ function SetRow({ set, depth, selection, onSelectPage }: { set: SetNode; depth: 
   )
 }
 
-function CollectionRow({ col, depth, selection, onSelectCollection, onSelectPage }: { col: CollectionNode; depth: number; selection: SelectionState; onSelectCollection: (col: CollectionNode) => void; onSelectPage: (page: PageNode) => void }): React.JSX.Element {
+// A top-level Collection — the schema-bearing container (Swift: PageCollection). Its direct Sets
+// render as selectable depth-1 rows; its loose pages follow.
+function CollectionRow({ col, depth, selection, onSelectCollection, onSelectSet, onSelectPage }: { col: CollectionNode; depth: number; selection: SelectionState; onSelectCollection: (col: CollectionNode) => void; onSelectSet: (set: SetNode) => void; onSelectPage: (page: PageNode) => void }): React.JSX.Element {
   return (
-    <ContainerRow node={col} defaultIcon="folder-closed" depth={depth} selected={isCollectionSelected(selection, col.id)} onSelect={() => onSelectCollection(col)}>
+    <ContainerRow node={col} defaultIcon="gallery-vertical-end" depth={depth} selected={isCollectionSelected(selection, col.id)} onSelect={() => onSelectCollection(col)}>
       {col.sets.map((s) => (
-        <SetRow key={s.id} set={s} depth={depth + 1} selection={selection} onSelectPage={onSelectPage} />
+        <SetRow key={s.id} set={s} depth={depth + 1} selectable selection={selection} onSelectSet={onSelectSet} onSelectPage={onSelectPage} />
       ))}
       {col.pages.map((p) => (
-        <PageRow key={p.id} page={p} depth={depth + 1} selection={selection} onSelectPage={onSelectPage} />
-      ))}
-    </ContainerRow>
-  )
-}
-
-function VaultRow({ vault, depth, selection, onSelectVault, onSelectCollection, onSelectPage }: { vault: PageTypeNode; depth: number; selection: SelectionState; onSelectVault: (vault: PageTypeNode) => void; onSelectCollection: (col: CollectionNode) => void; onSelectPage: (page: PageNode) => void }): React.JSX.Element {
-  return (
-    <ContainerRow node={vault} defaultIcon="gallery-vertical-end" depth={depth} selected={isVaultSelected(selection, vault.id)} onSelect={() => onSelectVault(vault)}>
-      {vault.collections.map((c) => (
-        <CollectionRow key={c.id} col={c} depth={depth + 1} selection={selection} onSelectCollection={onSelectCollection} onSelectPage={onSelectPage} />
-      ))}
-      {vault.pages.map((p) => (
         <PageRow key={p.id} page={p} depth={depth + 1} selection={selection} onSelectPage={onSelectPage} />
       ))}
     </ContainerRow>
@@ -382,14 +381,14 @@ function SectionHeader({ label, onAdd }: { label: string; onAdd?: () => void }):
 export function Sidebar({ tree }: { tree: NexusTree }): React.JSX.Element {
   const selection = useSession((s) => s.selection)
   const select = useSession((s) => s.select)
-  const newVault = useSession((s) => s.newVault)
+  const newCollection = useSession((s) => s.newCollection)
   const mutate = useSession((s) => s.mutate)
 
-  const onSelectVault = (vault: PageTypeNode): void => {
-    void select({ kind: 'vault', id: vault.id })
-  }
   const onSelectCollection = (col: CollectionNode): void => {
     void select({ kind: 'collection', id: col.id })
+  }
+  const onSelectSet = (set: SetNode): void => {
+    void select({ kind: 'set', id: set.id, path: set.path })
   }
   const onSelectPage = (page: PageNode): void => {
     void select({ kind: 'page', id: page.id, path: page.path })
@@ -411,7 +410,7 @@ export function Sidebar({ tree }: { tree: NexusTree }): React.JSX.Element {
     <nav className="sidebar">
       {/* Nexus header. Calendar/Recents stubs are hidden until a later UIX pass. */}
       <div className="section">
-        <NexusHeader name={tree.nexus.name} description={tree.nexus.description} photo={tree.nexus.photo} />
+        <NexusHeader name={tree.nexus.name} profileImage={tree.nexus.profileImage} profileSubtitle={tree.nexus.profileSubtitle} />
       </div>
 
       {/* Drag to reorder any entity within its parent heading (or a page across folders); an
@@ -421,17 +420,17 @@ export function Sidebar({ tree }: { tree: NexusTree }): React.JSX.Element {
             the header "+" pops a picker to create any tier. */}
         <div className="section">
           <SectionHeader label="Contexts" onAdd={newContext} />
-          <TierDisclosure tierKey="areas" label={tree.labels.areas}>
+          <TierDisclosure tierKey="areas" label={tree.labels.sidebarSections.areas}>
             {tree.contexts.areas.map((a: AreaNode) => (
               <ContextRow key={a.id} node={a} swatch={a.color} />
             ))}
           </TierDisclosure>
-          <TierDisclosure tierKey="topics" label={tree.labels.topics}>
+          <TierDisclosure tierKey="topics" label={tree.labels.sidebarSections.topics}>
             {tree.contexts.topics.map((t: TopicNode) => (
               <ContextRow key={t.id} node={t} />
             ))}
           </TierDisclosure>
-          <TierDisclosure tierKey="projects" label={tree.labels.projects}>
+          <TierDisclosure tierKey="projects" label={tree.labels.project.plural}>
             {tree.contexts.projects.map((p: ProjectNode) => (
               <ContextRow key={p.id} node={p} />
             ))}
@@ -439,15 +438,15 @@ export function Sidebar({ tree }: { tree: NexusTree }): React.JSX.Element {
         </div>
 
         <div className="section">
-          <SectionHeader label={tree.labels.vaults} onAdd={newVault} />
-          {tree.vaults.map((v) => (
-            <VaultRow
-              key={v.id}
-              vault={v}
+          <SectionHeader label={tree.labels.sidebarSections.pages} onAdd={newCollection} />
+          {(tree.collections ?? []).map((c) => (
+            <CollectionRow
+              key={c.id}
+              col={c}
               depth={0}
               selection={selection}
-              onSelectVault={onSelectVault}
               onSelectCollection={onSelectCollection}
+              onSelectSet={onSelectSet}
               onSelectPage={onSelectPage}
             />
           ))}
@@ -456,14 +455,14 @@ export function Sidebar({ tree }: { tree: NexusTree }): React.JSX.Element {
         {tree.userSections.map((sec) => (
           <div className="section" key={sec.id}>
             <SectionHeader label={sec.label} />
-            {sec.vaults.map((v) => (
-              <VaultRow
-                key={v.id}
-                vault={v}
+            {(sec.collections ?? []).map((c) => (
+              <CollectionRow
+                key={c.id}
+                col={c}
                 depth={0}
                 selection={selection}
-                onSelectVault={onSelectVault}
                 onSelectCollection={onSelectCollection}
+                onSelectSet={onSelectSet}
                 onSelectPage={onSelectPage}
               />
             ))}

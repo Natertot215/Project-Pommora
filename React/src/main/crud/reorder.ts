@@ -9,28 +9,34 @@ import type { z } from 'zod'
 import { mutateJson, pathExists } from '../io/atomicWrite'
 import { nexusDir, nexusConfig, NEXUS_CONFIG_FILES, SIDECAR_FILENAME, type SidecarKind } from '../paths'
 import { updateFolderSidecar } from './folderEntity'
-import { pageTypeSidecar, pageCollectionSidecar, pageSetSidecar } from '@shared/schemas'
+import { pageCollectionSidecar, pageSetSidecar } from '@shared/schemas'
 import { ok, type Result } from '@shared/result'
 import type { StateOrderKey, ChildOrderKey } from '@shared/mutate'
 
-// `StateOrderKey` (vaults + tiers) is the shared IPC type. The within-container keys add
+// `StateOrderKey` (top Collections + tiers) is the shared IPC type. The within-container keys add
 // `page_order` (written on a page move, never a reorderChildren) onto the shared child keys.
 export type { StateOrderKey }
 export type ContainerOrderKey = ChildOrderKey | 'page_order'
 
-/** Persist a top-level order (vaults or a context tier) to .nexus/state.json. */
+// Adopted-placeholder ids (`adopted-<hash>`) are in-memory only — the open-time adopter
+// stamps a real ULID before any write captures them. Strip them so a transient id never
+// lands in a persisted order array (and re-stamps to a fresh ULID, breaking continuity).
+const persistable = (ids: string[]): string[] => ids.filter((id) => !id.startsWith('adopted-'))
+
+/** Persist a top-level order (top Collections or a context tier) to .nexus/state.json. */
 export async function setStateOrder(
   nexusRoot: string,
   key: StateOrderKey,
   ids: string[]
 ): Promise<Result<string[]>> {
+  const clean = persistable(ids)
   await mkdir(nexusDir(nexusRoot), { recursive: true })
   await mutateJson<Record<string, unknown>>(
     nexusConfig(nexusRoot, NEXUS_CONFIG_FILES.state),
     () => ({}),
-    (state) => ({ ...state, [key]: ids })
+    (state) => ({ ...state, [key]: clean })
   )
-  return ok(ids)
+  return ok(clean)
 }
 
 /** Persist a within-container order (collections/sets/pages) to the container sidecar,
@@ -42,14 +48,13 @@ export async function setContainerOrder<S extends z.ZodType>(
   key: ContainerOrderKey,
   ids: string[]
 ): Promise<Result<z.infer<S>>> {
-  return updateFolderSidecar(absFolder, kind, schema, { [key]: ids } as Partial<z.infer<S>>)
+  return updateFolderSidecar(absFolder, kind, schema, { [key]: persistable(ids) } as Partial<z.infer<S>>)
 }
 
 // The container folder kinds, detected by which sidecar exists on disk — so an order
-// (page_order on any; collection_order on a vault; set_order on a collection) persists with
-// one call regardless of the parent's kind.
+// (page_order on either; set_order on a Collection or a Set) persists with one call
+// regardless of the parent's kind.
 const CONTAINER_SIDECARS = [
-  { kind: 'pageType' as const, schema: pageTypeSidecar },
   { kind: 'collection' as const, schema: pageCollectionSidecar },
   { kind: 'set' as const, schema: pageSetSidecar }
 ]

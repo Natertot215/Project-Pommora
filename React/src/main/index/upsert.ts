@@ -16,26 +16,12 @@ function upsertRow(db: Db, table: string, row: Record<string, string | number | 
 
 const json = (v: unknown): string => JSON.stringify(v ?? {})
 
-export function upsertPageType(
+export function upsertCollection(
   db: Db,
   r: { id: string; title: string; icon?: string; modifiedAt: string; schemaVersion?: number }
 ): void {
-  upsertRow(db, 'page_types', {
-    id: r.id,
-    title: r.title,
-    icon: r.icon ?? null,
-    modified_at: r.modifiedAt,
-    schema_version: r.schemaVersion ?? 1
-  })
-}
-
-export function upsertCollection(
-  db: Db,
-  r: { id: string; pageTypeId: string; title: string; icon?: string; modifiedAt: string; schemaVersion?: number }
-): void {
   upsertRow(db, 'page_collections', {
     id: r.id,
-    page_type_id: r.pageTypeId,
     title: r.title,
     icon: r.icon ?? null,
     modified_at: r.modifiedAt,
@@ -43,13 +29,23 @@ export function upsertCollection(
   })
 }
 
+/** A Set references exactly one parent: a Collection (depth-1) XOR another Set (deeper). */
 export function upsertSet(
   db: Db,
-  r: { id: string; collectionId: string; title: string; icon?: string; modifiedAt: string; schemaVersion?: number }
+  r: {
+    id: string
+    parentCollectionId?: string
+    parentSetId?: string
+    title: string
+    icon?: string
+    modifiedAt: string
+    schemaVersion?: number
+  }
 ): void {
   upsertRow(db, 'page_sets', {
     id: r.id,
-    page_collection_id: r.collectionId,
+    parent_collection_id: r.parentCollectionId ?? null,
+    parent_set_id: r.parentSetId ?? null,
     title: r.title,
     icon: r.icon ?? null,
     modified_at: r.modifiedAt,
@@ -61,8 +57,7 @@ export function upsertPage(
   db: Db,
   r: {
     id: string
-    pageTypeId: string
-    collectionId?: string
+    collectionId: string
     setId?: string
     title: string
     icon?: string
@@ -72,8 +67,7 @@ export function upsertPage(
 ): void {
   upsertRow(db, 'pages', {
     id: r.id,
-    page_type_id: r.pageTypeId,
-    page_collection_id: r.collectionId ?? null,
+    page_collection_id: r.collectionId,
     page_set_id: r.setId ?? null,
     title: r.title,
     icon: r.icon ?? null,

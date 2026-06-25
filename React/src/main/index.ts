@@ -7,12 +7,13 @@ import type { MutateRequest, MutateResult, ContextTarget } from '@shared/mutate'
 import { WINDOW_BG } from '@shared/theme'
 import { readNexus } from './readNexus'
 import { readPage } from './readPage'
-import { atomicWriteBinary, mutateJson, pathExists } from './io/atomicWrite'
-import { nexusConfig, nexusDir, NEXUS_CONFIG_FILES } from './paths'
-import { newId } from './ids'
+import { pathExists } from './io/atomicWrite'
 import { readAppConfig, writeAppConfig, addRecent, DEFAULT_TRASH_MODE } from './appConfig'
 import { sessionRoot, openSession, resolveRestorePath, isExistingDir } from './session'
 import { openSessionIndex, closeSessionIndex } from './sessionIndex'
+import { stampAdopted } from './adopt'
+import { ensureIdentity } from './identity'
+import { ensureSettings } from './settings'
 import { startWatcher, stopWatcher } from './watcher'
 import { resolveUnderRoot } from './pathSafety'
 import { updatePageBody } from './crud/page'
@@ -169,10 +170,33 @@ ipcMain.handle('nexus:state', async (): Promise<NexusState> => {
   }
 })
 
+// Open-time prep shared by EVERY path that opens a nexus (explicit open + launch-restore),
+// run after openSession and before the index reads anything:
+//   1. Ensure `.nexus/nexus.json` + `settings.json` exist in Swift's shape (matches Swift's
+//      eager create-on-open) — identity flips a raw folder into sidecar mode; a full settings
+//      file keeps Swift's decoder from reseeding (losing data) when it later opens the folder.
+//   2. Stamp any un-adopted entity (raw folder / externally-authored page) with a real ULID so
+//      the index + every later write capture a stable id, not a transient `adopted-` placeholder.
+// Best-effort: a failure here must never block opening the folder.
+async function prepareOpenedNexus(path: string): Promise<void> {
+  try {
+    await ensureIdentity(path)
+    await ensureSettings(path)
+  } catch (e) {
+    console.error('ensure config-on-open failed:', e)
+  }
+  try {
+    await stampAdopted(path)
+  } catch (e) {
+    console.error('Adopt/stamp pass failed:', e)
+  }
+}
+
 // Open a chosen nexus folder: make it the session, persist it as last-opened, and
 // push it onto the recents (deduped, capped) + the OS Recent Documents list.
 async function adoptNexus(path: string): Promise<void> {
   openSession(path)
+  await prepareOpenedNexus(path)
   // Open (cold-build if needed) the index for the new session. Best-effort + off the read
   // path — the renderer's tree comes from readNexus, so a null index just means no live
   // query acceleration until the next rebuild. Replaces any prior session's handle.
@@ -457,22 +481,6 @@ ipcMain.handle('table-menu', async (e, ctx: TableMenuContext) => {
   return win ? popTableMenu(win, ctx) : null
 })
 
-// Persist a cropped PNG data URL: write .nexus/photo.png atomically, then record
-// `photo: "photo.png"` in nexus.json. Never throws across the boundary.
-ipcMain.handle('nexus:saveNexusPhoto', async (_e, dataUrl: string): Promise<{ ok: true } | { ok: false; error: string }> => {
-  const root = sessionRoot()
-  if (root === null) return { ok: false, error: 'No nexus is open.' }
-  try {
-    const m = /^data:image\/png;base64,(.+)$/s.exec(dataUrl)
-    if (!m) return { ok: false, error: 'Invalid image data.' }
-    const buf = Buffer.from(m[1], 'base64')
-    await atomicWriteBinary(join(nexusDir(root), 'photo.png'), buf)
-    await mutateJson<Record<string, unknown>>(nexusConfig(root, NEXUS_CONFIG_FILES.identity), () => ({ id: newId() }), (cur) => ({ ...cur, photo: 'photo.png' }))
-    return { ok: true }
-  } catch (err) {
-    return { ok: false, error: err instanceof Error ? err.message : String(err) }
-  }
-})
 
 // Rename the OPEN nexus's ROOT folder within its parent dir, then RE-POINT the live session
 // to the new path. A dedicated IPC (not a mutate op) because it re-targets the whole session:
@@ -512,6 +520,7 @@ app
       const restore = await resolveRestorePath(config)
       if (restore) {
         openSession(restore)
+        await prepareOpenedNexus(restore) // same ensure+stamp prep as an explicit open
         await openSessionIndex(restore)
       }
     } catch (e) {

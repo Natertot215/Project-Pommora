@@ -8,8 +8,9 @@ import {
 } from '@tanstack/react-table'
 import type {
   CollectionNode,
-  PageTypeNode,
+  PageNode,
   SelectionState,
+  SetNode,
   ViewRow
 } from '@shared/types'
 import { resolveView } from './pipeline'
@@ -18,24 +19,18 @@ import { useSession } from '../../store'
 // --- row flattening -------------------------------------------------------
 
 /**
- * Flatten a vault's pages (its own + every collection and set) into the
+ * Flatten a container's pages (its own + every nested Set, any depth) into the
  * pipeline's ViewRow shape. The loaded NexusTree carries only intrinsic
  * PageNode fields, so `frontmatter` is absent today — property columns light
  * up automatically once a stage populates it (see ViewRow doc in @shared/types).
  */
-function collectionRows(col: CollectionNode): ViewRow[] {
+function flattenRows(node: CollectionNode | SetNode): ViewRow[] {
   const rows: ViewRow[] = []
-  for (const set of col.sets) {
-    for (const p of set.pages) rows.push({ id: p.id, title: p.title, icon: p.icon, path: p.path })
+  const walk = (n: { pages: PageNode[]; sets?: SetNode[] }): void => {
+    for (const p of n.pages) rows.push({ id: p.id, title: p.title, icon: p.icon, path: p.path })
+    for (const s of n.sets ?? []) walk(s)
   }
-  for (const p of col.pages) rows.push({ id: p.id, title: p.title, icon: p.icon, path: p.path })
-  return rows
-}
-
-function vaultRows(vault: PageTypeNode): ViewRow[] {
-  const rows: ViewRow[] = []
-  for (const col of vault.collections) rows.push(...collectionRows(col))
-  for (const p of vault.pages) rows.push({ id: p.id, title: p.title, icon: p.icon, path: p.path })
+  walk(node)
   return rows
 }
 
@@ -72,15 +67,14 @@ function cellText(v: unknown): string {
 
 const column = createColumnHelper<ViewRow>()
 
-export function TableView({ source }: { source: PageTypeNode | CollectionNode }): React.JSX.Element {
+export function TableView({ source }: { source: CollectionNode | SetNode }): React.JSX.Element {
   const selection = useSession((s) => s.selection)
   const select = useSession((s) => s.select)
 
   // Sort by title (asc) in one implicit group — read-only ordering via the pure pipeline.
-  // resolveView never mutates its input. A vault flattens its collections + sets too; a
-  // collection flattens its own sets + direct pages.
+  // resolveView never mutates its input. The container flattens its own pages + every nested Set.
   const rows = useMemo<ViewRow[]>(() => {
-    const flat = source.kind === 'pageType' ? vaultRows(source) : collectionRows(source)
+    const flat = flattenRows(source)
     const groups = resolveView(flat, { sort: { field: 'title', direction: 'asc' } })
     return groups.flatMap((g) => g.rows)
   }, [source])

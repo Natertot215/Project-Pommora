@@ -1,33 +1,32 @@
 import { describe, it, expect } from 'vitest'
-import { buildIndex, nextOrder, collectionOf, slotInGroup, type Entry, type MeasuredRow } from './sidebarDndModel'
-import type { AreaNode, NexusTree, PageTypeNode } from '@shared/types'
+import { buildIndex, nextOrder, setContainerOf, isSelfOrDescendant, slotInGroup, type Entry, type MeasuredRow } from './sidebarDndModel'
+import type { AreaNode, CollectionNode, NexusTree } from '@shared/types'
 
-// 1 vault → (1 collection → 1 set [P1, P2] + loose P3) + loose P4, plus two Areas (contexts).
-const vaults: PageTypeNode[] = [
+// 1 Collection → (loose page P3) + Set s1 [P1, P2] → Sub-Set s2 [P5], plus two Areas (contexts).
+const collections: CollectionNode[] = [
   {
-    id: 'v1',
-    kind: 'pageType',
-    title: 'Vault',
-    path: 'Vault',
-    pages: [{ id: 'p4', kind: 'page', title: 'P4', path: 'Vault/P4.md' }],
-    collections: [
+    id: 'c1',
+    kind: 'collection',
+    title: 'Col',
+    path: 'Col',
+    pages: [{ id: 'p3', kind: 'page', title: 'P3', path: 'Col/P3.md' }],
+    sets: [
       {
-        id: 'c1',
-        kind: 'collection',
-        title: 'Col',
-        path: 'Vault/Col',
-        pages: [{ id: 'p3', kind: 'page', title: 'P3', path: 'Vault/Col/P3.md' }],
+        id: 's1',
+        kind: 'set',
+        title: 'Set',
+        path: 'Col/Set',
+        pages: [
+          { id: 'p1', kind: 'page', title: 'P1', path: 'Col/Set/P1.md' },
+          { id: 'p2', kind: 'page', title: 'P2', path: 'Col/Set/P2.md' }
+        ],
         sets: [
           {
-            id: 's1',
+            id: 's2',
             kind: 'set',
-            title: 'Set',
-            path: 'Vault/Col/Set',
-            selectable: false,
-            pages: [
-              { id: 'p1', kind: 'page', title: 'P1', path: 'Vault/Col/Set/P1.md' },
-              { id: 'p2', kind: 'page', title: 'P2', path: 'Vault/Col/Set/P2.md' }
-            ]
+            title: 'Sub',
+            path: 'Col/Set/Sub',
+            pages: [{ id: 'p5', kind: 'page', title: 'P5', path: 'Col/Set/Sub/P5.md' }]
           }
         ]
       }
@@ -38,22 +37,22 @@ const areas: AreaNode[] = [
   { id: 'a1', kind: 'area', title: 'Work', path: '.nexus/areas/Work' },
   { id: 'a2', kind: 'area', title: 'Home', path: '.nexus/areas/Home' }
 ]
-const tree = { vaults, userSections: [], contexts: { areas, topics: [], projects: [] } } as unknown as NexusTree
+const tree = { collections, userSections: [], contexts: { areas, topics: [], projects: [] } } as unknown as NexusTree
 
 describe('buildIndex', () => {
   const idx = buildIndex(tree)
   it('indexes containers with child page ids, child container ids + render depth', () => {
-    expect(idx.byId.get('v1')).toMatchObject({ kind: 'vault', depth: 0, pageIds: ['p4'], containerIds: ['c1'] })
-    expect(idx.byId.get('c1')).toMatchObject({ kind: 'collection', depth: 1, pageIds: ['p3'], containerIds: ['s1'] })
-    expect(idx.byId.get('s1')).toMatchObject({ kind: 'set', depth: 2, pageIds: ['p1', 'p2'], containerIds: [] })
+    expect(idx.byId.get('c1')).toMatchObject({ kind: 'collection', depth: 0, pageIds: ['p3'], containerIds: ['s1'] })
+    expect(idx.byId.get('s1')).toMatchObject({ kind: 'set', depth: 1, pageIds: ['p1', 'p2'], containerIds: ['s2'] })
+    expect(idx.byId.get('s2')).toMatchObject({ kind: 'set', depth: 2, pageIds: ['p5'], containerIds: [] })
   })
   it('indexes pages with their parent container + render depth', () => {
-    expect(idx.byId.get('p1')).toMatchObject({ kind: 'page', depth: 3, parentId: 's1', parentPath: 'Vault/Col/Set' })
-    expect(idx.byId.get('p3')).toMatchObject({ kind: 'page', depth: 2, parentId: 'c1', parentPath: 'Vault/Col' })
-    expect(idx.byId.get('p4')).toMatchObject({ kind: 'page', depth: 1, parentId: 'v1', parentPath: 'Vault' })
+    expect(idx.byId.get('p1')).toMatchObject({ kind: 'page', depth: 2, parentId: 's1', parentPath: 'Col/Set' })
+    expect(idx.byId.get('p3')).toMatchObject({ kind: 'page', depth: 1, parentId: 'c1', parentPath: 'Col' })
+    expect(idx.byId.get('p5')).toMatchObject({ kind: 'page', depth: 3, parentId: 's2', parentPath: 'Col/Set/Sub' })
   })
   it('exposes top-level groups + indexes contexts as depth-1 leaves (nested under their tier)', () => {
-    expect(idx.vaultIds).toEqual(['v1'])
+    expect(idx.collectionIds).toEqual(['c1'])
     expect(idx.areaIds).toEqual(['a1', 'a2'])
     expect(idx.byId.get('a1')).toMatchObject({ kind: 'area', depth: 1, parentId: null })
   })
@@ -77,23 +76,34 @@ describe('nextOrder', () => {
   })
 })
 
-describe('collectionOf — the collection a dragged set resolves into', () => {
+describe('setContainerOf — the container a dragged Set resolves into', () => {
   const idx = buildIndex(tree)
   const get = (k: string): Entry => {
     const e = idx.byId.get(k)
     if (!e) throw new Error(`no entry ${k}`)
     return e
   }
-  it('resolves a collection / a set / a page down to its collection', () => {
-    expect(collectionOf(get('c1'), idx)?.path).toBe('Vault/Col') // the collection itself
-    expect(collectionOf(get('s1'), idx)?.path).toBe('Vault/Col') // a set → its parent collection
-    expect(collectionOf(get('p3'), idx)?.path).toBe('Vault/Col') // a page in the collection
-    expect(collectionOf(get('p1'), idx)?.path).toBe('Vault/Col') // a page in a set → set's collection
+  it('resolves a container header to itself, a hovered Set to its parent, a page to its parent container', () => {
+    expect(setContainerOf(get('c1'), idx)?.path).toBe('Col') // the Collection itself
+    expect(setContainerOf(get('s1'), idx)?.path).toBe('Col') // a depth-1 Set → its parent Collection
+    expect(setContainerOf(get('s2'), idx)?.path).toBe('Col/Set') // a Sub-Set → its parent Set
+    expect(setContainerOf(get('p3'), idx)?.path).toBe('Col') // a Collection-loose page → the Collection
+    expect(setContainerOf(get('p1'), idx)?.path).toBe('Col/Set') // a page in a Set → that Set
   })
-  it('returns null for rows not inside a collection (vault-root page, vault, context)', () => {
-    expect(collectionOf(get('p4'), idx)).toBeNull() // a page sitting at vault root
-    expect(collectionOf(get('v1'), idx)).toBeNull() // a vault
-    expect(collectionOf(get('a1'), idx)).toBeNull() // a context (area)
+  it('returns null for a context row (a Set may not live there)', () => {
+    expect(setContainerOf(get('a1'), idx)).toBeNull()
+  })
+})
+
+describe('isSelfOrDescendant — cycle guard for Set reparenting', () => {
+  const idx = buildIndex(tree)
+  it('flags a target that is the dragged Set itself or one of its descendants', () => {
+    expect(isSelfOrDescendant('s1', 's1', idx)).toBe(true) // self
+    expect(isSelfOrDescendant('s2', 's1', idx)).toBe(true) // s2 is a descendant of s1
+  })
+  it('allows an unrelated target', () => {
+    expect(isSelfOrDescendant('c1', 's1', idx)).toBe(false) // the Collection is an ancestor, not a descendant
+    expect(isSelfOrDescendant('s1', 's2', idx)).toBe(false) // s1 is not under s2
   })
 })
 

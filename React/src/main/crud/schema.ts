@@ -10,7 +10,7 @@
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { z } from 'zod'
-import { pageTypeSidecar, agendaConfigSidecar } from '@shared/schemas'
+import { pageCollectionSidecar, agendaConfigSidecar } from '@shared/schemas'
 import { defaultStatusSeed, type PropertyDefinition, type PropertyType } from '@shared/properties'
 import { isPlainObject } from '@shared/propertyValue'
 import { AGENDA_SUFFIX, type AgendaKind } from '@shared/agenda'
@@ -33,6 +33,9 @@ type Sidecar = Record<string, unknown>
 interface SchemaTarget {
   kind: SidecarKind
   schema: z.ZodType
+  /** The sidecar JSON key holding the schema array. Collections use Swift's `properties`;
+   *  agenda configs use `property_definitions`. */
+  schemaKey: string
   members: (folder: string) => Promise<string[]>
   /** Stripped content, or null if the member doesn't carry the property (skip it). */
   strip: (content: string, propertyId: string) => string | null
@@ -65,8 +68,9 @@ function stripAgendaMember(content: string, propertyId: string): string | null {
 }
 
 const PAGE_TARGET: SchemaTarget = {
-  kind: 'pageType',
-  schema: pageTypeSidecar,
+  kind: 'collection',
+  schema: pageCollectionSidecar,
+  schemaKey: 'properties',
   members: (folder) => listMarkdownFiles(folder),
   strip: stripPageMember
 }
@@ -75,6 +79,7 @@ function agendaTarget(kind: AgendaKind): SchemaTarget {
   return {
     kind: kind === 'task' ? 'taskConfig' : 'eventConfig',
     schema: agendaConfigSidecar,
+    schemaKey: 'property_definitions',
     members: (folder) => listFilesBySuffix(folder, AGENDA_SUFFIX[kind]),
     strip: stripAgendaMember
   }
@@ -85,12 +90,12 @@ function agendaTarget(kind: AgendaKind): SchemaTarget {
 async function readSchema(target: SchemaTarget, folder: string): Promise<{ sidecar: Sidecar; defs: PropertyDefinition[] } | null> {
   const sidecar = await readSidecar(folder, target.kind, target.schema)
   if (sidecar === null) return null
-  const defs = droppingUserRelations(parseDefinitions((sidecar as Sidecar).property_definitions))
+  const defs = droppingUserRelations(parseDefinitions((sidecar as Sidecar)[target.schemaKey]))
   return { sidecar: sidecar as Sidecar, defs }
 }
 
-function nextSidecar(sidecar: Sidecar, defs: PropertyDefinition[]): Sidecar {
-  return { ...sidecar, property_definitions: defs, modified_at: nowIso() }
+function nextSidecar(sidecar: Sidecar, defs: PropertyDefinition[], schemaKey: string): Sidecar {
+  return { ...sidecar, [schemaKey]: defs, modified_at: nowIso() }
 }
 
 async function stageMemberStrips(tx: SchemaTransaction, target: SchemaTarget, folder: string, propertyId: string): Promise<void> {
@@ -115,7 +120,7 @@ async function addProp(target: SchemaTarget, folder: string, def: PropertyDefini
   }
   const v = validateDefinition(candidate, s.defs)
   if (!v.ok) return v
-  await writeSidecar(folder, target.kind, nextSidecar(s.sidecar, [...s.defs, candidate]))
+  await writeSidecar(folder, target.kind, nextSidecar(s.sidecar, [...s.defs, candidate], target.schemaKey))
   return ok({ id: candidate.id })
 }
 
@@ -127,7 +132,7 @@ async function renameProp(target: SchemaTarget, folder: string, propertyId: stri
   const v = validateName(newName, s.defs, propertyId)
   if (!v.ok) return v
   const next = s.defs.map((d, i) => (i === idx ? { ...d, name: newName } : d))
-  await writeSidecar(folder, target.kind, nextSidecar(s.sidecar, next))
+  await writeSidecar(folder, target.kind, nextSidecar(s.sidecar, next, target.schemaKey))
   return ok(null)
 }
 
@@ -141,7 +146,7 @@ async function reorderProp(target: SchemaTarget, folder: string, propertyId: str
   const next = [...s.defs]
   const [moved] = next.splice(from, 1)
   next.splice(clamped, 0, moved)
-  await writeSidecar(folder, target.kind, nextSidecar(s.sidecar, next))
+  await writeSidecar(folder, target.kind, nextSidecar(s.sidecar, next, target.schemaKey))
   return ok(null)
 }
 
@@ -151,7 +156,7 @@ async function deleteProp(target: SchemaTarget, folder: string, propertyId: stri
   if (!s.defs.some((d) => d.id === propertyId)) return fail('not-found', 'Property not found.', target.kind)
   const next = s.defs.filter((d) => d.id !== propertyId)
   const tx = new SchemaTransaction()
-  tx.stage(join(folder, SIDECAR_FILENAME[target.kind]), serializeJson(nextSidecar(s.sidecar, next)))
+  tx.stage(join(folder, SIDECAR_FILENAME[target.kind]), serializeJson(nextSidecar(s.sidecar, next, target.schemaKey)))
   await stageMemberStrips(tx, target, folder, propertyId)
   await tx.commit()
   return ok(null)
@@ -170,14 +175,14 @@ async function changeType(
   if (idx < 0) return fail('not-found', 'Property not found.', target.kind)
   const next = s.defs.map((d, i) => (i === idx ? { ...d, type: newType } : d))
   if (s.defs[idx].type === newType) {
-    await writeSidecar(folder, target.kind, nextSidecar(s.sidecar, next))
+    await writeSidecar(folder, target.kind, nextSidecar(s.sidecar, next, target.schemaKey))
     return ok(null)
   }
   if (!opts.dropConflictingValues) {
     return fail('lossy-change-requires-confirmation', 'Changing this property type drops existing values.', target.kind)
   }
   const tx = new SchemaTransaction()
-  tx.stage(join(folder, SIDECAR_FILENAME[target.kind]), serializeJson(nextSidecar(s.sidecar, next)))
+  tx.stage(join(folder, SIDECAR_FILENAME[target.kind]), serializeJson(nextSidecar(s.sidecar, next, target.schemaKey)))
   await stageMemberStrips(tx, target, folder, propertyId)
   await tx.commit()
   return ok(null)

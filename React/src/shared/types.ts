@@ -1,12 +1,13 @@
 // Single source of truth for the cross-process contract.
 // Imported by main, preload, and renderer — NO fs, NO React here.
 
+import type { PropertyDefinition } from './properties'
+
 export type NodeKind =
   | 'saved'
   | 'area'
   | 'topic'
   | 'project'
-  | 'pageType'
   | 'collection'
   | 'set'
   | 'page'
@@ -76,7 +77,7 @@ export interface PathNode extends BaseNode {
   /** Nexus-relative POSIX path to the entity on disk (forward slashes). */
   path: string
   /** Nexus-relative POSIX path to this entity's banner image, if set. Only banner-bearing
-   *  owners (vaults + contexts in v1) populate it, surfaced from the sidecar `banner` field
+   *  owners (Collections/Sets + contexts) populate it, surfaced from the sidecar `banner` field
    *  (a page's future banner rides here too — distinct from the page-level `cover`). */
   banner?: string
 }
@@ -106,7 +107,9 @@ export interface PageNode extends PathNode {
 
 export interface SetNode extends PathNode {
   kind: 'set'
-  selectable: false
+  /** Child Sets nested at any depth (2-tier recursion). Optional during the migration
+   *  window; populated by the recursive read. */
+  sets?: SetNode[]
   pages: PageNode[]
 }
 
@@ -114,33 +117,50 @@ export interface CollectionNode extends PathNode {
   kind: 'collection'
   sets: SetNode[] // rendered before pages
   pages: PageNode[]
-}
-
-export interface PageTypeNode extends PathNode {
-  kind: 'pageType'
-  collections: CollectionNode[] // rendered before pages
-  pages: PageNode[]
+  /** The property schema every Page inside inherits (2-tier top tier). Read from the
+   *  Collection sidecar's `properties`. */
+  properties?: PropertyDefinition[]
 }
 
 export interface UserSection {
   id: string
   label: string
-  vaults: PageTypeNode[]
+  /** Top-tier Collections grouped into this user section. */
+  collections: CollectionNode[]
 }
 
-export interface NexusLabels {
-  vaults: string
+/** A user-facing entity name in both forms (mirrors Swift `LabelPair`). */
+export interface LabelPair {
+  singular: string
+  plural: string
+}
+
+/** Sidebar section headers (mirrors Swift `SidebarSectionLabels`). `pages` is the
+ *  Collections-section header — distinct from `pageCollection.plural`. No `projects`
+ *  here: the Projects tier header comes from `project.plural`. */
+export interface SidebarSectionLabels {
   areas: string
   topics: string
-  projects: string
-  collection: string
-  set: string
+  pages: string
+}
+
+/** Per-Nexus UI labels, structured to match Swift `SettingsLabels` (read from
+ *  `settings.labels.{sidebar_sections,page_collection,page_set,project,agenda_task,agenda_event}`).
+ *  "Sub-Set" is derived as `"Sub-" + pageSet.singular`, never stored. */
+export interface NexusLabels {
+  sidebarSections: SidebarSectionLabels
+  pageCollection: LabelPair
+  pageSet: LabelPair
+  project: LabelPair
+  agendaTask: LabelPair
+  agendaEvent: LabelPair
 }
 
 export interface NexusTree {
-  /** `name` is the root folder's basename (filename = title); `description` is the
-   *  user-set blurb persisted in `.nexus/nexus.json` ('' when unset). */
-  nexus: { id: string; rootPath: string; name: string; description: string; photo: string | null }
+  /** `name` is the root folder's basename (filename = title). `profileImage` is a
+   *  nexus-relative path into `.nexus/assets/<id>/` (or null) and `profileSubtitle` a
+   *  ≤30-char blurb — both from `.nexus/settings.json`, matching Swift (not nexus.json). */
+  nexus: { id: string; rootPath: string; name: string; profileImage: string | null; profileSubtitle: string }
   /** Homepage singleton (`.nexus/homepage.json`) — v1 surfaces just its optional banner. */
   homepage: { banner?: string }
   saved: SavedNode[]
@@ -149,8 +169,8 @@ export interface NexusTree {
     topics: TopicNode[]
     areas: AreaNode[]
   }
-  /** Ungrouped PageTypes (those not assigned to a user section). */
-  vaults: PageTypeNode[]
+  /** Ungrouped top-tier Collections (those not assigned to a user section). */
+  collections: CollectionNode[]
   userSections: UserSection[]
   labels: NexusLabels
   /** Resolved app accent from .nexus/settings.json (defaults to DEFAULT_ACCENT). */
@@ -177,8 +197,10 @@ export type SelectionState =
   | { kind: 'none' }
   | { kind: 'homepage' }
   | { kind: 'context'; id: string }
-  | { kind: 'vault'; id: string }
   | { kind: 'collection'; id: string }
+  /** A depth-1 Set (direct child of a Collection) — the only selectable Set; deeper
+   *  Sub-Sets are expand-only. Carries `path` for rename-safe reconciliation, like a page. */
+  | { kind: 'set'; id: string; path: string }
   | { kind: 'page'; id: string; path: string }
 
 /** A single page's full content, read on demand for the detail view. */
@@ -261,10 +283,15 @@ export interface ResolvedGroup {
 }
 
 export const DEFAULT_LABELS: NexusLabels = {
-  vaults: 'Vaults',
-  areas: 'Areas',
-  topics: 'Topics',
-  projects: 'Projects',
-  collection: 'Collection',
-  set: 'Set'
+  sidebarSections: { areas: 'Areas', topics: 'Topics', pages: 'Collections' },
+  pageCollection: { singular: 'Collection', plural: 'Collections' },
+  pageSet: { singular: 'Set', plural: 'Sets' },
+  project: { singular: 'Project', plural: 'Projects' },
+  agendaTask: { singular: 'Task', plural: 'Tasks' },
+  agendaEvent: { singular: 'Event', plural: 'Events' }
+}
+
+/** The derived Sub-Set label (deeper Sets); never stored — Swift derives it the same way. */
+export function subSetLabel(labels: NexusLabels): string {
+  return 'Sub-' + labels.pageSet.singular
 }

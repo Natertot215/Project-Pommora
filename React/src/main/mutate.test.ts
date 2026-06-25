@@ -20,8 +20,8 @@ beforeEach(async () => {
   await writeFile(join(root, '.nexus', 'nexus.json'), JSON.stringify({ schemaVersion: 1, id: 'nx', createdAt: '2026' }))
   await writeFile(join(root, '.nexus', 'settings.json'), '{}')
   await writeFile(join(root, '.nexus', 'areas', 'Work', '_area.json'), JSON.stringify({ id: 'area-1' }))
-  await writeFile(join(root, 'Notes', '_pagetype.json'), JSON.stringify({ id: 'pt' }))
-  await writeFile(join(root, 'Notes', 'Daily', '_pagecollection.json'), JSON.stringify({ id: 'col' }))
+  await writeFile(join(root, 'Notes', '_pagecollection.json'), JSON.stringify({ id: 'pt' }))
+  await writeFile(join(root, 'Notes', 'Daily', '_pageset.json'), JSON.stringify({ id: 'col' }))
   await writeFile(join(root, 'Notes', 'Daily', 'Alpha.md'), '---\nid: a\ntier1:\n  - area-1\n---\n\nSee [[Beta]] for more.')
   await writeFile(join(root, 'Notes', 'Daily', 'Beta.md'), '---\nid: b\n---\n\nbody')
   openSession(root)
@@ -41,12 +41,12 @@ describe('handleMutate — create', () => {
     expect(await pathExists(join(root, 'Notes/Daily/New.md'))).toBe(true)
   })
 
-  it('createContainer makes a collection folder + sidecar', async () => {
-    const r = await handleMutate({ op: 'createContainer', parentPath: 'Notes', kind: 'collection', name: 'Weekly' }, nexusDeps)
+  it('createContainer makes a set folder + sidecar', async () => {
+    const r = await handleMutate({ op: 'createContainer', parentPath: 'Notes', kind: 'set', name: 'Weekly' }, nexusDeps)
     expect(r.ok).toBe(true)
     if (!r.ok) return
     expect(r.created?.path).toBe('Notes/Weekly')
-    expect(await pathExists(join(root, 'Notes/Weekly/_pagecollection.json'))).toBe(true)
+    expect(await pathExists(join(root, 'Notes/Weekly/_pageset.json'))).toBe(true)
   })
 
   it('createContext makes a tier folder under .nexus + returns its path', async () => {
@@ -76,9 +76,9 @@ describe('handleMutate — rename', () => {
   })
 
   it('container rename renames the folder (no cascade)', async () => {
-    const r = await handleMutate({ op: 'rename', path: 'Notes/Daily', kind: 'collection', newName: 'Journal' }, nexusDeps)
+    const r = await handleMutate({ op: 'rename', path: 'Notes/Daily', kind: 'set', newName: 'Journal' }, nexusDeps)
     expect(r.ok).toBe(true)
-    expect(await pathExists(join(root, 'Notes/Journal/_pagecollection.json'))).toBe(true)
+    expect(await pathExists(join(root, 'Notes/Journal/_pageset.json'))).toBe(true)
     expect(await pathExists(join(root, 'Notes/Daily'))).toBe(false)
   })
 
@@ -118,7 +118,7 @@ describe('handleMutate — delete', () => {
 describe('handleMutate — move + guards', () => {
   it('movePage relocates the file to another container', async () => {
     await mkdir(join(root, 'Notes', 'Archive'), { recursive: true })
-    await writeFile(join(root, 'Notes', 'Archive', '_pagecollection.json'), JSON.stringify({ id: 'arc' }))
+    await writeFile(join(root, 'Notes', 'Archive', '_pageset.json'), JSON.stringify({ id: 'arc' }))
     const r = await handleMutate({ op: 'movePage', path: 'Notes/Daily/Beta.md', newParentPath: 'Notes/Archive' }, nexusDeps)
     expect(r.ok).toBe(true)
     expect(await pathExists(join(root, 'Notes/Archive/Beta.md'))).toBe(true)
@@ -129,7 +129,7 @@ describe('handleMutate — move + guards', () => {
     const r = await handleMutate({ op: 'movePage', path: 'Notes/Daily/Beta.md', newParentPath: 'Notes/Daily', order: ['b', 'a'] }, nexusDeps)
     expect(r.ok).toBe(true)
     expect(await pathExists(join(root, 'Notes/Daily/Beta.md'))).toBe(true)
-    expect(JSON.parse(await read('Notes/Daily/_pagecollection.json')).page_order).toEqual(['b', 'a'])
+    expect(JSON.parse(await read('Notes/Daily/_pageset.json')).page_order).toEqual(['b', 'a'])
   })
 
   it('movePage with order reparents the file AND seeds the destination page_order', async () => {
@@ -137,43 +137,42 @@ describe('handleMutate — move + guards', () => {
     expect(r.ok).toBe(true)
     expect(await pathExists(join(root, 'Notes/Beta.md'))).toBe(true)
     expect(await pathExists(join(root, 'Notes/Daily/Beta.md'))).toBe(false)
-    expect(JSON.parse(await read('Notes/_pagetype.json')).page_order).toEqual(['b'])
+    expect(JSON.parse(await read('Notes/_pagecollection.json')).page_order).toEqual(['b'])
   })
 
-  it('round-trip: in-collection reorder writes page_order to a Swift-era sidecar AND readNexus applies it', async () => {
-    // Replicate the real on-disk shape: a Swift-era collection sidecar with views/type_id and
+  it('round-trip: in-set reorder writes page_order to a Swift-era sidecar AND readNexus applies it', async () => {
+    // Replicate the real on-disk shape: a Swift-era set sidecar with views and
     // NO page_order, plus a third page.
     await writeFile(
-      join(root, 'Notes', 'Daily', '_pagecollection.json'),
-      JSON.stringify({ id: 'col', type_id: 'pt', schema_version: 0, modified_at: '2026-05-24T22:00:44Z', views: [{ id: 'v1', type: 'table' }] })
+      join(root, 'Notes', 'Daily', '_pageset.json'),
+      JSON.stringify({ id: 'col', schema_version: 0, modified_at: '2026-05-24T22:00:44Z', views: [{ id: 'v1', type: 'table' }] })
     )
     await writeFile(join(root, 'Notes', 'Daily', 'Gamma.md'), '---\nid: g\n---\n\nbody')
     const r = await handleMutate({ op: 'movePage', path: 'Notes/Daily/Gamma.md', newParentPath: 'Notes/Daily', order: ['g', 'b', 'a'] }, nexusDeps)
     expect(r.ok).toBe(true)
-    // page_order written; views/type_id preserved (loose sidecar); file not moved
-    const sc = JSON.parse(await read('Notes/Daily/_pagecollection.json'))
+    // page_order written; views preserved (loose sidecar); file not moved
+    const sc = JSON.parse(await read('Notes/Daily/_pageset.json'))
     expect(sc.page_order).toEqual(['g', 'b', 'a'])
     expect(sc.views).toHaveLength(1)
-    expect(sc.type_id).toBe('pt')
     expect(await pathExists(join(root, 'Notes/Daily/Gamma.md'))).toBe(true)
     // readNexus applies it: Daily's pages come back in the persisted order
     const tree = await readNexus(root)
-    const daily = tree.vaults.flatMap((v) => v.collections).find((c) => c.title === 'Daily')
+    const daily = tree.collections.find((c) => c.title === 'Notes')?.sets.find((s) => s.title === 'Daily')
     expect(daily?.pages.map((p) => p.id)).toEqual(['g', 'b', 'a'])
   })
 
-  it('reorderChildren persists collection_order on the vault sidecar', async () => {
+  it('reorderChildren persists set_order on the collection sidecar', async () => {
     await mkdir(join(root, 'Notes', 'Weekly'), { recursive: true })
-    await writeFile(join(root, 'Notes', 'Weekly', '_pagecollection.json'), JSON.stringify({ id: 'wk' }))
-    const r = await handleMutate({ op: 'reorderChildren', parentPath: 'Notes', key: 'collection_order', order: ['wk', 'col'] }, nexusDeps)
+    await writeFile(join(root, 'Notes', 'Weekly', '_pageset.json'), JSON.stringify({ id: 'wk' }))
+    const r = await handleMutate({ op: 'reorderChildren', parentPath: 'Notes', key: 'set_order', order: ['wk', 'col'] }, nexusDeps)
     expect(r.ok).toBe(true)
-    expect(JSON.parse(await read('Notes/_pagetype.json')).collection_order).toEqual(['wk', 'col'])
+    expect(JSON.parse(await read('Notes/_pagecollection.json')).set_order).toEqual(['wk', 'col'])
   })
 
-  it('reorderTop persists vault_order to .nexus/state.json', async () => {
-    const r = await handleMutate({ op: 'reorderTop', key: 'vault_order', order: ['v2', 'v1'] }, nexusDeps)
+  it('reorderTop persists collection_order to .nexus/state.json', async () => {
+    const r = await handleMutate({ op: 'reorderTop', key: 'collection_order', order: ['v2', 'v1'] }, nexusDeps)
     expect(r.ok).toBe(true)
-    expect(JSON.parse(await read('.nexus/state.json')).vault_order).toEqual(['v2', 'v1'])
+    expect(JSON.parse(await read('.nexus/state.json')).collection_order).toEqual(['v2', 'v1'])
   })
 
   it('moveSet relocates a set folder (with its pages) to another collection AND writes the destination set_order', async () => {
@@ -181,16 +180,16 @@ describe('handleMutate — move + guards', () => {
     await writeFile(join(root, 'Notes', 'Daily', 'SetX', '_pageset.json'), JSON.stringify({ id: 'sx' }))
     await writeFile(join(root, 'Notes', 'Daily', 'SetX', 'Inner.md'), '---\nid: in\n---\n\nbody')
     await mkdir(join(root, 'Notes', 'Weekly'), { recursive: true })
-    await writeFile(join(root, 'Notes', 'Weekly', '_pagecollection.json'), JSON.stringify({ id: 'wk' }))
+    await writeFile(join(root, 'Notes', 'Weekly', '_pageset.json'), JSON.stringify({ id: 'wk' }))
     const r = await handleMutate({ op: 'moveSet', path: 'Notes/Daily/SetX', newParentPath: 'Notes/Weekly', order: ['sx'] }, nexusDeps)
     expect(r.ok).toBe(true)
     expect(await pathExists(join(root, 'Notes/Weekly/SetX/_pageset.json'))).toBe(true) // folder moved
     expect(await pathExists(join(root, 'Notes/Weekly/SetX/Inner.md'))).toBe(true) // its pages travel with it
-    expect(await pathExists(join(root, 'Notes/Daily/SetX'))).toBe(false) // gone from the source collection
-    expect(JSON.parse(await read('Notes/Weekly/_pagecollection.json')).set_order).toEqual(['sx'])
+    expect(await pathExists(join(root, 'Notes/Daily/SetX'))).toBe(false) // gone from the source set
+    expect(JSON.parse(await read('Notes/Weekly/_pageset.json')).set_order).toEqual(['sx'])
     const tree = await readNexus(root)
-    const weekly = tree.vaults.flatMap((v) => v.collections).find((c) => c.title === 'Weekly')
-    expect(weekly?.sets.map((s) => s.id)).toEqual(['sx']) // readNexus reflects the move
+    const weekly = tree.collections.find((c) => c.title === 'Notes')?.sets.find((s) => s.title === 'Weekly')
+    expect(weekly?.sets?.map((s) => s.id)).toEqual(['sx']) // readNexus reflects the move
   })
 
   it('moveSet into its current collection is an in-place reorder (no folder move)', async () => {
@@ -201,7 +200,7 @@ describe('handleMutate — move + guards', () => {
     const r = await handleMutate({ op: 'moveSet', path: 'Notes/Daily/SetA', newParentPath: 'Notes/Daily', order: ['sb', 'sa'] }, nexusDeps)
     expect(r.ok).toBe(true)
     expect(await pathExists(join(root, 'Notes/Daily/SetA/_pageset.json'))).toBe(true) // stayed put
-    expect(JSON.parse(await read('Notes/Daily/_pagecollection.json')).set_order).toEqual(['sb', 'sa'])
+    expect(JSON.parse(await read('Notes/Daily/_pageset.json')).set_order).toEqual(['sb', 'sa'])
   })
 
   it('rejects a path that escapes the nexus root', async () => {
@@ -230,14 +229,14 @@ describe('handleMutate — review-round hardening', () => {
     expect(await pathExists(join(root, '.nexus/projects/Launch/_project.json'))).toBe(true)
   })
 
-  it('creates a vault at the nexus root (parentPath "")', async () => {
-    const r = await handleMutate({ op: 'createContainer', parentPath: '', kind: 'pageType', name: 'Inbox' }, nexusDeps)
+  it('creates a collection at the nexus root (parentPath "")', async () => {
+    const r = await handleMutate({ op: 'createContainer', parentPath: '', kind: 'collection', name: 'Inbox' }, nexusDeps)
     expect(r.ok && r.created?.path).toBe('Inbox')
-    expect(await pathExists(join(root, 'Inbox/_pagetype.json'))).toBe(true)
+    expect(await pathExists(join(root, 'Inbox/_pagecollection.json'))).toBe(true)
   })
 
   it('refuses to delete the .nexus machinery, leaving it intact', async () => {
-    const r = await handleMutate({ op: 'delete', path: '.nexus', kind: 'pageType' }, nexusDeps)
+    const r = await handleMutate({ op: 'delete', path: '.nexus', kind: 'collection' }, nexusDeps)
     expect(r.ok).toBe(false)
     expect(await pathExists(join(root, '.nexus'))).toBe(true)
   })
@@ -268,7 +267,7 @@ describe('handleMutate — review-round hardening', () => {
     expect(noop.ok).toBe(true)
     expect(await pathExists(join(root, 'Notes/Daily/Beta.md'))).toBe(true)
     await mkdir(join(root, 'Notes', 'Other'), { recursive: true })
-    await writeFile(join(root, 'Notes', 'Other', '_pagecollection.json'), JSON.stringify({ id: 'oth' }))
+    await writeFile(join(root, 'Notes', 'Other', '_pageset.json'), JSON.stringify({ id: 'oth' }))
     await writeFile(join(root, 'Notes', 'Other', 'Beta.md'), '---\nid: b2\n---\n')
     const clash = await handleMutate({ op: 'movePage', path: 'Notes/Daily/Beta.md', newParentPath: 'Notes/Other' }, nexusDeps)
     expect(clash.ok).toBe(false)
@@ -277,23 +276,47 @@ describe('handleMutate — review-round hardening', () => {
     expect(await pathExists(join(root, 'Notes/Daily/Beta.md'))).toBe(true)
   })
 
-  it('setNexusDescription merges description into nexus.json, preserving the other keys', async () => {
-    const r = await handleMutate({ op: 'setNexusDescription', description: 'A second brain.' }, nexusDeps)
+  it('setProfileSubtitle writes settings.profile_subtitle, preserving other settings keys', async () => {
+    await writeFile(join(root, '.nexus', 'settings.json'), JSON.stringify({ version: 1, accent_color: 'blue' }))
+    const r = await handleMutate({ op: 'setProfileSubtitle', subtitle: 'A second brain.' }, nexusDeps)
     expect(r.ok).toBe(true)
-    const cfg = JSON.parse(await read('.nexus/nexus.json'))
-    expect(cfg.description).toBe('A second brain.')
-    expect(cfg.id).toBe('nx') // existing keys untouched
-    expect(cfg.schemaVersion).toBe(1)
+    const cfg = JSON.parse(await read('.nexus/settings.json'))
+    expect(cfg.profile_subtitle).toBe('A second brain.')
+    expect(cfg.accent_color).toBe('blue') // foreign keys preserved (no Swift migration churn)
+    expect(cfg.version).toBe(1)
   })
 
-  it('setNexusDescription on a missing nexus.json starts from a minted id', async () => {
-    await rm(join(root, '.nexus', 'nexus.json'), { force: true })
-    const r = await handleMutate({ op: 'setNexusDescription', description: 'Fresh.' }, nexusDeps)
+  it('setProfileSubtitle clamps to 30 chars', async () => {
+    await handleMutate({ op: 'setProfileSubtitle', subtitle: 'x'.repeat(50) }, nexusDeps)
+    expect(JSON.parse(await read('.nexus/settings.json')).profile_subtitle.length).toBe(30)
+  })
+
+  it('setProfileImage copies the image under .nexus/assets/<nexusID>/ and records the path', async () => {
+    const r = await handleMutate({ op: 'setProfileImage', dataUrl: 'data:image/png;base64,iVBORw0KGgo=' }, nexusDeps)
     expect(r.ok).toBe(true)
-    const cfg = JSON.parse(await read('.nexus/nexus.json'))
-    expect(cfg.description).toBe('Fresh.')
-    expect(typeof cfg.id).toBe('string')
-    expect(cfg.id.length).toBeGreaterThan(0)
+    const cfg = JSON.parse(await read('.nexus/settings.json'))
+    expect(cfg.profile_image).toMatch(/^\.nexus\/assets\/nx\/profile-.+\.png$/)
+    expect(await pathExists(join(root, cfg.profile_image))).toBe(true)
+  })
+
+  it('setProfileImage null clears the field + deletes the file', async () => {
+    await handleMutate({ op: 'setProfileImage', dataUrl: 'data:image/png;base64,iVBORw0KGgo=' }, nexusDeps)
+    const prevPath = JSON.parse(await read('.nexus/settings.json')).profile_image
+    const r = await handleMutate({ op: 'setProfileImage', dataUrl: null }, nexusDeps)
+    expect(r.ok).toBe(true)
+    expect(JSON.parse(await read('.nexus/settings.json')).profile_image).toBeUndefined()
+    expect(await pathExists(join(root, prevPath))).toBe(false)
+  })
+
+  it('homepage setBanner preserves blocks/icon/schemaVersion (read-merge-write)', async () => {
+    await writeFile(join(root, '.nexus', 'homepage.json'), JSON.stringify({ schemaVersion: 2, icon: 'house', blocks: [{ t: 'x' }] }))
+    const r = await handleMutate({ op: 'setBanner', kind: 'homepage', path: '', dataUrl: 'data:image/png;base64,iVBORw0KGgo=' }, nexusDeps)
+    expect(r.ok).toBe(true)
+    const cfg = JSON.parse(await read('.nexus/homepage.json'))
+    expect(cfg.banner).toMatch(/^\.nexus\/assets\/homepage\/banner-.+\.png$/)
+    expect(cfg.blocks).toEqual([{ t: 'x' }]) // Swift's blocks round-trip untouched
+    expect(cfg.icon).toBe('house')
+    expect(cfg.schemaVersion).toBe(2)
   })
 
   it('a malformed op returns a clean fault, not a throw', async () => {
@@ -316,7 +339,7 @@ describe('handleMutate — review-round hardening', () => {
   it('reverts the page rename when the link cascade fails', async () => {
     // A page linking [[Beta]] in a read-only dir → the cascade's rewrite commit throws.
     await mkdir(join(root, 'Notes', 'Locked'), { recursive: true })
-    await writeFile(join(root, 'Notes', 'Locked', '_pagecollection.json'), JSON.stringify({ id: 'lk' }))
+    await writeFile(join(root, 'Notes', 'Locked', '_pageset.json'), JSON.stringify({ id: 'lk' }))
     await writeFile(join(root, 'Notes', 'Locked', 'Linker.md'), '---\nid: lk1\n---\n\nSee [[Beta]].')
     await chmod(join(root, 'Notes', 'Locked'), 0o555)
     try {
@@ -334,10 +357,10 @@ describe('handleMutate — setBanner', () => {
   const PNG =
     'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=='
 
-  it('writes a fresh-named asset under .nexus/assets/<id>/ + records it on the vault sidecar (foreign keys kept)', async () => {
-    const r = await handleMutate({ op: 'setBanner', path: 'Notes', kind: 'pageType', dataUrl: PNG }, nexusDeps)
+  it('writes a fresh-named asset under .nexus/assets/<id>/ + records it on the collection sidecar (foreign keys kept)', async () => {
+    const r = await handleMutate({ op: 'setBanner', path: 'Notes', kind: 'collection', dataUrl: PNG }, nexusDeps)
     expect(r.ok).toBe(true)
-    const sc = JSON.parse(await read('Notes/_pagetype.json'))
+    const sc = JSON.parse(await read('Notes/_pagecollection.json'))
     expect(sc.banner).toMatch(/^\.nexus\/assets\/pt\/banner-[a-z0-9]+\.png$/)
     expect(await pathExists(join(root, sc.banner))).toBe(true)
     expect(sc.id).toBe('pt') // existing keys untouched
@@ -351,38 +374,38 @@ describe('handleMutate — setBanner', () => {
     expect(await pathExists(join(root, sc.banner))).toBe(true)
   })
 
-  it('sets a banner on a collection sidecar, keyed by the collection id', async () => {
-    const r = await handleMutate({ op: 'setBanner', path: 'Notes/Daily', kind: 'collection', dataUrl: PNG }, nexusDeps)
+  it('sets a banner on a set sidecar, keyed by the set id', async () => {
+    const r = await handleMutate({ op: 'setBanner', path: 'Notes/Daily', kind: 'set', dataUrl: PNG }, nexusDeps)
     expect(r.ok).toBe(true)
-    const sc = JSON.parse(await read('Notes/Daily/_pagecollection.json'))
+    const sc = JSON.parse(await read('Notes/Daily/_pageset.json'))
     expect(sc.banner).toMatch(/^\.nexus\/assets\/col\/banner-[a-z0-9]+\.png$/)
     expect(await pathExists(join(root, sc.banner))).toBe(true)
   })
 
-  it('readNexus surfaces the banner path on vault + context + collection nodes', async () => {
-    await handleMutate({ op: 'setBanner', path: 'Notes', kind: 'pageType', dataUrl: PNG }, nexusDeps)
+  it('readNexus surfaces the banner path on collection + context + set nodes', async () => {
+    await handleMutate({ op: 'setBanner', path: 'Notes', kind: 'collection', dataUrl: PNG }, nexusDeps)
     await handleMutate({ op: 'setBanner', path: '.nexus/areas/Work', kind: 'area', dataUrl: PNG }, nexusDeps)
-    await handleMutate({ op: 'setBanner', path: 'Notes/Daily', kind: 'collection', dataUrl: PNG }, nexusDeps)
+    await handleMutate({ op: 'setBanner', path: 'Notes/Daily', kind: 'set', dataUrl: PNG }, nexusDeps)
     const tree = await readNexus(root)
-    expect(tree.vaults.find((v) => v.id === 'pt')?.banner).toMatch(/^\.nexus\/assets\/pt\/banner-/)
+    expect(tree.collections.find((c) => c.id === 'pt')?.banner).toMatch(/^\.nexus\/assets\/pt\/banner-/)
     expect(tree.contexts.areas.find((a) => a.id === 'area-1')?.banner).toMatch(/^\.nexus\/assets\/area-1\/banner-/)
-    expect(tree.vaults.flatMap((v) => v.collections).find((c) => c.id === 'col')?.banner).toMatch(/^\.nexus\/assets\/col\/banner-/)
+    expect(tree.collections.find((c) => c.id === 'pt')?.sets.find((s) => s.id === 'col')?.banner).toMatch(/^\.nexus\/assets\/col\/banner-/)
   })
 
   it('clearing (dataUrl null) removes the field and deletes the file', async () => {
-    await handleMutate({ op: 'setBanner', path: 'Notes', kind: 'pageType', dataUrl: PNG }, nexusDeps)
-    const file = JSON.parse(await read('Notes/_pagetype.json')).banner
-    const r = await handleMutate({ op: 'setBanner', path: 'Notes', kind: 'pageType', dataUrl: null }, nexusDeps)
+    await handleMutate({ op: 'setBanner', path: 'Notes', kind: 'collection', dataUrl: PNG }, nexusDeps)
+    const file = JSON.parse(await read('Notes/_pagecollection.json')).banner
+    const r = await handleMutate({ op: 'setBanner', path: 'Notes', kind: 'collection', dataUrl: null }, nexusDeps)
     expect(r.ok).toBe(true)
     expect(await pathExists(join(root, file))).toBe(false)
-    expect(JSON.parse(await read('Notes/_pagetype.json')).banner).toBeUndefined()
+    expect(JSON.parse(await read('Notes/_pagecollection.json')).banner).toBeUndefined()
   })
 
   it('replacing yields a NEW filename (cache-bust) and deletes the prior file', async () => {
-    await handleMutate({ op: 'setBanner', path: 'Notes', kind: 'pageType', dataUrl: PNG }, nexusDeps)
-    const first = JSON.parse(await read('Notes/_pagetype.json')).banner
-    await handleMutate({ op: 'setBanner', path: 'Notes', kind: 'pageType', dataUrl: PNG }, nexusDeps)
-    const second = JSON.parse(await read('Notes/_pagetype.json')).banner
+    await handleMutate({ op: 'setBanner', path: 'Notes', kind: 'collection', dataUrl: PNG }, nexusDeps)
+    const first = JSON.parse(await read('Notes/_pagecollection.json')).banner
+    await handleMutate({ op: 'setBanner', path: 'Notes', kind: 'collection', dataUrl: PNG }, nexusDeps)
+    const second = JSON.parse(await read('Notes/_pagecollection.json')).banner
     expect(second).not.toBe(first) // distinct URL so the renderer refetches the new image
     expect(await pathExists(join(root, first))).toBe(false) // prior deleted
     expect(await pathExists(join(root, second))).toBe(true)

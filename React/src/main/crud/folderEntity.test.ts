@@ -9,7 +9,7 @@ import {
   updateFolderSidecar
 } from './folderEntity'
 import { readSidecar } from '../sidecarIO'
-import { areaSidecar, pageTypeSidecar } from '@shared/schemas'
+import { areaSidecar, pageCollectionSidecar } from '@shared/schemas'
 import { isUlid } from '../ids'
 
 let root: string
@@ -34,38 +34,38 @@ describe('createFolderEntity', () => {
   })
 
   it('rejects a duplicate name', async () => {
-    await createFolderEntity(root, 'pageType', 'Notes')
-    expect((await createFolderEntity(root, 'pageType', 'Notes')).ok).toBe(false)
+    await createFolderEntity(root, 'collection','Notes')
+    expect((await createFolderEntity(root, 'collection','Notes')).ok).toBe(false)
   })
 
   it('rejects unsafe names', async () => {
-    expect((await createFolderEntity(root, 'pageType', 'a/b')).ok).toBe(false)
-    expect((await createFolderEntity(root, 'pageType', '..')).ok).toBe(false)
-    expect((await createFolderEntity(root, 'pageType', '   ')).ok).toBe(false)
+    expect((await createFolderEntity(root, 'collection','a/b')).ok).toBe(false)
+    expect((await createFolderEntity(root, 'collection','..')).ok).toBe(false)
+    expect((await createFolderEntity(root, 'collection','   ')).ok).toBe(false)
   })
 })
 
 describe('renameFolderEntity', () => {
   it('renames the folder, carrying the sidecar', async () => {
-    const c = await createFolderEntity(root, 'pageType', 'Old')
+    const c = await createFolderEntity(root, 'collection','Old')
     if (!c.ok) throw new Error('setup failed')
     const r = await renameFolderEntity(c.value.path, 'New')
     expect(r.ok).toBe(true)
     if (!r.ok) return
     expect(r.value.path.endsWith('New')).toBe(true)
     await expect(stat(c.value.path)).rejects.toThrow()
-    expect(await readSidecar(r.value.path, 'pageType', pageTypeSidecar)).toMatchObject({ id: c.value.id })
+    expect(await readSidecar(r.value.path, 'collection', pageCollectionSidecar)).toMatchObject({ id: c.value.id })
   })
 
   it('is a no-op when the name is unchanged', async () => {
-    const c = await createFolderEntity(root, 'pageType', 'Same')
+    const c = await createFolderEntity(root, 'collection','Same')
     if (!c.ok) throw new Error('setup failed')
     expect((await renameFolderEntity(c.value.path, 'Same')).ok).toBe(true)
   })
 
   it('rejects renaming onto an existing name', async () => {
-    const a = await createFolderEntity(root, 'pageType', 'A')
-    await createFolderEntity(root, 'pageType', 'B')
+    const a = await createFolderEntity(root, 'collection','A')
+    await createFolderEntity(root, 'collection','B')
     if (!a.ok) throw new Error('setup failed')
     expect((await renameFolderEntity(a.value.path, 'B')).ok).toBe(false)
   })
@@ -73,7 +73,7 @@ describe('renameFolderEntity', () => {
 
 describe('deleteFolderEntity', () => {
   it('moves the folder into .trash and removes the original', async () => {
-    const c = await createFolderEntity(root, 'pageType', 'Trashme')
+    const c = await createFolderEntity(root, 'collection','Trashme')
     if (!c.ok) throw new Error('setup failed')
     expect((await deleteFolderEntity(root, c.value.path)).ok).toBe(true)
     await expect(stat(c.value.path)).rejects.toThrow()

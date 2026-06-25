@@ -26,7 +26,8 @@ import { trashWithTimestamp, pathExists, readJsonObject, mutateJson, atomicWrite
 import { splitEnvelope, mergeFrontmatter, readFrontmatterFields } from './io/pageFile'
 import { basenameNoMd } from './coerce'
 import { contextTierDir, nexusConfig, SIDECAR_FILENAME, NEXUS_CONFIG_FILES, type ContextTier, type SidecarKind } from './paths'
-import { newId } from './ids'
+import { ensureIdentity } from './identity'
+import { defaultSettingsSeed } from './settings'
 import { ok, fail, type Result } from '@shared/result'
 import type { MutateRequest, MutateResult } from '@shared/mutate'
 import type { TrashMode } from './appConfig'
@@ -42,6 +43,17 @@ const CONTEXT_TIER: Record<'area' | 'topic' | 'project', 1 | 2 | 3> = { area: 1,
 const CONTEXT_KIND_BY_TIER: Record<1 | 2 | 3, SidecarKind> = { 1: 'area', 2: 'topic', 3: 'project' }
 const TIER_DIR: Record<1 | 2 | 3, ContextTier> = { 1: 'areas', 2: 'topics', 3: 'projects' }
 
+/** A nested Set's `parent_id` = its parent container's sidecar id (a Collection at depth-1,
+ *  a Set deeper). Position is authoritative (both builds heal parent_id from it), so a missing
+ *  parent sidecar is non-fatal — the create just omits the field. */
+async function parentContainerId(parentDir: string): Promise<string | undefined> {
+  for (const kind of ['collection', 'set'] as const) {
+    const sc = await readJsonObject(join(parentDir, SIDECAR_FILENAME[kind]))
+    if (sc && typeof sc.id === 'string') return sc.id
+  }
+  return undefined
+}
+
 /** POSIX-join a nexus-relative parent with a child basename (`''` parent = the root). */
 const relJoin = (parent: string, child: string): string => (parent ? `${parent}/${child}` : child)
 
@@ -53,14 +65,14 @@ function decodeImageDataUrl(dataUrl: string): { ext: string; buffer: Buffer } | 
   return { ext: subtype === 'jpeg' ? 'jpg' : subtype, buffer: Buffer.from(m[2], 'base64') }
 }
 
-/** Decode + atomically write a banner image into `.nexus/assets/<key>/banner-<token>.<ext>`;
+/** Decode + atomically write an image into `.nexus/assets/<key>/<prefix>-<token>.<ext>`;
  *  returns the nexus-relative path, or null if the data URL isn't a supported image. A FRESH
- *  filename per write is deliberate: a stable name (`banner.<ext>`) gave every image the same
- *  URL, so the renderer's <img> served the browser-cached previous image on Change/replace. */
-async function writeBannerAsset(root: string, assetKey: string, dataUrl: string): Promise<string | null> {
+ *  filename per write is deliberate: a stable name gave every image the same URL, so the
+ *  renderer's <img> served the browser-cached previous image on Change/replace. */
+async function writeImageAsset(root: string, assetKey: string, dataUrl: string, prefix: string): Promise<string | null> {
   const decoded = decodeImageDataUrl(dataUrl)
   if (!decoded) return null
-  const file = `banner-${Math.random().toString(36).slice(2, 10)}.${decoded.ext}`
+  const file = `${prefix}-${Math.random().toString(36).slice(2, 10)}.${decoded.ext}`
   const rel = `.nexus/assets/${assetKey}/${file}`
   const absAsset = join(root, '.nexus', 'assets', assetKey, file)
   await mkdir(dirname(absAsset), { recursive: true })
@@ -129,10 +141,18 @@ async function dispatch(req: MutateRequest, deps: MutateDeps, root: string): Pro
     }
 
     case 'createContainer': {
-      // '' parentPath = the nexus root (new vault). See createPage.
+      // '' parentPath = the nexus root (new top-level Collection). See createPage.
       const parent = await resolveUnderRoot(root, req.parentPath || '.')
       if (!parent.ok) return relay(parent)
-      const r = await createDisambiguated(req.name, (name) => createFolderEntity(parent.value, req.kind, name))
+      // A nested Set carries parent_id; a top-level Collection has no parent.
+      const extra: Record<string, unknown> = {}
+      if (req.kind === 'set') {
+        const pid = await parentContainerId(parent.value)
+        if (pid) extra.parent_id = pid
+      }
+      const r = await createDisambiguated(req.name, (name) =>
+        createFolderEntity(parent.value, req.kind, name, extra)
+      )
       if (!r.ok) return relay(r)
       void refreshSessionIndex(root)
       return { ok: true, created: { id: r.value.id, path: relJoin(req.parentPath, basename(r.value.path)) } }
@@ -196,11 +216,40 @@ async function dispatch(req: MutateRequest, deps: MutateDeps, root: string): Pro
       return { ok: true }
     }
 
-    case 'setNexusDescription': {
-      // Merge the description into .nexus/nexus.json, preserving every other key (foreign
-      // fields included). A missing file starts from a minted id so the nexus stays identified.
-      await mutateJson<Record<string, unknown>>(nexusConfig(root, NEXUS_CONFIG_FILES.identity), () => ({ id: newId() }), (cur) => ({ ...cur, description: req.description }))
-      void refreshSessionIndex(root)
+    case 'setProfileSubtitle': {
+      // Read-merge-write settings.json (≤30 chars), preserving every other key so Swift's
+      // version/defaults_version/labels/modified_at survive (no migration churn on re-open).
+      const subtitle = req.subtitle.slice(0, 30)
+      await mutateJson<Record<string, unknown>>(
+        nexusConfig(root, NEXUS_CONFIG_FILES.settings),
+        defaultSettingsSeed,
+        (cur) => ({ ...cur, profile_subtitle: subtitle })
+      )
+      return { ok: true }
+    }
+
+    case 'setProfileImage': {
+      // Profile avatar → `.nexus/assets/<nexusID>/profile-<token>.<ext>` (Swift's per-nexus asset
+      // dir), path recorded in settings.profile_image (read-merge-write, other keys preserved).
+      const settingsPath = nexusConfig(root, NEXUS_CONFIG_FILES.settings)
+      const existing = await readJsonObject(settingsPath)
+      const prev = typeof existing?.profile_image === 'string' ? existing.profile_image : null
+      if (req.dataUrl) {
+        const { id: nexusId } = await ensureIdentity(root)
+        const rel = await writeImageAsset(root, nexusId, req.dataUrl, 'profile')
+        if (!rel) return fault('Unsupported image data.')
+        // Set the field first, then delete a replaced file — a failed write never leaves
+        // profile_image pointing at a deleted file (mirrors the banner/cover ordering).
+        await mutateJson<Record<string, unknown>>(settingsPath, defaultSettingsSeed, (cur) => ({ ...cur, profile_image: rel }))
+        if (prev && prev !== rel) await rm(join(root, prev), { force: true }).catch(() => {})
+      } else {
+        await mutateJson<Record<string, unknown>>(settingsPath, defaultSettingsSeed, (cur) => {
+          const next = { ...cur }
+          delete next.profile_image
+          return next
+        })
+        if (prev) await rm(join(root, prev), { force: true }).catch(() => {})
+      }
       return { ok: true }
     }
 
@@ -222,7 +271,7 @@ async function dispatch(req: MutateRequest, deps: MutateDeps, root: string): Pro
         if (!id) return fault('That page has no id to key its banner.')
         const prev = typeof fields.cover === 'string' ? fields.cover : null
         if (req.dataUrl) {
-          const rel = await writeBannerAsset(root, id, req.dataUrl)
+          const rel = await writeImageAsset(root, id, req.dataUrl, 'banner')
           if (!rel) return fault('Unsupported image data.')
           await atomicWriteFile(resolved.value, mergeFrontmatter(existing, { cover: rel }, ['cover'], body))
           if (prev && prev !== rel) await rm(join(root, prev), { force: true }).catch(() => {})
@@ -258,7 +307,7 @@ async function dispatch(req: MutateRequest, deps: MutateDeps, root: string): Pro
       }
       const prev = typeof existing?.banner === 'string' ? existing.banner : null
       if (req.dataUrl) {
-        const rel = await writeBannerAsset(root, assetKey, req.dataUrl)
+        const rel = await writeImageAsset(root, assetKey, req.dataUrl, 'banner')
         if (!rel) return fault('Unsupported image data.')
         // Set the field first; only THEN delete a replaced file, so a failed write never
         // leaves `banner` pointing at a deleted file (mirrors the cover/photo ordering).
@@ -319,7 +368,7 @@ async function dispatch(req: MutateRequest, deps: MutateDeps, root: string): Pro
     }
 
     case 'reorderTop': {
-      // Reorder vaults / a context tier — persisted to .nexus/state.json.
+      // Reorder top Collections / a context tier — persisted to .nexus/state.json.
       const o = await setStateOrder(root, req.key, req.order)
       if (!o.ok) return relay(o)
       void refreshSessionIndex(root)
