@@ -29,6 +29,7 @@ Foundations, the container views, the page editor (MarkdownPM) **+ Tables**, and
 1. **Commit the Tables batch** (path-limited — the `Tables/*` files + the docs explicitly) if not already landed.
 2. **The deferred editor tail:** the **stats footer** (hover breadcrumb + line/word/char counts; `editor/textStats.ts` stub unwired), the real **icon picker** (Edit-Icon routes to a stub), then `::` **callouts** (→ portable `> [!type]`, behind a swappable codec) + the **image / latex** render seams (detected + styled today, rendered later).
 3. **Beyond:** page properties + frontmatter inspector, then Agenda surfacing, the Homepage's dynamic widgets, and the Gallery view — roadmap in `Framework.md`.
+4. **Normalize formatting once** — Biome was just added (`biome.json`, 2-space; format-on-write hook in Studio settings). Run `npm run check` to reformat the whole tree to the config in a single formatting-only commit; after that the hook keeps files clean as they're touched.
 
 Discipline: a green commit per task; a live UIX pass with Nathan before any milestone closeout. **The editor bakes CM6 extensions at mount — ⌘R the renderer (not HMR) to see widget/extension changes; CSS hot-swaps live.**
 

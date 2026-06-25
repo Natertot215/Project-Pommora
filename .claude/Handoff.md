@@ -73,6 +73,7 @@ The arc, in order:
 - **Agenda description-cap** — specs say 1000, validators enforce none.
 - **Pinned-nav title staleness** on rename until re-pinned — may already be fixed by the file-watcher; retest.
 - **Relation properties replaced by Contexts** — future tasks/events lack a context-relation path; cross when reached.
+- **Dual-Delete** autocompleted syntax -> typing {{ and having the mirror }} get deleted too regressed from baseline functionality across both Swift + React builds; this is likely a simple fix so we should get to it as soon as possible.
 
 #### Handoff Rules
 

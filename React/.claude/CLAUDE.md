@@ -15,6 +15,10 @@ electron-vite · Electron 42 · React 19 · TypeScript 6 · Vite 7 + `@vitejs/pl
 
 **No dependency lock-in.** Every library sits behind a thin seam (SQLite behind `db.ts`, YAML behind `pageFile.ts`, IDs behind `ids.ts`, glass behind `Surface`) so it's swappable without touching callers. Version numbers are compatibility pins, not endorsements; nothing above is a permanent commitment.
 
+### Formatting
+
+Biome (`biome format`) auto-runs on every TS/CSS/JSON write via a PostToolUse hook — don't hand-align code, normalize quotes/semicolons/commas, or sort imports; write it correct and let Biome handle style, and never run Biome yourself. If an Edit fails on a whitespace mismatch, Biome reformatted the file — re-read and retry, it's not a bug. Type-checking is separate and stays: `npm run typecheck` (two `tsc` passes) is the *only* type-safety gate, since the Vite/esbuild build strips types without checking them.
+
 ### HARD RULES
 
 - **Main owns the filesystem.** All fs/Node lives in `src/main`, exposed to the renderer only through a **narrow typed IPC** bridge in `src/preload` (contextBridge). The renderer never touches `fs`/Node.

@@ -16,9 +16,13 @@
     "showcase": "vite",
     "build:showcase": "vite build",
     "package": "electron-vite build && electron-builder && npm rebuild better-sqlite3",
-    "rebuild:electron": "electron-builder install-app-deps"
+    "rebuild:electron": "electron-builder install-app-deps",
+    "format": "biome format --write .",
+    "lint": "biome lint .",
+    "check": "biome check --write ."
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.5.1",
     "@types/node": "^25.9.3",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
