@@ -19,8 +19,10 @@
   /* The page surface is full-bleed (banner edge-to-edge); the body inset lives here so text still lands on
      --content-inset, with the fold-chevron gutter hanging in the reclaimed --fold-gutter to its left. */
   padding-left: calc(var(--content-inset) - var(--fold-gutter));
-  padding-right: var(--gutter);
-  transition: padding-left var(--duration-base) var(--ease-standard);
+  padding-right: var(--content-inset-right);
+  transition:
+    padding-left var(--duration-base) var(--ease-standard),
+    padding-right var(--duration-base) var(--ease-standard);
 }
 .shell.is-resizing .mdpm-editor {
   transition: none;

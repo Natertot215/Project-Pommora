@@ -54,9 +54,14 @@ textarea,
   /* Left inset that clears the floating glass sidebar (variable width); its base addend IS the
      gutter, so left + right stay equal. Collapses to the bare gutter when the sidebar hides. */
   --content-inset: calc(var(--glass-inset) + var(--sidebar-width) + var(--gutter));
+  /* Right inset mirrors the left: bare gutter normally, expanding to clear the inspector when open. */
+  --content-inset-right: var(--gutter);
 }
 .shell.sidebar-hidden {
   --content-inset: var(--gutter);
+}
+.shell.inspector-open {
+  --content-inset-right: calc(var(--glass-inset) + var(--inspector-width) + var(--gutter));
 }
 
 /* Draggable titlebar strip across the top of the frameless (hiddenInset) window — the whole top

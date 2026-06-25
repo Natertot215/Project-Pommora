@@ -1,0 +1,45 @@
+/* Trailing inspector pane — the right-side twin of the sidebar's .surface-glass.
+   A full-height GlassWindow seam aligned with the sidebar; slides off the right edge
+   when closed. Open/closed state + the content push are driven by .shell.inspector-open. */
+.inspector-glass {
+  position: absolute;
+  top: var(--glass-inset);
+  right: var(--glass-inset);
+  bottom: var(--glass-inset);
+  width: var(--inspector-width);
+  z-index: 4;
+  border-radius: var(--glass-radius);
+  overflow: hidden;
+  transform: translateX(calc(100% + var(--glass-inset) + 14px));
+  transition: transform var(--duration-base) var(--ease-standard);
+  pointer-events: none;
+  -webkit-app-region: no-drag;
+}
+.shell.inspector-open .inspector-glass {
+  transform: none;
+  pointer-events: auto;
+}
+.shell.is-resizing .inspector-glass {
+  transition: none;
+}
+
+.inspector-head {
+  padding: 12px 16px 8px;
+  font-weight: var(--weight-emphasized);
+  color: var(--label-primary);
+}
+.inspector-body {
+  padding: 0 16px 16px;
+}
+
+/* Invisible edge-drag resize strip at the inspector's left edge — mirror of .sidebar-resize. */
+.inspector-resize {
+  position: absolute;
+  top: var(--glass-inset);
+  bottom: var(--glass-inset);
+  right: calc(var(--glass-inset) + var(--inspector-width) - 3px);
+  width: 9px;
+  z-index: 5;
+  cursor: col-resize;
+  -webkit-app-region: no-drag;
+}

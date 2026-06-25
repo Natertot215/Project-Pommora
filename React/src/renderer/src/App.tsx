@@ -4,14 +4,14 @@ import { Surface } from './Components/Surface'
 import { Sidebar } from './Sidebar/Sidebar'
 import { DetailPane } from './Detail/DetailPane'
 import { Toolbar } from './Toolbar/Toolbar'
-import { Inspector } from './Inspector/Inspector'
+import { InspectorPanel } from './Detail/InspectorPanel/InspectorPanel'
 import { Icon } from '@renderer/design-system/symbols'
 
 export function App(): React.JSX.Element {
-  const { status, tree, error, sidebarVisible, sidebarWidth, setSidebarWidth, load, applyTree, choose, openDropped, toggleSidebar, newPage, beginRename } =
+  const { status, tree, error, sidebarVisible, sidebarWidth, setSidebarWidth, inspectorWidth, setInspectorWidth, load, applyTree, choose, openDropped, toggleSidebar, newPage, beginRename } =
     useSession()
 
-  // Inspector toggle — window chrome state. Placeholder pane this pass (empty, slides in).
+  // Inspector toggle — window chrome state. Full-height pane that pushes content when open.
   const [inspectorOpen, setInspectorOpen] = useState(false)
 
   // Edge-drag resize (no visible handle). `resizing` suspends the collapse transition so
@@ -29,6 +29,23 @@ export function App(): React.JSX.Element {
   }
   const onResizeUp = (): void => {
     drag.current.active = false
+    setResizing(false)
+  }
+
+  // Inspector edge-drag resize — mirror of the sidebar, but the left edge grows the pane
+  // as it's dragged leftward (delta subtracted). Reuses `resizing` to suspend transitions.
+  const inspectorDrag = useRef({ active: false, startX: 0, startW: 0 })
+  const onInspectorResizeDown = (e: ReactPointerEvent<HTMLDivElement>): void => {
+    inspectorDrag.current = { active: true, startX: e.clientX, startW: inspectorWidth }
+    e.currentTarget.setPointerCapture(e.pointerId)
+    setResizing(true)
+  }
+  const onInspectorResizeMove = (e: ReactPointerEvent<HTMLDivElement>): void => {
+    if (!inspectorDrag.current.active) return
+    setInspectorWidth(inspectorDrag.current.startW - (e.clientX - inspectorDrag.current.startX))
+  }
+  const onInspectorResizeUp = (): void => {
+    inspectorDrag.current.active = false
     setResizing(false)
   }
 
@@ -76,8 +93,8 @@ export function App(): React.JSX.Element {
 
   return (
     <div
-      className={'shell' + (sidebarHidden ? ' sidebar-hidden' : '') + (resizing ? ' is-resizing' : '')}
-      style={{ '--sidebar-width': `${sidebarWidth}px` } as CSSProperties}
+      className={'shell' + (sidebarHidden ? ' sidebar-hidden' : '') + (inspectorOpen ? ' inspector-open' : '') + (resizing ? ' is-resizing' : '')}
+      style={{ '--sidebar-width': `${sidebarWidth}px`, '--inspector-width': `${inspectorWidth}px` } as CSSProperties}
       onDragOver={(e) => e.preventDefault()}
       onDrop={(e) => {
         e.preventDefault()
@@ -148,8 +165,20 @@ export function App(): React.JSX.Element {
       >
         <Icon name="log-out" size={18} />
       </button>
-      {/* Trailing inspector pane — empty placeholder, slides in when toggled from the trio. */}
-      {status === 'ready' && <Inspector open={inspectorOpen} />}
+      {/* Trailing inspector pane — full-height twin of the sidebar; pushes content when open. */}
+      {status === 'ready' && <InspectorPanel open={inspectorOpen} />}
+      {/* Invisible edge-drag resize strip at the inspector's left edge (only while open). */}
+      {status === 'ready' && inspectorOpen && (
+        <div
+          className="inspector-resize"
+          onPointerDown={onInspectorResizeDown}
+          onPointerMove={onInspectorResizeMove}
+          onPointerUp={onInspectorResizeUp}
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="Resize inspector"
+        />
+      )}
     </div>
   )
 }

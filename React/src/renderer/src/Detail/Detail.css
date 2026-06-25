@@ -4,10 +4,12 @@
 /* --- detail pane (lives inside .content-pane, offset past the glass sidebar) --- */
 .detail {
   height: 100%;
-  /* Clear the floating glass sidebar via --content-inset (collapses with the sidebar). */
-  padding: 38px var(--gutter) 28px var(--content-inset);
+  /* Clear the floating glass sidebar (left) + inspector (right); both insets collapse with their panes. */
+  padding: 38px var(--content-inset-right) 28px var(--content-inset);
   overflow-y: auto;
-  transition: padding-left var(--duration-base) var(--ease-standard);
+  transition:
+    padding-left var(--duration-base) var(--ease-standard),
+    padding-right var(--duration-base) var(--ease-standard);
 }
 
 /* Full-bleed like the banner-bearing scaffold: no padding here, so the banner spans the pane edge-to-edge
@@ -25,8 +27,10 @@
   overflow-y: auto;
 }
 .detail-body {
-  padding: 38px var(--gutter) 28px var(--content-inset);
-  transition: padding-left var(--duration-base) var(--ease-standard);
+  padding: 38px var(--content-inset-right) 28px var(--content-inset);
+  transition:
+    padding-left var(--duration-base) var(--ease-standard),
+    padding-right var(--duration-base) var(--ease-standard);
 }
 /* With a banner the full-bleed image already clears the toolbar, so the body sits just under it. */
 .detail-scroll.has-banner .detail-body {

@@ -4,9 +4,9 @@ import { DEFAULT_NEW_NAME, type MutableKind, type MutateRequest } from '@shared/
 import { reconcileSelection } from './selection'
 import { applyAccent, applySystemAccent } from './design-system/accent'
 
-// Sidebar width bounds mirror the Swift app (ContentView `navigationSplitViewColumnWidth(min:180, ideal:240, max:330)`).
+// Sidebar width bounds — Swift's min:180 / ideal:240, max widened +50 past Swift's 330 for extra drag room.
 const SIDEBAR_MIN = 180
-const SIDEBAR_MAX = 330
+const SIDEBAR_MAX = 380
 const SIDEBAR_DEFAULT = 240
 const SIDEBAR_WIDTH_KEY = 'pommora.sidebarWidth'
 const clampSidebar = (w: number): number => Math.max(SIDEBAR_MIN, Math.min(SIDEBAR_MAX, Math.round(w)))
@@ -16,6 +16,21 @@ function readStoredSidebarWidth(): number {
     return Number.isFinite(n) && n > 0 ? clampSidebar(n) : SIDEBAR_DEFAULT
   } catch {
     return SIDEBAR_DEFAULT
+  }
+}
+
+// Inspector (right pane) width bounds — its own range, max carrying the same +50 headroom.
+const INSPECTOR_MIN = 240
+const INSPECTOR_MAX = 420
+const INSPECTOR_DEFAULT = 300
+const INSPECTOR_WIDTH_KEY = 'pommora.inspectorWidth'
+const clampInspector = (w: number): number => Math.max(INSPECTOR_MIN, Math.min(INSPECTOR_MAX, Math.round(w)))
+function readStoredInspectorWidth(): number {
+  try {
+    const n = Number(localStorage.getItem(INSPECTOR_WIDTH_KEY))
+    return Number.isFinite(n) && n > 0 ? clampInspector(n) : INSPECTOR_DEFAULT
+  } catch {
+    return INSPECTOR_DEFAULT
   }
 }
 
@@ -57,6 +72,9 @@ interface SessionState {
   /** Sidebar width in px (clamped to the Swift min/max); persisted to localStorage. */
   sidebarWidth: number
   setSidebarWidth: (w: number) => void
+  /** Inspector (right pane) width in px (clamped, persisted to localStorage). */
+  inspectorWidth: number
+  setInspectorWidth: (w: number) => void
   load: () => Promise<void>
   /** Swap in a freshly-read tree (from load() or the live watcher): set it, reconcile the selection, re-apply accent. */
   applyTree: (tree: NexusTree) => Promise<void>
@@ -172,6 +190,17 @@ export const useSession = create<SessionState>((set, get) => {
       set({ sidebarWidth: next })
       try {
         localStorage.setItem(SIDEBAR_WIDTH_KEY, String(next))
+      } catch {
+        // private mode / disabled storage — width just won't persist
+      }
+    },
+
+    inspectorWidth: readStoredInspectorWidth(),
+    setInspectorWidth: (w) => {
+      const next = clampInspector(w)
+      set({ inspectorWidth: next })
+      try {
+        localStorage.setItem(INSPECTOR_WIDTH_KEY, String(next))
       } catch {
         // private mode / disabled storage — width just won't persist
       }

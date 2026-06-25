@@ -16,12 +16,18 @@
   /* Back/Forward hugs the sidebar (tight left); trio sits a small gap off the window edge. */
   padding: 0 10px 0 4px;
   pointer-events: none;
-  transition: left var(--duration-base) var(--ease-standard);
+  transition:
+    left var(--duration-base) var(--ease-standard),
+    right var(--duration-base) var(--ease-standard);
 }
 .shell.sidebar-hidden .app-toolbar {
   left: 0;
   /* Clear the traffic lights + the expand toggle when the sidebar is off. */
   padding-left: 84px;
+}
+/* Inspector open: pull the toolbar's right edge in so the trio sits left of the pane. */
+.shell.inspector-open .app-toolbar {
+  right: calc(var(--inspector-width) + var(--glass-inset));
 }
 .shell.is-resizing .app-toolbar {
   transition: none;
