@@ -163,7 +163,7 @@ export function SidebarDnd({
       }
     }
 
-    // Containers / vaults / contexts: reorder among same-kind siblings under the same parent.
+    // Collections / contexts: reorder among same-kind siblings under the same parent.
     const siblings = measured.filter((m) => {
       const e = idx.byId.get(m.id)
       return e !== undefined && e.kind === dragged.kind && e.parentId === dragged.parentId

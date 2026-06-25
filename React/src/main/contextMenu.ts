@@ -15,11 +15,6 @@ import type { ContextTarget, MutableKind, MutateRequest } from '@shared/mutate'
 function creatorsFor(kind: MutableKind, parentPath: string): { label: string; req: MutateRequest }[] {
   const name = DEFAULT_NEW_NAME
   switch (kind) {
-    case 'pageType':
-      return [
-        { label: 'New Page', req: { op: 'createPage', parentPath, name } },
-        { label: 'New Collection', req: { op: 'createContainer', parentPath, kind: 'collection', name } }
-      ]
     case 'collection':
       return [
         { label: 'New Page', req: { op: 'createPage', parentPath, name } },

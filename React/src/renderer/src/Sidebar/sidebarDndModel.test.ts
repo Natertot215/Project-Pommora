@@ -37,7 +37,7 @@ const areas: AreaNode[] = [
   { id: 'a1', kind: 'area', title: 'Work', path: '.nexus/areas/Work' },
   { id: 'a2', kind: 'area', title: 'Home', path: '.nexus/areas/Home' }
 ]
-const tree = { vaults: [], collections, userSections: [], contexts: { areas, topics: [], projects: [] } } as unknown as NexusTree
+const tree = { collections, userSections: [], contexts: { areas, topics: [], projects: [] } } as unknown as NexusTree
 
 describe('buildIndex', () => {
   const idx = buildIndex(tree)

@@ -9,25 +9,22 @@ import type { PommoraError } from './result'
 export const DEFAULT_NEW_NAME = 'Untitled'
 
 /** Entity kinds a mutation can target — every NodeKind except the code-keyed `saved`. */
-export type MutableKind = 'page' | 'pageType' | 'collection' | 'set' | 'area' | 'topic' | 'project'
+export type MutableKind = 'page' | 'collection' | 'set' | 'area' | 'topic' | 'project'
 
 /** The entities that can own a banner image: Collections + Sets + the three context tiers
  *  (folder sidecars), the homepage singleton (`.nexus/homepage.json`), and a page (whose banner
- *  is the Swift-compatible `cover` field in its `.md` frontmatter). (`pageType` is the legacy
- *  3-tier alias, retained for the migration window.) */
-export type BannerOwnerKind = 'pageType' | 'collection' | 'set' | 'area' | 'topic' | 'project' | 'homepage' | 'page'
+ *  is the Swift-compatible `cover` field in its `.md` frontmatter). */
+export type BannerOwnerKind = 'collection' | 'set' | 'area' | 'topic' | 'project' | 'homepage' | 'page'
 
 /** A folder container a page or sub-container can be created inside. These match their
  *  SidecarKind names exactly, so main passes them straight to createFolderEntity. */
-export type MutableContainerKind = 'pageType' | 'collection' | 'set'
+export type MutableContainerKind = 'collection' | 'set'
 
-/** Top-level order groups, persisted in `.nexus/state.json` — top containers + the three
- *  context tiers. `collection_order` is the 2-tier top key; `vault_order` is the legacy
- *  3-tier key, retained for the migration window. Single source for the union spelled across
- *  the engine, store, and IPC (and re-used in main). */
+/** Top-level order groups, persisted in `.nexus/state.json` — top Collections + the three
+ *  context tiers. Single source for the union spelled across the engine, store, and IPC
+ *  (and re-used in main). */
 export type StateOrderKey =
   | 'collection_order'
-  | 'vault_order'
   | 'area_order'
   | 'topic_order'
   | 'project_order'
@@ -58,7 +55,7 @@ export type MutateRequest =
   // Reorder a folder's child containers in place: `collection_order` on a vault, `set_order`
   // on a collection. `order` is the full ordered id list (renderer-computed). No file move.
   | { op: 'reorderChildren'; parentPath: string; key: ChildOrderKey; order: string[] }
-  // Reorder a top-level group (held in `.nexus/state.json`): vaults or a context tier.
+  // Reorder a top-level group (held in `.nexus/state.json`): top Collections or a context tier.
   | { op: 'reorderTop'; key: StateOrderKey; order: string[] }
 
 /**

@@ -9,7 +9,6 @@ function tree(pages: { id: string; path: string }[]): NexusTree {
     homepage: {},
     saved: [],
     contexts: { projects: [], topics: [], areas: [] },
-    vaults: [],
     collections: [
       {
         kind: 'collection',
@@ -21,7 +20,7 @@ function tree(pages: { id: string; path: string }[]): NexusTree {
       }
     ],
     userSections: [],
-    labels: { vaults: 'Vaults', areas: 'Areas', topics: 'Topics', projects: 'Projects', collection: 'Collection', set: 'Set' },
+    labels: { areas: 'Areas', topics: 'Topics', projects: 'Projects', collection: 'Collection', set: 'Set' },
     accent: 'lavender'
   }
 }

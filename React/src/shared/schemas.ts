@@ -24,25 +24,10 @@ const baseSidecar = z.looseObject({
   modified_at: z.string().optional()
 })
 
-export const pageTypeSidecar = baseSidecar.extend({
-  collection_order: ulidList,
-  page_order: ulidList,
-  // Nexus-relative POSIX path to this vault's banner image (a per-entity assets file).
-  banner: z.string().optional(),
-  // Loose at the sidecar level so one malformed def never sinks the whole type read;
-  // the per-def codec + normalization is `parseDefinitions` (main/properties/schema.ts),
-  // and the authoritative model is `propertyDefinition` (shared/properties.ts).
-  property_definitions: z.array(z.looseObject({})).optional()
-})
-export type PageTypeSidecar = z.infer<typeof pageTypeSidecar>
-
-// Post-rename (Swift 2-tier) `_pagecollection.json` is the schema-bearing TOP tier.
-// `type_id`/`vault_id` are retained read-only for the migration window (a top Collection
-// has no parent). The schema lives in `properties` (Swift's key); loose per-def, matching
-// the old `property_definitions` (per-def codec is parseDefinitions).
+// `_pagecollection.json` is the schema-bearing TOP tier (a top Collection has no parent).
+// The schema lives in `properties` (Swift's key); loose per-def, so one malformed def never
+// sinks the whole read (per-def codec is parseDefinitions, main/properties/schema.ts).
 export const pageCollectionSidecar = baseSidecar.extend({
-  type_id: z.string().optional(), // legacy (pre-2-tier middle-tier parent pointer)
-  vault_id: z.string().optional(), // legacy fallback for type_id
   banner: z.string().optional(),
   set_order: ulidList,
   page_order: ulidList,
@@ -53,12 +38,10 @@ export const pageCollectionSidecar = baseSidecar.extend({
 })
 export type PageCollectionSidecar = z.infer<typeof pageCollectionSidecar>
 
-// Post-rename `_pageset.json` is the RECURSIVE tier at any depth. `parent_id` is the
-// immediate parent (a Collection at depth-1, a Set deeper); `collection_id` is the
-// retained legacy key. `set_order` orders child Sets; `views`/`banner` apply only at
-// depth-1 (ignored deeper — read leniently, never seeded).
+// `_pageset.json` is the RECURSIVE tier at any depth. `parent_id` is the immediate parent
+// (a Collection at depth-1, a Set deeper). `set_order` orders child Sets; `views`/`banner`
+// apply only at depth-1 (ignored deeper — read leniently, never seeded).
 export const pageSetSidecar = baseSidecar.extend({
-  collection_id: z.string().optional(), // legacy (pre-2-tier parent pointer)
   parent_id: z.string().optional(),
   page_order: ulidList,
   set_order: ulidList,
@@ -86,8 +69,8 @@ export type ProjectSidecar = z.infer<typeof projectSidecar>
 export type AreaSidecar = z.infer<typeof areaSidecar>
 
 /** Agenda config sidecar (`_taskconfig.json` / `_eventconfig.json`) — a property schema
- *  for its agenda items. property_definitions stay loose (per-def codec is parseDefinitions),
- *  matching pageTypeSidecar; views + default_sort ride through untouched. */
+ *  for its agenda items. property_definitions stay loose (per-def codec is parseDefinitions);
+ *  views + default_sort ride through untouched. */
 export const agendaConfigSidecar = baseSidecar.extend({
   property_definitions: z.array(z.looseObject({})).optional(),
   views: z.array(z.looseObject({})).optional(),

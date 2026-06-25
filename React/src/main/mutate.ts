@@ -338,7 +338,7 @@ async function dispatch(req: MutateRequest, deps: MutateDeps, root: string): Pro
     }
 
     case 'reorderTop': {
-      // Reorder vaults / a context tier — persisted to .nexus/state.json.
+      // Reorder top Collections / a context tier — persisted to .nexus/state.json.
       const o = await setStateOrder(root, req.key, req.order)
       if (!o.ok) return relay(o)
       void refreshSessionIndex(root)

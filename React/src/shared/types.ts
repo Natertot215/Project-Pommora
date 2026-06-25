@@ -8,7 +8,6 @@ export type NodeKind =
   | 'area'
   | 'topic'
   | 'project'
-  | 'pageType'
   | 'collection'
   | 'set'
   | 'page'
@@ -78,7 +77,7 @@ export interface PathNode extends BaseNode {
   /** Nexus-relative POSIX path to the entity on disk (forward slashes). */
   path: string
   /** Nexus-relative POSIX path to this entity's banner image, if set. Only banner-bearing
-   *  owners (vaults + contexts in v1) populate it, surfaced from the sidecar `banner` field
+   *  owners (Collections/Sets + contexts) populate it, surfaced from the sidecar `banner` field
    *  (a page's future banner rides here too — distinct from the page-level `cover`). */
   banner?: string
 }
@@ -123,22 +122,14 @@ export interface CollectionNode extends PathNode {
   properties?: PropertyDefinition[]
 }
 
-export interface PageTypeNode extends PathNode {
-  kind: 'pageType'
-  collections: CollectionNode[] // rendered before pages
-  pages: PageNode[]
-}
-
 export interface UserSection {
   id: string
   label: string
-  vaults: PageTypeNode[]
-  /** 2-tier replacement for `vaults` (additive during migration; the read populates one). */
-  collections?: CollectionNode[]
+  /** Top-tier Collections grouped into this user section. */
+  collections: CollectionNode[]
 }
 
 export interface NexusLabels {
-  vaults: string
   areas: string
   topics: string
   projects: string
@@ -158,11 +149,8 @@ export interface NexusTree {
     topics: TopicNode[]
     areas: AreaNode[]
   }
-  /** Ungrouped PageTypes (those not assigned to a user section). */
-  vaults: PageTypeNode[]
-  /** 2-tier replacement for `vaults` — ungrouped top-tier Collections (additive during
-   *  migration; the recursive read populates one of the two). */
-  collections?: CollectionNode[]
+  /** Ungrouped top-tier Collections (those not assigned to a user section). */
+  collections: CollectionNode[]
   userSections: UserSection[]
   labels: NexusLabels
   /** Resolved app accent from .nexus/settings.json (defaults to DEFAULT_ACCENT). */
@@ -275,7 +263,6 @@ export interface ResolvedGroup {
 }
 
 export const DEFAULT_LABELS: NexusLabels = {
-  vaults: 'Vaults',
   areas: 'Areas',
   topics: 'Topics',
   projects: 'Projects',
