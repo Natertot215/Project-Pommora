@@ -14,17 +14,23 @@
 }
 /* The name sits at the content's left margin (clear of the sidebar), not the full-bleed image
    edge — so it reads on the visible part of the banner (Swift's bottom-leading title). */
+/* One container-title size for the banner overlay AND the banner-less header (DRY) — a
+   non-banner view's title must not differ in size from a banner view's, and collections + sets
+   (same Banner) stay identical. */
+.banner-title,
+.banner-empty-title {
+  font-size: 20px;
+  font-weight: var(--weight-semibold);
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .banner-title {
   position: absolute;
   bottom: 12px;
   left: var(--content-inset);
   right: 28px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: var(--text);
-  font-size: 20px;
-  font-weight: var(--weight-semibold);
   text-shadow: 0 1px 4px rgba(0, 0, 0, 0.55);
   pointer-events: none;
   transition: left var(--duration-base) var(--ease-standard);
@@ -38,6 +44,9 @@
    it sits as the view's header, not inside the padded body. */
 .banner-empty {
   padding: calc(var(--toolbar-h) + 10px) var(--content-inset-right) 14px var(--content-inset);
+  /* Full-width divider below the title — content-views always carry it (banner or not), unlike
+     pages' inset divider. Matches the banner image's bottom hairline. */
+  border-bottom: 1px solid #FFFFFF1A;
   transition:
     padding-left var(--duration-base) var(--ease-standard),
     padding-right var(--duration-base) var(--ease-standard);
@@ -46,13 +55,7 @@
   transition: none;
 }
 .banner-empty-title {
-  font-size: 28px;
-  font-weight: var(--weight-semibold);
   line-height: 1.2;
-  color: var(--text);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 /* The hover-revealed Add-Banner button (mirrors Swift's opacity-on-hover affordance). */
