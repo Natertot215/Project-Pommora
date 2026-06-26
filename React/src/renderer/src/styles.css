@@ -44,29 +44,11 @@ textarea,
   user-select: text;
 }
 
-/* App-wide scrollbar — thin, translucent, glass-matched. Replaces Electron's default Chromium bar
-   (which renders as a heavy dark track on macOS "Always show scroll bars"). Auto-applies to every
-   scroll container; the page editor keeps its own `display:none` override (a deliberately clean
-   writing surface). A real auto-hiding overlay would need an overlay-scrollbar lib — this is the
-   no-dependency option. */
+/* No visible scrollbars anywhere — scrolling still works (trackpad / wheel). Electron's default
+   Chromium bar reads heavy and the native auto-hiding overlay isn't reliably available, so we hide
+   them app-wide rather than style an always-visible bar. */
 ::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
-}
-::-webkit-scrollbar-track,
-::-webkit-scrollbar-corner {
-  background: transparent;
-}
-::-webkit-scrollbar-thumb {
-  /* The transparent border + padding-box clip insets the thumb to ~6px so it reads as a slim pill. */
-  background: #ffffff24;
-  background-clip: padding-box;
-  border: 2px solid transparent;
-  border-radius: 8px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: #ffffff40;
-  background-clip: padding-box;
+  display: none;
 }
 
 .shell {
