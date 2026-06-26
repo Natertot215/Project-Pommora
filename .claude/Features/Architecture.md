@@ -10,7 +10,7 @@ Every architectural choice below traces back to one of these.
 
 1. **Files are canonical (≠ everything is Markdown).** Only Pages are Markdown; Tasks, Events, sidecars, Contexts, Homepage, and Settings stay JSON. On-disk layout + per-kind sidecars below. SQLite is regeneratable scaffolding, never source of truth — no user data is trapped in it.
 
-2. **Agent legibility.** External agents (Claude via MCP, any filesystem tool, vim, Obsidian) read Pommora's entire structured graph — Pages, schemas, relations, properties — directly from files without tool-call round-trips. This differentiates from Notion-via-MCP (tool-mediated, opaque) and Obsidian (locally legible but unstructured). Any choice that trades file-canonical legibility for app-internal convenience violates this principle.
+2. **Agent legibility.** External agents (Claude via MCP, any filesystem tool, vim, Obsidian) read Pommora's entire structured graph — Pages, schemas, relations, properties — directly from plain text files. The bar is convention-aware, not stranger-instant: a file that abstracts a resolver, an id reference, or a path lookup still counts as legible once the agent has learned the convention — a `[[wikilink]]` hides a lookup yet reads perfectly to anyone who knows the system (a `.nexus` guide documents the on-disk formats). We strongly prefer formats readable without Pommora's running code; where a feature genuinely needs to relax that, it's an acceptable tradeoff to raise, not a breach. The firm line that never bends: no user data is trapped in a binary blob or held only in the regeneratable index. This differentiates from Notion-via-MCP (tool-mediated, opaque) and Obsidian (locally legible but unstructured).
 
 ---
 
