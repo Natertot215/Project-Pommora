@@ -30,7 +30,7 @@ export const font = createGlobalTheme(':root', {
     control: { size: '12px', line: '15px' },
     caption: { size: '11px', line: '14px' },
     footnote: { size: '10px', line: '13px' },
-    subline: { size: '8px', line: '10px' }
+    subline: { size: '10px', line: '12px' }
   }
 })
 

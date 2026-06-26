@@ -59,7 +59,8 @@ button.subfield-crumb.ghost:hover {
    8px Subline text so the glyphs stay legible. */
 .subfield-sep {
   flex: none;
-  font-size: 10px;
+  font-size: 12px;
+  font-weight: var(--weight-bold);
   color: var(--label-secondary);
 }
 
@@ -104,18 +105,23 @@ button.subfield-crumb.ghost:hover {
   transition: none;
 }
 
+/* The toggle is a wide right-aligned hit-zone (its "general area") so it reveals when the cursor is
+   near the chevron — not whenever you're anywhere in the page. It rides above the bar when open, so
+   it never overlaps the bar's items. */
 .subfield-toggle {
   position: absolute;
-  right: 12px;
+  right: 0;
   bottom: 0;
   z-index: 2;
+  width: 56px;
   height: var(--subline-h);
   display: inline-flex;
   align-items: center;
+  justify-content: flex-end;
   appearance: none;
   border: 0;
   background: none;
-  padding: 0 6px;
+  padding: 0 12px 0 0;
   color: var(--label-secondary);
   cursor: default;
   opacity: 0;
@@ -128,10 +134,8 @@ button.subfield-crumb.ghost:hover {
 .detail-pane.subfield-open .subfield-toggle {
   bottom: var(--subline-h);
 }
-.detail-pane:hover .subfield-toggle {
-  opacity: 1;
-}
 .subfield-toggle:hover {
+  opacity: 1;
   color: var(--label-primary);
 }
 .shell.is-resizing .subfield-toggle {

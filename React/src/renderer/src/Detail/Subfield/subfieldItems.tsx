@@ -65,7 +65,7 @@ function AddMenuItem(): React.JSX.Element | null {
   }
   return (
     <button type="button" className="subfield-add" onClick={onAdd} aria-label="Add" title={`New Page / New ${containerLabel}`}>
-      <Icon name="square-plus" size="sm" />
+      <Icon name="plus" size="sm" />
     </button>
   )
 }
