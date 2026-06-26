@@ -76,8 +76,12 @@ Wikilink resolver — **wired** to `@shared/connections` (not a no-op): resoluti
 - **The live element is the only drag feedback — never a separate indicator.** A resize bar positioned off the measured boundary lags the smoothly-moving columns (the measurement catches up only via the async `ResizeObserver`) and stutters; the columns + the `ew-resize` cursor are the whole affordance.
 - **Column width is the delimiter dash count, redistributed — not grown.** Resize moves whole dashes between two adjacent columns (total conserved, 1-dash floor) and `serialize` writes dash counts verbatim (never content-padded), so they round-trip. That conserve-total model is why `@tanstack/react-table`'s grow-the-table resize is the wrong fit and isn't used.
 
+### Known performance
+
+- **Long docs are slow + the caret jitters.** Long-scrolling pages — especially with **tables** — take time to render their contents, and **caret placement jitters on longer docs**. Suspects: CM6 decoration/measurement cost + the table widget's `updateDOM` / `ResizeObserver` work. The caret is otherwise **native** (no `drawSelection`); its tall look is the editor's 1.6 line-height, not a custom cursor. Profiling is the next-session focus.
+
 ### Deferred
 
-- **Stats footer — ASAP.** Hover-revealed bar: `Vault › Collection › Page` breadcrumb + line / word / char counts (`editor/textStats.ts` stub exists, unwired).
+- **Stats footer — shipped** (out of the editor) as the app-wide **Subfield**: a breadcrumb + per-page `lines · words · characters`. Spec → `Features/Subfield.md`.
 - **Callouts** (`::` → portable `> [!type]`, behind a swappable codec — a deliberate extension beyond Swift) · **image + latex** render seams (detected + styled today, rendered later) · **zoom slider** placement in the UI.
 - **Border-anchored "+" insert** (hover a column/row edge to insert there). Deferred while tables are full-width — there's no gutter to host it, and the grip's right-click Insert covers the need. Revisit only if non-full-width tables ship.
