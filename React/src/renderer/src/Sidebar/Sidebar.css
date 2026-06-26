@@ -43,8 +43,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  /* Match the toolbar buttons (button-large 32px) so the toggle reads as part of the same row. */
+  width: 32px;
+  height: 32px;
   padding: 0;
   border: 0;
   border-radius: 6px;
@@ -63,7 +64,9 @@
 /* Collapse — sidebar top-right corner; hidden until you hover the sidebar (uncluttered at rest),
    then rides the sidebar off as it slides while the expand reveals at the top-left. */
 .sidebar-collapse {
-  top: 7px;
+  /* +1px inside the glass puts the 32px button's centre on the toolbar buttons' row (the glass top is
+     already inset by --glass-inset; the toolbar sits at --glass-inset + 1px). */
+  top: 1px;
   right: 10px;
   opacity: 0;
 }
@@ -79,7 +82,8 @@
    open sidebar's collapse button; as the sidebar slides off it fades + eases in (revealed, close
    tucking behind it), and fades back out as the sidebar slides in to overtake it. */
 .sidebar-expand {
-  top: 12px;
+  /* Same row as the toolbar buttons (its centre lines up with them). */
+  top: calc(var(--glass-inset) + 1px);
   left: 84px;
   opacity: 0;
   transform: translateX(-6px);
