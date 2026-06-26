@@ -27,15 +27,13 @@ Foundations, container views, the page editor (MarkdownPM + Tables), the page/co
 
 ### Next session
 
-1. **MarkdownPM performance** (Nathan's priority) — long-scrolling pages **with tables** are slow to render their contents; **caret placement jitters on longer docs**. Profile CM6 measurement/decoration + the table widget's `updateDOM`/`ResizeObserver` cost on long docs; that's also where the caret-jitter likely originates.
-2. **Subfield reorder** — drag the items via PommoraDND (horizontal). The persisted `order` is already wired; only the drag UI remains.
-3. **Editor tail** — the real **Icon Picker** (Edit-Icon routes to a stub), then `::` **callouts** (→ `> [!type]`) + the **image / latex** render seams (detected/styled today, rendered later).
-4. **Inspector content** — frontmatter → properties → page-info in the empty pane.
-5. **Beyond** — Homepage dynamic widgets, the Gallery view, Agenda surfacing. Roadmap → `Framework.md`.
+1. **Subfield reorder** — drag the items via PommoraDND (horizontal). The persisted `order` is already wired; only the drag UI remains.
+2. **Editor tail** — the real **Icon Picker** (Edit-Icon routes to a stub), then `::` **callouts** (→ `> [!type]`) + the **image / latex** render seams (detected/styled today, rendered later).
+3. **Inspector content** — frontmatter → properties → page-info in the empty pane.
+4. **Beyond** — Homepage dynamic widgets, the Gallery view, Agenda surfacing. Roadmap → `Framework.md`.
 
 ### Pending focuses
 
-- **Tables — single-live-cell (shipped).** Only the focused cell is a real `EditorView`; the rest render as static styled divs (`MarkdownPM/Tables/cellStatic.tsx`), so a table scrolling into view builds zero editors instead of R×C — the scroll hitch is gone. Click/Tab promotes a cell to an editor; the activating mousedown is `preventDefault`-ed so the browser can't steal focus (the two-click bug). Behavioral coverage in `Tables/cellNavigation.test.tsx` (jsdom). Remaining: piped-wikilink alias parity is matched; nested emphasis inside a link is a known negligible static-render edge.
 - **Subfield reorder + live-stats + custom items** — the registry/order/persistence are the seams; see `Features/Subfield.md` § Roadmap.
 - **Icon picker** — build the real `Components/IconPicker` + wire the icon's frontmatter save (Swift `IconPicker` is the spec; wants a shared dropdown-animation primitive).
 - **Real design-system Components** (Button / Menu / Label / Separator) from the token layer — prerequisite for replacing one-offs (notably the inline-rename `<input>`).

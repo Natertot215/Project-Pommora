@@ -10,11 +10,11 @@ The operational layer's **Pages-side** schema-bearing top tier. A Page Collectio
 
 #### Two-tier shape
 
-| Entity | Role | On disk |
-|---|---|---|
-| **Page Collection** | Top tier; folder with the property schema every Page inside shares | Folder at the nexus root containing `_pagecollection.json` |
-| **Page Set** | Recursive sub-folder inside a Collection (any depth); schema-less, inherits everything. Depth-1 = "Set" (carries its own views); deeper = "Sub-Set" (plain) | Folder containing `_pageset.json` → [[PageSets]] |
-| **Content** | Pages only (`.md`) | Files inside any Set/Sub-Set, or directly in the Collection root |
+| Entity              | Role                                                                                                                                                        | On disk                                                          |
+| ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| **Page Collection** | Top tier; folder with the property schema every Page inside shares                                                                                          | Folder at the nexus root containing `_pagecollection.json`       |
+| **Page Set**        | Recursive sub-folder inside a Collection (any depth); schema-less, inherits everything. Depth-1 = "Set" (carries its own views); deeper = "Sub-Set" (plain) | Folder containing `_pageset.json` → [[PageSets]]                 |
+| **Content**         | Pages only (`.md`)                                                                                                                                          | Files inside any Set/Sub-Set, or directly in the Collection root |
 
 The schema lives **only** on the Collection; Sets inherit it whole (Set-local overrides are a Prospect → [[Prospects]]). Nesting is unbounded — there is no depth cap and no roll-up.
 

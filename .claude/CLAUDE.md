@@ -1,12 +1,11 @@
-### Pommora — Project Instructions
+### Pommora Overview
 
-#### Overview
+A simpler Notion that's also a more capable Obsidian. 
+**MUST READ BEFORE EVERY SESSION:** [[PommoraPRD]]
 
-A simpler Notion that's also a more capable Obsidian. **2-layer PARA-aligned domain model** (locked 2026-05-16; ParadigmV2 2026-05-22; Contexts Decoupling — free-standing tiers + Space→Area rename — 2026-06-10; Collections/Sets rename + infinite nesting — 2026-06-24):
-
-- **Organization layer — Contexts** (3 tiers): Areas (1) / Topics (2) / **Projects** (3). Three **free-standing** tiers — no containment, no parents; each a folder with a config sidecar (`_area.json` / `_topic.json` / `_project.json`). Per-tier labels user-configurable per Nexus. (Context→context relations are a deferred design pass.)
+- **Organization layer —Contexts** (3 tiers): Areas (1) / Topics (2) / **Projects** (3). Three **free-standing** tiers — no containment, no parents; each a folder with a config sidecar (`_area.json` / `_topic.json` / `_project.json`). Per-tier labels user-configurable per Nexus. (Context→context relations are a deferred design pass.)
 - **Operational layer — Pages + Agenda**:
-  - **Pages** — `.md` files (YAML frontmatter + body via `AtomicYAMLMarkdown`) inside **Collections** — the schema-bearing top tier (`PageCollection`, `_pagecollection.json`). A Collection nests **Sets** to any depth: a recursive `PageSet` (`_pageset.json`) where the first level is a **Set** and deeper levels are **Sub-Sets**. Only depth-1 Sets carry their own views/sorting; deeper Sub-Sets are plain organizing folders. Schema lives only on the Collection; all Sets inherit it. UI labels: **"Collection"** + **"Set"** (renameable via Settings; "Sub-Set" is derived). Full spec → `// Features//PageCollections.md` + `// Features//PageSets.md`.
+  - **Pages** — `.md` files (YAML frontmatter + body via `AtomicYAMLMarkdown`) inside **Collections** — the schema-bearing top tier (`PageCollection`, `_pagecollection.json`). A Collection nests **Sets** to any depth: a recursive `PageSet` (`_pageset.json`) where the first level is a **Set** and deeper levels are **Sub-Sets**. Only depth-1 Sets carry their own views/sorting; deeper Sub-Sets are plain organizing folders. Schema lives only on the Collection; all Sets inherit it. Full spec → `// Features//PageCollections.md` + `// Features//PageSets.md`.
   - **Agenda** — the parent schema holding **Tasks** (`.task.json`, EKReminder-shaped) and **Events** (`.event.json`, EKEvent-shaped). Data layer shipped; sidebar surfacing is consolidated into the Calendar pin entry (no separate Agenda sidebar heading).
 - **Singleton — Homepage**: composed-blocks dashboard at `.nexus/homepage.json`.
 - **Settings scaffold** (`.nexus/settings.json`): per-Nexus user-overridable UI labels + accent color (storage + label wiring shipped; full editing UI planned).
@@ -16,10 +15,9 @@ A second operational entity ("Items") existed until the 2026-06 PagesV2 collapse
 **Two builds, one app.** Project Pommora is the umbrella for the *same product* built two ways — the **Swift / SwiftUI** native app (repo root; this `.claude/`) and the **React + Electron** rebuild (sub-project under `React/`, with its own `React/.claude/`). Same PRD, domain model, and on-disk paradigm; only the implementation differs. Both live in **one repo on one `main`** — there is no separate React checkout. **When working on React, `React/.claude/` is authoritative** (start at `React/.claude/Handoff.md`); the root `.claude/` governs the Swift build + shared product truth.
 
 **If working in React, check into the `pommora-react` worktree first, then merge to `main` when done.**
-
 #### Stack
 
-Locked to **SwiftUI**. **Editor = TextKit 2 + Apple `swift-markdown` + the Pommora-owned `MarkdownPM` package** (originally vendored from `swift-markdown-engine`, folded in-tree + rebuilt 2026-06-03); full spec → `// Features//PageEditor.md`. React+Electron is preserved as a contingency path.
+Locked to **SwiftUI**. **Editor = TextKit 2 + Apple `swift-markdown` + the Pommora-owned `MarkdownPM` package** (originally vendored from `swift-markdown-engine`; full spec → `// Features//PageEditor.md`. 
 
 #### HARD RULES
 
@@ -31,7 +29,7 @@ Locked to **SwiftUI**. **Editor = TextKit 2 + Apple `swift-markdown` + the Pommo
 
 - **Documentation altitude.** Docs describe to the durable decision, not the current instance. Keep design decisions, reusable guidelines, and canonical on-disk formats; cut component measurements, codebase verbatim, version stamps, and historical narrative. A spec reads as confident present tense — not a change-log. Over-specification manufactures its own drift.
 
-- **Confirm paradigm-solidifying choices.** Before code locks an on-disk shape, wire encoding, identifier convention, or a default that becomes permanent once data exists, stop and surface the choice to Nathan with options + a recommendation; record the ratified decision in `History.md`.
+- **Confirm paradigm-solidifying choices.** Before code locks an on-disk shape, wire encoding, identifier convention, or a default that becomes permanent once data exists, stop and surface the choice to Nathan with options + a recommendation; record the ratified decision in `History.md`
 
 - **`Handoff.md` is a lean snapshot maintained via `/handoff`.** Sections: Session Summary + Lessons Learned + Next Session + Pending Focuses + Fix Log. Route locked decisions to `History.md`, spec content to `Features/*`, roadmap detail to `Framework.md`. Never accumulate per-session work logs.
 

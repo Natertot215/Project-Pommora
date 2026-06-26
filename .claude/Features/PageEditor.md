@@ -1,6 +1,6 @@
 ### Page Editor
 
-Pommora's body editor for Pages — what the user sees and types into when they open a Page. Data-model concerns (on-disk shape, frontmatter, opening behavior, sidebar disclosure) live in [[Pages]]; this file covers the editor surface. The construct-level contract — dynamic-syntax architecture, detection rules, state-mutation guards, anti-patterns, engine quirks, and every locked editor decision — lives in [[MarkdownPM]]; read it first when implementing any construct. This spec records WHAT the editor ships and its visible surface.
+Pommora's body editor for Pages — what the user sees and types into when they open a Page. Data-model concerns (on-disk shape, frontmatter, opening behavior, sidebar disclosure) live in [[Pages]]; this file covers the editor surface. The construct-level contract — dynamic-syntax architecture, detection rules, state-mutation guards, anti-patterns, engine quirks, and every locked editor decision — lives in [[Atlas/II. Projects/Pommora/II. React/II. Rules/MarkdownPM]]; read it first when implementing any construct. This spec records WHAT the editor ships and its visible surface.
 
 ---
 

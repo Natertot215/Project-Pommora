@@ -88,9 +88,9 @@
   --add-banner-zone: 44px;
   padding-top: calc(var(--glass-inset) + 1px + var(--toolbar-h));
   /* Mirror the title's 14px bottom gap below the divider so the first body line isn't jammed
-     against it — the divider then sits with equal space above and below. (offsetHeight feeds
+     against it — the divider then sits with equal space above and below. It's 16px not 14px because the Title3 title inherently has line-height padding that adds the effect of +2px. (offsetHeight feeds
      --header-zone, so this padding pushes the body's top down too.) */
-  padding-bottom: 14px;
+  padding-bottom: 16px;
 }
 .mdpm-header:not(.has-banner) .add-banner-strip {
   padding-left: var(--content-inset);

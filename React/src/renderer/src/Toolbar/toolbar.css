@@ -24,7 +24,7 @@
 .shell.sidebar-hidden .app-toolbar {
   left: 0;
   /* Reserve room for the traffic lights + the expand toggle, centred between them and Back/Forward. */
-  padding-left: 140px;
+  padding-left: 138px;
  
 }
 /* Inspector open: pull the toolbar's right edge in so the trio sits left of the pane. */
