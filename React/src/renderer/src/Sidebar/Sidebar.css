@@ -85,7 +85,7 @@
   /* Same row as the toolbar buttons, centred between the traffic lights and Back/Forward (which
      reserves the matching right gap via the sidebar-hidden toolbar padding). */
   top: calc(var(--glass-inset) + 1px);
-  left: 90px;
+  left: 96px;
   opacity: 0;
   transform: translateX(-6px);
   pointer-events: none;
