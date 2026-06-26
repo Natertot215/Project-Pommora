@@ -7,6 +7,7 @@ import { markdownDecorations } from './editor/decorations'
 import { markdownInput } from './editor/input'
 import { tableWidgetExtension } from './Tables'
 import { listDragExtension } from './editor/listDrag'
+import { customCaret } from './editor/caret'
 import { connectionClicks } from './editor/connections'
 import { externalLinkClicks } from './editor/links'
 import { markdownFolding, applySavedFolds, type FoldsApi } from './editor/folding'
@@ -104,6 +105,8 @@ export function MarkdownEditor({
         tableWidgetExtension(() => connectionsRef.current),
         // Grab a list glyph (•, number, or checkbox) to drag-reorder the item; click toggles/places caret.
         listDragExtension,
+        // Drawn caret (rounded bar in text, I-beam on empty lines, smooth fade) — native caret hidden in CSS.
+        customCaret,
         connectionClicks(() => connectionsRef.current),
         externalLinkClicks(),
         markdownFolding((keys) => foldsRef.current?.save(keys)),

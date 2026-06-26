@@ -48,10 +48,56 @@
 }
 .mdpm-editor .cm-content {
   color: var(--label-primary);
-  caret-color: var(--label-primary);
+  /* Native caret hidden — a drawn caret (editor/caret.ts + the CARET block below) replaces it. */
+  caret-color: transparent;
+  /* Hover cursor: a double-T I-beam matching the drawn caret — black with a white outline so it reads on
+     any background. Hotspot centred on the stem; falls back to the system `text` cursor. */
+  cursor:
+    url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="14" height="24"><g fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M7 5.6V18.4M4.4 4L7 5.6L9.6 4M4.4 20L7 18.4L9.6 20" stroke="%23fff" stroke-width="3"/><path d="M7 5.6V18.4M4.4 4L7 5.6L9.6 4M4.4 20L7 18.4L9.6 20" stroke="%23000" stroke-width="1.4"/></g></svg>')
+      7 12,
+    text;
   /* Reserves the header zone — set live from the header's measured height (index.tsx ResizeObserver). */
   padding: var(--header-zone, 90px) 0 90px;
   font-size: var(--editor-font-size, 15px);
+}
+
+/* ══ CARET KNOBS — the drawn caret (editor/caret.ts). Edit these to retune ═════════
+     --caret-width  : caret thickness
+     --caret-color  : fill
+     --caret-gap    : full cycle length — RAISE for slower blinking (on + off are equal halves)
+     --caret-dim    : opacity at the bottom of the dip (1 = no blink, 0 = full off) */
+.mdpm-editor .mdpm-caretLayer {
+  --caret-width: 2px;
+  --caret-color: var(--label-primary);
+  --caret-gap: 1.3s;
+  --caret-dim: 0;
+}
+.mdpm-editor .cm-focused > .cm-scroller > .mdpm-caretLayer {
+  animation: mdpm-blink var(--caret-gap) ease-in-out infinite;
+}
+/* Equal halves: solid 0→42%, quick fade, fully off 50→92%, quick fade back — on and off last the same.
+   Two identical keyframes so caret.ts can swap names to restart the cycle on caret move (no reflow). */
+@keyframes mdpm-blink {
+  0%, 42% { opacity: 1; }
+  50%, 92% { opacity: var(--caret-dim, 0); }
+  100% { opacity: 1; }
+}
+@keyframes mdpm-blink2 {
+  0%, 42% { opacity: 1; }
+  50%, 92% { opacity: var(--caret-dim, 0); }
+  100% { opacity: 1; }
+}
+
+/* RectangleMarker sizes the stem (height = line box, width via CSS); we centre it on the text position. */
+.mdpm-caret {
+  display: none;
+  width: var(--caret-width);
+  margin-left: calc(var(--caret-width) / -2);
+  background: var(--caret-color);
+  border-radius: 999px; /* rounded caps, top + bottom */
+}
+.mdpm-editor .cm-focused > .cm-scroller > .mdpm-caretLayer .mdpm-caret {
+  display: block;
 }
 
 /* Page header — scroll-tracks: translates up over its own height as you scroll (banner scrolls away). */
