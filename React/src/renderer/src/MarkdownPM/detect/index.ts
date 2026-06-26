@@ -19,9 +19,11 @@ export function indentLevel(ws: string): number {
 }
 
 /** The single list-marker parser. Every layer reads markers through this — never its own regex.
- *  `kind` is `checkbox` only when a non-empty box follows a `-`/`*`/`+` bullet (`1. [ ]` stays `ordered`). */
+ *  `kind` is `checkbox` only when a non-empty box follows a `-`/`*`/`+` bullet (`1. [ ]` stays `ordered`).
+ *  `arrow` is the `→ ` list (typed `-> `, auto-converted to the glyph by `dashArrow`); it behaves like a
+ *  bullet but its marker IS the on-disk glyph, so it's kept as literal source rather than widget-swapped. */
 export interface ListMarker {
-  kind: 'ordered' | 'bullet' | 'checkbox'
+  kind: 'ordered' | 'bullet' | 'checkbox' | 'arrow'
   bullet?: string
   digits?: string
   level: number
@@ -33,8 +35,21 @@ export interface ListMarker {
 }
 
 const LIST_MARKER_RE = /^([ \t]*)(?:(\d+)\.|([-*+•]))(?:[ \t]*(\[([ xX]?)\]))?([ \t]+)(.*)$/d
+const ARROW_MARKER_RE = /^([ \t]*)→([ \t]+)/
 
 export function parseListMarker(line: string): ListMarker | null {
+  const arrow = ARROW_MARKER_RE.exec(line)
+  if (arrow) {
+    const markerStart = arrow[1].length
+    return {
+      kind: 'arrow',
+      bullet: '→',
+      level: indentLevel(arrow[1]),
+      markerStart,
+      markerEnd: markerStart + 1,
+      contentStart: markerStart + 1 + arrow[2].length
+    }
+  }
   const m = LIST_MARKER_RE.exec(line)
   const idx = m?.indices
   const ws = idx?.[6]

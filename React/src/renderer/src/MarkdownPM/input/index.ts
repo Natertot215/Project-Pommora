@@ -14,7 +14,7 @@ export const lineEndAt = (doc: string, pos: number): number => {
   return i === -1 ? doc.length : i
 }
 
-const lineMarkerRe = /^(\s*)(?:\d+\.|[-*+•]|>|#{1,6})(?:[ \t]*\[[ xX]?\])?[ \t]+/
+const lineMarkerRe = /^(\s*)(?:\d+\.|[-*+•→]|>|#{1,6})(?:[ \t]*\[[ xX]?\])?[ \t]+/
 const shorthandCheckboxRe = /^([ \t]*)([-*+])\[([ xX]?)\]$/
 
 export function continueListOnEnter(doc: string, selStart: number, selEnd: number): Edit | null {

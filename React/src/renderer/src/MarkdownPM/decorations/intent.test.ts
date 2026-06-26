@@ -83,6 +83,16 @@ describe('decoration intents', () => {
     expect(intents.some((d) => d.kind === 'widget')).toBe(false)
   })
 
+  it.each([
+    ['arrow', '→ step'],
+    ['plus', '+ step']
+  ])('%s list → marker kept as literal source (recolour + drag-handle class), no widget, bullet spacing', (_n, t) => {
+    const intents = decorationsFor(t, tokenize(t), new Set(), 99)
+    expect(intents.some((d) => d.kind === 'class' && d.className === 'md-control md-li-glyph' && d.from === 0 && d.to === 1)).toBe(true)
+    expect(intents.some((d) => d.kind === 'line' && d.className === 'md-li')).toBe(true)
+    expect(intents.some((d) => d.kind === 'widget')).toBe(false)
+  })
+
   it('nested bullet → line decoration carries the indent level (2 spaces = 1, tab = 1)', () => {
     const spaces = decorationsFor('  - x', tokenize('  - x'), new Set(), 99)
     expect(spaces.some((d) => d.kind === 'line' && d.level === 1)).toBe(true)

@@ -76,9 +76,17 @@ describe('parseListMarker (single marker source)', () => {
     expect(parseListMarker('-[] a')!.kind).toBe('bullet')
     expect(parseListMarker('1. [ ] a')!.kind).toBe('ordered')
   })
+  it('arrow: `→ ` is a list marker (the glyph IS the marker), nesting via indent', () => {
+    const m = parseListMarker('→ go')!
+    expect(m.kind).toBe('arrow')
+    expect(m.bullet).toBe('→')
+    expect([m.markerStart, m.markerEnd, m.contentStart]).toEqual([0, 1, 2])
+    expect(parseListMarker('\t→ nested')!.level).toBe(1)
+  })
   it('returns null for non-list lines and markers with no trailing space', () => {
     expect(parseListMarker('plain')).toBeNull()
     expect(parseListMarker('-[x]done')).toBeNull()
+    expect(parseListMarker('→go')).toBeNull() // arrow needs a trailing space, like every other marker
   })
   it('indentLevel: tabs + ⌊spaces/2⌋, capped at the max', () => {
     expect(indentLevel('')).toBe(0)

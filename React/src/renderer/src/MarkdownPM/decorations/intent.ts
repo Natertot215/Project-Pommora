@@ -151,6 +151,12 @@ export function decorationsFor(text: string, tokens: Token[], active: Set<number
       intents.push({ kind: 'line', from: ls, className: 'md-li', level: lm.level })
       if (lm.markerStart > 0) intents.push({ kind: 'hide', from: ls, to: ls + lm.markerStart })
       if (!onMarker) intents.push({ kind: 'widget', from: ls + lm.markerStart, to: ls + lm.markerEnd, spec: { type: 'bullet' } })
+    } else if (lm?.kind === 'arrow' || (lm?.kind === 'bullet' && lm.bullet === '+' && !lm.box)) {
+      // `→` and `+` ARE their own glyphs, so they stay as literal source (like the ordered number, not a
+      // widget): recoloured to the marker tone + given the drag-handle class. Share the `.md-li` bullet zone.
+      intents.push({ kind: 'line', from: ls, className: 'md-li', level: lm.level })
+      if (lm.markerStart > 0) intents.push({ kind: 'hide', from: ls, to: ls + lm.markerStart })
+      intents.push({ kind: 'class', from: ls + lm.markerStart, to: ls + lm.markerEnd, className: `md-control ${GLYPH_CLASS}` })
     } else if (lm?.kind === 'ordered') {
       // `N.` stays literal recoloured source (no widget) so typing after the number can't hit an atomic range.
       intents.push({ kind: 'line', from: ls, className: 'md-li md-li-ordered', level: lm.level })
