@@ -1,6 +1,19 @@
 /* Detail surface: the plain detail pane (none / page / not-found) and the banner-bearing scroller
    (DetailScaffold) + its placeholder/empty/error states. */
 
+/* The detail pane = the routed view (fills + scrolls) above the Subfield footer (pinned, collapsible).
+   position:relative anchors the hover toggle chevron. */
+.detail-pane {
+  position: relative;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+.detail-pane-view {
+  flex: 1;
+  min-height: 0;
+}
+
 /* --- detail pane (lives inside .content-pane, offset past the glass sidebar) --- */
 .detail {
   height: 100%;

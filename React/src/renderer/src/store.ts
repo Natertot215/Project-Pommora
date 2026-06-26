@@ -42,6 +42,13 @@ export type SelectTarget =
   | { kind: 'set'; id: string; path: string }
   | { kind: 'page'; id: string; path: string }
 
+/** A breadcrumb ghost crumb's target — the last page visited in a given container. */
+export interface TrailEntry {
+  id: string
+  path: string
+  title: string
+}
+
 /** Nexus-relative path of a top Collection or any nested Set by id (ungrouped + sectioned). */
 function findContainerPath(tree: NexusTree, id: string): string | null {
   const cols = [...(tree.collections ?? []), ...tree.userSections.flatMap((s) => s.collections ?? [])]
@@ -75,6 +82,12 @@ interface SessionState {
   /** Inspector (right pane) width in px (clamped, persisted to localStorage). */
   inspectorWidth: number
   setInspectorWidth: (w: number) => void
+  /** Subfield (footer) — one app-level expanded flag; all views collapse together. */
+  subfieldExpanded: boolean
+  setSubfieldExpanded: (expanded: boolean) => void
+  /** Last-visited page per container id — drives the breadcrumb's dimmed "forward" ghost crumb. */
+  trail: Record<string, TrailEntry>
+  recordTrail: (containerId: string, entry: TrailEntry) => void
   load: () => Promise<void>
   /** Swap in a freshly-read tree (from load() or the live watcher): set it, reconcile the selection, re-apply accent. */
   applyTree: (tree: NexusTree) => Promise<void>
@@ -205,6 +218,12 @@ export const useSession = create<SessionState>((set, get) => {
         // private mode / disabled storage — width just won't persist
       }
     },
+
+    subfieldExpanded: true,
+    setSubfieldExpanded: (expanded) => set({ subfieldExpanded: expanded }),
+    trail: {},
+    recordTrail: (containerId, entry) =>
+      set((s) => ({ trail: { ...s.trail, [containerId]: entry } })),
 
     selection: { kind: 'none' },
     pageStatus: 'idle',

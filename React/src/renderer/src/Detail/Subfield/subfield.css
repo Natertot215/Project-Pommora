@@ -1,0 +1,127 @@
+/* The Subfield (footer): breadcrumb left, per-view items right. All text is the one label.control
+   token (DRY); ghost/dim is opacity, never a second colour. */
+.subfield {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 28px;
+  padding: 5px var(--content-inset-right) 6px var(--content-inset);
+  color: var(--label-control);
+  font-size: 12px;
+  line-height: 15px;
+  border-top: 1px solid #ffffff14;
+  -webkit-app-region: no-drag;
+  transition:
+    padding-left var(--duration-base) var(--ease-standard),
+    padding-right var(--duration-base) var(--ease-standard);
+}
+.shell.is-resizing .subfield {
+  transition: none;
+}
+
+.subfield-crumbs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  overflow: hidden;
+}
+.subfield-crumb {
+  appearance: none;
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  cursor: default;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 220px;
+}
+button.subfield-crumb:hover {
+  color: var(--label-primary);
+}
+.subfield-crumb.ghost {
+  opacity: 0.5;
+}
+button.subfield-crumb.ghost:hover {
+  opacity: 1;
+  color: var(--label-primary);
+}
+.subfield-sep {
+  flex: none;
+  color: var(--label-tertiary);
+}
+
+.subfield-items {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: none;
+}
+.subfield-stats {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+.subfield-add {
+  appearance: none;
+  border: 0;
+  background: none;
+  padding: 2px;
+  display: inline-flex;
+  color: inherit;
+  cursor: default;
+  -webkit-app-region: no-drag;
+}
+.subfield-add:hover {
+  color: var(--label-primary);
+}
+
+/* App-level collapse: grid-rows 0fr↔1fr slides the bar up/down and reclaims its space. */
+.subfield-reveal {
+  flex: none;
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows var(--duration-base) var(--ease-standard);
+}
+.subfield-reveal.open {
+  grid-template-rows: 1fr;
+}
+.subfield-reveal > .subfield {
+  overflow: hidden;
+  min-height: 0;
+}
+.shell.is-resizing .subfield-reveal {
+  transition: none;
+}
+
+/* Hover-gated toggle chevron at the pane's bottom-right (in the bar's right-padding zone, clear of
+   the items) — reveals the collapsed bar / collapses the open one. */
+.subfield-toggle {
+  position: absolute;
+  right: 12px;
+  bottom: 6px;
+  z-index: 2;
+  appearance: none;
+  border: 0;
+  background: none;
+  padding: 2px 6px;
+  display: inline-flex;
+  color: var(--label-secondary);
+  cursor: default;
+  opacity: 0;
+  -webkit-app-region: no-drag;
+  transition:
+    opacity var(--duration-fast) var(--ease-standard),
+    color var(--duration-fast) var(--ease-standard);
+}
+.detail-pane:hover .subfield-toggle {
+  opacity: 1;
+}
+.subfield-toggle:hover {
+  color: var(--label-primary);
+}
