@@ -34,6 +34,7 @@ Foundations, container views, the page editor (MarkdownPM + Tables), the page/co
 
 ### Pending focuses
 
+- **Caret customization (app-wide) — deferred to a proper pass.** Make the caret *feel* match macOS/Swift (the smooth fade, not Chromium's hard blink) across **every** editor surface — the page body, each table cell, and any future inputs — consistently. A real brainstorm → spec → review effort, not a one-off; the technical constraint (drawn caret per surface, `caret-color: transparent`, no `drawSelection`) is captured under Lessons learned.
 - **Subfield reorder + live-stats + custom items** — the registry/order/persistence are the seams; see `Features/Subfield.md` § Roadmap.
 - **Icon picker** — build the real `Components/IconPicker` + wire the icon's frontmatter save (Swift `IconPicker` is the spec; wants a shared dropdown-animation primitive).
 - **Real design-system Components** (Button / Menu / Label / Separator) from the token layer — prerequisite for replacing one-offs (notably the inline-rename `<input>`).
@@ -56,14 +57,13 @@ Foundations, container views, the page editor (MarkdownPM + Tables), the page/co
 - **`@samasante/liquid-glass` `<Glass>` forces `display:inline-block` inline** — a flex consumer (the segmented control) must re-assert `display:flex` in its own inline style or the row flattens. It renders `children` + the filter layers as direct children of the styled root, so `className`/`style` pass through cleanly.
 - **Styling `::-webkit-scrollbar` at all opts Chromium out of its native auto-hiding overlay** onto the always-visible classic bar. A custom CSS bar can't truly auto-hide (only fake it via hover); real scroll-then-fade needs an overlay-scrollbar lib. We hid them entirely instead.
 - **Per-machine UI state vs portable settings** — `subfield` config + accent + labels live in the Swift-shared `.nexus/settings.json` (foreign keys round-trip); ephemeral chrome (folds, sidebar disclosure) lives in separate local files / localStorage.
-- **The editor caret is already native** (no `drawSelection`) — its tall look is the editor's 1.6 line-height (native carets span the line box); a shorter caret needs a non-native custom cursor or lower line-height. Not a bug.
+- **The editor caret is the native one** (no `drawSelection`) — and the native Chromium caret can't be restyled past `caret-color`: its blink is a hard on/off (not the macOS/Swift smooth fade) and its height tracks the 1.6 line-height. Matching Swift's *feel* means hiding the native caret (`caret-color: transparent`, which leaves `::selection` alone) and drawing a custom caret **per editor surface**, positioned like CM's own cursor layer; `drawSelection` is off the table because it's all-or-nothing (it replaces native selection too, which we keep). Tried + reverted once — it's a deferred pass (see Pending focuses).
 - **The editor bakes CM6 extensions at mount** — extension-code changes need ⌘R, not HMR; a stale dev server can leave a GHOST Electron running old code (`pkill -f "…/node_modules/electron"`). Verify extension behaviour headlessly (jsdom) over a possibly-stale window.
 - **CM6 injects `.ͼN .cm-line{display:block}` at (0,2,0)** — override line display/padding with a `.mdpm-editor .cm-line.X` (0,3,0) selector, not `!important`; after chained edits to one rule, re-read the whole file.
 - **(Tables)** Drags bind move/up on `window` + `setPointerCapture` (a mid-drag re-render drops element listeners → frozen drag); `updateDOM` re-renders the React root in place (else CM rebuilds every nested editor — "jank on drop"); the live element is the only drag feedback. `@tanstack/react-table` was rejected (its resize grows the table, opposite our conserve-total dash model). React port of **ckant/codemirror-markdown-tables** (MIT).
 
 #### Fix Log
 
-- **Caret look/jitter** — the caret is native (above); its tall height is line-height-inherent, and it **jitters on longer docs** — folded into the *MarkdownPM performance* focus next session.
 - **Aliased `[[A|B]]` vs cell-pipe** — a `|` in an aliased connection collides with cell-pipe escaping inside a table cell; autocomplete only inserts alias-free `[[Title]]`. Open paradigm call.
 - **Table links non-clickable** (no input handling for the rendered link inside a cell); proposed single-click navigate + right-click edit.
 
