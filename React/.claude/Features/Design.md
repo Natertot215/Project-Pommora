@@ -55,7 +55,9 @@ Text color is separate from surface color: three label tones — primary, second
 
 ### Glass
 
-Glass is **blur plus a slight dimming** of what's behind it — a single shared material recipe spread by both the surface and control variants (identical now, separable later). `Surface` consumes it, and a draggable demo over photo backdrops lives in the showcase Materials section.
+Three tiers in `materials/`, now **two materials**. **Window** (the sidebar + the inspector frame) and **Surface** (panels / popovers) share the **frost** recipe — blur plus a slight dimming of what's behind. **Controls** (the toolbar segmented buttons + the autocomplete panel) use Apple **"Liquid Glass"** via `@samasante/liquid-glass`: a real `feDisplacementMap` edge-refraction over the live app, tuned once as `CONTROL_OPTICS` in `materials/glass-controls.tsx` (chosen over four alternatives + the prior frost in a homepage tuning lab, since removed). Layout (size / position / radius) is always the consumer's.
+
+**Scrollbars are hidden app-wide** — Electron's default Chromium bar reads heavy and the native auto-hiding overlay isn't reliably available, so scrolling is trackpad/wheel only (a clean no-bar surface beat a styled always-visible one).
 
 ### Icons
 

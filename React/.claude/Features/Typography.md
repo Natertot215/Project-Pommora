@@ -19,7 +19,8 @@ Columns are the two **variants**; cells are the **weight** each resolves to.
 | Callout     | Standard        | **Bold**         | in-text quotes                          |
 | Control     | Standard        | **Semibold**     | chips, labels, UI controls              |
 | Caption     | Standard        | Semibold         | secondary captions                      |
-| Footnote    | Standard        | Semibold         | smallest text                           |
+| Footnote    | Standard        | Semibold         | small text                              |
+| Subline     | Standard        | Semibold         | Subfield + Mini Items    |
 
 Derived from the macOS AppKit text scale drawn in Inter, with deliberate edits: **Headline** sits at body size with Emphasized / Semibold weights — distinct from Body by weight, used for menu section headers; **Callout** carries in-text quotes and menu item titles (Bold emphasis); **Control** drives chips / labels / buttons (Semibold emphasis). The Standard variant is the **Standard (400)** weight everywhere except Headline, which takes **Emphasized (500)**.
 
@@ -37,6 +38,7 @@ Four Inter weights on a ladder — **Standard 400 · Emphasized 500 · Semibold 
 - **Chips** → Control / Emphasized.
 - **Sub-label** → Caption / Standard.
 - **Detail** → Footnote / Emphasized.
+- **Subfield (footer)** → Subline / Emphasized — the smallest text in the app.
 - **Headings** → Title 3 / Title 2 / … / Large Title by level.
 - **Page body** → Body; **quotes** → Callout.
 
