@@ -82,9 +82,10 @@
    open sidebar's collapse button; as the sidebar slides off it fades + eases in (revealed, close
    tucking behind it), and fades back out as the sidebar slides in to overtake it. */
 .sidebar-expand {
-  /* Same row as the toolbar buttons (its centre lines up with them). */
+  /* Same row as the toolbar buttons, centred between the traffic lights and Back/Forward (which
+     reserves the matching right gap via the sidebar-hidden toolbar padding). */
   top: calc(var(--glass-inset) + 1px);
-  left: 84px;
+  left: 90px;
   opacity: 0;
   transform: translateX(-6px);
   pointer-events: none;
