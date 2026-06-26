@@ -78,7 +78,7 @@ export type DecoIntent =
   | { kind: 'widget'; from: number; to: number; spec: WidgetSpec }
   | { kind: 'line'; from: number; className: string; level?: number }
 
-const CONTENT_CLASS: Partial<Record<TokenKind, string>> = {
+export const CONTENT_CLASS: Partial<Record<TokenKind, string>> = {
   bold: 'md-bold',
   italic: 'md-italic',
   strikethrough: 'md-strike',

@@ -134,3 +134,19 @@
 .mdpm-tbl-cell-editor .cm-editor .cm-line {
   padding: 0;
 }
+
+/* Static (non-editing) cell — mirrors the nested editor's content box (.cm-content padding + wrapping)
+   so promoting a cell to an editor on click doesn't shift its text. Fills the cell so the whole area is
+   click-to-edit; min-height keeps an empty cell clickable. */
+.mdpm-tbl-cell-static {
+  box-sizing: border-box;
+  height: 100%;
+  min-height: 1.6em;
+  padding: 3px 8px;
+  font: inherit;
+  line-height: inherit;
+  text-align: inherit;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  cursor: text;
+}

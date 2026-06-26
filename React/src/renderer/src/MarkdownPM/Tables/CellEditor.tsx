@@ -23,7 +23,7 @@ export function CellEditor({
   onNavigate,
   onUndo,
   onRedo,
-  register,
+  caretCoords,
   connections
 }: {
   initial: string
@@ -31,7 +31,9 @@ export function CellEditor({
   onNavigate: (dir: NavDir) => void
   onUndo: () => void
   onRedo: () => void
-  register: (view: EditorView) => () => void
+  // The cell only mounts when it's the active cell, so it focuses itself: at the click point if one was
+  // captured (StaticCell mousedown), otherwise at the end (keyboard navigation into the cell).
+  caretCoords?: { x: number; y: number } | null
   connections?: () => ConnectionsApi | undefined
 }): React.JSX.Element {
   const host = useRef<HTMLDivElement>(null)
@@ -105,9 +107,17 @@ export function CellEditor({
       })
     })
     viewRef.current = view
-    const unregister = register(view)
+    // Focus + land the caret: at the click point (posAtCoords) if one was captured, else at the end.
+    // posAtCoords reads layout and can throw before the view has measured — fall back to the end.
+    view.focus()
+    let pos: number | null = null
+    try {
+      if (caretCoords) pos = view.posAtCoords({ x: caretCoords.x, y: caretCoords.y })
+    } catch {
+      pos = null
+    }
+    view.dispatch({ selection: { anchor: pos ?? view.state.doc.length } })
     return () => {
-      unregister()
       view.destroy()
       viewRef.current = null
     }

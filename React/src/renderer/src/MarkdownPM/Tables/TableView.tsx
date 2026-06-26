@@ -1,10 +1,10 @@
 import './widget.css'
-import { useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { GripHorizontal, GripVertical } from 'lucide-react'
-import type { EditorView } from '@codemirror/view'
 import type { Align, TableModel } from './model'
 import type { TableMenuContext } from '@shared/tableMenu'
 import { CellEditor } from './CellEditor'
+import { StaticCell } from './cellStatic'
 import { cellToDisplay } from './codec'
 import { clamp } from './operations'
 import { nextCell, type NavDir } from './navigate'
@@ -78,7 +78,6 @@ export function TableView({
   connections?: () => ConnectionsApi | undefined
 }): React.JSX.Element {
   const total = model.columns.reduce((sum, c) => sum + Math.max(1, c.dashes), 0) || model.columns.length
-  const cells = useRef(new Map<string, EditorView>())
   const totalRows = model.rows.length + 1
   const cols = model.columns.length
 
@@ -87,6 +86,9 @@ export function TableView({
   const [geom, setGeom] = useState<Geom>({ cols: [], rows: [] })
   const [drag, setDrag] = useState<Drag | null>(null)
   const [resize, setResize] = useState<Resize | null>(null)
+  // `caretCoords` carries a click point to the editor so it lands the caret where you clicked (null → caret at end).
+  const [active, setActive] = useState<{ row: number; col: number } | null>(null)
+  const caretCoords = useRef<{ x: number; y: number } | null>(null)
 
   useLayoutEffect(() => {
     const measure = (): void => {
@@ -121,8 +123,21 @@ export function TableView({
     setResize(null)
   }, [model])
 
+  // One editor at a time: a pointer-down anywhere outside the table demotes the active cell back to
+  // static. Cell↔cell moves go through `navigate`/`onActivate` (which set a new active), so this only
+  // fires on a genuine click-away — no blur/focus race.
+  useEffect(() => {
+    if (!active) return
+    const onDown = (e: PointerEvent): void => {
+      const wrap = wrapRef.current
+      if (wrap && !wrap.contains(e.target as Node)) setActive(null)
+    }
+    document.addEventListener('pointerdown', onDown, true)
+    return () => document.removeEventListener('pointerdown', onDown, true)
+  }, [active])
+
   const startDrag = (e: React.PointerEvent<HTMLDivElement>, axis: Axis, index: number): void => {
-    if (axis === 'row' && index === 0) return // the header row never drags
+    if (axis === 'row' && index === 0) return
     if (e.button !== 0) return // only the left button drags; a right-press falls through to the context menu
     e.preventDefault()
     const wrap = wrapRef.current
@@ -141,7 +156,7 @@ export function TableView({
     const onMove = (ev: PointerEvent): void => {
       const pos = axis === 'col' ? ev.clientX : ev.clientY
       let to = slotAt(axis, geom, pos - origin)
-      if (axis === 'row') to = Math.max(1, to) // can't drop a row above the header
+      if (axis === 'row') to = Math.max(1, to)
       current = { axis, from: index, to, delta: pos - start }
       setDrag(current)
     }
@@ -197,35 +212,40 @@ export function TableView({
   const navigate = (row: number, col: number, dir: NavDir): void => {
     const target = nextCell(totalRows, cols, row, col, dir)
     if (target === 'before' || target === 'after') {
+      setActive(null)
       onExit(target)
       return
     }
-    const view = cells.current.get(`${target.row},${target.col}`)
-    if (view) {
-      view.focus()
-      view.dispatch({ selection: { anchor: view.state.doc.length } }) // caret at end of the target cell
-    }
+    caretCoords.current = null // keyboard nav lands the caret at the end of the target cell
+    setActive({ row: target.row, col: target.col })
   }
 
-  const register =
-    (row: number, col: number) =>
-    (view: EditorView): (() => void) => {
-      const key = `${row},${col}`
-      cells.current.set(key, view)
-      return () => cells.current.delete(key)
+  const cell = (row: number, col: number, text: string): React.JSX.Element => {
+    const display = cellToDisplay(text)
+    if (active?.row === row && active.col === col) {
+      return (
+        <CellEditor
+          initial={display}
+          connections={connections}
+          caretCoords={caretCoords.current}
+          onCommit={(t) => onCellCommit(row, col, t)}
+          onNavigate={(dir) => navigate(row, col, dir)}
+          onUndo={onUndo}
+          onRedo={onRedo}
+        />
+      )
     }
-
-  const cell = (row: number, col: number, text: string): React.JSX.Element => (
-    <CellEditor
-      initial={cellToDisplay(text)}
-      connections={connections}
-      onCommit={(t) => onCellCommit(row, col, t)}
-      onNavigate={(dir) => navigate(row, col, dir)}
-      onUndo={onUndo}
-      onRedo={onRedo}
-      register={register(row, col)}
-    />
-  )
+    return (
+      <StaticCell
+        text={display}
+        connections={connections}
+        onActivate={(coords) => {
+          caretCoords.current = coords
+          setActive({ row, col })
+        }}
+      />
+    )
+  }
 
   // Grips swallow mousedown so a click on one (to drag or open the right-click menu) never pulls focus or
   // moves the editor caret to the click point — the grip is a control, not a text position.
