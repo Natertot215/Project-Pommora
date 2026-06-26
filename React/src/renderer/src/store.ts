@@ -147,11 +147,25 @@ export const useSession = create<SessionState>((set, get) => {
         // A new nexus was adopted — clear selection/detail from the old one before
         // re-reading, so stale page detail doesn't linger against the new tree.
         // (Scoped to the adopt path, not load(), which also serves launch + refresh.)
-        set({ selection: { kind: 'none' }, pageStatus: 'idle', pageDetail: null, pageError: undefined })
+        set({ selection: { kind: 'none' }, pageStatus: 'idle', pageDetail: null, pageError: undefined, liveBody: null })
         await get().load()
       }
     } catch (e) {
       set({ status: 'error', error: e instanceof Error ? e.message : String(e) })
+    }
+  }
+
+  // Back/Forward replay: walk the nav history in `delta` direction, resolving each entry by id against
+  // the live tree (a renamed/moved entity → its fresh path) and skipping entries whose entity was
+  // deleted — the stored path is never trusted blind, mirroring how every other selection reconciles.
+  const stepHistory = (delta: number): void => {
+    const { navStack, navIndex, tree } = get()
+    for (let i = navIndex + delta; i >= 0 && i < navStack.length; i += delta) {
+      const resolved = tree ? reconcileSelection(tree, navStack[i]) : navStack[i]
+      if (resolved.kind === 'none') continue // entity gone — skip to the next live entry in this direction
+      set({ navIndex: i })
+      void get().select(resolved, { record: false })
+      return
     }
   }
 
@@ -267,18 +281,8 @@ export const useSession = create<SessionState>((set, get) => {
     setLiveBody: (path, body) => set({ liveBody: { path, body } }),
     navStack: [],
     navIndex: -1,
-    goBack: () => {
-      const { navStack, navIndex } = get()
-      if (navIndex <= 0) return
-      set({ navIndex: navIndex - 1 })
-      void get().select(navStack[navIndex - 1], { record: false })
-    },
-    goForward: () => {
-      const { navStack, navIndex } = get()
-      if (navIndex >= navStack.length - 1) return
-      set({ navIndex: navIndex + 1 })
-      void get().select(navStack[navIndex + 1], { record: false })
-    },
+    goBack: () => stepHistory(-1),
+    goForward: () => stepHistory(1),
     select: async (target, opts) => {
       // Record into history unless this is a programmatic re-select — a path refetch, Back/Forward,
       // or (once previews land) a preview open — which pass { record: false } so they don't push.

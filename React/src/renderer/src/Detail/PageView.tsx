@@ -6,6 +6,8 @@ import { IconPicker } from '../Components/IconPicker'
 import { asIconName } from '../design-system/symbols'
 
 const SAVE_DEBOUNCE_MS = 400
+// Live stats settle just behind the keystroke so a long page isn't Markdown-scanned on every char.
+const STATS_DEBOUNCE_MS = 120
 
 export function PageView(): React.JSX.Element {
   const pageStatus = useSession((s) => s.pageStatus)
@@ -16,6 +18,7 @@ export function PageView(): React.JSX.Element {
   const select = useSession((s) => s.select)
   const setLiveBody = useSession((s) => s.setLiveBody)
   const saveTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  const liveTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const [iconPickerOpen, setIconPickerOpen] = useState(false)
 
   const connections = useMemo<ConnectionsApi | undefined>(() => {
@@ -24,12 +27,16 @@ export function PageView(): React.JSX.Element {
     return { ...idx, open: (page) => void select({ kind: 'page', id: page.id, path: page.path }) }
   }, [tree, select])
 
-  const scheduleSave = (path: string, body: string): void => {
-    if (saveTimer.current) clearTimeout(saveTimer.current)
-    saveTimer.current = setTimeout(() => {
-      void window.nexus.updatePageBody(path, body)
-    }, SAVE_DEBOUNCE_MS)
+  const debounce = (ref: typeof saveTimer, fn: () => void, ms: number): void => {
+    if (ref.current) clearTimeout(ref.current)
+    ref.current = setTimeout(fn, ms)
   }
+  // saveTimer persists the body (400ms); liveTimer feeds the Subfield stats buffer on a shorter
+  // cadence (120ms) so a long page isn't re-scanned per keystroke. Two timers, two distinct cadences.
+  const scheduleSave = (path: string, body: string): void =>
+    debounce(saveTimer, () => void window.nexus.updatePageBody(path, body), SAVE_DEBOUNCE_MS)
+  const pushLiveBody = (path: string, body: string): void =>
+    debounce(liveTimer, () => setLiveBody(path, body), STATS_DEBOUNCE_MS)
 
   switch (pageStatus) {
     case 'idle':
@@ -56,7 +63,7 @@ export function PageView(): React.JSX.Element {
             onEditIcon={() => setIconPickerOpen(true)}
             onRename={(newName) => submitRename(pageDetail.path, 'page', newName)}
             onChange={(body) => {
-              setLiveBody(pageDetail.path, body) // live buffer → Subfield stats track keystrokes
+              pushLiveBody(pageDetail.path, body) // debounced live buffer → Subfield stats
               scheduleSave(pageDetail.path, body)
             }}
             connections={connections}
