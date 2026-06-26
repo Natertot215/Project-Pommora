@@ -2,8 +2,8 @@
 import { Decoration, type DecorationSet, EditorView, ViewPlugin, type ViewUpdate, WidgetType } from '@codemirror/view'
 import type { Extension, Range } from '@codemirror/state'
 import { chipCheckbox } from '../../design-system/tokens'
-import { tokenize, activeTokenIndices } from '../tokens'
-import { decorationsFor, type WidgetSpec } from '../decorations/intent'
+import { tokenize, activeTokenIndices, type Token } from '../tokens'
+import { decorationsFor, fencedCodeRanges, type WidgetSpec } from '../decorations/intent'
 import type { ConnectionsApi } from '../connections'
 import { isValidLink } from '@shared/links'
 
@@ -77,11 +77,43 @@ function widgetFor(spec: WidgetSpec): WidgetType {
 const hideMarker = Decoration.replace({})
 const NO_ACTIVE = new Set<number>()
 
+// Tokenize only the on-screen lines, not the whole document — the heavy mdast parse + global-regex
+// passes per keystroke/caret-move are what made long docs lag and the caret jitter. Tokens are shifted
+// back to absolute offsets, and any landing inside a fence opened above the viewport are dropped (a
+// viewport-only tokenize can't see that fence). Paired with a rebuild on `viewportChanged` (scroll).
+function visibleInlineTokens(view: EditorView, text: string): Token[] {
+  const doc = view.state.doc
+  const spans: [number, number][] = []
+  for (const { from, to } of view.visibleRanges) {
+    const a = doc.lineAt(from).from
+    const b = doc.lineAt(to).to
+    const prev = spans[spans.length - 1]
+    if (prev && a <= prev[1] + 1) prev[1] = Math.max(prev[1], b)
+    else spans.push([a, b])
+  }
+  const fences = fencedCodeRanges(text)
+  const insideFence = (p: number): boolean => fences.some(([fa, fb]) => p >= fa && p < fb)
+  const out: Token[] = []
+  for (const [a, b] of spans) {
+    for (const tk of tokenize(text.slice(a, b))) {
+      const start = tk.range[0] + a
+      if (insideFence(start)) continue
+      out.push({
+        kind: tk.kind,
+        range: [start, tk.range[1] + a],
+        contentRange: [tk.contentRange[0] + a, tk.contentRange[1] + a],
+        markerRanges: tk.markerRanges.map(([s, e]) => [s + a, e + a] as [number, number])
+      })
+    }
+  }
+  return out
+}
+
 function build(view: EditorView, conn: ConnectionsApi | undefined): DecorationSet {
   const text = view.state.doc.toString()
   const focused = view.hasFocus
   const sel = view.state.selection.main
-  const tokens = tokenize(text)
+  const tokens = visibleInlineTokens(view, text)
   const active = focused ? activeTokenIndices(tokens, sel.from, sel.to) : NO_ACTIVE
   const head = focused ? sel.head : -1
   const ranges: Range<Decoration>[] = []
@@ -141,8 +173,10 @@ export function markdownDecorations(getConn: () => ConnectionsApi | undefined): 
         this.decorations = build(view, getConn())
       }
       update(u: ViewUpdate): void {
-        // Decorations cover the whole doc, so only doc/selection/focus changes matter — not scroll.
-        if (u.docChanged || u.selectionSet || u.focusChanged) this.decorations = build(u.view, getConn())
+        // Inline tokens are viewport-scoped, so scroll (viewportChanged) must rebuild too — newly
+        // revealed lines need their decorations. Line-level chrome still spans the whole doc.
+        if (u.docChanged || u.selectionSet || u.focusChanged || u.viewportChanged)
+          this.decorations = build(u.view, getConn())
       }
     },
     { decorations: (v) => v.decorations }

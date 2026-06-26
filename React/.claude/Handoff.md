@@ -35,6 +35,7 @@ Foundations, container views, the page editor (MarkdownPM + Tables), the page/co
 
 ### Pending focuses
 
+- **Tables — lazy cell editors (deferred perf).** Every table cell mounts a full CM6 `EditorView` (`MarkdownPM/Tables/CellEditor.tsx`), so a large table builds dozens of nested editors synchronously the moment it scrolls into view (`Tables/widget.tsx` `toDOM`) — the visible hitch on long pages with big tables. Fix: render cells as plain styled divs and instantiate a real `CellEditor` only on focus/edit (most cells are never edited). Biggest remaining table-perf win, but the largest change — left for after the parse/region scoping fixes that landed this session.
 - **Subfield reorder + live-stats + custom items** — the registry/order/persistence are the seams; see `Features/Subfield.md` § Roadmap.
 - **Icon picker** — build the real `Components/IconPicker` + wire the icon's frontmatter save (Swift `IconPicker` is the spec; wants a shared dropdown-animation primitive).
 - **Real design-system Components** (Button / Menu / Label / Separator) from the token layer — prerequisite for replacing one-offs (notably the inline-rename `<input>`).

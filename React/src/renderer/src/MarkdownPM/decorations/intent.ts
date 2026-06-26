@@ -10,8 +10,28 @@ interface FenceInfo {
   to: number
 }
 
-function scanFencedCode(lines: string[], lineStarts: number[]): (FenceInfo | undefined)[] {
-  const out: (FenceInfo | undefined)[] = new Array(lines.length)
+interface FenceBlock {
+  from: number
+  to: number
+  open: number
+  close: number
+  closed: boolean
+}
+
+function splitWithOffsets(text: string): { lines: string[]; lineStarts: number[] } {
+  const lines = text.split('\n')
+  const lineStarts: number[] = []
+  for (let p = 0, k = 0; k < lines.length; k++) {
+    lineStarts.push(p)
+    p += lines[k].length + 1
+  }
+  return { lines, lineStarts }
+}
+
+// One scan of ``` fences → block extents. Shared by the per-line role map (scanFencedCode) and the flat
+// range list (fencedCodeRanges) so the two never drift on what counts as a code block.
+function fenceBlocks(lines: string[], lineStarts: number[]): FenceBlock[] {
+  const blocks: FenceBlock[] = []
   let i = 0
   while (i < lines.length) {
     if (!FENCE_RE.test(lines[i])) {
@@ -20,15 +40,31 @@ function scanFencedCode(lines: string[], lineStarts: number[]): (FenceInfo | und
     }
     let j = i + 1
     while (j < lines.length && !FENCE_RE.test(lines[j])) j++
-    const closeLine = j < lines.length ? j : lines.length - 1
-    const from = lineStarts[i]
-    const to = lineStarts[closeLine] + lines[closeLine].length
-    out[i] = { role: 'open', from, to }
-    for (let k = i + 1; k < j; k++) out[k] = { role: 'content', from, to }
-    if (j < lines.length) out[j] = { role: 'close', from, to }
+    const closed = j < lines.length
+    const close = closed ? j : lines.length - 1
+    blocks.push({ from: lineStarts[i], to: lineStarts[close] + lines[close].length, open: i, close, closed })
     i = j + 1
   }
+  return blocks
+}
+
+function scanFencedCode(lines: string[], lineStarts: number[]): (FenceInfo | undefined)[] {
+  const out: (FenceInfo | undefined)[] = new Array(lines.length)
+  for (const blk of fenceBlocks(lines, lineStarts)) {
+    out[blk.open] = { role: 'open', from: blk.from, to: blk.to }
+    const contentEnd = blk.closed ? blk.close : blk.close + 1 // unclosed → the last line is content too
+    for (let k = blk.open + 1; k < contentEnd; k++) out[k] = { role: 'content', from: blk.from, to: blk.to }
+    if (blk.closed) out[blk.close] = { role: 'close', from: blk.from, to: blk.to }
+  }
   return out
+}
+
+// Absolute [from, to) ranges of fenced code blocks across the whole doc. The decoration builder drops
+// inline tokens that land inside a fence opened above the viewport — which a viewport-only tokenize
+// can't see. `to` reaches the end of the closing fence line (or EOF for an unclosed fence).
+export function fencedCodeRanges(text: string): [number, number][] {
+  const { lines, lineStarts } = splitWithOffsets(text)
+  return fenceBlocks(lines, lineStarts).map((b) => [b.from, b.to])
 }
 
 export type WidgetSpec =
@@ -63,12 +99,7 @@ export function decorationsFor(text: string, tokens: Token[], active: Set<number
     if (!active.has(i)) for (const [s, e] of tk.markerRanges) intents.push({ kind: 'hide', from: s, to: e })
   })
 
-  const lines = text.split('\n')
-  const lineStarts: number[] = []
-  for (let p = 0, k = 0; k < lines.length; k++) {
-    lineStarts.push(p)
-    p += lines[k].length + 1
-  }
+  const { lines, lineStarts } = splitWithOffsets(text)
   const fences = scanFencedCode(lines, lineStarts)
 
   for (let i = 0; i < lines.length; i++) {

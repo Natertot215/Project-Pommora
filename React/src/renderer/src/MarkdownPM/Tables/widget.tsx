@@ -1,8 +1,9 @@
 import { Decoration, type DecorationSet, EditorView, WidgetType } from '@codemirror/view'
-import { Facet, StateField, type EditorState, type Extension, type Range } from '@codemirror/state'
+import { Facet, StateField, type EditorState, type Extension, type Range, type Transaction } from '@codemirror/state'
 import { undo, redo } from '@codemirror/commands'
 import { createRoot, type Root } from 'react-dom/client'
 import { tableRegions, modelFromRegion } from './regions'
+import { parseDelimiter } from './codec'
 import { cellCommitChange, structuralEditChange, tableSelfEdit } from './sync'
 import {
   moveColumn,
@@ -201,14 +202,36 @@ export function buildWidgetDecorations(state: EditorState): DecorationSet {
   return Decoration.set(ranges, true)
 }
 
+// A full rebuild re-decodes every table in the doc; skip it for edits that can't change any table —
+// map the existing widgets forward instead. A table only changes when an edit touches its source, or
+// when a delimiter row appears beside a changed range (the line that turns prose into a table).
+function editAffectsTables(deco: DecorationSet, tr: Transaction): boolean {
+  for (const it = deco.iter(); it.value; it.next()) {
+    if (tr.changes.touchesRange(it.from, it.to) !== false) return true
+  }
+  const doc = tr.state.doc
+  let delimiterNearby = false
+  tr.changes.iterChangedRanges((_fromA, _toA, fromB, toB) => {
+    if (delimiterNearby) return
+    const first = doc.lineAt(fromB).number
+    const last = doc.lineAt(toB).number
+    for (let n = Math.max(1, first - 1); n <= Math.min(doc.lines, last + 1); n++) {
+      if (parseDelimiter(doc.line(n).text)) {
+        delimiterNearby = true
+        return
+      }
+    }
+  })
+  return delimiterNearby
+}
+
 const widgetField = StateField.define<DecorationSet>({
   create: buildWidgetDecorations,
-  update: (deco, tr) =>
-    tr.annotation(tableSelfEdit)
-      ? deco.map(tr.changes)
-      : tr.docChanged
-        ? buildWidgetDecorations(tr.state)
-        : deco,
+  update: (deco, tr) => {
+    if (tr.annotation(tableSelfEdit)) return deco.map(tr.changes)
+    if (!tr.docChanged) return deco
+    return editAffectsTables(deco, tr) ? buildWidgetDecorations(tr.state) : deco.map(tr.changes)
+  },
   provide: (f) => EditorView.decorations.from(f)
 })
 

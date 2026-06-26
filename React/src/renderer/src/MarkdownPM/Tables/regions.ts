@@ -47,11 +47,12 @@ export function tableRegions(doc: string): TableRegion[] {
       i++
       continue
     }
+    // Grab the contiguous non-blank block lexically, then confirm with a SINGLE parse — shrinking only
+    // if a non-table line is glued on without a blank separator (rare). The old per-line `isTable` made
+    // this O(rows²) parses per table on every keystroke; the common case is now one parse.
     let last = i
-    while (last + 1 < lines.length && lines[last + 1].text.trim() !== '') {
-      if (!isTable(doc.slice(header.from, lineTo(lines[last + 1])))) break
-      last++
-    }
+    while (last + 1 < lines.length && lines[last + 1].text.trim() !== '') last++
+    while (last > i && !isTable(doc.slice(header.from, lineTo(lines[last])))) last--
     const body = lines.slice(i + 1, last + 1)
     regions.push({
       from: header.from,
