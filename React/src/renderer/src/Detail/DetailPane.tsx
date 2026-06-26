@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useSession } from '../store'
 import { Icon } from '@renderer/design-system/symbols'
 import { findCollection, findSet } from './Scope'
@@ -63,6 +64,9 @@ export function DetailPane(): React.JSX.Element {
   const selectionKind = useSession((s) => s.selection.kind)
   const expanded = useSession((s) => s.subfieldExpanded)
   const setExpanded = useSession((s) => s.setSubfieldExpanded)
+  // Cursor in the chevron's general area (a large bottom-right region) → reveal the toggle. Tracked
+  // here rather than with a giant invisible button so the reveal zone never blocks clicks beneath it.
+  const [near, setNear] = useState(false)
 
   // The Subfield shows only where it has something to display: Collections, Sets, and Pages.
   // Contexts + Homepage are omitted — there's nothing to display here anyway; put it back when
@@ -70,8 +74,21 @@ export function DetailPane(): React.JSX.Element {
   const showSubfield =
     selectionKind === 'collection' || selectionKind === 'set' || selectionKind === 'page'
 
+  const paneClass =
+    'detail-pane' +
+    (showSubfield && expanded ? ' subfield-open' : '') +
+    (showSubfield && near ? ' subfield-near' : '')
+
   return (
-    <div className={showSubfield && expanded ? 'detail-pane subfield-open' : 'detail-pane'}>
+    <div
+      className={paneClass}
+      onMouseMove={(e) => {
+        if (!showSubfield) return
+        const r = e.currentTarget.getBoundingClientRect()
+        setNear(e.clientX > r.right - 260 && e.clientY > r.bottom - 120)
+      }}
+      onMouseLeave={() => setNear(false)}
+    >
       <div className="detail-pane-view">
         <DetailView />
       </div>

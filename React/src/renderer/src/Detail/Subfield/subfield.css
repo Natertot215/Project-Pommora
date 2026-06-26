@@ -105,15 +105,16 @@ button.subfield-crumb.ghost:hover {
   transition: none;
 }
 
-/* The toggle is a wide right-aligned hit-zone (its "general area") so it reveals when the cursor is
-   near the chevron — not whenever you're anywhere in the page. It rides above the bar when open, so
-   it never overlaps the bar's items. */
+/* The chevron rides above the bar when open (mirrors its height) so it never overlaps the bar's
+   items. It reveals when the cursor enters its general area — a large bottom-right region tracked in
+   DetailPane (`.subfield-near`), so the reveal zone can be big without an invisible button blocking
+   clicks to the content beneath — or on direct hover. The button itself stays a small click target. */
 .subfield-toggle {
   position: absolute;
   right: 0;
   bottom: 0;
   z-index: 2;
-  width: 56px;
+  width: 44px;
   height: var(--subline-h);
   display: inline-flex;
   align-items: center;
@@ -133,6 +134,9 @@ button.subfield-crumb.ghost:hover {
 }
 .detail-pane.subfield-open .subfield-toggle {
   bottom: var(--subline-h);
+}
+.detail-pane.subfield-near .subfield-toggle {
+  opacity: 1;
 }
 .subfield-toggle:hover {
   opacity: 1;
