@@ -3,7 +3,7 @@ import { Decoration, type DecorationSet, EditorView, ViewPlugin, type ViewUpdate
 import type { Extension, Range } from '@codemirror/state'
 import { chipCheckbox } from '../../design-system/tokens'
 import { tokenize, activeTokenIndices, type Token } from '../tokens'
-import { decorationsFor, fencedCodeRanges, type WidgetSpec } from '../decorations/intent'
+import { decorationsFor, fencedCodeRanges, GLYPH_CLASS, type WidgetSpec } from '../decorations/intent'
 import type { ConnectionsApi } from '../connections'
 import { isValidLink } from '@shared/links'
 
@@ -25,9 +25,14 @@ class BulletWidget extends WidgetType {
   }
   toDOM(): HTMLElement {
     const el = document.createElement('span')
-    el.className = 'md-bullet'
+    el.className = `md-bullet ${GLYPH_CLASS}`
     el.textContent = '•'
     return el
+  }
+  // WidgetType.ignoreEvent defaults to true — CM would swallow every event from this DOM, so the listDrag
+  // pointerdown never fires on a bullet glyph. The checkbox widget overrides it for the same reason.
+  ignoreEvent(): boolean {
+    return false
   }
 }
 
@@ -42,19 +47,17 @@ class CheckboxWidget extends WidgetType {
   eq(o: CheckboxWidget): boolean {
     return o.checked === this.checked && o.bracketFrom === this.bracketFrom
   }
-  toDOM(view: EditorView): HTMLElement {
+  toDOM(): HTMLElement {
+    // Toggle-on-click + drag-on-hold are both owned by the listDrag extension via the shared glyph class —
+    // this widget only renders. Keeping the press handler here would flip the box on a press-to-drag.
     const zone = document.createElement('span')
-    zone.className = 'md-li-marker'
+    zone.className = `md-li-marker ${GLYPH_CLASS}`
     const box = document.createElement('span')
     box.className = `${chipCheckbox} md-checkbox${this.checked ? ' md-checkbox-checked' : ''}`
     if (this.checked) {
       box.innerHTML =
         '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>'
     }
-    box.addEventListener('mousedown', (e) => {
-      e.preventDefault()
-      view.dispatch({ changes: { from: this.bracketFrom, to: this.bracketTo, insert: this.checked ? '[ ]' : '[x]' } })
-    })
     zone.appendChild(box)
     return zone
   }

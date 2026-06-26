@@ -1,73 +1,98 @@
 ## Handoff — Pommora React
 
-Lean current-state snapshot. Read first at session start. Deep docs: editor → `Features/MarkdownPM.md` (+ build spec `Planning/MarkdownPM.md`); the footer → `Features/Subfield.md`; data/IPC → `Features/Architecture.md`; design system → `Features/Design.md` + `Features/Typography.md`; drag-and-drop → `Features/DragAndDrop.md`; parked ideas → `Prospects.md`; locked decisions → `History.md`; **tables → `Features/MarkdownPM.md` § Tables**.
+**Session ID:** 64346d76-0499-4a65-93e3-71db53bf4d32
+**Date(s):** 26-06-2026
+--
 
-### Session summary — Subfield (footer) + window chrome (2026-06-25)
+**Date:** 26-06-2026
+**Model:** Opus 4.8
+**Connectors:** Playwright (attempted — `browser_navigate` errored on the local showcase; CDP driven directly via Node instead)
+**Commands:** `/handoff`
+**Agents:** Explore (×6 — MarkdownPM list internals · PommoraDND mechanics · fill-token ramp · drag-inhibitor audit · canvas internals · adversarial review), general-purpose (×6 — canvas research ×4 + JSONCanvas-lib survey + list-drag builder), code-simplifier (×1)
+**Skills:** `superpowers:brainstorming` (canvas), `handoff`
 
-A polish-heavy session on the detail surface and chrome.
+> ⚡ **Cornerstone — carry into every window, unchanged (Nathan's voice).**
+> *"You do NOT guess — you LOOK, and you ASK. Open the file and read the code before you assert anything; ask me when you're unsure. A plan built on an unverified claim is a liability, not progress — treat every doc, every `file:line`, every 'it works like X' as a hypothesis until you've read the code that proves it. Honesty over confidence; confidence is earned through evidence."*
 
-- **Subfield** (Swift's footer) — shipped. A breadcrumb with the dimmed forward **ghost crumb** (last-visited page), per-view items (pages → `lines·words·chars`; Collections/Sets → a New-Page/Container add-menu; Homepage + Contexts none yet), and an **app-level** hover chevron that slides the bar. New **8/10 "Subline" type scale**; persisted per-nexus in `.nexus/settings.json` under a `subfield` foreign key via a `subfield:get/set` IPC that mirrors `folds`. Spec → `Features/Subfield.md`.
-- **Inspector pane** — a full-height right-side twin of the sidebar (`Detail/InspectorPanel`, `GlassWindow`): pushes/reflows content when open (`--content-inset-right` mirrors the sidebar's left inset), edge-resizable, toggled from the trio. Empty scaffold — content (frontmatter/properties/page-info) is future.
-- **Locked-header content-views** — Collections/Sets/Contexts pin their banner + title while the body (table) scrolls (`DetailScaffold` `lockedHeader`). This also fixed **banner-less views showing no title** (Areas); the title now always renders, the divider is full-width always, and the title size is one DRY value (banner vs no-banner, Collection vs Set identical).
-- **Add-Banner unified** — one shared `AddBannerButton` across pages + content-views, centred in the toolbar→title gap.
-- **Liquid-glass controls** — `glass-controls` swapped from frost to Apple "Liquid Glass" (`@samasante/liquid-glass`, real `feDisplacementMap` refraction); optics tuned then baked static; the homepage tuning lab removed. Window/Surface stay frost. Detail → `Features/Design.md` § Glass.
-- **Scrollbars hidden app-wide**; **sidebar toggle** sized to the toolbar buttons + centred between the traffic lights and Back/Forward; app-level horizontal-scroll clip on `.shell`.
+#### Session Summary
 
-Typecheck + **542 tests** green throughout; each task a path-limited commit on `main` (not pushed). A parallel session held uncommitted edits in `MarkdownPM/Styles.css` + the root `.claude/*` all session — left untouched.
+A long build session across three fronts: the shipped **list drag-to-reorder** feature (built by an agent, then live-debugged against the running app over CDP), a parked **in-page canvas** design pass, and a committed **product-principle** refinement.
 
-### Where the project is
+**List drag-to-reorder, shipped (`924b346`):** Bullet / ordered / checkbox items reorder by grabbing their glyph: the sidebar's PommoraDND *feel* (grab cursor, in-place dim, an accent insertion line that follows the target's indent out to the gutter) but driven against CM line geometry and committed as a **source-line move**, not a DOM reflow. The dragged item carries its nested sub-block; dropping beside a shallower item re-nests it; ordered runs renumber — all one undo step. The killer bug, found only by live CDP debugging after two reasoning rounds failed: **`WidgetType.ignoreEvent` defaults to true**, so the bullet replace-widget swallowed pointerdown ("dragging doesn't work"). Then a jank fix (measure candidates once, not per-pointermove), slot-tracking + gutter-line + no-ghost + tint-dim polish, and re-nesting. Closed with simplifier + line-walk dedup + adversarial review (one real finding fixed, rest verified false positives). → `History.md`, `Features/MarkdownPM.md` § Lists.
 
-Foundations, container views, the page editor (MarkdownPM + Tables), the page/container banners, the **inspector**, and the **Subfield footer** are built. The data + read/write paths match Swift; what remains is the editor tail + polish + **performance**.
+**In-page canvas, designed then parked:** A full brainstorm → external+internal research → spec pass for embedded interactive canvases in MarkdownPM: JSONCanvas-shaped `.canvas` files (filename = name, ULID inside, in `.nexus/canvases/`), v1 = text-blocks + free-draw + lines/shapes, a **full-SVG scene with `<foreignObject>` text-blocks**, build-your-own (verified: the JSONCanvas ecosystem ships only viewers/readers, no editor). Net-new → React-first, so the format is the cross-build contract Swift later adopts. Spec written V2, **pending review, parked** at `Planning/6-26 - Canvas Spec.md` — > Nathan: "i think we may be getting ahead of ourselves." Resume from the spec + its first-step adversarial review.
 
-- **Data layer — done** (CRUD, properties, connections, Agenda; files canonical, SQLite a regeneratable accelerator). → `Features/Architecture.md`.
-- **Design system — continuous work, tokenized, live** (colour + accent + tint + typography incl. the new Subline + chips; Lucide icons; glass now two materials — frost Window/Surface, liquid-glass Controls). → `Features/Design.md` + `Features/Typography.md`.
-- **Sidebar — fully built** (Contexts + Vaults/Collections/Sets/Pages; create/rename/delete/reorder; PommoraDND drag-and-drop; disclosure persisted). → `Features/DragAndDrop.md`.
-- **Page editor — MarkdownPM, richly built + Tables done** (CM6, dynamic syntax, folding, lists, connections + `[[` autocomplete, native menu + shortcuts, full GFM table editing). → `Features/MarkdownPM.md`.
-- **Detail surface** — `DetailPane` routes selection → `HomepageView`/`ContextView`/`ContainerView`/`PageView`, each through `DetailScaffold` (+ `lockedHeader` for content-views); the Subfield mounts below; the inspector floats right.
+**Agent-legibility principle, refined + committed (`e98d46a`):** The root product principle "persistent *immediate* legibility for agents" relaxed to **convention-aware** (a `[[wikilink]]` abstracts a lookup yet stays legible once you know the convention) and running-code-independence dropped from a hard bar to a **strong preference** — firm line stays: no user data in a binary blob or held only in the index. Updated in root `CLAUDE.md` / `Architecture.md` / `PommoraPRD.md` / `History.md`. Prompted by the canvas file-per-canvas storage question.
 
-### Next session
+**Next Session**
 
-1. **Subfield reorder** — drag the items via PommoraDND (horizontal). The persisted `order` is already wired; only the drag UI remains.
-2. **Editor tail** — the real **Icon Picker** (Edit-Icon routes to a stub), then `::` **callouts** (→ `> [!type]`) + the **image / latex** render seams (detected/styled today, rendered later).
-3. **Inspector content** — frontmatter → properties → page-info in the empty pane.
-4. **Beyond** — Homepage dynamic widgets, the Gallery view, Agenda surfacing. Roadmap → `Framework.md`.
+- **Close out the list-drag debug rig:** the dev server is still running with `--remoteDebuggingPort=9222` and a background Node CDP logger (`/tmp/cdp.log`) — restore a plain `npm run dev` + kill the logger.
+- **Canvas:** resume from `Planning/6-26 - Canvas Spec.md`; its first step is the adversarial review, then a `writing-plans` plan. Confirm the `border` token (grey-30%, ratified) lands when canvas builds.
+- **Carryover editor work:** Subfield reorder (drag items via PommoraDND — order already persisted), the real Icon Picker, Inspector content, `::` callouts + image/latex render seams. → `Framework.md`.
 
-### Pending focuses
+**Lessons Learned**
 
-- **Caret customization (app-wide) — deferred to a proper pass.** Make the caret *feel* match macOS/Swift (the smooth fade, not Chromium's hard blink) across **every** editor surface — the page body, each table cell, and any future inputs — consistently. A real brainstorm → spec → review effort, not a one-off; the technical constraint (drawn caret per surface, `caret-color: transparent`, no `drawSelection`) is captured under Lessons learned.
-- **Subfield reorder + live-stats + custom items** — the registry/order/persistence are the seams; see `Features/Subfield.md` § Roadmap.
+- **`WidgetType.ignoreEvent` defaults to TRUE** — a CM6 widget swallows every DOM event from its own DOM; a replace-widget glyph that needs to be interactive (pointerdown, click) must override `ignoreEvent → false`. The checkbox already did; the bullet didn't — that one missing override was the whole "drag doesn't work."
+- **Live-debugging the React editor over CDP works and is worth it.** Restart dev with `env -u ELECTRON_RUN_AS_NODE npm run dev -- --remoteDebuggingPort=9222` (electron-vite supports the flag), attach via Node (global `fetch` + `WebSocket` → `http://localhost:9222/json`), stream `Runtime.consoleAPICalled` + `Runtime.exceptionThrown` to a file, screenshot via `Page.captureScreenshot`, drive input via `Input.dispatchMouseEvent` (it generates pointer events too). Caveat: a synthetic press on an **off-screen** target silently no-ops — filter candidates to `getBoundingClientRect` within the viewport first.
+- **Editor-extension changes need a full renderer reload (`Page.reload` / ⌘R), not HMR** — only CSS hot-swaps. CDP `Page.reload` is the cheap way to apply an extension edit for a live retest.
+- **Overlay drag inside CM: measure once.** The doc is static during a drag, so collect candidate line rects at drag-start; per-pointermove `lineBlockAt` / `coordsAtPos` is synchronous layout thrash (the jank). A `position:fixed` overlay lives in viewport coords — it dodges the scroll-container ambiguity an absolute child of `.cm-scroller` has (whether it scrolls depends on the positioned ancestor).
+- **The tint scale IS the opacity system** — CSS `opacity` accepts a percentage, so `opacity: var(--tint-secondary)` reuses it. Don't add a parallel "darken" token family for a dim (a black-overlay token can't darken *text* anyway — transparent-black text is invisible).
+
+**Key Files & Insights**
+
+- `MarkdownPM/editor/listDrag.ts` — the CM6 extension: pointerdown gesture, 5px activation, `mousedown` guard (CM starts selection on mousedown, which `preventDefault` on pointerdown can't cancel), the imperative overlay (position:fixed accent line, no floating ghost), `collectCands` (measure-once), `slotFrom` (nearest-boundary snap), a shared `forEachLine` helper.
+- `MarkdownPM/editor/listDragModel.ts` — pure source-line logic, unit-tested standalone (`listDragModel.test.ts`, 16 tests): `subBlockAt`, `reindentBlock` (strip-by-length, tab/space-robust), `moveBlockChanges`, `renumberOrderedRun` (from the run's min digit), `dropChanges` (move + renumber → one `diffAsSingleReplace`).
+- `MarkdownPM/editor/decorations.ts` — `BulletWidget` / `CheckboxWidget` both `ignoreEvent → false`; shared `GLYPH_CLASS` (`md-li-glyph`) on bullet + checkbox widgets and (via `intent.ts`) the ordered-number mark.
+
+**Landmines**
+
+- **Debug rig still live:** dev server launched with `--remoteDebuggingPort=9222` + a Node CDP logger background process. Restore a normal launch + kill the logger before walking away.
+- **Parallel session ran all session** on the Swift/`modified_at` work — touched root `.claude/*`, `Pommora/**.swift`, and `React/src/main/{crud,index}`. Never bundle or revert its edits; **stage explicit paths**, never `-A`.
+
+**Session Pointers**
+
+- The list-drag review surfaced three "HIGH" findings; on verification two were false positives (the ordered-renumber and diff-overlap claims — the diff already guards overlap with `suf < max - pre`). Only the mixed-tab/space re-indent was real, and the fix was a *guard removal*. Verify agent findings before acting (> Nathan: "see if removing guards or limits would fix them instead of adding more code").
+
+**User Feedback**
+
+- > Nathan: "use tint since it already does the opacity and is DRY" — reach for an existing scale before adding a parallel token family.
+- > Nathan: "fix them all minimally; see if removing guards or limits would fix them instead of adding more code" — triage by removal first; most "findings" were non-issues.
+- > Nathan: "dont use darken; use tint" + "the darken happens on the background when it should only happen on the text" — the dragged item dims its **text** (opacity), not a background fill.
+
+**Uncertain**
+
+- Re-nest with **mixed tab/space indent** is now graceful (strip-by-length) but not pixel-perfect; Pommora's own input never emits mixed indent, so it's untested against real mixed docs.
+- The `<foreignObject>` editable-text bet in the parked canvas spec is reasoned, not prototyped — flagged there as a 30-min spike before any deep build.
+
+---
+
+### Working Notes
+
+- UI iteration runs in **dev mode (HMR)** — keep `npm run dev` up; renderer edits hot-reload, **but CM6 widget/extension code needs a full ⌘R / `Page.reload`** (only CSS hot-swaps), and a freshly-added module sometimes needs one reload past HMR. Don't ⌘Q it.
+- **Main-process edits need a dev-server restart**; a stale main can silently drop a mutation.
+- Runs against a **test nexus** (`~/test`) — a *managed* nexus (carries `.nexus/`) so reorder/settings persist. The running app opens its `lastNexusPath`, not `TEST_NEXUS_PATH`.
+- The agent **can** screenshot + drive the React UI headlessly via Electron + CDP (`--remoteDebuggingPort` → `Page.captureScreenshot` / `Input.dispatchMouseEvent`), but Nathan is the primary visual verifier.
+- **Parallel sessions happen** — never bundle or revert unattributed changes; **stage explicit paths** (`git add <paths>`), never `-A`.
+
+### Pending Focuses
+
+- **Canvas (new)** — spec parked at `Planning/6-26 - Canvas Spec.md`, pending its adversarial review → plan → build. React-first; the `.canvas` format is the cross-build contract.
+- **Caret customization (app-wide) — deferred to a proper pass.** Match macOS/Swift's smooth fade (not Chromium's hard blink) across every editor surface via a drawn caret per surface (`caret-color: transparent`, no `drawSelection` — it's all-or-nothing). Tried + reverted once.
+- **Subfield reorder + live-stats + custom items** — registry/order/persistence are the seams; `Features/Subfield.md` § Roadmap.
 - **Icon picker** — build the real `Components/IconPicker` + wire the icon's frontmatter save (Swift `IconPicker` is the spec; wants a shared dropdown-animation primitive).
 - **Real design-system Components** (Button / Menu / Label / Separator) from the token layer — prerequisite for replacing one-offs (notably the inline-rename `<input>`).
 - **Radius + spacing tokens** — still ad-hoc literals; lift from Figma.
-- **Settings editing UI** deferred — `.nexus/settings.json` is the control surface (labels + accent + now `subfield`).
-- **One-time Biome normalization** — the format-on-write hook keeps touched files clean, but a whole-tree `npm run check` pass hasn't run (defer to a tree with no parallel uncommitted edits, so it doesn't clobber them).
+- **Settings editing UI** deferred — `.nexus/settings.json` is the control surface (labels + accent + `subfield`).
+- **One-time Biome normalization** — the format-on-write hook keeps touched files clean, but a whole-tree `npm run check` pass hasn't run (defer to a tree with no parallel uncommitted edits).
 - **Doc mirror** — a launchd watcher mirrors these docs into the Obsidian vault; keep them current.
 
-### Working notes
-
-- UI iteration runs in **dev mode (HMR)** — keep `npm run dev` up; renderer edits hot-reload, **but CM6 widget/extension code needs a full ⌘R** (only CSS hot-swaps), and a freshly-added module sometimes needs one reload past HMR. Don't ⌘Q it.
-- **Main-process edits need a dev-server restart**; a stale main can silently drop a mutation.
-- Runs against a **test nexus** (`~/test`) — a *managed* nexus (carries `.nexus/`) so reorder/settings persist.
-- The agent **can** screenshot the React UI headlessly via Electron + CDP (`--remote-debugging-port` → `Page.captureScreenshot`), but Nathan is the primary visual verifier.
-- **Parallel sessions happen** — never bundle or revert unattributed changes; **stage explicit paths** (`git add <paths>`), never `-A`.
-
-### Lessons learned (durable)
-
-- vanilla-extract vars are hashed; the `theme-vars.css.ts` bridge re-exports them as stable `var(--…)` — one source across `.ts` and `.css` (incl. `--weight-*`).
-- **`@samasante/liquid-glass` `<Glass>` forces `display:inline-block` inline** — a flex consumer (the segmented control) must re-assert `display:flex` in its own inline style or the row flattens. It renders `children` + the filter layers as direct children of the styled root, so `className`/`style` pass through cleanly.
-- **Styling `::-webkit-scrollbar` at all opts Chromium out of its native auto-hiding overlay** onto the always-visible classic bar. A custom CSS bar can't truly auto-hide (only fake it via hover); real scroll-then-fade needs an overlay-scrollbar lib. We hid them entirely instead.
-- **Per-machine UI state vs portable settings** — `subfield` config + accent + labels live in the Swift-shared `.nexus/settings.json` (foreign keys round-trip); ephemeral chrome (folds, sidebar disclosure) lives in separate local files / localStorage.
-- **The editor caret is the native one** (no `drawSelection`) — and the native Chromium caret can't be restyled past `caret-color`: its blink is a hard on/off (not the macOS/Swift smooth fade) and its height tracks the 1.6 line-height. Matching Swift's *feel* means hiding the native caret (`caret-color: transparent`, which leaves `::selection` alone) and drawing a custom caret **per editor surface**, positioned like CM's own cursor layer; `drawSelection` is off the table because it's all-or-nothing (it replaces native selection too, which we keep). Tried + reverted once — it's a deferred pass (see Pending focuses).
-- **The editor bakes CM6 extensions at mount** — extension-code changes need ⌘R, not HMR; a stale dev server can leave a GHOST Electron running old code (`pkill -f "…/node_modules/electron"`). Verify extension behaviour headlessly (jsdom) over a possibly-stale window.
-- **CM6 injects `.ͼN .cm-line{display:block}` at (0,2,0)** — override line display/padding with a `.mdpm-editor .cm-line.X` (0,3,0) selector, not `!important`; after chained edits to one rule, re-read the whole file.
-- **(Tables)** Drags bind move/up on `window` + `setPointerCapture` (a mid-drag re-render drops element listeners → frozen drag); `updateDOM` re-renders the React root in place (else CM rebuilds every nested editor — "jank on drop"); the live element is the only drag feedback. `@tanstack/react-table` was rejected (its resize grows the table, opposite our conserve-total dash model). React port of **ckant/codemirror-markdown-tables** (MIT).
-
-#### Fix Log
+### Fix Log
 
 - **Aliased `[[A|B]]` vs cell-pipe** — a `|` in an aliased connection collides with cell-pipe escaping inside a table cell; autocomplete only inserts alias-free `[[Title]]`. Open paradigm call.
-- **Table links non-clickable** (no input handling for the rendered link inside a cell); proposed single-click navigate + right-click edit.
+- **Table links non-clickable** — no input handling for the rendered link inside a cell; proposed single-click navigate + right-click edit.
 
-#### Handoff Rules
+### Handoff Rules
 
 - **Keep the Fix Log current.** Acknowledged-but-unfixed issues get a 1–2 sentence entry; remove on resolve.
-- **Maintain this file every session** — Session Summary + Lessons Learned + Next Session + Pending Focuses + Fix Log only. Push spec/decision content to its canonical home (`History.md` / `Features/*` / `Framework.md`).
+- **One window per session in the new format.** Append a new `### <Label>` window next session (carry still-open Pending Focuses); push spec/decision content to its canonical home (`History.md` / `Features/*` / `Framework.md`).
+- **Markdown only, no new folder** (per Nathan) — this doc stays the single `.claude/Handoff.md`, not a routed `Handoffs/` dir.

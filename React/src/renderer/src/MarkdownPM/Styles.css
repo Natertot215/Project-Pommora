@@ -285,6 +285,20 @@
   font-size: var(--bullet-size);
 }
 
+/* Every list glyph (bullet / number / checkbox) is the drag handle for list reorder (see
+   editor/listDrag.ts): a grab cursor on hover, and non-selectable so highlighting the syntax can't
+   fight the drag. */
+.md-li-glyph {
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* The dragged item dims its text in place (a ghosted / lifted look) while it's being moved. */
+.mdpm-editor .cm-line.md-li-drag-source {
+  opacity: var(--tint-primary);
+}
+
 .mdpm-editor .cm-line.md-li-ordered {
   padding-left: calc(var(--li-col) + var(--number-zone));
   text-indent: calc(-1 * var(--number-zone));

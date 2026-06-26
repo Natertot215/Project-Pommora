@@ -1,6 +1,11 @@
 import type { Token, TokenKind } from '../tokens'
 import { isThematicBreakLine, isHeadingLine, isBlockquoteLine, parseListMarker, blockquotePrefixRe } from '../detect'
 
+// Shared marker class on all three list glyphs (bullet • / checkbox box / ordered number). The drag
+// extension targets this one class, and `.md-li-glyph { cursor: pointer }` paints the pointer cursor —
+// so any future list syntax that adopts it inherits both the cursor and drag-to-reorder for free.
+export const GLYPH_CLASS = 'md-li-glyph'
+
 const HEADING_RE = /^(\s{0,3})(#{1,6})([ \t]+)(.*)$/
 
 const FENCE_RE = /^\s*```/
@@ -150,7 +155,7 @@ export function decorationsFor(text: string, tokens: Token[], active: Set<number
       // `N.` stays literal recoloured source (no widget) so typing after the number can't hit an atomic range.
       intents.push({ kind: 'line', from: ls, className: 'md-li md-li-ordered', level: lm.level })
       if (lm.markerStart > 0) intents.push({ kind: 'hide', from: ls, to: ls + lm.markerStart })
-      intents.push({ kind: 'class', from: ls + lm.markerStart, to: ls + lm.markerEnd, className: 'md-ol-marker md-control' })
+      intents.push({ kind: 'class', from: ls + lm.markerStart, to: ls + lm.markerEnd, className: `md-ol-marker md-control ${GLYPH_CLASS}` })
       // Hide the source space so the gap is the zone padding.
       intents.push({ kind: 'hide', from: ls + lm.markerEnd, to: ls + lm.contentStart })
     } else if (isBlockquoteLine(line)) {

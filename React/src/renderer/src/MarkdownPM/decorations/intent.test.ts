@@ -77,7 +77,7 @@ describe('decoration intents', () => {
     const t = '3. third'
     const intents = decorationsFor(t, tokenize(t), new Set(), 99)
     expect(
-      intents.some((d) => d.kind === 'class' && d.className === 'md-ol-marker md-control' && d.from === 0 && d.to === 2)
+      intents.some((d) => d.kind === 'class' && d.className === 'md-ol-marker md-control md-li-glyph' && d.from === 0 && d.to === 2)
     ).toBe(true)
     expect(intents.some((d) => d.kind === 'line' && d.className === 'md-li md-li-ordered')).toBe(true)
     expect(intents.some((d) => d.kind === 'widget')).toBe(false)

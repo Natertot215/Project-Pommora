@@ -6,6 +6,7 @@ import { markdown } from '@codemirror/lang-markdown'
 import { markdownDecorations } from './editor/decorations'
 import { markdownInput } from './editor/input'
 import { tableWidgetExtension } from './Tables'
+import { listDragExtension } from './editor/listDrag'
 import { connectionClicks } from './editor/connections'
 import { externalLinkClicks } from './editor/links'
 import { markdownFolding, applySavedFolds, type FoldsApi } from './editor/folding'
@@ -101,6 +102,8 @@ export function MarkdownEditor({
         // Interactive table widget — renders each Markdown table as an editable HTML table over the GFM
         // source; the connections getter lets `[[…]]` render + autocomplete inside cells.
         tableWidgetExtension(() => connectionsRef.current),
+        // Grab a list glyph (•, number, or checkbox) to drag-reorder the item; click toggles/places caret.
+        listDragExtension,
         connectionClicks(() => connectionsRef.current),
         externalLinkClicks(),
         markdownFolding((keys) => foldsRef.current?.save(keys)),
