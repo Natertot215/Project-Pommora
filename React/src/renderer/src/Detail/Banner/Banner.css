@@ -43,7 +43,12 @@
    hover Add-Banner strip above it. Self-pads (clears the floating toolbar + content insets) since
    it sits as the view's header, not inside the padded body. */
 .banner-empty {
-  padding: calc(var(--toolbar-h) + 10px) var(--content-inset-right) 14px var(--content-inset);
+  /* The Add-Banner zone (--add-banner-zone) opens below the floating toolbar; the title follows it.
+     Top pad clears the toolbar (glass-inset + 1px optical + toolbar-h) so the zone starts exactly at
+     the toolbar's bottom edge, and the button centers vertically inside that zone (see .add-banner-strip). */
+  --add-banner-zone: 44px;
+  padding: calc(var(--glass-inset) + 1px + var(--toolbar-h)) var(--content-inset-right) 14px
+    var(--content-inset);
   /* Full-width divider below the title — content-views always carry it (banner or not), unlike
      pages' inset divider. Matches the banner image's bottom hairline. */
   border-bottom: 1px solid #FFFFFF1A;
@@ -58,12 +63,13 @@
   line-height: 1.2;
 }
 
-/* The hover-revealed Add-Banner button (mirrors Swift's opacity-on-hover affordance). */
+/* The hover-revealed Add-Banner button (mirrors Swift's opacity-on-hover affordance). The strip is a
+   fixed-height zone between the floating toolbar and the title; the button sits centered within it so
+   the affordance reads in the gap, not jammed under the toolbar. (--add-banner-zone set by the header.) */
 .add-banner-strip {
-  height: 24px;
+  height: var(--add-banner-zone, 44px);
   display: flex;
   align-items: center;
-  margin-bottom: 8px;
 }
 .add-banner-btn {
   -webkit-app-region: no-drag;

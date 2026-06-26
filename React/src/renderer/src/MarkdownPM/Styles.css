@@ -80,41 +80,20 @@
   --detail-title-size: 28px;
 }
 
-/* No-banner state: a hover-revealed Add-Banner strip above the title, then an inset divider. */
-/* No-banner header clears the floating toolbar so the Add-Banner strip never tucks under it.
-   Derived from --toolbar-h (+ breathing room) — KNOB: the trailing addend nudges the button down. */
+/* No-banner state: the shared hover-revealed Add-Banner strip (canonical .add-banner-strip /
+   .add-banner-btn in Banner.css) above the title, then an inset divider. Top padding clears the
+   floating toolbar so the strip's zone starts at the toolbar's bottom edge and the button centers
+   vertically in the gap; the strip itself self-insets to --content-inset (title + divider already do). */
 .mdpm-header:not(.has-banner) {
-  padding-top: calc(var(--toolbar-h) + 10px);
+  --add-banner-zone: 44px;
+  padding-top: calc(var(--glass-inset) + 1px + var(--toolbar-h));
   /* Mirror the title's 14px bottom gap below the divider so the first body line isn't jammed
      against it — the divider then sits with equal space above and below. (offsetHeight feeds
      --header-zone, so this padding pushes the body's top down too.) */
   padding-bottom: 14px;
 }
-.mdpm-add-banner {
-  height: 24px;
-  display: flex;
-  align-items: center;
+.mdpm-header:not(.has-banner) .add-banner-strip {
   padding-left: var(--content-inset);
-}
-.mdpm-header .add-banner-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  border: 0;
-  background: none;
-  padding: 2px 4px;
-  font: inherit;
-  font-size: 12px;
-  color: var(--label-tertiary);
-  cursor: default;
-  opacity: 0;
-  transition: opacity var(--duration-fast) var(--ease-standard), color var(--duration-fast) var(--ease-standard);
-}
-.mdpm-add-banner:hover .add-banner-btn {
-  opacity: 1;
-}
-.mdpm-header .add-banner-btn:hover {
-  color: var(--label-secondary);
 }
 .mdpm-header:not(.has-banner) .detail-title {
   padding: 6px 0 14px var(--content-inset);

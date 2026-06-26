@@ -1,6 +1,6 @@
-import { Icon } from '@renderer/design-system/symbols'
 import { useSession } from '../../store'
 import type { BannerOwner } from '../Scope'
+import { AddBannerButton } from './AddBannerButton'
 
 const assetUrl = (rel: string): string => `nexus-asset://nexus/${encodeURI(rel)}`
 
@@ -22,18 +22,7 @@ export function Banner({ owner }: { owner: BannerOwner }): React.JSX.Element {
   if (!owner.banner) {
     return (
       <div className="banner-empty">
-        <div className="add-banner-strip">
-          <button
-            type="button"
-            className="add-banner-btn"
-            onClick={() => void addOrChange()}
-            aria-label="Add banner"
-            title="Add a banner"
-          >
-            <Icon name="square-plus" size={14} />
-            Add Banner
-          </button>
-        </div>
+        <AddBannerButton onClick={() => void addOrChange()} />
         <div className="banner-empty-title">{owner.name}</div>
       </div>
     )

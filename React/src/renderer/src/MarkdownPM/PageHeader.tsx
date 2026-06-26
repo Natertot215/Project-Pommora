@@ -1,6 +1,7 @@
 import { forwardRef } from 'react'
 import type { IconName } from '@renderer/design-system/symbols'
 import { useSession } from '../store'
+import { AddBannerButton } from '../Detail/Banner/AddBannerButton'
 import { DetailTitleHeader } from '../Detail/DetailTitleHeader'
 
 const assetUrl = (rel: string): string => `nexus-asset://nexus/${encodeURI(rel)}`
@@ -65,11 +66,7 @@ export const PageHeader = forwardRef<HTMLDivElement, Props>(function PageHeader(
         </div>
       ) : (
         <>
-          <div className="mdpm-add-banner">
-            <button type="button" className="add-banner-btn" onClick={() => void addOrChange()} aria-label="Add banner">
-              + Add Banner
-            </button>
-          </div>
+          <AddBannerButton onClick={() => void addOrChange()} />
           {titleHeader}
           <div className="mdpm-divider" />
         </>
