@@ -20,7 +20,7 @@ Typecheck + **542 tests** green throughout; each task a path-limited commit on `
 Foundations, container views, the page editor (MarkdownPM + Tables), the page/container banners, the **inspector**, and the **Subfield footer** are built. The data + read/write paths match Swift; what remains is the editor tail + polish + **performance**.
 
 - **Data layer — done** (CRUD, properties, connections, Agenda; files canonical, SQLite a regeneratable accelerator). → `Features/Architecture.md`.
-- **Design system — done, tokenized, live** (colour + accent + tint + typography incl. the new Subline + chips; Lucide icons; glass now two materials — frost Window/Surface, liquid-glass Controls). → `Features/Design.md` + `Features/Typography.md`.
+- **Design system — continuous work, tokenized, live** (colour + accent + tint + typography incl. the new Subline + chips; Lucide icons; glass now two materials — frost Window/Surface, liquid-glass Controls). → `Features/Design.md` + `Features/Typography.md`.
 - **Sidebar — fully built** (Contexts + Vaults/Collections/Sets/Pages; create/rename/delete/reorder; PommoraDND drag-and-drop; disclosure persisted). → `Features/DragAndDrop.md`.
 - **Page editor — MarkdownPM, richly built + Tables done** (CM6, dynamic syntax, folding, lists, connections + `[[` autocomplete, native menu + shortcuts, full GFM table editing). → `Features/MarkdownPM.md`.
 - **Detail surface** — `DetailPane` routes selection → `HomepageView`/`ContextView`/`ContainerView`/`PageView`, each through `DetailScaffold` (+ `lockedHeader` for content-views); the Subfield mounts below; the inspector floats right.

@@ -53,15 +53,10 @@ Each is an inline option or an automatic behavior, exercised in the Lab:
 - **Auto-scroll** (`autoscroll.ts`) — an rAF loop scrolls the nearest scrollable ancestor when the pointer nears an edge, with an ease-in ramp (dnd-kit uses a non-frame-synced `setInterval` + linear) and limit-awareness (no churn at a maxed edge). The container's scroll delta is compensated into the lifted item + collision so the drag stays accurate as content scrolls; non-active items don't double-compensate (their shift is a frozen-rect difference). Scope simplification: nearest ancestor only, not the page/window.
 - **Keyboard + screen-reader** (`keyboard.ts`, `a11y.ts`) — Space/Enter lifts, arrow keys move (a geometric next-slot getter that covers list/row/grid), Space/Enter/Tab drops, Esc cancels; an assertive ARIA live region announces pick-up/move/drop/cancel with position ("item 3 of 8"), a hidden instructions element is wired via `aria-describedby`, and focus is restored to the item on drop. Items are focusable (`tabIndex`); the handle role is `button` by default, settable to `null` so table rows keep `<tr>` semantics.
 
-### Deferred (don't design out)
-
-- **Sidebar cross-level — done** (see *Sidebar tree* above): the sidebar reorders + reparents across vault / collection / set via its bespoke behavior. The generic **sort engines** still don't do cross-level reparenting; if a non-sidebar tree ever needs it on the engine, the route is flatten → reorder → project-depth → rebuild (dnd-kit's sortable-tree pattern; pure, testable).
-- **Board keyboard access** — the cross-list board (`useGroupedDragItem`) is pointer-only; keyboard drag across columns is a later pass.
-
 ### Mobile-readiness invariants
 
 Desktop-first, but the sensor and collision layers keep a future touch UX viable: `touch-action: none` on draggables, delay+tolerance activation, a non-passive `touchmove` hedge, clean `pointercancel` handling, a separable keyboard sensor, and collision math that never bakes in hit-target sizes.
 
 ### Known minor issue
 
-Under aggressive drag-then-drop, one or two gap items can show a sub-perceptible snap at the commit (in-flight transition timing + sub-pixel rounding between the transform end-position and the natural post-reorder slot). Mitigated via the `transitionend` commit; the residual is accepted as inconsequential.
+Under aggressive drag-then-drop, one or two gap items can show a sub-perceptible snap at the commit (in-flight transition timing + sub-pixel rounding between the transform end-position and the natural post-reorder slot). Mitigated via the `transitionend` commit; Nathan admits the residual is truly only noticeable if you’re explicitly trying to recreate it and already know what you’re looking for — he’s accepted as inconsequential.
