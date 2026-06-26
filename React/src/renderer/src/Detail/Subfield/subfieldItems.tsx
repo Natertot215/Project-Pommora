@@ -11,6 +11,12 @@ import { computeStats } from './subfieldStats'
  *  here, and the per-view default order below — the seam for future user-defined (scoped) items. */
 export type SubfieldItemId = 'pageStats' | 'addMenu'
 
+const ALL_ITEM_IDS: SubfieldItemId[] = ['pageStats', 'addMenu']
+/** Narrow a persisted (untrusted) id string to a known item id — drops stale/unknown entries. */
+export function isSubfieldItemId(id: string): id is SubfieldItemId {
+  return (ALL_ITEM_IDS as string[]).includes(id)
+}
+
 export const DEFAULT_ITEMS: Record<SelectionState['kind'], SubfieldItemId[]> = {
   none: [],
   homepage: [],

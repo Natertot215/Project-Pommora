@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import type { IpcRendererEvent } from 'electron'
-import type { NexusState, NexusTree, PageResult } from '@shared/types'
+import type { NexusState, NexusTree, PageResult, SubfieldConfig } from '@shared/types'
 import type { MutateRequest, MutateResult, ContextTarget } from '@shared/mutate'
 import type { FormatState } from '@shared/editorMenu'
 import type { TableMenuAction, TableMenuContext } from '@shared/tableMenu'
@@ -22,6 +22,12 @@ const api = {
     get: (): Promise<Record<string, string[]>> => ipcRenderer.invoke('folds:get'),
     set: (pageId: string, keys: string[]): Promise<{ ok: true } | { ok: false; error: string }> =>
       ipcRenderer.invoke('folds:set', pageId, keys)
+  },
+  // Subfield (footer) config — React-owned `subfield` key in `.nexus/settings.json`.
+  subfield: {
+    get: (): Promise<SubfieldConfig | null> => ipcRenderer.invoke('subfield:get'),
+    set: (config: SubfieldConfig): Promise<{ ok: true } | { ok: false; error: string }> =>
+      ipcRenderer.invoke('subfield:set', config)
   },
   // Renderer-initiated write (relative paths only); main resolves under the session root.
   mutate: (req: MutateRequest): Promise<MutateResult> => ipcRenderer.invoke('mutate', req),

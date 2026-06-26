@@ -2,7 +2,7 @@ import { useEffect } from 'react'
 import { useSession } from '../../store'
 import { subfieldCrumbs, pageContainerId } from './crumbs'
 import { SubfieldBreadcrumb } from './SubfieldBreadcrumb'
-import { DEFAULT_ITEMS, SubfieldItem } from './subfieldItems'
+import { DEFAULT_ITEMS, SubfieldItem, isSubfieldItemId } from './subfieldItems'
 import './subfield.css'
 
 const basename = (path: string): string => (path.split('/').pop() ?? path).replace(/\.md$/, '')
@@ -32,8 +32,10 @@ export function Subfield(): React.JSX.Element {
     })
   }, [selection, tree, pageDetail, recordTrail])
 
+  const order = useSession((s) => s.subfieldOrder)
   const crumbs = subfieldCrumbs(tree, selection, trail, (t) => void select(t))
-  const items = DEFAULT_ITEMS[selection.kind] ?? []
+  // Persisted order wins (filtered to known ids); fall back to the registry default per view kind.
+  const items = (order[selection.kind] ?? DEFAULT_ITEMS[selection.kind] ?? []).filter(isSubfieldItemId)
 
   return (
     <div className="subfield">

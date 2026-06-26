@@ -85,6 +85,9 @@ interface SessionState {
   /** Subfield (footer) — one app-level expanded flag; all views collapse together. */
   subfieldExpanded: boolean
   setSubfieldExpanded: (expanded: boolean) => void
+  /** Per-view-kind ordered Subfield item ids (persisted per nexus); absent kinds use registry defaults. */
+  subfieldOrder: Partial<Record<SelectionState['kind'], string[]>>
+  setSubfieldOrder: (kind: SelectionState['kind'], ids: string[]) => void
   /** Last-visited page per container id — drives the breadcrumb's dimmed "forward" ghost crumb. */
   trail: Record<string, TrailEntry>
   recordTrail: (containerId: string, entry: TrailEntry) => void
@@ -152,6 +155,13 @@ export const useSession = create<SessionState>((set, get) => {
         switch (res.status) {
           case 'open':
             await get().applyTree(res.tree)
+            // Per-nexus Subfield config (settings.json) — load once on open; keep defaults if absent.
+            try {
+              const cfg = await window.nexus.subfield.get()
+              if (cfg) set({ subfieldExpanded: cfg.expanded, subfieldOrder: cfg.order })
+            } catch {
+              // bridge/handler absent — keep the in-memory defaults
+            }
             break
           case 'empty':
             set({ status: 'empty', tree: null })
@@ -220,7 +230,17 @@ export const useSession = create<SessionState>((set, get) => {
     },
 
     subfieldExpanded: true,
-    setSubfieldExpanded: (expanded) => set({ subfieldExpanded: expanded }),
+    setSubfieldExpanded: (expanded) => {
+      set({ subfieldExpanded: expanded })
+      const s = get()
+      void window.nexus.subfield.set({ order: s.subfieldOrder, expanded: s.subfieldExpanded }).catch(() => undefined)
+    },
+    subfieldOrder: {},
+    setSubfieldOrder: (kind, ids) => {
+      set((s) => ({ subfieldOrder: { ...s.subfieldOrder, [kind]: ids } }))
+      const s = get()
+      void window.nexus.subfield.set({ order: s.subfieldOrder, expanded: s.subfieldExpanded }).catch(() => undefined)
+    },
     trail: {},
     recordTrail: (containerId, entry) =>
       set((s) => ({ trail: { ...s.trail, [containerId]: entry } })),

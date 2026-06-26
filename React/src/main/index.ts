@@ -2,7 +2,7 @@ import { app, BrowserWindow, dialog, ipcMain, Menu, nativeTheme, protocol, shell
 import type { OpenDialogOptions } from 'electron'
 import { basename, dirname, extname, join, sep } from 'node:path'
 import { readFile, rename } from 'node:fs/promises'
-import type { NexusState, PageResult } from '@shared/types'
+import type { NexusState, PageResult, SubfieldConfig } from '@shared/types'
 import type { MutateRequest, MutateResult, ContextTarget } from '@shared/mutate'
 import { WINDOW_BG } from '@shared/theme'
 import { readNexus } from './readNexus'
@@ -13,7 +13,7 @@ import { sessionRoot, openSession, resolveRestorePath, isExistingDir } from './s
 import { openSessionIndex, closeSessionIndex } from './sessionIndex'
 import { stampAdopted } from './adopt'
 import { ensureIdentity } from './identity'
-import { ensureSettings } from './settings'
+import { ensureSettings, readSubfield, writeSubfield } from './settings'
 import { startWatcher, stopWatcher } from './watcher'
 import { resolveUnderRoot } from './pathSafety'
 import { updatePageBody } from './crud/page'
@@ -314,6 +314,26 @@ ipcMain.handle(
         return { ok: false, error: 'Fold keys must be a string array.' }
       }
       await writeFolds(root, pageId, keys)
+      return { ok: true }
+    } catch (e) {
+      return { ok: false, error: e instanceof Error ? e.message : String(e) }
+    }
+  }
+)
+
+// Subfield (footer) config — a React-owned `subfield` foreign key in `.nexus/settings.json`.
+ipcMain.handle('subfield:get', async (): Promise<SubfieldConfig | null> => {
+  const root = sessionRoot()
+  return root === null ? null : readSubfield(root)
+})
+ipcMain.handle(
+  'subfield:set',
+  async (_e, config: unknown): Promise<{ ok: true } | { ok: false; error: string }> => {
+    try {
+      const root = sessionRoot()
+      if (root === null) return { ok: false, error: 'No nexus is open.' }
+      if (!config || typeof config !== 'object') return { ok: false, error: 'Invalid subfield config.' }
+      await writeSubfield(root, config as SubfieldConfig)
       return { ok: true }
     } catch (e) {
       return { ok: false, error: e instanceof Error ? e.message : String(e) }

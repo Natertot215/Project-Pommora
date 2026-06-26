@@ -203,6 +203,15 @@ export type SelectionState =
   | { kind: 'set'; id: string; path: string }
   | { kind: 'page'; id: string; path: string }
 
+/** Per-nexus Subfield (footer) config — persisted as a foreign `subfield` key in settings.json
+ *  (Swift ignores unknown keys, so it round-trips safely). */
+export interface SubfieldConfig {
+  /** Per-view-kind ordered item ids; absent kinds fall back to the built-in defaults. */
+  order: Partial<Record<SelectionState['kind'], string[]>>
+  /** App-level expanded/collapsed flag (all views share one). */
+  expanded: boolean
+}
+
 /** A single page's full content, read on demand for the detail view. */
 export interface PageDetail {
   id: string

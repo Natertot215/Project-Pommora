@@ -5,7 +5,7 @@
 // app with no conflict (the identity half is ensureIdentity).
 
 import { mkdir } from 'node:fs/promises'
-import { DEFAULT_LABELS, type NexusLabels } from '@shared/types'
+import { DEFAULT_LABELS, type NexusLabels, type SubfieldConfig } from '@shared/types'
 import { readJsonObject, writeJson } from './io/atomicWrite'
 import { swiftISODate } from './identity'
 import { nexusDir, nexusConfig, NEXUS_CONFIG_FILES } from './paths'
@@ -59,4 +59,24 @@ export async function ensureSettings(root: string): Promise<void> {
   if (!existing.labels || typeof existing.labels !== 'object') patch.labels = labelsToDisk(DEFAULT_LABELS)
   if (typeof existing.modified_at !== 'string') patch.modified_at = swiftISODate()
   if (Object.keys(patch).length > 0) await writeJson(path, { ...existing, ...patch })
+}
+
+/** Read the React-owned `subfield` foreign key from settings.json (null when absent/malformed). */
+export async function readSubfield(root: string): Promise<SubfieldConfig | null> {
+  const existing = await readJsonObject(nexusConfig(root, NEXUS_CONFIG_FILES.settings))
+  const sub = existing?.subfield
+  if (!sub || typeof sub !== 'object') return null
+  const s = sub as Record<string, unknown>
+  return {
+    order: s.order && typeof s.order === 'object' ? (s.order as SubfieldConfig['order']) : {},
+    expanded: typeof s.expanded === 'boolean' ? s.expanded : true
+  }
+}
+
+/** Write the `subfield` key, preserving every other (Swift-required + foreign) key in settings.json. */
+export async function writeSubfield(root: string, config: SubfieldConfig): Promise<void> {
+  await ensureSettings(root)
+  const path = nexusConfig(root, NEXUS_CONFIG_FILES.settings)
+  const existing = (await readJsonObject(path)) ?? {}
+  await writeJson(path, { ...existing, subfield: config })
 }
