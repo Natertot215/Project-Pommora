@@ -2,12 +2,12 @@
 
 The bottom bar of every content view — Swift's `DetailFooterBar`, here named the **Subfield**. A breadcrumb on the left, per-view items on the right. Lives in `Detail/Subfield/`, mounted by `DetailPane` below the routed view.
 
-> **v1 — deliberately small. Much more is planned** (see *Roadmap* below): user-reorderable items, live stats, user-defined items, and per-view configuration. The structure here is the seam for all of it.
+> **v1 — deliberately small. Much more is planned** (see *Roadmap* below): user-reorderable items, user-defined items, and per-view configuration. The structure here is the seam for all of it.
 
 ### What it shows
 
 - **Breadcrumb** (`SubfieldBreadcrumb` + `crumbs.ts`) — the ancestor chain for the open view. Collection + depth-1 Set segments navigate (`store.select`); deeper Sub-Sets are plain; the current segment is inert. A container view also shows the **ghost crumb**: the last page you backed out of, rendered dimmed but still clickable to jump forward (Swift's `isGhost` / `trailPage`). The trail is `store.trail` (last-visited page per container id), recorded while a page is open.
-- **Per-view items** (`subfieldItems.tsx`) — a registry keyed by view kind. v1: **pages** show `lines · words · characters` (`subfieldStats.ts`, Markdown-stripped prose; computed from the loaded body); **Collections / Sets** show a **+** add-menu (New Page / New container). **Homepage + Contexts show no Subfield yet** — nothing to display there until they have content.
+- **Per-view items** (`subfieldItems.tsx`) — a registry keyed by view kind. v1: **pages** show `lines · words · characters` (`subfieldStats.ts`, Markdown-stripped prose), **live as you type** — the editor's `liveBody` buffer in the store feeds the count ahead of the debounced save; **Collections / Sets** show a **+** add-menu (New Page / New container). **Homepage + Contexts show no Subfield yet** — nothing to display there until they have content.
 
 ### Look
 
@@ -21,7 +21,6 @@ Per-nexus, in `.nexus/settings.json` under a React-owned **`subfield`** foreign 
 ### Roadmap (planned)
 
 - **Reorder** the items via PommoraDND (horizontal) — the persisted `order` is already wired; the drag UI is the next piece.
-- **Live stats** — counts update on page open / save today; per-keystroke updates want the editor's live body pushed to the store (currently the loaded snapshot).
 - **User-defined items**, possibly **scoped** — the registry + per-view `order` is the extensibility seam.
 - **Per-view configuration UI** — choosing which items each view kind shows.
 - Bring the Subfield to **Homepage + Contexts** once they have content worth surfacing.

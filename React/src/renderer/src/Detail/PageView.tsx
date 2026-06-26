@@ -14,6 +14,7 @@ export function PageView(): React.JSX.Element {
   const submitRename = useSession((s) => s.submitRename)
   const tree = useSession((s) => s.tree)
   const select = useSession((s) => s.select)
+  const setLiveBody = useSession((s) => s.setLiveBody)
   const saveTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const [iconPickerOpen, setIconPickerOpen] = useState(false)
 
@@ -54,7 +55,10 @@ export function PageView(): React.JSX.Element {
             cover={typeof pageDetail.frontmatter.cover === 'string' ? pageDetail.frontmatter.cover : undefined}
             onEditIcon={() => setIconPickerOpen(true)}
             onRename={(newName) => submitRename(pageDetail.path, 'page', newName)}
-            onChange={(body) => scheduleSave(pageDetail.path, body)}
+            onChange={(body) => {
+              setLiveBody(pageDetail.path, body) // live buffer → Subfield stats track keystrokes
+              scheduleSave(pageDetail.path, body)
+            }}
             connections={connections}
             folds={{
               load: async () => (await window.nexus.folds.get())[pageDetail.id] ?? [],

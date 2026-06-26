@@ -42,6 +42,9 @@ export type SelectTarget =
   | { kind: 'set'; id: string; path: string }
   | { kind: 'page'; id: string; path: string }
 
+/** Identity of a nav target for history dedupe — consecutive re-selects of the same view collapse. */
+const navKey = (t: SelectTarget): string => ('id' in t ? `${t.kind}:${t.id}` : t.kind)
+
 /** A breadcrumb ghost crumb's target — the last page visited in a given container. */
 export interface TrailEntry {
   id: string
@@ -102,7 +105,18 @@ interface SessionState {
   pageStatus: PageStatus
   pageDetail: PageDetail | null
   pageError?: string
-  select: (target: SelectTarget) => Promise<void>
+  /** Live editing buffer for the open page (keyed by path) so the Subfield's stats track keystrokes,
+   *  ahead of the debounced save. `pageDetail.body` stays the loaded/saved snapshot. */
+  liveBody: { path: string; body: string } | null
+  setLiveBody: (path: string, body: string) => void
+  /** Navigation history. `select` records by default; pass `{ record: false }` for programmatic
+   *  re-selects (e.g. a path refetch). IMPORTANT: once page previews land, preview opens MUST pass
+   *  `{ record: false }` too, so Back/Forward never lands on a page you only previewed. */
+  select: (target: SelectTarget, opts?: { record?: boolean }) => Promise<void>
+  navStack: SelectTarget[]
+  navIndex: number
+  goBack: () => void
+  goForward: () => void
   /** Re-fetch the open page's detail (after a frontmatter write like a page banner/cover). No-op if no page. */
   reloadPage: () => Promise<void>
   /** Create a page in the selected container (or the selected page's parent), then select it. */
@@ -188,7 +202,7 @@ export const useSession = create<SessionState>((set, get) => {
         if (next.kind === 'none') {
           set({ selection: next, pageStatus: 'idle', pageDetail: null, pageError: undefined })
         } else if (next.kind === 'page') {
-          void get().select(next) // refetch the detail at the page's new path
+          void get().select(next, { record: false }) // refetch the detail at the page's new path — not a nav
         }
       }
       // Always read the OS accent: it feeds --accent only when the setting is `system`,
@@ -249,7 +263,34 @@ export const useSession = create<SessionState>((set, get) => {
     pageStatus: 'idle',
     pageDetail: null,
     pageError: undefined,
-    select: async (target) => {
+    liveBody: null,
+    setLiveBody: (path, body) => set({ liveBody: { path, body } }),
+    navStack: [],
+    navIndex: -1,
+    goBack: () => {
+      const { navStack, navIndex } = get()
+      if (navIndex <= 0) return
+      set({ navIndex: navIndex - 1 })
+      void get().select(navStack[navIndex - 1], { record: false })
+    },
+    goForward: () => {
+      const { navStack, navIndex } = get()
+      if (navIndex >= navStack.length - 1) return
+      set({ navIndex: navIndex + 1 })
+      void get().select(navStack[navIndex + 1], { record: false })
+    },
+    select: async (target, opts) => {
+      // Record into history unless this is a programmatic re-select — a path refetch, Back/Forward,
+      // or (once previews land) a preview open — which pass { record: false } so they don't push.
+      if (opts?.record !== false) {
+        set((s) => {
+          const cur = s.navStack[s.navIndex]
+          if (cur && navKey(cur) === navKey(target)) return {} // same view re-selected — no dup entry
+          const stack = s.navStack.slice(0, s.navIndex + 1)
+          stack.push(target)
+          return { navStack: stack, navIndex: stack.length - 1 }
+        })
+      }
       switch (target.kind) {
         case 'homepage':
           // The homepage view renders from the loaded tree (banner + future widgets) — no fetch.

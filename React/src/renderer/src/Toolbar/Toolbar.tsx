@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import { SegmentedSymbol, type Segment } from '@renderer/design-system/components/Segmented-Controls'
 import { Popover, useDismiss } from '@renderer/design-system/components/Popover'
+import { useSession } from '../store'
 import './toolbar.css'
 
 type TrioPanel = 'navigation' | 'settings'
@@ -24,11 +25,15 @@ export function Toolbar({
 
   const toggle = (p: TrioPanel): void => setPanel((cur) => (cur === p ? null : p))
 
-  // Back/Forward — rendered as recessed (label-secondary) control glyphs this pass;
-  // inert until the navigation-history stack lands.
+  const goBack = useSession((s) => s.goBack)
+  const goForward = useSession((s) => s.goForward)
+  const canGoBack = useSession((s) => s.navIndex > 0)
+  const canGoForward = useSession((s) => s.navIndex < s.navStack.length - 1)
+
+  // Back/Forward walk the store's navigation history (disabled at each end).
   const backForward: Segment[] = [
-    { icon: 'chevron-left', title: 'Back' },
-    { icon: 'chevron-right', title: 'Forward' }
+    { icon: 'chevron-left', title: 'Back', onClick: goBack, disabled: !canGoBack },
+    { icon: 'chevron-right', title: 'Forward', onClick: goForward, disabled: !canGoForward }
   ]
   const trio: Segment[] = [
     { icon: 'map', title: 'Navigation', onClick: () => toggle('navigation'), active: panel === 'navigation' },

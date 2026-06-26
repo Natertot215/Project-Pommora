@@ -26,10 +26,13 @@ export const DEFAULT_ITEMS: Record<SelectionState['kind'], SubfieldItemId[]> = {
   page: ['pageStats']
 }
 
-/** Lines · Words · Characters for the open page (from the loaded body). */
+/** Lines · Words · Characters for the open page — live as you type (the editing buffer wins over the
+ *  loaded snapshot while it's for this same page; falls back to the loaded body before any edit). */
 function PageStatsItem(): React.JSX.Element {
   const pageDetail = useSession((s) => s.pageDetail)
-  const stats = useMemo(() => computeStats(pageDetail?.body ?? ''), [pageDetail?.body])
+  const liveBody = useSession((s) => s.liveBody)
+  const body = liveBody && liveBody.path === pageDetail?.path ? liveBody.body : (pageDetail?.body ?? '')
+  const stats = useMemo(() => computeStats(body), [body])
   const parts = [stats.lines, stats.words, stats.characters]
   return (
     <span className="subfield-stats" title="Lines · Words · Characters">
