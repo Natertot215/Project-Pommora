@@ -29,7 +29,8 @@ export const font = createGlobalTheme(':root', {
     callout: { size: '12px', line: '15px' },
     control: { size: '12px', line: '15px' },
     caption: { size: '11px', line: '14px' },
-    footnote: { size: '10px', line: '13px' }
+    footnote: { size: '10px', line: '13px' },
+    subline: { size: '8px', line: '10px' }
   }
 })
 
@@ -73,5 +74,6 @@ export const text = {
   callout: ramp('callout', 'standard', 'bold'),
   control: ramp('control', 'standard', 'semibold'),
   caption: ramp('caption', 'standard', 'semibold'),
-  footnote: ramp('footnote', 'standard', 'semibold')
+  footnote: ramp('footnote', 'standard', 'semibold'),
+  subline: ramp('subline', 'standard', 'semibold')
 }

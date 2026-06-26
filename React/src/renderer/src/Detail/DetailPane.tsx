@@ -64,12 +64,18 @@ export function DetailPane(): React.JSX.Element {
   const expanded = useSession((s) => s.subfieldExpanded)
   const setExpanded = useSession((s) => s.setSubfieldExpanded)
 
+  // The Subfield shows only where it has something to display: Collections, Sets, and Pages.
+  // Contexts + Homepage are omitted — there's nothing to display here anyway; put it back when
+  // there's actually stuff to show.
+  const showSubfield =
+    selectionKind === 'collection' || selectionKind === 'set' || selectionKind === 'page'
+
   return (
-    <div className="detail-pane">
+    <div className={showSubfield && expanded ? 'detail-pane subfield-open' : 'detail-pane'}>
       <div className="detail-pane-view">
         <DetailView />
       </div>
-      {selectionKind !== 'none' && (
+      {showSubfield && (
         <>
           <button
             type="button"
@@ -80,7 +86,7 @@ export function DetailPane(): React.JSX.Element {
           >
             <Icon name={expanded ? 'chevron-down' : 'chevron-up'} size="md" />
           </button>
-          <div className={expanded ? 'subfield-reveal open' : 'subfield-reveal'}>
+          <div className="subfield-reveal">
             <Subfield />
           </div>
         </>

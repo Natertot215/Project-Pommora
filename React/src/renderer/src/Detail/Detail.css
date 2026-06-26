@@ -4,6 +4,9 @@
 /* The detail pane = the routed view (fills + scrolls) above the Subfield footer (pinned, collapsible).
    position:relative anchors the hover toggle chevron. */
 .detail-pane {
+  /* Fixed Subfield bar height — the bar + its riding toggle chevron both read it, so a view switch
+     with fewer items never janks the height. */
+  --subline-h: 20px;
   position: relative;
   height: 100%;
   display: flex;

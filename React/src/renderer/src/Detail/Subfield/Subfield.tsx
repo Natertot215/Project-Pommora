@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { text } from '@renderer/design-system/tokens'
 import { useSession } from '../../store'
 import { subfieldCrumbs, pageContainerId } from './crumbs'
 import { SubfieldBreadcrumb } from './SubfieldBreadcrumb'
@@ -38,7 +39,7 @@ export function Subfield(): React.JSX.Element {
   const items = (order[selection.kind] ?? DEFAULT_ITEMS[selection.kind] ?? []).filter(isSubfieldItemId)
 
   return (
-    <div className="subfield">
+    <div className={`subfield ${text.subline.emphasized}`}>
       <SubfieldBreadcrumb crumbs={crumbs} />
       <div className="subfield-items">
         {items.map((id) => (

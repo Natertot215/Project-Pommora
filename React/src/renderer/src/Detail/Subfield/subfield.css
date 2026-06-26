@@ -1,16 +1,20 @@
-/* The Subfield (footer): breadcrumb left, per-view items right. All text is the one label.control
-   token (DRY); ghost/dim is opacity, never a second colour. */
+/* The Subfield (footer): breadcrumb left, per-view items right. Type comes from the Subline scale
+   (text.subline.emphasized, applied in Subfield.tsx); text is the one label.control token, glyphs
+   (separators · bullets · the + icon) are label.secondary and a touch larger. Fixed height so
+   switching to a view with fewer items (no word-count) never janks the bar. */
 .subfield {
+  height: var(--subline-h);
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  min-height: 28px;
-  padding: 5px var(--content-inset-right) 6px var(--content-inset);
+  /* Indent clears the sidebar but sits at the gutter's midpoint — full-gutter spacing reads wonky
+     at this size. Collapses correctly when the sidebar hides (content-inset → gutter). */
+  padding-left: calc(var(--content-inset) - var(--gutter) / 2);
+  padding-right: calc(var(--content-inset-right) - var(--gutter) / 2);
   color: var(--label-control);
-  font-size: 12px;
-  line-height: 15px;
-  border-top: 1px solid #ffffff14;
+  /* The divider matches the title divider: 1.25px hairline. */
+  border-top: 1.25px solid #ffffff1a;
   -webkit-app-region: no-drag;
   transition:
     padding-left var(--duration-base) var(--ease-standard),
@@ -50,9 +54,13 @@ button.subfield-crumb.ghost:hover {
   opacity: 1;
   color: var(--label-primary);
 }
+
+/* Separators (the breadcrumb › and the stats ·) — label.secondary and one step larger than the
+   8px Subline text so the glyphs stay legible. */
 .subfield-sep {
   flex: none;
-  color: var(--label-tertiary);
+  font-size: 10px;
+  color: var(--label-secondary);
 }
 
 .subfield-items {
@@ -73,7 +81,7 @@ button.subfield-crumb.ghost:hover {
   background: none;
   padding: 2px;
   display: inline-flex;
-  color: inherit;
+  color: var(--label-secondary);
   cursor: default;
   -webkit-app-region: no-drag;
 }
@@ -81,47 +89,51 @@ button.subfield-crumb.ghost:hover {
   color: var(--label-primary);
 }
 
-/* App-level collapse: grid-rows 0fr↔1fr slides the bar up/down and reclaims its space. */
+/* App-level collapse: the bar's fixed-height reveal slides open/closed; the chevron rides directly
+   above it (mirrors its height) so it bounces up and down with the toggle. */
 .subfield-reveal {
   flex: none;
-  display: grid;
-  grid-template-rows: 0fr;
-  transition: grid-template-rows var(--duration-base) var(--ease-standard);
-}
-.subfield-reveal.open {
-  grid-template-rows: 1fr;
-}
-.subfield-reveal > .subfield {
+  height: 0;
   overflow: hidden;
-  min-height: 0;
+  transition: height var(--duration-base) var(--ease-standard);
+}
+.detail-pane.subfield-open .subfield-reveal {
+  height: var(--subline-h);
 }
 .shell.is-resizing .subfield-reveal {
   transition: none;
 }
 
-/* Hover-gated toggle chevron at the pane's bottom-right (in the bar's right-padding zone, clear of
-   the items) — reveals the collapsed bar / collapses the open one. */
 .subfield-toggle {
   position: absolute;
   right: 12px;
-  bottom: 6px;
+  bottom: 0;
   z-index: 2;
+  height: var(--subline-h);
+  display: inline-flex;
+  align-items: center;
   appearance: none;
   border: 0;
   background: none;
-  padding: 2px 6px;
-  display: inline-flex;
+  padding: 0 6px;
   color: var(--label-secondary);
   cursor: default;
   opacity: 0;
   -webkit-app-region: no-drag;
   transition:
+    bottom var(--duration-base) var(--ease-standard),
     opacity var(--duration-fast) var(--ease-standard),
     color var(--duration-fast) var(--ease-standard);
+}
+.detail-pane.subfield-open .subfield-toggle {
+  bottom: var(--subline-h);
 }
 .detail-pane:hover .subfield-toggle {
   opacity: 1;
 }
 .subfield-toggle:hover {
   color: var(--label-primary);
+}
+.shell.is-resizing .subfield-toggle {
+  transition: none;
 }
