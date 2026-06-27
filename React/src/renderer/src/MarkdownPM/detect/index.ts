@@ -9,6 +9,76 @@ export const inlineLatexRegex = (): RegExp => /(?<!\$)\$(?!\$)([^$\n]+?)\$(?!\$)
 
 export const blockquotePrefixRe = /^[ \t]*(?:>[ \t]?)+/
 
+/** A line's quote depth: how many `>` levels it's nested under, ignoring list indent. */
+export const quoteDepth = (line: string): number => /^[ \t]*(?:>[ \t]?)*/.exec(line)?.[0].match(/>/g)?.length ?? 0
+
+// A callout HEAD tags a type: `> [!callout] …`. The tag is the discriminator vs a plain quote and is invisible
+// chrome (hidden at render) — `||` is the typing shorthand. Detection is per-HEAD, not per-run: any `[!type]`
+// line starts its own callout, so adjacent / hand-typed / pasted heads never merge into one box with a raw tag.
+const calloutTagRe = /^\[!([a-zA-Z][\w-]*)\][ \t]?/
+
+export function isCalloutHead(line: string): boolean {
+  return calloutHeadPrefixLen(line) !== null
+}
+
+export interface CalloutLine {
+  first: boolean
+  last: boolean
+  /** Chars to hide at line start: the head line hides `> [!type] `, body lines hide their `> ` prefix. */
+  prefixEnd: number
+}
+
+/** Per-line callout membership for the whole doc. A callout starts at each `[!type]` head and extends through
+ *  the following blockquote lines that aren't themselves heads (a new head, or a non-quote line, ends it). */
+export function calloutLines(lines: string[]): (CalloutLine | undefined)[] {
+  const out: (CalloutLine | undefined)[] = new Array(lines.length)
+  let i = 0
+  while (i < lines.length) {
+    if (!isCalloutHead(lines[i])) {
+      i++
+      continue
+    }
+    let j = i + 1
+    while (j < lines.length && isBlockquoteLine(lines[j]) && !isCalloutHead(lines[j])) j++
+    const headPrefix = blockquotePrefixRe.exec(lines[i])?.[0] ?? ''
+    const tag = calloutTagRe.exec(lines[i].slice(headPrefix.length))
+    for (let k = i; k < j; k++) {
+      // Body lines strip only ONE `>` level (not the greedy prefix), so a deeper `> > …` keeps its inner `>`
+      // for the nested-quote renderer. The head also hides its `[!type]` tag.
+      const oneLevel = /^[ \t]*>[ \t]?/.exec(lines[k])?.[0].length ?? 0
+      out[k] = {
+        first: k === i,
+        last: k === j - 1,
+        prefixEnd: k === i ? headPrefix.length + (tag?.[0].length ?? 0) : oneLevel
+      }
+    }
+    i = j
+  }
+  return out
+}
+
+/** If `line` is a callout HEAD (`> [!type] …`), the length of its full `> [!type] ` prefix; else null.
+ *  Lets backspace at the head's content-start remove the whole callout cleanly instead of eating the tag. */
+export function calloutHeadPrefixLen(line: string): number | null {
+  const pfx = blockquotePrefixRe.exec(line)?.[0]
+  if (!pfx || !isBlockquoteLine(line)) return null
+  const tag = calloutTagRe.exec(line.slice(pfx.length))
+  return tag ? pfx.length + tag[0].length : null
+}
+
+/** True when the line holding `pos` is part of a callout. Used by input handlers (Shift+Enter stay-in-box). */
+export function lineInCallout(doc: string, pos: number): boolean {
+  const lines = doc.split('\n')
+  let off = 0
+  let idx = 0
+  for (; idx < lines.length; idx++) {
+    const end = off + lines[idx].length
+    if (pos <= end) break
+    off = end + 1
+  }
+  return calloutLines(lines)[idx] !== undefined
+}
+
 export const MAX_NESTING_LEVEL = 3
 
 export function indentLevel(ws: string): number {
@@ -69,6 +139,25 @@ export function parseListMarker(line: string): ListMarker | null {
     return { kind: 'ordered', digits: m[2], level, markerStart, markerEnd: markerStart + m[2].length + 1, contentStart, box }
   }
   return { kind: 'bullet', bullet, level, markerStart, markerEnd: markerStart + (bullet?.length ?? 1), contentStart, box }
+}
+
+/** parseListMarker that also sees a list behind a `>`/callout prefix — offsets stay full-line-relative, so
+ *  callers (drag, format) treat a callout list item exactly like a top-level one. */
+export function parseListMarkerPrefixed(line: string): ListMarker | null {
+  const pfx = blockquotePrefixRe.exec(line)?.[0]
+  // Only strip a prefix the renderer also treats as a quote (`>x` with no space isn't one) — keeps the drag /
+  // renumber layers from seeing a list the user can't see.
+  if (!pfx || !isBlockquoteLine(line)) return parseListMarker(line)
+  const lm = parseListMarker(line.slice(pfx.length))
+  if (!lm) return null
+  const s = pfx.length
+  return {
+    ...lm,
+    markerStart: lm.markerStart + s,
+    markerEnd: lm.markerEnd + s,
+    contentStart: lm.contentStart + s,
+    box: lm.box ? { ...lm.box, start: lm.box.start + s, end: lm.box.end + s } : undefined
+  }
 }
 
 const dashBulletRegex = /^([ \t]*)([-*+•](?:[ \t]*\[[ xX]?\])?[ \t]+)(.*)$/

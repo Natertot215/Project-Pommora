@@ -9,6 +9,8 @@ import {
   autoDelete,
   bracketSkipOnEnter,
   dashArrow,
+  calloutShorthand,
+  shiftEnterEdit,
   indentListOnTab,
   type Edit
 } from '../input'
@@ -49,11 +51,10 @@ const onTab = (view: EditorView): boolean => {
   return true
 }
 
-// Shift+Enter is the construct exit: a plain newline, never a list/blockquote continue.
+// Shift+Enter exits a construct (plain newline) — except inside a callout, where it stays in the box.
 const onShiftEnter = (view: EditorView): boolean => {
   const s = view.state.selection.main
-  view.dispatch({ changes: { from: s.from, to: s.to, insert: '\n' }, selection: { anchor: s.from + 1 }, userEvent: 'input' })
-  return true
+  return apply(view, shiftEnterEdit(view.state.doc.toString(), s.from, s.to))
 }
 
 export const markdownInput = [
@@ -62,7 +63,10 @@ export const markdownInput = [
       { key: 'Enter', run: onEnter },
       { key: 'Shift-Enter', run: onShiftEnter },
       { key: 'Tab', run: onTab },
-      { key: 'Backspace', run: onBackspace }
+      { key: 'Backspace', run: onBackspace },
+      // Shift+Backspace ("Shift+Delete" on Mac) joins like Backspace inside a callout instead of falling to the
+      // default delete, which would erode the body prefix; the guard backstops every other delete combo.
+      { key: 'Shift-Backspace', run: onBackspace }
     ])
   ),
   EditorView.inputHandler.of((view, from, to, text) => {
@@ -70,7 +74,10 @@ export const markdownInput = [
     const doc = view.state.doc.toString()
     return apply(
       view,
-      canonicalizeCheckbox(doc, from, from, text) ?? autoPair(doc, from, from, text) ?? dashArrow(doc, from, from, text)
+      calloutShorthand(doc, from, from, text) ??
+        canonicalizeCheckbox(doc, from, from, text) ??
+        autoPair(doc, from, from, text) ??
+        dashArrow(doc, from, from, text)
     )
   })
 ]

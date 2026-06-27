@@ -8,6 +8,8 @@ import { markdownInput } from './editor/input'
 import { tableWidgetExtension, applySavedHeadingCols, type TableHeadingColsApi } from './Tables'
 import { listDragExtension } from './editor/listDrag'
 import { customCaret } from './editor/caret'
+import { calloutAtomic } from './editor/calloutAtomic'
+import { calloutGuard } from './editor/calloutGuard'
 import { connectionClicks } from './editor/connections'
 import { externalLinkClicks } from './editor/links'
 import { markdownFolding, applySavedFolds, type FoldsApi } from './editor/folding'
@@ -114,6 +116,10 @@ export function MarkdownEditor({
         listDragExtension,
         // Drawn caret (rounded bar in text, I-beam on empty lines, smooth fade) — native caret hidden in CSS.
         customCaret,
+        // The hidden `> [!type] ` callout head is atomic — caret can't enter it, so the tag can't be corrupted.
+        calloutAtomic,
+        // Reject any delete that would erode a callout body line's `>` prefix in place (drop it out of the box).
+        calloutGuard,
         connectionClicks(() => connectionsRef.current),
         externalLinkClicks(),
         markdownFolding((keys) => foldsRef.current?.save(keys)),

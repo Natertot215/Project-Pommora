@@ -10,7 +10,11 @@ import {
   indentLevel,
   imageEmbedRegex,
   inlineCodeRegex,
-  markdownLinkRegex
+  markdownLinkRegex,
+  calloutLines,
+  lineInCallout,
+  calloutHeadPrefixLen,
+  parseListMarkerPrefixed
 } from './index'
 import { pageLinkPattern } from '@shared/connections'
 
@@ -144,5 +148,62 @@ describe('inline math heuristic', () => {
     expect(isInlineMathContent('x')).toBe(true)
     expect(isInlineMathContent('5')).toBe(false) // currency-like
     expect(isInlineMathContent('word')).toBe(false) // prose, no mathy chars
+  })
+})
+
+describe('callout detection', () => {
+  it('marks every line of a `[!type]`-headed quote run as a callout (first/last + prefix to hide)', () => {
+    const info = calloutLines(['> [!callout] hi', '> more', 'plain'])
+    expect(info[0]).toEqual({ first: true, last: false, prefixEnd: '> [!callout] '.length })
+    expect(info[1]).toEqual({ first: false, last: true, prefixEnd: '> '.length })
+    expect(info[2]).toBeUndefined()
+  })
+  it('leaves a plain quote (no tag) untouched — callouts coexist with quotes', () => {
+    expect(calloutLines(['> just a quote', '> still'])).toEqual([undefined, undefined])
+  })
+  it('per-head: two adjacent heads are TWO separate callouts, never one box with a raw tag', () => {
+    const info = calloutLines(['> [!callout] a', '> [!callout] b'])
+    expect(info[0]).toEqual({ first: true, last: true, prefixEnd: '> [!callout] '.length })
+    expect(info[1]).toEqual({ first: true, last: true, prefixEnd: '> [!callout] '.length })
+  })
+  it('per-head: a tag on a non-first quote line starts a callout there (quote above stays a quote)', () => {
+    const info = calloutLines(['> a normal quote', '> [!callout] now a callout', '> its body'])
+    expect(info[0]).toBeUndefined()
+    expect(info[1]?.first).toBe(true)
+    expect(info[2]).toEqual({ first: false, last: true, prefixEnd: '> '.length })
+  })
+  it('lineInCallout reports membership by caret offset', () => {
+    const doc = 'top\n> [!callout] hi\n> more\nplain'
+    expect(lineInCallout(doc, 0)).toBe(false) // "top"
+    expect(lineInCallout(doc, doc.indexOf('hi'))).toBe(true)
+    expect(lineInCallout(doc, doc.indexOf('more'))).toBe(true)
+    expect(lineInCallout(doc, doc.indexOf('plain'))).toBe(false)
+  })
+  it('calloutHeadPrefixLen measures the full `> [!type] ` head, null on a body/quote line', () => {
+    expect(calloutHeadPrefixLen('> [!callout] hi')).toBe('> [!callout] '.length)
+    expect(calloutHeadPrefixLen('> body')).toBeNull()
+    expect(calloutHeadPrefixLen('plain')).toBeNull()
+  })
+})
+
+describe('parseListMarkerPrefixed (lists behind a quote/callout prefix)', () => {
+  it('finds a bullet behind `> ` with full-line offsets', () => {
+    const lm = parseListMarkerPrefixed('> - item')!
+    expect(lm.kind).toBe('bullet')
+    expect(lm.markerStart).toBe(2) // the `-` position, prefix included
+    expect(lm.contentStart).toBe(4)
+  })
+  it('finds a checkbox behind `> ` with shifted box offsets', () => {
+    const lm = parseListMarkerPrefixed('> - [x] done')!
+    expect(lm.kind).toBe('checkbox')
+    expect(lm.box?.start).toBe('> - '.length)
+  })
+  it('matches plain parseListMarker when there is no prefix', () => {
+    const lm = parseListMarkerPrefixed('1. top')!
+    expect(lm.kind).toBe('ordered')
+    expect(lm.markerStart).toBe(0)
+  })
+  it('does NOT strip a `>` with no space after it (not a real quote — agrees with the renderer)', () => {
+    expect(parseListMarkerPrefixed('>- x')).toBeNull() // `>-` isn't a quoted list; renderer shows it raw
   })
 })

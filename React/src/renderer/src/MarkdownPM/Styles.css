@@ -1,10 +1,9 @@
 .mdpm-shell {
   /* --fold-gutter (the heading-fold chevron column) is set on .detail-page, which reclaims it from the
      standard content gutter so the body still lands on --content-inset like every other view.
-     --fold-chevron-size: chevron glyph size (title3). --label-control: dimmed "syntax/control" label tint. */
+     --fold-chevron-size: chevron glyph size (title3). (--label-control is the single global :root def.) */
   --fold-chevron-size: var(--text-title3-size);
   --fold-chevron-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m9 18 6-6-6-6'/%3E%3C/svg%3E");
-  --label-control: color-mix(in srgb, var(--label-primary) 80%, transparent);
   position: relative;
   /* Own stacking context (sits below the sidebar's z-index:1) so the absolutely-positioned banner
      header can layer above the editor body WITHOUT its z-index escaping to cover the floating sidebar. */
@@ -115,6 +114,9 @@
   animation-fill-mode: both;
   animation-timeline: --mdpm-scroll;
   animation-range: 0 var(--header-zone, 90px);
+  /* Gap below the divider / banner border before the first body line — in BOTH states (a banner page was
+     jammed against its border). (offsetHeight feeds --header-zone → pushes the body down.) */
+  padding-bottom: 16px;
 }
 @keyframes mdpm-header-park {
   to {
@@ -133,10 +135,6 @@
 .mdpm-header:not(.has-banner) {
   --add-banner-zone: 44px;
   padding-top: calc(var(--glass-inset) + 1px + var(--toolbar-h));
-  /* Mirror the title's 14px bottom gap below the divider so the first body line isn't jammed
-     against it — the divider then sits with equal space above and below. It's 16px not 14px because the Title3 title inherently has line-height padding that adds the effect of +2px. (offsetHeight feeds
-     --header-zone, so this padding pushes the body's top down too.) */
-  padding-bottom: 16px;
 }
 .mdpm-header:not(.has-banner) .add-banner-strip {
   padding-left: var(--content-inset);
@@ -250,6 +248,12 @@
 .mdpm-editor .cm-line:has(.md-h6) {
   padding-top: 0.15em;
 }
+/* A heading on the very first body line has no preceding content, so its top padding only inflates the
+   gap below the divider/banner that the header's 16px already provides. Strip it on the first line, all
+   levels (H1 included — the 16px does the spacing). */
+.mdpm-editor .cm-content > .cm-line:first-child:has(:is(.md-h1, .md-h2, .md-h3, .md-h4, .md-h5, .md-h6)) {
+  padding-top: 0;
+}
 
 .md-bold {
   font-weight: var(--weight-bold);
@@ -320,9 +324,12 @@
   --number-zone: 1.3em;
   --task-zone: 1.8em;
   --bullet-size: 1.25em;
+  /* Writing-column origin: 0 at the page margin, the callout's inner edge inside a box (set by .md-callout).
+     Every list padding adds onto it, so a list indents from wherever its column starts — DRY, no special case. */
+  --li-origin: 0px;
 
   --li-col: calc((var(--li-level, 0) + 1) * var(--list-indent));
-  padding-left: calc(var(--li-col) + var(--bullet-zone));
+  padding-left: calc(var(--li-origin) + var(--li-col) + var(--bullet-zone));
   text-indent: calc(-1 * var(--bullet-zone));
 }
 
@@ -348,7 +355,7 @@
 }
 
 .mdpm-editor .cm-line.md-li-ordered {
-  padding-left: calc(var(--li-col) + var(--number-zone));
+  padding-left: calc(var(--li-origin) + var(--li-col) + var(--number-zone));
   text-indent: calc(-1 * var(--number-zone));
 }
 .md-ol-marker {
@@ -361,7 +368,7 @@
 }
 
 .mdpm-editor .cm-line.md-li-task {
-  padding-left: calc(var(--li-col) + var(--task-zone));
+  padding-left: calc(var(--li-origin) + var(--li-col) + var(--task-zone));
   text-indent: calc(-1 * var(--task-zone));
 }
 .md-li-marker {
@@ -439,12 +446,17 @@
   --bar-radius: 2px;
   --bg-color: var(--fill-tertiary);
   --bg-radius: 6px;
+  --li-origin: 16px; /* the quote's inner gutter — lists / code inside indent from it (matches padding-left) */
   position: relative;
   isolation: isolate;
-  padding-left: 16px;
   padding-right: 14px;
   background: var(--bg-color);
   color: color-mix(in srgb, var(--label-control));
+}
+/* Plain (non-list) quote lines take the gutter directly; a list inside a quote supplies its own via --li-origin
+   (else this padding-left would override the list indent and the bullet wouldn't indent). */
+.mdpm-editor .cm-line.md-bq:not(.md-li) {
+  padding-left: 16px;
 }
 .mdpm-editor .cm-line.md-bq::before {
   content: '';
@@ -475,6 +487,156 @@
 /* Inline code inside a quote drops its own fill (the quote already provides one); text colour stays. */
 .mdpm-editor .cm-line.md-bq .md-code {
   background: transparent;
+}
+
+/* CALLOUT — a `> [!callout]` blockquote rendered as a bordered, gutter-width box. The `[!callout]` tag is
+   hidden chrome (see intent.ts); the box is border-only (no fill) to read distinctly from a quote.
+   The border is a `::before` (NOT line borders) so it can inset top/bottom by --callout-gap — two stacked
+   callouts then sit apart, the way lists/headings space, without a caret-breaking margin.
+   --li-origin is the box's inner gutter; every inner construct (lists, code, plain text) indents from it. DRY.
+   KNOBS: --callout-border / --callout-bw / --callout-radius / --callout-pad (gutter) / --callout-gap (separation)
+   / --callout-inner-pad (head/foot inner padding past the gap). */
+.mdpm-editor .cm-line.md-callout {
+  --callout-border: var(--label-secondary);
+  --callout-bw: 1.5px;
+  --callout-radius: 6px;
+  /* Slightly roomier inner gutter + head/foot so a fold chevron has space to live inside the box. */
+  --callout-pad: 15px;
+  --callout-gap: 5px;
+  --callout-inner-pad: 8px;
+  --li-origin: var(--callout-pad);
+  position: relative;
+  isolation: isolate;
+  padding-right: var(--callout-pad);
+}
+.mdpm-editor .cm-line.md-callout::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-left: var(--callout-bw) solid var(--callout-border);
+  border-right: var(--callout-bw) solid var(--callout-border);
+  pointer-events: none;
+  z-index: -1;
+}
+/* Plain (non-list) box lines take the gutter directly; list lines supply their own via --li-origin. */
+.mdpm-editor .cm-line.md-callout:not(.md-li) {
+  padding-left: var(--li-origin);
+}
+.mdpm-editor .cm-line.md-callout-first {
+  padding-top: calc(var(--callout-gap) + var(--callout-inner-pad));
+}
+.mdpm-editor .cm-line.md-callout-first::before {
+  top: var(--callout-gap);
+  border-top: var(--callout-bw) solid var(--callout-border);
+  border-top-left-radius: var(--callout-radius);
+  border-top-right-radius: var(--callout-radius);
+}
+.mdpm-editor .cm-line.md-callout-last {
+  padding-bottom: calc(var(--callout-gap) + var(--callout-inner-pad));
+}
+.mdpm-editor .cm-line.md-callout-last::before {
+  bottom: var(--callout-gap);
+  border-bottom: var(--callout-bw) solid var(--callout-border);
+  border-bottom-left-radius: var(--callout-radius);
+  border-bottom-right-radius: var(--callout-radius);
+}
+/* First line of the page: drop the top separation — the title-bar header gap above already provides it
+   (mirrors the first-line heading rule below). */
+.mdpm-editor .cm-content > .cm-line:first-child.md-callout-first {
+  padding-top: var(--callout-inner-pad);
+}
+.mdpm-editor .cm-content > .cm-line:first-child.md-callout-first::before {
+  top: 0;
+}
+/* A code block inside a box keeps its fill, but as an INSET layer (::after) so it sits inside the box gutter
+   instead of bleeding edge-to-edge under the border. The line's own fill is dropped; the mono text insets to
+   the gutter; the inset layer carries the fill + the code-block corner radius. */
+.mdpm-editor .cm-line.md-callout.md-cb,
+.mdpm-editor .cm-line.md-bq.md-cb {
+  background: transparent;
+  border-radius: 0;
+  /* The fill (::after) aligns with the box gutter (--li-origin); the code text sits a further --cb-pad inside
+     it, so it reads like a normal code block (text padded within its fill) nested in the box. */
+  --cb-pad: 10px;
+  padding-left: calc(var(--li-origin) + var(--cb-pad));
+  padding-right: calc(var(--li-origin) + var(--cb-pad));
+}
+.mdpm-editor .cm-line.md-callout.md-cb::after,
+.mdpm-editor .cm-line.md-bq.md-cb::after {
+  content: '';
+  position: absolute;
+  inset: 0 var(--li-origin);
+  background: var(--cb-bg);
+  z-index: -1;
+  pointer-events: none;
+}
+.mdpm-editor .cm-line.md-cb-first.md-callout::after,
+.mdpm-editor .cm-line.md-cb-first.md-bq::after {
+  border-top-left-radius: var(--cb-radius);
+  border-top-right-radius: var(--cb-radius);
+}
+.mdpm-editor .cm-line.md-cb-last.md-callout::after,
+.mdpm-editor .cm-line.md-cb-last.md-bq::after {
+  border-bottom-left-radius: var(--cb-radius);
+  border-bottom-right-radius: var(--cb-radius);
+}
+
+/* A blockquote nested inside a callout — an inset quote block (fill + left bar drawn by ::after, since the
+   callout border owns ::before). Indents one level past the callout gutter; first/last round the block ends. */
+.mdpm-editor .cm-line.md-callout.md-bq-in {
+  --nq-bar: 3px;
+  --nq-gap: 9px;
+  --nq-inset: 2px;
+  --nq-radius: 5px;
+  padding-left: calc(var(--callout-pad) + var(--nq-bar) + var(--nq-gap));
+}
+.mdpm-editor .cm-line.md-callout.md-bq-in::after {
+  content: '';
+  position: absolute;
+  inset: 0 var(--callout-pad);
+  background: var(--fill-tertiary);
+  border-left: var(--nq-bar) solid var(--label-tertiary);
+  z-index: -1;
+  pointer-events: none;
+}
+.mdpm-editor .cm-line.md-bq-in-first.md-callout::after {
+  top: var(--nq-inset);
+  border-top-right-radius: var(--nq-radius);
+}
+.mdpm-editor .cm-line.md-bq-in-last.md-callout::after {
+  bottom: var(--nq-inset);
+  border-bottom-right-radius: var(--nq-radius);
+}
+
+/* HOVER HANDLE — a grip in the callout's top-left gutter, like the table grips: fades in when hovering the
+   callout's head row. Visual only for now (pointer-events off); click actions are a next-session add.
+   KNOBS: --grip-x (gutter offset) / --grip-y (top offset past the gap). */
+.mdpm-editor .cm-line.md-callout-first::after {
+  /* lucide `grip-vertical` — the EXACT glyph the table-row grips render (Tables/TableView.tsx `<GripVertical>`).
+     A CM line decoration can't mount a React component, so the same icon is mirrored as a mask here; geometry
+     (cx 9/15, cy 5/12/19, r1, stroke-width 2) and 14px size match the table 1:1. */
+  --callout-grip: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='9' cy='12' r='1'/%3E%3Ccircle cx='9' cy='5' r='1'/%3E%3Ccircle cx='9' cy='19' r='1'/%3E%3Ccircle cx='15' cy='12' r='1'/%3E%3Ccircle cx='15' cy='5' r='1'/%3E%3Ccircle cx='15' cy='19' r='1'/%3E%3C/svg%3E");
+  --grip-x: -18px;
+  --grip-y: 4px;
+  content: '';
+  position: absolute;
+  left: var(--grip-x);
+  top: calc(var(--callout-gap) + var(--grip-y));
+  width: 14px;
+  height: 14px;
+  background-color: var(--label-secondary);
+  -webkit-mask: var(--callout-grip) center / contain no-repeat;
+  mask: var(--callout-grip) center / contain no-repeat;
+  opacity: 0;
+  transition: opacity 0.12s var(--ease-standard, ease);
+  pointer-events: none;
+}
+.mdpm-editor .cm-line.md-callout-first:hover::after {
+  opacity: 1;
+}
+/* First-line-of-page callout has its box top forced to 0, so pull the grip up to match. */
+.mdpm-editor .cm-content > .cm-line:first-child.md-callout-first::after {
+  top: var(--grip-y);
 }
 
 /* No margins/pseudos (caret-safe).

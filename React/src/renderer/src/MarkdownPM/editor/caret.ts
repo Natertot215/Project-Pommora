@@ -7,10 +7,15 @@ import { layer, RectangleMarker, type EditorView } from '@codemirror/view'
 import { EditorSelection } from '@codemirror/state'
 
 function caretMarkers(view: EditorView): RectangleMarker[] {
+  // A cursor placed against a block widget (e.g. a table) makes forRange return a marker spanning the whole
+  // widget — a giant, mis-placed caret. Clamp anything far taller than a text line back to one line's height.
+  const cap = view.defaultLineHeight * 2.5 // headings (~1.8em) stay tall; a widget-spanning marker is clamped
   const out: RectangleMarker[] = []
   for (const r of view.state.selection.ranges) {
     const cursor = r.empty ? r : EditorSelection.cursor(r.head, r.assoc)
-    out.push(...RectangleMarker.forRange(view, 'mdpm-caret', cursor))
+    for (const m of RectangleMarker.forRange(view, 'mdpm-caret', cursor)) {
+      out.push(m.height > cap ? new RectangleMarker('mdpm-caret', m.left, m.top, m.width, view.defaultLineHeight) : m)
+    }
   }
   return out
 }

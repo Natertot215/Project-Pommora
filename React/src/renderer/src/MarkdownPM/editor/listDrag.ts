@@ -6,7 +6,7 @@
 import { StateEffect, StateField, type Extension, type Line, type Range, type Text } from '@codemirror/state'
 import { Decoration, type DecorationSet, EditorView } from '@codemirror/view'
 import { ACTIVATION } from '../../design-system/interactions/shared'
-import { parseListMarker } from '../detect'
+import { parseListMarkerPrefixed as parseListMarker } from '../detect'
 import { subBlockAt, dropChanges, checkboxToggleChange, type SubBlock, type Slot } from './listDragModel'
 
 // Walk the doc lines whose span intersects [from, to] inclusive. Shared by the shade decoration and the
@@ -108,6 +108,17 @@ interface Cand {
   indent: string // the line's leading whitespace — the dropped block adopts this depth
 }
 
+// The right edge a drop line reaches on a given line: the page wrap boundary, except inside a box (callout /
+// quote), where it's that line's own content-box right — read from the rendered element so the callout's CSS
+// padding owns the width (no recomputing the inset here).
+function lineRightEdge(view: EditorView, from: number, fallback: number): number {
+  let n: Node | null = view.domAtPos(from).node
+  while (n && !(n instanceof HTMLElement && n.classList.contains('cm-line'))) n = n.parentNode
+  if (!(n instanceof HTMLElement) || (!n.classList.contains('md-callout') && !n.classList.contains('md-bq'))) return fallback
+  const cs = getComputedStyle(n)
+  return n.getBoundingClientRect().right - parseFloat(cs.paddingRight || '0') - parseFloat(cs.borderRightWidth || '0')
+}
+
 function collectCands(view: EditorView, block: SubBlock): Cand[] {
   const doc = view.state.doc
   const contentRect = view.contentDOM.getBoundingClientRect()
@@ -123,7 +134,7 @@ function collectCands(view: EditorView, block: SubBlock): Cand[] {
       const cEnd = view.coordsAtPos(line.to)
       const cMarker = view.coordsAtPos(line.from + lm.markerStart)
       if (cTop && cEnd) {
-        out.push({ from: line.from, to: line.to, top: cTop.top, bottom: cEnd.bottom, left: (cMarker ?? cTop).left, right: gutterRight, indent: line.text.slice(0, lm.markerStart) })
+        out.push({ from: line.from, to: line.to, top: cTop.top, bottom: cEnd.bottom, left: (cMarker ?? cTop).left, right: lineRightEdge(view, line.from, gutterRight), indent: line.text.slice(0, lm.markerStart) })
       }
     })
   }

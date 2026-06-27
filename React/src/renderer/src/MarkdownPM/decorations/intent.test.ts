@@ -151,3 +151,69 @@ describe('decoration intents', () => {
     expect(intents.filter((d) => d.kind === 'hide')).toHaveLength(0)
   })
 })
+
+describe('callout box chrome + nested constructs', () => {
+  const doc = '> [!callout] hi\n> - item\n> ## head\n> ---'
+  const intents = decorationsFor(doc, tokenize(doc), new Set(), 0)
+  const lineClasses = intents.filter((d): d is Extract<typeof d, { kind: 'line' }> => d.kind === 'line').map((d) => d.className)
+
+  it('every line gets the box line-class (first/last)', () => {
+    expect(lineClasses.some((c) => c.includes('md-callout-first'))).toBe(true)
+    expect(lineClasses.some((c) => c.includes('md-callout-last'))).toBe(true)
+  })
+  it('a bullet inside the box still composes md-li with the box', () => {
+    expect(lineClasses).toContain('md-li')
+  })
+  it('the bullet widget absorbs the prefix (starts at line start, not touching a separate hide)', () => {
+    const lineStart = doc.indexOf('> - item')
+    const w = intents.find((d) => d.kind === 'widget' && d.spec.type === 'bullet')
+    expect(w && w.from).toBe(lineStart)
+  })
+  it('a heading + HR render inside the box', () => {
+    expect(intents.some((d) => d.kind === 'class' && d.className === 'md-h2')).toBe(true)
+    expect(intents.some((d) => d.kind === 'widget' && d.spec.type === 'hr')).toBe(true)
+  })
+  it('a top-level code block quoting a ``` line stays ONE block (fences pair by quote-depth, not greedily)', () => {
+    const t = '```\n> ```\nstill code\n```'
+    const ints = decorationsFor(t, tokenize(t), new Set(), 99) // caret off the block
+    // all of lines 1-2 are code CONTENT (no md-cb-last until the final ```), so exactly one open + one close
+    const cbLines = ints.filter((d): d is Extract<typeof d, { kind: 'line' }> => d.kind === 'line' && d.className.includes('md-cb'))
+    expect(cbLines.filter((d) => d.className.includes('md-cb-first'))).toHaveLength(1)
+    expect(cbLines.filter((d) => d.className.includes('md-cb-last'))).toHaveLength(1)
+    expect(cbLines).toHaveLength(4) // 4 lines, all one block
+  })
+  it('an unclosed fence inside a callout does not leak code styling onto the non-quote lines below', () => {
+    const t = '> [!callout] head\n> ```\nplain below\nmore plain'
+    const ints = decorationsFor(t, tokenize(t), new Set(), 99)
+    const cbLines = ints.filter((d): d is Extract<typeof d, { kind: 'line' }> => d.kind === 'line' && d.className.includes('md-cb'))
+    // only the `> ``` open line is a code line; the non-quote lines below are NOT code
+    expect(cbLines).toHaveLength(1)
+  })
+  it('a blockquote nested inside a callout renders as an inset quote (md-bq-in), not flat body', () => {
+    const t = '> [!callout] head\n> > quoted one\n> > quoted two\n> body'
+    const ints = decorationsFor(t, tokenize(t), new Set(), 99)
+    const classes = ints.filter((d): d is Extract<typeof d, { kind: 'line' }> => d.kind === 'line').map((d) => d.className)
+    expect(classes.some((c) => c.includes('md-bq-in-first'))).toBe(true)
+    expect(classes.some((c) => c.includes('md-bq-in-last'))).toBe(true)
+    expect(classes.filter((c) => c.includes('md-bq-in')).length).toBe(2) // both quote lines
+    // the whole `> > ` is hidden (one callout level + one quote level)
+    expect(ints.some((d) => d.kind === 'hide' && d.to - d.from === 4)).toBe(true)
+  })
+  it('a multi-DEPTH nested-quote run is ONE block — exactly one first + one last, no notch mid-block', () => {
+    const t = '> [!callout] head\n> > a\n> >> b\n> > c\n> body'
+    const ints = decorationsFor(t, tokenize(t), new Set(), 99)
+    const classes = ints.filter((d): d is Extract<typeof d, { kind: 'line' }> => d.kind === 'line').map((d) => d.className)
+    expect(classes.filter((c) => c.includes('md-bq-in-first'))).toHaveLength(1)
+    expect(classes.filter((c) => c.includes('md-bq-in-last'))).toHaveLength(1)
+    expect(classes.filter((c) => c.includes('md-bq-in')).length).toBe(3) // a, b, c all in the run
+  })
+  it('a fenced code block inside a callout composes the box chrome with the code class', () => {
+    const t = '> [!callout] head\n> ```js\n> code\n> ```'
+    const ints = decorationsFor(t, tokenize(t), new Set(), 0)
+    const classes = ints.filter((d): d is Extract<typeof d, { kind: 'line' }> => d.kind === 'line').map((d) => d.className)
+    expect(classes).toContain('md-cb md-cb-first') // the ```js line
+    expect(classes.some((c) => c.startsWith('md-callout') && !c.includes('md-cb'))).toBe(true) // box chrome present
+    // every fence line is also a callout line (the box wraps the code)
+    expect(classes.filter((c) => c.includes('md-callout')).length).toBe(4)
+  })
+})

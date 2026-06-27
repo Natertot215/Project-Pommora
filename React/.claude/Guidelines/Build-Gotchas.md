@@ -9,6 +9,7 @@ Hard-won environment/toolchain traps. Add entries when a mistake is worth never 
 - **`electron-vite dev` mis-launches here** for the same reason (it inherits the env). Prefer building + running the binary directly for a visual check; use `env -u ELECTRON_RUN_AS_NODE … npm run dev` if HMR is needed.
 - **Electron binary may be missing after install** — if `node_modules/electron/path.txt` is absent (postinstall skipped), run `node node_modules/electron/install.js` to download it.
 - **Don't auto-launch the GUI from an agent** — verify headlessly (`npm run typecheck && npm run build && npx vitest run`). Only launch when a human will look.
+- **CDP-typing into the live editor writes to disk — only ever drive a NEW throwaway page, never an existing one.** The dev app opens `lastNexusPath` = the user's **real Nexus** (`TEST_NEXUS_PATH` only steers tests). Any CM6 change you inject/type fires the 400ms autosave → `window.nexus.updatePageBody` → writes the open page's `.md`. **You cannot stub it away:** `window.nexus.*` is a frozen `contextBridge` object, so `window.nexus.updatePageBody = noop` silently no-ops (the assignment error is swallowed, giving a false "sandboxed" signal) and the real save fires. A scratch-typing run on an *existing* page once wiped its body (recovered via `git restore` since the Nexus is a git repo). Driving the editor is a fine way to test — just **create a dedicated test page first** and type into that; never mutate a page that matters. Read-only CDP screenshots of whatever's already on screen are always safe.
 
 ### Toolchain
 

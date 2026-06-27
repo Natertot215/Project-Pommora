@@ -123,3 +123,22 @@ describe('renumberOrderedRun', () => {
     expect(applyChanges(doc, renumberOrderedRun(doc, 0))).toBe('1. a\n2. b\n3. c')
   })
 })
+
+describe('drag inside a callout (prefix-aware)', () => {
+  it('reorders a callout bullet without doubling the `>` prefix', () => {
+    const doc = '> [!callout] head\n> - one\n> - two'
+    const block = subBlockAt(doc, doc.indexOf('one'))!
+    const changes = dropChanges(doc, block, { at: doc.length, indent: '> ' })!
+    expect(applyChanges(doc, changes)).toBe('> [!callout] head\n> - two\n> - one')
+  })
+  it('subBlockAt does NOT swallow a top-level indented sibling across the box boundary', () => {
+    const doc = '> - a\n\t- x' // a callout/quote bullet then a top-level nested bullet
+    const block = subBlockAt(doc, doc.indexOf('a'))!
+    expect(block.to).toBe(doc.indexOf('\n')) // block is just `> - a`, not the `\t- x` line
+  })
+  it('subBlockAt DOES keep a same-box deeper child', () => {
+    const doc = '> - a\n> \t- child'
+    const block = subBlockAt(doc, doc.indexOf('a'))!
+    expect(block.to).toBe(doc.length) // the `> \t- child` shares the `>` box → captured
+  })
+})

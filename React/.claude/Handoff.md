@@ -36,11 +36,7 @@ A long build session across three fronts — the shipped **list drag-to-reorder*
 
 **Inspector "swallow" + chrome polish (uncommitted):** Opening the Inspector swallows the toolbar trio — the pill rides the pane's leading edge to its left corner, its glass voiding so the bare icons land on the inspector glass (no double-glass), all off one `@property --io`. The thrash: voiding Liquid Glass can't be done in place (its `backdrop-filter` displacement is a dynamic SVG filter id CSS can't reconstruct or fade), so the void is a **two-layer trio** (fading glass layer + solid bare cover) — Nathan chose the smooth two-layer over a single-control hard cut, accepting it re-inits glass on **dev HMR only**. Plus `--label-control` promoted to one global token (both clusters; mute only on a disabled Back/Forward), the swallowed-icon dimming fixed (hide the glass layer's duplicate glyphs), and a page-header fix (banner-page first line + first-line-heading top-padding → consistent gap below the divider). → `History.md`, `Features/Design.md`.
 
-**Next Session**
-
-- **Close out the list-drag debug rig:** the dev server is still running with `--remoteDebuggingPort=9222` and a background Node CDP logger (`/tmp/cdp.log`) — restore a plain `npm run dev` + kill the logger.
-- **Canvas:** resume from `Planning/6-26 - Canvas Spec.md`; its first step is the adversarial review, then a `writing-plans` plan. Confirm the `border` token (grey-30%, ratified) lands when canvas builds.
-- **Carryover editor work:** Subfield reorder (drag items via PommoraDND — order already persisted), the real Icon Picker, Inspector content, `::` callouts + image/latex render seams. → `Framework.md`.
+**Callouts hardened — delete-guard + grip DRY (post-compaction continuation, uncommitted):** Closed the last callout break — Shift+Delete (and every Cmd/Alt/forward combo) eroding a body line's hidden `> ` prefix out of the box. An `atomicRanges` pass alone only made it *cleanly* de-callout (still a break); the real fix is a `transactionFilter` (`editor/calloutGuard.ts`) that cancels any change eroding a body prefix *in place* while letting joins, content-deletes, and intentional head-removal through — proven on a bare `EditorState` (no DOM, 12 tests) and verified live across the full delete matrix (628 green). The hand-rolled callout hover-grip was swapped to the **exact** lucide `grip-vertical` the table-row grips use (`Styles.css` mask mirrors the `<GripVertical>` geometry 1:1 — a CM line decoration can't mount the React icon; confirmed pixel-identical live). The whole saga — every break Nathan found *after* Claude called it "bulletproof" — is catalogued in `Guidelines/Adversarial-Review-Log.md` as the seed for a future break-things skill.
 
 **Lessons Learned**
 
@@ -99,11 +95,6 @@ A focused MarkdownPM session alongside Session A: a bullet-wrap bug chased down 
 
 **`/handoff` skill redesigned (this session):** Reworked `~/.claude/commands/handoff.md` from a context-window model to a **session** model — one block per session, updated in place, with **compactions tracked as a `Compactions:` count** instead of new sections; metadata gains `Worktree:`; the pinned-message + **Cornerstone top matter is hoisted above all blocks** (shared once, not per block); parallel sessions share one file as `### Session Summary - A/B`, and the doc now spells out that the agent running `/handoff` is the **newcomer** taking the next free letter (A = the block already in the file). Three-way filename (`Handoff` solo-uncompacted / `Session` solo-compacted / `Sessions` parallel); new-doc-vs-continue still keyed on session ID so multi-day sessions continue. This block is the first written in the new format. → `~/.claude/commands/handoff.md`.
 
-**Next Session**
-
-- **Live-verify the heading-column toggle end-to-end:** the menu → toggle → persist → reload path is unit-tested + typecheck-clean and the dev server's been restarted (the native menu lives in `src/main`, needs a full restart), but a real in-app toggle styling + persisting across reload hasn't been confirmed by hand yet.
-- **Optional: extend the single-word-wrap robustness** to the `+` and arrow (`→`) list flavors — they share the drop; only `-` / `•` was in scope.
-
 **Lessons Learned**
 
 - **A faithful headless repro can still mislead at the editor layer.** Hiding the inter-marker space fixed the single-word drop in plain HTML, but CM6's `Decoration.replace` doesn't behave like deleting the text node — the soft-break opportunity persisted in the real editor. Validate editor-layer fixes IN the editor, not just an HTML model.
@@ -140,9 +131,17 @@ A focused MarkdownPM session alongside Session A: a bullet-wrap bug chased down 
 - The agent **can** screenshot + drive the React UI headlessly via Electron + CDP (`--remoteDebuggingPort` → `Page.captureScreenshot` / `Input.dispatchMouseEvent`), but Nathan is the primary visual verifier.
 - **Parallel sessions happen** — never bundle or revert unattributed changes; **stage explicit paths** (`git add <paths>`), never `-A`.
 
+### Next Sessions
+
+- **Carryover editor work:** **Callouts** are functionally hardened — delete-guard shipped + a full adversarial fuzz pass done (`Guidelines/Adversarial-Review-Log.md`); remaining: tables-inside-callouts (deferred, noted in both reliant docs) + fold-chevron gutter alignment (inner-padding groundwork laid, the chevron itself still needs prefix-aware folding). Create unicode up-down + back-forth auto-transform syntax for <> and ><. Add paired auto-deletion for backspace on auto-paired syntax. Add “Styles” to tables → style = column would remove gutter padding and hide table lines to essentially solve the markdown column problem.
+
+- **Live-verify the heading-column toggle end-to-end:** the menu → toggle → persist → reload path is unit-tested + typecheck-clean and the dev server's been restarted (the native menu lives in `src/main`, needs a full restart), but a real in-app toggle styling + persisting across reload hasn't been confirmed by hand yet.
+
 ### Pending Focuses
 
-- **Canvas (new)** — spec parked at `Planning/6-26 - Canvas Spec.md`, pending its adversarial review → plan → build. React-first; the `.canvas` format is the cross-build contract.
+- **Break-things skill (new, Nathan-requested)** — build a reusable adversarial-fuzzing skill from `Guidelines/Adversarial-Review-Log.md`: a break-attempt taxonomy (input transforms · the deletion/caret combo matrix · nesting · adjacency · layout edges · fix-induced regressions) + the "toddler" method (every input/combo/position, screenshot each, no deferred findings) + a combinatorial `{keys}×{positions}×{nesting}×{adjacency}` generator, producing a break→repro→fix catalog before any UI feature is called done. The functional-layer counterpart to `// The Studio //.claude/rules/Review-Discipline.md` (which governs docs).
+
+- **Canvas (new)** — spec parked at `Planning/6-26 - Canvas Spec.md`, pending its adversarial review → plan → build. React-first; the `.canvas` format is the cross-build contract. Confirm the `border` token (grey-30%, ratified) lands when canvas builds.
 - **Caret on the other editor surfaces.** The drawn caret + custom hover cursor **shipped on the page editor** (`editor/caret.ts` — CM `layer` over `caret-color: transparent`, leaving native selection alone; see `History.md`). Extending the drawn caret to table cells + the inline-rename input is the remainder.
 - **Subfield reorder + live-stats + custom items** — registry/order/persistence are the seams; `Features/Subfield.md` § Roadmap.
 - **Icon picker** — build the real `Components/IconPicker` + wire the icon's frontmatter save (Swift `IconPicker` is the spec; wants a shared dropdown-animation primitive).
@@ -150,19 +149,19 @@ A focused MarkdownPM session alongside Session A: a bullet-wrap bug chased down 
 - **Radius + spacing tokens** — still ad-hoc literals; lift from Figma.
 - **Settings editing UI** deferred — `.nexus/settings.json` is the control surface (labels + accent + `subfield`).
 - **One-time Biome normalization** — the format-on-write hook keeps touched files clean, but a whole-tree `npm run check` pass hasn't run (defer to a tree with no parallel uncommitted edits).
-- **Doc mirror** — a launchd watcher mirrors these docs into the Obsidian vault; keep them current.
-- **Heading-column toggle — live end-to-end verify (B)** — unit-tested + typecheck-green; confirm a real in-app toggle styles + persists across reload.
-- **Single-word-wrap drop on `+` / `→` list flavors (B)** — the `-` / `•` case is parked as a known issue; the other marker flavors share it, unaddressed.
+- **Unsorted bin → folder + sidecar (paradigm, ratify first)** — Nathan's looking into moving "unsorted" off a config file and onto a real `Unsorted/` folder carrying an `_unsortedconfig.json` sidecar (the folder-with-sidecar pattern the rest of the model uses). The win is interop: another Markdown-based app with its own unsorted bin could point at the same folder and share it, rather than each app hiding the list in a private config. Cleaner now that `Class: item` vs `page` is no longer a discriminator (PagesV2 collapse) — the bin holds plain entities, no kind to sort by. On-disk shape, so ratify before building.
 
 ### Fix Log
 
 - **Aliased `[[A|B]]` vs cell-pipe** — a `|` in an aliased connection collides with cell-pipe escaping inside a table cell; autocomplete only inserts alias-free `[[Title]]`. Open paradigm call.
 - **Table links non-clickable** — no input handling for the rendered link inside a cell; proposed single-click navigate + right-click edit.
 - **Bullet single-word wrap drops the word below the marker** — a `-` / `•` (and `+` / `→`) item whose content is one long unbroken word drops the whole word to the next line; the marker-space hide that would fix it didn't survive CM6's replace decoration. Only the `line-height` cap shipped. → `Features/MarkdownPM.md` § Known issues.
+- Recents submenu on the “Open Nexus” menu allows trashed folders to appear; pulls them out of trash when 
 
 ### Handoff Rules
 
+- **Resolve = delete + route, never tag.** When an entry here (Pending Focus, Landmine, Uncertain, Fix Log) is genuinely done, push its real outcome to the canonical doc (`History.md` / `Features/*` / `Framework.md`) and delete the line — no `(Resolved)` / `(Superseded)` tombstones. A stale-but-tagged line is still a false line the next agent re-reads and discounts; deleting what's no longer true beats annotating it. In parallel, you may delete a resolved Landmine/Uncertain from another session's block (removal only, on real resolution) even though the rest of their block stays frozen.
 - **Keep the Fix Log current.** Acknowledged-but-unfixed issues get a 1–2 sentence entry; remove on resolve.
 - **One block per session, updated in place.** A session keeps one block; compactions bump its `Compactions` count, they don't add sections. Push spec/decision content to its canonical home (`History.md` / `Features/*` / `Framework.md`); carry still-open Pending Focuses forward to a fresh *sequential* session.
 - **Markdown only, no new folder** (per Nathan) — this doc stays the single `.claude/Handoff.md`, not a routed `Handoffs/` dir, regardless of the skill's `Handoff`/`Session`/`Sessions` filename shapes.
-- **Parallel sessions share this one doc.** Each concurrent session gets its own labeled block (`### Session Summary - A`, `- B`, …) with its own metadata + sections; the pinned-message + Cornerstone **top matter is shared above all blocks, written once** (not per block). List every session ID in the header. The agent running `/handoff` is the newcomer (next free letter; A = the block already in the file) — never edit another session's block, only write/refresh your own. The footer (Working Notes / Pending Focuses / Fix Log / Handoff Rules) is shared: carry, add, and retire across all sessions, tagging session-specific Pending/Fix items with the block letter where it helps.
+- **Parallel sessions share this one doc.** Each concurrent session gets its own labeled block (`### Session Summary - A`, `- B`, …) with its own metadata + sections; the pinned-message + Cornerstone **top matter is shared above all blocks, written once** (not per block). List every session ID in the header. The agent running `/handoff` is the newcomer (next free letter; A = the block already in the file) — never edit another session's block, only write/refresh your own. The footer (Working Notes / Next Sessions / Pending Focuses / Fix Log / Handoff Rules) is shared: carry, add, and retire across all sessions, tagging session-specific Next/Pending/Fix items with the block letter where it helps. **Next Session lives once in the footer** (→ `### Next Sessions` when parallel), never per block.

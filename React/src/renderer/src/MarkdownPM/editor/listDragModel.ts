@@ -1,7 +1,7 @@
 // Pure source-line logic for list drag-to-reorder. No CM6 / DOM here — the extension (`listDrag.ts`)
 // owns the gesture + overlay and calls these to turn a grab + drop into a single `changes` array.
 // Everything operates on the doc string + offsets so it's unit-testable without an editor.
-import { parseListMarker } from '../detect'
+import { parseListMarkerPrefixed as parseListMarker, quoteDepth } from '../detect'
 import { lineStartAt, lineEndAt } from '../input'
 
 export interface ChangeSpec {
@@ -33,13 +33,16 @@ export function subBlockAt(doc: string, pos: number): SubBlock | null {
   const headEnd = lineEndAt(doc, from)
   const head = parseListMarker(doc.slice(from, headEnd))
   if (head === null) return null
+  const headDepth = quoteDepth(doc.slice(from, headEnd))
 
   let to = headEnd
   for (let p = headEnd; p < doc.length; ) {
     const fs = p + 1 // skip the '\n'
     const fe = lineEndAt(doc, fs)
-    const lm = parseListMarker(doc.slice(fs, fe))
-    if (lm === null || lm.level <= head.level) break // shallower / non-list line ends the block
+    const fline = doc.slice(fs, fe)
+    const lm = parseListMarker(fline)
+    // A descendant must be deeper AND at the same quote depth — a different `>` depth is a different box, never a child.
+    if (lm === null || lm.level <= head.level || quoteDepth(fline) !== headDepth) break
     to = fe
     p = fe
   }
@@ -52,16 +55,21 @@ export interface Slot {
   indent?: string // when set, the moved block is re-indented so its head sits at this depth (re-nesting)
 }
 
+// A line's full lead: leading indent + the blockquote/callout `>` prefix + list-indent whitespace. The drop
+// "indent" a block adopts is the target's lead, so dragging in/out of a callout re-prefixes correctly (no
+// doubled `>`). Leading `[ \t]*` first so an indented `  > - x` strips its `>` too.
+const LEAD_RE = /^[ \t]*(?:>[ \t]?)*[ \t]*/
+
 /** Re-indent a block so its head line sits at `targetIndent`, shifting every descendant by the same delta
- *  (relative nesting preserved). Strips the head's indent by LENGTH off each line's own leading whitespace,
+ *  (relative nesting preserved). Strips the head's lead by LENGTH off each line's own lead (prefix + indent),
  *  so it can't silently skip a descendant that mixes tabs/spaces. Verbatim when targetIndent is undefined. */
 function reindentBlock(blockText: string, targetIndent: string | undefined): string {
   if (targetIndent === undefined) return blockText
-  const headLen = (blockText.match(/^[ \t]*/)?.[0] ?? '').length
+  const headLen = (blockText.match(LEAD_RE)?.[0] ?? '').length
   return blockText
     .split('\n')
     .map((line) => {
-      const ws = line.match(/^[ \t]*/)?.[0] ?? ''
+      const ws = line.match(LEAD_RE)?.[0] ?? ''
       return targetIndent + ws.slice(Math.min(headLen, ws.length)) + line.slice(ws.length)
     })
     .join('\n')

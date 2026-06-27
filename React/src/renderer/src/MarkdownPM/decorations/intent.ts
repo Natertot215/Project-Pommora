@@ -1,5 +1,23 @@
 import type { Token, TokenKind } from '../tokens'
-import { isThematicBreakLine, isHeadingLine, isBlockquoteLine, parseListMarker, blockquotePrefixRe } from '../detect'
+import {
+  isThematicBreakLine,
+  isHeadingLine,
+  isBlockquoteLine,
+  parseListMarker,
+  blockquotePrefixRe,
+  quoteDepth,
+  calloutLines,
+  type CalloutLine
+} from '../detect'
+
+// A line is a nested quote INSIDE a callout when it's a callout line whose content (after the callout's own
+// `>` level) is itself a blockquote. Drives the md-bq-in run's first/last across a contiguous nested-quote run.
+function calloutNestedQuote(lines: string[], callouts: (CalloutLine | undefined)[], k: number): boolean {
+  const co = k >= 0 && k < lines.length ? callouts[k] : undefined
+  if (!co) return false
+  const inner = lines[k].slice(co.prefixEnd)
+  return blockquotePrefixRe.test(inner) && isBlockquoteLine(inner)
+}
 
 // Shared marker class on all three list glyphs (bullet • / checkbox box / ordered number). The drag
 // extension targets this one class, and `.md-li-glyph { cursor: pointer }` paints the pointer cursor —
@@ -8,7 +26,14 @@ export const GLYPH_CLASS = 'md-li-glyph'
 
 const HEADING_RE = /^(\s{0,3})(#{1,6})([ \t]+)(.*)$/
 
-const FENCE_RE = /^\s*```/
+// A ``` fence, capturing its `>` prefix so open/close pair by quote-DEPTH: a `> ``` opens a callout/quote-internal
+// block closed only by another `> ``` (a bare ``` is a separate top-level block), and a quoted fence ends when its
+// blockquote does. Without the depth match, a top-level code block quoting a ``` (`> ```` as content) corrupts.
+const FENCE_RE = /^([ \t]*(?:>[ \t]?)*)```/
+const fenceDepth = (line: string): number => {
+  const m = FENCE_RE.exec(line)
+  return m ? (m[1].match(/>/g)?.length ?? 0) : -1 // -1 = not a fence marker
+}
 interface FenceInfo {
   role: 'open' | 'content' | 'close'
   from: number
@@ -39,16 +64,19 @@ function fenceBlocks(lines: string[], lineStarts: number[]): FenceBlock[] {
   const blocks: FenceBlock[] = []
   let i = 0
   while (i < lines.length) {
-    if (!FENCE_RE.test(lines[i])) {
+    const d = fenceDepth(lines[i])
+    if (d === -1) {
       i++
       continue
     }
+    // The close is a fence marker at the SAME depth; the block also ends if the surrounding blockquote drops
+    // below that depth (a quoted fence can't outlive its `>` lines).
     let j = i + 1
-    while (j < lines.length && !FENCE_RE.test(lines[j])) j++
-    const closed = j < lines.length
-    const close = closed ? j : lines.length - 1
+    while (j < lines.length && fenceDepth(lines[j]) !== d && quoteDepth(lines[j]) >= d) j++
+    const closed = j < lines.length && fenceDepth(lines[j]) === d
+    const close = closed ? j : j - 1 // unclosed → the last line still in the block (the open itself if j === i+1)
     blocks.push({ from: lineStarts[i], to: lineStarts[close] + lines[close].length, open: i, close, closed })
-    i = j + 1
+    i = closed ? j + 1 : j
   }
   return blocks
 }
@@ -106,77 +134,126 @@ export function decorationsFor(text: string, tokens: Token[], active: Set<number
 
   const { lines, lineStarts } = splitWithOffsets(text)
   const fences = scanFencedCode(lines, lineStarts)
+  const callouts = calloutLines(lines)
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i]
     const ls = lineStarts[i]
     const le = ls + line.length
-    const caretOnLine = selStart >= ls && selStart <= le
-    const fence = fences[i]
-    const lm = parseListMarker(line)
-    // A list line reveals its raw source when the caret sits on the marker (shared by bullet + checkbox).
-    const onMarker = lm !== null && selStart >= ls + lm.markerStart && selStart <= ls + lm.markerEnd
 
-    if (fence) {
-      // Fence markers reveal only when the caret is anywhere in the block.
-      const caretInBlock = selStart >= fence.from && selStart <= fence.to
-      const className = `md-cb${fence.role === 'open' ? ' md-cb-first' : ''}${fence.role === 'close' ? ' md-cb-last' : ''}`
-      intents.push({ kind: 'line', from: ls, className })
-      if (fence.role !== 'content' && !caretInBlock) intents.push({ kind: 'hide', from: ls, to: le })
-    } else if (isHeadingLine(line)) {
-      const hm = HEADING_RE.exec(line)
-      if (hm) {
-        const level = hm[2].length
-        const contentStart = ls + hm[1].length + hm[2].length + hm[3].length
-        intents.push({ kind: 'class', from: ls, to: le, className: `md-h${level}` })
-        if (contentStart > ls) intents.push({ kind: 'class', from: ls, to: contentStart, className: 'md-hmarker' })
-        if (!caretOnLine) intents.push({ kind: 'hide', from: ls, to: contentStart })
+    // Box chrome (callout/quote) is independent of what's inside it: a `> - item` gets BOTH the box line-class
+    // AND the bullet, a `> ```` code block keeps its box. `base` is where the inner content begins, so every
+    // construct renders identically whether it's top-level or behind a `>` prefix.
+    let base = 0
+    const co = callouts[i]
+    if (co) {
+      intents.push({ kind: 'line', from: ls, className: `md-callout${co.first ? ' md-callout-first' : ''}${co.last ? ' md-callout-last' : ''}` })
+      base = co.prefixEnd
+      // A blockquote nested inside the callout (`> > …`): render the inner `>` as an inset quote block (indent
+      // + bar + fill) rather than flattening it to plain callout body. first/last come from the quote depth.
+      const inner = line.slice(base)
+      const qm = blockquotePrefixRe.exec(inner) // all remaining `>` levels → one inset quote (depth flattens)
+      if (qm && isBlockquoteLine(inner)) {
+        // first/last span the contiguous run of nested-quote lines (not a depth match — a run can vary in depth
+        // yet flatten to one block), mirroring how the plain-quote branch tests its neighbours.
+        const first = !calloutNestedQuote(lines, callouts, i - 1)
+        const last = !calloutNestedQuote(lines, callouts, i + 1)
+        intents.push({ kind: 'line', from: ls, className: `md-bq-in${first ? ' md-bq-in-first' : ''}${last ? ' md-bq-in-last' : ''}` })
+        base += qm[0].length
       }
-    } else if (lm?.kind === 'checkbox' && lm.box) {
-      // Raw `- [ ] ` shows only when the caret is on the marker; else a checkbox widget takes its slot.
-      intents.push({ kind: 'line', from: ls, className: 'md-li md-li-task', level: lm.level })
-      if (lm.markerStart > 0) intents.push({ kind: 'hide', from: ls, to: ls + lm.markerStart })
-      if (!onMarker) {
-        intents.push({ kind: 'hide', from: ls + lm.markerStart, to: ls + lm.box.start })
-        intents.push({
-          kind: 'widget',
-          from: ls + lm.box.start,
-          to: ls + lm.box.end,
-          spec: { type: 'checkbox', bracketFrom: ls + lm.box.start, bracketTo: ls + lm.box.end, checked: lm.checked ?? false }
-        })
-        intents.push({ kind: 'hide', from: ls + lm.box.end, to: ls + lm.contentStart })
-      }
-    } else if (lm?.kind === 'bullet' && lm.bullet === '-' && !lm.box) {
-      // Raw `-` shows only when the caret is on the marker; else a `•` widget takes its exact slot.
-      intents.push({ kind: 'line', from: ls, className: 'md-li', level: lm.level })
-      if (lm.markerStart > 0) intents.push({ kind: 'hide', from: ls, to: ls + lm.markerStart })
-      if (!onMarker) intents.push({ kind: 'widget', from: ls + lm.markerStart, to: ls + lm.markerEnd, spec: { type: 'bullet' } })
-    } else if (lm?.kind === 'arrow' || (lm?.kind === 'bullet' && lm.bullet === '+' && !lm.box)) {
-      // `→` and `+` ARE their own glyphs, so they stay as literal source (like the ordered number, not a
-      // widget): recoloured to the marker tone + given the drag-handle class. Share the `.md-li` bullet zone.
-      intents.push({ kind: 'line', from: ls, className: 'md-li', level: lm.level })
-      if (lm.markerStart > 0) intents.push({ kind: 'hide', from: ls, to: ls + lm.markerStart })
-      intents.push({ kind: 'class', from: ls + lm.markerStart, to: ls + lm.markerEnd, className: `md-control ${GLYPH_CLASS}` })
-    } else if (lm?.kind === 'ordered') {
-      // `N.` stays literal recoloured source (no widget) so typing after the number can't hit an atomic range.
-      intents.push({ kind: 'line', from: ls, className: 'md-li md-li-ordered', level: lm.level })
-      if (lm.markerStart > 0) intents.push({ kind: 'hide', from: ls, to: ls + lm.markerStart })
-      intents.push({ kind: 'class', from: ls + lm.markerStart, to: ls + lm.markerEnd, className: `md-ol-marker md-control ${GLYPH_CLASS}` })
-      // Hide the source space so the gap is the zone padding.
-      intents.push({ kind: 'hide', from: ls + lm.markerEnd, to: ls + lm.contentStart })
     } else if (isBlockquoteLine(line)) {
       const bm = blockquotePrefixRe.exec(line)
       if (bm) {
         const first = i === 0 || !isBlockquoteLine(lines[i - 1])
         const last = i === lines.length - 1 || !isBlockquoteLine(lines[i + 1])
-        const className = `md-bq${first ? ' md-bq-first' : ''}${last ? ' md-bq-last' : ''}`
-        intents.push({ kind: 'line', from: ls, className })
-        intents.push({ kind: 'hide', from: ls, to: ls + bm[0].length })
+        intents.push({ kind: 'line', from: ls, className: `md-bq${first ? ' md-bq-first' : ''}${last ? ' md-bq-last' : ''}` })
+        base = bm[0].length
       }
-    } else if (isThematicBreakLine(line) && !caretOnLine) {
-      intents.push({ kind: 'widget', from: ls, to: le, spec: { type: 'hr' } })
     }
+
+    const fence = fences[i]
+    if (fence) {
+      // Code block (composes with box chrome). Hide the `>` prefix, then hide the ``` fence line itself (after
+      // the prefix) unless the caret is in the block. Content lines show as code.
+      const innerStart = ls + base
+      const caretInBlock = selStart >= fence.from && selStart <= fence.to
+      intents.push({ kind: 'line', from: ls, className: `md-cb${fence.role === 'open' ? ' md-cb-first' : ''}${fence.role === 'close' ? ' md-cb-last' : ''}` })
+      if (base > 0) intents.push({ kind: 'hide', from: ls, to: innerStart })
+      if (fence.role !== 'content' && !caretInBlock) intents.push({ kind: 'hide', from: innerStart, to: le })
+      continue
+    }
+
+    // pushConstruct hides the prefix [ls, innerStart] itself, so a leading bullet/HR widget can ABSORB it into
+    // one replace — CM drops a widget-replace that merely *touches* a preceding replace at the same offset.
+    pushConstruct(intents, line, ls, base, selStart)
   }
 
   return intents
+}
+
+// Emits the list / heading / HR decorations for one line, reading the construct from `line.slice(base)` so it
+// works identically at the top level (base 0) or behind a `>`/callout prefix (base = prefix length). All
+// offsets are absolute (`ls + base + …`); the line-class still attaches at `ls` so it composes with box chrome.
+function pushConstruct(intents: DecoIntent[], line: string, ls: number, base: number, selStart: number): void {
+  const inner = base === 0 ? line : line.slice(base)
+  const innerStart = ls + base
+  const le = ls + line.length
+  const caretOnLine = selStart >= ls && selStart <= le
+  const lm = parseListMarker(inner)
+  const onMarker = lm !== null && selStart >= innerStart + lm.markerStart && selStart <= innerStart + lm.markerEnd
+
+  // A leading bullet/HR widget absorbs the box prefix into one replace (CM drops a widget-replace that just
+  // touches a preceding replace). Otherwise hide the prefix separately so the `>`/`[!type]` never shows.
+  const bulletAbsorbs = base > 0 && !onMarker && lm?.kind === 'bullet' && lm.bullet === '-' && !lm.box
+  const hrAbsorbs = base > 0 && !caretOnLine && lm === null && isThematicBreakLine(inner)
+  if (base > 0 && !bulletAbsorbs && !hrAbsorbs) intents.push({ kind: 'hide', from: ls, to: innerStart })
+
+  if (isHeadingLine(inner)) {
+    const hm = HEADING_RE.exec(inner)
+    if (hm) {
+      const level = hm[2].length
+      const contentStart = innerStart + hm[1].length + hm[2].length + hm[3].length
+      intents.push({ kind: 'class', from: innerStart, to: le, className: `md-h${level}` })
+      if (contentStart > innerStart) intents.push({ kind: 'class', from: innerStart, to: contentStart, className: 'md-hmarker' })
+      if (!caretOnLine) intents.push({ kind: 'hide', from: innerStart, to: contentStart })
+    }
+  } else if (lm?.kind === 'checkbox' && lm.box) {
+    // Raw `- [ ] ` shows only when the caret is on the marker; else a checkbox widget takes its slot.
+    intents.push({ kind: 'line', from: ls, className: 'md-li md-li-task', level: lm.level })
+    if (lm.markerStart > 0) intents.push({ kind: 'hide', from: innerStart, to: innerStart + lm.markerStart })
+    if (!onMarker) {
+      intents.push({ kind: 'hide', from: innerStart + lm.markerStart, to: innerStart + lm.box.start })
+      intents.push({
+        kind: 'widget',
+        from: innerStart + lm.box.start,
+        to: innerStart + lm.box.end,
+        spec: { type: 'checkbox', bracketFrom: innerStart + lm.box.start, bracketTo: innerStart + lm.box.end, checked: lm.checked ?? false }
+      })
+      intents.push({ kind: 'hide', from: innerStart + lm.box.end, to: innerStart + lm.contentStart })
+    }
+  } else if (lm?.kind === 'bullet' && lm.bullet === '-' && !lm.box) {
+    // Raw `-` shows only when the caret is on the marker; else a `•` widget takes its exact slot. Inside a box
+    // the widget swallows the prefix too (`> -` → `•`) so it doesn't render-fail by touching the prefix-hide.
+    intents.push({ kind: 'line', from: ls, className: 'md-li', level: lm.level })
+    if (onMarker) {
+      if (lm.markerStart > 0) intents.push({ kind: 'hide', from: innerStart, to: innerStart + lm.markerStart })
+    } else {
+      intents.push({ kind: 'widget', from: bulletAbsorbs ? ls : innerStart + lm.markerStart, to: innerStart + lm.markerEnd, spec: { type: 'bullet' } })
+    }
+  } else if (lm?.kind === 'arrow' || (lm?.kind === 'bullet' && lm.bullet === '+' && !lm.box)) {
+    // `→` and `+` ARE their own glyphs, so they stay literal source (like the ordered number): recoloured +
+    // given the drag-handle class. Share the `.md-li` bullet zone.
+    intents.push({ kind: 'line', from: ls, className: 'md-li', level: lm.level })
+    if (lm.markerStart > 0) intents.push({ kind: 'hide', from: innerStart, to: innerStart + lm.markerStart })
+    intents.push({ kind: 'class', from: innerStart + lm.markerStart, to: innerStart + lm.markerEnd, className: `md-control ${GLYPH_CLASS}` })
+  } else if (lm?.kind === 'ordered') {
+    // `N.` stays literal recoloured source (no widget) so typing after the number can't hit an atomic range.
+    intents.push({ kind: 'line', from: ls, className: 'md-li md-li-ordered', level: lm.level })
+    if (lm.markerStart > 0) intents.push({ kind: 'hide', from: innerStart, to: innerStart + lm.markerStart })
+    intents.push({ kind: 'class', from: innerStart + lm.markerStart, to: innerStart + lm.markerEnd, className: `md-ol-marker md-control ${GLYPH_CLASS}` })
+    intents.push({ kind: 'hide', from: innerStart + lm.markerEnd, to: innerStart + lm.contentStart })
+  } else if (isThematicBreakLine(inner) && !caretOnLine) {
+    // Inside a box the HR widget swallows the prefix (same touching-replace reason as the bullet).
+    intents.push({ kind: 'widget', from: hrAbsorbs ? ls : innerStart, to: le, spec: { type: 'hr' } })
+  }
 }

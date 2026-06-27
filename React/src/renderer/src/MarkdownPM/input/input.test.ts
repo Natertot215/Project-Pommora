@@ -9,6 +9,8 @@ import {
   dashArrow,
   indentListOnTab,
   continueBlockquoteOnEnter,
+  calloutShorthand,
+  shiftEnterEdit,
   type Edit
 } from './index'
 
@@ -176,5 +178,102 @@ describe('blockquote continuation (Enter)', () => {
   it('falls through when the caret is in the marker, or on a non-quote line', () => {
     expect(continueBlockquoteOnEnter('> q', 1, 1)).toBeNull()
     expect(continueBlockquoteOnEnter('plain', 5, 5)).toBeNull()
+  })
+})
+
+describe('callout shorthand (||)', () => {
+  // The second `|` is intercepted; the first already sits at c-1 in the doc.
+  it('expands `||` at line start to the callout head + a trailing exit line at doc end', () => {
+    const doc = '|' // first `|` typed; second `|` about to land at pos 1
+    expect(apply(doc, calloutShorthand(doc, 1, 1, '|')!)).toBe('> [!callout] \n')
+  })
+  it('reuses an existing following line as the exit target (no extra newline)', () => {
+    const doc = '|\nafter'
+    expect(apply(doc, calloutShorthand(doc, 1, 1, '|')!)).toBe('> [!callout] \nafter')
+  })
+  it('only fires on a bare `|` alone on the line (never mid-line / inside a table)', () => {
+    expect(calloutShorthand('a |', 3, 3, '|')).toBeNull()
+    expect(calloutShorthand('| x ', 4, 4, '|')).toBeNull()
+  })
+  it('preserves content already on the line (||ab → callout with "ab" body, no trailing line)', () => {
+    const doc = '|ab' // first `|` typed at line start, second about to land at pos 1
+    expect(apply(doc, calloutShorthand(doc, 1, 1, '|')!)).toBe('> [!callout] ab')
+  })
+  it('separates from a callout directly above with a blank line (no touching boxes / merged run)', () => {
+    const doc = '> [!callout] first\n|' // `|` typed on the line below an existing callout
+    expect(apply(doc, calloutShorthand(doc, 20, 20, '|')!)).toBe('> [!callout] first\n\n> [!callout] \n')
+  })
+})
+
+describe('dash auto-format is prefix-aware', () => {
+  it('does NOT convert a `- ` bullet into an en-dash inside a quote/callout', () => {
+    const doc = '> -' // about to type the space after the bullet dash
+    expect(dashArrow(doc, 3, 3, ' ')).toBeNull()
+  })
+  it('still converts a real ` - ` range inside a callout (prose before the dash)', () => {
+    const doc = '> [!callout] Mon -'
+    expect(apply(doc, dashArrow(doc, doc.length, doc.length, ' ')!)).toBe('> [!callout] Mon – ')
+  })
+})
+
+describe('shift+enter', () => {
+  it('exits with a plain newline outside a callout', () => {
+    expect(shiftEnterEdit('hello', 5, 5).insert).toBe('\n')
+  })
+  it('stays in the box (continues the `>` prefix) inside a callout', () => {
+    const doc = '> [!callout] hi'
+    expect(shiftEnterEdit(doc, doc.length, doc.length).insert).toBe('\n> ')
+  })
+  it('with a selection inside a callout still keeps the box prefix (no run-splitting plain newline)', () => {
+    const doc = '> [!callout] head\n> abcXYZdef'
+    const a = doc.indexOf('XYZ')
+    const e = a + 3
+    expect(apply(doc, shiftEnterEdit(doc, a, e))).toBe('> [!callout] head\n> abc\n> def')
+  })
+  it('a selection STRADDLING the box edge falls back to plain newline (no outside text pulled in)', () => {
+    const doc = '> [!callout] body here\nplain below line'
+    const a = doc.indexOf('body here')
+    const e = doc.indexOf('below') // head is in the plain line, outside the callout
+    expect(apply(doc, shiftEnterEdit(doc, a, e))).toBe('> [!callout] \nbelow line') // no `>` on "below line"
+  })
+})
+
+describe('nested list behaviour inside a callout', () => {
+  const callout = (body: string): string => `> [!callout] head\n${body}`
+  it('Enter continues a bullet inside the box (keeps the `>` prefix)', () => {
+    const doc = callout('> - item')
+    expect(apply(doc, continueListOnEnter(doc, doc.length, doc.length)!)).toBe(callout('> - item\n> - '))
+  })
+  it('Enter continues + renumbers an ordered list inside the box', () => {
+    const doc = callout('> 1. a')
+    expect(apply(doc, continueListOnEnter(doc, doc.length, doc.length)!)).toBe(callout('> 1. a\n> 2. '))
+  })
+  it('Tab indents the inner list after the prefix, not before the `>`', () => {
+    const doc = callout('> - item')
+    expect(apply(doc, indentListOnTab(doc, doc.length, doc.length)!)).toBe(callout('> \t- item'))
+  })
+  it('backspace deletes the inner marker (de-lists) but keeps the box', () => {
+    const doc = callout('> - x')
+    const contentStart = doc.length - 1 // before "x"
+    expect(apply(doc, smartBackspace(doc, contentStart, contentStart)!)).toBe(callout('> x'))
+  })
+  it('backspace at a plain body line-start joins up rather than stripping the `>`', () => {
+    const doc = '> [!callout] head\n> body'
+    const contentStart = doc.indexOf('body')
+    expect(apply(doc, smartBackspace(doc, contentStart, contentStart)!)).toBe('> [!callout] headbody')
+  })
+  it('backspace at the head content-start removes the whole callout marker', () => {
+    const doc = '> [!callout] head'
+    const cs = '> [!callout] '.length
+    expect(apply(doc, smartBackspace(doc, cs, cs)!)).toBe('head')
+  })
+  it('backspace from INSIDE the hidden tag also removes the whole callout (no char-by-char corruption)', () => {
+    const doc = '> [!callout] head'
+    expect(apply(doc, smartBackspace(doc, 5, 5)!)).toBe('head') // caret mid-tag (after `> [!`)
+  })
+  it('-[]+space canonicalizes to GFM behind the prefix', () => {
+    const doc = '> [!callout] head\n> -[]'
+    const r = canonicalizeCheckbox(doc, doc.length, doc.length, ' ')!
+    expect(apply(doc, r)).toBe('> [!callout] head\n> - [ ] ')
   })
 })
