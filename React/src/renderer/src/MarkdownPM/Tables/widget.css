@@ -99,7 +99,7 @@
    tbody only — the corner cell stays in thead, so the header row's fill-tertiary naturally sits above
    this column fill (no z-index needed). */
 .mdpm-tbl tbody .mdpm-tbl-cell.mdpm-tbl-heading-col {
-  background: var(--fill-quaternary);
+  background: var(--fill-quinary);
   font-weight: var(--weight-emphasized);
 }
 

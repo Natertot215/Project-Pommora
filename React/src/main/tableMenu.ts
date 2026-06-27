@@ -25,17 +25,18 @@ function itemsFor(
     click: pick(`align:${a}`)
   })
   // The first column can read like the header row (a Pommora-only visual; the .md stays a plain table).
+  // The label carries the state: "Make Heading Column" toggles on; "Heading Column" toggles back off.
   const heading: MenuItemConstructorOptions[] =
     ctx.index === 0
       ? [
-          { label: 'Make Heading Column', type: 'checkbox', checked: ctx.headingColumn ?? false, click: pick('col:toggle-heading') },
+          { label: ctx.headingColumn ? 'Heading Column' : 'Make Heading Column', click: pick('col:toggle-heading') },
           { type: 'separator' }
         ]
       : []
   return [
-    ...heading,
     { label: 'Align', submenu: [align('Left', 'left'), align('Center', 'center'), align('Right', 'right')] },
     { type: 'separator' },
+    ...heading,
     { label: 'Insert Column Left', click: pick('col:insert-left') },
     { label: 'Insert Column Right', click: pick('col:insert-right') },
     { type: 'separator' },

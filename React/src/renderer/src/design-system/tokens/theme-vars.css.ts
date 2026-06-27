@@ -33,6 +33,7 @@ globalStyle(':root', {
     '--fill-secondary': colorVars.color.fill.secondary,
     '--fill-tertiary': colorVars.color.fill.tertiary,
     '--fill-quaternary': colorVars.color.fill.quaternary,
+    '--fill-quinary': colorVars.color.fill.quinary,
     '--separator-border': colorVars.color.separator.border,
     // Interaction states (Figma "States") — system-grey at hover 2.5% / selected 5%.
     '--state-hover': colorVars.color.state.hover,
