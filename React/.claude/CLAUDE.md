@@ -11,7 +11,7 @@ A React + TypeScript + Electron rebuild of Pommora ("a simpler Notion that's als
 
 ### Stack (current — swappable, not locked)
 
-electron-vite · Electron 42 · React 19 · TypeScript 6 · Vite 7 + `@vitejs/plugin-react` 5 (compat pin — newer plugin-react requires Vite 8, which electron-vite doesn't support yet) · Zustand · TanStack Table/Virtual · `react-markdown` + `remark-gfm` · `eemeli/yaml` · `lucide-react` · Vitest. Editor (deferred): a web editor — **CodeMirror 6 is a candidate, not mandated**.
+electron-vite · Electron 42 · React 19 · TypeScript 6 · Vite 7 + `@vitejs/plugin-react` 5 (compat pin — newer plugin-react requires Vite 8, which electron-vite doesn't support yet) · Zustand · TanStack Table/Virtual · `react-markdown` + `remark-gfm` · `eemeli/yaml` · `lucide-react` · Vitest. Editor: **MarkdownPM** — a CodeMirror 6 port, behind a swappable editor seam.
 
 **No dependency lock-in.** Every library sits behind a thin seam (SQLite behind `db.ts`, YAML behind `pageFile.ts`, IDs behind `ids.ts`, glass behind `Surface`) so it's swappable without touching callers. Version numbers are compatibility pins, not endorsements; nothing above is a permanent commitment.
 
@@ -26,7 +26,6 @@ Biome (`biome format`) auto-runs on every TS/CSS/JSON write via a PostToolUse ho
 - **IPC never throws across the boundary** — handlers return a `{ ok: true, … } | { ok: false, error }` envelope.
 - **Files are canonical.** The on-disk model is the portable contract (modernized TS-native serialization). No SQLite for the read path — a single fs walk is the source (SQLite returns later only as a regeneratable accelerator for queries).
 - **Read and write are cleanly separable.** The read path is read-only by construction; mutations are additive, never woven into reads.
-- **Catch up to Swift, don't go ahead.** Build only what Swift has actually shipped at the data/feature level. Net-new subsystems Swift hasn't built (block-editing, file-version history, …) are out of scope until Swift's behavior is matched — we're porting, not extending. Reserved-but-empty Swift fields (`blocks: []`) round-trip untouched; they aren't activated here.
 - **Condensed control flow / DRY / simplicity-first** — model finite states as unions + switch; hoist shared logic; don't add unrequested complexity.
 - **Colors are authored as hex** — `#RRGGBB`, or `#RRGGBBAA` (8-digit) for alpha — never `rgb()` / `rgba()`. The token layer (`design-system/tokens/`) is the source; platform-returned values (e.g. `getComputedStyle`) are the only exception. Detail: `design-system/tokens/README.md`.
 - **Docs name; code holds exacts.** These docs describe the *system* and reference product truth (root `PommoraPRD.md` + `Features/`) — they never restate exact code values. Name the token and its treatment ("the red solid at a low opacity"), never the literal `#hex` / `%` / line-for-line code; exacts live in `design-system/tokens/` + Figma.
@@ -37,7 +36,7 @@ Biome (`biome format`) auto-runs on every TS/CSS/JSON write via a PostToolUse ho
 - **`sandbox: true` + `contextIsolation: true` + `nodeIntegration: false`.**
 - **Single-window now, multi-window-ready seams** — data is main-owned + Query/store-cached per renderer; the live-refresh bus is a swappable transport; windows identified by serializable refs. No global singleton holding shared mutable client state.
 - **Modernized TS-native on-disk format** (tagged PropertyValue, zod-validated) — built/tested against a dedicated **test nexus at `~/test`** (override via `TEST_NEXUS_PATH`).
-- **Glass:** liquidGL "Tinted Lens" at zero tint (`backdrop-filter: blur(5px) brightness(90%)`), authored as a Material (`design-system/materials/` — `GlassSurface` / `GlassControls`) and wired into `Surface`. `liquid-dom` (WebGPU) evaluated and **shelved** (experimental HTML-in-Canvas flag + invasive scene-graph); the selection lab was removed once the glass was chosen. See `Guidelines/` + `Features/Design.md`.
+- **Glass:** two materials. **Window** + **Surface** use a CSS frost (blur + brightness); **Controls** use Apple "Liquid Glass" (`@samasante/liquid-glass`, `feDisplacementMap` edge-refraction). `liquid-dom` (WebGPU) was evaluated and shelved. Recipe + rationale → `Features/Design.md`.
 
 ### Run gotcha (read before launching)
 
