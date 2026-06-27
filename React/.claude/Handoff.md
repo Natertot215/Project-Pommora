@@ -1,11 +1,14 @@
 ## Handoff — Pommora React
 
-Two parallel sessions on the same day, one labeled window each (A = the earlier list-drag / canvas / agent-legibility session, B = the bullet + table-heading-column session). Each window is frozen history; the footer below is shared across both.
+Two parallel sessions on the same day, one labeled block each (A = the earlier list-drag / canvas / agent-legibility session; B = the bullet + table-heading-column + handoff-format session). The top matter + footer below are shared; each session block is its own.
 
 **Session A ID:** 64346d76-0499-4a65-93e3-71db53bf4d32
 **Session B ID:** 7db4f952-e547-415f-b861-af8dd1a1e30b
-**Date(s):** 26-06-2026
---
+**Dates:** 06-26-2026
+
+
+> ⚡ **Cornerstone — carry into every handoff, unchanged (Nathan's voice).**
+> *"You do NOT guess — you LOOK, and you ASK. Open the file and read the code before you assert anything; ask me when you're unsure. A plan built on an unverified claim is a liability, not progress — treat every doc, every `file:line`, every 'it works like X' as a hypothesis until you've read the code that proves it. Honesty over confidence; confidence is earned through evidence."*
 
 ### Session Summary - A
 
@@ -13,19 +16,25 @@ Two parallel sessions on the same day, one labeled window each (A = the earlier 
 **Model:** Opus 4.8
 **Connectors:** Playwright (attempted — `browser_navigate` errored on the local showcase; CDP driven directly via Node instead)
 **Commands:** `/handoff`
-**Agents:** Explore (×6 — MarkdownPM list internals · PommoraDND mechanics · fill-token ramp · drag-inhibitor audit · canvas internals · adversarial review), general-purpose (×6 — canvas research ×4 + JSONCanvas-lib survey + list-drag builder), code-simplifier (×1)
+**Agents:** Explore (×7 — MarkdownPM list internals · PommoraDND mechanics · fill-token ramp · drag-inhibitor audit · canvas internals · adversarial review · inspector/trio/glass chrome map), general-purpose (×6 — canvas research ×4 + JSONCanvas-lib survey + list-drag builder), code-simplifier (×1)
 **Skills:** `superpowers:brainstorming` (canvas), `handoff`
 
 > ⚡ **Cornerstone — carry into every window, unchanged (Nathan's voice).**
 > *"You do NOT guess — you LOOK, and you ASK. Open the file and read the code before you assert anything; ask me when you're unsure. A plan built on an unverified claim is a liability, not progress — treat every doc, every `file:line`, every 'it works like X' as a hypothesis until you've read the code that proves it. Honesty over confidence; confidence is earned through evidence."*
 
-A long build session across three fronts: the shipped **list drag-to-reorder** feature (built by an agent, then live-debugged against the running app over CDP), a parked **in-page canvas** design pass, and a committed **product-principle** refinement.
+A long build session across three fronts — the shipped **list drag-to-reorder**, a parked **in-page canvas** pass, a committed **product-principle** refinement — then a post-compaction continuation that shipped **arrow/`+` list flavors** + a **drawn caret/cursor** and built the **inspector "swallow"** chrome animation (the session's longest thrash), all live-debugged over CDP.
 
 **List drag-to-reorder, shipped (`924b346`):** Bullet / ordered / checkbox items reorder by grabbing their glyph: the sidebar's PommoraDND *feel* (grab cursor, in-place dim, an accent insertion line that follows the target's indent out to the gutter) but driven against CM line geometry and committed as a **source-line move**, not a DOM reflow. The dragged item carries its nested sub-block; dropping beside a shallower item re-nests it; ordered runs renumber — all one undo step. The killer bug, found only by live CDP debugging after two reasoning rounds failed: **`WidgetType.ignoreEvent` defaults to true**, so the bullet replace-widget swallowed pointerdown ("dragging doesn't work"). Then a jank fix (measure candidates once, not per-pointermove), slot-tracking + gutter-line + no-ghost + tint-dim polish, and re-nesting. Closed with simplifier + line-walk dedup + adversarial review (one real finding fixed, rest verified false positives). → `History.md`, `Features/MarkdownPM.md` § Lists.
 
 **In-page canvas, designed then parked:** A full brainstorm → external+internal research → spec pass for embedded interactive canvases in MarkdownPM: JSONCanvas-shaped `.canvas` files (filename = name, ULID inside, in `.nexus/canvases/`), v1 = text-blocks + free-draw + lines/shapes, a **full-SVG scene with `<foreignObject>` text-blocks**, build-your-own (verified: the JSONCanvas ecosystem ships only viewers/readers, no editor). Net-new → React-first, so the format is the cross-build contract Swift later adopts. Spec written V2, **pending review, parked** at `Planning/6-26 - Canvas Spec.md` — > Nathan: "i think we may be getting ahead of ourselves." Resume from the spec + its first-step adversarial review.
 
 **Agent-legibility principle, refined + committed (`e98d46a`):** The root product principle "persistent *immediate* legibility for agents" relaxed to **convention-aware** (a `[[wikilink]]` abstracts a lookup yet stays legible once you know the convention) and running-code-independence dropped from a hard bar to a **strong preference** — firm line stays: no user data in a binary blob or held only in the index. Updated in root `CLAUDE.md` / `Architecture.md` / `PommoraPRD.md` / `History.md`. Prompted by the canvas file-per-canvas storage question.
+
+**Arrow (`->`) + plus (`+`) list flavors, shipped (`11a3e42`):** Two new list-marker kinds keeping their own character as the literal glyph (like the ordered number) with the full bullet behavior set; `→` (typed `->`, auto-converted by `dashArrow`) is a Pommora render directive on disk, `+` stays portable CommonMark. Only detection + render-intent + the backspace regex needed touching — continuation/backspace fell out of the existing bullet path. → `History.md`, `Features/MarkdownPM.md` § Lists.
+
+**Drawn caret + custom hover cursor, shipped (`bf7bbd9`):** The page editor's native caret replaced by a CM-`layer`-drawn one (over `caret-color: transparent`, native selection untouched — NOT `drawSelection`'s all-or-nothing, which sank the earlier app-wide attempt): a rounded body-sized bar with a smooth symmetric fade (equal on/off) vs Chromium's hard blink, + a custom I-beam hover cursor (inward double-chevron, black + white outline), knobs in `Styles.css`. Built + tuned entirely over live CDP screenshots — the OS cursor can't be captured, so its SVG was rendered into the page to show it. → `History.md`, `Features/MarkdownPM.md`.
+
+**Inspector "swallow" + chrome polish (uncommitted):** Opening the Inspector swallows the toolbar trio — the pill rides the pane's leading edge to its left corner, its glass voiding so the bare icons land on the inspector glass (no double-glass), all off one `@property --io`. The thrash: voiding Liquid Glass can't be done in place (its `backdrop-filter` displacement is a dynamic SVG filter id CSS can't reconstruct or fade), so the void is a **two-layer trio** (fading glass layer + solid bare cover) — Nathan chose the smooth two-layer over a single-control hard cut, accepting it re-inits glass on **dev HMR only**. Plus `--label-control` promoted to one global token (both clusters; mute only on a disabled Back/Forward), the swallowed-icon dimming fixed (hide the glass layer's duplicate glyphs), and a page-header fix (banner-page first line + first-line-heading top-padding → consistent gap below the divider). → `History.md`, `Features/Design.md`.
 
 **Next Session**
 
@@ -58,9 +67,9 @@ A long build session across three fronts: the shipped **list drag-to-reorder** f
 
 **User Feedback**
 
-- > Nathan: "use tint since it already does the opacity and is DRY" — reach for an existing scale before adding a parallel token family.
-- > Nathan: "fix them all minimally; see if removing guards or limits would fix them instead of adding more code" — triage by removal first; most "findings" were non-issues.
-- > Nathan: "dont use darken; use tint" + "the darken happens on the background when it should only happen on the text" — the dragged item dims its **text** (opacity), not a background fill.
+- "Use tint since it already does the opacity and is DRY" — reach for an existing scale before adding a parallel token family.
+- "Fix them all minimally; see if removing guards or limits would fix them instead of adding more code" — triage by removal first; most "findings" were non-issues.
+- don’t use darken; use tint" + "the darken happens on the background when it should only happen on the text" — the dragged item dims its **text** (opacity), not a background fill.
 
 **Uncertain**
 
@@ -69,19 +78,16 @@ A long build session across three fronts: the shipped **list drag-to-reorder** f
 
 ### Session Summary - B
 
-**Date:** 26-06-2026
+**Date:** 06-26-2026
 **Model:** Opus 4.8
-**Connectors:** Playwright (attempted — `browser_navigate` blocked on `file://`); used headless Chrome + CDP-over-Node directly for isolated repros, live measurement, and screenshots
-**Commands:** `/handoff`
+**Compactions:** 0
+**Connectors:** Playwright (attempted — `browser_navigate` blocked on `file://`); headless Chrome + CDP-over-Node directly for isolated repros, live measurement, and screenshots
+**Commands:** `/handoff`, `/skill-creator`
+**Worktree:** main checkout (NOT the `pommora-react` worktree — Nathan: "commit alongside" the live parallel session)
 **Agents:** feature-dev:code-reviewer (×1 — table heading-column perf/correctness), code-simplifier (×1 — heading-column simplify)
-**Skills:** `superpowers:systematic-debugging` (bullet-wrap bug), `handoff`
+**Skills:** `superpowers:systematic-debugging` (bullet-wrap bug), `skill-creator` (handoff redesign), `handoff`
 
-> **Nathan:** Parallel sessions each get their own labeled window in this one doc (A / B / …); follow the other window's format, never edit it, and share the footer.
-
-> ⚡ **Cornerstone — carry into every window, unchanged (Nathan's voice).**
-> *"You do NOT guess — you LOOK, and you ASK. Open the file and read the code before you assert anything; ask me when you're unsure. A plan built on an unverified claim is a liability, not progress — treat every doc, every `file:line`, every 'it works like X' as a hypothesis until you've read the code that proves it. Honesty over confidence; confidence is earned through evidence."*
-
-A focused MarkdownPM session running alongside Session A: a bullet-wrap bug chased to ground then deliberately parked, and a full table **heading-column** feature shipped with a review + simplify pass.
+A focused MarkdownPM session alongside Session A: a bullet-wrap bug chased down then parked, a full table **heading-column** feature shipped with a review + perf pass, then a redesign of the `/handoff` skill itself.
 
 **Bullet single-word wrap, fixed-then-reverted, parked as a known issue:** A bullet on the page's first line that wraps pushed its text down. The first hypothesis (the `•` glyph's 1.25em line-height swelling the first wrapped line) was real but not the cause; Nathan diagnosed the actual trigger — a **single unbroken word**: the line-breaker takes the soft break at the space between bullet and content rather than force-breaking the word, so the whole word drops below the bullet (multi-word text fits the first word beside the bullet and hides it). A faithful headless-Chrome repro confirmed it. The fix (hide the inter-marker space like the ordered/checkbox lists + restore the gap via the glyph margin) worked in plain HTML but **didn't survive CM6's `Decoration.replace` (zero-width hide)** in the live editor, so per Nathan it was reverted — keeping only the `line-height` cap — and logged as a known issue (the `+` / `→` flavors share it). → `Features/MarkdownPM.md` § Known issues.
 
@@ -90,6 +96,8 @@ A focused MarkdownPM session running alongside Session A: a bullet-wrap bug chas
 **Heading column is a Pommora-only `.nexus/` visual (paradigm decision):** GFM has a header *row*, never a header *column*, so the on-disk `.md` stays a plain portable table; the on/off state persists in `.nexus/tableHeadingColumns.json` keyed by page id → that page's heading-column table indices, mirroring the folds store + IPC end-to-end (StateField + toggle effect → widget rebuild → persist; mount reloads). > Nathan: "the paradigm decision should just be a memory" — recorded in agent memory, NOT `History.md`. Index-keying carries the folds store's fragility (a stale index mis-styles whatever table now sits at it).
 
 **Toggle perf, fixed after review:** The code-review agent flagged that a toggle rebuilt every table's decoration. > Nathan: "full rebuild on toggle is not acceptable if it can be fixed" — so the toggle now swaps ONLY the toggled table's widget in place (`set.update({filterFrom, filterTo, filter, add})`, reusing the existing widget's parsed text/model), with a full rebuild only on the once-per-page mount-time load. Simplifier pass after: one safe cleanup, the rest a faithful folds/CM6 mirror left alone. → 61 table/storage tests green, typecheck clean.
+
+**`/handoff` skill redesigned (this session):** Reworked `~/.claude/commands/handoff.md` from a context-window model to a **session** model — one block per session, updated in place, with **compactions tracked as a `Compactions:` count** instead of new sections; metadata gains `Worktree:`; the pinned-message + **Cornerstone top matter is hoisted above all blocks** (shared once, not per block); parallel sessions share one file as `### Session Summary - A/B`, and the doc now spells out that the agent running `/handoff` is the **newcomer** taking the next free letter (A = the block already in the file). Three-way filename (`Handoff` solo-uncompacted / `Session` solo-compacted / `Sessions` parallel); new-doc-vs-continue still keyed on session ID so multi-day sessions continue. This block is the first written in the new format. → `~/.claude/commands/handoff.md`.
 
 **Next Session**
 
@@ -115,8 +123,7 @@ A focused MarkdownPM session running alongside Session A: a bullet-wrap bug chas
 
 **User Feedback**
 
-- > Nathan: "the paradigm decision should just be a memory" — route locked paradigm decisions he names to agent memory, not `History.md`.
-- > Nathan: "full rebuild on toggle is not acceptable if it can be fixed" — fix the perf, don't comment around it.
+- "Full rebuild on toggle is not acceptable if it can be fixed" — fix the perf, don't comment around it.
 - On the bullet bug: revert the editor-layer fix that didn't land, keep the safe sizing change, and log the remainder as a known issue rather than piling on speculative fixes.
 
 **Uncertain**
@@ -136,7 +143,7 @@ A focused MarkdownPM session running alongside Session A: a bullet-wrap bug chas
 ### Pending Focuses
 
 - **Canvas (new)** — spec parked at `Planning/6-26 - Canvas Spec.md`, pending its adversarial review → plan → build. React-first; the `.canvas` format is the cross-build contract.
-- **Caret customization (app-wide) — deferred to a proper pass.** Match macOS/Swift's smooth fade (not Chromium's hard blink) across every editor surface via a drawn caret per surface (`caret-color: transparent`, no `drawSelection` — it's all-or-nothing). Tried + reverted once.
+- **Caret on the other editor surfaces.** The drawn caret + custom hover cursor **shipped on the page editor** (`editor/caret.ts` — CM `layer` over `caret-color: transparent`, leaving native selection alone; see `History.md`). Extending the drawn caret to table cells + the inline-rename input is the remainder.
 - **Subfield reorder + live-stats + custom items** — registry/order/persistence are the seams; `Features/Subfield.md` § Roadmap.
 - **Icon picker** — build the real `Components/IconPicker` + wire the icon's frontmatter save (Swift `IconPicker` is the spec; wants a shared dropdown-animation primitive).
 - **Real design-system Components** (Button / Menu / Label / Separator) from the token layer — prerequisite for replacing one-offs (notably the inline-rename `<input>`).
@@ -156,6 +163,6 @@ A focused MarkdownPM session running alongside Session A: a bullet-wrap bug chas
 ### Handoff Rules
 
 - **Keep the Fix Log current.** Acknowledged-but-unfixed issues get a 1–2 sentence entry; remove on resolve.
-- **One window per session in the new format.** Append a new `### <Label>` window next session (carry still-open Pending Focuses); push spec/decision content to its canonical home (`History.md` / `Features/*` / `Framework.md`).
-- **Markdown only, no new folder** (per Nathan) — this doc stays the single `.claude/Handoff.md`, not a routed `Handoffs/` dir.
-- **Parallel sessions share this one doc.** Each concurrent session gets its own labeled window (`### Session Summary - A`, `- B`, …) with its own metadata + Cornerstone + sections; list every session ID in the header block. Never edit another session's frozen window — append your own. The footer (Working Notes / Pending Focuses / Fix Log / Handoff Rules) is shared: carry, add, and retire across all sessions, tagging session-specific Pending/Fix items with the window letter where it helps.
+- **One block per session, updated in place.** A session keeps one block; compactions bump its `Compactions` count, they don't add sections. Push spec/decision content to its canonical home (`History.md` / `Features/*` / `Framework.md`); carry still-open Pending Focuses forward to a fresh *sequential* session.
+- **Markdown only, no new folder** (per Nathan) — this doc stays the single `.claude/Handoff.md`, not a routed `Handoffs/` dir, regardless of the skill's `Handoff`/`Session`/`Sessions` filename shapes.
+- **Parallel sessions share this one doc.** Each concurrent session gets its own labeled block (`### Session Summary - A`, `- B`, …) with its own metadata + sections; the pinned-message + Cornerstone **top matter is shared above all blocks, written once** (not per block). List every session ID in the header. The agent running `/handoff` is the newcomer (next free letter; A = the block already in the file) — never edit another session's block, only write/refresh your own. The footer (Working Notes / Pending Focuses / Fix Log / Handoff Rules) is shared: carry, add, and retire across all sessions, tagging session-specific Pending/Fix items with the block letter where it helps.
