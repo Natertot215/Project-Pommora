@@ -2,6 +2,7 @@
 // Imported by main, preload, and renderer — NO fs, NO React here.
 
 import type { PropertyDefinition } from './properties'
+import type { SavedView } from './views'
 
 export type NodeKind =
   | 'saved'
@@ -111,6 +112,8 @@ export interface SetNode extends PathNode {
    *  window; populated by the recursive read. */
   sets?: SetNode[]
   pages: PageNode[]
+  /** Saved views from the sidecar `views[]` (depth-1 Sets only; deeper Sub-Sets ignore them). */
+  views?: SavedView[]
 }
 
 export interface CollectionNode extends PathNode {
@@ -120,6 +123,8 @@ export interface CollectionNode extends PathNode {
   /** The property schema every Page inside inherits (2-tier top tier). Read from the
    *  Collection sidecar's `properties`. */
   properties?: PropertyDefinition[]
+  /** Saved views from the sidecar `views[]`. */
+  views?: SavedView[]
 }
 
 export interface UserSection {
