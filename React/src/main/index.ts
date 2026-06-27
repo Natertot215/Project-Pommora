@@ -18,6 +18,7 @@ import { startWatcher, stopWatcher } from './watcher'
 import { resolveUnderRoot } from './pathSafety'
 import { updatePageBody } from './crud/page'
 import { readFolds, writeFolds, type FoldState } from './io/folds'
+import { readActiveViews, writeActiveViews, type ActiveViews } from './io/activeViews'
 import {
   readTableHeadingColumns,
   writeTableHeadingColumns,
@@ -319,6 +320,27 @@ ipcMain.handle(
         return { ok: false, error: 'Fold keys must be a string array.' }
       }
       await writeFolds(root, pageId, keys)
+      return { ok: true }
+    } catch (e) {
+      return { ok: false, error: e instanceof Error ? e.message : String(e) }
+    }
+  }
+)
+
+// Active-view pointer — local `.nexus/activeViews.json`, container id → active view id (per-machine).
+ipcMain.handle('activeViews:get', async (): Promise<ActiveViews> => {
+  const root = sessionRoot()
+  return root === null ? {} : readActiveViews(root)
+})
+ipcMain.handle(
+  'activeViews:set',
+  async (_e, containerId: unknown, viewId: unknown): Promise<{ ok: true } | { ok: false; error: string }> => {
+    try {
+      const root = sessionRoot()
+      if (root === null) return { ok: false, error: 'No nexus is open.' }
+      if (typeof containerId !== 'string') return { ok: false, error: 'A container id is required.' }
+      if (typeof viewId !== 'string') return { ok: false, error: 'A view id is required.' }
+      await writeActiveViews(root, containerId, viewId)
       return { ok: true }
     } catch (e) {
       return { ok: false, error: e instanceof Error ? e.message : String(e) }

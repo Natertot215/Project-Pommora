@@ -23,6 +23,12 @@ const api = {
     set: (pageId: string, keys: string[]): Promise<{ ok: true } | { ok: false; error: string }> =>
       ipcRenderer.invoke('folds:set', pageId, keys)
   },
+  // Active-view pointer — local `.nexus/activeViews.json`, container id → active view id (per-machine).
+  activeViews: {
+    get: (): Promise<Record<string, string>> => ipcRenderer.invoke('activeViews:get'),
+    set: (containerId: string, viewId: string): Promise<{ ok: true } | { ok: false; error: string }> =>
+      ipcRenderer.invoke('activeViews:set', containerId, viewId)
+  },
   // Table heading-column UI state — local `.nexus/tableHeadingColumns.json`, keyed by page id. Holds the
   // indices of the tables whose first column renders as a heading (a Pommora-only visual, not in the .md).
   tableHeadingColumns: {
