@@ -329,10 +329,7 @@
 .md-bullet {
   color: var(--label-control);
   font-size: var(--bullet-size);
-  /* The source space after the dash is hidden (decorations/intent.ts) so a long unbroken word can't take
-     the soft break there and drop below the bullet — this margin restores the gap. line-height caps the
-     1.25em glyph's leading so it never swells a wrapped bullet's first line. */
-  margin-right: var(--list-gap);
+  /* Cap the 1.25em glyph's leading so it never swells a wrapped bullet's first line box. */
   line-height: 1;
 }
 

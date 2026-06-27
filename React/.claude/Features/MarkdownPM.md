@@ -77,9 +77,9 @@ Wikilink resolver — **wired** to `@shared/connections` (not a no-op): resoluti
 - **The live element is the only drag feedback — never a separate indicator.** A resize bar positioned off the measured boundary lags the smoothly-moving columns (the measurement catches up only via the async `ResizeObserver`) and stutters; the columns + the `ew-resize` cursor are the whole affordance.
 - **Column width is the delimiter dash count, redistributed — not grown.** Resize moves whole dashes between two adjacent columns (total conserved, 1-dash floor) and `serialize` writes dash counts verbatim (never content-padded), so they round-trip. That conserve-total model is why `@tanstack/react-table`'s grow-the-table resize is the wrong fit and isn't used.
 
-### Known performance
+### Known issues
 
-- **Long docs are slow + the caret jitters.** Long-scrolling pages — especially with **tables** — take time to render their contents, and **caret placement jitters on longer docs**. Suspects: CM6 decoration/measurement cost + the table widget's `updateDOM` / `ResizeObserver` work. The caret is otherwise **native** (no `drawSelection`); its tall look is the editor's 1.6 line-height, not a custom cursor. Profiling is the next-session focus.
+- **A bullet whose content is one long unbroken word drops the word below the marker.** When a `-`/`•` item's content is a single word with no internal break opportunities and long enough to wrap, the line-breaker takes the soft break at the space between marker and content rather than force-breaking the word mid-character — so the bullet sits alone on its line and the word starts on the next. `+` and arrow (`→`) items share it. Hiding the source space (the ordered/checkbox approach) doesn't fix it under a CM6 replace decoration; the marker glyph's `line-height` is capped so the wrapped line box at least stays uniform.
 
 ### Deferred
 
