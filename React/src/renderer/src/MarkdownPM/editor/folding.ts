@@ -1,10 +1,8 @@
-import { gutter, GutterMarker, EditorView, Decoration, WidgetType, type ViewUpdate } from '@codemirror/view'
+import { EditorView, Decoration, WidgetType, type ViewUpdate } from '@codemirror/view'
 import {
   StateField,
   StateEffect,
-  RangeSetBuilder,
   Annotation,
-  type EditorState,
   type Extension,
   type Text,
   type Range
@@ -214,7 +212,6 @@ const foldField = StateField.define<FoldEntry[]>({
     EditorView.decorations.from(f, (entries) => {
       const ranges: Range<Decoration>[] = []
       for (const e of entries) {
-        ranges.push(Decoration.line({ class: 'md-h-folded' }).range(e.headingFrom))
         if (e.to > e.from) {
           ranges.push(Decoration.replace({ block: true, widget: new RevealWidget(e.headingFrom, e.phase) }).range(e.from, e.to))
         }
@@ -239,52 +236,33 @@ function toggleFold(view: EditorView, s: HeadingSection): void {
   if (caretInBody) view.contentDOM.blur()
 }
 
-// A chevron points down (open) when its section is unfolded or mid-expand, right when folding/folded.
-function chevronOpen(state: EditorState, headingFrom: number): boolean {
-  const e = state.field(foldField).find((x) => x.headingFrom === headingFrom)
-  return !e || e.phase === 'expanding'
-}
+// Every foldable heading carries a chevron anchored to its line in the CONTENT layer (a ::before), NOT a CM
+// gutter. The gutter is positioned from CM's line-height MODEL, which only measures the visible viewport and
+// estimates off-screen variable-height blocks (callouts, folds) at the default height — so every gutter
+// chevron below such a block drifts from its heading by a scroll-dependent amount. A line-anchored chevron
+// is laid out by the browser next to its heading and can't drift. Open → points down (hover-only); closed →
+// points right (dim + persistent). The fold state lives in foldField; this just maps it to a line class.
+const chevronDeco = EditorView.decorations.compute(['doc', foldField], (state) => {
+  const entries = state.field(foldField)
+  const ranges: Range<Decoration>[] = []
+  for (const s of sectionsOf(state.doc)) {
+    const closed = entries.some((e) => e.headingFrom === s.from && e.phase !== 'expanding')
+    ranges.push(Decoration.line({ class: closed ? 'md-foldable md-fold-closed' : 'md-foldable md-fold-open' }).range(s.from))
+  }
+  return Decoration.set(ranges, true)
+})
 
-class ChevronMarker extends GutterMarker {
-  // Chevron is a ::before on the gutter element. CM updates elementClass in place on the reused element,
-  // so the rotation transitions even while the fold's requestMeasure loop keeps re-rendering content.
-  readonly elementClass: string
-  constructor(readonly open: boolean) {
-    super()
-    this.elementClass = `mdpm-fold-cell${open ? ' mdpm-fold-open' : ''}`
-  }
-  eq(o: ChevronMarker): boolean {
-    return o.open === this.open
-  }
-  toDOM(): HTMLElement {
-    return document.createElement('span')
-  }
-}
-
-// Reserves the fold gutter's width on pages with no foldable headings. Without it the empty
-// gutter collapses to 0 and the body text slides 20px left off --content-inset (the title's edge).
-class SpacerMarker extends GutterMarker {
-  toDOM(): HTMLElement {
-    return document.createElement('span')
-  }
-}
-
-const foldGutterExt = gutter({
-  class: 'cm-foldGutter',
-  initialSpacer: () => new SpacerMarker(),
-  markers: (view) => {
-    const b = new RangeSetBuilder<GutterMarker>()
-    for (const s of sectionsOf(view.state.doc)) b.add(s.from, s.from, new ChevronMarker(chevronOpen(view.state, s.from)))
-    return b.finish()
-  },
-  domEventHandlers: {
-    mousedown(view, line, event) {
-      if ((event as MouseEvent).button !== 0) return false
-      const s = sectionsOf(view.state.doc).find((x) => x.from === line.from)
-      if (!s) return false
-      toggleFold(view, s)
-      return true
-    }
+// The chevron is painted in the reclaimed strip left of the heading text; a primary click there toggles.
+const chevronClick = EditorView.domEventHandlers({
+  mousedown(event, view) {
+    if (event.button !== 0) return false
+    const line = (event.target as HTMLElement | null)?.closest?.('.cm-line.md-foldable') as HTMLElement | null
+    if (!line || event.clientX >= line.getBoundingClientRect().left) return false
+    const s = sectionsOf(view.state.doc).find((x) => x.from === view.posAtDOM(line))
+    if (!s) return false
+    toggleFold(view, s)
+    event.preventDefault()
+    return true
   }
 })
 
@@ -320,5 +298,5 @@ export function markdownFolding(onFoldsChange: (keys: string[]) => void): Extens
       .filter((k): k is string => k !== undefined)
     onFoldsChange(keys)
   })
-  return [foldField, foldGutterExt, persist]
+  return [foldField, chevronDeco, chevronClick, persist]
 }

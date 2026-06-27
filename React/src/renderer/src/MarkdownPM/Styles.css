@@ -1,7 +1,7 @@
 .mdpm-shell {
-  /* --fold-gutter (the heading-fold chevron column) is set on .detail-page, which reclaims it from the
-     standard content gutter so the body still lands on --content-inset like every other view.
-     --fold-chevron-size: chevron glyph size (title3). (--label-control is the single global :root def.) */
+  /* --fold-gutter (set on .detail-page) is the width of the left strip the fold chevron lives in, carved
+     from the --content-inset margin so the body still lands on --content-inset. --fold-chevron-size:
+     chevron glyph size (title3). (--label-control is the single global :root def.) */
   --fold-chevron-size: var(--text-title3-size);
   --fold-chevron-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m9 18 6-6-6-6'/%3E%3C/svg%3E");
   position: relative;
@@ -15,8 +15,10 @@
 }
 .mdpm-editor {
   height: 100%;
-  /* The page surface is full-bleed (banner edge-to-edge); the body inset lives here so text still lands on
-     --content-inset, with the fold-chevron gutter hanging in the reclaimed --fold-gutter to its left. */
+  /* The page surface is full-bleed (banner edge-to-edge). The body inset is split: the editor reclaims
+     --fold-gutter (scroller starts that far left of --content-inset) and .cm-content re-adds it as padding,
+     leaving a --fold-gutter strip at the scroller's left — inside its clip — for the fold chevron, while
+     text still lands on --content-inset. (Always present, so no spacer is needed when a page has no folds.) */
   padding-left: calc(var(--content-inset) - var(--fold-gutter));
   padding-right: var(--content-inset-right);
   transition:
@@ -55,8 +57,10 @@
     url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="14" height="24"><g fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M7 5.6V18.4M4.4 4L7 5.6L9.6 4M4.4 20L7 18.4L9.6 20" stroke="%23fff" stroke-width="3"/><path d="M7 5.6V18.4M4.4 4L7 5.6L9.6 4M4.4 20L7 18.4L9.6 20" stroke="%23000" stroke-width="1.4"/></g></svg>')
       7 12,
     text;
-  /* Reserves the header zone — set live from the header's measured height (index.tsx ResizeObserver). */
-  padding: var(--header-zone, 90px) 0 90px;
+  /* Top reserves the header zone — set live from the header's measured height (index.tsx ResizeObserver).
+     Left re-adds the --fold-gutter the editor reclaimed, so text lands on --content-inset and the chevron
+     strip stays inside the scroller's clip. */
+  padding: var(--header-zone, 90px) 0 90px var(--fold-gutter);
   font-size: var(--editor-font-size, 15px);
 }
 
@@ -176,43 +180,41 @@
   filter: drop-shadow(0 1px 4px rgba(0, 0, 0, 0.55));
 }
 
-/* HEADING FOLD — chevron in the left gutter. Chevron points right when folded, rotates down when open.
-   Visibility: persistent when folded (a closed section is a standing affordance); hover-only when open.
-   KNOBS: --fold-gutter (column width, on .mdpm-shell) · motion via --duration-fast / --ease-standard. */
-.mdpm-editor .cm-gutters {
-  background: transparent;
-  border: none;
-  color: var(--label-secondary);
+/* HEADING FOLD — the chevron is a masked ::before ANCHORED to the heading line in the content layer, NOT a
+   CM gutter. CM positions a gutter from its line-height model, which only measures the visible viewport and
+   estimates off-screen variable-height blocks (callouts, folds) at the default height — so a gutter chevron
+   below such a block drifts from its heading by a scroll-dependent amount. A line ::before shares the
+   heading's own layout box and can't drift. Closed: points right, dim + persistent (a standing affordance);
+   open: points down, hover-only. KNOBS: --fold-gutter (chevron offset into the inset, on .detail-page) ·
+   --fold-chevron-size · motion via --duration-fast / --ease-standard. */
+.mdpm-editor .cm-line.md-foldable {
+  position: relative;
 }
-.mdpm-editor .cm-foldGutter .cm-gutterElement {
-  display: flex;
-  align-items: center; /* vertically centred in the line */
-  justify-content: flex-start; /* chevron sits left; the slack is the gap to the heading text */
-  width: var(--fold-gutter);
-  padding: 0;
-}
-/* Chevron is a masked ::before on the gutter cell — CM toggles mdpm-fold-open in place, so the rotation transitions. */
-.mdpm-editor .cm-foldGutter .cm-gutterElement.mdpm-fold-cell::before {
+.mdpm-editor .cm-line.md-foldable::before {
   content: '';
-  display: block;
+  position: absolute;
+  left: calc(-1 * var(--fold-gutter));
+  top: 50%;
   width: var(--fold-chevron-size);
   height: var(--fold-chevron-size);
   background-color: var(--label-secondary);
   -webkit-mask: var(--fold-chevron-mask) center / contain no-repeat;
   mask: var(--fold-chevron-mask) center / contain no-repeat;
+  transform: translateY(-50%);
   cursor: pointer;
-  transition: transform var(--duration-fast) var(--ease-standard), opacity var(--duration-fast) var(--ease-standard);
+  transition:
+    transform var(--duration-fast) var(--ease-standard),
+    opacity var(--duration-fast) var(--ease-standard);
 }
-/* Expanded: chevron points down, revealed only on its own row's hover. Folded: points right, always visible. */
-.mdpm-editor .cm-foldGutter .cm-gutterElement.mdpm-fold-open::before {
-  transform: rotate(90deg);
+.mdpm-editor .cm-line.md-fold-open::before {
+  transform: translateY(-50%) rotate(90deg);
   opacity: 0;
 }
-.mdpm-editor .cm-foldGutter .cm-gutterElement.mdpm-fold-open:hover::before {
+.mdpm-editor .cm-line.md-fold-open:hover::before {
   opacity: 1;
 }
 /* A folded heading reads as collapsed via the control tint (no `…` placeholder). */
-.mdpm-editor .cm-line.md-h-folded {
+.mdpm-editor .cm-line.md-fold-closed {
   color: var(--label-control);
 }
 /* The body collapses/expands on the sidebar's exact Reveal motion (grid 0fr↔1fr). */
@@ -533,6 +535,7 @@
 }
 .mdpm-editor .cm-line.md-callout-last {
   padding-bottom: calc(var(--callout-gap) + var(--callout-inner-pad));
+  margin-bottom: var(--callout-gap);
 }
 .mdpm-editor .cm-line.md-callout-last::before {
   bottom: var(--callout-gap);
