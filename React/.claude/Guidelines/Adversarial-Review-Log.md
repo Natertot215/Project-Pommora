@@ -151,3 +151,29 @@ This Log is the raw material for a reusable skill whose sole purpose is adversar
 - **A required deliverable** — a catalog exactly like this one (break → repro → fix), produced *before* the feature may be called done.
 
 The discipline is the deliverable: the skill exists so this Log never has to be written again.
+
+---
+
+### Block Drag — the discipline, applied
+
+The first MarkdownPM feature reviewed adversarially **before** Nathan could break it by hand, instead of after. The same failure classes surfaced — but dispatched agents found them at the spec and pure-function layer, where the cost was a doc edit and a rewritten walk-loop, not a thrash session in the live editor. The loop, run forward.
+
+**Spec review (three agents, before any code)** found the spec's "reuse wholesale" thesis overstated in five load-bearing spots, every one code-grounded:
+
+- `collectCands` was framed as a candidate *filter* to widen — it's actually list *geometry* (it derives each drop target's adopted indent from the list marker), so widening it in place would silently change the shipped list-drag's re-indent behavior. The reuse claim was false.
+
+- The table's "existing top-row grip" was cited as the drag handle — that grip early-returns from dragging and the widget swallows all pointer events, so whole-table drag is the *largest* net-new piece, not a thin bridge. The biggest work was mislabeled the smallest.
+
+- Folded-heading drag was claimed to "just move the range" — the fold's mapped positions collapse under the move's coarse single-replace and its clone orphans, silently losing the fold. It needs an explicit teardown-then-re-fold.
+
+- The chevron was reused for drag "like the list glyph" — but the glyph is a real DOM node and the chevron is a `::before` hit-tested by x-coordinate with its own open/closed visibility. Not the same; the fold and drag handlers must merge or they race.
+
+- Taxonomy holes — `---`, block math, and image embeds fall through the paragraph catch-all and get mis-scoped. The catch-all had to be bounded by every other kind.
+
+**Phase-1 `blockAt` review (two agents, after green)** — the resolver passed **12/12 unit tests and typecheck**, and the review still found a real, high-frequency bug by running the actual code:
+
+- **List lazy-continuation split the list.** `- item one\n  wrapped text\n- item two` resolved the wrapped body as an orphan paragraph, so dragging item 1 would have left its own text behind. Multi-line list items are ordinary — it would have fired constantly. Fixed: the list walk is continuation-aware (marker lines plus their indented bodies), the case pinned as a test.
+
+- Two judgment calls were pinned rather than papered over: blank-separated "loose" lists split into separate blocks (a conscious V1 decision, tested), and the multi-line `$$…$$`-with-a-blank gap *corrupts* (orphaned `$$`), so it's documented as corrupting, not merely sub-optimal.
+
+**The new payload:** every entry above this one was a break a human found *after* "done." These were found by adversarial agents at the spec and pure-function layer, *before* the UI existed — and `12/12 green` was, once again, exactly when the bug was hiding. Same lesson, proven from the other direction: green is the start of verification, and the review is what earns the confidence. This is the Log's thesis working as designed instead of in hindsight.
