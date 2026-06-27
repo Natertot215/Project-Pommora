@@ -13,6 +13,7 @@
 // the zod codec / runtime membership Set — never re-listed (the AREA_COLORS idiom in types.ts).
 
 import { z } from 'zod'
+import { type PropertyDefinition, RESERVED_PROPERTY_ID } from './properties'
 
 const VIEW_TYPES = ['table', 'board', 'list', 'cards', 'gallery'] as const
 export type ViewType = (typeof VIEW_TYPES)[number]
@@ -171,3 +172,21 @@ export const savedView = z.looseObject({
   filter: filterGroup.optional(),
   group: z.unknown().transform(decodeGroupConfig).optional()
 })
+
+/** Sentinel id for a freshly-minted default view. `shared/` can't import `main/ids`, so main swaps
+ *  this for a real `view_<ulid>` on first save (see crud/views). */
+export const DEFAULT_VIEW_ID = 'view_default'
+
+/** Mint a default Table view for a container with no saved views: Title-first, all user props
+ *  visible, structural grouping, no sort, no `_modified_at` column. Carries the sentinel id. */
+export function mintDefaultView(schema: PropertyDefinition[]): SavedView {
+  return {
+    id: DEFAULT_VIEW_ID,
+    name: 'Table',
+    icon: 'tablecells',
+    type: 'table',
+    property_order: [RESERVED_PROPERTY_ID.title, ...schema.map((d) => d.id)],
+    hidden_properties: [],
+    group: { kind: 'structural' }
+  }
+}
