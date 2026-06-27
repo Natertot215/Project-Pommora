@@ -222,6 +222,8 @@ struct FrontmatterPreservationTests {
         let url = nexus.rootURL.appendingPathComponent("ChangedIcon.md")
 
         // `icon` is modeled and present; `tags` is a foreign key after it.
+        // `modified_at` is included so the load-time mtime backfill (for Pages
+        // lacking it) doesn't append a key and perturb the substitution check.
         let original = """
             ---
             id: 01HCHANGED
@@ -231,6 +233,7 @@ struct FrontmatterPreservationTests {
             tier3: []
             properties: {}
             created_at: 2024-05-18T00:00:00Z
+            modified_at: 2024-05-18T00:00:00Z
             tags:
               - alpha
             ---

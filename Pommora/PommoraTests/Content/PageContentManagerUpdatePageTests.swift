@@ -46,6 +46,41 @@ struct PageContentManagerUpdatePageTests {
         #expect(reloaded.frontmatter.icon == page.frontmatter.icon)
     }
 
+    @Test("updatePage bumps modified_at to now on body save")
+    func updatePageBumpsModifiedAt() async throws {
+        let (nexus, collection, coll, manager) = try await setup()
+        defer { TempNexus.cleanup(nexus) }
+
+        try await manager.createPage(name: "Notes", in: coll, pageCollection: collection)
+        var page = manager.pages(inCollection: coll).first!
+        // Pin the in-memory stamp to the epoch so a real bump is unmistakable —
+        // without the bump, updatePage would round-trip 1970 straight back to disk.
+        page.frontmatter.modifiedAt = Date(timeIntervalSince1970: 0)
+
+        try await manager.updatePage(page, body: "Hello", in: coll, pageCollection: collection)
+
+        let reloaded = try PageFile.load(from: page.url)
+        let modified = try #require(reloaded.frontmatter.modifiedAt)
+        #expect(abs(modified.timeIntervalSinceNow) < 2)
+    }
+
+    @Test("createPage writes modified_at to disk (not just relying on the mtime fallback)")
+    func createPageStampsModifiedAt() async throws {
+        let (nexus, collection, coll, manager) = try await setup()
+        defer { TempNexus.cleanup(nexus) }
+
+        try await manager.createPage(name: "Fresh", in: coll, pageCollection: collection)
+        let page = manager.pages(inCollection: coll).first!
+        // Backdate the file mtime — if createPage truly stamped modified_at, load reads
+        // the stored (now) stamp, not the backdated mtime fallback.
+        try FileManager.default.setAttributes(
+            [.modificationDate: Date(timeIntervalSince1970: 0)], ofItemAtPath: page.url.path)
+
+        let reloaded = try PageFile.load(from: page.url)
+        let modified = try #require(reloaded.frontmatter.modifiedAt)
+        #expect(abs(modified.timeIntervalSinceNow) < 5)  // the stored stamp (≈now), not 1970
+    }
+
     @Test("updatePage persists body to disk (vault-root)")
     func updatePageInCollectionRootPersists() async throws {
         let (nexus, collection, _, manager) = try await setup()

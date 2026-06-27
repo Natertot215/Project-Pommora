@@ -133,10 +133,10 @@ struct IndexUpdater: Sendable {
         pageSetID: String? = nil
     ) throws {
         let propsJSON = propertiesJSON(meta.frontmatter.properties)
-        let modifiedAt =
-            (try? FileManager.default.attributesOfItem(atPath: meta.url.path)[.modificationDate] as? Date).map {
-                iso($0)
-            } ?? nowISO()
+        // Mirror frontmatter `modified_at` (resolved to file mtime at load when
+        // absent) so live + rebuilt index rows agree and stay sync-safe; the
+        // createdAt floor matches IndexBuilder's rebuild fallback exactly.
+        let modifiedAt = meta.frontmatter.modifiedAt.map(iso) ?? iso(meta.frontmatter.createdAt)
         func write(setID: String?) throws {
             try index.dbQueue.write { db in
                 try db.execute(

@@ -46,6 +46,27 @@ struct PageContentManagerTests {
         #expect(manager.pages(inCollection: coll).first?.title == "Ideas")
     }
 
+    @Test("renamePage bumps modified_at — a rename counts as an edit")
+    func renameBumpsModifiedAt() async throws {
+        let (nexus, collection, coll, manager) = try await setup()
+        defer { TempNexus.cleanup(nexus) }
+        try await manager.createPage(name: "Notes", in: coll, pageCollection: collection)
+        let page = manager.pages(inCollection: coll).first!
+
+        // Backdate the on-disk stamp so a real bump is unmistakable.
+        let oldURL = NexusPaths.pageFileURL(forTitle: "Notes", in: coll.folderURL)
+        var pf = try PageFile.load(from: oldURL)
+        pf.frontmatter.modifiedAt = Date(timeIntervalSince1970: 0)
+        try pf.save(to: oldURL)
+
+        try await manager.renamePage(page, to: "Ideas", in: coll, pageCollection: collection)
+
+        let newURL = NexusPaths.pageFileURL(forTitle: "Ideas", in: coll.folderURL)
+        let reloaded = try PageFile.load(from: newURL)
+        let modified = try #require(reloaded.frontmatter.modifiedAt)
+        #expect(abs(modified.timeIntervalSinceNow) < 5)  // bumped to now, not 1970
+    }
+
     @Test("deletePage removes file")
     func deletes() async throws {
         let (nexus, collection, coll, manager) = try await setup()

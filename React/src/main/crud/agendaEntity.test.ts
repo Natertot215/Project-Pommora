@@ -74,6 +74,23 @@ describe('renameAgendaItem / deleteAgendaItem', () => {
     await expect(stat(c.value.path)).rejects.toThrow()
   })
 
+  it('bumps modified_at on rename — a rename counts as an edit', async () => {
+    const c = await createAgendaItem(tasks, 'task', 'Old')
+    if (!c.ok) throw new Error('setup')
+    // Pin an old stamp so a real bump is unmistakable (vs the create-time stamp).
+    await writeFile(
+      c.value.path,
+      JSON.stringify({ ...(await read(c.value.path)), modified_at: '2000-01-01T00:00:00.000Z' }),
+      'utf8'
+    )
+
+    const r = await renameAgendaItem(c.value.path, 'New')
+    if (!r.ok) throw new Error('rename failed')
+    const after = (await read(r.value.path)).modified_at as string
+    expect(after).not.toBe('2000-01-01T00:00:00.000Z')
+    expect(after >= '2026-01-01').toBe(true)
+  })
+
   it('deletes into .trash', async () => {
     const c = await createAgendaItem(tasks, 'task', 'Gone')
     if (!c.ok) throw new Error('setup')

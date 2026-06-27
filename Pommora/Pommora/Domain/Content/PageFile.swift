@@ -18,8 +18,10 @@ struct PageFile: Equatable, Sendable {
     static func load(from url: URL) throws -> PageFile {
         let (fm, body): (PageFrontmatter, String) =
             try AtomicYAMLMarkdown.load(PageFrontmatter.self, from: url)
+        var frontmatter = fm
+        frontmatter.modifiedAt = fm.modifiedAt ?? fileModificationDate(of: url)
         return PageFile(
-            frontmatter: fm,
+            frontmatter: frontmatter,
             body: body,
             title: url.deletingPathExtension().lastPathComponent
         )
@@ -38,8 +40,9 @@ struct PageFile: Equatable, Sendable {
     /// Tolerant counterpart to `load(from:)` used by the folder-adoption flow.
     /// Accepts `.md` files that lack Pommora frontmatter — synthesizes a stable
     /// `id` from the file's path relative to the Nexus root, defaults missing
-    /// tier/properties to empty, and uses the file's creation date for
-    /// `created_at` when absent.
+    /// tier/properties to empty, and falls back to the file's own dates when
+    /// the stamps are absent (creation date for `created_at`, mtime for
+    /// `modified_at`).
     ///
     /// Does NOT write back. The on-disk file stays byte-identical until the
     /// user actually edits and saves the Page through the editor.
@@ -68,7 +71,8 @@ struct PageFile: Equatable, Sendable {
             tier2: shape.tier2 ?? [],
             tier3: shape.tier3 ?? [],
             properties: shape.properties ?? [:],
-            createdAt: shape.createdAt ?? fileCreatedAt
+            createdAt: shape.createdAt ?? fileCreatedAt,
+            modifiedAt: shape.modifiedAt ?? fileModificationDate(of: url)
         )
 
         return PageFile(
@@ -91,11 +95,19 @@ struct PageFile: Equatable, Sendable {
         var tier3: [String]?
         var properties: [String: PropertyValue]?
         var createdAt: Date?
+        var modifiedAt: Date?
 
         enum CodingKeys: String, CodingKey {
             case id, icon, tier1, tier2, tier3, properties
             case createdAt = "created_at"
+            case modifiedAt = "modified_at"
         }
+    }
+
+    /// Load-time fallback for a Page whose frontmatter lacks `modified_at`
+    /// (legacy / externally-authored `.md`). Frontmatter stays the source of truth.
+    private static func fileModificationDate(of url: URL) -> Date? {
+        try? url.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate
     }
 
     private static func relativePath(of url: URL, under nexusRoot: URL) -> String {

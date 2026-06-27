@@ -78,7 +78,8 @@ extension PageContentManager {
                 id: ULID.generate(), icon: icon,
                 tier1: [], tier2: [], tier3: [],
                 properties: [:],
-                createdAt: now
+                createdAt: now,
+                modifiedAt: now
             )
             let page = PageFile(frontmatter: frontmatter, body: "", title: name)
             let url = NexusPaths.pageFileURL(forTitle: name, in: folderURL(for: parent))
@@ -139,9 +140,9 @@ extension PageContentManager {
             try await enforceNexusWideTitleUniqueness(newName, excludingID: page.id)
 
             let newURL = NexusPaths.pageFileURL(forTitle: newName, in: folderURL(for: parent))
-            // No metadata save here — rename is single-step atomic via
-            // FileManager.moveItem. If frontmatter writes are added later,
-            // apply the RenameAtomicityError rollback pattern.
+            // The move is the atomic primary step; the modified_at bump below is a
+            // separate, non-fatal write (a failed bump leaves the file renamed with a
+            // stale stamp — cosmetic, never data loss).
             try Filesystem.renameFile(from: page.url, to: newURL)
 
             if let updater = indexUpdater {
@@ -169,6 +170,15 @@ extension PageContentManager {
             var updated = page
             updated.title = newName
             updated.url = newURL
+            // A rename is an edit (filename = title): bump + persist modified_at. The
+            // move didn't rewrite frontmatter, so re-read disk (source of truth), bump,
+            // and save back. Non-fatal, mirroring the index work below.
+            do {
+                var onDisk = try PageFile.load(from: newURL)
+                onDisk.frontmatter.modifiedAt = Date()
+                try onDisk.save(to: newURL)
+                updated.frontmatter = onDisk.frontmatter
+            } catch { self.pendingError = error }
 
             if let updater = indexUpdater {
                 do {
@@ -214,11 +224,18 @@ extension PageContentManager {
         }
     }
 
-    /// Re-write a Page's body to disk, preserving its frontmatter verbatim.
-    /// The editor binds to body only; frontmatter (id, icon, tier1/2/3,
-    /// properties, createdAt) round-trips faithfully via PageFile + Yams.
-    /// Atomic write happens inside `pageFile.save(to:)` via
-    /// `AtomicYAMLMarkdown.write` → `Data.write(.atomic)`.
+    /// Stamps `modified_at` to now for a content write — the stored value is the
+    /// source of truth the index + Last-Edited sort read (mtime is only a fallback).
+    private static func bumpedModified(_ page: PageMeta) -> PageMeta {
+        var page = page
+        page.frontmatter.modifiedAt = Date()
+        return page
+    }
+
+    /// Re-write a Page's body to disk. Frontmatter round-trips faithfully
+    /// (id, icon, tier1/2/3, properties, createdAt) except `modified_at`, which
+    /// bumps to now via `bumpedModified`. Atomic write happens inside
+    /// `pageFile.save(to:)` via `AtomicYAMLMarkdown.write` → `Data.write(.atomic)`.
     ///
     /// In-memory cache (pagesByCollection) is mutated AFTER the disk write
     /// succeeds, so a failed write leaves the cache consistent with disk.
@@ -228,6 +245,7 @@ extension PageContentManager {
         async throws
     {
         do {
+            let page = Self.bumpedModified(page)
             let existing = pagesByCollection[collection.id] ?? []
             try PageValidator.validate(
                 title: page.title,
@@ -256,8 +274,8 @@ extension PageContentManager {
 
             var arr = existing
             if let i = arr.firstIndex(where: { $0.id == page.id }) {
-                // Frontmatter unchanged; body lives only on disk (PageMeta is
-                // lightweight tracking — body is loaded on demand via PageFile).
+                // PageMeta carries the bumped frontmatter; the body lives only on
+                // disk (loaded on demand via PageFile), so the cache holds metadata.
                 arr[i] = page
             }
             pagesByCollection[collection.id] = arr
@@ -295,11 +313,13 @@ extension PageContentManager {
     }
 
     /// PageSet variant of `updatePage`. Same contract: body-only write,
-    /// frontmatter preserved, atomic, in-memory cache mutated after success.
+    /// frontmatter preserved bar the `modified_at` bump, atomic, in-memory
+    /// cache mutated after success.
     func updatePage(
         _ page: PageMeta, body: String, in set: PageSet, collection: PageSet, pageCollection: PageCollection
     ) async throws {
         do {
+            let page = Self.bumpedModified(page)
             let existing = pagesBySet[set.id] ?? []
             try PageValidator.validate(
                 title: page.title,
@@ -393,9 +413,11 @@ extension PageContentManager {
     }
 
     /// Type-root variant of `updatePage`. Same contract: body-only write,
-    /// frontmatter preserved, atomic, in-memory cache mutated after success.
+    /// frontmatter preserved bar the `modified_at` bump, atomic, in-memory
+    /// cache mutated after success.
     func updatePage(_ page: PageMeta, body: String, inCollectionRoot pageCollection: PageCollection) async throws {
         do {
+            let page = Self.bumpedModified(page)
             let existing = pagesByCollectionRoot[pageCollection.id] ?? []
             try PageValidator.validate(
                 title: page.title,

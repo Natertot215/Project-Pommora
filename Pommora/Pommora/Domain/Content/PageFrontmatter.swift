@@ -2,11 +2,10 @@ import Foundation
 
 /// YAML frontmatter for `.md` Page files (long-form text lives in the body).
 ///
-/// Per L6: `modifiedAt` (`modified_at`) ships at v0.3.0 to power the spec's
-/// "Last Edited Time" virtual property + the per-Type default sort. Legacy
-/// decode (Pages without the field) yields `nil` — `PageContentManager.load`
-/// backfills from the file's mtime + the next save writes the now-present
-/// field through.
+/// `modifiedAt` (`modified_at`) powers the "Last Edited Time" virtual property
+/// and the default sort. Optional on the type so legacy / externally-authored
+/// `.md` files decode without it; `PageFile.load` / `loadLenient` fall back to
+/// the file's mtime when it's absent, and the next save persists the stamp.
 struct PageFrontmatter: Codable, Equatable, Hashable, Sendable {
     var id: String
     var icon: String?
@@ -15,10 +14,10 @@ struct PageFrontmatter: Codable, Equatable, Hashable, Sendable {
     var tier3: [String]
     var properties: [String: PropertyValue]
     var createdAt: Date
-    /// ISO-8601 timestamp updated on any frontmatter or body edit. Optional on the
-    /// type so legacy `.md` files (pre-v0.3.0) decode without it; manager load path
-    /// backfills from file mtime and the next save persists the field. Per the spec,
-    /// surfaces in the property panel as the "Last Edited Time" virtual property.
+    /// ISO-8601 timestamp bumped on any content or frontmatter edit (body, property,
+    /// rename, icon, tier). Optional so legacy `.md` files decode without it; the
+    /// load path falls back to file mtime and the next save persists the stamp.
+    /// Surfaces in the property panel as the "Last Edited Time" virtual property.
     var modifiedAt: Date?
     /// Per-Page editor display state: exact heading source lines (e.g. `"## Foo"`)
     /// whose content is currently collapsed in the editor. Nil/missing = no folds.

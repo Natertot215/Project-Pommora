@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { mkdtemp, rm, mkdir } from 'node:fs/promises'
+import { mkdtemp, rm, mkdir, writeFile, utimes } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { rebuildIndex } from './build'
@@ -128,6 +128,40 @@ describe('rebuildIndex (cold build)', () => {
     const agendaDef = get(db, "SELECT * FROM property_definitions WHERE owning_type_kind = 'agenda_task_schema'")
     expect(agendaDef).toMatchObject({ id: '_status', owning_type_id: 'agenda_tasks' })
 
+    db.close()
+  })
+
+  it('falls back to file mtime for an adopted page lacking modified_at (Swift parity)', async () => {
+    // A raw `.md` with an id but no timestamps — the adopt-an-Obsidian-vault case.
+    // Swift resolves modified_at to the file mtime on load; React must match, not 1970.
+    const fixedMtime = new Date('2023-03-04T05:06:07.000Z')
+    const adopted = join(root, 'Notes', 'Adopted.md')
+    await writeFile(adopted, '---\nid: 01ADOPTEDPAGE\n---\n\nbody\n', 'utf8')
+    await utimes(adopted, fixedMtime, fixedMtime)
+
+    const db = await rebuildIndex(root)
+    expect(db).not.toBeNull()
+    if (!db) return
+    const row = get(db, 'SELECT modified_at FROM pages WHERE id = ?', '01ADOPTEDPAGE')
+    expect(row?.modified_at).toBe(fixedMtime.toISOString())
+    db.close()
+  })
+
+  it('keeps the stored modified_at even when file mtime is newer (external edits do not count)', async () => {
+    // A stamped page whose file is touched later (e.g. an Obsidian edit) must still
+    // report its Pommora-managed stamp, not the mtime — the resolver is stored-wins,
+    // never max(stored, mtime). Guards against a future "make external edits count" slip.
+    const pageB = join(root, 'Notes', 'PageB.md')
+    const future = new Date('2099-01-01T00:00:00.000Z')
+    await utimes(pageB, future, future)
+
+    const db = await rebuildIndex(root)
+    expect(db).not.toBeNull()
+    if (!db) return
+    const row = get(db, 'SELECT modified_at FROM pages WHERE id = ?', ids.b)
+    expect(row?.modified_at).not.toBe(future.toISOString())
+    expect(row?.modified_at).not.toBe('1970-01-01T00:00:00.000Z')
+    expect(row?.modified_at as string).toMatch(/^202\d-/) // the real creation-time stamp
     db.close()
   })
 

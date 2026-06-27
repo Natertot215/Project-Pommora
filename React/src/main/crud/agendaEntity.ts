@@ -62,6 +62,9 @@ export async function renameAgendaItem(absFile: string, newName: string): Promis
   if (target === absFile) return ok({ path: absFile })
   if (await pathExists(target)) return fail('exists', `"${newName}" already exists.`, 'agenda')
   await rename(absFile, target)
+  // A rename is an edit (filename = title) — bump modified_at, preserving all else.
+  const raw = await readJsonObject(target)
+  if (raw) await writeJson(target, { ...raw, modified_at: nowIso() })
   return ok({ path: target })
 }
 

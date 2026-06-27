@@ -53,6 +53,27 @@ describe('renamePage', () => {
     expect(splitFrontmatter(await readFile(r.value.path, 'utf8')).id).toBe(c.value.id)
   })
 
+  it('bumps modified_at — a rename counts as an edit', async () => {
+    const c = await createPage(typeDir, 'Old', { body: 'b' })
+    if (!c.ok) throw new Error('setup failed')
+    // Pin an old stamp so a real bump is unmistakable (vs the create-time stamp).
+    const parts = splitEnvelope(await readFile(c.value.path, 'utf8'))
+    await writeFile(
+      c.value.path,
+      assembleEnvelope(
+        parts.frontmatter.replace(/^modified_at:.*$/m, 'modified_at: "2000-01-01T00:00:00.000Z"'),
+        parts.body
+      ),
+      'utf8'
+    )
+
+    const r = await renamePage(c.value.path, 'New')
+    if (!r.ok) throw new Error('rename failed')
+    const after = splitFrontmatter(await readFile(r.value.path, 'utf8')).modified_at as string
+    expect(after).not.toBe('2000-01-01T00:00:00.000Z') // rename advanced it
+    expect(after >= '2026-01-01').toBe(true) // to a real recent stamp
+  })
+
   it('rejects renaming onto an existing page', async () => {
     const a = await createPage(typeDir, 'A')
     await createPage(typeDir, 'B')

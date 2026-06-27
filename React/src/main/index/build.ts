@@ -4,7 +4,7 @@
 // happens first (collect), then the sync upserts run inside transact(). Mirrors Swift's
 // IndexBuilder.populate; ids match the sidecars so a React- and Swift-built index agree.
 
-import { readFile, readdir } from 'node:fs/promises'
+import { readFile, readdir, stat } from 'node:fs/promises'
 import { join } from 'node:path'
 import { readNexus } from '../readNexus'
 import { splitFrontmatter } from '../readNexus'
@@ -39,6 +39,19 @@ import {
 
 const EPOCH = '1970-01-01T00:00:00.000Z'
 const str = (v: unknown): string => (typeof v === 'string' ? v : '')
+
+/** Effective modified_at, matching Swift's load-time resolution: the stored stamp wins,
+ *  else the file's own mtime (so adopted entities lacking a stamp sort by real recency
+ *  instead of 1970), else created_at, else epoch. Only stats when the stamp is absent. */
+async function resolveModifiedAt(stored: unknown, fallbackFile: string, created?: unknown): Promise<string> {
+  const storedStr = str(stored)
+  if (storedStr) return storedStr
+  try {
+    return (await stat(fallbackFile)).mtime.toISOString()
+  } catch {
+    return str(created) || EPOCH
+  }
+}
 const strArr = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : [])
 
 interface ContextData {
@@ -117,7 +130,7 @@ async function collectNexusData(nexusRoot: string): Promise<NexusData> {
       parentSetId: parent.setId,
       title: node.title,
       icon: node.icon,
-      modifiedAt: str(ssc?.modified_at) || EPOCH,
+      modifiedAt: await resolveModifiedAt(ssc?.modified_at, join(nexusRoot, node.path, SIDECAR_FILENAME.set)),
       schemaVersion: ssc?.schema_version
     })
     for (const page of node.pages) pages.push(await readPageData(nexusRoot, page, topCollectionId, node.id))
@@ -130,7 +143,7 @@ async function collectNexusData(nexusRoot: string): Promise<NexusData> {
       id: coll.id,
       title: coll.title,
       icon: coll.icon,
-      modifiedAt: str(csc?.modified_at) || EPOCH,
+      modifiedAt: await resolveModifiedAt(csc?.modified_at, join(nexusRoot, coll.path, SIDECAR_FILENAME.collection)),
       schemaVersion: csc?.schema_version,
       defs: parseDefinitions(csc?.properties)
     })
@@ -147,9 +160,10 @@ async function readPageData(
   collectionId: string,
   setId?: string
 ): Promise<PageData> {
+  const abs = join(nexusRoot, page.path)
   let content = ''
   try {
-    content = await readFile(join(nexusRoot, page.path), 'utf8')
+    content = await readFile(abs, 'utf8')
   } catch {
     /* unreadable — index it as an empty page (structure still queryable) */
   }
@@ -161,7 +175,7 @@ async function readPageData(
     title: page.title,
     icon: page.icon,
     properties: fm.properties ?? {},
-    modifiedAt: str(fm.modified_at) || str(fm.created_at) || EPOCH,
+    modifiedAt: await resolveModifiedAt(fm.modified_at, abs, fm.created_at),
     tiers: readTiers(fm),
     body: splitEnvelope(content).body
   }
@@ -251,7 +265,7 @@ async function collectAgenda(nexusRoot: string): Promise<AgendaData> {
     configs.push({
       owningTypeId: isTask ? 'agenda_tasks' : 'agenda_events',
       owningTypeKind: isTask ? 'agenda_task_schema' : 'agenda_event_schema',
-      modifiedAt: str(configRaw.modified_at) || EPOCH,
+      modifiedAt: await resolveModifiedAt(configRaw.modified_at, configFile),
       defs: parseDefinitions(configRaw.property_definitions)
     })
 
@@ -277,7 +291,7 @@ async function collectAgenda(nexusRoot: string): Promise<AgendaData> {
         title: f.slice(0, -suffix.length),
         icon: typeof item.icon === 'string' ? item.icon : undefined,
         properties: item.properties ?? {},
-        modifiedAt: str(item.modified_at) || str(item.created_at) || EPOCH,
+        modifiedAt: await resolveModifiedAt(item.modified_at, join(folder, f), item.created_at),
         tiers: readTiers(item)
       }
       if (isTask) tasks.push({ ...common, dueAt: typeof item.due_at === 'string' ? item.due_at : undefined })

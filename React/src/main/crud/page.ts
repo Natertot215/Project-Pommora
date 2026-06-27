@@ -43,13 +43,17 @@ export async function createPage(
   return ok({ id, path: file })
 }
 
-/** Rename a page file (filename = title). No-op when unchanged. */
+/** Rename a page file (filename = title). No-op when unchanged; bumps modified_at
+ *  on a real rename — the title changed, which counts as an edit. */
 export async function renamePage(absFile: string, newName: string): Promise<Result<{ path: string }>> {
   if (invalidName(newName)) return fail('invalid-name', `"${newName}" is not a valid name.`, 'page')
   const target = join(dirname(absFile), newName + MD)
   if (target === absFile) return ok({ path: absFile })
   if (await pathExists(target)) return fail('exists', `"${newName}" already exists.`, 'page')
   await rename(absFile, target)
+  const existing = await readFile(target, 'utf8')
+  const content = mergeFrontmatter(existing, { modified_at: nowIso() }, ['modified_at'], splitEnvelope(existing).body)
+  await atomicWriteFile(target, content)
   return ok({ path: target })
 }
 
