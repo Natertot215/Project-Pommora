@@ -68,8 +68,10 @@ textarea,
   transition: --io var(--duration-base) var(--ease-standard);
   /* App-level clip: zero scroll at the shell. The floating sidebar/inspector park off-screen via
      transform; without this their off-screen box adds a horizontal scroll region. Inner scrollers
-     (detail, editor, tables) keep their own overflow. */
-  overflow: hidden;
+     (detail, editor, tables) keep their own overflow. `clip` not `hidden`: hidden still leaves a
+     scrollable box that text-selection auto-scroll (drag past the edge) pans to reveal the inspector;
+     clip is not a scroll container at all, so there's nothing to pan. */
+  overflow: clip;
   background: var(--main-bg);
   /* THE single content gutter — one value reused by every detail view (spaces, homepage, tables)
      + the editor. Matches the Swift app's shared horizontal inset (24pt). Change here only. */
