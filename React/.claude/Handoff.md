@@ -1,8 +1,13 @@
 ## Handoff — Pommora React
 
-**Session ID:** 64346d76-0499-4a65-93e3-71db53bf4d32
+Two parallel sessions on the same day, one labeled window each (A = the earlier list-drag / canvas / agent-legibility session, B = the bullet + table-heading-column session). Each window is frozen history; the footer below is shared across both.
+
+**Session A ID:** 64346d76-0499-4a65-93e3-71db53bf4d32
+**Session B ID:** 7db4f952-e547-415f-b861-af8dd1a1e30b
 **Date(s):** 26-06-2026
 --
+
+### Session Summary - A
 
 **Date:** 26-06-2026
 **Model:** Opus 4.8
@@ -13,8 +18,6 @@
 
 > ⚡ **Cornerstone — carry into every window, unchanged (Nathan's voice).**
 > *"You do NOT guess — you LOOK, and you ASK. Open the file and read the code before you assert anything; ask me when you're unsure. A plan built on an unverified claim is a liability, not progress — treat every doc, every `file:line`, every 'it works like X' as a hypothesis until you've read the code that proves it. Honesty over confidence; confidence is earned through evidence."*
-
-#### Session Summary
 
 A long build session across three fronts: the shipped **list drag-to-reorder** feature (built by an agent, then live-debugged against the running app over CDP), a parked **in-page canvas** design pass, and a committed **product-principle** refinement.
 
@@ -64,6 +67,62 @@ A long build session across three fronts: the shipped **list drag-to-reorder** f
 - Re-nest with **mixed tab/space indent** is now graceful (strip-by-length) but not pixel-perfect; Pommora's own input never emits mixed indent, so it's untested against real mixed docs.
 - The `<foreignObject>` editable-text bet in the parked canvas spec is reasoned, not prototyped — flagged there as a 30-min spike before any deep build.
 
+### Session Summary - B
+
+**Date:** 26-06-2026
+**Model:** Opus 4.8
+**Connectors:** Playwright (attempted — `browser_navigate` blocked on `file://`); used headless Chrome + CDP-over-Node directly for isolated repros, live measurement, and screenshots
+**Commands:** `/handoff`
+**Agents:** feature-dev:code-reviewer (×1 — table heading-column perf/correctness), code-simplifier (×1 — heading-column simplify)
+**Skills:** `superpowers:systematic-debugging` (bullet-wrap bug), `handoff`
+
+> **Nathan:** Parallel sessions each get their own labeled window in this one doc (A / B / …); follow the other window's format, never edit it, and share the footer.
+
+> ⚡ **Cornerstone — carry into every window, unchanged (Nathan's voice).**
+> *"You do NOT guess — you LOOK, and you ASK. Open the file and read the code before you assert anything; ask me when you're unsure. A plan built on an unverified claim is a liability, not progress — treat every doc, every `file:line`, every 'it works like X' as a hypothesis until you've read the code that proves it. Honesty over confidence; confidence is earned through evidence."*
+
+A focused MarkdownPM session running alongside Session A: a bullet-wrap bug chased to ground then deliberately parked, and a full table **heading-column** feature shipped with a review + simplify pass.
+
+**Bullet single-word wrap, fixed-then-reverted, parked as a known issue:** A bullet on the page's first line that wraps pushed its text down. The first hypothesis (the `•` glyph's 1.25em line-height swelling the first wrapped line) was real but not the cause; Nathan diagnosed the actual trigger — a **single unbroken word**: the line-breaker takes the soft break at the space between bullet and content rather than force-breaking the word, so the whole word drops below the bullet (multi-word text fits the first word beside the bullet and hides it). A faithful headless-Chrome repro confirmed it. The fix (hide the inter-marker space like the ordered/checkbox lists + restore the gap via the glyph margin) worked in plain HTML but **didn't survive CM6's `Decoration.replace` (zero-width hide)** in the live editor, so per Nathan it was reverted — keeping only the `line-height` cap — and logged as a known issue (the `+` / `→` flavors share it). → `Features/MarkdownPM.md` § Known issues.
+
+**Table heading column, shipped:** "Make Heading Column" on the first column's grip menu (column 0 only) styles that column's body cells like the header row (`fill-quinary` + emphasized); the header row's `fill-tertiary` stays on top at the corner because the column fill is scoped to `tbody`. The menu item sits below Align, grouped with the Inserts, as a checkbox with a state label ("Heading Column" with a checkmark when on, "Make Heading Column" when off). Empty table cells also rendered a line-height shorter than filled ones — fixed with a `:empty::before` zero-width placeholder line box.
+
+**Heading column is a Pommora-only `.nexus/` visual (paradigm decision):** GFM has a header *row*, never a header *column*, so the on-disk `.md` stays a plain portable table; the on/off state persists in `.nexus/tableHeadingColumns.json` keyed by page id → that page's heading-column table indices, mirroring the folds store + IPC end-to-end (StateField + toggle effect → widget rebuild → persist; mount reloads). > Nathan: "the paradigm decision should just be a memory" — recorded in agent memory, NOT `History.md`. Index-keying carries the folds store's fragility (a stale index mis-styles whatever table now sits at it).
+
+**Toggle perf, fixed after review:** The code-review agent flagged that a toggle rebuilt every table's decoration. > Nathan: "full rebuild on toggle is not acceptable if it can be fixed" — so the toggle now swaps ONLY the toggled table's widget in place (`set.update({filterFrom, filterTo, filter, add})`, reusing the existing widget's parsed text/model), with a full rebuild only on the once-per-page mount-time load. Simplifier pass after: one safe cleanup, the rest a faithful folds/CM6 mirror left alone. → 61 table/storage tests green, typecheck clean.
+
+**Next Session**
+
+- **Live-verify the heading-column toggle end-to-end:** the menu → toggle → persist → reload path is unit-tested + typecheck-clean and the dev server's been restarted (the native menu lives in `src/main`, needs a full restart), but a real in-app toggle styling + persisting across reload hasn't been confirmed by hand yet.
+- **Optional: extend the single-word-wrap robustness** to the `+` and arrow (`→`) list flavors — they share the drop; only `-` / `•` was in scope.
+
+**Lessons Learned**
+
+- **A faithful headless repro can still mislead at the editor layer.** Hiding the inter-marker space fixed the single-word drop in plain HTML, but CM6's `Decoration.replace` doesn't behave like deleting the text node — the soft-break opportunity persisted in the real editor. Validate editor-layer fixes IN the editor, not just an HTML model.
+- **Main-process changes need a full dev restart** (native menus, IPC, preload) — not HMR, not ⌘R. A new menu item won't appear until the dev process restarts. → agent memory.
+- **A `Decoration` exposes its spec** (`cursor.value.spec.widget`), enough to find + swap a single block widget in a `DecorationSet` via `set.update({filterFrom, filterTo, filter, add})` without re-decoding the whole doc.
+
+**Key Files & Insights**
+
+- `MarkdownPM/Tables/widget.tsx` — `headingColField` StateField + `toggle` / `set` effects; `buildWidgetDecorations` stamps a `headingColumn` flag per `TableWidget` (folded into `eq()` so only the toggled table re-renders); `widgetField.update` partial-swaps on toggle, full rebuild only on mount-load.
+- `main/io/tableHeadingColumns.ts` (+ IPC handlers in `main/index.ts`, bridge in `preload/index.ts`) — the `.nexus/tableHeadingColumns.json` store, a faithful mirror of `io/folds.ts`.
+- `MarkdownPM/Tables/widget.css` — `.mdpm-tbl-heading-col` (tbody-scoped fill-quinary + emphasis) and the `:empty::before` cell-height fix.
+
+**Landmines**
+
+- **Session A ran concurrently this window** (live caret + docs work). All my commits staged **explicit paths**, never `-A`; `Styles.css` + `intent.ts` overlapped A's caret work, but A committed first so my hunks landed clean. Keep staging explicit.
+- **Dev server is live with `--remoteDebuggingPort=9222`** (rebooted several times to pick up the main-process menu) — same debug-rig state Session A flagged; restore a plain launch before walking away.
+
+**User Feedback**
+
+- > Nathan: "the paradigm decision should just be a memory" — route locked paradigm decisions he names to agent memory, not `History.md`.
+- > Nathan: "full rebuild on toggle is not acceptable if it can be fixed" — fix the perf, don't comment around it.
+- On the bullet bug: revert the editor-layer fix that didn't land, keep the safe sizing change, and log the remainder as a known issue rather than piling on speculative fixes.
+
+**Uncertain**
+
+- The toggle's live behavior (the partial-rebuild swap actually re-rendering the one table) is reasoned + typecheck-green but not yet confirmed by a real in-app toggle.
+
 ---
 
 ### Working Notes
@@ -85,14 +144,18 @@ A long build session across three fronts: the shipped **list drag-to-reorder** f
 - **Settings editing UI** deferred — `.nexus/settings.json` is the control surface (labels + accent + `subfield`).
 - **One-time Biome normalization** — the format-on-write hook keeps touched files clean, but a whole-tree `npm run check` pass hasn't run (defer to a tree with no parallel uncommitted edits).
 - **Doc mirror** — a launchd watcher mirrors these docs into the Obsidian vault; keep them current.
+- **Heading-column toggle — live end-to-end verify (B)** — unit-tested + typecheck-green; confirm a real in-app toggle styles + persists across reload.
+- **Single-word-wrap drop on `+` / `→` list flavors (B)** — the `-` / `•` case is parked as a known issue; the other marker flavors share it, unaddressed.
 
 ### Fix Log
 
 - **Aliased `[[A|B]]` vs cell-pipe** — a `|` in an aliased connection collides with cell-pipe escaping inside a table cell; autocomplete only inserts alias-free `[[Title]]`. Open paradigm call.
 - **Table links non-clickable** — no input handling for the rendered link inside a cell; proposed single-click navigate + right-click edit.
+- **Bullet single-word wrap drops the word below the marker** — a `-` / `•` (and `+` / `→`) item whose content is one long unbroken word drops the whole word to the next line; the marker-space hide that would fix it didn't survive CM6's replace decoration. Only the `line-height` cap shipped. → `Features/MarkdownPM.md` § Known issues.
 
 ### Handoff Rules
 
 - **Keep the Fix Log current.** Acknowledged-but-unfixed issues get a 1–2 sentence entry; remove on resolve.
 - **One window per session in the new format.** Append a new `### <Label>` window next session (carry still-open Pending Focuses); push spec/decision content to its canonical home (`History.md` / `Features/*` / `Framework.md`).
 - **Markdown only, no new folder** (per Nathan) — this doc stays the single `.claude/Handoff.md`, not a routed `Handoffs/` dir.
+- **Parallel sessions share this one doc.** Each concurrent session gets its own labeled window (`### Session Summary - A`, `- B`, …) with its own metadata + Cornerstone + sections; list every session ID in the header block. Never edit another session's frozen window — append your own. The footer (Working Notes / Pending Focuses / Fix Log / Handoff Rules) is shared: carry, add, and retire across all sessions, tagging session-specific Pending/Fix items with the window letter where it helps.
