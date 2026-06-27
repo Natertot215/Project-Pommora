@@ -319,79 +319,13 @@ struct PageEditorView: View {
                 }
             }
 
-            // Title + divider overlay. Sits on top of the body editor's
-            // reserved safe-area zone at rest. Tracks the body editor's
-            // vertical scroll via `.offset(y: -scrollOffset)` so it scrolls
-            // in sync with body content — when fully scrolled past, the
-            // entire title region is off-screen above the viewport and the
-            // body fills the visible area.
-            //
-            // Submitting renames the on-disk .md file via
-            // ContentManager.renamePage. The 28pt bold matches macOS Notes'
-            // large title line.
-            VStack(spacing: 0) {
-                // Title row. When the per-Nexus `showPageIcon` setting is on and
-                // the page has an icon, it renders inline to the LEFT of the
-                // title. When the setting is on but no icon is set, hovering the
-                // row reveals a faint "Add Icon" affordance on the RIGHT. In every
-                // other state nothing leads the title, so it stays flush-left with
-                // zero reserved indent.
-                // `.firstTextBaseline` sits the inline icon on the title's text
-                // baseline (centered alignment floated it slightly high).
-                HStack(alignment: .firstTextBaseline, spacing: PUI.Spacing.sm) {
-                    if showInlinePageIcon, let icon = pageIcon {
-                        Image(systemName: icon)
-                            .font(PUI.Typography.Fixed.f26)
-                            .foregroundStyle(.primary)
-                    }
-                    if isRenamingTitle {
-                        TextField("Untitled", text: $titleDraft)
-                            .textFieldStyle(.plain)
-                            .font(.system(size: 28, weight: .bold))
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .focused($titleFocused)
-                            .onSubmit {
-                                // Exit rename FIRST so the focus-loss handler
-                                // below doesn't double-commit, then hand AppKit
-                                // firstResponder to the body editor.
-                                isRenamingTitle = false
-                                titleFocused = false
-                                focusBodyEditor()
-                                Task { await commitRename() }
-                            }
-                            .onExitCommand { cancelTitleRename() }
-                    } else {
-                        Text(viewModel.page.title.isEmpty ? "Untitled" : viewModel.page.title)
-                            .font(.system(size: 28, weight: .bold))
-                            .foregroundStyle(viewModel.page.title.isEmpty ? .secondary : .primary)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .lineLimit(1)
-                            .truncationMode(.tail)
-                    }
-                }
-                .padding(.horizontal, PUI.Spacing.xxxl)
-                .padding(.top, PUI.Spacing.xxxl)
-                .padding(.bottom, PUI.Spacing.s14)
-                .contextMenu {
-                    Button("Rename") { startTitleRename() }
-                    if settingsManager.settings.showPageIcon {
-                        Button(pageIcon == nil ? "Add Icon" : "Change Icon") {
-                            iconPickerOpen = true
-                        }
-                    }
-                }
-                .iconPickerPopover(isPresented: $iconPickerOpen, symbol: pageIconBinding)
-                .onChange(of: titleFocused) { _, focused in
-                    // Click-away voids the edit — commit happens only on Enter.
-                    if !focused && isRenamingTitle { cancelTitleRename() }
-                }
-
-                Rectangle()
-                    .fill(Color(NSColor.separatorColor))
-                    .frame(height: 1)
-                    .padding(.horizontal, PUI.Spacing.xxxl)
-            }
-            .offset(y: -min(max(0, scrollOffset), Self.titleAreaHeight))
+            // Title region overlaying the body editor's reserved top inset,
+            // scrolling with body content via `.offset`. With a cover set, the
+            // title rides at the banner's bottom-leading (the container
+            // `ViewSurface` treatment, and React's); without one, the title sits
+            // above a divider in plain chrome. Submitting renames the on-disk
+            // .md file via ContentManager.renamePage.
+            headerOverlay
         }
         // Clip the ZStack so the title overlay's offset doesn't bleed up
         // past the editor's top edge into the toolbar region — SwiftUI's
@@ -438,6 +372,129 @@ struct PageEditorView: View {
         }
     }
 
+    // MARK: - Header (title + cover banner)
+
+    /// True when the page carries a non-empty cover (banner) frontmatter path.
+    private var hasCover: Bool { viewModel.page.frontmatter.cover?.isEmpty == false }
+
+    /// Reserved top inset for the title overlay AND the body text container (the
+    /// two must agree). With a cover the title rides on the banner, so the zone
+    /// is the banner band plus a gap before the body; without one it's the plain
+    /// title area. KNOB: the post-banner gap is `PUI.Spacing.xxxl`.
+    private var headerReservedHeight: CGFloat {
+        hasCover ? PUI.DetailHeader.bannerHeight + PUI.Spacing.xxxl : Self.titleAreaHeight
+    }
+
+    /// Title region overlaying the body editor's reserved top inset, scrolling
+    /// with body content via `.offset`. Cover set → title rides the banner's
+    /// bottom-leading (the `ViewSurface` + React treatment); no cover → title
+    /// above a divider in plain chrome.
+    @ViewBuilder
+    private var headerOverlay: some View {
+        Group {
+            if hasCover {
+                ZStack(alignment: .bottomLeading) {
+                    pageBanner
+                    titleRow
+                }
+            } else {
+                VStack(spacing: 0) {
+                    titleRow
+                    Rectangle()
+                        .fill(Color(NSColor.separatorColor))
+                        .frame(height: 1)
+                        .padding(.horizontal, PUI.Spacing.xxxl)
+                }
+            }
+        }
+        .offset(y: -min(max(0, scrollOffset), headerReservedHeight))
+    }
+
+    /// The page's cover rendered through the shared `BannerView` — the same
+    /// mechanism behind the container + homepage banners (and React's page
+    /// header), wired to the page's `cover` frontmatter root key + per-page
+    /// asset folder. Reused so the page banner stays identical to the rest of
+    /// the app; no cover → its hover "Add Banner" affordance.
+    private var pageBanner: some View {
+        BannerView(
+            bannerPath: viewModel.page.frontmatter.cover,
+            nexus: contentManager.nexus,
+            assetKey: viewModel.page.id,
+            setBanner: { newPath in try await commitCover(newPath) },
+            reportError: { viewModel.pendingError = $0 }
+        )
+    }
+
+    /// The title row. When the per-Nexus `showPageIcon` setting is on and the
+    /// page has an icon, it renders inline to the LEFT of the title; with the
+    /// setting on but no icon, hovering reveals a faint "Add Icon" on the RIGHT.
+    /// Otherwise nothing leads the title, so it stays flush-left. Shared by both
+    /// header states (plain + cover-overlaid). `.firstTextBaseline` sits the
+    /// inline icon on the title's text baseline.
+    private var titleRow: some View {
+        HStack(alignment: .firstTextBaseline, spacing: PUI.Spacing.sm) {
+            if showInlinePageIcon, let icon = pageIcon {
+                Image(systemName: icon)
+                    .font(PUI.Typography.Fixed.f26)
+                    .foregroundStyle(.primary)
+            }
+            if isRenamingTitle {
+                TextField("Untitled", text: $titleDraft)
+                    .textFieldStyle(.plain)
+                    .font(.system(size: 28, weight: .bold))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .focused($titleFocused)
+                    .onSubmit {
+                        // Exit rename FIRST so the focus-loss handler doesn't
+                        // double-commit, then hand AppKit firstResponder to the
+                        // body editor.
+                        isRenamingTitle = false
+                        titleFocused = false
+                        focusBodyEditor()
+                        Task { await commitRename() }
+                    }
+                    .onExitCommand { cancelTitleRename() }
+            } else {
+                Text(viewModel.page.title.isEmpty ? "Untitled" : viewModel.page.title)
+                    .font(.system(size: 28, weight: .bold))
+                    .foregroundStyle(viewModel.page.title.isEmpty ? .secondary : .primary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+            }
+        }
+        .padding(.horizontal, PUI.Spacing.xxxl)
+        .padding(.top, PUI.Spacing.xxxl)
+        .padding(.bottom, PUI.Spacing.s14)
+        .contextMenu {
+            Button("Rename") { startTitleRename() }
+            if settingsManager.settings.showPageIcon {
+                Button(pageIcon == nil ? "Add Icon" : "Change Icon") {
+                    iconPickerOpen = true
+                }
+            }
+        }
+        .iconPickerPopover(isPresented: $iconPickerOpen, symbol: pageIconBinding)
+        .onChange(of: titleFocused) { _, focused in
+            // Click-away voids the edit — commit happens only on Enter.
+            if !focused && isRenamingTitle { cancelTitleRename() }
+        }
+    }
+
+    /// Persists a new (or cleared) cover path onto the `cover` frontmatter root
+    /// key via the existing `updatePageFrontmatter` write path, then refreshes
+    /// the VM's PageMeta so the next body save doesn't re-serialize stale
+    /// frontmatter (same discipline as `commitIcon`). `BannerView` owns the
+    /// asset import/delete; this only persists the path it returns.
+    private func commitCover(_ newPath: String?) async throws {
+        var fm = viewModel.page.frontmatter
+        fm.cover = newPath
+        try await contentManager.updatePageFrontmatter(
+            viewModel.page, frontmatter: fm,
+            pageCollection: pageCollection, collection: collection, set: set)
+        if let updated = currentPageMetaFromCache() { viewModel.page = updated }
+    }
+
     /// Pommora's editor configuration. Horizontal text insets match the
     /// title's 24pt horizontal padding so body content aligns under the
     /// title rather than butting against the sidebar divider.
@@ -464,7 +521,7 @@ struct PageEditorView: View {
     /// the same resolver identity across keystrokes and doesn't churn.
     private var pommoraEditorConfiguration: MarkdownPMConfiguration {
         MarkdownEditorConfig.pommora(
-            verticalInset: Self.titleAreaHeight,
+            verticalInset: headerReservedHeight,
             pageResolver: connectionResolver
         )
     }
