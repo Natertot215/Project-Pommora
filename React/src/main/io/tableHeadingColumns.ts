@@ -3,7 +3,8 @@
 // the fold store (see io/folds.ts): a heading column is a Pommora-only visual with no GFM equivalent,
 // so it lives OUT of the portable `.md` (no noise leaking to Obsidian) and OUT of the regeneratable
 // index. Tables are keyed by their position on the page — stable unless whole tables are added/removed
-// above a styled one (an accepted v1 limitation, matching the fold store's ordinal fragility).
+// above a styled one (an accepted v1 limitation, matching the fold store's ordinal fragility; slightly
+// worse here — a stale index mis-styles whatever table now sits at it, where a stale fold key just no-ops).
 import { mkdir } from 'node:fs/promises'
 import { nexusConfig, nexusDir, NEXUS_CONFIG_FILES } from '../paths'
 import { readJsonObject, writeJson } from './atomicWrite'
@@ -19,7 +20,7 @@ export async function readTableHeadingColumns(root: string): Promise<TableHeadin
   if (obj === null) return {}
   const out: TableHeadingColState = {}
   for (const [id, value] of Object.entries(obj)) {
-    if (Array.isArray(value) && value.every((x) => Number.isInteger(x) && (x as number) >= 0)) {
+    if (Array.isArray(value) && value.every((x) => Number.isInteger(x) && x >= 0)) {
       out[id] = value as number[]
     }
   }

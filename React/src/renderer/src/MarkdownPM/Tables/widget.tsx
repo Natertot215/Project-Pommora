@@ -276,10 +276,31 @@ function editAffectsTables(deco: DecorationSet, tr: Transaction): boolean {
 const widgetField = StateField.define<DecorationSet>({
   create: buildWidgetDecorations,
   update: (deco, tr) => {
-    // A heading-column toggle/load changes no text, so rebuild here (the doc-change paths below would miss it).
-    if (tr.effects.some((e) => e.is(toggleHeadingColEffect) || e.is(setHeadingColsEffect))) {
-      return buildWidgetDecorations(tr.state)
+    // Heading-column toggle: the doc didn't change, so swap ONLY the toggled table's widget in place,
+    // reusing its already-parsed text/model — just the flag flips. Avoids re-decoding every table per toggle.
+    let next = deco
+    let toggled = false
+    for (const eff of tr.effects) {
+      if (!eff.is(toggleHeadingColEffect)) continue
+      toggled = true
+      const idx = eff.value
+      const on = tr.state.field(headingColField).has(idx)
+      for (const cur = next.iter(); cur.value; cur.next()) {
+        const w = cur.value.spec.widget
+        if (w instanceof TableWidget && w.tableIndex === idx) {
+          next = next.update({
+            filterFrom: cur.from,
+            filterTo: cur.to,
+            filter: () => false,
+            add: [Decoration.replace({ widget: new TableWidget(w.text, w.model, idx, on), block: true }).range(cur.from, cur.to)]
+          })
+          break
+        }
+      }
     }
+    if (toggled) return next
+    // Mount-time load applies the whole saved set at once → one full rebuild (fires once per page, not per toggle).
+    if (tr.effects.some((e) => e.is(setHeadingColsEffect))) return buildWidgetDecorations(tr.state)
     if (tr.annotation(tableSelfEdit)) return deco.map(tr.changes)
     if (!tr.docChanged) return deco
     return editAffectsTables(deco, tr) ? buildWidgetDecorations(tr.state) : deco.map(tr.changes)
