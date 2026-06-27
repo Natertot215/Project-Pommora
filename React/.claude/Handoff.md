@@ -133,7 +133,7 @@ A focused MarkdownPM session alongside Session A: a bullet-wrap bug chased down 
 
 ### Next Sessions
 
-- **Carryover editor work:** **Callouts** are functionally hardened — delete-guard shipped + a full adversarial fuzz pass done (`Guidelines/Adversarial-Review-Log.md`); remaining: tables-inside-callouts (deferred, noted in both reliant docs) + fold-chevron gutter alignment (inner-padding groundwork laid, the chevron itself still needs prefix-aware folding). Create unicode up-down + back-forth auto-transform syntax for <> and ><. Add paired auto-deletion for backspace on auto-paired syntax. Add “Styles” to tables → style = column would remove gutter padding and hide table lines to essentially solve the markdown column problem.
+- **Carryover editor work:** **Callouts** are functionally hardened — delete-guard shipped + a full adversarial fuzz pass done (`Guidelines/Adversarial-Review-Log.md`); remaining: tables-inside-callouts (deferred, noted in both reliant docs) + fold-chevron gutter alignment (inner-padding groundwork laid, the chevron itself still needs prefix-aware folding). Create unicode up-down + back-forth auto-transform syntax for <> and ><. Add “Styles” to tables → style = column would remove gutter padding and hide table lines to essentially solve the markdown column problem.
 
 - **Live-verify the heading-column toggle end-to-end:** the menu → toggle → persist → reload path is unit-tested + typecheck-clean and the dev server's been restarted (the native menu lives in `src/main`, needs a full restart), but a real in-app toggle styling + persisting across reload hasn't been confirmed by hand yet.
 

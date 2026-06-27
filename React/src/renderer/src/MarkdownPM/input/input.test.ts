@@ -5,7 +5,8 @@ import {
   canonicalizeCheckbox,
   autoPair,
   autoDelete,
-  bracketSkipOnEnter,
+  closeConstructOnEnter,
+  closeConstructOnShiftEnter,
   dashArrow,
   indentListOnTab,
   continueBlockquoteOnEnter,
@@ -98,9 +99,9 @@ describe('auto-pair + auto-delete', () => {
     const e = autoDelete('[]', 1, 1)!
     expect(apply('[]', e)).toBe('')
   })
-  it('backspace inside an empty {} deletes both halves', () => {
-    const e = autoDelete('{}', 1, 1)!
-    expect(apply('{}', e)).toBe('')
+  it('{ is removed from the auto-pair system — no pairing, no paired-delete', () => {
+    expect(autoPair('', 0, 0, '{')).toBeNull()
+    expect(autoDelete('{}', 1, 1)).toBeNull()
   })
   it('[[ collapses the existing closer instead of stacking a stray ]', () => {
     // doc is "[]" with caret after the first "[" (the first [ already auto-paired)
@@ -113,17 +114,81 @@ describe('auto-pair + auto-delete', () => {
     expect(apply('()', e)).toBe('(())')
     expect(e.selection).toBe(2)
   })
+  it('quotes pair at line start / after whitespace', () => {
+    expect(autoPair('', 0, 0, '"')).not.toBeNull()
+    expect(autoPair('say ', 4, 4, "'")).not.toBeNull()
+  })
+  it('a quote right after a word char stays literal (apostrophes / units)', () => {
+    expect(autoPair('don', 3, 3, "'")).toBeNull() // don|'t
+    expect(autoPair('5', 1, 1, '"')).toBeNull() // 5"
+  })
+  it('typing a quote over its own closer steps past it (no stray)', () => {
+    const e = autoPair("''", 1, 1, "'")! // '|' , type ' to close
+    expect(e.insert).toBe('')
+    expect(e.selection).toBe(2)
+  })
+  it('backspace inside an empty quote pair deletes both halves', () => {
+    expect(apply('""', autoDelete('""', 1, 1)!)).toBe('')
+    expect(apply("''", autoDelete("''", 1, 1)!)).toBe('')
+  })
+  it('single emphasis * / _ / ` pair when not after a word char', () => {
+    expect(apply('', autoPair('', 0, 0, '*')!)).toBe('**') // *|*
+    expect(autoPair('say ', 4, 4, '_')).not.toBeNull()
+    expect(autoPair('', 0, 0, '`')).not.toBeNull()
+  })
+  it('emphasis stays literal after a word char (2 * 3, snake_case)', () => {
+    expect(autoPair('2 ', 2, 2, '*')).not.toBeNull() // after space → pairs
+    expect(autoPair('x', 1, 1, '*')).toBeNull() // x* → literal
+    expect(autoPair('foo', 3, 3, '_')).toBeNull() // foo_bar → literal
+  })
+  it('the second * still promotes the pair to bold (**|**)', () => {
+    const e = autoPair('**', 1, 1, '*')! // caret in *|* , type 2nd *
+    expect(apply('**', e)).toBe('****')
+    expect(e.selection).toBe(2)
+  })
+  it('backspace inside an empty emphasis pair deletes both halves', () => {
+    expect(apply('**', autoDelete('**', 1, 1)!)).toBe('')
+    expect(apply('``', autoDelete('``', 1, 1)!)).toBe('')
+  })
 })
 
-describe('bracket-skip on Enter', () => {
-  it('jumps past a single closer', () => {
-    const e = bracketSkipOnEnter('[]', 1, 1)!
+describe('close construct on Enter', () => {
+  it('jumps past a single empty closer', () => {
+    const e = closeConstructOnEnter('[]', 1, 1)!
     expect(e.selection).toBe(2)
     expect(e.insert).toBe('')
   })
-  it('double-jumps [[ | ]]', () => {
-    const e = bracketSkipOnEnter('[[]]', 2, 2)!
-    expect(e.selection).toBe(4)
+  it('double-jumps an empty [[ | ]]', () => {
+    expect(closeConstructOnEnter('[[]]', 2, 2)!.selection).toBe(4)
+  })
+  it('closes a connection with content: [[word|]] → past ]]', () => {
+    expect(closeConstructOnEnter('[[word]]', 6, 6)!.selection).toBe(8)
+  })
+  it('closes a quote / emphasis with content (caret before the closer)', () => {
+    expect(closeConstructOnEnter('"hi"', 3, 3)!.selection).toBe(4) // "hi|" → past "
+    expect(closeConstructOnEnter('*hi*', 3, 3)!.selection).toBe(4) // *hi|* → past *
+    expect(closeConstructOnEnter('**hi**', 4, 4)!.selection).toBe(6) // **hi|** → past **
+  })
+  it('does nothing when the char ahead is not a matching closer', () => {
+    expect(closeConstructOnEnter('hello)', 5, 5)).toBeNull() // a stray ) with no ( before
+    expect(closeConstructOnEnter('plain', 5, 5)).toBeNull()
+  })
+  it('does NOT close a new pair following an already-closed one (parity, not presence)', () => {
+    expect(closeConstructOnEnter('**a****b**', 5, 5)).toBeNull() // caret between two complete **…** pairs
+    expect(closeConstructOnEnter('"a""b"', 3, 3)).toBeNull() // caret between two complete "…" pairs
+  })
+})
+
+describe('Shift+Enter closes the construct first, then breaks the line', () => {
+  it('closes then newlines: "hi|" → "hi"\\n|', () => {
+    const e = closeConstructOnShiftEnter('"hi"', 3, 3)!
+    expect(apply('"hi"', e)).toBe('"hi"\n') // closer preserved, newline after it
+  })
+  it('connection: [[word|]] → [[word]]\\n|', () => {
+    expect(apply('[[word]]', closeConstructOnShiftEnter('[[word]]', 6, 6)!)).toBe('[[word]]\n')
+  })
+  it('is null outside any construct (falls back to a plain break)', () => {
+    expect(closeConstructOnShiftEnter('plain', 5, 5)).toBeNull()
   })
 })
 

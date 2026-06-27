@@ -184,8 +184,14 @@ const PAIRS: Record<string, PairSpec> = {
   '`': { close: '`', multi: '``' },
   '(': { close: ')', multi: '))' },
   '[': { close: ']', multi: ']]' },
-  '{': { close: '}' }
+  '"': { close: '"' },
+  "'": { close: "'" }
 }
+
+// `" ' * _ \`` pair only when NOT right after a word char (so contractions, units `5"`, `2 * 3`, snake_case
+// and prose backticks stay literal) and type over their own closer on the way out. Their doubled emphasis
+// forms (`**` `__` `` `` ``) are handled by the multi branch.
+const GATED_PAIRS = new Set(['"', "'", '*', '_', '`'])
 
 // Single `[` only pairs at line start / after whitespace (so `-[` flows).
 export function autoPair(doc: string, selStart: number, selEnd: number, inserted: string): Edit | null {
@@ -208,32 +214,74 @@ export function autoPair(doc: string, selStart: number, selEnd: number, inserted
     }
     return null
   }
-  if (inserted === '(' || inserted === '{') {
+  if (inserted === '(') {
     return { from: c, to: c, insert: inserted + pair.close, selection: c + 1 }
+  }
+  if (GATED_PAIRS.has(inserted)) {
+    // Type over the closer on the way out (so `'hello|'` + `'` → `'hello'|`, no stray) — see GATED_PAIRS.
+    if (doc[c] === inserted) return { from: c, to: c, insert: '', selection: c + 1 }
+    if (prev === undefined || !/\w/.test(prev)) {
+      return { from: c, to: c, insert: inserted + pair.close, selection: c + 1 }
+    }
+    return null
   }
   return null
 }
 
 export function autoDelete(doc: string, selStart: number, selEnd: number): Edit | null {
-  if (selStart !== selEnd || selStart === 0) return null
+  if (selStart !== selEnd || selStart === 0 || isInsideCode(selStart, doc)) return null
   const close = PAIRS[doc[selStart - 1]]?.close
   if (close === undefined || doc[selStart] !== close) return null
   return { from: selStart - 1, to: selStart + 1, insert: '', selection: selStart - 1 }
 }
 
-export function bracketSkipOnEnter(doc: string, selStart: number, selEnd: number): Edit | null {
-  if (selStart !== selEnd || isInsideCode(selStart, doc)) return null
-  const c = selStart
-  const closer = doc[c]
-  const opener = doc[c - 1]
-  const matched =
-    (opener === '[' && closer === ']') || (opener === '(' && closer === ')') || (opener === '{' && closer === '}')
-  if (!matched) return null
-  // [[ | ]] → jump past both closers
-  if (opener === '[' && doc[c + 1] === ']' && doc[c - 2] === '[') {
-    return { from: c, to: c, insert: '', selection: c + 2 }
+// Closers (longest first, so `]]` beats `]` and `**` beats `*`) + the opener that must appear earlier on the
+// line for the caret to count as "inside" that construct.
+const CLOSERS: readonly { close: string; open: string }[] = [
+  { close: ']]', open: '[[' },
+  { close: '**', open: '**' },
+  { close: '__', open: '__' },
+  { close: '``', open: '``' },
+  { close: ']', open: '[' },
+  { close: ')', open: '(' },
+  { close: '"', open: '"' },
+  { close: "'", open: "'" },
+  { close: '*', open: '*' },
+  { close: '_', open: '_' },
+  { close: '`', open: '`' }
+]
+
+// If the caret sits just before the closer of an open construct (a matching opener earlier on the line),
+// returns the offset just past that closer; else null. The shared core of close-on-Enter / -Shift+Enter.
+function closerEndAt(doc: string, c: number): number | null {
+  if (isInsideCode(c, doc)) return null
+  const before = doc.slice(lineStartAt(doc, c), c)
+  const count = (s: string): number => before.split(s).length - 1
+  for (const { close, open } of CLOSERS) {
+    if (!doc.startsWith(close, c)) continue
+    // Inside an OPEN construct? Symmetric markers (`open === close`): an odd count before the caret means one
+    // is still open. Asymmetric pairs: more opens than closes before. A plain `includes` would false-positive
+    // when an earlier instance is already closed (`**a**|**b**`).
+    const inside = open === close ? count(open) % 2 === 1 : count(open) > count(close)
+    if (inside) return c + close.length
   }
-  return { from: c, to: c, insert: '', selection: c + 1 }
+  return null
+}
+
+// Enter inside an open pair / quote / emphasis / connection closes it — the caret steps past the closer (no
+// newline). Generalizes the old empty-pair skip to constructs with content (`[[word|]]` → `[[word]]|`).
+export function closeConstructOnEnter(doc: string, selStart: number, selEnd: number): Edit | null {
+  if (selStart !== selEnd) return null
+  const end = closerEndAt(doc, selStart)
+  return end === null ? null : { from: selStart, to: selStart, insert: '', selection: end }
+}
+
+// Shift+Enter inside an open construct closes it FIRST, then breaks the line — so the newline never lands
+// inside the pair. The break reuses shiftEnterEdit (callout-aware) from just past the closer.
+export function closeConstructOnShiftEnter(doc: string, selStart: number, selEnd: number): Edit | null {
+  if (selStart !== selEnd) return null
+  const end = closerEndAt(doc, selStart)
+  return end === null ? null : shiftEnterEdit(doc, end, end)
 }
 
 // Fires on the NEXT char so collisions resolve first.

@@ -7,7 +7,8 @@ import {
   canonicalizeCheckbox,
   autoPair,
   autoDelete,
-  bracketSkipOnEnter,
+  closeConstructOnEnter,
+  closeConstructOnShiftEnter,
   dashArrow,
   calloutShorthand,
   shiftEnterEdit,
@@ -29,10 +30,10 @@ function apply(view: EditorView, edit: Edit | null): boolean {
 const onEnter = (view: EditorView): boolean => {
   const s = view.state.selection.main
   const doc = view.state.doc.toString()
-  // Bracket-skip before list/blockquote continuation, so a caret between an empty pair jumps.
+  // Close an open construct before list/blockquote continuation, so a caret inside a pair jumps past its closer.
   return apply(
     view,
-    bracketSkipOnEnter(doc, s.from, s.to) ??
+    closeConstructOnEnter(doc, s.from, s.to) ??
       continueListOnEnter(doc, s.from, s.to) ??
       continueBlockquoteOnEnter(doc, s.from, s.to)
   )
@@ -51,10 +52,12 @@ const onTab = (view: EditorView): boolean => {
   return true
 }
 
-// Shift+Enter exits a construct (plain newline) — except inside a callout, where it stays in the box.
+// Shift+Enter exits a construct (plain newline) — except inside a callout, where it stays in the box. If the
+// caret sits inside an unclosed pair, it closes that first so the break never lands inside the pair.
 const onShiftEnter = (view: EditorView): boolean => {
   const s = view.state.selection.main
-  return apply(view, shiftEnterEdit(view.state.doc.toString(), s.from, s.to))
+  const doc = view.state.doc.toString()
+  return apply(view, closeConstructOnShiftEnter(doc, s.from, s.to) ?? shiftEnterEdit(doc, s.from, s.to))
 }
 
 export const markdownInput = [

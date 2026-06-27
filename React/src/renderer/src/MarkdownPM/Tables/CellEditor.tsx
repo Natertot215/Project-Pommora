@@ -4,7 +4,7 @@ import { EditorView, keymap } from '@codemirror/view'
 import { Annotation, EditorState, Prec } from '@codemirror/state'
 import { defaultKeymap } from '@codemirror/commands'
 import { markdownDecorations } from '../editor/decorations'
-import { autoPair } from '../input'
+import { autoPair, autoDelete, type Edit } from '../input'
 import { AC_MAX } from '../autocomplete'
 import { useConnectionAutocomplete, detectConnectionQuery } from '../useConnectionAutocomplete'
 import { AutocompletePanel } from '../AutocompletePanel'
@@ -16,6 +16,14 @@ const noConn = (): undefined => undefined
 // Tags a programmatic content sync (the model re-rendered this cell with new text, e.g. after a reorder)
 // so the updateListener doesn't treat it as a user edit and echo it back through onCommit.
 const silentEdit = Annotation.define<boolean>()
+
+// One dispatch for any input/index Edit — auto-pair and paired-delete share it (the page editor's `apply`
+// equivalent, kept cell-local since the cell doesn't scrollIntoView and varies the userEvent).
+function applyEdit(view: EditorView, e: Edit | null, userEvent: string): boolean {
+  if (!e) return false
+  view.dispatch({ changes: { from: e.from, to: e.to, insert: e.insert }, selection: { anchor: e.selection }, userEvent })
+  return true
+}
 
 export function CellEditor({
   initial,
@@ -73,6 +81,15 @@ export function CellEditor({
               // Shift+Enter is the in-cell line break — a real newline (the cell grows taller; the row does
               // NOT split, because cellToSource serializes the newline as <br> on disk).
               { key: 'Shift-Enter', run: (view) => (view.dispatch(view.state.replaceSelection('\n')), true) },
+              // Backspace inside an empty auto-pair deletes both halves (the cell otherwise falls to the default
+              // single-char delete, which would leave the stray closer); same autoDelete the page editor uses.
+              {
+                key: 'Backspace',
+                run: (view) => {
+                  const s = view.state.selection.main
+                  return applyEdit(view, autoDelete(view.state.doc.toString(), s.from, s.to), 'delete')
+                }
+              },
               // Undo/redo scope to the whole page (the main editor's history) like everywhere else — not a
               // per-cell stack. The main editor can't catch these itself (the widget's ignoreEvent), so the
               // cell forwards them.
@@ -82,14 +99,11 @@ export function CellEditor({
             ])
           ),
           keymap.of(defaultKeymap),
-          // `[[` → `[[]]` auto-pairing only (not the main editor's list/blockquote input) so the `[[…]]`
+          // Character-pair auto-pairing only (not the main editor's list/blockquote input) so the `[[…]]`
           // query closes and autocomplete can fire.
           EditorView.inputHandler.of((view, from, to, text) => {
             if (text.length !== 1 || from !== to) return false
-            const e = autoPair(view.state.doc.toString(), from, from, text)
-            if (!e) return false
-            view.dispatch({ changes: { from: e.from, to: e.to, insert: e.insert }, selection: { anchor: e.selection }, userEvent: 'input' })
-            return true
+            return applyEdit(view, autoPair(view.state.doc.toString(), from, from, text), 'input')
           }),
           // Close the connection panel when focus leaves the cell (Tab to the next cell, click away).
           EditorView.domEventHandlers({
