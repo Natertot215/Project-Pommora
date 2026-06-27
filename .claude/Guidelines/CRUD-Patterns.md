@@ -83,6 +83,8 @@ Page `cover` and container `banner` are the same asset-CRUD shape — a nexus-re
 - **Delete-AFTER-write discipline.** On Change or Remove, the new path (or `nil`) is written FIRST, and the store removes the previously-referenced asset **only after that write succeeds** — so a failed write never leaves the field pointing at a deleted file, and never orphans the old file before the new one commits. Delete is containment-guarded (only removes files under the entity's own asset dir) and no-ops on nil/missing.
 - **UI mirror.** The container banner view shows a hover-revealed "Add Banner" affordance in the empty state and a Change / Remove context menu when set — mirroring the page-level cover flow. Copy failures surface via the manager's `pendingError` → `SidebarToast`.
 
+**Singleton config writes (settings.json) read-modify-write too.** A manager that holds a whole struct in memory and writes it back on mutation will clobber any field another writer changed since load — the React build edits the same `settings.json` (e.g. `excluded_folders`, the `subfield` foreign key), and Swift has no UI for some of those fields, only honoring them. So `SettingsManager` re-reads the file fresh (migrating it), patches the one mutated field, then writes — the same read-fresh-before-save as the view-config and banner paths. The rule generalizes: any on-disk shape two processes both write must be merged, never replaced from a stale snapshot.
+
 ---
 
 #### Validation — pure functions per entity

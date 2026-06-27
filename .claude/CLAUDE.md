@@ -12,7 +12,7 @@ A simpler Notion that's also a more capable Obsidian.
 
 A second operational entity ("Items") existed until the 2026-06 PagesV2 collapse into Pages — see `History.md` + the `PommoraPRD.md` retrospective.
 
-**Two builds, one app.** Project Pommora is the umbrella for the *same product* built two ways — the **Swift / SwiftUI** native app (repo root; this `.claude/`) and the **React + Electron** rebuild (sub-project under `React/`, with its own `React/.claude/`). Same PRD, domain model, and on-disk paradigm; only the implementation differs. Both live in **one repo on one `main`** — there is no separate React checkout. **When working on React, `React/.claude/` is authoritative** (start at `React/.claude/Handoff.md`); the root `.claude/` governs the Swift build + shared product truth.
+**Two builds, one app.** Project Pommora is the umbrella for the *same product* built two ways — the **Swift / SwiftUI** native app (repo root; this `.claude/`) and the **React + Electron** rebuild (sub-project under `React/`, with its own `React/.claude/`). Same PRD, domain model, and on-disk paradigm; only the implementation differs. Both live in a single repo on a single main branch — there is no separate React checkout. **When working on React, React/.claude/ is authoritative** (start at React/.claude/Handoff.md); the root .claude/ governs the Swift build + shared product truth.
 
 **If working in React, check into the `pommora-react` worktree first, then merge to `main` when done.**
 #### Stack
@@ -75,7 +75,7 @@ Locked to **SwiftUI**. **Editor = TextKit 2 + Apple `swift-markdown` + the Pommo
 
 ##### Active branch quirks (carry forward to every subagent dispatch)
 
-1. **Test filter matches `@Suite` name, not filename.** `-only-testing:PommoraTests/<Name>` silently succeeds with 0 tests if `<Name>` doesn't match a `@Suite` struct — always verify the executed count is non-zero.
+1. **Test filter matches the struct TYPE name, not the `@Suite` display label.** `-only-testing:PommoraTests/<Name>` keys on the test struct's type name (e.g. `SettingsManagerTests`), NOT the `@Suite("…")` display string (e.g. `"SettingsManager"`) — when they differ, the display-label form silently reports `** TEST SUCCEEDED **` with 0 tests executed. Always verify a non-zero executed count via the `.xcresult` (`totalTestCount`), never trust the success banner.
 2. **Xcode tooling.** New files auto-include (pbxproj rarely needs editing); trust `xcodebuild` over SourceKit squiggles (stale for same-module types, SPM deps, `Testing` imports). Xcode reorders Yams/GRDB in pbxproj on every build — revert before committing.
 3. **`.claude/*` in commits.** Commit docs explicitly to the active branch — don't auto-bundle into Swift commits; don't let them disappear on branch switches.
 4. **Swift 6 + ExistentialAny.** Codable: `init(from decoder: any Decoder)` / `encode(to encoder: any Encoder)`; errors: `(any Error)?`; hoist `let id = ULID.generate()` in closure tests to avoid `@Sendable` captures. `@MainActor @escaping () -> NexusContext` is the locked manager parameter pattern.

@@ -8,9 +8,11 @@ import Observation
 /// readers — Task 7.2 ships the type definition only.
 ///
 /// Self-contained: no NexusContext validator closures (no entity validation
-/// responsibilities), only the Nexus value for path resolution. Mutators
-/// (`updateAccentColor`, `updateLabel`) atomic-write through AtomicJSON and
-/// bump `modifiedAt` on every write.
+/// responsibilities), only the Nexus value for path resolution. Mutators route
+/// through `mutate(_:)`, a read-modify-write that re-reads the freshest
+/// `settings.json` from disk, applies the one changed field, and atomic-writes
+/// it back — so a field changed by another writer (e.g. the React build) since
+/// load isn't clobbered. Every write bumps `modifiedAt`.
 @MainActor
 @Observable
 final class SettingsManager {
@@ -50,50 +52,45 @@ final class SettingsManager {
     }
 
     func updateAccentColor(_ color: SettingsAccentColor?) async {
-        var s = settings
-        s.accentColor = color
-        s.modifiedAt = Date()
-        await persist(s)
+        await mutate { $0.accentColor = color }
     }
 
     func updateShowPageIcon(_ on: Bool) async {
-        var s = settings
-        s.showPageIcon = on
-        s.modifiedAt = Date()
-        await persist(s)
+        await mutate { $0.showPageIcon = on }
     }
 
     /// Sets (or clears, with nil) the nexus-relative profile-image path shown in
     /// the sidebar header. The image bytes are copied into `.nexus/assets/` by
     /// `CoverAssetStore` at the call site; this only persists the path.
     func updateProfileImage(_ relativePath: String?) async {
-        var s = settings
-        s.profileImage = relativePath
-        s.modifiedAt = Date()
-        await persist(s)
+        await mutate { $0.profileImage = relativePath }
     }
 
     /// Sets the sidebar-header subtitle. Trimmed + capped at 30 characters so the
     /// stored value can never exceed the header's budget regardless of caller.
     func updateProfileSubtitle(_ text: String) async {
-        var s = settings
-        s.profileSubtitle = String(text.trimmingCharacters(in: .whitespacesAndNewlines).prefix(30))
-        s.modifiedAt = Date()
-        await persist(s)
+        let trimmed = String(text.trimmingCharacters(in: .whitespacesAndNewlines).prefix(30))
+        await mutate { $0.profileSubtitle = trimmed }
     }
 
     func updateLabel<T>(_ keyPath: WritableKeyPath<SettingsLabels, T>, to newValue: T) async {
-        var s = settings
-        s.labels[keyPath: keyPath] = newValue
-        s.modifiedAt = Date()
-        await persist(s)
+        await mutate { $0.labels[keyPath: keyPath] = newValue }
     }
 
-    private func persist(_ newSettings: Settings) async {
+    /// Read-modify-write: re-read the freshest `settings.json` from disk, apply the
+    /// single field this mutation changes, then write it back. Re-reading is what
+    /// stops a cross-writer clobber — another writer (e.g. the React build) may have
+    /// changed an unrelated field since we loaded, and a whole-struct overwrite of
+    /// our stale in-memory copy would silently erase it. Falls back to the in-memory
+    /// value when the file is missing or unreadable.
+    private func mutate(_ transform: (inout Settings) -> Void) async {
+        let url = NexusPaths.settingsFileURL(in: nexus)
+        var s = (try? AtomicJSON.decode(Settings.self, from: url)).map(Settings.migrate) ?? settings
+        transform(&s)
+        s.modifiedAt = Date()
         do {
-            let url = NexusPaths.settingsFileURL(in: nexus)
-            try AtomicJSON.write(newSettings, to: url)
-            self.settings = newSettings
+            try AtomicJSON.write(s, to: url)
+            self.settings = s
         } catch {
             self.pendingError = error
         }

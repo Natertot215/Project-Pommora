@@ -67,6 +67,30 @@ struct SettingsManagerTests {
         #expect(reloaded.accentColor == .red)
     }
 
+    @Test("a Swift mutation preserves fields changed on disk after load (no cross-writer clobber)")
+    func mutationDoesNotClobberExternalChanges() async throws {
+        let nexus = try TempNexus.make()
+        defer { TempNexus.cleanup(nexus) }
+        let url = NexusPaths.settingsFileURL(in: nexus)
+
+        let m = SettingsManager(nexus: nexus)
+        await m.loadOrSeed()  // in-memory excludedFolders == []
+
+        // Another writer (the React build / external editor) excludes folders
+        // AFTER Swift already loaded settings into memory.
+        var external = try AtomicJSON.decode(Settings.self, from: url)
+        external.excludedFolders = ["Archive", "Projects/Old"]
+        try AtomicJSON.write(external, to: url)
+
+        // A Swift mutation of an unrelated field must not flatten the
+        // externally-written excluded_folders back to the stale in-memory [].
+        await m.updateProfileImage(".nexus/assets/x/p.jpg")
+
+        let reloaded = try AtomicJSON.decode(Settings.self, from: url)
+        #expect(reloaded.profileImage == ".nexus/assets/x/p.jpg")
+        #expect(reloaded.excludedFolders == ["Archive", "Projects/Old"])
+    }
+
     @Test("updateAccentColor(nil) clears the override")
     func updateAccentColorClear() async throws {
         let nexus = try TempNexus.make()
