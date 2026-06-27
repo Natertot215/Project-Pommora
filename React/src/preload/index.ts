@@ -4,6 +4,7 @@ import type { NexusState, NexusTree, PageResult, SubfieldConfig } from '@shared/
 import type { MutateRequest, MutateResult, ContextTarget } from '@shared/mutate'
 import type { FormatState } from '@shared/editorMenu'
 import type { TableMenuAction, TableMenuContext } from '@shared/tableMenu'
+import type { SavedView } from '@shared/views'
 
 // The ONLY API the renderer can see. Narrow read surface; no fs, no Node.
 const api = {
@@ -28,6 +29,27 @@ const api = {
     get: (): Promise<Record<string, string>> => ipcRenderer.invoke('activeViews:get'),
     set: (containerId: string, viewId: string): Promise<{ ok: true } | { ok: false; error: string }> =>
       ipcRenderer.invoke('activeViews:set', containerId, viewId)
+  },
+  // View persistence — save / reorder / delete a SavedView in a Collection/Set sidecar's views[].
+  views: {
+    save: (
+      containerPath: string,
+      kind: 'collection' | 'set',
+      view: SavedView
+    ): Promise<{ ok: true; id: string } | { ok: false; error: string }> =>
+      ipcRenderer.invoke('views:save', containerPath, kind, view),
+    reorder: (
+      containerPath: string,
+      kind: 'collection' | 'set',
+      orderedIds: string[]
+    ): Promise<{ ok: true } | { ok: false; error: string }> =>
+      ipcRenderer.invoke('views:reorder', containerPath, kind, orderedIds),
+    delete: (
+      containerPath: string,
+      kind: 'collection' | 'set',
+      viewId: string
+    ): Promise<{ ok: true } | { ok: false; error: string }> =>
+      ipcRenderer.invoke('views:delete', containerPath, kind, viewId)
   },
   // Table heading-column UI state — local `.nexus/tableHeadingColumns.json`, keyed by page id. Holds the
   // indices of the tables whose first column renders as a heading (a Pommora-only visual, not in the .md).
