@@ -276,7 +276,7 @@ Tasks and Events also carry a built-in `description` — a plain-text JSON field
 
 ##### `modified_at` trigger semantics
 
-Updates on any content or frontmatter edit — body, property value, title rename, icon, tier1/2/3. View-only actions never update. External edits update file mtime but do NOT update frontmatter `modified_at`.
+Updates on any content or frontmatter edit — body, property value, title rename, icon, tier1/2/3. View-only actions never update it. External edits update file mtime but do NOT update frontmatter `modified_at` — so external edits don't move Last Edited; the stored stamp is Pommora-managed and survives sync, where mtime wouldn't. A Page that has never carried `modified_at` (legacy or externally-authored) derives Last Edited from file mtime at load, until Pommora next writes the page and persists the stamp.
 
 ---
 

@@ -12,8 +12,8 @@ Per-entity detail → dedicated docs in `// Features//`.
 |---|---|---|
 | (workspace) | **Nexus** | Root |
 | Areas | **Areas** (tier 1) | Organization |
-| Projects | **Topics** (tier 2) | Organization |
-| (specifics) | **Projects** (tier 3) | Organization |
+| Topics | **Topics** (tier 2) | Organization |
+| Projects | **Projects** (tier 3) | Organization |
 | Resources | **Page Collections + Agenda** | Operational |
 | (dashboard) | **Homepage** | Singleton |
 | Archive | `.trash/` | Singleton |

@@ -21,11 +21,6 @@ Recent Swift work: a cross-build `modified_at` fix, the Collections/Sets rename 
 
 **Toolbar/Navigation reorg + A–H refactoring program complete (06-21):** Extracted the window-toolbar surface into `Features/Toolbar/` and renamed the nav-domain folder `NavDropdown` → `Navigation` end-to-end (`0d1dcd1`). The A–H program then closed: **Phase H** via a 4-lens simplification (Agenda title-sort DRY, a shared `InlineRenameFocus` responder-hop, a decorate-sort `ViewSortComparator`); **Phase F dropped** (premise false — synthesized `Decodable` *throws* `keyNotFound` on a missing in-CodingKeys key rather than using the property default, so the pervasive defensive `decodeIfPresent ?? default` is un-synthesizable); **Phase D** built the `SidebarRow` primitive and re-skinned all 7 rows (1139→648 lines); **Phase E** added `ViewSettingsScope` props + routed the Page-CRUD triplication through one scope-parameterized path (1209→965 lines), every public signature preserved so the CRUD suite gates neutrality; **Phase G** split ViewSurface. Branch consolidated to `main` + pushed, worktrees collapsed to `main` + `pommora-react`; 1,294→1,347 tests green throughout. → `History.md`, `// Planning//Reference//06-20-Refactoring-Program.md`.
 
-**Next Session**
-
-1. **Gallery view — the immediate focus.** Pick up the parked Views-UIX build (active plan → `// Planning//06-13-Views-UIX-Fixes.md`): the Gallery renderer, the Layout-pane rework, the sorting / grouping UIX.
-2. **Port the React-side QoL wins to Swift:** the `cover`-compatible **page banners** (quick-add), the **sidebar storage-row click** behaviour (empty-row click toggles disclosure; main view only on textfield/icon click), and the **Icon-Picker UIX** rework.
-
 **Lessons Learned**
 
 - **Every roadmap line is a hypothesis until grounded against code.** This session's grounding repeatedly contradicted the roadmap — F's whole premise was false; E#3 (`schemaOptionValues`) didn't exist; E#1's scaffold/error were already components; E#4's "fresh-token" was paradigm-blocked. Open the file before executing the line.
@@ -43,6 +38,11 @@ Recent Swift work: a cross-build `modified_at` fix, the Collections/Sets rename 
 - **Commit `.claude/*` explicitly** to the active branch — don't auto-bundle docs into Swift commits, don't let them vanish on branch switches. Xcode reorders Yams/GRDB in the pbxproj on every build — revert before committing.
 - **Document pointers:** roadmap → `Framework.md` · ship log → `History.md` · PRD → `PommoraPRD.md` · branch quirks + hard rules → `CLAUDE.md` · auto-loaded rules → `// rules//` (`MarkdownPM.md` scoped to the editor) + Studio-level `Review-Discipline.md` · per-entity specs → `Features/*.md`.
 
+### Next Session
+
+1. **Gallery view — the immediate focus.** Pick up the parked Views-UIX build (active plan → `// Planning//06-13-Views-UIX-Fixes.md`): the Gallery renderer, the Layout-pane rework, the sorting / grouping UIX.
+2. **Port the React-side QoL wins to Swift:** the `cover`-compatible **page banners** (quick-add), the **sidebar storage-row click** behaviour (empty-row click toggles disclosure; main view only on textfield/icon click), and the **Icon-Picker UIX** rework.
+
 ### Pending Focuses
 
 - **Adopted-ID consolidation** — unify the adopted-Page `SHA256(path)[:16]` + `adopted-` marking into one ID scheme; on-disk shape, ratify first.
@@ -50,6 +50,7 @@ Recent Swift work: a cross-build `modified_at` fix, the Collections/Sets rename 
 - **#4 fresh-token asset naming** — declined (keeps legible filenames); resurface only if React-style opaque tokens are wanted.
 - **Nexus rename live end-to-end pass** — build-verified, not behaviour-verified.
 - **React → Swift parity ports** — `cover`-compatible page banners + the sidebar storage-row click behaviour + the Icon-Picker UIX (all proven on React; to be built on Swift).
+- **Unsorted bin → folder + sidecar (paradigm, ratify first)** — Nathan's looking into moving "unsorted" off a config file and onto a real `Unsorted/` folder carrying an `_unsortedconfig.json` sidecar (the folder-with-sidecar pattern the rest of the model uses). The win is interop: another Markdown-based app with its own unsorted bin could point at the same folder and share it, rather than each app hiding the list in a private config. Cleaner now that `Class: item` vs `page` is no longer a discriminator (PagesV2 collapse) — the bin holds plain entities, no kind to sort by. On-disk shape, so ratify before building.
 
 ### Fix Log
 
@@ -61,6 +62,8 @@ Recent Swift work: a cross-build `modified_at` fix, the Collections/Sets rename 
 
 ### Handoff Rules
 
+- **Resolve = delete + route, never tag.** When an entry here (Pending Focus, Landmine, Uncertain, Fix Log) is genuinely done, push its real outcome to the canonical doc (`History.md` / `Features/*` / `Framework.md`) and delete the line — no `(Resolved)` / `(Superseded)` tombstones. A stale-but-tagged line is still a false line the next agent re-reads and discounts; deleting what's no longer true beats annotating it. In parallel, you may delete a resolved Landmine/Uncertain from another session's block (removal only, on real resolution) even though the rest of their block stays frozen.
 - **Keep the Fix Log current.** Acknowledged-but-unfixed issues get a 1–2 sentence entry; remove on resolve.
 - **One block per session, updated in place.** A session keeps one block; push spec/decision content to its canonical home (`History.md` / `Features/*` / `Framework.md`), carry still-open Pending Focuses forward. Never accumulate per-session work logs.
 - **Swift-only.** React work + its session log live in `React/.claude/Handoff.md`; keep this doc to Swift + Swift-relevant cross-build items, not a React change log.
+- Selecting multiple lines, then using the context menue to turn them into listed items only makes the first one a listed item. 

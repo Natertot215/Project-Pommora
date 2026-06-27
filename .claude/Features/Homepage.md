@@ -24,7 +24,7 @@ Seeded on first launch with empty `blocks`; not user-deletable (regenerates if r
   "icon": "house",
   "banner": "<nexus-relative image path>",   // optional; absent = no banner
   "blocks": [ /* composed-blocks tree — types below */ ],
-  "modified_at": <epoch-seconds>
+  "modified_at": "<ISO-8601 timestamp>"
 }
 ```
 
