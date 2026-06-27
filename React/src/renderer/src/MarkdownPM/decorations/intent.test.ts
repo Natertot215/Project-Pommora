@@ -53,11 +53,13 @@ describe('decoration intents', () => {
     )
   })
 
-  it('dash bullet, caret off the line → • widget replaces just the dash (in-flow)', () => {
+  it('dash bullet, caret off the line → • widget replaces just the dash (in-flow), source space hidden', () => {
     const t = '- item'
     const intents = decorationsFor(t, tokenize(t), new Set(), 99)
     expect(intents.some((d) => d.kind === 'line' && d.className === 'md-li' && d.level === 0)).toBe(true)
     expect(intents.some((d) => d.kind === 'widget' && d.spec.type === 'bullet' && d.from === 0 && d.to === 1)).toBe(true)
+    // The space after the dash is hidden so a long single word can't break there and drop below the bullet.
+    expect(intents.some((d) => d.kind === 'hide' && d.from === 1 && d.to === 2)).toBe(true)
   })
 
   it('dash bullet, caret in the CONTENT (just in the line) → still • widget, never raw', () => {

@@ -147,10 +147,15 @@ export function decorationsFor(text: string, tokens: Token[], active: Set<number
         intents.push({ kind: 'hide', from: ls + lm.box.end, to: ls + lm.contentStart })
       }
     } else if (lm?.kind === 'bullet' && lm.bullet === '-' && !lm.box) {
-      // Raw `-` shows only when the caret is on the marker; else a `•` widget takes its exact slot.
+      // Raw `-` shows only when the caret is on the marker; else a `•` widget takes its exact slot and the
+      // source space is hidden (gap restored via the glyph's margin). Hiding the space removes the soft
+      // break a long unbroken word would otherwise take there, dropping the whole word below the bullet.
       intents.push({ kind: 'line', from: ls, className: 'md-li', level: lm.level })
       if (lm.markerStart > 0) intents.push({ kind: 'hide', from: ls, to: ls + lm.markerStart })
-      if (!onMarker) intents.push({ kind: 'widget', from: ls + lm.markerStart, to: ls + lm.markerEnd, spec: { type: 'bullet' } })
+      if (!onMarker) {
+        intents.push({ kind: 'widget', from: ls + lm.markerStart, to: ls + lm.markerEnd, spec: { type: 'bullet' } })
+        intents.push({ kind: 'hide', from: ls + lm.markerEnd, to: ls + lm.contentStart })
+      }
     } else if (lm?.kind === 'arrow' || (lm?.kind === 'bullet' && lm.bullet === '+' && !lm.box)) {
       // `→` and `+` ARE their own glyphs, so they stay as literal source (like the ordered number, not a
       // widget): recoloured to the marker tone + given the drag-handle class. Share the `.md-li` bullet zone.
