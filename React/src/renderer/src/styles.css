@@ -12,6 +12,8 @@
   --glass-inset: 5px; /* gap from the window edges */
   --glass-radius: 12px; /* matched to the macOS window corner (≈ window radius − inset) */
   --toolbar-h: 38px; /* the top strip: titlebar drag region + floating toolbar clusters */
+  /* Control-tint label — the single global source (80% of primary). Editor + toolbar both read it. */
+  --label-control: color-mix(in srgb, var(--label-primary) 80%, transparent);
 }
 
 * {
@@ -51,9 +53,19 @@ textarea,
   display: none;
 }
 
+/* Inspector openness, 0 (closed) → 1 (open) — one registered progress that the inspector slide, the
+   trio's ride, and the trio glass-fade all derive from, so they stay frame-perfectly in sync. */
+@property --io {
+  syntax: '<number>';
+  inherits: true;
+  initial-value: 0;
+}
+
 .shell {
   position: relative;
   height: 100vh;
+  --io: 0;
+  transition: --io var(--duration-base) var(--ease-standard);
   /* App-level clip: zero scroll at the shell. The floating sidebar/inspector park off-screen via
      transform; without this their off-screen box adds a horizontal scroll region. Inner scrollers
      (detail, editor, tables) keep their own overflow. */
@@ -72,7 +84,12 @@ textarea,
   --content-inset: var(--gutter);
 }
 .shell.inspector-open {
+  --io: 1;
   --content-inset-right: calc(var(--glass-inset) + var(--inspector-width) + var(--gutter));
+}
+/* Edge-drag resize holds --io at its current value (no re-animate) so the pane tracks the cursor 1:1. */
+.shell.is-resizing {
+  transition: none;
 }
 
 /* Draggable titlebar strip across the top of the frameless (hiddenInset) window — the whole top

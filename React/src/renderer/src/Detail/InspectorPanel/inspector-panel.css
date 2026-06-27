@@ -10,17 +10,13 @@
   z-index: 4;
   border-radius: var(--glass-radius);
   overflow: hidden;
-  transform: translateX(calc(100% + var(--glass-inset) + 14px));
-  transition: transform var(--duration-base) var(--ease-standard);
+  /* Slide driven by --io (shell): fully off-screen at 0, home at 1. No own transition — --io carries it. */
+  transform: translateX(calc((1 - var(--io)) * (100% + var(--glass-inset) + 14px)));
   pointer-events: none;
   -webkit-app-region: no-drag;
 }
 .shell.inspector-open .inspector-glass {
-  transform: none;
   pointer-events: auto;
-}
-.shell.is-resizing .inspector-glass {
-  transition: none;
 }
 
 .inspector-body {

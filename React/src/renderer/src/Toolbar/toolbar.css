@@ -10,26 +10,24 @@
   left: calc(var(--glass-inset) + var(--sidebar-width));
   right: 0;
   height: var(--toolbar-h);
-  z-index: 3;
+  /* Above the inspector glass (z-4) + its resize strip (z-5) so the trio rides over the pane and stays
+     clickable; the bar itself is click-through (pointer-events:none) so only the clusters intercept. */
+  z-index: 6;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   /* Back/Forward hugs the sidebar (tight left); trio sits a small gap off the window edge. */
   padding: 0 10px 0 4px;
   pointer-events: none;
-  transition:
-    left var(--duration-base) var(--ease-standard),
-    right var(--duration-base) var(--ease-standard);
+  /* Only `left` animates (sidebar collapse); the trio rides the inspector via its own transform, so the
+     bar's `right` no longer moves. */
+  transition: left var(--duration-base) var(--ease-standard);
 }
 .shell.sidebar-hidden .app-toolbar {
   left: 0;
   /* Reserve room for the traffic lights + the expand toggle, centred between them and Back/Forward. */
   padding-left: 138px;
  
-}
-/* Inspector open: pull the toolbar's right edge in so the trio sits left of the pane. */
-.shell.inspector-open .app-toolbar {
-  right: calc(var(--inspector-width) + var(--glass-inset));
 }
 .shell.is-resizing .app-toolbar {
   transition: none;
@@ -41,9 +39,44 @@
   -webkit-app-region: no-drag;
 }
 
-/* Back/Forward read as recessed control glyphs (secondary) alongside the brighter trio. */
-.app-toolbar-cluster--nav button {
-  color: var(--label-secondary);
+/* As the inspector slides in, the trio is "swallowed": it holds at home until the pane's leading edge
+   reaches the pill (the max() gate is exactly that contact), then rides the edge to land flush inside
+   the inspector's left corner — all off the shared --io, so it tracks the slide and live resize 1:1.
+   --trio-w is the measured pill width (Toolbar.tsx); 10px is the toolbar's right padding (home gap). */
+.app-toolbar-cluster--trio {
+  --trio-inset: 4px; /* breathing room so the swallowed trio doesn't sit flush against the pane's seam */
+  transform: translateX(
+    calc(-1 * max(0px, calc(var(--io) * (var(--inspector-width) + var(--glass-inset)) - 10px - var(--trio-w, 0px) - var(--trio-inset))))
+  );
+}
+
+/* Trio glass pill = its own in-flow layer behind the live buttons, so it fades out independently as the
+   trio is swallowed (no double-glass on the inspector). In-flow so the liquid glass measures + clips
+   crisply; the fade is quick + subtle (keen-eye), gone by ~30% of the slide. */
+.toolbar-trio {
+  position: relative;
+  width: fit-content;
+}
+.toolbar-trio-glass {
+  opacity: clamp(0, calc((0.3 - var(--io)) / 0.3), 1);
+}
+/* The glass layer's icons + dividers are duplicates of the cover's — hide them (layout kept, so they
+   still size the pill) so the cover's glyphs are the sole ones. Otherwise the two stacked icon sets read
+   brighter than label-control until the glass fades, which looks like the icons dimming on swallow. */
+.toolbar-trio-glass button,
+.toolbar-trio-glass span {
+  visibility: hidden;
+}
+/* The live bare buttons, overlaid exactly on top so they stay solid while the glass voids beneath. */
+.toolbar-trio-cover {
+  position: absolute;
+  inset: 0;
+}
+
+/* Both clusters read as control-tint glyphs; the only mute is a Back/Forward button with nowhere to go
+   — its :disabled state drops to label-tertiary (from the shared segment style). */
+.app-toolbar button {
+  color: var(--label-control);
 }
 
 /* Placeholder body for the Navigation / Settings panels until their real content lands. */

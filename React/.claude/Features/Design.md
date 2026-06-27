@@ -51,11 +51,13 @@ A chip's color is the picked base solid at fixed opacities — a heavier fill, a
 
 #### Labels
 
-Text color is separate from surface color: three label tones — primary, secondary, tertiary — are one near-white base at descending opacities. (Also in `Typography.md`.)
+Text color is separate from surface color: three label tones — primary, secondary, tertiary — are one near-white base at descending opacities. A fourth, **control** (primary at 80%), is the chrome-glyph tint (toolbar clusters, editor markers) — one global `:root` `--label-control`. (Also in `Typography.md`.)
 
 ### Glass
 
 Three tiers in `materials/`, now **two materials**. **Window** (the sidebar + the inspector frame) and **Surface** (panels / popovers) share the **frost** recipe — blur plus a slight dimming of what's behind. **Controls** (the toolbar segmented buttons + the autocomplete panel) use Apple **"Liquid Glass"** via `@samasante/liquid-glass`: a real `feDisplacementMap` edge-refraction over the live app, tuned once as `CONTROL_OPTICS` in `materials/glass-controls.tsx` (chosen over four alternatives + the prior frost in a homepage tuning lab, since removed). Layout (size / position / radius) is always the consumer's.
+
+**Voiding Liquid Glass can't be done in place** — its `backdrop-filter` displacement is a dynamically-generated SVG filter id CSS can neither reconstruct nor interpolate. So the inspector "swallow" (the trio's glass fading as the pane absorbs it) renders the pill as a **two-layer** control — a fading glass layer behind a solid bare-button layer (`Toolbar/ToolbarTrio`), rather than fading one fused control. → `History.md`.
 
 **Scrollbars are hidden app-wide** — Electron's default Chromium bar reads heavy and the native auto-hiding overlay isn't reliably available, so scrolling is trackpad/wheel only (a clean no-bar surface beat a styled always-visible one).
 

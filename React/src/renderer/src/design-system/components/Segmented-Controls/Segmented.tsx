@@ -24,6 +24,8 @@ type SegmentedProps = {
   /** Override the glyph size only (geometry unchanged) — e.g. larger Back/Forward chevrons. */
   iconSize?: IconSize
   className?: string
+  /** Drop the glass pill, rendering bare buttons (the consumer supplies its own glass layer). */
+  glass?: boolean
 }
 
 function Segmented({
@@ -32,14 +34,14 @@ function Segmented({
   paddingX,
   iconSize,
   withLabel,
-  className
+  className,
+  glass = true
 }: SegmentedProps & { withLabel: boolean }): React.JSX.Element {
   const g = vars.size.control[size]
-  return (
-    <GlassControls
-      className={className ? `${s.container} ${className}` : s.container}
-      style={{ height: g.height, borderRadius: g.radius, display: 'flex', alignItems: 'center' }}
-    >
+  const containerClass = className ? `${s.container} ${className}` : s.container
+  const containerStyle = { height: g.height, borderRadius: g.radius, display: 'flex', alignItems: 'center' }
+  const buttons = (
+    <>
       {segments.map((seg, i) => (
         <Fragment key={`${i}-${seg.icon}`}>
           {i > 0 && (
@@ -65,7 +67,16 @@ function Segmented({
           </button>
         </Fragment>
       ))}
+    </>
+  )
+  return glass ? (
+    <GlassControls className={containerClass} style={containerStyle}>
+      {buttons}
     </GlassControls>
+  ) : (
+    <div className={containerClass} style={containerStyle}>
+      {buttons}
+    </div>
   )
 }
 

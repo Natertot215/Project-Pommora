@@ -1,6 +1,7 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { SegmentedSymbol, type Segment } from '@renderer/design-system/components/Segmented-Controls'
 import { Popover, useDismiss } from '@renderer/design-system/components/Popover'
+import { ToolbarTrio } from './ToolbarTrio'
 import { useSession } from '../store'
 import './toolbar.css'
 
@@ -22,6 +23,18 @@ export function Toolbar({
   const [panel, setPanel] = useState<TrioPanel | null>(null)
   const trioRef = useRef<HTMLDivElement>(null)
   useDismiss(trioRef, () => setPanel(null), panel !== null)
+
+  // Publish the pill's measured width so the ride math (toolbar.css) knows where the trio's left edge
+  // sits — it lands flush at the inspector's left corner. offsetWidth ignores the ride transform.
+  useEffect(() => {
+    const el = trioRef.current
+    if (!el) return
+    const apply = (): void => el.style.setProperty('--trio-w', `${el.offsetWidth}px`)
+    apply()
+    const ro = new ResizeObserver(apply)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
 
   const toggle = (p: TrioPanel): void => setPanel((cur) => (cur === p ? null : p))
 
@@ -46,8 +59,8 @@ export function Toolbar({
       <div className="app-toolbar-cluster app-toolbar-cluster--nav">
         <SegmentedSymbol segments={backForward} paddingX="6px" iconSize="lg" />
       </div>
-      <div className="app-toolbar-cluster" ref={trioRef}>
-        <SegmentedSymbol segments={trio} />
+      <div className="app-toolbar-cluster app-toolbar-cluster--trio" ref={trioRef}>
+        <ToolbarTrio segments={trio} />
         {panel === 'navigation' && (
           <Popover>
             <div className="toolbar-panel-stub">Navigation</div>
