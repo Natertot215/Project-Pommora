@@ -1,5 +1,5 @@
 import { Decoration, type DecorationSet, EditorView, WidgetType } from '@codemirror/view'
-import { Facet, StateField, type EditorState, type Extension, type Range, type Transaction } from '@codemirror/state'
+import { Facet, StateField, StateEffect, type EditorState, type Extension, type Range, type Transaction } from '@codemirror/state'
 import { undo, redo } from '@codemirror/commands'
 import { createRoot, type Root } from 'react-dom/client'
 import { tableRegions, modelFromRegion } from './regions'
@@ -28,6 +28,39 @@ type ConnGetter = () => ConnectionsApi | undefined
 const tableConnections = Facet.define<ConnGetter, ConnGetter>({
   combine: (vals) => vals[0] ?? (() => undefined)
 })
+
+// Heading-column UI state: the indices of this page's tables whose first column renders as a heading.
+// A Pommora-only visual with no GFM equivalent, persisted to `.nexus/` by the host (see the load/save
+// seam below + main/io/tableHeadingColumns). `setHeadingColsEffect` is the mount-time load (whole set);
+// `toggleHeadingColEffect` is the menu action (one table index).
+export interface TableHeadingColsApi {
+  load: () => Promise<number[]>
+  save: (indices: number[]) => void
+}
+const setHeadingColsEffect = StateEffect.define<number[]>()
+const toggleHeadingColEffect = StateEffect.define<number>()
+
+const headingColField = StateField.define<Set<number>>({
+  create: () => new Set(),
+  update(set, tr) {
+    let next = set
+    for (const e of tr.effects) {
+      if (e.is(setHeadingColsEffect)) next = new Set(e.value)
+      else if (e.is(toggleHeadingColEffect)) {
+        next = new Set(next)
+        if (next.has(e.value)) next.delete(e.value)
+        else next.add(e.value)
+      }
+    }
+    return next
+  }
+})
+
+/** Re-apply a page's saved heading columns at mount (the widget reads the field when it builds). */
+export function applySavedHeadingCols(view: EditorView, indices: number[]): void {
+  if (indices.length === 0) return
+  view.dispatch({ effects: setHeadingColsEffect.of(indices) })
+}
 
 // Cached after the first lazy import; parked on the DOM node so rebuilt widget instances can find it.
 let TableViewComp: typeof import('./TableView').TableView | undefined
@@ -63,6 +96,7 @@ function transformFor(action: TableMenuAction, index: number): ((m: TableModel) 
     case 'row:delete':
       return (m) => deleteRow(m, index - 1)
     case 'table:delete':
+    case 'col:toggle-heading': // handled in onMenu (a .nexus/ toggle, not a source transform)
       return null
   }
 }
@@ -74,13 +108,18 @@ class TableWidget extends WidgetType {
   constructor(
     readonly text: string,
     readonly model: TableModel,
-    readonly tableIndex: number
+    readonly tableIndex: number,
+    readonly headingColumn: boolean
   ) {
     super()
   }
 
   eq(other: TableWidget): boolean {
-    return other.text === this.text && other.tableIndex === this.tableIndex
+    return (
+      other.text === this.text &&
+      other.tableIndex === this.tableIndex &&
+      other.headingColumn === this.headingColumn
+    )
   }
 
   private renderInto(dom: TableDom, view: EditorView): void {
@@ -116,6 +155,12 @@ class TableWidget extends WidgetType {
     const onMenu = (ctx: TableMenuContext): void => {
       void window.nexus.tableMenu(ctx).then((action) => {
         if (!action) return
+        // Heading column is a `.nexus/`-persisted visual, not a source edit — toggle the field, which
+        // rebuilds this table's widget (and the persist listener writes it to disk).
+        if (action === 'col:toggle-heading') {
+          view.dispatch({ effects: toggleHeadingColEffect.of(this.tableIndex) })
+          return
+        }
         const docText = view.state.doc.toString()
         const region = tableRegions(docText)[this.tableIndex]
         if (!region) return
@@ -140,6 +185,7 @@ class TableWidget extends WidgetType {
     root.render(
       <TV
         model={this.model}
+        headingColumn={this.headingColumn}
         onCellCommit={commit}
         onExit={exit}
         onReorder={reorder}
@@ -191,12 +237,14 @@ class TableWidget extends WidgetType {
 
 export function buildWidgetDecorations(state: EditorState): DecorationSet {
   const doc = state.doc
+  // `false` → undefined (not a throw) when the field isn't installed, e.g. in unit tests building a bare state.
+  const headingCols = state.field(headingColField, false) ?? new Set<number>()
   const ranges: Range<Decoration>[] = []
   tableRegions(doc.toString()).forEach((region, i) => {
     const text = doc.sliceString(region.from, region.to)
     const model = modelFromRegion(region)
     ranges.push(
-      Decoration.replace({ widget: new TableWidget(text, model, i), block: true }).range(region.from, region.to)
+      Decoration.replace({ widget: new TableWidget(text, model, i, headingCols.has(i)), block: true }).range(region.from, region.to)
     )
   })
   return Decoration.set(ranges, true)
@@ -228,6 +276,10 @@ function editAffectsTables(deco: DecorationSet, tr: Transaction): boolean {
 const widgetField = StateField.define<DecorationSet>({
   create: buildWidgetDecorations,
   update: (deco, tr) => {
+    // A heading-column toggle/load changes no text, so rebuild here (the doc-change paths below would miss it).
+    if (tr.effects.some((e) => e.is(toggleHeadingColEffect) || e.is(setHeadingColsEffect))) {
+      return buildWidgetDecorations(tr.state)
+    }
     if (tr.annotation(tableSelfEdit)) return deco.map(tr.changes)
     if (!tr.docChanged) return deco
     return editAffectsTables(deco, tr) ? buildWidgetDecorations(tr.state) : deco.map(tr.changes)
@@ -235,13 +287,24 @@ const widgetField = StateField.define<DecorationSet>({
   provide: (f) => EditorView.decorations.from(f)
 })
 
-export function tableWidgetExtension(connections?: ConnGetter): Extension {
+export function tableWidgetExtension(
+  connections?: ConnGetter,
+  onHeadingColsChange?: (indices: number[]) => void
+): Extension {
+  // Persist a heading-column toggle (not the mount-time load) to `.nexus/` via the host seam.
+  const persist = EditorView.updateListener.of((u) => {
+    if (!u.transactions.some((tr) => tr.effects.some((e) => e.is(toggleHeadingColEffect)))) return
+    onHeadingColsChange?.([...u.state.field(headingColField)])
+  })
+  // headingColField precedes widgetField so the widget reads the up-to-date set when it rebuilds.
   // atomicRanges over the table blocks: the main caret skips the table as one unit and a boundary
   // backspace/delete removes the whole block (undoable) instead of eating its pipes and breaking it.
   return [
+    headingColField,
     widgetField,
     tableMergeGuard,
     EditorView.atomicRanges.of((view) => view.state.field(widgetField)),
-    connections ? tableConnections.of(connections) : []
+    connections ? tableConnections.of(connections) : [],
+    onHeadingColsChange ? persist : []
   ]
 }

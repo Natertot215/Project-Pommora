@@ -95,6 +95,14 @@
   font-weight: var(--weight-emphasized);
 }
 
+/* Heading column: body cells of the first column read like the header row, one tone lighter. Applied to
+   tbody only — the corner cell stays in thead, so the header row's fill-tertiary naturally sits above
+   this column fill (no z-index needed). */
+.mdpm-tbl tbody .mdpm-tbl-cell.mdpm-tbl-heading-col {
+  background: var(--fill-quaternary);
+  font-weight: var(--weight-emphasized);
+}
+
 .mdpm-tbl-align-center {
   text-align: center;
 }
@@ -149,4 +157,9 @@
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   cursor: text;
+}
+/* An empty cell has no line box, so it'd render a line-height shorter than a filled one — a zero-width
+   placeholder gives it that line box so every cell is the same height with or without text. */
+.mdpm-tbl-cell-static:empty::before {
+  content: '\200b';
 }

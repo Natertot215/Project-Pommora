@@ -58,6 +58,7 @@ function slotAt(axis: Axis, geom: Geom, rel: number): number {
 
 export function TableView({
   model,
+  headingColumn = false,
   onCellCommit,
   onExit,
   onReorder,
@@ -68,6 +69,7 @@ export function TableView({
   connections
 }: {
   model: TableModel
+  headingColumn?: boolean
   onCellCommit: (row: number, col: number, text: string) => void
   onExit: (dir: 'before' | 'after') => void
   onReorder: (axis: Axis, from: number, to: number) => boolean
@@ -304,7 +306,7 @@ export function TableView({
               {row.map((text, ci) => (
                 <td
                   key={ci}
-                  className={`mdpm-tbl-cell ${alignClass(model.columns[ci]?.align ?? null)}${colDragged(ci) ? ' mdpm-tbl-subject' : ''}`}
+                  className={`mdpm-tbl-cell ${alignClass(model.columns[ci]?.align ?? null)}${colDragged(ci) ? ' mdpm-tbl-subject' : ''}${headingColumn && ci === 0 ? ' mdpm-tbl-heading-col' : ''}`}
                   style={{ transform: shift(drag, 'col', ci, colW(ci)) }}
                 >
                   {cell(ri + 1, ci, text)}
@@ -323,7 +325,7 @@ export function TableView({
           onPointerDown={(e) => startDrag(e, 'col', i)}
           onContextMenu={(e) => {
             e.preventDefault()
-            onMenu({ kind: 'column', index: i, align: model.columns[i]?.align ?? null })
+            onMenu({ kind: 'column', index: i, align: model.columns[i]?.align ?? null, headingColumn })
           }}
         >
           <GripHorizontal className="mdpm-tbl-grip" size={14} strokeWidth={2} />

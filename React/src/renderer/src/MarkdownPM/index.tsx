@@ -5,7 +5,7 @@ import { history, historyKeymap, defaultKeymap } from '@codemirror/commands'
 import { markdown } from '@codemirror/lang-markdown'
 import { markdownDecorations } from './editor/decorations'
 import { markdownInput } from './editor/input'
-import { tableWidgetExtension } from './Tables'
+import { tableWidgetExtension, applySavedHeadingCols, type TableHeadingColsApi } from './Tables'
 import { listDragExtension } from './editor/listDrag'
 import { customCaret } from './editor/caret'
 import { connectionClicks } from './editor/connections'
@@ -36,6 +36,7 @@ interface Props {
   zoom?: number
   connections?: ConnectionsApi
   folds?: FoldsApi
+  tableHeadingColumns?: TableHeadingColsApi
   menu?: EditorMenuApi
 }
 
@@ -51,6 +52,7 @@ export function MarkdownEditor({
   zoom = ZOOM_DEFAULT,
   connections,
   folds,
+  tableHeadingColumns,
   menu
 }: Props): React.JSX.Element {
   const host = useRef<HTMLDivElement>(null)
@@ -63,6 +65,8 @@ export function MarkdownEditor({
   connectionsRef.current = connections
   const foldsRef = useRef(folds)
   foldsRef.current = folds
+  const tableHeadingColsRef = useRef(tableHeadingColumns)
+  tableHeadingColsRef.current = tableHeadingColumns
   const menuRef = useRef(menu)
   menuRef.current = menu
   const lastFormatRef = useRef('')
@@ -102,7 +106,10 @@ export function MarkdownEditor({
         markdownDecorations(() => connectionsRef.current),
         // Interactive table widget — renders each Markdown table as an editable HTML table over the GFM
         // source; the connections getter lets `[[…]]` render + autocomplete inside cells.
-        tableWidgetExtension(() => connectionsRef.current),
+        tableWidgetExtension(
+          () => connectionsRef.current,
+          (indices) => tableHeadingColsRef.current?.save(indices)
+        ),
         // Grab a list glyph (•, number, or checkbox) to drag-reorder the item; click toggles/places caret.
         listDragExtension,
         // Drawn caret (rounded bar in text, I-beam on empty lines, smooth fade) — native caret hidden in CSS.
@@ -130,6 +137,8 @@ export function MarkdownEditor({
     viewRef.current = view
     // Restore this page's saved folds once the view's lines exist (the widget clones them).
     void foldsRef.current?.load().then((keys) => applySavedFolds(view, keys))
+    // Restore this page's heading-column tables (rebuilds the affected table widgets).
+    void tableHeadingColsRef.current?.load().then((indices) => applySavedHeadingCols(view, indices))
     // The header parks on scroll via a CSS scroll-driven animation (Styles.css) — no JS scroll handler.
     const unsubMenu = menuRef.current?.onAction((action) => applyEditorAction(view, action))
     return () => {

@@ -71,6 +71,10 @@ export function PageView(): React.JSX.Element {
               load: async () => (await window.nexus.folds.get())[pageDetail.id] ?? [],
               save: (keys) => void window.nexus.folds.set(pageDetail.id, keys)
             }}
+            tableHeadingColumns={{
+              load: async () => (await window.nexus.tableHeadingColumns.get())[pageDetail.id] ?? [],
+              save: (indices) => void window.nexus.tableHeadingColumns.set(pageDetail.id, indices)
+            }}
             menu={{
               pushState: (s) => window.nexus.setEditorFormatState(s),
               onAction: (cb) => window.nexus.onMenuAction(cb)

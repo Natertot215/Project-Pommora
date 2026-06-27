@@ -18,6 +18,11 @@ import { startWatcher, stopWatcher } from './watcher'
 import { resolveUnderRoot } from './pathSafety'
 import { updatePageBody } from './crud/page'
 import { readFolds, writeFolds, type FoldState } from './io/folds'
+import {
+  readTableHeadingColumns,
+  writeTableHeadingColumns,
+  type TableHeadingColState
+} from './io/tableHeadingColumns'
 import { handleMutate, type MutateDeps } from './mutate'
 import { showContextMenu } from './contextMenu'
 import { installAppMenu } from './menu'
@@ -314,6 +319,29 @@ ipcMain.handle(
         return { ok: false, error: 'Fold keys must be a string array.' }
       }
       await writeFolds(root, pageId, keys)
+      return { ok: true }
+    } catch (e) {
+      return { ok: false, error: e instanceof Error ? e.message : String(e) }
+    }
+  }
+)
+
+// Table heading-column UI state — local `.nexus/tableHeadingColumns.json` (out of frontmatter + index).
+ipcMain.handle('tableHeadingCols:get', async (): Promise<TableHeadingColState> => {
+  const root = sessionRoot()
+  return root === null ? {} : readTableHeadingColumns(root)
+})
+ipcMain.handle(
+  'tableHeadingCols:set',
+  async (_e, pageId: unknown, indices: unknown): Promise<{ ok: true } | { ok: false; error: string }> => {
+    try {
+      const root = sessionRoot()
+      if (root === null) return { ok: false, error: 'No nexus is open.' }
+      if (typeof pageId !== 'string') return { ok: false, error: 'A page id is required.' }
+      if (!Array.isArray(indices) || !indices.every((i) => Number.isInteger(i) && i >= 0)) {
+        return { ok: false, error: 'Table indices must be a non-negative-integer array.' }
+      }
+      await writeTableHeadingColumns(root, pageId, indices)
       return { ok: true }
     } catch (e) {
       return { ok: false, error: e instanceof Error ? e.message : String(e) }

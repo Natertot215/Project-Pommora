@@ -24,7 +24,16 @@ function itemsFor(
     checked: ctx.align === a,
     click: pick(`align:${a}`)
   })
+  // The first column can read like the header row (a Pommora-only visual; the .md stays a plain table).
+  const heading: MenuItemConstructorOptions[] =
+    ctx.index === 0
+      ? [
+          { label: 'Make Heading Column', type: 'checkbox', checked: ctx.headingColumn ?? false, click: pick('col:toggle-heading') },
+          { type: 'separator' }
+        ]
+      : []
   return [
+    ...heading,
     { label: 'Align', submenu: [align('Left', 'left'), align('Center', 'center'), align('Right', 'right')] },
     { type: 'separator' },
     { label: 'Insert Column Left', click: pick('col:insert-left') },

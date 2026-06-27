@@ -23,6 +23,13 @@ const api = {
     set: (pageId: string, keys: string[]): Promise<{ ok: true } | { ok: false; error: string }> =>
       ipcRenderer.invoke('folds:set', pageId, keys)
   },
+  // Table heading-column UI state — local `.nexus/tableHeadingColumns.json`, keyed by page id. Holds the
+  // indices of the tables whose first column renders as a heading (a Pommora-only visual, not in the .md).
+  tableHeadingColumns: {
+    get: (): Promise<Record<string, number[]>> => ipcRenderer.invoke('tableHeadingCols:get'),
+    set: (pageId: string, indices: number[]): Promise<{ ok: true } | { ok: false; error: string }> =>
+      ipcRenderer.invoke('tableHeadingCols:set', pageId, indices)
+  },
   // Subfield (footer) config — React-owned `subfield` key in `.nexus/settings.json`.
   subfield: {
     get: (): Promise<SubfieldConfig | null> => ipcRenderer.invoke('subfield:get'),
