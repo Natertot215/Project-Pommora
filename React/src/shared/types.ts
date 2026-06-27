@@ -2,6 +2,7 @@
 // Imported by main, preload, and renderer — NO fs, NO React here.
 
 import type { PropertyDefinition } from './properties'
+import type { PageFrontmatter } from './schemas'
 import type { SavedView } from './views'
 
 export type NodeKind =
@@ -230,70 +231,51 @@ export interface PageDetail {
 /** How a vault's pages are laid out in the detail pane. */
 export type ViewMode = 'table' | 'gallery'
 
-// ---------- View pipeline (filter → group → sort) ----------
+// ---------- View pipeline seam types (filter → group → sort) ----------
 
 /**
- * One row fed to the view pipeline. Carries the intrinsic PageNode fields the
- * sidebar already loads, plus an OPTIONAL `frontmatter` bag for frontmatter-keyed
- * columns. Today the loaded NexusTree only supplies the intrinsic fields, so
- * frontmatter is absent and frontmatter-keyed fields resolve to `undefined`
- * (rows still sort/group/filter on the intrinsic fields). When a later stage
- * fetches per-page frontmatter, populating `frontmatter` lights up richer
- * columns with NO pipeline change. Pure data — no fs, no React.
+ * One row fed to the view pipeline. Carries the intrinsic PageNode fields plus the page's
+ * parsed `frontmatter` (the source of property-keyed column values). `frontmatter` is
+ * REQUIRED: when values aren't loaded yet, the flatten step supplies a minimal `{ id }` so the
+ * row still sorts/groups/filters on intrinsic fields. `parentSetId` is the id of the Set the
+ * page lives in (undefined for a container-root page), used to build structural disclosure
+ * groups. Pure data — no fs, no React.
  */
 export interface ViewRow {
   id: string
   title: string
   icon?: string
   path: string
-  frontmatter?: Record<string, unknown>
+  parentSetId?: string
+  frontmatter: PageFrontmatter
 }
 
-/**
- * Names an addressable value on a ViewRow. `title` | `icon` | `path` read the
- * intrinsic field; any other string reads `frontmatter[field]` (undefined when
- * frontmatter is absent or lacks the key).
- */
-export type ViewField = 'title' | 'icon' | 'path' | (string & {})
+/** What a resolved column renders from. `title`/`tier`/`modified` are reserved columns;
+ *  `property` is a user-defined schema property. (Width + the group/sort hoist are Part-2
+ *  render concerns, not modeled here.) */
+export type ColumnKind = 'title' | 'property' | 'tier' | 'modified'
 
-export type SortDirection = 'asc' | 'desc'
-
-export interface SortSpec {
-  field: ViewField
-  direction: SortDirection
+/** A resolved table column — the stable seam Part 2's table routes to. `id` is the property id
+ *  (reserved `_title`/`_tierN`/`_modified_at`, or a `prop_*`); `kind` picks the cell renderer. */
+export interface ResolvedColumn {
+  id: string
+  kind: ColumnKind
 }
 
-/** Comparison operators for a single filter rule (string-oriented, case-insensitive). */
-export type FilterOperator = 'equals' | 'notEquals' | 'contains' | 'isEmpty' | 'isNotEmpty'
+/** How a resolved group was formed. `structural-set` = a Set/Sub-Set disclosure group;
+ *  `property` = grouped by a property value; `ungrouped` = the no-value / flat band. */
+export type GroupKind = 'structural-set' | 'property' | 'ungrouped'
 
-export interface FilterRule {
-  field: ViewField
-  operator: FilterOperator
-  /** Ignored by isEmpty / isNotEmpty. */
-  value?: string
-}
-
-/** A full view definition the pipeline resolves against a set of rows. */
-export interface ViewSpec {
-  /** All rules must pass (AND). Empty / omitted ⇒ no filtering. */
-  filters?: FilterRule[]
-  /** Field to group by. Omitted ⇒ a single implicit group. */
-  groupBy?: ViewField
-  /** Sort applied WITHIN each group. Omitted ⇒ original order preserved. */
-  sort?: SortSpec
-}
-
-/** A resolved bucket of rows produced by the pipeline. */
+/** A resolved bucket of rows produced by the pipeline. `children` nests Sub-Set groups under a
+ *  Set group (structural grouping); `items` holds this group's own rows. `key` is the group's
+ *  identity (a property value, a Set id, or `'_ungrouped'`) — round-trips `collapsed_groups`.
+ *  Header labels are derived at render time (Part 2) from `key` + schema, not stored here. */
 export interface ResolvedGroup {
-  /**
-   * The group's identity. The grouped field's value as a string, `''` for the
-   * empty/absent bucket, or `'__all__'` for the single implicit group when no
-   * `groupBy` is set.
-   */
   key: string
-  /** Human label for the group header (`key`, or 'All' / 'Empty' for sentinels). */
-  label: string
-  rows: ViewRow[]
+  kind: GroupKind
+  items: ViewRow[]
+  children?: ResolvedGroup[]
+  isCollapsed: boolean
 }
 
 export const DEFAULT_LABELS: NexusLabels = {
