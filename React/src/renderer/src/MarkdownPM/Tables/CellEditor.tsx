@@ -68,6 +68,9 @@ export function CellEditor({
         extensions: [
           markdownDecorations(connections ?? noConn),
           EditorView.lineWrapping,
+          // Native spell-check, opted in explicitly: the cell editor sits inside the table widget's
+          // contentEditable=false host, which suppresses the spell-check the page editor inherits by default.
+          EditorView.contentAttributes.of({ spellcheck: 'true' }),
           Prec.highest(
             keymap.of([
               // Tab accepts an open connection candidate (like Enter); otherwise it moves to the next cell.
