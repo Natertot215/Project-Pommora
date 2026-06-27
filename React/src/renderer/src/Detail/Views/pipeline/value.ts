@@ -71,3 +71,16 @@ export function resolveFieldValue(row: ViewRow, propertyId: string): PropertyVal
       }
   }
 }
+
+/** The `_modified_at` SORT/FILTER stamp: modified_at, falling back to created_at (Swift
+ *  modifiedStamp) so a never-modified page orders by its creation time. Deliberately distinct from
+ *  `resolveFieldValue('_modified_at')` (the display value, modified_at only, no fallback). Null
+ *  when neither is present. */
+export function modifiedStampString(row: ViewRow): string | null {
+  const fm = row.frontmatter
+  return (
+    (typeof fm.modified_at === 'string' && fm.modified_at) ||
+    (typeof fm.created_at === 'string' && fm.created_at) ||
+    null
+  )
+}

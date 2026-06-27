@@ -7,7 +7,7 @@
 import type { SortCriterion } from '@shared/views'
 import type { ViewRow } from '@shared/types'
 import { type PropertyDefinition, RESERVED_PROPERTY_ID } from '@shared/properties'
-import { declaredType, resolveFieldValue } from './value'
+import { declaredType, modifiedStampString, resolveFieldValue } from './value'
 
 type SortKey = number | string
 type Less = (a: SortKey, b: SortKey) => boolean
@@ -85,15 +85,12 @@ function sortText(row: ViewRow, propertyId: string): string {
   }
 }
 
-/** Timestamp for the `_modified_at` preset: modified_at, falling back to created_at (Swift
- *  modifiedStamp). Absent/unparseable → -Infinity (sorts first ascending). */
+/** The `_modified_at` sort preset as a timestamp; absent/unparseable → -Infinity (sorts first
+ *  ascending). The modified∥created stamp resolution is shared with filter via value.ts. */
 function modifiedStamp(row: ViewRow): number {
-  const fm = row.frontmatter
-  const s =
-    (typeof fm.modified_at === 'string' && fm.modified_at) ||
-    (typeof fm.created_at === 'string' && fm.created_at) ||
-    ''
-  const t = s ? Date.parse(s) : Number.NaN
+  const s = modifiedStampString(row)
+  if (!s) return Number.NEGATIVE_INFINITY
+  const t = Date.parse(s)
   return Number.isNaN(t) ? Number.NEGATIVE_INFINITY : t
 }
 
