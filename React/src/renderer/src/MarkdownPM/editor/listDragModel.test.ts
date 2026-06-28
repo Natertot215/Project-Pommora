@@ -3,6 +3,7 @@ import {
   subBlockAt,
   dropChanges,
   applyChanges,
+  blockMoveChanges,
   renumberOrderedRun,
   checkboxToggleChange,
   type Slot
@@ -140,5 +141,59 @@ describe('drag inside a callout (prefix-aware)', () => {
     const doc = '> - a\n> \t- child'
     const block = subBlockAt(doc, doc.indexOf('a'))!
     expect(block.to).toBe(doc.length) // the `> \t- child` shares the `>` box → captured
+  })
+})
+
+describe('blockMoveChanges (blank-separated block move)', () => {
+  const apply = (doc: string, range: { from: number; to: number }, at: number): string | null => {
+    const c = blockMoveChanges(doc, range, { at })
+    return c ? applyChanges(doc, c) : null
+  }
+
+  it('moves a block to EOF without double-blanking the source or gluing the target', () => {
+    const doc = 'A\n\nB\n\nC'
+    expect(apply(doc, { from: 3, to: 4 }, doc.length)).toBe('A\n\nC\n\nB')
+  })
+
+  it('moves a multi-line block cleanly (the reviewer-flagged case)', () => {
+    const doc = 'A\n\nB1\nB2\nB3\n\nC'
+    expect(apply(doc, { from: 3, to: 11 }, doc.length)).toBe('A\n\nC\n\nB1\nB2\nB3')
+  })
+
+  it('moves a block to the top of the document', () => {
+    const doc = 'A\n\nB\n\nC'
+    expect(apply(doc, { from: 6, to: 7 }, 0)).toBe('C\n\nA\n\nB')
+  })
+
+  it('moves a block between two others', () => {
+    const doc = 'A\n\nB\n\nC\n\nD'
+    expect(apply(doc, { from: 3, to: 4 }, doc.indexOf('D'))).toBe('A\n\nC\n\nB\n\nD')
+  })
+
+  it('returns null when dropping a block onto its own start', () => {
+    expect(blockMoveChanges('A\n\nB\n\nC', { from: 3, to: 4 }, { at: 3 })).toBeNull()
+  })
+
+  it('preserves a trailing newline and does not double-blank on a move to EOF', () => {
+    const doc = 'A\n\nB\n\nC\n'
+    expect(apply(doc, { from: 0, to: 1 }, doc.length)).toBe('B\n\nC\n\nA\n')
+  })
+
+  it('snaps a blank-line drop target to the next content block', () => {
+    const doc = 'A\n\nB\n\nC' // at=5 is the blank line between B and C → land cleanly before C
+    expect(apply(doc, { from: 0, to: 1 }, 5)).toBe('B\n\nA\n\nC')
+  })
+
+  it('returns null when dropping onto its own preceding blank', () => {
+    expect(blockMoveChanges('A\n\nB\n\nC', { from: 3, to: 4 }, { at: 2 })).toBeNull()
+  })
+
+  it('injects a blank separator when moving within a doc that had none', () => {
+    expect(apply('A\nB\nC', { from: 0, to: 1 }, 5)).toBe('B\nC\n\nA')
+  })
+
+  it('a single-block doc has no valid target', () => {
+    expect(blockMoveChanges('only', { from: 0, to: 4 }, { at: 0 })).toBeNull()
+    expect(blockMoveChanges('only', { from: 0, to: 4 }, { at: 4 })).toBeNull()
   })
 })

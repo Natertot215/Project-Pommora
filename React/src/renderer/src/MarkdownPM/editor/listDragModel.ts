@@ -19,10 +19,16 @@ export function checkboxToggleChange(doc: string, pos: number): ChangeSpec | nul
   return { from: ls + lm.box.start, to: ls + lm.box.end, insert: lm.checked ? '[ ]' : '[x]' }
 }
 
+/** A contiguous line range to relocate — every block (list sub-block, paragraph, callout, heading section,
+ *  table, …) reduces to this. `to` is the last line's end, EXCLUSIVE of the trailing newline. The move /
+ *  cut logic reads only these two offsets, so it's block-type-blind. */
+export interface BlockRange {
+  from: number
+  to: number
+}
+
 /** The list line under `pos` plus all following deeper-indented lines (its nested descendants). */
-export interface SubBlock {
-  from: number // line start of the grabbed item
-  to: number // line end of the last descendant (exclusive of the trailing newline)
+export interface SubBlock extends BlockRange {
   level: number
 }
 
@@ -78,7 +84,7 @@ function reindentBlock(blockText: string, targetIndent: string | undefined): str
 /** Move `block` to start at `slot.at`, expressed as two changes (delete source, insert at target) over
  *  the original doc. The block is re-indented to `slot.indent` (re-nesting) — verbatim when unset. Newlines
  *  are handled so the moved block keeps its own line and never fuses with a neighbor. Null for a no-op. */
-function moveBlockChanges(doc: string, block: SubBlock, slot: Slot): ChangeSpec[] | null {
+function moveBlockChanges(doc: string, block: BlockRange, slot: Slot): ChangeSpec[] | null {
   const blockText = reindentBlock(doc.slice(block.from, block.to), slot.indent)
   // Cut the block plus one adjoining newline so no blank line is orphaned: its trailing newline if it has
   // one, otherwise the preceding newline (an EOF block has no trailing newline of its own).
@@ -142,7 +148,7 @@ export function renumberOrderedRun(doc: string, pos: number): ChangeSpec[] {
 /** The full drop transaction: move the block, then renumber the ordered runs touched at both the source
  *  (where the block was) and the destination. Both renumber passes run against the POST-MOVE doc so the
  *  digit offsets are correct; all edits are returned mapped back onto the original doc as one batch. */
-export function dropChanges(doc: string, block: SubBlock, slot: Slot): ChangeSpec[] | null {
+export function dropChanges(doc: string, block: BlockRange, slot: Slot): ChangeSpec[] | null {
   const move = moveBlockChanges(doc, block, slot)
   if (move === null) return null
 
@@ -197,4 +203,51 @@ function diffAsSingleReplace(a: string, b: string): ChangeSpec[] {
   let suf = 0
   while (suf < max - pre && a[a.length - 1 - suf] === b[b.length - 1 - suf]) suf++
   return [{ from: pre, to: a.length - suf, insert: b.slice(pre, b.length - suf) }]
+}
+
+/** Move a top-level block (any line range) to start at `slot.at`, preserving the single-blank-line separation
+ *  between blocks. A block owns the blank line after it: the cut takes the block plus one adjoining blank
+ *  (following preferred, the preceding one at EOF) so its old neighbours collapse to one blank, and it
+ *  re-inserts with a blank separator at the target. This is the blank-separated SIBLING of `moveBlockChanges`
+ *  — that one moves adjacent list items (no blanks to manage) and renumbers; block drag does neither, so this
+ *  is the simpler, separate path and leaves the list move untouched. Null for a no-op / unknown target. */
+export function blockMoveChanges(doc: string, range: BlockRange, slot: { at: number }): ChangeSpec[] | null {
+  const trailingNL = doc.endsWith('\n')
+  const lines = doc.split('\n')
+  if (trailingNL) lines.pop() // a '\n'-terminated doc splits to a trailing '' — the file marker, not a line
+  const starts: number[] = []
+  for (let p = 0, i = 0; i < lines.length; i++) {
+    starts.push(p)
+    p += lines[i].length + 1
+  }
+  const isBlank = (i: number): boolean => i >= 0 && i < lines.length && lines[i].trim() === ''
+
+  const bStart = starts.indexOf(range.from)
+  if (bStart < 0) return null
+  let bEnd = bStart
+  while (bEnd + 1 < lines.length && starts[bEnd + 1] <= range.to) bEnd++
+
+  // The target line: where the block lands (before this line); EOF → past the last line.
+  let tLine = slot.at >= doc.length ? lines.length : starts.indexOf(slot.at)
+  if (tLine < 0) return null // not a line start
+  // A blank line isn't a real boundary — snap forward to the next content line (or EOF).
+  while (tLine < lines.length && isBlank(tLine)) tLine++
+  if (tLine >= bStart && tLine <= bEnd + 1) return null // onto itself, after the snap
+
+  const blockLines = lines.slice(bStart, bEnd + 1)
+  // Cut the block + one adjoining blank so the old neighbours keep exactly one blank between them.
+  let cutStart = bStart
+  let cutEnd = bEnd
+  if (isBlank(bEnd + 1)) cutEnd = bEnd + 1
+  else if (isBlank(bStart - 1)) cutStart = bStart - 1
+
+  const out: string[] = []
+  for (let i = 0; i < lines.length; i++) {
+    if (i === tLine) out.push(...blockLines, '') // block + a trailing blank, before the target line
+    if (i < cutStart || i > cutEnd) out.push(lines[i])
+  }
+  if (tLine === lines.length) out.push('', ...blockLines) // EOF target: a leading blank, then the block
+
+  const newDoc = out.join('\n') + (trailingNL ? '\n' : '')
+  return newDoc === doc ? null : diffAsSingleReplace(doc, newDoc)
 }
