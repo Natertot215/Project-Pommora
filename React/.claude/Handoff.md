@@ -1,6 +1,6 @@
 ## Handoff — Pommora React
 
-A single 06-27 session that took Collection **Table Views — Part 1 (plumbing)** from cold recon to a **ratified, execution-ready** spec + plan (two adversarial review rounds, all findings folded). **Nothing is implemented yet — the next move is to BUILD it**, in the `pommora-react` worktree. A live **Swift** parallel session committed on `main` all day (its own root handoff). Read the **execution playbook** (Next Session) first; it's the whole point of this doc.
+A single 06-27 session that took Collection **Table Views — Part 1 (plumbing)** from cold recon → ratified spec+plan → **SHIPPED**: 11 TDD tasks built, each simplify- + code-reviewed, full suite green + typecheck clean, committed on the **`views-plumbing`** worktree (`d5ed3ac`…`1c892a7`). Next is Part 2 (Figma table + chips) then Part 3 (settings dropdown). **OPEN — the two branches need reconciling:** `views-plumbing` holds the complete Part 1; a parallel React session on `pommora-react` independently committed Task 5 + started its own Task 6. See Next Session.
 
 **Session ID:** de564e01-aa38-498e-b9f8-5db92904a48a
 **Dates:** 06-27-2026
@@ -11,10 +11,10 @@ A single 06-27 session that took Collection **Table Views — Part 1 (plumbing)*
 
 **Date:** 06-27-2026
 **Model:** Opus 4.8
-**Compactions:** 0
+**Compactions:** 1
 **Connectors:** none (in-process tooling + web research; no MCP)
 **Commands:** `/handoff`
-**Worktree:** planned/reviewed on the `main` checkout; **execution moves to the `pommora-react` worktree** (set up this session — see playbook)
+**Worktree:** Part 1 BUILT on the **`views-plumbing`** worktree (`/Users/nathantaichman/The Studio/Projects/Pommora-views-worktree`), branched off `pommora-react`@`3bb170c` to isolate from the parallel React session
 **Agents:** Explore (×6 — Swift view-model · React view-plumbing · view/property specs · React UI-primitives · plan compile-grounding ×2 rounds), builder (×1 — Swift app build), general-purpose (×4 — plan logic/coverage · over-engineering · confirmation logic/coverage · Notion linked-DB research)
 **Skills:** `superpowers:brainstorming`, `superpowers:writing-plans`, `handoff`
 
@@ -60,23 +60,20 @@ The session: scouted both builds → established React has the data foundations 
 - **Parallel sessions happen** — never bundle/revert unattributed changes; stage explicit paths. The Swift build keeps its own separate root handoff.
 - `Context.md` (current build-state companion) exists (added by the parallel session) — keep it current alongside this journey doc.
 
-### Next Session — EXECUTE Part 1 (start here)
+### Next Session — Part 2 (then Part 3), after the branches reconcile
 
-**State:** Table Views Part-1 plumbing is **specced, planned, and RATIFIED** (two review rounds, all folded — do **NOT** re-review; build it). Nothing is implemented yet. 11 TDD tasks, each an independent green commit.
+**Part 1 is SHIPPED** — 11 TDD tasks, each simplify- + code-reviewed, full suite + typecheck green, on the **`views-plumbing`** worktree (`d5ed3ac`…`1c892a7`). Do NOT rebuild it. The pipeline lives in `renderer/src/Detail/Views/pipeline/`; main-side IO in `main/io/activeViews.ts` + `main/crud/{views,loadValues}.ts`; the on-disk contract in `shared/views.ts`. Decisions → `History.md`.
 
-**Where to build — the `pommora-react` worktree:**
-- Path: `/Users/nathantaichman/The Studio/Projects/Pommora-react-worktree` (branch `pommora-react`, fast-forwarded to `main` this session → current, not stale; carries the ratified plan + spec).
-- Build React code **there** (per `CLAUDE.md`); merge `pommora-react` → `main` once Part 1 greens. Swift parallel session is on `main` — keep staging explicit.
-- The plan + spec are at `React/.claude/Planning/6-27 - Table Views Plumbing {Plan,Spec}.md` inside the worktree. If `main` advanced, `git -C <worktree> merge --ff-only main` (or rebase) first.
-- Worktree `node_modules`: Vitest/Node gate only; if it's missing run `npm install` in the worktree. TDD = `npx vitest run <file>`; no app launch for the Part-1 green bar.
+**FIRST — reconcile the two branches (Nathan's call):** `views-plumbing` (`/Users/nathantaichman/The Studio/Projects/Pommora-views-worktree`) holds the complete Part 1 on top of `pommora-react`@`3bb170c`. The parallel React session on **`pommora-react`** independently committed Task 5 (`3bb170c`, which bundled my group files) and left an uncommitted Task-6 WIP there (a `filter.test.ts` using a non-canonical `options`/`default` schema shape) plus a `vitest.config` __dirname fix (which `views-plumbing` already has, identical, as `4368895`). `views-plumbing` is the keeper — merge it to `main` (or onto a reconciled `pommora-react`) and supersede the parallel Task-6 WIP. Then run all React work from one worktree.
 
-**How:** **subagent-driven** (recommended) — fresh agent per task, review the diff between each; or inline. Go **Task 1 → 11 in order** (1–8 pure, 9–10 main-side IPC, 11 integration). Each task: failing test → run (fail) → minimal impl → run (pass) → green commit. The plan's per-task **Interfaces (Produces/Consumes)** + Global Constraints are the spec for each agent; the synthetic fixture is the conformance check.
+**Part 2 — table UIX (Nathan designs in Figma):** build the table + chips as direct `design-system/components/Chips/` components (on `tokens/chip.css.ts`, shared by select/multi/status — NOT Swift ports), routed to the `ResolvedColumn[]` / `ResolvedGroup[]` seams from `resolveView`. Inline cell editor: glass-control chip pickers, plain inputs, a "Calendar" date placeholder, native menus for simple actions. Render concerns deferred from Part 1 land here: the group/sort **column hoist before `_title`**, **column widths**, **relation/tier chip resolution** (`Detail/Scope.ts` `findContext`). Replace TableView's minimal render.
 
-**Green bar for Part 1:** a hand-seeded view config renders real, correctly sorted/grouped columns with live property values — no settings UI. Then **Part 2** (Nathan designs the table in Figma → build the table + chips as direct `design-system/components/Chips/` components, routed to the `ResolvedColumn[]` / `ResolvedGroup[]` seams; inline cell editor with glass-control chip pickers, plain inputs, a "Calendar" date placeholder, native menus for simple actions) → **Part 3** (the View Settings glass-surface dropdown + panes + operator picker + view rename/dup/delete + `open_in` + `display_as`). Keep embedded/context-dashboard views unblocked (view-source-agnostic).
+**Part 3 — View Settings:** the glass-surface dropdown + Sort/Filter/Group/Layout panes + the operator picker (narrower than the evaluator matrix) + view rename/dup/delete + `open_in` + `display_as`. Wire the `views:save/reorder/delete` + `activeViews` IPC already shipped in Part 1. Keep embedded/context-dashboard views unblocked (the pipeline is view-source-agnostic).
 
 ### Pending Focuses
 
-- **Table Views Parts 2 & 3** — see the playbook above; both gated on Part-1 plumbing greening.
+- **Table Views Parts 2 & 3** — see Next Session. Part-1 plumbing is SHIPPED on `views-plumbing`.
+- **Part-1 deferred cleanups (Nathan's call):** (1) extract one generic `.nexus` map-store factory for the 3 identical stores (folds / tableHeadingColumns / activeViews — same lenient-read / merge-write / empty-deletes shape across module + IPC + preload); (2) a borderline `relPosix(root,abs)` helper (`loadValues` + `watcher` share the `relative().split(sep).join('/')` idiom).
 - **Break-things skill (Nathan-requested)** — a reusable adversarial-fuzzing skill from `Guidelines/Adversarial-Review-Log.md`: break-attempt taxonomy + the "toddler" method + a `{keys}×{positions}×{nesting}×{adjacency}` generator → break→repro→fix catalog before any UI feature is "done."
 - **Canvas** — spec parked at `Planning/6-26 - Canvas Spec.md`, pending its adversarial review → plan → build. React-first; `.canvas` is the cross-build contract.
 - **Caret on other surfaces** — drawn caret shipped on the page editor; extend to table cells + the inline-rename input.
@@ -85,7 +82,7 @@ The session: scouted both builds → established React has the data foundations 
 - **Real design-system Components** (Button / Menu / Label / Separator / **Chips**) from the token layer.
 - **Radius + spacing tokens** — lift from Figma (still ad-hoc literals).
 - **Settings editing UI** deferred — `.nexus/settings.json` is the control surface.
-- **One-time Biome normalization** — defer to a tree with no parallel uncommitted edits.
+- **Biome config vs code (repo-wide)** — `biome.json` declares `quoteStyle:"double"` + organizeImports, but the whole codebase is hand-written single-quote / no-semicolon (internally consistent; the format hook isn't converting quotes in the worktree). Settle once: set the config to match the code, OR reformat the repo to the config.
 - **Unsorted bin → folder + sidecar (paradigm, ratify first)** — move "unsorted" onto a real `Unsorted/` folder + `_unsortedconfig.json` (folder-with-sidecar). Interop win. On-disk shape — ratify before building.
 
 ### Fix Log

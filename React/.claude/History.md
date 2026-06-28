@@ -2,6 +2,18 @@
 
 What shipped + locked decisions, newest first. Brief by design. Cross-cutting locked decisions live in `CLAUDE.md`; current architecture in `Features/`; roadmap in `Framework.md`; deep specs + ledgers in `Planning/`.
 
+### Collection Table Views — Part 1: plumbing (2026-06-27)
+
+The UI-agnostic data layer for Collection Table Views shipped — 11 TDD tasks on the `views-plumbing` branch, every task simplify- + code-reviewed, full suite green + typecheck clean. Ports the Swift view engine's BEHAVIOR (not its AppKit rendering). Locked decisions:
+
+**On-disk contract.** A portable `SavedView` lives in the sidecar `views[]` (Collection `_pagecollection.json` + depth-1 Set `_pageset.json`), keys matching the Swift build for cross-build round-trip; the zod `savedView` is a `looseObject` so foreign keys survive a rewrite. The **active-view pointer is per-machine** in `.nexus/activeViews.json` (NOT the synced sidecar — avoids modified_at churn + cross-machine selection conflicts). Row values come **from page frontmatter** (property-ID keyed, lazy batch read via the `view:loadValues` IPC), never SQLite.
+
+**Pipeline** (`renderer/Detail/Views/pipeline/`, pure): `value` (declaredType + resolveFieldValue — the two-axis split: snake_case PropertyType for behavior vs the codec's camelCase value kind), `sort`, `group` + flatten, `filter`, `columns`, `resolveView` orchestrator. Ports Swift's GroupResolver / SortComparator / DateBucket / TableColumnResolver / VisiblePropertyOrder / FilterEvaluator.
+
+**Deliberate React-ahead supersets of Swift** (framed as such, not "ports"): multi-key `sort[]` (Swift is single-criterion); recursive AND/OR `filter.rules` (Swift's are flat). **Divergences:** `_modified_at` is NOT a default-on column; React tier/title/modified columns are def-less (Swift needs synthesized defs). **Parity kept faithfully:** grouping only select/status/checkbox/date (status manual-order, UTC-safe date buckets); the filter "no-op pass" on an inapplicable op (an absent value passes a comparison op — filter absence with is_empty); checkbox is/is_not/is_empty.
+
+**Seams for Part 2.** `resolveView({rows, setTree, view, schema})` is view-source-agnostic — a future context-dashboard embed reuses it with its own SavedView + a target ref (never couple a view to its container). It emits `ResolvedColumn[] {id,kind}` + `ResolvedGroup[]`; column width, the group/sort hoist-before-Title, and real chip cells are Part-2 render concerns. `mintDefaultView` carries a `view_default` sentinel id (shared/ can't import main/ids); the view-persistence IPC (`views:save/reorder/delete`, foreign keys preserved) swaps it for a real `view_<ulid>` on first save. TableView is rewired onto this seam with a minimal render. → spec + plan in `Planning/6-27 - Table Views Plumbing {Spec,Plan}.md`.
+
 ### Callouts — `> [!callout]` boxes with nested syntax (2026-06-27)
 
 A callout is a `> [!type]` blockquote (GitHub/Obsidian convention, single `[!callout]` type for now) rendered as a **bordered, gutter-width box**, typed with the `||` shorthand. Chosen over a single-cell-table scheme (Option B): the blockquote form degrades to a readable quote in any markdown app and stays agent-legible, while a `‖`/`==` box would show literal border chars + unrendered inner syntax. → `Features/MarkdownPM.md` § Callout.
