@@ -551,7 +551,7 @@
   --callout-radius: 6px;
   /* Slightly roomier inner gutter + head/foot so a fold chevron has space to live inside the box. */
   --callout-pad: 15px;
-  --callout-gap: 5px;
+  --callout-gap: 6px;
   --callout-inner-pad: 8px;
   --li-origin: var(--callout-pad);
   position: relative;
