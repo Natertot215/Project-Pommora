@@ -1,10 +1,10 @@
 ## Handoff — Pommora React
 
-Two parallel 06-27 React sessions on one tree (plus a Swift session committing concurrently, its own root handoff). **A — Table Views Part 1:** cold recon → ratified spec → adversarially-reviewed V2 plan, paused one confirmation from execution. **B — Block Drag:** the Notion-style block-handle feature, brainstorm → spec V2 → Phases 1–3 shipped reviewed-green (Phase 3 = handles + gesture + a double-reviewed drag-reliability fix set). The footer is shared.
+Two parallel 06-27 React sessions on one tree (plus a Swift session committing concurrently, its own root handoff). **A — Table Views Part 1:** cold recon → ratified spec → adversarially-reviewed V2 plan, paused one confirmation from execution. **B — Block Drag:** the Notion-style block-handle feature shipped end-to-end — rail grips + heading chevron + callout grip + table heading-row grip all drag whole blocks (list-drag-style snap, full reliability set), every step adversarial-reviewed AND live screenshot-verified. The footer is shared.
 
 **Session A ID:** de564e01-aa38-498e-b9f8-5db92904a48a
 **Session B ID:** 64346d76-0499-4a65-93e3-71db53bf4d32
-**Dates:** 06-27-2026
+**Dates:** 06-27-2026 → 06-28-2026
 
 
 > ⚡ **Cornerstone — carry into every handoff, unchanged (Nathan's voice).**
@@ -74,14 +74,14 @@ The whole session was design + planning for porting the Swift build's view syste
 ### Session Summary - B
 **Date:** 06-27-2026
 **Model:** Opus 4.8
-**Compactions:** 2
-**Connectors:** none (Electron CDP for live UI verification; no MCP)
+**Compactions:** 6
+**Connectors:** none (Electron CDP for live UI verification + screenshots; no MCP)
 **Commands:** `/compact`, `/handoff`
 **Worktree:** main checkout — Nathan declined the isolation worktree ("I'll close my server"); all work + commits on `main`
-**Agents:** general-purpose (×7 — adversarial review: 3 on the spec, 2 on Phase-1 `blockAt`, 2 on Phase-2 mover)
-**Skills:** `superpowers:brainstorming` (process), `handoff`
+**Agents:** general-purpose (×14 — interaction sweep ×4, adversarial reviews ×5, systematic-debugging investigators ×2, CDP screenshot-verify ×1, earlier spec/phase reviews ×2), code-simplifier (×2)
+**Skills:** `superpowers:brainstorming`, `superpowers:systematic-debugging`, `handoff`
 
-Three editor bug-fixes, then the Notion-style block-drag feature from brainstorm to mid-Phase-3 — adversarial review at every step caught real bugs before they shipped.
+Three editor bug-fixes, then the Notion-style block-drag feature built end-to-end — handles, gesture, heading/callout/table drag handles — adversarial-reviewed AND live screenshot-verified at every step. Four feature commits: `a8b06ff` `783be5e` `119dd50` `d9839b8`.
 
 **Three editor fixes shipped first:** The fold **chevron drifting** below callouts — CM positions its gutter from a height-MODEL that estimates off-screen variable-height lines at the default height, so every gutter chevron below a callout/fold drifted by a scroll-dependent amount; fixed by anchoring the chevron to the line as a `::before`. The **inspector h-scroll** — `overflow:hidden` still leaves a scrollable box, so a text-selection drag panned the shell to reveal the parked inspector; `overflow:clip` (not a scroll container). **Cell spell-check** — the cell editor lives inside the table widget's `contentEditable=false` host, which suppresses inherited spell-check; opted in via `contentAttributes`. Commits `dc89887` / `d6a26fe` / `2428ab3`.
 
@@ -89,7 +89,13 @@ Three editor bug-fixes, then the Notion-style block-drag feature from brainstorm
 
 **Phases 1–2 shipped reviewed-green:** **Phase 1** (`5e1089f`) — `blockAt(doc,pos)→{from,to,kind}`, the keystone resolver; its logic reviewer caught a real high-frequency bug (list lazy-continuation split the list — a wrapped item orphaned as a paragraph) that had passed 12/12 happy-path tests; fixed continuation-aware. **Phase 2** (`dc72224`) — `BlockRange` broadening (the move primitives take a plain range; list-drag stays byte-identical) + `blockMoveChanges` (blank-aware: a block owns its trailing blank); logic caught 3 edge bugs — trailing-newline EOF double-blank, blank-line drop targets gluing, dropping on the block's own preceding blank — all fixed + pinned.
 
-**Phase 3 shipped reviewed-green:** `blockStarts` enumerator + `blockHandles` (rail grips on para/code/list block-starts) + `blockDrag` (press grip → drag → `blockMoveChanges`). After the build-and-show fixes (single-pass O(n) `blockStarts` killing the lag; the blockquote-bar `::before` collision; first-row handle alignment), a **full non-testable interaction sweep** (4 agents) surfaced the real defects and Nathan chose the **full HIGH-set fix**: (1) a **silent drop-corruption class** — `blockMoveChanges` guaranteed a blank *below* a moved block but never *above* it or at the cut hole, so a drop onto a glue-adjacent seam lazily-continued a list / merged paragraphs; fixed with a two-seam `sep()` blank-guard (+4 regression tests); (2) **scroll-during-drag staleness** + no auto-scroll → candidates re-measure on scroll + an edge auto-scroll rAF loop; (3) **no abort** → Escape/window-blur cancel + a `done` re-entrancy guard; (4) the **accent line** now hugs the boundary above (`coordsAtPos(at-1).bottom`), folded/off-screen candidates gated out. Two adversarial reviews (corruption sound across ~40 inputs; gesture lifecycle clean), simplifier found nothing to cut, 678 green. **LOW-1** (gutter grip = whole list, glyph = one item) is **intended** (Nathan); **LOW-F4** (a double-blank source gap leaves a leading blank — cosmetic, renders identically) deferred. Heading-drag (chevron press-to-drag) is Phase 4, not wired.
+**Phase 3 shipped reviewed-green:** `blockStarts` enumerator + `blockHandles` (rail grips on para/code/list block-starts) + `blockDrag` (press grip → drag → `blockMoveChanges`). After the build-and-show fixes (single-pass O(n) `blockStarts` killing the lag; the blockquote-bar `::before` collision; first-row handle alignment), a **full non-testable interaction sweep** (4 agents) surfaced the real defects and Nathan chose the **full HIGH-set fix**: (1) a **silent drop-corruption class** — `blockMoveChanges` guaranteed a blank *below* a moved block but never *above* it or at the cut hole, so a drop onto a glue-adjacent seam lazily-continued a list / merged paragraphs; fixed with a two-seam `sep()` blank-guard (+4 regression tests); (2) **scroll-during-drag staleness** + no auto-scroll → candidates re-measure on scroll + an edge auto-scroll rAF loop; (3) **no abort** → Escape/window-blur cancel + a `done` re-entrancy guard; (4) the **accent line** now hugs the boundary above (`coordsAtPos(at-1).bottom`), folded/off-screen candidates gated out. Two adversarial reviews (corruption sound across ~40 inputs; gesture lifecycle clean), simplifier found nothing to cut, 678 green. **LOW-1** (gutter grip = whole list, glyph = one item) is **intended** (Nathan); **LOW-F4** (a double-blank source gap leaves a leading blank — cosmetic, renders identically) deferred.
+
+**Phase 4 heading-drag via a shared gesture factory (`783be5e`):** Rather than a third copy of the ~100-line gesture, extracted `createBlockDragGesture({ gate, onClick?, onDragStart? })` and instantiated it for the grips + the chevron — chevron = fold on sub-threshold release, drag on threshold-cross. A folded heading **auto-unfolds at drag-start**: two systematic-debugging investigators (Nathan asked for them) proved a fold can't survive the relocating single-replace edit (CM's `mapPos` collapses interior positions to a span endpoint, orphaning the fold), so dropping it first sidesteps the remap entirely.
+
+**Live-feedback rounds — snap, callout, table, box-edge (`119dd50`, `d9839b8`):** **List-drag-style snap** — each block offers two boundaries (above/below); the line snaps to the nearer edge + flips at the midpoint, instead of floating mid-gap. **Callout grip** wired as a real drag handle (it was a `pointer-events:none` placeholder; removing that lets the `::after` target its line → the gesture fires) + gutter-only reveal. **Table heading-row action grip** drags the whole table — extracted a callable `startBlockDrag` the React widget invokes (capture to `scrollDOM` dodges the widget-rerender capture-drop; right-click still opens the header menu, other rows still reorder). **Drag line sits OUTSIDE boxes** — reads the line's DOM box edge (`getBoundingClientRect`), not the inner text coords, so it lands on a callout's outer border, not inside.
+
+**Verification held throughout — a screenshot agent stood in for Nathan:** Every feature got an adversarial review (all clean or LOW/cosmetic, folded in) + a simplify pass (hoisted the `.cm-line` walk to `editor/lineDom.ts`). Since Nathan went to bed mid-session, a **CDP screenshot agent** drove the live 9223 editor and visually confirmed all of it (line outside the callout border, the snap-flip at midpoints, the table grip starting a doc-level drag, gutter-only grips), leaving the test page unmutated — the post-functional UIX check, delegated.
 
 **Isolated dev server (9223, Test Nexus):** `electron-vite dev --remoteDebuggingPort=9223` on `~/test`, own Vite, for build-and-show without touching Nathan's vault. **Config altered:** to open the Test Nexus I set the `pommora-react` userData `lastNexusPath` from `/Users/nathantaichman/The Nexus` (real vault) to `~/test`; original backed up at `scratchpad/pommora.json.orig-TheNexus` — **restore it** or the next launch opens the wrong nexus.
 
@@ -107,7 +113,8 @@ Three editor bug-fixes, then the Notion-style block-drag feature from brainstorm
 
 - `editor/blockModel.ts` — `blockAt` + single-pass `blockStarts`. `editor/listDragModel.ts` — `BlockRange` + `blockMoveChanges` (blank-aware mover, sibling of the list mover, not a generalization of it). `editor/blockHandles.ts` (new) — rail-grip decoration. `editor/blockDrag.ts` (new) — the gesture (copies listDrag's overlay/shade; TODO: extract shared). `Styles.css` — `.md-block-handle::before` + the chevron content-anchor + the inspector `overflow:clip`.
 - `Planning/6-27 - Block Drag Spec.md` (V2). `Guidelines/Adversarial-Review-Log.md` — the discipline coda.
-- Committed: `dc89887` · `d6a26fe` · `2428ab3` · `5e1089f` · `dc72224`; **Phase 3 (this commit):** `blockModel.ts` + `.test`, `listDragModel.ts` + `.test`, `blockHandles.ts`, `blockDrag.ts`, `index.tsx`, `Styles.css`.
+- Commits: editor fixes `dc89887`·`d6a26fe`·`2428ab3`; block-drag `5e1089f`·`dc72224`·`a8b06ff` (Phases 1–3 + HIGH-set) · `783be5e` (Phase 4 heading-drag) · `119dd50` (snap + callout grip) · `d9839b8` (table drag + box-edge line + `lineDom.ts`).
+- New since Phase 3: `editor/lineDom.ts` (shared `.cm-line` DOM walk), the exported `startBlockDrag` + the `createBlockDragGesture` factory in `blockDrag.ts`, `collectCands`'s two-boundary model + `bottomAbove`/box-edge geometry, the callout/table grip wiring (`Tables/widget.tsx` `tableDrag` → `startBlockDrag`; `Tables/TableView.tsx` row-0 grip).
 
 **Landmines**
 
@@ -128,7 +135,8 @@ Three editor bug-fixes, then the Notion-style block-drag feature from brainstorm
 
 **Uncertain**
 
-- The drag gesture is reviewed-green but **not yet live-confirmed by Nathan** — the non-unit-testable behaviors (scroll-during-drag, edge auto-scroll, Escape-abort, the accent hugging the boundary) need a human at the editor; that's the mandatory post-functional UIX check, still open.
+- Screenshot-verified, but **Nathan's own full live UIX pass is still owed** — he confirmed callout drag + the line-outside-callout fix live before bed, but the whole drag *feel* (snap responsiveness, table drag, heading fold-vs-drag) wants his eyes when he's back.
+- **C — blockquote/codeblock above-below spacing is NOT done.** Nathan wants bq/cb separated from surrounding text like callouts/lists (the callout `--callout-gap` look). Left undone deliberately: visual CSS with a caret-risk (the no-line-margin gotcha) needing his visual confirm + a mechanism choice (margin vs an inset-box `::before`).
 - The loose-list call (blank-separated list items split into *separate* drag-blocks) is pinned-split; Nathan's to change.
 
 ---
@@ -144,14 +152,15 @@ Three editor bug-fixes, then the Notion-style block-drag feature from brainstorm
 
 ### Next Sessions
 
-- **(B) Live-confirm Block Drag Phase 3, then Phases 4–5.** Phase 3 (handles + gesture + the full HIGH-set reliability fixes) shipped reviewed-green this commit; the open post-functional UIX check is Nathan's live test of scroll-during-drag, edge auto-scroll, Escape-abort, and the accent hugging the boundary. Then **Phase 4** — the chevron's fold+drag dual-role (press→drag the section + fold-teardown-on-move) — and **Phase 5** — the table-grip→`startBlockDrag` React bridge. Deferred follow-up: hoist the duplicated `Overlay` + shade + line-walk shared by `listDrag` + `blockDrag` into one module (touches shipped listDrag — a human-scoped call). **Restore the dev config** (`scratchpad/pommora.json.orig-TheNexus` → `pommora-react` userData).
+- **(B) Block Drag is feature-complete, reviewed + screenshot-verified — what's left is finishing touches.** Phases 1–4 + callout-drag + table-drag all shipped (`a8b06ff`→`d9839b8`). Open: **(1)** Nathan's own full live UIX pass of the drag feel; **(2) C — bq/codeblock above-below spacing** (mirror the callout `--callout-gap`; visual, needs his confirm + margin-vs-inset call); **(3)** line-INTO-callout interior drop slots (V2 nesting, deferred); **(4)** the `listDrag`↔`blockDrag` `Overlay`+shade extraction (touches shipped listDrag — human-scoped; the `.cm-line` walk is already shared via `lineDom.ts`). **Restore the dev config** (`scratchpad/pommora.json.orig-TheNexus` → `pommora-react` userData).
 - **(A) Execute Table Views Part 1.** Confirm the recursive-filter shape + the execution path, commit the two Planning docs as the baseline, then run the 11-task plan (subagent-driven, fresh agent per task, diff review between). Move to the `pommora-react` worktree for the code. After Part 1 greens, Nathan designs the table in Figma → Part 2 routes the UI to the seams (`ResolvedColumn[]` / `ResolvedGroup[]` / per-cell data), with chips as direct `design-system/components/Chips/` components.
 - **(A) Carryover editor work:** **Callouts** are functionally hardened (delete-guard + adversarial fuzz pass, `Guidelines/Adversarial-Review-Log.md`); remaining: tables-inside-callouts (deferred). Create unicode up-down + back-forth auto-transform for `<>` / `><`. Add "Styles" to tables → style = column would remove gutter padding + hide table lines (solves the markdown column problem).
 - **(A) Live-verify the heading-column toggle end-to-end** — menu → toggle → persist → reload is unit-tested + typecheck-clean, but not confirmed by a real in-app toggle.
 
 ### Pending Focuses
 
-- **(B) Block Drag V2 — nesting** (separate spec): interior drop-slots inside callouts, the guard table (table / heading / callout can't nest in a box), cross-container re-prefix, the `depth` field. Deferred from V1; the V1 mover + reindent already prove the cross-container re-prefix.
+- **(B) Block Drag V2 — nesting** (separate spec): interior drop-slots inside callouts (the line-INTO-callout Nathan flagged), the guard table (table / heading / callout can't nest in a box), cross-container re-prefix, the `depth` field. Deferred from V1; the V1 mover + reindent already prove the cross-container re-prefix.
+- **(B) C — blockquote + codeblock above-below spacing.** Give bq/cb the visual separation callouts/lists have (the `--callout-gap` look). Undone (caret-risk margin vs an inset-box `::before` refactor); needs Nathan's visual confirm. The callout pattern (`::before` border inset by `--callout-gap` + margin-bottom on last) is the template.
 - **Table Views Parts 2 & 3 (new)** — Part 2: the Figma-designed table UIX + chip components + inline cell editor (glass-control chip pickers, plain inputs, "Calendar" date placeholder, native menus for simple actions) routed to the Part-1 seams. Part 3: the View Settings dropdown (glass-surface `Popover` root menu → Layout/Sort/Filter/Group/EditProperties panes) + the operator *picker* + view rename/dup/delete + `open_in` + `display_as` variants. Both gated on Part-1 plumbing.
 - **Break-things skill (Nathan-requested)** — a reusable adversarial-fuzzing skill from `Guidelines/Adversarial-Review-Log.md`: a break-attempt taxonomy (input transforms · deletion/caret combo matrix · nesting · adjacency · layout edges · fix-induced regressions) + the "toddler" method + a `{keys}×{positions}×{nesting}×{adjacency}` generator → a break→repro→fix catalog before any UI feature is called done.
 - **Canvas** — spec parked at `Planning/6-26 - Canvas Spec.md`, pending its adversarial review → plan → build. React-first; the `.canvas` format is the cross-build contract. Confirm the `border` token (grey-30%) lands when canvas builds.
