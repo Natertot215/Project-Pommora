@@ -1,6 +1,6 @@
 import type { CollectionNode, SetNode } from '@shared/types'
 import { DetailScaffold } from './DetailScaffold'
-import { TableView } from './Table/TableView'
+import { TableView } from './Views/Table/TableView'
 import { containerOwner } from './Scope'
 
 /**
@@ -12,7 +12,7 @@ import { containerOwner } from './Scope'
 export function ContainerView({ source }: { source: CollectionNode | SetNode }): React.JSX.Element {
   return (
     <DetailScaffold owner={containerOwner(source)} lockedHeader>
-      <TableView source={source} />
+      <TableView key={source.id} source={source} />
     </DetailScaffold>
   )
 }

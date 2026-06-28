@@ -1,6 +1,6 @@
 ## Handoff — Pommora React
 
-Two parallel 06-27 React sessions on one tree (plus a Swift session committing concurrently, its own root handoff). **A — Table Views Part 1:** cold recon → ratified spec → adversarially-reviewed V2 plan, paused one confirmation from execution. **B — Block Drag:** the Notion-style block-handle feature shipped end-to-end — rail grips + heading chevron + callout grip + table heading-row grip all drag whole blocks (list-drag-style snap, full reliability set), every step adversarial-reviewed AND live screenshot-verified. The footer is shared.
+Two parallel 06-27 → 06-28 React sessions, now reconciled onto one `main` (plus a Swift session, its own root handoff). **A — Table Views Part 1:** cold recon → ratified spec+plan → **SHIPPED** (11 TDD tasks, each simplify-+code-reviewed, suite+typecheck green) on the `views-plumbing` worktree (`d5ed3ac`…`1c892a7`), now **merged to `main`** (this merge supersedes the parallel `pommora-react` Task-6 WIP — zero code overlap with B). **B — Block Drag:** the Notion-style block-handle feature **shipped end-to-end** — rail grips + heading chevron + callout grip + table heading-row grip all drag whole blocks (list-drag-style snap, full reliability set), every step adversarial-reviewed AND live screenshot-verified. The footer is shared.
 
 **Session A ID:** de564e01-aa38-498e-b9f8-5db92904a48a
 **Session B ID:** 64346d76-0499-4a65-93e3-71db53bf4d32
@@ -13,11 +13,11 @@ Two parallel 06-27 React sessions on one tree (plus a Swift session committing c
 ### Session Summary - A
 **Date:** 06-27-2026
 **Model:** Opus 4.8
-**Compactions:** 0
-**Connectors:** none (in-process tooling only — no MCP called)
+**Compactions:** 1
+**Connectors:** none (in-process tooling + web research; no MCP)
 **Commands:** `/handoff`
-**Worktree:** main checkout (planning only — **no code yet**; per `CLAUDE.md`, Part-1 *execution* should move to the `pommora-react` worktree, then merge to main)
-**Agents:** Explore (×5 — Swift view-model · React view-plumbing · view/property specs · React UI-primitives · plan compile-grounding), builder (×1 — Swift app build), general-purpose (×2 — plan logic/coverage review + over-engineering review)
+**Worktree:** Part 1 BUILT on the **`views-plumbing`** worktree, branched off `pommora-react`@`3bb170c`; now merged to `main`
+**Agents:** Explore (×6 — Swift view-model · React view-plumbing · view/property specs · React UI-primitives · plan compile-grounding ×2 rounds), builder (×1 — Swift app build), general-purpose (×4 — plan logic/coverage · over-engineering · confirmation logic/coverage · Notion linked-DB research)
 **Skills:** `superpowers:brainstorming`, `superpowers:writing-plans`, `handoff`
 
 The whole session was design + planning for porting the Swift build's view system to React, build-order **plumbing → table UIX (Figma) → settings dropdown**, with Part 1 specced, planned, reviewed, and parked one confirmation away from execution.
@@ -153,7 +153,7 @@ Three editor bug-fixes, then the Notion-style block-drag feature built end-to-en
 ### Next Sessions
 
 - **(B) Block Drag is feature-complete, reviewed + screenshot-verified — what's left is finishing touches.** Phases 1–4 + callout-drag + table-drag all shipped (`a8b06ff`→`d9839b8`). Open: **(1)** Nathan's own full live UIX pass of the drag feel; **(2) C — bq/codeblock above-below spacing** (mirror the callout `--callout-gap`; visual, needs his confirm + margin-vs-inset call); **(3)** line-INTO-callout interior drop slots (V2 nesting, deferred); **(4)** the `listDrag`↔`blockDrag` `Overlay`+shade extraction (touches shipped listDrag — human-scoped; the `.cm-line` walk is already shared via `lineDom.ts`). **Restore the dev config** (`scratchpad/pommora.json.orig-TheNexus` → `pommora-react` userData).
-- **(A) Execute Table Views Part 1.** Confirm the recursive-filter shape + the execution path, commit the two Planning docs as the baseline, then run the 11-task plan (subagent-driven, fresh agent per task, diff review between). Move to the `pommora-react` worktree for the code. After Part 1 greens, Nathan designs the table in Figma → Part 2 routes the UI to the seams (`ResolvedColumn[]` / `ResolvedGroup[]` / per-cell data), with chips as direct `design-system/components/Chips/` components.
+- **(A) Table Views Part 1 SHIPPED → Part 2, then Part 3.** Part 1 (11 TDD tasks, simplify-+code-reviewed, suite+typecheck green) shipped on `views-plumbing` (`d5ed3ac`…`1c892a7`) and is **merged to `main` this commit** — supersedes the parallel `pommora-react` Task-6 WIP, so run all React work from `main` now (pipeline in `renderer/src/Detail/Views/pipeline/`, main IO in `main/io/activeViews.ts` + `main/crud/{views,loadValues}.ts`, on-disk contract in `shared/views.ts`; decisions → `History.md`). **Part 2** — the Figma-designed table UIX + chips (direct `design-system/components/Chips/` on `tokens/chip.css.ts`, shared by select/multi/status, NOT Swift ports) routed to the `ResolvedColumn[]`/`ResolvedGroup[]` seams; inline cell editor (glass chip pickers, plain inputs, "Calendar" date placeholder, native menus); render concerns deferred from Part 1 land here (group/sort **column hoist before `_title`**, column widths, relation/tier chip resolution via `Detail/Scope.ts` `findContext`). **Part 3** — the View Settings glass dropdown (Sort/Filter/Group/Layout panes + the operator picker + view rename/dup/delete + `open_in`/`display_as`), wiring the `views:save/reorder/delete` + `activeViews` IPC already shipped.
 - **(A) Carryover editor work:** **Callouts** are functionally hardened (delete-guard + adversarial fuzz pass, `Guidelines/Adversarial-Review-Log.md`); remaining: tables-inside-callouts (deferred). Create unicode up-down + back-forth auto-transform for `<>` / `><`. Add "Styles" to tables → style = column would remove gutter padding + hide table lines (solves the markdown column problem).
 - **(A) Live-verify the heading-column toggle end-to-end** — menu → toggle → persist → reload is unit-tested + typecheck-clean, but not confirmed by a real in-app toggle.
 
@@ -161,7 +161,9 @@ Three editor bug-fixes, then the Notion-style block-drag feature built end-to-en
 
 - **(B) Block Drag V2 — nesting** (separate spec): interior drop-slots inside callouts (the line-INTO-callout Nathan flagged), the guard table (table / heading / callout can't nest in a box), cross-container re-prefix, the `depth` field. Deferred from V1; the V1 mover + reindent already prove the cross-container re-prefix.
 - **(B) C — blockquote + codeblock above-below spacing.** Give bq/cb the visual separation callouts/lists have (the `--callout-gap` look). Undone (caret-risk margin vs an inset-box `::before` refactor); needs Nathan's visual confirm. The callout pattern (`::before` border inset by `--callout-gap` + margin-bottom on last) is the template.
-- **Table Views Parts 2 & 3 (new)** — Part 2: the Figma-designed table UIX + chip components + inline cell editor (glass-control chip pickers, plain inputs, "Calendar" date placeholder, native menus for simple actions) routed to the Part-1 seams. Part 3: the View Settings dropdown (glass-surface `Popover` root menu → Layout/Sort/Filter/Group/EditProperties panes) + the operator *picker* + view rename/dup/delete + `open_in` + `display_as` variants. Both gated on Part-1 plumbing.
+- **(A) Part-1 deferred cleanups (Nathan's call):** (1) extract one generic `.nexus` map-store factory for the 3 identical stores (folds / tableHeadingColumns / activeViews — same lenient-read / merge-write / empty-deletes shape across module + IPC + preload); (2) a borderline `relPosix(root,abs)` helper (`loadValues` + `watcher` share the `relative().split(sep).join('/')` idiom).
+- **(A) Date-bucket cross-build follow-ups (Nathan's call):** (1) the date-only off-by-one fixed in React (date-only buckets by its stored UTC date) still exists in Swift's `DateBucket` (`Calendar.current` on a UTC-parsed date) — align Swift or leave; (2) timed `datetime` values still bucket display-local (matches Swift) — switch to UTC for cross-machine determinism, or keep.
+- **Table Views Parts 2 & 3** — see Next Sessions; Part-1 plumbing is shipped + merged.
 - **Break-things skill (Nathan-requested)** — a reusable adversarial-fuzzing skill from `Guidelines/Adversarial-Review-Log.md`: a break-attempt taxonomy (input transforms · deletion/caret combo matrix · nesting · adjacency · layout edges · fix-induced regressions) + the "toddler" method + a `{keys}×{positions}×{nesting}×{adjacency}` generator → a break→repro→fix catalog before any UI feature is called done.
 - **Canvas** — spec parked at `Planning/6-26 - Canvas Spec.md`, pending its adversarial review → plan → build. React-first; the `.canvas` format is the cross-build contract. Confirm the `border` token (grey-30%) lands when canvas builds.
 - **Caret on the other editor surfaces** — drawn caret + custom hover cursor shipped on the page editor (`editor/caret.ts`); extending to table cells + the inline-rename input is the remainder.
@@ -170,7 +172,7 @@ Three editor bug-fixes, then the Notion-style block-drag feature built end-to-en
 - **Real design-system Components** (Button / Menu / Label / Separator / **Chips**) from the token layer — prerequisite for replacing one-offs (notably the inline-rename `<input>`).
 - **Radius + spacing tokens** — still ad-hoc literals; lift from Figma.
 - **Settings editing UI** deferred — `.nexus/settings.json` is the control surface (labels + accent + `subfield`).
-- **One-time Biome normalization** — defer to a tree with no parallel uncommitted edits.
+- **Biome config vs code (repo-wide)** — `biome.json` declares `quoteStyle:"double"` + organizeImports, but the codebase is hand-written single-quote / no-semicolon (internally consistent; the format hook isn't converting quotes). Settle once: config-to-match-code OR reformat-repo-to-config — defer to a tree with no parallel uncommitted edits.
 - **Unsorted bin → folder + sidecar (paradigm, ratify first)** — move "unsorted" off a config file onto a real `Unsorted/` folder with an `_unsortedconfig.json` sidecar (the folder-with-sidecar pattern). Win is interop (another Markdown app could share the folder). On-disk shape — ratify before building.
 
 ### Fix Log

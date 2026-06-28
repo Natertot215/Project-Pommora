@@ -13,6 +13,7 @@
 
 import { z } from 'zod'
 import { AREA_COLORS } from './types'
+import { savedView } from './views'
 
 const ulidList = z.array(z.string()).optional()
 
@@ -33,7 +34,7 @@ export const pageCollectionSidecar = baseSidecar.extend({
   page_order: ulidList,
   properties: z.array(z.looseObject({})).optional(),
   default_sort: z.looseObject({}).optional(),
-  views: z.array(z.looseObject({})).optional(),
+  views: z.array(savedView).optional(),
   open_in: z.enum(['compact', 'window']).optional()
 })
 export type PageCollectionSidecar = z.infer<typeof pageCollectionSidecar>
@@ -46,7 +47,7 @@ export const pageSetSidecar = baseSidecar.extend({
   page_order: ulidList,
   set_order: ulidList,
   banner: z.string().optional(),
-  views: z.array(z.looseObject({})).optional()
+  views: z.array(savedView).optional()
 })
 export type PageSetSidecar = z.infer<typeof pageSetSidecar>
 

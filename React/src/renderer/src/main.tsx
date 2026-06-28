@@ -7,7 +7,7 @@ import './styles.css'
 import './Sidebar/Sidebar.css'
 import './Detail/Detail.css'
 import './Detail/Banner/Banner.css'
-import './Detail/Table/Table.css'
+import './Detail/Views/Table/Table.css'
 
 createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>

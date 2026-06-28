@@ -23,6 +23,7 @@ import type {
   UserSection
 } from '@shared/types'
 import { ACCENT_COLORS, AREA_COLORS, DEFAULT_ACCENT, DEFAULT_LABELS } from '@shared/types'
+import { savedView, type SavedView } from '@shared/views'
 import { adoptedId } from './ids'
 import { pathExists, readJsonObject } from './io/atomicWrite'
 import { asString, asStringArray, basenameNoMd } from './coerce'
@@ -136,6 +137,18 @@ async function readDirectPages(absDir: string, relDir: string): Promise<PageNode
 
 // ---------- container reads (2-tier: Collection -> recursive Set) ----------
 
+/** Lenient read of a sidecar `views[]` — drops any view that fails to decode rather than
+ *  poisoning the whole container read; absent/empty ⇒ undefined. */
+function parseViews(raw: unknown): SavedView[] | undefined {
+  if (!Array.isArray(raw)) return undefined
+  const out: SavedView[] = []
+  for (const v of raw) {
+    const r = savedView.safeParse(v)
+    if (r.success) out.push(r.data)
+  }
+  return out.length > 0 ? out : undefined
+}
+
 /** Every non-excluded subfolder of a Collection or Set is itself a Set (position-driven,
  *  any depth). Shared by the Collection root and every Set level — the recursion. */
 async function readChildSets(
@@ -174,7 +187,8 @@ async function readSet(
     path: relDir,
     banner: asString(meta.banner),
     sets: resolveOrder(sets, asStringArray(meta.set_order), fb),
-    pages: resolveOrder(pages, asStringArray(meta.page_order), fb)
+    pages: resolveOrder(pages, asStringArray(meta.page_order), fb),
+    views: parseViews(meta.views)
   }
 }
 
@@ -202,7 +216,8 @@ async function readPageCollection(
       ? (meta.properties as CollectionNode['properties'])
       : undefined,
     sets: resolveOrder(sets, asStringArray(meta.set_order), fb),
-    pages: resolveOrder(pages, asStringArray(meta.page_order), fb)
+    pages: resolveOrder(pages, asStringArray(meta.page_order), fb),
+    views: parseViews(meta.views)
   }
 }
 

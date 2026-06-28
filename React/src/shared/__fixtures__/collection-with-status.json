@@ -1,0 +1,67 @@
+{
+  "id": "col_fixture_status",
+  "icon": "rectangle.stack",
+  "schema_version": 2,
+  "_foreign_collection_key": "preserved",
+  "properties": [
+    {
+      "id": "prop_status",
+      "name": "Status",
+      "type": "status",
+      "display_as": "chip",
+      "status_groups": [
+        {
+          "id": "upcoming",
+          "label": "Upcoming",
+          "color": "gray",
+          "options": [
+            { "value": "not_started", "label": "Not started", "group_id": "upcoming" },
+            { "value": "opt_open", "label": "Open", "color": "green", "group_id": "upcoming" }
+          ]
+        },
+        {
+          "id": "in_progress",
+          "label": "In Progress",
+          "color": "blue",
+          "options": [
+            { "value": "in_progress", "label": "Active", "color": "blue", "group_id": "in_progress" }
+          ]
+        },
+        {
+          "id": "done",
+          "label": "Done",
+          "color": "green",
+          "options": [
+            { "value": "done", "label": "Complete", "color": "red", "group_id": "done" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "prop_when",
+      "name": "Timeframe",
+      "type": "datetime",
+      "date_format": "full"
+    }
+  ],
+  "views": [
+    {
+      "id": "view_1",
+      "name": "Table",
+      "icon": "tablecells",
+      "type": "table",
+      "_foreign_view_key": "preserved",
+      "property_order": ["prop_status", "_title", "_tier3", "_tier2", "_tier1"],
+      "hidden_properties": ["_modified_at"],
+      "group": {
+        "kind": "property",
+        "property_id": "prop_status",
+        "order_mode": "manual",
+        "order": ["in_progress", "opt_open", "not_started", "done"],
+        "empty_placement": "bottom",
+        "hide_empty_groups": false
+      },
+      "sort": [{ "property_id": "prop_status", "direction": "descending" }]
+    }
+  ]
+}

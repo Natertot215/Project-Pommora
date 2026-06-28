@@ -18,6 +18,11 @@ import { startWatcher, stopWatcher } from './watcher'
 import { resolveUnderRoot } from './pathSafety'
 import { updatePageBody } from './crud/page'
 import { readFolds, writeFolds, type FoldState } from './io/folds'
+import { readActiveViews, writeActiveViews, type ActiveViews } from './io/activeViews'
+import { saveView, reorderViews, deleteView } from './crud/views'
+import { loadValues } from './crud/loadValues'
+import { savedView } from '@shared/views'
+import type { PageFrontmatter } from '@shared/schemas'
 import {
   readTableHeadingColumns,
   writeTableHeadingColumns,
@@ -325,6 +330,96 @@ ipcMain.handle(
     }
   }
 )
+
+// Active-view pointer — local `.nexus/activeViews.json`, container id → active view id (per-machine).
+ipcMain.handle('activeViews:get', async (): Promise<ActiveViews> => {
+  const root = sessionRoot()
+  return root === null ? {} : readActiveViews(root)
+})
+ipcMain.handle(
+  'activeViews:set',
+  async (_e, containerId: unknown, viewId: unknown): Promise<{ ok: true } | { ok: false; error: string }> => {
+    try {
+      const root = sessionRoot()
+      if (root === null) return { ok: false, error: 'No nexus is open.' }
+      if (typeof containerId !== 'string') return { ok: false, error: 'A container id is required.' }
+      if (typeof viewId !== 'string') return { ok: false, error: 'A view id is required.' }
+      await writeActiveViews(root, containerId, viewId)
+      return { ok: true }
+    } catch (e) {
+      return { ok: false, error: e instanceof Error ? e.message : String(e) }
+    }
+  }
+)
+
+// View persistence — save / reorder / delete a SavedView in a container's synced `views[]` sidecar.
+// (View SELECTION is the per-machine activeViews pointer above; this is the view DEFINITION.)
+type ResolvedViewContainer =
+  | { ok: true; folder: string; kind: 'collection' | 'set' }
+  | { ok: false; error: string }
+async function resolveViewContainer(containerPath: unknown, kind: unknown): Promise<ResolvedViewContainer> {
+  const root = sessionRoot()
+  if (root === null) return { ok: false, error: 'No nexus is open.' }
+  if (typeof containerPath !== 'string') return { ok: false, error: 'A container path is required.' }
+  if (kind !== 'collection' && kind !== 'set') return { ok: false, error: 'kind must be "collection" or "set".' }
+  const resolved = await resolveUnderRoot(root, containerPath)
+  if (!resolved.ok) return { ok: false, error: resolved.error.message }
+  return { ok: true, folder: resolved.value, kind }
+}
+ipcMain.handle(
+  'views:save',
+  async (_e, containerPath: unknown, kind: unknown, view: unknown): Promise<{ ok: true; id: string } | { ok: false; error: string }> => {
+    try {
+      const c = await resolveViewContainer(containerPath, kind)
+      if (!c.ok) return c
+      const parsed = savedView.safeParse(view)
+      if (!parsed.success) return { ok: false, error: 'Invalid view payload.' }
+      const r = await saveView(c.folder, c.kind, parsed.data)
+      return r.ok ? { ok: true, id: r.value.id } : { ok: false, error: r.error.message }
+    } catch (e) {
+      return { ok: false, error: e instanceof Error ? e.message : String(e) }
+    }
+  }
+)
+ipcMain.handle(
+  'views:reorder',
+  async (_e, containerPath: unknown, kind: unknown, orderedIds: unknown): Promise<{ ok: true } | { ok: false; error: string }> => {
+    try {
+      const c = await resolveViewContainer(containerPath, kind)
+      if (!c.ok) return c
+      if (!Array.isArray(orderedIds) || !orderedIds.every((x) => typeof x === 'string')) {
+        return { ok: false, error: 'orderedIds must be a string array.' }
+      }
+      const r = await reorderViews(c.folder, c.kind, orderedIds)
+      return r.ok ? { ok: true } : { ok: false, error: r.error.message }
+    } catch (e) {
+      return { ok: false, error: e instanceof Error ? e.message : String(e) }
+    }
+  }
+)
+ipcMain.handle(
+  'views:delete',
+  async (_e, containerPath: unknown, kind: unknown, viewId: unknown): Promise<{ ok: true } | { ok: false; error: string }> => {
+    try {
+      const c = await resolveViewContainer(containerPath, kind)
+      if (!c.ok) return c
+      if (typeof viewId !== 'string') return { ok: false, error: 'A view id is required.' }
+      const r = await deleteView(c.folder, c.kind, viewId)
+      return r.ok ? { ok: true } : { ok: false, error: r.error.message }
+    } catch (e) {
+      return { ok: false, error: e instanceof Error ? e.message : String(e) }
+    }
+  }
+)
+
+// Batch frontmatter read for a container's view pipeline (pageId → frontmatter), lazy on open.
+ipcMain.handle('view:loadValues', async (_e, containerPath: unknown): Promise<Record<string, PageFrontmatter>> => {
+  const root = sessionRoot()
+  if (root === null || typeof containerPath !== 'string') return {}
+  const resolved = await resolveUnderRoot(root, containerPath)
+  if (!resolved.ok) return {}
+  return loadValues(root, containerPath)
+})
 
 // Table heading-column UI state — local `.nexus/tableHeadingColumns.json` (out of frontmatter + index).
 ipcMain.handle('tableHeadingCols:get', async (): Promise<TableHeadingColState> => {
