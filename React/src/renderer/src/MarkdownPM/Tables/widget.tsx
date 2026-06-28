@@ -5,6 +5,7 @@ import { createRoot, type Root } from 'react-dom/client'
 import { tableRegions, modelFromRegion } from './regions'
 import { parseDelimiter } from './codec'
 import { cellCommitChange, structuralEditChange, tableSelfEdit } from './sync'
+import { startBlockDrag } from '../editor/blockDrag'
 import {
   moveColumn,
   moveRow,
@@ -152,6 +153,11 @@ class TableWidget extends WidgetType {
       view.dispatch({ changes: change })
       return true
     }
+    // The heading-row action grip drags the whole table block (left-press → block drag; right-click → menu).
+    const tableDrag = (e: PointerEvent): void => {
+      const region = tableRegions(view.state.doc.toString())[this.tableIndex]
+      if (region) startBlockDrag(view, e, { from: region.from, to: region.to })
+    }
     const onMenu = (ctx: TableMenuContext): void => {
       void window.nexus.tableMenu(ctx).then((action) => {
         if (!action) return
@@ -191,6 +197,7 @@ class TableWidget extends WidgetType {
         onReorder={reorder}
         onResize={resize}
         onMenu={onMenu}
+        onTableDrag={tableDrag}
         onUndo={() => undo(view)}
         onRedo={() => redo(view)}
         connections={view.state.facet(tableConnections)}

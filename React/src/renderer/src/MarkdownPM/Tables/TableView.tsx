@@ -64,6 +64,7 @@ export function TableView({
   onReorder,
   onResize,
   onMenu,
+  onTableDrag,
   onUndo,
   onRedo,
   connections
@@ -75,6 +76,7 @@ export function TableView({
   onReorder: (axis: Axis, from: number, to: number) => boolean
   onResize: (boundaryIndex: number, dashDelta: number) => boolean
   onMenu: (ctx: TableMenuContext) => void
+  onTableDrag: (e: PointerEvent) => void
   onUndo: () => void
   onRedo: () => void
   connections?: () => ConnectionsApi | undefined
@@ -139,7 +141,6 @@ export function TableView({
   }, [active])
 
   const startDrag = (e: React.PointerEvent<HTMLDivElement>, axis: Axis, index: number): void => {
-    if (axis === 'row' && index === 0) return
     if (e.button !== 0) return // only the left button drags; a right-press falls through to the context menu
     e.preventDefault()
     const wrap = wrapRef.current
@@ -337,7 +338,7 @@ export function TableView({
           className="mdpm-tbl-grip-zone mdpm-tbl-grip-row"
           style={{ top: r.top, height: r.height }}
           onMouseDown={swallowCaret}
-          onPointerDown={(e) => startDrag(e, 'row', j)}
+          onPointerDown={(e) => (j === 0 ? onTableDrag(e.nativeEvent) : startDrag(e, 'row', j))}
           onContextMenu={(e) => {
             e.preventDefault()
             onMenu(j === 0 ? { kind: 'header', index: 0 } : { kind: 'row', index: j })

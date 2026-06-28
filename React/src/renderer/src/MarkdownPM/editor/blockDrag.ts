@@ -7,6 +7,7 @@ import { StateEffect, StateField, type Extension, type Line, type Range, type Te
 import { Decoration, type DecorationSet, EditorView } from '@codemirror/view'
 import { ACTIVATION } from '../../design-system/interactions/shared'
 import { blockAt, blockStarts } from './blockModel'
+import { lineElementAt } from './lineDom'
 import { blockMoveChanges } from './listDragModel'
 
 const setShade = StateEffect.define<{ from: number; to: number } | null>()
@@ -63,13 +64,13 @@ class Overlay {
   }
 }
 
-// The bottom of the CONTENT block above a gap (skipping blank lines), so the insertion line reads "the dragged
-// block goes BELOW this" — hugging the content above rather than floating in the inter-block gap.
+// The OUTER bottom of the content block above a gap (skipping blank lines), so the insertion line reads "the
+// dragged block goes BELOW this" and sits OUTSIDE a box (below a callout's border, not inside it).
 function bottomAbove(view: EditorView, at: number): number | null {
   if (at === 0) return null
   let line = view.state.doc.lineAt(at - 1)
   while (line.from > 0 && line.length === 0) line = view.state.doc.lineAt(line.from - 1)
-  return view.coordsAtPos(line.to)?.bottom ?? null
+  return lineElementAt(view, line.from)?.getBoundingClientRect().bottom ?? null
 }
 
 // Drop candidates, list-drag-style: each block outside the dragged one offers TWO boundaries — above it (its
@@ -93,12 +94,13 @@ function collectCands(view: EditorView, block: { from: number; to: number }): Ca
   for (let i = 0; i < starts.length; i++) {
     const from = starts[i]
     if (from >= block.from && from <= block.to) continue // inside the dragged block
-    const top = view.coordsAtPos(from)
-    if (!top) continue // folded away or off-screen → auto-scroll brings scrollable ones in
-    out.push({ at: from, y: top.top, left: top.left, right, noop: isNoop(from) }) // ABOVE this block
+    const c = view.coordsAtPos(from)
+    if (!c) continue // folded away or off-screen → auto-scroll brings scrollable ones in
+    const topY = lineElementAt(view, from)?.getBoundingClientRect().top ?? c.top // OUTER top (above a box's border)
+    out.push({ at: from, y: topY, left: c.left, right, noop: isNoop(from) }) // ABOVE this block
     const nextFrom = i + 1 < starts.length ? starts[i + 1] : doc.length
-    const botY = bottomAbove(view, nextFrom) // this block's content bottom
-    if (botY !== null) out.push({ at: nextFrom, y: botY, left: top.left, right, noop: isNoop(nextFrom) }) // BELOW this block
+    const botY = bottomAbove(view, nextFrom) // this block's OUTER bottom (below a box's border)
+    if (botY !== null) out.push({ at: nextFrom, y: botY, left: c.left, right, noop: isNoop(nextFrom) }) // BELOW this block
   }
   return out.sort((a, b) => a.y - b.y)
 }
@@ -120,16 +122,125 @@ function nearest(cands: Cand[], clientY: number): Cand | null {
   return best
 }
 
+// The gesture core, callable directly so a non-CM-line handle (the table widget's action grip) can start a
+// block drag too. From a starting pointer event + the resolved block: ACTIVATION threshold → in-place shade →
+// fixed accent line → drop via `blockMoveChanges`, with auto-scroll, scroll re-measure, and Escape/blur abort.
+export function startBlockDrag(
+  view: EditorView,
+  e: PointerEvent,
+  block: { from: number; to: number },
+  opts: {
+    onClick?: (view: EditorView, line: HTMLElement) => void // sub-threshold release action (e.g. a heading's fold)
+    onDragStart?: (view: EditorView, block: { from: number; to: number }) => void // at activation (e.g. unfold)
+    line?: HTMLElement // the handle line (for onClick) — absent for the programmatic table grip
+  } = {}
+): void {
+  const { onClick, onDragStart, line } = opts
+  e.preventDefault()
+  const host = view.scrollDOM
+  const g = { active: false, done: false, overlay: new Overlay(), cands: [] as Cand[], slot: null as Cand | null, lastY: e.clientY, raf: 0 }
+
+  // Re-aim the insertion line at the candidate nearest the last pointer Y — no re-measure.
+  const repick = (): void => {
+    g.slot = nearest(g.cands, g.lastY)
+    // The "stay put" slot stays the resolved target (release-in-place cancels) but draws no line — a drop there no-ops.
+    if (g.slot && !g.slot.noop) g.overlay.show(g.slot.left, g.slot.y, Math.max(g.slot.right - g.slot.left, 40))
+    else g.overlay.destroy()
+  }
+  // Candidate coords are viewport-relative, so any scroll (wheel or the auto-scroll below) invalidates them —
+  // re-measure against the new layout, then re-aim. The doc is static, so this is pure geometry.
+  const remeasure = (): void => {
+    g.cands = collectCands(view, block)
+    repick()
+  }
+  // Auto-scroll while the pointer sits in the top/bottom EDGE band, so a block can reach a target that was
+  // off-screen at grab time (CM only renders ~viewport, so far targets aren't candidates until scrolled in).
+  const tick = (): void => {
+    g.raf = 0
+    if (!g.active) return
+    const r = host.getBoundingClientRect()
+    let dy = 0
+    if (g.lastY < r.top + EDGE) dy = -edgeStep(r.top + EDGE - g.lastY)
+    else if (g.lastY > r.bottom - EDGE) dy = edgeStep(g.lastY - (r.bottom - EDGE))
+    if (dy === 0) return
+    const before = host.scrollTop
+    host.scrollTop += dy
+    if (host.scrollTop === before) return // at the scroll limit — wait for the pointer to move again
+    g.raf = requestAnimationFrame(tick) // the scrollTop write fires `scroll` → onScroll → remeasure (one path)
+  }
+
+  const onMove = (ev: PointerEvent): void => {
+    if (!g.active) {
+      if (Math.hypot(ev.clientX - e.clientX, ev.clientY - e.clientY) < ACTIVATION) return
+      g.active = true
+      document.body.style.cursor = 'grabbing'
+      try {
+        host.setPointerCapture(e.pointerId)
+      } catch {
+        // capture unavailable
+      }
+      onDragStart?.(view, block) // e.g. unfold a heading section before it moves — folds can't survive the move
+      view.dispatch({ effects: setShade.of({ from: block.from, to: block.to }) })
+      g.cands = collectCands(view, block)
+    }
+    g.lastY = ev.clientY
+    repick()
+    if (!g.raf) g.raf = requestAnimationFrame(tick) // (re)start auto-scroll if we're near an edge
+  }
+
+  const onScroll = (): void => {
+    if (g.active) remeasure()
+  }
+  const onKey = (ev: KeyboardEvent): void => {
+    if (ev.key === 'Escape') finish(false)
+  }
+
+  const finish = (commit: boolean): void => {
+    if (g.done) return // a drag ends once — guard the window blur/Escape paths from re-entering
+    g.done = true
+    document.body.style.cursor = ''
+    if (g.raf) cancelAnimationFrame(g.raf)
+    host.removeEventListener('pointermove', onMove)
+    host.removeEventListener('pointerup', onUp)
+    host.removeEventListener('pointercancel', onCancel)
+    host.removeEventListener('scroll', onScroll)
+    window.removeEventListener('keydown', onKey)
+    window.removeEventListener('blur', onCancel)
+    try {
+      host.releasePointerCapture(e.pointerId)
+    } catch {
+      // already released
+    }
+    g.overlay.destroy()
+    if (g.active) {
+      view.dispatch({ effects: setShade.of(null) })
+      if (commit && g.slot) {
+        const changes = blockMoveChanges(view.state.doc.toString(), block, { at: g.slot.at })
+        if (changes && changes.length) view.dispatch({ changes, userEvent: 'input' })
+      }
+    } else if (commit && line) {
+      onClick?.(view, line) // a click (sub-threshold release) — e.g. toggle the heading fold
+    }
+  }
+
+  const onUp = (): void => finish(true)
+  const onCancel = (): void => finish(false)
+  host.addEventListener('pointermove', onMove)
+  host.addEventListener('pointerup', onUp)
+  host.addEventListener('pointercancel', onCancel)
+  host.addEventListener('scroll', onScroll, { passive: true })
+  window.addEventListener('keydown', onKey)
+  window.addEventListener('blur', onCancel)
+}
+
 interface DragConfig {
   gate: string // the cm-line class that arms the gesture (hit-tested in the gutter strip left of the content)
   onClick?: (view: EditorView, line: HTMLElement) => void // sub-threshold release action (e.g. a heading's fold)
-  onDragStart?: (view: EditorView, block: { from: number; to: number }, line: HTMLElement) => void // at activation (e.g. unfold)
+  onDragStart?: (view: EditorView, block: { from: number; to: number }) => void // at activation (e.g. unfold)
 }
 
-// One block-drag gesture, parameterized so the rail grips and the heading chevron share it: identical lifecycle,
-// differing only in the hit-test class (`gate`), the sub-threshold click action, and an optional drag-start hook.
-// The drop machinery (`collectCands`/`nearest`/`blockMoveChanges`) is block-type-blind, so a heading section
-// drags through it unchanged.
+// The CM-line gesture: hit-test the gutter handle (`gate` + clientX), resolve the block via `blockAt`, then hand
+// off to `startBlockDrag`. Shared by the rail grips, the heading chevron, and the callout head.
 export function createBlockDragGesture({ gate, onClick, onDragStart }: DragConfig): Extension {
   const sel = `.cm-line.${gate}`
   return [
@@ -150,102 +261,7 @@ export function createBlockDragGesture({ gate, onClick, onDragStart }: DragConfi
         if (!line || e.clientX >= line.getBoundingClientRect().left) return false // not the handle zone
         const block = blockAt(view.state.doc.toString(), view.posAtDOM(line))
         if (!block) return false
-        e.preventDefault()
-
-        const host = view.scrollDOM
-        const g = { active: false, done: false, overlay: new Overlay(), cands: [] as Cand[], slot: null as Cand | null, lastY: e.clientY, raf: 0 }
-
-        // Re-aim the insertion line at the candidate nearest the last pointer Y — no re-measure.
-        const repick = (): void => {
-          g.slot = nearest(g.cands, g.lastY)
-          // The "stay put" slot stays the resolved target (release-in-place cancels) but draws no line — a drop there no-ops.
-          if (g.slot && !g.slot.noop) g.overlay.show(g.slot.left, g.slot.y, Math.max(g.slot.right - g.slot.left, 40))
-          else g.overlay.destroy()
-        }
-        // Candidate coords are viewport-relative, so any scroll (wheel or the auto-scroll below) invalidates
-        // them — re-measure against the new layout, then re-aim. The doc is static, so this is pure geometry.
-        const remeasure = (): void => {
-          g.cands = collectCands(view, block)
-          repick()
-        }
-        // Auto-scroll while the pointer sits in the top/bottom EDGE band, so a block can reach a target that was
-        // off-screen at grab time (CM only renders ~viewport, so far targets aren't candidates until scrolled in).
-        const tick = (): void => {
-          g.raf = 0
-          if (!g.active) return
-          const r = host.getBoundingClientRect()
-          let dy = 0
-          if (g.lastY < r.top + EDGE) dy = -edgeStep(r.top + EDGE - g.lastY)
-          else if (g.lastY > r.bottom - EDGE) dy = edgeStep(g.lastY - (r.bottom - EDGE))
-          if (dy === 0) return
-          const before = host.scrollTop
-          host.scrollTop += dy
-          if (host.scrollTop === before) return // at the scroll limit — wait for the pointer to move again
-          g.raf = requestAnimationFrame(tick) // the scrollTop write fires `scroll` → onScroll → remeasure (one path)
-        }
-
-        const onMove = (ev: PointerEvent): void => {
-          if (!g.active) {
-            if (Math.hypot(ev.clientX - e.clientX, ev.clientY - e.clientY) < ACTIVATION) return
-            g.active = true
-            document.body.style.cursor = 'grabbing'
-            try {
-              host.setPointerCapture(e.pointerId)
-            } catch {
-              // capture unavailable
-            }
-            onDragStart?.(view, block, line) // e.g. unfold a heading section before it moves — folds can't survive the move
-            view.dispatch({ effects: setShade.of({ from: block.from, to: block.to }) })
-            g.cands = collectCands(view, block)
-          }
-          g.lastY = ev.clientY
-          repick()
-          if (!g.raf) g.raf = requestAnimationFrame(tick) // (re)start auto-scroll if we're near an edge
-        }
-
-        const onScroll = (): void => {
-          if (g.active) remeasure()
-        }
-        const onKey = (ev: KeyboardEvent): void => {
-          if (ev.key === 'Escape') finish(false)
-        }
-
-        const finish = (commit: boolean): void => {
-          if (g.done) return // a drag ends once — guard the window blur/Escape paths from re-entering
-          g.done = true
-          document.body.style.cursor = ''
-          if (g.raf) cancelAnimationFrame(g.raf)
-          host.removeEventListener('pointermove', onMove)
-          host.removeEventListener('pointerup', onUp)
-          host.removeEventListener('pointercancel', onCancel)
-          host.removeEventListener('scroll', onScroll)
-          window.removeEventListener('keydown', onKey)
-          window.removeEventListener('blur', onCancel)
-          try {
-            host.releasePointerCapture(e.pointerId)
-          } catch {
-            // already released
-          }
-          g.overlay.destroy()
-          if (g.active) {
-            view.dispatch({ effects: setShade.of(null) })
-            if (commit && g.slot) {
-              const changes = blockMoveChanges(view.state.doc.toString(), block, { at: g.slot.at })
-              if (changes && changes.length) view.dispatch({ changes, userEvent: 'input' })
-            }
-          } else if (commit) {
-            onClick?.(view, line) // a click (sub-threshold release) — e.g. toggle the heading fold
-          }
-        }
-
-        const onUp = (): void => finish(true)
-        const onCancel = (): void => finish(false)
-        host.addEventListener('pointermove', onMove)
-        host.addEventListener('pointerup', onUp)
-        host.addEventListener('pointercancel', onCancel)
-        host.addEventListener('scroll', onScroll, { passive: true })
-        window.addEventListener('keydown', onKey)
-        window.addEventListener('blur', onCancel)
+        startBlockDrag(view, e, block, { onClick, onDragStart, line })
         return true
       }
     })

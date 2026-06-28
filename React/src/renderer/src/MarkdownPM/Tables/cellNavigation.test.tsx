@@ -36,6 +36,7 @@ const props = {
   onReorder: () => false,
   onResize: () => false,
   onMenu: noop,
+  onTableDrag: noop,
   onUndo: noop,
   onRedo: noop
 }

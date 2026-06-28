@@ -5,6 +5,7 @@
 import { EditorView, Decoration } from '@codemirror/view'
 import type { Range } from '@codemirror/state'
 import { blockStarts } from './blockModel'
+import { lineElementAt } from './lineDom'
 
 // Blockquote is intentionally NOT here: its quote bar is a `::before` on the line, so a grip `::before`
 // collides and replaces the bar on the first row. Blockquotes get a handle off their own border later.
@@ -32,12 +33,7 @@ function setHot(next: HTMLElement | null): void {
 export const blockGripHover = EditorView.domEventHandlers({
   mousemove(e, view) {
     const pos = view.posAtCoords({ x: e.clientX, y: e.clientY }, false)
-    let line: HTMLElement | null = null
-    if (pos != null) {
-      let node: Node | null = view.domAtPos(view.state.doc.lineAt(pos).from).node
-      while (node && !(node instanceof HTMLElement && node.classList.contains('cm-line'))) node = node.parentNode
-      line = node instanceof HTMLElement ? node : null
-    }
+    const line = pos == null ? null : lineElementAt(view, view.state.doc.lineAt(pos).from)
     const inGutter =
       !!line &&
       (line.classList.contains('md-block-handle') || line.classList.contains('md-callout-first')) &&

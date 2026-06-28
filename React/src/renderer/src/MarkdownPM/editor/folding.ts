@@ -9,6 +9,7 @@ import {
 } from '@codemirror/state'
 import { isHeadingLine } from '../detect'
 import { createBlockDragGesture } from './blockDrag'
+import { lineElementAt } from './lineDom'
 
 /** Per-page fold persistence seam — reads/writes `.nexus/folds.json` via the host (kept Electron-free here). */
 export interface FoldsApi {
@@ -104,19 +105,13 @@ const dropEffect = StateEffect.define<number>() // expanding done → remove the
 // Faithful clones of the folded body's line DOM, captured at fold time, keyed by heading start.
 const cloneMap = new Map<number, HTMLElement>()
 
-function lineElement(view: EditorView, pos: number): HTMLElement | null {
-  let node: Node | null = view.domAtPos(pos).node
-  while (node && !(node instanceof HTMLElement && node.classList.contains('cm-line'))) node = node.parentNode
-  return node instanceof HTMLElement ? node : null
-}
-
 function cloneBody(view: EditorView, from: number, to: number): HTMLElement {
   const wrap = document.createElement('div')
   wrap.className = 'mdpm-fold-clone'
   const seen = new Set<HTMLElement>()
   for (let pos = from; pos <= to; ) {
     const line = view.state.doc.lineAt(pos)
-    const el = lineElement(view, line.from)
+    const el = lineElementAt(view, line.from)
     if (el && !seen.has(el)) {
       seen.add(el)
       wrap.appendChild(el.cloneNode(true))
