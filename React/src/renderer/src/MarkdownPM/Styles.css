@@ -479,7 +479,7 @@
   --bar-radius: 2px;
   --bg-color: var(--fill-tertiary);
   --bg-radius: 6px;
-  --bq-gap: 4px;
+  --bq-gap: 6px;
   --li-origin: 16px; /* the quote's inner gutter — lists / code inside indent from it (matches padding-left) */
   position: relative;
   isolation: isolate;
@@ -697,7 +697,7 @@
   --cb-bg: var(--fill-secondary);
   --cb-radius: 6px;
   --cb-size: 0.85em;
-  --cb-gap: 4px;
+  --cb-gap: 6px;
   position: relative;
   isolation: isolate;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
