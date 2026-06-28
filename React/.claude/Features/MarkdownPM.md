@@ -83,6 +83,7 @@ Wikilink resolver — **wired** to `@shared/connections`: resolution, styling, c
 - **`WidgetType.ignoreEvent` defaults to TRUE** — a CM6 widget swallows every event from its own DOM, so an interactive glyph widget (bullet, checkbox) needs an explicit `ignoreEvent → false` or a pointerdown never reaches its handler (the bug that made bullet-drag silently dead).
 - **Connection detection reuses `@shared/connections`, not its own regex** — so the editor can't drift from the scanner / resolver / rename-cascade, and a connection restyles live the instant its target is created or renamed (no doc reparse).
 - **All offsets are character offsets (UTF-16), never bytes** — micromark/mdast reports char offsets, dissolving the cmark byte-offset column-bug class the Swift build carries; still guard astral-plane characters at parser boundaries.
+- **Box constructs float with an outer gap, never a line margin** — CM6 line margins break caret/arrow mapping (only padding is measured), so each box construct (blockquote, code block, callout) paints its fill as an inset `::after` and the first/last line pads by an outer-gap knob (`--bq-gap` / `--cb-gap` / `--callout-gap`), leaving empty space *outside* the fill so the box reads as separated from its neighbours even with no blank line between them. A code block nested inside a box pins its gap to 0 (the surrounding box already owns the outer spacing).
 
 ### Known Issues
 
