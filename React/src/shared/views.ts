@@ -173,9 +173,13 @@ export const savedView = z.looseObject({
   group: z.unknown().transform(decodeGroupConfig).optional()
 })
 
+/** Shared on-disk prefix for view ids (`view_<ulid>`); single-sourced so the sentinel and the
+ *  minted id can't drift. */
+export const VIEW_ID_PREFIX = 'view_'
+
 /** Sentinel id for a freshly-minted default view. `shared/` can't import `main/ids`, so main swaps
  *  this for a real `view_<ulid>` on first save (see crud/views). */
-export const DEFAULT_VIEW_ID = 'view_default'
+export const DEFAULT_VIEW_ID = `${VIEW_ID_PREFIX}default`
 
 /** Mint a default Table view for a container with no saved views: Title-first, all user props
  *  visible, structural grouping, no sort, no `_modified_at` column. Carries the sentinel id. */

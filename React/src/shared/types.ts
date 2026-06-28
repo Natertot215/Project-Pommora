@@ -278,6 +278,11 @@ export interface ResolvedGroup {
   isCollapsed: boolean
 }
 
+/** The reserved `key` for the no-value / flat / structural-root band. Stored on disk in
+ *  `collapsed_groups`, so it round-trips across builds — the single source the pipeline and the
+ *  Part-2 render code both match group keys against. */
+export const UNGROUPED = '_ungrouped'
+
 export const DEFAULT_LABELS: NexusLabels = {
   sidebarSections: { areas: 'Areas', topics: 'Topics', pages: 'Collections' },
   pageCollection: { singular: 'Collection', plural: 'Collections' },

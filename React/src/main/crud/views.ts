@@ -5,7 +5,7 @@
 // (shared/ can't mint ids — see mintDefaultView). Errors flow as Result, never thrown.
 
 import { pageCollectionSidecar, pageSetSidecar } from '@shared/schemas'
-import { DEFAULT_VIEW_ID, type SavedView } from '@shared/views'
+import { DEFAULT_VIEW_ID, VIEW_ID_PREFIX, type SavedView } from '@shared/views'
 import { ok, fail, type Result } from '@shared/result'
 import { newId } from '../ids'
 import { readSidecar, writeSidecar } from '../sidecarIO'
@@ -28,7 +28,7 @@ const viewsOf = (sidecar: { views?: SavedView[] }): SavedView[] =>
 export async function saveView(folder: string, kind: ViewContainerKind, view: SavedView): Promise<Result<{ id: string }>> {
   const sidecar = await readViewSidecar(folder, kind)
   if (sidecar === null) return fail('not-found', 'Container sidecar not found.', kind)
-  const id = view.id === DEFAULT_VIEW_ID ? `view_${newId()}` : view.id
+  const id = view.id === DEFAULT_VIEW_ID ? `${VIEW_ID_PREFIX}${newId()}` : view.id
   const finalView: SavedView = { ...view, id }
   const views = [...viewsOf(sidecar)]
   const idx = views.findIndex((v) => v.id === id)
