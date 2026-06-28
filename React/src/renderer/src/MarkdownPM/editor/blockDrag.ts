@@ -83,6 +83,7 @@ export function startBlockDrag(
   } = {}
 ): void {
   const { onClick, onDragStart, line } = opts
+  if (e.button !== 0) return // only the left button drags; a right-press falls through to the context menu (e.g. the table grip's Delete Table)
   e.preventDefault()
   const host = view.scrollDOM
   const g = { active: false, done: false, overlay: new Overlay(), cands: [] as Cand[], slot: null as Cand | null, lastY: e.clientY, raf: 0 }
