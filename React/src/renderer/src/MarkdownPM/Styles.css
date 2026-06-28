@@ -603,8 +603,6 @@
    the gutter; the inset layer carries the fill + the code-block corner radius. */
 .mdpm-editor .cm-line.md-callout.md-cb,
 .mdpm-editor .cm-line.md-bq.md-cb {
-  background: transparent;
-  border-radius: 0;
   --cb-gap: 0; /* a code block nested in a box floats off nothing — the box already owns the outer spacing */
   /* The fill (::after) aligns with the box gutter (--li-origin); the code text sits a further --cb-pad inside
      it, so it reads like a normal code block (text padded within its fill) nested in the box. */

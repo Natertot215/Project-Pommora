@@ -21,6 +21,9 @@ export const calloutGripMenu = EditorView.domEventHandlers({
       if (to < docLen) to += 1 // eat the trailing newline
       else if (from > 0) from -= 1 // last block in the doc: eat the preceding newline instead
       view.dispatch({ changes: { from, to, insert: '' }, userEvent: 'delete' })
+      // The grip just vanished with the callout and no pointer moved (the native menu was modal), so the
+      // hover flag would stay stale-true — clear it so the next right-click isn't wrongly suppressed.
+      window.nexus?.setCalloutGrip?.(false)
       view.focus()
     })
     return true

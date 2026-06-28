@@ -1,8 +1,7 @@
 // Block drag: press a block's gutter handle → drag the whole block → drop it at the nearest block boundary,
 // relocating its source lines via `blockMoveChanges`. `createBlockDragGesture` parameterizes the lifecycle
 // (pointerdown → ACTIVATION threshold → in-place shade → fixed insertion-line → drop) by the hit-test class,
-// so the rail grips and the heading chevron share ONE gesture. TODO(polish): listDrag still keeps its own
-// Overlay + shade copy — fold those into a shared module too.
+// so the rail grips and the heading chevron share ONE gesture.
 import { type Extension } from '@codemirror/state'
 import { EditorView } from '@codemirror/view'
 import { ACTIVATION } from '../../design-system/interactions/shared'
