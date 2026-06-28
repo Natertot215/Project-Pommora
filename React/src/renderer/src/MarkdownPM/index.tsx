@@ -8,7 +8,7 @@ import { markdownInput } from './editor/input'
 import { tableWidgetExtension, applySavedHeadingCols, type TableHeadingColsApi } from './Tables'
 import { listDragExtension } from './editor/listDrag'
 import { blockHandles, blockGripHover } from './editor/blockHandles'
-import { blockDragExtension } from './editor/blockDrag'
+import { blockDragExtension, calloutDragExtension } from './editor/blockDrag'
 import { customCaret } from './editor/caret'
 import { calloutAtomic } from './editor/calloutAtomic'
 import { calloutGuard } from './editor/calloutGuard'
@@ -122,6 +122,8 @@ export function MarkdownEditor({
         blockGripHover,
         // Press a block grip → drag the whole block → drop it at the nearest block boundary.
         blockDragExtension,
+        // The callout's own gutter grip drags the whole callout box (same gesture, gated on the head line).
+        calloutDragExtension,
         // Drawn caret (rounded bar in text, I-beam on empty lines, smooth fade) — native caret hidden in CSS.
         customCaret,
         // The hidden `> [!type] ` callout head is atomic — caret can't enter it, so the tag can't be corrupted.

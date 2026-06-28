@@ -38,7 +38,10 @@ export const blockGripHover = EditorView.domEventHandlers({
       while (node && !(node instanceof HTMLElement && node.classList.contains('cm-line'))) node = node.parentNode
       line = node instanceof HTMLElement ? node : null
     }
-    const inGutter = !!line && line.classList.contains('md-block-handle') && e.clientX < line.getBoundingClientRect().left
+    const inGutter =
+      !!line &&
+      (line.classList.contains('md-block-handle') || line.classList.contains('md-callout-first')) &&
+      e.clientX < line.getBoundingClientRect().left
     setHot(inGutter ? line : null)
   },
   mouseleave() {

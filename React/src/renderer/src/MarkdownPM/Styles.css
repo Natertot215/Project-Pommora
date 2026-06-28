@@ -297,7 +297,7 @@
 .md-code {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   color: var(--code);
-  background: color-mix(in srgb, var(--code) 12%, transparent);
+  background: color-mix(in srgb, var(--code) 10%, transparent);
   padding: 0.05em 0.3em;
   border-radius: 4px;
 }
@@ -639,9 +639,9 @@
   border-bottom-right-radius: var(--nq-radius);
 }
 
-/* HOVER HANDLE — a grip in the callout's top-left gutter, like the table grips: fades in when hovering the
-   callout's head row. Visual only for now (pointer-events off); click actions are a next-session add.
-   KNOBS: --grip-x (gutter offset) / --grip-y (top offset past the gap). */
+/* DRAG HANDLE — a grip in the callout's top-left gutter that drags the whole box (shares the block-drag
+   gesture, gated on the head line). Revealed on GUTTER hover via `md-grip-hot` (the delegated mousemove in
+   blockHandles.ts), matching the rail grips. KNOBS: --grip-x (gutter offset) / --grip-y (top offset past the gap). */
 .mdpm-editor .cm-line.md-callout-first::after {
   /* lucide `grip-vertical` — the EXACT glyph the table-row grips render (Tables/TableView.tsx `<GripVertical>`).
      A CM line decoration can't mount a React component, so the same icon is mirrored as a mask here; geometry
@@ -660,9 +660,9 @@
   mask: var(--callout-grip) center / contain no-repeat;
   opacity: 0;
   transition: opacity 0.12s var(--ease-standard, ease);
-  pointer-events: none;
+  cursor: grab; /* receives the press (default pointer-events) so the pseudo targets its line → the gesture fires */
 }
-.mdpm-editor .cm-line.md-callout-first:hover::after {
+.mdpm-editor .cm-line.md-callout-first.md-grip-hot::after {
   opacity: 1;
 }
 /* First-line-of-page callout has its box top forced to 0, so pull the grip up to match. */

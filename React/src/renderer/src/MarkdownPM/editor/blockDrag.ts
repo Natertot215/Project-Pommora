@@ -63,10 +63,18 @@ class Overlay {
   }
 }
 
-// Drop candidates: every block-start (+ EOF) outside the dragged block, measured in viewport coords. A
-// boundary's insertion line sits at the BOTTOM of the line above it (the gap top), so it hugs the block
-// above instead of floating at the next block's padded line-box top — at doc start there's no line above,
-// so use the first line's top.
+// The bottom of the CONTENT block above a gap (skipping blank lines), so the insertion line reads "the dragged
+// block goes BELOW this" — hugging the content above rather than floating in the inter-block gap.
+function bottomAbove(view: EditorView, at: number): number | null {
+  if (at === 0) return null
+  let line = view.state.doc.lineAt(at - 1)
+  while (line.from > 0 && line.length === 0) line = view.state.doc.lineAt(line.from - 1)
+  return view.coordsAtPos(line.to)?.bottom ?? null
+}
+
+// Drop candidates, list-drag-style: each block outside the dragged one offers TWO boundaries — above it (its
+// top) and below it (its content bottom, see `bottomAbove`) — so the insertion line snaps to the nearer block
+// edge and flips at the block's midpoint. Measured in viewport coords; folded/off-screen blocks are skipped.
 interface Cand {
   at: number
   y: number
@@ -78,20 +86,19 @@ function collectCands(view: EditorView, block: { from: number; to: number }): Ca
   const doc = view.state.doc.toString()
   const rect = view.contentDOM.getBoundingClientRect()
   const right = rect.right - (parseFloat(getComputedStyle(view.contentDOM).paddingRight) || 0)
+  const starts = blockStarts(doc).map((b) => b.from)
+  const afterBlock = starts.find((s) => s > block.to) ?? doc.length // the boundary just past the dragged block
+  const isNoop = (at: number): boolean => at === block.from || at === afterBlock // dropping there leaves the block put
   const out: Cand[] = []
-  let seenAfter = false // the first boundary past the dragged block is the "stay put" slot — a drop there moves nothing
-  for (const { from: at } of blockStarts(doc)) {
-    if (at >= block.from && at <= block.to) continue // inside the dragged block (excl. block.to+1 — a glue-adjacent next block IS the stay-put)
-    const noop = !seenAfter && at > block.to
-    if (at > block.to) seenAfter = true
-    const here = view.coordsAtPos(at)
-    if (!here) continue // folded away or off-screen → not a droppable boundary (auto-scroll brings scrollable ones in)
-    const above = at === 0 ? null : view.coordsAtPos(at - 1)
-    out.push({ at, y: above ? above.bottom : here.top, left: here.left, right, noop })
-  }
-  if (block.to + 1 < doc.length) {
-    const eof = view.coordsAtPos(doc.length)
-    if (eof) out.push({ at: doc.length, y: eof.bottom, left: eof.left, right, noop: false })
+  for (let i = 0; i < starts.length; i++) {
+    const from = starts[i]
+    if (from >= block.from && from <= block.to) continue // inside the dragged block
+    const top = view.coordsAtPos(from)
+    if (!top) continue // folded away or off-screen → auto-scroll brings scrollable ones in
+    out.push({ at: from, y: top.top, left: top.left, right, noop: isNoop(from) }) // ABOVE this block
+    const nextFrom = i + 1 < starts.length ? starts[i + 1] : doc.length
+    const botY = bottomAbove(view, nextFrom) // this block's content bottom
+    if (botY !== null) out.push({ at: nextFrom, y: botY, left: top.left, right, noop: isNoop(nextFrom) }) // BELOW this block
   }
   return out.sort((a, b) => a.y - b.y)
 }
@@ -246,3 +253,7 @@ export function createBlockDragGesture({ gate, onClick, onDragStart }: DragConfi
 }
 
 export const blockDragExtension: Extension = createBlockDragGesture({ gate: 'md-block-handle' })
+
+// The callout's own gutter grip (its `::after`, on the head line) drags the whole box — `blockAt` resolves a
+// callout to its full box, so the same gesture moves it. Gated on the callout head line instead of a rail handle.
+export const calloutDragExtension: Extension = createBlockDragGesture({ gate: 'md-callout-first' })
