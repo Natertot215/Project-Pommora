@@ -1,5 +1,23 @@
 ## Table Views — Part 1 (Plumbing) Implementation Plan — V2
 
+> ### ✅ SHIPPED — POST-COMPACT PICKUP (read this first)
+>
+> **All 11 tasks below are DONE** — built TDD, each simplify- + code-reviewed before commit, on the **`views-plumbing`** worktree (commits `d5ed3ac`…`e89d94e`). **Full suite 713/713, both typechecks fully green. Do NOT rebuild any task.**
+>
+> **Where I am:** worktree `/Users/nathantaichman/The Studio/Projects/Pommora-views-worktree` (branch `views-plumbing`). Its `React/node_modules` is a **symlink** to the sibling `Pommora-react-worktree` (vitest works as-is — do NOT `npm install`). Run tests from the React dir: `cd "…/Pommora-views-worktree/React" && ./node_modules/.bin/vitest run [filter]` (the vitest `@shared` alias is now config-dir-relative, so `--root` works from anywhere too). Typecheck: `tsc --noEmit -p tsconfig.node.json` + `-p tsconfig.web.json`.
+>
+> **⛔ COMMIT RULE:** stage **explicit paths only — never `git add -A`**. The untracked `React/node_modules` symlink escapes the `node_modules/` gitignore and `-A` commits it (mode 120000). (Learned the hard way; see memory.)
+>
+> **⏸ BLOCKED — waiting on Nathan (his explicit instruction):** do NOT merge or touch `pommora-react`. A parallel React session is finishing its own work there (it committed Task 5 = `3bb170c`, which bundled my group files, + a *partial, non-canonical* Task 6). **Wait for Nathan to say that session is done, then COORDINATE the branch reconciliation WITH him** — `views-plumbing` is the keeper (a clean fast-forward descendant of `main`); do not auto-merge.
+>
+> **NEXT (after reconciliation):**
+> - **Part 2 — table UIX.** Nathan designs the table in **Figma first**, then build the table + chips as direct `design-system/components/Chips/` components (on `tokens/chip.css.ts`, shared by select/multi/status — NOT Swift ports), routed to the `ResolvedColumn[]` / `ResolvedGroup[]` seams from `resolveView`. Part 2 also owns the **render concerns deferred from Part 1**: the group/sort **column hoist before `_title`**, **column widths**, **relation/tier chip resolution** (`Detail/Scope.ts` `findContext`), and replacing TableView's minimal render. Inline cell editor: glass-control chip pickers, plain inputs, a "Calendar" date placeholder, native menus for simple actions.
+> - **Part 3 — View Settings** dropdown + Sort/Filter/Group/Layout panes + operator picker (narrower than the evaluator matrix) + view rename/dup/delete + `open_in`/`display_as`, wiring the already-shipped `views:save/reorder/delete` + `activeViews` IPC.
+>
+> **Deferred cleanups (Nathan's call, logged in Handoff):** (1) Biome config-vs-code quote mismatch (repo-wide); (2) a generic `.nexus` map-store factory (folds/tableHeadingColumns/activeViews triplication); (3) a `relPosix(root,abs)` helper (loadValues + watcher).
+>
+> **Full state → `React/.claude/Handoff.md`; locked decisions → `React/.claude/History.md`.** The task list below is the build record (kept for reference; the `- [ ]` boxes were not ticked during inline execution — the banner is the source of truth on status).
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Build the UI-agnostic foundation for Collection Table Views — the on-disk `SavedView` contract, per-machine active-view pointer, file-sourced value loading, and a pure pipeline (column resolution → filter → group → sort) — so Part 2's Figma-designed table routes to stable seams.
