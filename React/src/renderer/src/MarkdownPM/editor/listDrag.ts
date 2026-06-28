@@ -3,80 +3,12 @@
 // ACTIVATION threshold becomes a drag; a press that releases in place is a click (checkbox → toggle,
 // else place caret). The drop moves the actual Markdown source lines (block + nested descendants) in one
 // transaction, renumbering any ordered run it touched. Visuals mirror the sidebar's PommoraDND.
-import { StateEffect, StateField, type Extension, type Line, type Range, type Text } from '@codemirror/state'
-import { Decoration, type DecorationSet, EditorView } from '@codemirror/view'
+import { type Extension } from '@codemirror/state'
+import { EditorView } from '@codemirror/view'
 import { ACTIVATION } from '../../design-system/interactions/shared'
 import { parseListMarkerPrefixed as parseListMarker } from '../detect'
+import { Overlay, forEachLine, setShade, shadeField } from './dragChrome'
 import { subBlockAt, dropChanges, checkboxToggleChange, type SubBlock, type Slot } from './listDragModel'
-
-// Walk the doc lines whose span intersects [from, to] inclusive. Shared by the shade decoration and the
-// candidate collection — both step through lines the same way (lineAt → next line at line.to + 1).
-function forEachLine(doc: Text, from: number, to: number, fn: (line: Line) => void): void {
-  let line = doc.lineAt(from)
-  while (line.from <= to) {
-    fn(line)
-    if (line.to + 1 > doc.length) break
-    line = doc.lineAt(line.to + 1)
-  }
-}
-
-// ── Ghost-shade decoration: shades the dragged block's lines in place via a StateField (CM rebuilds
-//    line DOM on every change, so a raw class would be wiped — line decorations survive). ──────────────
-const setShade = StateEffect.define<{ from: number; to: number } | null>()
-const shadeLine = Decoration.line({ class: 'md-li-drag-source' })
-
-const shadeField = StateField.define<DecorationSet>({
-  create: () => Decoration.none,
-  update(deco, tr) {
-    deco = deco.map(tr.changes)
-    for (const e of tr.effects) {
-      if (!e.is(setShade)) continue
-      if (e.value === null) {
-        deco = Decoration.none
-      } else {
-        const ranges: Range<Decoration>[] = []
-        forEachLine(tr.state.doc, e.value.from, e.value.to, (line) => ranges.push(shadeLine.range(line.from)))
-        deco = Decoration.set(ranges)
-      }
-    }
-    return deco
-  },
-  provide: (f) => EditorView.decorations.from(f)
-})
-
-// ── Imperative overlay: just the accent insertion line over the editor (no floating ghost — the in-place
-//    shade shows what's moving). Created/torn-down by the gesture; no React tree. ─────────────────────
-class Overlay {
-  private line: HTMLElement | null = null
-
-  // The insertion line spans the writing column: left edge at the target's content-start x (follows the
-  // item's indent), width out to the right gutter. position:fixed → viewport coords, immune to the
-  // scroll-container ambiguity an absolute child of scrollDOM has.
-  showLine(left: number, top: number, width: number): void {
-    if (!this.line) {
-      const l = document.createElement('div')
-      l.setAttribute('aria-hidden', 'true')
-      l.style.cssText = 'position:fixed;height:2px;border-radius:2px;background:var(--accent);pointer-events:none;z-index:1000'
-      const dot = document.createElement('span')
-      dot.style.cssText = 'position:absolute;left:-3px;top:-2.5px;width:7px;height:7px;border-radius:50%;background:var(--accent)'
-      l.appendChild(dot)
-      document.body.appendChild(l)
-      this.line = l
-    }
-    this.line.style.left = `${left}px`
-    this.line.style.width = `${width}px`
-    this.line.style.top = `${top}px`
-  }
-
-  hideLine(): void {
-    this.line?.remove()
-    this.line = null
-  }
-
-  destroy(): void {
-    this.hideLine()
-  }
-}
 
 interface Gesture {
   pid: number
@@ -227,8 +159,8 @@ export const listDragExtension: Extension = [
         }
         const slot = slotFrom(gesture.cands, ev.clientY, block, view.state.doc.length)
         gesture.slot = slot
-        if (slot) gesture.overlay.showLine(slot.lineLeft, slot.lineTop, slot.lineWidth)
-        else gesture.overlay.hideLine()
+        if (slot) gesture.overlay.show(slot.lineLeft, slot.lineTop, slot.lineWidth)
+        else gesture.overlay.hide()
       }
 
       const finish = (commit: boolean): void => {

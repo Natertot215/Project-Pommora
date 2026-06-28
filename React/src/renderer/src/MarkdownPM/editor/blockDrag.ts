@@ -3,66 +3,13 @@
 // (pointerdown → ACTIVATION threshold → in-place shade → fixed insertion-line → drop) by the hit-test class,
 // so the rail grips and the heading chevron share ONE gesture. TODO(polish): listDrag still keeps its own
 // Overlay + shade copy — fold those into a shared module too.
-import { StateEffect, StateField, type Extension, type Line, type Range, type Text } from '@codemirror/state'
-import { Decoration, type DecorationSet, EditorView } from '@codemirror/view'
+import { type Extension } from '@codemirror/state'
+import { EditorView } from '@codemirror/view'
 import { ACTIVATION } from '../../design-system/interactions/shared'
 import { blockAt, blockStarts } from './blockModel'
+import { Overlay, setShade, shadeField } from './dragChrome'
 import { lineElementAt } from './lineDom'
 import { blockMoveChanges } from './listDragModel'
-
-const setShade = StateEffect.define<{ from: number; to: number } | null>()
-const shadeLine = Decoration.line({ class: 'md-li-drag-source' }) // reuse the list-drag source shade
-
-function forEachLine(doc: Text, from: number, to: number, fn: (l: Line) => void): void {
-  let line = doc.lineAt(from)
-  while (line.from <= to) {
-    fn(line)
-    if (line.to + 1 > doc.length) break
-    line = doc.lineAt(line.to + 1)
-  }
-}
-
-const shadeField = StateField.define<DecorationSet>({
-  create: () => Decoration.none,
-  update(deco, tr) {
-    deco = deco.map(tr.changes)
-    for (const e of tr.effects) {
-      if (!e.is(setShade)) continue
-      if (e.value === null) deco = Decoration.none
-      else {
-        const r: Range<Decoration>[] = []
-        forEachLine(tr.state.doc, e.value.from, e.value.to, (l) => r.push(shadeLine.range(l.from)))
-        deco = Decoration.set(r)
-      }
-    }
-    return deco
-  },
-  provide: (f) => EditorView.decorations.from(f)
-})
-
-// The fixed accent insertion line (same overlay listDrag draws — no floating ghost; the shade shows what moves).
-class Overlay {
-  private line: HTMLElement | null = null
-  show(left: number, top: number, width: number): void {
-    if (!this.line) {
-      const l = document.createElement('div')
-      l.setAttribute('aria-hidden', 'true')
-      l.style.cssText = 'position:fixed;height:2px;border-radius:2px;background:var(--accent);pointer-events:none;z-index:1000'
-      const dot = document.createElement('span')
-      dot.style.cssText = 'position:absolute;left:-3px;top:-2.5px;width:7px;height:7px;border-radius:50%;background:var(--accent)'
-      l.appendChild(dot)
-      document.body.appendChild(l)
-      this.line = l
-    }
-    this.line.style.left = `${left}px`
-    this.line.style.width = `${width}px`
-    this.line.style.top = `${top}px`
-  }
-  destroy(): void {
-    this.line?.remove()
-    this.line = null
-  }
-}
 
 // The OUTER bottom of the content block above a gap (skipping blank lines), so the insertion line reads "the
 // dragged block goes BELOW this" and sits OUTSIDE a box (below a callout's border, not inside it).
