@@ -20,7 +20,9 @@ import { updatePageBody } from './crud/page'
 import { readFolds, writeFolds, type FoldState } from './io/folds'
 import { readActiveViews, writeActiveViews, type ActiveViews } from './io/activeViews'
 import { saveView, reorderViews, deleteView } from './crud/views'
+import { loadValues } from './crud/loadValues'
 import { savedView } from '@shared/views'
+import type { PageFrontmatter } from '@shared/schemas'
 import {
   readTableHeadingColumns,
   writeTableHeadingColumns,
@@ -409,6 +411,15 @@ ipcMain.handle(
     }
   }
 )
+
+// Batch frontmatter read for a container's view pipeline (pageId → frontmatter), lazy on open.
+ipcMain.handle('view:loadValues', async (_e, containerPath: unknown): Promise<Record<string, PageFrontmatter>> => {
+  const root = sessionRoot()
+  if (root === null || typeof containerPath !== 'string') return {}
+  const resolved = await resolveUnderRoot(root, containerPath)
+  if (!resolved.ok) return {}
+  return loadValues(root, containerPath)
+})
 
 // Table heading-column UI state — local `.nexus/tableHeadingColumns.json` (out of frontmatter + index).
 ipcMain.handle('tableHeadingCols:get', async (): Promise<TableHeadingColState> => {

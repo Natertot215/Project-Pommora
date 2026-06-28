@@ -1,6 +1,6 @@
 /* Global app shell: design-token bridge, resets, the window frame (shell / titlebar / content
    pane), and the open/loading/empty/error states. Per-area styles live co-located with their
-   components: Sidebar/Sidebar.css, Detail/Detail.css, Detail/Banner/Banner.css, Detail/Table/Table.css. */
+   components: Sidebar/Sidebar.css, Detail/Detail.css, Detail/Banner/Banner.css, Detail/Views/Table/Table.css. */
 
 :root {
   --row-h: 28px;

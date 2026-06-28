@@ -5,6 +5,7 @@ import type { MutateRequest, MutateResult, ContextTarget } from '@shared/mutate'
 import type { FormatState } from '@shared/editorMenu'
 import type { TableMenuAction, TableMenuContext } from '@shared/tableMenu'
 import type { SavedView } from '@shared/views'
+import type { PageFrontmatter } from '@shared/schemas'
 
 // The ONLY API the renderer can see. Narrow read surface; no fs, no Node.
 const api = {
@@ -51,6 +52,9 @@ const api = {
     ): Promise<{ ok: true } | { ok: false; error: string }> =>
       ipcRenderer.invoke('views:delete', containerPath, kind, viewId)
   },
+  // Batch frontmatter read for a container's view pipeline (pageId → frontmatter), lazy on open.
+  loadValues: (containerPath: string): Promise<Record<string, PageFrontmatter>> =>
+    ipcRenderer.invoke('view:loadValues', containerPath),
   // Table heading-column UI state — local `.nexus/tableHeadingColumns.json`, keyed by page id. Holds the
   // indices of the tables whose first column renders as a heading (a Pommora-only visual, not in the .md).
   tableHeadingColumns: {
