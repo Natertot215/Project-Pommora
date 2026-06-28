@@ -74,6 +74,7 @@ The session: scouted both builds → established React has the data foundations 
 
 - **Table Views Parts 2 & 3** — see Next Session. Part-1 plumbing is SHIPPED on `views-plumbing`.
 - **Part-1 deferred cleanups (Nathan's call):** (1) extract one generic `.nexus` map-store factory for the 3 identical stores (folds / tableHeadingColumns / activeViews — same lenient-read / merge-write / empty-deletes shape across module + IPC + preload); (2) a borderline `relPosix(root,abs)` helper (`loadValues` + `watcher` share the `relative().split(sep).join('/')` idiom).
+- **Date-bucket cross-build follow-ups (Nathan's call):** (1) the date-only off-by-one fixed in React (date-only now buckets by its stored UTC date) still exists in Swift's `DateBucket` (`Calendar.current` on a UTC-parsed date) — align Swift or leave; (2) timed `datetime` values still bucket display-local (a real choice, matches Swift) — switch to UTC for cross-machine determinism, or keep as-is.
 - **Break-things skill (Nathan-requested)** — a reusable adversarial-fuzzing skill from `Guidelines/Adversarial-Review-Log.md`: break-attempt taxonomy + the "toddler" method + a `{keys}×{positions}×{nesting}×{adjacency}` generator → break→repro→fix catalog before any UI feature is "done."
 - **Canvas** — spec parked at `Planning/6-26 - Canvas Spec.md`, pending its adversarial review → plan → build. React-first; `.canvas` is the cross-build contract.
 - **Caret on other surfaces** — drawn caret shipped on the page editor; extend to table cells + the inline-rename input.

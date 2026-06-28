@@ -8,11 +8,8 @@ import type { CollectionNode, PageNode, ResolvedGroup, SetNode, ViewRow } from '
 import type { DateGranularity, GroupConfig } from '@shared/views'
 import type { PageFrontmatter } from '@shared/schemas'
 import type { PropertyDefinition } from '@shared/properties'
+import { UNGROUPED } from '@shared/types'
 import { declaredType, resolveFieldValue } from './value'
-
-/** No-value bucket / flat band / structural root band id — matches Swift so `collapsed_groups`
- *  round-trips across builds. */
-const UNGROUPED = '_ungrouped'
 
 /** Only these declared types group; everything else falls back to structural (Global Constraint:
  *  NOT number/multi_select/url/relation/file/last_edited/tier/title). */
@@ -70,30 +67,36 @@ export function flattenContainer(
 
 const pad = (n: number, width: number): string => String(n).padStart(width, '0')
 
-/** ISO 8601 week + week-year, computed entirely in UTC (DST-safe) from the local calendar date.
- *  A week belongs to the year of its Thursday; weeks start Monday. */
-function isoWeek(date: Date): [year: number, week: number] {
-  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()))
+/** ISO 8601 week + week-year from a calendar date's components (already resolved to the chosen zone
+ *  by the caller), via UTC arithmetic so adding days never crosses a DST boundary. A week belongs to
+ *  the year of its Thursday; weeks start Monday. */
+function isoWeek(year: number, month: number, day: number): [year: number, week: number] {
+  const d = new Date(Date.UTC(year, month, day))
   d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7)) // shift to this week's Thursday
   const yearStart = Date.UTC(d.getUTCFullYear(), 0, 1)
   const week = Math.ceil(((d.getTime() - yearStart) / 86400000 + 1) / 7)
   return [d.getUTCFullYear(), week]
 }
 
-/** Date → a stable, zero-padded bucket key (lexicographic order == chronological). Uses the local
- *  calendar (Swift's DateBucket is display-local). Null for an unparseable date. */
-export function dateBucketKey(iso: string, granularity: DateGranularity): string | null {
+/** Date → a stable, zero-padded bucket key (lexicographic order == chronological). A datetime is an
+ *  absolute instant bucketed display-local (Swift parity); a date-only value (`utc`) is a no-time
+ *  calendar date that must NOT shift across timezones, so it buckets by its stored (UTC) date — the
+ *  date the user picked, for every viewer. Null for an unparseable date. */
+export function dateBucketKey(iso: string, granularity: DateGranularity, utc = false): string | null {
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return null
+  const year = utc ? d.getUTCFullYear() : d.getFullYear()
+  const month = utc ? d.getUTCMonth() : d.getMonth()
+  const day = utc ? d.getUTCDate() : d.getDate()
   switch (granularity) {
     case 'year':
-      return pad(d.getFullYear(), 4)
+      return pad(year, 4)
     case 'month':
-      return `${pad(d.getFullYear(), 4)}-${pad(d.getMonth() + 1, 2)}`
+      return `${pad(year, 4)}-${pad(month + 1, 2)}`
     case 'day':
-      return `${pad(d.getFullYear(), 4)}-${pad(d.getMonth() + 1, 2)}-${pad(d.getDate(), 2)}`
+      return `${pad(year, 4)}-${pad(month + 1, 2)}-${pad(day, 2)}`
     case 'week': {
-      const [wy, w] = isoWeek(d)
+      const [wy, w] = isoWeek(year, month, day)
       return `${pad(wy, 4)}-W${pad(w, 2)}`
     }
   }
@@ -118,7 +121,11 @@ export function bucketKey(
       return v.kind === 'checkbox' ? (v.value ? 'true' : 'false') : null
     case 'date':
     case 'datetime':
-      return v.kind === 'date' || v.kind === 'datetime' ? dateBucketKey(v.value, granularity) : null
+      // date-only buckets by its stored (UTC) calendar date so it never shifts by timezone;
+      // datetime is an absolute instant, bucketed display-local.
+      return v.kind === 'date' || v.kind === 'datetime'
+        ? dateBucketKey(v.value, granularity, v.kind === 'date')
+        : null
     default:
       return null
   }

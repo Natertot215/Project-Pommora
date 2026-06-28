@@ -221,6 +221,20 @@ describe('property grouping — configured / reversed / checkbox / date', () => 
     expect(keys(groups)).toEqual(['2026-06', '2026-07'])
     expect(itemIds(groups[0]).sort()).toEqual(['p1', 'p2'])
   })
+
+  it('buckets a date-only value by its stored date (no timezone shift)', () => {
+    const dueSchema: PropertyDefinition[] = [{ id: 'prop_due', name: 'Due', type: 'date' }]
+    const values = { p1: { id: 'p1', properties: { prop_due: '2026-06-27' } } }
+    const { rows, setTree } = flattenContainer(collection([], [page('p1')]), values)
+    const groups = resolveGroups(
+      rows,
+      { kind: 'property', property_id: 'prop_due', order_mode: 'configured', date_granularity: 'day', empty_placement: 'bottom', hide_empty_groups: false },
+      dueSchema,
+      setTree,
+      null
+    )
+    expect(keys(groups)).toEqual(['2026-06-27'])
+  })
 })
 
 describe('property grouping — non-groupable fallback', () => {
@@ -259,5 +273,14 @@ describe('dateBucketKey', () => {
 
   it('returns null for an unparseable date', () => {
     expect(dateBucketKey('not-a-date', 'month')).toBeNull()
+  })
+
+  it('buckets a date-only value by its stored calendar date, stable across timezones (utc)', () => {
+    expect(dateBucketKey('2026-06-27', 'day', true)).toBe('2026-06-27')
+    expect(dateBucketKey('2026-06-27', 'month', true)).toBe('2026-06')
+    expect(dateBucketKey('2026-06-27', 'year', true)).toBe('2026')
+    // 2026-01-01 is a Thursday → ISO week 1; 2025-12-31 (Wed) shares it (its Thursday is Jan 1).
+    expect(dateBucketKey('2026-01-01', 'week', true)).toBe('2026-W01')
+    expect(dateBucketKey('2025-12-31', 'week', true)).toBe('2026-W01')
   })
 })
