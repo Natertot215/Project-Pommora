@@ -17,3 +17,31 @@ export const blockHandles = EditorView.decorations.compute(['doc'], (state) => {
   }
   return Decoration.set(ranges, true)
 })
+
+// A grip `::before` can't self-hover (a pseudo-element has no independent `:hover`) and the line's own `:hover`
+// fires over its text too — so the grip is revealed by `md-grip-hot`, toggled here only while the pointer sits
+// in a grip line's gutter strip (left of its content), tracked by a delegated mousemove.
+let hotLine: HTMLElement | null = null
+function setHot(next: HTMLElement | null): void {
+  if (next === hotLine) return
+  hotLine?.classList.remove('md-grip-hot')
+  next?.classList.add('md-grip-hot')
+  hotLine = next
+}
+
+export const blockGripHover = EditorView.domEventHandlers({
+  mousemove(e, view) {
+    const pos = view.posAtCoords({ x: e.clientX, y: e.clientY }, false)
+    let line: HTMLElement | null = null
+    if (pos != null) {
+      let node: Node | null = view.domAtPos(view.state.doc.lineAt(pos).from).node
+      while (node && !(node instanceof HTMLElement && node.classList.contains('cm-line'))) node = node.parentNode
+      line = node instanceof HTMLElement ? node : null
+    }
+    const inGutter = !!line && line.classList.contains('md-block-handle') && e.clientX < line.getBoundingClientRect().left
+    setHot(inGutter ? line : null)
+  },
+  mouseleave() {
+    setHot(null)
+  }
+})

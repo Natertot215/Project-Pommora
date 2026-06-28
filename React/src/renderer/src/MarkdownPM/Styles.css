@@ -241,7 +241,7 @@
   opacity: 0;
   transition: opacity var(--duration-fast) var(--ease-standard);
 }
-.mdpm-editor .cm-line.md-block-handle:hover::before {
+.mdpm-editor .cm-line.md-block-handle.md-grip-hot::before {
   opacity: 1;
 }
 

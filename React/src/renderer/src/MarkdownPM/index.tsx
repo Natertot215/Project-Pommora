@@ -7,7 +7,7 @@ import { markdownDecorations } from './editor/decorations'
 import { markdownInput } from './editor/input'
 import { tableWidgetExtension, applySavedHeadingCols, type TableHeadingColsApi } from './Tables'
 import { listDragExtension } from './editor/listDrag'
-import { blockHandles } from './editor/blockHandles'
+import { blockHandles, blockGripHover } from './editor/blockHandles'
 import { blockDragExtension } from './editor/blockDrag'
 import { customCaret } from './editor/caret'
 import { calloutAtomic } from './editor/calloutAtomic'
@@ -118,6 +118,8 @@ export function MarkdownEditor({
         listDragExtension,
         // Block-drag rail handles: a hover grip on each draggable block's first line (paragraph/code/quote/list).
         blockHandles,
+        // Reveal each grip only while the pointer is in its gutter strip (not over the line's text).
+        blockGripHover,
         // Press a block grip → drag the whole block → drop it at the nearest block boundary.
         blockDragExtension,
         // Drawn caret (rounded bar in text, I-beam on empty lines, smooth fade) — native caret hidden in CSS.

@@ -8,6 +8,7 @@ import {
   type Range
 } from '@codemirror/state'
 import { isHeadingLine } from '../detect'
+import { createBlockDragGesture } from './blockDrag'
 
 /** Per-page fold persistence seam — reads/writes `.nexus/folds.json` via the host (kept Electron-free here). */
 export interface FoldsApi {
@@ -252,20 +253,6 @@ const chevronDeco = EditorView.decorations.compute(['doc', foldField], (state) =
   return Decoration.set(ranges, true)
 })
 
-// The chevron is painted in the reclaimed strip left of the heading text; a primary click there toggles.
-const chevronClick = EditorView.domEventHandlers({
-  mousedown(event, view) {
-    if (event.button !== 0) return false
-    const line = (event.target as HTMLElement | null)?.closest?.('.cm-line.md-foldable') as HTMLElement | null
-    if (!line || event.clientX >= line.getBoundingClientRect().left) return false
-    const s = sectionsOf(view.state.doc).find((x) => x.from === view.posAtDOM(line))
-    if (!s) return false
-    toggleFold(view, s)
-    event.preventDefault()
-    return true
-  }
-})
-
 /** Re-apply a page's saved folds at mount (no animation), capturing clones from the freshly-rendered lines. */
 export function applySavedFolds(view: EditorView, keys: string[]): void {
   if (keys.length === 0) return
@@ -298,5 +285,19 @@ export function markdownFolding(onFoldsChange: (keys: string[]) => void): Extens
       .filter((k): k is string => k !== undefined)
     onFoldsChange(keys)
   })
-  return [foldField, chevronDeco, chevronClick, persist]
+  // The chevron strip doubles as a drag handle (shares the block-drag gesture): a sub-threshold release toggles
+  // the fold; a press-drag relocates the whole heading section. A folded section unfolds at drag-start — a fold
+  // can't survive the relocating edit (its body offsets remap to the single-replace span's ends), so it moves
+  // as plain text and re-collapses with one click.
+  const headingDrag = createBlockDragGesture({
+    gate: 'md-foldable',
+    onClick: (view, line) => {
+      const s = sectionsOf(view.state.doc).find((x) => x.from === view.posAtDOM(line))
+      if (s) toggleFold(view, s)
+    },
+    onDragStart: (view, block) => {
+      if (view.state.field(foldField).some((en) => en.headingFrom === block.from)) view.dispatch({ effects: dropEffect.of(block.from) })
+    }
+  })
+  return [foldField, chevronDeco, headingDrag, persist]
 }
