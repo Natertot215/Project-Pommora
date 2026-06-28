@@ -468,20 +468,31 @@
   border-bottom: 1.5px solid var(--separator-border);
 }
 
-/* CM6 GOTCHA: no line margins — they break caret/arrow mapping (only padding is measured).
-   KNOBS: --bar-width / --bar-color / --bar-radius (left bar) · --bg-color / --bg-radius (fill) */
+/* CM6 GOTCHA: no line margins — they break caret/arrow mapping (only padding is measured). The fill is an
+   inset ::after (not a line background) so the first/last line can carry an OUTER vertical gap above/below
+   the card — the box floats off its neighbours, the same trick the callout border uses.
+   KNOBS: --bar-width / --bar-color / --bar-radius (left bar) · --bg-color / --bg-radius (fill) · --bq-gap
+   (outer vertical breathing room above the first line + below the last) */
 .mdpm-editor .cm-line.md-bq {
   --bar-width: 4px;
   --bar-color: var(--label-tertiary);
   --bar-radius: 2px;
   --bg-color: var(--fill-tertiary);
   --bg-radius: 6px;
+  --bq-gap: 4px;
   --li-origin: 16px; /* the quote's inner gutter — lists / code inside indent from it (matches padding-left) */
   position: relative;
   isolation: isolate;
   padding-right: 14px;
-  background: var(--bg-color);
   color: color-mix(in srgb, var(--label-control));
+}
+.mdpm-editor .cm-line.md-bq::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--bg-color);
+  z-index: -2;
+  pointer-events: none;
 }
 /* Plain (non-list) quote lines take the gutter directly; a list inside a quote supplies its own via --li-origin
    (else this padding-left would override the list indent and the bullet wouldn't indent). */
@@ -499,18 +510,26 @@
   z-index: -1;
 }
 .mdpm-editor .cm-line.md-bq-first {
+  padding-top: calc(var(--bq-gap) + 4px);
+}
+.mdpm-editor .cm-line.md-bq-first::after {
+  top: var(--bq-gap);
   border-top-right-radius: var(--bg-radius);
-  padding-top: 4px;
 }
 .mdpm-editor .cm-line.md-bq-first::before {
+  top: var(--bq-gap);
   border-top-left-radius: var(--bar-radius);
   border-top-right-radius: var(--bar-radius);
 }
 .mdpm-editor .cm-line.md-bq-last {
+  padding-bottom: calc(var(--bq-gap) + 4px);
+}
+.mdpm-editor .cm-line.md-bq-last::after {
+  bottom: var(--bq-gap);
   border-bottom-right-radius: var(--bg-radius);
-  padding-bottom: 4px;
 }
 .mdpm-editor .cm-line.md-bq-last::before {
+  bottom: var(--bq-gap);
   border-bottom-left-radius: var(--bar-radius);
   border-bottom-right-radius: var(--bar-radius);
 }
@@ -586,6 +605,7 @@
 .mdpm-editor .cm-line.md-bq.md-cb {
   background: transparent;
   border-radius: 0;
+  --cb-gap: 0; /* a code block nested in a box floats off nothing — the box already owns the outer spacing */
   /* The fill (::after) aligns with the box gutter (--li-origin); the code text sits a further --cb-pad inside
      it, so it reads like a normal code block (text padded within its fill) nested in the box. */
   --cb-pad: 10px;
@@ -670,27 +690,44 @@
   top: var(--grip-y);
 }
 
-/* No margins/pseudos (caret-safe).
-   KNOBS: --cb-bg / --cb-radius / --cb-size (font scale) */
+/* Fill is an inset ::after (caret-safe — a pseudo, never a margin) so the first/last line can hold an OUTER
+   vertical gap above/below the block — the same float the blockquote + callout use.
+   KNOBS: --cb-bg / --cb-radius / --cb-size (font scale) · --cb-gap (outer vertical breathing room) */
 .mdpm-editor .cm-line.md-cb {
   --cb-bg: var(--fill-secondary);
   --cb-radius: 6px;
   --cb-size: 0.85em;
-  background: var(--cb-bg);
+  --cb-gap: 4px;
+  position: relative;
+  isolation: isolate;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: var(--cb-size);
   padding-left: 12px;
   padding-right: 12px;
 }
+.mdpm-editor .cm-line.md-cb::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--cb-bg);
+  z-index: -1;
+  pointer-events: none;
+}
 .mdpm-editor .cm-line.md-cb-first {
+  padding-top: calc(var(--cb-gap) + 6px);
+}
+.mdpm-editor .cm-line.md-cb-first::after {
+  top: var(--cb-gap);
   border-top-left-radius: var(--cb-radius);
   border-top-right-radius: var(--cb-radius);
-  padding-top: 6px;
 }
 .mdpm-editor .cm-line.md-cb-last {
+  padding-bottom: calc(var(--cb-gap) + 6px);
+}
+.mdpm-editor .cm-line.md-cb-last::after {
+  bottom: var(--cb-gap);
   border-bottom-left-radius: var(--cb-radius);
   border-bottom-right-radius: var(--cb-radius);
-  padding-bottom: 6px;
 }
 
 /* KNOBS: --ac-radius / --ac-rows (visible before scroll) */
