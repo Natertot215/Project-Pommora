@@ -196,4 +196,32 @@ describe('blockMoveChanges (blank-separated block move)', () => {
     expect(blockMoveChanges('only', { from: 0, to: 4 }, { at: 0 })).toBeNull()
     expect(blockMoveChanges('only', { from: 0, to: 4 }, { at: 4 })).toBeNull()
   })
+
+  // A glue-adjacent seam (two blockStarts-distinct blocks with no blank between) must not fuse on a drop —
+  // blockStarts splits these into separate grips, so the move has to re-blank-separate both new seams.
+  it('does not lazily-continue a list when a block drops under it (no blank below the list)', () => {
+    const doc = '- a\n- b\npara X\n\nmover'
+    expect(apply(doc, { from: doc.indexOf('mover'), to: doc.length }, doc.indexOf('para X'))).toBe(
+      '- a\n- b\n\nmover\n\npara X'
+    )
+  })
+
+  it('does not merge two paragraphs when a block drops between glued blocks', () => {
+    const doc = 'head para\n- list item\n\nmover'
+    expect(apply(doc, { from: doc.indexOf('mover'), to: doc.length }, doc.indexOf('- list item'))).toBe(
+      'head para\n\nmover\n\n- list item'
+    )
+  })
+
+  it('heals the hole so moving a block out from between two glued blocks does not fuse them', () => {
+    const doc = 'alpha\n- a\n- b\n\nbeta'
+    expect(apply(doc, { from: doc.indexOf('- a'), to: doc.indexOf('- b') + 3 }, doc.length)).toBe(
+      'alpha\n\nbeta\n\n- a\n- b'
+    )
+  })
+
+  it('does not double-blank when the source ends in a trailing blank line', () => {
+    const doc = 'A\n\nB\n\n'
+    expect(apply(doc, { from: 0, to: 1 }, doc.length)).toBe('B\n\nA\n')
+  })
 })

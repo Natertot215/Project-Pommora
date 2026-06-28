@@ -135,3 +135,65 @@ export function blockAt(doc: string, pos: number): Block | null {
   while (b < n - 1 && !claimed(b + 1)) b++
   return { from: starts[a], to: ends[b], kind: 'paragraph' }
 }
+
+export interface BlockStart {
+  from: number
+  kind: BlockKind
+}
+
+/** Every draggable block's first-line offset + kind, in document order — a heading line and each block inside
+ *  its section both qualify; continuation/blank lines don't. The shared basis for where handles render and
+ *  where a drag can drop. SINGLE PASS (was O(n²) per keystroke via `blockAt`-per-line — the source of the
+ *  editor lag): the structures are built once and each line is classified O(1). TODO(DRY): this duplicates
+ *  `blockAt`'s structure setup; a shared one-pass enumeration should back both. */
+export function blockStarts(doc: string): BlockStart[] {
+  const lines = doc.split('\n')
+  const n = lines.length
+  const starts = new Array<number>(n)
+  for (let p = 0, i = 0; i < n; i++) {
+    starts[i] = p
+    p += lines[i].length + 1
+  }
+  const callout = calloutLines(lines)
+  const fences = fencedCodeRanges(doc)
+  const tables = tableRegions(doc)
+  const inFence = (i: number): boolean => i >= 0 && i < n && fences.some(([f, t]) => starts[i] >= f && starts[i] <= t)
+  const inTable = (i: number): boolean => i >= 0 && i < n && tables.some((r) => starts[i] >= r.from && starts[i] <= r.to)
+  const isMarker = (i: number): boolean => parseListMarkerPrefixed(lines[i]) !== null
+  const isListCont = (i: number): boolean => lines[i].trim() !== '' && /^[ \t]/.test(lines[i])
+  const listMember = new Array<boolean>(n).fill(false)
+  for (let i = 0; i < n; ) {
+    if (!isMarker(i) && !isListCont(i)) {
+      i++
+      continue
+    }
+    let j = i
+    while (j + 1 < n && (isMarker(j + 1) || isListCont(j + 1))) j++
+    let has = false
+    for (let k = i; k <= j && !has; k++) has = isMarker(k)
+    if (has) for (let k = i; k <= j; k++) listMember[k] = true
+    i = j + 1
+  }
+  // Per-line markdown-parse-backed flags, computed once (the detectors prefilter, so most lines never parse).
+  const heading = lines.map(isHeadingLine)
+  const hr = lines.map(isThematicBreakLine)
+  const bq = lines.map(isBlockquoteLine)
+  const claimed = (i: number): boolean =>
+    i < 0 || i >= n || lines[i].trim() === '' || !!callout[i] || bq[i] || inFence(i) || inTable(i) || heading[i] || listMember[i] || hr[i]
+
+  const out: BlockStart[] = []
+  for (let i = 0; i < n; i++) {
+    if (lines[i].trim() === '') continue
+    let kind: BlockKind | null = null
+    if (callout[i]) kind = callout[i]!.first ? 'callout' : null
+    else if (bq[i]) kind = i === 0 || !bq[i - 1] || !!callout[i - 1] ? 'blockquote' : null
+    else if (inFence(i)) kind = !inFence(i - 1) ? 'code' : null
+    else if (inTable(i)) kind = !inTable(i - 1) ? 'table' : null
+    else if (heading[i]) kind = 'heading'
+    else if (listMember[i]) kind = !listMember[i - 1] ? 'list' : null
+    else if (hr[i]) kind = 'hr'
+    else if (claimed(i - 1)) kind = 'paragraph'
+    if (kind) out.push({ from: starts[i], kind })
+  }
+  return out
+}

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { blockAt, type Block } from './blockModel'
+import { blockAt, blockStarts, type Block } from './blockModel'
 
 const slice = (doc: string, b: Block | null): string | null => (b ? doc.slice(b.from, b.to) : null)
 
@@ -138,5 +138,15 @@ describe('blockAt', () => {
     const doc = '$$\nx=1\n\ny=2\n$$'
     expect(blockAt(doc, 0)?.kind).toBe('paragraph')
     expect(slice(doc, blockAt(doc, 0))).toBe('$$\nx=1')
+  })
+
+  it('blockStarts marks the heading line and each block inside its section, with kinds', () => {
+    const doc = '# H\npara one\npara two\n\n- a\n- b\n\nplain'
+    expect(blockStarts(doc)).toEqual([
+      { from: 0, kind: 'heading' },
+      { from: 4, kind: 'paragraph' },
+      { from: 23, kind: 'list' },
+      { from: 32, kind: 'paragraph' }
+    ])
   })
 })

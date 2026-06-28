@@ -217,6 +217,34 @@
 .mdpm-editor .cm-line.md-fold-closed {
   color: var(--label-control);
 }
+
+/* BLOCK DRAG HANDLE — a grip on each draggable block's first line, content-anchored like the chevron (a
+   ::before on the line, so it can't drift below callouts/folds). Hover-revealed. Glyph mirrors the
+   table/callout grips. KNOBS: --fold-gutter (rail x) · top (first-line offset, tune on screen).
+   TODO(polish): hoist the grip data-URI to a shared --grip-glyph var (DRY with the callout grip). */
+.mdpm-editor .cm-line.md-block-handle {
+  position: relative;
+}
+.mdpm-editor .cm-line.md-block-handle::before {
+  content: '';
+  position: absolute;
+  left: calc(-1 * var(--fold-gutter));
+  /* Centre on the FIRST visual row's text (half the 1.6 line-height − half the 14px grip), so it lines up
+     with the content even when the block's first line wraps — not centred on the whole (taller) line box. */
+  top: calc(0.8em - 7px);
+  width: 14px;
+  height: 14px;
+  background-color: var(--label-secondary);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='9' cy='12' r='1'/%3E%3Ccircle cx='9' cy='5' r='1'/%3E%3Ccircle cx='9' cy='19' r='1'/%3E%3Ccircle cx='15' cy='12' r='1'/%3E%3Ccircle cx='15' cy='5' r='1'/%3E%3Ccircle cx='15' cy='19' r='1'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='9' cy='12' r='1'/%3E%3Ccircle cx='9' cy='5' r='1'/%3E%3Ccircle cx='9' cy='19' r='1'/%3E%3Ccircle cx='15' cy='12' r='1'/%3E%3Ccircle cx='15' cy='5' r='1'/%3E%3Ccircle cx='15' cy='19' r='1'/%3E%3C/svg%3E") center / contain no-repeat;
+  cursor: grab;
+  opacity: 0;
+  transition: opacity var(--duration-fast) var(--ease-standard);
+}
+.mdpm-editor .cm-line.md-block-handle:hover::before {
+  opacity: 1;
+}
+
 /* The body collapses/expands on the sidebar's exact Reveal motion (grid 0fr↔1fr). */
 .mdpm-fold-reveal {
   display: grid;

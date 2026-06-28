@@ -235,18 +235,34 @@ export function blockMoveChanges(doc: string, range: BlockRange, slot: { at: num
   if (tLine >= bStart && tLine <= bEnd + 1) return null // onto itself, after the snap
 
   const blockLines = lines.slice(bStart, bEnd + 1)
-  // Cut the block + one adjoining blank so the old neighbours keep exactly one blank between them.
+  // Cut the block plus one adjoining blank if it has one, so its old neighbours don't keep a doubled blank.
   let cutStart = bStart
   let cutEnd = bEnd
   if (isBlank(bEnd + 1)) cutEnd = bEnd + 1
   else if (isBlank(bStart - 1)) cutStart = bStart - 1
 
+  // Rebuild: drop the cut range, re-insert the block at the target. A block is delimited by a blank line, so
+  // guard the two new seams — the insert, and the hole the cut leaves — against fusing two non-blank lines
+  // (a glue-adjacent block would otherwise lazily-continue a list or merge two paragraphs). `sep` fires only
+  // at those seams, never between a block's own lines.
   const out: string[] = []
-  for (let i = 0; i < lines.length; i++) {
-    if (i === tLine) out.push(...blockLines, '') // block + a trailing blank, before the target line
-    if (i < cutStart || i > cutEnd) out.push(lines[i])
+  const sep = (): void => {
+    if (out.length && out[out.length - 1].trim() !== '') out.push('')
   }
-  if (tLine === lines.length) out.push('', ...blockLines) // EOF target: a leading blank, then the block
+  for (let i = 0; i < lines.length; i++) {
+    if (i === tLine) {
+      sep()
+      out.push(...blockLines, '')
+    }
+    if (i < cutStart || i > cutEnd) {
+      if (i === cutEnd + 1) sep() // heal the hole the cut left
+      out.push(lines[i])
+    }
+  }
+  if (tLine === lines.length) {
+    sep()
+    out.push(...blockLines)
+  }
 
   const newDoc = out.join('\n') + (trailingNL ? '\n' : '')
   return newDoc === doc ? null : diffAsSingleReplace(doc, newDoc)
