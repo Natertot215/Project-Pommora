@@ -4,6 +4,7 @@ import type { NexusState, NexusTree, PageResult, SubfieldConfig } from '@shared/
 import type { MutateRequest, MutateResult, ContextTarget } from '@shared/mutate'
 import type { FormatState } from '@shared/editorMenu'
 import type { TableMenuAction, TableMenuContext } from '@shared/tableMenu'
+import type { CalloutMenuAction } from '@shared/calloutMenu'
 import type { SavedView } from '@shared/views'
 import type { PageFrontmatter } from '@shared/schemas'
 
@@ -92,6 +93,10 @@ const api = {
   titleMenu: (): Promise<'rename' | 'editIcon' | null> => ipcRenderer.invoke('nexus:titleMenu'),
   // Pop the table grip's native right-click menu → the chosen action (null if dismissed).
   tableMenu: (ctx: TableMenuContext): Promise<TableMenuAction | null> => ipcRenderer.invoke('table-menu', ctx),
+  // Pop the callout grip's native right-click menu → the chosen action (null if dismissed).
+  calloutMenu: (): Promise<CalloutMenuAction | null> => ipcRenderer.invoke('callout-menu'),
+  // Flag (on hover) whether the pointer sits on a callout grip, so the generic editor menu stands down there.
+  setCalloutGrip: (on: boolean): void => ipcRenderer.send('editor:callout-grip', on),
   // Rename the open nexus's root folder + re-point the live session to the new path.
   renameNexus: (newName: string): Promise<{ ok: true } | { ok: false; error: string }> =>
     ipcRenderer.invoke('nexus:rename', newName),

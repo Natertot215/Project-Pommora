@@ -3,7 +3,7 @@
 // callouts keep their own grip, and the table widget supplies its own — so this covers paragraph, code,
 // blockquote, and a list (grabbed at item 1, which is the list block's first line).
 import { EditorView, Decoration } from '@codemirror/view'
-import type { Range } from '@codemirror/state'
+import type { Extension, Range } from '@codemirror/state'
 import { blockStarts } from './blockModel'
 import { lineElementAt } from './lineDom'
 
@@ -21,26 +21,29 @@ export const blockHandles = EditorView.decorations.compute(['doc'], (state) => {
 
 // A grip `::before` can't self-hover (a pseudo-element has no independent `:hover`) and the line's own `:hover`
 // fires over its text too — so the grip is revealed by `md-grip-hot`, toggled here only while the pointer sits
-// in a grip line's gutter strip (left of its content), tracked by a delegated mousemove.
-let hotLine: HTMLElement | null = null
-function setHot(next: HTMLElement | null): void {
-  if (next === hotLine) return
-  hotLine?.classList.remove('md-grip-hot')
-  next?.classList.add('md-grip-hot')
-  hotLine = next
-}
-
-export const blockGripHover = EditorView.domEventHandlers({
-  mousemove(e, view) {
-    const pos = view.posAtCoords({ x: e.clientX, y: e.clientY }, false)
-    const line = pos == null ? null : lineElementAt(view, view.state.doc.lineAt(pos).from)
-    const inGutter =
-      !!line &&
-      (line.classList.contains('md-block-handle') || line.classList.contains('md-callout-first')) &&
-      e.clientX < line.getBoundingClientRect().left
-    setHot(inGutter ? line : null)
-  },
-  mouseleave() {
-    setHot(null)
+// in a grip line's gutter strip (left of its content), tracked by a delegated mousemove. `onHotChange` reports
+// the hot line so the host can flag a callout-grip hover (the seam the callout right-click menu rides on).
+export function blockGripHover(onHotChange?: (line: HTMLElement | null) => void): Extension {
+  let hotLine: HTMLElement | null = null
+  const setHot = (next: HTMLElement | null): void => {
+    if (next === hotLine) return
+    hotLine?.classList.remove('md-grip-hot')
+    next?.classList.add('md-grip-hot')
+    hotLine = next
+    onHotChange?.(next)
   }
-})
+  return EditorView.domEventHandlers({
+    mousemove(e, view) {
+      const pos = view.posAtCoords({ x: e.clientX, y: e.clientY }, false)
+      const line = pos == null ? null : lineElementAt(view, view.state.doc.lineAt(pos).from)
+      const inGutter =
+        !!line &&
+        (line.classList.contains('md-block-handle') || line.classList.contains('md-callout-first')) &&
+        e.clientX < line.getBoundingClientRect().left
+      setHot(inGutter ? line : null)
+    },
+    mouseleave() {
+      setHot(null)
+    }
+  })
+}

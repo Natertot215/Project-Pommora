@@ -9,6 +9,7 @@ import { tableWidgetExtension, applySavedHeadingCols, type TableHeadingColsApi }
 import { listDragExtension } from './editor/listDrag'
 import { blockHandles, blockGripHover } from './editor/blockHandles'
 import { blockDragExtension, calloutDragExtension } from './editor/blockDrag'
+import { calloutGripMenu } from './editor/calloutGripMenu'
 import { customCaret } from './editor/caret'
 import { calloutAtomic } from './editor/calloutAtomic'
 import { calloutGuard } from './editor/calloutGuard'
@@ -118,12 +119,15 @@ export function MarkdownEditor({
         listDragExtension,
         // Block-drag rail handles: a hover grip on each draggable block's first line (paragraph/code/quote/list).
         blockHandles,
-        // Reveal each grip only while the pointer is in its gutter strip (not over the line's text).
-        blockGripHover,
+        // Reveal each grip only while the pointer is in its gutter strip (not over the line's text); the hot-line
+        // callback flags a callout-grip hover to main so the generic editor menu stands down there.
+        blockGripHover((line) => window.nexus?.setCalloutGrip?.(!!line && line.classList.contains('md-callout-first'))),
         // Press a block grip → drag the whole block → drop it at the nearest block boundary.
         blockDragExtension,
         // The callout's own gutter grip drags the whole callout box (same gesture, gated on the head line).
         calloutDragExtension,
+        // Right-press the callout grip → native Delete Callout menu (the flag above suppresses the generic one).
+        calloutGripMenu,
         // Drawn caret (rounded bar in text, I-beam on empty lines, smooth fade) — native caret hidden in CSS.
         customCaret,
         // The hidden `> [!type] ` callout head is atomic — caret can't enter it, so the tag can't be corrupted.

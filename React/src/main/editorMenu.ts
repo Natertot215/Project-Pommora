@@ -12,6 +12,14 @@ export function setFormatState(s: FormatState): void {
   lastState = s
 }
 
+// The renderer flags when the pointer sits on a callout grip (set on hover, so it's live before the
+// right-press). The callout grip is editable content — unlike the non-editable table widget — so the
+// generic editor menu would otherwise fire over it; this lets the renderer's own callout menu be the only one.
+let calloutGripHot = false
+export function setCalloutGrip(on: boolean): void {
+  calloutGripHot = on
+}
+
 const dispatch = (wc: WebContents, action: string) => () => wc.send('menu:action', EDITOR_ACTION_PREFIX + action)
 
 function systemItems(wc: WebContents, params: ContextMenuParams): MenuItemConstructorOptions[] {
@@ -106,6 +114,7 @@ function pommoraItems(wc: WebContents, s: FormatState): MenuItemConstructorOptio
 
 export function installEditorContextMenu(win: BrowserWindow): void {
   win.webContents.on('context-menu', (_e, params) => {
+    if (calloutGripHot) return // a callout grip right-click → the renderer pops its own Delete Callout menu
     if (!params.isEditable) return // sidebar + read-only surfaces keep their own menus
     const items = systemItems(win.webContents, params)
     if (lastState?.focused) items.push(...pommoraItems(win.webContents, lastState))

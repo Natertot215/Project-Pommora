@@ -33,7 +33,8 @@ import { showContextMenu } from './contextMenu'
 import { installAppMenu } from './menu'
 import { popTableMenu } from './tableMenu'
 import type { TableMenuContext } from '@shared/tableMenu'
-import { installEditorContextMenu, setFormatState } from './editorMenu'
+import { popCalloutMenu } from './calloutMenu'
+import { installEditorContextMenu, setFormatState, setCalloutGrip } from './editorMenu'
 import type { FormatState } from '@shared/editorMenu'
 import { isValidLink, normalizeLinkUrl } from '@shared/links'
 
@@ -468,6 +469,10 @@ ipcMain.handle(
 // (built in editorMenu.ts on right-click) can render accurate checkmarks/radios.
 ipcMain.on('editor:format-state', (_e, state: FormatState) => setFormatState(state))
 
+// The renderer flags (on hover) when the pointer sits on a callout grip, so the generic editor menu can
+// stand down and the renderer's own Delete Callout menu is the only one that pops on the right-press.
+ipcMain.on('editor:callout-grip', (_e, on: boolean) => setCalloutGrip(on))
+
 // The Electron-side bits the write orchestration needs: trashMode from app config +
 // system-trash injected. Shared by the mutate IPC + the native context menu.
 async function mutateDeps(): Promise<MutateDeps> {
@@ -622,6 +627,12 @@ ipcMain.handle('nexus:titleMenu', async (e): Promise<'rename' | 'editIcon' | nul
 ipcMain.handle('table-menu', async (e, ctx: TableMenuContext) => {
   const win = BrowserWindow.fromWebContents(e.sender)
   return win ? popTableMenu(win, ctx) : null
+})
+
+// Pop the callout grip's native right-click menu → the chosen action (null if dismissed); renderer applies it.
+ipcMain.handle('callout-menu', async (e) => {
+  const win = BrowserWindow.fromWebContents(e.sender)
+  return win ? popCalloutMenu(win) : null
 })
 
 
