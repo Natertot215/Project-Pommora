@@ -1,13 +1,12 @@
-// Drag-to-reorder list items by their glyph (bullet / number / checkbox). One CM6 extension owns
-// pointerdown on `.md-li-glyph` (the shared marker class added in intent.ts): a press that crosses the
-// ACTIVATION threshold becomes a drag; a press that releases in place is a click (checkbox → toggle,
-// else place caret). The drop moves the actual Markdown source lines (block + nested descendants) in one
-// transaction, renumbering any ordered run it touched. Visuals mirror the sidebar's PommoraDND.
+// Drag-to-reorder list items by their `.md-li-glyph`: a press past the ACTIVATION threshold becomes a drag, a
+// release-in-place is a click (checkbox → toggle, else caret). The drop moves the source lines (block + nested
+// descendants) in one transaction, renumbering any ordered run it touched.
 import { type Extension } from '@codemirror/state'
 import { EditorView } from '@codemirror/view'
 import { ACTIVATION } from '../../design-system/interactions/shared'
 import { parseListMarkerPrefixed as parseListMarker } from '../detect'
 import { Overlay, forEachLine, setShade, shadeField } from './dragChrome'
+import { lineElementAt } from './lineDom'
 import { subBlockAt, dropChanges, checkboxToggleChange, type SubBlock, type Slot } from './listDragModel'
 
 interface Gesture {
@@ -27,9 +26,8 @@ interface ResolvedSlot extends Slot {
   indent: string // depth the dropped block adopts — the target line's leading whitespace
 }
 
-// A drop candidate — a visible list line outside the dragged block, measured ONCE at drag start in
-// viewport coords. The doc is static during a drag, so re-measuring every line on every pointermove (the
-// old resolveSlot) was pure layout thrash — that was the jank, and the line stuttered/stuck under it.
+// A drop candidate — a visible list line outside the dragged block, measured ONCE at drag start in viewport
+// coords. The doc is static during a drag, so re-measuring per pointermove would be pure layout thrash.
 interface Cand {
   from: number
   to: number
@@ -44,9 +42,8 @@ interface Cand {
 // quote), where it's that line's own content-box right — read from the rendered element so the callout's CSS
 // padding owns the width (no recomputing the inset here).
 function lineRightEdge(view: EditorView, from: number, fallback: number): number {
-  let n: Node | null = view.domAtPos(from).node
-  while (n && !(n instanceof HTMLElement && n.classList.contains('cm-line'))) n = n.parentNode
-  if (!(n instanceof HTMLElement) || (!n.classList.contains('md-callout') && !n.classList.contains('md-bq'))) return fallback
+  const n = lineElementAt(view, from)
+  if (!n || (!n.classList.contains('md-callout') && !n.classList.contains('md-bq'))) return fallback
   const cs = getComputedStyle(n)
   return n.getBoundingClientRect().right - parseFloat(cs.paddingRight || '0') - parseFloat(cs.borderRightWidth || '0')
 }
@@ -173,7 +170,7 @@ export const listDragExtension: Extension = [
         } catch {
           // already released
         }
-        gesture.overlay.destroy()
+        gesture.overlay.hide()
         if (gesture.active) view.dispatch({ effects: setShade.of(null) })
 
         if (!gesture.active) {

@@ -9,6 +9,13 @@ export const inlineLatexRegex = (): RegExp => /(?<!\$)\$(?!\$)([^$\n]+?)\$(?!\$)
 
 export const blockquotePrefixRe = /^[ \t]*(?:>[ \t]?)+/
 
+/** Strip ONE `>` level (with its optional single space), preserving leading indent. The single source for
+ *  un-quoting a line — a deeper `> > …` keeps its inner `>`. */
+const oneQuoteLevelRe = /^([ \t]*)>[ \t]?/
+export function stripQuotePrefix(line: string): string {
+  return line.replace(oneQuoteLevelRe, '$1')
+}
+
 /** A line's quote depth: how many `>` levels it's nested under, ignoring list indent. */
 export const quoteDepth = (line: string): number => /^[ \t]*(?:>[ \t]?)*/.exec(line)?.[0].match(/>/g)?.length ?? 0
 
@@ -45,7 +52,7 @@ export function calloutLines(lines: string[]): (CalloutLine | undefined)[] {
     for (let k = i; k < j; k++) {
       // Body lines strip only ONE `>` level (not the greedy prefix), so a deeper `> > …` keeps its inner `>`
       // for the nested-quote renderer. The head also hides its `[!type]` tag.
-      const oneLevel = /^[ \t]*>[ \t]?/.exec(lines[k])?.[0].length ?? 0
+      const oneLevel = oneQuoteLevelRe.exec(lines[k])?.[0].length ?? 0
       out[k] = {
         first: k === i,
         last: k === j - 1,
@@ -77,6 +84,17 @@ export function lineInCallout(doc: string, pos: number): boolean {
     off = end + 1
   }
   return calloutLines(lines)[idx] !== undefined
+}
+
+/** Start offset of each line in `text` (parallel to `text.split('\n')`). The one source for the line table
+ *  every doc-walking layer needs. */
+export function lineOffsets(lines: string[]): number[] {
+  const out = new Array<number>(lines.length)
+  for (let p = 0, i = 0; i < lines.length; i++) {
+    out[i] = p
+    p += lines[i].length + 1
+  }
+  return out
 }
 
 export const MAX_NESTING_LEVEL = 3
@@ -160,7 +178,6 @@ export function parseListMarkerPrefixed(line: string): ListMarker | null {
   }
 }
 
-const dashBulletRegex = /^([ \t]*)([-*+•](?:[ \t]*\[[ xX]?\])?[ \t]+)(.*)$/
 const taskMarkerRegex = /^[ \t]*[-*+][ \t]*\[[ xX]\][ \t]+/
 const headingPrefilter = /^[ ]{0,3}#{1,6}([ \t]|$)/
 const blockquotePrefilter = /^[ \t]*>+[ \t]/
@@ -176,21 +193,18 @@ export function isHeadingLine(line: string): boolean {
   return parse(line).children.some((n) => n.type === 'heading')
 }
 
+const headingPartsRe = /^(\s{0,3})(#{1,6})([ \t]+)(.*)$/
+/** Decomposes a heading line into its pieces (null if not a syntactic ATX heading). The one heading-shape
+ *  regex — level is `hashes.length`, the content start is `indent+hashes+space`. */
+export function headingParts(line: string): { indent: string; hashes: string; space: string; content: string } | null {
+  const m = headingPartsRe.exec(line)
+  return m ? { indent: m[1], hashes: m[2], space: m[3], content: m[4] } : null
+}
+
 /** Needs whitespace after the last `>`: `> a` and `>> a` activate; `>a`, `>>a`, bare `>` do not. */
 export function isBlockquoteLine(line: string): boolean {
   if (!blockquotePrefilter.test(line)) return false
   return parse(line).children.some((n) => n.type === 'blockquote')
-}
-
-export function isDashBulletLine(line: string): boolean {
-  const m = dashBulletRegex.exec(line)
-  if (m === null) return false
-  const marker = m[2]
-  return marker.startsWith('-') && !marker.includes('[')
-}
-
-export function isOrderedListLine(line: string): boolean {
-  return /^[ \t]*\d+\.[ \t]+/.test(line)
 }
 
 export function hasCheckbox(line: string): boolean {

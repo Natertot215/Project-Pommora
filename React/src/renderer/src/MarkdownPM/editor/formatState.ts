@@ -1,11 +1,10 @@
 import { tokenize } from '../tokens'
-import { parseListMarker, isHeadingLine } from '../detect'
+import { parseListMarker, headingParts } from '../detect'
+import { listFormatOf, isQuoteToggleable } from '../input/format'
 import { lineStartAt, lineEndAt } from '../input'
 import type { FormatState } from '@shared/editorMenu'
 
 export type { FormatState }
-
-const HEADING_LEVEL = /^\s{0,3}(#{1,6})[ \t]+/
 
 export function readFormatState(doc: string, from: number, to: number, focused: boolean): FormatState {
   // Inline marks are line-local, so tokenize only the caret's line (not the whole doc) and test
@@ -20,7 +19,7 @@ export function readFormatState(doc: string, from: number, to: number, focused: 
     tokens.some((tk) => tk.kind === kind && tk.contentRange[0] <= f && t <= tk.contentRange[1])
 
   const lm = parseListMarker(line)
-  const hm = isHeadingLine(line) ? HEADING_LEVEL.exec(line) : null
+  const hm = headingParts(line)
 
   return {
     focused,
@@ -31,8 +30,8 @@ export function readFormatState(doc: string, from: number, to: number, focused: 
     inlineCode: wraps('inlineCode'),
     link: tokens.some((tk) => tk.kind === 'link' && tk.range[0] <= f && t <= tk.range[1]),
     connection: tokens.some((tk) => tk.kind === 'wikiLink' && tk.range[0] <= f && t <= tk.range[1]),
-    heading: hm ? hm[1].length : 0,
-    list: lm?.kind === 'checkbox' ? 'task' : lm?.kind === 'ordered' ? 'ordered' : lm?.kind === 'bullet' ? 'bullet' : null,
-    block: /^[ \t]*>[ \t]/.test(line) ? 'quote' : null
+    heading: hm ? hm.hashes.length : 0,
+    list: listFormatOf(lm),
+    block: isQuoteToggleable(line) ? 'quote' : null
   }
 }

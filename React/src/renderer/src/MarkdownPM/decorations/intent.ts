@@ -7,6 +7,8 @@ import {
   blockquotePrefixRe,
   quoteDepth,
   calloutLines,
+  headingParts,
+  lineOffsets,
   type CalloutLine
 } from '../detect'
 
@@ -23,8 +25,6 @@ function calloutNestedQuote(lines: string[], callouts: (CalloutLine | undefined)
 // extension targets this one class, and `.md-li-glyph { cursor: pointer }` paints the pointer cursor —
 // so any future list syntax that adopts it inherits both the cursor and drag-to-reorder for free.
 export const GLYPH_CLASS = 'md-li-glyph'
-
-const HEADING_RE = /^(\s{0,3})(#{1,6})([ \t]+)(.*)$/
 
 // A ``` fence, capturing its `>` prefix so open/close pair by quote-DEPTH: a `> ``` opens a callout/quote-internal
 // block closed only by another `> ``` (a bare ``` is a separate top-level block), and a quoted fence ends when its
@@ -50,12 +50,7 @@ interface FenceBlock {
 
 function splitWithOffsets(text: string): { lines: string[]; lineStarts: number[] } {
   const lines = text.split('\n')
-  const lineStarts: number[] = []
-  for (let p = 0, k = 0; k < lines.length; k++) {
-    lineStarts.push(p)
-    p += lines[k].length + 1
-  }
-  return { lines, lineStarts }
+  return { lines, lineStarts: lineOffsets(lines) }
 }
 
 // One scan of ``` fences → block extents. Shared by the per-line role map (scanFencedCode) and the flat
@@ -103,7 +98,7 @@ export function fencedCodeRanges(text: string): [number, number][] {
 export type WidgetSpec =
   | { type: 'hr' }
   | { type: 'bullet' }
-  | { type: 'checkbox'; bracketFrom: number; bracketTo: number; checked: boolean }
+  | { type: 'checkbox'; bracketFrom: number; checked: boolean }
 
 export type DecoIntent =
   | { kind: 'class'; from: number; to: number; className: string }
@@ -191,9 +186,8 @@ export function decorationsFor(text: string, tokens: Token[], active: Set<number
   return intents
 }
 
-// Emits the list / heading / HR decorations for one line, reading the construct from `line.slice(base)` so it
-// works identically at the top level (base 0) or behind a `>`/callout prefix (base = prefix length). All
-// offsets are absolute (`ls + base + …`); the line-class still attaches at `ls` so it composes with box chrome.
+// Reads the construct from `line.slice(base)` so it works identically top-level (base 0) or behind a
+// `>`/callout prefix; offsets are absolute (`ls + base`), and the line-class attaches at `ls` to compose with box chrome.
 function pushConstruct(intents: DecoIntent[], line: string, ls: number, base: number, selStart: number): void {
   const inner = base === 0 ? line : line.slice(base)
   const innerStart = ls + base
@@ -209,10 +203,10 @@ function pushConstruct(intents: DecoIntent[], line: string, ls: number, base: nu
   if (base > 0 && !bulletAbsorbs && !hrAbsorbs) intents.push({ kind: 'hide', from: ls, to: innerStart })
 
   if (isHeadingLine(inner)) {
-    const hm = HEADING_RE.exec(inner)
+    const hm = headingParts(inner)
     if (hm) {
-      const level = hm[2].length
-      const contentStart = innerStart + hm[1].length + hm[2].length + hm[3].length
+      const level = hm.hashes.length
+      const contentStart = innerStart + hm.indent.length + hm.hashes.length + hm.space.length
       intents.push({ kind: 'class', from: innerStart, to: le, className: `md-h${level}` })
       if (contentStart > innerStart) intents.push({ kind: 'class', from: innerStart, to: contentStart, className: 'md-hmarker' })
       if (!caretOnLine) intents.push({ kind: 'hide', from: innerStart, to: contentStart })
@@ -227,7 +221,7 @@ function pushConstruct(intents: DecoIntent[], line: string, ls: number, base: nu
         kind: 'widget',
         from: innerStart + lm.box.start,
         to: innerStart + lm.box.end,
-        spec: { type: 'checkbox', bracketFrom: innerStart + lm.box.start, bracketTo: innerStart + lm.box.end, checked: lm.checked ?? false }
+        spec: { type: 'checkbox', bracketFrom: innerStart + lm.box.start, checked: lm.checked ?? false }
       })
       intents.push({ kind: 'hide', from: innerStart + lm.box.end, to: innerStart + lm.contentStart })
     }

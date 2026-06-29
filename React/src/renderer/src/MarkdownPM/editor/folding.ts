@@ -7,7 +7,7 @@ import {
   type Text,
   type Range
 } from '@codemirror/state'
-import { isHeadingLine } from '../detect'
+import { headingParts, isHeadingLine, lineOffsets } from '../detect'
 import { createBlockDragGesture } from './blockDrag'
 import { lineElementAt } from './lineDom'
 
@@ -19,8 +19,6 @@ export interface FoldsApi {
 
 /** Marks the mount-time re-apply of saved folds so the persist listener doesn't echo it straight back to disk. */
 const initialFoldAnnotation = Annotation.define<boolean>()
-
-const HEADING_RE = /^(\s{0,3})(#{1,6})[ \t]+(.*)$/
 
 export interface HeadingSection {
   /** Start of the heading line. */
@@ -38,22 +36,18 @@ export interface HeadingSection {
  *  but still consumes its ordinal so duplicate-text keys stay stable. */
 export function headingSections(doc: string): HeadingSection[] {
   const lines = doc.split('\n')
-  const starts: number[] = []
-  for (let p = 0, i = 0; i < lines.length; i++) {
-    starts.push(p)
-    p += lines[i].length + 1
-  }
+  const starts = lineOffsets(lines)
 
   const heads: { idx: number; level: number; key: string }[] = []
   const seen = new Map<string, number>()
   for (let i = 0; i < lines.length; i++) {
     if (!isHeadingLine(lines[i])) continue
-    const m = HEADING_RE.exec(lines[i])
+    const m = headingParts(lines[i])
     if (!m) continue
-    const text = m[3].trim()
+    const text = m.content.trim()
     const n = (seen.get(text) ?? 0) + 1
     seen.set(text, n)
-    heads.push({ idx: i, level: m[2].length, key: n === 1 ? text : `${text} ${n}` })
+    heads.push({ idx: i, level: m.hashes.length, key: n === 1 ? text : `${text} ${n}` })
   }
 
   const out: HeadingSection[] = []

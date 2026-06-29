@@ -1,8 +1,5 @@
-// A drawn caret, replacing the native browser one (which exposes only colour) with a CM `layer` we fully
-// control: a rounded line-height bar and a smooth opacity fade instead of Chromium's hard blink. Native
-// text SELECTION is left alone — we hide only the native caret (`caret-color: transparent` in Styles.css),
-// so this is NOT drawSelection's all-or-nothing takeover. Shape + fade are pure CSS (`.mdpm-caret` /
-// `@keyframes mdpm-blink`); this file is geometry only.
+// A drawn caret via a CM `layer` (shape + fade are CSS; this file is geometry only). Only the native caret is
+// hidden (`caret-color: transparent`), not the selection — so this is NOT drawSelection's all-or-nothing takeover.
 import { layer, RectangleMarker, type EditorView } from '@codemirror/view'
 import { EditorSelection } from '@codemirror/state'
 

@@ -123,6 +123,7 @@
   object-fit: cover;
 }
 .mdpm-banner-overlay {
+  --banner-shadow: #0000008c;
   position: absolute;
   bottom: 12px;
   left: var(--content-inset);
@@ -130,11 +131,11 @@
 }
 .mdpm-banner-overlay .detail-title-text,
 .mdpm-banner-overlay .detail-title-input {
-  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.55);
+  text-shadow: 0 1px 4px var(--banner-shadow);
 }
 .mdpm-banner-overlay .detail-title-icon {
   color: var(--label-primary);
-  filter: drop-shadow(0 1px 4px rgba(0, 0, 0, 0.55));
+  filter: drop-shadow(0 1px 4px var(--banner-shadow));
 }
 
 /* HEADING FOLD — the chevron is a masked ::before ANCHORED to the heading line in the content layer, NOT a
@@ -143,7 +144,7 @@
    below such a block drifts from its heading by a scroll-dependent amount. A line ::before shares the
    heading's own layout box and can't drift. Closed: points right, dim + persistent (a standing affordance);
    open: points down, hover-only. KNOBS: --fold-gutter (chevron offset into the inset, on .detail-page) ·
-   --fold-chevron-size · motion via --duration-fast / --ease-standard. */
+   --fold-chevron-size · motion via --disclosure / --ease-standard. */
 .mdpm-editor .cm-line.md-foldable {
   position: relative;
 }
@@ -160,8 +161,8 @@
   transform: translateY(-50%);
   cursor: pointer;
   transition:
-    transform var(--duration-fast) var(--ease-standard),
-    opacity var(--duration-fast) var(--ease-standard);
+    transform var(--disclosure) var(--ease-standard),
+    opacity var(--disclosure) var(--ease-standard);
 }
 .mdpm-editor .cm-line.md-fold-open::before {
   transform: translateY(-50%) rotate(90deg);
@@ -179,6 +180,19 @@
    ::before on the line, so it can't drift below callouts/folds). Hover-revealed. Glyph mirrors the
    table/callout grips (the shared --grip-glyph). KNOBS: --fold-gutter (rail x) · --grip-top (first-line
    offset — box blocks override it to drop the grip onto their padded first row, e.g. the code fence). */
+/* Shared 14px masked-grip recipe (look only — each instance owns its own anchor below). */
+.mdpm-editor .cm-line.md-block-handle::before,
+.mdpm-editor .cm-line.md-bq-first .md-bq-grip,
+.mdpm-editor .cm-line.md-callout-first::after {
+  width: 14px;
+  height: 14px;
+  background-color: var(--label-secondary);
+  -webkit-mask: var(--grip-glyph) center / contain no-repeat;
+  mask: var(--grip-glyph) center / contain no-repeat;
+  cursor: grab;
+  opacity: 0;
+}
+
 .mdpm-editor .cm-line.md-block-handle {
   position: relative;
 }
@@ -189,13 +203,6 @@
   /* Centre on the FIRST visual row's text (half the 1.6 line-height − half the 14px grip), so it lines up
      with the content even when the block's first line wraps. --grip-top is the knob; box blocks raise it. */
   top: var(--grip-top, calc(0.8em - 7px));
-  width: 14px;
-  height: 14px;
-  background-color: var(--label-secondary);
-  -webkit-mask: var(--grip-glyph) center / contain no-repeat;
-  mask: var(--grip-glyph) center / contain no-repeat;
-  cursor: grab;
-  opacity: 0;
   transition: opacity var(--duration-fast) var(--ease-standard);
 }
 .mdpm-editor .cm-line.md-block-handle.md-grip-hot::before {
@@ -207,14 +214,7 @@
 .mdpm-editor .cm-line.md-bq-first .md-bq-grip {
   position: absolute;
   left: calc(-1 * var(--fold-gutter));
-  top: var(--grip-top, calc(0.8em - 710x));
-  width: 14px;
-  height: 14px;
-  background-color: var(--label-secondary);
-  -webkit-mask: var(--grip-glyph) center / contain no-repeat;
-  mask: var(--grip-glyph) center / contain no-repeat;
-  cursor: grab;
-  opacity: 0;
+  top: var(--grip-top, calc(0.8em - 7px));
   transition: opacity var(--duration-fast) var(--ease-standard);
 }
 .mdpm-editor .cm-line.md-bq-first.md-grip-hot .md-bq-grip {
@@ -224,7 +224,7 @@
 /* The body collapses/expands on the sidebar's exact Reveal motion (grid 0fr↔1fr). */
 .mdpm-fold-reveal {
   display: grid;
-  transition: grid-template-rows var(--duration-fast) var(--ease-standard);
+  transition: grid-template-rows var(--disclosure) var(--ease-standard);
 }
 .mdpm-fold-reveal-inner {
   overflow: hidden;
@@ -460,7 +460,7 @@
   position: relative;
   isolation: isolate;
   padding-right: 14px;
-  color: color-mix(in srgb, var(--label-control));
+  color: var(--label-control);
 }
 .mdpm-editor .cm-line.md-bq::after {
   content: '';
@@ -606,44 +606,43 @@
   border-bottom-right-radius: var(--cb-radius);
 }
 
-/* A blockquote nested inside a callout — an inset quote block (fill + left bar drawn by ::after, since the
-   callout border owns ::before). Indents one level past the callout gutter; first/last round the block ends. */
+/* A blockquote nested inside a callout — a real `::after` fill (so it rounds its corners exactly like the nested
+   code block, instead of a flat background that can't), with the bar painted over it as an inset box-shadow. The
+   callout border keeps `::before`, untouched, so the box still closes itself. One element carries two corner
+   radii — the small bar-cap radius on the LEFT, the larger fill radius on the RIGHT. */
 .mdpm-editor .cm-line.md-callout.md-bq-in {
   --nq-bar: 3px;
+  --nq-bar-radius: 2px;
+  --nq-radius: 5px;
   --nq-gap: 9px;
   --nq-inset: 2px;
-  --nq-radius: 5px; /* fill corners: top (both) + bottom-right round; bottom-left stays square (the bar's lane) */
   padding-left: calc(var(--callout-pad) + var(--nq-bar) + var(--nq-gap));
 }
 .mdpm-editor .cm-line.md-callout.md-bq-in::after {
   content: '';
   position: absolute;
   inset: 0 var(--callout-pad);
-  /* Bar (the stripe) is the top background layer, fill beneath — bar above background, same stacking as outside a
-     callout (bar = `::before` z-1, fill = `::after` z-2); here both live in one `::after`, since `::before` is the
-     callout border. Corners (first/last below): the top rounds both sides + the bottom-RIGHT rounds, but the
-     BOTTOM-LEFT stays square so the bar reaches the bottom uncut — a rounded bottom-left clips the bar's bottom
-     cap (the "cutoff"). A rounded TOP-left is fine: the bar curving into it reads as the block's rounded top. */
-  background:
-    linear-gradient(var(--label-tertiary), var(--label-tertiary)) left / var(--nq-bar) 100% no-repeat,
-    var(--fill-tertiary);
+  background: var(--fill-tertiary);
+  box-shadow: inset var(--nq-bar) 0 0 0 var(--label-tertiary);
   z-index: -1;
   pointer-events: none;
 }
+/* First/last lines float the block off the callout edge by --nq-inset and round each end — the bar's lane (left)
+   on the small cap radius, the fill edge (right) on the larger one. The block is never on the callout's first
+   line (that's the atomic head). */
 .mdpm-editor .cm-line.md-bq-in-first.md-callout::after {
   top: var(--nq-inset);
-  border-top-left-radius: var(--nq-radius);
+  border-top-left-radius: var(--nq-bar-radius);
   border-top-right-radius: var(--nq-radius);
 }
 .mdpm-editor .cm-line.md-bq-in-last.md-callout::after {
   bottom: var(--nq-inset);
+  border-bottom-left-radius: var(--nq-bar-radius);
   border-bottom-right-radius: var(--nq-radius);
 }
-/* When a nested box (quote or code) is the callout's LAST element, its last line is also the callout's last
-   line — whose 0-bottom-inset `::after` would otherwise stretch past the box border (which sits --callout-gap
-   up) and hang off the bottom. Inset by the box's own bottom breathing room so it ends inside the border, the
-   way the head line above already floats the quote's top. (No top twin: the callout's first line is always the
-   atomic head, so a nested box can never start there.) */
+/* When the quote (or a code block) is the callout's LAST element, its last line carries the callout's bottom
+   padding (--callout-gap + --callout-inner-pad); pull the fill up by that so it ends inside the closing border
+   instead of hanging past it. (No top twin: the callout's first line is always the atomic head.) */
 .mdpm-editor .cm-line.md-callout-last.md-bq-in-last::after,
 .mdpm-editor .cm-line.md-callout-last.md-cb-last::after {
   bottom: calc(var(--callout-gap) + var(--callout-inner-pad));
@@ -653,24 +652,14 @@
    gesture, gated on the head line). Revealed on GUTTER hover via `md-grip-hot` (the delegated mousemove in
    blockHandles.ts), matching the rail grips. KNOBS: --grip-x (gutter offset) / --grip-y (top offset past the gap). */
 .mdpm-editor .cm-line.md-callout-first::after {
-  /* lucide `grip-vertical` — the EXACT glyph the table-row grips render (Tables/TableView.tsx `<GripVertical>`).
-     A CM line decoration can't mount a React component, so the same icon is mirrored as a mask here; geometry
-     (cx 9/15, cy 5/12/19, r1, stroke-width 2) and 14px size match the table 1:1. */
-  --callout-grip: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='9' cy='12' r='1'/%3E%3Ccircle cx='9' cy='5' r='1'/%3E%3Ccircle cx='9' cy='19' r='1'/%3E%3Ccircle cx='15' cy='12' r='1'/%3E%3Ccircle cx='15' cy='5' r='1'/%3E%3Ccircle cx='15' cy='19' r='1'/%3E%3C/svg%3E");
   --grip-x: -18px;
   --grip-y: 4px;
   content: '';
   position: absolute;
   left: var(--grip-x);
   top: calc(var(--callout-gap) + var(--grip-y));
-  width: 14px;
-  height: 14px;
-  background-color: var(--label-secondary);
-  -webkit-mask: var(--callout-grip) center / contain no-repeat;
-  mask: var(--callout-grip) center / contain no-repeat;
-  opacity: 0;
   transition: opacity 0.12s var(--ease-standard, ease);
-  cursor: grab; /* receives the press (default pointer-events) so the pseudo targets its line → the gesture fires */
+  /* cursor:grab (shared) receives the press so the pseudo targets its line → the gesture fires. */
 }
 .mdpm-editor .cm-line.md-callout-first.md-grip-hot::after {
   opacity: 1;

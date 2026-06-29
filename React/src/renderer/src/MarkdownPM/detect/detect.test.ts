@@ -3,7 +3,6 @@ import {
   isThematicBreakLine,
   isHeadingLine,
   isBlockquoteLine,
-  isDashBulletLine,
   hasCheckbox,
   isInlineMathContent,
   parseListMarker,
@@ -40,16 +39,6 @@ describe('heading', () => {
     expect(isHeadingLine('#H')).toBe(false) // no space → not a heading
     expect(isHeadingLine('####### H')).toBe(false) // 7 # → not a heading
     expect(isHeadingLine('    # H')).toBe(false) // 4 spaces → indented code
-  })
-})
-
-describe('lists + dash bullets', () => {
-  it('isDashBulletLine: only "-" marker, and NOT task lines', () => {
-    expect(isDashBulletLine('- a')).toBe(true)
-    expect(isDashBulletLine('* a')).toBe(false) // only - substitutes a glyph
-    expect(isDashBulletLine('+ a')).toBe(false)
-    expect(isDashBulletLine('- [ ] a')).toBe(false) // task line excluded
-    expect(isDashBulletLine('-[] a')).toBe(false) // any bracket excluded
   })
 })
 

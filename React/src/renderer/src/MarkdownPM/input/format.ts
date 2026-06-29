@@ -1,5 +1,5 @@
 import { tokenize, type TokenKind } from '../tokens'
-import { parseListMarker } from '../detect'
+import { isBlockquoteLine, isCalloutHead, parseListMarker, stripQuotePrefix, type ListMarker } from '../detect'
 import { lineStartAt, lineEndAt } from './index'
 import { emptyTable } from '../Tables/model'
 import { serialize } from '../Tables/codec'
@@ -14,6 +14,27 @@ export type InlineFormat = 'bold' | 'italic' | 'strikethrough' | 'inlineCode' | 
 export type HeadingLevel = 0 | 1 | 2 | 3 | 4 | 5 | 6
 export type ListFormat = 'bullet' | 'ordered' | 'task'
 export type BlockFormat = 'quote' | 'code' | 'hr' | 'callout' | 'table'
+
+/** The menu/toggle list-format a parsed marker represents (null for arrow / no marker). One source for both
+ *  the format menu's active state and the list toggle. */
+export function listFormatOf(lm: ListMarker | null): ListFormat | null {
+  switch (lm?.kind) {
+    case 'checkbox':
+      return 'task'
+    case 'ordered':
+      return 'ordered'
+    case 'bullet':
+      return 'bullet'
+    default:
+      return null
+  }
+}
+
+/** A line carries a plain-quote prefix the quote toggle should strip — true for a real blockquote, but NOT a
+ *  callout head (whose `>` is box chrome, stripping it orphans the `[!type]`). */
+export function isQuoteToggleable(line: string): boolean {
+  return isBlockquoteLine(line) && !isCalloutHead(line)
+}
 
 const WRAP: Record<Exclude<InlineFormat, 'link' | 'connection'>, string> = {
   bold: '**',
@@ -95,8 +116,7 @@ export function setList(doc: string, pos: number, fmt: ListFormat): FormatEdit {
   const ls = lineStartAt(doc, pos)
   const le = lineEndAt(doc, pos)
   const line = doc.slice(ls, le)
-  const lm = parseListMarker(line)
-  const current = lm?.kind === 'checkbox' ? 'task' : lm?.kind === 'ordered' ? 'ordered' : lm?.kind === 'bullet' ? 'bullet' : null
+  const current = listFormatOf(parseListMarker(line))
   const body = stripBlockMarkers(line)
   const next = current === fmt ? body : `${LIST_PREFIXES[fmt]}${body}`
   return { changes: [{ from: ls, to: le, insert: next }], selection: ls + next.length }
@@ -109,12 +129,13 @@ export function setBlock(doc: string, pos: number, fmt: BlockFormat): FormatEdit
   const line = doc.slice(ls, le)
   switch (fmt) {
     case 'quote': {
-      const quoted = /^[ \t]*>[ \t]/.test(line)
-      const next = quoted ? line.replace(/^([ \t]*)>[ \t]?/, '$1') : `> ${line}`
+      // Strip a plain quote; a callout's `>` is box chrome, so toggle-quote on a callout head wraps instead of
+      // demoting it (stripping would orphan the `[!type]`).
+      const next = isQuoteToggleable(line) ? stripQuotePrefix(line) : `> ${line}`
       return { changes: [{ from: ls, to: le, insert: next }], selection: ls + next.length }
     }
     case 'callout': {
-      const next = `> [!note] ${stripBlockMarkers(line)}`
+      const next = `> [!callout] ${stripBlockMarkers(line)}`
       return { changes: [{ from: ls, to: le, insert: next }], selection: ls + next.length }
     }
     case 'code': {
@@ -145,5 +166,5 @@ export function setBlock(doc: string, pos: number, fmt: BlockFormat): FormatEdit
 function stripBlockMarkers(line: string): string {
   const lm = parseListMarker(line)
   if (lm) return line.slice(lm.contentStart)
-  return line.replace(HEADING_PREFIX, '$1').replace(/^([ \t]*)>[ \t]?/, '$1')
+  return stripQuotePrefix(line.replace(HEADING_PREFIX, '$1'))
 }

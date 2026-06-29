@@ -92,7 +92,7 @@ export function startBlockDrag(
     g.slot = nearest(g.cands, g.lastY)
     // The "stay put" slot stays the resolved target (release-in-place cancels) but draws no line — a drop there no-ops.
     if (g.slot && !g.slot.noop) g.overlay.show(g.slot.left, g.slot.y, Math.max(g.slot.right - g.slot.left, 40))
-    else g.overlay.destroy()
+    else g.overlay.hide()
   }
   // Candidate coords are viewport-relative, so any scroll (wheel or the auto-scroll below) invalidates them —
   // re-measure against the new layout, then re-aim. The doc is static, so this is pure geometry.
@@ -158,7 +158,7 @@ export function startBlockDrag(
     } catch {
       // already released
     }
-    g.overlay.destroy()
+    g.overlay.hide()
     if (g.active) {
       view.dispatch({ effects: setShade.of(null) })
       if (commit && g.slot) {

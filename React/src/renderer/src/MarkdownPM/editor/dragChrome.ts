@@ -1,7 +1,5 @@
-// Shared drag chrome for the two block-relocation gestures (list-item drag and whole-block drag): the
-// in-place source shade and the fixed accent insertion line. Both gestures show the same two things — what's
-// moving (shade) and where it lands (line) — so the decoration field, its line-walk, and the overlay live
-// here once instead of once per gesture.
+// Shared drag chrome for both block-relocation gestures (list-item + whole-block): the in-place source shade
+// and the fixed accent insertion line, defined once instead of per gesture.
 import { StateEffect, StateField, type Line, type Range, type Text } from '@codemirror/state'
 import { Decoration, type DecorationSet, EditorView } from '@codemirror/view'
 
@@ -63,9 +61,5 @@ export class Overlay {
   hide(): void {
     this.line?.remove()
     this.line = null
-  }
-
-  destroy(): void {
-    this.hide()
   }
 }

@@ -56,6 +56,13 @@ describe('setBlock', () => {
     expect(apply('text', setBlock('text', 0, 'quote'))).toBe('> text')
     expect(apply('> text', setBlock('> text', 2, 'quote'))).toBe('text')
   })
+  it('quote toggle does NOT strip a callout (its `>` is box chrome) — wraps instead', () => {
+    const c = '> [!callout] hi'
+    expect(apply(c, setBlock(c, 4, 'quote'))).toBe(`> ${c}`)
+  })
+  it('callout insert uses the `[!callout]` default (matches the `||` shorthand)', () => {
+    expect(apply('hi', setBlock('hi', 0, 'callout'))).toBe('> [!callout] hi')
+  })
   it('fences a line as code', () => {
     expect(apply('x = 1', setBlock('x = 1', 0, 'code'))).toBe('```\nx = 1\n```')
   })

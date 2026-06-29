@@ -19,6 +19,10 @@ describe('readFormatState', () => {
     expect(readFormatState('> quote', 3, 3, true).block).toBe('quote')
   })
 
+  it('a callout is NOT reported as a quote (re-toggling quote would orphan the `[!type]`)', () => {
+    expect(readFormatState('> [!callout] hi', 14, 14, true).block).toBeNull()
+  })
+
   it('carries focus + selection flags', () => {
     const s = readFormatState('hello', 0, 5, false)
     expect(s.focused).toBe(false)

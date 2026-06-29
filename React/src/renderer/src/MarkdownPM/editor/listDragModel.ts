@@ -1,7 +1,7 @@
 // Pure source-line logic for list drag-to-reorder. No CM6 / DOM here — the extension (`listDrag.ts`)
 // owns the gesture + overlay and calls these to turn a grab + drop into a single `changes` array.
 // Everything operates on the doc string + offsets so it's unit-testable without an editor.
-import { parseListMarkerPrefixed as parseListMarker, quoteDepth } from '../detect'
+import { parseListMarkerPrefixed as parseListMarker, quoteDepth, lineOffsets } from '../detect'
 import { lineStartAt, lineEndAt } from '../input'
 
 export interface ChangeSpec {
@@ -205,21 +205,14 @@ function diffAsSingleReplace(a: string, b: string): ChangeSpec[] {
   return [{ from: pre, to: a.length - suf, insert: b.slice(pre, b.length - suf) }]
 }
 
-/** Move a top-level block (any line range) to start at `slot.at`, preserving the single-blank-line separation
- *  between blocks. A block owns the blank line after it: the cut takes the block plus one adjoining blank
- *  (following preferred, the preceding one at EOF) so its old neighbours collapse to one blank, and it
- *  re-inserts with a blank separator at the target. This is the blank-separated SIBLING of `moveBlockChanges`
- *  — that one moves adjacent list items (no blanks to manage) and renumbers; block drag does neither, so this
- *  is the simpler, separate path and leaves the list move untouched. Null for a no-op / unknown target. */
+/** Move a top-level block to start at `slot.at`, preserving single-blank-line separation. A block owns the
+ *  blank line after it: the cut takes the block plus one adjoining blank (following preferred, preceding at
+ *  EOF) so old neighbours collapse to one blank, and re-inserts with a blank separator. Null for a no-op. */
 export function blockMoveChanges(doc: string, range: BlockRange, slot: { at: number }): ChangeSpec[] | null {
   const trailingNL = doc.endsWith('\n')
   const lines = doc.split('\n')
   if (trailingNL) lines.pop() // a '\n'-terminated doc splits to a trailing '' — the file marker, not a line
-  const starts: number[] = []
-  for (let p = 0, i = 0; i < lines.length; i++) {
-    starts.push(p)
-    p += lines[i].length + 1
-  }
+  const starts = lineOffsets(lines)
   const isBlank = (i: number): boolean => i >= 0 && i < lines.length && lines[i].trim() === ''
 
   const bStart = starts.indexOf(range.from)

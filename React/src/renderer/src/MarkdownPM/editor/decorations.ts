@@ -39,7 +39,6 @@ class BulletWidget extends WidgetType {
 class CheckboxWidget extends WidgetType {
   constructor(
     readonly bracketFrom: number,
-    readonly bracketTo: number,
     readonly checked: boolean
   ) {
     super()
@@ -73,7 +72,7 @@ function widgetFor(spec: WidgetSpec): WidgetType {
     case 'bullet':
       return new BulletWidget()
     case 'checkbox':
-      return new CheckboxWidget(spec.bracketFrom, spec.bracketTo, spec.checked)
+      return new CheckboxWidget(spec.bracketFrom, spec.checked)
   }
 }
 
