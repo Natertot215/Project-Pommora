@@ -606,10 +606,10 @@
   border-bottom-right-radius: var(--cb-radius);
 }
 
-/* A blockquote nested inside a callout — a real `::after` fill (so it rounds its corners exactly like the nested
-   code block, instead of a flat background that can't), with the bar painted over it as an inset box-shadow. The
-   callout border keeps `::before`, untouched, so the box still closes itself. One element carries two corner
-   radii — the small bar-cap radius on the LEFT, the larger fill radius on the RIGHT. */
+/* A blockquote nested inside a callout — a real `::after` tint fill (rounds its right corners like the nested code
+   block) with the bar as a SEPARATE element (`.md-bq-in-bar`, a side widget emitted per nested line) layered OVER
+   the fill, so the bar carries its own rounded caps and the fill's corner radius can never clip it — the third
+   paint layer a 2-pseudo line can't otherwise give. The callout border keeps `::before`, untouched. */
 .mdpm-editor .cm-line.md-callout.md-bq-in {
   --nq-bar: 3px;
   --nq-bar-radius: 2px;
@@ -623,28 +623,44 @@
   position: absolute;
   inset: 0 var(--callout-pad);
   background: var(--fill-tertiary);
-  box-shadow: inset var(--nq-bar) 0 0 0 var(--label-tertiary);
   z-index: -1;
   pointer-events: none;
 }
-/* First/last lines float the block off the callout edge by --nq-inset and round each end — the bar's lane (left)
-   on the small cap radius, the fill edge (right) on the larger one. The block is never on the callout's first
-   line (that's the atomic head). */
+.mdpm-editor .cm-line.md-bq-in .md-bq-in-bar {
+  position: absolute;
+  left: var(--callout-pad);
+  top: 0;
+  bottom: 0;
+  width: var(--nq-bar);
+  background: var(--label-tertiary);
+  pointer-events: none;
+}
+/* First/last lines float the block off the callout edge by --nq-inset; the fill rounds its right corners, the bar
+   rounds its own cap. The block is never on the callout's first line (that's the atomic head). */
 .mdpm-editor .cm-line.md-bq-in-first.md-callout::after {
   top: var(--nq-inset);
-  border-top-left-radius: var(--nq-bar-radius);
   border-top-right-radius: var(--nq-radius);
+}
+.mdpm-editor .cm-line.md-bq-in-first .md-bq-in-bar {
+  top: var(--nq-inset);
+  border-top-left-radius: var(--nq-bar-radius);
+  border-top-right-radius: var(--nq-bar-radius);
 }
 .mdpm-editor .cm-line.md-bq-in-last.md-callout::after {
   bottom: var(--nq-inset);
-  border-bottom-left-radius: var(--nq-bar-radius);
   border-bottom-right-radius: var(--nq-radius);
+}
+.mdpm-editor .cm-line.md-bq-in-last .md-bq-in-bar {
+  bottom: var(--nq-inset);
+  border-bottom-left-radius: var(--nq-bar-radius);
+  border-bottom-right-radius: var(--nq-bar-radius);
 }
 /* When the quote (or a code block) is the callout's LAST element, its last line carries the callout's bottom
    padding (--callout-gap + --callout-inner-pad); pull the fill up by that so it ends inside the closing border
    instead of hanging past it. (No top twin: the callout's first line is always the atomic head.) */
 .mdpm-editor .cm-line.md-callout-last.md-bq-in-last::after,
-.mdpm-editor .cm-line.md-callout-last.md-cb-last::after {
+.mdpm-editor .cm-line.md-callout-last.md-cb-last::after,
+.mdpm-editor .cm-line.md-callout-last.md-bq-in-last .md-bq-in-bar {
   bottom: calc(var(--callout-gap) + var(--callout-inner-pad));
 }
 

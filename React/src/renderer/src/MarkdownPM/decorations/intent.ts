@@ -104,6 +104,7 @@ export type DecoIntent =
   | { kind: 'class'; from: number; to: number; className: string }
   | { kind: 'hide'; from: number; to: number }
   | { kind: 'widget'; from: number; to: number; spec: WidgetSpec }
+  | { kind: 'lineWidget'; from: number; className: string }
   | { kind: 'line'; from: number; className: string; level?: number }
 
 export const CONTENT_CLASS: Partial<Record<TokenKind, string>> = {
@@ -154,6 +155,9 @@ export function decorationsFor(text: string, tokens: Token[], active: Set<number
         const first = !calloutNestedQuote(lines, callouts, i - 1)
         const last = !calloutNestedQuote(lines, callouts, i + 1)
         intents.push({ kind: 'line', from: ls, className: `md-bq-in${first ? ' md-bq-in-first' : ''}${last ? ' md-bq-in-last' : ''}` })
+        // The bar is a real element (a side widget) so it sits OVER the fill with its own rounded caps — a fill
+        // `::after` can't carry both the bar's cap radius and its own without clipping one.
+        intents.push({ kind: 'lineWidget', from: ls, className: 'md-bq-in-bar' })
         base += qm[0].length
       }
     } else if (isBlockquoteLine(line)) {
