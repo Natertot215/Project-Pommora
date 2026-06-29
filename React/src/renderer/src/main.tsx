@@ -1,9 +1,11 @@
 import React from 'react'
 import { createRoot } from 'react-dom/client'
 import { App } from './App'
+import { initNativeCaret } from './nativeCaret'
 import '@fontsource-variable/inter'
 import './design-system/tokens'
 import './styles.css'
+import './Carets.css'
 import './Sidebar/Sidebar.css'
 import './Detail/Detail.css'
 import './Detail/Banner/Banner.css'
@@ -14,3 +16,6 @@ createRoot(document.getElementById('root') as HTMLElement).render(
     <App />
   </React.StrictMode>
 )
+
+// One global drawn caret for every native text field (CodeMirror surfaces have their own).
+initNativeCaret()

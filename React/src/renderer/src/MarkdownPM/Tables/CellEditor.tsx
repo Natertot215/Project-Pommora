@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { EditorView, keymap } from '@codemirror/view'
 import { Annotation, EditorState, Prec } from '@codemirror/state'
 import { defaultKeymap } from '@codemirror/commands'
+import { customCaret } from '../editor/caret'
 import { markdownDecorations } from '../editor/decorations'
 import { autoPair, autoDelete, type Edit } from '../input'
 import { AC_MAX } from '../autocomplete'
@@ -67,6 +68,7 @@ export function CellEditor({
         doc: initial,
         extensions: [
           markdownDecorations(connections ?? noConn),
+          customCaret,
           EditorView.lineWrapping,
           // Native spell-check, opted in explicitly: the cell editor sits inside the table widget's
           // contentEditable=false host, which suppresses the spell-check the page editor inherits by default.

@@ -4,6 +4,9 @@
      chevron glyph size (title3). (--label-control is the single global :root def.) */
   --fold-chevron-size: var(--text-title3-size);
   --fold-chevron-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m9 18 6-6-6-6'/%3E%3C/svg%3E");
+  /* The 6-dot drag-grip glyph (lucide grip-vertical) — one source for the rail grips, the callout grip, and
+     the blockquote widget grip, so they render identically. */
+  --grip-glyph: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='9' cy='12' r='1'/%3E%3Ccircle cx='9' cy='5' r='1'/%3E%3Ccircle cx='9' cy='19' r='1'/%3E%3Ccircle cx='15' cy='12' r='1'/%3E%3Ccircle cx='15' cy='5' r='1'/%3E%3Ccircle cx='15' cy='19' r='1'/%3E%3C/svg%3E");
   position: relative;
   /* Own stacking context (sits below the sidebar's z-index:1) so the absolutely-positioned banner
      header can layer above the editor body WITHOUT its z-index escaping to cover the floating sidebar. */
@@ -49,58 +52,12 @@
 }
 .mdpm-editor .cm-content {
   color: var(--label-primary);
-  /* Native caret hidden — a drawn caret (editor/caret.ts + the CARET block below) replaces it. */
-  caret-color: transparent;
-  /* Hover cursor: a double-T I-beam matching the drawn caret — black with a white outline so it reads on
-     any background. Hotspot centred on the stem; falls back to the system `text` cursor. */
-  cursor:
-    url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="14" height="24"><g fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M7 5.6V18.4M4.4 4L7 5.6L9.6 4M4.4 20L7 18.4L9.6 20" stroke="%23fff" stroke-width="3"/><path d="M7 5.6V18.4M4.4 4L7 5.6L9.6 4M4.4 20L7 18.4L9.6 20" stroke="%23000" stroke-width="1.4"/></g></svg>')
-      7 12,
-    text;
+  /* The drawn caret + I-beam cursor are app-wide now — see Carets.css. */
   /* Top reserves the header zone — set live from the header's measured height (index.tsx ResizeObserver).
      Left re-adds the --fold-gutter the editor reclaimed, so text lands on --content-inset and the chevron
      strip stays inside the scroller's clip. */
   padding: var(--header-zone, 90px) 0 90px var(--fold-gutter);
   font-size: var(--editor-font-size, 15px);
-}
-
-/* ══ CARET KNOBS — the drawn caret (editor/caret.ts). Edit these to retune ═════════
-     --caret-width  : caret thickness
-     --caret-color  : fill
-     --caret-gap    : full cycle length — RAISE for slower blinking (on + off are equal halves)
-     --caret-dim    : opacity at the bottom of the dip (1 = no blink, 0 = full off) */
-.mdpm-editor .mdpm-caretLayer {
-  --caret-width: 2px;
-  --caret-color: var(--label-primary);
-  --caret-gap: 1.3s;
-  --caret-dim: 0;
-}
-.mdpm-editor .cm-focused > .cm-scroller > .mdpm-caretLayer {
-  animation: mdpm-blink var(--caret-gap) ease-in-out infinite;
-}
-/* Equal halves: solid 0→42%, quick fade, fully off 50→92%, quick fade back — on and off last the same.
-   Two identical keyframes so caret.ts can swap names to restart the cycle on caret move (no reflow). */
-@keyframes mdpm-blink {
-  0%, 42% { opacity: 1; }
-  50%, 92% { opacity: var(--caret-dim, 0); }
-  100% { opacity: 1; }
-}
-@keyframes mdpm-blink2 {
-  0%, 42% { opacity: 1; }
-  50%, 92% { opacity: var(--caret-dim, 0); }
-  100% { opacity: 1; }
-}
-
-/* RectangleMarker sizes the stem (height = line box, width via CSS); we centre it on the text position. */
-.mdpm-caret {
-  display: none;
-  width: var(--caret-width);
-  margin-left: calc(var(--caret-width) / -2);
-  background: var(--caret-color);
-  border-radius: 999px; /* rounded caps, top + bottom */
-}
-.mdpm-editor .cm-focused > .cm-scroller > .mdpm-caretLayer .mdpm-caret {
-  display: block;
 }
 
 /* Page header — scroll-tracks: translates up over its own height as you scroll (banner scrolls away). */
@@ -220,8 +177,8 @@
 
 /* BLOCK DRAG HANDLE — a grip on each draggable block's first line, content-anchored like the chevron (a
    ::before on the line, so it can't drift below callouts/folds). Hover-revealed. Glyph mirrors the
-   table/callout grips. KNOBS: --fold-gutter (rail x) · top (first-line offset, tune on screen).
-   TODO(polish): hoist the grip data-URI to a shared --grip-glyph var (DRY with the callout grip). */
+   table/callout grips (the shared --grip-glyph). KNOBS: --fold-gutter (rail x) · --grip-top (first-line
+   offset — box blocks override it to drop the grip onto their padded first row, e.g. the code fence). */
 .mdpm-editor .cm-line.md-block-handle {
   position: relative;
 }
@@ -230,18 +187,37 @@
   position: absolute;
   left: calc(-1 * var(--fold-gutter));
   /* Centre on the FIRST visual row's text (half the 1.6 line-height − half the 14px grip), so it lines up
-     with the content even when the block's first line wraps — not centred on the whole (taller) line box. */
-  top: calc(0.8em - 7px);
+     with the content even when the block's first line wraps. --grip-top is the knob; box blocks raise it. */
+  top: var(--grip-top, calc(0.8em - 7px));
   width: 14px;
   height: 14px;
   background-color: var(--label-secondary);
-  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='9' cy='12' r='1'/%3E%3Ccircle cx='9' cy='5' r='1'/%3E%3Ccircle cx='9' cy='19' r='1'/%3E%3Ccircle cx='15' cy='12' r='1'/%3E%3Ccircle cx='15' cy='5' r='1'/%3E%3Ccircle cx='15' cy='19' r='1'/%3E%3C/svg%3E") center / contain no-repeat;
-  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='9' cy='12' r='1'/%3E%3Ccircle cx='9' cy='5' r='1'/%3E%3Ccircle cx='9' cy='19' r='1'/%3E%3Ccircle cx='15' cy='12' r='1'/%3E%3Ccircle cx='15' cy='5' r='1'/%3E%3Ccircle cx='15' cy='19' r='1'/%3E%3C/svg%3E") center / contain no-repeat;
+  -webkit-mask: var(--grip-glyph) center / contain no-repeat;
+  mask: var(--grip-glyph) center / contain no-repeat;
   cursor: grab;
   opacity: 0;
   transition: opacity var(--duration-fast) var(--ease-standard);
 }
 .mdpm-editor .cm-line.md-block-handle.md-grip-hot::before {
+  opacity: 1;
+}
+
+/* Blockquote's gutter grip is a real element (the GripWidget — its line pseudos are taken by the bar + fill),
+   but positioned + hover-revealed exactly like the rail grips. The drag rides md-bq-first. */
+.mdpm-editor .cm-line.md-bq-first .md-bq-grip {
+  position: absolute;
+  left: calc(-1 * var(--fold-gutter));
+  top: var(--grip-top, calc(0.8em - 710x));
+  width: 14px;
+  height: 14px;
+  background-color: var(--label-secondary);
+  -webkit-mask: var(--grip-glyph) center / contain no-repeat;
+  mask: var(--grip-glyph) center / contain no-repeat;
+  cursor: grab;
+  opacity: 0;
+  transition: opacity var(--duration-fast) var(--ease-standard);
+}
+.mdpm-editor .cm-line.md-bq-first.md-grip-hot .md-bq-grip {
   opacity: 1;
 }
 
@@ -636,25 +612,41 @@
   --nq-bar: 3px;
   --nq-gap: 9px;
   --nq-inset: 2px;
-  --nq-radius: 5px;
+  --nq-radius: 5px; /* fill corners: top (both) + bottom-right round; bottom-left stays square (the bar's lane) */
   padding-left: calc(var(--callout-pad) + var(--nq-bar) + var(--nq-gap));
 }
 .mdpm-editor .cm-line.md-callout.md-bq-in::after {
   content: '';
   position: absolute;
   inset: 0 var(--callout-pad);
-  background: var(--fill-tertiary);
-  border-left: var(--nq-bar) solid var(--label-tertiary);
+  /* Bar (the stripe) is the top background layer, fill beneath — bar above background, same stacking as outside a
+     callout (bar = `::before` z-1, fill = `::after` z-2); here both live in one `::after`, since `::before` is the
+     callout border. Corners (first/last below): the top rounds both sides + the bottom-RIGHT rounds, but the
+     BOTTOM-LEFT stays square so the bar reaches the bottom uncut — a rounded bottom-left clips the bar's bottom
+     cap (the "cutoff"). A rounded TOP-left is fine: the bar curving into it reads as the block's rounded top. */
+  background:
+    linear-gradient(var(--label-tertiary), var(--label-tertiary)) left / var(--nq-bar) 100% no-repeat,
+    var(--fill-tertiary);
   z-index: -1;
   pointer-events: none;
 }
 .mdpm-editor .cm-line.md-bq-in-first.md-callout::after {
   top: var(--nq-inset);
+  border-top-left-radius: var(--nq-radius);
   border-top-right-radius: var(--nq-radius);
 }
 .mdpm-editor .cm-line.md-bq-in-last.md-callout::after {
   bottom: var(--nq-inset);
   border-bottom-right-radius: var(--nq-radius);
+}
+/* When a nested box (quote or code) is the callout's LAST element, its last line is also the callout's last
+   line — whose 0-bottom-inset `::after` would otherwise stretch past the box border (which sits --callout-gap
+   up) and hang off the bottom. Inset by the box's own bottom breathing room so it ends inside the border, the
+   way the head line above already floats the quote's top. (No top twin: the callout's first line is always the
+   atomic head, so a nested box can never start there.) */
+.mdpm-editor .cm-line.md-callout-last.md-bq-in-last::after,
+.mdpm-editor .cm-line.md-callout-last.md-cb-last::after {
+  bottom: calc(var(--callout-gap) + var(--callout-inner-pad));
 }
 
 /* DRAG HANDLE — a grip in the callout's top-left gutter that drags the whole box (shares the block-drag

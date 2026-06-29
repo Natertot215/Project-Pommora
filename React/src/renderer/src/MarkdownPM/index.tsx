@@ -8,7 +8,7 @@ import { markdownInput } from './editor/input'
 import { tableWidgetExtension, applySavedHeadingCols, type TableHeadingColsApi } from './Tables'
 import { listDragExtension } from './editor/listDrag'
 import { blockHandles, blockGripHover } from './editor/blockHandles'
-import { blockDragExtension, calloutDragExtension } from './editor/blockDrag'
+import { blockDragExtension, blockquoteDragExtension, calloutDragExtension } from './editor/blockDrag'
 import { calloutGripMenu } from './editor/calloutGripMenu'
 import { customCaret } from './editor/caret'
 import { calloutAtomic } from './editor/calloutAtomic'
@@ -126,6 +126,8 @@ export function MarkdownEditor({
         blockDragExtension,
         // The callout's own gutter grip drags the whole callout box (same gesture, gated on the head line).
         calloutDragExtension,
+        // The blockquote's widget grip drags the whole quote (same gesture, gated on its first line).
+        blockquoteDragExtension,
         // Right-press the callout grip → native Delete Callout menu (the flag above suppresses the generic one).
         calloutGripMenu,
         // Drawn caret (rounded bar in text, I-beam on empty lines, smooth fade) — native caret hidden in CSS.

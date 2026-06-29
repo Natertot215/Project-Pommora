@@ -1,0 +1,95 @@
+/* The Pommora caret — one text-insertion identity for the whole app: the drawn blinking bar (the "I", a
+   CodeMirror `layer` in editor/caret.ts) paired with the double-T I-beam hover cursor. Both halves read the
+   same :root knobs so they always match. Inside CodeMirror the bar is a `layer`; over native <input>/<textarea>
+   it's an overlay positioned by nativeCaret.ts — same visual, two position sources. New interaction-type
+   cursors get designed alongside --caret-cursor here. */
+
+:root {
+  /* --caret-width : bar thickness | --caret-color : fill (drawn bar + native caret-color)
+     --caret-gap   : full blink cycle (raise = slower) | --caret-dim : opacity at the dip (1 = no blink) */
+  --caret-width: 2px;
+  --caret-color: var(--label-primary);
+  --caret-gap: 1.3s;
+  --caret-dim: 0;
+  /* The double-T I-beam: black with a white outline so it reads on any background; hotspot on the stem. */
+  --caret-cursor:
+    url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="14" height="24"><g fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M7 5.6V18.4M4.4 4L7 5.6L9.6 4M4.4 20L7 18.4L9.6 20" stroke="%23fff" stroke-width="3"/><path d="M7 5.6V18.4M4.4 4L7 5.6L9.6 4M4.4 20L7 18.4L9.6 20" stroke="%23000" stroke-width="1.4"/></g></svg>')
+      7 12,
+    text;
+}
+
+/* The hover cursor: our I-beam wherever text is edited — every CM surface plus native text fields. CM content
+   uses the full `.cm-editor .cm-scroller .cm-content` path to out-specify CM's baseTheme, same as caret-color. */
+.cm-editor .cm-scroller .cm-content,
+input:not([type]),
+input[type='text'],
+input[type='search'],
+input[type='url'],
+input[type='tel'],
+textarea,
+[contenteditable='true'] {
+  cursor: var(--caret-cursor);
+}
+
+/* Native fields: hide the browser caret — nativeCaret.ts paints the drawn bar over them (same visual as the
+   CM caret, just a JS position source). Scoped to the text types the overlay handles; others keep theirs. */
+input:not([type]),
+input[type='text'],
+input[type='search'],
+input[type='url'],
+input[type='tel'],
+textarea,
+[contenteditable='true'] {
+  caret-color: transparent;
+}
+
+/* CodeMirror surfaces: hide the native caret so the drawn one (customCaret layer) stands alone. CM's baseTheme
+   sets `&light/&dark .cm-content { caret-color: black/white }` at specificity (0,2,0) — the source of the black
+   caret. We use the full DOM path `.cm-editor .cm-scroller .cm-content` (0,3,0) to beat it by SPECIFICITY, not
+   the load-order luck a tied (0,2,0) selector relies on. Don't shorten it. Editor-agnostic — every CM surface
+   matches. */
+.cm-editor .cm-scroller .cm-content {
+  caret-color: transparent;
+}
+
+.cm-focused > .cm-scroller > .mdpm-caretLayer {
+  animation: mdpm-blink var(--caret-gap) ease-in-out infinite;
+}
+
+/* Equal halves: solid 0→42%, quick fade, fully off 50→92%, quick fade back — on and off last the same.
+   Two identical keyframes so caret.ts can swap names to restart the cycle on caret move (no reflow). */
+@keyframes mdpm-blink {
+  0%, 42% { opacity: 1; }
+  50%, 92% { opacity: var(--caret-dim, 0); }
+  100% { opacity: 1; }
+}
+@keyframes mdpm-blink2 {
+  0%, 42% { opacity: 1; }
+  50%, 92% { opacity: var(--caret-dim, 0); }
+  100% { opacity: 1; }
+}
+
+/* RectangleMarker sizes the stem (height = line box, width via CSS); we centre it on the text position. */
+.mdpm-caret {
+  display: none;
+  width: var(--caret-width);
+  margin-left: calc(var(--caret-width) / -2);
+  background: var(--caret-color);
+  border-radius: 999px; /* rounded caps, top + bottom */
+}
+.cm-focused > .cm-scroller > .mdpm-caretLayer .mdpm-caret {
+  display: block;
+}
+
+/* The drawn caret over native fields (nativeCaret.ts) — the same bar + knobs as the CM caret, positioned by
+   JS over the focused <input>/<textarea>/contenteditable. Tops the stack so it shows above menus/popovers. */
+.mdpm-caret-overlay {
+  position: fixed;
+  width: var(--caret-width);
+  margin-left: calc(var(--caret-width) / -2);
+  background: var(--caret-color);
+  border-radius: 999px;
+  pointer-events: none;
+  z-index: 2147483647;
+  animation: mdpm-blink var(--caret-gap) ease-in-out infinite;
+}

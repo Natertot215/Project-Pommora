@@ -137,7 +137,6 @@
   padding: 3px 8px;
   text-align: inherit;
   white-space: pre-wrap;
-  caret-color: var(--label-primary);
 }
 .mdpm-tbl-cell-editor .cm-editor .cm-line {
   padding: 0;

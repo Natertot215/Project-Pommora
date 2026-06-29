@@ -220,3 +220,7 @@ export const blockDragExtension: Extension = createBlockDragGesture({ gate: 'md-
 // The callout's own gutter grip (its `::after`, on the head line) drags the whole box — `blockAt` resolves a
 // callout to its full box, so the same gesture moves it. Gated on the callout head line instead of a rail handle.
 export const calloutDragExtension: Extension = createBlockDragGesture({ gate: 'md-callout-first' })
+
+// Blockquote's gutter grip is a widget (its pseudos are taken by the bar + fill), but the drag is the same
+// gesture, gated on the quote's first line — `blockAt` resolves it to the full quote.
+export const blockquoteDragExtension: Extension = createBlockDragGesture({ gate: 'md-bq-first' })
