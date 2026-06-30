@@ -12,6 +12,8 @@ import { Cell } from './Cell'
 import { GroupHeader } from './GroupHeader'
 import { columnLabel } from './columnLabel'
 import { clampWidth, widthFor } from './columnWidths'
+import { cx } from '@renderer/design-system/cx'
+import { text } from '@renderer/design-system/tokens'
 
 /** A Collection uses its own schema; a Set inherits its ancestor Collection's (schema lives only on
  *  the Collection). [] when the owning Collection can't be found. */
@@ -91,7 +93,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
     if (g.kind !== 'ungrouped') {
       out.push(
         <tr key={`gh-${g.key}`} className="group-header-row">
-          <td colSpan={columns.length} style={{ paddingLeft: indent(depth) }}>
+          <td colSpan={columns.length} style={{ paddingLeft: depth > 0 ? `calc(var(--table-indent) * ${depth})` : 0 }}>
             <GroupHeader
               group={g}
               view={view}
@@ -127,7 +129,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
 
   return (
     <div className="table-view">
-      <table className={`data-table${view.hide_borders ? ' no-borders' : ''}`} style={{ width: totalWidth }}>
+      <table className={cx('data-table', text.callout.standard, view.hide_borders && 'no-borders')} style={{ width: totalWidth }}>
         <colgroup>
           {columns.map((c) => (
             <col key={c.id} style={{ width: colWidth(c.id) }} />

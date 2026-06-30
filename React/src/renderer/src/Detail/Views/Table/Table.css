@@ -12,17 +12,18 @@
 
 .data-table {
   --table-pad-x: 12px; /* cell horizontal gutter (kept from the stub, H-4) */
+  --table-pad-y: 4px; /* Compact row density (Standard ~7px is reserved for the ViewPane toggle, K-1) */
   --table-indent: 16px; /* per-layer nesting indent (J-3) */
   table-layout: fixed; /* colgroup widths are authoritative; the table is its summed width, not 100% */
   border-collapse: collapse;
-  font-size: 13px; /* Task 9 routes this to the Table-Size typography token */
+  /* Row typography = the `callout` token (Compact, K-2), composed onto the table in TableView. */
 }
 
 .data-table th {
   text-align: left;
   font-weight: var(--weight-semibold);
   color: var(--text-dim);
-  padding: 6px var(--table-pad-x);
+  padding: var(--table-pad-y) var(--table-pad-x);
   border-bottom: 1px solid var(--separator-border);
   white-space: nowrap;
   overflow: hidden;
@@ -32,11 +33,18 @@
 
 .data-table td {
   color: var(--text);
-  padding: 6px var(--table-pad-x);
+  padding: var(--table-pad-y) var(--table-pad-x);
   border-bottom: 1px solid var(--separator-border);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* Vertical column lines (H-7) — excluded on the last column + the colSpan group-header td, so the
+   disclosure row stays independent of the column grid. */
+.data-table td:not(:last-child),
+.data-table th:not(:last-child) {
+  border-right: 1px solid var(--separator-border);
 }
 
 /* Type-aware cell content (chips, title icon, links). */
@@ -94,7 +102,8 @@
   cursor: default;
 }
 .group-twisty {
-  margin-left: -2px;
+  width: var(--table-pad-x); /* the chevron sits in the gutter; the glyph floats free of the columns */
+  justify-content: center;
 }
 .group-add {
   opacity: 0;

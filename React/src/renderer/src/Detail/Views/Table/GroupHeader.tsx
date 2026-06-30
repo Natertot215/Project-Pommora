@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import type { ResolvedGroup } from '@shared/types'
 import type { SavedView } from '@shared/views'
-import { chip, chipCheckbox, chipColor } from '@renderer/design-system/tokens'
+import { chip, chipCheckbox, chipColor, text } from '@renderer/design-system/tokens'
 import { cx } from '@renderer/design-system/cx'
 import { Icon, asIconName } from '@renderer/design-system/symbols'
 import { Chip } from '@renderer/Components/Chip'
@@ -73,7 +73,7 @@ export function GroupHeader({
   onToggle: () => void
 }): React.JSX.Element {
   return (
-    <span className="group-header">
+    <span className={cx('group-header', text.callout.emphasized)}>
       <button
         type="button"
         className="group-twisty"
