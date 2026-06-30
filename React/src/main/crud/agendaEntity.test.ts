@@ -119,10 +119,10 @@ describe('updates preserve foreign keys + siblings', () => {
     const c = await createAgendaItem(tasks, 'task', 'P')
     if (!c.ok) throw new Error('setup')
     await updateAgendaProperty(c.value.path, '_status', { kind: 'status', value: 'todo' })
-    await updateAgendaProperty(c.value.path, 'prop_rel', { kind: 'relation', value: ['01H'] })
-    expect((await read(c.value.path)).properties).toEqual({ _status: { $status: 'todo' }, prop_rel: [{ $rel: '01H' }] })
+    await updateAgendaProperty(c.value.path, 'prop_rel', { kind: 'context', value: ['01H'] })
+    expect((await read(c.value.path)).properties).toEqual({ _status: { $status: 'todo' }, prop_rel: [{ $ctx: '01H' }] })
     await updateAgendaProperty(c.value.path, '_status', null)
-    expect((await read(c.value.path)).properties).toEqual({ prop_rel: [{ $rel: '01H' }] })
+    expect((await read(c.value.path)).properties).toEqual({ prop_rel: [{ $ctx: '01H' }] })
   })
 
   it('setAgendaTier writes a bare ULID array at the root', async () => {

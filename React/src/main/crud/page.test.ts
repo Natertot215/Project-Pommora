@@ -155,12 +155,12 @@ describe('updatePageProperty', () => {
     expect(await props()).toEqual({ prop_tags: ['a', 'b'] })
   })
 
-  it('encodes a relation as a tagged array', async () => {
+  it('encodes a context as a tagged array', async () => {
     const c = await createPage(typeDir, 'Rel', { body: 'x' })
     if (!c.ok) throw new Error('setup failed')
-    await updatePageProperty(c.value.path, 'prop_link', { kind: 'relation', value: ['01H', '01J'] })
+    await updatePageProperty(c.value.path, 'prop_link', { kind: 'context', value: ['01H', '01J'] })
     const fm = splitFrontmatter(await readFile(c.value.path, 'utf8'))
-    expect((fm.properties as Record<string, unknown>).prop_link).toEqual([{ $rel: '01H' }, { $rel: '01J' }])
+    expect((fm.properties as Record<string, unknown>).prop_link).toEqual([{ $ctx: '01H' }, { $ctx: '01J' }])
   })
 
   it('errors when the page is missing', async () => {

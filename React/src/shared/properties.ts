@@ -7,7 +7,7 @@
 // rewrite. Only structurally load-bearing fields are modeled; pure display config
 // (number_format, date_format, time_format, display_as, date_includes_time) rides
 // through as foreign keys until a UI reads it — "catch up to Swift, don't go ahead".
-// The renderable structure (type, options, relation target, tier reverse labels,
+// The renderable structure (type, options, context target, tier reverse labels,
 // icons) IS modeled because the write path + tier synthesis read it.
 
 import { z } from 'zod'
@@ -16,13 +16,12 @@ import { z } from 'zod'
 export const propertyType = z.enum([
   'number',
   'checkbox',
-  'date', // calendar date only; normalized to `datetime` on read (see properties/schema.ts)
   'datetime',
   'select',
   'multi_select',
   'status',
   'url',
-  'relation', // tier-only tolerance; retired from user creation
+  'context', // the three context-tier links (_tier1/2/3); not user-creatable
   'last_edited_time',
   'file'
 ])
@@ -69,10 +68,9 @@ const statusGroup = z.looseObject({
 })
 export type StatusGroup = z.infer<typeof statusGroup>
 
-/** Relation picker constraint. On-disk: `{ kind: "context_tier", tier: N }`. Lenient
- *  `kind` so a retired user-relation target survives parse (it's dropped later by
- *  `droppingUserRelations`, not by failing the whole sidecar). */
-const relationTarget = z.looseObject({
+/** Context picker constraint. On-disk: `{ kind: "context_tier", tier: N }`. Lenient
+ *  `kind` so an unknown target survives parse. */
+const contextTarget = z.looseObject({
   kind: z.string(),
   tier: z.number().optional()
 })
@@ -85,7 +83,7 @@ export const propertyDefinition = z.looseObject({
   icon: z.string().optional(),
   select_options: z.array(selectOption).optional(),
   status_groups: z.array(statusGroup).optional(),
-  relation_target: relationTarget.optional(),
+  context_target: contextTarget.optional(),
   reverse_name: z.string().optional(),
   reverse_icon: z.string().optional(),
   accept: z.array(z.string()).optional()

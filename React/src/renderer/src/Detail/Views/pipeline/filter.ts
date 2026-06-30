@@ -70,10 +70,9 @@ function evaluateRule(row: ViewRow, rule: FilterRule, schema: PropertyDefinition
 function evaluateByType(v: PropertyValue, op: Op, expected: Expected, t: PropertyType | 'title' | 'tier'): boolean {
   switch (t) {
     case 'tier':
-      return evaluateList(v.kind === 'relation' ? v.value : [], op, expected)
+      return evaluateList(v.kind === 'context' ? v.value : [], op, expected)
     case 'number':
       return evaluateNumber(v, op, expected)
-    case 'date':
     case 'datetime':
     case 'last_edited_time':
       return evaluateDate(v, op, expected)
@@ -85,7 +84,7 @@ function evaluateByType(v: PropertyValue, op: Op, expected: Expected, t: Propert
       return evaluateText(v, op, expected)
     case 'multi_select':
       return evaluateMulti(v, op, expected)
-    case 'relation':
+    case 'context':
     case 'file':
       return evaluatePresence(v, op)
     default: // 'title' (and any unmodeled type) → no-op pass
@@ -164,7 +163,7 @@ function evaluateNumber(v: PropertyValue, op: Op, expected: Expected): boolean {
 }
 
 function evaluateDate(v: PropertyValue, op: Op, expected: Expected): boolean {
-  const d = v.kind === 'date' || v.kind === 'datetime' ? parseDateMs(v.value) : null
+  const d = v.kind === 'datetime' ? parseDateMs(v.value) : null
   switch (op) {
     case FILTER_OPS.isEmpty:
       return d === null
@@ -262,7 +261,7 @@ function evaluateList(ids: string[], op: Op, expected: Expected): boolean {
 /** User relation / file: presence only (is/contains/etc. are no-op passes — Swift evaluatePresence). */
 function evaluatePresence(v: PropertyValue, op: Op): boolean {
   const empty =
-    v.kind === 'relation' || v.kind === 'file' ? v.value.length === 0 : v.kind === 'null' ? true : false
+    v.kind === 'context' || v.kind === 'file' ? v.value.length === 0 : v.kind === 'null' ? true : false
   switch (op) {
     case FILTER_OPS.isEmpty:
       return empty

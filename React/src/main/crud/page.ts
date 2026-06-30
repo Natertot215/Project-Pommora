@@ -108,7 +108,7 @@ export async function updatePageProperty(
 
 /**
  * Set a page's tier-N context links — a **bare** ULID array at the frontmatter root
- * (`tier1`/`tier2`/`tier3`, NOT a `$rel`-tagged property). Governs only that tier field +
+ * (`tier1`/`tier2`/`tier3`, NOT a `$ctx`-tagged property). Governs only that tier field +
  * `modified_at`, so all other frontmatter survives. The array is always written (even
  * empty). `tier` must be 1–3. Ids are stored as given (existence is not checked here).
  */

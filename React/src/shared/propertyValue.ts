@@ -2,7 +2,7 @@
 // The DECLARED type lives in the schema; this codec recovers a value from raw JSON
 // by SHAPE, in a LOCKED precedence that mirrors the Swift original exactly. The
 // order is load-bearing and silent on failure — reordering a branch mistypes
-// relations/files/multi-select with no error. Pure: no fs, no Node — importable by
+// contexts/files/multi-select with no error. Pure: no fs, no Node — importable by
 // both main and renderer.
 
 /** On-disk file-attachment shape (snake_case = the on-disk DTO). Round-trips as-is;
@@ -17,12 +17,11 @@ export interface FileRef {
 export type PropertyValue =
   | { kind: 'number'; value: number }
   | { kind: 'checkbox'; value: boolean }
-  | { kind: 'date'; value: string } // "yyyy-MM-dd" (UTC)
-  | { kind: 'datetime'; value: string } // full ISO-8601 with timezone
+  | { kind: 'datetime'; value: string } // ISO-8601; a bare "yyyy-MM-dd" is a date-only datetime
   | { kind: 'select'; value: string }
   | { kind: 'multiSelect'; value: string[] }
   | { kind: 'status'; value: string }
-  | { kind: 'relation'; value: string[] } // target ULIDs
+  | { kind: 'context'; value: string[] } // context-tier target ULIDs
   | { kind: 'url'; value: string }
   | { kind: 'file'; value: FileRef[] }
   | { kind: 'lastEditedTime' } // virtual — never persisted (encode throws)
@@ -48,9 +47,9 @@ function isFileRef(v: unknown): v is FileRef {
 /**
  * Classify a raw JSON value into a PropertyValue. BRANCH ORDER IS LOAD-BEARING —
  * mirrors Swift `PropertyValue.init(from:)`:
- * null → bool → number → non-empty [{$rel}] → non-empty [FileRef] → [string]
- * (incl. empty [] → multiSelect([])) → single {$rel}/{$status} →
- * string(url → iso-datetime → yyyy-MM-dd → select). Anything else throws.
+ * null → bool → number → non-empty [{$ctx}] → non-empty [FileRef] → [string]
+ * (incl. empty [] → multiSelect([])) → single {$ctx}/{$status} →
+ * string(url → iso-datetime → yyyy-MM-dd-as-datetime → select). Anything else throws.
  */
 export function parsePropertyValue(raw: unknown): PropertyValue {
   if (raw === null || raw === undefined) return { kind: 'null' }
@@ -58,8 +57,8 @@ export function parsePropertyValue(raw: unknown): PropertyValue {
   if (typeof raw === 'number') return { kind: 'number', value: raw }
 
   if (Array.isArray(raw)) {
-    if (raw.length > 0 && raw.every((x) => isPlainObject(x) && typeof x.$rel === 'string')) {
-      return { kind: 'relation', value: raw.map((x) => (x as { $rel: string }).$rel) }
+    if (raw.length > 0 && raw.every((x) => isPlainObject(x) && typeof x.$ctx === 'string')) {
+      return { kind: 'context', value: raw.map((x) => (x as { $ctx: string }).$ctx) }
     }
     if (raw.length > 0 && raw.every(isFileRef)) {
       return { kind: 'file', value: raw }
@@ -75,7 +74,7 @@ export function parsePropertyValue(raw: unknown): PropertyValue {
   if (isPlainObject(raw)) {
     const keys = Object.keys(raw)
     if (keys.length === 1) {
-      if (typeof raw.$rel === 'string') return { kind: 'relation', value: [raw.$rel] }
+      if (typeof raw.$ctx === 'string') return { kind: 'context', value: [raw.$ctx] }
       if (typeof raw.$status === 'string') return { kind: 'status', value: raw.$status }
     }
   }
@@ -83,7 +82,7 @@ export function parsePropertyValue(raw: unknown): PropertyValue {
   if (typeof raw === 'string') {
     if (SCHEME.test(raw)) return { kind: 'url', value: raw }
     if (ISO_DATETIME.test(raw)) return { kind: 'datetime', value: raw }
-    if (YMD.test(raw)) return { kind: 'date', value: raw }
+    if (YMD.test(raw)) return { kind: 'datetime', value: raw } // a bare date is a date-only datetime
     return { kind: 'select', value: raw }
   }
 
@@ -102,16 +101,14 @@ export function encodePropertyValue(value: PropertyValue): unknown {
       return value.value
     case 'url':
       return value.value
-    case 'date':
-      return value.value
     case 'datetime':
       return value.value
     case 'multiSelect':
       return value.value
     case 'status':
       return { $status: value.value }
-    case 'relation':
-      return value.value.map((id) => ({ $rel: id }))
+    case 'context':
+      return value.value.map((id) => ({ $ctx: id }))
     case 'file':
       return value.value
     case 'null':

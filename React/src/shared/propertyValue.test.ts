@@ -8,8 +8,8 @@ describe('parsePropertyValue — classification (locked precedence)', () => {
     ['bool false', false, { kind: 'checkbox', value: false }],
     ['number', 42, { kind: 'number', value: 42 }],
     ['number zero', 0, { kind: 'number', value: 0 }],
-    ['relation (multi)', [{ $rel: 'A' }, { $rel: 'B' }], { kind: 'relation', value: ['A', 'B'] }],
-    ['relation (single in array)', [{ $rel: 'A' }], { kind: 'relation', value: ['A'] }],
+    ['context (multi)', [{ $ctx: 'A' }, { $ctx: 'B' }], { kind: 'context', value: ['A', 'B'] }],
+    ['context (single in array)', [{ $ctx: 'A' }], { kind: 'context', value: ['A'] }],
     [
       'file',
       [{ path: 'x/y.png', original_name: 'y.png' }],
@@ -18,11 +18,11 @@ describe('parsePropertyValue — classification (locked precedence)', () => {
     ['multiSelect', ['a', 'b'], { kind: 'multiSelect', value: ['a', 'b'] }],
     ['empty array → multiSelect([]) (NOT file)', [], { kind: 'multiSelect', value: [] }],
     ['status (tagged)', { $status: 'todo' }, { kind: 'status', value: 'todo' }],
-    ['legacy single $rel object', { $rel: 'A' }, { kind: 'relation', value: ['A'] }],
+    ['single $ctx object', { $ctx: 'A' }, { kind: 'context', value: ['A'] }],
     ['url', 'https://example.com', { kind: 'url', value: 'https://example.com' }],
     ['datetime', '2026-01-15T10:30:00Z', { kind: 'datetime', value: '2026-01-15T10:30:00Z' }],
     ['datetime offset', '2026-01-15T10:30:00+02:00', { kind: 'datetime', value: '2026-01-15T10:30:00+02:00' }],
-    ['date', '2026-01-15', { kind: 'date', value: '2026-01-15' }],
+    ['bare date → date-only datetime', '2026-01-15', { kind: 'datetime', value: '2026-01-15' }],
     ['select (plain string)', 'in-progress', { kind: 'select', value: 'in-progress' }],
     ['select (datetime w/o tz falls through)', '2026-01-15T10:30:00', { kind: 'select', value: '2026-01-15T10:30:00' }]
   ]
@@ -38,7 +38,7 @@ describe('round-trip — encode(parse(x)) === x for canonical on-disk shapes', (
     false,
     42,
     0,
-    [{ $rel: 'A' }, { $rel: 'B' }],
+    [{ $ctx: 'A' }, { $ctx: 'B' }],
     [{ path: 'x/y.png', original_name: 'y.png', added_at: '2026-01-01T00:00:00Z', mime_type: 'image/png' }],
     ['a', 'b'],
     [],
@@ -54,8 +54,8 @@ describe('round-trip — encode(parse(x)) === x for canonical on-disk shapes', (
 })
 
 describe('edges + invariants', () => {
-  it('legacy single $rel normalizes to a tagged array on re-encode', () => {
-    expect(encodePropertyValue(parsePropertyValue({ $rel: 'A' }))).toEqual([{ $rel: 'A' }])
+  it('a single $ctx normalizes to a tagged array on re-encode', () => {
+    expect(encodePropertyValue(parsePropertyValue({ $ctx: 'A' }))).toEqual([{ $ctx: 'A' }])
   })
 
   it('file objects preserve unknown keys through a round-trip', () => {
@@ -64,7 +64,7 @@ describe('edges + invariants', () => {
   })
 
   it('a mixed array throws (matches Swift)', () => {
-    expect(() => parsePropertyValue([{ $rel: 'A' }, { path: 'b' }])).toThrow()
+    expect(() => parsePropertyValue([{ $ctx: 'A' }, { path: 'b' }])).toThrow()
     expect(() => parsePropertyValue([1, 'a'])).toThrow()
   })
 

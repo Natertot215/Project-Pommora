@@ -62,7 +62,7 @@ export function resolveFieldValue(row: ViewRow, propertyId: string): PropertyVal
     case RESERVED_PROPERTY_ID.tier1:
     case RESERVED_PROPERTY_ID.tier2:
     case RESERVED_PROPERTY_ID.tier3:
-      return { kind: 'relation', value: fm[TIER_FIELD[propertyId]] ?? [] }
+      return { kind: 'context', value: fm[TIER_FIELD[propertyId]] ?? [] }
     default:
       try {
         return parsePropertyValue(fm.properties?.[propertyId])

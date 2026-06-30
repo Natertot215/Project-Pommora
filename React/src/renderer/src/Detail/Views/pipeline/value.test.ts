@@ -56,8 +56,8 @@ describe('resolveFieldValue', () => {
       kind: 'datetime',
       value: '2026-06-20T10:00:00Z'
     })
-    expect(resolveFieldValue(row, '_tier1')).toEqual({ kind: 'relation', value: ['01AREA'] })
-    expect(resolveFieldValue(row, '_tier2')).toEqual({ kind: 'relation', value: [] })
+    expect(resolveFieldValue(row, '_tier1')).toEqual({ kind: 'context', value: ['01AREA'] })
+    expect(resolveFieldValue(row, '_tier2')).toEqual({ kind: 'context', value: [] })
   })
 
   it('routes user properties through the on-disk codec, trusting its kind', () => {

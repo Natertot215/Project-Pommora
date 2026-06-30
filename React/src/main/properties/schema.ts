@@ -1,7 +1,7 @@
-// Pure transforms over a PropertyDefinition[] — the read-time normalization, per-def
-// parsing, and validation Swift spread across PropertyDefinition.init(from:) (legacy
-// decode), the `droppingUserRelations` Array extension, and PropertyDefinitionValidator.
-// No I/O. The single typed gate between a raw sidecar array and a usable schema.
+// Pure transforms over a PropertyDefinition[] — the per-def parsing + validation Swift spread
+// across PropertyDefinition.init(from:), the user-context-dropping Array extension, and
+// PropertyDefinitionValidator. No I/O. The single typed gate between a raw sidecar array and a
+// usable schema.
 
 import {
   propertyDefinition,
@@ -10,41 +10,25 @@ import {
 } from '@shared/properties'
 import { fail, ok, type Result } from '@shared/result'
 
-/** Fold the legacy shapes Swift migrated on decode: the retired `.date` type → `.datetime`
- *  (date-only display is preserved elsewhere by the time-format default), and the legacy
- *  `relation_scope` key → `relation_target` (new key wins; legacy dropped so it's never
- *  re-emitted). Returns a new object. */
-export function normalizeDefinition(def: PropertyDefinition): PropertyDefinition {
-  const next: PropertyDefinition = { ...def }
-  if (next.type === 'date') next.type = 'datetime'
-  const legacy = (next as Record<string, unknown>).relation_scope
-  if (legacy !== undefined) {
-    if (next.relation_target === undefined) {
-      next.relation_target = legacy as PropertyDefinition['relation_target']
-    }
-    delete (next as Record<string, unknown>).relation_scope
-  }
-  return next
-}
-
-/** Parse + normalize a raw `property_definitions` array, dropping any entry that fails
- *  to parse (resilient — one malformed def never sinks the whole schema, matching
- *  Swift's per-def tolerance). Non-array input → []. */
+/** Parse a raw `property_definitions` array, dropping any entry that fails to parse (resilient —
+ *  one malformed def never sinks the whole schema, matching Swift's per-def tolerance). A retired
+ *  type (the removed `date`, or a user `relation`/`context`) simply fails the enum and is dropped.
+ *  Non-array input → []. */
 export function parseDefinitions(raw: unknown): PropertyDefinition[] {
   if (!Array.isArray(raw)) return []
   const out: PropertyDefinition[] = []
   for (const entry of raw) {
     const parsed = propertyDefinition.safeParse(entry)
-    if (parsed.success) out.push(normalizeDefinition(parsed.data))
+    if (parsed.success) out.push(parsed.data)
   }
   return out
 }
 
-/** Drop stored user `.relation` defs (tiers are synthesized at runtime) EXCEPT reserved
- *  `_tier1/2/3` entries, which persist a user's reverse-name/icon override. Mirrors
- *  Swift's `Array<PropertyDefinition>.droppingUserRelations()`. */
-export function droppingUserRelations(defs: PropertyDefinition[]): PropertyDefinition[] {
-  return defs.filter((d) => d.type !== 'relation' || isReservedPropertyId(d.id))
+/** Drop stored user `.context` defs (the context tiers are synthesized at runtime) EXCEPT reserved
+ *  `_tier1/2/3` entries, which persist a user's reverse-name/icon override. Mirrors the Swift
+ *  array extension that drops stored user contexts. */
+export function droppingUserContexts(defs: PropertyDefinition[]): PropertyDefinition[] {
+  return defs.filter((d) => d.type !== 'context' || isReservedPropertyId(d.id))
 }
 
 // MARK: - Validation (mirrors Swift PropertyDefinitionValidator)

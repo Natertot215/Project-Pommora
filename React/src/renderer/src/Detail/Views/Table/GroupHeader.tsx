@@ -40,7 +40,6 @@ function groupGlyph(
         </span>
       )
     }
-    case 'date':
     case 'datetime': {
       const icon = asIconName(ctx.schema.find((d) => d.id === propId)?.icon)
       return (

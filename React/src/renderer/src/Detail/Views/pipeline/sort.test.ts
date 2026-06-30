@@ -28,7 +28,7 @@ const schema: PropertyDefinition[] = [
   { id: 'prop_done', name: 'Done', type: 'checkbox' },
   { id: 'prop_when', name: 'When', type: 'datetime' },
   { id: 'prop_led', name: 'Edited', type: 'last_edited_time' },
-  { id: 'prop_rel', name: 'Rel', type: 'relation', relation_target: { kind: 'context_tier', tier: 1 } }
+  { id: 'prop_rel', name: 'Rel', type: 'context', context_target: { kind: 'context_tier', tier: 1 } }
 ]
 
 function makeRow(
@@ -132,8 +132,8 @@ describe('makeSorter — type-aware single criterion', () => {
 
   it('relation extracts to "" — a usable but no-op sorter that holds input order', () => {
     const rows = [
-      makeRow('r1', { props: { prop_rel: [{ $rel: 'z' }] } }),
-      makeRow('r2', { props: { prop_rel: [{ $rel: 'a' }] } })
+      makeRow('r1', { props: { prop_rel: [{ $ctx: 'z' }] } }),
+      makeRow('r2', { props: { prop_rel: [{ $ctx: 'a' }] } })
     ]
     const sorter = makeSorter([{ property_id: 'prop_rel', direction: 'ascending' }], schema)
     expect(sorter).not.toBeNull()

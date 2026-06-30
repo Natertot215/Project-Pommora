@@ -10,17 +10,16 @@ import {
 } from './properties'
 
 describe('propertyType', () => {
-  it('accepts the 11 on-disk type strings', () => {
+  it('accepts the 10 on-disk type strings', () => {
     for (const t of [
       'number',
       'checkbox',
-      'date',
       'datetime',
       'select',
       'multi_select',
       'status',
       'url',
-      'relation',
+      'context',
       'last_edited_time',
       'file'
     ]) {
@@ -54,8 +53,8 @@ describe('propertyDefinition', () => {
     const def = {
       id: RESERVED_PROPERTY_ID.tier1,
       name: 'Areas',
-      type: 'relation',
-      relation_target: { kind: 'context_tier', tier: 1 }
+      type: 'context',
+      context_target: { kind: 'context_tier', tier: 1 }
     }
     expect(propertyDefinition.safeParse(def).success).toBe(true)
   })

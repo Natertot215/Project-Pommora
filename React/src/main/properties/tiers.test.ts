@@ -9,9 +9,9 @@ describe('mergeTierProperties', () => {
   it('appends the three tier props after user props, with locked context_tier targets', () => {
     const out = mergeTierProperties([def({ id: 'prop_x', name: 'Score', type: 'number' })])
     expect(out.map((d) => d.id)).toEqual(['prop_x', '_tier1', '_tier2', '_tier3'])
-    expect(out.every((d, i) => (i === 0 ? true : d.type === 'relation'))).toBe(true)
-    expect(out[1].relation_target).toEqual({ kind: 'context_tier', tier: 1 })
-    expect(out[3].relation_target).toEqual({ kind: 'context_tier', tier: 3 })
+    expect(out.every((d, i) => (i === 0 ? true : d.type === 'context'))).toBe(true)
+    expect(out[1].context_target).toEqual({ kind: 'context_tier', tier: 1 })
+    expect(out[3].context_target).toEqual({ kind: 'context_tier', tier: 3 })
   })
 
   it('names tiers from tierPlural, falling back to "Tier N"', () => {
@@ -25,7 +25,7 @@ describe('mergeTierProperties', () => {
       def({
         id: '_tier1',
         name: 'My Areas',
-        type: 'relation',
+        type: 'context',
         icon: 'star',
         reverse_name: 'Pages',
         reverse_icon: 'doc'
@@ -37,7 +37,7 @@ describe('mergeTierProperties', () => {
       icon: 'star',
       reverse_name: 'Pages',
       reverse_icon: 'doc',
-      relation_target: { kind: 'context_tier', tier: 1 }
+      context_target: { kind: 'context_tier', tier: 1 }
     })
   })
 

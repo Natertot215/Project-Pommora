@@ -7,10 +7,10 @@ import { applyFilter, FILTER_OPS } from './filter'
 const schema: PropertyDefinition[] = [
   { id: 'prop_sel', name: 'Sel', type: 'select', select_options: [{ value: 'a', label: 'A' }, { value: 'b', label: 'B' }] },
   { id: 'prop_num', name: 'Num', type: 'number' },
-  { id: 'prop_when', name: 'When', type: 'date' },
+  { id: 'prop_when', name: 'When', type: 'datetime' },
   { id: 'prop_done', name: 'Done', type: 'checkbox' },
   { id: 'prop_tags', name: 'Tags', type: 'multi_select' },
-  { id: 'prop_rel', name: 'Rel', type: 'relation', relation_target: { kind: 'context_tier', tier: 1 } }
+  { id: 'prop_rel', name: 'Rel', type: 'context', context_target: { kind: 'context_tier', tier: 1 } }
 ]
 
 function row(
@@ -133,7 +133,7 @@ describe('applyFilter — per-type matrix', () => {
   it('tier filters by membership; user relation is/contains are no-op passes', () => {
     const rA = row('rA', { tier1: ['area1'] })
     const rB = row('rB', { tier1: ['area2'] })
-    const rRel = row('rRel', { props: { prop_rel: [{ $rel: 'x' }] } })
+    const rRel = row('rRel', { props: { prop_rel: [{ $ctx: 'x' }] } })
     expect(ids([rA, rB], { match: 'all', rules: [{ property_id: '_tier1', op: 'contains', value: 'area1' }] })).toEqual(['rA'])
     expect(ids([rA, rRel], { match: 'all', rules: [{ property_id: 'prop_rel', op: 'is', value: 'x' }] })).toEqual(['rA', 'rRel'])
     expect(ids([rA, rRel], { match: 'all', rules: [{ property_id: 'prop_rel', op: 'is_not_empty' }] })).toEqual(['rRel'])

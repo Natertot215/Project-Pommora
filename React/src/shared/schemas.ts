@@ -79,7 +79,7 @@ export const agendaConfigSidecar = baseSidecar.extend({
 })
 export type AgendaConfigSidecar = z.infer<typeof agendaConfigSidecar>
 
-/** Page (.md) frontmatter. tier1/2/3 are BARE ULID arrays at the root (NOT $rel-tagged
+/** Page (.md) frontmatter. tier1/2/3 are BARE ULID arrays at the root (NOT $ctx-tagged
  *  — that shape is only for user/agenda properties); `properties` maps property-id to
  *  an encoded PropertyValue. Loose ⇒ foreign keys ride through. */
 export const pageFrontmatter = z.looseObject({

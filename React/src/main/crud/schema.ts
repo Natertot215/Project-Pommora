@@ -22,7 +22,7 @@ import { splitEnvelope, mergeFrontmatter } from '../io/pageFile'
 import { serializeJson } from '../io/atomicWrite'
 import { listMarkdownFiles, listFilesBySuffix } from '../io/walk'
 import { SchemaTransaction } from '../io/schemaTransaction'
-import { parseDefinitions, droppingUserRelations, validateDefinition, validateName } from '../properties/schema'
+import { parseDefinitions, droppingUserContexts, validateDefinition, validateName } from '../properties/schema'
 import { nowIso } from './util'
 import { ok, fail, type Result } from '@shared/result'
 
@@ -90,7 +90,7 @@ function agendaTarget(kind: AgendaKind): SchemaTarget {
 async function readSchema(target: SchemaTarget, folder: string): Promise<{ sidecar: Sidecar; defs: PropertyDefinition[] } | null> {
   const sidecar = await readSidecar(folder, target.kind, target.schema)
   if (sidecar === null) return null
-  const defs = droppingUserRelations(parseDefinitions((sidecar as Sidecar)[target.schemaKey]))
+  const defs = droppingUserContexts(parseDefinitions((sidecar as Sidecar)[target.schemaKey]))
   return { sidecar: sidecar as Sidecar, defs }
 }
 

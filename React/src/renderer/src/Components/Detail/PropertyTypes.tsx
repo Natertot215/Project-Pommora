@@ -5,8 +5,8 @@ import { DashIcon } from './DashIcon'
 /**
  * The single source for per-property-type presentation: the user-facing label + the standard Pommora
  * icon (catalogued in Features/Icons.md). `creatable` flags the user-pickable set, in picker order —
- * `relation` is tier-only, `last_edited_time` is auto-managed, and `date` is the read-only variant of
- * the creatable `datetime`. Types still awaiting a glyph carry no `icon` and fall back to DashIcon.
+ * `context` is tier-only and `last_edited_time` is auto-managed. Types still awaiting a glyph carry no
+ * `icon` and fall back to DashIcon.
  */
 interface TypeMeta {
   label: string
@@ -23,8 +23,7 @@ const PROPERTY_TYPES: Record<PropertyType, TypeMeta> = {
   status: { label: 'Status', icon: CircleDashed, creatable: true },
   url: { label: 'Link', icon: Link, creatable: true },
   file: { label: 'File', icon: Import, creatable: true },
-  date: { label: 'Date', icon: CalendarDays },
-  relation: { label: 'Relation', icon: Link2 },
+  context: { label: 'Context', icon: Link2 },
   last_edited_time: { label: 'Last edited' }
 }
 

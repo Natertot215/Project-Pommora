@@ -119,13 +119,10 @@ export function bucketKey(
       return v.kind === 'select' || v.kind === 'status' ? v.value : null
     case 'checkbox':
       return v.kind === 'checkbox' ? (v.value ? 'true' : 'false') : null
-    case 'date':
     case 'datetime':
-      // date-only buckets by its stored (UTC) calendar date so it never shifts by timezone;
-      // datetime is an absolute instant, bucketed display-local.
-      return v.kind === 'date' || v.kind === 'datetime'
-        ? dateBucketKey(v.value, granularity, v.kind === 'date')
-        : null
+      // a bare date-only value (no 'T') buckets by its stored calendar date so it never shifts by
+      // timezone; a full datetime is an absolute instant, bucketed display-local.
+      return v.kind === 'datetime' ? dateBucketKey(v.value, granularity, !v.value.includes('T')) : null
     default:
       return null
   }

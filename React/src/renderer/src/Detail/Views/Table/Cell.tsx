@@ -63,7 +63,7 @@ export function Cell({
           {v.value ? <Icon name="check" size={12} strokeWidth={3} /> : null}
         </span>
       )
-    case 'relation':
+    case 'context':
       return (
         <span className="cell-chips">
           {v.value.map((id) => {
@@ -78,7 +78,6 @@ export function Cell({
           {v.value}
         </a>
       ) : null
-    case 'date':
     case 'datetime':
       return <span className="cell-muted">{formatDate(v.value)}</span>
     case 'number':

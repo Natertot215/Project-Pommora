@@ -186,7 +186,7 @@ async function readPageData(
 function configOf(def: PropertyDefinition): Record<string, unknown> {
   const d = def as Record<string, unknown>
   const c: Record<string, unknown> = {}
-  for (const k of ['number_format', 'date_includes_time', 'select_options', 'status_groups', 'relation_target', 'accept']) {
+  for (const k of ['number_format', 'date_includes_time', 'select_options', 'status_groups', 'context_target', 'accept']) {
     if (d[k] !== undefined) c[k] = d[k]
   }
   return c
@@ -217,7 +217,7 @@ interface AgendaData {
 
 /** tier level → the coarse entity-kind string stored in context_links.target_kind, matching
  *  Swift's RelationTargetKind.string(from: .contextTier(n)). NOTE: "context_tier" is the
- *  relation_target *config* discriminant, NOT this column — the column is the tier entity. */
+ *  context_target *config* discriminant, NOT this column — the column is the tier entity. */
 const TIER_TARGET_KIND: Record<number, string> = { 1: 'area', 2: 'topic', 3: 'project' }
 
 /** A page/agenda item's tier links read off its frontmatter as `{ level: ids }`. */

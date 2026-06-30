@@ -223,7 +223,7 @@ describe('property grouping — configured / reversed / checkbox / date', () => 
   })
 
   it('buckets a date-only value by its stored date (no timezone shift)', () => {
-    const dueSchema: PropertyDefinition[] = [{ id: 'prop_due', name: 'Due', type: 'date' }]
+    const dueSchema: PropertyDefinition[] = [{ id: 'prop_due', name: 'Due', type: 'datetime' }]
     const values = { p1: { id: 'p1', properties: { prop_due: '2026-06-27' } } }
     const { rows, setTree } = flattenContainer(collection([], [page('p1')]), values)
     const groups = resolveGroups(

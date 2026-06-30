@@ -57,7 +57,7 @@ function numberOf(row: ViewRow, propertyId: string): number {
 
 function dateOf(row: ViewRow, propertyId: string): number {
   const v = resolveFieldValue(row, propertyId)
-  if (v.kind === 'date' || v.kind === 'datetime') {
+  if (v.kind === 'datetime') {
     const t = Date.parse(v.value)
     if (!Number.isNaN(t)) return t
   }
@@ -115,7 +115,6 @@ function buildCriterion(c: SortCriterion, schema: PropertyDefinition[]): Resolve
     }
     case 'number':
       return { extract: (r) => numberOf(r, c.property_id), less: numericLess, ascending }
-    case 'date':
     case 'datetime':
     case 'last_edited_time':
       return { extract: (r) => dateOf(r, c.property_id), less: numericLess, ascending }
@@ -123,7 +122,7 @@ function buildCriterion(c: SortCriterion, schema: PropertyDefinition[]): Resolve
       return { extract: (r) => boolRank(r, c.property_id), less: numericLess, ascending }
     case 'url':
     case 'multi_select':
-    case 'relation':
+    case 'context':
     case 'file':
       return { extract: (r) => sortText(r, c.property_id), less: ciLess, ascending }
     default:

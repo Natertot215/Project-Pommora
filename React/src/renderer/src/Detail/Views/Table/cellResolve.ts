@@ -1,5 +1,5 @@
 // Resolved cell + group-header text for the table render (Part 2 A). Turns a row's raw PropertyValue
-// into display text — option VALUES become their schema label, tier/relation ULIDs become Context
+// into display text — option VALUES become their schema label, tier/context ULIDs become Context
 // titles — so no raw id ever reaches screen. The type-aware chip rendering (Task 7) resolves through
 // the same helpers. Pure: no React.
 
@@ -29,7 +29,7 @@ export function optionLabel(columnId: string, value: string, schema: PropertyDef
   return findOption(columnId, value, schema)?.label
 }
 
-/** A row's cell as display text: option values → labels, tier/relation ULIDs → Context titles, the
+/** A row's cell as display text: option values → labels, tier/context ULIDs → Context titles, the
  *  rest stringified. Resolved through the context so no raw id reaches screen. */
 export function cellText(row: ViewRow, columnId: string, ctx: ResolveContext): string {
   const v = resolveFieldValue(row, columnId)
@@ -39,10 +39,9 @@ export function cellText(row: ViewRow, columnId: string, ctx: ResolveContext): s
       return optionLabel(columnId, v.value, ctx.schema) ?? v.value
     case 'multiSelect':
       return v.value.map((val) => optionLabel(columnId, val, ctx.schema) ?? val).join(', ')
-    case 'relation':
+    case 'context':
       return v.value.map((id) => ctx.contextsById.get(id)?.title ?? id).join(', ')
     case 'url':
-    case 'date':
     case 'datetime':
       return v.value
     case 'number':
