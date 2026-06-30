@@ -234,10 +234,12 @@ function ColumnHeader({
     const end = (): void => {
       grip.removeEventListener('pointermove', move)
       grip.removeEventListener('pointerup', end)
+      grip.removeEventListener('pointercancel', end)
       onResizeCommit(id, last)
     }
     grip.addEventListener('pointermove', move)
     grip.addEventListener('pointerup', end)
+    grip.addEventListener('pointercancel', end)
   }
   return (
     <th ref={setNodeRef} style={style} className={cx(isDragging && 'col-dragging')} {...handle}>
