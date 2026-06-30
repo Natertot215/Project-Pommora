@@ -14,6 +14,7 @@ import { columnLabel } from './columnLabel'
 import { clampWidth, widthFor } from './columnWidths'
 import { reorderColumns } from './columnReorder'
 import { mergeOverrides } from './viewMerge'
+import { ColumnMenu } from './ColumnMenu'
 import { cx } from '@renderer/design-system/cx'
 import { text } from '@renderer/design-system/tokens'
 import { SortableZone, useDragItem } from '@renderer/design-system/interactions/drag'
@@ -59,21 +60,29 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
 
   const schema = useMemo(() => (tree ? resolveContainerSchema(tree, source) : []), [tree, source])
   const view = useMemo(() => pickView(source, activeViewId, schema), [source, activeViewId, schema])
-  // Local override layer — reorder + resize + collapse apply instantly, persist async (watcher
-  // confirms). Order goes in `liveView` (the pipeline reads it); width stays a separate override so a
-  // resize doesn't re-run the pipeline (it only changes <col> sizing). All re-seed on view change.
+  // Local override layer — reorder + resize + hide + collapse apply instantly, persist async (watcher
+  // confirms). Order + hidden go in `liveView` (the pipeline reads them); width stays a separate
+  // override so a resize doesn't re-run the pipeline. All re-seed on view change.
   const [orderOverride, setOrderOverride] = useState<string[] | null>(null)
   const [widthOverride, setWidthOverride] = useState<Record<string, number>>({})
+  const [hiddenOverride, setHiddenOverride] = useState<string[] | null>(null)
   const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set(view.collapsed_groups ?? []))
+  const [headerMenu, setHeaderMenu] = useState<{ id: string; left: number; top: number } | null>(null)
   useEffect(() => {
     setOrderOverride(null)
     setWidthOverride({})
+    setHiddenOverride(null)
+    setHeaderMenu(null)
     setCollapsed(new Set(view.collapsed_groups ?? []))
   }, [view.id])
-  const liveView = useMemo(
-    () => (orderOverride ? { ...view, property_order: orderOverride } : view),
-    [view, orderOverride]
-  )
+  const liveView = useMemo(() => {
+    if (!orderOverride && !hiddenOverride) return view
+    return {
+      ...view,
+      property_order: orderOverride ?? view.property_order,
+      hidden_properties: hiddenOverride ?? view.hidden_properties
+    }
+  }, [view, orderOverride, hiddenOverride])
   const { columns, groups } = useMemo(() => {
     const { rows, setTree } = flattenContainer(source, values)
     return resolveView({ rows, setTree, view: liveView, schema })
@@ -112,6 +121,22 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
   }
   const commitResize = (id: string, width: number): void => {
     persistView({ column_widths: { ...liveView.column_widths, ...widthOverride, [id]: clampWidth(width, id, schema) } })
+  }
+  const hideColumn = (id: string): void => {
+    const hidden = [...(liveView.hidden_properties ?? []), id]
+    setHiddenOverride(hidden)
+    persistView({ hidden_properties: hidden })
+    setHeaderMenu(null)
+  }
+  // Right-click a header → menu below it (E-1). Positioned at the .table-view level, not in the th
+  // (whose overflow would clip it). Title is the primary column — not hideable, so no menu.
+  const openHeaderMenu = (id: string, hideable: boolean, e: React.MouseEvent): void => {
+    e.preventDefault()
+    const tv = (e.currentTarget as HTMLElement).closest('.table-view')
+    if (!hideable || !tv) return
+    const thR = (e.currentTarget as HTMLElement).getBoundingClientRect()
+    const tvR = tv.getBoundingClientRect()
+    setHeaderMenu({ id, left: thR.left - tvR.left, top: thR.bottom - tvR.top })
   }
 
   if (!ctx) return <div className="table-empty">Loading…</div>
@@ -189,6 +214,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
                   width={colWidth(c.id)}
                   onResize={resizeColumn}
                   onResizeCommit={commitResize}
+                  onContextMenu={(e) => openHeaderMenu(c.id, c.kind !== 'title', e)}
                 />
               ))}
             </SortableZone>
@@ -197,6 +223,14 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
         </thead>
         <tbody>{groups.flatMap((g) => renderRows(g, 0))}</tbody>
       </table>
+      {headerMenu && (
+        <ColumnMenu
+          left={headerMenu.left}
+          top={headerMenu.top}
+          onHide={() => hideColumn(headerMenu.id)}
+          onClose={() => setHeaderMenu(null)}
+        />
+      )}
     </div>
   )
 }
@@ -210,13 +244,15 @@ function ColumnHeader({
   label,
   width,
   onResize,
-  onResizeCommit
+  onResizeCommit,
+  onContextMenu
 }: {
   id: string
   label: string
   width: number
   onResize: (id: string, width: number) => number
   onResizeCommit: (id: string, width: number) => void
+  onContextMenu?: (e: React.MouseEvent) => void
 }): React.JSX.Element {
   const { setNodeRef, style, handle, isDragging } = useDragItem(id)
   const startResize = (e: React.PointerEvent<HTMLSpanElement>): void => {
@@ -242,7 +278,7 @@ function ColumnHeader({
     grip.addEventListener('pointercancel', end)
   }
   return (
-    <th ref={setNodeRef} style={style} className={cx(isDragging && 'col-dragging')} {...handle}>
+    <th ref={setNodeRef} style={style} className={cx(isDragging && 'col-dragging')} {...handle} onContextMenu={onContextMenu}>
       {label}
       <span className="col-resizer" onPointerDown={startResize} />
     </th>

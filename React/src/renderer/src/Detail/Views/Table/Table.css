@@ -1,8 +1,16 @@
 /* Table view — a container's pages as rows, one shared header over grouped body sections (Part 2). */
 
 .table-view {
+  position: relative; /* containing block for the header context menu (E-1) */
   width: 100%;
   overflow-x: auto; /* columns scroll horizontally when they exceed the pane (Q-4) */
+}
+
+/* Header context menu (E-1) — drops below the clicked header, above the grid; the header sits near the
+   top so the menu stays inside the table-view's box (never clipped by its overflow). */
+.column-menu {
+  position: absolute;
+  z-index: 10;
 }
 
 .table-empty {
