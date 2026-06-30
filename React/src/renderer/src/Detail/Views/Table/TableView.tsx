@@ -153,14 +153,15 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
   const commitResize = (id: string, width: number): void => {
     persistView({ column_widths: { ...liveView.column_widths, ...widthOverride, [id]: clampWidth(width, id, schema) } })
   }
-  // Hide animates the column shut on the disclosure token (E-11): setCollapsing drives its <col> to
-  // width 0; commitHide fires on that col's transitionend, dropping it from the pipeline + persisting.
+  // Hide animates the column shut on the disclosure token (E-11): setCollapsing drives its grid track to
+  // 0 (colWidth → 0, animated via .col-hiding); commitHide fires on the header's grid-template-columns
+  // transitionend, dropping the column from the pipeline + persisting.
   const hideColumn = (id: string): void => {
     setCollapsing(id)
   }
-  const commitHide = (id: string): void => {
-    if (collapsing !== id) return
-    const hidden = [...(liveView.hidden_properties ?? []), id]
+  const commitHide = (): void => {
+    if (!collapsing) return
+    const hidden = [...(liveView.hidden_properties ?? []), collapsing]
     setCollapsing(null)
     setHiddenOverride(hidden)
     persistView({ hidden_properties: hidden })
@@ -182,11 +183,14 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
       ? 0
       : clampWidth(widthOverride[id] ?? liveView.column_widths?.[id] ?? widthFor(id, schema).default, id, schema)
   const totalWidth = columns.reduce((sum, c) => sum + colWidth(c.id), 0)
+  // The shared column track set every band reads (--cols): each column's width + a trailing 1fr filler
+  // that absorbs pane width past the summed columns so the grid spans full-width.
+  const cols = `${columns.map((c) => `${colWidth(c.id)}px`).join(' ')} 1fr`
   // Lead-cell + group-header left padding: the pad-x base lands the cell content on the grid (under its
-  // column header); each nesting layer adds one --table-indent step (J-3). The grip + chevron live in
-  // the views gutter via absolute CSS, independent of this.
+  // column header); each nesting layer adds one --row-indent step (J-3). The grip + chevron live in the
+  // views gutter via absolute CSS, independent of this.
   const indent = (depth: number): string =>
-    depth > 0 ? `calc(var(--table-pad-x) + var(--table-indent) * ${depth})` : 'var(--table-pad-x)'
+    depth > 0 ? `calc(var(--cell-padding-x) + var(--row-indent) * ${depth})` : 'var(--cell-padding-x)'
 
   // Row drag (E-3): the flat data-row order + each row's group key + path, feeding the vertical
   // SortableZone. Where you drop disambiguates (D-8) — same group reorders, a different group reassigns.
@@ -236,18 +240,16 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
     const isCollapsed = collapsed.has(g.key)
     if (g.kind !== 'ungrouped') {
       out.push(
-        <tr key={`gh-${g.key}`} className="group-header-row">
-          <td colSpan={columns.length + 1} style={{ paddingLeft: indent(depth) }}>
-            <GroupHeader
-              group={g}
-              view={liveView}
-              ctx={ctx}
-              setNames={setNames}
-              collapsed={isCollapsed}
-              onToggle={() => toggleCollapse(g.key)}
-            />
-          </td>
-        </tr>
+        <div key={`gh-${g.key}`} className="group-header-row" style={{ paddingLeft: indent(depth) }}>
+          <GroupHeader
+            group={g}
+            view={liveView}
+            ctx={ctx}
+            setNames={setNames}
+            collapsed={isCollapsed}
+            onToggle={() => toggleCollapse(g.key)}
+          />
+        </div>
       )
       if (isCollapsed) return out
     }
@@ -273,53 +275,48 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
 
   return (
     <div className="table-view">
-      <table className={cx('data-table', text.body.standard, liveView.hide_borders && 'no-borders')} style={{ minWidth: totalWidth }}>
-        <colgroup>
-          {columns.map((c) => (
-            <col
-              key={c.id}
-              className={cx(collapsing === c.id && 'col-collapsing')}
-              style={{ width: colWidth(c.id) }}
-              onTransitionEnd={() => commitHide(c.id)}
-            />
-          ))}
-          {/* Filler column absorbs pane width past the summed columns so the grid spans full-width. */}
-          <col className="col-filler" />
-        </colgroup>
-        <thead>
-          <tr>
-            {/* Headers are a horizontal sortable zone (E-2); the filler th sits outside it, inert. */}
-            <SortableZone items={columns.map((c) => c.id)} axis="x" bounds="parent" itemRole={null} onReorder={reorderColumn}>
-              {columns.map((c) => (
-                <ColumnHeader
-                  key={c.id}
-                  id={c.id}
-                  label={columnLabel(c.id, schema, ctx.labels)}
-                  width={colWidth(c.id)}
-                  onResize={resizeColumn}
-                  onResizeCommit={commitResize}
-                  onContextMenu={(e) => void openHeaderMenu(c.id, c.kind !== 'title', e)}
-                />
-              ))}
-            </SortableZone>
-            <th className="cell-filler" aria-hidden="true" />
-          </tr>
-        </thead>
-        <tbody>
-          {/* Rows are a vertical sortable zone (E-3); the group-header rows aren't drag items. */}
-          <SortableZone items={dataRows.map((r) => r.id)} axis="y" itemRole={null} disabled={dragDisabled} canReorder={canReorderRow} onReorder={reorderRow}>
-            {groups.flatMap((g) => renderRows(g, 0))}
+      <div
+        className={cx('table-grid', text.body.standard, liveView.hide_borders && 'no-borders', collapsing != null && 'col-hiding')}
+        style={{ minWidth: totalWidth, ['--cols']: cols } as React.CSSProperties}
+      >
+        {/* Header band — a horizontal sortable zone (E-2); the filler sits outside it, inert. The
+            transitionend on the animated track set commits a column hide (E-11). */}
+        <div
+          className="table-head"
+          onTransitionEnd={(e) => {
+            if (e.propertyName === 'grid-template-columns') commitHide()
+          }}
+        >
+          <SortableZone items={columns.map((c) => c.id)} axis="x" bounds="parent" itemRole={null} onReorder={reorderColumn}>
+            {columns.map((c) => (
+              <ColumnHeader
+                key={c.id}
+                id={c.id}
+                label={columnLabel(c.id, schema, ctx.labels)}
+                width={colWidth(c.id)}
+                onResize={resizeColumn}
+                onResizeCommit={commitResize}
+                onContextMenu={(e) => void openHeaderMenu(c.id, c.kind !== 'title', e)}
+              />
+            ))}
           </SortableZone>
-        </tbody>
-      </table>
+          {/* Trailing filler in the 1fr track — also the :last-child anchor that keeps the last real
+              column's right divider (Table.css). Empty but load-bearing; don't remove. */}
+          <div className="cell-filler" aria-hidden="true" />
+        </div>
+        {/* Rows — a vertical sortable zone (E-3); the group-header rows aren't drag items. */}
+        <SortableZone items={dataRows.map((r) => r.id)} axis="y" itemRole={null} disabled={dragDisabled} canReorder={canReorderRow} onReorder={reorderRow}>
+          {groups.flatMap((g) => renderRows(g, 0))}
+        </SortableZone>
+      </div>
     </div>
   )
 }
 
-/** One column header: draggable to reorder (E-2 — `handle` makes the th the grab surface, ghosted via
+/** One column header: draggable to reorder (E-2 — `handle` makes the cell the grab surface, ghosted via
  *  `isDragging`) plus a right-edge resize strip (H-2). The strip stops propagation so a resize never
  *  starts a reorder; the pointer delta is divided by the live zoom so a screen drag maps onto the
- *  table's pre-zoom <col> width. */
+ *  grid's pre-zoom track width. */
 function ColumnHeader({
   id,
   label,
@@ -340,8 +337,8 @@ function ColumnHeader({
     e.preventDefault()
     e.stopPropagation()
     const grip = e.currentTarget
-    const th = grip.closest('th')
-    const zoom = (th && th.getBoundingClientRect().width / width) || 1
+    const cell = grip.closest('.col-header')
+    const zoom = (cell && cell.getBoundingClientRect().width / width) || 1
     const startX = e.clientX
     let last = width
     grip.setPointerCapture(e.pointerId)
@@ -359,10 +356,16 @@ function ColumnHeader({
     grip.addEventListener('pointercancel', end)
   }
   return (
-    <th ref={setNodeRef} style={style} className={cx(isDragging && 'col-dragging')} {...handle} onContextMenu={onContextMenu}>
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={cx('col-header', text.body.semibold, isDragging && 'col-dragging')}
+      {...handle}
+      onContextMenu={onContextMenu}
+    >
       {label}
       <span className="col-resizer" onPointerDown={startResize} />
-    </th>
+    </div>
   )
 }
 
@@ -392,7 +395,7 @@ function DataRow({
 }): React.JSX.Element {
   const { setNodeRef, style, handle, isDragging } = useDragItem(row.id)
   return (
-    <tr
+    <div
       ref={setNodeRef}
       style={style}
       className={cx('data-row', selected && 'selected', isDragging && 'row-dragging')}
@@ -402,21 +405,22 @@ function DataRow({
     >
       {columns.map((c, i) =>
         i === 0 ? (
-          <td key={c.id} className="cell-lead" style={{ paddingLeft: indent(depth) }}>
+          <div key={c.id} className="data-cell cell-lead" style={{ paddingLeft: indent(depth) }}>
             {!dragDisabled && (
               <span className="row-grip" {...handle} onClick={(e) => e.stopPropagation()} aria-label="Drag to reorder">
                 <Icon name="grip-vertical" size={14} />
               </span>
             )}
             <Cell row={row} column={c} ctx={ctx} hideIcon={hideIcon} />
-          </td>
+          </div>
         ) : (
-          <td key={c.id}>
+          <div key={c.id} className="data-cell">
             <Cell row={row} column={c} ctx={ctx} hideIcon={hideIcon} />
-          </td>
+          </div>
         )
       )}
-      <td className="cell-filler" />
-    </tr>
+      {/* 1fr-track filler + last-column divider anchor (see table head). */}
+      <div className="cell-filler" aria-hidden="true" />
+    </div>
   )
 }

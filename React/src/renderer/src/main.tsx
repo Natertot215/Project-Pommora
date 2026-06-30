@@ -9,6 +9,7 @@ import './Carets.css'
 import './Sidebar/Sidebar.css'
 import './Detail/Detail.css'
 import './Detail/Banner/Banner.css'
+import './Detail/Views/Table/table-tokens.css'
 import './Detail/Views/Table/Table.css'
 
 createRoot(document.getElementById('root') as HTMLElement).render(

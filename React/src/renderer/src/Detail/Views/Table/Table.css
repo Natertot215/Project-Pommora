@@ -1,88 +1,122 @@
-/* Table view — a container's pages as rows, one shared header over grouped body sections (Part 2). */
+/* Table view — a container's pages as rows on a CSS grid: the header band and every data row share one
+   column track set (--cols, set inline), so columns align without a <colgroup>. Group sections are
+   full-width bands off the column grid. Every number lives in table-tokens.css (§G). */
 
 .table-view {
   width: 100%;
-  /* Re-add the gutter the body reclaimed, so the grid lands on --content-inset while the grips +
-     chevrons sit in the strip to its left (mirrors MarkdownPM's .cm-content / fold-gutter). */
-  padding-left: var(--fold-gutter);
-  overflow-x: auto; /* columns scroll horizontally when they exceed the pane (Q-4) */
+  /* Re-add the gutter the body reclaimed, so the grid lands on --content-inset while grips + chevrons
+     sit in the strip to its left (mirrors MarkdownPM's .cm-content / fold-gutter). */
+  padding-left: var(--gutter);
+  overflow-x: auto; /* columns scroll horizontally when they exceed the pane */
 }
 
 .table-empty {
   color: var(--text-dim);
-  padding: 24px 0;
+  padding: var(--empty-pad-y) 0;
 }
 
-.data-table {
-  --table-pad-x: 12px; /* cell horizontal gutter (kept from the stub, H-4) */
-  --table-pad-y: 6px; /* Standard row density; Compact shrinks it via --table-zoom (K-1) */
-  --table-indent: 16px; /* per-layer nesting indent (J-3) */
-  --table-zoom: 0.9; /* Compact (default); Standard = 1. One knob scales text + chips + padding + widths (K-2) */
-  zoom: var(--table-zoom);
-  width: 100%; /* Chromium resolves % zoom-aware, so this fills the pane; the filler column eats slack */
-  table-layout: fixed; /* colgroup widths are authoritative; min-width (inline) is their summed total */
-  border-collapse: collapse;
-  /* Row typography = the `body` token at zoom 1 (Standard); Compact is the same table zoomed (K-2). */
+/* The grid container: a vertical stack of full-width bands. Each band that shows columns is itself a
+   grid reading --cols. min-width (the summed column widths, inline) makes it scroll; width:100% lets
+   the trailing 1fr filler track eat slack. zoom is the Compact density knob. */
+.table-grid {
+  width: 100%;
+  zoom: var(--zoom); /* Chromium resolves % zoom-aware, so width:100% still fills the pane */
 }
 
-.data-table th {
-  text-align: left;
-  font-weight: var(--weight-semibold);
+/* Header band + every data row share the column tracks; the final 1fr is the filler. */
+.table-head,
+.data-row {
+  display: grid;
+  grid-template-columns: var(--cols);
+  align-items: center;
+}
+
+/* Hide animation: while a column collapses, animate the track set shut on the disclosure token, then
+   drop the column. Active ONLY during a hide (never during a drag), so resize stays instant. !important
+   beats the drag engine's inline `transition: none` on the row (the row is both the grid AND the drag
+   node); the header has no inline style, so this is redundant-but-harmless there. */
+.table-grid.col-hiding .table-head,
+.table-grid.col-hiding .data-row {
+  transition: grid-template-columns var(--disclosure) var(--ease-standard) !important;
+}
+
+/* — Header — */
+.table-head {
+  /* weight/size come from the text.body.semibold alias on each .col-header — no raw font-weight here
+     (§G: typography via aliases only). */
   color: var(--text-dim);
-  padding: var(--table-pad-y) var(--table-pad-x);
-  border-bottom: 1px solid var(--separator-border);
+  border-bottom: var(--table-border);
+  user-select: none;
+}
+.col-header {
+  padding: var(--cell-padding-y) var(--cell-padding-x);
+  text-align: left;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  user-select: none;
+  min-width: 0; /* grid items default to min-width:auto; 0 lets the ellipsis engage */
   position: relative; /* containing block for the right-edge resize strip */
 }
-
-/* E-2: the lifted column header renders ghosted while neighbours shift to open the gap. */
-.data-table th.col-dragging {
-  opacity: 0.4;
+/* The lifted column header ghosts while neighbours shift to open the gap. */
+.col-header.col-dragging {
+  opacity: var(--drag-ghost-opacity);
   cursor: grabbing;
 }
 
-/* H-2 column resizer — an invisible ew-resize hit-strip at the header's right edge; the live <col>
-   width is the drag feedback, so there's no separate bar. */
+/* Column resizer — an invisible ew-resize hit-strip at the header's right edge; the live track width
+   is the drag feedback, so there's no separate bar. */
 .col-resizer {
   position: absolute;
   top: 0;
   right: 0;
-  width: 8px;
+  width: var(--resizer-width);
   height: 100%;
   cursor: ew-resize;
   z-index: 1;
 }
 
-/* E-11: a hidden column collapses shut on the disclosure token, then drops from the grid. The
-   transition is only on the collapsing col, so resizing other columns stays instant. */
-.data-table col.col-collapsing {
-  transition: width var(--disclosure) var(--ease-standard);
-}
-
-.data-table td {
+/* — Data cells — */
+.data-cell {
+  padding: var(--cell-padding-y) var(--cell-padding-x);
   color: var(--text);
-  padding: var(--table-pad-y) var(--table-pad-x);
-  border-bottom: 1px solid var(--separator-border);
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* Vertical column lines — every header/data cell except the filler (which is always the last child). */
+.col-header:not(:last-child),
+.data-cell:not(:last-child) {
+  border-right: var(--table-border);
+}
+/* Row underline spans the full width including the filler track — on the row, not per cell. */
+.data-row {
+  border-bottom: var(--table-border);
+  cursor: default;
+}
 
-/* Vertical column lines (H-7) — excluded on the last column + the colSpan group-header td, so the
-   disclosure row stays independent of the column grid. */
-.data-table td:not(:last-child),
-.data-table th:not(:last-child) {
-  border-right: 1px solid var(--separator-border);
+.data-row:hover {
+  background: var(--hover);
+}
+.data-row.selected,
+.data-row.selected:hover {
+  background: var(--selected);
+}
+.data-row.row-dragging {
+  opacity: var(--drag-ghost-opacity);
+}
+
+/* Hide Borders toggle — drops the horizontal underlines (vertical column lines stay). */
+.table-grid.no-borders .table-head,
+.table-grid.no-borders .data-row {
+  border-bottom: none;
 }
 
 /* Type-aware cell content (chips, title icon, links). */
 .cell-title {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--cell-icon-gap);
   min-width: 0;
 }
 .cell-title-text {
@@ -92,7 +126,7 @@
 .cell-chips {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--chips-gap);
   min-width: 0;
 }
 .cell-link {
@@ -103,82 +137,15 @@
   color: var(--text-dim);
 }
 
-/* Set / property group header row — no per-group repeated column header. */
-.group-header-row td {
-  overflow: visible; /* let the chevron escape left into the views gutter */
-  font-weight: var(--weight-semibold);
-  color: var(--text);
-  padding-top: 16px; /* inter-section gap (J-2) — Task 8/9 split root vs nested */
-  border-bottom: none;
-}
-
-/* Group header content — chevron (reuses the sidebar `.twisty` rotate), glyph, hover-revealed +. */
-.group-header {
-  position: relative; /* containing block for the chevron floating in the views gutter */
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-.group-name {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-.group-twisty,
-.group-add {
-  display: inline-flex;
-  align-items: center;
-  border: none;
-  background: none;
-  padding: 0;
-  color: var(--text-dim);
-  cursor: default;
-}
-.group-twisty {
-  position: absolute;
-  /* in the views gutter; the extra -pad-x cancels the group td's content padding so the chevron lands
-     in the same lane as the row grip (which is relative to its cell's left edge). */
-  left: calc(-1 * var(--fold-gutter) - var(--table-pad-x));
-  top: 50%;
-  transform: translateY(-50%);
-  justify-content: center;
-  cursor: pointer;
-}
-.group-add {
-  opacity: 0;
-  transition: opacity var(--duration-fast) var(--ease-standard);
-}
-.group-header-row:hover .group-add {
-  opacity: 1;
-}
-
-.data-table.no-borders th,
-.data-table.no-borders td {
-  border-bottom: none; /* Hide Borders toggle (E-5) */
-}
-
-.data-row {
-  cursor: default;
-}
-
-.data-row:hover {
-  background: var(--hover);
-}
-
-.data-row.selected,
-.data-row.selected:hover {
-  background: var(--selected);
-}
-
-/* Row drag (E-3 / H-5) — the grip sits in the views gutter (the same strip the group chevron occupies),
-   revealed only on row hover; the lifted row ghosts (MarkdownPM feel). */
-.data-table td.cell-lead {
-  position: relative; /* containing block for the row grip in the views gutter */
+/* — Row drag grip — sits in the views gutter (the same strip the group chevron occupies), revealed on
+   row hover; the lifted row ghosts (MarkdownPM feel). */
+.data-cell.cell-lead {
+  position: relative; /* containing block for the grip in the views gutter */
   overflow: visible; /* let the grip escape left into the gutter */
 }
 .row-grip {
   position: absolute;
-  left: calc(-1 * var(--fold-gutter)); /* the views gutter, left of the grid (same lane as the chevron) */
+  left: calc(-1 * var(--gutter)); /* the views gutter, left of the grid (same lane as the chevron) */
   top: 50%;
   transform: translateY(-50%);
   display: inline-flex;
@@ -195,6 +162,50 @@
 .row-grip:active {
   cursor: grabbing;
 }
-.data-row.row-dragging {
-  opacity: 0.4;
+
+/* — Group section header — a full-width band off the column grid (so the disclosure row is independent
+   of the columns); the chevron floats left into the gutter. */
+.group-header-row {
+  /* text weight comes from the text.body.emphasized alias on GroupHeader's span — no raw font-weight. */
+  color: var(--text);
+  padding-top: var(--group-gap-top); /* inter-section gap */
+  padding-bottom: var(--cell-padding-y); /* matches data-cell vertical padding — gap before the first row */
+}
+.group-header {
+  position: relative; /* containing block for the chevron floating in the views gutter */
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cell-icon-gap);
+}
+.group-name {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cell-icon-gap);
+}
+.group-twisty,
+.group-add {
+  display: inline-flex;
+  align-items: center;
+  border: none;
+  background: none;
+  padding: 0;
+  color: var(--text-dim);
+  cursor: default;
+}
+.group-twisty {
+  position: absolute;
+  /* in the views gutter; the extra -cell-padding-x cancels the group row's content padding so the
+     chevron lands in the same lane as the row grip (relative to its cell's left edge). */
+  left: calc(-1 * var(--gutter) - var(--cell-padding-x));
+  top: 50%;
+  transform: translateY(-50%);
+  justify-content: center;
+  cursor: pointer;
+}
+.group-add {
+  opacity: 0;
+  transition: opacity var(--duration-fast) var(--ease-standard);
+}
+.group-header-row:hover .group-add {
+  opacity: 1;
 }

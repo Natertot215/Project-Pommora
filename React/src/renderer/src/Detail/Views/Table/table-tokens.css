@@ -1,0 +1,39 @@
+/* ============================================================================
+   TABLE TOKENS — the single source for every tunable number in the table view.
+   §G (HARD DRY): Table.css carries no raw px / % / hex / ms in any rule; every
+   value routes through one named knob below, aliased to a design-system token
+   wherever one exists. Retune any table dimension by editing ONE line here.
+   Scoped to the table surface so the vars stay table-owned (no global leak).
+   ============================================================================ */
+.table-view,
+.table-empty {
+  /* — Density — */
+  --zoom: 0.9; /* Compact (default); Standard = 1. One knob scales text + chips + padding + widths together. */
+
+  /* — Cell spacing — */
+  --cell-padding-x: 12px; /* cell content padding, left + right */
+  --cell-padding-y: 6px; /* cell content padding, top + bottom (drives row height) */
+  --cell-icon-gap: 6px; /* gap between an icon and its label (title cell + group glyph) */
+  --chips-gap: 4px; /* gap between adjacent chips (multi-select / relation cells) */
+  --row-indent: 16px; /* extra left-indent added per nesting depth (Set within Set) */
+
+  /* — Gutter (row grips + group chevrons float left into this strip) — */
+  --gutter: var(--fold-gutter); /* carved from --content-inset; matches MarkdownPM's fold gutter */
+
+  /* — Borders — the ONE token for every standard table hairline (vertical column lines + horizontal row
+       underlines). Heavier heading seams use the global --border-heading (2px, Task 4); heading segment
+       dividers use --fill-primary (Task 4) — neither is this. — */
+  --table-border: 1.25px solid var(--separator-border);
+
+  /* — Group sections — */
+  --group-gap-top: 16px; /* vertical gap above a group header (separates sections) */
+
+  /* — Column resize — */
+  --resizer-width: 8px; /* width of the invisible drag hit-strip at a column's right edge */
+
+  /* — Drag — */
+  --drag-ghost-opacity: 0.4; /* dimming of a lifted row/column mid-drag (Task 3 reworks the row treatment) */
+
+  /* — Empty state — */
+  --empty-pad-y: 24px; /* vertical padding of the "No pages here" / "Loading…" placeholder */
+}
