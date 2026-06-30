@@ -100,8 +100,11 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
   // when the view is sorted or grouped (an unsorted, ungrouped view uses canonical page_order instead).
   const sortedOrGrouped = (liveView.sort?.length ?? 0) > 0 || liveView.group != null
   const manualOrder = sortedOrGrouped ? (manualOverride ?? viewOrders[view.id]) : undefined
-  // Manual row reorder is disabled under a multi-key sort (D-3) — within-run nudging is the sort's job.
-  const dragDisabled = (liveView.sort?.length ?? 0) >= 2
+  // Row drag is enabled only where the manual order routes to the viewOrders cache + the 13a tiebreaker:
+  // a single sort key, or a property group. Off for a multi-key sort (D-3, the sort owns within-run order)
+  // and for the structural/flat default — the latter pending its canonical page_order-per-set persistence.
+  const sortKeys = liveView.sort?.length ?? 0
+  const dragDisabled = !(sortKeys < 2 && (sortKeys === 1 || liveView.group?.kind === 'property'))
   const { columns, groups } = useMemo(() => {
     const { rows, setTree } = flattenContainer(source, values)
     return resolveView({ rows, setTree, view: liveView, schema, manualOrder })
