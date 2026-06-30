@@ -1,8 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import { SegmentedSymbol, type Segment } from '@renderer/design-system/components/Segmented-Controls'
-import { Popover, useDismiss } from '@renderer/design-system/components/Popover'
+import { useDismiss } from '@renderer/design-system/components/Popover'
+import { MenuSurface, MenuCaption } from '@renderer/design-system/components/menu'
 import { ToolbarTrio } from './ToolbarTrio'
+import { SettingsDropdown } from '../Components/Detail/SettingsDropdown'
+import * as dropdown from '../Components/Detail/viewPane.css'
 import { useSession } from '../store'
+import { useExitPresence } from '@renderer/design-system/useExitPresence'
 import './toolbar.css'
 
 type TrioPanel = 'navigation' | 'settings'
@@ -23,6 +27,9 @@ export function Toolbar({
   const [panel, setPanel] = useState<TrioPanel | null>(null)
   const trioRef = useRef<HTMLDivElement>(null)
   useDismiss(trioRef, () => setPanel(null), panel !== null)
+  // Each dropdown stays mounted through its retract animation before leaving the DOM.
+  const navP = useExitPresence(panel === 'navigation')
+  const settingsP = useExitPresence(panel === 'settings')
 
   // Publish the pill's measured width so the ride math (toolbar.css) knows where the trio's left edge
   // sits — it lands flush at the inspector's left corner. offsetWidth ignores the ride transform.
@@ -61,16 +68,14 @@ export function Toolbar({
       </div>
       <div className="app-toolbar-cluster app-toolbar-cluster--trio" ref={trioRef}>
         <ToolbarTrio segments={trio} />
-        {panel === 'navigation' && (
-          <Popover>
-            <div className="toolbar-panel-stub">Navigation</div>
-          </Popover>
+        {navP.mounted && (
+          <div className={dropdown.anchor}>
+            <MenuSurface closing={navP.closing}>
+              <MenuCaption>No navigation yet.</MenuCaption>
+            </MenuSurface>
+          </div>
         )}
-        {panel === 'settings' && (
-          <Popover>
-            <div className="toolbar-panel-stub">Settings</div>
-          </Popover>
-        )}
+        {settingsP.mounted && <SettingsDropdown closing={settingsP.closing} />}
       </div>
     </div>
   )

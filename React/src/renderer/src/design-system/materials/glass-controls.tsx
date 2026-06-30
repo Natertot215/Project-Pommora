@@ -2,19 +2,18 @@ import type { HTMLAttributes, ReactNode } from 'react'
 import { Glass, type GlassOptics } from '@samasante/liquid-glass'
 
 /**
- * GlassControls — Pommora's glass for **controls** (toolbars, segmented controls,
- * the autocomplete panel). Apple "Liquid Glass" via @samasante/liquid-glass: real
- * edge refraction over the live app, not a flat frost. CONTROL_OPTICS is the tuned
- * control look; layout (size / position / radius) is the consumer's job via
- * style/className. Note: Glass forces `display:inline-block` inline, so a flex
- * consumer must re-assert `display:flex` in its own inline style.
+ * GlassControls — Pommora's liquid glass for the in-use button controls: the toolbar trio, the
+ * segmented controls, the autocomplete panel. Apple "Liquid Glass" via @samasante/liquid-glass: real
+ * edge refraction over the live app, not a flat frost. CONTROL_OPTICS is the tuned look; layout (size /
+ * position / radius) is the consumer's. The small-control variant (the switch knob) is GlassSegment
+ * (glass-segment.tsx); dropdowns use GlassPane.
  */
-const CONTROL_OPTICS: Partial<GlassOptics> = {
-  strength: 0.5,
+export const CONTROL_OPTICS: Partial<GlassOptics> = {
+  strength: 0.0,
   depth: 0.3,
   curvature: 0.45,
-  bend: 0.25,
-  bendWidth: 0.16,
+  bend: 0.0,
+  bendWidth: 0.0,
   dispersion: 0.25,
   frost: 3.5,
   saturate: 1,

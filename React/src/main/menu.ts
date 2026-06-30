@@ -1,5 +1,5 @@
-import { Menu, app, shell } from 'electron'
-import type { MenuItemConstructorOptions, BrowserWindow } from 'electron'
+import { Menu, app, shell, BrowserWindow } from 'electron'
+import type { MenuItemConstructorOptions } from 'electron'
 import { basename } from 'node:path'
 import { readAppConfig } from './appConfig'
 import { sessionRoot } from './session'
@@ -48,7 +48,16 @@ export async function installAppMenu(win: BrowserWindow, adopt: AdoptFn): Promis
             if (root) shell.showItemInFolder(root)
           }
         },
-        { label: 'Reload', accelerator: 'CmdOrCtrl+R', click: () => win.webContents.reload() },
+        {
+          label: 'Reload',
+          accelerator: 'CmdOrCtrl+R',
+          // The captured `win` can be a stale/destroyed reference (the menu outlives a window
+          // lifecycle); reload the live focused window, and guard so a dead one is a no-op, not a crash.
+          click: () => {
+            const w = BrowserWindow.getFocusedWindow() ?? win
+            if (!w.isDestroyed()) w.webContents.reload()
+          }
+        },
         { type: 'separator' },
         { role: 'close' }
       ]

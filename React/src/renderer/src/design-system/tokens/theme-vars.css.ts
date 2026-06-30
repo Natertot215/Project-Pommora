@@ -70,8 +70,10 @@ globalStyle(':root', {
     '--icon-xl': size.icon.xl,
     // Motion — shared durations + easing so every transition reads as one system.
     '--duration-fast': duration.fast,
+    '--duration-dropdown': duration.dropdown,
     '--duration-base': duration.base,
     '--duration-slow': duration.slow,
+    '--disclosure': duration.disclosure,
     '--ease-standard': easing.standard,
     '--ease-out': easing.out
   }

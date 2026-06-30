@@ -11,7 +11,7 @@ import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { z } from 'zod'
 import { pageCollectionSidecar, agendaConfigSidecar } from '@shared/schemas'
-import { defaultStatusSeed, type PropertyDefinition, type PropertyType } from '@shared/properties'
+import { defaultSelectSeed, defaultStatusSeed, type PropertyDefinition, type PropertyType } from '@shared/properties'
 import { isPlainObject } from '@shared/propertyValue'
 import { AGENDA_SUFFIX, type AgendaKind } from '@shared/agenda'
 import { mintPropertyId } from '../ids'
@@ -117,6 +117,12 @@ async function addProp(target: SchemaTarget, folder: string, def: PropertyDefini
   let candidate: PropertyDefinition = { ...def, id: def.id || mintPropertyId() }
   if (candidate.type === 'status' && candidate.status_groups === undefined) {
     candidate = { ...candidate, status_groups: defaultStatusSeed() }
+  }
+  if (
+    (candidate.type === 'select' || candidate.type === 'multi_select') &&
+    (candidate.select_options === undefined || candidate.select_options.length === 0)
+  ) {
+    candidate = { ...candidate, select_options: defaultSelectSeed() }
   }
   const v = validateDefinition(candidate, s.defs)
   if (!v.ok) return v

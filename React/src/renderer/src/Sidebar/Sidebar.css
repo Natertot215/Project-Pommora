@@ -90,7 +90,7 @@
   transform: translateX(-6px);
   pointer-events: none;
   transition: opacity var(--duration-base) var(--ease-standard), transform var(--duration-base) var(--ease-standard),
-    color 180ms ease, background 180ms ease;
+    color var(--duration-fast) var(--ease-standard), background var(--duration-fast) var(--ease-standard);
 }
 .shell.sidebar-hidden .sidebar-expand {
   opacity: 1;
@@ -179,7 +179,7 @@
 /* Disclosure chevron — a chevron-right Icon (1em → tracks the row's 12px) that rotates 90° when
    open; colour comes from the row's secondary glyph cluster. */
 .twisty {
-  transition: transform var(--duration-fast) var(--ease-standard);
+  transition: transform var(--disclosure) var(--ease-standard);
   flex: 0 0 auto;
 }
 

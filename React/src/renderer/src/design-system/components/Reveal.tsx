@@ -2,10 +2,10 @@ import { useState, useLayoutEffect, type ReactNode, type CSSProperties } from 'r
 import { duration, easing } from '../tokens/motion'
 
 // The container animates its row from 0 to the content's natural height; the inner
-// clips while collapsed. Shares the fast/standard motion with the disclosure chevron.
+// clips while collapsed. Shares the disclosure motion with the chevron (the twisty).
 const outer: CSSProperties = {
   display: 'grid',
-  transition: `grid-template-rows ${duration.fast} ${easing.standard}`
+  transition: `grid-template-rows ${duration.disclosure} ${easing.standard}`
 }
 const inner: CSSProperties = { overflow: 'hidden', minHeight: 0 }
 

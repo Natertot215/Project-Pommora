@@ -78,12 +78,3 @@
 .app-toolbar button {
   color: var(--label-control);
 }
-
-/* Placeholder body for the Navigation / Settings panels until their real content lands. */
-.toolbar-panel-stub {
-  min-width: 200px;
-  padding: 28px 16px;
-  text-align: center;
-  color: var(--label-secondary);
-  font-size: 12px;
-}

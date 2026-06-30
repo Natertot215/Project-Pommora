@@ -1,4 +1,5 @@
 import type { CSSProperties } from 'react'
+import { shadowStandardVar } from '../tokens/color.css'
 
 // The Pommora glass recipe — CSS frost: a clear, slightly-dimmed blur (no fill, no
 // saturate) with a glassy edge — a crisp top specular, a hairline inner ring, and a
@@ -13,6 +14,6 @@ export const frostMaterial: CSSProperties = {
     'inset 0 1px 0 #FFFFFF59', // top specular — the glassy edge highlight
     'inset 0 0 0 1px #FFFFFF14', // hairline inner ring
     'inset 0 -12px 18px -12px #FFFFFF14', // soft light pooling at the lower rim
-    '0 8px 26px #00000047' // drop shadow
+    shadowStandardVar // drop shadow — the shared --shadow-standard token
   ].join(', ')
 }

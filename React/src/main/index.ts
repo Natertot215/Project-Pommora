@@ -21,7 +21,9 @@ import { readFolds, writeFolds, type FoldState } from './io/folds'
 import { readActiveViews, writeActiveViews, type ActiveViews } from './io/activeViews'
 import { saveView, reorderViews, deleteView } from './crud/views'
 import { loadValues } from './crud/loadValues'
+import { addProperty, renameProperty, reorderProperty, deleteProperty, changePropertyType } from './crud/schema'
 import { savedView } from '@shared/views'
+import { propertyDefinition, propertyType } from '@shared/properties'
 import type { PageFrontmatter } from '@shared/schemas'
 import {
   readTableHeadingColumns,
@@ -421,6 +423,119 @@ ipcMain.handle('view:loadValues', async (_e, containerPath: unknown): Promise<Re
   if (!resolved.ok) return {}
   return loadValues(root, containerPath)
 })
+
+// Property schema CRUD on a Collection's page schema (_pagecollection.json `properties`). containerPath
+// is the schema-owning Collection's folder — a Set inherits the schema, so the renderer passes the
+// ancestor Collection's path. Mirrors the views:* envelope contract.
+async function resolveSchemaFolder(
+  containerPath: unknown
+): Promise<{ ok: true; folder: string } | { ok: false; error: string }> {
+  const root = sessionRoot()
+  if (root === null) return { ok: false, error: 'No nexus is open.' }
+  if (typeof containerPath !== 'string') return { ok: false, error: 'A container path is required.' }
+  const resolved = await resolveUnderRoot(root, containerPath)
+  return resolved.ok ? { ok: true, folder: resolved.value } : { ok: false, error: resolved.error.message }
+}
+
+ipcMain.handle(
+  'schema:add',
+  async (_e, containerPath: unknown, def: unknown): Promise<{ ok: true; id: string } | { ok: false; error: string }> => {
+    try {
+      const c = await resolveSchemaFolder(containerPath)
+      if (!c.ok) return c
+      const parsed = propertyDefinition.safeParse(def)
+      if (!parsed.success) return { ok: false, error: 'Invalid property definition.' }
+      const r = await addProperty(c.folder, parsed.data)
+      return r.ok ? { ok: true, id: r.value.id } : { ok: false, error: r.error.message }
+    } catch (e) {
+      return { ok: false, error: e instanceof Error ? e.message : String(e) }
+    }
+  }
+)
+
+ipcMain.handle(
+  'schema:rename',
+  async (
+    _e,
+    containerPath: unknown,
+    propertyId: unknown,
+    newName: unknown
+  ): Promise<{ ok: true } | { ok: false; error: string }> => {
+    try {
+      const c = await resolveSchemaFolder(containerPath)
+      if (!c.ok) return c
+      if (typeof propertyId !== 'string' || typeof newName !== 'string') {
+        return { ok: false, error: 'propertyId and newName must be strings.' }
+      }
+      const r = await renameProperty(c.folder, propertyId, newName)
+      return r.ok ? { ok: true } : { ok: false, error: r.error.message }
+    } catch (e) {
+      return { ok: false, error: e instanceof Error ? e.message : String(e) }
+    }
+  }
+)
+
+ipcMain.handle(
+  'schema:reorder',
+  async (
+    _e,
+    containerPath: unknown,
+    propertyId: unknown,
+    toIndex: unknown
+  ): Promise<{ ok: true } | { ok: false; error: string }> => {
+    try {
+      const c = await resolveSchemaFolder(containerPath)
+      if (!c.ok) return c
+      if (typeof propertyId !== 'string' || typeof toIndex !== 'number') {
+        return { ok: false, error: 'propertyId (string) and toIndex (number) are required.' }
+      }
+      const r = await reorderProperty(c.folder, propertyId, toIndex)
+      return r.ok ? { ok: true } : { ok: false, error: r.error.message }
+    } catch (e) {
+      return { ok: false, error: e instanceof Error ? e.message : String(e) }
+    }
+  }
+)
+
+ipcMain.handle(
+  'schema:delete',
+  async (_e, containerPath: unknown, propertyId: unknown): Promise<{ ok: true } | { ok: false; error: string }> => {
+    try {
+      const c = await resolveSchemaFolder(containerPath)
+      if (!c.ok) return c
+      if (typeof propertyId !== 'string') return { ok: false, error: 'A property id is required.' }
+      const r = await deleteProperty(c.folder, propertyId)
+      return r.ok ? { ok: true } : { ok: false, error: r.error.message }
+    } catch (e) {
+      return { ok: false, error: e instanceof Error ? e.message : String(e) }
+    }
+  }
+)
+
+ipcMain.handle(
+  'schema:changeType',
+  async (
+    _e,
+    containerPath: unknown,
+    propertyId: unknown,
+    newType: unknown,
+    opts: unknown
+  ): Promise<{ ok: true } | { ok: false; error: string }> => {
+    try {
+      const c = await resolveSchemaFolder(containerPath)
+      if (!c.ok) return c
+      if (typeof propertyId !== 'string') return { ok: false, error: 'A property id is required.' }
+      const parsedType = propertyType.safeParse(newType)
+      if (!parsedType.success) return { ok: false, error: 'Invalid property type.' }
+      const dropConflictingValues =
+        typeof opts === 'object' && opts !== null && (opts as { dropConflictingValues?: unknown }).dropConflictingValues === true
+      const r = await changePropertyType(c.folder, propertyId, parsedType.data, { dropConflictingValues })
+      return r.ok ? { ok: true } : { ok: false, error: r.error.message }
+    } catch (e) {
+      return { ok: false, error: e instanceof Error ? e.message : String(e) }
+    }
+  }
+)
 
 // Table heading-column UI state — local `.nexus/tableHeadingColumns.json` (out of frontmatter + index).
 ipcMain.handle('tableHeadingCols:get', async (): Promise<TableHeadingColState> => {

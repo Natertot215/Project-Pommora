@@ -155,3 +155,9 @@ export function defaultStatusSeed(): StatusGroup[] {
     }
   ]
 }
+
+/** Default single-option seed written when a Select / Multi-Select property is first added. A select
+ *  needs ≥1 option (validateDefinition), so creation seeds a starter the user then renames/extends. */
+export function defaultSelectSeed(): { value: string; label: string }[] {
+  return [{ value: 'option_1', label: 'Option 1' }]
+}

@@ -1,4 +1,4 @@
-import { createGlobalTheme } from '@vanilla-extract/css'
+import { createGlobalTheme, globalStyle } from '@vanilla-extract/css'
 import { WINDOW_BG } from '@shared/theme'
 
 // Primitives — the base system palette. Grey/white/black are the single source for
@@ -75,6 +75,25 @@ const derived = createGlobalTheme(':root', {
     }
   }
 })
+
+// Semantic alias — the Interaction Field surface (text inputs / editable fields), exposed under the
+// literal CSS var `--input-field` so every input references one named knob. It points at the quinary
+// fill var, so retuning the input surface is a single edit here. Consume via `inputFieldVar`.
+globalStyle(':root', {
+  vars: {
+    '--input-field': derived.color.fill.quaternary
+  }
+})
+export const inputFieldVar = 'var(--input-field)'
+
+// Shadows — the standard glass drop shadow, one source for every frost surface (Surface / dropdowns /
+// pickers). Not a colour, but this is the design-system's named-token home. Consume via `shadowStandardVar`.
+globalStyle(':root', {
+  vars: {
+    '--shadow-standard': '0 8px 25px #00000040'
+  }
+})
+export const shadowStandardVar = 'var(--shadow-standard)'
 
 // One token object: primitives under `color.system`, everything else alongside.
 export const vars = {

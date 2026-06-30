@@ -199,16 +199,15 @@ export function MarkdownEditor({
         />
       )}
       <div ref={host} className="mdpm-editor" />
-      {ac && (
-        <AutocompletePanel
-          candidates={candidates}
-          index={acIndex}
-          left={ac.left}
-          top={acTop}
-          query={ac.query}
-          onPick={commit}
-        />
-      )}
+      <AutocompletePanel
+        open={ac !== null}
+        candidates={candidates}
+        index={acIndex}
+        left={ac?.left ?? 0}
+        top={acTop}
+        query={ac?.query ?? ''}
+        onPick={commit}
+      />
     </div>
   )
 }

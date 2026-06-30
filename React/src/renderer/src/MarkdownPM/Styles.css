@@ -104,9 +104,10 @@
   padding: 6px 0 14px var(--content-inset);
 }
 .mdpm-divider {
-  height: 1.25px;
+  height: 2px;
   margin: 0 var(--gutter) 0 var(--content-inset);
   background: var(--separator-border);
+  border-radius: 999px;
 }
 
 /* Banner state: full-width cover band at the container-banner height, title overlaid bottom-left,
@@ -440,8 +441,10 @@
 .md-hr {
   display: inline-block;
   width: 100%;
+  height: 1.5px;
   vertical-align: middle;
-  border-bottom: 1.5px solid var(--separator-border);
+  background: var(--separator-border);
+  border-radius: 999px;
 }
 
 /* CM6 GOTCHA: no line margins — they break caret/arrow mapping (only padding is measured). The fill is an

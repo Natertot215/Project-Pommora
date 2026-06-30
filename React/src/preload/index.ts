@@ -7,6 +7,7 @@ import type { TableMenuAction, TableMenuContext } from '@shared/tableMenu'
 import type { CalloutMenuAction } from '@shared/calloutMenu'
 import type { SavedView } from '@shared/views'
 import type { PageFrontmatter } from '@shared/schemas'
+import type { PropertyDefinition, PropertyType } from '@shared/properties'
 
 // The ONLY API the renderer can see. Narrow read surface; no fs, no Node.
 const api = {
@@ -52,6 +53,39 @@ const api = {
       viewId: string
     ): Promise<{ ok: true } | { ok: false; error: string }> =>
       ipcRenderer.invoke('views:delete', containerPath, kind, viewId)
+  },
+  // Property schema CRUD on a Collection's page schema. containerPath is the schema-owning
+  // Collection's folder (a Set inherits, so the renderer passes its ancestor Collection's path).
+  schema: {
+    add: (
+      containerPath: string,
+      def: PropertyDefinition
+    ): Promise<{ ok: true; id: string } | { ok: false; error: string }> =>
+      ipcRenderer.invoke('schema:add', containerPath, def),
+    rename: (
+      containerPath: string,
+      propertyId: string,
+      newName: string
+    ): Promise<{ ok: true } | { ok: false; error: string }> =>
+      ipcRenderer.invoke('schema:rename', containerPath, propertyId, newName),
+    reorder: (
+      containerPath: string,
+      propertyId: string,
+      toIndex: number
+    ): Promise<{ ok: true } | { ok: false; error: string }> =>
+      ipcRenderer.invoke('schema:reorder', containerPath, propertyId, toIndex),
+    delete: (
+      containerPath: string,
+      propertyId: string
+    ): Promise<{ ok: true } | { ok: false; error: string }> =>
+      ipcRenderer.invoke('schema:delete', containerPath, propertyId),
+    changeType: (
+      containerPath: string,
+      propertyId: string,
+      newType: PropertyType,
+      opts?: { dropConflictingValues?: boolean }
+    ): Promise<{ ok: true } | { ok: false; error: string }> =>
+      ipcRenderer.invoke('schema:changeType', containerPath, propertyId, newType, opts)
   },
   // Batch frontmatter read for a container's view pipeline (pageId → frontmatter), lazy on open.
   loadValues: (containerPath: string): Promise<Record<string, PageFrontmatter>> =>

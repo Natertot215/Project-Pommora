@@ -5,12 +5,8 @@ import { tint } from './tint'
 
 const solid = colorVars.color.solid
 
-/**
- * Base chip — layout + a 2px stroke, composing the Control / Emphasized text
- * style (the one source for that ramp — never re-state size / line / weight).
- * Color is supplied by `chipColor.*`; shape via `chipCheckbox`. Compose:
- * `${chip} ${chipColor.blue}`.
- */
+// One source for the Control/Emphasized text ramp — never re-state size/line/weight here.
+// Color via `chipColor.*`; shape variant via `chipCheckbox`. Compose: `${chip} ${chipColor.blue}`.
 export const chip = style([
   text.control.emphasized,
   {
@@ -28,7 +24,23 @@ export const chip = style([
   }
 ])
 
-/** One class per spectrum color — compose with `chip`. Mirrors the 11 Figma chip color variants. */
+// The cap lives on the LABEL, not the chip (a % width is unreliable in a shrink-to-fit flex chip): the
+// label truncates at `--chip-max` and the chip wraps it snugly, so the ellipsis lands at the padding
+// edge instead of floating mid-chip. `--chip-max` (80px default) is overridable per context; labels
+// ellipsize at rest and scroll horizontally on hover to show the full value.
+export const chipLabel = style({
+  maxWidth: 'var(--chip-max, 80px)',
+  minWidth: 0,
+  whiteSpace: 'nowrap',
+  overflowX: 'hidden',
+  textOverflow: 'ellipsis',
+  scrollbarWidth: 'none',
+  selectors: {
+    '&:hover': { overflowX: 'auto', textOverflow: 'clip' },
+    '&::-webkit-scrollbar': { display: 'none' }
+  }
+})
+
 export const chipColor = styleVariants({
   red: tint(solid.red),
   blue: tint(solid.blue),

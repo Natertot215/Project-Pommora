@@ -91,5 +91,23 @@ export const detail = style([text.footnote.emphasized])
 export const separator = style({ height: '11px', display: 'flex', alignItems: 'center', padding: '0 8px' })
 export const separatorLine = style({ height: '1px', width: '100%', background: c.separator.line })
 
+/** Flush variant — no side inset, so the hairline spans the surface gutter edge-to-edge. */
+export const separatorFlush = style({ padding: 0 })
+
+/** Gutter-flush affordance — the shared geometry/colour for the back-row heading nav and the pane
+ *  footer actions: no item inset (so the ‹ heading and the +/Delete footer line up at one left edge),
+ *  a tight 4px icon↔label gap, and label-secondary text. Each consumer sets its own type; the
+ *  destructive footer (Delete) re-overrides the colour. */
+export const flushAffordance = style({ paddingLeft: 0, gap: '4px', color: c.label.secondary })
+
+/** Back row — flush affordance + footnote type. */
+export const backRow = style([text.caption.standard, flushAffordance])
+
+/** Non-interactive caption / empty-state line — body text, centered + secondary (no row geometry). */
+export const caption = style([
+  text.body.standard,
+  { padding: '28px 8px', textAlign: 'center', color: c.label.secondary, userSelect: 'none' }
+])
+
 /** Menu container — a flush vertical stack with 6px top/bottom breathing room. */
 export const menu = style({ display: 'flex', flexDirection: 'column', padding: '6px 0' })

@@ -1,7 +1,7 @@
 import type { ReactNode, MouseEvent, CSSProperties } from 'react'
+import { ChevronLeft } from 'lucide-react'
 import * as s from './menu.css'
-
-const cx = (...parts: Array<string | false | undefined>): string => parts.filter(Boolean).join(' ')
+import { cx } from '../../cx'
 
 type MenuItemProps = {
   /** Leading glyph cluster — disclosure and/or icon (label-secondary, sized at 1em). */
@@ -81,12 +81,27 @@ export function MenuHeading({
   )
 }
 
-/** A horizontal divider between menu groups — 11px band, centered hairline. */
-export function MenuSeparator(): React.JSX.Element {
+/** A horizontal divider between menu groups — 11px band, centered hairline. `flush` drops the side
+ *  inset so the hairline spans the full gutter (aligns with full-width rows inside a MenuSurface). */
+export function MenuSeparator({ flush = false }: { flush?: boolean } = {}): React.JSX.Element {
   return (
-    <div className={s.separator} role="separator">
+    <div className={cx(s.separator, flush && s.separatorFlush)} role="separator">
       <span className={s.separatorLine} />
     </div>
+  )
+}
+
+/** A non-interactive caption / empty-state line inside a menu — body text, centered + secondary. */
+export function MenuCaption({ children }: { children: ReactNode }): React.JSX.Element {
+  return <div className={s.caption}>{children}</div>
+}
+
+/** A back-navigation row — a leading ‹ chevron + label; pops the menu's nav stack one level. */
+export function MenuBackRow({ label, onClick }: { label: string; onClick: () => void }): React.JSX.Element {
+  return (
+    <MenuItem className={s.backRow} leading={<ChevronLeft size={12} />} onClick={onClick}>
+      {label}
+    </MenuItem>
   )
 }
 

@@ -1,7 +1,8 @@
 import { useState, type ReactNode } from 'react'
-import { chip, chipColor, chipCheckbox } from '@renderer/design-system/tokens'
+import { chip, chipColor, chipCheckbox, chipLabel } from '@renderer/design-system/tokens'
 import { Icon } from '@renderer/design-system/symbols'
 import { SortableZone, useDragItem, reorder } from '@renderer/design-system/interactions/drag'
+import { cx } from '@renderer/design-system/cx'
 import { humanize, useIsCompact } from './helpers'
 
 type ChipColorName = keyof typeof chipColor
@@ -12,7 +13,7 @@ function ChipCell({ id, color, label }: { id: string; color: ChipColorName; labe
   const { setNodeRef, style, handle } = useDragItem(id)
   return (
     <span ref={setNodeRef} style={style} className={pillClass(color)} {...handle} title={color}>
-      {label}
+      <span className={chipLabel}>{label}</span>
     </span>
   )
 }
@@ -26,7 +27,7 @@ function PillRow(): React.JSX.Element {
     <div className="ds-chip-row-items">
       {items.map((it) =>
         compact ? (
-          <span key={it.id} className={pillClass(it.id)} title={it.id}>{it.name}</span>
+          <span key={it.id} className={pillClass(it.id)} title={it.id}><span className={chipLabel}>{it.name}</span></span>
         ) : (
           <ChipCell key={it.id} id={it.id} color={it.id} label={it.name} />
         )
@@ -68,7 +69,7 @@ export function ChipsLeaf(): React.JSX.Element {
             <div className="ds-chip-row" key={shape.label}>
               <div className="ds-chip-rowlabel">{shape.label}</div>
               {CHIP_COLORS.map((k) => (
-                <span key={k} className={[chip, chipColor[k], shape.extra].filter(Boolean).join(' ')} title={k}>
+                <span key={k} className={cx(chip, chipColor[k], shape.extra)} title={k}>
                   {shape.content()}
                 </span>
               ))}

@@ -41,6 +41,20 @@ export function findSet(tree: NexusTree | null, id: string): SetNode | undefined
   return undefined
 }
 
+/** The Collection that owns a Set's inherited schema — the top Collection whose set tree contains
+ *  `setId` (a Set has no schema of its own; properties live only on the Collection). */
+export function findCollectionForSet(tree: NexusTree | null, setId: string): CollectionNode | undefined {
+  if (!tree) return undefined
+  const has = (sets: SetNode[] | undefined): boolean => {
+    for (const set of sets ?? []) {
+      if (set.id === setId) return true
+      if (has(set.sets)) return true
+    }
+    return false
+  }
+  return allCollections(tree).find((c) => has(c.sets))
+}
+
 /** Resolve a context id to its banner owner, scanning the three tiers (the kind is whichever holds it). */
 export function findContext(tree: NexusTree | null, id: string): BannerOwner | null {
   if (!tree) return null

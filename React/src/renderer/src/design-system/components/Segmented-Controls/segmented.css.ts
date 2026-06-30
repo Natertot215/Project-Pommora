@@ -38,9 +38,11 @@ export const segment = style({
   }
 })
 
-// Inset hairline between adjacent segments — the segment separator token.
+// Inset hairline between adjacent segments — the segment separator token. Rounded caps
+// (pill ends) so the little line never reads as a sharp-cornered rectangle.
 export const divider = style({
   flexShrink: 0,
   alignSelf: 'center',
-  background: vars.color.separator.segment
+  background: vars.color.separator.segment,
+  borderRadius: '999px'
 })

@@ -159,19 +159,18 @@ export function CellEditor({
   return (
     <>
       <div ref={host} className="mdpm-tbl-cell-editor" />
-      {ac &&
-        candidates.length > 0 &&
-        createPortal(
-          <AutocompletePanel
-            candidates={candidates}
-            index={acIndex}
-            left={ac.left}
-            top={acTop}
-            query={ac.query}
-            onPick={commit}
-          />,
-          document.body
-        )}
+      {createPortal(
+        <AutocompletePanel
+          open={ac !== null}
+          candidates={candidates}
+          index={acIndex}
+          left={ac?.left ?? 0}
+          top={acTop}
+          query={ac?.query ?? ''}
+          onPick={commit}
+        />,
+        document.body
+      )}
     </>
   )
 }
