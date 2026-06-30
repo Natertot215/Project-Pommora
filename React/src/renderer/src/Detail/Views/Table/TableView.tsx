@@ -13,6 +13,7 @@ import { GroupHeader } from './GroupHeader'
 import { columnLabel } from './columnLabel'
 import { clampWidth, widthFor } from './columnWidths'
 import { reorderColumns } from './columnReorder'
+import { mergeOverrides } from './viewMerge'
 import { cx } from '@renderer/design-system/cx'
 import { text } from '@renderer/design-system/tokens'
 import { SortableZone, useDragItem } from '@renderer/design-system/interactions/drag'
@@ -58,13 +59,15 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
 
   const schema = useMemo(() => (tree ? resolveContainerSchema(tree, source) : []), [tree, source])
   const view = useMemo(() => pickView(source, activeViewId, schema), [source, activeViewId, schema])
-  // Local override layer — column reorder + collapse apply instantly and persist async (the watcher
-  // re-reads to confirm). `liveView` overlays the unsaved order onto the saved view so the pipeline
-  // and every persist see one truth. Both re-seed when the active view changes.
+  // Local override layer — reorder + resize + collapse apply instantly, persist async (watcher
+  // confirms). Order goes in `liveView` (the pipeline reads it); width stays a separate override so a
+  // resize doesn't re-run the pipeline (it only changes <col> sizing). All re-seed on view change.
   const [orderOverride, setOrderOverride] = useState<string[] | null>(null)
+  const [widthOverride, setWidthOverride] = useState<Record<string, number>>({})
   const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set(view.collapsed_groups ?? []))
   useEffect(() => {
     setOrderOverride(null)
+    setWidthOverride({})
     setCollapsed(new Set(view.collapsed_groups ?? []))
   }, [view.id])
   const liveView = useMemo(
@@ -81,11 +84,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
   // Persist the saved view + every live override (order + collapse) + a patch, so no one mutation
   // clobbers another's unsaved state — the exact Swift reorder/resize data-loss H-2 guards against.
   const persistView = (patch: Partial<SavedView>): void => {
-    void window.nexus.views.save(source.path, source.kind, {
-      ...liveView,
-      collapsed_groups: [...collapsed],
-      ...patch
-    })
+    void window.nexus.views.save(source.path, source.kind, mergeOverrides(liveView, widthOverride, collapsed, patch))
   }
   const toggleCollapse = (key: string): void => {
     const next = new Set(collapsed)
@@ -104,13 +103,24 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
     setOrderOverride(next)
     persistView({ property_order: next })
   }
+  // Resize applies live (a separate override, so the pipeline doesn't re-run) and returns the clamped
+  // width so the header tracks the real edge; commit persists the merged widths.
+  const resizeColumn = (id: string, width: number): number => {
+    const clamped = clampWidth(Math.round(width), id, schema)
+    setWidthOverride((prev) => ({ ...prev, [id]: clamped }))
+    return clamped
+  }
+  const commitResize = (id: string, width: number): void => {
+    persistView({ column_widths: { ...liveView.column_widths, ...widthOverride, [id]: clampWidth(width, id, schema) } })
+  }
 
   if (!ctx) return <div className="table-empty">Loading…</div>
   if (groups.length === 0) return <div className="table-empty">No pages here</div>
 
   // Saved widths are clamped to the type's [min, max] (Q-4) — a stale/out-of-range saved value can't
   // squash a column below legibility or stretch it past its cap.
-  const colWidth = (id: string): number => clampWidth(liveView.column_widths?.[id] ?? widthFor(id, schema).default, id, schema)
+  const colWidth = (id: string): number =>
+    clampWidth(widthOverride[id] ?? liveView.column_widths?.[id] ?? widthFor(id, schema).default, id, schema)
   const totalWidth = columns.reduce((sum, c) => sum + colWidth(c.id), 0)
   // Per-layer indent on the title cell + group headers (J-3), DRY via the --table-indent / pad-x vars.
   const indent = (depth: number): string | undefined =>
@@ -172,7 +182,14 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
             {/* Headers are a horizontal sortable zone (E-2); the filler th sits outside it, inert. */}
             <SortableZone items={columns.map((c) => c.id)} axis="x" bounds="parent" itemRole={null} onReorder={reorderColumn}>
               {columns.map((c) => (
-                <ColumnHeader key={c.id} id={c.id} label={columnLabel(c.id, schema, ctx.labels)} />
+                <ColumnHeader
+                  key={c.id}
+                  id={c.id}
+                  label={columnLabel(c.id, schema, ctx.labels)}
+                  width={colWidth(c.id)}
+                  onResize={resizeColumn}
+                  onResizeCommit={commitResize}
+                />
               ))}
             </SortableZone>
             <th className="cell-filler" aria-hidden="true" />
@@ -184,13 +201,48 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
   )
 }
 
-/** One draggable column header (E-2). `handle` makes the whole th the grab affordance; the lifted
- *  header renders ghosted via `isDragging` while neighbours shift to open the gap. */
-function ColumnHeader({ id, label }: { id: string; label: string }): React.JSX.Element {
+/** One column header: draggable to reorder (E-2 — `handle` makes the th the grab surface, ghosted via
+ *  `isDragging`) plus a right-edge resize strip (H-2). The strip stops propagation so a resize never
+ *  starts a reorder; the pointer delta is divided by the live zoom so a screen drag maps onto the
+ *  table's pre-zoom <col> width. */
+function ColumnHeader({
+  id,
+  label,
+  width,
+  onResize,
+  onResizeCommit
+}: {
+  id: string
+  label: string
+  width: number
+  onResize: (id: string, width: number) => number
+  onResizeCommit: (id: string, width: number) => void
+}): React.JSX.Element {
   const { setNodeRef, style, handle, isDragging } = useDragItem(id)
+  const startResize = (e: React.PointerEvent<HTMLSpanElement>): void => {
+    e.preventDefault()
+    e.stopPropagation()
+    const grip = e.currentTarget
+    const th = grip.closest('th')
+    const zoom = (th && th.getBoundingClientRect().width / width) || 1
+    const startX = e.clientX
+    let last = width
+    grip.setPointerCapture(e.pointerId)
+    const move = (ev: PointerEvent): void => {
+      last = onResize(id, width + (ev.clientX - startX) / zoom)
+    }
+    const end = (): void => {
+      grip.removeEventListener('pointermove', move)
+      grip.removeEventListener('pointerup', end)
+      onResizeCommit(id, last)
+    }
+    grip.addEventListener('pointermove', move)
+    grip.addEventListener('pointerup', end)
+  }
   return (
     <th ref={setNodeRef} style={style} className={cx(isDragging && 'col-dragging')} {...handle}>
       {label}
+      <span className="col-resizer" onPointerDown={startResize} />
     </th>
   )
 }

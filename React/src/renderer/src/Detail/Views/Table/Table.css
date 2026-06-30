@@ -32,12 +32,25 @@
   overflow: hidden;
   text-overflow: ellipsis;
   user-select: none;
+  position: relative; /* containing block for the right-edge resize strip */
 }
 
 /* E-2: the lifted column header renders ghosted while neighbours shift to open the gap. */
 .data-table th.col-dragging {
   opacity: 0.4;
   cursor: grabbing;
+}
+
+/* H-2 column resizer — an invisible ew-resize hit-strip at the header's right edge; the live <col>
+   width is the drag feedback, so there's no separate bar. */
+.col-resizer {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 8px;
+  height: 100%;
+  cursor: ew-resize;
+  z-index: 1;
 }
 
 .data-table td {
