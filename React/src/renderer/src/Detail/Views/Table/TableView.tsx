@@ -93,7 +93,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
     if (g.kind !== 'ungrouped') {
       out.push(
         <tr key={`gh-${g.key}`} className="group-header-row">
-          <td colSpan={columns.length} style={{ paddingLeft: depth > 0 ? `calc(var(--table-indent) * ${depth})` : 0 }}>
+          <td colSpan={columns.length + 1} style={{ paddingLeft: depth > 0 ? `calc(var(--table-indent) * ${depth})` : 0 }}>
             <GroupHeader
               group={g}
               view={view}
@@ -120,6 +120,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
               <Cell row={row} column={c} ctx={ctx} hideIcon={view.hide_page_icons ?? false} />
             </td>
           ))}
+          <td className="cell-filler" />
         </tr>
       )
     }
@@ -129,17 +130,20 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
 
   return (
     <div className="table-view">
-      <table className={cx('data-table', text.callout.standard, view.hide_borders && 'no-borders')} style={{ width: totalWidth }}>
+      <table className={cx('data-table', text.body.standard, view.hide_borders && 'no-borders')} style={{ minWidth: totalWidth }}>
         <colgroup>
           {columns.map((c) => (
             <col key={c.id} style={{ width: colWidth(c.id) }} />
           ))}
+          {/* Filler column absorbs pane width past the summed columns so the grid spans full-width. */}
+          <col className="col-filler" />
         </colgroup>
         <thead>
           <tr>
             {columns.map((c) => (
               <th key={c.id}>{columnLabel(c.id, schema, ctx.labels)}</th>
             ))}
+            <th className="cell-filler" aria-hidden="true" />
           </tr>
         </thead>
         <tbody>{groups.flatMap((g) => renderRows(g, 0))}</tbody>

@@ -12,11 +12,14 @@
 
 .data-table {
   --table-pad-x: 12px; /* cell horizontal gutter (kept from the stub, H-4) */
-  --table-pad-y: 4px; /* Compact row density (Standard ~7px is reserved for the ViewPane toggle, K-1) */
+  --table-pad-y: 6px; /* Standard row density; Compact shrinks it via --table-zoom (K-1) */
   --table-indent: 16px; /* per-layer nesting indent (J-3) */
-  table-layout: fixed; /* colgroup widths are authoritative; the table is its summed width, not 100% */
+  --table-zoom: 0.9; /* Compact (default); Standard = 1. One knob scales text + chips + padding + widths (K-2) */
+  zoom: var(--table-zoom);
+  width: 100%; /* Chromium resolves % zoom-aware, so this fills the pane; the filler column eats slack */
+  table-layout: fixed; /* colgroup widths are authoritative; min-width (inline) is their summed total */
   border-collapse: collapse;
-  /* Row typography = the `callout` token (Compact, K-2), composed onto the table in TableView. */
+  /* Row typography = the `body` token at zoom 1 (Standard); Compact is the same table zoomed (K-2). */
 }
 
 .data-table th {

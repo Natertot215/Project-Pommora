@@ -73,7 +73,7 @@ export function GroupHeader({
   onToggle: () => void
 }): React.JSX.Element {
   return (
-    <span className={cx('group-header', text.callout.emphasized)}>
+    <span className={cx('group-header', text.body.emphasized)}>
       <button
         type="button"
         className="group-twisty"
