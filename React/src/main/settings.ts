@@ -18,10 +18,11 @@ const SWIFT_DEFAULTS_VERSION = 6
 /** React's structured (camelCase) labels → Swift's snake_case on-disk shape. */
 function labelsToDisk(l: NexusLabels): Record<string, unknown> {
   return {
-    sidebar_sections: { areas: l.sidebarSections.areas, topics: l.sidebarSections.topics, pages: l.sidebarSections.pages },
+    area: { singular: l.area.singular, plural: l.area.plural },
+    topic: { singular: l.topic.singular, plural: l.topic.plural },
+    project: { singular: l.project.singular, plural: l.project.plural },
     page_collection: { singular: l.pageCollection.singular, plural: l.pageCollection.plural },
     page_set: { singular: l.pageSet.singular, plural: l.pageSet.plural },
-    project: { singular: l.project.singular, plural: l.project.plural },
     agenda_task: { singular: l.agendaTask.singular, plural: l.agendaTask.plural },
     agenda_event: { singular: l.agendaEvent.singular, plural: l.agendaEvent.plural }
   }

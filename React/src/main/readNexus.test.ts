@@ -218,7 +218,8 @@ describe('readNexus — structured labels (Swift SettingsLabels shape)', () => {
         }
       })
     )
-    expect(t.labels.sidebarSections).toEqual({ areas: 'Spaces', topics: 'Themes', pages: 'Libraries' })
+    expect(t.labels.area).toEqual({ singular: 'Area', plural: 'Spaces' })
+    expect(t.labels.topic).toEqual({ singular: 'Topic', plural: 'Themes' })
     expect(t.labels.pageCollection).toEqual({ singular: 'Library', plural: 'Libraries' })
     expect(t.labels.pageSet).toEqual({ singular: 'Shelf', plural: 'Shelves' })
     expect(t.labels.project).toEqual({ singular: 'Initiative', plural: 'Initiatives' })
@@ -226,9 +227,24 @@ describe('readNexus — structured labels (Swift SettingsLabels shape)', () => {
     expect(t.labels.agendaEvent).toEqual({ singular: 'Happening', plural: 'Happenings' })
   })
 
-  it('falls back to Swift defaults on missing keys (pages default "Collections")', async () => {
+  it('reads new-shape area/topic LabelPairs directly, ignoring legacy sidebar_sections', async () => {
+    const t = await readNexus(
+      mk({
+        labels: {
+          area: { singular: 'Zone', plural: 'Zones' },
+          topic: { singular: 'Theme', plural: 'Themes' },
+          sidebar_sections: { areas: 'IGNORED', topics: 'IGNORED' }
+        }
+      })
+    )
+    expect(t.labels.area).toEqual({ singular: 'Zone', plural: 'Zones' })
+    expect(t.labels.topic).toEqual({ singular: 'Theme', plural: 'Themes' })
+  })
+
+  it('falls back to defaults on missing keys (area/topic → Area(s)/Topic(s))', async () => {
     const t = await readNexus(mk({}))
-    expect(t.labels.sidebarSections).toEqual({ areas: 'Areas', topics: 'Topics', pages: 'Collections' })
+    expect(t.labels.area).toEqual({ singular: 'Area', plural: 'Areas' })
+    expect(t.labels.topic).toEqual({ singular: 'Topic', plural: 'Topics' })
     expect(t.labels.pageCollection).toEqual({ singular: 'Collection', plural: 'Collections' })
     expect(t.labels.pageSet).toEqual({ singular: 'Set', plural: 'Sets' })
     expect(t.labels.project.plural).toBe('Projects')

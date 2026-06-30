@@ -141,23 +141,16 @@ export interface LabelPair {
   plural: string
 }
 
-/** Sidebar section headers (mirrors Swift `SidebarSectionLabels`). `pages` is the
- *  Collections-section header — distinct from `pageCollection.plural`. No `projects`
- *  here: the Projects tier header comes from `project.plural`. */
-export interface SidebarSectionLabels {
-  areas: string
-  topics: string
-  pages: string
-}
-
-/** Per-Nexus UI labels, structured to match Swift `SettingsLabels` (read from
- *  `settings.labels.{sidebar_sections,page_collection,page_set,project,agenda_task,agenda_event}`).
- *  "Sub-Set" is derived as `"Sub-" + pageSet.singular`, never stored. */
+/** Per-Nexus UI labels (read from `settings.labels.{area,topic,project,page_collection,page_set,agenda_task,agenda_event}`).
+ *  All three context tiers are first-class LabelPairs; sidebar section headers derive from the plurals
+ *  (Areas ← area.plural, Topics ← topic.plural, Collections ← pageCollection.plural). "Sub-Set" is
+ *  derived as `"Sub-" + pageSet.singular`, never stored. */
 export interface NexusLabels {
-  sidebarSections: SidebarSectionLabels
+  area: LabelPair
+  topic: LabelPair
+  project: LabelPair
   pageCollection: LabelPair
   pageSet: LabelPair
-  project: LabelPair
   agendaTask: LabelPair
   agendaEvent: LabelPair
 }
@@ -284,10 +277,11 @@ export interface ResolvedGroup {
 export const UNGROUPED = '_ungrouped'
 
 export const DEFAULT_LABELS: NexusLabels = {
-  sidebarSections: { areas: 'Areas', topics: 'Topics', pages: 'Collections' },
+  area: { singular: 'Area', plural: 'Areas' },
+  topic: { singular: 'Topic', plural: 'Topics' },
+  project: { singular: 'Project', plural: 'Projects' },
   pageCollection: { singular: 'Collection', plural: 'Collections' },
   pageSet: { singular: 'Set', plural: 'Sets' },
-  project: { singular: 'Project', plural: 'Projects' },
   agendaTask: { singular: 'Task', plural: 'Tasks' },
   agendaEvent: { singular: 'Event', plural: 'Events' }
 }

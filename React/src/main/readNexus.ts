@@ -68,16 +68,18 @@ function readLabels(raw: unknown): NexusLabels {
     return { singular: asString(o.singular) ?? fallback.singular, plural: asString(o.plural) ?? fallback.plural }
   }
   const L = obj(raw)
+  // Migrate a legacy `sidebar_sections.{areas,topics}` blob into the area/topic tier plurals when the
+  // new LabelPairs are absent (singular defaults). The old `pages` header is dropped — the Collections
+  // sidebar header now derives from pageCollection.plural.
   const ss = obj(L.sidebar_sections)
+  const tier = (key: string, legacyPlural: unknown, fallback: LabelPair): LabelPair =>
+    pair(L[key], { singular: fallback.singular, plural: asString(legacyPlural) ?? fallback.plural })
   return {
-    sidebarSections: {
-      areas: asString(ss.areas) ?? DEFAULT_LABELS.sidebarSections.areas,
-      topics: asString(ss.topics) ?? DEFAULT_LABELS.sidebarSections.topics,
-      pages: asString(ss.pages) ?? DEFAULT_LABELS.sidebarSections.pages
-    },
+    area: tier('area', ss.areas, DEFAULT_LABELS.area),
+    topic: tier('topic', ss.topics, DEFAULT_LABELS.topic),
+    project: pair(L.project, DEFAULT_LABELS.project),
     pageCollection: pair(L.page_collection, DEFAULT_LABELS.pageCollection),
     pageSet: pair(L.page_set, DEFAULT_LABELS.pageSet),
-    project: pair(L.project, DEFAULT_LABELS.project),
     agendaTask: pair(L.agenda_task, DEFAULT_LABELS.agendaTask),
     agendaEvent: pair(L.agenda_event, DEFAULT_LABELS.agendaEvent)
   }

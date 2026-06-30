@@ -20,14 +20,14 @@ const write = async (v: object): Promise<void> => {
   await writeFile(path(), JSON.stringify(v))
 }
 
-// The keys Swift's Settings/SettingsLabels decoders REQUIRE (no fallback).
-const assertSwiftDecodable = (s: Record<string, unknown>): void => {
+// The on-disk settings shape our writer must always produce: version + modified_at + full labels,
+// every label a {singular, plural} LabelPair (all three tiers now first-class).
+const assertFullSettings = (s: Record<string, unknown>): void => {
   expect(typeof s.version).toBe('number')
   expect(typeof s.modified_at).toBe('string')
   expect(s.modified_at).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/) // iso8601, no ms
   const labels = s.labels as Record<string, unknown>
-  expect(labels.sidebar_sections).toBeTruthy()
-  for (const k of ['project', 'agenda_task', 'agenda_event']) {
+  for (const k of ['area', 'topic', 'project', 'page_collection', 'page_set', 'agenda_task', 'agenda_event']) {
     const pair = labels[k] as Record<string, unknown>
     expect(typeof pair.singular).toBe('string')
     expect(typeof pair.plural).toBe('string')
@@ -37,14 +37,14 @@ const assertSwiftDecodable = (s: Record<string, unknown>): void => {
 describe('ensureSettings', () => {
   it('writes a full Swift-decodable seed when absent', async () => {
     await ensureSettings(root)
-    assertSwiftDecodable(await readSettings())
+    assertFullSettings(await readSettings())
   })
 
   it('backfills a partial settings.json (only profile_image) without dropping it', async () => {
     await write({ profile_image: '.nexus/assets/x/profile-a.png' })
     await ensureSettings(root)
     const s = await readSettings()
-    assertSwiftDecodable(s)
+    assertFullSettings(s)
     expect(s.profile_image).toBe('.nexus/assets/x/profile-a.png') // preserved
   })
 
