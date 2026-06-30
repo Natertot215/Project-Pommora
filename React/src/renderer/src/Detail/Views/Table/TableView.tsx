@@ -100,6 +100,8 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
   // when the view is sorted or grouped (an unsorted, ungrouped view uses canonical page_order instead).
   const sortedOrGrouped = (liveView.sort?.length ?? 0) > 0 || liveView.group != null
   const manualOrder = sortedOrGrouped ? (manualOverride ?? viewOrders[view.id]) : undefined
+  // Manual row reorder is disabled under a multi-key sort (D-3) — within-run nudging is the sort's job.
+  const dragDisabled = (liveView.sort?.length ?? 0) >= 2
   const { columns, groups } = useMemo(() => {
     const { rows, setTree } = flattenContainer(source, values)
     return resolveView({ rows, setTree, view: liveView, schema, manualOrder })
@@ -229,6 +231,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
           indent={indent}
           hideIcon={liveView.hide_page_icons ?? false}
           selected={selection.kind === 'page' && selection.id === row.id}
+          dragDisabled={dragDisabled}
           onSelect={() => void select({ kind: 'page', id: row.id, path: row.path })}
         />
       )
@@ -276,7 +279,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
         </thead>
         <tbody>
           {/* Rows are a vertical sortable zone (E-3); the group-header rows aren't drag items. */}
-          <SortableZone items={dataRows.map((r) => r.id)} axis="y" itemRole={null} canReorder={canReorderRow} onReorder={reorderRow}>
+          <SortableZone items={dataRows.map((r) => r.id)} axis="y" itemRole={null} disabled={dragDisabled} canReorder={canReorderRow} onReorder={reorderRow}>
             {groups.flatMap((g) => renderRows(g, 0))}
           </SortableZone>
         </tbody>
@@ -353,6 +356,7 @@ function DataRow({
   indent,
   hideIcon,
   selected,
+  dragDisabled,
   onSelect
 }: {
   row: ViewRow
@@ -362,6 +366,7 @@ function DataRow({
   indent: (depth: number) => string | undefined
   hideIcon: boolean
   selected: boolean
+  dragDisabled: boolean
   onSelect: () => void
 }): React.JSX.Element {
   const { setNodeRef, style, handle, isDragging } = useDragItem(row.id)
@@ -375,9 +380,11 @@ function DataRow({
       }}
     >
       <td className="cell-gutter">
-        <span className="row-grip" {...handle} onClick={(e) => e.stopPropagation()} aria-label="Drag to reorder">
-          <Icon name="grip-vertical" size={14} />
-        </span>
+        {!dragDisabled && (
+          <span className="row-grip" {...handle} onClick={(e) => e.stopPropagation()} aria-label="Drag to reorder">
+            <Icon name="grip-vertical" size={14} />
+          </span>
+        )}
       </td>
       {columns.map((c, i) => (
         <td key={c.id} style={i === 0 ? { paddingLeft: indent(depth) } : undefined}>
