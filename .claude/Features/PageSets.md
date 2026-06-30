@@ -1,71 +1,44 @@
-### Page Sets
+## Page Sets
 
-The recursive sub-container on the Pages side. A Page Set is a folder inside a [[PageCollections|Collection]] that nests to **any depth**. It is one type (`PageSet`) playing two roles by position:
+The recursive sub-container on the Pages side. A Page Set is a folder inside a [Collection](Collections.md) that nests to any depth. One type, two roles by depth:
 
-- **Set** (depth-1 — a direct child of the Collection): carries its **own views + sorting**, is selectable, and opens a detail view. This is the former middle "Collection" tier.
-- **Sub-Set** (depth-2+): a plain organizing folder — no views, expand-only. This is the former "Set" tier.
+- **Set** (depth-1, a direct child of the Collection) — carries its own views and is selectable.
+- **Sub-Set** (depth-2+) — a plain organizing folder, expand-only.
 
-UI labels: **"Set"** + **"Sub-Set"** ("Sub-Set" derived from the Set label). A Set carries no schema — it inherits the parent Collection's whole (Set-local overrides are a Prospect → [[Prospects]]). The top tier + schema → [[PageCollections]].
+A Set's role — Set or Sub-Set, view-bearing or not — is a function of its depth in the folder tree, computed at render time and never stored: the same folder becomes a Set or a Sub-Set purely by where it sits. Every Set at every depth inherits the Collection's whole schema and adds none of its own. Nesting is unbounded, with no roll-up.
 
-> **Naming lineage + sidecars.** The old three-tier model (Vault → Collection → Set) collapsed to two: a Collection nesting recursive Sets — old `PageCollection` (middle) + `PageSet` (bottom) merged into one recursive `PageSet` (→ `History.md`). **A Set's depth is its folder position, not its sidecar filename.** Every Set at any depth carries `_pageset.json`; a one-shot migration converts any legacy depth-1 `_pagecollection.json` to it on first open.
+### Features
 
----
+#### II. Sidecar
 
-#### Entity + sidecar
+`_pageset.json` holds the Set's `id`, `parent_id` (its immediate parent — a Collection at depth-1, a Set deeper), `icon`, `page_order` (its own Pages), and `set_order` (its child Sets). A depth-1 Set additionally carries `views` and an optional `banner`; deeper Sub-Sets may carry those fields but they're ignored. The title is the folder name, the default icon is a folder glyph, and foreign keys ride through on every write.
 
-`_pageset.json` holds the Set's ULID, `parent_id` (its immediate parent — a Collection at depth-1, a Set deeper), icon, `page_order`, and `set_order` (child Sets). A **depth-1** Set additionally carries `views[]` + an optional `banner` (→ [[Views]]); deeper Sub-Sets carry these fields too but they're **ignored** (graceful — never rendered, never seeded). Title = folder name. Default icon `folder`. Set titles are unique among siblings; Sets are never connection or relation targets.
+#### II. Recursive Nesting
 
-Ordering is parent-holds-children: a parent's sidecar carries `set_order` (its child Sets) + `page_order` (its own root Pages); each Set orders its own pages.
+Sets nest to any depth — no cap. Discovery, rendering, navigation, and the index all recurse on the real folder tree. A folder tree can't cycle, and depth is the literal directory depth.
 
----
+#### II. Depth-1 View Rule
 
-#### Recursive nesting — no cap, no roll-up
+Only a depth-1 Set — one whose parent is a top-tier Collection — carries and renders views; deeper Sub-Sets are plain. Eligibility is a render-time check, not stored state, so it's move-safe: reparenting a depth-1 Set under another Set makes it depth-2, and its `views` go dormant — kept in the sidecar, no longer rendered. Lift a Set back to depth-1 and they re-surface. The saved-view model → `Views.md`.
 
-Sets nest to **any depth**; there is no depth limit and no roll-up. Discovery, rendering, adoption, navigation, and the index all recurse on the **real folder tree** (`childFolders`), which makes the whole recursion surface cycle-proof by construction — depth is the literal directory depth, and a drifted `parent_id` is healed from folder position on load. A Set's role (Set vs Sub-Set, view-bearing or not) is a function of depth, decided at runtime — never stored.
+#### II. Selection + Navigation
 
----
+A **depth-1 Set is selectable** — it opens its own scoped view and carries its path for rename-safe reconciliation. **Sub-Sets (depth-2+) are expand-only** — clicking toggles the disclosure, and they have no detail view. A Set's disclosure shows its child Sub-Sets and its Pages. Sidebar layout → `Sidebar.md`.
 
-#### Depth-1 view rule
+#### II. Moves
 
-Only a **depth-1** Set (its parent is a top-tier Collection) carries and renders views; deeper Sub-Sets are plain. Eligibility is an **O(1) render-time check** (the manager holds the set of top-tier Collection ids; a Set is view-eligible iff its `parent_id` is in that set) — NOT stored state. Consequences:
+Within one Collection, moving a Page or a whole Set — between Sets, Sub-Sets, and the Collection root, at any depth — is a pure filesystem move with no property loss; Sets carry no schema of their own. Reparenting that changes a Set's depth flips its view-eligibility automatically. Cross-Collection moves are governed by the destination schema → `Collections.md`.
 
-- **Move-safe.** Reparenting a depth-1 Set under another Set makes it depth-2: its `views[]` stay in the sidecar but go dormant (stop rendering). No sidecar rewrite.
-- **Promotion re-surfaces.** Deleting an intermediate Set (or otherwise lifting a Set to depth-1) makes its dormant `views[]` render again — purely because the render-time check now passes.
+### Architecture
 
----
+#### II. CRUD
 
-#### Manager + index
+Page Sets run through the same generic folder-entity CRUD as Collections and Contexts: create writes the folder plus a sidecar with a fresh ULID and the immediate `parent_id`; rename is a folder rename; move reparents the whole subtree; delete moves the folder — with its Sub-Sets and Pages — to `.trash`, recoverable. Reorder persists the parent's `page_order` and `set_order` on each drag.
 
-`PageSetManager` (owned + injected by `NexusEnvironment`) owns **all** Sets at every depth, cross-wired to the Collection manager (which supplies the top-tier id set). CRUD is one recursive path per operation — atomic folder-rename with rollback, trash-on-delete, index upsert per write, defensive `loadAll` heal-on-read.
+#### II. Index (Model A)
 
-The index follows the **Model A** convention (→ `History.md`): each page row records its owning top-tier Collection (`page_collection_id`, for every page at any depth) and its **immediate** container (`page_set_id`, nil only for a page at the bare Collection root). `page_sets` rows reference exactly one parent — `parent_collection_id` (depth-1) or `parent_set_id` (deeper). The depth-1 collection is derived by walking `page_sets.parent_collection_id`, never stored on the page. Pages in Sets are ordinary page rows, so search, autocomplete, relations, and connections include them inherently; wikilink opening folds Collection/Set/Sub-Set/Page paths at any depth.
+Each `page_sets` row references exactly one parent — `parent_collection_id` at depth-1, `parent_set_id` deeper. A page records its owning top-tier Collection plus its immediate Set (null at the Collection root); the depth-1 collection is derived by walking the Set tree, never stored on the page. Pages in Sets are ordinary page rows, so search, connections, and relations include them inherently. Full index → `Architecture.md`.
 
----
+### Pending
 
-#### Sidebar + navigation
-
-- **Depth-1 Sets are selectable** — they open a detail view (the former Collection-scoped view). **Sub-Sets (depth-2+) are expandable, never selectable** — clicking toggles the disclosure; they have no detail view and don't appear in Recents.
-- A Set's disclosure shows its child Sub-Sets (recursively) + its Pages.
-- **Recents** holds only selectable containers; a Set demoted past depth-1 (by a move) is pruned.
-- **Breadcrumb:** `Collection › Set › Sub-Set › … › Page` at any depth; only depth-1 Set segments are clickable.
-- **PagePreview** opens set pages — a page reference carries an optional set id; editor/preview/inspector write paths are set-aware (a save never re-points a page's set).
-
----
-
-#### Delete — two modes
-
-- **Delete Set Only** — pages re-home **up one level** into the Set's *immediate parent* (collision-checked), never flattened to the Collection root. A page in dissolved `Drafts` (inside `Inbox`) lands in `Inbox`.
-- **Delete Set and Pages** — the folder moves to `.trash/` whole, recoverable.
-
----
-
-#### Moves
-
-- **In-Collection moves are strip-free at any depth** — a page or whole Set moving between Sets/Sub-Sets and the Collection root is a pure filesystem move (shared schema; Sets carry none of their own); no sidecar rename. Reparenting that changes depth flips view-eligibility (dormant ↔ re-surface) automatically.
-- **Cross-Collection moves** strip per page with one batched carried-values confirmation; the moved Set assumes the destination's inherited schema (it never carried its own).
-
----
-
-#### Adoption + healing
-
-Adoption auto-tags sidecar-less folders inside a Collection as Sets at **any** depth (`_pageset.json`) — idempotent, honors `excluded_folders`, preview-labeled. Container-ID healing (general): Finder-duplicating a container folder clones its sidecar ULID — on load the first-discovered keeps the id and every later duplicate mints a fresh ULID and re-saves, at any depth. Full adoption semantics → [[PageCollections]] + [[Architecture]].
+**Delete Set Only (Re-Home Pages):** The current delete trashes the folder and everything in it. A second mode would dissolve a Set while re-homing its Pages up one level into the immediate parent, distinct from trashing the whole folder.

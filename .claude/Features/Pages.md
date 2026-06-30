@@ -1,103 +1,57 @@
 ### Pages
 
-A Page is one Markdown file inside a [[PageCollections|Page Collection]] — the only operational entity that holds free prose content. A Page **belongs to one Collection** (the Collection whose folder it physically lives in, at any nesting depth). Pages conform to their Collection's property schema.
+A Page is one Markdown file inside a [Collection](Collections.md) — the only operational entity that holds free prose. A Page belongs to one Collection (the one whose folder it physically lives in, at any depth) and conforms to that Collection's property schema.
 
----
+A Page is a single `.md` file: YAML frontmatter for identity and property values, then a Markdown body for prose. Membership is by location — a file inside a Collection, or one of its Sets at any depth, is a Page in that Collection; there's no container field. The filename is the title — there's no `title` field, and renaming in the UI renames the file. The body is standard Markdown plus Pommora's callout directive, edited in MarkdownPM → `MarkdownPM.md`.
 
-#### On disk
+### Features
 
-- A single `.md` file inside a Page Collection folder (a root folder carrying `_pagecollection.json`).
+#### II. On-Disk Shape
 
-- **Page Collection membership is determined by location.** A Page inside a Page Collection folder (folder containing `_pagecollection.json`) is a Page in that Collection. Pages can live directly in the Collection folder, or in a Page Set sub-folder (carrying `_pageset.json`) at any depth inside it.
+Frontmatter carries `id` (a ULID), an optional `icon`, the per-tier relations `tier1` / `tier2` / `tier3` (bare ULID arrays), `properties` (values keyed by property ID), `created_at` / `modified_at`, and `cover` (a Nexus-relative page-banner path). Property values conform to the owning Collection's schema. Foreign frontmatter keys — and YAML comments — are preserved by value on every write: the writer re-serializes only the modeled keys and never reconstructs the object.
 
-- Move a Page between Page Collections → properties not in the destination Collection's schema are stripped (Notion-style; confirm prompt warns the user). Move it anywhere within the same Collection (between Sets, Sub-Sets, and the Collection root, at any depth) → no strip; schema is shared and Sets carry none of their own.
+#### II. Title + Membership
 
-- YAML frontmatter for identity (`id`), icon, **per-tier multi-relations** (`tier1` / `tier2` / `tier3` pointing to Contexts), and property values from the Collection's schema. **No container field needed** — membership is by location. **No `title` field either** — the Page's title is its filename (minus `.md`); renaming the title in the UI renames the file on disk. (Independent UI titles → [[Prospects]].)
-- **Title is NOT the same thing as ID.** The Page's `id` (ULID in frontmatter) is its stable identity; the filename is its renameable display title. Cross-references (connections, context-link tier values) resolve via `id`, never by filename. Page titles are globally unique nexus-wide — a colliding create or rename is rejected (canonical rule → [[Domain-Model]] "Entity identity vs title").
+The filename minus `.md` is the title — there's no `title` field, and a rename is a file rename. Within a folder, names must be unique: a colliding create auto-disambiguates (`Note 2`, `Note 3`, …) and a colliding rename is rejected. Titles aren't unique Nexus-wide, though — two Pages in different folders can share one, and a `[[Title]]` to a shared title resolves as ambiguous (→ `Connections.md`). Membership is purely positional: moving the file between Collections or Sets changes its membership, with no field to update. Moving across Collections brings the Page under the destination schema → `Collections.md`.
 
-- Properties on a Page must conform to the Collection's schema. **Ad-hoc properties (page-local fields not in the schema) are out of v1 scope** — the only "outside the schema" things are sidebar ordering / sorting, which are UI state, not file content. (Ad-hoc properties → [[Prospects]].)
+#### II. Properties Surface
 
-- Markdown body for prose.
+A Page's property values live in its frontmatter, keyed by property ID, conforming to the Collection's schema. The editing surface — a property panel attached to the Page — is Pending: values round-trip on disk and through the index, but there's no UI to view or edit them on a Page. The catalog and schema mechanics → `Properties.md`.
 
-- **Adopted `.md` files load leniently.** Markdown files without Pommora frontmatter still open. A missing `id` is synthesized from a hash of the file's nexus-relative path (stable across launches); a missing creation date falls back to the file's own; tier and properties default to empty. The loader **never mutates** the on-disk file — frontmatter is written only when the user edits and saves through the editor, so opening a folder that's also an Obsidian vault leaves notes byte-identical until touched. Both sidebar discovery and the editor use the lenient path, so anything that surfaces also opens.
+#### II. Opening Behavior
 
+Clicking a Page opens it in the main detail pane, replacing the previous selection; one Page is open at a time, and the editor auto-saves on a debounce. A Collection can route its Pages to a compact preview card instead via `open_in`, but that routing is Pending — Pages open in the main pane. Routing → `Collections.md`.
 
+#### II. Connections
 
----
+A Page's body can hold inline `[[Title]]` connections — Obsidian-compatible wikilinks that render as styled colored inline text and navigate on click. Resolution runs on an in-memory map built from the page tree. Canonical spec → `Connections.md`; the `tier1` / `tier2` / `tier3` context-link counterpart → `Properties.md`.
 
-#### Markdown features in v1
+#### II. Editor UI State
 
-**Pages are Markdown documents — not block surfaces.** A Page is one continuous Markdown stream from top to bottom. Pommora doesn't impose a block abstraction on Pages; "block-level features" as a project term belongs to Contexts (Areas / Topics / Projects) only — the composed-blocks surfaces, not Pages.
+Per-page editor UI state lives in per-machine files under `.nexus/`, never in the portable `.md`: heading-fold state in `.nexus/folds.json` and per-table heading-column choices in `.nexus/tableHeadingColumns.json`, each keyed by page ID. Keeping this state out of the frontmatter leaves the `.md` out of cloud-sync churn.
 
-Pages support everything in standard Markdown — paragraphs, headings (H1–H6; H5/H6 render at body size), bulleted / numbered / task lists, fenced + inline code, images, GFM tables, blockquotes, horizontal rules. Standard Markdown round-trips natively to any external tool.
+### Architecture
 
-**Headings are foldable** by default; fold state persists per-Page in frontmatter as `folded_headings: [...]` (ordinal-disambiguated keys; orphan entries reconciled on save). The Markdown body itself stays untouched. Implementation + visual spec → [[PageEditor]]; architecture rationale → `// rules//MarkdownPM.md` §9.11.
+#### II. Read + Write
 
-**Task lists** are GFM (`- [ ]` / `- [x]`) on disk. Pommora's `-[]` / `-[x]` shorthand is an input convenience that **canonicalizes to GFM on the space that starts the content** — so checkboxes stay portable (render in Obsidian/GitHub/pandoc too). Render + canonicalization + click-to-toggle spec → [[PageEditor]].
+A Page reads through a lenient split of the `---\n<yaml>---\n\n<body>` envelope — a missing or unterminated fence yields an all-body read, so a frontmatter-less Markdown file still opens. Writes go through the same comment-preserving merge and an atomic temp-file-plus-rename. The editor binds to the body and debounces saves; frontmatter is a typed object the editor can't corrupt.
 
-**Blockquote, horizontal rule, code-block** rendering is in [[PageEditor]]. The on-disk form is standard CommonMark in every case (the `>` marker hides in-editor but stays on disk; HR is `---` on its own line; Pommora rejects the Setext H2 interpretation — `---` is always HR).
+#### II. Adoption
 
-**Tables** parse as GFM (`| col | col |`) today with basic styling only. Apple-Notes-style inline-grid tables are a future deliverable; full spec → [[PageEditor]] § "Tables — to be implemented".
+A `.md` file authored outside Pommora opens untouched. A missing `id` is synthesized from a hash of the file's Nexus-relative path, stable across launches, and missing timestamps fall back to the file's own. The loader never writes back — frontmatter is authored only when the user edits and saves — so opening a folder that's also an Obsidian vault leaves notes byte-identical until touched.
 
-On top of standard Markdown, Pages support **two Pommora-specific rendering directives** (both deferred — see [[PageEditor]] § "Deferred"). Each is fenced notation around a normal-Markdown section; external tools that don't understand the directive see the fence as inert text and the content as standard Markdown:
+### Pending
 
-- **`@Columns`** — marks a section to render in N horizontal columns (equidistant width by child count). The directive only changes visual layout.
+**Properties Panel:** A property panel on the Page to view and edit the schema's property values. The data layer is complete; the surface isn't built.
 
-- **`:::callout`** — wraps content the editor renders as a minimally-rounded outlined box (distinct from blockquotes — callouts are outlined; blockquotes are filled-with-left-bar).
+**Compact Preview Window:** A lightweight preview card for Pages in a `compact` Collection (`open_in`). The routing is unwired, so Pages open in the main pane.
 
-**Blockquotes vs callouts** are distinct constructs: a blockquote (`>`) renders as a filled card with a left accent bar; a callout (`:::callout`) renders as an outlined box. Wrap multiples of either in an `@Columns` directive for side-by-side variants. Render detail → [[PageEditor]].
+**Columns Directive:** The `Columns` multi-column section directive. Callouts already render in the editor (→ `MarkdownPM.md`); Columns isn't built.
 
-Inline embedded views (live editable embeds of other entities) are a **Contexts / Homepage** feature, not a Pages feature — composed-blocks surfaces have blocks; Pages don't. (`@View`, an in-line database-view embed, is a [[Prospects|Prospect]].)
+### Prospects
 
----
+**Sub-Pages:** A nested Page hierarchy — a Page owning child Pages — beyond the current flat Page-in-container model.
 
-#### Editor surface
+**Independent UI Titles:** A display title distinct from the filename, so a rename needn't move the file.
 
-The editor's **WYSIWYG prose** experience — what the user sees and types — is a **dynamic-syntax** render: markers shrink near-invisible when the caret leaves an AST node, reveal when the caret enters (Bear / iA Writer pattern). Raw Markdown source is only visible in an external tool (`vim`, Obsidian source mode). Full surface, save pipeline, library, and hot-swap layer → [[PageEditor]]. Architecture, anti-patterns, and Nathan-locked editor decisions → `// rules//MarkdownPM.md`.
-
-The `.md` file format is the architectural firewall — Pages on disk are identical under any future editor swap. Frontmatter never reaches the editor canvas; the property surface is separate from the page body (see § "Properties surface" below).
-
-**Page icon (header).** When the per-Nexus `showPageIcon` setting is on (default OFF), a Page's `icon` renders inline beside the title — with a hover "Add Icon" affordance when unset — and a custom icon also shows in the sidebar row and Navigation (overriding the per-kind default). Full behavior → [[PageEditor]].
-
----
-
-#### Properties surface
-
-A Page's properties surface as the **property panel** in the editor's pop-out **inspector** at the window's trailing edge — not inside the page body — rendering every schema property as a fillable row. This **moves to a dedicated properties dropdown** to free the inspector for the LLM / CLI interface. The inspector has no meta section (Title / ID / Created / Icon) — the filename is the title, the page ID renders as a bottom-pinned pane footer, and an **Add Property** affordance beneath the rows commits through the shared property-creation path. Canonical architecture: [[Properties]] "Where Properties Live".
-
----
-
-#### Opening behavior
-
-**Routing is per-Collection.** Each Collection declares an open mode on its `_pagecollection.json` sidecar (`compact` | `window`; absent = `window`), set by the Collection's footer toggle (→ [[PageCollections]] "Open-in mode"). One shared open-path resolves every page-tap — sidebar single-click, detail-table double-click, and the Component Library all route through it — and decides whether the tap lands in the main detail pane or an in-window preview card. Pages inside a Set route identically; a save never re-points a page's set.
-
-**`window` (default) — detail pane (single Page at a time).** Clicking a Page row in the sidebar opens the Page in the existing detail pane, replacing the Collection / Set / Context detail view for that selection. Only one Page is open at a time in the main window; switching to a different Page closes the previous one (its body is already auto-saved by the editor's debounce loop).
-
-**`compact` — preview card.** The Page opens in a **preview card**: one reusable, resizable panel that retargets when you peek another Page. The panel is **child-attached to the main window** and **never acts as a main app window** — clicking it from another app refocuses Pommora, but it never demotes or dims the main window, so preview and main read as a single focus unit. It rides main-window moves, hides with the main window, and closes with it and on Nexus switch; it never floats over other apps and has no Dock, Window-menu, or fullscreen presence. Chrome is minimal: a renameable proxy title (double-click to edit; filename = title), a proxy icon, a footer breadcrumb + lock, and two capsule buttons (close, inspector). The body is the shared editor, read-only on open.
-
-- **Drag from anywhere non-interactive** — the header gaps, footer, inspector empty areas, and the locked body all move the window; the title field, capsule buttons, and editable body do not.
-- **Opens locked** (read-only) with the inspector open. The footer lock toggles editing; unlocking reveals an **Open** button that promotes the Page to the main detail pane (a title double-click renames, it does not promote).
-- **Inspector** — the shared property inspector mounted compact, natively resizable (→ [[Properties]] "Where Properties Live").
-- **Edit conflicts are structurally unreachable** — a Page currently shown in the main detail pane never opens as a preview (the tap is suppressed).
-
-**From the Navigation — single-click select / double-click open.** Clicking a Page row in the dropdown's Pinned or Recents list updates the dropdown's selection (no action); double-clicking opens the Page in the main detail pane. Full mechanics → [[Navigation]].
-
----
-
-#### Hierarchy
-
-Pages live at any depth inside a Collection: the Collection root, or a Set / Sub-Set nested to any depth (see [[PageSets]]). No forced sub-page nesting; sub-pages (a nested *Page* hierarchy) are a v2 candidate (see [[Prospects]]).
-
----
-
-#### Sidebar visibility
-
-Pages are the only operational entity with sidebar leaf visibility — they appear as `doc.text` leaf rows under their parent Collection or Set (at any depth). **Tasks and Events do NOT appear in the sidebar** — they surface via the Calendar pin entry. A Page row is a leaf — v1 has no sub-pages. Disclosure structure → [[PageCollections]] § "Sidebar treatment".
-
-Right-click on a Page row in the sidebar gives Rename / Delete; right-click in a Collection or Set detail view gives Rename / Pin (or Unpin) / Delete. For full sidebar layout + creation affordances → [[Sidebar]].
-
----
-
-#### Connections
-
-A Page's body can hold inline `[[Page Name]]` connections — Obsidian-compatible wikilinks that render as styled colored inline text in the prose flow (never a chip). Canonical spec → [[Connections]]; the frontmatter `tier1` / `tier2` / `tier3` context-link counterpart → [[Properties]].
+**Ad-Hoc Properties:** Page-local frontmatter fields outside the Collection schema.

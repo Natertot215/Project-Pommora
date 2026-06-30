@@ -1,59 +1,34 @@
-### Contexts
+### Contexts Overview
 
-The organization layer. Three **free-standing** tiers — Areas (1), Topics (2), Projects (3) — that act as categorical anchors operational entities (Pages, Agenda) relate *to*. Per-tier labels are user-configurable; tier *numbers* are load-bearing in code.
+The organization layer. Three **free-standing** tiers — Areas (1), Topics (2), Projects (3) — that the operational entities (Pages, Tasks, Events) tag. Per-tier labels are user-configurable; tier *numbers* are fixed.
 
-The tiers are independent: none contains, parents, or is restricted to another. A Project is not "inside" a Topic; a Topic does not belong to an Area. Each tier is a standalone entity with one shared shape. Context→context relations are a deferred design pass — see [Deferred](#deferred).
+The tiers are independent: none contains, parents, or is restricted to another. A Project isn't "inside" a Topic; a Topic doesn't belong to an Area. Operational entities tag any tiers independently — a Page can relate to a Topic without relating to an Area.
 
----
+| Tier | Default label | Role |
+|---|---|---|
+| 1 | Areas | Broad life domains — Personal, Academics, Work |
+| 2 | Topics | Subject areas — Productivity, Side Projects, Reading List |
+| 3 | Projects | Specifics — CS 161, Pommora, "Atomic Habits" |
 
-#### Layer mapping (PARA-aligned)
+Each tier is a **folder with a config sidecar** under `.nexus/` — the same folder-plus-sidecar idiom as Page Collections. A Context holds no pages and no property schema; it's a place things point at, not a container. Context-to-context relations are a deferred design pass (see Prospects).
 
-| PARA term | Tier | Default label | Role |
-|---|---|---|---|
-| Areas | 1 | Area (renamable) | Broad life domains — Personal, Academics, Work |
-| Projects | 2 | Topic (renamable) | Subject areas — Productivity, Side Projects, Reading List |
-| (sub-projects) | 3 | Project (renamable) | Specifics — CS 161, Pommora, "Atomic Habits" |
+### Features
 
-Labels are stored per-Nexus (singular + plural, Capacities convention); tier *numbers* are fixed.
+#### II. Shared Shape
 
----
+All three tiers share one sidecar shape: `id` (ULID), `tier` (1 / 2 / 3), an optional `icon`, an optional `banner` (a Nexus-relative image path), `modified_at`, and any foreign keys preserved by value. **Areas additionally carry an optional `color`** drawn from a fixed ten-value palette (gray, brown, orange, yellow, green, blue, purple, pink, red, accent); an unrecognized value degrades to no color rather than failing the sidecar. Topics and Projects carry no color.
 
-#### Shared shape
+There's no `parents` field and no containment. The folder name is the title — there's no `title` field on disk, and renaming in the UI renames the folder. A `blocks` field, if present, rides through as a preserved foreign key — the composed-blocks surface it's reserved for is Pending.
 
-All three tiers are **folders with a config sidecar** — the same idiom as Page Collections (folder + `_pagecollection.json`). Each entity carries:
+#### II. Sidebar
 
-- `id` (ULID), `tier` (1/2/3), `icon` (optional)
-- `blocks` — an array reserved for a future composed-blocks surface; **currently always empty**
-- `modified_at`
+The three tiers surface as three disclosure rows, top to bottom Areas → Topics → Projects. A tier row is a structural disclosure — never selectable, open by default, and clicking it toggles its own disclosure only. Each tier's entities render as flat, draggable leaf rows inside it, reordered within the tier. **Area rows show their color as a swatch**; Topics and Projects use the grid icon.
 
-All three tiers share this one shape exactly — Area is structurally identical to Topic and Project, icon-only with no extra fields.
+Tier labels read from the per-Nexus label settings. Creation is the Contexts header's hover "+" (a picker offering New Area / Topic / Project) or a right-click, each path scoped to its own tier. Full sidebar layout → `Sidebar.md`.
 
-There is no `parents`, no containment field, and no cross-context link property. The folder name is the title; there is no `title` field on disk. Renaming in the UI renames the folder.
+#### II. Cross-Layer Relations
 
----
-
-#### On-disk layout
-
-```
-.nexus/
-  areas/<Title>/_area.json        id, tier 1, icon, blocks, modified_at
-  topics/<Title>/_topic.json      id, tier 2, icon, blocks, modified_at
-  projects/<Title>/_project.json  id, tier 3, icon, blocks, modified_at
-```
-
-Each tier has its own sibling manager with identical folder CRUD: create (folder + sidecar), rename (folder rename with atomic save-or-rollback), delete (move folder to trash), reorder (sibling order persisted to `.nexus/state.json` as `area_order` / `topic_order` / `project_order`). Each manager defensively re-syncs its rows into the SQLite `contexts` index on load.
-
----
-
-#### Sidebar
-
-The three tiers share one **Contexts** section: a section headed "Contexts" containing one disclosure row per tier. A tier row toggles its own disclosure only — it is never selectable; its entities are created via the row's hover "+" or right-click "New <Tier>". Each tier's entities render as flat leaf rows inside their disclosure. Full spec → [[Sidebar]].
-
----
-
-#### Cross-layer relations (Page / Agenda → Context)
-
-Pages and Agenda entries carry **per-tier multi-relation fields** independently:
+Pages, Tasks, and Events tag Contexts through per-tier multi-relation fields at the frontmatter or JSON root:
 
 ```yaml
 tier1: [<area-id>, ...]
@@ -61,50 +36,54 @@ tier2: [<topic-id>, ...]
 tier3: [<project-id>, ...]
 ```
 
-Each tier is a multi-value relation, filled independently. **Context-tier links are stored by ID** (bare ULID arrays in `tier1` / `tier2` / `tier3`, rename-safe) **and render as the target's current icon + title in a minimal grey chip** on every property surface. The tiers are the sole relation-type connection. Property catalog + the internal `context_tier` target → [[Properties]].
+Each is a multi-value relation, filled independently and stored as **bare ULID arrays** — not the `$rel`-tagged shape, which is reserved for user and Agenda properties. These tier links are the **only** relation-type connection in the product.
 
-A tier relation is a **dual surface**:
+A tier relation is a dual surface:
 
-- **Outbound (entity → Context).** The operational entity tags the Context by holding its ID in `tier1` / `tier2` / `tier3`. This is the writable side — the value lives in the entity's frontmatter; the Context carries no `properties[]` schema and no reverse field.
-- **Inbound (Context → entities).** The Context reads back every entity that tags it. Because tier values emit one row each into the SQLite `context_links` table (`property_id` = the reserved tier ID), the inbound view is a pure index query — no reverse property to maintain.
+- **Outbound (entity → Context)** — the writable side: the operational entity holds the Context's ID in its `tierN` array. Contexts carry no reverse field.
 
-This cross-layer relation is the one connection contexts have today: the tiers don't relate to *each other*, but Pages/Agenda tag them.
+- **Inbound (Context → entities)** — every tier value emits one edge into the index's `context_links` table, so "every entity tagging this Context" resolves as a pure index query with no stored inbound list.
 
----
+The effective per-Type schema merges three pre-configured tier relation properties (`_tier1` / `_tier2` / `_tier3`) after the user-defined ones, each adopting the per-Nexus tier label and icon. The index builds tier links directly from the raw `tierN` arrays, independent of that merge.
 
-#### Linked-from
+### Architecture
 
-A Context surfaces every operational entity whose tier relation points at it, in a **Linked-from dropdown** on the Context surface. Each linked entity renders as its icon + title, grouped by kind (Pages / Tasks / Events).
+#### II. On-Disk Layout
 
-The dropdown is a reverse index query: it reads the `context_links` table for every row whose `target_id` is the Context's ID and resolves each source's current title from its owning table. The reverse view is entirely SQLite-derived — Contexts store no inbound list on disk.
+```
+.nexus/
+  areas/<Title>/_area.json        id, tier 1, icon?, color?, banner?, modified_at
+  topics/<Title>/_topic.json      id, tier 2, icon?, banner?, modified_at
+  projects/<Title>/_project.json  id, tier 3, icon?, banner?, modified_at
+```
 
----
+Contexts live entirely under `.nexus/`, never at the Nexus root. The sidecar filename is the kind authority. Banner image bytes live under `.nexus/assets/<context-id>/` and are served to the renderer over the read-only `nexus-asset://` scheme; the sidecar holds only the Nexus-relative path. Sibling order persists per Nexus in `.nexus/state.json` (`area_order` / `topic_order` / `project_order`).
 
-#### Validation
+#### II. CRUD + Validation
 
-Enforced at every write:
+All three tiers run through one generic folder-entity CRUD — no per-tier managers:
 
-1. Title is non-empty and contains none of `/ \ :`
-2. Title is unique among siblings of the same tier (case-insensitive)
-3. Filename (folder name) = title; no separate `title` field
+- **Create** writes the folder plus its sidecar with a fresh ULID and the tier number; Areas also seed `color`.
+- **Rename** is a folder rename (filename = title), refused on a sibling collision.
+- **Delete** unlinks the Context's ID out of every entity's `tierN` arrays first, then moves the folder to the in-Nexus `.trash` (recoverable).
+- **Update** is a read-modify-write that merges the patch and retains foreign keys.
 
-There is no parent, containment, or tier-relation validation — the tiers are free-standing.
+Validation at every write: the title is non-empty and free of path separators, NUL, `.`/`..`, and managed extensions, and can't collide with a same-tier sibling. There's no parent or containment validation — the tiers are free-standing.
 
----
+#### II. Index
 
-#### Tier config
+The SQLite index — a regeneratable accelerator off the read path — holds a `contexts` row per tier entity (keyed by tier) and a `context_links` row per tier reference, indexed by source, target, and property. The reverse query reads `context_links` by target. Losing the index loses nothing: it rebuilds from the sidecars and the entities' tier arrays.
 
-`.nexus/tier-config.json` holds one entry per tier — `level`, `singular`, `plural`, `exposed`. Its `singular`/`plural` feed the **property system** — a context relation column's display name resolves sidecar override → tier-config plural → `Tier N` fallback. The **sidebar tier/section headers** are labeled separately from `settings.labels` (the Settings label source), not from here.
+### Pending
 
-- `singular` / `plural` — separate inputs; the property layer picks one by context.
-- `exposed: false` hides a tier from CRUD/UI without breaking the schema.
+**Context Block-Pages:** The Context detail view is a placeholder — a blank surface under the banner. The design is a live, fully-editable composed-blocks page of views and queries, sharing the Homepage block shape. The reserved `blocks` field rides through as a preserved foreign key until the block editor lands.
 
----
+**Linked-From:** The inbound reverse query (`context_links` by target) is indexed, but the surface that lists every entity tagging a Context — grouped by kind — isn't built.
 
-#### Deferred
+**Tier Label Configuration:** Tier labels resolve from the per-Nexus settings labels. A dedicated tier-config singleton (separate singular and plural per tier, plus a hide-tier toggle) is planned; once it lands, the synthesized tier-property names read from it rather than falling back.
 
-Three capabilities are intentionally out of scope; each gets its own brainstorming + spec:
+### Prospects
 
-- **Context→context relations** — Topics relating to Areas, Projects to Topics and Areas, edited via each context's settings surface.
-- **Transitive page roll-up** — page → project → topic → area aggregation.
-- **Composed-blocks surface** — the `blocks` field stays inert until contexts become editable block surfaces.
+**Context-to-Context Relations:** Topics relating to Areas, Projects to Topics and Areas, edited from each Context's settings surface. Out of scope until its own design pass.
+
+**Transitive Roll-Up:** Page → Project → Topic → Area aggregation, so a higher tier can surface everything its lower tiers gather.

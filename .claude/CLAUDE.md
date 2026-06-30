@@ -1,89 +1,88 @@
-### Pommora Overview
+## Project Pommora
 
-A simpler Notion that's also a more capable Obsidian. 
-**MUST READ BEFORE EVERY SESSION:** [[PommoraPRD]]
+### What Pommora Is
 
-- **Organization layer —Contexts** (3 tiers): Areas (1) / Topics (2) / **Projects** (3). Three **free-standing** tiers — no containment, no parents; each a folder with a config sidecar (`_area.json` / `_topic.json` / `_project.json`). Per-tier labels user-configurable per Nexus. (Context→context relations are a deferred design pass.)
-- **Operational layer — Pages + Agenda**:
-  - **Pages** — `.md` files (YAML frontmatter + body via `AtomicYAMLMarkdown`) inside **Collections** — the schema-bearing top tier (`PageCollection`, `_pagecollection.json`). A Collection nests **Sets** to any depth: a recursive `PageSet` (`_pageset.json`) where the first level is a **Set** and deeper levels are **Sub-Sets**. Only depth-1 Sets carry their own views/sorting; deeper Sub-Sets are plain organizing folders. Schema lives only on the Collection; all Sets inherit it. Full spec → `// Features//PageCollections.md` + `// Features//PageSets.md`.
-  - **Agenda** — the parent schema holding **Tasks** (`.task.json`, EKReminder-shaped) and **Events** (`.event.json`, EKEvent-shaped). Data layer shipped; sidebar surfacing is consolidated into the Calendar pin entry (no separate Agenda sidebar heading).
-- **Singleton — Homepage**: composed-blocks dashboard at `.nexus/homepage.json`.
-- **Settings scaffold** (`.nexus/settings.json`): per-Nexus user-overridable UI labels + accent color (storage + label wiring shipped; full editing UI planned).
+Pommora is a personal management app based on Nathan’s frustration with modern productivity apps that excel in one aspect but are absolutely terrible in others — Pommora is Nathan’s “Fine, I’ll do it myself — Thanos.” Pommora’s main leverage is taking the extremely flexible, properties-based categorization of Notion and the inherently agentic-legible, local-first approach used by Obsidian, aiming to create a true local-first, all-in-one productivity and organizational platform. Pommora’s structure is based on relating **Content** ←> **Content** through *Connections*, with their attributes given through their **Collection’s** schema-based **Properties,** and linking them all together through relationships to **Contexts.** 
 
-A second operational entity ("Items") existed until the 2026-06 PagesV2 collapse into Pages — see `History.md` + the `PommoraPRD.md` retrospective.
+**Contexts:** The organization layer — three free-standing tiers that Content relates *to*. None contains or parents another; an entity tags whichever tiers fit.
 
-**Two builds, one app.** Project Pommora is the umbrella for the *same product* built two ways — the **Swift / SwiftUI** native app (repo root; this `.claude/`) and the **React + Electron** rebuild (sub-project under `React/`, with its own `React/.claude/`). Same PRD, domain model, and on-disk paradigm; only the implementation differs. Both live in a single repo on a single main branch — there is no separate React checkout. **When working on React, React/.claude/ is authoritative** (start at React/.claude/Handoff.md); the root .claude/ governs the Swift build + shared product truth.
+- **Areas:** broad life domains — Personal, Academics, Work.
+- **Topics:** the subject areas within them — Productivity, Side Projects, Reading List.
+- **Projects:** specific efforts — CS 161, Pommora, "Atomic Habits."
 
-**If working in React, check into the `pommora-react` worktree first, then merge to `main` when done.**
-#### Stack
+**Content:** The operational layer — what you actually make, linked to each other through Connections and to Contexts through tier relations.
 
-Locked to **SwiftUI**. **Editor = TextKit 2 + Apple `swift-markdown` + the Pommora-owned `MarkdownPM` package** (originally vendored from `swift-markdown-engine`; full spec → `// Features//PageEditor.md`. 
+- **Collections & Sets:** a **Collection** is a folder that carries a shared property schema and saved views; it nests Sets to any depth as organizing subfolders that inherit that schema.
+- **Pages:** Markdown documents inside a Collection or Set, conforming to its Collection’s schema — the only Content that holds free prose. Pages use MarkdownPM for its editor surface, which includes in-line connections to other pages. 
+- **Agenda:** the calendar layer — **Tasks** (reminder-shaped) and **Events** (calendar-shaped), each with a built-in Status.
+- **Properties:** the typed attributes a Collection's schema defines, and its members fill in — Select, Status, Date, Relation, and the rest; the schema lives on the Collection, the values on each entity.
+- **Connections:** inline `[[Title]]` colored-text links in a Page's body connecting to another Page — the Content ←> Content matrix.
 
-#### HARD RULES
+**Files are canonical.** Pages are `.md` (YAML frontmatter + body); Contexts, Agenda, and all config are JSON sidecars; an entity's kind comes from its folder's sidecar, not the extension. Foreign keys are preserved on every write, and the SQLite index is a regeneratable accelerator off the read path. Three constraints anchor the model — **portability** (the format survives a stack rebuild), **cloud-sync-readiness** (the on-disk model maps cleanly onto a cloud database), and **agent-legibility** (any tool that knows the conventions reads the whole graph from plain text).
+**FULL SPEC** → `PommoraPRD.md` + `Features/` domain-specific documentation.
 
-- **Condensed, exhaustive control flow.** Model a finite set of states as an `enum` and branch with a `switch` (the compiler then enforces every case), rather than chains of `if/else` or loose booleans/strings. Favor the tightest structured form that stays legible.
+**Swift Origins:** Pommora was first built as a native SwiftUI app — that build was active for around one month and designed and versioned the entire paradigm; React was initially scoped as an alternative contingency. The decision to switch to React mostly came down to frustrations and limitations with SwiftUI, and to Claude's inherent massive capability disparity between Swift-based coding and TypeScript. 
 
-- **DRY — one source of truth.** When the same logic, mapping, or rendering would live in two or more places, hoist it into a single function or type and reuse it; never copy-paste behavior across call sites.
+### Stack
 
-- **Versioning.** AVOID referencing specific versions in the framework as planned places for future features to be implemented. Feature-timing is fragile and declaring versioning of a feature before its worked on is a great way to compile confusion. Versioning should be exclusive to conversation and historical records / feature docs + Framework.  
+Pommora is an **Electron** desktop app — a **React + TypeScript** renderer over a Node main process that owns the filesystem. electron-vite · Electron 42 · React 19 · TypeScript 6 · Vite 7 + `@vitejs/plugin-react` 5 (compat pin — newer plugin-react needs Vite 8, which electron-vite doesn't support yet) · Zustand · TanStack Table/Virtual · `react-markdown` + `remark-gfm` · `eemeli/yaml` · `lucide-react` · Vitest. Editor: **MarkdownPM** — a CodeMirror 6 build behind a swappable editor seam. The codebase lives at `React/` on the monorepo `main`.
 
-- **Documentation altitude.** Docs describe to the durable decision, not the current instance. Keep design decisions, reusable guidelines, and canonical on-disk formats; cut component measurements, codebase verbatim, version stamps, and historical narrative. A spec reads as confident present tense — not a change-log. Over-specification manufactures its own drift.
+**No dependency lock-in.** Every library sits behind a thin seam (SQLite behind `db.ts`, YAML behind `pageFile.ts`, IDs behind `ids.ts`, glass behind `Surface`) so it's swappable without touching callers. Version numbers are compatibility pins, not endorsements.
 
-- **Confirm paradigm-solidifying choices.** Before code locks an on-disk shape, wire encoding, identifier convention, or a default that becomes permanent once data exists, stop and surface the choice to Nathan with options + a recommendation; record the ratified decision in `History.md`
+**Design source:** the Figma library (https://www.figma.com/file/fYZ5oiK7stC3diRhaBHl1r) is canonical for design values — mirror changes into the tokens. The live showcase deploys from `React/` to https://pommora-design-system.vercel.app.
 
-- **`Handoff.md` is a lean snapshot maintained via `/handoff`.** Sections: Session Summary + Lessons Learned + Next Session + Pending Focuses + Fix Log. Route locked decisions to `History.md`, spec content to `Features/*`, roadmap detail to `Framework.md`. Never accumulate per-session work logs.
+### Formatting
 
+Biome (`biome format`) auto-runs on every TS/CSS/JSON write via a PostToolUse hook — don't hand-align code, normalize quotes/semicolons/commas, or sort imports; write it correct and let Biome handle style, and never run Biome yourself. If an Edit fails on a whitespace mismatch, Biome reformatted the file — re-read and retry, it's not a bug. Type-checking is separate and stays: `npm run typecheck` (two `tsc` passes) is the *only* type-safety gate, since the Vite/esbuild build strips types without checking them.
+
+### Hard Rules
+
+- **Main owns the filesystem.** All fs/Node lives in `src/main`, exposed to the renderer only through a **narrow typed IPC** bridge in `src/preload` (contextBridge). The renderer never touches `fs`/Node.
+- **`src/shared/types.ts` is the cross-process contract.** No fs, no React there. Both sides import it.
+- **IPC never throws across the boundary** — handlers return a `{ ok: true, … } | { ok: false, error }` envelope.
+- **Filesystem is canonical.** The on-disk model is the portable contract (TS-native serialization). No SQLite on the read path *currently* — a single fs walk is the source (SQLite returns later as a regeneratable query accelerator).
+- **Read and write are cleanly separable.** The read path is read-only by construction; mutations are additive, never woven into reads.
+- **Condensed control flow / DRY / simplicity-first** — model finite states as unions + switch; hoist shared logic; don't add unrequested complexity.
+- **Colors are authored as hex** — `#RRGGBB`, or `#RRGGBBAA` (8-digit) for alpha — never `rgb()` / `rgba()`. The token layer (`design-system/tokens/`) is the source; platform-returned values (e.g. `getComputedStyle`) are the only exception. Detail: `design-system/tokens/README.md`.
+- **Docs name; code holds exacts.** These docs describe the *system* and reference the product spec (`PommoraPRD.md` + `Features/`) — they never restate exact code values. Name the token and its treatment ("the red solid at a low opacity"), never the literal `#hex` / `%` / line-for-line code stays in the code itself. 
+- **`Handoff.md` is a lean snapshot maintained via `/handoff`.** Sections: Session Summary + Lessons Learned + Next Session + Pending Focuses + Fix Log. Route locked decisions to `History.md`, spec content to `Features/*`, roadmap detail to `Framework.md`. 
  - **Re-assess the plan between green commits.**  After each task ships green, read the active plan against what just landed. If the task surfaced wrong assumptions, missing prerequisites, scope drift, or shortened/expanded downstream tasks, rewrite the affected later tasks before dispatching the next one. The plan is the controller's live working theory of the work, not a fixed script — only green commits are facts.
- 
-#### Core Principles
 
-- **Three load-bearing constraints:** (1) **conceptual portability of functionalities** — file formats, schemas, design values, UX patterns survive a stack rebuild; (2) **cross-nexus queryability + cloud sync compatibility** — the on-disk model maps cleanly to a cloud DB so sync arrives as additive translation; (3) **persistent, convention-aware legibility for agents** — every entity is a plain text-readable file any agent that has learned the system's conventions can read directly (a `[[wikilink]]` abstracts a lookup yet stays legible once you know the convention). We strongly prefer formats readable without Pommora's running code; relaxing that for a genuine need is a tradeoff to raise, not a violation — but the firm line holds: no user data trapped in a binary blob or held only in the regeneratable index. Full detail → `//Features//Architecture.md`.
+### Locked Decisions
 
+- **CommonJS main/preload** (package is NOT `type: module`) — Electron's `require('electron')` fails on ESM named imports; CJS also lets the preload stay sandboxed.
+- **`sandbox: true` + `contextIsolation: true` + `nodeIntegration: false`.**
+- **Single-window now, multi-window-ready seams** — data is main-owned + Query/store-cached per renderer; the live-refresh bus is a swappable transport; windows identified by serializable refs. No global singleton holding shared mutable client state.
+- **TS-native on-disk format** (tagged PropertyValue, zod-validated) — built and tested against a dedicated **test nexus at `~/test`** (override via `TEST_NEXUS_PATH`).
+- **Glass:** two materials. **Window** + **Surface** use a CSS frost (blur + brightness); **Controls** use Apple "Liquid Glass" (`@samasante/liquid-glass`, `feDisplacementMap` edge-refraction). `liquid-dom` (WebGPU) was evaluated and shelved. Recipe + rationale → `Features/Design.md`.
 
-- **Files are canonical (≠ everything is Markdown).** Pages are `.md` (frontmatter + body); Agenda + all sidecars / Projects / Areas / Settings stay JSON. **Kind authority is the parent Type folder's sidecar, not the extension or any frontmatter field.** Foreign frontmatter is preserved by value on every write; SQLite is a regeneratable index (no user data trapped in it). Full on-disk spec → `// Features//Architecture.md` + `PommoraPRD.md`.
+### Run Gotcha (Read Before Launching)
 
-- **Filename = title** everywhere. No `title` field. Renaming in the UI renames the file. Independent UI titles are a Prospect.
+The GUI only launches with `ELECTRON_RUN_AS_NODE` **unset** (this env has it set to 1, which makes Electron run as plain Node → `require('electron')` returns a path string and the app crashes). Launch: `env -u ELECTRON_RUN_AS_NODE npm run dev` (HMR), or `… ./node_modules/.bin/electron .` after `npm run build`. The running app opens its last nexus (`pommora.json` `lastNexusPath`) or ⌘O to pick one — `TEST_NEXUS_PATH` only steers tests, never the running app. Full notes in `Guidelines/Build-Gotchas.md`.
 
-- **Pages are Markdown, Contexts are blocks.** Pages are Markdown documents with some Pommora-specific rendering directives; Contexts are live, fully-editable block-like pages of views and queries— never a read-only snapshot. 
+**Worktree Electron binary:** a worktree's `node_modules` is typically installed for the Vitest/Node gate only and **omits the Electron binary**, so the first `dev`/launch dies with `Error: Electron uninstall`. Fix: run `./node_modules/.bin/electron --version` once (downloads the binary), then relaunch.
 
-- Per-tier multi-relations (`tier1` / `tier2` / `tier3`) connect operational entities to Contexts. SQLite indexes properties, links, and relations. Personal-first, Mac-first for v1, always open-source.
+### Document Map
 
-- **Connections render as styled colored inline text** (Obsidian wikilink-style), not Notion-style chips.
+Specs live in `Features/`; root docs (PRD · Handoff · History · Framework) sit at the `.claude` root.
 
-- **Context-tier links stored by ID.** `tier1` / `tier2` / `tier3` hold **bare ULID string arrays at the frontmatter root** (always multi-value, rename-safe), and are the sole relation-type connection. The `$rel`-tagged shape is **only** for user relation properties inside `properties` (and Agenda properties), never the tier root fields. Rendering + full catalog → `// Features//Contexts.md` + `// Features//Properties.md`.
+```
+Product spec — what Pommora is + how its data is shaped
+  PommoraPRD.md   vision · domain model · storage philosophy · v1 scope
+  Structure.md    domain-model map (two layers, identity, linking) + Homepage/Settings singletons
+  Contexts · Collections · Views · PageSets · Pages · Properties ·
+  Agenda · Connections · Navigation · Sidebar · Inspector · QuickCapture    per-entity + per-surface specs
 
-- **"Pommora" prohibited in on-disk schemas + Swift namespace qualifications.** Brand name reserved for the module name (`Pommora` Swift module), app branding, and documentation. NOT allowed in:
-  - On-disk JSON field names (no `pommora_*` keys)
-  - Swift type qualifications used as a discriminator pattern (no `Pommora.X` workarounds for stdlib collisions; use side-prefixed names like `AgendaTask` instead of `Pommora.Task`). The canonical entity names are **Task** and **Event**; `AgendaTask` / `AgendaEvent` are the collision-safe code-type forms only (the `Agenda` prefix dodges Swift's `Task`) — never the product name.
+Implementation — how this build works
+  Architecture.md   data / read / IPC architecture
+  MarkdownPM.md     CodeMirror 6 page editor
+  Design · Typography · Interaction · Icons    design system · type scale · motion · icon set
+  PommoraDND.md     in-house drag engine          Subfield.md     the footer
 
-- **Design system: SwiftUI primary + AppKit where needed**
- Pommora uses SwiftUI semantic colors (`Color(.systemBackground)`, `.primary`, etc.), Materials (`Material.regular`, `.sidebar`), and Font scale (`.font(.body)`, `.font(.callout)`) wherever possible; AppKit is used directly via `NSViewRepresentable` where SwiftUI falls short (notably NSTextView / TextKit 2 for the Page editor, NSSplitView for splitter polish). 
+Process + reference
+  Handoff.md (read first) · History.md · Framework.md
+  Guidelines/  build gotchas + don't-repeats     Resources/  libraries · distribution · macOS
+  Planning/  active plans                         Deployment.md  Vercel showcase deploy
+```
 
-- **The local file is the spec, not the render.** In-line views and computed values are referenced by directive, not inlined.
-
-
-#### Document Map
-
-- `PommoraPRD.md` — high-level product requirements + architecture; storage model + SQLite schema
-- `Handoff.md` — current state and near-term priorities
-- `History.md` — locked decisions + version history; brief (not a session work-log).
-- `Framework.md` — phased roadmap to v1.0 (CRUD paired with paradigm at every phase)
-- `Resources.md` — external resources catalog. 
-- `// Features//` — Feature specs; consult the relevant doc before claiming functionality, and cross-check with code before treating docs as factual. Most files are topic-named; two aren't obvious — `Connections.md` (canonical wikilink/connection-system spec) and `PommoraUIX.md` (debug component-explorer spec).
-- `// Guidelines//` — Domain-specific guidelines; add relevant entries when feedback is given about behavior you must not repeat when both cause and fix are identified. You MUST reference the relevant file before planning around a topic to which the guidelines relate.
-- `// Planning//` — active plans + `Superseded/` archive; index at `// Planning//README.md`
-
-##### Active branch quirks (carry forward to every subagent dispatch)
-
-1. **Test filter matches the struct TYPE name, not the `@Suite` display label.** `-only-testing:PommoraTests/<Name>` keys on the test struct's type name (e.g. `SettingsManagerTests`), NOT the `@Suite("…")` display string (e.g. `"SettingsManager"`) — when they differ, the display-label form silently reports `** TEST SUCCEEDED **` with 0 tests executed. Always verify a non-zero executed count via the `.xcresult` (`totalTestCount`), never trust the success banner.
-2. **Xcode tooling.** New files auto-include (pbxproj rarely needs editing); trust `xcodebuild` over SourceKit squiggles (stale for same-module types, SPM deps, `Testing` imports). Xcode reorders Yams/GRDB in pbxproj on every build — revert before committing.
-3. **`.claude/*` in commits.** Commit docs explicitly to the active branch — don't auto-bundle into Swift commits; don't let them disappear on branch switches.
-4. **Swift 6 + ExistentialAny.** Codable: `init(from decoder: any Decoder)` / `encode(to encoder: any Encoder)`; errors: `(any Error)?`; hoist `let id = ULID.generate()` in closure tests to avoid `@Sendable` captures. `@MainActor @escaping () -> NexusContext` is the locked manager parameter pattern.
-5. **Stub forward-references inline** when an earlier task needs a type from a later one; replace in-place when the real type lands. Each task ships as a green commit — don't batch.
-6. **SidebarView Section structure is crash-sensitive.** Don't modify the `Section(isExpanded:)/SectionHeader/SelectableRow/SelectionChrome` pattern — `.background` workarounds break `OutlineListCoordinator.recursivelyDiffRows`. Keep rows homogeneous within each Section (never mix flat-leaf + disclosure); verify with `xcodebuild test`.
-7. **Selection chrome at row level** via `.listRowBackground(SelectionChrome(...))`, never in-content `.background`. Untagged rows inside a tagged container inherit the tag — non-selectable rows need an explicit non-matching tag + `.selectionDisabled(true)` on the label row.
-8. **`swift format` is a subcommand** (`swift format format --in-place`, `swift format lint --strict`) — `swift-format` binary isn't on `$PATH`.
-9. **GRDB `String` overload in `@ViewBuilder`** — `SQLSpecificExpressible` causes `==`/`contains` ambiguity; isolate per-row logic into private struct sub-views with plain values; use `first(where:)` not `contains(_:)`.
-10. **`PageCollectionManager.loadAll` upserts collections + sets to SQLite** after disk load — without it, CRUD into externally-adopted Collections triggers FK constraint error 19. Regression-tested in `LoadAllIndexSyncTests.swift`.
-11. **All managers owned by `NexusEnvironment`, injected via `.injectNexusEnvironment(_:)`.** A forgotten inject causes `EXC_BREAKPOINT` (SIGTRAP) on first selection — new managers need one stored property + one `.environment(...)` line there.
-12. **Launch-time modals block the test runner.** Any code touching permissions or showing a panel must early-return on `ProcessInfo.isRunningXCTests` — a modal causes "test runner hung before establishing connection", 0 tests run.
+The paused Swift build's docs are archived under `Swift/` — its own `CLAUDE.md`, PRD, Features, Guidelines, and Planning. See **Swift Origins** above for why the line moved.
