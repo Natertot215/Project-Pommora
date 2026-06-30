@@ -182,9 +182,9 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
       ? 0
       : clampWidth(widthOverride[id] ?? liveView.column_widths?.[id] ?? widthFor(id, schema).default, id, schema)
   const totalWidth = columns.reduce((sum, c) => sum + colWidth(c.id), 0)
-  // Lead-cell + group-header left padding: the pad-x base keeps the cell content under its column
-  // header; each nesting layer adds one --table-indent step (J-3). The grip/chevron live in the
-  // gutter via absolute CSS, independent of this.
+  // Lead-cell + group-header left padding: the pad-x base lands the cell content on the grid (under its
+  // column header); each nesting layer adds one --table-indent step (J-3). The grip + chevron live in
+  // the views gutter via absolute CSS, independent of this.
   const indent = (depth: number): string =>
     depth > 0 ? `calc(var(--table-pad-x) + var(--table-indent) * ${depth})` : 'var(--table-pad-x)'
 
@@ -405,7 +405,7 @@ function DataRow({
           <td key={c.id} className="cell-lead" style={{ paddingLeft: indent(depth) }}>
             {!dragDisabled && (
               <span className="row-grip" {...handle} onClick={(e) => e.stopPropagation()} aria-label="Drag to reorder">
-                <Icon name="grip-vertical" size={13} />
+                <Icon name="grip-vertical" size={14} />
               </span>
             )}
             <Cell row={row} column={c} ctx={ctx} hideIcon={hideIcon} />

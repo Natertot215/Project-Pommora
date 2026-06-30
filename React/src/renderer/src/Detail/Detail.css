@@ -66,10 +66,13 @@
   flex: none;
 }
 .detail-locked-body {
+  /* The views gutter: a strip carved from --content-inset (mirrors .detail-page) where the row drag
+     grips + group chevrons live, so the grid still lands on --content-inset (page-consistent). */
+  --fold-gutter: 20px;
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  padding: 16px var(--content-inset-right) 28px var(--content-inset);
+  padding: 16px var(--content-inset-right) 28px calc(var(--content-inset) - var(--fold-gutter));
   transition:
     padding-left var(--duration-base) var(--ease-standard),
     padding-right var(--duration-base) var(--ease-standard);

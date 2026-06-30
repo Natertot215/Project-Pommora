@@ -14,7 +14,7 @@ export interface ColumnWidth {
 
 // Keyed by declaredType's outputs ('title' | 'tier' | a PropertyType) + 'created' (special-cased).
 const WIDTHS: Record<string, ColumnWidth> = {
-  title: { min: 120, default: 280, max: 480 },
+  title: { min: 120, default: 280, max: Number.POSITIVE_INFINITY }, // the primary column — uncapped, grows freely
   tier: { min: 100, default: 170, max: 300 },
   relation: { min: 100, default: 170, max: 300 },
   status: { min: 80, default: 120, max: 200 },

@@ -27,8 +27,9 @@ describe('widthFor', () => {
 
 describe('clampWidth', () => {
   it('clamps a resized width to the column [min, max]', () => {
-    expect(clampWidth(10, RESERVED_PROPERTY_ID.title, schema)).toBe(120) // below min
-    expect(clampWidth(999, RESERVED_PROPERTY_ID.title, schema)).toBe(480) // above max
+    expect(clampWidth(10, RESERVED_PROPERTY_ID.title, schema)).toBe(120) // below min still clamps up
+    expect(clampWidth(9999, RESERVED_PROPERTY_ID.title, schema)).toBe(9999) // title is uncapped — no max
     expect(clampWidth(300, RESERVED_PROPERTY_ID.title, schema)).toBe(300) // in range
+    expect(clampWidth(999, 'prop_status', schema)).toBe(200) // a capped column still clamps to its max
   })
 })

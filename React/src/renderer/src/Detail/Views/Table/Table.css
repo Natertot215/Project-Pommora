@@ -1,9 +1,10 @@
 /* Table view — a container's pages as rows, one shared header over grouped body sections (Part 2). */
 
 .table-view {
-  --table-gutter: 28px; /* empty left gutter the row drag handles float in, outside the grid */
   width: 100%;
-  padding-left: var(--table-gutter);
+  /* Re-add the gutter the body reclaimed, so the grid lands on --content-inset while the grips +
+     chevrons sit in the strip to its left (mirrors MarkdownPM's .cm-content / fold-gutter). */
+  padding-left: var(--fold-gutter);
   overflow-x: auto; /* columns scroll horizontally when they exceed the pane (Q-4) */
 }
 
@@ -104,7 +105,7 @@
 
 /* Set / property group header row — no per-group repeated column header. */
 .group-header-row td {
-  overflow: visible; /* let the chevron escape left into the gutter */
+  overflow: visible; /* let the chevron escape left into the views gutter */
   font-weight: var(--weight-semibold);
   color: var(--text);
   padding-top: 16px; /* inter-section gap (J-2) — Task 8/9 split root vs nested */
@@ -113,7 +114,7 @@
 
 /* Group header content — chevron (reuses the sidebar `.twisty` rotate), glyph, hover-revealed +. */
 .group-header {
-  position: relative; /* containing block for the chevron floating in the gutter */
+  position: relative; /* containing block for the chevron floating in the views gutter */
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -135,9 +136,9 @@
 }
 .group-twisty {
   position: absolute;
-  /* float in the gutter; the extra -pad-x cancels the group td's content padding so the chevron
-     lands in the same lane as the row grip (which is relative to its cell's padding box). */
-  left: calc(-1 * var(--table-gutter) + 4px - var(--table-pad-x));
+  /* in the views gutter; the extra -pad-x cancels the group td's content padding so the chevron lands
+     in the same lane as the row grip (which is relative to its cell's left edge). */
+  left: calc(-1 * var(--fold-gutter) - var(--table-pad-x));
   top: 50%;
   transform: translateY(-50%);
   justify-content: center;
@@ -169,15 +170,15 @@
   background: var(--selected);
 }
 
-/* Row drag (E-3 / H-5) — the grip sits in the lead cell's gutter lane (the same slot the group
-   disclosure chevron occupies), revealed only on row hover; the lifted row ghosts (MarkdownPM feel). */
+/* Row drag (E-3 / H-5) — the grip sits in the views gutter (the same strip the group chevron occupies),
+   revealed only on row hover; the lifted row ghosts (MarkdownPM feel). */
 .data-table td.cell-lead {
-  position: relative; /* containing block for the row grip floating in the gutter */
+  position: relative; /* containing block for the row grip in the views gutter */
   overflow: visible; /* let the grip escape left into the gutter */
 }
 .row-grip {
   position: absolute;
-  left: calc(-1 * var(--table-gutter) + 4px); /* same gutter spot as the group chevron */
+  left: calc(-1 * var(--fold-gutter)); /* the views gutter, left of the grid (same lane as the chevron) */
   top: 50%;
   transform: translateY(-50%);
   display: inline-flex;
