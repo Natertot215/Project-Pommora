@@ -39,6 +39,31 @@
   white-space: nowrap;
 }
 
+/* Type-aware cell content (chips, title icon, links). */
+.cell-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.cell-title-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cell-chips {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+.cell-link {
+  color: var(--accent);
+  text-decoration: none;
+}
+.cell-muted {
+  color: var(--text-dim);
+}
+
 /* Set / property group header row — no per-group repeated column header. */
 .group-header-row td {
   font-weight: var(--weight-semibold);

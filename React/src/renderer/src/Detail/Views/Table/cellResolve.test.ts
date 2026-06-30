@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { buildSetNames, cellText, groupLabel, optionLabel } from './cellResolve'
+import { buildSetNames, cellText, findOption, groupLabel, optionLabel } from './cellResolve'
 import { DEFAULT_LABELS, UNGROUPED, type CollectionNode, type ResolvedGroup, type ViewRow } from '@shared/types'
 import type { PropertyDefinition } from '@shared/properties'
 import type { ResolveContext } from './resolveContext'
@@ -13,7 +13,7 @@ const schema: PropertyDefinition[] = [
       { id: 'in_progress', label: 'In Progress', color: 'blue', options: [{ value: 'doing', label: 'Doing', group_id: 'in_progress' }] }
     ]
   },
-  { id: 'prop_tag', name: 'Tag', type: 'select', select_options: [{ value: 'opt_a', label: 'Alpha' }] }
+  { id: 'prop_tag', name: 'Tag', type: 'select', select_options: [{ value: 'opt_a', label: 'Alpha', color: 'green' }] }
 ]
 
 const ctx: ResolveContext = {
@@ -38,6 +38,15 @@ describe('optionLabel', () => {
   })
   it('returns undefined for an unknown value', () => {
     expect(optionLabel('prop_tag', 'opt_zz', schema)).toBeUndefined()
+  })
+})
+
+describe('findOption', () => {
+  it('returns the option with its label + color (the chip tint)', () => {
+    expect(findOption('prop_tag', 'opt_a', schema)).toMatchObject({ label: 'Alpha', color: 'green' })
+  })
+  it('returns undefined for an unknown value', () => {
+    expect(findOption('prop_tag', 'nope', schema)).toBeUndefined()
   })
 })
 

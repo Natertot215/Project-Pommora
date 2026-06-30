@@ -9,14 +9,24 @@ import type { SavedView } from '@shared/views'
 import { resolveFieldValue } from '../pipeline/value'
 import type { ResolveContext } from './resolveContext'
 
-/** A select/status option's label for a stored value, via the column's schema def (undefined if the
- *  column isn't a select/status or the value is unknown). */
-export function optionLabel(columnId: string, value: string, schema: PropertyDefinition[]): string | undefined {
+/** A select/status option for a stored value, via the column's schema def — `{ label, color? }`,
+ *  undefined if the column isn't a select/status or the value is unknown. Chip cells read `color`;
+ *  text resolution reads `label`. */
+export function findOption(
+  columnId: string,
+  value: string,
+  schema: PropertyDefinition[]
+): { label: string; color?: string } | undefined {
   const def = schema.find((d) => d.id === columnId)
-  const opt =
+  return (
     def?.select_options?.find((o) => o.value === value) ??
     def?.status_groups?.flatMap((g) => g.options).find((o) => o.value === value)
-  return opt?.label
+  )
+}
+
+/** A select/status option's label for a stored value (undefined if unknown). */
+export function optionLabel(columnId: string, value: string, schema: PropertyDefinition[]): string | undefined {
+  return findOption(columnId, value, schema)?.label
 }
 
 /** A row's cell as display text: option values → labels, tier/relation ULIDs → Context titles, the

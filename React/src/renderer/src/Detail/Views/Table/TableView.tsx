@@ -7,7 +7,8 @@ import { flattenContainer } from '../pipeline/group'
 import { resolveView } from '../pipeline/resolveView'
 import { useSession } from '../../../store'
 import { buildResolveContext } from './resolveContext'
-import { buildSetNames, cellText, groupLabel } from './cellResolve'
+import { buildSetNames, groupLabel } from './cellResolve'
+import { Cell } from './Cell'
 import { columnLabel } from './columnLabel'
 import { clampWidth, widthFor } from './columnWidths'
 
@@ -92,7 +93,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
         >
           {columns.map((c, i) => (
             <td key={c.id} style={i === 0 ? { paddingLeft: indent(depth) } : undefined}>
-              {cellText(row, c.id, ctx)}
+              <Cell row={row} column={c} ctx={ctx} hideIcon={view.hide_page_icons ?? false} />
             </td>
           ))}
         </tr>
