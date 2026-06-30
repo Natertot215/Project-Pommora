@@ -72,6 +72,38 @@
   border-bottom: none;
 }
 
+/* Group header content — chevron (reuses the sidebar `.twisty` rotate), glyph, hover-revealed +. */
+.group-header {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.group-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.group-twisty,
+.group-add {
+  display: inline-flex;
+  align-items: center;
+  border: none;
+  background: none;
+  padding: 0;
+  color: var(--text-dim);
+  cursor: default;
+}
+.group-twisty {
+  margin-left: -2px;
+}
+.group-add {
+  opacity: 0;
+  transition: opacity var(--duration-fast) var(--ease-standard);
+}
+.group-header-row:hover .group-add {
+  opacity: 1;
+}
+
 .data-table.no-borders th,
 .data-table.no-borders td {
   border-bottom: none; /* Hide Borders toggle (E-5) */

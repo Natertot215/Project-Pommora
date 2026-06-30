@@ -7,8 +7,9 @@ import { flattenContainer } from '../pipeline/group'
 import { resolveView } from '../pipeline/resolveView'
 import { useSession } from '../../../store'
 import { buildResolveContext } from './resolveContext'
-import { buildSetNames, groupLabel } from './cellResolve'
+import { buildSetNames } from './cellResolve'
 import { Cell } from './Cell'
+import { GroupHeader } from './GroupHeader'
 import { columnLabel } from './columnLabel'
 import { clampWidth, widthFor } from './columnWidths'
 
@@ -59,6 +60,19 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
   }, [source, values, view, schema])
   const ctx = useMemo(() => (tree ? buildResolveContext(tree, schema) : null), [tree, schema])
   const setNames = useMemo(() => buildSetNames(source), [source])
+  // Group collapse — seeded from the view's collapsed_groups, toggled locally for snappiness, and
+  // persisted back to the synced view so it round-trips (E-4). Re-seeds when the active view changes.
+  const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set(view.collapsed_groups ?? []))
+  useEffect(() => {
+    setCollapsed(new Set(view.collapsed_groups ?? []))
+  }, [view.id])
+  const toggleCollapse = (key: string): void => {
+    const next = new Set(collapsed)
+    if (next.has(key)) next.delete(key)
+    else next.add(key)
+    setCollapsed(next)
+    void window.nexus.views.save(source.path, source.kind, { ...view, collapsed_groups: [...next] })
+  }
 
   if (!ctx) return <div className="table-empty">Loading…</div>
   if (groups.length === 0) return <div className="table-empty">No pages here</div>
@@ -73,15 +87,23 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
 
   const renderRows = (g: ResolvedGroup, depth: number): React.JSX.Element[] => {
     const out: React.JSX.Element[] = []
-    const label = groupLabel(g, view, ctx, setNames)
-    if (label) {
+    const isCollapsed = collapsed.has(g.key)
+    if (g.kind !== 'ungrouped') {
       out.push(
         <tr key={`gh-${g.key}`} className="group-header-row">
           <td colSpan={columns.length} style={{ paddingLeft: indent(depth) }}>
-            {label}
+            <GroupHeader
+              group={g}
+              view={view}
+              ctx={ctx}
+              setNames={setNames}
+              collapsed={isCollapsed}
+              onToggle={() => toggleCollapse(g.key)}
+            />
           </td>
         </tr>
       )
+      if (isCollapsed) return out
     }
     for (const row of g.items) {
       const sel = selection.kind === 'page' && selection.id === row.id
