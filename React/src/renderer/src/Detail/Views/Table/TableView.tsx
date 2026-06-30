@@ -176,9 +176,11 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
       ? 0
       : clampWidth(widthOverride[id] ?? liveView.column_widths?.[id] ?? widthFor(id, schema).default, id, schema)
   const totalWidth = columns.reduce((sum, c) => sum + colWidth(c.id), 0)
-  // Per-layer nesting indent for the lead cell + group headers — both start at 0 so the row grip and
-  // the group chevron share the same gutter lane (J-3). DRY via the --table-indent var.
-  const indent = (depth: number): string => (depth > 0 ? `calc(var(--table-indent) * ${depth})` : '0')
+  // Lead-cell + group-header left padding: the pad-x base keeps the cell content under its column
+  // header; each nesting layer adds one --table-indent step (J-3). The grip/chevron live in the
+  // gutter via absolute CSS, independent of this.
+  const indent = (depth: number): string =>
+    depth > 0 ? `calc(var(--table-pad-x) + var(--table-indent) * ${depth})` : 'var(--table-pad-x)'
 
   // Row drag (E-3): the flat data-row order + each row's group key, feeding the vertical SortableZone.
   // canReorderRow confines a drop to the SAME group for now — cross-group reassignment is D-4 (Task 13d).
@@ -379,13 +381,13 @@ function DataRow({
     >
       {columns.map((c, i) =>
         i === 0 ? (
-          <td key={c.id} style={{ paddingLeft: indent(depth) }}>
-            <span className="cell-lead">
-              <span className="row-grip" {...(dragDisabled ? {} : handle)} onClick={(e) => e.stopPropagation()} aria-label="Drag to reorder">
-                {!dragDisabled && <Icon name="grip-vertical" size={12} />}
+          <td key={c.id} className="cell-lead" style={{ paddingLeft: indent(depth) }}>
+            {!dragDisabled && (
+              <span className="row-grip" {...handle} onClick={(e) => e.stopPropagation()} aria-label="Drag to reorder">
+                <Icon name="grip-vertical" size={13} />
               </span>
-              <Cell row={row} column={c} ctx={ctx} hideIcon={hideIcon} />
-            </span>
+            )}
+            <Cell row={row} column={c} ctx={ctx} hideIcon={hideIcon} />
           </td>
         ) : (
           <td key={c.id}>
