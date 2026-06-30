@@ -1,7 +1,8 @@
-/* Table view — a container's pages as rows (vault or collection). */
+/* Table view — a container's pages as rows, one shared header over grouped body sections (Part 2). */
 
 .table-view {
   width: 100%;
+  overflow-x: auto; /* columns scroll horizontally when they exceed the pane (Q-4) */
 }
 
 .table-empty {
@@ -10,29 +11,45 @@
 }
 
 .data-table {
-  width: 100%;
+  --table-pad-x: 12px; /* cell horizontal gutter (kept from the stub, H-4) */
+  --table-indent: 16px; /* per-layer nesting indent (J-3) */
+  table-layout: fixed; /* colgroup widths are authoritative; the table is its summed width, not 100% */
   border-collapse: collapse;
-  font-size: 13px;
+  font-size: 13px; /* Task 9 routes this to the Table-Size typography token */
 }
 
 .data-table th {
   text-align: left;
   font-weight: var(--weight-semibold);
   color: var(--text-dim);
-  padding: 6px 12px;
-  border-bottom: 1px solid #FFFFFF1A;
+  padding: 6px var(--table-pad-x);
+  border-bottom: 1px solid var(--separator-border);
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   user-select: none;
 }
 
 .data-table td {
   color: var(--text);
-  padding: 6px 12px;
-  border-bottom: 1px solid #FFFFFF0D;
+  padding: 6px var(--table-pad-x);
+  border-bottom: 1px solid var(--separator-border);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  max-width: 320px;
+}
+
+/* Set / property group header row — no per-group repeated column header. */
+.group-header-row td {
+  font-weight: var(--weight-semibold);
+  color: var(--text);
+  padding-top: 16px; /* inter-section gap (J-2) — Task 8/9 split root vs nested */
+  border-bottom: none;
+}
+
+.data-table.no-borders th,
+.data-table.no-borders td {
+  border-bottom: none; /* Hide Borders toggle (E-5) */
 }
 
 .data-row {

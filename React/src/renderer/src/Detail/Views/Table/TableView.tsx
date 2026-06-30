@@ -2,12 +2,14 @@ import { useEffect, useMemo, useState } from 'react'
 import type { CollectionNode, NexusTree, ResolvedGroup, SetNode } from '@shared/types'
 import type { PropertyDefinition } from '@shared/properties'
 import type { PageFrontmatter } from '@shared/schemas'
-import type { PropertyValue } from '@shared/propertyValue'
 import { type SavedView, mintDefaultView } from '@shared/views'
 import { flattenContainer } from '../pipeline/group'
 import { resolveView } from '../pipeline/resolveView'
-import { resolveFieldValue } from '../pipeline/value'
 import { useSession } from '../../../store'
+import { buildResolveContext } from './resolveContext'
+import { buildSetNames, cellText, groupLabel } from './cellResolve'
+import { columnLabel } from './columnLabel'
+import { clampWidth, widthFor } from './columnWidths'
 
 /** A Collection uses its own schema; a Set inherits its ancestor Collection's (schema lives only on
  *  the Collection). [] when the owning Collection can't be found. */
@@ -25,30 +27,6 @@ function pickView(source: CollectionNode | SetNode, activeId: string | undefined
   const views = source.views ?? []
   const active = activeId ? views.find((v) => v.id === activeId) : undefined
   return active ?? views[0] ?? mintDefaultView(schema)
-}
-
-/** Minimal cell text — proves the Part-1 pipeline carries live values end-to-end. Part 2 builds the
- *  real type-aware cells/chips off the same `resolveFieldValue` seam. */
-function cellText(v: PropertyValue): string {
-  switch (v.kind) {
-    case 'select':
-    case 'status':
-    case 'url':
-    case 'date':
-    case 'datetime':
-      return v.value
-    case 'number':
-      return String(v.value)
-    case 'checkbox':
-      return v.value ? '✓' : ''
-    case 'multiSelect':
-    case 'relation':
-      return v.value.join(', ')
-    case 'file':
-      return v.value.map((f) => f.path).join(', ')
-    default:
-      return ''
-  }
 }
 
 export function TableView({ source }: { source: CollectionNode | SetNode }): React.JSX.Element {
@@ -78,38 +56,69 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
     const { rows, setTree } = flattenContainer(source, values)
     return resolveView({ rows, setTree, view, schema })
   }, [source, values, view, schema])
+  const ctx = useMemo(() => (tree ? buildResolveContext(tree, schema) : null), [tree, schema])
+  const setNames = useMemo(() => buildSetNames(source), [source])
 
-  const renderGroup = (g: ResolvedGroup, depth: number): React.JSX.Element => (
-    <div key={g.key} className="view-group" data-depth={depth}>
-      {g.kind !== 'ungrouped' ? <div className="group-header">{g.key}</div> : null}
-      {g.items.length > 0 ? (
-        <table className="data-table">
-          <thead>
-            <tr>
-              {columns.map((c) => (
-                <th key={c.id}>{c.id}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {g.items.map((row) => (
-              <tr
-                key={row.id}
-                className={`data-row${selection.kind === 'page' && selection.id === row.id ? ' selected' : ''}`}
-                onClick={() => void select({ kind: 'page', id: row.id, path: row.path })}
-              >
-                {columns.map((c) => (
-                  <td key={c.id}>{cellText(resolveFieldValue(row, c.id))}</td>
-                ))}
-              </tr>
+  if (!ctx) return <div className="table-empty">Loading…</div>
+  if (groups.length === 0) return <div className="table-empty">No pages here</div>
+
+  // Saved widths are clamped to the type's [min, max] (Q-4) — a stale/out-of-range saved value can't
+  // squash a column below legibility or stretch it past its cap.
+  const colWidth = (id: string): number => clampWidth(view.column_widths?.[id] ?? widthFor(id, schema).default, id, schema)
+  const totalWidth = columns.reduce((sum, c) => sum + colWidth(c.id), 0)
+  // Per-layer indent on the title cell + group headers (J-3), DRY via the --table-indent / pad-x vars.
+  const indent = (depth: number): string | undefined =>
+    depth > 0 ? `calc(var(--table-pad-x) + var(--table-indent) * ${depth})` : undefined
+
+  const renderRows = (g: ResolvedGroup, depth: number): React.JSX.Element[] => {
+    const out: React.JSX.Element[] = []
+    const label = groupLabel(g, view, ctx, setNames)
+    if (label) {
+      out.push(
+        <tr key={`gh-${g.key}`} className="group-header-row">
+          <td colSpan={columns.length} style={{ paddingLeft: indent(depth) }}>
+            {label}
+          </td>
+        </tr>
+      )
+    }
+    for (const row of g.items) {
+      const sel = selection.kind === 'page' && selection.id === row.id
+      out.push(
+        <tr
+          key={row.id}
+          className={`data-row${sel ? ' selected' : ''}`}
+          onClick={() => void select({ kind: 'page', id: row.id, path: row.path })}
+        >
+          {columns.map((c, i) => (
+            <td key={c.id} style={i === 0 ? { paddingLeft: indent(depth) } : undefined}>
+              {cellText(row, c.id, ctx)}
+            </td>
+          ))}
+        </tr>
+      )
+    }
+    for (const child of g.children ?? []) out.push(...renderRows(child, depth + 1))
+    return out
+  }
+
+  return (
+    <div className="table-view">
+      <table className={`data-table${view.hide_borders ? ' no-borders' : ''}`} style={{ width: totalWidth }}>
+        <colgroup>
+          {columns.map((c) => (
+            <col key={c.id} style={{ width: colWidth(c.id) }} />
+          ))}
+        </colgroup>
+        <thead>
+          <tr>
+            {columns.map((c) => (
+              <th key={c.id}>{columnLabel(c.id, schema, ctx.labels)}</th>
             ))}
-          </tbody>
-        </table>
-      ) : null}
-      {g.children?.map((child) => renderGroup(child, depth + 1))}
+          </tr>
+        </thead>
+        <tbody>{groups.flatMap((g) => renderRows(g, 0))}</tbody>
+      </table>
     </div>
   )
-
-  if (groups.length === 0) return <div className="table-empty">No pages here</div>
-  return <div className="table-view">{groups.map((g) => renderGroup(g, 0))}</div>
 }
