@@ -29,6 +29,7 @@ import { contextTierDir, nexusConfig, SIDECAR_FILENAME, NEXUS_CONFIG_FILES, type
 import { ensureIdentity } from './identity'
 import { defaultSettingsSeed } from './settings'
 import { ok, fail, type Result } from '@shared/result'
+import { applyPropertyValue } from '@shared/propertyValue'
 import type { MutateRequest, MutateResult } from '@shared/mutate'
 import type { TrashMode } from './appConfig'
 
@@ -321,6 +322,26 @@ async function dispatch(req: MutateRequest, deps: MutateDeps, root: string): Pro
         })
         if (prev) await rm(join(root, prev), { force: true }).catch(() => {})
       }
+      void refreshSessionIndex(root)
+      return { ok: true }
+    }
+
+    case 'setProperty': {
+      // One typed property write into a page's `.md` frontmatter `properties` map; foreign frontmatter
+      // + body survive (same shape as the page-banner cover write). applyPropertyValue is the shared
+      // set/clear rule — a null value deletes the key. Drives table cross-group reassignment (D-4).
+      const resolved = await resolveUnderRoot(root, req.path)
+      if (!resolved.ok) return relay(resolved)
+      let existing: string
+      try {
+        existing = await readFile(resolved.value, 'utf8')
+      } catch {
+        return fault('That page could not be read.')
+      }
+      const { body } = splitEnvelope(existing)
+      const fields = readFrontmatterFields(existing)
+      const properties = applyPropertyValue(fields.properties, req.propertyId, req.value)
+      await atomicWriteFile(resolved.value, mergeFrontmatter(existing, { properties }, ['properties'], body))
       void refreshSessionIndex(root)
       return { ok: true }
     }

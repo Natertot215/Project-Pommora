@@ -441,3 +441,38 @@ describe('handleMutate — setBanner', () => {
     expect(tree.homepage.banner).toBe(sc.banner)
   })
 })
+
+describe('handleMutate — setProperty (the D-4 cross-group reassignment write)', () => {
+  it('writes a typed property into the page frontmatter, preserving id + body', async () => {
+    const r = await handleMutate(
+      { op: 'setProperty', path: 'Notes/Daily/Beta.md', propertyId: 'prop_s', value: { kind: 'status', value: 'done' } },
+      nexusDeps
+    )
+    expect(r.ok).toBe(true)
+    const md = await read('Notes/Daily/Beta.md')
+    expect(md).toContain('body')
+    expect(splitFrontmatter(md).id).toBe('b')
+    expect(splitFrontmatter(md).properties).toEqual({ prop_s: { $status: 'done' } })
+  })
+
+  it('a null value clears the property key', async () => {
+    await handleMutate(
+      { op: 'setProperty', path: 'Notes/Daily/Beta.md', propertyId: 'prop_s', value: { kind: 'status', value: 'done' } },
+      nexusDeps
+    )
+    const r = await handleMutate(
+      { op: 'setProperty', path: 'Notes/Daily/Beta.md', propertyId: 'prop_s', value: null },
+      nexusDeps
+    )
+    expect(r.ok).toBe(true)
+    expect(splitFrontmatter(await read('Notes/Daily/Beta.md')).properties).toEqual({})
+  })
+
+  it('never throws on a missing page — returns ok:false', async () => {
+    const r = await handleMutate(
+      { op: 'setProperty', path: 'Notes/Daily/Ghost.md', propertyId: 'prop_s', value: null },
+      nexusDeps
+    )
+    expect(r.ok).toBe(false)
+  })
+})

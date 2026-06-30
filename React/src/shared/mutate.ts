@@ -4,6 +4,7 @@
 // types.ts) so it can import the data-layer Result/error shape.
 
 import type { PommoraError } from './result'
+import type { PropertyValue } from './propertyValue'
 
 /** The base name a "New …" action gives a fresh entity (main disambiguates collisions). */
 export const DEFAULT_NEW_NAME = 'Untitled'
@@ -48,6 +49,10 @@ export type MutateRequest =
   // banner.<ext>` + record that path in the owner's config (folder sidecar, homepage.json, or — for
   // a page — the `cover` key in its `.md` frontmatter); null ⇒ clear the field + delete the file.
   | { op: 'setBanner'; path: string; kind: BannerOwnerKind; dataUrl: string | null }
+  // Set or clear one property in a page's `.md` frontmatter `properties` map (id-keyed PropertyValue);
+  // `null` clears the key. Foreign frontmatter + body survive. Drives table cross-group reassignment
+  // (D-4) + later inline edits — the single typed property write.
+  | { op: 'setProperty'; path: string; propertyId: string; value: PropertyValue | null }
   // `order`: the destination container's full page-id order after the drop (renderer-
   // computed). Absent = legacy append (order falls back to title/creation). Same parent +
   // order = a pure reorder. Stale ids in a source container self-drop on the next read.

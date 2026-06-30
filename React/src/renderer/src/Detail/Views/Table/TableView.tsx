@@ -3,8 +3,10 @@ import type { CollectionNode, NexusTree, ResolvedColumn, ResolvedGroup, SetNode,
 import type { PropertyDefinition } from '@shared/properties'
 import type { PageFrontmatter } from '@shared/schemas'
 import { type SavedView, mintDefaultView } from '@shared/views'
+import { applyPropertyValue } from '@shared/propertyValue'
 import { flattenContainer } from '../pipeline/group'
 import { resolveView } from '../pipeline/resolveView'
+import { declaredType } from '../pipeline/value'
 import { useSession } from '../../../store'
 import { buildResolveContext, type ResolveContext } from './resolveContext'
 import { buildSetNames } from './cellResolve'
@@ -14,6 +16,7 @@ import { columnLabel } from './columnLabel'
 import { clampWidth, widthFor } from './columnWidths'
 import { reorderColumns } from './columnReorder'
 import { mergeOverrides } from './viewMerge'
+import { groupKeyToValue, REASSIGNABLE_GROUP_TYPES } from './reassign'
 import { cx } from '@renderer/design-system/cx'
 import { text } from '@renderer/design-system/tokens'
 import { Icon } from '@renderer/design-system/symbols'
@@ -42,6 +45,9 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
   const selection = useSession((s) => s.selection)
   const select = useSession((s) => s.select)
   const [values, setValues] = useState<Record<string, PageFrontmatter>>({})
+  // Optimistic property patches keyed by page id (cross-group reassignment, D-4): the loaded values
+  // never re-read on a write, so a reassigned row re-groups only because this patch feeds the pipeline.
+  const [valueOverride, setValueOverride] = useState<Record<string, PageFrontmatter> | null>(null)
   const [activeViewId, setActiveViewId] = useState<string | undefined>(undefined)
   const [viewOrders, setViewOrders] = useState<Record<string, string[]>>({})
 
@@ -49,6 +55,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
   // fast container swap.
   useEffect(() => {
     let cancelled = false
+    setValueOverride(null) // canonical values for the new container supersede any optimistic patches
     void window.nexus.loadValues(source.path).then((v) => {
       if (!cancelled) setValues(v)
     })
@@ -94,15 +101,23 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
   // when the view is sorted or grouped (an unsorted, ungrouped view uses canonical page_order instead).
   const sortedOrGrouped = (liveView.sort?.length ?? 0) > 0 || liveView.group != null
   const manualOrder = sortedOrGrouped ? (manualOverride ?? viewOrders[view.id]) : undefined
-  // Row drag is enabled only where the manual order routes to the viewOrders cache + the 13a tiebreaker:
-  // a single sort key, or a property group. Off for a multi-key sort (D-3, the sort owns within-run order)
-  // and for the structural/flat default — the latter pending its canonical page_order-per-set persistence.
   const sortKeys = liveView.sort?.length ?? 0
-  const dragDisabled = !(sortKeys < 2 && (sortKeys === 1 || liveView.group?.kind === 'property'))
+  // The grouped property + whether a cross-group drop can reassign it (D-4): status/select/checkbox map
+  // a group key straight to a value; a date bucket doesn't, so date grouping isn't reassignable.
+  const groupPropId = liveView.group?.kind === 'property' ? liveView.group.property_id : undefined
+  const groupPropType = groupPropId ? declaredType(groupPropId, schema) : undefined
+  const canReassign = groupPropType !== undefined && REASSIGNABLE_GROUP_TYPES.has(groupPropType)
+  // Within-group reorder needs a single sort key (clamped) or a property group, never a multi-key sort
+  // (D-3); cross-group reassignment is independent of the sort count (D-3). The grip shows if either is
+  // possible — the structural/flat default stays off pending its page_order-per-set persistence.
+  const canReorderWithin = sortKeys < 2 && (sortKeys === 1 || groupPropId !== undefined)
+  const dragDisabled = !(canReorderWithin || canReassign)
+  // Optimistic property patches feed the pipeline so a reassigned row re-groups before the watcher round-trips.
+  const effectiveValues = useMemo(() => (valueOverride ? { ...values, ...valueOverride } : values), [values, valueOverride])
   const { columns, groups } = useMemo(() => {
-    const { rows, setTree } = flattenContainer(source, values)
+    const { rows, setTree } = flattenContainer(source, effectiveValues)
     return resolveView({ rows, setTree, view: liveView, schema, manualOrder })
-  }, [source, values, liveView, schema, manualOrder])
+  }, [source, effectiveValues, liveView, schema, manualOrder])
   const ctx = useMemo(() => (tree ? buildResolveContext(tree, schema) : null), [tree, schema])
   const setNames = useMemo(() => buildSetNames(source), [source])
 
@@ -173,17 +188,40 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
   const indent = (depth: number): string =>
     depth > 0 ? `calc(var(--table-pad-x) + var(--table-indent) * ${depth})` : 'var(--table-pad-x)'
 
-  // Row drag (E-3): the flat data-row order + each row's group key, feeding the vertical SortableZone.
-  // canReorderRow confines a drop to the SAME group for now — cross-group reassignment is D-4 (Task 13d).
-  const dataRows: { id: string; groupKey: string }[] = []
+  // Row drag (E-3): the flat data-row order + each row's group key + path, feeding the vertical
+  // SortableZone. Where you drop disambiguates (D-8) — same group reorders, a different group reassigns.
+  const dataRows: { id: string; path: string; groupKey: string }[] = []
   const collectRows = (g: ResolvedGroup): void => {
-    for (const r of g.items) dataRows.push({ id: r.id, groupKey: g.key })
+    for (const r of g.items) dataRows.push({ id: r.id, path: r.path, groupKey: g.key })
     for (const c of g.children ?? []) collectRows(c)
   }
   groups.forEach(collectRows)
   const rowGroup = new Map(dataRows.map((r) => [r.id, r.groupKey] as const))
-  const canReorderRow = (a: string, o: string): boolean => rowGroup.get(a) === rowGroup.get(o)
+  const rowPath = new Map(dataRows.map((r) => [r.id, r.path] as const))
+  // Cross-group drop (D-4): write the dragged page's grouped property to the destination group's value
+  // (the no-value band clears it), patching the loaded values now so the row re-groups before the write
+  // round-trips (loadValues never re-runs mid-session).
+  const reassignRow = (pageId: string, destGroupKey: string): void => {
+    const path = rowPath.get(pageId)
+    if (!groupPropId || !path) return
+    const value = groupKeyToValue(destGroupKey, groupPropType)
+    const prior = values[pageId]
+    const patched: PageFrontmatter = {
+      ...(prior ?? { id: pageId }),
+      properties: applyPropertyValue(prior?.properties, groupPropId, value)
+    }
+    setValueOverride((prev) => ({ ...prev, [pageId]: patched }))
+    void window.nexus.mutate({ op: 'setProperty', path, propertyId: groupPropId, value })
+  }
+  // Same group → reorder (clamped per D-3/D-6); different group → reassign when the property allows (D-4).
+  const canReorderRow = (a: string, o: string): boolean =>
+    rowGroup.get(a) === rowGroup.get(o) ? canReorderWithin : canReassign
   const reorderRow = (activeId: string, overId: string): void => {
+    const destKey = rowGroup.get(overId)
+    if (destKey !== undefined && destKey !== rowGroup.get(activeId)) {
+      reassignRow(activeId, destKey)
+      return
+    }
     const next = reorder(
       dataRows.map((r) => ({ id: r.id })),
       activeId,
