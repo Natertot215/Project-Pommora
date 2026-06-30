@@ -34,6 +34,12 @@
   user-select: none;
 }
 
+/* E-2: the lifted column header renders ghosted while neighbours shift to open the gap. */
+.data-table th.col-dragging {
+  opacity: 0.4;
+  cursor: grabbing;
+}
+
 .data-table td {
   color: var(--text);
   padding: var(--table-pad-y) var(--table-pad-x);

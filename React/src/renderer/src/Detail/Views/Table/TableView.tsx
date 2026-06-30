@@ -12,8 +12,10 @@ import { Cell } from './Cell'
 import { GroupHeader } from './GroupHeader'
 import { columnLabel } from './columnLabel'
 import { clampWidth, widthFor } from './columnWidths'
+import { reorderColumns } from './columnReorder'
 import { cx } from '@renderer/design-system/cx'
 import { text } from '@renderer/design-system/tokens'
+import { SortableZone, useDragItem } from '@renderer/design-system/interactions/drag'
 
 /** A Collection uses its own schema; a Set inherits its ancestor Collection's (schema lives only on
  *  the Collection). [] when the owning Collection can't be found. */
@@ -56,24 +58,52 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
 
   const schema = useMemo(() => (tree ? resolveContainerSchema(tree, source) : []), [tree, source])
   const view = useMemo(() => pickView(source, activeViewId, schema), [source, activeViewId, schema])
-  const { columns, groups } = useMemo(() => {
-    const { rows, setTree } = flattenContainer(source, values)
-    return resolveView({ rows, setTree, view, schema })
-  }, [source, values, view, schema])
-  const ctx = useMemo(() => (tree ? buildResolveContext(tree, schema) : null), [tree, schema])
-  const setNames = useMemo(() => buildSetNames(source), [source])
-  // Group collapse — seeded from the view's collapsed_groups, toggled locally for snappiness, and
-  // persisted back to the synced view so it round-trips (E-4). Re-seeds when the active view changes.
+  // Local override layer — column reorder + collapse apply instantly and persist async (the watcher
+  // re-reads to confirm). `liveView` overlays the unsaved order onto the saved view so the pipeline
+  // and every persist see one truth. Both re-seed when the active view changes.
+  const [orderOverride, setOrderOverride] = useState<string[] | null>(null)
   const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set(view.collapsed_groups ?? []))
   useEffect(() => {
+    setOrderOverride(null)
     setCollapsed(new Set(view.collapsed_groups ?? []))
   }, [view.id])
+  const liveView = useMemo(
+    () => (orderOverride ? { ...view, property_order: orderOverride } : view),
+    [view, orderOverride]
+  )
+  const { columns, groups } = useMemo(() => {
+    const { rows, setTree } = flattenContainer(source, values)
+    return resolveView({ rows, setTree, view: liveView, schema })
+  }, [source, values, liveView, schema])
+  const ctx = useMemo(() => (tree ? buildResolveContext(tree, schema) : null), [tree, schema])
+  const setNames = useMemo(() => buildSetNames(source), [source])
+
+  // Persist the saved view + every live override (order + collapse) + a patch, so no one mutation
+  // clobbers another's unsaved state — the exact Swift reorder/resize data-loss H-2 guards against.
+  const persistView = (patch: Partial<SavedView>): void => {
+    void window.nexus.views.save(source.path, source.kind, {
+      ...view,
+      property_order: orderOverride ?? view.property_order,
+      collapsed_groups: [...collapsed],
+      ...patch
+    })
+  }
   const toggleCollapse = (key: string): void => {
     const next = new Set(collapsed)
     if (next.has(key)) next.delete(key)
     else next.add(key)
     setCollapsed(next)
-    void window.nexus.views.save(source.path, source.kind, { ...view, collapsed_groups: [...next] })
+    persistView({ collapsed_groups: [...next] })
+  }
+  const reorderColumn = (activeId: string, overId: string): void => {
+    const next = reorderColumns(
+      columns.map((c) => c.id),
+      liveView.property_order,
+      activeId,
+      overId
+    )
+    setOrderOverride(next)
+    persistView({ property_order: next })
   }
 
   if (!ctx) return <div className="table-empty">Loading…</div>
@@ -81,7 +111,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
 
   // Saved widths are clamped to the type's [min, max] (Q-4) — a stale/out-of-range saved value can't
   // squash a column below legibility or stretch it past its cap.
-  const colWidth = (id: string): number => clampWidth(view.column_widths?.[id] ?? widthFor(id, schema).default, id, schema)
+  const colWidth = (id: string): number => clampWidth(liveView.column_widths?.[id] ?? widthFor(id, schema).default, id, schema)
   const totalWidth = columns.reduce((sum, c) => sum + colWidth(c.id), 0)
   // Per-layer indent on the title cell + group headers (J-3), DRY via the --table-indent / pad-x vars.
   const indent = (depth: number): string | undefined =>
@@ -96,7 +126,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
           <td colSpan={columns.length + 1} style={{ paddingLeft: depth > 0 ? `calc(var(--table-indent) * ${depth})` : 0 }}>
             <GroupHeader
               group={g}
-              view={view}
+              view={liveView}
               ctx={ctx}
               setNames={setNames}
               collapsed={isCollapsed}
@@ -117,7 +147,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
         >
           {columns.map((c, i) => (
             <td key={c.id} style={i === 0 ? { paddingLeft: indent(depth) } : undefined}>
-              <Cell row={row} column={c} ctx={ctx} hideIcon={view.hide_page_icons ?? false} />
+              <Cell row={row} column={c} ctx={ctx} hideIcon={liveView.hide_page_icons ?? false} />
             </td>
           ))}
           <td className="cell-filler" />
@@ -130,7 +160,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
 
   return (
     <div className="table-view">
-      <table className={cx('data-table', text.body.standard, view.hide_borders && 'no-borders')} style={{ minWidth: totalWidth }}>
+      <table className={cx('data-table', text.body.standard, liveView.hide_borders && 'no-borders')} style={{ minWidth: totalWidth }}>
         <colgroup>
           {columns.map((c) => (
             <col key={c.id} style={{ width: colWidth(c.id) }} />
@@ -140,14 +170,28 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
         </colgroup>
         <thead>
           <tr>
-            {columns.map((c) => (
-              <th key={c.id}>{columnLabel(c.id, schema, ctx.labels)}</th>
-            ))}
+            {/* Headers are a horizontal sortable zone (E-2); the filler th sits outside it, inert. */}
+            <SortableZone items={columns.map((c) => c.id)} axis="x" bounds="parent" itemRole={null} onReorder={reorderColumn}>
+              {columns.map((c) => (
+                <ColumnHeader key={c.id} id={c.id} label={columnLabel(c.id, schema, ctx.labels)} />
+              ))}
+            </SortableZone>
             <th className="cell-filler" aria-hidden="true" />
           </tr>
         </thead>
         <tbody>{groups.flatMap((g) => renderRows(g, 0))}</tbody>
       </table>
     </div>
+  )
+}
+
+/** One draggable column header (E-2). `handle` makes the whole th the grab affordance; the lifted
+ *  header renders ghosted via `isDragging` while neighbours shift to open the gap. */
+function ColumnHeader({ id, label }: { id: string; label: string }): React.JSX.Element {
+  const { setNodeRef, style, handle, isDragging } = useDragItem(id)
+  return (
+    <th ref={setNodeRef} style={style} className={cx(isDragging && 'col-dragging')} {...handle}>
+      {label}
+    </th>
   )
 }
