@@ -141,9 +141,10 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
   // (whose overflow would clip it). Title is the primary column — not hideable, so no menu.
   const openHeaderMenu = (id: string, hideable: boolean, e: React.MouseEvent): void => {
     e.preventDefault()
-    const tv = (e.currentTarget as HTMLElement).closest('.table-view')
+    const th = e.currentTarget as HTMLElement
+    const tv = th.closest('.table-view')
     if (!hideable || !tv) return
-    const thR = (e.currentTarget as HTMLElement).getBoundingClientRect()
+    const thR = th.getBoundingClientRect()
     const tvR = tv.getBoundingClientRect()
     setHeaderMenu({ id, left: thR.left - tvR.left, top: thR.bottom - tvR.top })
   }
