@@ -20,9 +20,6 @@ import { text } from '@renderer/design-system/tokens'
 import { Icon } from '@renderer/design-system/symbols'
 import { SortableZone, useDragItem, reorder } from '@renderer/design-system/interactions/drag'
 
-/** The left gutter column that holds each row's hover-revealed drag grip (E-3 / H-5). */
-const GUTTER_W = 22
-
 /** A Collection uses its own schema; a Set inherits its ancestor Collection's (schema lives only on
  *  the Collection). [] when the owning Collection can't be found. */
 function resolveContainerSchema(tree: NexusTree, source: CollectionNode | SetNode): PropertyDefinition[] {
@@ -178,10 +175,10 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
     collapsing === id
       ? 0
       : clampWidth(widthOverride[id] ?? liveView.column_widths?.[id] ?? widthFor(id, schema).default, id, schema)
-  const totalWidth = GUTTER_W + columns.reduce((sum, c) => sum + colWidth(c.id), 0)
-  // Per-layer indent on the title cell + group headers (J-3), DRY via the --table-indent / pad-x vars.
-  const indent = (depth: number): string | undefined =>
-    depth > 0 ? `calc(var(--table-pad-x) + var(--table-indent) * ${depth})` : undefined
+  const totalWidth = columns.reduce((sum, c) => sum + colWidth(c.id), 0)
+  // Per-layer nesting indent for the lead cell + group headers — both start at 0 so the row grip and
+  // the group chevron share the same gutter lane (J-3). DRY via the --table-indent var.
+  const indent = (depth: number): string => (depth > 0 ? `calc(var(--table-indent) * ${depth})` : '0')
 
   // Row drag (E-3): the flat data-row order + each row's group key, feeding the vertical SortableZone.
   // canReorderRow confines a drop to the SAME group for now — cross-group reassignment is D-4 (Task 13d).
@@ -209,7 +206,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
     if (g.kind !== 'ungrouped') {
       out.push(
         <tr key={`gh-${g.key}`} className="group-header-row">
-          <td colSpan={columns.length + 2} style={{ paddingLeft: depth > 0 ? `calc(var(--table-indent) * ${depth})` : 0 }}>
+          <td colSpan={columns.length + 1} style={{ paddingLeft: indent(depth) }}>
             <GroupHeader
               group={g}
               view={liveView}
@@ -247,8 +244,6 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
     <div className="table-view">
       <table className={cx('data-table', text.body.standard, liveView.hide_borders && 'no-borders')} style={{ minWidth: totalWidth }}>
         <colgroup>
-          {/* Left gutter column for the per-row drag grip (E-3). */}
-          <col style={{ width: GUTTER_W }} />
           {columns.map((c) => (
             <col
               key={c.id}
@@ -262,7 +257,6 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
         </colgroup>
         <thead>
           <tr>
-            <th className="cell-gutter" aria-hidden="true" />
             {/* Headers are a horizontal sortable zone (E-2); the filler th sits outside it, inert. */}
             <SortableZone items={columns.map((c) => c.id)} axis="x" bounds="parent" itemRole={null} onReorder={reorderColumn}>
               {columns.map((c) => (
@@ -349,8 +343,9 @@ function ColumnHeader({
   )
 }
 
-/** One data row + its hover-revealed drag grip (E-3 / H-5). The grip in the left gutter is the only
- *  drag surface; useDragItem ghosts the row while it's lifted. */
+/** One data row + its hover-revealed drag grip (E-3 / H-5). The grip sits in the lead cell's gutter
+ *  lane — the same slot the group disclosure chevron occupies — so handles align with the chevrons and
+ *  the row content lines up with the group headers. useDragItem ghosts the row while it's lifted. */
 function DataRow({
   row,
   columns,
@@ -382,18 +377,22 @@ function DataRow({
         if (!isDragging) onSelect() // a drag-release isn't a select — the engine keeps isDragging set through the drop
       }}
     >
-      <td className="cell-gutter">
-        {!dragDisabled && (
-          <span className="row-grip" {...handle} onClick={(e) => e.stopPropagation()} aria-label="Drag to reorder">
-            <Icon name="grip-vertical" size={14} />
-          </span>
-        )}
-      </td>
-      {columns.map((c, i) => (
-        <td key={c.id} style={i === 0 ? { paddingLeft: indent(depth) } : undefined}>
-          <Cell row={row} column={c} ctx={ctx} hideIcon={hideIcon} />
-        </td>
-      ))}
+      {columns.map((c, i) =>
+        i === 0 ? (
+          <td key={c.id} style={{ paddingLeft: indent(depth) }}>
+            <span className="cell-lead">
+              <span className="row-grip" {...(dragDisabled ? {} : handle)} onClick={(e) => e.stopPropagation()} aria-label="Drag to reorder">
+                {!dragDisabled && <Icon name="grip-vertical" size={12} />}
+              </span>
+              <Cell row={row} column={c} ctx={ctx} hideIcon={hideIcon} />
+            </span>
+          </td>
+        ) : (
+          <td key={c.id}>
+            <Cell row={row} column={c} ctx={ctx} hideIcon={hideIcon} />
+          </td>
+        )
+      )}
       <td className="cell-filler" />
     </tr>
   )
