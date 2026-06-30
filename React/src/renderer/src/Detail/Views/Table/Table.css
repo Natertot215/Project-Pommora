@@ -43,7 +43,7 @@
 /* — Header — */
 .table-head {
   /* weight/size come from the text.body.semibold alias on each .col-header — no raw font-weight here
-     (§G: typography via aliases only). */
+     (§G: typography via aliases only). Nathan: Change to --border-heading (2px) alongside banner<->body border when done */
   color: var(--text-dim);
   border-bottom: var(--table-border);
   user-select: none;
@@ -103,7 +103,30 @@
   background: var(--selected);
 }
 .data-row.row-dragging {
-  opacity: var(--drag-ghost-opacity);
+  opacity: var(--drag-muted);
+}
+
+/* Drop-line drag (B): the DnD wrapper (.table-dnd) is the line's positioning context — the accent line
+   + dot mark the exact slot while the picked-up row mutes in place; nothing displaces. */
+.table-dnd {
+  position: relative;
+}
+.table-drop-line {
+  position: absolute;
+  height: var(--drop-line-thickness);
+  border-radius: var(--drop-line-thickness);
+  background: var(--drag-line);
+  pointer-events: none;
+  z-index: 20;
+}
+.table-drop-dot {
+  position: absolute;
+  left: calc(var(--drop-dot-size) / -2);
+  top: calc((var(--drop-line-thickness) - var(--drop-dot-size)) / 2);
+  width: var(--drop-dot-size);
+  height: var(--drop-dot-size);
+  border-radius: 50%;
+  background: var(--drag-line);
 }
 
 /* Hide Borders toggle — drops the horizontal underlines (vertical column lines stay). */

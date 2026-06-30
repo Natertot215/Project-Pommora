@@ -20,7 +20,8 @@ import { groupKeyToValue, REASSIGNABLE_GROUP_TYPES } from './reassign'
 import { cx } from '@renderer/design-system/cx'
 import { text } from '@renderer/design-system/tokens'
 import { Icon } from '@renderer/design-system/symbols'
-import { SortableZone, useDragItem, reorder } from '@renderer/design-system/interactions/drag'
+import { SortableZone, useDragItem } from '@renderer/design-system/interactions/drag'
+import { TableRowDnd, useTableRowDrag } from './tableDnd'
 
 /** A Collection uses its own schema; a Set inherits its ancestor Collection's (schema lives only on
  *  the Collection). [] when the owning Collection can't be found. */
@@ -200,7 +201,6 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
     for (const c of g.children ?? []) collectRows(c)
   }
   groups.forEach(collectRows)
-  const rowGroup = new Map(dataRows.map((r) => [r.id, r.groupKey] as const))
   const rowPath = new Map(dataRows.map((r) => [r.id, r.path] as const))
   // Cross-group drop (D-4): write the dragged page's grouped property to the destination group's value
   // (the no-value band clears it), patching the loaded values now so the row re-groups before the write
@@ -217,22 +217,11 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
     setValueOverride((prev) => ({ ...prev, [pageId]: patched }))
     void window.nexus.mutate({ op: 'setProperty', path, propertyId: groupPropId, value })
   }
-  // Same group → reorder (clamped per D-3/D-6); different group → reassign when the property allows (D-4).
-  const canReorderRow = (a: string, o: string): boolean =>
-    rowGroup.get(a) === rowGroup.get(o) ? canReorderWithin : canReassign
-  const reorderRow = (activeId: string, overId: string): void => {
-    const destKey = rowGroup.get(overId)
-    if (destKey !== undefined && destKey !== rowGroup.get(activeId)) {
-      reassignRow(activeId, destKey)
-      return
-    }
-    const next = reorder(
-      dataRows.map((r) => ({ id: r.id })),
-      activeId,
-      overId
-    ).map((o) => o.id)
-    setManualOverride(next)
-    void window.nexus.viewOrders.set(view.id, next)
+  // Within-group reorder commit — the drop-line hands the slot-based order straight in (D-3/D-6);
+  // cross-group reassign is reassignRow (D-4). tableDnd decides which from where you drop (D-8).
+  const reorderTo = (orderIds: string[]): void => {
+    setManualOverride(orderIds)
+    void window.nexus.viewOrders.set(view.id, orderIds)
   }
 
   const renderRows = (g: ResolvedGroup, depth: number): React.JSX.Element[] => {
@@ -275,40 +264,48 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
 
   return (
     <div className="table-view">
-      <div
-        className={cx('table-grid', text.body.standard, liveView.hide_borders && 'no-borders', collapsing != null && 'col-hiding')}
-        style={{ minWidth: totalWidth, ['--cols']: cols } as React.CSSProperties}
+      <TableRowDnd
+        rows={dataRows}
+        disabled={dragDisabled}
+        canReorderWithin={canReorderWithin}
+        canReassign={canReassign}
+        reorderTo={reorderTo}
+        reassign={reassignRow}
       >
-        {/* Header band — a horizontal sortable zone (E-2); the filler sits outside it, inert. The
-            transitionend on the animated track set commits a column hide (E-11). */}
         <div
-          className="table-head"
-          onTransitionEnd={(e) => {
-            if (e.propertyName === 'grid-template-columns') commitHide()
-          }}
+          className={cx('table-grid', text.body.standard, liveView.hide_borders && 'no-borders', collapsing != null && 'col-hiding')}
+          style={{ minWidth: totalWidth, ['--cols']: cols } as React.CSSProperties}
         >
-          <SortableZone items={columns.map((c) => c.id)} axis="x" bounds="parent" itemRole={null} onReorder={reorderColumn}>
-            {columns.map((c) => (
-              <ColumnHeader
-                key={c.id}
-                id={c.id}
-                label={columnLabel(c.id, schema, ctx.labels)}
-                width={colWidth(c.id)}
-                onResize={resizeColumn}
-                onResizeCommit={commitResize}
-                onContextMenu={(e) => void openHeaderMenu(c.id, c.kind !== 'title', e)}
-              />
-            ))}
-          </SortableZone>
-          {/* Trailing filler in the 1fr track — also the :last-child anchor that keeps the last real
-              column's right divider (Table.css). Empty but load-bearing; don't remove. */}
-          <div className="cell-filler" aria-hidden="true" />
-        </div>
-        {/* Rows — a vertical sortable zone (E-3); the group-header rows aren't drag items. */}
-        <SortableZone items={dataRows.map((r) => r.id)} axis="y" itemRole={null} disabled={dragDisabled} canReorder={canReorderRow} onReorder={reorderRow}>
+          {/* Header band — a horizontal sortable zone (E-2); the filler sits outside it, inert. The
+              transitionend on the animated track set commits a column hide (E-11). */}
+          <div
+            className="table-head"
+            onTransitionEnd={(e) => {
+              if (e.propertyName === 'grid-template-columns') commitHide()
+            }}
+          >
+            <SortableZone items={columns.map((c) => c.id)} axis="x" bounds="parent" itemRole={null} onReorder={reorderColumn}>
+              {columns.map((c) => (
+                <ColumnHeader
+                  key={c.id}
+                  id={c.id}
+                  label={columnLabel(c.id, schema, ctx.labels)}
+                  width={colWidth(c.id)}
+                  onResize={resizeColumn}
+                  onResizeCommit={commitResize}
+                  onContextMenu={(e) => void openHeaderMenu(c.id, c.kind !== 'title', e)}
+                />
+              ))}
+            </SortableZone>
+            {/* Trailing filler in the 1fr track — also the :last-child anchor that keeps the last real
+                column's right divider (Table.css). Empty but load-bearing; don't remove. */}
+            <div className="cell-filler" aria-hidden="true" />
+          </div>
+          {/* Rows (E-3) — the drop-line DnD (tableDnd) wraps the whole grid; group-header rows aren't
+              drag items. */}
           {groups.flatMap((g) => renderRows(g, 0))}
-        </SortableZone>
-      </div>
+        </div>
+      </TableRowDnd>
     </div>
   )
 }
@@ -393,11 +390,10 @@ function DataRow({
   dragDisabled: boolean
   onSelect: () => void
 }): React.JSX.Element {
-  const { setNodeRef, style, handle, isDragging } = useDragItem(row.id)
+  const { ref, handle, isDragging } = useTableRowDrag(row.id)
   return (
     <div
-      ref={setNodeRef}
-      style={style}
+      ref={ref}
       className={cx('data-row', selected && 'selected', isDragging && 'row-dragging')}
       onClick={() => {
         if (!isDragging) onSelect() // a drag-release isn't a select — the engine keeps isDragging set through the drop

@@ -32,7 +32,11 @@
   --resizer-width: 8px; /* width of the invisible drag hit-strip at a column's right edge */
 
   /* — Drag — */
-  --drag-ghost-opacity: 0.4; /* dimming of a lifted row/column mid-drag (Task 3 reworks the row treatment) */
+  --drag-ghost-opacity: 0.4; /* dim of a lifted COLUMN mid-drag (smooth-shift ghost; rows use --drag-muted) */
+  --drag-line: var(--accent); /* the row insertion line + its leading dot */
+  --drag-muted: var(--tint-primary); /* opacity of the picked-up row — muted in place, never displaced (B-2) */
+  --drop-line-thickness: 2px; /* insertion line height */
+  --drop-dot-size: 7px; /* the insertion line's leading-dot diameter */
 
   /* — Empty state — */
   --empty-pad-y: 24px; /* vertical padding of the "No pages here" / "Loading…" placeholder */
