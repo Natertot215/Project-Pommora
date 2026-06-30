@@ -55,6 +55,9 @@ export const chipColor = styleVariants({
   default: tint(solid.greyDefault)
 })
 
+/** The chip palette keys — the single source consumers (cells, `chipColorMap`) target. */
+export type ChipColorName = keyof typeof chipColor
+
 /**
  * Checkbox chip — a fixed 17×17 rounded square (radius 5.5) with a 1.5px stroke;
  * holds only a checkmark. Pill = a text `chip`; Select = a `chip` with an icon
