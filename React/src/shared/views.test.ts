@@ -24,6 +24,20 @@ describe('SavedView decode', () => {
     expect(v._foreign_view_key).toBe('preserved')
   })
 
+  it('round-trips the hide_page_icons / hide_borders display toggles', () => {
+    const v = savedView.parse({
+      id: 'view_z',
+      name: 'Z',
+      type: 'table',
+      property_order: [],
+      hidden_properties: [],
+      hide_page_icons: true,
+      hide_borders: true
+    })
+    expect(v.hide_page_icons).toBe(true)
+    expect(v.hide_borders).toBe(true)
+  })
+
   it('falls an unknown group.kind back to structural', () => {
     const v = savedView.parse({
       id: 'view_x',

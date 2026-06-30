@@ -19,6 +19,7 @@ import { resolveUnderRoot } from './pathSafety'
 import { updatePageBody } from './crud/page'
 import { readFolds, writeFolds, type FoldState } from './io/folds'
 import { readActiveViews, writeActiveViews, type ActiveViews } from './io/activeViews'
+import { readViewOrders, writeViewOrders, type ViewOrders } from './io/viewOrders'
 import { saveView, reorderViews, deleteView } from './crud/views'
 import { loadValues } from './crud/loadValues'
 import { addProperty, renameProperty, reorderProperty, deleteProperty, changePropertyType } from './crud/schema'
@@ -348,6 +349,28 @@ ipcMain.handle(
       if (typeof containerId !== 'string') return { ok: false, error: 'A container id is required.' }
       if (typeof viewId !== 'string') return { ok: false, error: 'A view id is required.' }
       await writeActiveViews(root, containerId, viewId)
+      return { ok: true }
+    } catch (e) {
+      return { ok: false, error: e instanceof Error ? e.message : String(e) }
+    }
+  }
+)
+
+// Sorted/grouped manual-order cache — local `.nexus/viewOrders.json`, view id → page-id tiebreaker (per-machine).
+ipcMain.handle('viewOrders:get', async (): Promise<ViewOrders> => {
+  const root = sessionRoot()
+  return root === null ? {} : readViewOrders(root)
+})
+ipcMain.handle(
+  'viewOrders:set',
+  async (_e, viewId: unknown, order: unknown): Promise<{ ok: true } | { ok: false; error: string }> => {
+    try {
+      const root = sessionRoot()
+      if (root === null) return { ok: false, error: 'No nexus is open.' }
+      if (typeof viewId !== 'string') return { ok: false, error: 'A view id is required.' }
+      if (!Array.isArray(order) || !order.every((x) => typeof x === 'string'))
+        return { ok: false, error: 'An order array of page ids is required.' }
+      await writeViewOrders(root, viewId, order)
       return { ok: true }
     } catch (e) {
       return { ok: false, error: e instanceof Error ? e.message : String(e) }

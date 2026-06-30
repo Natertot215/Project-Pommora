@@ -81,6 +81,8 @@ export interface SavedView {
   card_size?: CardSize
   show_cover?: boolean
   show_banner?: boolean
+  hide_page_icons?: boolean
+  hide_borders?: boolean
   sort?: SortCriterion[]
   filter?: FilterGroup
   group?: GroupConfig
@@ -168,6 +170,8 @@ export const savedView = z.looseObject({
   card_size: z.enum(CARD_SIZES).optional(),
   show_cover: z.boolean().optional(),
   show_banner: z.boolean().optional(),
+  hide_page_icons: z.boolean().optional(),
+  hide_borders: z.boolean().optional(),
   sort: z.array(sortCriterion).optional(),
   filter: filterGroup.optional(),
   group: z.unknown().transform(decodeGroupConfig).optional()

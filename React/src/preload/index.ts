@@ -33,6 +33,12 @@ const api = {
     set: (containerId: string, viewId: string): Promise<{ ok: true } | { ok: false; error: string }> =>
       ipcRenderer.invoke('activeViews:set', containerId, viewId)
   },
+  // Sorted-view manual order — local `.nexus/viewOrders.json`, view id → page-id tiebreaker (per-machine).
+  viewOrders: {
+    get: (): Promise<Record<string, string[]>> => ipcRenderer.invoke('viewOrders:get'),
+    set: (viewId: string, order: string[]): Promise<{ ok: true } | { ok: false; error: string }> =>
+      ipcRenderer.invoke('viewOrders:set', viewId, order)
+  },
   // View persistence — save / reorder / delete a SavedView in a Collection/Set sidecar's views[].
   views: {
     save: (
