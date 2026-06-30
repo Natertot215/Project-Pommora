@@ -82,8 +82,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
   // clobbers another's unsaved state — the exact Swift reorder/resize data-loss H-2 guards against.
   const persistView = (patch: Partial<SavedView>): void => {
     void window.nexus.views.save(source.path, source.kind, {
-      ...view,
-      property_order: orderOverride ?? view.property_order,
+      ...liveView,
       collapsed_groups: [...collapsed],
       ...patch
     })
