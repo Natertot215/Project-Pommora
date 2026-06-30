@@ -41,6 +41,12 @@ import { installEditorContextMenu, setFormatState, setCalloutGrip } from './edit
 import type { FormatState } from '@shared/editorMenu'
 import { isValidLink, normalizeLinkUrl } from '@shared/links'
 
+// Dev affordance: opt-in CDP endpoint for headless screenshots / automation. Inert unless
+// POMMORA_DEBUG_PORT is set; must be appended before the app is ready.
+if (process.env.POMMORA_DEBUG_PORT) {
+  app.commandLine.appendSwitch('remote-debugging-port', process.env.POMMORA_DEBUG_PORT)
+}
+
 // The production renderer is served over a custom secure scheme (app://) rather
 // than file://: ES-module scripts fetch in CORS mode and every file:// resource is
 // an opaque origin, so a file://-loaded module bundle is blocked (blank window). A
