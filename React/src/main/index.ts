@@ -37,6 +37,7 @@ import { installAppMenu } from './menu'
 import { popTableMenu } from './tableMenu'
 import type { TableMenuContext } from '@shared/tableMenu'
 import { popCalloutMenu } from './calloutMenu'
+import { popColumnMenu } from './columnMenu'
 import { installEditorContextMenu, setFormatState, setCalloutGrip } from './editorMenu'
 import type { FormatState } from '@shared/editorMenu'
 import { isValidLink, normalizeLinkUrl } from '@shared/links'
@@ -777,6 +778,12 @@ ipcMain.handle('table-menu', async (e, ctx: TableMenuContext) => {
 ipcMain.handle('callout-menu', async (e) => {
   const win = BrowserWindow.fromWebContents(e.sender)
   return win ? popCalloutMenu(win) : null
+})
+
+// Pop the table-view column header's native right-click menu → the chosen action (null if dismissed); renderer applies it.
+ipcMain.handle('column-menu', async (e) => {
+  const win = BrowserWindow.fromWebContents(e.sender)
+  return win ? popColumnMenu(win) : null
 })
 
 

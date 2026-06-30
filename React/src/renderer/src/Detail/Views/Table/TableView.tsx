@@ -14,7 +14,6 @@ import { columnLabel } from './columnLabel'
 import { clampWidth, widthFor } from './columnWidths'
 import { reorderColumns } from './columnReorder'
 import { mergeOverrides } from './viewMerge'
-import { ColumnMenu } from './ColumnMenu'
 import { cx } from '@renderer/design-system/cx'
 import { text } from '@renderer/design-system/tokens'
 import { Icon } from '@renderer/design-system/symbols'
@@ -74,14 +73,12 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
   const [hiddenOverride, setHiddenOverride] = useState<string[] | null>(null)
   const [manualOverride, setManualOverride] = useState<string[] | null>(null)
   const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set(view.collapsed_groups ?? []))
-  const [headerMenu, setHeaderMenu] = useState<{ id: string; left: number; top: number } | null>(null)
   const [collapsing, setCollapsing] = useState<string | null>(null)
   useEffect(() => {
     setOrderOverride(null)
     setWidthOverride({})
     setHiddenOverride(null)
     setManualOverride(null)
-    setHeaderMenu(null)
     setCollapsing(null)
     setCollapsed(new Set(view.collapsed_groups ?? []))
   }, [view.id])
@@ -144,7 +141,6 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
   // Hide animates the column shut on the disclosure token (E-11): setCollapsing drives its <col> to
   // width 0; commitHide fires on that col's transitionend, dropping it from the pipeline + persisting.
   const hideColumn = (id: string): void => {
-    setHeaderMenu(null)
     setCollapsing(id)
   }
   const commitHide = (id: string): void => {
@@ -154,16 +150,11 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
     setHiddenOverride(hidden)
     persistView({ hidden_properties: hidden })
   }
-  // Right-click a header → menu below it (E-1). Positioned at the .table-view level, not in the th
-  // (whose overflow would clip it). Title is the primary column — not hideable, so no menu.
-  const openHeaderMenu = (id: string, hideable: boolean, e: React.MouseEvent): void => {
+  // Right-click a header → native column menu (E-1). Title is the primary column — not hideable, no menu.
+  const openHeaderMenu = async (id: string, hideable: boolean, e: React.MouseEvent): Promise<void> => {
     e.preventDefault()
-    const th = e.currentTarget as HTMLElement
-    const tv = th.closest('.table-view')
-    if (!hideable || !tv) return
-    const thR = th.getBoundingClientRect()
-    const tvR = tv.getBoundingClientRect()
-    setHeaderMenu({ id, left: thR.left - tvR.left, top: thR.bottom - tvR.top })
+    if (!hideable) return
+    if ((await window.nexus.columnMenu()) === 'column:hide') hideColumn(id)
   }
 
   if (!ctx) return <div className="table-empty">Loading…</div>
@@ -269,7 +260,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
                   width={colWidth(c.id)}
                   onResize={resizeColumn}
                   onResizeCommit={commitResize}
-                  onContextMenu={(e) => openHeaderMenu(c.id, c.kind !== 'title', e)}
+                  onContextMenu={(e) => void openHeaderMenu(c.id, c.kind !== 'title', e)}
                 />
               ))}
             </SortableZone>
@@ -283,14 +274,6 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
           </SortableZone>
         </tbody>
       </table>
-      {headerMenu && (
-        <ColumnMenu
-          left={headerMenu.left}
-          top={headerMenu.top}
-          onHide={() => hideColumn(headerMenu.id)}
-          onClose={() => setHeaderMenu(null)}
-        />
-      )}
     </div>
   )
 }
