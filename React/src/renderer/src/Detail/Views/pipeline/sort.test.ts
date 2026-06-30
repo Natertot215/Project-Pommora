@@ -224,3 +224,36 @@ describe('makeSorter — multi-key + null cases', () => {
     expect(makeSorter([{ property_id: '_tier1', direction: 'ascending' }], schema)).toBeNull()
   })
 })
+
+describe('makeSorter — manual order tiebreaker (viewOrders, D-5/D-6)', () => {
+  it('orders by the manual array when there is no sort (grouped-but-unsorted)', () => {
+    const rows = [makeRow('a'), makeRow('b'), makeRow('c')]
+    expect(ids(makeSorter(undefined, schema, ['c', 'a', 'b'])!(rows))).toEqual(['c', 'a', 'b'])
+  })
+
+  it('appends rows absent from the manual order, in input order, after the placed ones', () => {
+    const rows = [makeRow('a'), makeRow('b'), makeRow('c'), makeRow('d')]
+    expect(ids(makeSorter(undefined, schema, ['c', 'a'])!(rows))).toEqual(['c', 'a', 'b', 'd'])
+  })
+
+  it('breaks ties only AFTER the sort key — within an equal-key run (D-6)', () => {
+    const rows = [
+      makeRow('r1', { props: { prop_sel: 'a' } }),
+      makeRow('r2', { props: { prop_sel: 'b' } }),
+      makeRow('r3', { props: { prop_sel: 'a' } })
+    ]
+    const sorter = makeSorter([{ property_id: 'prop_sel', direction: 'ascending' }], schema, ['r3', 'r1'])!
+    expect(ids(sorter(rows))).toEqual(['r3', 'r1', 'r2'])
+  })
+
+  it('cannot reorder across the sort key even if the manual order says so', () => {
+    const rows = [makeRow('r1', { props: { prop_sel: 'a' } }), makeRow('r2', { props: { prop_sel: 'b' } })]
+    const sorter = makeSorter([{ property_id: 'prop_sel', direction: 'ascending' }], schema, ['r2', 'r1'])!
+    expect(ids(sorter(rows))).toEqual(['r1', 'r2'])
+  })
+
+  it('returns null when there is neither a sort nor a manual order', () => {
+    expect(makeSorter(undefined, schema, [])).toBeNull()
+    expect(makeSorter(undefined, schema, undefined)).toBeNull()
+  })
+})

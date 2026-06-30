@@ -16,11 +16,14 @@ export function resolveView(input: {
   setTree: SetTreeNode[]
   view: SavedView
   schema: PropertyDefinition[]
+  /** Per-machine manual row order (viewOrders cache) — the lowest-priority sort tiebreaker (D-5/D-6).
+   *  Pass it only when the view is sorted or grouped; an unsorted, ungrouped view uses page_order. */
+  manualOrder?: string[]
 }): { columns: ResolvedColumn[]; groups: ResolvedGroup[] } {
-  const { rows, setTree, view, schema } = input
+  const { rows, setTree, view, schema, manualOrder } = input
   const columns = resolveColumns(view, schema)
   const filtered = applyFilter(rows, view.filter, schema)
-  const sorter = makeSorter(view.sort, schema)
+  const sorter = makeSorter(view.sort, schema, manualOrder)
   const groups = resolveGroups(filtered, view.group, schema, setTree, sorter, view.collapsed_groups)
   return { columns, groups }
 }

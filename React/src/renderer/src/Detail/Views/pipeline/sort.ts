@@ -136,19 +136,24 @@ function buildCriterion(c: SortCriterion, schema: PropertyDefinition[]): Resolve
  *  array order (priority = index); full ties hold input order. */
 export function makeSorter(
   sort: SortCriterion[] | undefined,
-  schema: PropertyDefinition[]
+  schema: PropertyDefinition[],
+  manualOrder?: string[]
 ): ((rows: ViewRow[]) => ViewRow[]) | null {
-  if (!sort || sort.length === 0) return null
-  const resolved = sort
+  const resolved = (sort ?? [])
     .map((c) => buildCriterion(c, schema))
     .filter((rc): rc is ResolvedCriterion => rc !== null)
-  if (resolved.length === 0) return null
+  // The per-machine manual order (viewOrders) is the LOWEST-priority tiebreaker (D-6): it reorders
+  // only rows already equal on every real sort key, and is the sole comparator when a view is grouped
+  // but unsorted. A row absent from the manual order ranks last (appended after the placed ones).
+  const manualIndex = manualOrder?.length ? new Map(manualOrder.map((id, i) => [id, i] as const)) : null
+  if (resolved.length === 0 && !manualIndex) return null
 
   return (rows) => {
     const decorated = rows.map((row, offset) => ({
       offset,
       row,
-      keys: resolved.map((rc) => rc.extract(row))
+      keys: resolved.map((rc) => rc.extract(row)),
+      manual: manualIndex ? (manualIndex.get(row.id) ?? Number.MAX_SAFE_INTEGER) : 0
     }))
     decorated.sort((a, b) => {
       for (let i = 0; i < resolved.length; i++) {
@@ -163,7 +168,8 @@ export function makeSorter(
           if (less(ka, kb)) return 1
         }
       }
-      return a.offset - b.offset // stable: input order among ties
+      if (a.manual !== b.manual) return a.manual - b.manual // manual order breaks remaining ties (D-6)
+      return a.offset - b.offset // stable: input order among full ties
     })
     return decorated.map((d) => d.row)
   }
