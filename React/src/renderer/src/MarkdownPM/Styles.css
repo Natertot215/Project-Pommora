@@ -112,10 +112,11 @@
 
 /* Banner state: full-width cover band at the container-banner height, title overlaid bottom-left,
    its bottom edge the full-width divider. */
+   
 .mdpm-banner {
   position: relative;
   height: 230px;
-  border-bottom: 1px solid var(--separator-border);
+  border-bottom: 1px solid var(--separator-border);  
 }
 .mdpm-banner-img {
   display: block;
@@ -313,6 +314,11 @@
 
 .md-control {
   color: var(--label-control);
+}
+
+.md-sym-bidir {
+  display: inline-block;
+  transform: scaleX(1.5);
 }
 
 /* ══ LIST KNOBS — edit these to alter list indentation & spacing ════════════════

@@ -52,7 +52,7 @@ export const dashIcon = style({
  *  (aligned with the back-row ‹ heading), with a tighter row (min-height + block-padding 4px shorter
  *  than a content row) so the footing reads compact. */
 export const footerAction = style([
-  text.subline.standard,
+  text.footnote.emphasized,
   flushAffordance,
   { minHeight: '20px', paddingBlock: '2px' }
 ])

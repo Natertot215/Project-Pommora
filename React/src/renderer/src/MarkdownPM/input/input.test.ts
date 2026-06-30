@@ -205,6 +205,11 @@ describe('dash + arrow auto-format', () => {
     expect(apply('-', dashArrow('-', 1, 1, '>')!)).toBe('→')
     expect(apply('<', dashArrow('<', 1, 1, '-')!)).toBe('←')
   })
+  it('<-> → ↔ (two-step chain)', () => {
+    const afterBackArrow = apply('<', dashArrow('<', 1, 1, '-')!)
+    expect(afterBackArrow).toBe('←')
+    expect(apply(afterBackArrow, dashArrow(afterBackArrow, 1, 1, '>')!)).toBe('↔')
+  })
   it('spaced " - " second space → en-dash', () => {
     const doc = 'a -'
     expect(apply(doc, dashArrow(doc, 3, 3, ' ')!)).toBe('a – ')
