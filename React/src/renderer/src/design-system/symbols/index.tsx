@@ -35,6 +35,7 @@ import {
   Type,
   Shapes,
   Layers,
+  GripVertical,
   type LucideIcon,
   type LucideProps
 } from 'lucide-react'
@@ -82,7 +83,8 @@ export const icons = {
   palette: Palette,
   type: Type,
   shapes: Shapes,
-  layers: Layers
+  layers: Layers,
+  'grip-vertical': GripVertical
 } satisfies Record<string, LucideIcon>
 
 export type IconName = keyof typeof icons

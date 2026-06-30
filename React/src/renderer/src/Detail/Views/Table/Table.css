@@ -166,3 +166,29 @@
 .data-row.selected:hover {
   background: var(--selected);
 }
+
+/* Row drag (E-3 / H-5) — a left gutter holds each row's grip, revealed only on row hover; the lifted
+   row renders ghosted while dragged (MarkdownPM feel). */
+.data-table td.cell-gutter,
+.data-table th.cell-gutter {
+  padding: 0;
+  text-align: center;
+  border-right: none; /* the gutter is flush with the row — no column line */
+}
+.row-grip {
+  display: inline-flex;
+  align-items: center;
+  color: var(--text-dim);
+  cursor: grab;
+  opacity: 0;
+  transition: opacity var(--duration-fast) var(--ease-standard);
+}
+.data-row:hover .row-grip {
+  opacity: 1;
+}
+.row-grip:active {
+  cursor: grabbing;
+}
+.data-row.row-dragging {
+  opacity: 0.4;
+}

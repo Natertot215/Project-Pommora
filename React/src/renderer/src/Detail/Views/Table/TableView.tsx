@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
-import type { CollectionNode, NexusTree, ResolvedGroup, SetNode } from '@shared/types'
+import type { CollectionNode, NexusTree, ResolvedColumn, ResolvedGroup, SetNode, ViewRow } from '@shared/types'
 import type { PropertyDefinition } from '@shared/properties'
 import type { PageFrontmatter } from '@shared/schemas'
 import { type SavedView, mintDefaultView } from '@shared/views'
 import { flattenContainer } from '../pipeline/group'
 import { resolveView } from '../pipeline/resolveView'
 import { useSession } from '../../../store'
-import { buildResolveContext } from './resolveContext'
+import { buildResolveContext, type ResolveContext } from './resolveContext'
 import { buildSetNames } from './cellResolve'
 import { Cell } from './Cell'
 import { GroupHeader } from './GroupHeader'
@@ -17,7 +17,11 @@ import { mergeOverrides } from './viewMerge'
 import { ColumnMenu } from './ColumnMenu'
 import { cx } from '@renderer/design-system/cx'
 import { text } from '@renderer/design-system/tokens'
-import { SortableZone, useDragItem } from '@renderer/design-system/interactions/drag'
+import { Icon } from '@renderer/design-system/symbols'
+import { SortableZone, useDragItem, reorder } from '@renderer/design-system/interactions/drag'
+
+/** The left gutter column that holds each row's hover-revealed drag grip (E-3 / H-5). */
+const GUTTER_W = 22
 
 /** A Collection uses its own schema; a Set inherits its ancestor Collection's (schema lives only on
  *  the Collection). [] when the owning Collection can't be found. */
@@ -43,8 +47,10 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
   const select = useSession((s) => s.select)
   const [values, setValues] = useState<Record<string, PageFrontmatter>>({})
   const [activeViewId, setActiveViewId] = useState<string | undefined>(undefined)
+  const [viewOrders, setViewOrders] = useState<Record<string, string[]>>({})
 
-  // Lazy value load + active-view pointer on container open; `cancelled` guards a fast container swap.
+  // Lazy value load + active-view pointer + manual-order cache on container open; `cancelled` guards a
+  // fast container swap.
   useEffect(() => {
     let cancelled = false
     void window.nexus.loadValues(source.path).then((v) => {
@@ -52,6 +58,9 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
     })
     void window.nexus.activeViews.get().then((m) => {
       if (!cancelled) setActiveViewId(m[source.id])
+    })
+    void window.nexus.viewOrders.get().then((m) => {
+      if (!cancelled) setViewOrders(m)
     })
     return () => {
       cancelled = true
@@ -66,6 +75,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
   const [orderOverride, setOrderOverride] = useState<string[] | null>(null)
   const [widthOverride, setWidthOverride] = useState<Record<string, number>>({})
   const [hiddenOverride, setHiddenOverride] = useState<string[] | null>(null)
+  const [manualOverride, setManualOverride] = useState<string[] | null>(null)
   const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set(view.collapsed_groups ?? []))
   const [headerMenu, setHeaderMenu] = useState<{ id: string; left: number; top: number } | null>(null)
   const [collapsing, setCollapsing] = useState<string | null>(null)
@@ -73,6 +83,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
     setOrderOverride(null)
     setWidthOverride({})
     setHiddenOverride(null)
+    setManualOverride(null)
     setHeaderMenu(null)
     setCollapsing(null)
     setCollapsed(new Set(view.collapsed_groups ?? []))
@@ -85,10 +96,14 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
       hidden_properties: hiddenOverride ?? view.hidden_properties
     }
   }, [view, orderOverride, hiddenOverride])
+  // Manual row order (viewOrders cache) is the sort tiebreaker (D-5/D-6) — passed to the pipeline ONLY
+  // when the view is sorted or grouped (an unsorted, ungrouped view uses canonical page_order instead).
+  const sortedOrGrouped = (liveView.sort?.length ?? 0) > 0 || liveView.group != null
+  const manualOrder = sortedOrGrouped ? (manualOverride ?? viewOrders[view.id]) : undefined
   const { columns, groups } = useMemo(() => {
     const { rows, setTree } = flattenContainer(source, values)
-    return resolveView({ rows, setTree, view: liveView, schema })
-  }, [source, values, liveView, schema])
+    return resolveView({ rows, setTree, view: liveView, schema, manualOrder })
+  }, [source, values, liveView, schema, manualOrder])
   const ctx = useMemo(() => (tree ? buildResolveContext(tree, schema) : null), [tree, schema])
   const setNames = useMemo(() => buildSetNames(source), [source])
 
@@ -158,10 +173,30 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
     collapsing === id
       ? 0
       : clampWidth(widthOverride[id] ?? liveView.column_widths?.[id] ?? widthFor(id, schema).default, id, schema)
-  const totalWidth = columns.reduce((sum, c) => sum + colWidth(c.id), 0)
+  const totalWidth = GUTTER_W + columns.reduce((sum, c) => sum + colWidth(c.id), 0)
   // Per-layer indent on the title cell + group headers (J-3), DRY via the --table-indent / pad-x vars.
   const indent = (depth: number): string | undefined =>
     depth > 0 ? `calc(var(--table-pad-x) + var(--table-indent) * ${depth})` : undefined
+
+  // Row drag (E-3): the flat data-row order + each row's group key, feeding the vertical SortableZone.
+  // canReorderRow confines a drop to the SAME group for now — cross-group reassignment is D-4 (Task 13d).
+  const dataRows: { id: string; groupKey: string }[] = []
+  const collectRows = (g: ResolvedGroup): void => {
+    for (const r of g.items) dataRows.push({ id: r.id, groupKey: g.key })
+    for (const c of g.children ?? []) collectRows(c)
+  }
+  groups.forEach(collectRows)
+  const rowGroup = new Map(dataRows.map((r) => [r.id, r.groupKey] as const))
+  const canReorderRow = (a: string, o: string): boolean => rowGroup.get(a) === rowGroup.get(o)
+  const reorderRow = (activeId: string, overId: string): void => {
+    const next = reorder(
+      dataRows.map((r) => ({ id: r.id })),
+      activeId,
+      overId
+    ).map((o) => o.id)
+    setManualOverride(next)
+    void window.nexus.viewOrders.set(view.id, next)
+  }
 
   const renderRows = (g: ResolvedGroup, depth: number): React.JSX.Element[] => {
     const out: React.JSX.Element[] = []
@@ -169,7 +204,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
     if (g.kind !== 'ungrouped') {
       out.push(
         <tr key={`gh-${g.key}`} className="group-header-row">
-          <td colSpan={columns.length + 1} style={{ paddingLeft: depth > 0 ? `calc(var(--table-indent) * ${depth})` : 0 }}>
+          <td colSpan={columns.length + 2} style={{ paddingLeft: depth > 0 ? `calc(var(--table-indent) * ${depth})` : 0 }}>
             <GroupHeader
               group={g}
               view={liveView}
@@ -184,20 +219,18 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
       if (isCollapsed) return out
     }
     for (const row of g.items) {
-      const sel = selection.kind === 'page' && selection.id === row.id
       out.push(
-        <tr
+        <DataRow
           key={row.id}
-          className={`data-row${sel ? ' selected' : ''}`}
-          onClick={() => void select({ kind: 'page', id: row.id, path: row.path })}
-        >
-          {columns.map((c, i) => (
-            <td key={c.id} style={i === 0 ? { paddingLeft: indent(depth) } : undefined}>
-              <Cell row={row} column={c} ctx={ctx} hideIcon={liveView.hide_page_icons ?? false} />
-            </td>
-          ))}
-          <td className="cell-filler" />
-        </tr>
+          row={row}
+          columns={columns}
+          ctx={ctx}
+          depth={depth}
+          indent={indent}
+          hideIcon={liveView.hide_page_icons ?? false}
+          selected={selection.kind === 'page' && selection.id === row.id}
+          onSelect={() => void select({ kind: 'page', id: row.id, path: row.path })}
+        />
       )
     }
     for (const child of g.children ?? []) out.push(...renderRows(child, depth + 1))
@@ -208,6 +241,8 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
     <div className="table-view">
       <table className={cx('data-table', text.body.standard, liveView.hide_borders && 'no-borders')} style={{ minWidth: totalWidth }}>
         <colgroup>
+          {/* Left gutter column for the per-row drag grip (E-3). */}
+          <col style={{ width: GUTTER_W }} />
           {columns.map((c) => (
             <col
               key={c.id}
@@ -221,6 +256,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
         </colgroup>
         <thead>
           <tr>
+            <th className="cell-gutter" aria-hidden="true" />
             {/* Headers are a horizontal sortable zone (E-2); the filler th sits outside it, inert. */}
             <SortableZone items={columns.map((c) => c.id)} axis="x" bounds="parent" itemRole={null} onReorder={reorderColumn}>
               {columns.map((c) => (
@@ -238,7 +274,12 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
             <th className="cell-filler" aria-hidden="true" />
           </tr>
         </thead>
-        <tbody>{groups.flatMap((g) => renderRows(g, 0))}</tbody>
+        <tbody>
+          {/* Rows are a vertical sortable zone (E-3); the group-header rows aren't drag items. */}
+          <SortableZone items={dataRows.map((r) => r.id)} axis="y" itemRole={null} canReorder={canReorderRow} onReorder={reorderRow}>
+            {groups.flatMap((g) => renderRows(g, 0))}
+          </SortableZone>
+        </tbody>
       </table>
       {headerMenu && (
         <ColumnMenu
@@ -299,5 +340,51 @@ function ColumnHeader({
       {label}
       <span className="col-resizer" onPointerDown={startResize} />
     </th>
+  )
+}
+
+/** One data row + its hover-revealed drag grip (E-3 / H-5). The grip in the left gutter is the only
+ *  drag surface; useDragItem ghosts the row while it's lifted. */
+function DataRow({
+  row,
+  columns,
+  ctx,
+  depth,
+  indent,
+  hideIcon,
+  selected,
+  onSelect
+}: {
+  row: ViewRow
+  columns: ResolvedColumn[]
+  ctx: ResolveContext
+  depth: number
+  indent: (depth: number) => string | undefined
+  hideIcon: boolean
+  selected: boolean
+  onSelect: () => void
+}): React.JSX.Element {
+  const { setNodeRef, style, handle, isDragging } = useDragItem(row.id)
+  return (
+    <tr
+      ref={setNodeRef}
+      style={style}
+      className={cx('data-row', selected && 'selected', isDragging && 'row-dragging')}
+      onClick={() => {
+        if (!isDragging) onSelect() // a drag-release isn't a select — the engine keeps isDragging set through the drop
+      }}
+    >
+      <td className="cell-gutter">
+        <span className="row-grip" {...handle} onClick={(e) => e.stopPropagation()} aria-label="Drag to reorder">
+          <Icon name="grip-vertical" size={14} />
+        </span>
+      </td>
+      {columns.map((c, i) => (
+        <td key={c.id} style={i === 0 ? { paddingLeft: indent(depth) } : undefined}>
+          <Cell row={row} column={c} ctx={ctx} hideIcon={hideIcon} />
+        </td>
+      ))}
+      <td className="cell-filler" />
+    </tr>
   )
 }
