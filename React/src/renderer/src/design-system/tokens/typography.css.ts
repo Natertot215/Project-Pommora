@@ -3,8 +3,9 @@ import { createGlobalTheme, style } from '@vanilla-extract/css'
 /**
  * Typography primitives — the raw type scale and the single source of truth.
  * Edit a value here and it propagates to every composed text style and every
- * component that uses one. Mirrors the Figma "Pommora - React" text styles
- * (Inter, letter-spacing 0). Full spec: .claude/Features/Typography.md.
+ * component that uses one. Sizes mirror the Figma "Pommora - React" text styles
+ * (Inter, letter-spacing 0); weights follow the standard/emphasized/semibold/bold
+ * ladder by name, not a per-style emphasis. Full spec: .claude/Features/Typography.md.
  */
 export const font = createGlobalTheme(':root', {
   family:
@@ -37,15 +38,10 @@ export const font = createGlobalTheme(':root', {
 type ScaleKey = keyof typeof font.scale
 type WeightKey = keyof typeof font.weight
 
-// Compose one ramp style into its two variant classes — `.standard` + `.emphasized`.
-// NB: those variant-slot names are a separate layer from the weight names above;
-// a slot maps to whatever weight its role calls for (e.g. Headline's `.standard`
-// slot resolves to the `emphasized` 500 weight). Params name the weight per slot.
-const ramp = (
-  key: ScaleKey,
-  standardWeight: WeightKey,
-  emphasizedWeight: WeightKey
-): { standard: string; emphasized: string } => {
+// Each text style exposes all four weights by name. The variant IS its weight, uniformly across every
+// style: standard / emphasized / semibold / bold map straight to the font.weight ladder above. No
+// role-based remapping — pick the size by style key, the weight by variant name.
+const ramp = (key: ScaleKey): Record<WeightKey, string> => {
   const base = {
     fontFamily: font.family,
     fontSize: font.scale[key].size,
@@ -53,27 +49,28 @@ const ramp = (
     letterSpacing: 0
   }
   return {
-    standard: style({ ...base, fontWeight: font.weight[standardWeight] }),
-    emphasized: style({ ...base, fontWeight: font.weight[emphasizedWeight] })
+    standard: style({ ...base, fontWeight: font.weight.standard }),
+    emphasized: style({ ...base, fontWeight: font.weight.emphasized }),
+    semibold: style({ ...base, fontWeight: font.weight.semibold }),
+    bold: style({ ...base, fontWeight: font.weight.bold })
   }
 }
 
 /**
- * Composed text styles — apply a whole ramp style by name, e.g.
- * `<span className={text.headline.emphasized}>`. Each style's two slots are
- * role-driven (see Typography.md): every `.standard` slot is the 400 weight
- * except Headline (500); `.emphasized` is Semibold or Bold by role.
+ * Composed text styles — apply a whole style by name, e.g. `<span className={text.body.emphasized}>`.
+ * Size comes from the style key; weight from the variant, named for the weight it is
+ * (standard/emphasized/semibold/bold). Full spec: .claude/Features/Typography.md.
  */
 export const text = {
-  largeTitle: ramp('largeTitle', 'standard', 'bold'),
-  title1: ramp('title1', 'standard', 'bold'),
-  title2: ramp('title2', 'standard', 'bold'),
-  title3: ramp('title3', 'standard', 'bold'),
-  headline: ramp('headline', 'emphasized', 'semibold'),
-  body: ramp('body', 'standard', 'bold'),
-  callout: ramp('callout', 'standard', 'bold'),
-  control: ramp('control', 'standard', 'semibold'),
-  caption: ramp('caption', 'standard', 'semibold'),
-  footnote: ramp('footnote', 'standard', 'semibold'),
-  subline: ramp('subline', 'standard', 'semibold')
+  largeTitle: ramp('largeTitle'),
+  title1: ramp('title1'),
+  title2: ramp('title2'),
+  title3: ramp('title3'),
+  headline: ramp('headline'),
+  body: ramp('body'),
+  callout: ramp('callout'),
+  control: ramp('control'),
+  caption: ramp('caption'),
+  footnote: ramp('footnote'),
+  subline: ramp('subline')
 }

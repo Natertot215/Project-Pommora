@@ -8,7 +8,7 @@ const solid = colorVars.color.solid
 // One source for the Control/Emphasized text ramp — never re-state size/line/weight here.
 // Color via `chipColor.*`; shape variant via `chipCheckbox`. Compose: `${chip} ${chipColor.blue}`.
 export const chip = style([
-  text.control.emphasized,
+  text.control.semibold,
   {
     display: 'inline-flex',
     alignItems: 'center',

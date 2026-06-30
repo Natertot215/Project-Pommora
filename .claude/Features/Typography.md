@@ -1,32 +1,30 @@
 ## Typography
 
-Pommora's type system. Source of truth: the Figma "Pommora - React" library (text styles); this doc is its on-disk spec. Family is **Inter** (variable, weight axis 100–900), letter-spacing **0** throughout. Every style carries two variants — **Standard** and **Emphasized** — each bound to one of four named weights. The literal sizes and line heights live in the token file.
+Pommora's type system. Source of truth for **sizes**: the Figma "Pommora - React" library (text styles); this doc is its on-disk spec. Family is **Inter** (variable, weight axis 100–900), letter-spacing **0** throughout. Every style exposes all four weights by name — **Standard 400 · Emphasized 500 · Semibold 600 · Bold 700** — so a variant *is* its weight. The literal sizes and line heights live in the token file.
 
-> **Two layers, shared words.** *Standard* and *Emphasized* name both a style's two **variants** (`text.body.standard` / `.emphasized`) and two of the four **weights** (Standard 400 / Emphasized 500). They're independent: a variant resolves to whatever weight its role needs — e.g. Headline's *Standard variant* uses the *Emphasized (500) weight*.
+> **Variant = weight.** A style's variants map straight to the weight ladder: `text.body.standard` is 400, `.emphasized` 500, `.semibold` 600, `.bold` 700 — the same for every style. Pick the size by style key, the weight by variant name; there's no role-based remapping.
 
 ### The Ramp
 
-Columns are the two **variants**; cells are the **weight** each resolves to.
+Every style exposes the same four weights by name (**Standard 400 · Emphasized 500 · Semibold 600 · Bold 700**); the only thing that varies per style is **size + line height** (in the token file). `text.<style>.<weight>` composes the two — size from the style, weight from the variant.
 
-| Style       | Standard        | Emphasized       | Role                                    |
-| ----------- | --------------- | ---------------- | --------------------------------------- |
-| Large Title | Standard        | Bold             | top-level titles                        |
-| Title 1     | Standard        | Bold             |                                         |
-| Title 2     | Standard        | Bold             |                                         |
-| Title 3     | Standard        | Bold             | section headers                         |
-| Headline    | **Emphasized**  | **Semibold**     | menu section headers; body-size heading |
-| Body        | Standard        | Bold             | paragraph / default UI text             |
-| Callout     | Standard        | **Bold**         | in-text quotes                          |
-| Control     | Standard        | **Semibold**     | chips, labels, UI controls              |
-| Caption     | Standard        | Semibold         | secondary captions                      |
-| Footnote    | Standard        | Semibold         | small text                              |
-| Subline     | Standard        | Semibold         | Subfield + Mini Items    |
+| Style       | Role                                      |
+| ----------- | ----------------------------------------- |
+| Large Title | top-level titles                          |
+| Title 1–3   | section headers by level                  |
+| Headline    | body-size heading; menu section headers   |
+| Body        | paragraph / default UI text               |
+| Callout     | in-text quotes; menu item titles          |
+| Control     | chips, labels, UI controls                |
+| Caption     | secondary captions                        |
+| Footnote    | small text / detail                       |
+| Subline     | Subfield + Mini Items — the smallest text |
 
-Derived from the macOS AppKit text scale drawn in Inter, with deliberate edits: **Headline** sits at body size with Emphasized / Semibold weights — distinct from Body by weight, used for menu section headers; **Callout** carries in-text quotes and menu item titles (Bold emphasis); **Control** drives chips / labels / buttons (Semibold emphasis). The Standard variant is the **Standard (400)** weight everywhere except Headline, which takes **Emphasized (500)**.
+Sizes derive from the macOS AppKit text scale drawn in Inter, with deliberate edits: **Headline** sits at body size (distinct only by the weight you choose); **Callout** carries in-text quotes and menu item titles; **Control** drives chips / labels / buttons.
 
 ### Weights
 
-Four Inter weights on a ladder — **Standard 400 · Emphasized 500 · Semibold 600 · Bold 700** — defined once in the token file (editable in place; the variable font renders any value). By role: **Standard** backs every Standard variant except Headline · **Emphasized** is Headline's Standard variant · **Semibold** is Headline's Emphasized plus Control / Caption / Footnote Emphasized · **Bold** is the Emphasized of Large Title → Body, plus Callout. Emphasis is **role-driven**, not a blanket size rule.
+Four Inter weights on a ladder — **Standard 400 · Emphasized 500 · Semibold 600 · Bold 700** — defined once in the token file (editable in place; the variable font renders any value). Every style exposes all four by name, and the variant name is the weight it renders: `.emphasized` is 500 everywhere, `.bold` is 700 everywhere. Bridged to `--weight-{standard,emphasized,semibold,bold}` CSS vars so plain CSS draws the same numbers.
 
 ### Where Each Style Goes
 
@@ -35,7 +33,7 @@ Four Inter weights on a ladder — **Standard 400 · Emphasized 500 · Semibold 
 - **Menu Headings** → Headline / Standard.
 - **Labels** → Control / Emphasized.
 - **Buttons** → Control / Emphasized.
-- **Chips** → Control / Emphasized.
+- **Chips** → Control / Semibold.
 - **Sub-label** → Caption / Standard.
 - **Detail** → Footnote / Emphasized.
 - **Subfield (footer)** → Subline / Emphasized — the smallest text in the app.
@@ -50,7 +48,7 @@ Text color is separate from the type ramp. Three label tones on one near-white b
 
 ### In Code
 
-The type tokens are authored in vanilla-extract in two layers: **font primitives** (family, the four weights, and a size/line scale per style) as the single source, and **composed text classes** (`text.<style>.{standard, emphasized}`) that apply a whole style to a component. The weights are also bridged to `--weight-{standard,emphasized,semibold,bold}` CSS vars so plain CSS draws from the same numbers. Inter loads as a variable font; the build extracts the CSS.
+The type tokens are authored in vanilla-extract in two layers: **font primitives** (family, the four weights, and a size/line scale per style) as the single source, and **composed text classes** (`text.<style>.{standard, emphasized, semibold, bold}`) that apply a whole style to a component. The weights are also bridged to `--weight-{standard,emphasized,semibold,bold}` CSS vars so plain CSS draws from the same numbers. Inter loads as a variable font; the build extracts the CSS.
 
 ### Not Yet Established — Stubs
 

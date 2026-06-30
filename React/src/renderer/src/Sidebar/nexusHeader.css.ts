@@ -52,7 +52,7 @@ export const textBlock = style({
 
 const line = { margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } as const
 
-export const title = style([text.headline.standard, { ...line, color: c.label.primary }])
+export const title = style([text.headline.semibold, { ...line, color: c.label.primary }])
 
 export const description = style([text.caption.standard, { ...line, color: c.label.secondary }])
 
@@ -61,5 +61,5 @@ export const descriptionEmpty = style([text.caption.standard, { ...line, color: 
 
 // Inline-edit inputs — borderless + transparent so they read exactly like the text they replace.
 const inputReset = { border: 'none', outline: 'none', background: 'transparent', padding: 0, margin: 0, width: '100%' } as const
-export const titleInput = style([text.headline.standard, { ...inputReset, color: c.label.primary }])
+export const titleInput = style([text.headline.semibold, { ...inputReset, color: c.label.primary }])
 export const descriptionInput = style([text.caption.standard, { ...inputReset, color: c.label.secondary }])
