@@ -68,11 +68,13 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
   const [hiddenOverride, setHiddenOverride] = useState<string[] | null>(null)
   const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set(view.collapsed_groups ?? []))
   const [headerMenu, setHeaderMenu] = useState<{ id: string; left: number; top: number } | null>(null)
+  const [collapsing, setCollapsing] = useState<string | null>(null)
   useEffect(() => {
     setOrderOverride(null)
     setWidthOverride({})
     setHiddenOverride(null)
     setHeaderMenu(null)
+    setCollapsing(null)
     setCollapsed(new Set(view.collapsed_groups ?? []))
   }, [view.id])
   const liveView = useMemo(() => {
@@ -122,11 +124,18 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
   const commitResize = (id: string, width: number): void => {
     persistView({ column_widths: { ...liveView.column_widths, ...widthOverride, [id]: clampWidth(width, id, schema) } })
   }
+  // Hide animates the column shut on the disclosure token (E-11): setCollapsing drives its <col> to
+  // width 0; commitHide fires on that col's transitionend, dropping it from the pipeline + persisting.
   const hideColumn = (id: string): void => {
+    setHeaderMenu(null)
+    setCollapsing(id)
+  }
+  const commitHide = (id: string): void => {
+    if (collapsing !== id) return
     const hidden = [...(liveView.hidden_properties ?? []), id]
+    setCollapsing(null)
     setHiddenOverride(hidden)
     persistView({ hidden_properties: hidden })
-    setHeaderMenu(null)
   }
   // Right-click a header → menu below it (E-1). Positioned at the .table-view level, not in the th
   // (whose overflow would clip it). Title is the primary column — not hideable, so no menu.
@@ -145,7 +154,9 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
   // Saved widths are clamped to the type's [min, max] (Q-4) — a stale/out-of-range saved value can't
   // squash a column below legibility or stretch it past its cap.
   const colWidth = (id: string): number =>
-    clampWidth(widthOverride[id] ?? liveView.column_widths?.[id] ?? widthFor(id, schema).default, id, schema)
+    collapsing === id
+      ? 0
+      : clampWidth(widthOverride[id] ?? liveView.column_widths?.[id] ?? widthFor(id, schema).default, id, schema)
   const totalWidth = columns.reduce((sum, c) => sum + colWidth(c.id), 0)
   // Per-layer indent on the title cell + group headers (J-3), DRY via the --table-indent / pad-x vars.
   const indent = (depth: number): string | undefined =>
@@ -197,7 +208,12 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
       <table className={cx('data-table', text.body.standard, liveView.hide_borders && 'no-borders')} style={{ minWidth: totalWidth }}>
         <colgroup>
           {columns.map((c) => (
-            <col key={c.id} style={{ width: colWidth(c.id) }} />
+            <col
+              key={c.id}
+              className={cx(collapsing === c.id && 'col-collapsing')}
+              style={{ width: colWidth(c.id) }}
+              onTransitionEnd={() => commitHide(c.id)}
+            />
           ))}
           {/* Filler column absorbs pane width past the summed columns so the grid spans full-width. */}
           <col className="col-filler" />

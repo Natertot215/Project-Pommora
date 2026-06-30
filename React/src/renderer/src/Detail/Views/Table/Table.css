@@ -61,6 +61,12 @@
   z-index: 1;
 }
 
+/* E-11: a hidden column collapses shut on the disclosure token, then drops from the grid. The
+   transition is only on the collapsing col, so resizing other columns stays instant. */
+.data-table col.col-collapsing {
+  transition: width var(--disclosure) var(--ease-standard);
+}
+
 .data-table td {
   color: var(--text);
   padding: var(--table-pad-y) var(--table-pad-x);
