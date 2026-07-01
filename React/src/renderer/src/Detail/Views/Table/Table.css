@@ -51,6 +51,11 @@
   color: var(--heading-text);
   border-bottom: var(--heading-divider);
   user-select: none;
+  /* Full-bleed the fill + seam LEFT across the gutter to the sidebar edge; the matching padding re-lands
+     the column tracks on the body grid (only the trailing 1fr filler eats it), and staying in the grid
+     keeps the band h-scrolling with the body. Right side needs no bleed — no gutter, stops at the inspector. */
+  margin-left: calc(-1 * var(--gutter));
+  padding-left: var(--gutter);
 }
 .col-header {
   padding: var(--heading-padding-y) var(--cell-padding-x);
