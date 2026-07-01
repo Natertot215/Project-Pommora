@@ -1,4 +1,4 @@
-import { readRegistry, writeRegistry } from '../io/propertiesRegistry'
+import { mutateRegistry } from '../io/propertiesRegistry'
 import { validateDefinition, validateName } from '../properties/schema'
 import { mintPropertyId } from '../ids'
 import { defaultStatusSeed, defaultSelectSeed, type PropertyDefinition } from '@shared/properties'
@@ -14,39 +14,39 @@ function seeded(def: PropertyDefinition): PropertyDefinition {
 }
 
 /** Mint + persist a nexus-wide definition. Name uniqueness is validated against the WHOLE registry. */
-export async function createProperty(root: string, def: PropertyDefinition): Promise<Result<{ id: string }>> {
-  const registry = await readRegistry(root)
-  const candidate = seeded({ ...def, id: def.id || mintPropertyId() })
-  const v = validateDefinition(candidate, Object.values(registry))
-  if (!v.ok) return v
-  await writeRegistry(root, { ...registry, [candidate.id]: candidate })
-  return ok({ id: candidate.id })
+export function createProperty(root: string, def: PropertyDefinition): Promise<Result<{ id: string }>> {
+  return mutateRegistry<Result<{ id: string }>>(root, (registry) => {
+    const candidate = seeded({ ...def, id: def.id || mintPropertyId() })
+    const v = validateDefinition(candidate, Object.values(registry))
+    if (!v.ok) return { result: v }
+    return { next: { ...registry, [candidate.id]: candidate }, result: ok({ id: candidate.id }) }
+  })
 }
 
 /** Edit the global definition in place — every assigning Collection sees the change on next read. */
-export async function editProperty(
+export function editProperty(
   root: string,
   propertyId: string,
   changes: Partial<PropertyDefinition>
 ): Promise<Result<null>> {
-  const registry = await readRegistry(root)
-  const current = registry[propertyId]
-  if (!current) return fail('not-found', 'Property not found.')
-  const next = seeded({ ...current, ...changes, id: propertyId })
-  if (next.name !== current.name) {
-    const v = validateName(next.name, Object.values(registry), propertyId)
-    if (!v.ok) return v
-  }
-  await writeRegistry(root, { ...registry, [propertyId]: next })
-  return ok(null)
+  return mutateRegistry<Result<null>>(root, (registry) => {
+    const current = registry[propertyId]
+    if (!current) return { result: fail('not-found', 'Property not found.') }
+    const next = seeded({ ...current, ...changes, id: propertyId })
+    if (next.name !== current.name) {
+      const v = validateName(next.name, Object.values(registry), propertyId)
+      if (!v.ok) return { result: v }
+    }
+    return { next: { ...registry, [propertyId]: next }, result: ok(null) }
+  })
 }
 
 /** Bare registry delete — no value scrub or assignment cleanup; `deleteProperty` wraps this. */
-export async function removeFromRegistry(root: string, propertyId: string): Promise<Result<null>> {
-  const registry = await readRegistry(root)
-  if (!registry[propertyId]) return fail('not-found', 'Property not found.')
-  const next = { ...registry }
-  delete next[propertyId]
-  await writeRegistry(root, next)
-  return ok(null)
+export function removeFromRegistry(root: string, propertyId: string): Promise<Result<null>> {
+  return mutateRegistry<Result<null>>(root, (registry) => {
+    if (!registry[propertyId]) return { result: fail('not-found', 'Property not found.') }
+    const next = { ...registry }
+    delete next[propertyId]
+    return { next, result: ok(null) }
+  })
 }

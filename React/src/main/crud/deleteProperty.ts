@@ -62,7 +62,13 @@ export async function deleteProperty(root: string, propertyId: string): Promise<
       )
     }
     for (const file of await listMarkdownFiles(folder)) {
-      const stripped = stripPageMember(await readFile(file, 'utf8'), propertyId)
+      let content: string
+      try {
+        content = await readFile(file, 'utf8')
+      } catch {
+        continue
+      }
+      const stripped = stripPageMember(content, propertyId)
       if (stripped !== null) tx.stage(file, stripped)
     }
   }

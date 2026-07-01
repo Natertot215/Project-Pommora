@@ -20,8 +20,30 @@ export async function readRegistry(root: string): Promise<PropertyRegistry> {
   return out
 }
 
-/** Overwrite the whole registry (callers read-modify-write). */
+/** Overwrite the whole registry. Prefer `mutateRegistry` — a bare write outside the chain
+ *  can lose a concurrent mutation's update. */
 export async function writeRegistry(root: string, registry: PropertyRegistry): Promise<void> {
   await mkdir(nexusDir(root), { recursive: true })
   await writeJson(registryPath(root), registry)
+}
+
+// Every mutation shares one file, so read-modify-writes must not interleave: two overlapping
+// IPC ops that both read the same snapshot would have the later write silently drop the
+// earlier one's change. One module-level chain serializes them (single main process; the
+// session has one root, so a per-root map would be ceremony).
+let chain: Promise<unknown> = Promise.resolve()
+
+/** Serialized read-modify-write. `fn` returns the next registry to persist (or nothing to
+ *  leave disk untouched, e.g. a validation failure) plus the caller's result. */
+export function mutateRegistry<T>(
+  root: string,
+  fn: (registry: PropertyRegistry) => { next?: PropertyRegistry; result: T }
+): Promise<T> {
+  const run = chain.then(async () => {
+    const { next, result } = fn(await readRegistry(root))
+    if (next) await writeRegistry(root, next)
+    return result
+  })
+  chain = run.catch(() => undefined)
+  return run
 }

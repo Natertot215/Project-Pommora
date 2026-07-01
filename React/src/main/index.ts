@@ -22,7 +22,7 @@ import { readActiveViews, writeActiveViews, type ActiveViews } from './io/active
 import { readViewOrders, writeViewOrders, type ViewOrders } from './io/viewOrders'
 import { saveView, reorderViews, deleteView } from './crud/views'
 import { loadValues } from './crud/loadValues'
-import { createProperty, editProperty } from './crud/registryProperty'
+import { createProperty, editProperty, removeFromRegistry } from './crud/registryProperty'
 import { assignProperty, unassignProperty, reorderAssignment } from './crud/assignment'
 import { deleteProperty as deletePropertyGlobal } from './crud/deleteProperty'
 import { savedView } from '@shared/views'
@@ -487,7 +487,12 @@ ipcMain.handle(
       const created = await createProperty(root, parsed.data)
       if (!created.ok) return { ok: false, error: created.error.message }
       const assigned = await assignProperty(c.folder, created.value.id)
-      return assigned.ok ? { ok: true, id: created.value.id } : { ok: false, error: assigned.error.message }
+      if (!assigned.ok) {
+        // Don't orphan the just-created def in the registry when the assign leg fails.
+        await removeFromRegistry(root, created.value.id)
+        return { ok: false, error: assigned.error.message }
+      }
+      return { ok: true, id: created.value.id }
     } catch (e) {
       return { ok: false, error: e instanceof Error ? e.message : String(e) }
     }

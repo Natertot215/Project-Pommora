@@ -31,6 +31,17 @@ describe('createProperty', () => {
     await createProperty(root, def({ name: 'Priority', type: 'select' }))
     expect((await createProperty(root, def({ name: 'priority', type: 'number' }))).ok).toBe(false)
   })
+
+  it('serializes overlapping mutations — no lost update on the shared registry file', async () => {
+    const results = await Promise.all([
+      createProperty(root, def({ name: 'One', type: 'number' })),
+      createProperty(root, def({ name: 'Two', type: 'number' })),
+      createProperty(root, def({ name: 'Three', type: 'number' }))
+    ])
+    expect(results.every((r) => r.ok)).toBe(true)
+    const reg = await readRegistry(root)
+    expect(Object.values(reg).map((d) => d.name).sort()).toEqual(['One', 'Three', 'Two'])
+  })
 })
 
 describe('editProperty', () => {
