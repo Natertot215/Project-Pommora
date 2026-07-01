@@ -85,3 +85,17 @@ export function buildSetNames(source: CollectionNode | SetNode): Map<string, str
   walk(source.sets)
   return m
 }
+
+/** Set id → its per-entity icon (a symbol name, or undefined ⇒ the folder default) across a container's
+ *  Set subtree — for structural group-header glyphs (E-3). */
+export function buildSetIcons(source: CollectionNode | SetNode): Map<string, string | undefined> {
+  const m = new Map<string, string | undefined>()
+  const walk = (sets: SetNode[] | undefined): void => {
+    for (const s of sets ?? []) {
+      m.set(s.id, s.icon)
+      walk(s.sets)
+    }
+  }
+  walk(source.sets)
+  return m
+}

@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import type { ResolvedGroup } from '@shared/types'
+import { UNGROUPED, type ResolvedGroup } from '@shared/types'
 import type { SavedView } from '@shared/views'
 import { chip, chipCheckbox, chipColor, text } from '@renderer/design-system/tokens'
 import { cx } from '@renderer/design-system/cx'
@@ -17,11 +17,28 @@ function groupGlyph(
   group: ResolvedGroup,
   view: SavedView,
   ctx: ResolveContext,
-  setNames: Map<string, string>
+  setNames: Map<string, string>,
+  setIcons: Map<string, string | undefined>
 ): ReactNode {
-  if (group.kind === 'structural-set') return <span className="group-name">{setNames.get(group.key) ?? group.key}</span>
+  // Structural Set/folder group (E-3): the Set's own icon (or the folder default), immune to Hide Page
+  // Icons — it names the container, not a page — then the Set title.
+  if (group.kind === 'structural-set') {
+    return (
+      <span className="group-name">
+        <Icon name={asIconName(setIcons.get(group.key)) ?? 'folder-closed'} size={13} />
+        {setNames.get(group.key) ?? group.key}
+      </span>
+    )
+  }
   const propId = view.group?.kind === 'property' ? view.group.property_id : undefined
   if (!propId) return <span className="group-name">{group.key}</span>
+
+  // No-value band (E-4): a grey "None" pill for select/status grouping, plain "None" text for date/time.
+  if (group.key === UNGROUPED) {
+    const t = declaredType(propId, ctx.schema)
+    if (t === 'status' || t === 'select') return <Chip color="default" label="None" />
+    return <span className="group-name">None</span>
+  }
 
   switch (declaredType(propId, ctx.schema)) {
     case 'status':
@@ -61,6 +78,7 @@ export function GroupHeader({
   view,
   ctx,
   setNames,
+  setIcons,
   collapsed,
   onToggle
 }: {
@@ -68,6 +86,7 @@ export function GroupHeader({
   view: SavedView
   ctx: ResolveContext
   setNames: Map<string, string>
+  setIcons: Map<string, string | undefined>
   collapsed: boolean
   onToggle: () => void
 }): React.JSX.Element {
@@ -81,7 +100,7 @@ export function GroupHeader({
       >
         <Icon name="chevron-right" size={12} className={cx('twisty', !collapsed && 'open')} />
       </button>
-      {groupGlyph(group, view, ctx, setNames)}
+      {groupGlyph(group, view, ctx, setNames, setIcons)}
       {/* Hover-revealed: adds a page to this group, sorted to the group bottom (newItemsTo, default
           'bottom'). The caller is pending Nathan's creation-affordance design (Q-7/Q-9) — inert for now. */}
       <button type="button" className="group-add" tabIndex={-1} aria-label="New page in group">

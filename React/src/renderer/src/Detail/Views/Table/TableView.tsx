@@ -9,7 +9,7 @@ import { resolveView } from '../pipeline/resolveView'
 import { declaredType } from '../pipeline/value'
 import { useSession } from '../../../store'
 import { buildResolveContext, type ResolveContext } from './resolveContext'
-import { buildSetNames } from './cellResolve'
+import { buildSetIcons, buildSetNames } from './cellResolve'
 import { Cell } from './Cell'
 import { GroupHeader } from './GroupHeader'
 import { columnLabel } from './columnLabel'
@@ -134,6 +134,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
   }, [source, effectiveValues, liveView, schema, manualOrder])
   const ctx = useMemo(() => (tree ? buildResolveContext(tree, schema) : null), [tree, schema])
   const setNames = useMemo(() => buildSetNames(source), [source])
+  const setIcons = useMemo(() => buildSetIcons(source), [source])
 
   // Persist the saved view + every live override (order + collapse) + a patch, so no one mutation
   // clobbers another's unsaved state — the exact Swift reorder/resize data-loss H-2 guards against.
@@ -387,6 +388,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
           view={liveView}
           ctx={ctx}
           setNames={setNames}
+          setIcons={setIcons}
           collapsed={isCollapsed}
           onToggle={() => toggleCollapse(g.key)}
         />

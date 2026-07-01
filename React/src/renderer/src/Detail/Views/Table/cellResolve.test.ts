@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { buildSetNames, cellText, findOption, groupLabel, optionLabel } from './cellResolve'
+import { buildSetIcons, buildSetNames, cellText, findOption, groupLabel, optionLabel } from './cellResolve'
 import { DEFAULT_LABELS, UNGROUPED, type CollectionNode, type ResolvedGroup, type ViewRow } from '@shared/types'
 import type { PropertyDefinition } from '@shared/properties'
 import type { ResolveContext } from './resolveContext'
@@ -88,5 +88,19 @@ describe('buildSetNames', () => {
     const m = buildSetNames(source)
     expect(m.get('s1')).toBe('Top')
     expect(m.get('s2')).toBe('Nested')
+  })
+})
+
+describe('buildSetIcons', () => {
+  it('maps set ids to their icon across the subtree (undefined when unset)', () => {
+    const source = {
+      kind: 'collection',
+      sets: [
+        { id: 's1', kind: 'set', title: 'Top', icon: 'star', pages: [], sets: [{ id: 's2', kind: 'set', title: 'Nested', pages: [] }] }
+      ]
+    } as unknown as CollectionNode
+    const m = buildSetIcons(source)
+    expect(m.get('s1')).toBe('star')
+    expect(m.get('s2')).toBeUndefined()
   })
 })
