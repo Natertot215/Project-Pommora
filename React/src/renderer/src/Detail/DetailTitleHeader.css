@@ -11,7 +11,7 @@
   /* Sizes to the title — the type scale drives both. KNOB: bump to e.g. calc(var(--detail-title-size) * 1.1). */
   width: var(--detail-title-size);
   height: var(--detail-title-size);
-  color: var(--label-secondary);
+  color: var(--label-control);
 }
 .detail-title-text,
 .detail-title-input {
