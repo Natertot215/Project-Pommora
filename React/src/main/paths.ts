@@ -47,5 +47,6 @@ export const NEXUS_CONFIG_FILES = {
   folds: 'folds.json',
   tableHeadingColumns: 'tableHeadingColumns.json',
   activeViews: 'activeViews.json',
-  viewOrders: 'viewOrders.json'
+  viewOrders: 'viewOrders.json',
+  properties: 'properties.json'
 } as const
