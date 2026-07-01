@@ -21,6 +21,9 @@ export type ViewType = (typeof VIEW_TYPES)[number]
 const CARD_SIZES = ['small', 'medium', 'large'] as const
 export type CardSize = (typeof CARD_SIZES)[number]
 
+const COLUMN_ALIGNS = ['left', 'center', 'right'] as const
+export type ColumnAlign = (typeof COLUMN_ALIGNS)[number]
+
 const SORT_DIRECTIONS = ['ascending', 'descending'] as const
 const MATCH_MODES = ['all', 'any'] as const
 
@@ -77,6 +80,7 @@ export interface SavedView {
   property_order: string[]
   hidden_properties: string[]
   column_widths?: Record<string, number>
+  column_alignments?: Record<string, ColumnAlign>
   collapsed_groups?: string[]
   card_size?: CardSize
   show_cover?: boolean
@@ -166,6 +170,7 @@ export const savedView = z.looseObject({
   property_order: z.array(z.string()).catch([]),
   hidden_properties: z.array(z.string()).catch([]),
   column_widths: z.record(z.string(), z.number()).optional(),
+  column_alignments: z.record(z.string(), z.enum(COLUMN_ALIGNS)).optional(),
   collapsed_groups: z.array(z.string()).optional(),
   card_size: z.enum(CARD_SIZES).optional(),
   show_cover: z.boolean().optional(),

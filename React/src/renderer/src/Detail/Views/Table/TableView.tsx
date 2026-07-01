@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import type { CollectionNode, NexusTree, ResolvedColumn, ResolvedGroup, SetNode, ViewRow } from '@shared/types'
 import type { PropertyDefinition } from '@shared/properties'
 import type { PageFrontmatter } from '@shared/schemas'
-import { type SavedView, mintDefaultView } from '@shared/views'
+import { type ColumnAlign, type SavedView, mintDefaultView } from '@shared/views'
 import { applyPropertyValue } from '@shared/propertyValue'
 import { flattenContainer } from '../pipeline/group'
 import { resolveView } from '../pipeline/resolveView'
@@ -14,6 +14,7 @@ import { Cell } from './Cell'
 import { GroupHeader } from './GroupHeader'
 import { columnLabel } from './columnLabel'
 import { clampWidth, widthFor } from './columnWidths'
+import { alignFor } from './columnAlign'
 import { reorderColumns } from './columnReorder'
 import { mergeOverrides } from './viewMerge'
 import { groupKeyToValue, REASSIGNABLE_GROUP_TYPES } from './reassign'
@@ -84,6 +85,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
   // override so a resize doesn't re-run the pipeline. All re-seed on view change.
   const [orderOverride, setOrderOverride] = useState<string[] | null>(null)
   const [widthOverride, setWidthOverride] = useState<Record<string, number>>({})
+  const [alignOverride, setAlignOverride] = useState<Record<string, ColumnAlign>>({})
   const [hiddenOverride, setHiddenOverride] = useState<string[] | null>(null)
   const [manualOverride, setManualOverride] = useState<string[] | null>(null)
   const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set(view.collapsed_groups ?? []))
@@ -94,6 +96,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
   useEffect(() => {
     setOrderOverride(null)
     setWidthOverride({})
+    setAlignOverride({})
     setHiddenOverride(null)
     setManualOverride(null)
     setCollapsing(null)
@@ -135,7 +138,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
   // Persist the saved view + every live override (order + collapse) + a patch, so no one mutation
   // clobbers another's unsaved state — the exact Swift reorder/resize data-loss H-2 guards against.
   const persistView = (patch: Partial<SavedView>): void => {
-    void window.nexus.views.save(source.path, source.kind, mergeOverrides(liveView, widthOverride, collapsed, patch))
+    void window.nexus.views.save(source.path, source.kind, mergeOverrides(liveView, widthOverride, alignOverride, collapsed, patch))
   }
   const toggleCollapse = (key: string): void => {
     const next = new Set(collapsed)
@@ -177,11 +180,20 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
     setHiddenOverride(hidden)
     persistView({ hidden_properties: hidden })
   }
-  // Right-click a header → native column menu (E-1). Title is the primary column — not hideable, no menu.
-  const openHeaderMenu = async (id: string, hideable: boolean, e: React.MouseEvent): Promise<void> => {
+  // A column's resolved alignment (E-5..E-7): the live override, else the saved value / E-6 type default.
+  const colAlign = (id: string): ColumnAlign => alignOverride[id] ?? alignFor(id, schema, liveView)
+  // Set a column's alignment: applies live via the override, persists to the SavedView column_alignments.
+  const setColumnAlign = (id: string, align: ColumnAlign): void => {
+    setAlignOverride((prev) => ({ ...prev, [id]: align }))
+    persistView({ column_alignments: { ...liveView.column_alignments, ...alignOverride, [id]: align } })
+  }
+  // Right-click a header → native column menu (E-1/E-5): Align + Hide. Title is the primary column — fixed
+  // left, not hideable — so it pops nothing.
+  const openHeaderMenu = async (id: string, isTitle: boolean, e: React.MouseEvent): Promise<void> => {
     e.preventDefault()
-    if (!hideable) return
-    if ((await window.nexus.columnMenu()) === 'column:hide') hideColumn(id)
+    const action = await window.nexus.columnMenu({ align: colAlign(id), alignable: !isTitle, hideable: !isTitle })
+    if (action === 'column:hide') hideColumn(id)
+    else if (action?.startsWith('align:')) setColumnAlign(id, action.slice('align:'.length) as ColumnAlign)
   }
 
   if (!ctx) return <div className="table-empty">Loading…</div>
@@ -350,6 +362,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
             depth={itemDepth}
             indent={indent}
             colTransform={colTransform}
+            colAlign={colAlign}
             draggingCol={colDrag?.from}
             hideIcon={liveView.hide_page_icons ?? false}
             selected={selection.kind === 'page' && selection.id === row.id}
@@ -419,12 +432,13 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
                 id={c.id}
                 label={columnLabel(c.id, schema, ctx.labels)}
                 width={colWidth(c.id)}
+                align={colAlign(c.id)}
                 transform={colTransform(i)}
                 dragging={colDrag?.from === i}
                 onDragStart={(e) => startColumnDrag(e, i)}
                 onResize={resizeColumn}
                 onResizeCommit={commitResize}
-                onContextMenu={(e) => void openHeaderMenu(c.id, c.kind !== 'title', e)}
+                onContextMenu={(e) => void openHeaderMenu(c.id, c.kind === 'title', e)}
               />
             ))}
             {/* Trailing filler in the 1fr track — also the :last-child anchor that keeps the last real
@@ -448,6 +462,7 @@ function ColumnHeader({
   id,
   label,
   width,
+  align,
   transform,
   dragging,
   onDragStart,
@@ -458,6 +473,7 @@ function ColumnHeader({
   id: string
   label: string
   width: number
+  align: ColumnAlign
   transform: string | undefined
   dragging: boolean
   onDragStart: (e: React.PointerEvent) => void
@@ -490,7 +506,7 @@ function ColumnHeader({
   return (
     <div
       className={cx('col-header', text.body.semibold, dragging && 'col-dragging')}
-      style={{ transform }}
+      style={{ transform, textAlign: align }}
       onPointerDown={onDragStart}
       onContextMenu={onContextMenu}
     >
@@ -510,6 +526,7 @@ function DataRow({
   depth,
   indent,
   colTransform,
+  colAlign,
   draggingCol,
   hideIcon,
   selected,
@@ -523,6 +540,7 @@ function DataRow({
   depth: number
   indent: (depth: number) => string | undefined
   colTransform: (ci: number) => string | undefined
+  colAlign: (id: string) => ColumnAlign
   draggingCol: number | undefined
   hideIcon: boolean
   selected: boolean
@@ -540,7 +558,7 @@ function DataRow({
       }}
     >
       {columns.map((c, i) => {
-        const style: React.CSSProperties = { transform: colTransform(i) }
+        const style: React.CSSProperties = { transform: colTransform(i), textAlign: colAlign(c.id) }
         if (i === 0) style.paddingLeft = indent(depth)
         return i === 0 ? (
           <div key={c.id} className={cx('data-cell', 'cell-lead', draggingCol === i && 'col-dragging')} style={style}>
