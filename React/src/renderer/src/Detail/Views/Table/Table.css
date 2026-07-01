@@ -58,12 +58,15 @@
   border-bottom: var(--heading-divider);
   user-select: none;
   /* Full-bleed the fill + seam to BOTH glass edges: the widened .table-view puts its padding box at the
-     sidebar edge (left) and inspector/window edge (right), and these margins bleed the band out to them
-     by the content gutter; the left padding re-lands the column tracks on the body grid (only the trailing
-     1fr filler eats it). Staying in the grid keeps the band h-scrolling with the body. */
+     sidebar edge (left) and inspector/window edge (right), and these margins bleed the band out to them by
+     the content gutter; the fill (background covers the border box) reaches the glass, while BOTH paddings
+     re-land the column tracks on the exact same content width as a data row. Matching widths matters now
+     that the title is an elastic minmax — an un-padded (wider) header would resolve it wider than the
+     narrower rows and drift every column. Staying in the grid keeps the band h-scrolling with the body. */
   margin-left: calc(-1 * var(--content-gutter));
   margin-right: calc(-1 * var(--content-gutter));
   padding-left: var(--content-gutter);
+  padding-right: var(--content-gutter);
 }
 .col-header {
   padding: var(--heading-padding-y) var(--cell-padding-x);
