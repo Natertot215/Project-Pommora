@@ -28,11 +28,11 @@ Three **free-standing** tiers — Areas (1), Topics (2), Projects (3) — each a
 
 | Entity | Role | Default UI label |
 |---|---|---|
-| **Page Collection** | Schema-bearing top container for Pages | "Collection" |
+| **Page Collection** | Top container for Pages; assigns their nexus-wide properties | "Collection" |
 | **Page Set** | Recursive sub-folder inside a Collection (any depth); inherits the schema. Depth-1 carries its own views; deeper is plain | "Set" / "Sub-Set" |
 | **Page** | Markdown document — prose plus frontmatter | "Page" |
 
-The Collection's property schema applies to every Page inside it at any depth — all Sets inherit it. On disk: a Collection is `_pagecollection.json`, every Set is `_pageset.json`, a Page is a `.md` file. The code-level names are `PageCollection` (top) and `PageSet` (recursive); UI labels default to "Collection" / "Set" and rename per Nexus. Full spec → `Collections.md` + `PageSets.md` + `Pages.md`.
+Property definitions live in the nexus-wide registry (`.nexus/properties.json`); a Collection assigns which ones its Pages validate, and that assigned schema applies at any depth — all Sets inherit it. On disk: a Collection is `_pagecollection.json`, every Set is `_pageset.json`, a Page is a `.md` file. The code-level names are `PageCollection` (top) and `PageSet` (recursive); UI labels default to "Collection" / "Set" and rename per Nexus. Full spec → `Collections.md` + `PageSets.md` + `Pages.md`.
 
 #### II. Agenda
 

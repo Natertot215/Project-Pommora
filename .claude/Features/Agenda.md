@@ -25,7 +25,7 @@ Both kinds carry `id`, an optional `icon`, a plain-text `description`, the `tier
 
 #### II. Schema + Status
 
-Each kind's config sidecar carries `property_definitions` — the same shape as a Collection's schema. The seed is one built-in, non-deletable **Status** property (three EventKit-aligned groups — see `Properties.md`); everything else is user-defined. Status is user-set on both kinds — for an Event it's decoupled from the date math, tracking the user's engagement rather than the clock. The catalog → `Properties.md`.
+Each kind's config sidecar carries `property_definitions` — its own full definitions, deliberately separate from the nexus-wide registry. The seed is one built-in, non-deletable **Status** property (three EventKit-aligned groups — see `Properties.md`); everything else is user-defined. Status is user-set on both kinds — for an Event it's decoupled from the date math, tracking the user's engagement rather than the clock. The catalog → `Properties.md`.
 
 ### Architecture
 

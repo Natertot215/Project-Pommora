@@ -28,13 +28,13 @@ The Subfield footer (a depth-aware breadcrumb plus per-view stats). The glass sp
 
 #### Views + View Settings (06-27 → 06-29)
 
-Callouts (`> [!callout]` boxes that render nested syntax inside). The Collection Table-Views pipeline — a portable `SavedView` engine (filter → group → sort) with multi-key sort and recursive filters, deliberately ahead of the original. The view-settings dropdown and its first panes (Properties schema CRUD), in progress. And the motion + shadow token pass — the Bloom open/retract — alongside the Figma Switch.
+Callouts (`> [!callout]` boxes that render nested syntax inside). The Collection Table-Views pipeline — a portable `SavedView` engine (filter → group → sort) with multi-key sort and recursive filters, deliberately ahead of the original. The view-settings dropdown and its first panes (Properties schema CRUD), in progress. The motion + shadow token pass — the Bloom open/retract — alongside the Figma Switch. And **PropertiesV2**: definitions flattened to one nexus-wide registry that Collections assign, unlocking cross-Collection queries + strip-free moves (the data-layer paradigm; the assign-surface UI rides with View Settings).
 
 ### II. Upcoming (Toward v1.0.0)
 
 #### v0.5.0 — Views Complete + Properties UI
 
-The Gallery / Board / List / Cards renderers, the toolbar Views switcher, and the full View Settings panes (Filter / Group / Sort / Layout / Visibility) over the shipped pipeline; rich table cells (type-aware chips, inline editing, column resize); the per-view reorder engine; and the page property panel (the data layer is done).
+The Gallery / Board / List / Cards renderers, the toolbar Views switcher, and the full View Settings panes (Filter / Group / Sort / Layout / Visibility) over the shipped pipeline; rich table cells (type-aware chips, inline editing, column resize); the per-view reorder engine; the **assign surface** (the Properties pane grown to the nexus-wide model — assign-existing, Remove vs global Delete); and the page property panel (the data layer is done, registry-backed).
 
 #### v0.6.0 — Agenda + Calendar
 

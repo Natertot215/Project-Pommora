@@ -82,7 +82,7 @@ The main process is the sole filesystem owner; the renderer never touches Node. 
 
 1. **Portability of functionalities.** The product's value — file formats, domain model, property catalog, connection behavior, design values, UX patterns — survives a stack rebuild. The codebase is replaceable; the documented decisions endure. This React build is itself the proof: the same on-disk model and domain carried over as data plus pure logic.
 
-2. **Cloud-sync-ready and cross-nexus queryable.** Collections aren't isolated silos — any Page or Context can query, link, or embed any Collection's contents regardless of where it sits on disk. The on-disk model maps cleanly onto a cloud database, so sync arrives later as an additive translation rather than a rewrite. A Nexus placed in iCloud Drive, Dropbox, or any synced folder already gets device-to-device sync for free.
+2. **Cloud-sync-ready and cross-nexus queryable.** Collections aren't isolated silos — property definitions live nexus-wide, so one shared property id means the same thing in every Collection that assigns it and a single query matches across all of them; any Page or Context can query, link, or embed any Collection's contents regardless of where it sits on disk. The on-disk model maps cleanly onto a cloud database, so sync arrives later as an additive translation rather than a rewrite. A Nexus placed in iCloud Drive, Dropbox, or any synced folder already gets device-to-device sync for free.
 
 3. **Agent-legible files.** External agents — Claude, MCP clients, any tool with filesystem access — read Pommora's entire structured graph (Pages, schemas, Areas, relations, properties) straight from plain text files. The bar is convention-aware, not instant to an outsider: a `[[wikilink]]` hides a resolver yet reads perfectly to anyone who knows the system. We strongly prefer formats readable without Pommora's running code, and treat relaxing that for a genuine need as a tradeoff to raise — but the firm line holds: no user data is trapped in a binary blob or held only in the regeneratable index.
 
@@ -111,11 +111,11 @@ Each Collection decides where its Pages open — the main detail pane, or a comp
 
 #### Page Collections and Sets
 
-A **Page Collection** is the operational container — a top-level folder whose sidecar carries the property schema shared by every Page inside it, plus its saved views, child ordering, and an open-in mode. It has no text editor of its own; it's a pure database surface (table / gallery, with more renderers to come).
+A **Page Collection** is the operational container — a top-level folder whose sidecar assigns the nexus-wide properties shared by every Page inside it, plus its saved views, child ordering, and an open-in mode. It has no text editor of its own; it's a pure database surface (table / gallery, with more renderers to come).
 
 A Collection nests **Page Sets** to any depth — schema-less sub-folders that inherit the Collection's whole schema. The first level (a "Set") carries its own views and sorting and is selectable; deeper levels ("Sub-Sets") are plain organizing folders. Nesting is unbounded, with no roll-up — discovery, rendering, and navigation recurse on the real folder tree.
 
-Moving a Page **across Collections** strips properties the destination schema doesn't define, behind a confirmation that lists what's lost; moving **within** a Collection (between its Sets and root, at any depth) never strips, since the schema is shared. The schema is edited from a Collection Settings surface; per-view configuration (sort / filter / group / layout) is a separate per-view surface. Full detail → `Features/Collections.md` + `Features/PageSets.md`.
+Moving a Page **across Collections** never strips — its values ride along, the destination shows only the properties it assigns, and the rest sit inert in frontmatter until assigned there; moving **within** a Collection (between its Sets and root, at any depth) changes nothing, since the schema is shared. The schema is edited from a Collection Settings surface; per-view configuration (sort / filter / group / layout) is a separate per-view surface. Full detail → `Features/Collections.md` + `Features/PageSets.md`.
 
 #### Contexts (Areas / Topics / Projects)
 
@@ -134,7 +134,7 @@ Both carry the shared property catalog and `tier1` / `tier2` / `tier3` relations
 
 #### Properties
 
-Property **schemas** are scoped per Type (a Collection or an Agenda config) and edited from a settings surface; property **values** live in each entity's frontmatter or JSON. A property's identity is a stable ULID, so renaming its display label never touches member files. The v1 catalog:
+Property **definitions** live in one nexus-wide registry (`.nexus/properties.json`) — defined once, assigned by any Collection, one shared definition and option set everywhere; an Agenda config keeps its own definitions. Property **values** live in each entity's frontmatter or JSON. A property's identity is a stable ULID, so renaming its display label never touches member files. The v1 catalog:
 
 - **Number**, **Checkbox**, **Date** (date-only or with-time), **Select**, **Multi-select**, **Status**, **URL**, **Relation** (tier-only), **Last Edited Time** (derived), and **File / Attachment**.
 

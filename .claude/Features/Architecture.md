@@ -21,7 +21,7 @@ A Nexus is a single folder. Pommora opens it via picker (security-scoped bookmar
 ```
 <picked nexus folder>/                  ← canonical content; syncs with cloud
   <Collection>/                         ← Page Collection (top folder, identified by sidecar)
-    _pagecollection.json                ← shared property schema (Collection)
+    _pagecollection.json                ← assigned nexus-wide property ids (Collection)
     <Set>/                              ← Page Set (depth-1; carries its own views[])
       _pageset.json                     ← set metadata + views[] + set_order (depth-1 Set)
       <SubSet>/                         ← Sub-Set (deeper; plain, recursive — any depth)
@@ -42,6 +42,7 @@ A Nexus is a single folder. Pommora opens it via picker (security-scoped bookmar
     nexus.json                          ← ULID + createdAt
     state.json                          ← session state (open tabs, sidebar UI, Recents)
     settings.json                       ← per-Nexus UI labels + accent color + excluded_folders + profile image/subtitle
+    properties.json                     ← nexus-wide property registry (propId → definition; Collections assign by id)
     tier-config.json                    ← Contexts tier labels (singular + plural)
     saved-config.json                   ← Saved-section entry labels
     homepage.json                       ← singleton Homepage entity (composed blocks)
@@ -106,7 +107,7 @@ Every file write goes through one of three atomic paths, all via temp-file + ren
 
 - **YAML+Markdown write** — Pages. Composes `---\n<yaml>\n---\n\n<body>`, re-serializing only modeled keys and preserving every foreign frontmatter key by value. The preserving-merge mechanics are canonical in `// Guidelines//CRUD-Patterns.md` § "YAML frontmatter + body".
 - **JSON write** — sidecars, Tasks / Events, Contexts, Settings, Homepage.
-- **Schema transaction** — multi-file commits that must succeed-or-fail as a unit (e.g. a move that strips properties across types). Validates the full set, then applies in dependency order with rollback on failure.
+- **Schema transaction** — multi-file commits that must succeed-or-fail as a unit (e.g. a global property delete that scrubs values across every assigning Collection). Validates the full set, then applies in dependency order with rollback on failure.
 
 **Page save contract.** The editor binds only to `body`; frontmatter is held as a typed struct and re-serialized on save, so the editor can't destroy frontmatter. Edits debounce then write atomically and update the index, flushing on context loss. Full pipeline → `// Features//PageEditor.md` § "Save pipeline".
 
@@ -126,11 +127,11 @@ When a folder is first opened as a Nexus, the adopter classifies each root folde
 
 ---
 
-#### Migration — schema versioning + property-ID rewrites
+#### Migration — schema versioning
 
 **Index-side** — covered above: a version mismatch deletes + rebuilds the index, no per-user migration.
 
-**File-side** — each Pommora-written Type sidecar carries a `schema_version` (missing = 0). A property migration runs on every Nexus open: mints stable ULID `id`s for name-keyed properties, normalizes relation shapes, and rewrites entity files to reference properties by ID. Two-phase (scan / apply), idempotent, lossless.
+**File-side** — each Pommora-written Type sidecar carries a `schema_version` (missing = 0). There is no property-ID migration pass: the build is ID-first — values are `prop_<ulid>`-keyed from creation and definitions live in the nexus-wide registry — so entity files never need rewriting.
 
 **Settings** — carry a `defaultsVersion` + step-function migrate scaffold, applied after decode and re-persisted only on change. Bump the version + add a step when defaults change.
 
@@ -149,6 +150,6 @@ Deliberately *not* built:
 
 - `PommoraPRD.md` — high-altitude product spec; storage model; SQLite DDL.
 - `// Features//Domain-Model.md` — 2-layer model + PARA mapping + linking model.
-- `// Features//Properties.md` — property catalog; tier-relation properties; move-strip semantics.
+- `// Features//Properties.md` — property catalog; tier-relation properties; the nexus-wide registry + assignment model.
 - `// Guidelines//CRUD-Patterns.md` — per-entity CRUD UI patterns.
 - `// rules//MarkdownPM.md` — editor architecture + save pipeline.

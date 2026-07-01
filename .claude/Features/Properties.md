@@ -1,16 +1,17 @@
 ### Properties
 
-Pommora's property system. The same type catalog applies to Pages, Tasks, and Events. Schemas live on each Type's sidecar; values live on each member entity. The on-disk file is canonical; the SQLite index mirrors it for fast queries.
+Pommora's property system. The same type catalog applies to Pages, Tasks, and Events. Page-property definitions live in one nexus-wide registry that Collections *assign*; Agenda keeps its own definitions on its config sidecars; values live on each member entity. The on-disk file is canonical; the SQLite index mirrors it for fast queries.
 
-A **property** is a typed field declared on a Type's schema and populated on individual entities of that Type. Schemas declare which properties exist, each property's type, and any per-type config; member entities store the values.
+A **property** is a typed field defined once in the nexus-wide registry and populated on the members of every Collection that assigns it. The registry declares each property's type and per-type config; a Collection's assignment list names which registry properties its Pages validate and show; member entities store the values.
 
-| Type | Schema sidecar |
+| Scope | Definitions |
 |---|---|
-| Page Collection | `<Collection>/_pagecollection.json` → `properties[]` |
-| Task | `<Tasks>/_taskconfig.json` → `property_definitions[]` |
-| Event | `<Events>/_eventconfig.json` → `property_definitions[]` |
+| Nexus-wide registry | `.nexus/properties.json` → `propId → definition` |
+| Page Collection | `<Collection>/_pagecollection.json` → `properties[]` (assigned registry ids) |
+| Task | `<Tasks>/_taskconfig.json` → `property_definitions[]` (own defs — separate from the registry) |
+| Event | `<Events>/_eventconfig.json` → `property_definitions[]` (own defs — separate from the registry) |
 
-Page values live in `.md` frontmatter; Task and Event values live in a `properties` JSON object. Sets don't carry their own schema — they inherit the Collection's.
+Page values live in `.md` frontmatter; Task and Event values live in a `properties` JSON object. Sets don't carry their own schema — they inherit the Collection's. A definition — options included — is one shared object everywhere it's assigned; genuinely divergent needs get a separate property, never per-Collection option forks.
 
 ### Features
 
@@ -37,7 +38,7 @@ Every property carries two independent identifiers:
 
 - **`id`** — a stable identity, never changing. User properties mint a `prop_<ulid>`; built-ins use a reserved `_`-prefixed id. This is the key used in member-file values, in cross-property references, and in the index.
 
-- **`name`** — the user-facing display label, renameable freely. A rename is schema-only — member files are keyed by ID, so nothing cascades.
+- **`name`** — the user-facing display label, renameable freely. A rename is registry-only — member files are keyed by ID, so nothing cascades; every assigning Collection sees the new name.
 
 Reserved property IDs (`_id`, `_title`, `_created_at`, `_modified_at`, `_status`, `_type`, `_tier1`, `_tier2`, `_tier3`) are blocked from user properties. The page `cover` is a root frontmatter field, not a property, and never appears in any properties UI.
 
@@ -67,7 +68,7 @@ Every Page, Task, and Event carries an `id` (a ULID, assigned at creation), `cre
 
 #### II. Where Properties Live
 
-Properties live with the content, never in the trailing inspector (which is reserved for the Claude chat → `Inspector.md`). The schema is edited from the **Properties pane** in the view-settings dropdown — add, rename, change type, and delete properties, seeding per-type options on create. The surface for *setting values* on an entity is the Page Property Panel, which is Pending.
+Properties live with the content, never in the trailing inspector (which is reserved for the Claude chat → `Inspector.md`). Definitions live in the nexus-wide registry (`.nexus/properties.json`); a Collection's sidecar holds only its assignment list, and the read walk joins the two so every surface still receives a resolved schema. The **Properties pane** in the view-settings dropdown works per Collection — creating a property mints it into the registry (seeding per-type options) and assigns it here; renames, type changes, and option edits change the global definition for every assigner; removing a property unassigns it non-destructively. The surface for *setting values* on an entity is the Page Property Panel, which is Pending.
 
 ### Architecture
 
@@ -75,26 +76,30 @@ Properties live with the content, never in the trailing inspector (which is rese
 
 | Mutation | Effect on existing values |
 |---|---|
-| Add a property | Appears empty on every member; no member writes until a value is set. |
-| Rename a property | Schema-only — members are keyed by ID. |
-| Reorder properties | Schema-only. |
-| Change a property's type | Lossless conversions apply directly; a lossy change drops conflicting values on confirmation. |
-| Delete a property | The schema row is removed and the value is stripped from every member. |
-| Edit options | Adding, reordering, and relabeling are schema-only; deleting an option voids referencing values. |
+| Create a property | Mints a nexus-wide definition and assigns it to the creating Collection; appears empty on every member — no member writes until a value is set. |
+| Assign a property | Adds this Collection's reference to an existing definition — idempotent, no name check. Values already sitting in members' frontmatter surface immediately. |
+| Unassign a property | Drops this Collection's reference only. Values stay in frontmatter as foreign data — re-assigning restores them; the definition and other Collections are untouched. |
+| Rename a property | Registry-only — members are keyed by ID; every assigner sees the new name. |
+| Reorder properties | Per-Collection assignment order; sidecar-only. |
+| Change a property's type | A global definition edit — a value whose shape no longer matches stops rendering but stays in frontmatter. |
+| Delete a property (global) | A timestamped recovery snapshot of the definition and every value lands in `.trash`, then the value is stripped from every assigner's pages and assignment lists, and the definition leaves the registry. |
+| Edit options | Global — adding, reordering, and relabeling are registry-only; deleting an option voids referencing values everywhere it's assigned. |
 
-Mutations that touch multiple files (a type-change with value-drop, a delete-with-value-clear) commit atomically across every affected file, rolling back the whole set on any write failure. A rename is single-file and needs no cross-file transaction.
+The global delete commits atomically across every affected file, rolling back the whole set on any write failure; registry mutations serialize through one write chain so overlapping edits never lose an update. Unassign is the daily path — the global delete is the rare destructive one.
 
 #### II. Validation
 
-At every write: a property's `name` is non-empty and unique within the Type (case-insensitive), its `id` is unique and not a reserved one, and a Select / Multi-select / Status carries at least one option with unique option values. `_status` on the Task and Event schemas is non-deletable. Each member value's shape must match its schema entry's type.
+At every write: a created property's `name` is non-empty and unique across the whole registry (case-insensitive), its `id` is unique and not a reserved one, and a Select / Multi-select / Status carries at least one option with unique option values. Assigning runs no name check — it's a reference to an existing definition, not a new one. `_status` on the Task and Event schemas is non-deletable. Each member value's shape must match its schema entry's type.
 
 #### II. Index
 
-The SQLite index holds a `property_definitions` row per schema entry and mirrors each member's values into its entity row (a JSON column), keeping filter, sort, and group queries off the file read path. It's regeneratable — a schema-version bump drops and rebuilds it. Full data layer → `Architecture.md`.
+The SQLite `property_definitions` table is a pure mirror of the nexus-wide registry — one row per definition, keyed by id alone, no owner columns; Agenda's own definitions stay out of it. Each member's values mirror into its entity row (a JSON column), keeping filter, sort, and group queries off the file read path. It's regeneratable — a schema-version bump drops and rebuilds it. Full data layer → `Architecture.md`.
 
 ### Pending
 
 **Page Property Panel:** The surface for setting property values on a Page (and on a Task or Event) — a panel attached to the content. Values round-trip on disk and through the index, but there's no UI to view or edit them on an entity.
+
+**Assignment Surface:** The UI for assigning an existing registry property to a Collection, plus the cross-assigner value strip a lossy type change should trigger. The data-layer ops exist; the pane currently creates-and-assigns only.
 
 **Per-Type Value Editors:** The value-editing controls inside the schema and value surfaces — the Select / Status option editors, the date format pickers, and the relation pickers. The Properties pane manages properties but doesn't yet edit their per-type options.
 

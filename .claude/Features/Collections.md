@@ -1,26 +1,26 @@
 ### Page Collections
 
-The operational layer's schema-bearing top tier. A Page Collection is a top-level folder whose sidecar defines the property schema every Page inside it shares — at any nesting depth — plus its saved views, child ordering, and open-in mode. It has no text editor of its own — a pure database surface.
+The operational layer's schema-bearing top tier. A Page Collection is a top-level folder whose sidecar assigns the nexus-wide properties every Page inside it shares — at any nesting depth — plus its saved views, child ordering, and open-in mode. It has no text editor of its own — a pure database surface.
 
 | Entity | Role | On disk |
 |---|---|---|
-| **Page Collection** | Top tier; the property schema every Page inside shares | Folder + `_pagecollection.json` at the Nexus root |
+| **Page Collection** | Top tier; assigns the properties every Page inside shares | Folder + `_pagecollection.json` at the Nexus root |
 | **Page Set** | Recursive sub-folder (any depth); inherits the schema. Depth-1 = "Set" (own views), deeper = "Sub-Set" (plain) | Folder + `_pageset.json` → `PageSets.md` |
 | **Content** | Pages only (`.md`) | Files at any level |
 
-The schema lives **only** on the Collection; Sets inherit it whole. Nesting is unbounded, with no roll-up. The default UI label is "Collection," renameable per Nexus. Each Collection and depth-1 Set carries its own saved views — the view model, pipeline, and renderers live in `Views.md`. The recursive Set mechanics → `PageSets.md`; the page document → `Pages.md`.
+Property definitions live in the nexus-wide registry (`.nexus/properties.json`); the assignment lives **only** on the Collection, and Sets inherit it whole. Nesting is unbounded, with no roll-up. The default UI label is "Collection," renameable per Nexus. Each Collection and depth-1 Set carries its own saved views — the view model, pipeline, and renderers live in `Views.md`. The recursive Set mechanics → `PageSets.md`; the page document → `Pages.md`.
 
 ### Features
 
 #### II. Sidecar + Schema
 
-`_pagecollection.json` carries `id`, `icon`, an optional `banner` (a Nexus-relative image path), `properties` (the schema every Page's frontmatter conforms to), `set_order` + `page_order` (the parent holds its children's order — child Sets and root Pages), `views` (the saved-view configs → `Views.md`), and `open_in`. The title is the folder name, not a field, and foreign keys ride through on every write.
+`_pagecollection.json` carries `id`, `icon`, an optional `banner` (a Nexus-relative image path), `properties` (a flat array of assigned registry prop-ids — the nexus-wide properties every Page's frontmatter conforms to), `set_order` + `page_order` (the parent holds its children's order — child Sets and root Pages), `views` (the saved-view configs → `Views.md`), and `open_in`. The title is the folder name, not a field, and foreign keys ride through on every write.
 
 Creating a Collection seeds a name and a fresh ULID only — no default properties. The user adds properties through Collection Settings. The full property catalog, value shapes, and schema mechanics → `Properties.md`.
 
 #### II. Collection Settings
 
-The schema editor — add, rename, reorder, and delete properties, change a property's type, and seed per-type options. A property delete commits atomically across the sidecar and every member Page, stripping the value from each. It's reached from the view-settings dropdown's Properties pane. Full schema behavior → `Properties.md`.
+The schema editor — create properties (minted into the nexus-wide registry and assigned here), rename, reorder, change a property's type, and seed per-type options; renames, type changes, and option edits change the global definition for every assigning Collection. Removing a property unassigns it non-destructively — values stay in page frontmatter, restored by re-assigning; the rare global delete (snapshot-first, atomic across every assigner) lives at the registry level. It's reached from the view-settings dropdown's Properties pane. Full schema behavior → `Properties.md`.
 
 #### II. Open-In Mode
 
@@ -28,7 +28,7 @@ Each Collection carries an `open_in` field (`compact` | `window`; absent = `wind
 
 #### II. Move Semantics
 
-Moving a Page **within** a Collection — between its Sets, Sub-Sets, and root, at any depth — is a pure filesystem move with no property loss: the schema is shared and Sets carry none of their own. Moving a Page to a **different** Collection brings it under the destination schema; properties the destination doesn't define ride through as preserved foreign frontmatter rather than rendering. Pages reparent across Collections by sidebar drag.
+Moving a Page **within** a Collection — between its Sets, Sub-Sets, and root, at any depth — is a pure filesystem move with no property loss: the schema is shared and Sets carry none of their own. Moving a Page to a **different** Collection brings it under the destination's assigned schema — a move never strips values; properties the destination doesn't assign ride through as preserved foreign frontmatter rather than rendering, and assigning one there surfaces its values instantly. Pages reparent across Collections by sidebar drag.
 
 ### Architecture
 
@@ -37,7 +37,7 @@ Moving a Page **within** a Collection — between its Sets, Sub-Sets, and root, 
 ```
 <nexus-root>/
   <Collection>/                 ← folder at the Nexus root
-    _pagecollection.json        ← schema + views + child ordering + open_in
+    _pagecollection.json        ← assigned properties + views + child ordering + open_in
     <Set>/                      ← depth-1 Set (carries its own views)
       _pageset.json
       <SubSet>/                 ← deeper Sub-Set (plain)
