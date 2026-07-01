@@ -17,8 +17,13 @@ const outer: CSSProperties = {
  * The inner clips only while animating/collapsed — once fully open and idle it stops
  * clipping so affordances that overhang the row (the table's gutter drag grips) aren't
  * cut off.
+ *
+ * `fill` constrains the implicit grid column to `minmax(0, 1fr)` so the content is capped at
+ * the container's width (rows shrink + ellipsize). Without it the single grid column defaults
+ * to `auto` (max-content), which a `nowrap` title balloons to its full length — right for the
+ * table (content-width rows behind its own horizontal scroll), wrong for the fixed-width sidebar.
  */
-export function Reveal({ open, children }: { open: boolean; children: ReactNode }): React.JSX.Element {
+export function Reveal({ open, fill = false, children }: { open: boolean; fill?: boolean; children: ReactNode }): React.JSX.Element {
   const [mounted, setMounted] = useState(open)
   const [expanded, setExpanded] = useState(open)
   const [settled, setSettled] = useState(open)
@@ -36,7 +41,11 @@ export function Reveal({ open, children }: { open: boolean; children: ReactNode 
 
   return (
     <div
-      style={{ ...outer, gridTemplateRows: expanded ? '1fr' : '0fr' }}
+      style={{
+        ...outer,
+        gridTemplateRows: expanded ? '1fr' : '0fr',
+        gridTemplateColumns: fill ? 'minmax(0, 1fr)' : undefined
+      }}
       onTransitionEnd={(e) => {
         if (e.propertyName !== 'grid-template-rows') return
         if (open) setSettled(true) // open animation done → stop clipping

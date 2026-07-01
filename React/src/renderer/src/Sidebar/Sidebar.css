@@ -30,6 +30,11 @@
   -webkit-app-region: no-drag;
   /* top clears the traffic lights (positioned at y:18, ~14px tall) with breathing room */
   padding: 46px 10px 12px;
+  /* The panel is a FIXED-width view: it scrolls vertically only. overflow-x:hidden caps the row track
+     at the visible width so long titles ellipsize at their row edge (and hover-scroll) instead of
+     widening the scroll-area — without it, overflow-y:auto computes overflow-x:auto and the whole
+     sidebar scrolls sideways while rows never truncate. */
+  overflow-x: hidden;
   overflow-y: auto;
   height: 100%;
 }
@@ -114,13 +119,12 @@
   margin-bottom: 14px;
 }
 
+/* Type (control / semibold) comes from the text.control.semibold alias composed in SectionHeader —
+   no raw size/weight here. Layout + colour only. */
 .section-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 11px;
-  font-weight: var(--weight-semibold);
-  letter-spacing: 0.02em;
   color: var(--text-dim);
   padding: 4px 8px;
 }
@@ -156,7 +160,7 @@
   min-width: 0;
   font: inherit;
   color: var(--text);
-  background: #FFFFFF1F;
+  background: var(--input-field);
   border: 1px solid var(--accent);
   border-radius: 4px;
   padding: 0 4px;

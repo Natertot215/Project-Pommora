@@ -1,6 +1,6 @@
 import { style, styleVariants } from '@vanilla-extract/css'
 import { vars as colorVars } from './color.css'
-import { text } from './typography.css'
+import { text, truncateHoverScroll } from './typography.css'
 import { tint } from './tint'
 
 const solid = colorVars.color.solid
@@ -26,20 +26,9 @@ export const chip = style([
 
 // The cap lives on the LABEL, not the chip (a % width is unreliable in a shrink-to-fit flex chip): the
 // label truncates at `--chip-max` and the chip wraps it snugly, so the ellipsis lands at the padding
-// edge instead of floating mid-chip. `--chip-max` (80px default) is overridable per context; labels
-// ellipsize at rest and scroll horizontally on hover to show the full value.
-export const chipLabel = style({
-  maxWidth: 'var(--chip-max, 80px)',
-  minWidth: 0,
-  whiteSpace: 'nowrap',
-  overflowX: 'hidden',
-  textOverflow: 'ellipsis',
-  scrollbarWidth: 'none',
-  selectors: {
-    '&:hover': { overflowX: 'auto', textOverflow: 'clip' },
-    '&::-webkit-scrollbar': { display: 'none' }
-  }
-})
+// edge instead of floating mid-chip. `--chip-max` (80px default) is overridable per context. The
+// ellipsis-at-rest / scroll-on-hover behaviour is the shared `truncateHoverScroll`; the cap is the add.
+export const chipLabel = style([truncateHoverScroll, { maxWidth: 'var(--chip-max, 80px)' }])
 
 export const chipColor = styleVariants({
   red: tint(solid.red),

@@ -74,3 +74,22 @@ export const text = {
   footnote: ramp('footnote'),
   subline: ramp('subline')
 }
+
+/**
+ * Capped label — ellipsis at rest, scroll-on-hover. The one source for the "truncate a single-line
+ * label, reveal the full value by scrolling on hover" behaviour shared by chips and menu / sidebar
+ * rows. The WIDTH cap is the consumer's: a `maxWidth` for chips, the flex parent for rows (minWidth:0
+ * lets it shrink to the available track). Scrollbar is hidden on both engines.
+ */
+export const truncateHoverScroll = style({
+  minWidth: 0,
+  whiteSpace: 'nowrap',
+  overflowX: 'hidden',
+  overflowY: 'hidden',
+  textOverflow: 'ellipsis',
+  scrollbarWidth: 'none',
+  selectors: {
+    '&:hover': { overflowX: 'auto', textOverflow: 'clip' },
+    '&::-webkit-scrollbar': { display: 'none' }
+  }
+})

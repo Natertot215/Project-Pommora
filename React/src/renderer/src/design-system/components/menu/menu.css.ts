@@ -1,6 +1,6 @@
 import { style } from '@vanilla-extract/css'
 import { vars as colorVars } from '../../tokens/color.css'
-import { text } from '../../tokens/typography.css'
+import { text, truncateHoverScroll } from '../../tokens/typography.css'
 
 const c = colorVars.color
 
@@ -72,12 +72,9 @@ export const titleWrap = style({
   gap: '2px'
 })
 
-/** Title line — inherits the row's size (12px item / 13px heading) + colour; truncates. */
-export const titleText = style({
-  overflow: 'hidden',
-  textOverflow: 'ellipsis',
-  whiteSpace: 'nowrap'
-})
+/** Title line — inherits the row's size (13px item / 13px heading) + colour; ellipsis at rest, scrolls
+ *  the full value on hover (shared `truncateHoverScroll`, the chip-label behaviour). */
+export const titleText = style([truncateHoverScroll])
 
 /** Sub-label — Caption/Standard (11px), label-secondary, under the title. */
 export const subLabel = style([

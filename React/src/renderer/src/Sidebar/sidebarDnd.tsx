@@ -9,6 +9,7 @@ import {
   type ReactNode
 } from 'react'
 import { createPortal } from 'react-dom'
+import { text } from '@renderer/design-system/tokens'
 import { ACTIVATION } from '@renderer/design-system/interactions/shared'
 import { announce } from '@renderer/design-system/interactions/a11y'
 import type { NexusTree } from '@shared/types'
@@ -296,13 +297,13 @@ export function SidebarDnd({
         createPortal(
           <div
             aria-hidden
+            className={text.body.standard}
             style={{
               position: 'fixed',
               top: drag.ghostY,
               left: drag.ghostX,
               padding: '4px 12px',
               borderRadius: 8,
-              fontSize: 13,
               color: 'var(--label-primary)',
               background: 'color-mix(in srgb, var(--bg-window) 78%, transparent)',
               backdropFilter: 'blur(6px)',

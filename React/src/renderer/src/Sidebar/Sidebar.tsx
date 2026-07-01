@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { Icon, icons, type IconName } from '@renderer/design-system/symbols'
+import { text } from '@renderer/design-system/tokens'
+import { cx } from '@renderer/design-system/cx'
 import { MenuItem } from '@renderer/design-system/components/menu'
 import { Reveal } from '@renderer/design-system/components/Reveal'
 import { EditableInput } from '../Components/EditableInput'
@@ -222,7 +224,7 @@ function Disclosure({
   return (
     <>
       {dragId ? <DragRow id={dragId}>{header}</DragRow> : header}
-      <Reveal open={open}>
+      <Reveal open={open} fill>
         <div className="children">{children}</div>
       </Reveal>
     </>
@@ -367,7 +369,7 @@ function TierDisclosure({ tierKey, label, children }: { tierKey: 'areas' | 'topi
 
 function SectionHeader({ label, onAdd }: { label: string; onAdd?: () => void }): React.JSX.Element {
   return (
-    <div className="section-header">
+    <div className={cx('section-header', text.control.semibold)}>
       <span>{label}</span>
       {onAdd && (
         <button className="section-add" title={`New ${label}`} aria-label={`New ${label}`} onClick={onAdd}>
