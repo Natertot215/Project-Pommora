@@ -231,6 +231,10 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
   // views gutter via absolute CSS, independent of this.
   const indent = (depth: number): string =>
     depth > 0 ? `calc(var(--cell-padding-x) + var(--row-indent) * ${depth})` : 'var(--cell-padding-x)'
+  // A group header's chevron + folder glyph read as one cluster in the views gutter (with the row grips),
+  // so the header is indented by nesting ALONE — no cell-padding-x base (that base is the data cells'
+  // text inset). Its members keep the normal indent, one --row-indent step inside the header.
+  const groupIndent = (depth: number): string => `calc(var(--row-indent) * ${depth})`
 
   // Column smooth-shift (A-4): grab a header → the whole column (header + every body cell + divider)
   // slides with the cursor, neighbours shifting by the dragged column's width to open the gap, the track
@@ -383,6 +387,10 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
     // step, via indent()), so the disclosure hierarchy reads — you can see what's within a group vs the
     // base level. The ungrouped root band has no header, so its rows stay flush at the base indent.
     const itemDepth = g.kind === 'ungrouped' ? depth : depth + 1
+    // A headered group's pages nest in the same gutter-anchored lane as its glyph (groupIndent, no
+    // cell-pad base) — so they nudge left with the folder and sit one --row-indent step inside it; the
+    // ungrouped root keeps the normal indent (its rows land under the Title column).
+    const memberIndent = g.kind === 'ungrouped' ? indent : groupIndent
     const members: React.JSX.Element[] = [
       ...g.items.map((row, i) => {
         const lead = i === 0 && (g.kind !== 'ungrouped' || !renderedAnyRow)
@@ -394,7 +402,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
             columns={columns}
             ctx={ctx}
             depth={itemDepth}
-            indent={indent}
+            indent={memberIndent}
             colTransform={colTransform}
             colAlign={colAlign}
             draggingCol={colDrag?.from}
@@ -415,7 +423,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
     // the DOM. Each row keeps its own grid reading the inherited --cols, so wrapping never breaks the
     // column alignment (A-2).
     return [
-      <div key={`gh-${g.key}`} className="group-header-row" style={{ paddingLeft: indent(depth) }}>
+      <div key={`gh-${g.key}`} className="group-header-row" style={{ paddingLeft: groupIndent(depth) }}>
         <GroupHeader
           group={g}
           view={liveView}

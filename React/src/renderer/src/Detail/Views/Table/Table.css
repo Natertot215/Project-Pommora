@@ -286,9 +286,9 @@
 }
 .group-twisty {
   position: absolute;
-  /* in the views gutter; the extra -cell-padding-x cancels the group row's content padding so the
-     chevron lands in the same lane as the row grip (relative to its cell's left edge). */
-  left: calc(-1 * var(--gutter) - var(--cell-padding-x));
+  /* In the views gutter, one --gutter left of the header content — which now starts flush on the grid
+     (groupIndent has no cell-padding-x base), so the chevron lands in the grip lane. */
+  left: calc(-1 * var(--gutter));
   top: 50%;
   transform: translateY(-50%);
   justify-content: center;
