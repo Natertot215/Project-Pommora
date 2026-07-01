@@ -71,8 +71,10 @@ export async function updatePageBody(absFile: string, body: string): Promise<Res
   return ok(null)
 }
 
-/** Move a page to a different container folder (same filename). Cross-type property
- *  stripping is a Phase-4 concern (needs the target schema) — this relocates the file. */
+/** Move a page to a different container folder (same filename) — a pure file rename.
+ *  A Page's Collection membership is its folder location, so its prop_<ulid> frontmatter
+ *  values re-join the destination schema on next read (unrecognized keys stay as
+ *  preserved foreign frontmatter); no strip, no schema logic lives in the move. */
 export async function movePage(absFile: string, newParentDir: string): Promise<Result<{ path: string }>> {
   const target = join(newParentDir, basename(absFile))
   if (target === absFile) return ok({ path: absFile })

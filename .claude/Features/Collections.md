@@ -28,7 +28,7 @@ Each Collection carries an `open_in` field (`compact` | `window`; absent = `wind
 
 #### II. Move Semantics
 
-Moving a Page **within** a Collection — between its Sets, Sub-Sets, and root, at any depth — is a pure filesystem move with no property loss: the schema is shared and Sets carry none of their own. Moving a Page to a **different** Collection brings it under the destination schema; properties the destination doesn't define ride through as preserved foreign frontmatter rather than rendering. Pages reparent across Collections by sidebar drag. A confirming strip that voids the unrecognized values is Pending.
+Moving a Page **within** a Collection — between its Sets, Sub-Sets, and root, at any depth — is a pure filesystem move with no property loss: the schema is shared and Sets carry none of their own. Moving a Page to a **different** Collection brings it under the destination schema; properties the destination doesn't define ride through as preserved foreign frontmatter rather than rendering. Pages reparent across Collections by sidebar drag.
 
 ### Architecture
 
@@ -60,5 +60,3 @@ The SQLite index — off the read path, regeneratable — records each page row'
 ### Pending
 
 **Compact Preview Window:** The `open_in: compact` routing — a lightweight preview card for a Collection's Pages. The field persists; the routing is unwired, so Pages open in the main pane.
-
-**Move-Strip Confirmation:** A confirming strip that voids properties the destination Collection doesn't define on a cross-Collection move. Values currently ride through as preserved foreign frontmatter.
