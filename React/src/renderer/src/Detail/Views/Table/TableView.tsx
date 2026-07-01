@@ -326,6 +326,11 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
     void window.nexus.viewOrders.set(view.id, orderIds)
   }
 
+  // A row drops its top divider (.row-lead) only when nothing sits directly above it OR a group header
+  // does — never when another data row does. Headered groups: their first row follows the header, so it's
+  // always lead. The ungrouped band has no header, so its first row is lead ONLY when it opens the table;
+  // following another band it keeps the divider (else the two bands' edge rows merge into one tall cell).
+  let renderedAnyRow = false
   const renderRows = (g: ResolvedGroup, depth: number): React.JSX.Element[] => {
     const isCollapsed = collapsed.has(g.key)
     // A headered group's members (+ any nested child group) sit one nesting step INSIDE it (a --row-indent
@@ -333,22 +338,27 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
     // base level. The ungrouped root band has no header, so its rows stay flush at the base indent.
     const itemDepth = g.kind === 'ungrouped' ? depth : depth + 1
     const members: React.JSX.Element[] = [
-      ...g.items.map((row) => (
-        <DataRow
-          key={row.id}
-          row={row}
-          columns={columns}
-          ctx={ctx}
-          depth={itemDepth}
-          indent={indent}
-          colTransform={colTransform}
-          draggingCol={colDrag?.from}
-          hideIcon={liveView.hide_page_icons ?? false}
-          selected={selection.kind === 'page' && selection.id === row.id}
-          dragDisabled={dragDisabled}
-          onSelect={() => void select({ kind: 'page', id: row.id, path: row.path })}
-        />
-      )),
+      ...g.items.map((row, i) => {
+        const lead = i === 0 && (g.kind !== 'ungrouped' || !renderedAnyRow)
+        renderedAnyRow = true
+        return (
+          <DataRow
+            key={row.id}
+            row={row}
+            columns={columns}
+            ctx={ctx}
+            depth={itemDepth}
+            indent={indent}
+            colTransform={colTransform}
+            draggingCol={colDrag?.from}
+            hideIcon={liveView.hide_page_icons ?? false}
+            selected={selection.kind === 'page' && selection.id === row.id}
+            dragDisabled={dragDisabled}
+            lead={lead}
+            onSelect={() => void select({ kind: 'page', id: row.id, path: row.path })}
+          />
+        )
+      }),
       ...(g.children ?? []).flatMap((child) => renderRows(child, itemDepth))
     ]
     // Ungrouped root band: no header, no disclosure — its rows sit flush in the grid.
@@ -504,6 +514,7 @@ function DataRow({
   hideIcon,
   selected,
   dragDisabled,
+  lead,
   onSelect
 }: {
   row: ViewRow
@@ -516,13 +527,14 @@ function DataRow({
   hideIcon: boolean
   selected: boolean
   dragDisabled: boolean
+  lead: boolean
   onSelect: () => void
 }): React.JSX.Element {
   const { ref, handle, isDragging } = useTableRowDrag(row.id)
   return (
     <div
       ref={ref}
-      className={cx('data-row', selected && 'selected', isDragging && 'row-dragging')}
+      className={cx('data-row', selected && 'selected', isDragging && 'row-dragging', lead && 'row-lead')}
       onClick={() => {
         if (!isDragging) onSelect() // a drag-release isn't a select — the engine keeps isDragging set through the drop
       }}

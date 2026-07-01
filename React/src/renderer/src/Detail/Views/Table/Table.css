@@ -126,10 +126,15 @@
 .col-header:first-child::before {
   left: 0;
 }
-/* Row underline spans the full width including the filler track — on the row, not per cell. */
+/* Row divider spans the full width including the filler track — on the row, not per cell. It's a TOP
+   border (not bottom) so a line only ever falls BETWEEN two rows: the first row of each group drops it
+   (.row-lead), so a list has no line above its first row nor below its last (a lone row gets none). */
 .data-row {
-  border-bottom: var(--table-border);
+  border-top: var(--table-border);
   cursor: default;
+}
+.data-row.row-lead {
+  border-top: none;
 }
 
 .data-row:hover {
@@ -166,10 +171,13 @@
   background: var(--drag-line);
 }
 
-/* Hide Borders toggle — drops the horizontal underlines (vertical column lines stay). */
-.table-grid.no-borders .table-head,
-.table-grid.no-borders .data-row {
+/* Hide Borders toggle — drops the horizontal dividers (vertical column lines stay): the heading seam
+   (head's bottom) and the row dividers (rows' top). */
+.table-grid.no-borders .table-head {
   border-bottom: none;
+}
+.table-grid.no-borders .data-row {
+  border-top: none;
 }
 
 /* Type-aware cell content (chips, title icon, links). */
