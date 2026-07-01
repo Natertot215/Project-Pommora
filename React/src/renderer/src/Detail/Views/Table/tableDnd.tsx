@@ -115,9 +115,9 @@ export function TableRowDnd({
   const detach = (): void => {
     const g = gesture.current
     if (g.kind === 'idle') return
-    g.el.removeEventListener('pointermove', g.handlers.move)
-    g.el.removeEventListener('pointerup', g.handlers.up)
-    g.el.removeEventListener('pointercancel', g.handlers.cancel)
+    window.removeEventListener('pointermove', g.handlers.move)
+    window.removeEventListener('pointerup', g.handlers.up)
+    window.removeEventListener('pointercancel', g.handlers.cancel)
     try {
       g.el.releasePointerCapture(g.pid)
     } catch {
@@ -145,11 +145,13 @@ export function TableRowDnd({
     if (!el) return
     const handlers: Handlers = { move: onMove, up: onUp, cancel: onCancel }
     gesture.current = { kind: 'pending', id, el, pid: e.pointerId, startX: e.clientX, startY: e.clientY, handlers }
-    // Capture is deferred to activation: capturing on pointerdown would eat the click, so a tap could
-    // never select the row.
-    el.addEventListener('pointermove', handlers.move)
-    el.addEventListener('pointerup', handlers.up)
-    el.addEventListener('pointercancel', handlers.cancel)
+    // Listen on window, not the row: the grip sits out in the gutter (absolutely placed left of the row),
+    // so a first move that drifts off the row would never fire a row-bound pointermove — the drag would
+    // fail to activate. Capture is still deferred to activation (capturing on pointerdown eats the click,
+    // so a tap could never select the row); until then window listeners drive the activation check.
+    window.addEventListener('pointermove', handlers.move)
+    window.addEventListener('pointerup', handlers.up)
+    window.addEventListener('pointercancel', handlers.cancel)
   }
 
   function onMove(e: PointerEvent): void {
