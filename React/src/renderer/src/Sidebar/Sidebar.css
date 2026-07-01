@@ -208,9 +208,10 @@
   flex: 0 0 auto;
 }
 
-/* Opt into the left-edge scroll fade (truncateHoverScroll): as a hovered row scrolls, its icon + title
-   eclipse into the glass at the left edge instead of hard-clipping. ~the icon-zone width. */
-.sidebar .row {
+/* Opt into the left-edge scroll fade (truncateHoverScroll): only once a row is actually scrolled off the
+   start (JS adds .title-scrolled on scrollLeft>0) does its icon + title eclipse into the glass — hovering
+   at rest never fades the icon. ~the icon-zone width. */
+.sidebar .title-scrolled {
   --scroll-fade: 24px;
 }
 

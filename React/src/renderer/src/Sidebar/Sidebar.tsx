@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Icon, icons, type IconName } from '@renderer/design-system/symbols'
 import { text } from '@renderer/design-system/tokens'
 import { cx } from '@renderer/design-system/cx'
@@ -418,8 +418,25 @@ export function Sidebar({ tree }: { tree: NexusTree }): React.JSX.Element {
     ])
   }
 
+  // One native capture-phase listener flags the row that's actually scrolled off its start, so the left-edge
+  // eclipse only shows once content slides under it — never on a bare hover. React doesn't delegate `scroll`
+  // (it binds onScroll straight to the node) and scroll doesn't bubble, so a prop on <nav> would never see a
+  // descendant .titleText's scroll — capture DOES traverse down to it. slideTitleBack's rAF drives scrollLeft
+  // to 0, re-firing this to clear the flag.
+  const navRef = useRef<HTMLElement>(null)
+  useEffect(() => {
+    const nav = navRef.current
+    if (!nav) return
+    const onScroll = (e: Event): void => {
+      const sc = e.target as HTMLElement
+      if (sc?.matches?.('[class*="titleText"]')) sc.classList.toggle('title-scrolled', sc.scrollLeft > 0)
+    }
+    nav.addEventListener('scroll', onScroll, { capture: true })
+    return () => nav.removeEventListener('scroll', onScroll, { capture: true })
+  }, [])
+
   return (
-    <nav className="sidebar">
+    <nav ref={navRef} className="sidebar">
       {/* Nexus header. Calendar/Recents stubs are hidden until a later UIX pass. */}
       <div className="section">
         <NexusHeader name={tree.nexus.name} profileImage={tree.nexus.profileImage} profileSubtitle={tree.nexus.profileSubtitle} />
