@@ -15,7 +15,7 @@
   --cell-padding-y: 6px; /* cell content padding, top + bottom (drives row height) */
   --cell-icon-gap: 6px; /* gap between an icon and its label (title cell + group glyph) */
   --chips-gap: 4px; /* gap between adjacent chips (multi-select / relation cells) */
-  --row-indent: 16px; /* extra left-indent added per nesting depth (Set within Set) */
+  --row-indent: 24px; /* extra left-indent added per nesting depth (Set within Set, group members) */
 
   /* — Gutter (row grips + group chevrons float left into this strip) — */
   --gutter: var(--fold-gutter); /* carved from --content-inset; matches MarkdownPM's fold gutter */
