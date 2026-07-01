@@ -8,7 +8,7 @@
 .table-view,
 .table-empty {
   /* — Density — */
-  --zoom: 0.9; /* Compact (default); Standard = 1. One knob scales text + chips + padding + widths together. */
+  --zoom: 1; /* Standard (default); Compact = 0.9. One knob scales text + chips + padding + widths together. */
 
   /* — Cell spacing — */
   --cell-padding-x: 12px; /* cell content padding, left + right */
