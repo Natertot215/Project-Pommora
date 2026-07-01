@@ -173,7 +173,7 @@
    cursor + an insertion line marks the drop (line + ghost live in sidebarDnd.tsx). No hover
    affordance — rows keep the default cursor until a drag starts, then show `grabbing`. --- */
 .tree-item.dragging {
-  opacity: 0.4; /* source row dims in place while its ghost follows the cursor */
+  opacity: var(--state-ghost); /* the shared row-drag ghost — same token as the table row + MarkdownPM line */
   cursor: grabbing; /* the wrapper IS the pointer-capture target, so its cursor wins for the whole drag */
 }
 .tree-item.dragging .row {
@@ -197,21 +197,10 @@
   flex: 0 0 auto;
 }
 
-.swatch {
-  width: 11px;
-  height: 11px;
-  border-radius: 3px;
-  flex: 0 0 auto;
-  background: var(--text-dim);
+/* label-secondary keeps the icon tone the leading .side slot gave it before the icon moved inline into
+   the title's scroll box; small gap to the title. */
+.row-icon {
+  color: var(--label-secondary);
+  vertical-align: middle;
+  margin-right: 6px;
 }
-
-.swatch[data-color='gray'] { background: #8e8e93; }
-.swatch[data-color='brown'] { background: #a2845e; }
-.swatch[data-color='orange'] { background: #ff9500; }
-.swatch[data-color='yellow'] { background: #ffcc00; }
-.swatch[data-color='green'] { background: #34c759; }
-.swatch[data-color='blue'] { background: #007aff; }
-.swatch[data-color='purple'] { background: #af52de; }
-.swatch[data-color='pink'] { background: #ff2d55; }
-.swatch[data-color='red'] { background: #ff3b30; }
-.swatch[data-color='accent'] { background: #007aff; }

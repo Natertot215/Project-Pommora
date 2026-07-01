@@ -10,7 +10,7 @@ A header at the very top carries the Nexus's profile image, its name (the root f
 
 #### II. Contexts
 
-The three tiers surface as three disclosure rows, top to bottom Areas → Topics → Projects. A tier row is structural — never selectable, open by default — and its entities render as draggable leaf rows inside it. Area rows show their color as a swatch; Topics and Projects use the grid icon. Full tier behavior → `Contexts.md`.
+The three tiers surface as three disclosure rows, top to bottom Areas → Topics → Projects. A tier row is structural — never selectable, open by default — and its entities render as draggable leaf rows inside it. All three tiers' entities use the grid icon. Full tier behavior → `Contexts.md`.
 
 #### II. Collections, Sets, and Pages
 

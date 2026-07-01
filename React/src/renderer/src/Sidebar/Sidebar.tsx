@@ -96,7 +96,6 @@ function Leaf({
   icon,
   title,
   depth,
-  swatch,
   selected = false,
   chevronSpace = true,
   onSelect,
@@ -106,7 +105,6 @@ function Leaf({
   icon: IconName
   title: string
   depth: number
-  swatch?: string
   selected?: boolean
   // Reserve the disclosure-chevron column so the icon lines up under expandable
   // rows. Top-level shortcuts (the Saved strip) opt out and sit flush.
@@ -115,6 +113,8 @@ function Leaf({
   onContextMenu?: () => void
   rename?: RenameTarget
 }): React.JSX.Element {
+  // The row icon rides INSIDE the title's scroll box (not the fixed leading slot), so it ellipsizes and
+  // hover-scrolls as one unit with the title; only the chevron/spacer stays fixed in the gutter.
   return (
     <MenuItem
       className="row"
@@ -122,13 +122,9 @@ function Leaf({
       indent={depth}
       onClick={onSelect}
       onContextMenu={ctxHandler(onContextMenu)}
-      leading={
-        <>
-          {chevronSpace && <span className="twisty-spacer" />}
-          {swatch ? <span className="swatch" data-color={swatch} /> : <Icon name={icon} size={16} />}
-        </>
-      }
+      leading={chevronSpace ? <span className="twisty-spacer" /> : null}
     >
+      <Icon name={icon} size={16} className="row-icon" />
       {rename ? <RowTitle path={rename.path} kind={rename.kind} title={title} /> : title}
     </MenuItem>
   )
@@ -152,7 +148,6 @@ function Disclosure({
   openIcon,
   title,
   depth,
-  swatch,
   defaultOpen = true,
   persistKey,
   selected = false,
@@ -166,7 +161,6 @@ function Disclosure({
   openIcon?: IconName
   title: string
   depth: number
-  swatch?: string
   defaultOpen?: boolean
   // Stable identity for persisting open/collapse across sessions (entity id, or a `tier:*` key for
   // the structural context tiers). Omitted → ephemeral (resets to `defaultOpen` each mount).
@@ -205,20 +199,12 @@ function Disclosure({
       indent={depth}
       onClick={toggle}
       onContextMenu={ctxHandler(onContextMenu)}
-      leading={
-        <>
-          <Icon name="chevron-right" size={12} className={`twisty${open ? ' open' : ''}`} />
-          <span onClick={openView}>
-            {swatch ? (
-              <span className="swatch" data-color={swatch} />
-            ) : (
-              <Icon name={open && openIcon ? openIcon : icon} size={16} />
-            )}
-          </span>
-        </>
-      }
+      leading={<Icon name="chevron-right" size={12} className={`twisty${open ? ' open' : ''}`} />}
     >
-      <span onClick={openView}>{rename ? <RowTitle path={rename.path} kind={rename.kind} title={title} /> : title}</span>
+      <span onClick={openView}>
+        <Icon name={open && openIcon ? openIcon : icon} size={16} className="row-icon" />
+        {rename ? <RowTitle path={rename.path} kind={rename.kind} title={title} /> : title}
+      </span>
     </MenuItem>
   )
   return (
@@ -334,8 +320,8 @@ function CollectionRow({ col, depth, selection, onSelectCollection, onSelectSet,
 }
 
 // A context leaf (Area / Topic / Project) — a draggable row reordered within its tier disclosure
-// (depth 1, under the tier header). Areas show their color swatch; every tier uses the grid icon.
-function ContextRow({ node, swatch }: { node: { id: string; title: string; path: string; kind: MutableKind }; swatch?: string }): React.JSX.Element {
+// (depth 1, under the tier header). Every tier uses the grid icon.
+function ContextRow({ node }: { node: { id: string; title: string; path: string; kind: MutableKind } }): React.JSX.Element {
   const select = useSession((s) => s.select)
   const selected = useSession((s) => s.selection.kind === 'context' && s.selection.id === node.id)
   return (
@@ -344,7 +330,6 @@ function ContextRow({ node, swatch }: { node: { id: string; title: string; path:
         icon="layout-grid"
         title={node.title}
         depth={1}
-        swatch={swatch}
         selected={selected}
         onSelect={() => void select({ kind: 'context', id: node.id })}
         onContextMenu={() => showContextFor(node)}
@@ -424,7 +409,7 @@ export function Sidebar({ tree }: { tree: NexusTree }): React.JSX.Element {
           <SectionHeader label="Contexts" onAdd={newContext} />
           <TierDisclosure tierKey="areas" label={tree.labels.area.plural}>
             {tree.contexts.areas.map((a: AreaNode) => (
-              <ContextRow key={a.id} node={a} swatch={a.color} />
+              <ContextRow key={a.id} node={a} />
             ))}
           </TierDisclosure>
           <TierDisclosure tierKey="topics" label={tree.labels.topic.plural}>
