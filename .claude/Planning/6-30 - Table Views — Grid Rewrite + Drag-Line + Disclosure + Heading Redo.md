@@ -39,6 +39,8 @@ This doc is the single source for: the grid architecture, the drop-line reorder,
 
 - **C-2: Chevron** rotates on `--disclosure` (the `.group-twisty` / `.twisty` already does this — reused, not re-authored).
 
+- **C-3: Members inset one nesting step.** A headered group's rows (+ any nested child group) sit one `--row-indent` step inside the group header — the leftmost cell's `paddingLeft` (`indent(depth+1)` in `renderRows`) — so the disclosure hierarchy is legible (you can see what's within a group vs the base level). The ungrouped root band has no header, so its rows stay flush. Reuses `--row-indent` (the shared per-nesting-depth padding token), since a group member and a nested-Set page are the same visual "one level in."
+
 ### D — Heading (column-header) row
 
 - **D-1: Background** → `--heading-fill` (→ `--fill-quaternary`).

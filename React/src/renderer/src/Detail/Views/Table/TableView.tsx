@@ -20,6 +20,7 @@ import { groupKeyToValue, REASSIGNABLE_GROUP_TYPES } from './reassign'
 import { cx } from '@renderer/design-system/cx'
 import { text } from '@renderer/design-system/tokens'
 import { Icon } from '@renderer/design-system/symbols'
+import { Reveal } from '@renderer/design-system/components/Reveal'
 import { ACTIVATION } from '@renderer/design-system/interactions/shared'
 import { TableRowDnd, useTableRowDrag } from './tableDnd'
 
@@ -326,31 +327,19 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
   }
 
   const renderRows = (g: ResolvedGroup, depth: number): React.JSX.Element[] => {
-    const out: React.JSX.Element[] = []
     const isCollapsed = collapsed.has(g.key)
-    if (g.kind !== 'ungrouped') {
-      out.push(
-        <div key={`gh-${g.key}`} className="group-header-row" style={{ paddingLeft: indent(depth) }}>
-          <GroupHeader
-            group={g}
-            view={liveView}
-            ctx={ctx}
-            setNames={setNames}
-            collapsed={isCollapsed}
-            onToggle={() => toggleCollapse(g.key)}
-          />
-        </div>
-      )
-      if (isCollapsed) return out
-    }
-    for (const row of g.items) {
-      out.push(
+    // A headered group's members (+ any nested child group) sit one nesting step INSIDE it (a --row-indent
+    // step, via indent()), so the disclosure hierarchy reads — you can see what's within a group vs the
+    // base level. The ungrouped root band has no header, so its rows stay flush at the base indent.
+    const itemDepth = g.kind === 'ungrouped' ? depth : depth + 1
+    const members: React.JSX.Element[] = [
+      ...g.items.map((row) => (
         <DataRow
           key={row.id}
           row={row}
           columns={columns}
           ctx={ctx}
-          depth={depth}
+          depth={itemDepth}
           indent={indent}
           colTransform={colTransform}
           draggingCol={colDrag?.from}
@@ -359,10 +348,30 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
           dragDisabled={dragDisabled}
           onSelect={() => void select({ kind: 'page', id: row.id, path: row.path })}
         />
-      )
-    }
-    for (const child of g.children ?? []) out.push(...renderRows(child, depth + 1))
-    return out
+      )),
+      ...(g.children ?? []).flatMap((child) => renderRows(child, itemDepth))
+    ]
+    // Ungrouped root band: no header, no disclosure — its rows sit flush in the grid.
+    if (g.kind === 'ungrouped') return members
+    // Headered group: the header stays put; its members live in a Reveal so collapse/expand animates the
+    // rows (grid-rows 0fr↔1fr) on the same --disclosure motion as the chevron, and collapsed rows leave
+    // the DOM. Each row keeps its own grid reading the inherited --cols, so wrapping never breaks the
+    // column alignment (A-2).
+    return [
+      <div key={`gh-${g.key}`} className="group-header-row" style={{ paddingLeft: indent(depth) }}>
+        <GroupHeader
+          group={g}
+          view={liveView}
+          ctx={ctx}
+          setNames={setNames}
+          collapsed={isCollapsed}
+          onToggle={() => toggleCollapse(g.key)}
+        />
+      </div>,
+      <Reveal key={`rv-${g.key}`} open={!isCollapsed}>
+        {members}
+      </Reveal>
+    ]
   }
 
   return (
