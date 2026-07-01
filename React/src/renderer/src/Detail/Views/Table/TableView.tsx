@@ -339,13 +339,16 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
     void window.nexus.viewOrders.set(view.id, orderIds)
   }
 
-  // A row drops its top divider (.row-lead) only when nothing sits directly above it OR a group header
-  // does — never when another data row does. Headered groups: their first row follows the header, so it's
-  // always lead. The ungrouped band has no header, so its first row is lead ONLY when it opens the table;
-  // following another band it keeps the divider (else the two bands' edge rows merge into one tall cell).
+  // A row drops its top divider (.row-lead) only when no VISIBLE data row sits directly above it — the
+  // divider is a between-rows line. Headered groups: their first row follows the header, so it's always
+  // lead. The ungrouped band has no header, so its first row is lead until a visible row precedes it.
+  // `renderedAnyRow` counts only rows that actually render: a collapsed group's items build (the .map runs)
+  // but never mount, so they mustn't mark it — else the band after a collapsed group keeps a stray divider
+  // with nothing above it. `visible` carries each group's shown/hidden state down through nesting.
   let renderedAnyRow = false
-  const renderRows = (g: ResolvedGroup, depth: number): React.JSX.Element[] => {
+  const renderRows = (g: ResolvedGroup, depth: number, visible: boolean): React.JSX.Element[] => {
     const isCollapsed = collapsed.has(g.key)
+    const itemsVisible = visible && !isCollapsed
     // A headered group's members (+ any nested child group) sit one nesting step INSIDE it (a --row-indent
     // step, via indent()), so the disclosure hierarchy reads — you can see what's within a group vs the
     // base level. The ungrouped root band has no header, so its rows stay flush at the base indent.
@@ -353,7 +356,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
     const members: React.JSX.Element[] = [
       ...g.items.map((row, i) => {
         const lead = i === 0 && (g.kind !== 'ungrouped' || !renderedAnyRow)
-        renderedAnyRow = true
+        if (itemsVisible) renderedAnyRow = true
         return (
           <DataRow
             key={row.id}
@@ -373,7 +376,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
           />
         )
       }),
-      ...(g.children ?? []).flatMap((child) => renderRows(child, itemDepth))
+      ...(g.children ?? []).flatMap((child) => renderRows(child, itemDepth, itemsVisible))
     ]
     // Ungrouped root band: no header, no disclosure — its rows sit flush in the grid.
     if (g.kind === 'ungrouped') return members
@@ -449,7 +452,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
           </div>
           {/* Rows (E-3) — the drop-line DnD (tableDnd) wraps the whole grid; group-header rows aren't
               drag items. */}
-          {groups.flatMap((g) => renderRows(g, 0))}
+          {groups.flatMap((g) => renderRows(g, 0, true))}
         </div>
       </TableRowDnd>
     </div>
