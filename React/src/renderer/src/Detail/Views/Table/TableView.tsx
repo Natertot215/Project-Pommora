@@ -52,6 +52,9 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
   const tree = useSession((s) => s.tree)
   const selection = useSession((s) => s.selection)
   const select = useSession((s) => s.select)
+  // The store's one write path — runs the op AND refetches immediately (load()), so a table reorder /
+  // reassign propagates to the sidebar right away instead of waiting on the fs watcher's settle (~1s).
+  const mutate = useSession((s) => s.mutate)
   const [values, setValues] = useState<Record<string, PageFrontmatter>>({})
   // Optimistic property patches keyed by page id (cross-group reassignment, D-4): the loaded values
   // never re-read on a write, so a reassigned row re-groups only because this patch feeds the pipeline.
@@ -103,6 +106,14 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
     setColDrag(null)
     setCollapsed(new Set(view.collapsed_groups ?? []))
   }, [view.id])
+  // A fresh tree (an external mutation — e.g. a sidebar reorder — or this table's own write round-tripping
+  // back) carries the canonical page_order/values, so drop the optimistic order + value patches that were
+  // masking it. Without this a reorder/reassign here pins its optimistic state and a later external change
+  // wouldn't show until the view remounts.
+  useEffect(() => {
+    setManualOverride(null)
+    setValueOverride(null)
+  }, [source])
   const liveView = useMemo(() => {
     if (!orderOverride && !hiddenOverride) return view
     return {
@@ -336,7 +347,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
       properties: applyPropertyValue(prior?.properties, groupPropId, value)
     }
     setValueOverride((prev) => ({ ...prev, [pageId]: patched }))
-    void window.nexus.mutate({ op: 'setProperty', path, propertyId: groupPropId, value })
+    void mutate({ op: 'setProperty', path, propertyId: groupPropId, value })
   }
   // Within-group reorder commit — tableDnd hands the new flat order + the reordered group's key. An
   // unsorted structural/flat view is ordered by the canonical on-disk page_order, so it writes that
@@ -351,7 +362,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
       const firstPath = groupPages.length ? rowPath.get(groupPages[0]) : undefined
       if (firstPath) {
         const containerPath = firstPath.slice(0, firstPath.lastIndexOf('/'))
-        void window.nexus.mutate({ op: 'movePage', path: firstPath, newParentPath: containerPath, order: groupPages })
+        void mutate({ op: 'movePage', path: firstPath, newParentPath: containerPath, order: groupPages })
       }
       return
     }
