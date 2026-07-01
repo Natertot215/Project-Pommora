@@ -20,8 +20,13 @@ import { groupKeyToValue, REASSIGNABLE_GROUP_TYPES } from './reassign'
 import { cx } from '@renderer/design-system/cx'
 import { text } from '@renderer/design-system/tokens'
 import { Icon } from '@renderer/design-system/symbols'
-import { SortableZone, useDragItem } from '@renderer/design-system/interactions/drag'
+import { ACTIVATION } from '@renderer/design-system/interactions/shared'
 import { TableRowDnd, useTableRowDrag } from './tableDnd'
+
+// ── TUNABLE ── how far past a column's edge the dragged column's centre must travel before the slot
+// flips (the sticky zone around the current slot). Larger = more deliberate / harder to leave a slot;
+// smaller = snappier. Bump this one number to taste.
+const COL_SHIFT_HYSTERESIS = 25
 
 /** A Collection uses its own schema; a Set inherits its ancestor Collection's (schema lives only on
  *  the Collection). [] when the owning Collection can't be found. */
@@ -82,12 +87,16 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
   const [manualOverride, setManualOverride] = useState<string[] | null>(null)
   const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set(view.collapsed_groups ?? []))
   const [collapsing, setCollapsing] = useState<string | null>(null)
+  // Live column smooth-shift (A-4): the dragged column index, the slot it's over, and the cursor delta.
+  // Transient — set on grab, cleared on drop; column indices into the resolved `columns`.
+  const [colDrag, setColDrag] = useState<{ from: number; to: number; delta: number } | null>(null)
   useEffect(() => {
     setOrderOverride(null)
     setWidthOverride({})
     setHiddenOverride(null)
     setManualOverride(null)
     setCollapsing(null)
+    setColDrag(null)
     setCollapsed(new Set(view.collapsed_groups ?? []))
   }, [view.id])
   const liveView = useMemo(() => {
@@ -193,8 +202,100 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
   const indent = (depth: number): string =>
     depth > 0 ? `calc(var(--cell-padding-x) + var(--row-indent) * ${depth})` : 'var(--cell-padding-x)'
 
-  // Row drag (E-3): the flat data-row order + each row's group key + path, feeding the vertical
-  // SortableZone. Where you drop disambiguates (D-8) — same group reorders, a different group reassigns.
+  // Column smooth-shift (A-4): grab a header → the whole column (header + every body cell + divider)
+  // slides with the cursor, neighbours shifting by the dragged column's width to open the gap, the track
+  // order committing on drop. Pointer-captured to the header; move/up on window (the header re-renders
+  // mid-drag, so a node-bound listener would drop). `zoom` divides the screen delta back into the grid's
+  // pre-zoom track space. The target slot is edge-based: whichever column's span the dragged column's
+  // centre sits over, with a sticky hysteresis zone around the current slot. Edge-based (not closest-
+  // centre) so a far column can't shift while the dragged one is still mid-traverse over a wide neighbour.
+  // gridLeft is read live so the edges stay correct under a horizontal scroll.
+  const startColumnDrag = (e: React.PointerEvent, from: number): void => {
+    if (e.button !== 0) return // left-button drags; a right-press falls through to the column menu
+    e.preventDefault()
+    const header = e.currentTarget as HTMLElement
+    const grid = header.closest('.table-grid') as HTMLElement | null
+    if (!grid) return
+    header.setPointerCapture(e.pointerId)
+    const hr = header.getBoundingClientRect()
+    const zoom = hr.width / colWidth(columns[from].id) // screen px per pre-zoom track px
+    const startCenter = hr.left + hr.width / 2 // the dragged column's centre, screen px; it tracks the cursor 1:1
+    const startX = e.clientX
+    const startY = e.clientY
+    // null until the pointer travels ACTIVATION px — a sub-threshold press is a click, not a drag, so the
+    // highlight band never flashes and a jittery click can't reorder.
+    let current: { from: number; to: number; delta: number } | null = null
+    const onMove = (ev: PointerEvent): void => {
+      if (!current && Math.hypot(ev.clientX - startX, ev.clientY - startY) < ACTIVATION) return
+      const gridLeft = grid.getBoundingClientRect().left
+      const projected = startCenter + (ev.clientX - startX)
+      const cur = current?.to ?? from
+      // Edge-based slot: which column's span the dragged column's centre is actually over. Hold the
+      // current slot until the centre leaves its span by COL_SHIFT_HYSTERESIS (a sticky zone — no flicker
+      // at a boundary). This is correct for wildly-varying widths where a closest-centre rule would let a
+      // far column shift while the dragged one is still mid-traverse over a wide neighbour (e.g. Title).
+      let curLeft = gridLeft
+      for (let i = 0; i < cur; i++) curLeft += colWidth(columns[i].id) * zoom
+      const curRight = curLeft + colWidth(columns[cur].id) * zoom
+      let to = cur
+      if (projected < curLeft - COL_SHIFT_HYSTERESIS || projected > curRight + COL_SHIFT_HYSTERESIS) {
+        let edge = gridLeft
+        to = columns.length - 1
+        for (let i = 0; i < columns.length; i++) {
+          edge += colWidth(columns[i].id) * zoom
+          if (projected < edge) {
+            to = i
+            break
+          }
+        }
+      }
+      current = { from, to, delta: (ev.clientX - startX) / zoom }
+      setColDrag(current)
+    }
+    // A committed release reorders (move + clear batch into one render — reorderColumn is React state —
+    // so the settle is a single frame, no snap-back flash); a no-op release (own slot / un-armed click)
+    // and a pointercancel (OS/gesture abort — the escape hatch) just clear without reordering.
+    const finish = (ev: PointerEvent, commit: boolean): void => {
+      // Cleanup FIRST + unconditionally: detach the window listeners and clear the drag before anything
+      // that can throw, so a lost-capture release or a mid-drag `columns` remount can't strand the gesture
+      // (leaked listener + stuck band). The release is guarded, and the indices are bounds-checked against
+      // a `columns` that may have shrunk under a watcher update since grab time.
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', onUp)
+      window.removeEventListener('pointercancel', onCancel)
+      try {
+        header.releasePointerCapture(ev.pointerId)
+      } catch {
+        // capture already released
+      }
+      if (current) {
+        const { from: f, to: t } = current
+        if (commit && t !== f && f < columns.length && t < columns.length) {
+          reorderColumn(columns[f].id, columns[t].id)
+        }
+        setColDrag(null)
+      }
+    }
+    const onUp = (ev: PointerEvent): void => finish(ev, true)
+    const onCancel = (ev: PointerEvent): void => finish(ev, false)
+    window.addEventListener('pointermove', onMove)
+    window.addEventListener('pointerup', onUp)
+    window.addEventListener('pointercancel', onCancel)
+  }
+  // The per-column translateX for the current drag: the subject tracks the cursor (delta); the columns
+  // between its source and target slot shift by the subject's width to open the gap (D-2-style).
+  const colTransform = (ci: number): string | undefined => {
+    if (!colDrag) return undefined
+    const { from, to, delta } = colDrag
+    if (ci === from) return `translateX(${delta}px)`
+    const w = colWidth(columns[from].id)
+    if (to < from && ci >= to && ci < from) return `translateX(${w}px)`
+    if (to > from && ci > from && ci <= to) return `translateX(${-w}px)`
+    return undefined
+  }
+
+  // Row drag (E-3): the flat data-row order + each row's group key + path, feeding the drop-line DnD
+  // (tableDnd). Where you drop disambiguates (D-8) — same group reorders, a different group reassigns.
   const dataRows: { id: string; path: string; groupKey: string }[] = []
   const collectRows = (g: ResolvedGroup): void => {
     for (const r of g.items) dataRows.push({ id: r.id, path: r.path, groupKey: g.key })
@@ -251,6 +352,8 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
           ctx={ctx}
           depth={depth}
           indent={indent}
+          colTransform={colTransform}
+          draggingCol={colDrag?.from}
           hideIcon={liveView.hide_page_icons ?? false}
           selected={selection.kind === 'page' && selection.id === row.id}
           dragDisabled={dragDisabled}
@@ -273,30 +376,38 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
         reassign={reassignRow}
       >
         <div
-          className={cx('table-grid', text.body.standard, liveView.hide_borders && 'no-borders', collapsing != null && 'col-hiding')}
+          className={cx(
+            'table-grid',
+            text.body.standard,
+            liveView.hide_borders && 'no-borders',
+            collapsing != null && 'col-hiding',
+            colDrag != null && 'col-dragging-active'
+          )}
           style={{ minWidth: totalWidth, ['--cols']: cols } as React.CSSProperties}
         >
-          {/* Header band — a horizontal sortable zone (E-2); the filler sits outside it, inert. The
-              transitionend on the animated track set commits a column hide (E-11). */}
+          {/* Header band — each header grabs to smooth-shift its whole column (A-4); the filler sits
+              outside the columns, inert. The transitionend on the animated track set commits a column
+              hide (E-11) — transform transitions (the drag) carry a different propertyName, so they pass. */}
           <div
             className="table-head"
             onTransitionEnd={(e) => {
               if (e.propertyName === 'grid-template-columns') commitHide()
             }}
           >
-            <SortableZone items={columns.map((c) => c.id)} axis="x" bounds="parent" itemRole={null} onReorder={reorderColumn}>
-              {columns.map((c) => (
-                <ColumnHeader
-                  key={c.id}
-                  id={c.id}
-                  label={columnLabel(c.id, schema, ctx.labels)}
-                  width={colWidth(c.id)}
-                  onResize={resizeColumn}
-                  onResizeCommit={commitResize}
-                  onContextMenu={(e) => void openHeaderMenu(c.id, c.kind !== 'title', e)}
-                />
-              ))}
-            </SortableZone>
+            {columns.map((c, i) => (
+              <ColumnHeader
+                key={c.id}
+                id={c.id}
+                label={columnLabel(c.id, schema, ctx.labels)}
+                width={colWidth(c.id)}
+                transform={colTransform(i)}
+                dragging={colDrag?.from === i}
+                onDragStart={(e) => startColumnDrag(e, i)}
+                onResize={resizeColumn}
+                onResizeCommit={commitResize}
+                onContextMenu={(e) => void openHeaderMenu(c.id, c.kind !== 'title', e)}
+              />
+            ))}
             {/* Trailing filler in the 1fr track — also the :last-child anchor that keeps the last real
                 column's right divider (Table.css). Empty but load-bearing; don't remove. */}
             <div className="cell-filler" aria-hidden="true" />
@@ -310,14 +421,17 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
   )
 }
 
-/** One column header: draggable to reorder (E-2 — `handle` makes the cell the grab surface, ghosted via
- *  `isDragging`) plus a right-edge resize strip (H-2). The strip stops propagation so a resize never
- *  starts a reorder; the pointer delta is divided by the live zoom so a screen drag maps onto the
- *  grid's pre-zoom track width. */
+/** One column header: the whole cell is the grab surface for the smooth-shift reorder (A-4 — `dragging`
+ *  applies the ghost veil + solid band, `transform` slides it with the cursor) plus a right-edge resize
+ *  strip (H-2). The strip stops propagation so a resize never starts a reorder; the resize pointer delta
+ *  is divided by the live zoom so a screen drag maps onto the grid's pre-zoom track width. */
 function ColumnHeader({
   id,
   label,
   width,
+  transform,
+  dragging,
+  onDragStart,
   onResize,
   onResizeCommit,
   onContextMenu
@@ -325,14 +439,16 @@ function ColumnHeader({
   id: string
   label: string
   width: number
+  transform: string | undefined
+  dragging: boolean
+  onDragStart: (e: React.PointerEvent) => void
   onResize: (id: string, width: number) => number
   onResizeCommit: (id: string, width: number) => void
   onContextMenu?: (e: React.MouseEvent) => void
 }): React.JSX.Element {
-  const { setNodeRef, style, handle, isDragging } = useDragItem(id)
   const startResize = (e: React.PointerEvent<HTMLSpanElement>): void => {
     e.preventDefault()
-    e.stopPropagation()
+    e.stopPropagation() // a resize never bubbles up to start a column reorder
     const grip = e.currentTarget
     const cell = grip.closest('.col-header')
     const zoom = (cell && cell.getBoundingClientRect().width / width) || 1
@@ -354,10 +470,9 @@ function ColumnHeader({
   }
   return (
     <div
-      ref={setNodeRef}
-      style={style}
-      className={cx('col-header', text.body.semibold, isDragging && 'col-dragging')}
-      {...handle}
+      className={cx('col-header', text.body.semibold, dragging && 'col-dragging')}
+      style={{ transform }}
+      onPointerDown={onDragStart}
       onContextMenu={onContextMenu}
     >
       {label}
@@ -368,13 +483,15 @@ function ColumnHeader({
 
 /** One data row + its hover-revealed drag grip (E-3 / H-5). The grip sits in the lead cell's gutter
  *  lane — the same slot the group disclosure chevron occupies — so handles align with the chevrons and
- *  the row content lines up with the group headers. useDragItem ghosts the row while it's lifted. */
+ *  the row content lines up with the group headers. useTableRowDrag mutes the row while it's lifted. */
 function DataRow({
   row,
   columns,
   ctx,
   depth,
   indent,
+  colTransform,
+  draggingCol,
   hideIcon,
   selected,
   dragDisabled,
@@ -385,6 +502,8 @@ function DataRow({
   ctx: ResolveContext
   depth: number
   indent: (depth: number) => string | undefined
+  colTransform: (ci: number) => string | undefined
+  draggingCol: number | undefined
   hideIcon: boolean
   selected: boolean
   dragDisabled: boolean
@@ -399,9 +518,11 @@ function DataRow({
         if (!isDragging) onSelect() // a drag-release isn't a select — the engine keeps isDragging set through the drop
       }}
     >
-      {columns.map((c, i) =>
-        i === 0 ? (
-          <div key={c.id} className="data-cell cell-lead" style={{ paddingLeft: indent(depth) }}>
+      {columns.map((c, i) => {
+        const style: React.CSSProperties = { transform: colTransform(i) }
+        if (i === 0) style.paddingLeft = indent(depth)
+        return i === 0 ? (
+          <div key={c.id} className={cx('data-cell', 'cell-lead', draggingCol === i && 'col-dragging')} style={style}>
             {!dragDisabled && (
               <span className="row-grip" {...handle} onClick={(e) => e.stopPropagation()} aria-label="Drag to reorder">
                 <Icon name="grip-vertical" size={14} />
@@ -410,11 +531,11 @@ function DataRow({
             <Cell row={row} column={c} ctx={ctx} hideIcon={hideIcon} />
           </div>
         ) : (
-          <div key={c.id} className="data-cell">
+          <div key={c.id} className={cx('data-cell', draggingCol === i && 'col-dragging')} style={style}>
             <Cell row={row} column={c} ctx={ctx} hideIcon={hideIcon} />
           </div>
         )
-      )}
+      })}
       {/* 1fr-track filler + last-column divider anchor (see table head). */}
       <div className="cell-filler" aria-hidden="true" />
     </div>

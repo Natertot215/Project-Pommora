@@ -38,6 +38,11 @@ globalStyle(':root', {
     // Interaction states (Figma "States") — system-grey at hover 2.5% / selected 5%.
     '--state-hover': colorVars.color.state.hover,
     '--state-selected': colorVars.color.state.selected,
+    '--state-muted': colorVars.color.state.muted, // reserved (no consumer yet) — black 15% de-emphasis veil
+    // Ghost — the de-emphasis applied to a thing being reordered (table rows, editor blocks/list items):
+    // a fade to the primary tint opacity, the same treatment MarkdownPM's drag-source uses. An opacity,
+    // not a colour — consumed via `opacity: var(--state-ghost)`.
+    '--state-ghost': 'var(--tint-primary)',
     // Accent: a pointer, never a baked color. The static seed is the default
     // spectrum solid (DEFAULT_ACCENT); applyAccent overrides --accent at runtime
     // from settings — any spectrum color, or the OS accent. -fill is a 15% tint

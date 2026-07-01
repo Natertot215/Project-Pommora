@@ -57,10 +57,24 @@
   min-width: 0; /* grid items default to min-width:auto; 0 lets the ellipsis engage */
   position: relative; /* containing block for the right-edge resize strip */
 }
-/* The lifted column header ghosts while neighbours shift to open the gap. */
-.col-header.col-dragging {
-  opacity: var(--drag-ghost-opacity);
+/* Column smooth-shift (A-4): the whole dragged column — header + every data cell + its right divider —
+   slides with the cursor as one solid band (an opaque backing so neighbours don't show through) carrying
+   the selected highlight so it reads as the lifted column; the neighbours slide to open the gap on the
+   shift curve. The lifted column tracks the cursor 1:1 (no transition); only the neighbours animate. */
+.table-grid.col-dragging-active .col-header,
+.table-grid.col-dragging-active .data-cell {
+  transition: transform var(--col-shift-ease);
+}
+.col-header.col-dragging,
+.data-cell.col-dragging {
+  z-index: 2;
+  background-color: var(--col-drag-band);
+  background-image: linear-gradient(var(--col-highlight), var(--col-highlight));
+  /* Both edges, so the lifted band reads as a bounded column — the right line already comes from the
+     :not(:last-child) divider; this adds the matching left one. */
+  border-left: var(--table-border);
   cursor: grabbing;
+  transition: none;
 }
 
 /* Column resizer — an invisible ew-resize hit-strip at the header's right edge; the live track width

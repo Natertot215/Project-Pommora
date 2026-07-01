@@ -10,18 +10,18 @@ const schema: PropertyDefinition[] = [
 describe('widthFor', () => {
   it('keys reserved columns by their declared type', () => {
     expect(widthFor(RESERVED_PROPERTY_ID.title, schema).default).toBe(280)
-    expect(widthFor(RESERVED_PROPERTY_ID.tier1, schema).default).toBe(150)
-    expect(widthFor(RESERVED_PROPERTY_ID.modifiedAt, schema).default).toBe(130) // last_edited_time
-    expect(widthFor(RESERVED_PROPERTY_ID.createdAt, schema).default).toBe(130) // special-cased
+    expect(widthFor(RESERVED_PROPERTY_ID.tier1, schema).default).toBe(140)
+    expect(widthFor(RESERVED_PROPERTY_ID.modifiedAt, schema).default).toBe(120) // last_edited_time
+    expect(widthFor(RESERVED_PROPERTY_ID.createdAt, schema).default).toBe(120) // special-cased
   })
 
   it('keys user properties by their schema type', () => {
     expect(widthFor('prop_status', schema)).toEqual({ min: 65, default: 120, max: 200 })
-    expect(widthFor('prop_n', schema).default).toBe(110) // number
+    expect(widthFor('prop_n', schema).default).toBe(100) // number
   })
 
   it('falls back for an unknown column', () => {
-    expect(widthFor('prop_gone', schema)).toEqual({ min: 80, default: 150, max: 340 })
+    expect(widthFor('prop_gone', schema)).toEqual({ min: 80, default: 140, max: 340 })
   })
 })
 

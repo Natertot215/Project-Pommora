@@ -67,7 +67,7 @@
 
 .mdpm-tbl-dragging .mdpm-tbl-cell,
 .mdpm-tbl-dragging .mdpm-tbl tr {
-  transition: transform 0.16s var(--ease-standard, ease);
+  transition: transform var(--duration-fast) var(--ease-standard, ease);
 }
 .mdpm-tbl-subject {
   position: relative;

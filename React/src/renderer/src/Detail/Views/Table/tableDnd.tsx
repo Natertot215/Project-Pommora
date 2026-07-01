@@ -88,9 +88,13 @@ export function TableRowDnd({
     if (!nearEl) return null
     const r = nearEl.getBoundingClientRect()
     const boxLeft = box.getBoundingClientRect().left
+    // End the line at the content edge (where the columns stop), not the full row — the row spans the
+    // trailing 1fr filler too, so r.width would run the line out into the empty gutter past the last column.
+    const filler = nearEl.querySelector('.cell-filler')
+    const contentRight = filler ? filler.getBoundingClientRect().left : r.right
     const lineY = (above ? near.top : near.bottom) - boxTop
     const left = r.left - boxLeft + LINE_INSET
-    const width = r.width - LINE_INSET * 2
+    const width = contentRight - r.left - LINE_INSET * 2
 
     if (targetGroup === activeGroup) {
       if (!canReorderWithin) return null

@@ -20,6 +20,7 @@ const primitive = createGlobalTheme(':root', {
 // so a derived token references the primitive var rather than baking its hex.
 const greyA = (pct: string): string => `color-mix(in srgb, ${primitive.color.system.grey} ${pct}, transparent)`
 const whiteA = (pct: string): string => `color-mix(in srgb, ${primitive.color.system.white} ${pct}, transparent)`
+const blackA = (pct: string): string => `color-mix(in srgb, ${primitive.color.system.black} ${pct}, transparent)`
 
 // Derived tokens mirrored from the Figma color collection.
 const derived = createGlobalTheme(':root', {
@@ -62,10 +63,12 @@ const derived = createGlobalTheme(':root', {
       quaternary: greyA('6%'),
       quinary: greyA('4%')
     },
-    // Interaction states (Figma "States") — system-grey at hover 2.5% / selected 5%.
+    // Interaction states (Figma "States") — system-grey at hover 2.5% / selected 5%. `muted` is a
+    // system-black 15% de-emphasis veil reserved for future drag/dimming use (defined ahead of a consumer).
     state: {
       hover: greyA('2.5%'),
-      selected: greyA('5%')
+      selected: greyA('5%'),
+      muted: blackA('15%')
     },
     // Hairlines (Figma "Separator") — system-grey at line/border 25% / segment 20%.
     separator: {
