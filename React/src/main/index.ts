@@ -466,12 +466,12 @@ ipcMain.handle('view:loadValues', async (_e, containerPath: unknown): Promise<Re
 // Collection's path. Mirrors the views:* envelope contract.
 async function resolveSchemaFolder(
   containerPath: unknown
-): Promise<{ ok: true; folder: string } | { ok: false; error: string }> {
+): Promise<{ ok: true; root: string; folder: string } | { ok: false; error: string }> {
   const root = sessionRoot()
   if (root === null) return { ok: false, error: 'No nexus is open.' }
   if (typeof containerPath !== 'string') return { ok: false, error: 'A container path is required.' }
   const resolved = await resolveUnderRoot(root, containerPath)
-  return resolved.ok ? { ok: true, folder: resolved.value } : { ok: false, error: resolved.error.message }
+  return resolved.ok ? { ok: true, root, folder: resolved.value } : { ok: false, error: resolved.error.message }
 }
 
 ipcMain.handle(
@@ -482,14 +482,12 @@ ipcMain.handle(
       if (!c.ok) return c
       const parsed = propertyDefinition.safeParse(def)
       if (!parsed.success) return { ok: false, error: 'Invalid property definition.' }
-      const root = sessionRoot()
-      if (root === null) return { ok: false, error: 'No nexus is open.' }
-      const created = await createProperty(root, parsed.data)
+      const created = await createProperty(c.root, parsed.data)
       if (!created.ok) return { ok: false, error: created.error.message }
       const assigned = await assignProperty(c.folder, created.value.id)
       if (!assigned.ok) {
         // Don't orphan the just-created def in the registry when the assign leg fails.
-        await removeFromRegistry(root, created.value.id)
+        await removeFromRegistry(c.root, created.value.id)
         return { ok: false, error: assigned.error.message }
       }
       return { ok: true, id: created.value.id }
@@ -513,9 +511,7 @@ ipcMain.handle(
       if (typeof propertyId !== 'string' || typeof newName !== 'string') {
         return { ok: false, error: 'propertyId and newName must be strings.' }
       }
-      const root = sessionRoot()
-      if (root === null) return { ok: false, error: 'No nexus is open.' }
-      const r = await editProperty(root, propertyId, { name: newName })
+      const r = await editProperty(c.root, propertyId, { name: newName })
       return r.ok ? { ok: true } : { ok: false, error: r.error.message }
     } catch (e) {
       return { ok: false, error: e instanceof Error ? e.message : String(e) }
@@ -578,9 +574,7 @@ ipcMain.handle(
       // V2: a global def edit — values keep their old shape until the lossy cross-assigner
       // strip lands with the assign-surface UI (opts.dropConflictingValues is accepted, unused).
       void opts
-      const root = sessionRoot()
-      if (root === null) return { ok: false, error: 'No nexus is open.' }
-      const r = await editProperty(root, propertyId, { type: parsedType.data })
+      const r = await editProperty(c.root, propertyId, { type: parsedType.data })
       return r.ok ? { ok: true } : { ok: false, error: r.error.message }
     } catch (e) {
       return { ok: false, error: e instanceof Error ? e.message : String(e) }

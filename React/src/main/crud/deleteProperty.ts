@@ -6,7 +6,7 @@
 
 import { join } from 'node:path'
 import { readFile, mkdir, writeFile } from 'node:fs/promises'
-import { readRegistry } from '../io/propertiesRegistry'
+import { readRegistry, type PropertyRegistry } from '../io/propertiesRegistry'
 import { removeFromRegistry } from './registryProperty'
 import { assigners } from './assignment'
 import { SchemaTransaction } from '../io/schemaTransaction'
@@ -21,8 +21,7 @@ import { isPlainObject } from '@shared/propertyValue'
 import { nowIso } from './util'
 import { fail, type Result } from '@shared/result'
 
-async function snapshot(root: string, propertyId: string, folders: string[]): Promise<void> {
-  const registry = await readRegistry(root)
+async function snapshot(root: string, propertyId: string, def: PropertyRegistry[string], folders: string[]): Promise<void> {
   const values: Record<string, unknown> = {}
   for (const folder of folders) {
     for (const file of await listMarkdownFiles(folder)) {
@@ -40,16 +39,17 @@ async function snapshot(root: string, propertyId: string, folders: string[]): Pr
   const stamp = new Date().toISOString().replace(/[:.]/g, '-')
   await writeFile(
     join(trash, `${stamp}__property-${propertyId}.json`),
-    serializeJson({ propertyId, def: registry[propertyId] ?? null, values })
+    serializeJson({ propertyId, def, values })
   )
 }
 
 export async function deleteProperty(root: string, propertyId: string): Promise<Result<null>> {
   const registry = await readRegistry(root)
-  if (!registry[propertyId]) return fail('not-found', 'Property not found.')
+  const def = registry[propertyId]
+  if (!def) return fail('not-found', 'Property not found.')
 
   const folders = await assigners(root, propertyId)
-  await snapshot(root, propertyId, folders)
+  await snapshot(root, propertyId, def, folders)
 
   const tx = new SchemaTransaction()
   for (const folder of folders) {
