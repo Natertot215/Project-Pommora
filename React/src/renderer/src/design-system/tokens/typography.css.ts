@@ -89,7 +89,15 @@ export const truncateHoverScroll = style({
   textOverflow: 'ellipsis',
   scrollbarWidth: 'none',
   selectors: {
-    '&:hover': { overflowX: 'auto', textOverflow: 'clip' },
+    // On hover the label scrolls; content sliding off the left edge fades out ("eclipses") through a
+    // mask rather than hard-clipping — clean over translucent glass (dissolves into it, no opaque
+    // backdrop needed). Opt-in per context via --scroll-fade (0 = an opaque no-op mask, no fade).
+    '&:hover': {
+      overflowX: 'auto',
+      textOverflow: 'clip',
+      maskImage: 'linear-gradient(to right, transparent 0, #000 var(--scroll-fade, 0px))',
+      WebkitMaskImage: 'linear-gradient(to right, transparent 0, #000 var(--scroll-fade, 0px))'
+    },
     '&::-webkit-scrollbar': { display: 'none' }
   }
 })
