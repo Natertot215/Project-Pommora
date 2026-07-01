@@ -43,11 +43,11 @@ This doc is the single source for: the grid architecture, the drop-line reorder,
 
 ### D — Heading (column-header) row
 
-- **D-1: Background** → `--heading-fill` (→ `--fill-quaternary`).
+- **D-1: Background** → `--heading-fill` (→ `--fill-quinary`).
 
 - **D-2: Top + bottom dividers** → `--border-heading` (→ `--separator-border`). The bottom already reads this token; the **top** (the banner↔body divider) does not yet and must change (see F).
 
-- **D-3: Column dividers — heading row ONLY** → the **segment-divider** look (`design-system/components/Segmented-Controls/segmented.css.ts`): a short, vertically-centered, fully-rounded `--heading-segment` (→ `separator.segment`) bar, **shorter than the row height** (as the segmented buttons' dividers are shorter than the capsule). Data rows keep their full-height `--cell-divider` hairlines.
+- **D-3: Column dividers — heading row ONLY** → the **segment-divider** look (`design-system/components/Segmented-Controls/segmented.css.ts`): a short, vertically-centered, fully-rounded `--heading-segment` (→ `--label-tertiary`) bar, **shorter than the row height** (as the segmented buttons' dividers are shorter than the capsule). The first column also carries a **leading bar** at the grid's left edge (the gutter↔first-column junction) so the header reads as a bounded segmented strip. Data rows keep their full-height `--cell-divider` hairlines.
 
 - **D-4: Text** → `--heading-text` (→ `--label-control`).
 
@@ -83,7 +83,7 @@ This doc is the single source for: the grid architecture, the drop-line reorder,
   - `--cell-padding-x`, `--cell-padding-y` — cell padding.
   - `--cell-divider` — data-row column hairline → `--separator-border`.
   - `--row-indent` — per-depth nesting step.  ·  `--zoom` — Compact density.
-  - `--heading-fill` → `--fill-quaternary`  ·  `--heading-text` → `--label-control`  ·  `--heading-divider` → `--border-heading`  ·  `--heading-segment` → `separator.segment`.
+  - `--heading-fill` → `--fill-quinary`  ·  `--heading-text` → `--label-control`  ·  `--heading-divider` → `--border-heading`  ·  `--heading-segment` → `--label-tertiary`.
   - `--gutter` → `--fold-gutter`.
   - **Row drag:** `--drag-line` → `--accent`  ·  `--drag-muted` → `--state-ghost` (→ `--tint-primary`).
   - **Column drag (A-4):** `--col-highlight` → `--state-selected`  ·  `--col-drag-band` → `--bg-window`  ·  `--col-shift-ease` → `--duration-fast` + `--ease-standard`.
@@ -128,6 +128,6 @@ No task is "done" on a green build. Each runs this loop and is **not complete un
 
 - **Disclosure** — `design-system/components/Reveal.tsx`; `--disclosure` / `--ease-standard` in `tokens/motion.ts`.
 - **Drop-line** — `Sidebar/sidebarDnd.tsx` (insertion line + ghost + no displacement); `MarkdownPM/editor/dragChrome.ts` (accent line + in-place shade); muted alias `--tint-primary` on `.md-li-drag-source` (`MarkdownPM/Styles.css:360`).
-- **Tokens** — `--fill-quaternary`, `--separator-border`, `separator.segment`, `solid.greyDefault`, `--label-control` in `tokens/color.css.ts` + `styles.css`.
+- **Tokens** — `--fill-quinary`, `--separator-border`, `--label-tertiary`, `solid.greyDefault` in `tokens/color.css.ts`; `--label-control` promoted into `tokens/color.css.ts` (`label.control`, out of `styles.css`); `--border-heading` is a new global seam token in `tokens/theme-vars.css.ts`.
 - **Segment divider** — `design-system/components/Segmented-Controls/segmented.css.ts`.
 - **Banner divider** — `Detail/Banner/Banner.css:7,54`.

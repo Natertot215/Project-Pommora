@@ -21,9 +21,19 @@
   --gutter: var(--fold-gutter); /* carved from --content-inset; matches MarkdownPM's fold gutter */
 
   /* — Borders — the ONE token for every standard table hairline (vertical column lines + horizontal row
-       underlines). Heavier heading seams use the global --border-heading (2px, Task 4); heading segment
-       dividers use --fill-primary (Task 4) — neither is this. — */
+       underlines). The heading row's seams are heavier/different (see Heading below). — */
   --table-border: 1.25px solid var(--separator-border);
+
+  /* — Heading row — the header band reads distinct from the body: a faint fill, dimmed control text, a
+       heavier bottom seam, and short centered segment dividers between columns (vs the data rows'
+       full-height hairlines). Each aliases a design-system token. — */
+  --heading-fill: var(--fill-quinary); /* faint band behind the header, sets it off the body */
+  --heading-text: var(--label-control); /* header label colour — the global on-control label token */
+  --heading-divider: var(--border-heading); /* the heading↔body bottom seam (the global heading-seam token) */
+  --heading-segment: var(--label-tertiary); /* the short inter-column bar on the heading row */
+  --heading-segment-height: 16px; /* bar length — shorter than the row (segmented-control feel) */
+  --heading-segment-width: 1.5px; /* bar thickness */
+  --heading-padding-y: 8px; /* header vertical padding — sits the label off its top + bottom seams */
 
   /* — Group sections — */
   --group-gap-top: 16px; /* vertical gap above a group header (separates sections) */

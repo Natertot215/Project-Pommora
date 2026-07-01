@@ -38,11 +38,14 @@ const derived = createGlobalTheme(':root', {
       grey: '#8E8E93',
       greyDefault: '#48484A'
     },
-    // Label tones — system-white at full / 65% / 35% (separate from the type ramp).
+    // Label tones — system-white at full / 65% / 35% (separate from the type ramp). `control` is the
+    // on-control label (white 80%) worn by control chrome — toolbar / subfield / editor / switches / the
+    // table heading — bright but a step under primary.
     label: {
       primary: primitive.color.system.white,
       secondary: whiteA('65%'),
-      tertiary: whiteA('35%')
+      tertiary: whiteA('35%'),
+      control: whiteA('80%')
     },
     // The app substrate — the base background (Figma "Background"). Single source:
     // @shared/theme WINDOW_BG, so the Electron window + this token never drift.

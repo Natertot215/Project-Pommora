@@ -12,8 +12,6 @@
   --glass-inset: 5px; /* gap from the window edges */
   --glass-radius: 12px; /* matched to the macOS window corner (≈ window radius − inset) */
   --toolbar-h: 38px; /* the top strip: titlebar drag region + floating toolbar clusters */
-  /* Control-tint label — the single global source (80% of primary). Editor + toolbar both read it. */
-  --label-control: color-mix(in srgb, var(--label-primary) 80%, transparent);
 }
 
 * {

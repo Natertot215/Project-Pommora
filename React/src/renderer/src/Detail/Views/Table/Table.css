@@ -43,13 +43,14 @@
 /* — Header — */
 .table-head {
   /* weight/size come from the text.body.semibold alias on each .col-header — no raw font-weight here
-     (§G: typography via aliases only). Nathan: Change to --border-heading (2px) alongside banner<->body border when done */
-  color: var(--text-dim);
-  border-bottom: var(--table-border);
+     (§G: typography via aliases only). */
+  background: var(--heading-fill);
+  color: var(--heading-text);
+  border-bottom: var(--heading-divider);
   user-select: none;
 }
 .col-header {
-  padding: var(--cell-padding-y) var(--cell-padding-x);
+  padding: var(--heading-padding-y) var(--cell-padding-x);
   text-align: left;
   white-space: nowrap;
   overflow: hidden;
@@ -98,10 +99,32 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-/* Vertical column lines — every header/data cell except the filler (which is always the last child). */
-.col-header:not(:last-child),
+/* Data-row vertical column lines — full-height hairlines (every data cell except the trailing filler). */
 .data-cell:not(:last-child) {
   border-right: var(--table-border);
+}
+/* Heading column dividers — a short, vertically-centred, fully-rounded segment bar (segmented-control
+   feel), shorter than the row, instead of the data rows' full-height hairline. The ::after sits on each
+   column's right edge; the first column also carries a ::before leading bar at the grid's left edge (the
+   gutter↔Title junction) so the heading reads as a bounded segmented strip. Absolutely placed so they add
+   no track width; the radius reuses the bar width so the thin caps fully round. */
+.col-header:not(:last-child)::after,
+.col-header:first-child::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: var(--heading-segment-width);
+  height: var(--heading-segment-height);
+  border-radius: var(--heading-segment-width);
+  background: var(--heading-segment);
+  pointer-events: none;
+}
+.col-header:not(:last-child)::after {
+  right: 0;
+}
+.col-header:first-child::before {
+  left: 0;
 }
 /* Row underline spans the full width including the filler track — on the row, not per cell. */
 .data-row {

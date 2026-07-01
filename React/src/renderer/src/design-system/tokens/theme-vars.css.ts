@@ -24,6 +24,7 @@ globalStyle(':root', {
     '--label-primary': colorVars.color.label.primary,
     '--label-secondary': colorVars.color.label.secondary,
     '--label-tertiary': colorVars.color.label.tertiary,
+    '--label-control': colorVars.color.label.control,
     '--bg-window': colorVars.color.background.window,
     '--surface-primary': colorVars.color.surface.primary,
     '--surface-secondary': colorVars.color.surface.secondary,
@@ -35,6 +36,10 @@ globalStyle(':root', {
     '--fill-quaternary': colorVars.color.fill.quaternary,
     '--fill-quinary': colorVars.color.fill.quinary,
     '--separator-border': colorVars.color.separator.border,
+    // Heading seam — the heavier hairline that separates a heading band from the body below it (table
+    // heading↔rows, banner↔body, editor heading↔content). One global source so the seam is uniform
+    // app-wide; consume as a full border shorthand: `border-bottom: var(--border-heading)`.
+    '--border-heading': '1.75px solid var(--separator-border)',
     // Interaction states (Figma "States") — system-grey at hover 2.5% / selected 5%.
     '--state-hover': colorVars.color.state.hover,
     '--state-selected': colorVars.color.state.selected,
