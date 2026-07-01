@@ -122,7 +122,12 @@ export async function handleMutate(req: MutateRequest, deps: MutateDeps): Promis
   // shell.trashItem rejecting, EACCES/ENOSPC) becomes a fault Result, not a rejected IPC
   // promise the callers (store.newPage / contextMenu) silently swallow.
   try {
-    return await dispatch(req, deps, root)
+    const result = await dispatch(req, deps, root)
+    // One post-dispatch refresh (fire-and-forget, off the response path) instead of a copy in
+    // every case body — the index is a regeneratable mirror, so over-refreshing on a
+    // settings-only op is harmless while a missed copy on a new op is a stale index.
+    if (result.ok) void refreshSessionIndex(root)
+    return result
   } catch (e) {
     return fault(e instanceof Error ? e.message : String(e))
   }
@@ -137,7 +142,6 @@ async function dispatch(req: MutateRequest, deps: MutateDeps, root: string): Pro
       if (!parent.ok) return relay(parent)
       const r = await createDisambiguated(req.name, (name) => createPage(parent.value, name))
       if (!r.ok) return relay(r)
-      void refreshSessionIndex(root)
       return { ok: true, created: { id: r.value.id, path: relJoin(req.parentPath, basename(r.value.path)) } }
     }
 
@@ -155,7 +159,6 @@ async function dispatch(req: MutateRequest, deps: MutateDeps, root: string): Pro
         createFolderEntity(parent.value, req.kind, name, extra)
       )
       if (!r.ok) return relay(r)
-      void refreshSessionIndex(root)
       return { ok: true, created: { id: r.value.id, path: relJoin(req.parentPath, basename(r.value.path)) } }
     }
 
@@ -165,7 +168,6 @@ async function dispatch(req: MutateRequest, deps: MutateDeps, root: string): Pro
       const dir = contextTierDir(root, TIER_DIR[req.tier])
       const r = await createDisambiguated(req.name, (name) => createFolderEntity(dir, CONTEXT_KIND_BY_TIER[req.tier], name))
       if (!r.ok) return relay(r)
-      void refreshSessionIndex(root)
       return { ok: true, created: { id: r.value.id, path: `.nexus/${TIER_DIR[req.tier]}/${basename(r.value.path)}` } }
     }
 
@@ -189,14 +191,12 @@ async function dispatch(req: MutateRequest, deps: MutateDeps, root: string): Pro
           await renamePage(r.value.path, oldTitle)
           return fault('Rename cascade failed; the rename was reverted.')
         }
-        void refreshSessionIndex(root)
         return { ok: true }
       }
       // Containers + contexts: rename the folder. No link cascade — [[links]] target pages,
       // and contexts are referenced by stable id (the rename only changes the display title).
       const r = await renameFolderEntity(abs, req.newName)
       if (!r.ok) return relay(r)
-      void refreshSessionIndex(root)
       return { ok: true }
     }
 
@@ -213,7 +213,6 @@ async function dispatch(req: MutateRequest, deps: MutateDeps, root: string): Pro
       }
       const removed = await removeViaMode(root, abs, deps)
       if (!removed.ok) return relay(removed)
-      void refreshSessionIndex(root)
       return { ok: true }
     }
 
@@ -280,7 +279,6 @@ async function dispatch(req: MutateRequest, deps: MutateDeps, root: string): Pro
           await atomicWriteFile(resolved.value, mergeFrontmatter(existing, {}, ['cover'], body))
           if (prev) await rm(join(root, prev), { force: true }).catch(() => {})
         }
-        void refreshSessionIndex(root)
         return { ok: true }
       }
       // Resolve the config holding the banner field + the asset-folder key, per owner kind. The
@@ -322,7 +320,6 @@ async function dispatch(req: MutateRequest, deps: MutateDeps, root: string): Pro
         })
         if (prev) await rm(join(root, prev), { force: true }).catch(() => {})
       }
-      void refreshSessionIndex(root)
       return { ok: true }
     }
 
@@ -342,7 +339,6 @@ async function dispatch(req: MutateRequest, deps: MutateDeps, root: string): Pro
       const fields = readFrontmatterFields(existing)
       const properties = applyPropertyValue(fields.properties, req.propertyId, req.value)
       await atomicWriteFile(resolved.value, mergeFrontmatter(existing, { properties }, ['properties'], body))
-      void refreshSessionIndex(root)
       return { ok: true }
     }
 
@@ -359,7 +355,6 @@ async function dispatch(req: MutateRequest, deps: MutateDeps, root: string): Pro
         const o = await setChildOrder(dst.value, 'page_order', req.order)
         if (!o.ok) return relay(o)
       }
-      void refreshSessionIndex(root)
       return { ok: true }
     }
 
@@ -374,7 +369,6 @@ async function dispatch(req: MutateRequest, deps: MutateDeps, root: string): Pro
       if (!r.ok) return relay(r)
       const o = await setChildOrder(dst.value, 'set_order', req.order)
       if (!o.ok) return relay(o)
-      void refreshSessionIndex(root)
       return { ok: true }
     }
 
@@ -384,7 +378,6 @@ async function dispatch(req: MutateRequest, deps: MutateDeps, root: string): Pro
       if (!parent.ok) return relay(parent)
       const o = await setChildOrder(parent.value, req.key, req.order)
       if (!o.ok) return relay(o)
-      void refreshSessionIndex(root)
       return { ok: true }
     }
 
@@ -392,7 +385,6 @@ async function dispatch(req: MutateRequest, deps: MutateDeps, root: string): Pro
       // Reorder top Collections / a context tier — persisted to .nexus/state.json.
       const o = await setStateOrder(root, req.key, req.order)
       if (!o.ok) return relay(o)
-      void refreshSessionIndex(root)
       return { ok: true }
     }
 
