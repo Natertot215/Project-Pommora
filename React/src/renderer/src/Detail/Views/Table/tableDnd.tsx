@@ -35,8 +35,9 @@ export function TableRowDnd({
   disabled: boolean
   canReorderWithin: boolean
   canReassign: boolean
-  /** Commit a within-group reorder (the new flat order of row ids). */
-  reorderTo: (orderIds: string[]) => void
+  /** Commit a within-group reorder: the new flat order of row ids + the reordered group's key (so the
+   *  caller can map a structural group to its on-disk container for the page_order write). */
+  reorderTo: (orderIds: string[], groupKey: string) => void
   /** Commit a cross-group reassign (write the dragged row's grouped property to the target group). */
   reassign: (activeId: string, targetGroupKey: string) => void
   children: ReactNode
@@ -105,7 +106,7 @@ export function TableRowDnd({
       const idx = beforeId ? without.indexOf(beforeId) : without.length
       const next = [...without.slice(0, idx), g.id, ...without.slice(idx)]
       const noop = next.length === order.length && next.every((id, i) => id === order[i])
-      return { lineY, left, width, noop, commit: () => reorderTo(next) }
+      return { lineY, left, width, noop, commit: () => reorderTo(next, activeGroup) }
     }
     if (!canReassign) return null
     return { lineY, left, width, noop: false, commit: () => reassign(g.id, targetGroup) }

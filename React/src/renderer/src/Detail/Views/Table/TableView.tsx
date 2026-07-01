@@ -111,20 +111,25 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
       hidden_properties: hiddenOverride ?? view.hidden_properties
     }
   }, [view, orderOverride, hiddenOverride])
-  // Manual row order (viewOrders cache) is the sort tiebreaker (D-5/D-6) — passed to the pipeline ONLY
-  // when the view is sorted or grouped (an unsorted, ungrouped view uses canonical page_order instead).
+  // Manual row order (viewOrders cache) is the sort tiebreaker (D-5/D-6) — passed to the pipeline when
+  // the view is sorted or grouped (an unsorted, ungrouped view otherwise reads canonical page_order). A
+  // live `manualOverride` also feeds it so an unsorted-flat reorder shows instantly (before its page_order
+  // write round-trips the fs) rather than snapping back.
   const sortedOrGrouped = (liveView.sort?.length ?? 0) > 0 || liveView.group != null
-  const manualOrder = sortedOrGrouped ? (manualOverride ?? viewOrders[view.id]) : undefined
+  const manualOrder =
+    sortedOrGrouped || manualOverride ? (manualOverride ?? viewOrders[view.id]) : undefined
   const sortKeys = liveView.sort?.length ?? 0
   // The grouped property + whether a cross-group drop can reassign it (D-4): status/select/checkbox map
   // a group key straight to a value; a date bucket doesn't, so date grouping isn't reassignable.
   const groupPropId = liveView.group?.kind === 'property' ? liveView.group.property_id : undefined
   const groupPropType = groupPropId ? declaredType(groupPropId, schema) : undefined
   const canReassign = groupPropType !== undefined && REASSIGNABLE_GROUP_TYPES.has(groupPropType)
-  // Within-group reorder needs a single sort key (clamped) or a property group, never a multi-key sort
-  // (D-3); cross-group reassignment is independent of the sort count (D-3). The grip shows if either is
-  // possible — the structural/flat default stays off pending its page_order-per-set persistence.
-  const canReorderWithin = sortKeys < 2 && (sortKeys === 1 || groupPropId !== undefined)
+  // Within-group reorder is possible whenever the order is manually meaningful — anything but a multi-key
+  // sort (D-3). Unsorted structural/flat views write the canonical on-disk page_order (reorderTo → movePage);
+  // single-sorted / property-grouped views write the per-view manual tiebreaker (viewOrders). Cross-group
+  // reassignment is independent of the sort count.
+  const canReorderWithin = sortKeys < 2
+  const structuralOrder = groupPropId === undefined && sortKeys === 0
   const dragDisabled = !(canReorderWithin || canReassign)
   // Optimistic property patches feed the pipeline so a reassigned row re-groups before the watcher round-trips.
   const effectiveValues = useMemo(() => (valueOverride ? { ...values, ...valueOverride } : values), [values, valueOverride])
@@ -317,6 +322,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
   }
   groups.forEach(collectRows)
   const rowPath = new Map(dataRows.map((r) => [r.id, r.path] as const))
+  const rowGroup = new Map(dataRows.map((r) => [r.id, r.groupKey] as const))
   // Cross-group drop (D-4): write the dragged page's grouped property to the destination group's value
   // (the no-value band clears it), patching the loaded values now so the row re-groups before the write
   // round-trips (loadValues never re-runs mid-session).
@@ -332,10 +338,23 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
     setValueOverride((prev) => ({ ...prev, [pageId]: patched }))
     void window.nexus.mutate({ op: 'setProperty', path, propertyId: groupPropId, value })
   }
-  // Within-group reorder commit — the drop-line hands the slot-based order straight in (D-3/D-6);
-  // cross-group reassign is reassignRow (D-4). tableDnd decides which from where you drop (D-8).
-  const reorderTo = (orderIds: string[]): void => {
+  // Within-group reorder commit — tableDnd hands the new flat order + the reordered group's key. An
+  // unsorted structural/flat view is ordered by the canonical on-disk page_order, so it writes that
+  // group's container page_order (movePage, same parent = a pure reorder — the whole point of a
+  // filesystem-first table). A sorted / property-grouped view instead writes the per-view manual
+  // tiebreaker (viewOrders). setManualOverride gives instant feedback either way: the pipeline reads it
+  // as the sort tiebreaker, and it agrees with the page_order the fs reload brings back.
+  const reorderTo = (orderIds: string[], groupKey: string): void => {
     setManualOverride(orderIds)
+    if (structuralOrder) {
+      const groupPages = orderIds.filter((id) => rowGroup.get(id) === groupKey)
+      const firstPath = groupPages.length ? rowPath.get(groupPages[0]) : undefined
+      if (firstPath) {
+        const containerPath = firstPath.slice(0, firstPath.lastIndexOf('/'))
+        void window.nexus.mutate({ op: 'movePage', path: firstPath, newParentPath: containerPath, order: groupPages })
+      }
+      return
+    }
     void window.nexus.viewOrders.set(view.id, orderIds)
   }
 
