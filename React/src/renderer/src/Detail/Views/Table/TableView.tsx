@@ -529,7 +529,7 @@ function ColumnHeader({
   }
   return (
     <div
-      className={cx('col-header', text.body.semibold, dragging && 'col-dragging')}
+      className={cx('col-header', text.callout.semibold, dragging && 'col-dragging')}
       style={{ transform, textAlign: align }}
       onPointerDown={onDragStart}
       onContextMenu={onContextMenu}

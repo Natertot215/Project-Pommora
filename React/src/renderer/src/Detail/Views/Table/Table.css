@@ -23,12 +23,15 @@
   zoom: var(--zoom); /* Chromium resolves % zoom-aware, so width:100% still fills the pane */
 }
 
-/* Header band + every data row share the column tracks; the final 1fr is the filler. */
+/* Header band + every data row share the column tracks; the final 1fr is the filler. Stretch (not center)
+   so every cell fills the row height — an empty cell's full-height column divider then matches a filled
+   one's, instead of collapsing to a short centred bar. The row height is set by its tallest (content) cell,
+   so single-line content stays visually centred. */
 .table-head,
 .data-row {
   display: grid;
   grid-template-columns: var(--cols);
-  align-items: center;
+  align-items: stretch;
 }
 
 /* Hide animation: while a column collapses, animate the track set shut on the disclosure token, then

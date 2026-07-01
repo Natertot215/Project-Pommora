@@ -14,7 +14,7 @@
   padding-right: calc(var(--content-inset-right) - var(--gutter) / 2);
   color: var(--label-control);
   /* The divider matches the title divider: 1.25px hairline. */
-  border-top: 1.25px solid #ffffff1a;
+  border-top: 1.25px solid var(--separator-border);
   -webkit-app-region: no-drag;
   transition:
     padding-left var(--duration-base) var(--ease-standard),

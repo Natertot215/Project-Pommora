@@ -17,12 +17,12 @@ const WIDTHS: Record<string, ColumnWidth> = {
   title: { min: 120, default: 280, max: Number.POSITIVE_INFINITY }, // the primary column — uncapped, grows freely
   tier: { min: 80, default: 140, max: 300 },
   status: { min: 65, default: 120, max: 200 },
-  select: { min: 65, default: 120, max: 220 },
-  multi_select: { min: 100, default: 180, max: 320 },
-  checkbox: { min: 40, default: 60, max: 90 },
+  select: { min: 65, default: 120, max: 200 },
+  multi_select: { min: 65, default: 180, max: 320 },
+  checkbox: { min: 40, default: 60, max: 80 },
   url: { min: 100, default: 140, max: 340 },
   file: { min: 100, default: 140, max: 300 },
-  number: { min: 60, default: 100, max: 200 },
+  number: { min: 40, default: 100, max: 300 },
   datetime: { min: 90, default: 140, max: 210 },
   last_edited_time: { min: 90, default: 120, max: 190 },
   created: { min: 90, default: 120, max: 190 }

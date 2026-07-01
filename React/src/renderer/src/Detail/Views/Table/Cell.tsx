@@ -32,7 +32,9 @@ export function Cell({
   hideIcon: boolean
 }): React.JSX.Element | null {
   if (column.kind === 'title') {
-    const iconName = hideIcon ? undefined : asIconName(row.icon)
+    // The page's frontmatter icon, else the file-text default (the sidebar's page glyph) — so every page
+    // reads with an icon (E-3). Hide Page Icons drops it entirely.
+    const iconName = hideIcon ? undefined : (asIconName(row.icon) ?? 'file-text')
     return (
       <span className="cell-title">
         {iconName ? <Icon name={iconName} size={14} /> : null}

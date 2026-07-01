@@ -24,7 +24,7 @@ export function popColumnMenu(win: BrowserWindow, ctx: ColumnMenuContext): Promi
       items.push({ label: 'Align', submenu: [align('Left', 'left'), align('Center', 'center'), align('Right', 'right')] })
     }
     if (ctx.alignable && ctx.hideable) items.push({ type: 'separator' })
-    if (ctx.hideable) items.push({ label: 'Hide Property', click: pick('column:hide') })
+    if (ctx.hideable) items.push({ label: 'Hide', click: pick('column:hide') })
     if (items.length === 0) {
       resolve(null)
       return
