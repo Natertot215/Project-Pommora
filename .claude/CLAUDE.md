@@ -63,6 +63,10 @@ The GUI only launches with `ELECTRON_RUN_AS_NODE` **unset** (this env has it set
 - **Connections** are in-line `[[Title]]`, resolved via SQLite, and **aren’t** displayed in any container views *(tables, galleries, lists…)*. **Contexts** are properties resolved via front-matter; content ←> content relational properties **don’t** exist. 
 - If Nathan mistakenly says "label-quaternary" or "label-quinary," he actually means fills → `design-system/tokens.` 
 
+### Working Discipline
+
+- **Ask before designing.** Stop to disclose assumptions and clarify direction before any design or interaction-based decision — don't guess at how something looks or behaves. *Void when Nathan's unreachable:* proceed on the best record of his design wishes and the existing design logic, but disclose every such decision and assumption as you make it.
+
 ### Document Map
 
 Specs live in `Features/`; root docs (PRD · Handoff · History · Framework) sit at the `.claude` root.
