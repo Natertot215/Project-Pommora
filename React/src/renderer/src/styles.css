@@ -72,8 +72,11 @@ textarea,
   overflow: clip;
   background: var(--main-bg);
   /* THE single content gutter — one value reused by every detail view (spaces, homepage, tables)
-     + the editor. Matches the Swift app's shared horizontal inset (24pt). Change here only. */
-  --gutter: 24px;
+     + the editor (24pt, the Swift shared inset). Change here only. The table remaps --gutter to its
+     narrower grip lane (fold-gutter), so full-bleed surfaces (the table heading band) read
+     --content-gutter for the true content-to-glass margin. */
+  --content-gutter: 24px;
+  --gutter: var(--content-gutter);
   /* Left inset that clears the floating glass sidebar (variable width); its base addend IS the
      gutter, so left + right stay equal. Collapses to the bare gutter when the sidebar hides. */
   --content-inset: calc(var(--glass-inset) + var(--sidebar-width) + var(--gutter));

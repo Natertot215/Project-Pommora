@@ -77,6 +77,11 @@
     padding-left var(--duration-base) var(--ease-standard),
     padding-right var(--duration-base) var(--ease-standard);
 }
+/* A table heading band sits flush under the banner divider (no top gap); locked views without a table
+   (a context, once it grows live content) keep the top breathing room. */
+.detail-locked-body:has(.table-head) {
+  padding-top: 0;
+}
 
 /* During an edge-drag resize, track the cursor 1:1 (no easing lag). */
 .shell.is-resizing .detail,
