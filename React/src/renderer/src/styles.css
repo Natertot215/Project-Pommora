@@ -158,9 +158,9 @@ textarea,
 }
 
 .open-btn:hover {
-  background: #FFFFFF33;
+  background: var(--hover);
 }
 
 .open-btn:active {
-  background: #FFFFFF1A;
+  background: var(--selected);
 }

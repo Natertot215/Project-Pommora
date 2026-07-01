@@ -4,7 +4,7 @@
 .banner {
   position: relative;
   height: 230px; /* Swift ContainerBannerView.bannerHeight */
-  border-bottom: 1px solid #FFFFFF1A; /* divider — matches the table header hairline */
+  border-bottom: var(--border-heading); /* the shared heading↔body seam (same token as the table heading) */
 }
 .banner-img {
   display: block;
@@ -50,8 +50,8 @@
   padding: calc(var(--glass-inset) + 1px + var(--toolbar-h)) var(--content-inset-right) 14px
     var(--content-inset);
   /* Full-width divider below the title — content-views always carry it (banner or not), unlike
-     pages' inset divider. Matches the banner image's bottom hairline. */
-  border-bottom: 1px solid #FFFFFF1A;
+     pages' inset divider. The shared heading↔body seam, same as the banner image's bottom. */
+  border-bottom: var(--border-heading);
   transition:
     padding-left var(--duration-base) var(--ease-standard),
     padding-right var(--duration-base) var(--ease-standard);

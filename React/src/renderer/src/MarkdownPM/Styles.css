@@ -116,7 +116,7 @@
 .mdpm-banner {
   position: relative;
   height: 230px;
-  border-bottom: 1px solid var(--separator-border);  
+  border-bottom: var(--border-heading); /* the shared heading↔body seam (same token as the table heading + collection banner) */
 }
 .mdpm-banner-img {
   display: block;
