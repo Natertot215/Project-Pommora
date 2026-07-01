@@ -183,16 +183,19 @@
   border-top: none;
 }
 
-/* Type-aware cell content (chips, title icon, links). */
+/* Type-aware cell content (chips, title icon, links). The page icon reads at --label-secondary (the
+   shared icon tone, same as the sidebar's), a step under the title text, which stays --text. */
 .cell-title {
   display: inline-flex;
   align-items: center;
   gap: var(--cell-icon-gap);
   min-width: 0;
+  color: var(--label-secondary);
 }
 .cell-title-text {
   overflow: hidden;
   text-overflow: ellipsis;
+  color: var(--text);
 }
 .cell-chips {
   display: inline-flex;
@@ -252,6 +255,11 @@
   display: inline-flex;
   align-items: center;
   gap: var(--cell-icon-gap);
+}
+/* The Set/folder + date glyphs read at the shared icon tone (--label-secondary), like page + sidebar
+   icons; the group name text stays --text. Direct child only, so a chip glyph (checkbox) keeps its own. */
+.group-name > svg {
+  color: var(--label-secondary);
 }
 .group-twisty,
 .group-add {

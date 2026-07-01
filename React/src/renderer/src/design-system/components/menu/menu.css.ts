@@ -51,14 +51,15 @@ export const heading = style([
   }
 ])
 
-/** A leading / trailing glyph cluster — label-secondary, doesn't grow, its own 4px
- *  gap so a disclosure + icon (or detail + chevron) keep the row rhythm. */
+/** A leading / trailing glyph cluster — label-secondary (the shared icon tone), doesn't grow, its own
+ *  4px gap so a disclosure + icon (or detail + chevron) keep the row rhythm. Bound to the stable
+ *  --label-secondary CSS var, not the vanilla-extract ref, so an HMR token-hash shift can't blank it. */
 export const side = style({
   display: 'flex',
   alignItems: 'center',
   gap: '4px',
   flex: '0 0 auto',
-  color: c.label.secondary
+  color: 'var(--label-secondary)'
 })
 
 /** The flexible spine — pins leading left, trailing right; stacks title + sub-label. */
