@@ -43,6 +43,10 @@ export const segment = style({
 export const divider = style({
   flexShrink: 0,
   alignSelf: 'center',
-  background: vars.color.separator.segment,
+  // Width is fixed (constant across every control size); only the height varies per instance.
+  width: '2px',
+  // The stable CSS var (theme-vars), not the vanilla-extract object ref — the var name never rehashes, so
+  // an HMR token-hash shift can't leave the divider colourless (the toolbar-segment regression).
+  background: 'var(--separator-segment)',
   borderRadius: '999px'
 })

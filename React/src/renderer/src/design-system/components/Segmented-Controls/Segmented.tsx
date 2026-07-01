@@ -45,7 +45,7 @@ function Segmented({
       {segments.map((seg, i) => (
         <Fragment key={`${i}-${seg.icon}`}>
           {i > 0 && (
-            <span className={s.divider} style={{ width: g.dividerWidth, height: g.dividerHeight }} />
+            <span className={s.divider} style={{ height: g.dividerHeight }} />
           )}
           <button
             type="button"

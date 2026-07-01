@@ -36,6 +36,7 @@ globalStyle(':root', {
     '--fill-quaternary': colorVars.color.fill.quaternary,
     '--fill-quinary': colorVars.color.fill.quinary,
     '--separator-border': colorVars.color.separator.border,
+    '--separator-segment': colorVars.color.separator.segment,
     // Heading seam — the heavier hairline that separates a heading band from the body below it (table
     // heading↔rows, banner↔body, editor heading↔content). One global source so the seam is uniform
     // app-wide; consume as a full border shorthand: `border-bottom: var(--border-heading)`.
