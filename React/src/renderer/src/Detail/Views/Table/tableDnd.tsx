@@ -10,6 +10,7 @@ import { ACTIVATION } from '@renderer/design-system/interactions/shared'
 const LINE_INSET = 2 // px the insertion line is pulled in from the row's left/right edges
 
 type Slot = { lineY: number; left: number; width: number; commit: () => void; noop: boolean }
+type MeasuredRow = { id: string; top: number; bottom: number; mid: number; left: number; contentRight: number; group: string }
 type DragState = { id: string | null; slot: Slot | null }
 const IDLE: DragState = { id: null, slot: null }
 
@@ -47,6 +48,9 @@ export function TableRowDnd({
   const els = useRef(new Map<string, HTMLElement>())
   const content = useRef<HTMLDivElement | null>(null)
   const live = useRef<Slot | null>(null)
+  // Cached row geometry for the active drag (measured once at activation, re-measured only on scroll).
+  const snapshot = useRef<{ rows: MeasuredRow[]; boxTop: number; boxLeft: number } | null>(null)
+  const onDragScroll = useRef<(() => void) | null>(null)
   const [drag, setDrag] = useState<DragState>(IDLE)
   const gesture = useRef<Gesture>({ kind: 'idle' })
 
@@ -55,26 +59,41 @@ export function TableRowDnd({
     else els.current.delete(id)
   }
 
-  // Hit-test live row rects (nothing moves mid-drag) → the landing slot. The nearest row + which half
-  // the cursor is in fixes the slot; that row's group is the target group (drop above row R or below it,
-  // the slot sits in R's group either way).
-  const computeSlot = (clientY: number): Slot | null => {
+  // Snapshot every row's geometry ONCE — the drop-line DnD never displaces a row, so a live per-move
+  // getBoundingClientRect over every row (a forced reflow × N rows per pointer event) is pure waste. We
+  // re-snapshot only when the scroll position shifts the rects (see the scroll listener in begin). The
+  // dragged row (excludeId) is left out — it's never a drop target.
+  const measure = (excludeId: string): void => {
     const box = content.current
-    const g = gesture.current
-    if (!box || g.kind === 'idle') return null
-    const activeGroup = rowsRef.current.find((r) => r.id === g.id)?.groupKey
-    if (activeGroup === undefined) return null
-
-    const measured: { id: string; top: number; bottom: number; mid: number; group: string }[] = []
+    if (!box) return
+    const boxRect = box.getBoundingClientRect()
+    const rows: MeasuredRow[] = []
     for (const r of rowsRef.current) {
-      if (r.id === g.id) continue
+      if (r.id === excludeId) continue
       const el = els.current.get(r.id)
       if (!el) continue
       const rect = el.getBoundingClientRect()
-      measured.push({ id: r.id, top: rect.top, bottom: rect.bottom, mid: rect.top + rect.height / 2, group: r.groupKey })
+      // End the line at the content edge (where the columns stop), not the full row — the row spans the
+      // trailing 1fr filler too, so rect.right would run the line into the empty gutter past the last column.
+      const filler = el.querySelector('.cell-filler')
+      const contentRight = filler ? filler.getBoundingClientRect().left : rect.right
+      rows.push({ id: r.id, top: rect.top, bottom: rect.bottom, mid: rect.top + rect.height / 2, left: rect.left, contentRight, group: r.groupKey })
     }
+    rows.sort((a, b) => a.top - b.top)
+    snapshot.current = { rows, boxTop: boxRect.top, boxLeft: boxRect.left }
+  }
+
+  // Hit-test the snapshot → the landing slot. The nearest row + which half the cursor is in fixes the
+  // slot; that row's group is the target group (drop above row R or below it, the slot sits in R's group
+  // either way).
+  const computeSlot = (clientY: number): Slot | null => {
+    const g = gesture.current
+    const snap = snapshot.current
+    if (g.kind === 'idle' || !snap) return null
+    const activeGroup = rowsRef.current.find((r) => r.id === g.id)?.groupKey
+    if (activeGroup === undefined) return null
+    const measured = snap.rows
     if (measured.length === 0) return null
-    measured.sort((a, b) => a.top - b.top)
 
     // nearest row: the last whose top is at/above the cursor, else the first.
     let near = measured[0]
@@ -84,18 +103,9 @@ export function TableRowDnd({
     }
     const above = clientY < near.mid // drop before `near` vs after it
     const targetGroup = near.group
-    const boxTop = box.getBoundingClientRect().top
-    const nearEl = els.current.get(near.id)
-    if (!nearEl) return null
-    const r = nearEl.getBoundingClientRect()
-    const boxLeft = box.getBoundingClientRect().left
-    // End the line at the content edge (where the columns stop), not the full row — the row spans the
-    // trailing 1fr filler too, so r.width would run the line out into the empty gutter past the last column.
-    const filler = nearEl.querySelector('.cell-filler')
-    const contentRight = filler ? filler.getBoundingClientRect().left : r.right
-    const lineY = (above ? near.top : near.bottom) - boxTop
-    const left = r.left - boxLeft + LINE_INSET
-    const width = contentRight - r.left - LINE_INSET * 2
+    const lineY = (above ? near.top : near.bottom) - snap.boxTop
+    const left = near.left - snap.boxLeft + LINE_INSET
+    const width = near.contentRight - near.left - LINE_INSET * 2
 
     if (targetGroup === activeGroup) {
       if (!canReorderWithin) return null
@@ -118,6 +128,11 @@ export function TableRowDnd({
     window.removeEventListener('pointermove', g.handlers.move)
     window.removeEventListener('pointerup', g.handlers.up)
     window.removeEventListener('pointercancel', g.handlers.cancel)
+    if (onDragScroll.current) {
+      window.removeEventListener('scroll', onDragScroll.current, { capture: true })
+      onDragScroll.current = null
+    }
+    snapshot.current = null
     try {
       g.el.releasePointerCapture(g.pid)
     } catch {
@@ -165,6 +180,12 @@ export function TableRowDnd({
         // capture unavailable
       }
       gesture.current = { ...g, kind: 'active' }
+      // Snapshot geometry now that the drag is real, then re-snapshot only when a scroll shifts the rects
+      // (rows never displace mid-drag, so hit-testing reads the cache — no per-move reflow over every row).
+      measure(g.id)
+      const onScroll = (): void => measure(g.id)
+      onDragScroll.current = onScroll
+      window.addEventListener('scroll', onScroll, { capture: true, passive: true })
     }
     const slot = computeSlot(e.clientY)
     live.current = slot

@@ -339,14 +339,21 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
 
   // Row drag (E-3): the flat data-row order + each row's group key + path, feeding the drop-line DnD
   // (tableDnd). Where you drop disambiguates (D-8) — same group reorders, a different group reassigns.
-  const dataRows: { id: string; path: string; groupKey: string }[] = []
-  const collectRows = (g: ResolvedGroup): void => {
-    for (const r of g.items) dataRows.push({ id: r.id, path: r.path, groupKey: g.key })
-    for (const c of g.children ?? []) collectRows(c)
-  }
-  groups.forEach(collectRows)
-  const rowPath = new Map(dataRows.map((r) => [r.id, r.path] as const))
-  const rowGroup = new Map(dataRows.map((r) => [r.id, r.groupKey] as const))
+  // The flat data-row order + id→path / id→group maps, derived purely from the resolved groups — memoized
+  // so a selection / resize / drag-frame render doesn't re-walk every group and rebuild both Maps.
+  const { dataRows, rowPath, rowGroup } = useMemo(() => {
+    const rows: { id: string; path: string; groupKey: string }[] = []
+    const collect = (g: ResolvedGroup): void => {
+      for (const r of g.items) rows.push({ id: r.id, path: r.path, groupKey: g.key })
+      for (const c of g.children ?? []) collect(c)
+    }
+    groups.forEach(collect)
+    return {
+      dataRows: rows,
+      rowPath: new Map(rows.map((r) => [r.id, r.path] as const)),
+      rowGroup: new Map(rows.map((r) => [r.id, r.groupKey] as const))
+    }
+  }, [groups])
   // Cross-group drop (D-4): write the dragged page's grouped property to the destination group's value
   // (the no-value band clears it), patching the loaded values now so the row re-groups before the write
   // round-trips (loadValues never re-runs mid-session).
