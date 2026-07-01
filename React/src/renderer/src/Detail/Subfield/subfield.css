@@ -45,14 +45,14 @@
   max-width: 220px;
 }
 button.subfield-crumb:hover {
-  color: var(--label-primary);
+  color: var(--label-secondary);
 }
 .subfield-crumb.ghost {
   opacity: 0.5;
 }
 button.subfield-crumb.ghost:hover {
   opacity: 1;
-  color: var(--label-primary);
+  color: var(--label-secondary);
 }
 
 /* Separators (the breadcrumb › and the stats ·) — label.secondary and one step larger than the
@@ -140,7 +140,7 @@ button.subfield-crumb.ghost:hover {
 }
 .subfield-toggle:hover {
   opacity: 1;
-  color: var(--label-primary);
+  color: var(--label-control);
 }
 .shell.is-resizing .subfield-toggle {
   transition: none;

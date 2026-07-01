@@ -16,18 +16,18 @@ Page values live in `.md` frontmatter; Task and Event values live in a `properti
 
 #### II. Type Catalog
 
-| Type | On-disk value | Notes |
-|---|---|---|
-| **Number** | `42` or `3.14` | Bare number. |
-| **Checkbox** | `true` / `false` | Bare boolean. |
-| **Date** | `"2026-06-15"` (date-only, UTC) or `"2026-06-15T14:30:00Z"` (with time) | A bare date-only value folds into Date on read. |
-| **Select** | `"<value>"` | Bare string; single colored pill. |
-| **Multi-select** | `["<value>", ...]` | Bare array; tag-style multi-pick. |
-| **Status** | `{"$status": "<value>"}` | Tagged object; three fixed groups. |
-| **URL** | `"https://..."` | A string with a scheme. |
-| **Relation** | `[{"$rel": "<id>"}, ...]` | Tagged array; tier-only, not user-creatable. |
-| **Last Edited Time** | *(derived from `modified_at`)* | Virtual — never persisted. |
-| **File / Attachment** | `[{ "path", "original_name", "added_at", "mime_type" }, ...]` | Array; files copy into the Nexus. |
+| Type                  | On-disk value                                                           | Notes                                           |
+| --------------------- | ----------------------------------------------------------------------- | ----------------------------------------------- |
+| **Number**            | `42` or `3.14`                                                          | Bare number.                                    |
+| **Checkbox**          | `true` / `false`                                                        | Bare boolean.                                   |
+| **Date**              | `"2026-06-15"` (date-only, UTC) or `"2026-06-15T14:30:00Z"` (with time) | A bare date-only value folds into Date on read. |
+| **Select**            | `"<value>"`                                                             | Bare string; single colored pill.               |
+| **Multi-select**      | `["<value>", ...]`                                                      | Bare array; tag-style multi-pick.               |
+| **Status**            | `{"$status": "<value>"}`                                                | Tagged object; three fixed groups.              |
+| **URL**               | `"https://..."`                                                         | A string with a scheme.                         |
+| **Context** | `[{"$rel": "<id>"}, ...]`                                               | Tagged array; tier-only, not user-creatable.    |
+| **Last Edited Time**  | *(derived from `modified_at`)*                                          | Virtual — never persisted.                      |
+| **File / Attachment** | `[{ "path", "original_name", "added_at", "mime_type" }, ...]`           | Array; files copy into the Nexus.               |
 
 There's no free-form text type — the filename is the title, and text-shaped values use creatable Select options. **Relation** is reserved for the three context-tier links and isn't offered in the type picker; any user-relation definition is dropped on read.
 
@@ -49,11 +49,11 @@ A value is recovered from raw JSON by **shape**, in a fixed precedence — the d
 
 A workflow property with three fixed, EventKit-aligned groups, each holding user-editable options:
 
-| Group | Default label | Default color |
-|---|---|---|
-| `upcoming` | Upcoming | gray |
-| `in_progress` | In Progress | blue |
-| `done` | Done | green |
+| Group         | Default label | Default color |
+| ------------- | ------------- | ------------- |
+| `upcoming`    | Upcoming      | gray          |
+| `in_progress` | In Progress   | blue          |
+| `done`        | Done          | green         |
 
 Group IDs are load-bearing and the three slots are fixed — a fourth would break calendar-sync mapping — while group labels and the options inside each group are user-editable. Each option carries a canonical `value` (immutable), a renameable `label`, an optional `color`, and its `group_id`. Creating a Status property seeds one starter option per group. Sort is group position first, then option order within a group. Status is built-in and non-deletable on Tasks and Events; on a Collection it's opt-in.
 
