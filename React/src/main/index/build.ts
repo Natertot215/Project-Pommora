@@ -145,7 +145,8 @@ async function collectNexusData(nexusRoot: string): Promise<NexusData> {
       icon: coll.icon,
       modifiedAt: await resolveModifiedAt(csc?.modified_at, join(nexusRoot, coll.path, SIDECAR_FILENAME.collection)),
       schemaVersion: csc?.schema_version,
-      defs: parseDefinitions(csc?.properties)
+      // The tree's properties are already registry-resolved (readNexus joins assignment ids → defs).
+      defs: coll.properties ?? []
     })
     for (const page of coll.pages) pages.push(await readPageData(nexusRoot, page, coll.id))
     for (const set of coll.sets) await walkSet(set, coll.id, { collectionId: coll.id })

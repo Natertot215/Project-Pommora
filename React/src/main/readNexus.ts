@@ -24,8 +24,10 @@ import type {
 } from '@shared/types'
 import { ACCENT_COLORS, AREA_COLORS, DEFAULT_ACCENT, DEFAULT_LABELS } from '@shared/types'
 import { savedView, type SavedView } from '@shared/views'
+import type { PropertyDefinition } from '@shared/properties'
 import { adoptedId } from './ids'
 import { pathExists, readJsonObject } from './io/atomicWrite'
+import { readRegistry, type PropertyRegistry } from './io/propertiesRegistry'
 import { asString, asStringArray, basenameNoMd } from './coerce'
 import { shouldSkipDir } from './exclusion'
 import { resolveOrder } from './order'
@@ -194,13 +196,28 @@ async function readSet(
   }
 }
 
+/** effectiveSchema(C): assignment ids → their registry defs, in order; drops dangling refs
+ *  (a def deleted but an assignment not yet reconciled must not become an undefined hole). */
+export function resolveAssignedSchema(
+  ids: unknown,
+  registry: PropertyRegistry
+): PropertyDefinition[] | undefined {
+  if (!Array.isArray(ids)) return undefined
+  const defs = ids
+    .filter((id): id is string => typeof id === 'string')
+    .map((id) => registry[id])
+    .filter((d): d is PropertyDefinition => Boolean(d))
+  return defs.length ? defs : undefined
+}
+
 async function readPageCollection(
   absDir: string,
   relDir: string,
   name: string,
   sidecarMode: boolean,
   excluded: string[],
-  fb: Fallback
+  fb: Fallback,
+  registry: PropertyRegistry
 ): Promise<CollectionNode> {
   const meta = sidecarMode
     ? ((await readJsonObject(join(absDir, SIDECAR_FILENAME.collection))) ?? {})
@@ -214,9 +231,7 @@ async function readPageCollection(
     icon: asString(meta.icon),
     path: relDir,
     banner: asString(meta.banner),
-    properties: Array.isArray(meta.properties)
-      ? (meta.properties as CollectionNode['properties'])
-      : undefined,
+    properties: resolveAssignedSchema(meta.properties, registry),
     sets: resolveOrder(sets, asStringArray(meta.set_order), fb),
     pages: resolveOrder(pages, asStringArray(meta.page_order), fb),
     views: parseViews(meta.views)
@@ -284,6 +299,7 @@ export async function readNexus(root: string): Promise<NexusTree> {
   const savedConfig = (await readJsonObject(nexusConfig(root, NEXUS_CONFIG_FILES.savedConfig))) ?? {}
   const sectionsConfig = (await readJsonObject(nexusConfig(root, NEXUS_CONFIG_FILES.sidebarSections))) ?? {}
   const homepageConfig = (await readJsonObject(nexusConfig(root, NEXUS_CONFIG_FILES.homepage))) ?? {}
+  const registry = await readRegistry(root)
 
   // Saved strip — 3 fixed, code-keyed rows; labels come from saved-config `items[{key,label}]`.
   const savedItems = Array.isArray(savedConfig.items)
@@ -329,7 +345,7 @@ export async function readNexus(root: string): Promise<NexusTree> {
       (await pathExists(join(abs, SIDECAR_FILENAME.eventConfig)))
     if (hasAgendaSidecar) continue
     const isCollection = sidecarMode ? await pathExists(join(abs, SIDECAR_FILENAME.collection)) : true
-    if (isCollection) allCollections.push(await readPageCollection(abs, e.name, e.name, sidecarMode, excluded, fb))
+    if (isCollection) allCollections.push(await readPageCollection(abs, e.name, e.name, sidecarMode, excluded, fb, registry))
   }
   const orderedCollections = resolveOrder(allCollections, asStringArray(state.collection_order), fb)
 

@@ -6,7 +6,8 @@ import { rebuildIndex } from './build'
 import { writeJson } from '../io/atomicWrite'
 import { nexusDir, nexusConfig, NEXUS_CONFIG_FILES, contextTierDir } from '../paths'
 import { createFolderEntity } from '../crud/folderEntity'
-import { addProperty } from '../crud/schema'
+import { createProperty } from '../crud/registryProperty'
+import { assignProperty } from '../crud/assignment'
 import { createPage, updatePageProperty, setPageTier } from '../crud/page'
 import { createAgendaItem, setAgendaTier, updateAgendaProperty } from '../crud/agendaEntity'
 import { defaultStatusSeed, type PropertyDefinition } from '@shared/properties'
@@ -35,9 +36,10 @@ beforeEach(async () => {
   const coll = await createFolderEntity(root, 'collection', 'Notes')
   if (!coll.ok) throw new Error('setup: collection')
   ids.collection = coll.value.id
-  const score = await addProperty(coll.value.path, { id: '', name: 'Score', type: 'number' } as PropertyDefinition)
+  const score = await createProperty(root, { id: '', name: 'Score', type: 'number' } as PropertyDefinition)
   if (!score.ok) throw new Error('setup: prop')
   ids.score = score.value.id
+  await assignProperty(coll.value.path, ids.score)
 
   const a = await createPage(coll.value.path, 'PageA', { body: 'see [[PageB]] and [[PageA]]' })
   const b = await createPage(coll.value.path, 'PageB')

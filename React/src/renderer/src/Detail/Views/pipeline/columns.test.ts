@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import fixture from '@shared/__fixtures__/collection-with-status.json'
+import registry from '@shared/__fixtures__/registry.json'
 import { savedView, type SavedView } from '@shared/views'
 import { propertyDefinition, type PropertyDefinition } from '@shared/properties'
 import { resolveColumns } from './columns'
@@ -18,7 +19,9 @@ const ids = (cols: { id: string }[]): string[] => cols.map((c) => c.id)
 describe('resolveColumns — fixture', () => {
   it('emits propertyOrder verbatim, appends unaccounted props, no _modified_at default-on', () => {
     const v = savedView.parse(fixture.views[0])
-    const fixtureSchema = fixture.properties.map((p) => propertyDefinition.parse(p))
+    const fixtureSchema = fixture.properties.map((id) =>
+      propertyDefinition.parse((registry as Record<string, unknown>)[id])
+    )
     const cols = resolveColumns(v, fixtureSchema)
     expect(ids(cols)).toEqual(['prop_status', '_title', '_tier3', '_tier2', '_tier1', 'prop_when'])
     expect(cols.map((c) => c.kind)).toEqual(['property', 'title', 'tier', 'tier', 'tier', 'property'])

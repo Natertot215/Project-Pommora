@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import fixture from '@shared/__fixtures__/collection-with-status.json'
+import registry from '@shared/__fixtures__/registry.json'
 import type { CollectionNode, PageNode } from '@shared/types'
 import { savedView, mintDefaultView, DEFAULT_VIEW_ID, type SavedView } from '@shared/views'
 import { propertyDefinition, type PropertyDefinition } from '@shared/properties'
@@ -20,7 +21,9 @@ const collection = (pages: PageNode[]): CollectionNode => ({
 describe('resolveView — full pipeline over the fixture', () => {
   it('resolves columns (status-first) + grouped rows (manual order, empty bucket dropped, no-value band)', () => {
     const view = savedView.parse(fixture.views[0])
-    const schema = fixture.properties.map((p) => propertyDefinition.parse(p))
+    const schema = fixture.properties.map((id) =>
+      propertyDefinition.parse((registry as Record<string, unknown>)[id])
+    )
     const values: Record<string, PageFrontmatter> = {
       p1: { id: 'p1', properties: { prop_status: { $status: 'in_progress' } } },
       p2: { id: 'p2', properties: { prop_status: { $status: 'opt_open' } } },

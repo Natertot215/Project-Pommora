@@ -1,0 +1,41 @@
+{
+  "prop_status": {
+    "id": "prop_status",
+    "name": "Status",
+    "type": "status",
+    "display_as": "chip",
+    "status_groups": [
+      {
+        "id": "upcoming",
+        "label": "Upcoming",
+        "color": "gray",
+        "options": [
+          { "value": "not_started", "label": "Not started", "group_id": "upcoming" },
+          { "value": "opt_open", "label": "Open", "color": "green", "group_id": "upcoming" }
+        ]
+      },
+      {
+        "id": "in_progress",
+        "label": "In Progress",
+        "color": "blue",
+        "options": [
+          { "value": "in_progress", "label": "Active", "color": "blue", "group_id": "in_progress" }
+        ]
+      },
+      {
+        "id": "done",
+        "label": "Done",
+        "color": "green",
+        "options": [
+          { "value": "done", "label": "Complete", "color": "red", "group_id": "done" }
+        ]
+      }
+    ]
+  },
+  "prop_when": {
+    "id": "prop_when",
+    "name": "Timeframe",
+    "type": "datetime",
+    "date_format": "full"
+  }
+}

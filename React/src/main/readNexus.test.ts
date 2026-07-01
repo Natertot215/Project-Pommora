@@ -37,11 +37,14 @@ beforeAll(() => {
   w(join(sidecar, '.nexus', 'nexus.json'), JSON.stringify({ schemaVersion: 1, id: 'nx1', createdAt: '2026' }))
   w(join(sidecar, '.nexus', 'settings.json'), JSON.stringify({ excluded_folders: ['Archive'] }))
   w(join(sidecar, '.nexus', 'areas', 'Work', '_area.json'), JSON.stringify({ id: 'area-work', color: 'blue' }))
-  d(join(sidecar, 'Notes', 'Daily'))
   w(
-    join(sidecar, 'Notes', '_pagecollection.json'),
-    JSON.stringify({ id: 'col-notes', properties: [{ id: 'p1', name: 'Status', type: 'select' }] })
+    join(sidecar, '.nexus', 'properties.json'),
+    JSON.stringify({
+      prop_p1: { id: 'prop_p1', name: 'Status', type: 'select', select_options: [{ value: 'a', label: 'A', color: 'blue' }] }
+    })
   )
+  d(join(sidecar, 'Notes', 'Daily'))
+  w(join(sidecar, 'Notes', '_pagecollection.json'), JSON.stringify({ id: 'col-notes', properties: ['prop_p1'] }))
   w(join(sidecar, 'Notes', 'Daily', '_pageset.json'), JSON.stringify({ id: 'set-daily', parent_id: 'col-notes' }))
   w(join(sidecar, 'Notes', 'Daily', 'Entry.md'), '---\nid: e1\n---\n')
   w(join(sidecar, 'Notes', 'Loose.md'), 'collection-root page')
@@ -327,5 +330,28 @@ describe('readNexus — container paths (nexus-relative, for mutation addressing
     expect(notes.sets[0].path).toBe('Notes/Daily')
     expect(notes.sets[0].sets![0].path).toBe('Notes/Daily/Morning')
     expect(notes.sets[0].sets![0].pages[0].path).toBe('Notes/Daily/Morning/Entry.md')
+  })
+})
+
+describe('PropertiesV2 — registry-resolved collection schema', () => {
+  it('resolves assignment ids to registry defs in order, dropping dangling refs', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'pom-readnexus-v2-'))
+    d(join(root, '.nexus'))
+    w(join(root, '.nexus', 'nexus.json'), JSON.stringify({ id: 'nx' }))
+    w(
+      join(root, '.nexus', 'properties.json'),
+      JSON.stringify({
+        prop_a: { id: 'prop_a', name: 'Priority', type: 'select', select_options: [{ value: 'hi', label: 'High', color: 'red' }] },
+        prop_b: { id: 'prop_b', name: 'Done', type: 'checkbox' }
+      })
+    )
+    d(join(root, 'Notes'))
+    w(join(root, 'Notes', '_pagecollection.json'), JSON.stringify({ id: 'col_notes', properties: ['prop_a', 'prop_gone', 'prop_b'] }))
+
+    const tree = await readNexus(root)
+    const notes = tree.collections!.find((c) => c.id === 'col_notes')!
+    expect(notes.properties?.map((p) => p.id)).toEqual(['prop_a', 'prop_b'])
+    expect(notes.properties?.map((p) => p.name)).toEqual(['Priority', 'Done'])
+    rmSync(root, { recursive: true, force: true })
   })
 })

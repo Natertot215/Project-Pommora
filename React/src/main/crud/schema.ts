@@ -1,16 +1,15 @@
-// Property-schema CRUD — generalized over a "schema target" so one set of five ops serves
-// both Page Types and Agenda configs (Swift split these across PerTypeSchemaService +
-// SingletonSchemaService; here it's one parameterized path). A target supplies its sidecar
-// kind + schema, how to enumerate its member files, and how to strip a property value from
-// one member (page = frontmatter merge; agenda = JSON property delete). add/rename/reorder
-// are sidecar-only writes (property identity is by stable id, so members never move);
-// delete + a lossy changeType also strip every member, atomically via SchemaTransaction.
-// Errors flow as Result, never thrown.
+// Agenda property-schema CRUD — generalized over a "schema target" (kind + schema + member
+// enumeration + per-member value strip). Collections left this path in PropertiesV2: their
+// defs live in the nexus-wide registry (crud/registryProperty) with sidecar assignment ids
+// (crud/assignment); only Agenda configs still hold inline `property_definitions`.
+// `stripPageMember` stays exported — the registry's global delete fan-out reuses it.
+// add/rename/reorder are sidecar-only writes; delete + a lossy changeType also strip every
+// member, atomically via SchemaTransaction. Errors flow as Result, never thrown.
 
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { z } from 'zod'
-import { pageCollectionSidecar, agendaConfigSidecar } from '@shared/schemas'
+import { agendaConfigSidecar } from '@shared/schemas'
 import { defaultSelectSeed, defaultStatusSeed, type PropertyDefinition, type PropertyType } from '@shared/properties'
 import { isPlainObject } from '@shared/propertyValue'
 import { AGENDA_SUFFIX, type AgendaKind } from '@shared/agenda'
@@ -20,7 +19,7 @@ import { SIDECAR_FILENAME, type SidecarKind } from '../paths'
 import { splitFrontmatter } from '../readNexus'
 import { splitEnvelope, mergeFrontmatter } from '../io/pageFile'
 import { serializeJson } from '../io/atomicWrite'
-import { listMarkdownFiles, listFilesBySuffix } from '../io/walk'
+import { listFilesBySuffix } from '../io/walk'
 import { SchemaTransaction } from '../io/schemaTransaction'
 import { parseDefinitions, droppingUserContexts, validateDefinition, validateName } from '../properties/schema'
 import { nowIso } from './util'
@@ -43,7 +42,7 @@ interface SchemaTarget {
 
 // MARK: - Member strip strategies
 
-function stripPageMember(content: string, propertyId: string): string | null {
+export function stripPageMember(content: string, propertyId: string): string | null {
   const props = splitFrontmatter(content).properties
   if (!isPlainObject(props) || !(propertyId in props)) return null
   const next = { ...props }
@@ -65,14 +64,6 @@ function stripAgendaMember(content: string, propertyId: string): string | null {
   const next = { ...props }
   delete next[propertyId]
   return serializeJson({ ...raw, properties: next, modified_at: nowIso() })
-}
-
-const PAGE_TARGET: SchemaTarget = {
-  kind: 'collection',
-  schema: pageCollectionSidecar,
-  schemaKey: 'properties',
-  members: (folder) => listMarkdownFiles(folder),
-  strip: stripPageMember
 }
 
 function agendaTarget(kind: AgendaKind): SchemaTarget {
@@ -193,21 +184,6 @@ async function changeType(
   await tx.commit()
   return ok(null)
 }
-
-// MARK: - Page Type schema CRUD (the original public surface)
-
-export const addProperty = (typeFolder: string, def: PropertyDefinition) => addProp(PAGE_TARGET, typeFolder, def)
-export const renameProperty = (typeFolder: string, propertyId: string, newName: string) =>
-  renameProp(PAGE_TARGET, typeFolder, propertyId, newName)
-export const reorderProperty = (typeFolder: string, propertyId: string, toIndex: number) =>
-  reorderProp(PAGE_TARGET, typeFolder, propertyId, toIndex)
-export const deleteProperty = (typeFolder: string, propertyId: string) => deleteProp(PAGE_TARGET, typeFolder, propertyId)
-export const changePropertyType = (
-  typeFolder: string,
-  propertyId: string,
-  newType: PropertyType,
-  opts: { dropConflictingValues?: boolean } = {}
-) => changeType(PAGE_TARGET, typeFolder, propertyId, newType, opts)
 
 // MARK: - Agenda config schema CRUD (same ops, JSON members)
 

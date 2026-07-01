@@ -26,13 +26,13 @@ const baseSidecar = z.looseObject({
 })
 
 // `_pagecollection.json` is the schema-bearing TOP tier (a top Collection has no parent).
-// The schema lives in `properties` (Swift's key); loose per-def, so one malformed def never
-// sinks the whole read (per-def codec is parseDefinitions, main/properties/schema.ts).
+// `properties` is the ASSIGNMENT LIST — the nexus-wide registry prop-ids this Collection
+// validates. The defs themselves live in `.nexus/properties.json`; readNexus joins ids→defs.
 export const pageCollectionSidecar = baseSidecar.extend({
   banner: z.string().optional(),
   set_order: ulidList,
   page_order: ulidList,
-  properties: z.array(z.looseObject({})).optional(),
+  properties: z.array(z.string()).optional(),
   default_sort: z.looseObject({}).optional(),
   views: z.array(savedView).optional(),
   open_in: z.enum(['compact', 'window']).optional()

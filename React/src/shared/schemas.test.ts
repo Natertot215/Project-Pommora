@@ -30,10 +30,10 @@ describe('folder sidecar schemas', () => {
     expect(pageSetSidecar.parse(v)).toMatchObject(v)
   })
 
-  it('page collection accepts the 2-tier properties schema (Swift key) + order arrays', () => {
+  it('page collection accepts the assignment-id properties list + order arrays', () => {
     const v = {
       id: 'C1',
-      properties: [{ id: 'p1', name: 'Status', type: 'select' }],
+      properties: ['prop_p1', 'prop_p2'],
       set_order: ['s1'],
       page_order: ['p1']
     }
