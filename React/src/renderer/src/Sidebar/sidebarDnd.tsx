@@ -63,6 +63,10 @@ export function SidebarDnd({
   const index = useMemo(() => buildIndex(tree), [tree])
   const indexRef = useRef(index)
   indexRef.current = index
+  // A mid-drag tree swap (watcher push) can re-render rows — stale rects must not survive it.
+  useEffect(() => {
+    snapshotDirty.current = true
+  }, [index])
   const onCommitRef = useRef(onCommit)
   onCommitRef.current = onCommit
 
@@ -73,29 +77,47 @@ export function SidebarDnd({
 
   const gesture = useRef<Gesture>({ kind: 'idle' })
 
+  // Geometry snapshot — measured ONCE at drag activation, not per pointermove. No row displaces
+  // mid-drag (the insertion-line treatment), so frozen rects stay valid; only a scroll moves them,
+  // which marks the snapshot dirty and the next move re-measures once (coalescing a scroll's
+  // event burst into a single layout read). Never O(rows) rect reads on a high-frequency trigger.
+  type Snapshot = { contentTop: number; measured: MeasuredRow[] }
+  const snapshot = useRef<Snapshot | null>(null)
+  const snapshotDirty = useRef(false)
+
+  const takeSnapshot = (excludeId: string): Snapshot | null => {
+    const content = contentRef.current
+    if (!content) return null
+    const contentTop = content.getBoundingClientRect().top
+    const measured: MeasuredRow[] = []
+    for (const [id, el] of rows.current) {
+      if (id === excludeId) continue
+      const r = el.getBoundingClientRect()
+      measured.push({ id, top: r.top, bottom: r.bottom, mid: r.top + r.height / 2 })
+    }
+    measured.sort((a, b) => a.top - b.top)
+    return { contentTop, measured }
+  }
+
   const registerRow = (id: string, el: HTMLElement | null): void => {
     if (el) rows.current.set(id, el)
     else rows.current.delete(id)
   }
 
-  // Hit-test live rects (no displacement, so rows never move mid-drag) → the landing slot.
+  // Hit-test the frozen snapshot → the landing slot.
   const computeTarget = (clientY: number): DropTarget | null => {
-    const content = contentRef.current
     const g = gesture.current
-    if (!content || g.kind === 'idle') return null
+    if (g.kind === 'idle') return null
     const idx = indexRef.current
     const dragged = idx.byId.get(g.id)
     if (!dragged) return null
-    const contentTop = content.getBoundingClientRect().top
-
-    const measured: MeasuredRow[] = []
-    for (const [id, el] of rows.current) {
-      if (id === g.id) continue
-      const r = el.getBoundingClientRect()
-      measured.push({ id, top: r.top, bottom: r.bottom, mid: r.top + r.height / 2 })
+    if (snapshotDirty.current || !snapshot.current) {
+      snapshot.current = takeSnapshot(g.id)
+      snapshotDirty.current = false
     }
+    if (!snapshot.current) return null
+    const { contentTop, measured } = snapshot.current
     if (measured.length === 0) return null
-    measured.sort((a, b) => a.top - b.top)
     const nearest = (rowsByTop: MeasuredRow[]): MeasuredRow => {
       let over = rowsByTop[0]
       for (const m of rowsByTop) {
@@ -181,12 +203,17 @@ export function SidebarDnd({
     return { depth: overEntry.depth, lineY: edge - contentTop, commit, noop: sameOrder(order, group) }
   }
 
+  const markSnapshotDirty = (): void => {
+    snapshotDirty.current = true
+  }
+
   const detach = (): void => {
     const g = gesture.current
     if (g.kind === 'idle') return
     g.el.removeEventListener('pointermove', g.handlers.move)
     g.el.removeEventListener('pointerup', g.handlers.up)
     g.el.removeEventListener('pointercancel', g.handlers.cancel)
+    window.removeEventListener('scroll', markSnapshotDirty, { capture: true })
     try {
       g.el.releasePointerCapture(g.pid)
     } catch {
@@ -197,6 +224,8 @@ export function SidebarDnd({
   const reset = (): void => {
     gesture.current = { kind: 'idle' }
     live.current = null
+    snapshot.current = null
+    snapshotDirty.current = false
     setDrag(IDLE)
   }
 
@@ -236,6 +265,8 @@ export function SidebarDnd({
         // capture unavailable
       }
       gesture.current = { ...g, kind: 'active' }
+      // Any scroll (nav, ancestors) shifts viewport-relative rects → invalidate, re-measure lazily.
+      window.addEventListener('scroll', markSnapshotDirty, { capture: true, passive: true })
       announce(`Picked up ${base(indexRef.current.byId.get(g.id)?.path ?? '')}.`)
     }
     const target = computeTarget(e.clientY)
