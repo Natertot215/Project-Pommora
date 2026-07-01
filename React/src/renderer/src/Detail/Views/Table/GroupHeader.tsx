@@ -5,7 +5,7 @@ import { chip, chipCheckbox, chipColor, text } from '@renderer/design-system/tok
 import { cx } from '@renderer/design-system/cx'
 import { Icon, asIconName } from '@renderer/design-system/symbols'
 import { Chip } from '@renderer/Components/Chip'
-import { chipColorFor } from '@renderer/design-system/tokens/chipColorMap'
+import { chipColorFor } from '@renderer/design-system/tokens/colorMap'
 import { declaredType } from '../pipeline/value'
 import { findOption } from './cellResolve'
 import type { ResolveContext } from './resolveContext'

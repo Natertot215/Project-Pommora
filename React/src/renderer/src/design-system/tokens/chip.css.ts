@@ -44,7 +44,7 @@ export const chipColor = styleVariants({
   default: tint(solid.greyDefault)
 })
 
-/** The chip palette keys — the single source consumers (cells, `chipColorMap`) target. */
+/** The chip palette keys — the single source consumers (cells, `colorMap`) target. */
 export type ChipColorName = keyof typeof chipColor
 
 /**

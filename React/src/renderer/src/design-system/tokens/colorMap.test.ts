@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { chipColorFor } from './chipColorMap'
+import { chipColorFor } from './colorMap'
 
 describe('chipColorFor', () => {
   it('maps the shared hues 1:1', () => {
