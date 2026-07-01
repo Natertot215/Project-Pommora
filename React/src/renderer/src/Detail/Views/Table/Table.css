@@ -259,7 +259,12 @@
   padding-bottom: var(--cell-padding-y); /* matches data-cell vertical padding — gap before the first row */
 }
 .group-header {
-  position: relative; /* containing block for the chevron floating in the views gutter */
+  /* Sticky-left so the disclosure label + its chevron hold the gutter when the columns scroll horizontally
+     — the group stays legible instead of sliding off. Also the containing block for the chevron's absolute
+     float (sticky is a positioned value), so the chevron rides along. left:0 = the grid's content start
+     (the scrollport's padding edge); at rest it sits at its flow position, only pinning once scrolled. */
+  position: sticky;
+  left: 0;
   display: inline-flex;
   align-items: center;
   gap: var(--cell-icon-gap);
