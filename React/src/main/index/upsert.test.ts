@@ -61,8 +61,6 @@ describe('entity upserts', () => {
     upsertContext(db, { id: 'cx', tier: 1, title: 'Area' })
     upsertPropertyDefinition(db, {
       id: 'prop_x',
-      owningTypeId: 'co',
-      owningTypeKind: 'page_collection',
       name: 'Score',
       type: 'number',
       position: 0,

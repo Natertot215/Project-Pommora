@@ -116,8 +116,6 @@ export function upsertPropertyDefinition(
   db: Db,
   r: {
     id: string
-    owningTypeId: string
-    owningTypeKind: string
     name: string
     type: string
     config?: unknown
@@ -127,8 +125,6 @@ export function upsertPropertyDefinition(
 ): void {
   upsertRow(db, 'property_definitions', {
     id: r.id,
-    owning_type_id: r.owningTypeId,
-    owning_type_kind: r.owningTypeKind,
     name: r.name,
     type: r.type,
     config: json(r.config),

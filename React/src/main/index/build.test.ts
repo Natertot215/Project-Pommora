@@ -127,8 +127,8 @@ describe('rebuildIndex (cold build)', () => {
     expect(JSON.parse(task?.properties as string)._status).toEqual({ $status: 'not_started' })
     const taskLink = get(db, 'SELECT * FROM context_links WHERE source_id = ?', ids.task)
     expect(taskLink).toMatchObject({ source_kind: 'agenda_task', target_id: ids.work })
-    const agendaDef = get(db, "SELECT * FROM property_definitions WHERE owning_type_kind = 'agenda_task_schema'")
-    expect(agendaDef).toMatchObject({ id: '_status', owning_type_id: 'agenda_tasks' })
+    // property_definitions mirrors the nexus-wide registry only — agenda config defs stay out (D-1)
+    expect(get(db, "SELECT * FROM property_definitions WHERE id = '_status'")).toBeUndefined()
 
     db.close()
   })

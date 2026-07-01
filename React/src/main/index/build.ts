@@ -9,12 +9,12 @@ import { join } from 'node:path'
 import { readNexus } from '../readNexus'
 import { splitFrontmatter } from '../readNexus'
 import { splitEnvelope } from '../io/pageFile'
-import { readJsonObject } from '../io/atomicWrite'
 import { readSidecar } from '../sidecarIO'
 import { pageCollectionSidecar, pageSetSidecar } from '@shared/schemas'
 import { SIDECAR_FILENAME } from '../paths'
 import { agendaTask, agendaEvent, AGENDA_SUFFIX } from '@shared/agenda'
-import { parseDefinitions } from '../properties/schema'
+import { readRegistry } from '../io/propertiesRegistry'
+import { nowIso } from '../crud/util'
 import { TIER_LEVELS, tierFieldName, tierPropertyId } from '@shared/properties'
 import { buildLinkIndex } from '../connections/resolve'
 import { connectionEdges } from '../connections/edges'
@@ -66,7 +66,6 @@ interface CollectionData {
   icon?: string
   modifiedAt: string
   schemaVersion?: number
-  defs: PropertyDefinition[]
 }
 interface SetData {
   id: string
@@ -144,9 +143,7 @@ async function collectNexusData(nexusRoot: string): Promise<NexusData> {
       title: coll.title,
       icon: coll.icon,
       modifiedAt: await resolveModifiedAt(csc?.modified_at, join(nexusRoot, coll.path, SIDECAR_FILENAME.collection)),
-      schemaVersion: csc?.schema_version,
-      // The tree's properties are already registry-resolved (readNexus joins assignment ids → defs).
-      defs: coll.properties ?? []
+      schemaVersion: csc?.schema_version
     })
     for (const page of coll.pages) pages.push(await readPageData(nexusRoot, page, coll.id))
     for (const set of coll.sets) await walkSet(set, coll.id, { collectionId: coll.id })
@@ -204,16 +201,9 @@ interface AgendaItemData {
   modifiedAt: string
   tiers: Record<number, string[]>
 }
-interface AgendaConfig {
-  owningTypeId: 'agenda_tasks' | 'agenda_events'
-  owningTypeKind: 'agenda_task_schema' | 'agenda_event_schema'
-  modifiedAt: string
-  defs: PropertyDefinition[]
-}
 interface AgendaData {
   tasks: AgendaItemData[]
   events: AgendaItemData[]
-  configs: AgendaConfig[]
 }
 
 /** tier level → the coarse entity-kind string stored in context_links.target_kind, matching
@@ -242,33 +232,24 @@ function tierLinks(sourceId: string, sourceKind: string, tiers: Record<number, s
   )
 }
 
-/** Read agenda items + config schemas. Agenda folders are discovered at the nexus root by
- *  the presence of `_taskconfig.json` / `_eventconfig.json` (readNexus discovers but does
- *  not surface them, so the index walks them directly). */
+/** Read agenda items. Agenda folders are discovered at the nexus root by the presence of
+ *  `_taskconfig.json` / `_eventconfig.json` (readNexus discovers but does not surface them,
+ *  so the index walks them directly). Their config schemas are NOT indexed — agenda defs
+ *  live in the config sidecars, outside the nexus-wide registry (D-1). */
 async function collectAgenda(nexusRoot: string): Promise<AgendaData> {
   const tasks: AgendaItemData[] = []
   const events: AgendaItemData[] = []
-  const configs: AgendaConfig[] = []
   let dirs: string[]
   try {
     dirs = (await readdir(nexusRoot, { withFileTypes: true })).filter((e) => e.isDirectory()).map((e) => e.name)
   } catch {
-    return { tasks, events, configs }
+    return { tasks, events }
   }
   for (const name of dirs) {
     const folder = join(nexusRoot, name)
     const isTask = await pathExists(join(folder, SIDECAR_FILENAME.taskConfig))
     const isEvent = !isTask && (await pathExists(join(folder, SIDECAR_FILENAME.eventConfig)))
     if (!isTask && !isEvent) continue
-
-    const configFile = join(folder, isTask ? SIDECAR_FILENAME.taskConfig : SIDECAR_FILENAME.eventConfig)
-    const configRaw = (await readJsonObject(configFile)) ?? {} // unreadable config → zero defs
-    configs.push({
-      owningTypeId: isTask ? 'agenda_tasks' : 'agenda_events',
-      owningTypeKind: isTask ? 'agenda_task_schema' : 'agenda_event_schema',
-      modifiedAt: await resolveModifiedAt(configRaw.modified_at, configFile),
-      defs: parseDefinitions(configRaw.property_definitions)
-    })
 
     const suffix = isTask ? AGENDA_SUFFIX.task : AGENDA_SUFFIX.event
     let files: string[]
@@ -299,7 +280,7 @@ async function collectAgenda(nexusRoot: string): Promise<AgendaData> {
       else events.push({ ...common, startAt: str(item.start_at) || EPOCH, endAt: str(item.end_at) || EPOCH })
     }
   }
-  return { tasks, events, configs }
+  return { tasks, events }
 }
 
 /** Populate `db` from the nexus (does NOT stamp the version — the caller stamps only after
@@ -307,25 +288,24 @@ async function collectAgenda(nexusRoot: string): Promise<AgendaData> {
 export async function buildIndex(db: Db, nexusRoot: string): Promise<void> {
   const data = await collectNexusData(nexusRoot)
   const agenda = await collectAgenda(nexusRoot)
+  const registry = await readRegistry(nexusRoot)
   const linkIndex = buildLinkIndex(data.pages.map((p) => ({ id: p.id, title: p.title })))
 
   transact(db, () => {
     for (const c of data.contexts) upsertContext(db, c)
-    for (const c of data.collections) {
-      upsertCollection(db, c)
-      c.defs.forEach((def, position) =>
-        upsertPropertyDefinition(db, {
-          id: def.id,
-          owningTypeId: c.id,
-          owningTypeKind: 'page_collection',
-          name: def.name,
-          type: def.type,
-          config: configOf(def),
-          position,
-          modifiedAt: c.modifiedAt
-        })
-      )
-    }
+    for (const c of data.collections) upsertCollection(db, c)
+    // property_definitions mirrors the nexus-wide registry, one row per def (no owner —
+    // assignment lives on the collection sidecars; agenda defs stay out per D-1).
+    Object.values(registry).forEach((def, position) =>
+      upsertPropertyDefinition(db, {
+        id: def.id,
+        name: def.name,
+        type: def.type,
+        config: configOf(def),
+        position,
+        modifiedAt: nowIso()
+      })
+    )
     for (const s of data.sets) upsertSet(db, s)
     for (const p of data.pages) {
       upsertPage(db, p)
@@ -345,20 +325,6 @@ export async function buildIndex(db: Db, nexusRoot: string): Promise<void> {
       replaceConnections(db, p.id, conns)
     }
 
-    for (const cfg of agenda.configs) {
-      cfg.defs.forEach((def, position) =>
-        upsertPropertyDefinition(db, {
-          id: def.id,
-          owningTypeId: cfg.owningTypeId,
-          owningTypeKind: cfg.owningTypeKind,
-          name: def.name,
-          type: def.type,
-          config: configOf(def),
-          position,
-          modifiedAt: cfg.modifiedAt
-        })
-      )
-    }
     for (const t of agenda.tasks) {
       upsertAgendaTask(db, t)
       replaceContextLinks(db, t.id, tierLinks(t.id, 'agenda_task', t.tiers, t.modifiedAt))

@@ -14,7 +14,7 @@
 import type { Db } from './db'
 
 /** Regeneratable index version. A mismatch ⇒ drop + rebuild. Distinct from Swift's by design. */
-export const SCHEMA_VERSION = 15
+export const SCHEMA_VERSION = 16
 
 const META_DDL = `
   CREATE TABLE IF NOT EXISTS meta (
@@ -96,8 +96,6 @@ const TABLE_DDL: string[] = [
   );`,
   `CREATE TABLE IF NOT EXISTS property_definitions (
     id TEXT PRIMARY KEY,
-    owning_type_id TEXT NOT NULL,
-    owning_type_kind TEXT NOT NULL,
     name TEXT NOT NULL,
     type TEXT NOT NULL,
     config TEXT NOT NULL DEFAULT '{}',
@@ -114,7 +112,6 @@ const INDEX_DDL = `
   CREATE INDEX IF NOT EXISTS idx_context_links_source_id ON context_links(source_id);
   CREATE INDEX IF NOT EXISTS idx_context_links_target_id ON context_links(target_id);
   CREATE INDEX IF NOT EXISTS idx_context_links_property_id ON context_links(property_id);
-  CREATE INDEX IF NOT EXISTS idx_property_definitions_owning_type ON property_definitions(owning_type_id, owning_type_kind);
   CREATE INDEX IF NOT EXISTS idx_contexts_tier ON contexts(tier);
   CREATE INDEX IF NOT EXISTS idx_connections_source_id ON connections(source_id);
   CREATE INDEX IF NOT EXISTS idx_connections_target_id ON connections(target_id);
