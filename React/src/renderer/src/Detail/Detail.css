@@ -53,40 +53,18 @@
 .detail-scroll.has-header .detail-body {
   padding-top: 16px;
 }
-
-/* Locked-header content-views (collections / sets / contexts): the banner + title are a pinned
-   header and the body (table) scrolls beneath, so the banner stays put while you scroll. */
-.detail-locked {
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-.detail-locked-head {
-  flex: none;
-}
-.detail-locked-body {
-  /* The views gutter: a strip carved from --content-inset (mirrors .detail-page) where the row drag
-     grips + group chevrons live, so the grid still lands on --content-inset (page-consistent). */
+/* A table content-view (collection/set): the banner scrolls away with the rows, and the body carries
+   the views gutter (grips + group chevrons) carved from the inset — grid still lands on --content-inset
+   (page-consistent) — with the heading band flush under the banner divider. */
+.detail-scroll.has-header .detail-body:has(.table-head) {
   --fold-gutter: 20px;
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  padding: 16px var(--content-inset-right) 28px calc(var(--content-inset) - var(--fold-gutter));
-  transition:
-    padding-left var(--duration-base) var(--ease-standard),
-    padding-right var(--duration-base) var(--ease-standard);
-}
-/* A table heading band sits flush under the banner divider (no top gap); locked views without a table
-   (a context, once it grows live content) keep the top breathing room. */
-.detail-locked-body:has(.table-head) {
   padding-top: 0;
+  padding-left: calc(var(--content-inset) - var(--fold-gutter));
 }
 
 /* During an edge-drag resize, track the cursor 1:1 (no easing lag). */
 .shell.is-resizing .detail,
-.shell.is-resizing .detail-body,
-.shell.is-resizing .detail-locked-body {
+.shell.is-resizing .detail-body {
   transition: none;
 }
 
