@@ -69,6 +69,7 @@ One long session that specced Table Views Part 1, then drove a deep UIX-polish +
 - UI iteration runs in **dev mode (HMR)** — CSS hot-swaps, React components Fast-Refresh, but **CM6 widget/extension code needs a full ⌘R / `Page.reload`**, and `src/main` (IPC, native menus, preload) needs a dev-server restart. Don't ⌘Q it.
 - The agent **can** screenshot + drive the React UI headlessly (Electron + CDP `--remoteDebuggingPort` → `Page.captureScreenshot` / `Input.dispatchMouseEvent`); scratchpad has `cdp-shot.mjs` (screenshot / eval / `--clip` / `--rect`) + `cdp-hover.mjs` (force `:hover` + scroll + fade diagnostics). **Reading** a screenshot surfaces it to Nathan on mobile; sending doesn't. Nathan is the primary visual verifier.
 - **Never run a mutating gesture (drop / rename / edit) against the running app** — it's the real Nexus. Drag-and-abort for hit-test checks.
+- **PropertiesV2 code-line baseline (pre-implementation): 20,220 code lines / 264 files at `d0e1fb7`** — `React/src` `.ts/.tsx/.css`, excluding tests, comments, blanks. Method = `scratchpad/count-loc.py` (block-comment-aware, cloc-style code metric). Re-run the *same* script at closeout for the net-diff Nathan wants; don't swap the method or the number stops meaning anything.
 
 ### Next Session — The Redo Brainstorm (`studio-brainstorm` → `writing-plans`)
 
@@ -83,6 +84,7 @@ Nathan called for a full brainstorm on "what needs to be redone." Two axes, both
 - **(Perf) Table-view architecture redo** — see Axis 1. The `source`-identity fix is the highest-leverage single change.
 - **(Feature) View Settings remaining panes · in-cell editing · ViewPane integration** — see Axis 2 + `Planning/7-1`.
 - **Row grips on horizontal scroll** — freeze them with the title column (frozen first column) if Nathan wants the whole gutter to stay; deferred pending his call.
+- **DRY the sidebar row-fade + spring-back onto chips (Tables/UIX).** Chips already share a DRY'd ellipsis-hover-scroll for overflowing labels (`chipLabel` on `truncateHoverScroll`). Extend the sidebar rows' left-edge **scroll-fade eclipse** (`--scroll-fade` gated on `.title-scrolled`) + the **`slideTitleBack` spring-back-on-non-hover** so an overflowing chip label fades + bounces back too — one shared mechanism across sidebar rows, chips, and (eventually) table cells, not a re-implementation.
 - **In-cell editing must arm row-reorder from the title cell too**, not only the gutter grip (keep the grip) — memory `project-row-drag-from-title-area`.
 - **Block Drag V2 — nesting** (separate spec): interior drop-slots inside callouts, the box-nesting guard table, cross-container re-prefix. V1 shipped; nesting deferred.
 - **Canvas** — spec at `Planning/6-26 - Canvas Spec.md`, pending its adversarial review → plan → build.
