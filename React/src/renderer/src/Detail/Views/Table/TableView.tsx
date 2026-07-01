@@ -222,15 +222,21 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
     collapsing === id
       ? 0
       : clampWidth(widthOverride[id] ?? liveView.column_widths?.[id] ?? widthFor(id, schema).default, id, schema)
-  const totalWidth = columns.reduce((sum, c) => sum + colWidth(c.id), 0)
-  // The shared column track set every band reads (--cols): each column's width + a trailing 1fr filler
-  // that absorbs pane width past the summed columns so the grid spans full-width.
-  const cols = `${columns.map((c) => `${colWidth(c.id)}px`).join(' ')} 1fr`
-  // Lead-cell + group-header left padding: the pad-x base lands the cell content on the grid (under its
-  // column header); each nesting layer adds one --row-indent step (J-3). The grip + chevron live in the
-  // views gutter via absolute CSS, independent of this.
+  // Reflow floor: the grid may shrink until the title column reaches its legibility min (the other columns
+  // holding their width), then scrolls — so opening the inspector / sidebar reflows the table (the title
+  // yields, property columns stay put) instead of clipping the right columns off, the way a page's body does.
+  const reflowWidth = columns.reduce((sum, c) => sum + (c.kind === 'title' ? widthFor(c.id, schema).min : colWidth(c.id)), 0)
+  // The shared column track set every band reads (--cols): the title is a minmax so it absorbs the pane's
+  // width change (down to its min) while the rest hold their resolved width; a trailing 1fr filler eats any
+  // slack past the summed columns so the grid still spans full-width.
+  const cols = `${columns
+    .map((c) => (c.kind === 'title' ? `minmax(${widthFor(c.id, schema).min}px, ${colWidth(c.id)}px)` : `${colWidth(c.id)}px`))
+    .join(' ')} 1fr`
+  // Lead-cell left padding for ungrouped/loose rows: --loose-inset tucks the title a touch left of the
+  // cell-padding-x column inset; each nesting layer adds one --row-indent step (J-3). The grip + chevron
+  // live in the views gutter via absolute CSS, independent of this.
   const indent = (depth: number): string =>
-    depth > 0 ? `calc(var(--cell-padding-x) + var(--row-indent) * ${depth})` : 'var(--cell-padding-x)'
+    depth > 0 ? `calc(var(--loose-inset) + var(--row-indent) * ${depth})` : 'var(--loose-inset)'
   // A group header's chevron + folder glyph read as one cluster in the views gutter (with the row grips),
   // so the header is indented by nesting ALONE — no cell-padding-x base (that base is the data cells'
   // text inset). Its members keep the normal indent, one --row-indent step inside the header.
@@ -252,7 +258,10 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
     if (!grid) return
     header.setPointerCapture(e.pointerId)
     const hr = header.getBoundingClientRect()
-    const zoom = hr.width / colWidth(columns[from].id) // screen px per pre-zoom track px
+    // The CSS density factor (screen px per pre-zoom track px). Read from --zoom directly, NOT back-solved
+    // from the header's rendered width ÷ its track width — the title track is now a minmax that shrinks, so
+    // that ratio no longer equals the zoom when the title is grabbed while shrunk.
+    const zoom = Number.parseFloat(getComputedStyle(grid).getPropertyValue('--zoom')) || 1
     const startCenter = hr.left + hr.width / 2 // the dragged column's centre, screen px; it tracks the cursor 1:1
     const startX = e.clientX
     const startY = e.clientY
@@ -458,7 +467,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
             collapsing != null && 'col-hiding',
             colDrag != null && 'col-dragging-active'
           )}
-          style={{ minWidth: totalWidth, ['--cols']: cols } as React.CSSProperties}
+          style={{ minWidth: reflowWidth, ['--cols']: cols } as React.CSSProperties}
         >
           {/* Header band — each header grabs to smooth-shift its whole column (A-4); the filler sits
               outside the columns, inert. The transitionend on the animated track set commits a column
