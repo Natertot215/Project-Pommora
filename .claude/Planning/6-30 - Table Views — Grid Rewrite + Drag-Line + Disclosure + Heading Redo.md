@@ -71,7 +71,7 @@ This doc is the single source for: the grid architecture, the drop-line reorder,
 
 ### F — Dividers + the DRY-up (do LAST)
 
-- **F-1: Banner↔body divider is wrong app-wide.** It's a hardcoded white hairline in `Detail/Banner/Banner.css` (lines 7, 54) — lost in translation; it should be `--separator-border`. Fix everywhere it appears.
+- **F-1: Banner↔body divider is wrong app-wide.** It was a hardcoded white hairline in `Detail/Banner/Banner.css` (`.banner` + `.banner-empty`) — lost in translation. As-built it routes through `--border-heading` (per D-2, the banner seam IS the table heading's top seam — one weight, not a plain hairline), alongside the editor's `.mdpm-banner`. The `.open-btn` hover/active whites were swept to the `--hover`/`--selected` state tokens in the same pass. NOT converted: `Detail/Subfield/subfield.css`'s footer top hairline (still `#ffffff1a`) — a footer, not a heading seam, so it wants `--separator-border`; left for a cleanup pass.
 
 - **F-2: Single `--border-heading` variable.** DRY **all heading↔body borders** through one `--border-heading` CSS var tied to `--separator-border`, so the heading hairline has a single source (it lives in the G token layer; this task wires every consumer to it). **Do this last.**
 
