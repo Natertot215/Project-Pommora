@@ -24,7 +24,7 @@ One pure pipeline feeds the renderer — **columns → filter → group → sort
 
 #### II. Renderers
 
-The **Table** renderer draws the resolved groups as nested tables, with structural Sub-Set nesting and row-click selection. The Board, List, Cards, and Gallery renderers are Pending.
+The **Table** renderer draws the resolved groups as nested tables, with structural Sub-Set nesting and row-click selection — its layout, column ergonomics, and row/group chrome are its own doc (`TableView.md`). The Board, List, Cards, and Gallery renderers are Pending.
 
 #### II. View Settings
 

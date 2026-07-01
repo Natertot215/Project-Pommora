@@ -32,6 +32,10 @@ Every entity reorders within its parent by drag, and Pages reparent across the t
 
 Selection routes the whole detail pane and reads as a Finder-style quaternary-fill pill at row level. A row's kind and ID drive the selection, with the path riding along for rename-safe reconciliation.
 
+#### II. Row Labels
+
+A row's label truncates to an ellipsis at rest; hovering reveals the full name by scrolling the label — icon included, the whole label rides one scroll box — within the row, bounded by the sidebar's trailing edge. Content sliding off the left **eclipses** into the glass through a soft mask rather than hard-clipping, but *only once a row is actually scrolled off its start* — a bare hover never dims the icon. Un-hovering slides the label back to the start on the sidebar's shared panel-slide timing. The ellipsis-at-rest → scroll-on-hover primitive (`truncateHoverScroll`) is shared with chips and menu rows; the left-edge eclipse is the sidebar's opt-in.
+
 ### Pending
 
 **Calendar Pin:** The sidebar entry point for Agenda — a Calendar pin opening the combined Tasks-and-Events surface, with right-click New Task / New Event. Agenda's data layer is in place; the pin and its surface aren't built → `Agenda.md`.
