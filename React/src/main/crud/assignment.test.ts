@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { assignProperty, unassignProperty, reorderAssignment } from './assignment'
+import { assignProperty, unassignProperty, reorderAssignment, assigners } from './assignment'
 import { createFolderEntity } from './folderEntity'
 import { readSidecar } from '../sidecarIO'
 import { pageCollectionSidecar } from '@shared/schemas'
@@ -41,4 +41,16 @@ it('reorder moves within the assignment array', async () => {
   await assignProperty(notes, 'prop_c')
   await reorderAssignment(notes, 'prop_c', 0)
   expect(await ids(notes)).toEqual(['prop_c', 'prop_a', 'prop_b'])
+})
+
+it('assigners finds every collection folder assigning the id', async () => {
+  const t = await createFolderEntity(root, 'collection', 'Tasks')
+  if (!t.ok) throw new Error('setup failed')
+  const tasks = t.value.path
+  await assignProperty(notes, 'prop_shared')
+  await assignProperty(tasks, 'prop_shared')
+  await assignProperty(tasks, 'prop_only')
+  expect((await assigners(root, 'prop_shared')).sort()).toEqual([notes, tasks].sort())
+  expect(await assigners(root, 'prop_only')).toEqual([tasks])
+  expect(await assigners(root, 'prop_none')).toEqual([])
 })

@@ -24,6 +24,7 @@ import { saveView, reorderViews, deleteView } from './crud/views'
 import { loadValues } from './crud/loadValues'
 import { createProperty, editProperty } from './crud/registryProperty'
 import { assignProperty, unassignProperty, reorderAssignment } from './crud/assignment'
+import { deleteProperty as deletePropertyGlobal } from './crud/deleteProperty'
 import { savedView } from '@shared/views'
 import { propertyDefinition, propertyType } from '@shared/properties'
 import type { PageFrontmatter } from '@shared/schemas'
@@ -575,6 +576,23 @@ ipcMain.handle(
       const root = sessionRoot()
       if (root === null) return { ok: false, error: 'No nexus is open.' }
       const r = await editProperty(root, propertyId, { type: parsedType.data })
+      return r.ok ? { ok: true } : { ok: false, error: r.error.message }
+    } catch (e) {
+      return { ok: false, error: e instanceof Error ? e.message : String(e) }
+    }
+  }
+)
+
+// Nexus-wide global delete — snapshot to .trash, strip the value across every assigner,
+// drop the def + all assignments. The rare destructive op; unassign is the daily path.
+ipcMain.handle(
+  'property:delete',
+  async (_e, propertyId: unknown): Promise<{ ok: true } | { ok: false; error: string }> => {
+    try {
+      const root = sessionRoot()
+      if (root === null) return { ok: false, error: 'No nexus is open.' }
+      if (typeof propertyId !== 'string') return { ok: false, error: 'A property id is required.' }
+      const r = await deletePropertyGlobal(root, propertyId)
       return r.ok ? { ok: true } : { ok: false, error: r.error.message }
     } catch (e) {
       return { ok: false, error: e instanceof Error ? e.message : String(e) }

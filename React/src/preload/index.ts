@@ -94,6 +94,13 @@ const api = {
     ): Promise<{ ok: true } | { ok: false; error: string }> =>
       ipcRenderer.invoke('schema:changeType', containerPath, propertyId, newType, opts)
   },
+  // Nexus-wide property ops (registry-level, no container scope). `delete` is the global
+  // destructive op — snapshot, scrub every assigner, drop the def; `schema.delete` above is
+  // the per-Collection unassign.
+  property: {
+    delete: (propertyId: string): Promise<{ ok: true } | { ok: false; error: string }> =>
+      ipcRenderer.invoke('property:delete', propertyId)
+  },
   // Batch frontmatter read for a container's view pipeline (pageId → frontmatter), lazy on open.
   loadValues: (containerPath: string): Promise<Record<string, PageFrontmatter>> =>
     ipcRenderer.invoke('view:loadValues', containerPath),
