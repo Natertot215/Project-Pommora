@@ -612,6 +612,10 @@ function DataRow({
     <div
       ref={ref}
       className={cx('data-row', selected && 'selected', isDragging && 'row-dragging', lead && 'row-lead')}
+      // The whole row is a drag surface, not just the gutter grip — grabbing ANY cell arms the reorder, so a
+      // horizontal scroll that pushes the grip out of reach can't block it. A press-release (no move past
+      // ACTIVATION) still selects; only a real drag reorders. Gated with the grip when reorder is disabled.
+      {...(dragDisabled ? {} : handle)}
       onClick={() => {
         if (!isDragging) onSelect() // a drag-release isn't a select — the engine keeps isDragging set through the drop
       }}
