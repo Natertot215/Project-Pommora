@@ -11,9 +11,9 @@ Pommora is a personal management app based on Nathan’s frustration with modern
 **Content:** The operational layer — what you actually make, linked to each other through **Connections** for content ←> content relations, and with **Front-matter** for content ←> tier relations.
 
 - **Collections & Sets:** a **Collection** is a folder that carries a shared property schema and saved views; it nests Sets to any depth as organizing subfolders that inherit that schema.
-- **Pages:** Markdown documents inside a Collection or Set, conforming to its Collection’s schema — the only Content that holds free prose. Pages use MarkdownPM for its editor surface, which includes in-line connections to other pages. 
+- **Pages:** Markdown documents inside a Collection or Set, conforming to its Collection’s properties — the only Content that holds free prose. Pages use MarkdownPM for its editor surface, which includes in-line connections to other pages. 
 - **Agenda:** the calendar layer — **Tasks** (reminder-shaped) and **Events** (calendar-shaped), each with a built-in Status.
-- **Properties:** the typed attributes a Collection's schema defines, and its members fill in — Select, Status, Date, and the rest; the schema lives on the Collection, the values on each entity.
+- **Properties:** the nexus-wide typed attributes that collections inherit, and its members fill in — Select, Status, Date, and the rest; the schema is nexus-wide, collections validate properties for their pages to use. 
 - **Connections:** inline `[[Title]]` colored-text links in a Page's body, stored in **SQLite**, connecting to another Page — the Content ←> Content matrix.
 
 **Files are canonical.** Pages are `.md` (YAML frontmatter + body); Contexts, Agenda, and all config are JSON sidecars; an entity's kind comes from its folder's sidecar, not the extension. Foreign keys are preserved on every write, and the SQLite index is a regeneratable accelerator off the read path. Agent-legibility of a user's Nexes, and future cloud-sync capability are core constructs for all development.
@@ -41,8 +41,8 @@ Biome (`biome format`) auto-runs on every TS/CSS/JSON write via a PostToolUse ho
 - **Filesystem is canonical.** The on-disk model is the portable contract (TS-native serialization). No SQLite on the read path *currently* — a single fs walk is the source (SQLite returns later as a regeneratable query accelerator).
 - **Read and write are cleanly separable.** The read path is read-only by construction; mutations are additive, never woven into reads.
 - **Condensed control flow / DRY / simplicity-first** — model finite states as unions + switch; hoist shared logic; don't add unrequested complexity.
-- **Never do expensive work "on every X," never "reload the entire Y."** No O(N) / allocating / layout-reading work on a high-frequency trigger (every keystroke, render, pointer-move, scroll), and no full rebuild / re-walk when an incremental or cached update works — cache, memoize, snapshot, subscribe narrowly. It's THE lag source.
-- **Colors are authored as hex** — `#RRGGBB`, or `#RRGGBBAA` (8-digit) for alpha — never `rgb()` / `rgba()`. The token layer (`design-system/tokens/`) is the source; platform-returned values (e.g. `getComputedStyle`) are the only exception. Detail: `design-system/tokens/README.md`.
+- **Never do expensive work "on every X," never "reload the entire Y."** No O(N) / allocating / layout-reading work on a high-frequency trigger, and no full rebuild / re-walk when an incremental or cached update works — cache, memoize, snapshot, subscribe narrowly. It's THE lag source.
+- **Colors are authored as hex** — `#RRGGBB`, or `#RRGGBBAA` (8-digit) for alpha — never `rgb()` / `rgba()`, and **must** be aliased and pulled from the shared tokens in (`design-system/tokens/`).
 - **Docs name; code holds exacts.** These docs describe the *system* and reference the product spec (`PommoraPRD.md` + `Features/`) — they never restate exact code values. Name the token and its treatment ("the red solid at a low opacity"), never the literal `#hex` / `%` / line-for-line code stays in the code itself. 
 - **`Handoff.md` is a lean snapshot maintained via `/handoff`.** Sections: Session Summary + Lessons Learned + Next Session + Pending Focuses + Fix Log. Route locked decisions to `History.md`, spec content to `Features/*`, roadmap detail to `Framework.md`. 
 ### Locked Decisions
@@ -63,6 +63,8 @@ The GUI only launches with `ELECTRON_RUN_AS_NODE` **unset** (this env has it set
 - Design tokens **must** be pulled from their sources in `design-system` — never hand-roll tokens without explicit direction.
 - **Connections** are in-line `[[Title]]`, resolved via SQLite, and **aren’t** displayed in any container views *(tables, galleries, lists…)*. **Contexts** are properties resolved via front-matter; content ←> content relational properties **don’t** exist. 
 - If Nathan mistakenly says "label-quaternary" or "label-quinary," he actually means fills → `design-system/tokens.` 
+- **Collections** *used* to be called “Vaults” with what’s now sets being called collections instead before a rename. If Nathan says “Vault” he means **Collection,** *not* as in Obsidians alternative for Pomona’s Nexus.
+- If Nathan says "double-click" in a context where "right-click" makes more sense, it's almost certainly what he intended to say.
 
 ### Working Discipline
 
