@@ -43,13 +43,9 @@ export function PropertyPicker({
 }): React.JSX.Element | null {
   const ref = useRef<HTMLDivElement>(null)
   const options = optionsOf(def)
-  useDismiss(ref, onDismiss, !closing && options.length > 0)
+  useDismiss(ref, onDismiss, !closing)
   const multi = def.type === 'multi_select'
   const selected = selectedValues(current)
-
-  // No real options → nothing to pick, nothing to mount: an empty notch pane renders as a
-  // degenerate beak. The interim UX for a seed-only def (Nathan decides the real affordance later).
-  if (options.length === 0) return null
 
   const pick = (value: string): void => {
     if (multi) {
@@ -64,11 +60,17 @@ export function PropertyPicker({
   return (
     <div ref={ref}>
       <PickerMenu closing={closing}>
-        {options.map((o) => (
-          <PickerOption key={o.value} selected={selected.includes(o.value)} onClick={() => pick(o.value)}>
-            <Chip color={chipColorFor(o.color)} label={o.label} />
-          </PickerOption>
-        ))}
+        {options.length === 0 ? (
+          // A seed-only def pickers EMPTY (Nathan: scaffolding isn't options) — the spacer keeps
+          // the notch pane's proportions so it doesn't collapse into a degenerate beak. Tune here.
+          <div style={{ minWidth: 96, height: 24 }} />
+        ) : (
+          options.map((o) => (
+            <PickerOption key={o.value} selected={selected.includes(o.value)} onClick={() => pick(o.value)}>
+              <Chip color={chipColorFor(o.color)} label={o.label} />
+            </PickerOption>
+          ))
+        )}
       </PickerMenu>
     </div>
   )
