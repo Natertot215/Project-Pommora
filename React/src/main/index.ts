@@ -22,8 +22,9 @@ import { readActiveViews, writeActiveViews, type ActiveViews } from './io/active
 import { readViewOrders, writeViewOrders, type ViewOrders } from './io/viewOrders'
 import { saveView, reorderViews, deleteView } from './crud/views'
 import { loadValues } from './crud/loadValues'
-import { createProperty, editProperty, removeFromRegistry } from './crud/registryProperty'
-import { assignProperty, unassignProperty, reorderAssignment } from './crud/assignment'
+import { createProperty, editProperty, removeFromRegistry, reorderRegistry } from './crud/registryProperty'
+import { assignProperty, reorderAssignment } from './crud/assignment'
+import { removeProperty } from './crud/removeProperty'
 import { deleteProperty as deletePropertyGlobal } from './crud/deleteProperty'
 import { savedView } from '@shared/views'
 import { propertyDefinition, propertyType } from '@shared/properties'
@@ -462,10 +463,11 @@ ipcMain.handle('view:loadValues', async (_e, containerPath: unknown): Promise<Re
 // Property schema CRUD, registry+assignment-backed (PropertiesV2): defs live nexus-wide in
 // `.nexus/properties.json`; a Collection's sidecar holds the assigned prop-ids. The surface keeps
 // its pre-V2 names/args so the renderer is untouched — add = create-in-registry + assign here,
-// rename/changeType = global def edit, delete = unassign (non-destructive; global delete is
-// property:delete), reorder = assignment-order move. containerPath is the schema-owning
-// Collection's folder — a Set inherits the schema, so the renderer passes the ancestor
-// Collection's path. Mirrors the views:* envelope contract.
+// rename/changeType = global def edit, delete = Remove (strip values + cache restorably on the
+// sidecar, C-3; the word Delete means property:delete only), reorder = assignment-order move,
+// assign = append + restore-from-cache (+ optional slot placement). containerPath is the
+// schema-owning Collection's folder — a Set inherits the schema, so the renderer passes the
+// ancestor Collection's path. Mirrors the views:* envelope contract.
 async function resolveSchemaFolder(
   containerPath: unknown
 ): Promise<{ ok: true; root: string; folder: string } | { ok: false; error: string }> {
@@ -486,7 +488,7 @@ ipcMain.handle(
       if (!parsed.success) return { ok: false, error: 'Invalid property definition.' }
       const created = await createProperty(c.root, parsed.data)
       if (!created.ok) return { ok: false, error: created.error.message }
-      const assigned = await assignProperty(c.folder, created.value.id)
+      const assigned = await assignProperty(c.root, c.folder, created.value.id)
       if (!assigned.ok) {
         // Don't orphan the just-created def in the registry when the assign leg fails.
         await removeFromRegistry(c.root, created.value.id)
@@ -550,7 +552,51 @@ ipcMain.handle(
       const c = await resolveSchemaFolder(containerPath)
       if (!c.ok) return c
       if (typeof propertyId !== 'string') return { ok: false, error: 'A property id is required.' }
-      const r = await unassignProperty(c.folder, propertyId)
+      const r = await removeProperty(c.folder, propertyId)
+      return r.ok ? { ok: true } : { ok: false, error: r.error.message }
+    } catch (e) {
+      return { ok: false, error: e instanceof Error ? e.message : String(e) }
+    }
+  }
+)
+
+ipcMain.handle(
+  'schema:assign',
+  async (
+    _e,
+    containerPath: unknown,
+    propertyId: unknown,
+    toIndex: unknown
+  ): Promise<{ ok: true } | { ok: false; error: string }> => {
+    try {
+      const c = await resolveSchemaFolder(containerPath)
+      if (!c.ok) return c
+      if (typeof propertyId !== 'string') return { ok: false, error: 'A property id is required.' }
+      const r = await assignProperty(c.root, c.folder, propertyId)
+      if (!r.ok) return { ok: false, error: r.error.message }
+      // One handler covers a drag-assign: append + slot placement land atomically from the
+      // renderer's view (E-2).
+      if (typeof toIndex === 'number') {
+        const m = await reorderAssignment(c.folder, propertyId, toIndex)
+        if (!m.ok) return { ok: false, error: m.error.message }
+      }
+      return { ok: true }
+    } catch (e) {
+      return { ok: false, error: e instanceof Error ? e.message : String(e) }
+    }
+  }
+)
+
+ipcMain.handle(
+  'registry:reorder',
+  async (_e, propertyId: unknown, toIndex: unknown): Promise<{ ok: true } | { ok: false; error: string }> => {
+    try {
+      const root = sessionRoot()
+      if (root === null) return { ok: false, error: 'No nexus is open.' }
+      if (typeof propertyId !== 'string' || typeof toIndex !== 'number') {
+        return { ok: false, error: 'propertyId (string) and toIndex (number) are required.' }
+      }
+      const r = await reorderRegistry(root, propertyId, toIndex)
       return r.ok ? { ok: true } : { ok: false, error: r.error.message }
     } catch (e) {
       return { ok: false, error: e instanceof Error ? e.message : String(e) }

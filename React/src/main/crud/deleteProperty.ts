@@ -1,14 +1,15 @@
 // Global property delete — the one nexus-wide destructive fan-out. Snapshot-first (a
 // timestamped JSON of the def + every page value lands in `.trash`, so the scrub is
-// recoverable), then one atomic SchemaTransaction strips the value from every assigner's
-// pages and drops the id from every assignment, and finally the def leaves the registry.
-// The daily non-destructive op is unassign (crud/assignment); this is the rare one.
+// recoverable), then one atomic SchemaTransaction strips the value from every collection's
+// pages, drops the id from every assignment, and purges every Remove-cache block (D-6) —
+// and finally the def leaves the registry. The daily non-destructive op is Remove
+// (crud/removeProperty); this is the rare one, and it saves nothing restorable in-app.
 
 import { join } from 'node:path'
 import { readFile, mkdir, writeFile } from 'node:fs/promises'
 import { readRegistry, type PropertyRegistry } from '../io/propertiesRegistry'
 import { removeFromRegistry } from './registryProperty'
-import { assigners } from './assignment'
+import { allCollectionFolders } from './assignment'
 import { SchemaTransaction } from '../io/schemaTransaction'
 import { stripPageMember } from './schema'
 import { readSidecar } from '../sidecarIO'
@@ -48,18 +49,32 @@ export async function deleteProperty(root: string, propertyId: string): Promise<
   const def = registry.defs[propertyId]
   if (!def) return fail('not-found', 'Property not found.')
 
-  const folders = await assigners(root, propertyId)
+  // EVERY collection folder, not just current assigners — a Remove-cache block lives on a
+  // sidecar that no longer assigns the id, and pre-cache dormant values may sit on any page (D-6).
+  const folders = await allCollectionFolders(root)
   await snapshot(root, propertyId, def, folders)
 
   const tx = new SchemaTransaction()
   for (const folder of folders) {
     const sidecar = await readSidecar(folder, 'collection', pageCollectionSidecar)
     if (sidecar) {
-      const ids = ((sidecar.properties as string[] | undefined) ?? []).filter((id) => id !== propertyId)
-      tx.stage(
-        join(folder, SIDECAR_FILENAME.collection),
-        serializeJson({ ...sidecar, properties: ids, modified_at: nowIso() })
-      )
+      const assigned = (sidecar.properties as string[] | undefined) ?? []
+      const cacheAll = isPlainObject(sidecar.property_cache) ? sidecar.property_cache : undefined
+      const hadCache = cacheAll !== undefined && propertyId in cacheAll
+      if (assigned.includes(propertyId) || hadCache) {
+        const next: Record<string, unknown> = {
+          ...sidecar,
+          properties: assigned.filter((id) => id !== propertyId),
+          modified_at: nowIso()
+        }
+        if (hadCache) {
+          const cache = { ...cacheAll }
+          delete cache[propertyId]
+          if (Object.keys(cache).length) next.property_cache = cache
+          else delete next.property_cache
+        }
+        tx.stage(join(folder, SIDECAR_FILENAME.collection), serializeJson(next))
+      }
     }
     for (const file of await listMarkdownFiles(folder)) {
       let content: string

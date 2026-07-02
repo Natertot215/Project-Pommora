@@ -87,6 +87,12 @@ const api = {
       propertyId: string
     ): Promise<{ ok: true } | { ok: false; error: string }> =>
       ipcRenderer.invoke('schema:delete', containerPath, propertyId),
+    assign: (
+      containerPath: string,
+      propertyId: string,
+      toIndex?: number
+    ): Promise<{ ok: true } | { ok: false; error: string }> =>
+      ipcRenderer.invoke('schema:assign', containerPath, propertyId, toIndex),
     changeType: (
       containerPath: string,
       propertyId: string,
@@ -95,12 +101,17 @@ const api = {
     ): Promise<{ ok: true } | { ok: false; error: string }> =>
       ipcRenderer.invoke('schema:changeType', containerPath, propertyId, newType, opts)
   },
-  // Nexus-wide property ops (registry-level, no container scope). `delete` is the global
-  // destructive op — snapshot, scrub every assigner, drop the def; `schema.delete` above is
-  // the per-Collection unassign.
+  // Nexus-wide property ops (registry-level, no container scope). `property.delete` is the
+  // global destructive op — snapshot, scrub every collection, purge caches, drop the def;
+  // `schema.delete` above is the per-Collection Remove (strip + cache restorably).
   property: {
     delete: (propertyId: string): Promise<{ ok: true } | { ok: false; error: string }> =>
       ipcRenderer.invoke('property:delete', propertyId)
+  },
+  // The nexus-wide cosmetic property order (B-1) — how every collection's All Properties lists.
+  registry: {
+    reorder: (propertyId: string, toIndex: number): Promise<{ ok: true } | { ok: false; error: string }> =>
+      ipcRenderer.invoke('registry:reorder', propertyId, toIndex)
   },
   // Batch frontmatter read for a container's view pipeline (pageId → frontmatter), lazy on open.
   loadValues: (containerPath: string): Promise<Record<string, PageFrontmatter>> =>

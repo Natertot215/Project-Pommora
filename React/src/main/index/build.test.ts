@@ -39,7 +39,7 @@ beforeEach(async () => {
   const score = await createProperty(root, { id: '', name: 'Score', type: 'number' } as PropertyDefinition)
   if (!score.ok) throw new Error('setup: prop')
   ids.score = score.value.id
-  await assignProperty(coll.value.path, ids.score)
+  await assignProperty(root, coll.value.path, ids.score)
 
   const a = await createPage(coll.value.path, 'PageA', { body: 'see [[PageB]] and [[PageA]]' })
   const b = await createPage(coll.value.path, 'PageB')

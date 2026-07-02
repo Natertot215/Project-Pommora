@@ -5,6 +5,7 @@ import { join } from 'node:path'
 import { deleteProperty } from './deleteProperty'
 import { createProperty } from './registryProperty'
 import { assignProperty } from './assignment'
+import { removeProperty } from './removeProperty'
 import { createFolderEntity } from './folderEntity'
 import { createPage, updatePageProperty } from './page'
 import { readRegistry } from '../io/propertiesRegistry'
@@ -38,8 +39,8 @@ describe('deleteProperty', () => {
     expect(c.ok).toBe(true)
     if (!c.ok) return
     const id = c.value.id
-    await assignProperty(notes, id)
-    await assignProperty(tasks, id)
+    await assignProperty(root, notes, id)
+    await assignProperty(root, tasks, id)
     const p1 = await createPage(notes, 'A', { body: 'b' })
     const p2 = await createPage(tasks, 'B', { body: 'b' })
     if (!p1.ok || !p2.ok) return
@@ -67,5 +68,27 @@ describe('deleteProperty', () => {
 
   it('fails for an unknown property id', async () => {
     expect((await deleteProperty(root, 'prop_nope')).ok).toBe(false)
+  })
+
+  it('purges the property_cache block in every sidecar — even non-assigners (D-6)', async () => {
+    const c = await createProperty(root, {
+      id: '',
+      name: 'Priority',
+      type: 'select',
+      select_options: [{ value: 'hi', label: 'High', color: 'red' }]
+    } as PropertyDefinition)
+    if (!c.ok) return
+    const id = c.value.id
+    await assignProperty(root, notes, id)
+    const p = await createPage(notes, 'A', { body: 'b' })
+    if (!p.ok) return
+    await updatePageProperty(p.value.path, id, { kind: 'select', value: 'hi' })
+    await removeProperty(notes, id) // notes now holds a cache block and is NOT an assigner
+
+    expect((await deleteProperty(root, id)).ok).toBe(true)
+
+    const sc = await readSidecar(notes, 'collection', pageCollectionSidecar)
+    expect((sc?.property_cache as Record<string, unknown> | undefined)?.[id]).toBeUndefined()
+    expect((await readRegistry(root)).defs[id]).toBeUndefined()
   })
 })
