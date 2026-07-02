@@ -142,6 +142,10 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
   // O(cells) forced-layout storm on every frame of a column drag).
   const [measureEpoch, setMeasureEpoch] = useState(0)
   const epochTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  // The column sum (pre-zoom px), readable from the overflow check without a stale closure. The
+  // check must compare THIS against the pane — a scrollWidth read floors at clientWidth, which
+  // turns the lifted-inspector comparison into a one-way latch that never releases.
+  const reflowRef = useRef(0)
   // The one in-cell editing surface (A-2/A-6 picker · A-8/A-12 editor). Cleared on dismiss; the
   // exit presence keeps a PICKER mounted through its Bloom-out (reading the last target from the
   // ref while `editing` is already null) — the editor unmounts instantly.
@@ -216,11 +220,16 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
       const shell = el.closest('.shell')
       const open = shell?.classList.contains('inspector-open') ?? false
       const lifted = open && overflowingRef.current
-      const cs = lifted && shell ? getComputedStyle(shell) : null
-      const liftedBy = cs
-        ? Number.parseFloat(cs.getPropertyValue('--inspector-width')) + Number.parseFloat(cs.getPropertyValue('--glass-inset'))
+      const shellCs = lifted && shell ? getComputedStyle(shell) : null
+      const liftedBy = shellCs
+        ? Number.parseFloat(shellCs.getPropertyValue('--inspector-width')) + Number.parseFloat(shellCs.getPropertyValue('--glass-inset'))
         : 0
-      setOverflowing(el.scrollWidth > el.clientWidth - (Number.isNaN(liftedBy) ? 0 : liftedBy) + 1)
+      const cs = getComputedStyle(el)
+      const pads = Number.parseFloat(cs.paddingLeft) + Number.parseFloat(cs.paddingRight)
+      const gridEl = el.querySelector('.table-grid')
+      const zoom = gridEl ? Number.parseFloat(getComputedStyle(gridEl).getPropertyValue('zoom')) || 1 : 1
+      const available = el.clientWidth - pads - (Number.isNaN(liftedBy) ? 0 : liftedBy)
+      setOverflowing(reflowRef.current * zoom > available + 1)
       // Cells re-measure their fade edges once the burst settles (drag-resize fires per move) —
       // never per frame; hover/scroll keep individual cells honest in between.
       clearTimeout(epochTimer.current)
@@ -500,6 +509,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
   // content-inset look); the moment any resize/add pushes the sum past the pane, the grid extends beyond
   // the window and the whole view h-scrolls. No column is ever compressed to absorb growth.
   const reflowWidth = columns.reduce((sum, c) => sum + colWidth(c.id), 0)
+  reflowRef.current = reflowWidth
   const cols = `${columns.map((c) => `${colWidth(c.id)}px`).join(' ')} 1fr`
   // Lead-cell left padding for ungrouped/loose rows: --loose-inset tucks the title a touch left of the
   // cell-padding-x column inset; each nesting layer adds one --row-indent step (J-3). The grip + chevron
