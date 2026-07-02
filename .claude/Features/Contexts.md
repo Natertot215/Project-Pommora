@@ -87,3 +87,5 @@ The SQLite index — a regeneratable accelerator off the read path — holds a `
 **Context-to-Context Relations:** Topics relating to Areas, Projects to Topics and Areas, edited from each Context's settings surface. Out of scope until its own design pass.
 
 **Transitive Roll-Up:** Page → Project → Topic → Area aggregation, so a higher tier can surface everything its lower tiers gather.
+
+**Empty Tier Keys:** Clearing a tier leaves its frontmatter key holding an empty array rather than removing it (the established indexing reads the key's presence); dropping the empty key to match the properties no-empties rule is a possible future alignment.

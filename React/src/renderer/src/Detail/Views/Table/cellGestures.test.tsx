@@ -495,3 +495,112 @@ describe('PropertyPicker (direct mount) — multi-select', () => {
     expect(onCommit).toHaveBeenLastCalledWith({ kind: 'multiSelect', value: [] })
   })
 })
+
+describe('chip hover × — the per-chip remove (pill looks only)', () => {
+  const chipSource = (): CollectionNode =>
+    ({
+      kind: 'collection',
+      id: 'col1',
+      title: 'Col',
+      path: 'Col',
+      sets: [],
+      pages: [{ kind: 'page', id: 'p1', title: 'Page One', path: 'Col/Page One.md' }],
+      properties: [statusDef, multiDef],
+      views: [
+        {
+          id: 'view_1',
+          name: 'Table',
+          type: 'table',
+          property_order: ['_title', 'prop_status', 'prop_tags', '_tier1'],
+          hidden_properties: ['_modified_at']
+        }
+      ]
+    }) as unknown as CollectionNode
+
+  const mountChips = async (): Promise<void> => {
+    ;(window.nexus as { loadValues: unknown }).loadValues = async () => ({
+      p1: {
+        id: 'p1',
+        tier1: ['area_work', 'area_life'],
+        properties: { prop_status: { $status: 'active' }, prop_tags: ['a', 'b'] }
+      }
+    })
+    await mountTable(chipSource())
+  }
+  const cell = (i: number): HTMLElement => host.querySelectorAll<HTMLElement>('.data-cell')[i]
+  const removesIn = (el: HTMLElement): HTMLElement[] => [...el.querySelectorAll<HTMLElement>('[aria-label="Remove"]')]
+
+  it('a status pill × clears the property — and never opens the picker', async () => {
+    await mountChips()
+    const [x] = removesIn(cell(1))
+    expect(x).toBeTruthy()
+    await act(async () => {
+      x.click()
+    })
+    expect(mutateSpy).toHaveBeenCalledTimes(1)
+    expect(mutateSpy).toHaveBeenCalledWith({
+      op: 'setProperty',
+      path: 'Col/Page One.md',
+      propertyId: 'prop_status',
+      value: null
+    })
+    expect(host.textContent).not.toContain('Not started') // no picker options mounted
+  })
+
+  it('a multi-select pill × removes just THAT option', async () => {
+    await mountChips()
+    const removes = removesIn(cell(2))
+    expect(removes.length).toBe(2) // one × per pill
+    await act(async () => {
+      removes[0].click()
+    })
+    expect(mutateSpy).toHaveBeenCalledWith({
+      op: 'setProperty',
+      path: 'Col/Page One.md',
+      propertyId: 'prop_tags',
+      value: { kind: 'multiSelect', value: ['b'] }
+    })
+  })
+
+  it('removing the LAST multi option commits the emptied value (whose write deletes the key)', async () => {
+    ;(window.nexus as { loadValues: unknown }).loadValues = async () => ({
+      p1: { id: 'p1', properties: { prop_tags: ['a'] } }
+    })
+    await mountTable(chipSource())
+    const [x] = removesIn(cell(2))
+    await act(async () => {
+      x.click()
+    })
+    expect(mutateSpy).toHaveBeenCalledWith({
+      op: 'setProperty',
+      path: 'Col/Page One.md',
+      propertyId: 'prop_tags',
+      value: { kind: 'multiSelect', value: [] }
+    })
+  })
+
+  it('a tier context chip × writes setTier with the remaining ids', async () => {
+    await mountChips()
+    const removes = removesIn(cell(3))
+    expect(removes.length).toBe(2)
+    await act(async () => {
+      removes[0].click()
+    })
+    expect(mutateSpy).toHaveBeenCalledWith({
+      op: 'setTier',
+      path: 'Col/Page One.md',
+      tier: 1,
+      contextIds: ['area_life']
+    })
+  })
+
+  it('capsule + checkbox status looks carry NO × — Clear lives in their menu', async () => {
+    ;(window.nexus as { loadValues: unknown }).loadValues = async () => ({
+      p1: { id: 'p1', properties: { prop_status: { $status: 'active' } } }
+    })
+    const styled = chipSource()
+    ;(styled.views as Array<{ column_styles?: unknown }>)[0].column_styles = { prop_status: { look: 'capsule' } }
+    await mountTable(styled)
+    expect(removesIn(cell(1)).length).toBe(0)
+  })
+})

@@ -1,4 +1,5 @@
 import type { ColumnStyle } from '@shared/columnStyles'
+import type { PropertyValue } from '@shared/propertyValue'
 import type { ResolvedColumn, ViewRow } from '@shared/types'
 import { chip, chipCheckbox, chipColor } from '@renderer/design-system/tokens'
 import { cx } from '@renderer/design-system/cx'
@@ -25,13 +26,17 @@ export function Cell({
   column,
   ctx,
   hideIcon,
-  style
+  style,
+  remove
 }: {
   row: ViewRow
   column: ResolvedColumn
   ctx: ResolveContext
   hideIcon: boolean
   style: ColumnStyle
+  /** Commits the value that remains after a chip's hover × (null = the property clears entirely).
+   *  Only PILL chips wire it — capsule/checkbox looks clear via their menu instead. */
+  remove?: (next: PropertyValue | null) => void
 }): React.JSX.Element | null {
   if (column.kind === 'title') {
     // The page's frontmatter icon, else the file-text default (the sidebar's page glyph) — so every page
@@ -62,7 +67,11 @@ export function Cell({
       }
       return (
         <OverflowScroll className="cell-chips">
-          <Chip color={chipColorFor(opt?.color)} label={opt?.label ?? v.value} />
+          <Chip
+            color={chipColorFor(opt?.color)}
+            label={opt?.label ?? v.value}
+            {...(remove ? { onRemove: () => remove(null) } : {})}
+          />
         </OverflowScroll>
       )
     }
@@ -71,7 +80,14 @@ export function Cell({
         <OverflowScroll className="cell-chips">
           {v.value.map((val) => {
             const o = findOption(column.id, val, ctx.schema)
-            return <Chip key={val} color={chipColorFor(o?.color)} label={o?.label ?? val} />
+            return (
+              <Chip
+                key={val}
+                color={chipColorFor(o?.color)}
+                label={o?.label ?? val}
+                {...(remove ? { onRemove: () => remove({ kind: 'multiSelect', value: v.value.filter((x) => x !== val) }) } : {})}
+              />
+            )
           })}
         </OverflowScroll>
       )
@@ -90,7 +106,14 @@ export function Cell({
         <OverflowScroll className="cell-chips">
           {v.value.map((id) => {
             const c = ctx.contextsById.get(id)
-            return <ContextChip key={id} color={chipColorFor(c?.color)} title={c?.title ?? id} />
+            return (
+              <ContextChip
+                key={id}
+                color={chipColorFor(c?.color)}
+                title={c?.title ?? id}
+                {...(remove ? { onRemove: () => remove({ kind: 'context', value: v.value.filter((x) => x !== id) }) } : {})}
+              />
+            )
           })}
         </OverflowScroll>
       )

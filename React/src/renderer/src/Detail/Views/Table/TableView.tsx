@@ -426,6 +426,12 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
     setValueOverride((prev) => ({ ...prev, [row.id]: patched }))
     void mutate({ op: 'setTier', path: row.path, tier, contextIds: ids })
   }
+  // A chip's hover × commits whatever remains after that chip (Phase 3): the picker's exact
+  // routing — a reserved tier column through setTier, everything else through setProperty.
+  const removeCellValue = (row: ViewRow, col: ResolvedColumn, next: PropertyValue | null): void => {
+    if (col.kind === 'tier' && next?.kind === 'context') commitTierValue(row, col.id, next.value)
+    else commitCellValue(row, col.id, next)
+  }
   // Single-click acts per the cell's type (A-2/A-4/A-6): checkbox-look status cycles its group,
   // checkbox toggles, status/select/multi/context open the picker. Acting stops propagation so the
   // row's select doesn't also fire; anything else bubbles.
@@ -593,13 +599,14 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
   )
   // ONE stable handler identity for every row — calls read the freshest closures through the ref,
   // so memoized rows never re-render for handler churn (and never call a stale state writer).
-  const cellApiRef = useRef({ openCellMenu, onCellClick, cellOverlay })
-  cellApiRef.current = { openCellMenu, onCellClick, cellOverlay }
+  const cellApiRef = useRef({ openCellMenu, onCellClick, cellOverlay, removeCellValue })
+  cellApiRef.current = { openCellMenu, onCellClick, cellOverlay, removeCellValue }
   const cellApi = useMemo<RowCellApi>(
     () => ({
       menu: (row, col, e) => void cellApiRef.current.openCellMenu(row, col, e),
       click: (row, col, e) => cellApiRef.current.onCellClick(row, col, e),
-      overlay: (row, col) => cellApiRef.current.cellOverlay(row, col)
+      overlay: (row, col) => cellApiRef.current.cellOverlay(row, col),
+      remove: (row, col, next) => cellApiRef.current.removeCellValue(row, col, next)
     }),
     []
   )
@@ -983,6 +990,7 @@ type RowCellApi = {
   menu: (row: ViewRow, col: ResolvedColumn, e: React.MouseEvent) => void
   click: (row: ViewRow, col: ResolvedColumn, e: React.MouseEvent) => void
   overlay: (row: ViewRow, col: ResolvedColumn) => { node: React.ReactNode; replace: boolean } | null
+  remove: (row: ViewRow, col: ResolvedColumn, next: PropertyValue | null) => void
 }
 
 type DragShift = { from: number; to: number; width: number }
@@ -1049,7 +1057,7 @@ const DataRow = memo(function DataRow({
           over.node
         ) : (
           <>
-            <Cell row={row} column={c} ctx={ctx} hideIcon={hideIcon} style={styleByCol[i]} />
+            <Cell row={row} column={c} ctx={ctx} hideIcon={hideIcon} style={styleByCol[i]} remove={(next) => api.remove(row, c, next)} />
             {over?.node}
           </>
         )

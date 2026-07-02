@@ -468,6 +468,21 @@ describe('handleMutate — setProperty (the D-4 cross-group reassignment write)'
     expect(splitFrontmatter(await read('Notes/Daily/Beta.md')).properties).toEqual({})
   })
 
+  it('an emptied value clears the key on disk — the file never holds a [] placeholder', async () => {
+    await handleMutate(
+      { op: 'setProperty', path: 'Notes/Daily/Beta.md', propertyId: 'prop_m', value: { kind: 'multiSelect', value: ['a'] } },
+      nexusDeps
+    )
+    const r = await handleMutate(
+      { op: 'setProperty', path: 'Notes/Daily/Beta.md', propertyId: 'prop_m', value: { kind: 'multiSelect', value: [] } },
+      nexusDeps
+    )
+    expect(r.ok).toBe(true)
+    const md = await read('Notes/Daily/Beta.md')
+    expect(splitFrontmatter(md).properties).toEqual({})
+    expect(md).not.toContain('prop_m')
+  })
+
   it('never throws on a missing page — returns ok:false', async () => {
     const r = await handleMutate(
       { op: 'setProperty', path: 'Notes/Daily/Ghost.md', propertyId: 'prop_s', value: null },

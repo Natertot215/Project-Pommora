@@ -120,8 +120,27 @@ export function encodePropertyValue(value: PropertyValue): unknown {
   }
 }
 
+/** True when a value carries nothing — an empty array or empty string. Checkbox `false` and
+ *  number `0` are real values and stay. */
+function isEmptyValue(value: PropertyValue): boolean {
+  switch (value.kind) {
+    case 'multiSelect':
+    case 'context':
+    case 'file':
+      return value.value.length === 0
+    case 'select':
+    case 'status':
+    case 'url':
+    case 'datetime':
+      return value.value === ''
+    default:
+      return false
+  }
+}
+
 /** Set or clear one property on a (possibly malformed) properties record, returning the next
- *  record. A null value (or the `null` kind) clears the key; anything else encodes via the
+ *  record. A null value (the `null` kind) OR an empty value clears the key — a page without a
+ *  value has no key at all, never a null/[]/'' placeholder — anything else encodes via the
  *  codec. The single owner of the page + agenda property set/clear rule. */
 export function applyPropertyValue(
   current: unknown,
@@ -129,7 +148,7 @@ export function applyPropertyValue(
   value: PropertyValue | null
 ): Record<string, unknown> {
   const next: Record<string, unknown> = isPlainObject(current) ? { ...current } : {}
-  if (value === null || value.kind === 'null') delete next[propertyId]
+  if (value === null || value.kind === 'null' || isEmptyValue(value)) delete next[propertyId]
   else next[propertyId] = encodePropertyValue(value)
   return next
 }

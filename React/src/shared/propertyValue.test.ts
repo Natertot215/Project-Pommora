@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { parsePropertyValue, encodePropertyValue, type PropertyValue } from './propertyValue'
+import { applyPropertyValue, parsePropertyValue, encodePropertyValue, type PropertyValue } from './propertyValue'
 
 describe('parsePropertyValue — classification (locked precedence)', () => {
   const cases: Array<[string, unknown, PropertyValue]> = [
@@ -70,5 +70,34 @@ describe('edges + invariants', () => {
 
   it('encoding lastEditedTime throws (virtual, never persisted)', () => {
     expect(() => encodePropertyValue({ kind: 'lastEditedTime' })).toThrow()
+  })
+})
+
+describe('applyPropertyValue — the no-empties rule (no value, no key)', () => {
+  const base = { keep: 'stays' }
+
+  it('null and the null kind delete the key', () => {
+    expect(applyPropertyValue({ ...base, p: 'x' }, 'p', null)).toEqual(base)
+    expect(applyPropertyValue({ ...base, p: 'x' }, 'p', { kind: 'null' })).toEqual(base)
+  })
+
+  const empties: PropertyValue[] = [
+    { kind: 'multiSelect', value: [] },
+    { kind: 'context', value: [] },
+    { kind: 'file', value: [] },
+    { kind: 'select', value: '' },
+    { kind: 'status', value: '' },
+    { kind: 'url', value: '' },
+    { kind: 'datetime', value: '' }
+  ]
+  for (const v of empties) {
+    it(`an empty ${v.kind} deletes the key — never writes []/''`, () => {
+      expect(applyPropertyValue({ ...base, p: ['x'] }, 'p', v)).toEqual(base)
+    })
+  }
+
+  it('checkbox false and number 0 are real values and stay', () => {
+    expect(applyPropertyValue(base, 'p', { kind: 'checkbox', value: false })).toEqual({ ...base, p: false })
+    expect(applyPropertyValue(base, 'p', { kind: 'number', value: 0 })).toEqual({ ...base, p: 0 })
   })
 })

@@ -24,6 +24,10 @@ export const chip = style([
   }
 ])
 
+/** A chip that carries a hover-revealed remove ×. The modifier only anchors the affordance;
+ *  the × itself is `chipRemove` with its `chipFrost` strip dissolving the label tail beneath it. */
+export const chipRemovable = style({ position: 'relative' })
+
 // The cap lives on the LABEL, not the chip (a % width is unreliable in a shrink-to-fit flex chip): the
 // label truncates at `--chip-max` and the chip wraps it snugly, so the ellipsis lands at the padding
 // edge instead of floating mid-chip. `--chip-max` (80px default) is overridable per context. The
@@ -67,4 +71,60 @@ export const chipCheckbox = style({
 export const chipCapsule = style({
   padding: '0 6px',
   gap: 0
+})
+
+/**
+ * The remove × — hover-revealed at the chip's right edge, painted in the chip's TEXT color
+ * (`color: inherit` — the label recipe rides down). Overlaid (absolute) so revealing it never
+ * shifts the chip's width; the `chipFrost` strip inside it backdrop-blurs the label tail so the
+ * text dissolves beneath the crisp glyph. Hidden = inert (`pointerEvents: none`) so a rest-state
+ * chip click still reaches the cell.
+ */
+export const chipRemove = style({
+  position: 'absolute',
+  top: 0,
+  right: 0,
+  height: '100%',
+  width: '16px',
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  padding: 0,
+  border: 'none',
+  background: 'none',
+  color: 'inherit',
+  cursor: 'pointer',
+  opacity: 0,
+  pointerEvents: 'none',
+  transition: 'opacity var(--duration-fast) var(--ease-standard)',
+  selectors: {
+    [`${chipRemovable}:hover &`]: { opacity: 1, pointerEvents: 'auto' }
+  }
+})
+
+/**
+ * The frost — a backdrop-blur strip under the ×, ramping in from the left (masking an element
+ * masks its backdrop effect) so the label tail dissolves instead of hard-clipping; the rest of
+ * the label stays crisp. A DIRECT chip child, never inside the × button: an opacity-transitioned
+ * ancestor becomes the strip's backdrop root and the filter samples nothing (verified live —
+ * the blur silently no-ops). It anchors inside the chip's padding box, so the border stays sharp
+ * by construction; the right-side radius keeps the strip inside the pill's rounded cap.
+ */
+export const chipFrost = style({
+  position: 'absolute',
+  top: 0,
+  bottom: 0,
+  right: 0,
+  width: '26px',
+  backdropFilter: 'blur(8px)',
+  WebkitBackdropFilter: 'blur(8px)',
+  borderRadius: '0 8px 8px 0',
+  maskImage: 'linear-gradient(to right, transparent 0, #000000 12px)',
+  WebkitMaskImage: 'linear-gradient(to right, transparent 0, #000000 12px)',
+  opacity: 0,
+  pointerEvents: 'none',
+  transition: 'opacity var(--duration-fast) var(--ease-standard)',
+  selectors: {
+    [`${chipRemovable}:hover &`]: { opacity: 1 }
+  }
 })
