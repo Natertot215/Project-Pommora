@@ -19,17 +19,17 @@ export interface ColumnWidth {
 const UNCAPPED = Number.POSITIVE_INFINITY
 const WIDTHS: Record<string, ColumnWidth> = {
   title: { min: 120, default: 280, max: UNCAPPED },
-  tier: { min: 80, default: 140, max: UNCAPPED },
-  status: { min: 65, default: 120, max: UNCAPPED },
-  select: { min: 65, default: 120, max: UNCAPPED },
-  multi_select: { min: 65, default: 180, max: UNCAPPED },
-  checkbox: { min: 40, default: 60, max: UNCAPPED },
-  url: { min: 100, default: 140, max: UNCAPPED },
-  file: { min: 100, default: 140, max: UNCAPPED },
-  number: { min: 40, default: 100, max: UNCAPPED },
-  datetime: { min: 90, default: 140, max: UNCAPPED },
-  last_edited_time: { min: 90, default: 120, max: UNCAPPED },
-  created: { min: 90, default: 120, max: UNCAPPED }
+  tier: { min: 80, default: 140, max: 350 },
+  status: { min: 65, default: 120, max: 250 },
+  select: { min: 65, default: 120, max: 350 },
+  multi_select: { min: 65, default: 180, max: 350 },
+  checkbox: { min: 40, default: 60, max: 80 },
+  url: { min: 100, default: 140, max: 350 },
+  file: { min: 100, default: 140, max: 250 },
+  number: { min: 40, default: 100, max: 350 },
+  datetime: { min: 90, default: 140, max: 250 },
+  last_edited_time: { min: 90, default: 120, max: 250 },
+  created: { min: 90, default: 120, max: 250 }
 }
 
 const FALLBACK: ColumnWidth = { min: 80, default: 140, max: UNCAPPED }
