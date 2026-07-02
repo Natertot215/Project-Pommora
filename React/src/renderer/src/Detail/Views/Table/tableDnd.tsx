@@ -14,7 +14,7 @@ type MeasuredRow = { id: string; top: number; bottom: number; mid: number; left:
 type DragState = { id: string | null; slot: Slot | null }
 const IDLE: DragState = { id: null, slot: null }
 
-type Handlers = { move: (e: PointerEvent) => void; up: () => void; cancel: () => void }
+type Handlers = { move: (e: PointerEvent) => void; up: () => void; cancel: () => void; key: (e: KeyboardEvent) => void }
 type Gesture =
   | { kind: 'idle' }
   | { kind: 'pending' | 'active'; id: string; el: HTMLElement; pid: number; startX: number; startY: number; handlers: Handlers }
@@ -128,6 +128,7 @@ export function TableRowDnd({
     window.removeEventListener('pointermove', g.handlers.move)
     window.removeEventListener('pointerup', g.handlers.up)
     window.removeEventListener('pointercancel', g.handlers.cancel)
+    window.removeEventListener('keydown', g.handlers.key)
     if (onDragScroll.current) {
       window.removeEventListener('scroll', onDragScroll.current, { capture: true })
       onDragScroll.current = null
@@ -158,7 +159,7 @@ export function TableRowDnd({
     if (disabled || e.button !== 0 || !e.isPrimary || gesture.current.kind !== 'idle') return
     const el = els.current.get(id)
     if (!el) return
-    const handlers: Handlers = { move: onMove, up: onUp, cancel: onCancel }
+    const handlers: Handlers = { move: onMove, up: onUp, cancel: onCancel, key: onKey }
     gesture.current = { kind: 'pending', id, el, pid: e.pointerId, startX: e.clientX, startY: e.clientY, handlers }
     // Listen on window, not the row: the grip sits out in the gutter (absolutely placed left of the row),
     // so a first move that drifts off the row would never fire a row-bound pointermove — the drag would
@@ -167,6 +168,7 @@ export function TableRowDnd({
     window.addEventListener('pointermove', handlers.move)
     window.addEventListener('pointerup', handlers.up)
     window.addEventListener('pointercancel', handlers.cancel)
+    window.addEventListener('keydown', handlers.key)
   }
 
   function onMove(e: PointerEvent): void {
@@ -208,6 +210,9 @@ export function TableRowDnd({
   function onCancel(): void {
     detach()
     reset()
+  }
+  function onKey(e: KeyboardEvent): void {
+    if (e.key === 'Escape') onCancel()
   }
 
   const value = useMemo<Value>(() => ({ draggingId: drag.id, registerRow, begin }), [drag.id]) // eslint-disable-line react-hooks/exhaustive-deps

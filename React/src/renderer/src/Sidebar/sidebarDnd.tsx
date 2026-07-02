@@ -39,7 +39,7 @@ const IDLE: DragState = { id: null, ghostX: 0, ghostY: 0, target: null }
 
 // Gesture lifecycle: idle → pending (pressed, not yet past the activation threshold) →
 // active (dragging). pending and active carry the same fields; idle carries none.
-type Handlers = { move: (e: PointerEvent) => void; up: () => void; cancel: () => void }
+type Handlers = { move: (e: PointerEvent) => void; up: () => void; cancel: () => void; key: (e: KeyboardEvent) => void }
 type Gesture =
   | { kind: 'idle' }
   | { kind: 'pending' | 'active'; id: string; el: HTMLElement; pid: number; startX: number; startY: number; grabX: number; handlers: Handlers }
@@ -213,6 +213,7 @@ export function SidebarDnd({
     g.el.removeEventListener('pointermove', g.handlers.move)
     g.el.removeEventListener('pointerup', g.handlers.up)
     g.el.removeEventListener('pointercancel', g.handlers.cancel)
+    window.removeEventListener('keydown', g.handlers.key)
     window.removeEventListener('scroll', markSnapshotDirty, { capture: true })
     try {
       g.el.releasePointerCapture(g.pid)
@@ -245,13 +246,15 @@ export function SidebarDnd({
     const el = rows.current.get(id)
     if (!el) return
     const r = el.getBoundingClientRect()
-    const handlers: Handlers = { move: onMovePtr, up: onUp, cancel: onCancel }
+    const handlers: Handlers = { move: onMovePtr, up: onUp, cancel: onCancel, key: onKey }
     gesture.current = { kind: 'pending', id, el, pid: e.pointerId, startX: e.clientX, startY: e.clientY, grabX: e.clientX - r.left, handlers }
     // Capture is deferred to activation (onMovePtr). Capturing on pointerdown would consume the
     // click, so a tap could never toggle a disclosure or select a row — it'd always be a drag.
     el.addEventListener('pointermove', handlers.move)
     el.addEventListener('pointerup', handlers.up)
     el.addEventListener('pointercancel', handlers.cancel)
+    // Escape rides the window — the row never holds focus, so a key event can't reach it.
+    window.addEventListener('keydown', handlers.key)
   }
 
   function onMovePtr(e: PointerEvent): void {
@@ -293,6 +296,10 @@ export function SidebarDnd({
   function onCancel(): void {
     detach()
     reset()
+  }
+
+  function onKey(e: KeyboardEvent): void {
+    if (e.key === 'Escape') onCancel()
   }
 
   useEffect(() => () => detach(), [])
