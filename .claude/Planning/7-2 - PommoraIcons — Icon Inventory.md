@@ -72,7 +72,9 @@ Dead-entry caveat: frontmatter icons are open-vocabulary, so Nathan's real Nexus
 
 #### Ratified Tabler Picks — Nathan
 
-The immediate-register set, mapped to what each naturally replaces. Tabler ids as Nathan gave them — verify exact ids against `@tabler/icons-react` at registration (e.g. Tabler spells clock faces with digits).
+The immediate-register set, mapped to what each naturally replaces. Tabler ids as Nathan gave them — verify exact ids against `@tabler/icons-react` at registration (e.g. Tabler spells clock faces with digits, and its hash glyph may be `hash` rather than `hashtag`).
+
+**Stroke**: every Tabler registration renders at **1.75** stroke (Tabler ships 2 by default) — a PommoraIcons registry default, set once at the seam, not per-callsite.
 
 | Tabler pick | Replaces (current) | Surface |
 | --- | --- | --- |
@@ -101,6 +103,10 @@ The immediate-register set, mapped to what each naturally replaces. Tabler ids a
 | `stack-2` | `layers` | ViewPane Group · showcase Glass leaf |
 | `filter-2` | `list-filter` | ViewPane Filter |
 | `arrows-up-down` | `arrow-up-down` | ViewPane Sort |
+| `minus` | `minus` | status in-progress |
+| `hashtag` | `hash` | Number property type |
+| `circle-plus` | `square-plus` — shape shift, square→circle | add-banner button |
+| `copy` | registry `copy` (uncalled today — kept registered for future duplicate actions) | — |
 
 **Conditional**: Tabler `folder` + `folder-opened` replace `folder-closed`/`folder-open` — only after Nathan's custom CSS edits to them; hold Lucide's pair until those edits are ratified.
 
@@ -112,16 +118,13 @@ Ordered by weight; these have no Tabler assignment yet:
 
 1. `file-text` — **THE default page icon, heaviest icon in the app** (sidebar, table titles, autocomplete)
 2. `square-dashed` — unselected state · profile placeholder · the DashIcon pending-glyph
-3. `minus` — status in-progress (the status trio is otherwise covered)
-4. `hash` — Number property type
-5. `import` — File property type
-6. `link-2` — Relation/Connections glyph — **fork**: Icons.md deliberately separates it from `link` (url); picking only `link` collapses the distinction. Needs its own glyph or an explicit merge call.
-7. **Calendar fork** — one pick (`calendar-month`), two current slots: `calendar` (saved node) and `calendar-days` (Date & Time property type). One glyph for both, or split?
-8. `server` — ViewPane Properties entry
-9. `gallery-vertical-end` — sidebar Collection rows (no obvious 1:1 Tabler twin; deliberate choice needed)
-10. `house` — Homepage saved node
-11. `square-plus` — add-banner button
-12. `log-out` — close-nexus button
-13. Showcase trio — `palette` · `type` · `shapes` (lowest stakes)
+3. `import` — File property type
+4. `link-2` — Relation/Connections glyph — **fork**: Icons.md deliberately separates it from `link` (url); picking only `link` collapses the distinction. Needs its own glyph or an explicit merge call.
+5. **Calendar fork** — one pick (`calendar-month`), two current slots: `calendar` (saved node) and `calendar-days` (Date & Time property type). One glyph for both, or split?
+6. `server` — ViewPane Properties entry
+7. `gallery-vertical-end` — sidebar Collection rows (no obvious 1:1 Tabler twin; deliberate choice needed)
+8. `house` — Homepage saved node
+9. `log-out` — close-nexus button
+10. Showcase trio — `palette` · `type` · `shapes` (lowest stakes)
 
-**The dead 7** (`circle-x`, `copy`, `arrow-left-right`, `key-round`, `lock`, `log-in`, `panel-left`): no picks given — consistent with dropping at migration, pending the Nexus frontmatter grep.
+**The dead 6** (`circle-x`, `arrow-left-right`, `key-round`, `lock`, `log-in`, `panel-left`): no picks given — consistent with dropping at migration, pending the Nexus frontmatter grep. (`copy` was in this set until Nathan's pick rescued it.)
