@@ -118,6 +118,13 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* The cell hosting an open value picker: the PickerMenu anchors absolutely to it, so it must be
+   positioned, unclipped, and above the following rows. */
+.data-cell.cell-anchored {
+  position: relative;
+  overflow: visible;
+  z-index: 30;
+}
 /* Data-row vertical column lines — full-height hairlines (every data cell except the trailing filler). */
 .data-cell:not(:last-child) {
   border-right: var(--table-border);

@@ -10,3 +10,18 @@ export function statusGroupOf(value: string, def: PropertyDefinition | undefined
   }
   return undefined
 }
+
+const CYCLE: StatusGroupId[] = ['upcoming', 'in_progress', 'done']
+
+/** The checkbox-look click cycle: advance to the NEXT group and write its first-in-order option
+ *  (empty box = upcoming → minus → check → empty box), skipping option-less groups. A null or
+ *  unknown current reads as the empty box. Null when no group holds any option. */
+export function nextCycleValue(current: string | undefined, def: PropertyDefinition | undefined): string | null {
+  const byId = new Map((def?.status_groups ?? []).map((g) => [g.id, g]))
+  const from = CYCLE.indexOf(statusGroupOf(current ?? '', def) ?? 'upcoming')
+  for (let step = 1; step <= CYCLE.length; step++) {
+    const g = byId.get(CYCLE[(from + step) % CYCLE.length])
+    if (g && g.options.length > 0) return g.options[0].value
+  }
+  return null
+}

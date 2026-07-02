@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { CollectionNode, NexusTree, ResolvedColumn, ResolvedGroup, SetNode, ViewRow } from '@shared/types'
 import type { PropertyDefinition } from '@shared/properties'
 import type { PageFrontmatter } from '@shared/schemas'
@@ -6,10 +6,12 @@ import type { ColumnStyle } from '@shared/columnStyles'
 import type { CellMenuContext } from '@shared/cellMenu'
 import { parseStyleAction } from '@shared/columnMenu'
 import { type ColumnAlign, type SavedView, mintDefaultView } from '@shared/views'
-import { applyPropertyValue } from '@shared/propertyValue'
+import { applyPropertyValue, type PropertyValue } from '@shared/propertyValue'
 import { flattenContainer } from '../pipeline/group'
 import { resolveView } from '../pipeline/resolveView'
-import { declaredType } from '../pipeline/value'
+import { declaredType, resolveFieldValue } from '../pipeline/value'
+import { PropertyPicker } from '../PropertyEditing/PropertyPicker'
+import { nextCycleValue } from '../PropertyEditing/statusCycle'
 import { useSession } from '../../../store'
 import { buildResolveContext, type ResolveContext } from './resolveContext'
 import { buildSetIcons, buildSetNames } from './cellResolve'
@@ -24,6 +26,7 @@ import { mergeOverrides, mergeStyleRecords } from './viewMerge'
 import { groupKeyToValue, REASSIGNABLE_GROUP_TYPES } from './reassign'
 import { cx } from '@renderer/design-system/cx'
 import { text } from '@renderer/design-system/tokens'
+import { useExitPresence } from '@renderer/design-system/useExitPresence'
 import { IconPicker } from '@renderer/Components/IconPicker'
 import { Icon } from '@renderer/design-system/symbols'
 import { Reveal } from '@renderer/design-system/components/Reveal'
@@ -103,6 +106,13 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
   // Transient — set on grab, cleared on drop; column indices into the resolved `columns`.
   const [colDrag, setColDrag] = useState<{ from: number; to: number; delta: number } | null>(null)
   const [iconPickerOpen, setIconPickerOpen] = useState(false)
+  // The one in-cell editing surface (A-2/A-6: single-click opens the value picker). Cleared on
+  // dismiss; the exit presence keeps the picker mounted through its Bloom-out, reading the last
+  // target from the ref while `editing` is already null.
+  const [editing, setEditing] = useState<{ rowId: string; colId: string; mode: 'picker' } | null>(null)
+  const editingExit = useExitPresence(editing !== null)
+  const lastEditing = useRef(editing)
+  if (editing) lastEditing.current = editing
   useEffect(() => {
     setOrderOverride(null)
     setWidthOverride({})
@@ -240,6 +250,52 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
       const parsed = parseStyleAction(action)
       if (parsed) setColumnStyle(id, parsed.key, parsed.value)
     }
+  }
+  // One typed property write (A-12's commit path): patch the row's loaded frontmatter optimistically
+  // (loadValues never re-runs mid-session), then setProperty — the reassignRow pattern.
+  const commitCellValue = (row: ViewRow, propertyId: string, value: PropertyValue | null): void => {
+    const patched: PageFrontmatter = {
+      ...row.frontmatter,
+      properties: applyPropertyValue(row.frontmatter.properties, propertyId, value)
+    }
+    setValueOverride((prev) => ({ ...prev, [row.id]: patched }))
+    void mutate({ op: 'setProperty', path: row.path, propertyId, value })
+  }
+  // Single-click acts per the cell's type (A-2/A-4/A-6): checkbox-look status cycles its group,
+  // checkbox toggles, status/select/multi open the picker. Acting stops propagation so the row's
+  // select doesn't also fire; anything else bubbles.
+  const onCellClick = (row: ViewRow, col: ResolvedColumn, e: React.MouseEvent): void => {
+    if (col.kind !== 'property') return
+    const t = declaredType(col.id, schema)
+    if (t === 'status' && colStyle(col.id).look === 'checkbox') {
+      e.stopPropagation()
+      const v = resolveFieldValue(row, col.id)
+      const next = nextCycleValue(v.kind === 'status' || v.kind === 'select' ? v.value : undefined, schema.find((d) => d.id === col.id))
+      if (next !== null) commitCellValue(row, col.id, { kind: 'status', value: next })
+    } else if (t === 'checkbox') {
+      e.stopPropagation()
+      const v = resolveFieldValue(row, col.id)
+      commitCellValue(row, col.id, { kind: 'checkbox', value: !(v.kind === 'checkbox' && v.value) })
+    } else if (t === 'status' || t === 'select' || t === 'multi_select') {
+      e.stopPropagation()
+      setEditing({ rowId: row.id, colId: col.id, mode: 'picker' })
+    }
+  }
+  // The picker mounted in the editing cell (null everywhere else). Stays through the Bloom-out.
+  const cellOverlay = (row: ViewRow, col: ResolvedColumn): React.ReactNode => {
+    const target = editing ?? (editingExit.mounted ? lastEditing.current : null)
+    if (!target || target.rowId !== row.id || target.colId !== col.id) return null
+    const def = schema.find((d) => d.id === col.id)
+    if (!def) return null
+    return (
+      <PropertyPicker
+        def={def}
+        current={resolveFieldValue(row, col.id)}
+        closing={editingExit.closing}
+        onCommit={(v) => commitCellValue(row, col.id, v)}
+        onDismiss={() => setEditing(null)}
+      />
+    )
   }
   // Right-click a cell → its native menu (A-13: always a menu, never an action). Title = page meta;
   // style-bearing types = the COLUMN's Style radios; link/file add Edit. Select/multi/context/tier
@@ -483,6 +539,8 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
             lead={lead}
             onSelect={() => void select({ kind: 'page', id: row.id, path: row.path })}
             onCellMenu={(c, e) => void openCellMenu(row, c, e)}
+            onCellClick={(c, e) => onCellClick(row, c, e)}
+            overlay={(c) => cellOverlay(row, c)}
           />
         )
       }),
@@ -645,6 +703,8 @@ function DataRow({
   colAlign,
   colStyle,
   onCellMenu,
+  onCellClick,
+  overlay,
   draggingCol,
   hideIcon,
   selected,
@@ -661,6 +721,8 @@ function DataRow({
   colAlign: (id: string) => ColumnAlign
   colStyle: (id: string) => ColumnStyle
   onCellMenu: (col: ResolvedColumn, e: React.MouseEvent) => void
+  onCellClick: (col: ResolvedColumn, e: React.MouseEvent) => void
+  overlay: (col: ResolvedColumn) => React.ReactNode
   draggingCol: number | undefined
   hideIcon: boolean
   selected: boolean
@@ -684,12 +746,16 @@ function DataRow({
       {columns.map((c, i) => {
         const style: React.CSSProperties = { transform: colTransform(i), textAlign: colAlign(c.id) }
         if (i === 0) style.paddingLeft = indent(depth)
+        const over = overlay(c)
         return i === 0 ? (
           <div
             key={c.id}
-            className={cx('data-cell', 'cell-lead', draggingCol === i && 'col-dragging')}
+            className={cx('data-cell', 'cell-lead', draggingCol === i && 'col-dragging', over != null && 'cell-anchored')}
             style={style}
             onContextMenu={(e) => onCellMenu(c, e)}
+            onClick={(e) => {
+              if (!isDragging) onCellClick(c, e)
+            }}
           >
             {!dragDisabled && (
               <span className="row-grip" {...handle} onClick={(e) => e.stopPropagation()} aria-label="Drag to reorder">
@@ -697,15 +763,20 @@ function DataRow({
               </span>
             )}
             <Cell row={row} column={c} ctx={ctx} hideIcon={hideIcon} style={colStyle(c.id)} />
+            {over}
           </div>
         ) : (
           <div
             key={c.id}
-            className={cx('data-cell', draggingCol === i && 'col-dragging')}
+            className={cx('data-cell', draggingCol === i && 'col-dragging', over != null && 'cell-anchored')}
             style={style}
             onContextMenu={(e) => onCellMenu(c, e)}
+            onClick={(e) => {
+              if (!isDragging) onCellClick(c, e)
+            }}
           >
             <Cell row={row} column={c} ctx={ctx} hideIcon={hideIcon} style={colStyle(c.id)} />
+            {over}
           </div>
         )
       })}
