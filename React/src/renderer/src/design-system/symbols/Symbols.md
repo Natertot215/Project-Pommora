@@ -13,8 +13,9 @@ Pommora's React icons come from **Lucide** ([lucide.dev/icons](https://lucide.de
 | `folder-open` | Opened Sidebar Vault, Collection, Set |
 | `file-text` | Page |
 | `layout-grid` | Context (Area / Topic / Project) |
-| `check` | Checkbox chip |
-| `circle-dashed` | Select chip (placeholder) |
+| `check` | Checkbox chip · status Done glyph |
+| `circle-dashed` | Select chip (placeholder) · capsule-status Upcoming glyph |
+| `minus` | Capsule/checkbox-status In-Progress glyph |
 | `sliders-horizontal` | Trio Button, Settings |
 
 **To add one:** drop a row here with the name as it appears on lucide.dev and what it's for. **To use one in code:** `import { Icon } from '@renderer/design-system/symbols'` → `<Icon name="folder" size={15} />`.

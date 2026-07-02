@@ -3,7 +3,6 @@
     "id": "prop_status",
     "name": "Status",
     "type": "status",
-    "display_as": "chip",
     "status_groups": [
       {
         "id": "upcoming",
@@ -35,7 +34,6 @@
   "prop_when": {
     "id": "prop_when",
     "name": "Timeframe",
-    "type": "datetime",
-    "date_format": "full"
+    "type": "datetime"
   }
 }

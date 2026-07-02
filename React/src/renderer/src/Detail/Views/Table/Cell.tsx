@@ -1,35 +1,40 @@
+import type { ColumnStyle } from '@shared/columnStyles'
+import type { StatusGroupId } from '@shared/properties'
 import type { ResolvedColumn, ViewRow } from '@shared/types'
-import { chip, chipCheckbox, chipColor } from '@renderer/design-system/tokens'
+import { chip, chipCapsule, chipCheckbox, chipColor } from '@renderer/design-system/tokens'
 import { cx } from '@renderer/design-system/cx'
-import { Icon, asIconName } from '@renderer/design-system/symbols'
+import { Icon, asIconName, type IconName } from '@renderer/design-system/symbols'
+import { Switch } from '@renderer/design-system/components/Switches/Switch'
 import { Chip } from '@renderer/Components/Chip'
 import { ContextChip } from '@renderer/Components/ContextChip'
 import { chipColorFor } from '@renderer/design-system/tokens/colorMap'
 import { resolveFieldValue } from '../pipeline/value'
+import { fileLabel, formatDate, formatNumber } from '../PropertyEditing/formatValue'
+import { statusGroupOf } from '../PropertyEditing/statusCycle'
 import { findOption } from './cellResolve'
 import type { ResolveContext } from './resolveContext'
 
-function formatDate(iso: string): string {
-  const d = new Date(iso)
-  return Number.isNaN(d.getTime())
-    ? iso
-    : d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
-}
+/** The fixed status group's glyph — shared by the capsule and checkbox looks (the checkbox
+ *  renders upcoming as an empty square instead of the dashed circle). */
+const GROUP_GLYPH: Record<StatusGroupId, IconName> = { upcoming: 'circle-dashed', in_progress: 'minus', done: 'check' }
 
 /** Type-aware cell render (Part 2 G-1/G-2): the title with its page icon; chips for select/status;
- *  several chips for multi-select; a checkbox glyph; ContextChips for tiers; an inline link for url; a
- *  date stub; plain text for number/file. Every value routes through the resolution context so no raw
- *  id ever shows; an empty/unknown value renders nothing. */
+ *  several chips for multi-select; a checkbox glyph; ContextChips for tiers; an inline link for url;
+ *  per-file chips; formatted date/number text. The per-view `style` picks each type's look + formats.
+ *  Every value routes through the resolution context so no raw id ever shows; an empty/unknown value
+ *  renders nothing. */
 export function Cell({
   row,
   column,
   ctx,
-  hideIcon
+  hideIcon,
+  style
 }: {
   row: ViewRow
   column: ResolvedColumn
   ctx: ResolveContext
   hideIcon: boolean
+  style: ColumnStyle
 }): React.JSX.Element | null {
   if (column.kind === 'title') {
     // The page's frontmatter icon, else the file-text default (the sidebar's page glyph) — so every page
@@ -48,6 +53,18 @@ export function Cell({
     case 'select':
     case 'status': {
       const opt = findOption(column.id, v.value, ctx.schema)
+      if (v.kind === 'status' && (style.look === 'capsule' || style.look === 'checkbox')) {
+        const group = statusGroupOf(v.value, ctx.schema.find((d) => d.id === column.id))
+        return style.look === 'capsule' ? (
+          <span className={cx(chip, chipColor[chipColorFor(opt?.color)], chipCapsule)}>
+            <Icon name={group ? GROUP_GLYPH[group] : 'circle-dashed'} size={13} />
+          </span>
+        ) : (
+          <span className={cx(chip, chipColor[chipColorFor(opt?.color)], chipCheckbox)}>
+            {group && group !== 'upcoming' ? <Icon name={GROUP_GLYPH[group]} size={12} strokeWidth={3} /> : null}
+          </span>
+        )
+      }
       return <Chip color={chipColorFor(opt?.color)} label={opt?.label ?? v.value} />
     }
     case 'multiSelect':
@@ -60,6 +77,10 @@ export function Cell({
         </span>
       )
     case 'checkbox':
+      if (style.look === 'switch') {
+        // Read-only visual until the gesture pass wires the toggle write.
+        return <Switch checked={v.value} onChange={() => {}} ariaLabel="Checkbox value" />
+      }
       return (
         <span className={cx(chip, chipColor.default, chipCheckbox)}>
           {v.value ? <Icon name="check" size={12} strokeWidth={3} /> : null}
@@ -75,17 +96,29 @@ export function Cell({
         </span>
       )
     case 'url':
+      // The 'title' look shows the fetched page title once the fetch Prospect lands; until then
+      // both looks render the URL in the link color.
       return v.value ? (
         <a className="cell-link" href={v.value} onClick={(e) => e.stopPropagation()}>
           {v.value}
         </a>
       ) : null
     case 'datetime':
-      return <span className="cell-muted">{formatDate(v.value)}</span>
+      return (
+        <span className="cell-muted">
+          {formatDate(v.value, style.date_format ?? 'full', style.time_format ?? 'none')}
+        </span>
+      )
     case 'number':
-      return <span>{v.value}</span>
+      return <span>{formatNumber(v.value, style.number_format ?? 'decimal')}</span>
     case 'file':
-      return <span>{v.value.map((f) => f.path.split('/').pop() ?? f.path).join(', ')}</span>
+      return (
+        <span className="cell-chips">
+          {v.value.map((f) => (
+            <Chip key={f.path} color="default" label={fileLabel(f, style.look === 'path' ? 'path' : 'filename')} />
+          ))}
+        </span>
+      )
     default:
       return null
   }

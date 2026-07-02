@@ -56,6 +56,11 @@ export function formatDate(iso: string, dateFormat: DateFormat, timeFormat: Time
   return out
 }
 
+/** A file chip's label per the column's look — the basename, or the full stored path. */
+export function fileLabel(ref: { path: string }, look: 'filename' | 'path'): string {
+  return look === 'path' ? ref.path : (ref.path.split('/').pop() ?? ref.path)
+}
+
 /** Render a number per the saved format — the Swift NumberFormatter set (percent takes the
  *  0-1 fraction: 0.42 → "42%"). */
 export function formatNumber(n: number, numberFormat: NumberFormat): string {

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import type { CollectionNode, NexusTree, ResolvedColumn, ResolvedGroup, SetNode, ViewRow } from '@shared/types'
 import type { PropertyDefinition } from '@shared/properties'
 import type { PageFrontmatter } from '@shared/schemas'
+import type { ColumnStyle } from '@shared/columnStyles'
 import { type ColumnAlign, type SavedView, mintDefaultView } from '@shared/views'
 import { applyPropertyValue } from '@shared/propertyValue'
 import { flattenContainer } from '../pipeline/group'
@@ -15,6 +16,7 @@ import { GroupHeader } from './GroupHeader'
 import { columnLabel } from './columnLabel'
 import { clampWidth, widthFor } from './columnWidths'
 import { alignFor } from './columnAlign'
+import { styleFor } from './columnStyles'
 import { reorderColumns } from './columnReorder'
 import { mergeOverrides } from './viewMerge'
 import { groupKeyToValue, REASSIGNABLE_GROUP_TYPES } from './reassign'
@@ -199,6 +201,8 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
   }
   // A column's resolved alignment (E-5..E-7): the live override, else the saved value / E-6 type default.
   const colAlign = (id: string): ColumnAlign => alignOverride[id] ?? alignFor(id, schema, liveView)
+  // A column's resolved display style (B-1..B-5): the saved per-view entry merged over the type default.
+  const colStyle = (id: string): ColumnStyle => styleFor(id, schema, liveView)
   // Set a column's alignment: applies live via the override, persists to the SavedView column_alignments.
   const setColumnAlign = (id: string, align: ColumnAlign): void => {
     setAlignOverride((prev) => ({ ...prev, [id]: align }))
@@ -421,6 +425,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
             indent={memberIndent}
             colTransform={colTransform}
             colAlign={colAlign}
+            colStyle={colStyle}
             draggingCol={colDrag?.from}
             hideIcon={liveView.hide_page_icons ?? false}
             selected={selection.kind === 'page' && selection.id === row.id}
@@ -586,6 +591,7 @@ function DataRow({
   indent,
   colTransform,
   colAlign,
+  colStyle,
   draggingCol,
   hideIcon,
   selected,
@@ -600,6 +606,7 @@ function DataRow({
   indent: (depth: number) => string | undefined
   colTransform: (ci: number) => string | undefined
   colAlign: (id: string) => ColumnAlign
+  colStyle: (id: string) => ColumnStyle
   draggingCol: number | undefined
   hideIcon: boolean
   selected: boolean
@@ -630,11 +637,11 @@ function DataRow({
                 <Icon name="grip-vertical" size={14} />
               </span>
             )}
-            <Cell row={row} column={c} ctx={ctx} hideIcon={hideIcon} />
+            <Cell row={row} column={c} ctx={ctx} hideIcon={hideIcon} style={colStyle(c.id)} />
           </div>
         ) : (
           <div key={c.id} className={cx('data-cell', draggingCol === i && 'col-dragging')} style={style}>
-            <Cell row={row} column={c} ctx={ctx} hideIcon={hideIcon} />
+            <Cell row={row} column={c} ctx={ctx} hideIcon={hideIcon} style={colStyle(c.id)} />
           </div>
         )
       })}

@@ -4,9 +4,10 @@
 // ReservedPropertyID, minus the ~117 lines of Codable / CodingKeys ceremony.
 //
 // Snake_case keys = the on-disk shape. Loose ⇒ foreign keys within a def survive a
-// rewrite. Only structurally load-bearing fields are modeled; pure display config
-// (number_format, date_format, time_format, display_as, date_includes_time) rides
-// through as foreign keys until a UI reads it — "catch up to Swift, don't go ahead".
+// rewrite. Only structurally load-bearing fields are modeled. Display formats live
+// per-VIEW in SavedView `column_styles` (a deliberate divergence from Swift's def-level
+// keys); Swift's def-level riders (number_format, date_format, time_format, display_as,
+// date_includes_time) stay inert foreign keys that round-trip but are never read.
 // The renderable structure (type, options, context target, tier reverse labels,
 // icons) IS modeled because the write path + tier synthesis read it.
 

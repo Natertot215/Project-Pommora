@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatDate, formatNumber } from './formatValue'
+import { fileLabel, formatDate, formatNumber } from './formatValue'
 
 describe('formatDate', () => {
   it('renders the four Swift date formats', () => {
@@ -51,5 +51,13 @@ describe('formatNumber', () => {
   it('integers keep no fraction; decimals keep locale grouping', () => {
     expect(formatNumber(7, 'integer')).toBe('7')
     expect(formatNumber(1000000, 'decimal')).toBe('1,000,000')
+  })
+})
+
+describe('fileLabel', () => {
+  it('the filename look strips the directory; the path look keeps it', () => {
+    expect(fileLabel({ path: 'Assets/Photos/trip.png' }, 'filename')).toBe('trip.png')
+    expect(fileLabel({ path: 'Assets/Photos/trip.png' }, 'path')).toBe('Assets/Photos/trip.png')
+    expect(fileLabel({ path: 'root.pdf' }, 'filename')).toBe('root.pdf')
   })
 })
