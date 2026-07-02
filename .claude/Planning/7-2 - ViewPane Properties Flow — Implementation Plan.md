@@ -22,7 +22,7 @@
 - **Main-process changes need a full dev-process restart** (not ⌘R) to test live.
 - Duplicate property NAMES are allowed on create AND rename (D-3); names must still be non-empty.
 - Reserved ids (`isReservedPropertyId`, `shared/properties.ts:114`) never appear in either pane group (E-5).
-- **Size floors/caps (the 245s, the 350 cap, --edge-fade) are NATHAN'S KNOBS**: code them where the spec names them, keep each at ONE obvious call site (`ViewPane.tsx:103` / the fade class), and never iterate their values — he adjusts them himself.
+- **Size floors/caps (the ViewPane floors, the 350 cap, --edge-fade) are NATHAN'S KNOBS**: code them where the spec names them, keep each at ONE obvious call site (`ViewPane.tsx:103` / the fade class), and never iterate their values — he adjusts them himself. **Read the floors from the live tree at build time, never from this plan** (currently `minWidth={225} minHeight={245}` — asymmetric; he tunes them freely).
 
 ## File Map
 
@@ -51,7 +51,7 @@
 - Modify: `React/src/main/io/propertiesRegistry.ts` (whole file — shape change)
 - Modify: `React/src/main/crud/registryProperty.ts:17-52` (order append, callers of the new shape)
 - Modify: `React/src/main/properties/schema.ts:38-57` (`validateName` opt-out)
-- Modify: `React/src/main/readNexus.ts:302,234,364-373` · `React/src/shared/types.ts:158-177`
+- Modify: `React/src/main/readNexus.ts` — line 302 (`readRegistry` now returns `RegistryFile`), **line 348 (`readPageCollection(…, registry)` must pass `registry.defs` — the param at line 220 stays typed `PropertyRegistry`, feeding `resolveAssignedSchema` at 234)**, and the return object (~364-373) · `React/src/shared/types.ts:158-177`
 - Modify: `React/src/main/crud/deleteProperty.ts:47,75-76` (new shape at its two registry touches)
 - Test: `React/src/main/io/propertiesRegistry.test.ts`, `React/src/main/crud/registryProperty.test.ts`
 
@@ -150,7 +150,7 @@ export async function readRegistry(root: string): Promise<RegistryFile> {
 }
 ```
 
-`writeRegistry(root, registry: RegistryFile)` writes the object verbatim. `mutateRegistry<T>` keeps its chain, `fn` now receives/returns `RegistryFile`. Update the four call sites to `.defs[...]` access: `registryProperty.ts` (all three fns), `deleteProperty.ts:47` (fetch) and `:76` (remove — `delete next.defs[propertyId]` AND `next.order = next.order.filter((id) => id !== propertyId)`), `readNexus.ts:302` (pass `reg.defs` into `resolveAssignedSchema` — its own signature stays `PropertyRegistry`).
+`writeRegistry(root, registry: RegistryFile)` writes the object verbatim. `mutateRegistry<T>` keeps its chain, `fn` now receives/returns `RegistryFile`. Update the call sites to `.defs[...]` access: `registryProperty.ts` (all three fns), `deleteProperty.ts:47` (fetch) and `:76` (remove — `delete next.defs[propertyId]` AND `next.order = next.order.filter((id) => id !== propertyId)`), and `readNexus.ts` **line 348**: `readPageCollection(…, registry.defs)` — the param (line 220) and `resolveAssignedSchema` (line 234) keep their `PropertyRegistry` typing untouched.
 
 - [ ] **Step 4: Implement order-append + reorder + flat name policy**
 
@@ -300,7 +300,7 @@ export async function removeProperty(root: string, collectionFolder: string, pro
 }
 ```
 
-(Use the file's real helper names — `readCollectionSidecar`/`sidecarPath`/`serializeSidecar` stand for whatever `assignment.ts:12-19` + `writeSidecar` actually compose; hoist, don't duplicate. The sidecar is `z.looseObject`, so `property_cache` rides as a foreign key — verified.)
+(Real idiom, verified: export `assignment.ts`'s private `read(folder)` (lines 12-19, returns `{ sidecar, ids }`) as `readCollectionSidecar`; the staged sidecar write is `tx.stage(join(folder, SIDECAR_FILENAME.collection), serializeJson({ …sidecar, properties, property_cache, modified_at: nowIso() }))` — the exact `deleteProperty.ts:59-62` composition, INCLUDING the `modified_at` bump its sibling does. The sidecar is `z.looseObject`, so `property_cache` rides as a foreign key.)
 
 `restoreCachedValues` (same file): read sidecar block → if none, `ok(null)`; else fetch the def from `readRegistry(root)` and for each `[pageId, raw]`: resolve the page file among `collectMembers` (match frontmatter `id`), skip missing pages, run the reconcile gate, and stage `mergeFrontmatter` writes (the `setProperty` pattern, `main/mutate.ts:343-362`) applying `applyPropertyValue(fields.properties, propertyId, parsed)`; stage the sidecar with the block deleted; ONE `tx.commit()`. The reconcile gate (pure, exported for tests):
 
@@ -329,18 +329,18 @@ export function reconcileCachedValue(def: PropertyDefinition, raw: unknown): Pro
 
 Wire the trigger: `assignProperty` (`assignment.ts:21-27`) gains a `root` parameter — `assignProperty(root, collectionFolder, propertyId)` — appends the id (existing behavior), then `await restoreCachedValues(root, collectionFolder, propertyId)`. Update its call sites (the `schema:add` handler assigns post-create; tests).
 
-`deleteProperty.ts`: in the sidecar-staging loop (lines 59-62) delete `sidecar.property_cache?.[propertyId]` before staging; and extend the fan-out list to every collection sidecar holding a `property_cache[propertyId]` block even if unassigned (walk the same folders `assigners` walks; stage those sidecars too).
+`deleteProperty.ts`: in the sidecar-staging loop (lines 59-62) delete `sidecar.property_cache?.[propertyId]` before staging. The fan-out list must NOT be `assigners(propId)`'s filtered result — after a Remove, the collection no longer assigns yet still holds the cache block. Walk EVERY collection folder (the same tree walk `assigners` performs BEFORE its assignment filter) and additionally stage any sidecar whose `property_cache` holds `propertyId`. The purge test (Step 2) fails on the filtered version.
 
 - [ ] **Step 5: IPC + preload**
 
 `main/index.ts`: repoint `schema:delete` (lines 547-559) from `unassignProperty` to `removeProperty(root, folder, propertyId)` — same channel, same envelope (MINOR-2's reconciliation: the word *Delete* now lives only in `property:delete`). Add:
 
 ```typescript
-ipcMain.handle('schema:assign', async (_e, containerPath: unknown, propertyId: unknown) => { /* resolveSchemaFolder like schema:delete; call assignProperty(root, folder, id); envelope */ })
+ipcMain.handle('schema:assign', async (_e, containerPath: unknown, propertyId: unknown, toIndex: unknown) => { /* resolveSchemaFolder like schema:delete; assignProperty(root, folder, id); then if typeof toIndex === 'number' → reorderAssignment(folder, id, toIndex) — ONE handler so a drag-assign lands at its slot atomically from the renderer's view; envelope */ })
 ipcMain.handle('registry:reorder', async (_e, propertyId: unknown, toIndex: unknown) => { /* sessionRoot guard; reorderRegistry; envelope */ })
 ```
 
-Mirror both in `preload/index.ts` under `schema.assign` / a new `registry: { reorder }` cluster, typed like the existing `schema.*` entries. Also declare them on the renderer's `window.nexus` type (wherever `schema` is typed — follow `schema.delete`'s declaration).
+Mirror both in `preload/index.ts` — `schema.assign(containerPath, propertyId, toIndex?)` / a new `registry: { reorder }` cluster — typed like the existing `schema.*` entries. Also declare them on the renderer's `window.nexus` type (wherever `schema` is typed — follow `schema.delete`'s declaration).
 
 - [ ] **Step 6: Green + typecheck**, then **Commit**
 
@@ -382,7 +382,7 @@ it('list → editor renders BOTH slots (inner PaneSlider keeps them mounted) wit
 ```tsx
 const list = ( /* the current list JSX incl. header + rows */ )
 const detail = view.kind === 'type' ? ( /* type picker JSX */ ) : view.kind === 'edit' ? ( /* editor JSX */ ) : null
-return <PaneSlider active={view.kind === 'list' ? 'a' : 'b'} slotA={list} slotB={detail ?? <span />} minWidth={245} minHeight={245} />
+return <PaneSlider active={view.kind === 'list' ? 'a' : 'b'} slotA={list} slotB={detail ?? <span />} minWidth={OUTER_MIN_W} minHeight={OUTER_MIN_H} /> // mirror ViewPane.tsx:103's LIVE values verbatim (Nathan's knobs — 225/245 as of writing)
 ```
 
 The back rows keep their existing handlers (`backToList`). ViewPane's outer slider is untouched — pushing Properties slides the outer; pushing editor/type slides the inner; both ride `duration.base` (paneSlider.css) so every swap animates (A-7) with zero per-window wiring.
@@ -399,7 +399,7 @@ The back rows keep their existing handlers (`backToList`). ViewPane's outer slid
 - Modify: `React/src/renderer/src/Components/Detail/PaneSlider.tsx:11-67` + `paneSlider.css.ts`
 - Create: `React/src/renderer/src/design-system/scroll-edge-fade.css`
 - Modify: `React/src/renderer/src/Sidebar/Sidebar.css:40-50` (consume the shared class) + the sidebar element's className (`Sidebar.tsx` nav element)
-- Modify: `React/src/renderer/src/Components/Detail/ViewPane.tsx:103` (pass `maxHeight={350}`) — **this commit also carries Nathan's uncommitted 245 floors (D-4)**
+- Modify: `React/src/renderer/src/Components/Detail/ViewPane.tsx:103` (pass `maxHeight={350}`) — **this commit also carries Nathan's uncommitted floor tweaks as they stand in the tree (currently 225/245, D-4)**
 
 **Interfaces:**
 - Produces: `PaneSlider({ …, maxHeight?: number })` — the viewport height style becomes `Math.min(measured, maxHeight)`; each `.slot` gets `overflow-y: auto` + the `scroll-edge-fade` class when capped. The shared CSS class:
@@ -523,7 +523,7 @@ export function paneSlot(rows: MeasuredRow[], byId: Map<string, PaneRow>, region
 
 Classification (E-4, region-owned): the pointer's region decides everything. Dragged-from-assigned + pointer in assigned → `reorder-assigned` at the nearest slot; dragged-from-assigned + pointer in the all region → `unassign` with `highlightAll: true`, `lineY: null` (the AREA highlights, no insertion line — the row lands at its nexus slot, C-4). Dragged-from-all + pointer in all → `reorder-nexus`; dragged-from-all + pointer in assigned → `assign` at the slot with an insertion line. Outside both regions → null (release = no-op).
 
-- Consumes: `ACTIVATION`, `DROP_LINE_INSET`, `suppressNextClick` (`design-system/interactions/shared.ts`); the bandDnd gesture skeleton (`Table/bandDnd.tsx` — copy its listener/snapshot/ghost structure, swap the model); `startAutoScroll`-style edge scrolling from `design-system/interactions/autoscroll.ts` for the capped slot; commits via `window.nexus.schema.reorder/assign` + `window.nexus.registry.reorder` + `removeProperty` through `schema.delete`.
+- Consumes: `ACTIVATION`, `DROP_LINE_INSET`, `suppressNextClick` (`design-system/interactions/shared.ts`); the bandDnd gesture skeleton (`Table/bandDnd.tsx` — copy its listener/snapshot/ghost structure, swap the model); edge auto-scroll via `autoScroll(scroller, x, y)` + `findScroller(el)` from `design-system/interactions/autoscroll.ts` for the capped slot; commits via `window.nexus.schema.reorder/assign` + `window.nexus.registry.reorder` + `removeProperty` through `schema.delete`.
 
 - [ ] **Step 1: Failing model tests** (`paneDndModel.test.ts`, pure — rows at synthetic Y coords):
 
@@ -547,9 +547,9 @@ it('outside both regions → null', () => expect(slot(200, 'a1')).toBeNull())
 
 - [ ] **Step 2: FAIL → implement the model** (slot math: nearest row-boundary within the region, index = boundaries above the pointer among that group's rows minus the dragged row when same-group — the `bandDndModel` before/after arithmetic, one region at a time).
 
-- [ ] **Step 3: The provider** — copy `bandDnd.tsx`'s skeleton verbatim and adapt: `PaneDnd({ rows: PaneRow[], onDrop: (drop: PaneDrop) => void, children })`, `usePaneDrag(id)` → `{ ref, handle, isDragging }` with the WHOLE row as the drag surface (`handle` spread on the MenuItem wrapper; `begin` ignores pointerdowns on `button`/`input` targets so ⊕/chevron/rename stay clean). Keep: frozen snapshot + `markSnapshotDirty` on capture-phase scroll (E-4), the portal ghost + insertion line (reuse the `table-drop-line` styling as new viewPane classes), `suppressNextClick()` on committed drops, and Esc-abort — registered `window.addEventListener('keydown', onKey, { capture: true })` with `e.stopImmediatePropagation()` while a drag is active, so the Toolbar's `useDismiss` Escape never closes the dropdown mid-drag (grounded: dismissal is pointerdown-outside + Escape only — a release outside can't dismiss by construction). Region rects measured from the two `[data-group]` wrappers into the snapshot. While the slot is `highlightAll`, add the `allHighlight` class (a `state.hover`-tone background) to the all-group wrapper.
-- [ ] **Step 4: Wire commits in PropertiesPane** — `onDrop` routes: `reorder-assigned` → `schema.reorder(collectionPath, propId, toIndex)`; `reorder-nexus` → `registry.reorder(propId, toIndex)`; `assign` → `schema.assign(collectionPath, propId)` then `schema.reorder(collectionPath, propId, toIndex)` (assign appends; the reorder places it); `unassign` → `schema.delete(collectionPath, propId)` (the Remove). Each followed by `await load()`.
-- [ ] **Step 5: jsdom gesture test** (pointerHarness: `stubRect` rows + regions, firePointer down/move/up): one assigned→all drag asserts the `schema.delete` spy; one all→assigned asserts assign+reorder order. **Step 6: green + typecheck + live feel check.** **Step 7: Commit** — the five files; `"feat(viewpane): two-region property drag — reorder/assign/unassign with area-highlight snap (7-2 T6)"`
+- [ ] **Step 3: The provider** — copy `bandDnd.tsx`'s skeleton verbatim and adapt: `PaneDnd({ rows: PaneRow[], onDrop: (drop: PaneDrop) => void, children })`, `usePaneDrag(id)` → `{ ref, handle, isDragging }` with the WHOLE row as the drag surface (`handle` spread on the MenuItem wrapper). **Extend the copied `begin` guard**: bandDnd's checks only `input, textarea, [contenteditable="true"]` (bandDnd.tsx:131) — add `button` to that closest() selector so the row's `+`, the twisty, and rename inputs never arm a drag. Keep: frozen snapshot + `markSnapshotDirty` on capture-phase scroll (E-4), the portal ghost + insertion line (reuse the `table-drop-line` styling as new viewPane classes), `suppressNextClick()` on committed drops, and Esc-abort — registered `window.addEventListener('keydown', onKey, { capture: true })` with `e.stopImmediatePropagation()` while a drag is active, so the Toolbar's `useDismiss` Escape never closes the dropdown mid-drag (grounded: dismissal is pointerdown-outside + Escape only — a release outside can't dismiss by construction). Region rects measured from the two `[data-group]` wrappers into the snapshot. While the slot is `highlightAll`, add the `allHighlight` class (a `state.hover`-tone background) to the all-group wrapper.
+- [ ] **Step 4: Wire commits in PropertiesPane** — `onDrop` routes: `reorder-assigned` → `schema.reorder(collectionPath, propId, toIndex)`; `reorder-nexus` → `registry.reorder(propId, toIndex)`; `assign` → `schema.assign(collectionPath, propId, toIndex)` (one IPC — assign + slot placement sequenced main-side); `unassign` → `schema.delete(collectionPath, propId)` (the Remove). Each followed by `await load()`.
+- [ ] **Step 5: jsdom gesture test** (pointerHarness: `stubRect` rows + regions, firePointer down/move/up): one assigned→all drag asserts the `schema.delete` spy; one all→assigned asserts `schema.assign` was called with the slot's toIndex. **Step 6: green + typecheck + live feel check.** **Step 7: Commit** — the five files; `"feat(viewpane): two-region property drag — reorder/assign/unassign with area-highlight snap (7-2 T6)"`
 
 ---
 
