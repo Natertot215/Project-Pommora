@@ -20,6 +20,16 @@ Hard-won environment/toolchain traps. Add entries when a mistake is worth never 
 - **vanilla-extract `*.css.ts` files may ONLY export serializable values** (styles, `styleVariants`, vars). It serializes every export into a virtual CSS module, so exporting a plain **function** throws `serializeVanillaModule` / `stringifyExports` and breaks `build` + `build:showcase`. **typecheck + vitest don't run that serialization**, so it passes the test gate and fails only at build. Put shared helpers (e.g. the chip `tint` recipe) in a plain `.ts` beside the `.css.ts` (`chip-tint.ts`).
 - **Verify the gate with `&&`; don't `| tail` the final step.** A `;`-chained gate or `cmd | tail` masks the real exit code (tail exits 0 even when `cmd` failed). Run `typecheck && vitest run && build && build:showcase` and confirm `✓ built in` on every step — exit 0 alone is not proof.
 
+### Chip Melt — Chromium Dropped-Repaint Family
+
+The chip ×'s label melt sits on a family of Chromium paint-invalidation drops (bisected live, Electron 42 / Chromium 148; nearest open upstream: crbug 331753416). The failure is INVISIBLE to computed-style probes — the style computes, the pixels don't change; only a screenshot catches it. Three laws, each load-bearing in `chip.css.ts` (warning comments mark them):
+
+- **Masks must be STATIC.** Any dynamic `mask-image` change on the chip label's text (none→gradient, stop swap, via `:has()`, sibling selectors, class toggles, or inline styles) computes but never repaints unless the restyle rides an ancestor `:hover`. The melt therefore pre-applies its masks at mount and reveals by OPACITY flips only (crisp text out, pre-masked melt + blur twins in).
+- **The flipped element needs its own paint layer** — `chipLabelText` carries `position: relative` or even its opacity flip doesn't repaint.
+- **The label must never enter the hover chain on a removable chip** (`pointer-events: none`): if the label/text leaves `:hover` in the same frame the reveal flips, Chromium drops the reveal's repaint. This is also why removable chips have no label hover-scroll. And no opacity TRANSITIONS on the masked twins — a fade's final un-hover frame can strand, leaving a smear on the resting pill.
+
+Re-running the reveal matrix (rest · left hover · center · right-third entered both ways · hover→leave) with screenshots is mandatory for ANY change touching these files. Also beware when CDP-verifying: synthetic hovers lose to Nathan's physical mouse if it's over the window, and the first interaction after an HMR edit can hit a stale DOM — always re-run a negative before believing it.
+
 ### Glass / Liquid Glass
 
 - **`backdrop-filter` silently no-ops inside an opacity-transitioned ancestor** — the animated ancestor becomes the element's backdrop root, so the filter samples nothing: computed styles look right, nothing blurs, no error (diagnosed live on the chip ×'s rejected frost strip). Keep any backdrop-filter element OUT of faded/animated wrappers — reveal it with its OWN opacity instead.

@@ -27,8 +27,8 @@ export function ContextChip({
         } as React.CSSProperties
       }
     >
-      <ChipLabel label={title} removable={!!onRemove} />
       {onRemove ? <ChipRemoveButton onRemove={onRemove} /> : null}
+      <ChipLabel label={title} removable={!!onRemove} />
     </span>
   )
 }

@@ -1,6 +1,6 @@
 import { vars as colorVars } from './color.css'
 import { font, text } from './typography.css'
-import { chip, chipColor, chipCheckbox, chipCapsule, chipLabel, chipLabelText, chipLabelBlur, chipRemovable, chipRemove } from './chip.css'
+import { chip, chipColor, chipCheckbox, chipCapsule, chipLabel, chipLabelText, chipLabelBlur, chipLabelMelt, chipRemovable, chipRemove } from './chip.css'
 import { size, type IconSize, type ButtonSize } from './size.css'
 import { tint, tintAt, TINT_STEPS, type TintStep } from './tint'
 import './theme-vars.css' // bridges tokens → stable CSS vars for plain-CSS consumers
@@ -31,6 +31,6 @@ export { text }
  * `tint(base)` is the raw recipe (e.g. for an accent chip via
  * `tint('var(--accent)')`). See chip.css.ts.
  */
-export { chip, chipColor, chipCheckbox, chipCapsule, chipLabel, chipLabelText, chipLabelBlur, chipRemovable, chipRemove, tint, tintAt, TINT_STEPS }
+export { chip, chipColor, chipCheckbox, chipCapsule, chipLabel, chipLabelText, chipLabelBlur, chipLabelMelt, chipRemovable, chipRemove, tint, tintAt, TINT_STEPS }
 export type { TintStep }
 export { duration, easing } from './motion'

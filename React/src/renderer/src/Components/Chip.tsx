@@ -4,6 +4,7 @@ import {
   chipColor,
   chipLabel,
   chipLabelBlur,
+  chipLabelMelt,
   chipLabelText,
   chipRemovable,
   chipRemove
@@ -29,23 +30,29 @@ export function Chip({
 }): React.JSX.Element {
   return (
     <span className={cx(chip, chipColor[color], onRemove && chipRemovable)}>
+      {onRemove ? <ChipRemoveButton onRemove={onRemove} /> : null}
       {icon}
       <ChipLabel label={label} removable={!!onRemove} />
-      {onRemove ? <ChipRemoveButton onRemove={onRemove} /> : null}
     </span>
   )
 }
 
-/** The chip label, shared by every chip surface. A removable chip renders the text TWICE — the
- *  crisp copy plus its blurred twin — so hovering smears the tail under the × (see chipLabelBlur). */
+/** The chip label, shared by every chip surface. A removable chip renders the text THREE times —
+ *  the crisp copy plus its pre-masked melt and blur twins — so hovering the × zone smears the tail
+ *  beneath it through opacity swaps alone (see the reveal note in chip.css.ts). */
 export function ChipLabel({ label, removable }: { label: string; removable: boolean }): React.JSX.Element {
   return (
     <span className={chipLabel}>
       <span className={chipLabelText}>{label}</span>
       {removable ? (
-        <span className={chipLabelBlur} aria-hidden>
-          {label}
-        </span>
+        <>
+          <span className={chipLabelMelt} aria-hidden>
+            {label}
+          </span>
+          <span className={chipLabelBlur} aria-hidden>
+            {label}
+          </span>
+        </>
       ) : null}
     </span>
   )

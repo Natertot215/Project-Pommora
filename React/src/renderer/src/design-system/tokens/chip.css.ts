@@ -33,9 +33,21 @@ export const chipRemovable = style({ position: 'relative' })
 // label truncates at `--chip-max` and the chip wraps it snugly, so the ellipsis lands at the padding
 // edge instead of floating mid-chip. `--chip-max` (80px default) is overridable per context. The
 // ellipsis-at-rest / scroll-on-hover behaviour is the shared `truncateHoverScroll`; the cap is the add.
-// `position: relative` anchors the removable chip's blurred twin; masks NEVER go on this box — a
-// mask here erases every descendant, the twin included.
-export const chipLabel = style([truncateHoverScroll, { maxWidth: 'var(--chip-max, 80px)', position: 'relative' }])
+// `position: relative` anchors the removable chip's twins; masks NEVER go on this box — a
+// mask here erases every descendant, the twins included. On a REMOVABLE chip the label is
+// pointer-inert (inherited by the text): hovering the label body must do nothing, and if the
+// label or text ever LEAVES :hover in the frame that flips the ×-reveal, Chromium drops the
+// reveal's repaint beneath it — so they must never enter the hover chain at all.
+export const chipLabel = style([
+  truncateHoverScroll,
+  {
+    maxWidth: 'var(--chip-max, 80px)',
+    position: 'relative',
+    selectors: {
+      [`${chipRemovable} &`]: { pointerEvents: 'none' }
+    }
+  }
+])
 
 // Hovering a REMOVABLE chip BLURS the label's tail under the × — a true blur, not a fade-out
 // (Nathan: a mask alone "is a cutoff, not blur"), touching only the TEXT (a backdrop strip washes
@@ -46,16 +58,77 @@ const crispRamp =
   'linear-gradient(to right, transparent 0, #000000 var(--scroll-fade, 0px), #000000 calc(100% - 18px), transparent calc(100% - 8px))'
 const blurRamp = 'linear-gradient(to right, transparent calc(100% - 18px), #000000 calc(100% - 8px))'
 
-/** The label's real text — masked out across the ramp only while the chip is hovered. */
-export const chipLabelText = style({
+/**
+ * The remove × — its box doubles as the reveal's hover zone (the chip's right third), so it is
+ * always hittable; only hovering IT reveals it and melts the label tail beneath. Defined before
+ * the label styles because their reveal selectors reference it.
+ */
+export const chipRemove = style({
+  position: 'absolute',
+  top: 0,
+  right: 0,
+  height: '100%',
+  width: '33%',
+  minWidth: '16px',
+  zIndex: 1,
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'flex-end',
+  padding: '0 2.5px 0 0',
+  border: 'none',
+  background: 'none',
+  color: 'inherit',
+  cursor: 'pointer',
+  opacity: 0,
+  transition: 'opacity var(--duration-fast) var(--ease-standard)',
   selectors: {
-    [`${chipRemovable}:hover &`]: { maskImage: crispRamp, WebkitMaskImage: crispRamp }
+    '&:hover': { opacity: 1 }
+  }
+})
+
+// The reveal is keyed on the ×'s own :hover through a SIBLING combinator (the × precedes the
+// label in the DOM), and it may only ever flip OPACITIES. Chromium drops the repaint of any
+// mask-image change on this inline text (none→gradient AND stop-swap alike) unless the restyle
+// rides an ancestor :hover — `:has()`, sibling selectors, class toggles, and inline styles all
+// compute the mask without painting it. Static masks + opacity flips paint everywhere.
+const reveal = `${chipRemove}:hover ~ ${chipLabel} &`
+
+/** The label's real text — swapped out for the pre-masked twins the instant the × zone is
+ *  hovered (no transition: the melt twin is pixel-identical where its mask is opaque, so a
+ *  crossfade would only dim the stack mid-flight). `position: relative` is load-bearing: it
+ *  gives the span its own paint layer, without which the sibling-keyed opacity flip computes
+ *  but never repaints (the same dropped invalidation the reveal note above describes). */
+export const chipLabelText = style({
+  position: 'relative',
+  selectors: {
+    [reveal]: { opacity: 0 }
+  }
+})
+
+/** The crisp melt twin — the same string overlaid at the text origin with the ramp STATICALLY
+ *  applied, revealed by opacity alone (see the reveal note above). Clamped to the label box so
+ *  a truncated label melts at its clip edge instead of ending in a bare cut. */
+export const chipLabelMelt = style({
+  position: 'absolute',
+  top: 0,
+  left: 0,
+  maxWidth: '100%',
+  overflow: 'hidden',
+  whiteSpace: 'nowrap',
+  maskImage: crispRamp,
+  WebkitMaskImage: crispRamp,
+  opacity: 0,
+  pointerEvents: 'none',
+  selectors: {
+    [reveal]: { opacity: 1 }
   }
 })
 
 /** The blurred twin — same string and font, overlaid at the text origin so the metrics line up
  *  glyph-for-glyph, but painted in the FILL color (`--chip-fill`) so the tail melts into the
- *  pill instead of hazing in the text color; visible only where the crisp copy eclipses. */
+ *  pill instead of hazing in the text color; visible only where the crisp copy eclipses.
+ *  Deliberately NOT transitioned: a fade on a masked element can strand its final un-hover
+ *  frame (the dropped-repaint family above), leaving a smear on the resting pill. */
 export const chipLabelBlur = style({
   position: 'absolute',
   top: 0,
@@ -67,9 +140,8 @@ export const chipLabelBlur = style({
   WebkitMaskImage: blurRamp,
   opacity: 0,
   pointerEvents: 'none',
-  transition: 'opacity var(--duration-fast) var(--ease-standard)',
   selectors: {
-    [`${chipRemovable}:hover &`]: { opacity: 1 }
+    [reveal]: { opacity: 1 }
   }
 })
 
@@ -120,31 +192,3 @@ export const chipCapsule = style({
   gap: 0
 })
 
-/**
- * The remove × — hover-revealed at the chip's right edge, painted in the chip's TEXT color
- * (`color: inherit` — the label recipe rides down). Overlaid (absolute) so revealing it never
- * shifts the chip's width; the label's tail blurs beneath it (`chipLabelText`/`chipLabelBlur`).
- * Hidden = inert (`pointerEvents: none`) so a rest-state chip click still reaches the cell.
- * The width anchors the ramp: the blur's clear zone starts at this edge.
- */
-export const chipRemove = style({
-  position: 'absolute',
-  top: 0,
-  right: 0,
-  height: '100%',
-  width: '16px',
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  padding: 0,
-  border: 'none',
-  background: 'none',
-  color: 'inherit',
-  cursor: 'pointer',
-  opacity: 0,
-  pointerEvents: 'none',
-  transition: 'opacity var(--duration-fast) var(--ease-standard)',
-  selectors: {
-    [`${chipRemovable}:hover &`]: { opacity: 1, pointerEvents: 'auto' }
-  }
-})
