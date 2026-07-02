@@ -125,6 +125,16 @@
   overflow: visible;
   z-index: 30;
 }
+/* The inline cell editor (A-12) — replaces the cell's content in flow, inheriting its type ramp. */
+.property-editor {
+  width: 100%;
+  padding: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  font: inherit;
+  color: inherit;
+}
 /* Data-row vertical column lines — full-height hairlines (every data cell except the trailing filler). */
 .data-cell:not(:last-child) {
   border-right: var(--table-border);

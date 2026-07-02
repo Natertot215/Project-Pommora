@@ -7,9 +7,11 @@ import type { CellMenuContext } from '@shared/cellMenu'
 import { parseStyleAction } from '@shared/columnMenu'
 import { type ColumnAlign, type SavedView, mintDefaultView } from '@shared/views'
 import { applyPropertyValue, type PropertyValue } from '@shared/propertyValue'
+import { isValidLink, normalizeLinkUrl } from '@shared/links'
 import { flattenContainer } from '../pipeline/group'
 import { resolveView } from '../pipeline/resolveView'
 import { declaredType, resolveFieldValue } from '../pipeline/value'
+import { PropertyEditor } from '../PropertyEditing/PropertyEditor'
 import { PropertyPicker } from '../PropertyEditing/PropertyPicker'
 import { nextCycleValue } from '../PropertyEditing/statusCycle'
 import { useSession } from '../../../store'
@@ -106,10 +108,10 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
   // Transient — set on grab, cleared on drop; column indices into the resolved `columns`.
   const [colDrag, setColDrag] = useState<{ from: number; to: number; delta: number } | null>(null)
   const [iconPickerOpen, setIconPickerOpen] = useState(false)
-  // The one in-cell editing surface (A-2/A-6: single-click opens the value picker). Cleared on
-  // dismiss; the exit presence keeps the picker mounted through its Bloom-out, reading the last
-  // target from the ref while `editing` is already null.
-  const [editing, setEditing] = useState<{ rowId: string; colId: string; mode: 'picker' } | null>(null)
+  // The one in-cell editing surface (A-2/A-6 picker · A-8/A-12 editor). Cleared on dismiss; the
+  // exit presence keeps a PICKER mounted through its Bloom-out (reading the last target from the
+  // ref while `editing` is already null) — the editor unmounts instantly.
+  const [editing, setEditing] = useState<{ rowId: string; colId: string; mode: 'picker' | 'editor' } | null>(null)
   const editingExit = useExitPresence(editing !== null)
   const lastEditing = useRef(editing)
   if (editing) lastEditing.current = editing
@@ -279,27 +281,82 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
     } else if (t === 'status' || t === 'select' || t === 'multi_select') {
       e.stopPropagation()
       setEditing({ rowId: row.id, colId: col.id, mode: 'picker' })
+    } else if (t === 'number') {
+      e.stopPropagation()
+      setEditing({ rowId: row.id, colId: col.id, mode: 'editor' })
     }
   }
-  // The picker mounted in the editing cell (null everywhere else). Stays through the Bloom-out.
-  const cellOverlay = (row: ViewRow, col: ResolvedColumn): React.ReactNode => {
-    const target = editing ?? (editingExit.mounted ? lastEditing.current : null)
+  // What the inline editor starts from, per the column's value shape.
+  const editorInitial = (row: ViewRow, col: ResolvedColumn): string => {
+    if (col.kind === 'title') return row.title
+    const v = resolveFieldValue(row, col.id)
+    if (v.kind === 'number') return String(v.value)
+    if (v.kind === 'url') return v.value
+    if (v.kind === 'file') return v.value[0]?.path ?? ''
+    return ''
+  }
+  // Map the editor's raw text to its typed write (A-12): number parses (a lone '-'/'.' reverts),
+  // url validates + normalizes, file edits the FIRST ref's path (multi-file editing is the picker
+  // Prospect), title renames. Empty input clears the value.
+  const commitEditorText = (row: ViewRow, col: ResolvedColumn, raw: string): void => {
+    setEditing(null)
+    const trimmed = raw.trim()
+    if (col.kind === 'title') {
+      if (trimmed && trimmed !== row.title) void mutate({ op: 'rename', path: row.path, kind: 'page', newName: trimmed })
+      return
+    }
+    const t = declaredType(col.id, schema)
+    if (t === 'number') {
+      if (trimmed === '') return commitCellValue(row, col.id, null)
+      const n = Number.parseFloat(trimmed)
+      if (!Number.isNaN(n)) commitCellValue(row, col.id, { kind: 'number', value: n })
+    } else if (t === 'url') {
+      if (trimmed === '') return commitCellValue(row, col.id, null)
+      if (isValidLink(trimmed)) commitCellValue(row, col.id, { kind: 'url', value: normalizeLinkUrl(trimmed) })
+    } else if (t === 'file') {
+      const v = resolveFieldValue(row, col.id)
+      const refs = v.kind === 'file' ? v.value : []
+      if (trimmed === '') return commitCellValue(row, col.id, refs.length > 1 ? { kind: 'file', value: refs.slice(1) } : null)
+      commitCellValue(row, col.id, { kind: 'file', value: refs.length ? [{ ...refs[0], path: trimmed }, ...refs.slice(1)] : [{ path: trimmed }] })
+    }
+  }
+  // The editing surface mounted in the target cell (null everywhere else). A picker APPENDS below
+  // the cell's content and stays through its Bloom-out; the editor REPLACES the content in flow.
+  const cellOverlay = (row: ViewRow, col: ResolvedColumn): { node: React.ReactNode; replace: boolean } | null => {
+    const target =
+      editing ?? (editingExit.mounted && lastEditing.current?.mode === 'picker' ? lastEditing.current : null)
     if (!target || target.rowId !== row.id || target.colId !== col.id) return null
+    if (target.mode === 'editor') {
+      return {
+        replace: true,
+        node: (
+          <PropertyEditor
+            initial={editorInitial(row, col)}
+            numeric={declaredType(col.id, schema) === 'number'}
+            onCommit={(raw) => commitEditorText(row, col, raw)}
+            onCancel={() => setEditing(null)}
+          />
+        )
+      }
+    }
     const def = schema.find((d) => d.id === col.id)
     if (!def) return null
-    return (
-      <PropertyPicker
-        def={def}
-        current={resolveFieldValue(row, col.id)}
-        closing={editingExit.closing}
-        onCommit={(v) => commitCellValue(row, col.id, v)}
-        onDismiss={() => setEditing(null)}
-      />
-    )
+    return {
+      replace: false,
+      node: (
+        <PropertyPicker
+          def={def}
+          current={resolveFieldValue(row, col.id)}
+          closing={editingExit.closing}
+          onCommit={(v) => commitCellValue(row, col.id, v)}
+          onDismiss={() => setEditing(null)}
+        />
+      )
+    }
   }
   // Right-click a cell → its native menu (A-13: always a menu, never an action). Title = page meta;
   // style-bearing types = the COLUMN's Style radios; link/file add Edit. Select/multi/context/tier
-  // cells pop nothing. `title:rename` + `cell:edit` resolve once the inline editor lands.
+  // cells pop nothing.
   const openCellMenu = async (row: ViewRow, col: ResolvedColumn, e: React.MouseEvent): Promise<void> => {
     e.preventDefault()
     e.stopPropagation()
@@ -317,6 +374,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
     if (!action) return
     if (action === 'title:icon') setIconPickerOpen(true)
     else if (action === 'title:delete') void mutate({ op: 'delete', path: row.path, kind: 'page' })
+    else if (action === 'title:rename' || action === 'cell:edit') setEditing({ rowId: row.id, colId: col.id, mode: 'editor' })
     else if (action.startsWith('style:')) {
       const parsed = parseStyleAction(action)
       if (parsed) setColumnStyle(col.id, parsed.key, parsed.value)
@@ -722,7 +780,7 @@ function DataRow({
   colStyle: (id: string) => ColumnStyle
   onCellMenu: (col: ResolvedColumn, e: React.MouseEvent) => void
   onCellClick: (col: ResolvedColumn, e: React.MouseEvent) => void
-  overlay: (col: ResolvedColumn) => React.ReactNode
+  overlay: (col: ResolvedColumn) => { node: React.ReactNode; replace: boolean } | null
   draggingCol: number | undefined
   hideIcon: boolean
   selected: boolean
@@ -747,10 +805,18 @@ function DataRow({
         const style: React.CSSProperties = { transform: colTransform(i), textAlign: colAlign(c.id) }
         if (i === 0) style.paddingLeft = indent(depth)
         const over = overlay(c)
+        const content = over?.replace ? (
+          over.node
+        ) : (
+          <>
+            <Cell row={row} column={c} ctx={ctx} hideIcon={hideIcon} style={colStyle(c.id)} />
+            {over?.node}
+          </>
+        )
         return i === 0 ? (
           <div
             key={c.id}
-            className={cx('data-cell', 'cell-lead', draggingCol === i && 'col-dragging', over != null && 'cell-anchored')}
+            className={cx('data-cell', 'cell-lead', draggingCol === i && 'col-dragging', over != null && !over.replace && 'cell-anchored')}
             style={style}
             onContextMenu={(e) => onCellMenu(c, e)}
             onClick={(e) => {
@@ -762,21 +828,19 @@ function DataRow({
                 <Icon name="grip-vertical" size={14} />
               </span>
             )}
-            <Cell row={row} column={c} ctx={ctx} hideIcon={hideIcon} style={colStyle(c.id)} />
-            {over}
+            {content}
           </div>
         ) : (
           <div
             key={c.id}
-            className={cx('data-cell', draggingCol === i && 'col-dragging', over != null && 'cell-anchored')}
+            className={cx('data-cell', draggingCol === i && 'col-dragging', over != null && !over.replace && 'cell-anchored')}
             style={style}
             onContextMenu={(e) => onCellMenu(c, e)}
             onClick={(e) => {
               if (!isDragging) onCellClick(c, e)
             }}
           >
-            <Cell row={row} column={c} ctx={ctx} hideIcon={hideIcon} style={colStyle(c.id)} />
-            {over}
+            {content}
           </div>
         )
       })}

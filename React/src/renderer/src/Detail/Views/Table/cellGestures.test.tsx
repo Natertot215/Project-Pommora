@@ -42,6 +42,8 @@ const statusDef: PropertyDefinition = {
   ]
 }
 const checkboxDef: PropertyDefinition = { id: 'prop_done', name: 'Done', type: 'checkbox' }
+const numberDef: PropertyDefinition = { id: 'prop_n', name: 'Count', type: 'number' }
+const urlDef: PropertyDefinition = { id: 'prop_link', name: 'Link', type: 'url' }
 const multiDef: PropertyDefinition = {
   id: 'prop_tags',
   name: 'Tags',
@@ -60,13 +62,13 @@ const sourceWith = (columnStyles?: Record<string, { look?: string }>): Collectio
     path: 'Col',
     sets: [],
     pages: [{ kind: 'page', id: 'p1', title: 'Page One', path: 'Col/Page One.md' }],
-    properties: [statusDef, checkboxDef],
+    properties: [statusDef, checkboxDef, numberDef, urlDef],
     views: [
       {
         id: 'view_1',
         name: 'Table',
         type: 'table',
-        property_order: ['_title', 'prop_status', 'prop_done'],
+        property_order: ['_title', 'prop_status', 'prop_done', 'prop_n', 'prop_link'],
         hidden_properties: ['_modified_at'],
         ...(columnStyles ? { column_styles: columnStyles } : {})
       }
@@ -74,7 +76,19 @@ const sourceWith = (columnStyles?: Record<string, { look?: string }>): Collectio
   }) as unknown as CollectionNode
 
 const VALUES = {
-  p1: { id: 'p1', properties: { prop_status: { $status: 'active' }, prop_done: false } }
+  p1: {
+    id: 'p1',
+    properties: { prop_status: { $status: 'active' }, prop_done: false, prop_n: 42, prop_link: 'https://old.com' }
+  }
+}
+
+// React intercepts the value property — commit through the native setter so the change event carries.
+const typeInto = (input: HTMLInputElement, value: string): void => {
+  Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set?.call(input, value)
+  input.dispatchEvent(new Event('input', { bubbles: true }))
+}
+const key = (input: HTMLElement, k: string): void => {
+  input.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true }))
 }
 
 let host: HTMLDivElement
@@ -188,6 +202,122 @@ describe('checkbox cell gestures', () => {
       path: 'Col/Page One.md',
       propertyId: 'prop_done',
       value: { kind: 'checkbox', value: true }
+    })
+  })
+})
+
+describe('number cell inline editing', () => {
+  const numberCell = (): HTMLElement => host.querySelectorAll<HTMLElement>('.data-cell')[3]
+
+  const openEditor = async (): Promise<HTMLInputElement> => {
+    await mountTable(sourceWith())
+    await act(async () => {
+      numberCell().click()
+    })
+    const input = numberCell().querySelector('input')
+    expect(input).toBeTruthy()
+    return input as HTMLInputElement
+  }
+
+  it('single-click mounts the editor seeded with the value; letters cannot be typed', async () => {
+    const input = await openEditor()
+    expect(input.value).toBe('42')
+    await act(async () => {
+      typeInto(input, '42a')
+    })
+    expect(input.value).toBe('42')
+  })
+
+  it('Enter commits the parsed number', async () => {
+    const input = await openEditor()
+    await act(async () => {
+      typeInto(input, '43.5')
+      key(input, 'Enter')
+    })
+    expect(mutateSpy).toHaveBeenCalledWith({
+      op: 'setProperty',
+      path: 'Col/Page One.md',
+      propertyId: 'prop_n',
+      value: { kind: 'number', value: 43.5 }
+    })
+  })
+
+  it('an empty commit clears the value', async () => {
+    const input = await openEditor()
+    await act(async () => {
+      typeInto(input, '')
+      key(input, 'Enter')
+    })
+    expect(mutateSpy).toHaveBeenCalledWith({
+      op: 'setProperty',
+      path: 'Col/Page One.md',
+      propertyId: 'prop_n',
+      value: null
+    })
+  })
+
+  it('Esc reverts without writing; blur commits', async () => {
+    const input = await openEditor()
+    await act(async () => {
+      typeInto(input, '99')
+      key(input, 'Escape')
+    })
+    expect(mutateSpy).not.toHaveBeenCalled()
+
+    const again = await openEditor()
+    await act(async () => {
+      typeInto(again, '7')
+      again.dispatchEvent(new FocusEvent('focusout', { bubbles: true }))
+    })
+    expect(mutateSpy).toHaveBeenCalledWith({
+      op: 'setProperty',
+      path: 'Col/Page One.md',
+      propertyId: 'prop_n',
+      value: { kind: 'number', value: 7 }
+    })
+  })
+})
+
+describe('menu-entered editing', () => {
+  it('url Edit normalizes a schemeless link on commit', async () => {
+    await mountTable(sourceWith())
+    ;(window.nexus as { cellMenu: unknown }).cellMenu = vi.fn(async () => 'cell:edit')
+    const urlCell = host.querySelectorAll<HTMLElement>('.data-cell')[4]
+    await act(async () => {
+      urlCell.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true }))
+    })
+    const input = urlCell.querySelector('input') as HTMLInputElement
+    expect(input.value).toBe('https://old.com')
+    await act(async () => {
+      typeInto(input, 'example.com')
+      key(input, 'Enter')
+    })
+    expect(mutateSpy).toHaveBeenCalledWith({
+      op: 'setProperty',
+      path: 'Col/Page One.md',
+      propertyId: 'prop_link',
+      value: { kind: 'url', value: 'https://example.com' }
+    })
+  })
+
+  it('title Rename commits a rename op', async () => {
+    await mountTable(sourceWith())
+    ;(window.nexus as { cellMenu: unknown }).cellMenu = vi.fn(async () => 'title:rename')
+    const titleCell = host.querySelectorAll<HTMLElement>('.data-cell')[0]
+    await act(async () => {
+      titleCell.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true }))
+    })
+    const input = titleCell.querySelector('input') as HTMLInputElement
+    expect(input.value).toBe('Page One')
+    await act(async () => {
+      typeInto(input, 'Renamed Page')
+      key(input, 'Enter')
+    })
+    expect(mutateSpy).toHaveBeenCalledWith({
+      op: 'rename',
+      path: 'Col/Page One.md',
+      kind: 'page',
+      newName: 'Renamed Page'
     })
   })
 })

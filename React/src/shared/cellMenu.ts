@@ -19,13 +19,13 @@ export interface CellMenuModel {
   style?: StyleMenuItem[]
 }
 
-/** The pure per-kind item model — main maps it to Electron MenuItems. `title:rename` joins the
- *  title items once the inline editor lands (its action is already plumbed end-to-end). */
+/** The pure per-kind item model — main maps it to Electron MenuItems. */
 export function cellMenuModel(ctx: CellMenuContext): CellMenuModel {
   switch (ctx.kind) {
     case 'title':
       return {
         items: [
+          { label: 'Rename', action: 'title:rename' },
           { label: 'Change Icon', action: 'title:icon' },
           { label: 'Delete', action: 'title:delete', separatorBefore: true }
         ]

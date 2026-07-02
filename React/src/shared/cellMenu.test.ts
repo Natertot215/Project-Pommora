@@ -2,9 +2,10 @@ import { describe, expect, it } from 'vitest'
 import { cellMenuModel } from './cellMenu'
 
 describe('cellMenuModel', () => {
-  it('title: Change Icon + separator-gated Delete (Rename lands with the inline editor)', () => {
+  it('title: Rename + Change Icon + separator-gated Delete', () => {
     const m = cellMenuModel({ kind: 'title' })
     expect(m.items.map((i) => [i.label, i.action])).toEqual([
+      ['Rename', 'title:rename'],
       ['Change Icon', 'title:icon'],
       ['Delete', 'title:delete']
     ])
