@@ -1,7 +1,7 @@
-import { chip, chipColor, chipLabel, chipRemovable } from '@renderer/design-system/tokens'
+import { chip, chipColor, chipRemovable } from '@renderer/design-system/tokens'
 import type { ChipColorName } from '@renderer/design-system/tokens/chip.css'
 import { cx } from '@renderer/design-system/cx'
-import { ChipRemoveButton } from './Chip'
+import { ChipLabel, ChipRemoveButton } from './Chip'
 
 /** A Context reference chip (tier cells, Part 2 G-4): the chip recipe with the Context color on the
  *  border + text, but a neutral quaternary fill and an 8px (non-pill) radius — so it reads as a
@@ -19,9 +19,15 @@ export function ContextChip({
   return (
     <span
       className={cx(chip, chipColor[color], onRemove && chipRemovable)}
-      style={{ background: 'var(--fill-quaternary)', borderRadius: '8px' }}
+      style={
+        {
+          background: 'var(--fill-quaternary)',
+          borderRadius: '8px',
+          '--chip-fill': 'var(--fill-quaternary)'
+        } as React.CSSProperties
+      }
     >
-      <span className={chipLabel}>{title}</span>
+      <ChipLabel label={title} removable={!!onRemove} />
       {onRemove ? <ChipRemoveButton onRemove={onRemove} /> : null}
     </span>
   )

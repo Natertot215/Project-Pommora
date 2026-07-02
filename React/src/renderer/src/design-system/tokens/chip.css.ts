@@ -1,7 +1,7 @@
 import { style, styleVariants } from '@vanilla-extract/css'
 import { vars as colorVars } from './color.css'
 import { text, truncateHoverScroll } from './typography.css'
-import { tint } from './tint'
+import { TINT_STEPS, tint, tintAt } from './tint'
 
 const solid = colorVars.color.solid
 
@@ -25,27 +25,74 @@ export const chip = style([
 ])
 
 /** A chip that carries a hover-revealed remove ×. The modifier only anchors the affordance;
- *  the × itself is `chipRemove` with its `chipFrost` strip dissolving the label tail beneath it. */
+ *  the × itself is `chipRemove`; the label's TEXT tail blurs beneath it (`chipLabelText` +
+ *  `chipLabelBlur`). */
 export const chipRemovable = style({ position: 'relative' })
 
 // The cap lives on the LABEL, not the chip (a % width is unreliable in a shrink-to-fit flex chip): the
 // label truncates at `--chip-max` and the chip wraps it snugly, so the ellipsis lands at the padding
 // edge instead of floating mid-chip. `--chip-max` (80px default) is overridable per context. The
 // ellipsis-at-rest / scroll-on-hover behaviour is the shared `truncateHoverScroll`; the cap is the add.
-export const chipLabel = style([truncateHoverScroll, { maxWidth: 'var(--chip-max, 80px)' }])
+// `position: relative` anchors the removable chip's blurred twin; masks NEVER go on this box — a
+// mask here erases every descendant, the twin included.
+export const chipLabel = style([truncateHoverScroll, { maxWidth: 'var(--chip-max, 80px)', position: 'relative' }])
+
+// Hovering a REMOVABLE chip BLURS the label's tail under the × — a true blur, not a fade-out
+// (Nathan: a mask alone "is a cutoff, not blur"), touching only the TEXT (a backdrop strip washes
+// the fill — rejected live). Two perfectly-stacked copies of the same text crossfade over one ramp
+// ending at the ×'s left edge (10px inside the text run's end): the crisp copy masks OUT across it
+// while its blurred twin masks IN, so the letters visibly smear into the clear zone the × floats in.
+const crispRamp =
+  'linear-gradient(to right, transparent 0, #000000 var(--scroll-fade, 0px), #000000 calc(100% - 20px), transparent calc(100% - 10px))'
+const blurRamp = 'linear-gradient(to right, transparent calc(100% - 20px), #000000 calc(100% - 10px))'
+
+/** The label's real text — masked out across the ramp only while the chip is hovered. */
+export const chipLabelText = style({
+  selectors: {
+    [`${chipRemovable}:hover &`]: { maskImage: crispRamp, WebkitMaskImage: crispRamp }
+  }
+})
+
+/** The blurred twin — same string and font, overlaid at the text origin so the metrics line up
+ *  glyph-for-glyph, but painted in the FILL color (`--chip-fill`) so the tail melts into the
+ *  pill instead of hazing in the text color; visible only where the crisp copy eclipses. */
+export const chipLabelBlur = style({
+  position: 'absolute',
+  top: 0,
+  left: 0,
+  whiteSpace: 'nowrap',
+  color: 'var(--chip-fill)',
+  filter: 'blur(2px)',
+  maskImage: blurRamp,
+  WebkitMaskImage: blurRamp,
+  opacity: 0,
+  pointerEvents: 'none',
+  transition: 'opacity var(--duration-fast) var(--ease-standard)',
+  selectors: {
+    [`${chipRemovable}:hover &`]: { opacity: 1 }
+  }
+})
+
+/** tint() + the chip's FILL color as a var so descendants can paint in it — the blurred twin
+ *  melts the label's tail INTO the fill, not into a text-colored haze. A surface that overrides
+ *  the fill (ContextChip's neutral quaternary) must override `--chip-fill` alongside it. */
+const chipTint = (base: string): ReturnType<typeof tint> & { vars: Record<string, string> } => ({
+  ...tint(base),
+  vars: { '--chip-fill': tintAt(base, TINT_STEPS.primary) }
+})
 
 export const chipColor = styleVariants({
-  red: tint(solid.red),
-  blue: tint(solid.blue),
-  green: tint(solid.green),
-  purple: tint(solid.purple),
-  lavender: tint(solid.lavender),
-  cyan: tint(solid.cyan),
-  lightBlue: tint(solid.lightBlue),
-  orange: tint(solid.orange),
-  yellow: tint(solid.yellow),
-  grey: tint(solid.grey),
-  default: tint(solid.greyDefault)
+  red: chipTint(solid.red),
+  blue: chipTint(solid.blue),
+  green: chipTint(solid.green),
+  purple: chipTint(solid.purple),
+  lavender: chipTint(solid.lavender),
+  cyan: chipTint(solid.cyan),
+  lightBlue: chipTint(solid.lightBlue),
+  orange: chipTint(solid.orange),
+  yellow: chipTint(solid.yellow),
+  grey: chipTint(solid.grey),
+  default: chipTint(solid.greyDefault)
 })
 
 /** The chip palette keys — the single source consumers (cells, `colorMap`) target. */
@@ -76,9 +123,9 @@ export const chipCapsule = style({
 /**
  * The remove × — hover-revealed at the chip's right edge, painted in the chip's TEXT color
  * (`color: inherit` — the label recipe rides down). Overlaid (absolute) so revealing it never
- * shifts the chip's width; the `chipFrost` strip inside it backdrop-blurs the label tail so the
- * text dissolves beneath the crisp glyph. Hidden = inert (`pointerEvents: none`) so a rest-state
- * chip click still reaches the cell.
+ * shifts the chip's width; the label's tail blurs beneath it (`chipLabelText`/`chipLabelBlur`).
+ * Hidden = inert (`pointerEvents: none`) so a rest-state chip click still reaches the cell.
+ * The width anchors the ramp: the blur's clear zone starts at this edge.
  */
 export const chipRemove = style({
   position: 'absolute',
@@ -99,32 +146,5 @@ export const chipRemove = style({
   transition: 'opacity var(--duration-fast) var(--ease-standard)',
   selectors: {
     [`${chipRemovable}:hover &`]: { opacity: 1, pointerEvents: 'auto' }
-  }
-})
-
-/**
- * The frost — a backdrop-blur strip under the ×, ramping in from the left (masking an element
- * masks its backdrop effect) so the label tail dissolves instead of hard-clipping; the rest of
- * the label stays crisp. A DIRECT chip child, never inside the × button: an opacity-transitioned
- * ancestor becomes the strip's backdrop root and the filter samples nothing (verified live —
- * the blur silently no-ops). It anchors inside the chip's padding box, so the border stays sharp
- * by construction; the right-side radius keeps the strip inside the pill's rounded cap.
- */
-export const chipFrost = style({
-  position: 'absolute',
-  top: 0,
-  bottom: 0,
-  right: 0,
-  width: '26px',
-  backdropFilter: 'blur(8px)',
-  WebkitBackdropFilter: 'blur(8px)',
-  borderRadius: '0 8px 8px 0',
-  maskImage: 'linear-gradient(to right, transparent 0, #000000 12px)',
-  WebkitMaskImage: 'linear-gradient(to right, transparent 0, #000000 12px)',
-  opacity: 0,
-  pointerEvents: 'none',
-  transition: 'opacity var(--duration-fast) var(--ease-standard)',
-  selectors: {
-    [`${chipRemovable}:hover &`]: { opacity: 1 }
   }
 })
