@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import type { NexusTree, PageDetail, SelectionState, SetNode } from '@shared/types'
 import { DEFAULT_NEW_NAME, type MutableKind, type MutateRequest } from '@shared/mutate'
 import { reconcileSelection } from './selection'
+import { stabilize } from './treeStabilize'
 import { applyAccent, applySystemAccent } from './design-system/accent'
 
 // Sidebar width bounds — Swift's min:180 / ideal:240, max widened +50 past Swift's 330 for extra drag room.
@@ -208,7 +209,11 @@ export const useSession = create<SessionState>((set, get) => {
     // Swap in a freshly-read tree (load() after a fetch, or the live watcher's push).
     // No 'loading' flash — the tree's already on screen — and the selection reconciles
     // so the detail pane never strands on a gone page (delete) or stale path (rename/move).
-    applyTree: async (tree) => {
+    applyTree: async (incoming) => {
+      // Recycle unchanged subtrees from the prior tree — IPC strips identity, so without this
+      // every push re-rendered every consumer. An echo lands as the SAME tree (a zustand no-op);
+      // an unrelated change keeps the open container's identity and its memoized pipeline.
+      const tree = stabilize(incoming, get().tree)
       set({ status: 'ready', tree })
       const prev = get().selection
       const next = reconcileSelection(tree, prev)
