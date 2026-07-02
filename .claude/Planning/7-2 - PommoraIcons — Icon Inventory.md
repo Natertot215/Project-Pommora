@@ -88,12 +88,11 @@ The immediate-register set, mapped to what each naturally replaces. Tabler ids a
 | `chevron-up` / `chevron-down` | `chevron-up` / `chevron-down` | footer + accordion disclosure |
 | `dots-vertical` | `ellipsis-vertical` | showcase Menu leaf |
 | `adjustments-horizontal` | `sliders-horizontal` | toolbar Settings |
-| `link` | `link` | Link (url) property type |
 | `square-check` | `square-check` | Checkbox property type |
 | `layout-dashboard` | `layout-dashboard` | ViewPane Layout |
 | `eye` | `eye` | ViewPane Visibility |
 | `eye-closed` | staged `eye-off` | Visibility hidden-state |
-| `calendar-month` | `calendar` and/or `calendar-days` — **fork, see Gaps** | saved node · Date property type |
+| `calendar-month` | `calendar` + `calendar-days` — one glyph, THE default calendar everywhere | saved node · Date & Time property type |
 | `tag` | `tag` | showcase Chips leaf |
 | `grip-vertical` | `grip-vertical` (+ the editor grip mask) | row/block drag grips |
 | `grip-horizontal` | `grip-horizontal` | editor table column grip |
@@ -117,20 +116,18 @@ The immediate-register set, mapped to what each naturally replaces. Tabler ids a
 - `gallery-vertical-end` — Collection rows (reviewed the four Tabler candidates; Lucide's wins)
 - `folder-closed` / `folder-open` — stays Lucide (supersedes the earlier plan of Tabler `folder`/`folder-opened` behind custom CSS edits — that plan is dropped)
 - `log-out` — the sidebar in-out toggle (collapse renders flipped, expand plain — App.tsx; the census's "logout button" label was wrong, this is the sidebar affordance)
+- `link` (url property type) + `link-2` (Connections/relation) — BOTH stay Lucide, preserving Icons.md's deliberate url-vs-Connections separation (supersedes the earlier Tabler `link` pick)
 
 **First-party custom glyphs**: `square-dashed` gets drawn in-house (no Tabler counterpart chosen; Nathan's call — "create our own"). Registry consequence: PommoraIcons hosts custom SVG components alongside `@tabler` ones in the same slot shape (24 viewBox · currentColor · the 1.75 stroke default), so a custom glyph is indistinguishable from a library one at the callsite.
 
 **Register-on-day-one, no assignment yet** (Nathan wants them in immediately; callsites TBD): `chevron-compact-up` · `chevron-compact-down` · `heart` · `dots`. Same census discipline applies later — unassigned entries are how the dead-7 happened.
 
-#### Remaining Gaps — In-Use Icons Still Needing a Pick
+#### Spec Status — CLOSED
 
-Nathan's blanket call: **"the rest can be Tabler."** Everything below defaults to its Tabler equivalent, exact ids resolved against the installed package at registry build (likely renames: `house`→`home`, `type`→`typography`; `server` and `palette` should carry over; `shapes` needs a nearest-fit call):
+Every in-use icon has a ratified assignment; no open design calls remain. What's left is build-time mechanics only:
 
-- `server` (ViewPane Properties) · `house` (Homepage saved node) · showcase trio (`palette` · `type` · `shapes`)
-
-Only two genuinely open calls remain — both semantic, not library:
-
-1. `link-2` — Relation/Connections glyph — **fork**: Icons.md deliberately separates it from `link` (url); picking only `link` collapses the distinction. Needs its own Tabler glyph or an explicit merge call.
-2. **Calendar fork** — one pick (`calendar-month`), two current slots: `calendar` (saved node) and `calendar-days` (Date & Time property type). One glyph for both, or split?
+- **Tabler-default set** (Nathan: "the rest can be Tabler"): `server` (ViewPane Properties) · `house` (Homepage saved node) · showcase trio (`palette` · `type` · `shapes`) — exact ids resolved against the installed package (likely renames: `house`→`home`, `type`→`typography`; `shapes` needs a nearest-fit).
+- **Id verification** for every pick against `@tabler/icons-react` (the digit-vs-word spellings, `hashtag` vs `hash`).
+- **The Nexus frontmatter grep** for the dead 6 before dropping them.
 
 **The dead 6** (`circle-x`, `arrow-left-right`, `key-round`, `lock`, `log-in`, `panel-left`): no picks given — consistent with dropping at migration, pending the Nexus frontmatter grep. (`copy` was in this set until Nathan's pick rescued it.)
