@@ -22,6 +22,7 @@ Hard-won environment/toolchain traps. Add entries when a mistake is worth never 
 
 ### Glass / Liquid Glass
 
+- **`backdrop-filter` silently no-ops inside an opacity-transitioned ancestor** — the animated ancestor becomes the element's backdrop root, so the filter samples nothing: computed styles look right, nothing blurs, no error (diagnosed live on the chip ×'s rejected frost strip). Keep any backdrop-filter element OUT of faded/animated wrappers — reveal it with its OWN opacity instead.
 - **Apple Liquid Glass over an opaque dark surface reads dark, edge-defined** — not a white-tinted, brightened panel. Presence comes from the two-part edge (bright top specular rim + dark containment edge), low blur (≤ ~6px), minimal saturation. A `brightness()` lift or white fill over flat dark = "too bright / too frosty". The body stays near the main tone.
 - **`liquid-dom` (WebGPU) is shelved** — most authentic (real GPU refraction of live DOM) but requires Chrome's experimental `canvas-draw-element` flag (HTML-in-Canvas) and composing the app inside its `LiquidCanvas` scene graph (invasive). Revisit when the API ships unflagged. The current glass is CSS (`.surface-glass` — do not entangle it with app logic; it's the swappable `Surface` seam).
 - **`liquid-glass-react`** is installed but reserved for floating chrome (toolbar pills/popovers) — it's content-sized/centered and can't be a full-height pane.
