@@ -134,9 +134,11 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
   const [manualOverride, setManualOverride] = useState<string[] | null>(null)
   const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set(view.collapsed_groups ?? []))
   const [collapsing, setCollapsing] = useState<string | null>(null)
-  // Live column smooth-shift (A-4): the dragged column index, the slot it's over, and the cursor delta.
-  // Transient — set on grab, cleared on drop; column indices into the resolved `columns`.
-  const [colDrag, setColDrag] = useState<{ from: number; to: number; delta: number } | null>(null)
+  // Live column smooth-shift (A-4): the dragged column index + the slot it's over. Deliberately
+  // NOT the cursor delta — that changes per pointermove and rides a grid-level CSS var instead
+  // (--col-drag-x), so a drag frame never re-renders the unmemoized row/cell tree. Transient —
+  // set on grab + slot flips, cleared on drop; column indices into the resolved `columns`.
+  const [colDrag, setColDrag] = useState<{ from: number; to: number } | null>(null)
   const [iconPickerOpen, setIconPickerOpen] = useState(false)
   // Columns fit → the rounded content-inset look; columns overflow → the right inset flattens and
   // the table h-scrolls to the glass edge (the left gutter holds). One read per pane resize /
@@ -624,7 +626,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
     const startY = e.clientY
     // null until the pointer travels ACTIVATION px — a sub-threshold press is a click, not a drag, so the
     // highlight band never flashes and a jittery click can't reorder.
-    let current: { from: number; to: number; delta: number } | null = null
+    let current: { from: number; to: number } | null = null
     const onMove = (ev: PointerEvent): void => {
       if (!current && Math.hypot(ev.clientX - startX, ev.clientY - startY) < ACTIVATION) return
       const gridLeft = grid.getBoundingClientRect().left
@@ -649,8 +651,13 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
           }
         }
       }
-      current = { from, to, delta: (ev.clientX - startX) / zoom }
-      setColDrag(current)
+      // The cursor-follow is a grid-level var (one style write; the .col-dragging cells consume
+      // it) — React state updates only on activation + slot flips, never per move.
+      grid.style.setProperty('--col-drag-x', `${(ev.clientX - startX) / zoom}px`)
+      if (!current || current.to !== to) {
+        current = { from, to }
+        setColDrag(current)
+      }
     }
     // A committed release reorders (move + clear batch into one render — reorderColumn is React state —
     // so the settle is a single frame, no snap-back flash); a no-op release (own slot / un-armed click)
@@ -663,6 +670,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
       window.removeEventListener('pointermove', onMove)
       window.removeEventListener('pointerup', onUp)
       window.removeEventListener('pointercancel', onCancel)
+      grid.style.removeProperty('--col-drag-x')
       try {
         header.releasePointerCapture(ev.pointerId)
       } catch {
@@ -682,12 +690,12 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
     window.addEventListener('pointerup', onUp)
     window.addEventListener('pointercancel', onCancel)
   }
-  // The per-column translateX for the current drag: the subject tracks the cursor (delta); the columns
-  // between its source and target slot shift by the subject's width to open the gap (D-2-style).
+  // The gap-shift translateX for the current drag: the columns between the source and target slot
+  // shift by the subject's width to open the gap (D-2-style). The SUBJECT's cursor-follow is not
+  // here — it rides the grid-level --col-drag-x var on the .col-dragging cells (per-move, no state).
   const colTransform = (ci: number): string | undefined => {
     if (!colDrag) return undefined
-    const { from, to, delta } = colDrag
-    if (ci === from) return `translateX(${delta}px)`
+    const { from, to } = colDrag
     const w = colWidth(columns[from].id)
     if (to < from && ci >= to && ci < from) return `translateX(${w}px)`
     if (to > from && ci > from && ci <= to) return `translateX(${-w}px)`

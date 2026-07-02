@@ -93,6 +93,9 @@
 }
 .col-header.col-dragging,
 .data-cell.col-dragging {
+  /* The cursor-follow rides an imperative grid-level var, NOT React state — a per-pointermove
+     setState re-renders every unmemoized row (the "on every X" rule); slot flips stay state. */
+  transform: translateX(var(--col-drag-x, 0px));
   z-index: 2;
   background-color: var(--col-drag-band);
   background-image: linear-gradient(var(--col-highlight), var(--col-highlight));
