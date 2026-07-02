@@ -278,6 +278,10 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
   // group_order (merged over the FULL tree so collapsed siblings survive) · property reorder →
   // group.order + manual (its first UI writer) · reparent → moveSet with the destination's CURRENT
   // fs children + the moved id appended (C-4 — the visual slot persists only in group_order).
+  const commitBand = (patch: Partial<SavedView>): void => {
+    setBandOverride({ ...bandOverride, ...patch })
+    persistView(patch)
+  }
   const onBandDrop = (draggedId: string, drop: BandDrop): void => {
     const dragged = bands.find((b) => b.id === draggedId)
     if (!dragged) return
@@ -289,14 +293,12 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
         order_mode: 'manual' as const,
         order: propertyOrderAfterDrop(present, draggedId, drop.beforeId)
       }
-      setBandOverride({ ...bandOverride, group })
-      persistView({ group })
+      commitBand({ group })
       return
     }
     const group_order = structuralOrderAfterDrop(liveView.group_order ?? [], allStructuralIds(groups), draggedId, drop.beforeId)
     if (drop.kind === 'reorder') {
-      setBandOverride({ ...bandOverride, group_order })
-      persistView({ group_order })
+      commitBand({ group_order })
       return
     }
     const childIdsOf = (nodes: SetTreeNode[], id: string): string[] | null => {
@@ -316,8 +318,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
     // A failed move (a name collision at the destination) commits NOTHING — no phantom order.
     void (async () => {
       if (!(await mutate({ op: 'moveSet', path, newParentPath: destPath, order: reparentFsOrder(destChildIds, draggedId) }))) return
-      setBandOverride({ ...bandOverride, group_order })
-      persistView({ group_order })
+      commitBand({ group_order })
     })()
   }
 
