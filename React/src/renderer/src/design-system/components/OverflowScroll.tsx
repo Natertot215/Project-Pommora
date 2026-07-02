@@ -1,12 +1,7 @@
-import type { CSSProperties, ReactNode } from 'react'
-import { createContext, useContext, useEffect, useRef, useState } from 'react'
+import type { ReactNode } from 'react'
 import { cx } from '../cx'
 import { truncateHoverScroll } from '../tokens/typography.css'
-
-/** Bump to make every OverflowScroll under the provider re-measure its fade edges. Hosts with
- *  many instances (the table) broadcast ONE debounced signal from their own observer instead of
- *  a ResizeObserver per cell — the per-cell version is an O(cells) layout storm on live resizes. */
-export const OverflowMeasureContext = createContext(0)
+import './OverflowScroll.css'
 
 /**
  * Slide a hover-scrolled box back to its start when the pointer leaves — scrollLeft isn't a
@@ -31,51 +26,23 @@ export function slideScrollBack(scroller: HTMLElement): void {
 /**
  * The shared truncate-then-hover-scroll box (the sidebar-row mechanism, componentized): content
  * clips at rest, the pointer scrolls it horizontally in place, leaving slides it back to the
- * start. Overflowing content always ECLIPSES — a fade at whichever edge hides more content,
- * never a hard cutoff — via one two-sided mask (the token's hover mask handles only the left).
- * Wrap ANY overflowing content — a title with its inline icon, a chip row, a formatted date —
- * the mechanism doesn't care what's inside; the consumer's class owns display/gap/width.
+ * start. Overflowing content always ECLIPSES — a fade at whichever edge hides content, never a
+ * hard cutoff — via the scroll-driven mask in OverflowScroll.css. The engine activates the fade
+ * only while the box genuinely overflows, so there is no JS measurement and no signal to plumb:
+ * column resizes, content edits, and zoom changes all re-resolve on their own. Wrap ANY
+ * overflowing content — the consumer's class owns display/gap/width; --eclipse-fade tunes the
+ * fade width per context.
  */
 export function OverflowScroll({
   children,
-  className,
-  fade = 16
+  className
 }: {
   children: ReactNode
   className?: string
-  fade?: number
 }): React.JSX.Element {
-  const ref = useRef<HTMLSpanElement>(null)
-  const [edges, setEdges] = useState({ left: false, right: false })
-  const epoch = useContext(OverflowMeasureContext)
-
-  const measure = (): void => {
-    const el = ref.current
-    if (!el) return
-    const left = el.scrollLeft > 0
-    const right = el.scrollLeft + el.clientWidth < el.scrollWidth - 1
-    setEdges((prev) => (prev.left === left && prev.right === right ? prev : { left, right }))
-  }
-  // Mount + host broadcasts re-measure here; scroll and hover keep the single cell honest between
-  // epochs. No per-instance observer — see OverflowMeasureContext.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: epoch is the change signal, not a read.
-  useEffect(measure, [epoch])
-
-  const mask =
-    edges.left || edges.right
-      ? `linear-gradient(to right, transparent 0, #000000 ${edges.left ? fade : 0}px, #000000 calc(100% - ${edges.right ? fade : 0}px), transparent 100%)`
-      : undefined
   return (
     <span
-      ref={ref}
-      className={cx(truncateHoverScroll, className)}
-      style={
-        mask
-          ? ({ maskImage: mask, WebkitMaskImage: mask, textOverflow: 'clip', '--scroll-fade': '0px' } as CSSProperties)
-          : undefined
-      }
-      onScroll={measure}
-      onPointerEnter={measure}
+      className={cx(truncateHoverScroll, 'overflow-eclipse', className)}
       onPointerLeave={(e) => slideScrollBack(e.currentTarget)}
     >
       {children}

@@ -32,7 +32,6 @@ import { groupKeyToValue, REASSIGNABLE_GROUP_TYPES } from './reassign'
 import { cx } from '@renderer/design-system/cx'
 import { text } from '@renderer/design-system/tokens'
 import { useExitPresence } from '@renderer/design-system/useExitPresence'
-import { OverflowMeasureContext } from '@renderer/design-system/components/OverflowScroll'
 import { IconPicker } from '@renderer/Components/IconPicker'
 import { Icon } from '@renderer/design-system/symbols'
 import { Reveal } from '@renderer/design-system/components/Reveal'
@@ -43,8 +42,6 @@ import { TableRowDnd, useTableRowDrag } from './tableDnd'
 // flips (the sticky zone around the current slot). Larger = more deliberate / harder to leave a slot;
 // smaller = snappier. Bump this one number to taste.
 const COL_SHIFT_HYSTERESIS = 25
-// How long after the last size change before every cell re-measures its fade edges.
-const MEASURE_SETTLE_MS = 150
 
 /** A Collection uses its own schema; a Set inherits its ancestor Collection's (schema lives only on
  *  the Collection). [] when the owning Collection can't be found. */
@@ -145,11 +142,6 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
   // track-set change — never per scroll or per pointermove.
   const viewRef = useRef<HTMLDivElement>(null)
   const [overflowing, setOverflowing] = useState(false)
-  // The cells' shared re-measure signal (OverflowScroll fades) — bumped debounced from the one
-  // table-level observer instead of a ResizeObserver per cell (the per-cell version was an
-  // O(cells) forced-layout storm on every frame of a column drag).
-  const [measureEpoch, setMeasureEpoch] = useState(0)
-  const epochTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   // The column sum (pre-zoom px), readable from the overflow check without a stale closure. The
   // check compares THIS against the box — a scrollWidth read floors at clientWidth, so any
   // is-content-bigger comparison built on it can latch.
@@ -221,8 +213,9 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
     // biome-ignore lint/correctness/useExhaustiveDependencies: buildResolveContext reads only contexts + labels — keying on those slices keeps ctx identity across unrelated tree pushes, so memoized rows hold.
     [tree?.contexts, tree?.labels, schema]
   )
-  // One mounted observer, two targets: the view (pane resizes) and the grid (its box moves when
-  // the track set changes — a column resize/hide/add). Each fires one cheap read, never per-scroll.
+  // One mounted observer, two targets, one job (the overflowing flag): the view (pane resizes) and
+  // the grid (min-width sizes its box only while the columns overflow the pane — in the fit regime
+  // width:100% pins it, and nothing here needs to fire). Each fires one cheap read, never per-scroll.
   useEffect(() => {
     const el = viewRef.current
     if (!el) return
@@ -232,20 +225,13 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
       const gridEl = el.querySelector('.table-grid')
       const zoom = gridEl ? Number.parseFloat(getComputedStyle(gridEl).getPropertyValue('zoom')) || 1 : 1
       setOverflowing(reflowRef.current * zoom > el.clientWidth - pads + 1)
-      // Cells re-measure their fade edges once the burst settles (drag-resize fires per move) —
-      // never per frame; hover/scroll keep individual cells honest in between.
-      clearTimeout(epochTimer.current)
-      epochTimer.current = setTimeout(() => setMeasureEpoch((e) => e + 1), MEASURE_SETTLE_MS)
     }
     check()
     const ro = new ResizeObserver(check)
     ro.observe(el)
     const grid = el.querySelector('.table-grid')
     if (grid) ro.observe(grid)
-    return () => {
-      ro.disconnect()
-      clearTimeout(epochTimer.current)
-    }
+    return () => ro.disconnect()
     // biome-ignore lint/correctness/useExhaustiveDependencies: re-bind when the loading/empty returns give way to the real grid (the nodes remount without ctx changing).
   }, [ctx === null, groups.length === 0])
   const setNames = useMemo(() => buildSetNames(source), [source])
@@ -859,7 +845,6 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
 
   return (
     <div ref={viewRef} className={cx('table-view', overflowing && 'overflowing')}>
-      <OverflowMeasureContext.Provider value={measureEpoch}>
       <IconPicker open={iconPickerOpen} onClose={() => setIconPickerOpen(false)} />
       <BandDnd bands={bands} labelFor={bandLabel} onDrop={onBandDrop}>
       <TableRowDnd
@@ -914,7 +899,6 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
         </div>
       </TableRowDnd>
       </BandDnd>
-      </OverflowMeasureContext.Provider>
     </div>
   )
 }

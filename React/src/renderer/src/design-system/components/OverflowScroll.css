@@ -1,0 +1,63 @@
+/* Scroll-driven eclipse: the fade is a permanent property of the box's edges, activated by the
+   engine instead of JS. The two progress vars animate along the box's own horizontal scroll range;
+   a box whose content fits has no range, so the timeline is inactive and the vars hold their 0
+   initials — the mask collapses to a no-op. Any layout or content change re-resolves instantly.
+   (The previous JS measure latched stale state: a fit-width grid's box never moves on a column
+   resize, so its ResizeObserver broadcast never fired and cells only re-measured on hover.) */
+@property --eclipse-l {
+  syntax: "<number>";
+  inherits: false;
+  initial-value: 0;
+}
+@property --eclipse-r {
+  syntax: "<number>";
+  inherits: false;
+  initial-value: 0;
+}
+
+/* The left fade eases in over the first tenth of the scroll range; the right holds until the last
+   tenth and eases out into the end stop. At rest (scroll 0) that's right-fade-only — the JS edge
+   semantics, now interpolated. */
+@keyframes eclipse-left {
+  0% {
+    --eclipse-l: 0;
+  }
+  10%,
+  100% {
+    --eclipse-l: 1;
+  }
+}
+@keyframes eclipse-right {
+  0%,
+  90% {
+    --eclipse-r: 1;
+  }
+  100% {
+    --eclipse-r: 0;
+  }
+}
+
+/* Doubled class (0,2,0) outguns the truncate token's :hover mask (0,1,1) so the eclipse holds while
+   hovered. text-overflow: clip — the eclipse IS the truncation signal; an ellipsis would double-signal.
+   --eclipse-fade is the per-context fade-width knob. */
+.overflow-eclipse.overflow-eclipse {
+  text-overflow: clip;
+  animation-name: eclipse-left, eclipse-right;
+  animation-duration: auto;
+  animation-timing-function: linear;
+  animation-timeline: scroll(self inline);
+  mask-image: linear-gradient(
+    to right,
+    transparent 0,
+    #000000 calc(var(--eclipse-l) * var(--eclipse-fade, 16px)),
+    #000000 calc(100% - var(--eclipse-r) * var(--eclipse-fade, 16px)),
+    transparent 100%
+  );
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent 0,
+    #000000 calc(var(--eclipse-l) * var(--eclipse-fade, 16px)),
+    #000000 calc(100% - var(--eclipse-r) * var(--eclipse-fade, 16px)),
+    transparent 100%
+  );
+}

@@ -59,7 +59,7 @@ One long session: shipped PropertiesV2 end-to-end, ratified the Tables Next-Part
 **Key Files & Insights**
 
 - `Detail/Views/PropertyEditing/` — the table-agnostic editing home: `PropertyPicker` (+ `StatusCapsule`), `PropertyEditor`, `statusCycle` (fixed 3-group cycle + glyph map), `formatValue` (Swift-parity, en-US pinned, local-midnight date parse). Gallery/List mount these as-is later.
-- `design-system/components/OverflowScroll.tsx` — THE overflow mechanism (fade + hover-scroll + bounce-back + `OverflowMeasureContext` epoch); the sidebar shares `slideScrollBack`.
+- `design-system/components/OverflowScroll.tsx` — THE overflow mechanism (hover-scroll + bounce-back; the eclipse fade is scroll-driven CSS in `OverflowScroll.css` — the engine activates it only on real overflow, so there's no JS measurement and nothing to go stale); the sidebar shares `slideScrollBack`.
 - `Detail/Views/Table/TableView.tsx` — gesture routing (`onCellClick`/`openCellMenu`/`cellOverlay`), the overflow check (column-sum vs pre-compression pane), per-view style state. Still no virtualization/memo on rows — the standing perf debt, now hotter with cell interactivity.
 - `shared/columnStyles.ts` + `Table/columnStyles.ts` — type+zod+defaults live shared (main needs them for menus); the schema-aware `styleFor` resolver is renderer-side (mirrors `columnAlign`) because `shared/` can't import the pipeline's `declaredType`.
 - `main/mutate.ts` `serializeOnFile` — per-path write chain for the hot value ops; the pattern to reuse for any read-modify-write on user files.
