@@ -107,8 +107,12 @@ The immediate-register set, mapped to what each naturally replaces. Tabler ids a
 | `hashtag` | `hash` | Number property type |
 | `circle-plus` | `square-plus` — shape shift, square→circle | add-banner button |
 | `copy` | registry `copy` (uncalled today — kept registered for future duplicate actions) | — |
+| `file-text` | `file-text` — verified, same id in Tabler | THE default page icon |
+| `file-import` | `import` — bare `import` doesn't exist in Tabler; `file-import` verified | File property type |
 
 **Conditional**: Tabler `folder` + `folder-opened` replace `folder-closed`/`folder-open` — only after Nathan's custom CSS edits to them; hold Lucide's pair until those edits are ratified.
+
+**First-party custom glyphs**: `square-dashed` gets drawn in-house (no Tabler counterpart chosen; Nathan's call — "create our own"). Registry consequence: PommoraIcons hosts custom SVG components alongside `@tabler` ones in the same slot shape (24 viewBox · currentColor · the 1.75 stroke default), so a custom glyph is indistinguishable from a library one at the callsite.
 
 **Register-on-day-one, no assignment yet** (Nathan wants them in immediately; callsites TBD): `chevron-compact-up` · `chevron-compact-down` · `heart` · `dots`. Same census discipline applies later — unassigned entries are how the dead-7 happened.
 
@@ -116,15 +120,12 @@ The immediate-register set, mapped to what each naturally replaces. Tabler ids a
 
 Ordered by weight; these have no Tabler assignment yet:
 
-1. `file-text` — **THE default page icon, heaviest icon in the app** (sidebar, table titles, autocomplete)
-2. `square-dashed` — unselected state · profile placeholder · the DashIcon pending-glyph
-3. `import` — File property type
-4. `link-2` — Relation/Connections glyph — **fork**: Icons.md deliberately separates it from `link` (url); picking only `link` collapses the distinction. Needs its own glyph or an explicit merge call.
-5. **Calendar fork** — one pick (`calendar-month`), two current slots: `calendar` (saved node) and `calendar-days` (Date & Time property type). One glyph for both, or split?
-6. `server` — ViewPane Properties entry
-7. `gallery-vertical-end` — sidebar Collection rows (no obvious 1:1 Tabler twin; deliberate choice needed)
-8. `house` — Homepage saved node
-9. `log-out` — close-nexus button
-10. Showcase trio — `palette` · `type` · `shapes` (lowest stakes)
+1. `gallery-vertical-end` — sidebar Collection rows. **No exact Tabler twin** (verified). Real candidates, pending Nathan's eyeball on tabler.io: `layout-list` (two stacked cards — crispest at 14px) · `carousel-vertical` (card with peek-cards above/below — closest to the "vertical gallery" metaphor) · `versions` (card with depth echoes) · `cards` (tilted overlap). The `stack-*` family is excluded — `stack-2` is already the Group glyph and siblings would read as Group-related.
+2. `link-2` — Relation/Connections glyph — **fork**: Icons.md deliberately separates it from `link` (url); picking only `link` collapses the distinction. Needs its own glyph or an explicit merge call.
+3. **Calendar fork** — one pick (`calendar-month`), two current slots: `calendar` (saved node) and `calendar-days` (Date & Time property type). One glyph for both, or split?
+4. `server` — ViewPane Properties entry
+5. `house` — Homepage saved node
+6. `log-out` — close-nexus button
+7. Showcase trio — `palette` · `type` · `shapes` (lowest stakes)
 
 **The dead 6** (`circle-x`, `arrow-left-right`, `key-round`, `lock`, `log-in`, `panel-left`): no picks given — consistent with dropping at migration, pending the Nexus frontmatter grep. (`copy` was in this set until Nathan's pick rescued it.)
