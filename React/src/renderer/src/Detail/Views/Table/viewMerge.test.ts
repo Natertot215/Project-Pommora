@@ -41,4 +41,16 @@ describe('mergeOverrides', () => {
     const out = mergeOverrides(base(), { a: 150 }, {}, new Set(), { column_widths: { a: 150, _title: 250 } })
     expect(out.column_widths).toEqual({ a: 150, _title: 250 })
   })
+
+  it('folds style overrides per-KEY — a partial override never wipes a saved sibling key', () => {
+    const view = base({ column_styles: { a: { look: 'capsule', date_format: 'short' } } })
+    const out = mergeOverrides(view, {}, {}, new Set(), {}, { a: { time_format: 'twelveHour' } })
+    expect(out.column_styles?.a).toEqual({ look: 'capsule', date_format: 'short', time_format: 'twelveHour' })
+  })
+
+  it('keeps untouched columns and lets the override key win', () => {
+    const view = base({ column_styles: { a: { look: 'pill' }, b: { look: 'checkbox' } } })
+    const out = mergeOverrides(view, {}, {}, new Set(), {}, { a: { look: 'capsule' } })
+    expect(out.column_styles).toEqual({ a: { look: 'capsule' }, b: { look: 'checkbox' } })
+  })
 })

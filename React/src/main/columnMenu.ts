@@ -1,11 +1,11 @@
 import { Menu } from 'electron'
 import type { BrowserWindow, MenuItemConstructorOptions } from 'electron'
-import type { ColumnMenuAction, ColumnMenuContext } from '@shared/columnMenu'
+import { styleMenuItems, type ColumnMenuAction, type ColumnMenuContext } from '@shared/columnMenu'
 import type { ColumnAlign } from '@shared/views'
 
 // The table-view column header's right-click menu (E-1/E-5) — same shape as popTableMenu. Align (a radio
-// L/C/R, current checked) + Hide; the Title column carries neither (empty menu ⇒ dismissed). resolve(null)
-// covers a dismissed menu so the renderer no-ops.
+// L/C/R, current checked) + Style (per-type radios from the shared builder) + Hide; the Title column
+// carries none (empty menu ⇒ dismissed). resolve(null) covers a dismissed menu so the renderer no-ops.
 export function popColumnMenu(win: BrowserWindow, ctx: ColumnMenuContext): Promise<ColumnMenuAction | null> {
   return new Promise<ColumnMenuAction | null>((resolve) => {
     let acted = false
@@ -23,7 +23,17 @@ export function popColumnMenu(win: BrowserWindow, ctx: ColumnMenuContext): Promi
     if (ctx.alignable) {
       items.push({ label: 'Align', submenu: [align('Left', 'left'), align('Center', 'center'), align('Right', 'right')] })
     }
-    if (ctx.alignable && ctx.hideable) items.push({ type: 'separator' })
+    const styleRows = ctx.style ? styleMenuItems(ctx.style) : []
+    if (styleRows.length > 0) {
+      items.push({
+        label: 'Style',
+        submenu: styleRows.flatMap((r): MenuItemConstructorOptions[] => [
+          ...(r.separatorBefore ? [{ type: 'separator' } as MenuItemConstructorOptions] : []),
+          { label: r.label, type: 'radio', checked: r.checked, click: pick(`style:${r.key}:${r.value}`) }
+        ])
+      })
+    }
+    if ((ctx.alignable || styleRows.length > 0) && ctx.hideable) items.push({ type: 'separator' })
     if (ctx.hideable) items.push({ label: 'Hide', click: pick('column:hide') })
     if (items.length === 0) {
       resolve(null)

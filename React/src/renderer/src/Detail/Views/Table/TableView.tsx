@@ -3,6 +3,7 @@ import type { CollectionNode, NexusTree, ResolvedColumn, ResolvedGroup, SetNode,
 import type { PropertyDefinition } from '@shared/properties'
 import type { PageFrontmatter } from '@shared/schemas'
 import type { ColumnStyle } from '@shared/columnStyles'
+import { parseStyleAction } from '@shared/columnMenu'
 import { type ColumnAlign, type SavedView, mintDefaultView } from '@shared/views'
 import { applyPropertyValue } from '@shared/propertyValue'
 import { flattenContainer } from '../pipeline/group'
@@ -18,7 +19,7 @@ import { clampWidth, widthFor } from './columnWidths'
 import { alignFor } from './columnAlign'
 import { styleFor } from './columnStyles'
 import { reorderColumns } from './columnReorder'
-import { mergeOverrides } from './viewMerge'
+import { mergeOverrides, mergeStyleRecords } from './viewMerge'
 import { groupKeyToValue, REASSIGNABLE_GROUP_TYPES } from './reassign'
 import { cx } from '@renderer/design-system/cx'
 import { text } from '@renderer/design-system/tokens'
@@ -91,6 +92,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
   const [orderOverride, setOrderOverride] = useState<string[] | null>(null)
   const [widthOverride, setWidthOverride] = useState<Record<string, number>>({})
   const [alignOverride, setAlignOverride] = useState<Record<string, ColumnAlign>>({})
+  const [styleOverride, setStyleOverride] = useState<Record<string, ColumnStyle>>({})
   const [hiddenOverride, setHiddenOverride] = useState<string[] | null>(null)
   const [manualOverride, setManualOverride] = useState<string[] | null>(null)
   const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set(view.collapsed_groups ?? []))
@@ -102,6 +104,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
     setOrderOverride(null)
     setWidthOverride({})
     setAlignOverride({})
+    setStyleOverride({})
     setHiddenOverride(null)
     setManualOverride(null)
     setCollapsing(null)
@@ -157,7 +160,11 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
   // Persist the saved view + every live override (order + collapse) + a patch, so no one mutation
   // clobbers another's unsaved state — the exact Swift reorder/resize data-loss H-2 guards against.
   const persistView = (patch: Partial<SavedView>): void => {
-    void window.nexus.views.save(source.path, source.kind, mergeOverrides(liveView, widthOverride, alignOverride, collapsed, patch))
+    void window.nexus.views.save(
+      source.path,
+      source.kind,
+      mergeOverrides(liveView, widthOverride, alignOverride, collapsed, patch, styleOverride)
+    )
   }
   const toggleCollapse = (key: string): void => {
     const next = new Set(collapsed)
@@ -201,20 +208,35 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
   }
   // A column's resolved alignment (E-5..E-7): the live override, else the saved value / E-6 type default.
   const colAlign = (id: string): ColumnAlign => alignOverride[id] ?? alignFor(id, schema, liveView)
-  // A column's resolved display style (B-1..B-5): the saved per-view entry merged over the type default.
-  const colStyle = (id: string): ColumnStyle => styleFor(id, schema, liveView)
+  // A column's resolved display style (B-1..B-5): the live override keys, over the saved per-view
+  // entry, over the type default.
+  const colStyle = (id: string): ColumnStyle => ({ ...styleFor(id, schema, liveView), ...styleOverride[id] })
+  // Set one style key: applies live via the override, persists per-key into column_styles — the align
+  // pattern; the patch carries the not-yet-committed value so a state-batch can't drop it.
+  const setColumnStyle = (id: string, key: keyof ColumnStyle & string, value: string): void => {
+    const merged = { ...styleOverride[id], [key]: value } as ColumnStyle
+    setStyleOverride((prev) => ({ ...prev, [id]: merged }))
+    persistView({ column_styles: mergeStyleRecords(liveView.column_styles, { ...styleOverride, [id]: merged }) })
+  }
   // Set a column's alignment: applies live via the override, persists to the SavedView column_alignments.
   const setColumnAlign = (id: string, align: ColumnAlign): void => {
     setAlignOverride((prev) => ({ ...prev, [id]: align }))
     persistView({ column_alignments: { ...liveView.column_alignments, ...alignOverride, [id]: align } })
   }
-  // Right-click a header → native column menu (E-1/E-5): Align + Hide. Title is the primary column — fixed
-  // left, not hideable — so it pops nothing.
+  // Right-click a header → native column menu (E-1/E-5): Align + Style + Hide. Title is the primary
+  // column — fixed left, not hideable, no style — so it pops nothing. The style ctx rides only for a
+  // schema-declared property type; the shared builder decides which types actually get items.
   const openHeaderMenu = async (id: string, isTitle: boolean, e: React.MouseEvent): Promise<void> => {
     e.preventDefault()
-    const action = await window.nexus.columnMenu({ align: colAlign(id), alignable: !isTitle, hideable: !isTitle })
+    const t = declaredType(id, schema)
+    const style = t !== undefined && t !== 'title' && t !== 'tier' ? { type: t, current: colStyle(id) } : undefined
+    const action = await window.nexus.columnMenu({ align: colAlign(id), alignable: !isTitle, hideable: !isTitle, style })
     if (action === 'column:hide') hideColumn(id)
     else if (action?.startsWith('align:')) setColumnAlign(id, action.slice('align:'.length) as ColumnAlign)
+    else if (action?.startsWith('style:')) {
+      const parsed = parseStyleAction(action)
+      if (parsed) setColumnStyle(id, parsed.key, parsed.value)
+    }
   }
 
   if (!ctx) return <div className="table-empty">Loading…</div>
