@@ -511,7 +511,7 @@ With: `const registry = useSession((st) => st.tree?.registry) ?? []`; `const ass
 
 **Files:**
 - Create: `React/src/renderer/src/Components/Detail/paneDndModel.ts` + `.test.ts` (pure), `React/src/renderer/src/Components/Detail/paneDnd.tsx`
-- Modify: `PropertiesPane.tsx` (wrap the two groups in the provider; rows register), `viewPane.css.ts` (drop-line + `allHighlight` classes)
+- Modify: `PropertiesPane.tsx` (wrap the two groups in the provider; ONLY property rows register via `usePaneDrag` — never the All Properties disclosure heading or the back-row), `viewPane.css.ts` (drop-line + `allHighlight` classes)
 - Test: extend `propertiesPane.test.tsx` (gesture cases via `pointerHarness`)
 
 **Interfaces:**
