@@ -30,11 +30,15 @@ The Subfield footer (a depth-aware breadcrumb plus per-view stats). The glass sp
 
 Callouts (`> [!callout]` boxes that render nested syntax inside). The Collection Table-Views pipeline — a portable `SavedView` engine (filter → group → sort) with multi-key sort and recursive filters, deliberately ahead of the original. The view-settings dropdown and its first panes (Properties schema CRUD), in progress. The motion + shadow token pass — the Bloom open/retract — alongside the Figma Switch. And **PropertiesV2**: definitions flattened to one nexus-wide registry that Collections assign, unlocking cross-Collection queries + strip-free moves (the data-layer paradigm; the assign-surface UI rides with View Settings).
 
+#### Tables Interactive (06-30 → 07-02)
+
+The table's full interaction layer. First the per-type cell gesture matrix — the title navigates, every value cell owns its click through the shared picker/editor surfaces — with per-view column styles, the Apple overflow model (fixed tracks, whole-view h-scroll past the pane, the conditional inspector), and the DRY overflow-scroll mechanism. Then **band drag**: group bands reorder per-view by their glyph (manual-only, view-owned order) and Set bands reparent across the tree as real folder moves; Esc aborts every drag surface.
+
 ### II. Upcoming (Toward v1.0.0)
 
 #### v0.5.0 — Views Complete + Properties UI
 
-The Gallery / Board / List / Cards renderers, the toolbar Views switcher, and the full View Settings panes (Filter / Group / Sort / Layout / Visibility) over the shipped pipeline; rich table cells (type-aware chips, inline editing, column resize); the per-view reorder engine; the **assign surface** (the Properties pane grown to the nexus-wide model — assign-existing, Remove vs global Delete); and the page property panel (the data layer is done, registry-backed).
+The Gallery / Board / List / Cards renderers, the toolbar Views switcher, and the full View Settings panes (Filter / Group / Sort / Layout / Visibility) over the shipped pipeline; the chip mechanics (the DRY'd slide + the hover (×) remove); the **assign surface** (the Properties pane grown to the nexus-wide model — assign-existing, Remove vs global Delete); and the page property panel (the data layer is done, registry-backed).
 
 #### v0.6.0 — Agenda + Calendar
 
