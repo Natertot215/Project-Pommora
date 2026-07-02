@@ -13,22 +13,26 @@ export interface ColumnWidth {
 }
 
 // Keyed by declaredType's outputs ('title' | 'tier' | a PropertyType) + 'created' (special-cased).
+// Max is UNCAPPED for every type (Nathan): a resize past the pane pushes the table into rightward
+// h-scroll (the overflowing flatten) instead of hitting an immovable per-type wall. Mins stay —
+// a stale saved value still can't squash a column below legibility.
+const UNCAPPED = Number.POSITIVE_INFINITY
 const WIDTHS: Record<string, ColumnWidth> = {
-  title: { min: 120, default: 280, max: Number.POSITIVE_INFINITY }, // the primary column — uncapped, grows freely
-  tier: { min: 80, default: 140, max: 300 },
-  status: { min: 65, default: 120, max: 200 },
-  select: { min: 65, default: 120, max: 200 },
-  multi_select: { min: 65, default: 180, max: 320 },
-  checkbox: { min: 40, default: 60, max: 80 },
-  url: { min: 100, default: 140, max: 340 },
-  file: { min: 100, default: 140, max: 300 },
-  number: { min: 40, default: 100, max: 300 },
-  datetime: { min: 90, default: 140, max: 210 },
-  last_edited_time: { min: 90, default: 120, max: 190 },
-  created: { min: 90, default: 120, max: 190 }
+  title: { min: 120, default: 280, max: UNCAPPED },
+  tier: { min: 80, default: 140, max: UNCAPPED },
+  status: { min: 65, default: 120, max: UNCAPPED },
+  select: { min: 65, default: 120, max: UNCAPPED },
+  multi_select: { min: 65, default: 180, max: UNCAPPED },
+  checkbox: { min: 40, default: 60, max: UNCAPPED },
+  url: { min: 100, default: 140, max: UNCAPPED },
+  file: { min: 100, default: 140, max: UNCAPPED },
+  number: { min: 40, default: 100, max: UNCAPPED },
+  datetime: { min: 90, default: 140, max: UNCAPPED },
+  last_edited_time: { min: 90, default: 120, max: UNCAPPED },
+  created: { min: 90, default: 120, max: UNCAPPED }
 }
 
-const FALLBACK: ColumnWidth = { min: 80, default: 140, max: 340 }
+const FALLBACK: ColumnWidth = { min: 80, default: 140, max: UNCAPPED }
 
 /** The {min, default, max} width for a column, keyed by its declared type (`_created_at` special-cased,
  *  unknown → a sane fallback). */

@@ -10,10 +10,16 @@
   margin-left: calc(var(--fold-gutter) - var(--content-gutter));
   margin-right: calc(-1 * var(--content-gutter));
   /* Re-add the content gutter the body reclaimed so the grid lands on --content-inset (grips + chevrons
-     sit in the strip to its left); padding-right re-insets the rows off the right glass edge. */
+     sit in the strip to its left). The RIGHT inset is a scoped var: full gutter while the columns fit
+     (the rounded, content-inset look), collapsed to nothing once they overflow — the table flattens and
+     h-scrolls to the glass edge (the Apple table model) while the left gutter stays solid. */
+  --table-right-inset: var(--content-gutter);
   padding-left: var(--content-gutter);
-  padding-right: var(--content-gutter);
+  padding-right: var(--table-right-inset);
   overflow-x: auto; /* columns scroll horizontally when they exceed the pane */
+}
+.table-view.overflowing {
+  --table-right-inset: 0px;
 }
 
 .table-empty {
@@ -64,9 +70,9 @@
      that the title is an elastic minmax — an un-padded (wider) header would resolve it wider than the
      narrower rows and drift every column. Staying in the grid keeps the band h-scrolling with the body. */
   margin-left: calc(-1 * var(--content-gutter));
-  margin-right: calc(-1 * var(--content-gutter));
+  margin-right: calc(-1 * var(--table-right-inset));
   padding-left: var(--content-gutter);
-  padding-right: var(--content-gutter);
+  padding-right: var(--table-right-inset);
 }
 .col-header {
   padding: var(--heading-padding-y) var(--cell-padding-x);
@@ -218,28 +224,38 @@
 
 /* Type-aware cell content (chips, title icon, links). The page icon reads at --label-secondary (the
    shared icon tone, same as the sidebar's), a step under the title text, which stays --text. */
+/* The title is an OverflowScroll box (the sidebar-row mechanism): icon + text INLINE in one nowrap
+   scroller, so the icon rides the hover-scroll with the title instead of pinning while text slides.
+   The lead cell keeps overflow visible for the gutter grip, so the content box carries the cap. */
 .cell-title {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--cell-icon-gap);
-  /* The lead cell keeps overflow visible for the gutter grip, so the CONTENT carries the cap:
-     the inline-flex is bounded to the cell and the text item truncates (hover-scroll, the shared
-     sidebar/chip mechanism composed in the TSX). */
+  display: inline-block;
   max-width: 100%;
-  min-width: 0;
+  vertical-align: middle;
   color: var(--label-secondary);
 }
 .cell-title > svg {
-  flex: none; /* the page icon never squishes as the title shrinks */
+  vertical-align: text-bottom;
+  margin-right: var(--cell-icon-gap);
 }
 .cell-title-text {
   color: var(--text);
+}
+/* Plain-text scroll box (dates, numbers, links) — same mechanism, block-bounded to the cell. */
+.cell-text-scroll {
+  display: inline-block;
+  max-width: 100%;
+  vertical-align: middle;
 }
 .cell-chips {
   display: inline-flex;
   align-items: center;
   gap: var(--chips-gap);
+  max-width: 100%;
   min-width: 0;
+}
+/* Chips never squish — they hold their size and the OverflowScroll box scrolls them instead. */
+.cell-chips > * {
+  flex: none;
 }
 .cell-link {
   color: var(--accent);

@@ -4,6 +4,7 @@ import { text } from '@renderer/design-system/tokens'
 import { cx } from '@renderer/design-system/cx'
 import { MenuItem } from '@renderer/design-system/components/menu'
 import { Reveal } from '@renderer/design-system/components/Reveal'
+import { slideScrollBack } from '@renderer/design-system/components/OverflowScroll'
 import { EditableInput } from '../Components/EditableInput'
 import type {
   AreaNode,
@@ -134,23 +135,6 @@ function Leaf({
 // spreads the pointer handle, and mutes it while lifted. Its rect feeds the insertion-line
 // hit-testing, so it must wrap ONLY the row itself — never a subtree (a Disclosure's body
 // stays outside it).
-// Slide a hover-scrolled row's title back to the start when the pointer leaves — scrollLeft isn't a
-// CSS-transitionable property and the un-hover reset isn't a CSSOM scroll, so a rAF tween is the way to
-// honour the sidebar's panel-slide timing (reads --duration-base / --ease-standard, never hardcodes).
-function slideTitleBack(scroller: HTMLElement): void {
-  const from = scroller.scrollLeft
-  if (from <= 0) return
-  const raw = getComputedStyle(document.documentElement).getPropertyValue('--duration-base').trim()
-  const ms = (raw.endsWith('ms') ? Number.parseFloat(raw) : Number.parseFloat(raw) * 1000) || 240
-  const t0 = performance.now()
-  const tick = (t: number): void => {
-    const p = Math.min(1, (t - t0) / ms)
-    scroller.scrollLeft = from * (1 - p) ** 3 // ease-out settle into the start, matching --ease-standard
-    if (p < 1) requestAnimationFrame(tick)
-  }
-  requestAnimationFrame(tick)
-}
-
 function DragRow({ id, children }: { id: string; children: React.ReactNode }): React.JSX.Element {
   const drag = useSidebarDrag(id)
   return (
@@ -160,7 +144,7 @@ function DragRow({ id, children }: { id: string; children: React.ReactNode }): R
       {...drag.handle}
       onMouseLeave={(e) => {
         const sc = e.currentTarget.querySelector<HTMLElement>('[class*="titleText"]')
-        if (sc) slideTitleBack(sc)
+        if (sc) slideScrollBack(sc)
       }}
     >
       {children}

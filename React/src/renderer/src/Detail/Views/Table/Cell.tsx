@@ -7,7 +7,7 @@ import { Switch } from '@renderer/design-system/components/Switches/Switch'
 import { Chip } from '@renderer/Components/Chip'
 import { ContextChip } from '@renderer/Components/ContextChip'
 import { chipColorFor } from '@renderer/design-system/tokens/colorMap'
-import { truncateHoverScroll } from '@renderer/design-system/tokens/typography.css'
+import { OverflowScroll } from '@renderer/design-system/components/OverflowScroll'
 import { resolveFieldValue } from '../pipeline/value'
 import { fileLabel, formatDate, formatNumber } from '../PropertyEditing/formatValue'
 import { STATUS_GROUP_GLYPH, statusGroupOf } from '../PropertyEditing/statusCycle'
@@ -37,10 +37,10 @@ export function Cell({
     // reads with an icon (E-3). Hide Page Icons drops it entirely.
     const iconName = hideIcon ? undefined : (asIconName(row.icon) ?? 'file-text')
     return (
-      <span className="cell-title">
+      <OverflowScroll className="cell-title">
         {iconName ? <Icon name={iconName} size={14} /> : null}
-        <span className={cx('cell-title-text', truncateHoverScroll)}>{row.title}</span>
-      </span>
+        <span className="cell-title-text">{row.title}</span>
+      </OverflowScroll>
     )
   }
 
@@ -61,16 +61,20 @@ export function Cell({
           </span>
         )
       }
-      return <Chip color={chipColorFor(opt?.color)} label={opt?.label ?? v.value} />
+      return (
+        <OverflowScroll className="cell-chips">
+          <Chip color={chipColorFor(opt?.color)} label={opt?.label ?? v.value} />
+        </OverflowScroll>
+      )
     }
     case 'multiSelect':
       return (
-        <span className="cell-chips">
+        <OverflowScroll className="cell-chips">
           {v.value.map((val) => {
             const o = findOption(column.id, val, ctx.schema)
             return <Chip key={val} color={chipColorFor(o?.color)} label={o?.label ?? val} />
           })}
-        </span>
+        </OverflowScroll>
       )
     case 'checkbox':
       if (style.look === 'switch') {
@@ -84,42 +88,44 @@ export function Cell({
       )
     case 'context':
       return (
-        <span className="cell-chips">
+        <OverflowScroll className="cell-chips">
           {v.value.map((id) => {
             const c = ctx.contextsById.get(id)
             return <ContextChip key={id} color={chipColorFor(c?.color)} title={c?.title ?? id} />
           })}
-        </span>
+        </OverflowScroll>
       )
     case 'url':
       // The 'title' look shows the fetched page title once the fetch Prospect lands; until then
       // both looks render the URL in the link color. Opens through the sanctioned IPC — raw <a>
       // navigation is denied by main's will-navigate hardening.
       return v.value ? (
-        <a
-          className="cell-link"
-          href={v.value}
-          onClick={(e) => {
-            e.preventDefault()
-            e.stopPropagation()
-            void window.nexus.openExternal(v.value)
-          }}
-        >
-          {v.value}
-        </a>
+        <OverflowScroll className="cell-text-scroll">
+          <a
+            className="cell-link"
+            href={v.value}
+            onClick={(e) => {
+              e.preventDefault()
+              e.stopPropagation()
+              void window.nexus.openExternal(v.value)
+            }}
+          >
+            {v.value}
+          </a>
+        </OverflowScroll>
       ) : null
     case 'datetime':
       return (
-        <span className="cell-muted">
+        <OverflowScroll className="cell-text-scroll cell-muted">
           {formatDate(v.value, style.date_format ?? 'full', style.time_format ?? 'none')}
-        </span>
+        </OverflowScroll>
       )
     case 'number':
-      return <span>{formatNumber(v.value, style.number_format ?? 'decimal')}</span>
+      return <OverflowScroll className="cell-text-scroll">{formatNumber(v.value, style.number_format ?? 'decimal')}</OverflowScroll>
     case 'file':
       // Each chip opens its own file (A-9) — the click stays on the chip, not the cell/row.
       return (
-        <span className="cell-chips">
+        <OverflowScroll className="cell-chips">
           {v.value.map((f) => (
             <span
               key={f.path}
@@ -131,7 +137,7 @@ export function Cell({
               <Chip color="default" label={fileLabel(f, style.look === 'path' ? 'path' : 'filename')} />
             </span>
           ))}
-        </span>
+        </OverflowScroll>
       )
     default:
       return null

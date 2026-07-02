@@ -16,20 +16,20 @@ describe('widthFor', () => {
   })
 
   it('keys user properties by their schema type', () => {
-    expect(widthFor('prop_status', schema)).toEqual({ min: 65, default: 120, max: 200 })
+    expect(widthFor('prop_status', schema)).toEqual({ min: 65, default: 120, max: Number.POSITIVE_INFINITY })
     expect(widthFor('prop_n', schema).default).toBe(100) // number
   })
 
   it('falls back for an unknown column', () => {
-    expect(widthFor('prop_gone', schema)).toEqual({ min: 80, default: 140, max: 340 })
+    expect(widthFor('prop_gone', schema)).toEqual({ min: 80, default: 140, max: Number.POSITIVE_INFINITY })
   })
 })
 
 describe('clampWidth', () => {
-  it('clamps a resized width to the column [min, max]', () => {
+  it('clamps a resized width up to its min; every type grows uncapped into the h-scroll', () => {
     expect(clampWidth(10, RESERVED_PROPERTY_ID.title, schema)).toBe(120) // below min still clamps up
-    expect(clampWidth(9999, RESERVED_PROPERTY_ID.title, schema)).toBe(9999) // title is uncapped — no max
+    expect(clampWidth(9999, RESERVED_PROPERTY_ID.title, schema)).toBe(9999)
     expect(clampWidth(300, RESERVED_PROPERTY_ID.title, schema)).toBe(300) // in range
-    expect(clampWidth(999, 'prop_status', schema)).toBe(200) // a capped column still clamps to its max
+    expect(clampWidth(999, 'prop_status', schema)).toBe(999) // uncapped — overflow scrolls, no wall
   })
 })

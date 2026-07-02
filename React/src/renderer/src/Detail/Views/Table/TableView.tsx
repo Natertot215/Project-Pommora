@@ -108,6 +108,11 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
   // Transient — set on grab, cleared on drop; column indices into the resolved `columns`.
   const [colDrag, setColDrag] = useState<{ from: number; to: number; delta: number } | null>(null)
   const [iconPickerOpen, setIconPickerOpen] = useState(false)
+  // Columns fit → the rounded content-inset look; columns overflow → the right inset flattens and
+  // the table h-scrolls to the glass edge (the left gutter holds). One read per pane resize /
+  // track-set change — never per scroll or per pointermove.
+  const viewRef = useRef<HTMLDivElement>(null)
+  const [overflowing, setOverflowing] = useState(false)
   // The one in-cell editing surface (A-2/A-6 picker · A-8/A-12 editor). Cleared on dismiss; the
   // exit presence keeps a PICKER mounted through its Bloom-out (reading the last target from the
   // ref while `editing` is already null) — the editor unmounts instantly.
@@ -169,6 +174,20 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
     return resolveView({ rows, setTree, view: liveView, schema, manualOrder })
   }, [source, effectiveValues, liveView, schema, manualOrder])
   const ctx = useMemo(() => (tree ? buildResolveContext(tree, schema) : null), [tree, schema])
+  // One mounted observer, two targets: the view (pane resizes) and the grid (its box moves when
+  // the track set changes — a column resize/hide/add). Each fires one cheap read, never per-scroll.
+  useEffect(() => {
+    const el = viewRef.current
+    if (!el) return
+    const check = (): void => setOverflowing(el.scrollWidth > el.clientWidth + 1)
+    check()
+    const ro = new ResizeObserver(check)
+    ro.observe(el)
+    const grid = el.querySelector('.table-grid')
+    if (grid) ro.observe(grid)
+    return () => ro.disconnect()
+    // biome-ignore lint/correctness/useExhaustiveDependencies: re-bind once the loading return gives way to the real grid.
+  }, [ctx === null])
   const setNames = useMemo(() => buildSetNames(source), [source])
   const setIcons = useMemo(() => buildSetIcons(source), [source])
 
@@ -441,16 +460,12 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
     collapsing === id
       ? 0
       : clampWidth(widthOverride[id] ?? liveView.column_widths?.[id] ?? widthFor(id, schema).default, id, schema)
-  // Reflow floor: the grid may shrink until the title column reaches its legibility min (the other columns
-  // holding their width), then scrolls — so opening the inspector / sidebar reflows the table (the title
-  // yields, property columns stay put) instead of clipping the right columns off, the way a page's body does.
-  const reflowWidth = columns.reduce((sum, c) => sum + (c.kind === 'title' ? widthFor(c.id, schema).min : colWidth(c.id)), 0)
-  // The shared column track set every band reads (--cols): the title is a minmax so it absorbs the pane's
-  // width change (down to its min) while the rest hold their resolved width; a trailing 1fr filler eats any
-  // slack past the summed columns so the grid still spans full-width.
-  const cols = `${columns
-    .map((c) => (c.kind === 'title' ? `minmax(${widthFor(c.id, schema).min}px, ${colWidth(c.id)}px)` : `${colWidth(c.id)}px`))
-    .join(' ')} 1fr`
+  // The Apple table model (Nathan, reverting the elastic-title reflow): EVERY column — title included —
+  // holds its resolved width. While the sum fits the pane the trailing filler eats the slack (the capped,
+  // content-inset look); the moment any resize/add pushes the sum past the pane, the grid extends beyond
+  // the window and the whole view h-scrolls. No column is ever compressed to absorb growth.
+  const reflowWidth = columns.reduce((sum, c) => sum + colWidth(c.id), 0)
+  const cols = `${columns.map((c) => `${colWidth(c.id)}px`).join(' ')} 1fr`
   // Lead-cell left padding for ungrouped/loose rows: --loose-inset tucks the title a touch left of the
   // cell-padding-x column inset; each nesting layer adds one --row-indent step (J-3). The grip + chevron
   // live in the views gutter via absolute CSS, independent of this.
@@ -679,7 +694,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
   }
 
   return (
-    <div className="table-view">
+    <div ref={viewRef} className={cx('table-view', overflowing && 'overflowing')}>
       <IconPicker open={iconPickerOpen} onClose={() => setIconPickerOpen(false)} />
       <TableRowDnd
         rows={dataRows}
