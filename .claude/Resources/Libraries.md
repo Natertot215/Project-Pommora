@@ -14,7 +14,7 @@ The vetted library menu. Each entry is tagged **Decided** (in `package.json` tod
 
 - **React 19** + **TypeScript 6** — **Decided.**
 - **vanilla-extract** (`@vanilla-extract/css` + vite-plugin) — typed, zero-runtime CSS-in-TS; the token layer authors `*.css.ts`. **Decided.** (Tailwind was the pre-build guess — not used.)
-- **lucide-react** — icon set; curated registry in `design-system/symbols/` driven by `Symbols.md`. **Decided.** (Material Symbols + a `symbols.json` indirection layer was the pre-build guess — not used. A user-swappable icon library, incl. SF Symbols, remains a possible future setting.)
+- **@tabler/icons-react** + **lucide-react** — the mixed **PommoraIcons** registry in `design-system/symbols/` driven by `Symbols.md`: Tabler is the default set at the registry's 1.75-stroke default, a handful of ratified Lucide keeps stay at their library look, and first-party custom SVGs share the same slot shape. **Decided.** (Material Symbols + a `symbols.json` indirection layer was the pre-build guess — not used. A user-swappable icon library, incl. SF Symbols, remains a possible future setting.)
 - **@fontsource-variable/inter** — the app font. **Decided.**
 
 ### State · Data · Search
