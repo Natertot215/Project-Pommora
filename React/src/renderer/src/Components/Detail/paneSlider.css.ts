@@ -15,3 +15,8 @@ export const trackAnimated = style({ transition: `transform ${duration.base} ${e
 
 /** Each slot shrink-wraps its content (a column whose rows/dividers stretch to the widest row). */
 export const slot = style({ flex: '0 0 auto', display: 'flex', flexDirection: 'column' })
+
+/** A capped slot scrolls internally under the shared edge fade; the ResizeObserver measures the
+ *  inner slotContent, so the cap never feeds back into the animated viewport height. */
+export const slotScrollable = style({ overflowY: 'auto' })
+export const slotContent = style({ flex: '0 0 auto', display: 'flex', flexDirection: 'column' })

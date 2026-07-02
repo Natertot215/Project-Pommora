@@ -13,7 +13,8 @@ export function PaneSlider({
   slotA,
   slotB,
   minWidth,
-  minHeight
+  minHeight,
+  maxHeight
 }: {
   active: 'a' | 'b'
   slotA: ReactNode
@@ -22,6 +23,8 @@ export function PaneSlider({
   minWidth?: number
   /** Height floor (px) per slot, so a sparse pane reserves height and its footer pins to the bottom. */
   minHeight?: number
+  /** Height cap (px) — past it a slot scrolls internally under the shared edge fade (A-6). */
+  maxHeight?: number
 }): React.JSX.Element {
   const aRef = useRef<HTMLDivElement>(null)
   const bRef = useRef<HTMLDivElement>(null)
@@ -46,20 +49,29 @@ export function PaneSlider({
   useEffect(() => setEnabled(true), [])
 
   const width = active === 'a' ? size.aw : size.bw
-  const height = active === 'a' ? size.ah : size.bh
+  const measured = active === 'a' ? size.ah : size.bh
+  const height = maxHeight ? Math.min(measured, maxHeight) : measured
   // Slide left by slot A's width to bring B flush against the viewport's left edge.
   const shift = active === 'b' ? size.aw : 0
+  // The floors ride the MEASURED content div, never the scroll-capped slot box — a floor on the
+  // capped box would be invisible to the ResizeObserver and clip a sparse pane.
+  const slotClass = cx(s.slot, maxHeight != null && s.slotScrollable, maxHeight != null && 'scroll-edge-fade')
+  const slotStyle = maxHeight != null ? { maxHeight } : undefined
   return (
     <div
       className={cx(s.viewport, enabled && s.viewportAnimated)}
       style={{ width: width || undefined, height: height || undefined }}
     >
       <div className={cx(s.track, enabled && s.trackAnimated)} style={{ transform: `translateX(-${shift}px)` }}>
-        <div ref={aRef} className={s.slot} style={{ minWidth, minHeight }} inert={active === 'b'}>
-          {slotA}
+        <div className={slotClass} style={slotStyle} inert={active === 'b'}>
+          <div ref={aRef} className={s.slotContent} style={{ minWidth, minHeight }}>
+            {slotA}
+          </div>
         </div>
-        <div ref={bRef} className={s.slot} style={{ minWidth, minHeight }} inert={active === 'a'}>
-          {slotB}
+        <div className={slotClass} style={slotStyle} inert={active === 'a'}>
+          <div ref={bRef} className={s.slotContent} style={{ minWidth, minHeight }}>
+            {slotB}
+          </div>
         </div>
       </div>
     </div>

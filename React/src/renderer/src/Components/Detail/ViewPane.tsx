@@ -100,7 +100,7 @@ export function ViewPane(): React.JSX.Element | null {
 
   return (
     <>
-      <PaneSlider active={pane === 'root' ? 'a' : 'b'} slotA={root} slotB={detail} minWidth={225} minHeight={225} />
+      <PaneSlider active={pane === 'root' ? 'a' : 'b'} slotA={root} slotB={detail} minWidth={225} minHeight={245} maxHeight={350} />
       <IconPicker open={iconOpen} onClose={() => setIconOpen(false)} />
     </>
   )

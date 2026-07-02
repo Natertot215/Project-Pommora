@@ -407,7 +407,7 @@ export function Sidebar({ tree }: { tree: NexusTree }): React.JSX.Element {
   }, [])
 
   return (
-    <nav ref={navRef} className="sidebar">
+    <nav ref={navRef} className="sidebar scroll-edge-fade">
       {/* Nexus header. Calendar/Recents stubs are hidden until a later UIX pass. */}
       <div className="section">
         <NexusHeader name={tree.nexus.name} profileImage={tree.nexus.profileImage} profileSubtitle={tree.nexus.profileSubtitle} />

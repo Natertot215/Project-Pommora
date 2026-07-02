@@ -37,17 +37,8 @@
   overflow-x: hidden;
   overflow-y: auto;
   height: 100%;
-  /* Apple-style scroll-edge fade: rows passing the top/bottom edges dissolve into the glass (same
-     eclipse technique as the row's left-edge fade). The mask sits on the viewport, so content scrolls
-     under it; the top fade tucks inside the 46px header padding, so the header stays crisp at rest. */
-  --edge-fade: 22px;
-  mask-image: linear-gradient(
-    to bottom,
-    transparent 0,
-    #000 var(--edge-fade),
-    #000 calc(100% - var(--edge-fade)),
-    transparent 100%
-  );
+  /* The scroll-edge fade rides the shared .scroll-edge-fade class (design-system) — the top fade
+     tucks inside the 46px header padding, so the header stays crisp at rest. */
 }
 
 /* Sidebar collapse / expand toggle (log-out glyph — flipped = collapse, normal = expand).
