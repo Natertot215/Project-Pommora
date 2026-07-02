@@ -70,14 +70,58 @@ Dead-entry caveat: frontmatter icons are open-vocabulary, so Nathan's real Nexus
 - **Deps**: `lucide-react ^1.18.0` pinned; no `@tabler/*` installed yet.
 - **Docs in sync**: `symbols/Symbols.md` (registry mirror) + `Features/Icons.md` (semantic assignments) update with the registry.
 
-#### Decision Queue — Explicit-Replacement Review Order
+#### Ratified Tabler Picks — Nathan
 
-Ordered by visibility so preference calls land where they're seen most. Per icon the call is: Tabler equivalent / keep Lucide / drop.
+The immediate-register set, mapped to what each naturally replaces. Tabler ids as Nathan gave them — verify exact ids against `@tabler/icons-react` at registration (e.g. Tabler spells clock faces with digits).
 
-1. **Skeleton chrome** (every screen): the chevron quad · `plus` · `x` · `check` · `ellipsis-vertical` · `grip-vertical` + `grip-horizontal`
-2. **Identity row icons** (sidebar + tables): `file-text` · `folder-closed`/`folder-open` · `gallery-vertical-end` · `layout-grid` · `house` · `calendar` · `clock`
-3. **Status + property glyphs**: `circle-dashed` · `minus` · `square-dashed` · property types (`hash`, `square-check`, `calendar-days`, `link`, `import`, `link-2`)
-4. **Toolbar + panes**: `map` · `sliders-horizontal` · `panel-right` · view-settings set (`server`, `eye` (+staged `eye-off`), `layout-dashboard`, `list-filter`, `layers`, `arrow-up-down`) · `square-plus` · `log-out`
-5. **MarkdownPM DNA**: fold chevron · grip glyph · checkbox check — redrawn as Tabler paths (or registry-routed) so the editor matches the app
-6. **Showcase-only** (lowest stakes): `palette` · `type` · `shapes` · `tag`
-7. **The dead 7**: drop at migration unless the Nexus grep finds stored uses
+| Tabler pick | Replaces (current) | Surface |
+| --- | --- | --- |
+| `plus` | `plus` | every add button |
+| `check` | `check` (+ the MarkdownPM checkbox ✓ path) | status done · checkboxes · pickers |
+| `x` | `x` | chip dismiss |
+| `chevron-right` | `chevron-right` (+ the fold-chevron mask path) | twisties · menus · editor folds |
+| `chevron-left` | `chevron-left` | toolbar Back · menu back-row |
+| `chevron-up` / `chevron-down` | `chevron-up` / `chevron-down` | footer + accordion disclosure |
+| `dots-vertical` | `ellipsis-vertical` | showcase Menu leaf |
+| `adjustments-horizontal` | `sliders-horizontal` | toolbar Settings |
+| `link` | `link` | Link (url) property type |
+| `square-check` | `square-check` | Checkbox property type |
+| `layout-dashboard` | `layout-dashboard` | ViewPane Layout |
+| `eye` | `eye` | ViewPane Visibility |
+| `eye-closed` | staged `eye-off` | Visibility hidden-state |
+| `calendar-month` | `calendar` and/or `calendar-days` — **fork, see Gaps** | saved node · Date property type |
+| `tag` | `tag` | showcase Chips leaf |
+| `grip-vertical` | `grip-vertical` (+ the editor grip mask) | row/block drag grips |
+| `grip-horizontal` | `grip-horizontal` | editor table column grip |
+| `map` | `map` | toolbar Navigation |
+| `clock-hour-three` | `clock` | Recents saved node |
+| `layout-sidebar-right` | `panel-right` | toolbar Inspector |
+| `circle-dashed` | `circle-dashed` | status upcoming · select placeholder |
+| `layout-grid` | `layout-grid` | sidebar context-tier headers |
+| `stack-2` | `layers` | ViewPane Group · showcase Glass leaf |
+| `filter-2` | `list-filter` | ViewPane Filter |
+| `arrows-up-down` | `arrow-up-down` | ViewPane Sort |
+
+**Conditional**: Tabler `folder` + `folder-opened` replace `folder-closed`/`folder-open` — only after Nathan's custom CSS edits to them; hold Lucide's pair until those edits are ratified.
+
+**Register-on-day-one, no assignment yet** (Nathan wants them in immediately; callsites TBD): `chevron-compact-up` · `chevron-compact-down` · `heart` · `dots`. Same census discipline applies later — unassigned entries are how the dead-7 happened.
+
+#### Remaining Gaps — In-Use Icons Still Needing a Pick
+
+Ordered by weight; these have no Tabler assignment yet:
+
+1. `file-text` — **THE default page icon, heaviest icon in the app** (sidebar, table titles, autocomplete)
+2. `square-dashed` — unselected state · profile placeholder · the DashIcon pending-glyph
+3. `minus` — status in-progress (the status trio is otherwise covered)
+4. `hash` — Number property type
+5. `import` — File property type
+6. `link-2` — Relation/Connections glyph — **fork**: Icons.md deliberately separates it from `link` (url); picking only `link` collapses the distinction. Needs its own glyph or an explicit merge call.
+7. **Calendar fork** — one pick (`calendar-month`), two current slots: `calendar` (saved node) and `calendar-days` (Date & Time property type). One glyph for both, or split?
+8. `server` — ViewPane Properties entry
+9. `gallery-vertical-end` — sidebar Collection rows (no obvious 1:1 Tabler twin; deliberate choice needed)
+10. `house` — Homepage saved node
+11. `square-plus` — add-banner button
+12. `log-out` — close-nexus button
+13. Showcase trio — `palette` · `type` · `shapes` (lowest stakes)
+
+**The dead 7** (`circle-x`, `copy`, `arrow-left-right`, `key-round`, `lock`, `log-in`, `panel-left`): no picks given — consistent with dropping at migration, pending the Nexus frontmatter grep.
