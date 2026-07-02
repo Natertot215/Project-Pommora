@@ -15,10 +15,11 @@ import { PropertyEditor } from '../PropertyEditing/PropertyEditor'
 import { PropertyPicker } from '../PropertyEditing/PropertyPicker'
 import { nextCycleValue } from '../PropertyEditing/statusCycle'
 import { useSession } from '../../../store'
+import type { SetTreeNode } from '../pipeline/group'
 import { buildResolveContext, type ResolveContext } from './resolveContext'
-import { buildSetIcons, buildSetNames, findOption } from './cellResolve'
+import { buildSetIcons, buildSetNames, buildSetPaths, groupLabel } from './cellResolve'
 import { BandDnd, type BandDrop } from './bandDnd'
-import { flattenBands } from './bandDndModel'
+import { allStructuralIds, flattenBands, propertyOrderAfterDrop, reparentFsOrder, structuralOrderAfterDrop } from './bandDndModel'
 import { Cell } from './Cell'
 import { GroupHeader } from './GroupHeader'
 import { columnLabel, TIER_LEVEL_BY_ID } from './columnLabel'
@@ -125,6 +126,11 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
   const [alignOverride, setAlignOverride] = useState<Record<string, ColumnAlign>>({})
   const [styleOverride, setStyleOverride] = useState<Record<string, ColumnStyle>>({})
   const [hiddenOverride, setHiddenOverride] = useState<string[] | null>(null)
+  // The optimistic band-order patch from a band drop — { group_order } (structural) or { group }
+  // (property). Rides liveView so a sibling persist can't fold the stale on-disk order back over a
+  // fresh drag (F1), and deliberately does NOT reset on [source]: the reparent-triggered load()
+  // swaps source identity mid-flight (HIGH-3); key={source.id} already remounts real switches.
+  const [bandOverride, setBandOverride] = useState<Partial<SavedView> | null>(null)
   const [manualOverride, setManualOverride] = useState<string[] | null>(null)
   const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set(view.collapsed_groups ?? []))
   const [collapsing, setCollapsing] = useState<string | null>(null)
@@ -161,6 +167,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
     setAlignOverride({})
     setStyleOverride({})
     setHiddenOverride(null)
+    setBandOverride(null)
     setManualOverride(null)
     setCollapsing(null)
     setColDrag(null)
@@ -175,13 +182,14 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
     setValueOverride(null)
   }, [source])
   const liveView = useMemo(() => {
-    if (!orderOverride && !hiddenOverride) return view
+    if (!orderOverride && !hiddenOverride && !bandOverride) return view
     return {
       ...view,
       property_order: orderOverride ?? view.property_order,
-      hidden_properties: hiddenOverride ?? view.hidden_properties
+      hidden_properties: hiddenOverride ?? view.hidden_properties,
+      ...bandOverride
     }
-  }, [view, orderOverride, hiddenOverride])
+  }, [view, orderOverride, hiddenOverride, bandOverride])
   // Manual row order (viewOrders cache) is the sort tiebreaker (D-5/D-6) — passed to the pipeline when
   // the view is sorted or grouped (an unsorted, ungrouped view otherwise reads canonical page_order). A
   // live `manualOverride` also feeds it so an unsorted-flat reorder shows instantly (before its page_order
@@ -204,9 +212,9 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
   const dragDisabled = !(canReorderWithin || canReassign)
   // Optimistic property patches feed the pipeline so a reassigned row re-groups before the watcher round-trips.
   const effectiveValues = useMemo(() => (valueOverride ? { ...values, ...valueOverride } : values), [values, valueOverride])
-  const { columns, groups } = useMemo(() => {
+  const { columns, groups, setTree } = useMemo(() => {
     const { rows, setTree } = flattenContainer(source, effectiveValues)
-    return resolveView({ rows, setTree, view: liveView, schema, manualOrder })
+    return { ...resolveView({ rows, setTree, view: liveView, schema, manualOrder }), setTree }
   }, [source, effectiveValues, liveView, schema, manualOrder])
   const ctx = useMemo(() => (tree ? buildResolveContext(tree, schema) : null), [tree, schema])
   // One mounted observer, two targets: the view (pane resizes) and the grid (its box moves when
@@ -253,15 +261,64 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
 
   // The visible band list (headers only) — BandDnd's hit-test universe, snapshot at drag activation.
   const bands = useMemo(() => flattenBands(groups, collapsed), [groups, collapsed])
+  const setPaths = useMemo(() => buildSetPaths(source), [source])
   const bandLabel = (id: string): string => {
-    if (groupPropId) {
-      if (groupPropType === 'checkbox') return id === 'true' ? 'On' : 'Off'
-      return findOption(groupPropId, id, schema)?.label ?? id
+    const find = (gs: ResolvedGroup[]): ResolvedGroup | undefined => {
+      for (const g of gs) {
+        if (g.key === id) return g
+        const hit = g.children && find(g.children)
+        if (hit) return hit
+      }
+      return undefined
     }
-    return setNames.get(id) ?? id
+    const g = find(groups)
+    return g && ctx ? groupLabel(g, liveView, ctx, setNames) : id
   }
-  // Band drop commits land in Task 5 — the gesture surface ships first.
-  const onBandDrop = (_draggedId: string, _drop: BandDrop): void => {}
+  // The band drop router (already classified by BandDnd): structural reorder → the view-level
+  // group_order (merged over the FULL tree so collapsed siblings survive) · property reorder →
+  // group.order + manual (its first UI writer) · reparent → moveSet with the destination's CURRENT
+  // fs children + the moved id appended (C-4 — the visual slot persists only in group_order).
+  const onBandDrop = (draggedId: string, drop: BandDrop): void => {
+    const dragged = bands.find((b) => b.id === draggedId)
+    if (!dragged) return
+    if (dragged.kind === 'property') {
+      if (drop.kind !== 'reorder' || liveView.group?.kind !== 'property') return
+      const present = groups.filter((g) => g.kind === 'property').map((g) => g.key)
+      const group = {
+        ...liveView.group,
+        order_mode: 'manual' as const,
+        order: propertyOrderAfterDrop(present, draggedId, drop.beforeId)
+      }
+      setBandOverride({ ...bandOverride, group })
+      persistView({ group })
+      return
+    }
+    const group_order = structuralOrderAfterDrop(liveView.group_order ?? [], allStructuralIds(groups), draggedId, drop.beforeId)
+    if (drop.kind === 'reorder') {
+      setBandOverride({ ...bandOverride, group_order })
+      persistView({ group_order })
+      return
+    }
+    const childIdsOf = (nodes: SetTreeNode[], id: string): string[] | null => {
+      for (const n of nodes) {
+        if (n.id === id) return n.children.map((c) => c.id)
+        const hit = childIdsOf(n.children, id)
+        if (hit) return hit
+      }
+      return null
+    }
+    const path = setPaths.get(draggedId)
+    const destPath = drop.targetParentId === null ? source.path : setPaths.get(drop.targetParentId)
+    const destChildIds = drop.targetParentId === null ? setTree.map((n) => n.id) : childIdsOf(setTree, drop.targetParentId)
+    if (!path || !destPath || !destChildIds) return
+    setBandOverride({ ...bandOverride, group_order })
+    // One drop, two writers, possibly ONE sidecar (a de-nest to root): the fs move lands before the
+    // view write — views.save and set_order are both read-modify-writes on the container sidecar.
+    void (async () => {
+      await mutate({ op: 'moveSet', path, newParentPath: destPath, order: reparentFsOrder(destChildIds, draggedId) })
+      persistView({ group_order })
+    })()
+  }
 
   // Persist the saved view + every live override (order + collapse) + a patch, so no one mutation
   // clobbers another's unsaved state — the exact Swift reorder/resize data-loss H-2 guards against.

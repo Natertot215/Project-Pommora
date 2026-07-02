@@ -57,6 +57,11 @@ export function BandDnd({
 }): React.JSX.Element {
   const bandsRef = useRef(bands)
   bandsRef.current = bands
+  // The context memo freezes `begin` (and so the whole listener chain) from an early render — the
+  // drop must reach the CALLER'S latest closure, not the one captured at bind time (the sidebar's
+  // onCommitRef pattern).
+  const onDropRef = useRef(onDrop)
+  onDropRef.current = onDrop
   const els = useRef(new Map<string, HTMLElement>())
   const box = useRef<HTMLDivElement | null>(null)
   const live = useRef<BandSlot | null>(null)
@@ -166,9 +171,10 @@ export function BandDnd({
     const slot = live.current
     const dragged = snapshot.current?.bands.find((b) => b.id === g.id)
     if (slot && dragged) {
-      if (slot.nestInto) onDrop(g.id, { kind: 'reparent', targetParentId: slot.nestInto, beforeId: null })
-      else if (slot.impliedParentId === dragged.parentId) onDrop(g.id, { kind: 'reorder', beforeId: slot.beforeId })
-      else onDrop(g.id, { kind: 'reparent', targetParentId: slot.impliedParentId, beforeId: slot.beforeId })
+      const drop = onDropRef.current
+      if (slot.nestInto) drop(g.id, { kind: 'reparent', targetParentId: slot.nestInto, beforeId: null })
+      else if (slot.impliedParentId === dragged.parentId) drop(g.id, { kind: 'reorder', beforeId: slot.beforeId })
+      else drop(g.id, { kind: 'reparent', targetParentId: slot.impliedParentId, beforeId: slot.beforeId })
     }
     reset()
   }

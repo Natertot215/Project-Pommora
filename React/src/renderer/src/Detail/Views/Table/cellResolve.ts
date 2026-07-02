@@ -73,12 +73,12 @@ export function groupLabel(
   return optionLabel(groupPropId, group.key, ctx.schema) ?? rawFallback
 }
 
-/** Set id → title across a container's Set subtree (for structural group headers). */
-export function buildSetNames(source: CollectionNode | SetNode): Map<string, string> {
-  const m = new Map<string, string>()
+/** One walk of a container's Set subtree → an id-keyed map (names / icons / paths below). */
+function buildSetMap<T>(source: CollectionNode | SetNode, pick: (s: SetNode) => T): Map<string, T> {
+  const m = new Map<string, T>()
   const walk = (sets: SetNode[] | undefined): void => {
     for (const s of sets ?? []) {
-      m.set(s.id, s.title)
+      m.set(s.id, pick(s))
       walk(s.sets)
     }
   }
@@ -86,16 +86,16 @@ export function buildSetNames(source: CollectionNode | SetNode): Map<string, str
   return m
 }
 
+/** Set id → title across a container's Set subtree (for structural group headers). */
+export const buildSetNames = (source: CollectionNode | SetNode): Map<string, string> =>
+  buildSetMap(source, (s) => s.title)
+
 /** Set id → its per-entity icon (a symbol name, or undefined ⇒ the folder default) across a container's
  *  Set subtree — for structural group-header glyphs (E-3). */
-export function buildSetIcons(source: CollectionNode | SetNode): Map<string, string | undefined> {
-  const m = new Map<string, string | undefined>()
-  const walk = (sets: SetNode[] | undefined): void => {
-    for (const s of sets ?? []) {
-      m.set(s.id, s.icon)
-      walk(s.sets)
-    }
-  }
-  walk(source.sets)
-  return m
-}
+export const buildSetIcons = (source: CollectionNode | SetNode): Map<string, string | undefined> =>
+  buildSetMap(source, (s) => s.icon)
+
+/** Set id → its real path — the band-drag reparent commit needs paths for moveSet (a ResolvedGroup
+ *  carries only the id). */
+export const buildSetPaths = (source: CollectionNode | SetNode): Map<string, string> =>
+  buildSetMap(source, (s) => s.path)
