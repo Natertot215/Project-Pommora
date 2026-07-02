@@ -43,8 +43,8 @@ export const chipLabel = style([truncateHoverScroll, { maxWidth: 'var(--chip-max
 // ending at the ×'s left edge (10px inside the text run's end): the crisp copy masks OUT across it
 // while its blurred twin masks IN, so the letters visibly smear into the clear zone the × floats in.
 const crispRamp =
-  'linear-gradient(to right, transparent 0, #000000 var(--scroll-fade, 0px), #000000 calc(100% - 20px), transparent calc(100% - 10px))'
-const blurRamp = 'linear-gradient(to right, transparent calc(100% - 20px), #000000 calc(100% - 10px))'
+  'linear-gradient(to right, transparent 0, #000000 var(--scroll-fade, 0px), #000000 calc(100% - 18px), transparent calc(100% - 8px))'
+const blurRamp = 'linear-gradient(to right, transparent calc(100% - 18px), #000000 calc(100% - 8px))'
 
 /** The label's real text — masked out across the ramp only while the chip is hovered. */
 export const chipLabelText = style({
