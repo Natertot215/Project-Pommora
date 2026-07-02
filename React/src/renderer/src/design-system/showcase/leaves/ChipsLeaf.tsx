@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react'
-import { chip, chipColor, chipCheckbox, chipLabel } from '@renderer/design-system/tokens'
+import { chip, chipColor, chipCheckbox, chipCapsule, chipLabel } from '@renderer/design-system/tokens'
 import { Icon } from '@renderer/design-system/symbols'
 import { SortableZone, useDragItem, reorder } from '@renderer/design-system/interactions/drag'
 import { cx } from '@renderer/design-system/cx'
@@ -48,7 +48,7 @@ function PillRow(): React.JSX.Element {
 }
 
 const STATIC_SHAPES: Array<{ label: string; extra?: string; content: () => ReactNode }> = [
-  { label: 'Select', content: () => <Icon name="circle-dashed" size={13} /> },
+  { label: 'Select', extra: chipCapsule, content: () => <Icon name="circle-dashed" size={13} /> },
   { label: 'Checkbox', extra: chipCheckbox, content: () => <Icon name="check" size={12} strokeWidth={3} /> }
 ]
 

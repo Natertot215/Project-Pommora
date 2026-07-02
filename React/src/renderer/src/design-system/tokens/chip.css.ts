@@ -49,8 +49,7 @@ export type ChipColorName = keyof typeof chipColor
 
 /**
  * Checkbox chip — a fixed 17×17 rounded square (radius 5.5) with a 1.5px stroke;
- * holds only a checkmark. Pill = a text `chip`; Select = a `chip` with an icon
- * (both are pills — no shape modifier needed).
+ * holds only a checkmark. Pill = a text `chip` — no shape modifier needed.
  */
 export const chipCheckbox = style({
   width: '17px',
@@ -58,4 +57,14 @@ export const chipCheckbox = style({
   padding: 0,
   borderRadius: '5.5px',
   borderWidth: '1.5px'
+})
+
+/**
+ * Capsule chip — the icon-only shape (a single small glyph, no label; the showcase's
+ * "Select" row). Geometry is the pill's with the icon centered; the named class exists
+ * so consumers target the shape instead of re-deriving `chip` + icon content ad hoc.
+ */
+export const chipCapsule = style({
+  padding: '0 6px',
+  gap: 0
 })
