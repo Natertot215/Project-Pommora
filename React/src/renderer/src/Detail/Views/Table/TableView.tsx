@@ -3,6 +3,7 @@ import type { CollectionNode, NexusTree, ResolvedColumn, ResolvedGroup, SetNode,
 import type { PropertyDefinition } from '@shared/properties'
 import type { PageFrontmatter } from '@shared/schemas'
 import type { ColumnStyle } from '@shared/columnStyles'
+import type { CellMenuContext } from '@shared/cellMenu'
 import { parseStyleAction } from '@shared/columnMenu'
 import { type ColumnAlign, type SavedView, mintDefaultView } from '@shared/views'
 import { applyPropertyValue } from '@shared/propertyValue'
@@ -23,6 +24,7 @@ import { mergeOverrides, mergeStyleRecords } from './viewMerge'
 import { groupKeyToValue, REASSIGNABLE_GROUP_TYPES } from './reassign'
 import { cx } from '@renderer/design-system/cx'
 import { text } from '@renderer/design-system/tokens'
+import { IconPicker } from '@renderer/Components/IconPicker'
 import { Icon } from '@renderer/design-system/symbols'
 import { Reveal } from '@renderer/design-system/components/Reveal'
 import { ACTIVATION } from '@renderer/design-system/interactions/shared'
@@ -100,6 +102,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
   // Live column smooth-shift (A-4): the dragged column index, the slot it's over, and the cursor delta.
   // Transient — set on grab, cleared on drop; column indices into the resolved `columns`.
   const [colDrag, setColDrag] = useState<{ from: number; to: number; delta: number } | null>(null)
+  const [iconPickerOpen, setIconPickerOpen] = useState(false)
   useEffect(() => {
     setOrderOverride(null)
     setWidthOverride({})
@@ -236,6 +239,31 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
     else if (action?.startsWith('style:')) {
       const parsed = parseStyleAction(action)
       if (parsed) setColumnStyle(id, parsed.key, parsed.value)
+    }
+  }
+  // Right-click a cell → its native menu (A-13: always a menu, never an action). Title = page meta;
+  // style-bearing types = the COLUMN's Style radios; link/file add Edit. Select/multi/context/tier
+  // cells pop nothing. `title:rename` + `cell:edit` resolve once the inline editor lands.
+  const openCellMenu = async (row: ViewRow, col: ResolvedColumn, e: React.MouseEvent): Promise<void> => {
+    e.preventDefault()
+    e.stopPropagation()
+    const t = declaredType(col.id, schema)
+    const ctx: CellMenuContext | null =
+      col.kind === 'title'
+        ? { kind: 'title' }
+        : t === 'url' || t === 'file'
+          ? { kind: 'style-edit', type: t, current: colStyle(col.id) }
+          : t === 'status' || t === 'checkbox' || t === 'number' || t === 'datetime' || t === 'last_edited_time'
+            ? { kind: 'style-only', type: t, current: colStyle(col.id) }
+            : null
+    if (!ctx) return
+    const action = await window.nexus.cellMenu(ctx)
+    if (!action) return
+    if (action === 'title:icon') setIconPickerOpen(true)
+    else if (action === 'title:delete') void mutate({ op: 'delete', path: row.path, kind: 'page' })
+    else if (action.startsWith('style:')) {
+      const parsed = parseStyleAction(action)
+      if (parsed) setColumnStyle(col.id, parsed.key, parsed.value)
     }
   }
 
@@ -454,6 +482,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
             dragDisabled={dragDisabled}
             lead={lead}
             onSelect={() => void select({ kind: 'page', id: row.id, path: row.path })}
+            onCellMenu={(c, e) => void openCellMenu(row, c, e)}
           />
         )
       }),
@@ -485,6 +514,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
 
   return (
     <div className="table-view">
+      <IconPicker open={iconPickerOpen} onClose={() => setIconPickerOpen(false)} />
       <TableRowDnd
         rows={dataRows}
         disabled={dragDisabled}
@@ -614,6 +644,7 @@ function DataRow({
   colTransform,
   colAlign,
   colStyle,
+  onCellMenu,
   draggingCol,
   hideIcon,
   selected,
@@ -629,6 +660,7 @@ function DataRow({
   colTransform: (ci: number) => string | undefined
   colAlign: (id: string) => ColumnAlign
   colStyle: (id: string) => ColumnStyle
+  onCellMenu: (col: ResolvedColumn, e: React.MouseEvent) => void
   draggingCol: number | undefined
   hideIcon: boolean
   selected: boolean
@@ -653,7 +685,12 @@ function DataRow({
         const style: React.CSSProperties = { transform: colTransform(i), textAlign: colAlign(c.id) }
         if (i === 0) style.paddingLeft = indent(depth)
         return i === 0 ? (
-          <div key={c.id} className={cx('data-cell', 'cell-lead', draggingCol === i && 'col-dragging')} style={style}>
+          <div
+            key={c.id}
+            className={cx('data-cell', 'cell-lead', draggingCol === i && 'col-dragging')}
+            style={style}
+            onContextMenu={(e) => onCellMenu(c, e)}
+          >
             {!dragDisabled && (
               <span className="row-grip" {...handle} onClick={(e) => e.stopPropagation()} aria-label="Drag to reorder">
                 <Icon name="grip-vertical" size={14} />
@@ -662,7 +699,12 @@ function DataRow({
             <Cell row={row} column={c} ctx={ctx} hideIcon={hideIcon} style={colStyle(c.id)} />
           </div>
         ) : (
-          <div key={c.id} className={cx('data-cell', draggingCol === i && 'col-dragging')} style={style}>
+          <div
+            key={c.id}
+            className={cx('data-cell', draggingCol === i && 'col-dragging')}
+            style={style}
+            onContextMenu={(e) => onCellMenu(c, e)}
+          >
             <Cell row={row} column={c} ctx={ctx} hideIcon={hideIcon} style={colStyle(c.id)} />
           </div>
         )

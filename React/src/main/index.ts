@@ -39,8 +39,10 @@ import { installAppMenu } from './menu'
 import { popTableMenu } from './tableMenu'
 import type { TableMenuContext } from '@shared/tableMenu'
 import type { ColumnMenuContext } from '@shared/columnMenu'
+import type { CellMenuContext } from '@shared/cellMenu'
 import { popCalloutMenu } from './calloutMenu'
 import { popColumnMenu } from './columnMenu'
+import { popCellMenu } from './cellMenu'
 import { installEditorContextMenu, setFormatState, setCalloutGrip } from './editorMenu'
 import type { FormatState } from '@shared/editorMenu'
 import { isValidLink, normalizeLinkUrl } from '@shared/links'
@@ -816,6 +818,12 @@ ipcMain.handle('callout-menu', async (e) => {
 ipcMain.handle('column-menu', async (e, ctx: ColumnMenuContext) => {
   const win = BrowserWindow.fromWebContents(e.sender)
   return win ? popColumnMenu(win, ctx) : null
+})
+
+// Pop a table cell's native right-click menu (title meta / per-type Style / Edit) — same contract.
+ipcMain.handle('cell-menu', async (e, ctx: CellMenuContext) => {
+  const win = BrowserWindow.fromWebContents(e.sender)
+  return win ? popCellMenu(win, ctx) : null
 })
 
 
