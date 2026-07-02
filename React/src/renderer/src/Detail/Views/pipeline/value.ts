@@ -10,6 +10,7 @@
 // Pure: no fs, no React.
 
 import type { ViewRow } from '@shared/types'
+import type { PageFrontmatter } from '@shared/schemas'
 import { type PropertyDefinition, type PropertyType, RESERVED_PROPERTY_ID } from '@shared/properties'
 import { type PropertyValue, parsePropertyValue } from '@shared/propertyValue'
 
@@ -51,10 +52,29 @@ const TIER_FIELD: Record<string, TierField> = {
  *  never poisons a view. (No `schema` param: the value comes from the data, not the schema —
  *  the declared type is `declaredType`'s job.) */
 export function resolveFieldValue(row: ViewRow, propertyId: string): PropertyValue {
-  const fm = row.frontmatter
+  // `_title` bypasses the cache — it reads `row.title`, which a rename changes without touching
+  // the frontmatter object the cache is keyed on.
+  if (propertyId === RESERVED_PROPERTY_ID.title) return { kind: 'select', value: row.title }
+  let m = resolvedByFm.get(row.frontmatter)
+  if (!m) {
+    m = new Map()
+    resolvedByFm.set(row.frontmatter, m)
+  }
+  const hit = m.get(propertyId)
+  if (hit) return hit
+  const v = computeFieldValue(row.frontmatter, propertyId)
+  m.set(propertyId, v)
+  return v
+}
+
+// MEMOIZED per frontmatter object: the grouped pipeline resolves every row per run and every
+// Cell resolves the same value again per render — the shape-inference parse was the measured
+// grouped-view hot spot. A value write swaps the page's frontmatter identity (loadValues / the
+// optimistic patch), so entries self-expire; resolved values are shared and treated immutable.
+const resolvedByFm = new WeakMap<PageFrontmatter, Map<string, PropertyValue>>()
+
+function computeFieldValue(fm: PageFrontmatter, propertyId: string): PropertyValue {
   switch (propertyId) {
-    case RESERVED_PROPERTY_ID.title:
-      return { kind: 'select', value: row.title }
     case RESERVED_PROPERTY_ID.modifiedAt:
       return typeof fm.modified_at === 'string' && fm.modified_at
         ? { kind: 'datetime', value: fm.modified_at }

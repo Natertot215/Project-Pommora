@@ -84,3 +84,34 @@ describe('resolveFieldValue', () => {
     expect(resolveFieldValue(bare, '_modified_at')).toEqual({ kind: 'null' })
   })
 })
+
+describe('resolveFieldValue memoization', () => {
+  it('returns the SAME resolved object for repeat calls on one frontmatter (parse-once)', () => {
+    const row: ViewRow = {
+      id: 'p1',
+      title: 'One',
+      path: 'C/One.md',
+      frontmatter: { id: 'p1', properties: { prop_s: { $status: 'open' } }, tier1: ['a'] }
+    }
+    expect(resolveFieldValue(row, 'prop_s')).toBe(resolveFieldValue(row, 'prop_s'))
+    expect(resolveFieldValue(row, '_tier1')).toBe(resolveFieldValue(row, '_tier1'))
+  })
+
+  it('a fresh frontmatter identity re-resolves (the optimistic-patch / reload contract)', () => {
+    const fm1 = { id: 'p1', properties: { prop_s: { $status: 'open' } } }
+    const fm2 = { id: 'p1', properties: { prop_s: { $status: 'done' } } }
+    const rowAt = (frontmatter: ViewRow['frontmatter']): ViewRow => ({ id: 'p1', title: 'One', path: 'C/One.md', frontmatter })
+    const before = resolveFieldValue(rowAt(fm1), 'prop_s')
+    const after = resolveFieldValue(rowAt(fm2), 'prop_s')
+    expect(before).toMatchObject({ kind: 'status', value: 'open' })
+    expect(after).toMatchObject({ kind: 'status', value: 'done' })
+  })
+
+  it('_title never caches — a rename with an unchanged frontmatter object shows the new title', () => {
+    const fm = { id: 'p1' }
+    const a = resolveFieldValue({ id: 'p1', title: 'Old', path: 'C/Old.md', frontmatter: fm }, '_title')
+    const b = resolveFieldValue({ id: 'p1', title: 'New', path: 'C/New.md', frontmatter: fm }, '_title')
+    expect(a).toEqual({ kind: 'select', value: 'Old' })
+    expect(b).toEqual({ kind: 'select', value: 'New' })
+  })
+})
