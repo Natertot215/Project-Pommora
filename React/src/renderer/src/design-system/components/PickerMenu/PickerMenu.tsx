@@ -77,6 +77,8 @@ export function PickerMenu({
           style={{
             // GlassPane's frost is the surface; its rect border/shadow can't trace the beak, so the
             // frame SVG draws the outline + shadow. Clip the frost to the notch path once measured.
+            // The window fill under the frost reads solid over any backdrop (Nathan).
+            background: 'var(--bg-window)',
             border: 'none',
             boxShadow: 'none',
             ...(d ? { clipPath: `path('${d}')` } : null),

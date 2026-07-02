@@ -68,6 +68,14 @@
   transition: none;
 }
 
+/* A FITTING table gives way to the inspector (the compressed right inset, as ever); an OVERFLOWING
+   one keeps its width — the inset collapses to the bare gutter, the inspector hovers over it, and
+   the table h-scrolls beneath the glass (Nathan's conditional; fit is measured pre-compression in
+   TableView so the boundary can't oscillate). */
+.shell.inspector-open .detail-body:has(.table-view.overflowing) {
+  padding-right: var(--gutter);
+}
+
 .detail-empty {
   display: flex;
   align-items: center;

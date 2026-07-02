@@ -113,6 +113,8 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
   // track-set change — never per scroll or per pointermove.
   const viewRef = useRef<HTMLDivElement>(null)
   const [overflowing, setOverflowing] = useState(false)
+  const overflowingRef = useRef(false)
+  overflowingRef.current = overflowing
   // The one in-cell editing surface (A-2/A-6 picker · A-8/A-12 editor). Cleared on dismiss; the
   // exit presence keeps a PICKER mounted through its Bloom-out (reading the last target from the
   // ref while `editing` is already null) — the editor unmounts instantly.
@@ -176,10 +178,23 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
   const ctx = useMemo(() => (tree ? buildResolveContext(tree, schema) : null), [tree, schema])
   // One mounted observer, two targets: the view (pane resizes) and the grid (its box moves when
   // the track set changes — a column resize/hide/add). Each fires one cheap read, never per-scroll.
+  // Fit is measured against the pane AS COMPRESSED by the inspector, whether or not the hover
+  // override has already lifted that compression — a fitting table gives way to the inspector, an
+  // overflowing one keeps its width and scrolls under the glass (Nathan's conditional), and
+  // measuring the hypothetical width is what keeps the boundary band from oscillating.
   useEffect(() => {
     const el = viewRef.current
     if (!el) return
-    const check = (): void => setOverflowing(el.scrollWidth > el.clientWidth + 1)
+    const check = (): void => {
+      const shell = el.closest('.shell')
+      const open = shell?.classList.contains('inspector-open') ?? false
+      const lifted = open && overflowingRef.current
+      const cs = lifted && shell ? getComputedStyle(shell) : null
+      const liftedBy = cs
+        ? Number.parseFloat(cs.getPropertyValue('--inspector-width')) + Number.parseFloat(cs.getPropertyValue('--glass-inset'))
+        : 0
+      setOverflowing(el.scrollWidth > el.clientWidth - (Number.isNaN(liftedBy) ? 0 : liftedBy) + 1)
+    }
     check()
     const ro = new ResizeObserver(check)
     ro.observe(el)
