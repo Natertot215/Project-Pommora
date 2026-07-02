@@ -99,7 +99,7 @@ Nathan's raw idea — assignment entries marked `disabled` instead of removed �
 
 #### Prospects (allowed later, not now)
 
-- Rich per-property editor (per-type options/status groups, formats, change-type confirm, duplicate) — the 6-28 pending list; separate arc.
+- Rich per-property editor (per-type options/status groups, formats, change-type confirm, duplicate) — the 6-28 pending list; separate arc. **Nathan (07-02): the full Status, Multi-Select, and Select PropertyPanes are DESIGN-READY in Figma — first in line once this plan ships; pull the Figma designs when building.**
 
 #### Out of Scope
 
