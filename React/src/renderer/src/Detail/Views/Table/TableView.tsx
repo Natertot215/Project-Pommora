@@ -279,9 +279,14 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
   // group.order + manual (its first UI writer) · reparent → moveSet with the destination's CURRENT
   // fs children + the moved id appended (C-4 — the visual slot persists only in group_order).
   const commitBand = (patch: Partial<SavedView>): void => {
-    setBandOverride({ ...bandOverride, ...patch })
+    setBandOverride((prev) => ({ ...prev, ...patch }))
     persistView(patch)
   }
+  // The reparent's commit fires AFTER a real fs round-trip — route it through a ref so it merges
+  // the FIRE-TIME view state: a collapse/resize persist landing mid-flight must not be clobbered
+  // by this drop-render's stale closure.
+  const commitBandRef = useRef(commitBand)
+  commitBandRef.current = commitBand
   const onBandDrop = (draggedId: string, drop: BandDrop): void => {
     const dragged = bands.find((b) => b.id === draggedId)
     if (!dragged) return
@@ -318,7 +323,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
     // A failed move (a name collision at the destination) commits NOTHING — no phantom order.
     void (async () => {
       if (!(await mutate({ op: 'moveSet', path, newParentPath: destPath, order: reparentFsOrder(destChildIds, draggedId) }))) return
-      commitBand({ group_order })
+      commitBandRef.current({ group_order })
     })()
   }
 

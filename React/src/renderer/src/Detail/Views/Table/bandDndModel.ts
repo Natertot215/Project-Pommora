@@ -70,17 +70,21 @@ export function canNest(draggedId: string, targetId: string, bands: Band[]): boo
 
 /** Resolve the pointer's drop slot against the frozen band snapshot. Headers are NOT adjacent in
  *  the real render — a band OWNS its whole region, header top to the next header's top (its data
- *  rows included), so hovering deep inside a group can never hand the slot to the next header. A
- *  set band nests from its header middle AND its row region (the sidebar's hover-a-container's-
- *  content precedent), cycle-guarded with a fall-through; before/after slots imply the parent of
- *  the band below the line, skipping the dragged subtree so a slot can never land inside it.
- *  Below the last header's own rows stays the root append — the drag-to-end escape hatch.
- *  Null = no legal slot. */
+ *  rows included; the LAST band's region runs to `endY`, the measured content bottom), so
+ *  hovering deep inside a group can never hand the slot to the next header. A legal set-band
+ *  nest is ONE CONTINUOUS span — the header past its top zone plus the entire row region — so
+ *  the drop intent can never flicker while the pointer walks down a group (the sidebar's
+ *  hover-a-container's-content precedent); the LAST band nests from its rows like every other.
+ *  Property bands and illegal nests split at the header midline into before/after slots,
+ *  skipping the dragged subtree so a slot can never land inside it. Below `endY` is the root
+ *  append — the drag-to-end escape hatch (mid-drag scrolling re-measures, so tall content stays
+ *  reachable). Null = no legal slot. */
 export function bandSlot(
   bands: Band[],
   measured: MeasuredRow[],
   y: number,
-  draggedId: string
+  draggedId: string,
+  endY: number
 ): BandSlot | null {
   const byId = new Map(bands.map((b) => [b.id, b]))
   const rows = measured.filter((m) => byId.has(m.id))
@@ -121,12 +125,12 @@ export function bandSlot(
   const inset = (row.bottom - row.top) * NEST_ZONE
 
   if (y < row.top + inset) return slotBefore(idx, row.top)
-  if (idx === rows.length - 1 && y >= row.bottom) {
-    return { beforeId: null, impliedParentId: null, nestInto: null, lineY: row.bottom }
-  }
-  const inNestSpan = y >= row.bottom || y < row.bottom - inset
-  if (band.kind === 'set' && inNestSpan && canNest(draggedId, band.id, bands)) {
+  const regionEnd = idx < rows.length - 1 ? rows[idx + 1].top : Math.max(endY, row.bottom)
+  if (band.kind === 'set' && y < regionEnd && canNest(draggedId, band.id, bands)) {
     return { beforeId: null, impliedParentId: band.id, nestInto: band.id, lineY: row.mid }
+  }
+  if (idx === rows.length - 1 && y >= regionEnd) {
+    return { beforeId: null, impliedParentId: null, nestInto: null, lineY: regionEnd }
   }
   if (y < row.mid) return slotBefore(idx, row.top)
   return slotBefore(idx + 1, rows[idx + 1] ? rows[idx + 1].top : row.bottom)

@@ -291,6 +291,26 @@ describe('band reparent', () => {
     expect(headerTexts()[0]).toContain('A')
   })
 
+  it('a persist landing during the reparent round-trip is not clobbered by the deferred commit (F3)', async () => {
+    let resolveMove: (v: boolean) => void = () => {}
+    mutateSpy.mockImplementation(() => new Promise((r) => { resolveMove = r }))
+    await mountTable(structuralSource())
+    await dragBand(2, 12) // nest B into A — the commit defers behind the fs round-trip
+    await drop()
+    // Mid-flight, the user collapses a group (a sibling persist with fresh state).
+    const twisty = host.querySelectorAll('.group-twisty')[0]
+    await act(async () => {
+      ;(twisty as HTMLElement).click()
+    })
+    const collapsedAtToggle = (saveSpy.mock.calls.at(-1)?.[2] as SavedView).collapsed_groups
+    await act(async () => {
+      resolveMove(true)
+    })
+    const final = lastSavedView()
+    expect(final.group_order).toEqual(['sA', 'sA1', 'sB'])
+    expect(final.collapsed_groups).toEqual(collapsedAtToggle)
+  })
+
   it('a de-nest between-slot reparents to the container root', async () => {
     await mountTable(structuralSource())
     await dragBand(1, 50) // A1 → bottom half of B's zone? y=50 sits in B's top zone (48–72) → before B at root

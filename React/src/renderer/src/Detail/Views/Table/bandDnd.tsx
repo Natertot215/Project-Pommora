@@ -74,7 +74,7 @@ export function BandDnd({
 
   // Frozen at activation (C-2): geometry AND the band list ride one snapshot — a mid-drag tree
   // swap re-renders headers, so both go stale together and re-measure together, lazily.
-  type Snapshot = { bands: Band[]; rows: MeasuredRow[]; boxTop: number }
+  type Snapshot = { bands: Band[]; rows: MeasuredRow[]; boxTop: number; boxBottom: number }
   const snapshot = useRef<Snapshot | null>(null)
   const snapshotDirty = useRef(false)
   useEffect(() => {
@@ -87,7 +87,7 @@ export function BandDnd({
   const takeSnapshot = (): Snapshot | null => {
     const el = box.current
     if (!el) return null
-    const boxTop = el.getBoundingClientRect().top
+    const boxRect = el.getBoundingClientRect()
     const current = bandsRef.current
     const rows: MeasuredRow[] = []
     for (const b of current) {
@@ -97,7 +97,7 @@ export function BandDnd({
       rows.push({ id: b.id, top: r.top, bottom: r.bottom, mid: r.top + r.height / 2 })
     }
     rows.sort((a, b) => a.top - b.top)
-    return { bands: current, rows, boxTop }
+    return { bands: current, rows, boxTop: boxRect.top, boxBottom: boxRect.bottom }
   }
 
   const registerBand = (id: string, el: HTMLElement | null): void => {
@@ -162,7 +162,7 @@ export function BandDnd({
     }
     const snap = snapshot.current
     if (!snap) return
-    const slot = bandSlot(snap.bands, snap.rows, e.clientY, g.id)
+    const slot = bandSlot(snap.bands, snap.rows, e.clientY, g.id, snap.boxBottom)
     live.current = slot
     setDrag({ id: g.id, ghostX: e.clientX + 12, ghostY: e.clientY + 8, slot, lineTop: slot ? slot.lineY - snap.boxTop : 0 })
   }
