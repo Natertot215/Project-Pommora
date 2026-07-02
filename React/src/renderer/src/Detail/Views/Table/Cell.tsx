@@ -1,22 +1,17 @@
 import type { ColumnStyle } from '@shared/columnStyles'
-import type { StatusGroupId } from '@shared/properties'
 import type { ResolvedColumn, ViewRow } from '@shared/types'
 import { chip, chipCapsule, chipCheckbox, chipColor } from '@renderer/design-system/tokens'
 import { cx } from '@renderer/design-system/cx'
-import { Icon, asIconName, type IconName } from '@renderer/design-system/symbols'
+import { Icon, asIconName } from '@renderer/design-system/symbols'
 import { Switch } from '@renderer/design-system/components/Switches/Switch'
 import { Chip } from '@renderer/Components/Chip'
 import { ContextChip } from '@renderer/Components/ContextChip'
 import { chipColorFor } from '@renderer/design-system/tokens/colorMap'
 import { resolveFieldValue } from '../pipeline/value'
 import { fileLabel, formatDate, formatNumber } from '../PropertyEditing/formatValue'
-import { statusGroupOf } from '../PropertyEditing/statusCycle'
+import { STATUS_GROUP_GLYPH, statusGroupOf } from '../PropertyEditing/statusCycle'
 import { findOption } from './cellResolve'
 import type { ResolveContext } from './resolveContext'
-
-/** The fixed status group's glyph — shared by the capsule and checkbox looks (the checkbox
- *  renders upcoming as an empty square instead of the dashed circle). */
-const GROUP_GLYPH: Record<StatusGroupId, IconName> = { upcoming: 'circle-dashed', in_progress: 'minus', done: 'check' }
 
 /** Type-aware cell render (Part 2 G-1/G-2): the title with its page icon; chips for select/status;
  *  several chips for multi-select; a checkbox glyph; ContextChips for tiers; an inline link for url;
@@ -57,11 +52,11 @@ export function Cell({
         const group = statusGroupOf(v.value, ctx.schema.find((d) => d.id === column.id))
         return style.look === 'capsule' ? (
           <span className={cx(chip, chipColor[chipColorFor(opt?.color)], chipCapsule)}>
-            <Icon name={group ? GROUP_GLYPH[group] : 'circle-dashed'} size={13} />
+            <Icon name={group ? STATUS_GROUP_GLYPH[group] : 'circle-dashed'} size={13} />
           </span>
         ) : (
           <span className={cx(chip, chipColor[chipColorFor(opt?.color)], chipCheckbox)}>
-            {group && group !== 'upcoming' ? <Icon name={GROUP_GLYPH[group]} size={12} strokeWidth={3} /> : null}
+            {group && group !== 'upcoming' ? <Icon name={STATUS_GROUP_GLYPH[group]} size={12} strokeWidth={3} /> : null}
           </span>
         )
       }

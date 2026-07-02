@@ -1,10 +1,15 @@
 import { useRef } from 'react'
+import type { ColumnLook } from '@shared/columnStyles'
 import { isUntouchedSeed, type PropertyDefinition } from '@shared/properties'
 import type { PropertyValue } from '@shared/propertyValue'
 import { PickerMenu, PickerOption } from '@renderer/design-system/components/PickerMenu/PickerMenu'
 import { useDismiss } from '@renderer/design-system/components/Popover'
 import { Chip } from '@renderer/Components/Chip'
+import { cx } from '@renderer/design-system/cx'
+import { Icon } from '@renderer/design-system/symbols'
+import { chip, chipCapsule, chipColor } from '@renderer/design-system/tokens'
 import { chipColorFor } from '@renderer/design-system/tokens/colorMap'
+import { STATUS_GROUP_GLYPH, statusGroupOf } from './statusCycle'
 
 /** A pickable option — status options flatten out of their groups, select/multi read
  *  `select_options`. An untouched creation seed is scaffolding, not defined options: the
@@ -32,12 +37,16 @@ export function PropertyPicker({
   def,
   current,
   closing,
+  look,
   onCommit,
   onDismiss
 }: {
   def: PropertyDefinition
   current: PropertyValue | null
   closing: boolean
+  /** The column's resolved look — a status column on a glyph look (checkbox/capsule) renders
+   *  its OPTIONS as capsule chips too (Nathan); pill columns keep labeled pills. */
+  look?: ColumnLook
   onCommit: (value: PropertyValue | null) => void
   onDismiss: () => void
 }): React.JSX.Element | null {
@@ -65,11 +74,21 @@ export function PropertyPicker({
           // the notch pane's proportions so it doesn't collapse into a degenerate beak. Tune here.
           <div style={{ minWidth: 96, height: 24 }} />
         ) : (
-          options.map((o) => (
-            <PickerOption key={o.value} selected={selected.includes(o.value)} onClick={() => pick(o.value)}>
-              <Chip color={chipColorFor(o.color)} label={o.label} />
-            </PickerOption>
-          ))
+          options.map((o) => {
+            const capsule = def.type === 'status' && (look === 'checkbox' || look === 'capsule')
+            const group = capsule ? statusGroupOf(o.value, def) : undefined
+            return (
+              <PickerOption key={o.value} selected={selected.includes(o.value)} onClick={() => pick(o.value)}>
+                {capsule ? (
+                  <span className={cx(chip, chipColor[chipColorFor(o.color)], chipCapsule)}>
+                    <Icon name={group ? STATUS_GROUP_GLYPH[group] : 'circle-dashed'} size={13} />
+                  </span>
+                ) : (
+                  <Chip color={chipColorFor(o.color)} label={o.label} />
+                )}
+              </PickerOption>
+            )
+          })
         )}
       </PickerMenu>
     </div>

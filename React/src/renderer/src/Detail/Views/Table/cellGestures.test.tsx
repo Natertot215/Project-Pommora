@@ -62,7 +62,10 @@ const sourceWith = (columnStyles?: Record<string, { look?: string }>): Collectio
     title: 'Col',
     path: 'Col',
     sets: [],
-    pages: [{ kind: 'page', id: 'p1', title: 'Page One', path: 'Col/Page One.md' }],
+    pages: [
+      { kind: 'page', id: 'p1', title: 'Page One', path: 'Col/Page One.md' },
+      { kind: 'page', id: 'p2', title: 'Page Two', path: 'Col/Page Two.md' }
+    ],
     properties: [statusDef, checkboxDef, numberDef, urlDef, fileDef],
     views: [
       {
@@ -86,7 +89,8 @@ const VALUES = {
       prop_link: 'https://old.com',
       prop_files: [{ path: 'Assets/trip.png' }]
     }
-  }
+  },
+  p2: { id: 'p2', properties: {} }
 }
 
 // React intercepts the value property — commit through the native setter so the change event carries.
@@ -190,7 +194,7 @@ describe('status cell gestures', () => {
     })
   })
 
-  it('a checkbox-look status cell cycles the group directly — no picker', async () => {
+  it('a VALUED checkbox-look status cell cycles the group directly — no picker', async () => {
     await mountTable(sourceWith({ prop_status: { look: 'checkbox' } }))
     await act(async () => {
       statusCell().click()
@@ -202,6 +206,19 @@ describe('status cell gestures', () => {
       propertyId: 'prop_status',
       value: { kind: 'status', value: 'complete' } // active (in_progress) → done's first option
     })
+  })
+
+  it('an EMPTY checkbox-look status cell never cycles — it opens the picker, options as capsules', async () => {
+    await mountTable(sourceWith({ prop_status: { look: 'checkbox' } }))
+    const emptyStatusCell = host.querySelectorAll<HTMLElement>('.data-row')[1].querySelectorAll<HTMLElement>('.data-cell')[1]
+    await act(async () => {
+      emptyStatusCell.click()
+    })
+    expect(mutateSpy).not.toHaveBeenCalled()
+    const optionButtons = emptyStatusCell.querySelectorAll('button')
+    expect(optionButtons.length).toBe(3)
+    expect(emptyStatusCell.textContent).not.toContain('Active') // capsule options carry glyphs, not labels
+    expect(optionButtons[0].querySelector('svg')).toBeTruthy()
   })
 })
 

@@ -1,7 +1,16 @@
 // Status group mechanics shared by every container view's cells — the capsule/checkbox glyphs
 // key off the fixed group, and the checkbox-look click cycle steps through the groups.
 
+import type { IconName } from '@renderer/design-system/symbols'
 import type { PropertyDefinition, StatusGroupId } from '@shared/properties'
+
+/** The fixed status group's glyph — shared by the capsule/checkbox cell looks AND the picker's
+ *  capsule options (the checkbox look renders upcoming as an empty square instead). */
+export const STATUS_GROUP_GLYPH: Record<StatusGroupId, IconName> = {
+  upcoming: 'circle-dashed',
+  in_progress: 'minus',
+  done: 'check'
+}
 
 /** The fixed group a status value belongs to (undefined for an unknown value or a missing def). */
 export function statusGroupOf(value: string, def: PropertyDefinition | undefined): StatusGroupId | undefined {

@@ -278,7 +278,13 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
     if (t === 'status' && colStyle(col.id).look === 'checkbox') {
       e.stopPropagation()
       const v = resolveFieldValue(row, col.id)
-      const next = nextCycleValue(v.kind === 'status' || v.kind === 'select' ? v.value : undefined, schema.find((d) => d.id === col.id))
+      const current = v.kind === 'status' || v.kind === 'select' ? v.value : undefined
+      if (current === undefined) {
+        // An EMPTY checkbox-look cell never cycles (a blind write) — it opens the picker to assign.
+        setEditing({ rowId: row.id, colId: col.id, mode: 'picker' })
+        return
+      }
+      const next = nextCycleValue(current, schema.find((d) => d.id === col.id))
       if (next !== null) commitCellValue(row, col.id, { kind: 'status', value: next })
     } else if (t === 'checkbox') {
       e.stopPropagation()
@@ -354,6 +360,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
           def={def}
           current={resolveFieldValue(row, col.id)}
           closing={editingExit.closing}
+          look={colStyle(col.id).look}
           onCommit={(v) => commitCellValue(row, col.id, v)}
           onDismiss={() => setEditing(null)}
         />
