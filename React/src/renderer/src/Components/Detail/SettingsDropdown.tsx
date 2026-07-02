@@ -11,12 +11,19 @@ import * as s from './viewPane.css'
  * ViewPane; other surfaces get a placeholder until their own panes land. The button never binds to a
  * specific pane — the in-window content view's scope decides what shows.
  */
-export function SettingsDropdown({ closing = false }: { closing?: boolean }): React.JSX.Element {
+export function SettingsDropdown({
+  closing = false,
+  notchInsetRight
+}: {
+  closing?: boolean
+  /** Beak aim, forwarded to the glass shell — from the pane's right edge to the Settings button. */
+  notchInsetRight?: number
+}): React.JSX.Element {
   const selection = useSession((st) => st.selection)
   const scope = viewSettingsScope(selection)
   return (
     <div className={s.anchor}>
-      <MenuSurface closing={closing}>
+      <MenuSurface closing={closing} notchInsetRight={notchInsetRight}>
         {scope === 'view' ? <ViewPane /> : <MenuCaption>No settings for this view yet.</MenuCaption>}
       </MenuSurface>
     </div>

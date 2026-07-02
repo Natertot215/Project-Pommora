@@ -25,6 +25,7 @@ export function Toolbar({
   onToggleInspector: () => void
 }): React.JSX.Element {
   const [panel, setPanel] = useState<TrioPanel | null>(null)
+  const [trioW, setTrioW] = useState(0)
   const trioRef = useRef<HTMLDivElement>(null)
   useDismiss(trioRef, () => setPanel(null), panel !== null)
   // Each dropdown stays mounted through its retract animation before leaving the DOM.
@@ -36,7 +37,10 @@ export function Toolbar({
   useEffect(() => {
     const el = trioRef.current
     if (!el) return
-    const apply = (): void => el.style.setProperty('--trio-w', `${el.offsetWidth}px`)
+    const apply = (): void => {
+      el.style.setProperty('--trio-w', `${el.offsetWidth}px`)
+      setTrioW(el.offsetWidth)
+    }
     apply()
     const ro = new ResizeObserver(apply)
     ro.observe(el)
@@ -68,14 +72,19 @@ export function Toolbar({
       </div>
       <div className="app-toolbar-cluster app-toolbar-cluster--trio" ref={trioRef}>
         <ToolbarTrio segments={trio} />
+        {/* Beak aim: the dropdowns hang right-aligned under the trio, so each notch is measured from
+            the pane's right edge to its trigger's center — Navigation at 5/6 of the trio's width,
+            Settings at dead center (3 equal segments). */}
         {navP.mounted && (
           <div className={dropdown.anchor}>
-            <MenuSurface closing={navP.closing}>
+            <MenuSurface closing={navP.closing} notchInsetRight={trioW ? (trioW * 5) / 6 : undefined}>
               <MenuCaption>No navigation yet.</MenuCaption>
             </MenuSurface>
           </div>
         )}
-        {settingsP.mounted && <SettingsDropdown closing={settingsP.closing} />}
+        {settingsP.mounted && (
+          <SettingsDropdown closing={settingsP.closing} notchInsetRight={trioW ? trioW / 2 : undefined} />
+        )}
       </div>
     </div>
   )

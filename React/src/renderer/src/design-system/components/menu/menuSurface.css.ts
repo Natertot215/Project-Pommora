@@ -7,11 +7,13 @@ import { style } from '@vanilla-extract/css'
  */
 export const MENU_GUTTER = '10px'
 
-/** The large-dropdown shell: glass (from GlassPane) + rounded corners + the shared gutter, floored at
- *  a minimum width so a sparse pane never shrink-wraps narrow. */
+/** The large-dropdown shell: glass (from NotchedPane) + rounded corners + the shared gutter, floored
+ *  at a minimum width so a sparse pane never shrink-wraps narrow. The top gutter clears the beak
+ *  band via the shell's published --notch-h. */
 export const surface = style({
   borderRadius: '12px',
   padding: `6px ${MENU_GUTTER}`,
+  paddingTop: 'calc(var(--notch-h, 0px) + 6px)',
   overflow: 'hidden',
   minWidth: '225px'
 })

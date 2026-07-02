@@ -11,26 +11,16 @@ export const anchor = style({
   zIndex: 20
 })
 
-export const pop = style({ position: 'relative', width: 'fit-content' })
-
-// GlassPane's rect border/shadow are suppressed (can't trace the beak); the frame SVG draws the outline.
+// GlassPane's rect border/shadow are suppressed by NotchedPane (can't trace the beak); the top
+// gutter clears the beak band via the shell's published --notch-h.
 export const surface = style({
   position: 'relative',
   zIndex: 0,
   padding: '0 6px 6px',
+  paddingTop: 'calc(var(--notch-h, 0px) + 6px)',
   display: 'flex',
   flexDirection: 'column',
   gap: '2px'
-})
-
-// SVG stroke of the same notch path — a rect box-shadow can't follow the beak.
-export const frame = style({
-  position: 'absolute',
-  inset: 0,
-  overflow: 'visible',
-  pointerEvents: 'none',
-  zIndex: 1,
-  filter: 'drop-shadow(0 4px 14px #00000059)'
 })
 
 export const option = style({
