@@ -76,6 +76,8 @@ The immediate-register set, mapped to what each naturally replaces. Tabler ids a
 
 **Stroke**: every Tabler registration renders at **1.75** stroke (Tabler ships 2 by default) — a PommoraIcons registry default, set once at the seam, not per-callsite.
 
+**Sizing**: mechanically identical across libraries — both draw on the 24×24 grid, both React packages take the same `size`/`stroke` props and follow `currentColor`, so the seam's `1em`/size-token mechanism carries over untouched. Optical density differs per-glyph (Tabler tends to fill its grid slightly fuller); the 1.75 stroke is the compensator, final judgment by eyeball at build.
+
 | Tabler pick | Replaces (current) | Surface |
 | --- | --- | --- |
 | `plus` | `plus` | every add button |
@@ -110,7 +112,11 @@ The immediate-register set, mapped to what each naturally replaces. Tabler ids a
 | `file-text` | `file-text` — verified, same id in Tabler | THE default page icon |
 | `file-import` | `import` — bare `import` doesn't exist in Tabler; `file-import` verified | File property type |
 
-**Conditional**: Tabler `folder` + `folder-opened` replace `folder-closed`/`folder-open` — only after Nathan's custom CSS edits to them; hold Lucide's pair until those edits are ratified.
+**Keep Lucide** — Nathan's ratified keeps; PommoraIcons is officially a mixed registry:
+
+- `gallery-vertical-end` — Collection rows (reviewed the four Tabler candidates; Lucide's wins)
+- `folder-closed` / `folder-open` — stays Lucide (supersedes the earlier plan of Tabler `folder`/`folder-opened` behind custom CSS edits — that plan is dropped)
+- `log-out` — the sidebar in-out toggle (collapse renders flipped, expand plain — App.tsx; the census's "logout button" label was wrong, this is the sidebar affordance)
 
 **First-party custom glyphs**: `square-dashed` gets drawn in-house (no Tabler counterpart chosen; Nathan's call — "create our own"). Registry consequence: PommoraIcons hosts custom SVG components alongside `@tabler` ones in the same slot shape (24 viewBox · currentColor · the 1.75 stroke default), so a custom glyph is indistinguishable from a library one at the callsite.
 
@@ -118,14 +124,13 @@ The immediate-register set, mapped to what each naturally replaces. Tabler ids a
 
 #### Remaining Gaps — In-Use Icons Still Needing a Pick
 
-Ordered by weight; these have no Tabler assignment yet:
+Nathan's blanket call: **"the rest can be Tabler."** Everything below defaults to its Tabler equivalent, exact ids resolved against the installed package at registry build (likely renames: `house`→`home`, `type`→`typography`; `server` and `palette` should carry over; `shapes` needs a nearest-fit call):
 
-1. `gallery-vertical-end` — sidebar Collection rows. **No exact Tabler twin** (verified). Real candidates, pending Nathan's eyeball on tabler.io: `layout-list` (two stacked cards — crispest at 14px) · `carousel-vertical` (card with peek-cards above/below — closest to the "vertical gallery" metaphor) · `versions` (card with depth echoes) · `cards` (tilted overlap). The `stack-*` family is excluded — `stack-2` is already the Group glyph and siblings would read as Group-related.
-2. `link-2` — Relation/Connections glyph — **fork**: Icons.md deliberately separates it from `link` (url); picking only `link` collapses the distinction. Needs its own glyph or an explicit merge call.
-3. **Calendar fork** — one pick (`calendar-month`), two current slots: `calendar` (saved node) and `calendar-days` (Date & Time property type). One glyph for both, or split?
-4. `server` — ViewPane Properties entry
-5. `house` — Homepage saved node
-6. `log-out` — close-nexus button
-7. Showcase trio — `palette` · `type` · `shapes` (lowest stakes)
+- `server` (ViewPane Properties) · `house` (Homepage saved node) · showcase trio (`palette` · `type` · `shapes`)
+
+Only two genuinely open calls remain — both semantic, not library:
+
+1. `link-2` — Relation/Connections glyph — **fork**: Icons.md deliberately separates it from `link` (url); picking only `link` collapses the distinction. Needs its own Tabler glyph or an explicit merge call.
+2. **Calendar fork** — one pick (`calendar-month`), two current slots: `calendar` (saved node) and `calendar-days` (Date & Time property type). One glyph for both, or split?
 
 **The dead 6** (`circle-x`, `arrow-left-right`, `key-round`, `lock`, `log-in`, `panel-left`): no picks given — consistent with dropping at migration, pending the Nexus frontmatter grep. (`copy` was in this set until Nathan's pick rescued it.)
