@@ -44,6 +44,7 @@ const statusDef: PropertyDefinition = {
 const checkboxDef: PropertyDefinition = { id: 'prop_done', name: 'Done', type: 'checkbox' }
 const numberDef: PropertyDefinition = { id: 'prop_n', name: 'Count', type: 'number' }
 const urlDef: PropertyDefinition = { id: 'prop_link', name: 'Link', type: 'url' }
+const fileDef: PropertyDefinition = { id: 'prop_files', name: 'Files', type: 'file' }
 const multiDef: PropertyDefinition = {
   id: 'prop_tags',
   name: 'Tags',
@@ -62,13 +63,13 @@ const sourceWith = (columnStyles?: Record<string, { look?: string }>): Collectio
     path: 'Col',
     sets: [],
     pages: [{ kind: 'page', id: 'p1', title: 'Page One', path: 'Col/Page One.md' }],
-    properties: [statusDef, checkboxDef, numberDef, urlDef],
+    properties: [statusDef, checkboxDef, numberDef, urlDef, fileDef],
     views: [
       {
         id: 'view_1',
         name: 'Table',
         type: 'table',
-        property_order: ['_title', 'prop_status', 'prop_done', 'prop_n', 'prop_link'],
+        property_order: ['_title', 'prop_status', 'prop_done', 'prop_n', 'prop_link', 'prop_files'],
         hidden_properties: ['_modified_at'],
         ...(columnStyles ? { column_styles: columnStyles } : {})
       }
@@ -78,7 +79,13 @@ const sourceWith = (columnStyles?: Record<string, { look?: string }>): Collectio
 const VALUES = {
   p1: {
     id: 'p1',
-    properties: { prop_status: { $status: 'active' }, prop_done: false, prop_n: 42, prop_link: 'https://old.com' }
+    properties: {
+      prop_status: { $status: 'active' },
+      prop_done: false,
+      prop_n: 42,
+      prop_link: 'https://old.com',
+      prop_files: [{ path: 'Assets/trip.png' }]
+    }
   }
 }
 
@@ -94,19 +101,27 @@ const key = (input: HTMLElement, k: string): void => {
 let host: HTMLDivElement
 let root: Root
 let mutateSpy: ReturnType<typeof vi.fn>
+let selectSpy: ReturnType<typeof vi.fn>
+let openFileSpy: ReturnType<typeof vi.fn>
+let openExternalSpy: ReturnType<typeof vi.fn>
 
 beforeEach(() => {
   host = document.createElement('div')
   document.body.appendChild(host)
   root = createRoot(host)
   mutateSpy = vi.fn(async () => {})
+  selectSpy = vi.fn(async () => {})
+  openFileSpy = vi.fn(async () => ({ ok: true }))
+  openExternalSpy = vi.fn(async () => {})
   ;(window as unknown as { nexus: unknown }).nexus = {
     loadValues: async () => VALUES,
     activeViews: { get: async () => ({}) },
     viewOrders: { get: async () => ({}) },
     views: { save: vi.fn(async () => ({ ok: true })) },
     cellMenu: vi.fn(async () => null),
-    columnMenu: vi.fn(async () => null)
+    columnMenu: vi.fn(async () => null),
+    openFile: openFileSpy,
+    openExternal: openExternalSpy
   }
   const pair = (singular: string, plural: string): { singular: string; plural: string } => ({ singular, plural })
   useSession.setState({
@@ -125,7 +140,7 @@ beforeEach(() => {
       }
     } as never,
     selection: { kind: 'none' } as never,
-    select: vi.fn(async () => {}) as never,
+    select: selectSpy as never,
     mutate: mutateSpy as never
   })
 })
@@ -319,6 +334,46 @@ describe('menu-entered editing', () => {
       kind: 'page',
       newName: 'Renamed Page'
     })
+  })
+})
+
+describe('open actions + row-click narrowing (A-7)', () => {
+  it('title cell click navigates; row background click does not', async () => {
+    await mountTable(sourceWith())
+    const cells = host.querySelectorAll<HTMLElement>('.data-cell')
+    await act(async () => {
+      cells[0].click()
+    })
+    expect(selectSpy).toHaveBeenCalledWith({ kind: 'page', id: 'p1', path: 'Col/Page One.md' })
+
+    selectSpy.mockClear()
+    const row = host.querySelector<HTMLElement>('.data-row')
+    await act(async () => {
+      row?.click()
+    })
+    expect(selectSpy).not.toHaveBeenCalled()
+  })
+
+  it('url cell click opens externally through the sanctioned IPC, not navigation', async () => {
+    await mountTable(sourceWith())
+    const link = host.querySelector<HTMLElement>('.cell-link')
+    await act(async () => {
+      link?.click()
+    })
+    expect(openExternalSpy).toHaveBeenCalledWith('https://old.com')
+    expect(selectSpy).not.toHaveBeenCalled()
+  })
+
+  it('file chip click opens the file under the nexus root', async () => {
+    await mountTable(sourceWith())
+    const chip = [...host.querySelectorAll<HTMLElement>('.data-cell')[5].querySelectorAll('span')].find((s) =>
+      s.textContent?.includes('trip.png')
+    )
+    await act(async () => {
+      chip?.click()
+    })
+    expect(openFileSpy).toHaveBeenCalledWith('Assets/trip.png')
+    expect(selectSpy).not.toHaveBeenCalled()
   })
 })
 

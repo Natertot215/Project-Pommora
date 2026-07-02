@@ -267,6 +267,12 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
   // checkbox toggles, status/select/multi open the picker. Acting stops propagation so the row's
   // select doesn't also fire; anything else bubbles.
   const onCellClick = (row: ViewRow, col: ResolvedColumn, e: React.MouseEvent): void => {
+    if (col.kind === 'title') {
+      // The ONLY navigate (A-7): row-click narrowed to the title cell; row background is a no-op.
+      e.stopPropagation()
+      void select({ kind: 'page', id: row.id, path: row.path })
+      return
+    }
     if (col.kind !== 'property') return
     const t = declaredType(col.id, schema)
     if (t === 'status' && colStyle(col.id).look === 'checkbox') {
@@ -595,7 +601,6 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
             selected={selection.kind === 'page' && selection.id === row.id}
             dragDisabled={dragDisabled}
             lead={lead}
-            onSelect={() => void select({ kind: 'page', id: row.id, path: row.path })}
             onCellMenu={(c, e) => void openCellMenu(row, c, e)}
             onCellClick={(c, e) => onCellClick(row, c, e)}
             overlay={(c) => cellOverlay(row, c)}
@@ -767,8 +772,7 @@ function DataRow({
   hideIcon,
   selected,
   dragDisabled,
-  lead,
-  onSelect
+  lead
 }: {
   row: ViewRow
   columns: ResolvedColumn[]
@@ -786,7 +790,6 @@ function DataRow({
   selected: boolean
   dragDisabled: boolean
   lead: boolean
-  onSelect: () => void
 }): React.JSX.Element {
   const { ref, handle, isDragging } = useTableRowDrag(row.id)
   return (
@@ -795,11 +798,9 @@ function DataRow({
       className={cx('data-row', selected && 'selected', isDragging && 'row-dragging', lead && 'row-lead')}
       // The whole row is a drag surface, not just the gutter grip — grabbing ANY cell arms the reorder, so a
       // horizontal scroll that pushes the grip out of reach can't block it. A press-release (no move past
-      // ACTIVATION) still selects; only a real drag reorders. Gated with the grip when reorder is disabled.
+      // ACTIVATION) is each CELL's gesture (A-7: only the title navigates; the row background is a no-op);
+      // only a real drag reorders. Gated with the grip when reorder is disabled.
       {...(dragDisabled ? {} : handle)}
-      onClick={() => {
-        if (!isDragging) onSelect() // a drag-release isn't a select — the engine keeps isDragging set through the drop
-      }}
     >
       {columns.map((c, i) => {
         const style: React.CSSProperties = { transform: colTransform(i), textAlign: colAlign(c.id) }

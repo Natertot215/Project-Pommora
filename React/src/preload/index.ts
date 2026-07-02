@@ -131,6 +131,9 @@ const api = {
   showError: (message: string): Promise<void> => ipcRenderer.invoke('error:show', message),
   // Open an external link (http/https/mailto) in the OS default browser/app.
   openExternal: (url: string): Promise<void> => ipcRenderer.invoke('link:open', url),
+  // Open a page-attached file (nexus-relative path) in its OS default app.
+  openFile: (path: string): Promise<{ ok: true } | { ok: false; error: string }> =>
+    ipcRenderer.invoke('file:open', path),
   systemAccent: (): Promise<string | null> => ipcRenderer.invoke('theme:systemAccent'),
   // Pop a native "Add Photo" menu → native image picker; resolves the chosen image as a data URL (null if dismissed/canceled).
   photoMenu: (): Promise<string | null> => ipcRenderer.invoke('nexus:photoMenu'),

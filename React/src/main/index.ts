@@ -826,6 +826,17 @@ ipcMain.handle('cell-menu', async (e, ctx: CellMenuContext) => {
   return win ? popCellMenu(win, ctx) : null
 })
 
+// Open a page-attached file in its OS default app. The renderer-supplied path validates under the
+// session root (resolveUnderRoot) — a `..` climb or symlink smuggle never reaches shell.openPath.
+ipcMain.handle('file:open', async (_e, relPath: unknown): Promise<{ ok: true } | { ok: false; error: string }> => {
+  const root = sessionRoot()
+  if (!root) return { ok: false, error: 'No open nexus.' }
+  const r = await resolveUnderRoot(root, relPath)
+  if (!r.ok) return { ok: false, error: r.error.message }
+  const err = await shell.openPath(r.value)
+  return err ? { ok: false, error: err } : { ok: true }
+})
+
 
 // Rename the OPEN nexus's ROOT folder within its parent dir, then RE-POINT the live session
 // to the new path. A dedicated IPC (not a mutate op) because it re-targets the whole session:

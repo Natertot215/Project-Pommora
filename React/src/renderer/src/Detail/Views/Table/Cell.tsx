@@ -97,9 +97,18 @@ export function Cell({
       )
     case 'url':
       // The 'title' look shows the fetched page title once the fetch Prospect lands; until then
-      // both looks render the URL in the link color.
+      // both looks render the URL in the link color. Opens through the sanctioned IPC — raw <a>
+      // navigation is denied by main's will-navigate hardening.
       return v.value ? (
-        <a className="cell-link" href={v.value} onClick={(e) => e.stopPropagation()}>
+        <a
+          className="cell-link"
+          href={v.value}
+          onClick={(e) => {
+            e.preventDefault()
+            e.stopPropagation()
+            void window.nexus.openExternal(v.value)
+          }}
+        >
           {v.value}
         </a>
       ) : null
@@ -112,10 +121,19 @@ export function Cell({
     case 'number':
       return <span>{formatNumber(v.value, style.number_format ?? 'decimal')}</span>
     case 'file':
+      // Each chip opens its own file (A-9) — the click stays on the chip, not the cell/row.
       return (
         <span className="cell-chips">
           {v.value.map((f) => (
-            <Chip key={f.path} color="default" label={fileLabel(f, style.look === 'path' ? 'path' : 'filename')} />
+            <span
+              key={f.path}
+              onClick={(e) => {
+                e.stopPropagation()
+                void window.nexus.openFile(f.path)
+              }}
+            >
+              <Chip color="default" label={fileLabel(f, style.look === 'path' ? 'path' : 'filename')} />
+            </span>
           ))}
         </span>
       )
