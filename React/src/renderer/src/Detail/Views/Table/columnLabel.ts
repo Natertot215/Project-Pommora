@@ -16,7 +16,8 @@ export function tierLabel(level: number, labels: NexusLabels): string {
   return key ? labels[key].plural : `Tier ${level}`
 }
 
-const TIER_LEVEL_BY_ID: Record<string, number> = {
+/** Reserved tier column id → its level (1 = Area, 2 = Topic, 3 = Project). */
+export const TIER_LEVEL_BY_ID: Record<string, number> = {
   [RESERVED_PROPERTY_ID.tier1]: 1,
   [RESERVED_PROPERTY_ID.tier2]: 2,
   [RESERVED_PROPERTY_ID.tier3]: 3

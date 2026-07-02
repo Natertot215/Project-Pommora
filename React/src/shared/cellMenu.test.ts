@@ -14,10 +14,22 @@ describe('cellMenuModel', () => {
   })
 
   it('style-only: the per-type Style radios, no plain items', () => {
-    const m = cellMenuModel({ kind: 'style-only', type: 'status', current: { look: 'pill' } })
+    const m = cellMenuModel({ kind: 'style-only', type: 'number', current: { number_format: 'decimal' } })
     expect(m.items).toEqual([])
+    expect(m.style?.map((r) => r.label)).toEqual(['Integer', 'Decimal', 'Percent', 'Currency'])
+  })
+
+  it('a clearable style-only (status) adds Clear under the Style radios', () => {
+    const m = cellMenuModel({ kind: 'style-only', type: 'status', current: { look: 'pill' }, clearable: true })
+    expect(m.items.map((i) => [i.label, i.action])).toEqual([['Clear', 'cell:clear']])
     expect(m.style?.map((r) => r.label)).toEqual(['Pill', 'Capsule', 'Checkbox'])
     expect(m.style?.find((r) => r.value === 'pill')?.checked).toBe(true)
+  })
+
+  it('clear-only (select/multi/context/tier): just Clear', () => {
+    const m = cellMenuModel({ kind: 'clear-only' })
+    expect(m.items.map((i) => [i.label, i.action])).toEqual([['Clear', 'cell:clear']])
+    expect(m.style).toBeUndefined()
   })
 
   it('style-edit: Style radios plus the Edit entry', () => {

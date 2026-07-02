@@ -222,12 +222,17 @@
   display: inline-flex;
   align-items: center;
   gap: var(--cell-icon-gap);
+  /* The lead cell keeps overflow visible for the gutter grip, so the CONTENT carries the cap:
+     the inline-flex is bounded to the cell and the text item truncates (hover-scroll, the shared
+     sidebar/chip mechanism composed in the TSX). */
+  max-width: 100%;
   min-width: 0;
   color: var(--label-secondary);
 }
+.cell-title > svg {
+  flex: none; /* the page icon never squishes as the title shrinks */
+}
 .cell-title-text {
-  overflow: hidden;
-  text-overflow: ellipsis;
   color: var(--text);
 }
 .cell-chips {

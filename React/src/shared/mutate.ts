@@ -53,6 +53,9 @@ export type MutateRequest =
   // `null` clears the key. Foreign frontmatter + body survive. Drives table cross-group reassignment
   // (D-4) + later inline edits — the single typed property write.
   | { op: 'setProperty'; path: string; propertyId: string; value: PropertyValue | null }
+  // Set a page's tier-N context links — the BARE ULID array at the frontmatter root
+  // (`tier1`/`tier2`/`tier3`), never a `$ctx` property. Written whole; empty = clear.
+  | { op: 'setTier'; path: string; tier: number; contextIds: string[] }
   // `order`: the destination container's full page-id order after the drop (renderer-
   // computed). Absent = legacy append (order falls back to title/creation). Same parent +
   // order = a pure reorder. Stale ids in a source container self-drop on the next read.

@@ -72,7 +72,7 @@ const sourceWith = (columnStyles?: Record<string, { look?: string }>): Collectio
         id: 'view_1',
         name: 'Table',
         type: 'table',
-        property_order: ['_title', 'prop_status', 'prop_done', 'prop_n', 'prop_link', 'prop_files'],
+        property_order: ['_title', 'prop_status', 'prop_done', 'prop_n', 'prop_link', 'prop_files', '_tier1'],
         hidden_properties: ['_modified_at'],
         ...(columnStyles ? { column_styles: columnStyles } : {})
       }
@@ -130,7 +130,14 @@ beforeEach(() => {
   const pair = (singular: string, plural: string): { singular: string; plural: string } => ({ singular, plural })
   useSession.setState({
     tree: {
-      contexts: { areas: [], topics: [], projects: [] },
+      contexts: {
+        areas: [
+          { kind: 'area', id: 'area_work', title: 'Work', path: 'Contexts/Work', color: 'blue' },
+          { kind: 'area', id: 'area_life', title: 'Personal', path: 'Contexts/Personal' }
+        ],
+        topics: [],
+        projects: []
+      },
       collections: [],
       userSections: [],
       labels: {
@@ -234,6 +241,30 @@ describe('checkbox cell gestures', () => {
       path: 'Col/Page One.md',
       propertyId: 'prop_done',
       value: { kind: 'checkbox', value: true }
+    })
+  })
+})
+
+describe('context tier cells', () => {
+  const tierCell = (): HTMLElement => host.querySelectorAll<HTMLElement>('.data-cell')[6] // _tier1 last
+
+  it('click opens the context picker listing the tier\'s contexts; toggling writes setTier', async () => {
+    await mountTable(sourceWith())
+    await act(async () => {
+      tierCell().click()
+    })
+    expect(host.textContent).toContain('Work')
+    expect(host.textContent).toContain('Personal')
+
+    const work = [...tierCell().querySelectorAll('button')].find((b) => b.textContent?.includes('Work'))
+    await act(async () => {
+      work?.click()
+    })
+    expect(mutateSpy).toHaveBeenCalledWith({
+      op: 'setTier',
+      path: 'Col/Page One.md',
+      tier: 1,
+      contextIds: ['area_work']
     })
   })
 })

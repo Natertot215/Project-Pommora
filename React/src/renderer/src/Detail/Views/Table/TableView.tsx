@@ -19,7 +19,7 @@ import { buildResolveContext, type ResolveContext } from './resolveContext'
 import { buildSetIcons, buildSetNames } from './cellResolve'
 import { Cell } from './Cell'
 import { GroupHeader } from './GroupHeader'
-import { columnLabel } from './columnLabel'
+import { columnLabel, TIER_LEVEL_BY_ID } from './columnLabel'
 import { clampWidth, widthFor } from './columnWidths'
 import { alignFor } from './columnAlign'
 import { styleFor } from './columnStyles'
@@ -263,14 +263,35 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
     setValueOverride((prev) => ({ ...prev, [row.id]: patched }))
     void mutate({ op: 'setProperty', path: row.path, propertyId, value })
   }
+  // A context column's pickable list — the NEXUS's contexts for its tier (reserved tier columns
+  // read their fixed level; a user context prop reads its def's target tier). Null for anything else.
+  const contextOptionsFor = (col: ResolvedColumn): Array<{ value: string; label: string; color?: string }> | null => {
+    const level = col.kind === 'tier' ? TIER_LEVEL_BY_ID[col.id] : schema.find((d) => d.id === col.id)?.context_target?.tier
+    if (!level || !tree) return null
+    const list = level === 1 ? tree.contexts.areas : level === 2 ? tree.contexts.topics : tree.contexts.projects
+    return list.map((c) => ({ value: c.id, label: c.title, ...('color' in c && c.color ? { color: c.color } : {}) }))
+  }
+  // A reserved tier column writes the BARE frontmatter array (`tier1/2/3`) through its own op;
+  // a user context prop writes through setProperty like every other property value.
+  const commitTierValue = (row: ViewRow, colId: string, ids: string[]): void => {
+    const tier = TIER_LEVEL_BY_ID[colId]
+    const patched = { ...row.frontmatter, [`tier${tier}`]: ids } as PageFrontmatter
+    setValueOverride((prev) => ({ ...prev, [row.id]: patched }))
+    void mutate({ op: 'setTier', path: row.path, tier, contextIds: ids })
+  }
   // Single-click acts per the cell's type (A-2/A-4/A-6): checkbox-look status cycles its group,
-  // checkbox toggles, status/select/multi open the picker. Acting stops propagation so the row's
-  // select doesn't also fire; anything else bubbles.
+  // checkbox toggles, status/select/multi/context open the picker. Acting stops propagation so the
+  // row's select doesn't also fire; anything else bubbles.
   const onCellClick = (row: ViewRow, col: ResolvedColumn, e: React.MouseEvent): void => {
     if (col.kind === 'title') {
       // The ONLY navigate (A-7): row-click narrowed to the title cell; row background is a no-op.
       e.stopPropagation()
       void select({ kind: 'page', id: row.id, path: row.path })
+      return
+    }
+    if (col.kind === 'tier') {
+      e.stopPropagation()
+      setEditing({ rowId: row.id, colId: col.id, mode: 'picker' })
       return
     }
     if (col.kind !== 'property') return
@@ -290,7 +311,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
       e.stopPropagation()
       const v = resolveFieldValue(row, col.id)
       commitCellValue(row, col.id, { kind: 'checkbox', value: !(v.kind === 'checkbox' && v.value) })
-    } else if (t === 'status' || t === 'select' || t === 'multi_select') {
+    } else if (t === 'status' || t === 'select' || t === 'multi_select' || t === 'context') {
       e.stopPropagation()
       setEditing({ rowId: row.id, colId: col.id, mode: 'picker' })
     } else if (t === 'number') {
@@ -351,7 +372,10 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
         )
       }
     }
-    const def = schema.find((d) => d.id === col.id)
+    const contextOptions = contextOptionsFor(col)
+    // A reserved tier column has no schema def — a minimal synthetic one satisfies the picker,
+    // whose options come from `contextOptions` anyway.
+    const def = schema.find((d) => d.id === col.id) ?? (contextOptions ? { id: col.id, name: '', type: 'context' as const } : undefined)
     if (!def) return null
     return {
       replace: false,
@@ -361,15 +385,20 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
           current={resolveFieldValue(row, col.id)}
           closing={editingExit.closing}
           look={colStyle(col.id).look}
-          onCommit={(v) => commitCellValue(row, col.id, v)}
+          {...(contextOptions ? { contextOptions } : {})}
+          onCommit={(v) =>
+            col.kind === 'tier' && v?.kind === 'context'
+              ? commitTierValue(row, col.id, v.value)
+              : commitCellValue(row, col.id, v)
+          }
           onDismiss={() => setEditing(null)}
         />
       )
     }
   }
   // Right-click a cell → its native menu (A-13: always a menu, never an action). Title = page meta;
-  // style-bearing types = the COLUMN's Style radios; link/file add Edit. Select/multi/context/tier
-  // cells pop nothing.
+  // style-bearing types = the COLUMN's Style radios; link/file add Edit; picker-based cells add
+  // Clear (status gets Style + Clear; select/multi/context/tier get Clear alone).
   const openCellMenu = async (row: ViewRow, col: ResolvedColumn, e: React.MouseEvent): Promise<void> => {
     e.preventDefault()
     e.stopPropagation()
@@ -377,18 +406,27 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
     const ctx: CellMenuContext | null =
       col.kind === 'title'
         ? { kind: 'title' }
-        : t === 'url' || t === 'file'
-          ? { kind: 'style-edit', type: t, current: colStyle(col.id) }
-          : t === 'status' || t === 'checkbox' || t === 'number' || t === 'datetime' || t === 'last_edited_time'
-            ? { kind: 'style-only', type: t, current: colStyle(col.id) }
-            : null
+        : col.kind === 'tier'
+          ? { kind: 'clear-only' }
+          : t === 'url' || t === 'file'
+            ? { kind: 'style-edit', type: t, current: colStyle(col.id) }
+            : t === 'status'
+              ? { kind: 'style-only', type: t, current: colStyle(col.id), clearable: true }
+              : t === 'checkbox' || t === 'number' || t === 'datetime' || t === 'last_edited_time'
+                ? { kind: 'style-only', type: t, current: colStyle(col.id) }
+                : t === 'select' || t === 'multi_select' || t === 'context'
+                  ? { kind: 'clear-only' }
+                  : null
     if (!ctx) return
     const action = await window.nexus.cellMenu(ctx)
     if (!action) return
     if (action === 'title:icon') setIconPickerOpen(true)
     else if (action === 'title:delete') void mutate({ op: 'delete', path: row.path, kind: 'page' })
     else if (action === 'title:rename' || action === 'cell:edit') setEditing({ rowId: row.id, colId: col.id, mode: 'editor' })
-    else if (action.startsWith('style:')) {
+    else if (action === 'cell:clear') {
+      if (col.kind === 'tier') commitTierValue(row, col.id, [])
+      else commitCellValue(row, col.id, null)
+    } else if (action.startsWith('style:')) {
       const parsed = parseStyleAction(action)
       if (parsed) setColumnStyle(col.id, parsed.key, parsed.value)
     }

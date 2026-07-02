@@ -18,7 +18,7 @@ import { mkdir, readFile, realpath, rm } from 'node:fs/promises'
 import { sessionRoot } from './session'
 import { refreshSessionIndex } from './sessionIndex'
 import { resolveUnderRoot } from './pathSafety'
-import { createPage, renamePage, movePage } from './crud/page'
+import { createPage, renamePage, movePage, setPageTier } from './crud/page'
 import { setChildOrder, setStateOrder } from './crud/reorder'
 import { createFolderEntity, renameFolderEntity, moveFolderEntity } from './crud/folderEntity'
 import { renameCascade, unlinkTier } from './crud/cascade'
@@ -340,6 +340,13 @@ async function dispatch(req: MutateRequest, deps: MutateDeps, root: string): Pro
       const properties = applyPropertyValue(fields.properties, req.propertyId, req.value)
       await atomicWriteFile(resolved.value, mergeFrontmatter(existing, { properties }, ['properties'], body))
       return { ok: true }
+    }
+
+    case 'setTier': {
+      const resolved = await resolveUnderRoot(root, req.path)
+      if (!resolved.ok) return relay(resolved)
+      const r = await setPageTier(resolved.value, req.tier, req.contextIds)
+      return r.ok ? { ok: true } : relay(r)
     }
 
     case 'movePage': {

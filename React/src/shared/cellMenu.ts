@@ -4,14 +4,21 @@ import type { PropertyType } from './properties'
 
 /** The table-cell right-click menu (A-13: right-click always opens a menu, never acts).
  *  Title cells get the page meta menu; style-bearing cells get their COLUMN's Style radios;
- *  link/file cells add Edit. Select/multi cells pop NO menu — the renderer never builds a
- *  context for them. */
+ *  link/file cells add Edit; picker-based cells add Clear (`clearable` on a styleable type,
+ *  `clear-only` for select/multi/context, which carry no Style). */
 export type CellMenuContext =
   | { kind: 'title' }
-  | { kind: 'style-only'; type: PropertyType; current: ColumnStyle }
+  | { kind: 'style-only'; type: PropertyType; current: ColumnStyle; clearable?: boolean }
   | { kind: 'style-edit'; type: 'url' | 'file'; current: ColumnStyle }
+  | { kind: 'clear-only' }
 
-export type CellMenuAction = 'title:rename' | 'title:icon' | 'title:delete' | 'cell:edit' | `style:${string}:${string}`
+export type CellMenuAction =
+  | 'title:rename'
+  | 'title:icon'
+  | 'title:delete'
+  | 'cell:edit'
+  | 'cell:clear'
+  | `style:${string}:${string}`
 
 export interface CellMenuModel {
   items: Array<{ label: string; action: CellMenuAction; separatorBefore?: boolean }>
@@ -31,11 +38,16 @@ export function cellMenuModel(ctx: CellMenuContext): CellMenuModel {
         ]
       }
     case 'style-only':
-      return { items: [], style: styleMenuItems({ type: ctx.type, current: ctx.current }) }
+      return {
+        items: ctx.clearable ? [{ label: 'Clear', action: 'cell:clear' }] : [],
+        style: styleMenuItems({ type: ctx.type, current: ctx.current })
+      }
     case 'style-edit':
       return {
         items: [{ label: 'Edit', action: 'cell:edit' }],
         style: styleMenuItems({ type: ctx.type, current: ctx.current })
       }
+    case 'clear-only':
+      return { items: [{ label: 'Clear', action: 'cell:clear' }] }
   }
 }

@@ -7,6 +7,7 @@ import { Switch } from '@renderer/design-system/components/Switches/Switch'
 import { Chip } from '@renderer/Components/Chip'
 import { ContextChip } from '@renderer/Components/ContextChip'
 import { chipColorFor } from '@renderer/design-system/tokens/colorMap'
+import { truncateHoverScroll } from '@renderer/design-system/tokens/typography.css'
 import { resolveFieldValue } from '../pipeline/value'
 import { fileLabel, formatDate, formatNumber } from '../PropertyEditing/formatValue'
 import { STATUS_GROUP_GLYPH, statusGroupOf } from '../PropertyEditing/statusCycle'
@@ -38,7 +39,7 @@ export function Cell({
     return (
       <span className="cell-title">
         {iconName ? <Icon name={iconName} size={14} /> : null}
-        <span className="cell-title-text">{row.title}</span>
+        <span className={cx('cell-title-text', truncateHoverScroll)}>{row.title}</span>
       </span>
     )
   }

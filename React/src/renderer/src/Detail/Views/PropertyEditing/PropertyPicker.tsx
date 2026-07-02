@@ -5,6 +5,7 @@ import type { PropertyValue } from '@shared/propertyValue'
 import { PickerMenu, PickerOption } from '@renderer/design-system/components/PickerMenu/PickerMenu'
 import { useDismiss } from '@renderer/design-system/components/Popover'
 import { Chip } from '@renderer/Components/Chip'
+import { ContextChip } from '@renderer/Components/ContextChip'
 import { cx } from '@renderer/design-system/cx'
 import { Icon } from '@renderer/design-system/symbols'
 import { chip, chipCapsule, chipColor } from '@renderer/design-system/tokens'
@@ -21,7 +22,7 @@ const optionsOf = (def: PropertyDefinition): Array<{ value: string; label: strin
 
 const selectedValues = (current: PropertyValue | null): string[] => {
   if (!current) return []
-  if (current.kind === 'multiSelect') return current.value
+  if (current.kind === 'multiSelect' || current.kind === 'context') return current.value
   if (current.kind === 'select' || current.kind === 'status') return [current.value]
   return []
 }
@@ -38,6 +39,7 @@ export function PropertyPicker({
   current,
   closing,
   look,
+  contextOptions,
   onCommit,
   onDismiss
 }: {
@@ -47,19 +49,22 @@ export function PropertyPicker({
   /** The column's resolved look — a status column on a glyph look (checkbox/capsule) renders
    *  its OPTIONS as capsule chips too (Nathan); pill columns keep labeled pills. */
   look?: ColumnLook
+  /** Context columns (the reserved tiers + user context props) pick from the NEXUS's contexts,
+   *  not the def — the caller supplies the tier's list. Toggles like multi; commits `context`. */
+  contextOptions?: Array<{ value: string; label: string; color?: string }>
   onCommit: (value: PropertyValue | null) => void
   onDismiss: () => void
 }): React.JSX.Element | null {
   const ref = useRef<HTMLDivElement>(null)
-  const options = optionsOf(def)
+  const options = contextOptions ?? optionsOf(def)
   useDismiss(ref, onDismiss, !closing)
-  const multi = def.type === 'multi_select'
+  const multi = def.type === 'multi_select' || contextOptions !== undefined
   const selected = selectedValues(current)
 
   const pick = (value: string): void => {
     if (multi) {
       const next = selected.includes(value) ? selected.filter((v) => v !== value) : [...selected, value]
-      onCommit({ kind: 'multiSelect', value: next })
+      onCommit(contextOptions ? { kind: 'context', value: next } : { kind: 'multiSelect', value: next })
       return
     }
     onCommit(def.type === 'status' ? { kind: 'status', value } : { kind: 'select', value })
@@ -83,6 +88,8 @@ export function PropertyPicker({
                   <span className={cx(chip, chipColor[chipColorFor(o.color)], chipCapsule)}>
                     <Icon name={group ? STATUS_GROUP_GLYPH[group] : 'circle-dashed'} size={13} />
                   </span>
+                ) : contextOptions ? (
+                  <ContextChip color={chipColorFor(o.color)} title={o.label} />
                 ) : (
                   <Chip color={chipColorFor(o.color)} label={o.label} />
                 )}
