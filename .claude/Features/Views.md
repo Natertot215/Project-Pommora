@@ -8,7 +8,7 @@ Every Collection or depth-1 Set carries an ordered list of saved views, and one 
 
 #### II. Saved-View Model
 
-Each container's sidecar holds an ordered `views[]`. A saved view records its `id` (a ULID), `name`, `icon`, renderer `type`, the column layout (`property_order`, `hidden_properties`, per-column widths, alignments, and `column_styles` — the per-type look + date/time/number format choices; display formats live per-VIEW here, a deliberate divergence from Swift's def-level format keys), the `sort` (a multi-key list), the `filter` (a nested group), the `group` config, and display options (card size, collapsed-group state, cover and banner toggles). The **active view is tracked per-machine** in `.nexus/activeViews.json` — a container-to-view map kept out of the synced sidecar, so switching views never churns the shared file. A toolbar dropdown switches the active view; view CRUD — create, rename, duplicate, delete, reorder — persists to the sidecar.
+Each container's sidecar holds an ordered `views[]`. A saved view records its `id` (a ULID), `name`, `icon`, renderer `type`, the column layout (`property_order`, `hidden_properties`, per-column widths, alignments, and `column_styles` — the per-type look + date/time/number format choices; display formats live per-VIEW here, a deliberate divergence from Swift's def-level format keys), the `sort` (a multi-key list), the `filter` (a nested group), the `group` config plus the view-level `group_order` (the manual structural band order — one flat set-id array across every nesting level; property band order lives on `group.order`), and display options (card size, collapsed-group state, cover and banner toggles). The **active view is tracked per-machine** in `.nexus/activeViews.json` — a container-to-view map kept out of the synced sidecar, so switching views never churns the shared file. A toolbar dropdown switches the active view; view CRUD — create, rename, duplicate, delete, reorder — persists to the sidecar.
 
 #### II. The Pipeline
 
@@ -16,7 +16,7 @@ One pure pipeline feeds the renderer — **columns → filter → group → sort
 
 - **Filter** — a recursive group of rules under Match All / Any, nesting groups inside groups for mixed AND/OR expressions, with type-aware operators; an unknown operator is a no-op.
 
-- **Group** — structural (by Set / Sub-Set disclosure), flat, or by a property. Groupable types are Select, Status, Checkbox, and Date; a date groups by day, week, month, or year; option order follows the schema. A non-groupable property falls back to structural.
+- **Group** — structural (by Set / Sub-Set disclosure), flat, or by a property. Groupable types are Select, Status, Checkbox, and Date; a date groups by day, week, month, or year; option order follows the schema until a band drag snapshots a manual order (view-owned — `group_order` for structural bands at every nesting level, `group.order` + manual mode for property bands; unlisted entries trail in derived order). A non-groupable property falls back to structural. Value-less rows render as a header-less flattened tail pinned last — no "None" band.
 
 - **Sort** — a multi-key list applied in priority order, stable on ties, with per-type comparators (Select and Status by option order, dates chronological, checkbox by rank, text case-insensitive).
 
