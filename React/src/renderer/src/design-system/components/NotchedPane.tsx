@@ -85,9 +85,12 @@ export function NotchedPane({
   const d = ready ? panePath(w, h, radius, nx, notchHeight, notchWidth, notchCurve) : ''
 
   return (
+    // The Bloom class rides the pane + frame INDIVIDUALLY (same keyframes + origin var → one move),
+    // never this wrapper: an opacity-animated ancestor becomes the frost's backdrop root and the
+    // backdrop-filter silently samples nothing (Build-Gotchas §Glass — the chip-× lesson).
     <div
       ref={popRef}
-      className={cx(s.pop, animationClass)}
+      className={s.pop}
       style={
         {
           ...(ready ? { '--dropdown-origin': `${nx}px 0px`, '--notch-h': `${notchHeight}px` } : null),
@@ -96,7 +99,7 @@ export function NotchedPane({
       }
     >
       <GlassPane
-        className={className}
+        className={cx(className, animationClass)}
         style={{
           ...(solid ? { background: 'var(--bg-window)' } : null),
           border: 'none',
@@ -107,7 +110,7 @@ export function NotchedPane({
         {children}
       </GlassPane>
       {d && (
-        <svg className={s.frame} width={w} height={h} aria-hidden>
+        <svg className={cx(s.frame, animationClass)} width={w} height={h} aria-hidden>
           <path d={d} fill="none" stroke="#FFFFFF" strokeOpacity={PANE_FROST.borderAlpha} strokeWidth={1} />
         </svg>
       )}
