@@ -1,6 +1,12 @@
 ## Handoff — Pommora React
 
-One long session that specced Table Views Part 1, then drove a deep UIX-polish + performance arc across the table view and sidebar — and closed by auditing the table for lag and teeing up a redo brainstorm. Parked green on `main`, ready for that brainstorm.
+One long session: specced Table Views Part 1, drove the table/sidebar UIX-polish + perf arc, then **shipped PropertiesV2 end-to-end** (spec → plan → 10 green commits → review fixes → docs reconciliation), fixed the sidebar drag-lag (root-caused into PommoraDND.md), and **ratified the Tables Next-Parts brainstorm** (two adversarial rounds) with the Phase 1 plan drafted. Parked green on `main`; implementation starts post-compact per Next Session.
+
+**PropertiesV2 SHIPPED (07-01):** definitions nexus-wide in `.nexus/properties.json`, sidecars hold assignment-id arrays, `readNexus` joins, `schema:*` re-backed so PropertiesPane never changed; registry mutations serialized (review-caught race); SQLite v16 pure mirror. Net +163 code lines. → `History.md` 07-01. Docs reconciled (PRD/Properties/Collections/Architecture/Structure/Agenda); the spec was pruned post-ship (Nathan) — `History.md` + Handoff lines are the record for Plan 2's Max-Properties gate + B-7 option colors.
+
+**Tables Next-Parts RATIFIED (07-01):** the full per-type gesture matrix (single-click acts · right-click always menus · hold drags; portable to Gallery), per-view `column_styles` (def riders retired), band-drag semantics (view-only order, fs reparent, glyph as drag surface), chip slide + (×). Three-phase Core; Phase 1 plan at `Planning/7-1 - Tables Phase 1 …` (DRAFT — review loop pending, then IN-LINE execution, Nathan's directive). Datetime Style labels = format-type NAMES (Short Date, Full Date…), not rendered samples.
+
+**Sidebar drag-lag fixed (`2f4cb83`):** the same per-pointermove O(rows) rect storm the table had — snapshot-at-activation now house standard; the inverted-justification root cause captured in `Features/PommoraDND.md` §Measurement discipline.
 
 **Session ID:** de564e01-aa38-498e-b9f8-5db92904a48a
 **Dates:** 06-27-2026 → 07-01-2026
@@ -9,7 +15,7 @@ One long session that specced Table Views Part 1, then drove a deep UIX-polish +
 > *"You do NOT guess — you LOOK, and you ASK. Open the file and read the code before you assert anything; ask me when you're unsure. A plan built on an unverified claim is a liability, not progress — treat every doc, every `file:line`, every 'it works like X' as a hypothesis until you've read the code that proves it. Honesty over confidence; confidence is earned through evidence."*
 
 **Model:** Opus 4.8
-**Compactions:** ~10 (best-effort; multi-window session)
+**Compactions:** ~12 (best-effort; multi-window session)
 **Connectors:** Figma MCP (early — Switch component); Electron CDP for live screenshots + hover/drag drive (not MCP)
 **Agents:** general-purpose (perf audit ×1, adversarial reviews ×5+), code-simplifier (×2)
 **Skills:** handoff; earlier `superpowers:brainstorming` / `writing-plans` (Part 1)
