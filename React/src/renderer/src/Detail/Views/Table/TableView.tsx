@@ -311,11 +311,12 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
     const destPath = drop.targetParentId === null ? source.path : setPaths.get(drop.targetParentId)
     const destChildIds = drop.targetParentId === null ? setTree.map((n) => n.id) : childIdsOf(setTree, drop.targetParentId)
     if (!path || !destPath || !destChildIds) return
-    setBandOverride({ ...bandOverride, group_order })
     // One drop, two writers, possibly ONE sidecar (a de-nest to root): the fs move lands before the
     // view write — views.save and set_order are both read-modify-writes on the container sidecar.
+    // A failed move (a name collision at the destination) commits NOTHING — no phantom order.
     void (async () => {
-      await mutate({ op: 'moveSet', path, newParentPath: destPath, order: reparentFsOrder(destChildIds, draggedId) })
+      if (!(await mutate({ op: 'moveSet', path, newParentPath: destPath, order: reparentFsOrder(destChildIds, draggedId) }))) return
+      setBandOverride({ ...bandOverride, group_order })
       persistView({ group_order })
     })()
   }

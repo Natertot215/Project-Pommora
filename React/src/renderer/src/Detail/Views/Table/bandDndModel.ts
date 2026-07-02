@@ -68,9 +68,13 @@ export function canNest(draggedId: string, targetId: string, bands: Band[]): boo
   return true
 }
 
-/** Resolve the pointer's drop slot against the frozen band snapshot. A set band's middle zone
- *  nests (cycle-guarded, falling back to the half split); before/after slots imply the parent of
+/** Resolve the pointer's drop slot against the frozen band snapshot. Headers are NOT adjacent in
+ *  the real render — a band OWNS its whole region, header top to the next header's top (its data
+ *  rows included), so hovering deep inside a group can never hand the slot to the next header. A
+ *  set band nests from its header middle AND its row region (the sidebar's hover-a-container's-
+ *  content precedent), cycle-guarded with a fall-through; before/after slots imply the parent of
  *  the band below the line, skipping the dragged subtree so a slot can never land inside it.
+ *  Below the last header's own rows stays the root append — the drag-to-end escape hatch.
  *  Null = no legal slot. */
 export function bandSlot(
   bands: Band[],
@@ -104,19 +108,28 @@ export function bandSlot(
     return { beforeId: below.id, impliedParentId: below.parentId, nestInto: null, lineY }
   }
 
-  const idx = rows.findIndex((m) => y < m.bottom)
-  if (idx === -1) return slotBefore(rows.length, rows[rows.length - 1].bottom)
+  // Hovered band by REGION — the last header whose top sits at/above the pointer.
+  let idx = -1
+  for (const [i, m] of rows.entries()) {
+    if (y >= m.top) idx = i
+    else break
+  }
+  if (idx === -1) return slotBefore(0, rows[0].top)
   const row = rows[idx]
   const band = byId.get(row.id)
   if (!band) return null
-  if (y < row.top) return slotBefore(idx, row.top)
-
   const inset = (row.bottom - row.top) * NEST_ZONE
-  const inMiddle = y >= row.top + inset && y < row.bottom - inset
-  if (band.kind === 'set' && inMiddle && canNest(draggedId, band.id, bands)) {
+
+  if (y < row.top + inset) return slotBefore(idx, row.top)
+  if (idx === rows.length - 1 && y >= row.bottom) {
+    return { beforeId: null, impliedParentId: null, nestInto: null, lineY: row.bottom }
+  }
+  const inNestSpan = y >= row.bottom || y < row.bottom - inset
+  if (band.kind === 'set' && inNestSpan && canNest(draggedId, band.id, bands)) {
     return { beforeId: null, impliedParentId: band.id, nestInto: band.id, lineY: row.mid }
   }
-  return y < row.mid ? slotBefore(idx, row.top) : slotBefore(idx + 1, row.bottom)
+  if (y < row.mid) return slotBefore(idx, row.top)
+  return slotBefore(idx + 1, rows[idx + 1] ? rows[idx + 1].top : row.bottom)
 }
 
 /** The view's structural band order after a reorder drop — merge-then-move: keep the prior

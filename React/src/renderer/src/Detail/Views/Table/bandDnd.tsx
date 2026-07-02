@@ -62,6 +62,10 @@ export function BandDnd({
   // onCommitRef pattern).
   const onDropRef = useRef(onDrop)
   onDropRef.current = onDrop
+  const labelForRef = useRef(labelFor)
+  labelForRef.current = labelFor
+  // Resolved ONCE at activation — labelFor walks the group tree, and the ghost re-renders per move.
+  const ghostLabel = useRef('')
   const els = useRef(new Map<string, HTMLElement>())
   const box = useRef<HTMLDivElement | null>(null)
   const live = useRef<BandSlot | null>(null)
@@ -149,6 +153,7 @@ export function BandDnd({
         // capture unavailable
       }
       gesture.current = { ...g, kind: 'active' }
+      ghostLabel.current = labelForRef.current(g.id)
       window.addEventListener('scroll', markSnapshotDirty, { capture: true, passive: true })
     }
     if (snapshotDirty.current || !snapshot.current) {
@@ -206,7 +211,7 @@ export function BandDnd({
       {drag.id &&
         createPortal(
           <div aria-hidden className={cx('band-drag-ghost', text.body.standard)} style={{ top: drag.ghostY, left: drag.ghostX }}>
-            {labelFor(drag.id)}
+            {ghostLabel.current}
           </div>,
           document.body
         )}

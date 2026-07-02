@@ -126,7 +126,7 @@ beforeEach(() => {
   host = document.createElement('div')
   document.body.appendChild(host)
   root = createRoot(host)
-  mutateSpy = vi.fn(async () => {})
+  mutateSpy = vi.fn(async () => true) // the reparent router gates its view write on this
   saveSpy = vi.fn(async () => ({ ok: true }))
   ;(window as unknown as { nexus: unknown }).nexus = {
     loadValues: async () => VALUES,
@@ -279,6 +279,16 @@ describe('band reparent', () => {
     })
     expect(saveSpy).toHaveBeenCalledOnce()
     expect(lastSavedView().group_order).toEqual(['sA', 'sA1', 'sB'])
+  })
+
+  it('a FAILED moveSet commits nothing — no phantom group_order, no optimistic reorder (F1)', async () => {
+    mutateSpy.mockImplementation(async () => false)
+    await mountTable(structuralSource())
+    await dragBand(2, 12) // nest B into A
+    await drop()
+    expect(mutateSpy).toHaveBeenCalledOnce()
+    expect(saveSpy).not.toHaveBeenCalled()
+    expect(headerTexts()[0]).toContain('A')
   })
 
   it('a de-nest between-slot reparents to the container root', async () => {

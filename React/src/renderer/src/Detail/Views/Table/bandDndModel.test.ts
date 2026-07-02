@@ -117,6 +117,36 @@ describe('bandSlot', () => {
   })
 })
 
+describe('bandSlot — non-adjacent headers (data rows between them)', () => {
+  const bands = flattenBands(tree, new Set())
+  // A(0–20), A1(100–120), B(200–220): A's rows fill 20–100, A1's rows 120–200.
+  const gapRows: MeasuredRow[] = [
+    { id: 'A', top: 0, bottom: 20, mid: 10 },
+    { id: 'A1', top: 100, bottom: 120, mid: 110 },
+    { id: 'B', top: 200, bottom: 220, mid: 210 }
+  ]
+
+  it('F2 regression: hovering a group\'s data rows nests into THAT group — never the next header\'s slot', () => {
+    expect(bandSlot(bands, gapRows, 60, 'B')).toMatchObject({ nestInto: 'A', impliedParentId: 'A' })
+  })
+
+  it('an illegal nest over the dragged band\'s own rows falls to the boundary outside its subtree', () => {
+    const slot = bandSlot(bands, gapRows, 60, 'A')
+    expect(slot?.nestInto).toBeNull()
+    expect(slot).toMatchObject({ beforeId: 'B', impliedParentId: null })
+  })
+
+  it('a property band\'s row region reads as the after-slot at the region boundary', () => {
+    const pBands = flattenBands([prop('open'), prop('done'), ungrouped], new Set())
+    const pRows: MeasuredRow[] = [
+      { id: 'open', top: 0, bottom: 20, mid: 10 },
+      { id: 'done', top: 100, bottom: 120, mid: 110 }
+    ]
+    expect(bandSlot(pBands, pRows, 60, 'done')).toMatchObject({ beforeId: null, impliedParentId: null, nestInto: null })
+    expect(bandSlot(pBands, pRows, 160, 'open')).toEqual({ beforeId: null, impliedParentId: null, nestInto: null, lineY: 120 })
+  })
+})
+
 describe('canNest', () => {
   const bands = flattenBands(tree, new Set())
 
