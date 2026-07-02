@@ -71,7 +71,7 @@ export function PropertyPicker({
 
   return (
     <div ref={ref}>
-      <PickerMenu closing={closing}>
+      <PickerMenu closing={closing} solid>
         {options.length === 0 ? (
           // A seed-only def pickers EMPTY (Nathan: scaffolding isn't options) — the spacer keeps
           // the notch pane's proportions so it doesn't collapse into a degenerate beak. Tune here.

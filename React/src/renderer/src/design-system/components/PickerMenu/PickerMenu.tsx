@@ -35,6 +35,7 @@ function panePath(w: number, h: number, r: number, nx: number, nh: number, nw: n
 export function PickerMenu({
   children,
   closing = false,
+  solid = false,
   radius = 14,
   notchWidth = 28,
   notchHeight = 8,
@@ -43,6 +44,9 @@ export function PickerMenu({
 }: {
   children: ReactNode
   closing?: boolean
+  /** The Solid variation: a window-background fill under the frost, reading opaque over any
+   *  backdrop (the table's value picker). Default stays pure glass. */
+  solid?: boolean
   radius?: number
   notchWidth?: number
   notchHeight?: number
@@ -77,8 +81,7 @@ export function PickerMenu({
           style={{
             // GlassPane's frost is the surface; its rect border/shadow can't trace the beak, so the
             // frame SVG draws the outline + shadow. Clip the frost to the notch path once measured.
-            // The window fill under the frost reads solid over any backdrop (Nathan).
-            background: 'var(--bg-window)',
+            ...(solid ? { background: 'var(--bg-window)' } : null),
             border: 'none',
             boxShadow: 'none',
             ...(d ? { clipPath: `path('${d}')` } : null),
