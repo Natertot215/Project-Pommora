@@ -7,6 +7,7 @@ import type { PropertyDefinition } from '@shared/properties'
 import type { ResolvedColumn, ResolvedGroup, ViewRow } from '@shared/types'
 import type { SavedView } from '@shared/views'
 import { applyFilter } from './filter'
+import { orderGroups } from './bandOrder'
 import { resolveGroups, type SetTreeNode } from './group'
 import { makeSorter } from './sort'
 import { resolveColumns } from './columns'
@@ -24,6 +25,9 @@ export function resolveView(input: {
   const columns = resolveColumns(view, schema)
   const filtered = applyFilter(rows, view.filter, schema)
   const sorter = makeSorter(view.sort, schema, manualOrder)
-  const groups = resolveGroups(filtered, view.group, schema, setTree, sorter, view.collapsed_groups)
+  const groups = orderGroups(
+    resolveGroups(filtered, view.group, schema, setTree, sorter, view.collapsed_groups),
+    view.group_order
+  )
   return { columns, groups }
 }

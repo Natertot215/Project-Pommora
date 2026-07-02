@@ -72,6 +72,39 @@ describe('resolveView — full pipeline over the fixture', () => {
   })
 })
 
+describe('resolveView — group_order', () => {
+  it('reorders structural bands from the view-level flat array (ungrouped stays last)', () => {
+    const setNode = (id: string): CollectionNode['sets'][number] => ({
+      kind: 'set',
+      id,
+      title: id,
+      path: id,
+      pages: [],
+      sets: []
+    })
+    const col: CollectionNode = {
+      kind: 'collection',
+      id: 'col',
+      title: 'Col',
+      path: 'Col',
+      sets: [setNode('sA'), setNode('sB')],
+      pages: [page('loose')]
+    }
+    const view: SavedView = {
+      id: 'v',
+      name: 'V',
+      type: 'table',
+      property_order: ['_title'],
+      hidden_properties: [],
+      group: { kind: 'structural' },
+      group_order: ['sB', 'sA']
+    }
+    const { rows, setTree } = flattenContainer(col, {})
+    const { groups } = resolveView({ rows, setTree, view, schema: [] })
+    expect(groups.map((g) => g.key)).toEqual(['sB', 'sA', '_ungrouped'])
+  })
+})
+
 describe('mintDefaultView', () => {
   it('mints a Table view: sentinel id, Title-first, all user props, structural, no sort or _modified_at', () => {
     const schema: PropertyDefinition[] = [

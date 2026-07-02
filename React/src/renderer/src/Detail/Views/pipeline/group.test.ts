@@ -137,10 +137,10 @@ describe('property grouping — status manual order', () => {
     expect(keys(groups)).toEqual(['in_progress', 'not_started', 'done', '_ungrouped'])
   })
 
-  it('places the no-value band at top when empty_placement is top', () => {
+  it('pins the no-value rows last even when empty_placement says top (the no-None-band ruling)', () => {
     const { rows, setTree } = flattenContainer(col, values)
     const groups = resolveGroups(rows, { ...base, empty_placement: 'top' }, statusSchema, setTree, null)
-    expect(keys(groups)).toEqual(['_ungrouped', 'in_progress', 'not_started', 'done'])
+    expect(keys(groups)).toEqual(['in_progress', 'not_started', 'done', '_ungrouped'])
   })
 
   it('drops the no-value band when hide_empty_groups is set', () => {

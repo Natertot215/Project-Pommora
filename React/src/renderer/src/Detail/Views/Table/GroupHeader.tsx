@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { UNGROUPED, type ResolvedGroup } from '@shared/types'
+import type { ResolvedGroup } from '@shared/types'
 import type { SavedView } from '@shared/views'
 import { chip, chipCheckbox, chipColor, text } from '@renderer/design-system/tokens'
 import { cx } from '@renderer/design-system/cx'
@@ -32,13 +32,6 @@ function groupGlyph(
   }
   const propId = view.group?.kind === 'property' ? view.group.property_id : undefined
   if (!propId) return <span className="group-name">{group.key}</span>
-
-  // No-value band (E-4): a grey "None" pill for select/status grouping, plain "None" text for date/time.
-  if (group.key === UNGROUPED) {
-    const t = declaredType(propId, ctx.schema)
-    if (t === 'status' || t === 'select') return <Chip color="default" label="None" />
-    return <span className="group-name">None</span>
-  }
 
   switch (declaredType(propId, ctx.schema)) {
     case 'status':

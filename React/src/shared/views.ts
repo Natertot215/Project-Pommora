@@ -92,6 +92,10 @@ export interface SavedView {
   sort?: SortCriterion[]
   filter?: FilterGroup
   group?: GroupConfig
+  /** Manual structural band order — ONE flat set-id array covering every nesting level (ids are
+   *  unique across the tree). View-level, not on `group`: the structural GroupConfig decoder
+   *  drops extra fields. Unlisted sets trail in fs order; absent = derive from fs `set_order`. */
+  group_order?: string[]
 }
 
 // ---- zod codec (snake_case on-disk keys; enums reuse the const arrays above) ----
@@ -182,7 +186,13 @@ export const savedView = z.looseObject({
   hide_borders: z.boolean().optional(),
   sort: z.array(sortCriterion).optional(),
   filter: filterGroup.optional(),
-  group: z.unknown().transform(decodeGroupConfig).optional()
+  group: z.unknown().transform(decodeGroupConfig).optional(),
+  // Element-filtering, never whole-array catch: one bad entry drops alone, the good ids survive.
+  group_order: z
+    .array(z.unknown())
+    .catch([])
+    .transform((a) => a.filter((x): x is string => typeof x === 'string'))
+    .optional()
 })
 
 /** Shared on-disk prefix for view ids (`view_<ulid>`); single-sourced so the sentinel and the

@@ -68,6 +68,25 @@ describe('SavedView decode', () => {
     })
   })
 
+  it('round-trips group_order and drops non-string entries alone (element-filtering, not whole-array catch)', () => {
+    const base = { id: 'view_g', name: 'G', type: 'table', property_order: [], hidden_properties: [] }
+    expect(savedView.parse({ ...base, group_order: ['s1', 's2'] }).group_order).toEqual(['s1', 's2'])
+    expect(savedView.parse({ ...base, group_order: ['s1', 42, 's2'] }).group_order).toEqual(['s1', 's2'])
+    expect(savedView.parse(base).group_order).toBeUndefined()
+  })
+
+  it('coerces a non-array group_order to empty instead of crashing', () => {
+    const v = savedView.parse({
+      id: 'view_g',
+      name: 'G',
+      type: 'table',
+      property_order: [],
+      hidden_properties: [],
+      group_order: 'nonsense'
+    })
+    expect(v.group_order).toEqual([])
+  })
+
   it('wires a typed views[] into the collection sidecar schema', () => {
     const parsed = pageCollectionSidecar.parse(fixture)
     expect(parsed.views?.[0].type).toBe('table')

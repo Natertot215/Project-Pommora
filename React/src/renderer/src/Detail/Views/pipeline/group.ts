@@ -188,15 +188,15 @@ function property(
       groups.push({ key, kind: 'property', items: applySort(items, sorter), isCollapsed: collapsed.has(key) })
     }
   }
+  // No "None" band: value-less rows are a flattened, header-less tail pinned last — the identical
+  // treatment structural loose rows get. `empty_placement` stays decode parity, never read.
   if (!isCheckbox && noValue.length > 0 && !group.hide_empty_groups) {
-    const band: ResolvedGroup = {
+    groups.push({
       key: UNGROUPED,
       kind: 'ungrouped',
       items: applySort(noValue, sorter),
       isCollapsed: collapsed.has(UNGROUPED)
-    }
-    if (group.empty_placement === 'top') groups.unshift(band)
-    else groups.push(band)
+    })
   }
   return groups
 }
