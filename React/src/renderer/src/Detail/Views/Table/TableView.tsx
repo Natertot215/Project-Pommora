@@ -734,17 +734,10 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
     window.addEventListener('pointerup', onUp)
     window.addEventListener('pointercancel', onCancel)
   }
-  // The gap-shift translateX for the current drag: the columns between the source and target slot
-  // shift by the subject's width to open the gap (D-2-style). The SUBJECT's cursor-follow is not
-  // here — it rides the grid-level --col-drag-x var on the .col-dragging cells (per-move, no state).
-  const colTransform = (ci: number): string | undefined => {
-    if (!colDrag) return undefined
-    const { from, to } = colDrag
-    const w = colWidth(columns[from].id)
-    if (to < from && ci >= to && ci < from) return `translateX(${w}px)`
-    if (to > from && ci > from && ci <= to) return `translateX(${-w}px)`
-    return undefined
-  }
+  // The gap-shift translateX for a header during the current drag — the same formula the body cells
+  // use (gapShift over the memoized dragShift). The SUBJECT's cursor-follow is not here — it rides
+  // the grid-level --col-drag-x var on the .col-dragging cells (per-move, no state).
+  const colTransform = (ci: number): string | undefined => gapShift(dragShift, ci)
 
   // Cross-group drop (D-4): write the dragged page's grouped property to the destination group's value
   // (the no-value band clears it), patching the loaded values now so the row re-groups before the write
