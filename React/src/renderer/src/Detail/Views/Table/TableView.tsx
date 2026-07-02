@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { memo, useEffect, useMemo, useRef, useState } from 'react'
 import type { CollectionNode, NexusTree, ResolvedColumn, ResolvedGroup, SetNode, ViewRow } from '@shared/types'
 import type { PropertyDefinition, PropertyType } from '@shared/properties'
 import type { PageFrontmatter } from '@shared/schemas'
@@ -218,7 +218,11 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
     const { rows, setTree } = flattenContainer(source, effectiveValues)
     return { ...resolveView({ rows, setTree, view: liveView, schema, manualOrder }), setTree }
   }, [source, effectiveValues, liveView, schema, manualOrder])
-  const ctx = useMemo(() => (tree ? buildResolveContext(tree, schema) : null), [tree, schema])
+  const ctx = useMemo(
+    () => (tree ? buildResolveContext(tree, schema) : null),
+    // biome-ignore lint/correctness/useExhaustiveDependencies: buildResolveContext reads only contexts + labels — keying on those slices keeps ctx identity across unrelated tree pushes, so memoized rows hold.
+    [tree?.contexts, tree?.labels, schema]
+  )
   // One mounted observer, two targets: the view (pane resizes) and the grid (its box moves when
   // the track set changes — a column resize/hide/add). Each fires one cheap read, never per-scroll.
   // Fit is measured against the pane AS COMPRESSED by the inspector, whether or not the hover
@@ -575,15 +579,69 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
     }
   }
 
-  if (!ctx) return <div className="table-empty">Loading…</div>
-  if (groups.length === 0) return <div className="table-empty">No pages here</div>
-
   // Saved widths are clamped to the type's [min, max] (Q-4) — a stale/out-of-range saved value can't
   // squash a column below legibility or stretch it past its cap.
   const colWidth = (id: string): number =>
     collapsing === id
       ? 0
       : clampWidth(widthOverride[id] ?? liveView.column_widths?.[id] ?? widthFor(id, schema).default, id, schema)
+
+  // ---- Memoized-row inputs: every prop a DataRow receives must hold identity across unrelated
+  // re-renders (a tree push, an editing toggle, a drag frame), so React.memo can bail per row. ----
+
+  // Per-column look/alignment resolved ONCE per change — previously per CELL per render (styleFor
+  // allocates), the measured bulk of a full-table re-render's JS floor.
+  const { alignByCol, styleByCol } = useMemo(
+    () => ({
+      alignByCol: columns.map((c) => alignOverride[c.id] ?? alignFor(c.id, schema, liveView)),
+      styleByCol: columns.map((c) => ({ ...styleFor(c.id, schema, liveView), ...styleOverride[c.id] }))
+    }),
+    [columns, schema, liveView, alignOverride, styleOverride]
+  )
+  // The gap-shift geometry for a live column drag — identity changes on slot flips only (the
+  // cursor-follow is the grid-level CSS var), which is exactly when rows must re-render.
+  const dragShift = useMemo(
+    () => (colDrag ? { from: colDrag.from, to: colDrag.to, width: colWidth(columns[colDrag.from].id) } : null),
+    // biome-ignore lint/correctness/useExhaustiveDependencies: colWidth's inputs (widths, collapsing) are static during a drag; keying on colDrag + columns is the change surface.
+    [colDrag, columns]
+  )
+  // ONE stable handler identity for every row — calls read the freshest closures through the ref,
+  // so memoized rows never re-render for handler churn (and never call a stale state writer).
+  const cellApiRef = useRef({ openCellMenu, onCellClick, cellOverlay })
+  cellApiRef.current = { openCellMenu, onCellClick, cellOverlay }
+  const cellApi = useMemo<RowCellApi>(
+    () => ({
+      menu: (row, col, e) => void cellApiRef.current.openCellMenu(row, col, e),
+      click: (row, col, e) => cellApiRef.current.onCellClick(row, col, e),
+      overlay: (row, col) => cellApiRef.current.cellOverlay(row, col)
+    }),
+    []
+  )
+  // The cell overlay's live target (open editor/picker, or the picker held through its Bloom-out).
+  // Flows to rows as primitives so ONLY the affected row re-renders on open/close/exit.
+  const overlayTarget =
+    editing ?? (editingExit.mounted && lastEditing.current?.mode === 'picker' ? lastEditing.current : null)
+  // Row drag (E-3): the flat data-row order + each row's group key + path, feeding the drop-line DnD
+  // (tableDnd). Where you drop disambiguates (D-8) — same group reorders, a different group reassigns.
+  // Memoized so a selection / resize / drag-frame render doesn't re-walk every group and rebuild both
+  // Maps. Lives ABOVE the empty/loading returns — a hook after a conditional return crashes React the
+  // moment the condition flips (an empty collection gaining its first page).
+  const { dataRows, rowPath, rowGroup } = useMemo(() => {
+    const rows: { id: string; path: string; groupKey: string }[] = []
+    const collect = (g: ResolvedGroup): void => {
+      for (const r of g.items) rows.push({ id: r.id, path: r.path, groupKey: g.key })
+      for (const c of g.children ?? []) collect(c)
+    }
+    groups.forEach(collect)
+    return {
+      dataRows: rows,
+      rowPath: new Map(rows.map((r) => [r.id, r.path] as const)),
+      rowGroup: new Map(rows.map((r) => [r.id, r.groupKey] as const))
+    }
+  }, [groups])
+
+  if (!ctx) return <div className="table-empty">Loading…</div>
+  if (groups.length === 0) return <div className="table-empty">No pages here</div>
   // The Apple table model (Nathan, reverting the elastic-title reflow): EVERY column — title included —
   // holds its resolved width. While the sum fits the pane the trailing filler eats the slack (the capped,
   // content-inset look); the moment any resize/add pushes the sum past the pane, the grid extends beyond
@@ -702,23 +760,6 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
     return undefined
   }
 
-  // Row drag (E-3): the flat data-row order + each row's group key + path, feeding the drop-line DnD
-  // (tableDnd). Where you drop disambiguates (D-8) — same group reorders, a different group reassigns.
-  // The flat data-row order + id→path / id→group maps, derived purely from the resolved groups — memoized
-  // so a selection / resize / drag-frame render doesn't re-walk every group and rebuild both Maps.
-  const { dataRows, rowPath, rowGroup } = useMemo(() => {
-    const rows: { id: string; path: string; groupKey: string }[] = []
-    const collect = (g: ResolvedGroup): void => {
-      for (const r of g.items) rows.push({ id: r.id, path: r.path, groupKey: g.key })
-      for (const c of g.children ?? []) collect(c)
-    }
-    groups.forEach(collect)
-    return {
-      dataRows: rows,
-      rowPath: new Map(rows.map((r) => [r.id, r.path] as const)),
-      rowGroup: new Map(rows.map((r) => [r.id, r.groupKey] as const))
-    }
-  }, [groups])
   // Cross-group drop (D-4): write the dragged page's grouped property to the destination group's value
   // (the no-value band clears it), patching the loaded values now so the row re-groups before the write
   // round-trips (loadValues never re-runs mid-session).
@@ -782,19 +823,17 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
             row={row}
             columns={columns}
             ctx={ctx}
-            depth={itemDepth}
-            indent={memberIndent}
-            colTransform={colTransform}
-            colAlign={colAlign}
-            colStyle={colStyle}
-            draggingCol={colDrag?.from}
+            padLeft={memberIndent(itemDepth)}
+            dragShift={dragShift}
+            alignByCol={alignByCol}
+            styleByCol={styleByCol}
+            api={cellApi}
+            overlayCol={overlayTarget?.rowId === row.id ? overlayTarget.colId : null}
+            overlayClosing={overlayTarget?.rowId === row.id && editingExit.closing}
             hideIcon={liveView.hide_page_icons ?? false}
             selected={selection.kind === 'page' && selection.id === row.id}
             dragDisabled={dragDisabled}
             lead={lead}
-            onCellMenu={(c, e) => void openCellMenu(row, c, e)}
-            onCellClick={(c, e) => onCellClick(row, c, e)}
-            overlay={(c) => cellOverlay(row, c)}
           />
         )
       }),
@@ -951,19 +990,39 @@ function ColumnHeader({
 /** One data row + its hover-revealed drag grip (E-3 / H-5). The grip sits in the lead cell's gutter
  *  lane — the same slot the group disclosure chevron occupies — so handles align with the chevrons and
  *  the row content lines up with the group headers. useTableRowDrag mutes the row while it's lifted. */
-function DataRow({
+/** One stable per-table handler set for the memoized rows — identities never change; calls read
+ *  the freshest closures through a ref in TableView. */
+type RowCellApi = {
+  menu: (row: ViewRow, col: ResolvedColumn, e: React.MouseEvent) => void
+  click: (row: ViewRow, col: ResolvedColumn, e: React.MouseEvent) => void
+  overlay: (row: ViewRow, col: ResolvedColumn) => { node: React.ReactNode; replace: boolean } | null
+}
+
+type DragShift = { from: number; to: number; width: number }
+
+/** The gap-shift translateX for a cell during a column drag (the dragged column itself rides the
+ *  grid-level --col-drag-x var, not an inline transform). */
+function gapShift(d: DragShift | null, ci: number): string | undefined {
+  if (!d) return undefined
+  if (d.to < d.from && ci >= d.to && ci < d.from) return `translateX(${d.width}px)`
+  if (d.to > d.from && ci > d.from && ci <= d.to) return `translateX(${-d.width}px)`
+  return undefined
+}
+
+// Memoized: a row re-renders only when ITS inputs change — every prop is identity-stable across
+// unrelated renders (tree pushes, another row's editing, drag frames). `overlayClosing` is in the
+// props purely so the Bloom-out phase flip re-renders the overlay row (the overlay node reads the
+// live exit state through the api ref).
+const DataRow = memo(function DataRow({
   row,
   columns,
   ctx,
-  depth,
-  indent,
-  colTransform,
-  colAlign,
-  colStyle,
-  onCellMenu,
-  onCellClick,
-  overlay,
-  draggingCol,
+  padLeft,
+  dragShift,
+  alignByCol,
+  styleByCol,
+  api,
+  overlayCol,
   hideIcon,
   selected,
   dragDisabled,
@@ -972,15 +1031,13 @@ function DataRow({
   row: ViewRow
   columns: ResolvedColumn[]
   ctx: ResolveContext
-  depth: number
-  indent: (depth: number) => string | undefined
-  colTransform: (ci: number) => string | undefined
-  colAlign: (id: string) => ColumnAlign
-  colStyle: (id: string) => ColumnStyle
-  onCellMenu: (col: ResolvedColumn, e: React.MouseEvent) => void
-  onCellClick: (col: ResolvedColumn, e: React.MouseEvent) => void
-  overlay: (col: ResolvedColumn) => { node: React.ReactNode; replace: boolean } | null
-  draggingCol: number | undefined
+  padLeft: string | undefined
+  dragShift: DragShift | null
+  alignByCol: ColumnAlign[]
+  styleByCol: ColumnStyle[]
+  api: RowCellApi
+  overlayCol: string | null
+  overlayClosing: boolean
   hideIcon: boolean
   selected: boolean
   dragDisabled: boolean
@@ -998,25 +1055,25 @@ function DataRow({
       {...(dragDisabled ? {} : handle)}
     >
       {columns.map((c, i) => {
-        const style: React.CSSProperties = { transform: colTransform(i), textAlign: colAlign(c.id) }
-        if (i === 0) style.paddingLeft = indent(depth)
-        const over = overlay(c)
+        const style: React.CSSProperties = { transform: gapShift(dragShift, i), textAlign: alignByCol[i] }
+        if (i === 0) style.paddingLeft = padLeft
+        const over = overlayCol === c.id ? api.overlay(row, c) : null
         const content = over?.replace ? (
           over.node
         ) : (
           <>
-            <Cell row={row} column={c} ctx={ctx} hideIcon={hideIcon} style={colStyle(c.id)} />
+            <Cell row={row} column={c} ctx={ctx} hideIcon={hideIcon} style={styleByCol[i]} />
             {over?.node}
           </>
         )
         return i === 0 ? (
           <div
             key={c.id}
-            className={cx('data-cell', 'cell-lead', draggingCol === i && 'col-dragging', over != null && !over.replace && 'cell-anchored')}
+            className={cx('data-cell', 'cell-lead', dragShift?.from === i && 'col-dragging', over != null && !over.replace && 'cell-anchored')}
             style={style}
-            onContextMenu={(e) => onCellMenu(c, e)}
+            onContextMenu={(e) => api.menu(row, c, e)}
             onClick={(e) => {
-              if (!isDragging) onCellClick(c, e)
+              if (!isDragging) api.click(row, c, e)
             }}
           >
             {!dragDisabled && (
@@ -1029,11 +1086,11 @@ function DataRow({
         ) : (
           <div
             key={c.id}
-            className={cx('data-cell', draggingCol === i && 'col-dragging', over != null && !over.replace && 'cell-anchored')}
+            className={cx('data-cell', dragShift?.from === i && 'col-dragging', over != null && !over.replace && 'cell-anchored')}
             style={style}
-            onContextMenu={(e) => onCellMenu(c, e)}
+            onContextMenu={(e) => api.menu(row, c, e)}
             onClick={(e) => {
-              if (!isDragging) onCellClick(c, e)
+              if (!isDragging) api.click(row, c, e)
             }}
           >
             {content}
@@ -1044,4 +1101,4 @@ function DataRow({
       <div className="cell-filler" aria-hidden="true" />
     </div>
   )
-}
+})
