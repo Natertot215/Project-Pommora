@@ -13,7 +13,7 @@ import { text } from '@renderer/design-system/tokens'
 import { cx } from '@renderer/design-system/cx'
 import { ACTIVATION } from '@renderer/design-system/interactions/shared'
 import type { MeasuredRow } from '@renderer/Sidebar/sidebarDndModel'
-import { type Band, type BandSlot, bandSlot } from './bandDndModel'
+import { type Band, type BandIndex, type BandSlot, bandSlot, buildBandIndex } from './bandDndModel'
 
 // Band drag (Phase 2) — group headers reorder/reparent via the sidebar's insertion-line gesture.
 // The GLYPH is the drag surface (C-6); this file owns only the gesture + the frozen snapshot +
@@ -74,7 +74,7 @@ export function BandDnd({
 
   // Frozen at activation (C-2): geometry AND the band list ride one snapshot — a mid-drag tree
   // swap re-renders headers, so both go stale together and re-measure together, lazily.
-  type Snapshot = { bands: Band[]; rows: MeasuredRow[]; boxTop: number; boxBottom: number }
+  type Snapshot = { index: BandIndex; boxTop: number; boxBottom: number }
   const snapshot = useRef<Snapshot | null>(null)
   const snapshotDirty = useRef(false)
   useEffect(() => {
@@ -97,7 +97,7 @@ export function BandDnd({
       rows.push({ id: b.id, top: r.top, bottom: r.bottom, mid: r.top + r.height / 2 })
     }
     rows.sort((a, b) => a.top - b.top)
-    return { bands: current, rows, boxTop: boxRect.top, boxBottom: boxRect.bottom }
+    return { index: buildBandIndex(current, rows), boxTop: boxRect.top, boxBottom: boxRect.bottom }
   }
 
   const registerBand = (id: string, el: HTMLElement | null): void => {
@@ -162,7 +162,7 @@ export function BandDnd({
     }
     const snap = snapshot.current
     if (!snap) return
-    const slot = bandSlot(snap.bands, snap.rows, e.clientY, g.id, snap.boxBottom)
+    const slot = bandSlot(snap.index, e.clientY, g.id, snap.boxBottom)
     live.current = slot
     setDrag({ id: g.id, ghostX: e.clientX + 12, ghostY: e.clientY + 8, slot, lineTop: slot ? slot.lineY - snap.boxTop : 0 })
   }
@@ -174,7 +174,7 @@ export function BandDnd({
       return // a press, never a drag
     }
     const slot = live.current
-    const dragged = snapshot.current?.bands.find((b) => b.id === g.id)
+    const dragged = snapshot.current?.index.byId.get(g.id)
     if (slot && dragged) {
       const drop = onDropRef.current
       if (slot.nestInto) drop(g.id, { kind: 'reparent', targetParentId: slot.nestInto, beforeId: null })

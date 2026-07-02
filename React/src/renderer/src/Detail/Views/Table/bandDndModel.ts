@@ -59,13 +59,30 @@ export function allStructuralIds(groups: ResolvedGroup[]): string[] {
  *  nest-into (walks parent links up from the target, the sidebar's isSelfOrDescendant shape). */
 export function canNest(draggedId: string, targetId: string, bands: Band[]): boolean {
   const byId = new Map(bands.map((b) => [b.id, b]))
-  if (byId.get(targetId)?.kind !== 'set') return false
-  let cur: string | null = targetId
+  return byId.get(targetId)?.kind === 'set' && !walksTo(targetId, draggedId, byId)
+}
+
+/** True when walking parent links up from `fromId` reaches `ancestorId`. */
+function walksTo(fromId: string, ancestorId: string, byId: Map<string, Band>): boolean {
+  let cur: string | null = fromId
   while (cur) {
-    if (cur === draggedId) return false
+    if (cur === ancestorId) return true
     cur = byId.get(cur)?.parentId ?? null
   }
-  return true
+  return false
+}
+
+/** The band lookup + measured-row set for one drag, built ONCE at activation (snapshot state) —
+ *  hit-testing runs per pointermove and must never allocate or rebuild indexes (the "on every X"
+ *  rule; the measurement discipline's index sibling). */
+export interface BandIndex {
+  byId: Map<string, Band>
+  rows: MeasuredRow[]
+}
+
+export function buildBandIndex(bands: Band[], measured: MeasuredRow[]): BandIndex {
+  const byId = new Map(bands.map((b) => [b.id, b]))
+  return { byId, rows: measured.filter((m) => byId.has(m.id)) }
 }
 
 /** Resolve the pointer's drop slot against the frozen band snapshot. Headers are NOT adjacent in
@@ -80,24 +97,15 @@ export function canNest(draggedId: string, targetId: string, bands: Band[]): boo
  *  append — the drag-to-end escape hatch (mid-drag scrolling re-measures, so tall content stays
  *  reachable). Null = no legal slot. */
 export function bandSlot(
-  bands: Band[],
-  measured: MeasuredRow[],
+  index: BandIndex,
   y: number,
   draggedId: string,
   endY: number
 ): BandSlot | null {
-  const byId = new Map(bands.map((b) => [b.id, b]))
-  const rows = measured.filter((m) => byId.has(m.id))
+  const { byId, rows } = index
   if (rows.length === 0) return null
 
-  const inDraggedSubtree = (id: string): boolean => {
-    let cur: string | null = id
-    while (cur) {
-      if (cur === draggedId) return true
-      cur = byId.get(cur)?.parentId ?? null
-    }
-    return false
-  }
+  const inDraggedSubtree = (id: string): boolean => walksTo(id, draggedId, byId)
 
   // The slot before rows[i]: the band below the line owns the level. Skipping the dragged
   // subtree makes "just above the dragged band" resolve to its own current position (a no-op)
@@ -126,7 +134,7 @@ export function bandSlot(
 
   if (y < row.top + inset) return slotBefore(idx, row.top)
   const regionEnd = idx < rows.length - 1 ? rows[idx + 1].top : Math.max(endY, row.bottom)
-  if (band.kind === 'set' && y < regionEnd && canNest(draggedId, band.id, bands)) {
+  if (band.kind === 'set' && y < regionEnd && !inDraggedSubtree(band.id)) {
     return { beforeId: null, impliedParentId: band.id, nestInto: band.id, lineY: row.mid }
   }
   if (idx === rows.length - 1 && y >= regionEnd) {
