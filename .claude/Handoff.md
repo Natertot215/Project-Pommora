@@ -1,115 +1,104 @@
 ## Handoff — Pommora React
 
-One long session: specced Table Views Part 1, drove the table/sidebar UIX-polish + perf arc, then **shipped PropertiesV2 end-to-end** (spec → plan → 10 green commits → review fixes → docs reconciliation), fixed the sidebar drag-lag (root-caused into PommoraDND.md), and **ratified the Tables Next-Parts brainstorm** (two adversarial rounds) with the Phase 1 plan drafted. Parked green on `main`; implementation starts post-compact per Next Session.
-
-**PropertiesV2 SHIPPED (07-01):** definitions nexus-wide in `.nexus/properties.json`, sidecars hold assignment-id arrays, `readNexus` joins, `schema:*` re-backed so PropertiesPane never changed; registry mutations serialized (review-caught race); SQLite v16 pure mirror. Net +163 code lines. → `History.md` 07-01. Docs reconciled (PRD/Properties/Collections/Architecture/Structure/Agenda); the spec was pruned post-ship (Nathan) — `History.md` + Handoff lines are the record for Plan 2's Max-Properties gate + B-7 option colors.
-
-**Tables Next-Parts RATIFIED (07-01):** the full per-type gesture matrix (single-click acts · right-click always menus · hold drags; portable to Gallery), per-view `column_styles` (def riders retired), band-drag semantics (view-only order, fs reparent, glyph as drag surface), chip slide + (×). Three-phase Core; Phase 1 plan at `Planning/7-1 - Tables Phase 1 …` (DRAFT — review loop pending, then IN-LINE execution, Nathan's directive). Datetime Style labels = format-type NAMES (Short Date, Full Date…), not rendered samples.
-
-**Sidebar drag-lag fixed (`2f4cb83`):** the same per-pointermove O(rows) rect storm the table had — snapshot-at-activation now house standard; the inverted-justification root cause captured in `Features/PommoraDND.md` §Measurement discipline.
+One long session: shipped PropertiesV2 end-to-end, ratified the Tables Next-Parts brainstorm, then **built + shipped Tables Phase 1** (9 green tasks, Nathan's visual sign-off) and rode his live-testing feedback through a large fixup wave — capsule/seed picker semantics, tier/context pickers, Clear menus, the DRY OverflowScroll, the **Apple overflow model (elastic title reverted)**, the conditional inspector — closing with a full adversarial review sweep (7 findings fixed + 1 latch bug the reviewer missed, caught by live CDP verification). Parked green on `main`, 939/939 tests, ~23 commits this window.
 
 **Session ID:** de564e01-aa38-498e-b9f8-5db92904a48a
-**Dates:** 06-27-2026 → 07-01-2026
+**Dates:** 06-27-2026 → 07-02-2026
 
 > ⚡ **Cornerstone — carry into every handoff, unchanged (Nathan's voice).**
 > *"You do NOT guess — you LOOK, and you ASK. Open the file and read the code before you assert anything; ask me when you're unsure. A plan built on an unverified claim is a liability, not progress — treat every doc, every `file:line`, every 'it works like X' as a hypothesis until you've read the code that proves it. Honesty over confidence; confidence is earned through evidence."*
 
-**Model:** Opus 4.8
-**Compactions:** ~12 (best-effort; multi-window session)
-**Connectors:** Figma MCP (early — Switch component); Electron CDP for live screenshots + hover/drag drive (not MCP)
-**Agents:** general-purpose (perf audit ×1, adversarial reviews ×5+), code-simplifier (×2)
-**Skills:** handoff; earlier `superpowers:brainstorming` / `writing-plans` (Part 1)
+**Model:** Opus 4.8 → Fable 5
+**Compactions:** ~13 (best-effort; multi-window session)
+**Connectors:** Figma MCP (early — Switch component); Electron CDP for live screenshots + UI drive (not MCP)
+**Agents:** general-purpose (perf audit ×1, adversarial reviews ×6+), code-simplifier (×3), build-breaking-agent (×1 — the Phase 1 post-green sweep)
+**Skills:** handoff; `superpowers:brainstorming` / `writing-plans` / `executing-plans`; `studio-brainstorm`
 
-**Table view — full-bleed heading + elastic-title reflow:** The heading band now bleeds its fill + seam to both glass edges (sidebar left, inspector/window right) while its tracks stay locked to the body grid. The **title column became an elastic `minmax(floor, width)`** so the table compresses like a Page's body when the inspector opens / the sidebar toggles — the title yields (down to a 120px floor), property columns hold and stay visible, instead of clipping the right columns under the inspector. This was the fix to Nathan's "it doesn't compress" — the real cause was that every column was a *fixed* width with a trailing filler, so nothing reflowed. → `Features/TableView.md`.
+**Tables Phase 1 SHIPPED + signed off (07-01):** the full gesture matrix is live — title navigates (row-click narrowed), status/select/multi/context cells open the `PropertyPicker` (PickerMenu-based, Solid variation), checkbox-look status cycles its group on valued cells and pickers on empty ones (capsule-chip options), numbers inline-edit via `PropertyEditor` (keystroke-filtered; empty commit clears via `setProperty null`), links/files open through sanctioned IPC, right-click always menus (per-type Style radios + Clear on picker-based cells, title Rename/Change Icon/Delete). Styles persist per-view in `column_styles` (per-KEY fold in `mergeOverrides` — an entry-level spread wipes sibling keys). The reusable editing surfaces live table-agnostic in `Detail/Views/PropertyEditing/` for Gallery/List reuse (Nathan's DRY directive). → `Features/TableView.md`.
 
-**Table view — the elastic title couples three rules:** the `minmax` title, the grid's reflow-floored `min-width`, and the heading's **both-sides padding**. That last one was a bug Nathan caught: the heading bleeds a content-gutter wider than a data row, so an un-padded header resolved the elastic title wider and drifted every column right. Adding the compensating right padding re-lands the header tracks on the exact data-row width (fill still bleeds — border box vs content box). Change one, re-check the others.
+**The Apple overflow model — elastic title REVERTED (07-01):** Nathan's live testing overturned the prior session's elastic-`minmax` title: it made the title the shock absorber for every resize ("new columns only compress the tight-view; theres no room affordance") and per-type max caps made resizes hit an immovable wall. Now every column holds its resolved width, all maxes are uncapped (mins stay), and overflow h-scrolls the whole view past the pane — capped-with-filler when fitting, right inset flattened while overflowing (`--table-right-inset` + the `overflowing` class from ONE table-level RO). His reference: Apple's tables ("when a column doesnt extend... it stays capped; when you extend beyond... the table becomes scrollable"). → `Features/TableView.md` §Overflow & Scroll.
 
-**Table view — sticky disclosure headers + nesting tuning:** Group headers + their chevrons are `position: sticky; left: 0`, so the gutter holds them legible during horizontal scroll while columns scroll. Members nest one `--row-indent` step inside via `groupIndent` (no cell-pad base); ungrouped/loose rows use a new `--loose-inset` (tucked a touch left of the column inset). Known gap: the hover-only **row grips still scroll** with their row — freezing them cleanly means freezing the whole title column (a frozen first column), which is Nathan's call, deferred.
+**Conditional inspector (verified live):** a fitting table compresses for the inspector as before; an overflowing one keeps its width and h-scrolls beneath the hovering glass (`Detail.css` `:has(.table-view.overflowing)` drops the compressed padding). The first cut latched: fit was measured via `scrollWidth`, which floors at `clientWidth`, so once lifted the flag could never release — fixed by comparing the KNOWN column sum (`reflowRef`, zoom-adjusted) against the hypothetical compressed pane (`e4e1b54`). Both states CDP-screenshot-verified. Kill switch if it ever misbehaves: delete the `:has` rule + the `liftedBy` branch in TableView's `check()` — the core overflow mechanics don't depend on it.
 
-**Sidebar — hover-scroll eclipse, gated on actual scroll:** The left-edge fade fired on bare hover, dimming the row icon "as if you were going to scroll." Now the fade is gated behind a `title-scrolled` class that a **native capture-phase scroll listener** toggles on `scrollLeft > 0`. The first attempt used a React `onScroll` prop on the nav — dead, because **React 19 does not delegate `scroll`** (it binds onScroll to the node; scroll doesn't bubble), so an ancestor prop never sees a descendant `.titleText`'s scroll. The review caught it as a blocker. → `Features/Sidebar.md`.
+**DRY OverflowScroll (07-01):** Nathan caught that the title truncation didn't reuse the sidebar's row mechanism ("WE DRY-ed that mechansim for a reason"). Now `design-system/components/OverflowScroll.tsx` is THE shared truncate-hover-scroll box — icon rides INSIDE the scroll box with the text, rAF `slideScrollBack` bounce-back (hoisted; the sidebar imports it), and a two-edge eclipse fade so clipped content NEVER hard-cuts (his Active/Closed chips screenshot). Wrapped around every cell content type: title, chips, dates, numbers, links.
 
-**Performance audit — the table's real debt is architectural:** A thorough audit (agent + self-verified) found the lag sources are structural: **no virtualization** (every row of a collection is in the DOM), **no `React.memo`** on `DataRow`/`Cell`/`GroupHeader` (any re-render rebuilds the whole grid), and a **`source`-identity churn** — `findCollection`/`findSet` (`DetailPane.tsx`) return a new `source` object on every tree swap (watcher push or own `mutate`), invalidating the pipeline/schema/ctx memos → a full repaint on any external change. Plus a per-container-open **fs re-walk** (`loadValues`, no cache). Fixed the two contained wins this pass; the rest is the brainstorm's perf agenda.
+**Review sweep (7 findings fixed, `34429aa` + `e4e1b54`):** build-breaking-agent post-green attack. Fixed: the per-cell ResizeObserver cliff (≈3000 ROs on a big table → one debounced epoch broadcast via `OverflowMeasureContext`; hover/scroll keep single cells honest), the overflow RO never re-binding after empty→populated, per-file write serialization in main (`serializeOnFile` — rapid picker toggles could land out of order, the registry race one level down), value-only ops (`setProperty`/`setTier`) skipping the full-nexus `load()` re-walk (the watcher settles canon), a mid-Bloom picker click gate, a PropertyEditor unmount flush (StrictMode-guarded), and `TableView.md` restated to the fixed-track model. The reviewer called the inspector guard "sound" — the live CDP check proved it was a one-way latch anyway: agents' verdicts are hypotheses too.
 
-**Perf — the contained fixes shipped (reviewed SHIP):** row drag was calling `getBoundingClientRect` over EVERY row on EVERY pointermove (a reflow storm) — now it snapshots all row geometry once at drag activation (rows never displace mid-drag) and re-measures only on scroll. Also memoized the flat `dataRows` + id-maps on `[groups]`. Both verified behavior-identical (the drop mutates real files, so parity mattered).
+**PropertiesV2 SHIPPED (07-01):** definitions nexus-wide in `.nexus/properties.json`, sidecars hold assignment-id arrays, `readNexus` joins, `schema:*` re-backed so PropertiesPane never changed; registry mutations serialized (review-caught race); SQLite v16 pure mirror. Net +163 code lines. → `History.md` 07-01. Plan 2's Max-Properties gate + B-7 option colors: this doc + the Tables log are the record (spec pruned).
 
-**The "on every X" hard rule (Nathan's directive):** He flagged the recurring lag anti-pattern — expensive work on every keystroke/input/render/pointer-move, or reloading the *entire* structure when an incremental update suffices. Codified as a hard rule in `.claude/CLAUDE.md`. The row-drag fix is a textbook instance.
+**Seed options aren't values (07-01):** Nathan's model — the default creation seeds (Not started/In progress/Done) are scaffolding, not defined options; a seed-only def pickers EMPTY (`isUntouchedSeed`, the picker's proportioned empty pane is interim UX). For testing (no creation UI yet) the REAL Nexus registry's status def was hand-edited to Open (upcoming) / Active (in_progress) / Closed (done) and 4 page values migrated to match. New `setTier` mutate op backs the tier pickers (bare `tier1/2/3` arrays via `setPageTier`, per-path serialized).
+
+**Sidebar drag-lag fixed (`2f4cb83`):** the same per-pointermove O(rows) rect storm the table had — snapshot-at-activation now house standard; the inverted-justification root cause captured in `Features/PommoraDND.md` §Measurement discipline.
 
 **Lessons Learned**
 
-- **React 19 does not delegate `scroll`.** `onScroll` on an ancestor never fires for a descendant's scroll (scroll doesn't bubble; React binds the handler straight to the node). Use a native capture-phase `addEventListener('scroll', …, {capture:true})` — capture *does* traverse down to the scroller. Cost us the sidebar-eclipse blocker.
+- **"Please confirm" means STOP and talk, then wait.** Nathan: "TALK dont just go into fixing... You got away with it because it worked — but dont do that again." State the understanding, end the turn, implement on his go-ahead. → memory `feedback-confirm-means-stop-and-talk`.
 
-- **Diagnose the real complaint in code before asking.** I fired an `AskUserQuestion` on the inspector-compress issue built on a half-verified premise (I'd measured the table-view *box* compressing and missed that the *columns* don't reflow). Nathan rejected the tool call — "it doesnt." Reproduce what the user actually sees against the code first, then act. → memory `feedback-diagnose-before-asking`.
+- **`scrollWidth` floors at `clientWidth`** — any "is content bigger than the box" comparison that subtracts a hypothetical from `clientWidth` while comparing against `scrollWidth` is a one-way latch. Compare KNOWN content size (state) against the box, not a floored measurement.
 
-- **The perf anti-pattern ("on every X") is THE lag source** — a per-keystroke reparse, a per-move rect read over every row, a per-open fs re-walk, a whole-grid re-render on one selection. Now a hard rule.
+- **A pipe masks an exit code.** `vitest run | tail` exits with tail's 0 — one broken test rode into a commit that way. Capture to a file, check `$?` directly (`> /tmp/out; VE=$?`).
+
+- **React 19 does not delegate `scroll`.** `onScroll` on an ancestor never fires for a descendant's scroll; use a native capture-phase listener — or own the node (a component binding its own `onScroll` is fine).
+
+- **Diagnose the real complaint in code before asking.** → memory `feedback-diagnose-before-asking`.
 
 **Key Files & Insights**
 
-- `Detail/Views/Table/TableView.tsx` — the render path. The pipeline (`flattenContainer` + `resolveView`) IS memoized; the rows/cells are NOT (no `React.memo`), and there's no virtualization. The elastic-title `minmax` + `reflowWidth` `minWidth` + heading both-side padding are one coupled mechanism.
-- `Detail/Views/Table/tableDnd.tsx` — row-drag now snapshots geometry at activation (`measure`/`snapshot`), re-measures on scroll; the slot math is unchanged.
-- `Detail/Views/Table/table-tokens.css` — the §G single source for every table dimension (`--cell-padding-x/y` = row height, `--loose-inset`, `--row-indent`, `--gutter`→fold-gutter). `styles.css` holds `--content-gutter` (the un-shadowed content-to-glass alias the full-bleed heading reads).
-- `Features/TableView.md` (new) — the table implementation doc, sibling to `MarkdownPM.md`.
+- `Detail/Views/PropertyEditing/` — the table-agnostic editing home: `PropertyPicker` (+ `StatusCapsule`), `PropertyEditor`, `statusCycle` (fixed 3-group cycle + glyph map), `formatValue` (Swift-parity, en-US pinned, local-midnight date parse). Gallery/List mount these as-is later.
+- `design-system/components/OverflowScroll.tsx` — THE overflow mechanism (fade + hover-scroll + bounce-back + `OverflowMeasureContext` epoch); the sidebar shares `slideScrollBack`.
+- `Detail/Views/Table/TableView.tsx` — gesture routing (`onCellClick`/`openCellMenu`/`cellOverlay`), the overflow check (column-sum vs pre-compression pane), per-view style state. Still no virtualization/memo on rows — the standing perf debt, now hotter with cell interactivity.
+- `shared/columnStyles.ts` + `Table/columnStyles.ts` — type+zod+defaults live shared (main needs them for menus); the schema-aware `styleFor` resolver is renderer-side (mirrors `columnAlign`) because `shared/` can't import the pipeline's `declaredType`.
+- `main/mutate.ts` `serializeOnFile` — per-path write chain for the hot value ops; the pattern to reuse for any read-modify-write on user files.
 
 **Landmines**
 
-- **The dev app runs against Nathan's REAL Nexus** (`The Nexus`, not `~/test`). A row-drag **drop** calls `mutate`/`viewOrders` and reorders his actual files — never run a live drop test; drag + abort (Escape / pointercancel) only, or drive the Test Nexus instead.
-- **Parallel sessions** — stage explicit paths (`git add <paths>`), never `-A`. `.claude/Handoff - B.md` sat modified in the tree this session, untouched by me.
-
-**Session Pointers**
-
-- The review discipline earned its keep twice: the dead `onScroll` (React non-delegation) and a col-drag `zoom` calc that breaks when the title is grabbed while minmax-shrunk. Don't ship interactive wiring on the assumption it fires — verify.
+- **The dev app runs against Nathan's REAL Nexus.** Value writes via the UI are his data; automated CDP must never pick/commit — open + Esc only. The registry + 4 Guides pages were hand-migrated to Open/Active/Closed at his direction.
+- **Parallel sessions** — stage explicit paths, never `-A`. (`Handoff - B.md` is deleted + committed; solo doc now.)
 
 **User Feedback**
 
-- "never write 'on every X'" / "reload entire Y" — the lag anti-pattern; now a hard rule.
-- Rejected an `AskUserQuestion` built on a half-diagnosed premise — diagnose in code first, then build-and-show.
-- Row grips on horizontal scroll: freezing them = a frozen title column, his call (deferred).
+- Talk-first (see Lessons). Screenshot-verify visual claims — he asked for the inspector proof shots, and they caught the latch.
+- Seeds/groups must never register as pickable options; the picker for a no-options def should show an EMPTY pane (interim), real UX later.
+- Capsule = the icon-only chip in the token set (showcase "Select"); picker options follow the column's glyph look.
 
 **Uncertain**
 
-- The exact scope of the **redo brainstorm** — whether "what needs to be redone" is the table's **perf architecture** (virtualization / memoization / source-identity / fs-cache), the **three feature subsystems** (remaining View-Settings panes, in-cell editing, ViewPane integration), or both. The Next Session note frames both axes.
+- Whether the interim empty-picker pane (a bare spacer) survives Nathan's "I'll think of a UIX solution later" — don't polish it until he decides.
 
 ---
 
 ### Working Notes
 
-- UI iteration runs in **dev mode (HMR)** — CSS hot-swaps, React components Fast-Refresh, but **CM6 widget/extension code needs a full ⌘R / `Page.reload`**, and `src/main` (IPC, native menus, preload) needs a dev-server restart. Don't ⌘Q it.
-- The agent **can** screenshot + drive the React UI headlessly (Electron + CDP `--remoteDebuggingPort` → `Page.captureScreenshot` / `Input.dispatchMouseEvent`); scratchpad has `cdp-shot.mjs` (screenshot / eval / `--clip` / `--rect`) + `cdp-hover.mjs` (force `:hover` + scroll + fade diagnostics). **Reading** a screenshot surfaces it to Nathan on mobile; sending doesn't. Nathan is the primary visual verifier.
-- **Never run a mutating gesture (drop / rename / edit) against the running app** — it's the real Nexus. Drag-and-abort for hit-test checks.
-- **PropertiesV2 data layer SHIPPED (8 commits, `56862fc`…`3ec68d8`): net +163 code lines** (20,063 → 20,226, `React/src` `.ts/.tsx/.css` excl. tests/comments/blanks, via `scratchpad/count-loc.py`) for the whole per-Collection → nexus-wide paradigm flip. 823/823 tests + both `tsc` passes green; adversarial code review + `code-simplifier` both run and folded. Locked decisions → `History.md` (07-01 entry).
+- UI iteration runs in **dev mode (HMR)** — CSS hot-swaps, React Fast-Refreshes, but **CM6 extension code needs ⌘R** and **`src/main`/preload need a dev-server restart**. The app is currently running WITH `POMMORA_DEBUG_PORT=9222` (launched by Claude; relaunch recipe: `env -u ELECTRON_RUN_AS_NODE POMMORA_DEBUG_PORT=9222 npm run dev`).
+- CDP tooling in the scratchpad: `cdp-shot.mjs` (screenshot/eval/clip) + `cdp-emulate.mjs` (viewport emulation — how the inspector states were verified without touching the window). **Reading** a screenshot surfaces it to Nathan.
+- **Never run a mutating gesture against the running app** — real Nexus. Drag-and-abort / open-and-Esc only.
+- **PropertiesV2 net +163 code lines** (20,063 → 20,226 via `scratchpad/count-loc.py` — reuse that script for LOC deltas). Locked decisions → `History.md` 07-01.
+- The REAL Nexus status def now holds Open/Active/Closed (test data, hand-written); `isUntouchedSeed` correctly reads it as "touched," so pickers show the three options.
 
-### Next Session — The Redo Brainstorm (`studio-brainstorm` → `writing-plans`)
+### Next Session — Phase 2, Then Phase 3
 
-Nathan called for a full brainstorm on "what needs to be redone." Two axes, both grounded:
-
-- **Axis 1 — Table-view performance architecture (the audit is the input).** The table is feature-complete but carries structural perf debt. The redo candidates, ranked by the audit's leverage: (1) **stabilize `source` identity** so an unchanged container keeps object identity across tree swaps (memoize `findCollection`/`findSet`, or key TableView's memos on `source.id` + a content stamp) — the single multiplier behind full repaints on every watcher push / own mutate; (2) **`React.memo` the row/cell path** + stabilize its props (the inline `onSelect`/`colTransform`/`style` defeat memo today); (3) **virtualize** the flat row list (`dataRows` is already the flat array a virtualizer wants; the `Reveal` collapse animation is the wrinkle); (4) **cache `loadValues`** per container in main (invalidated by the watcher) — bridges to the eventual SQLite index read path. This is where the "never on every X" rule bites hardest.
-
-- **Axis 2 — the feature subsystems, post-Tables-brainstorm.** (a) **In-cell editing + rendering, band drag, chip mechanics: DESIGNED** — the converged `Planning/7-1 - Tables Next-Parts (Cells + Group Drag + Styles) — Decision Log.md` (two adversarial rounds) owns the full gesture matrix, menu split, per-view `column_styles`, band-drag semantics, and the three-phase Core → next step is `writing-plans`, three plans. (b) The **remaining View-Settings panes** — Grouping, Sort, Filter, Layout (owns the `newItemsTo` knob), Visibility (owns un-hide), View management — **plus the Properties pane grown into the PropertiesV2 assign surface** (assign-existing `+` picker, Remove-vs-Delete, global-clash nudge, lossy changeType, per-option colors per the Tables log's B-7, the Max-Properties stop-and-ask): still needs its own brainstorm (the prep doc was pruned; this line + the Tables log's cross-refs are the seed). (c) **ViewPane full integration** — wire every pane to live schema/view state; needs Nathan's framing of "full integration" scope.
-
-### Next Session — Tables Phase 1 (POST-COMPACT PICKUP)
-
-The ratified spec is `Planning/7-1 - Tables Next-Parts (Cells + Group Drag + Styles) — Decision Log.md`; the Phase 1 plan is `Planning/7-1 - Tables Phase 1 (Cells + Menus + Styles) — Implementation Plan.md` (DRAFT). Sequence: (1) **run the plan's review-revise loop first** (compile-grounding + green-per-task agents against the real code, per Review-Discipline — the verbatim grounding pack is at `tasks/ad1883bf94107537a.output` in the session scratchpad; if gone, re-ground) — one flagged item for Nathan in its Self-Review: select/multi Style concretized as Pill/Capsule. (2) Then implement **IN-LINE via executing-plans (Nathan: no subagent implementers)**, task-by-task green commits, Task 10's CDP visual pass gates closeout (zero styling regression — the standing constraint in the spec header). Phases 2 (band drag — glyph is the drag surface per C-6) + 3 (chips) get their own plans after Phase 1 ships.
+Phase 1 is closed (built, reviewed, simplified, visually signed off). Next: **Phase 2 — band drag**, its own short plan → review loop → in-line build: vertical band reorder always per-view (structural grouping needs the net-new flat set-id array schema extension), Set reparenting = fs `moveSet` with the order-leak guard (destination's CURRENT fs order + moved id appended), the glyph (Set icon+name) is the drag surface — no handles (C-6), full-tree walking, ungrouped band pinned. Ride PommoraDND's frozen-snapshot discipline. Then **Phase 3 — chips**: the hover-reveal (×) remove (DRY'd into the chip components; **on a capsule the × floats ~4px right of the chip** — it can't sit inside) + the chip slide mechanic. Spec: `Planning/7-1 - Tables Next-Parts … Decision Log.md` §C + §E.
 
 ### Pending Focuses
 
-- **PropertiesV2 Plan 2 — the assign-surface UI.** The data layer shipped; Plan 2 is the ViewPane/PropertiesPane UX for the new model: the assign-existing (`+`) picker over the registry, Remove-vs-Delete labels + confirm (delete is `property:delete`, already IPC-exposed), the "create clashes globally → offer assign existing" nudge, lossy `changeType` cross-assigner strip, **per-option color editing (status colors — the Tables log's B-7, its only record)**, and the Inspector's assignment gate. **MUST stop and ask Nathan about "Max Properties" when building the assign surface** (a PropertiesV2 Prospect — never silently include or omit; the spec was pruned post-ship, `History.md` 07-01 + this line are its record).
-- **(Perf) Table-view architecture redo** — see Axis 1. The `source`-identity fix is the highest-leverage single change.
-- **(Feature) View Settings remaining panes · in-cell editing · ViewPane integration** — see Axis 2 + `Planning/7-1`.
-- **Row grips on horizontal scroll** — freeze them with the title column (frozen first column) if Nathan wants the whole gutter to stay; deferred pending his call.
-- **DRY the sidebar row-fade + spring-back onto chips (Tables/UIX).** Chips already share a DRY'd ellipsis-hover-scroll for overflowing labels (`chipLabel` on `truncateHoverScroll`). Extend the sidebar rows' left-edge **scroll-fade eclipse** (`--scroll-fade` gated on `.title-scrolled`) + the **`slideTitleBack` spring-back-on-non-hover** so an overflowing chip label fades + bounces back too — one shared mechanism across sidebar rows, chips, and (eventually) table cells, not a re-implementation.
-- **In-cell editing must arm row-reorder from the title cell too**, not only the gutter grip (keep the grip) — memory `project-row-drag-from-title-area`.
-- **Block Drag V2 — nesting** (separate spec): interior drop-slots inside callouts, the box-nesting guard table, cross-container re-prefix. V1 shipped; nesting deferred.
+- **View-Settings property creation/management pane: design-complete, ready to implement.** Nathan: the entire property creation + management ViewPane is already designed in Figma and shipped in similar form in the Swift build — pull the Figma design + Swift precedent when building. Folds in PropertiesV2 Plan 2's assign surface (assign-existing `+` picker over the registry, Remove-vs-Delete, global-clash nudge, lossy changeType strip, **B-7 per-option status colors**, Inspector's assignment gate) — **MUST stop and ask Nathan about "Max Properties"** when building it.
+- **Per-style minimum column widths + slide animation (idea, Nathan 07-01):** each look carries its own column min (checkbox min < capsule min < pill min); when an at-minimum column's style changes to a wider look, the width "slides" to the new minimum with an animation. Design-note only for now.
+- **Empty-picker UX** — the proportioned empty pane is interim; Nathan will design the real no-options affordance (creation entry point?) later.
+- **Conditional-inspector kill switch** — if it ever fights the overflow mechanics: delete the `Detail.css` `:has(.table-view.overflowing)` rule + the `liftedBy` branch in TableView's `check()`. Verified working via CDP 07-01 (screenshots delivered).
+- **(Perf) Table-view architecture redo** — `source`-identity stabilization (the multiplier), `React.memo` on the row/cell path, **virtualization** (the review re-flagged it: every row mounts, now with interactive cells), `loadValues` caching. The "on every X" rule's remaining debt.
+- **Row grips on horizontal scroll** — freezing them = a frozen title column; Nathan's call, deferred.
+- **Block Drag V2 — nesting** (separate spec): interior drop-slots inside callouts, the box-nesting guard table, cross-container re-prefix.
 - **Canvas** — spec at `Planning/6-26 - Canvas Spec.md`, pending its adversarial review → plan → build.
-- **Biome config vs code** — `biome.json` declares double-quote/organizeImports but the codebase is single-quote/no-semicolon (internally consistent; the hook doesn't convert). Settle once, in a tree with no parallel edits.
+- **Biome config vs code** — `biome.json` declares double-quote/organizeImports but the codebase is single-quote/no-semicolon. Settle once, in a tree with no parallel edits.
 
 ### Fix Log
 
-- **Block-math `$$…blank…$$` drag corrupts the doc (open).** A multi-line block-math span with a blank line parses as two halves with orphaned `$$`; block-dragging either half corrupts the document (`MarkdownPM/editor/blockModel.ts` — test-pinned, unguarded). A real behavioral fix, deliberately excluded from cosmetic passes.
-- **Bullet single-word wrap drops the word below the marker** — a `-`/`•`/`+`/`→` item whose content is one long unbroken word; only the `line-height` cap shipped. → `Features/MarkdownPM.md` § Known Issues.
-
+- **Block-math `$$…blank…$$` drag corrupts the doc (open).** A multi-line block-math span with a blank line parses as two halves with orphaned `$$`; block-dragging either half corrupts the document (`MarkdownPM/editor/blockModel.ts` — test-pinned, unguarded).
+- **Bullet single-word wrap drops the word below the marker** — only the `line-height` cap shipped. → `Features/MarkdownPM.md` § Known Issues.
 
 ### Handoff Rules
 
-- **Resolve = delete + route, never tag.** When an entry here is genuinely done, push its outcome to the canonical doc (`History.md` / `Features/*` / `Framework.md`) and delete the line — no `(Resolved)` tombstones.
+- **Resolve = delete + route, never tag.** When an entry here is genuinely done, push its outcome to the canonical doc and delete the line — no `(Resolved)` tombstones.
 - **One block per session, updated in place.** Compactions bump the `Compactions` count, they don't add sections. Carry still-open Pending Focuses forward to a fresh sequential session.
 - **Markdown only, no new folder** (per Nathan) — this stays the single `.claude/Handoff.md`, not a routed `Handoffs/` dir.
-- **Parallel sessions share this one doc** — a concurrent React session adds its own labeled block (`### Session Summary - B`, …); the Cornerstone + footer are shared; never edit another session's block. (The Swift build keeps its own separate root handoff.)
+- **Parallel sessions share this one doc** — a concurrent session adds its own labeled block; the Cornerstone + footer are shared; never edit another session's block.
