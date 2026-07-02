@@ -15,7 +15,7 @@
 - `Sidebar/sidebarDnd.tsx` + `sidebarDndModel.ts` — set-drag prior art (cycle guard, reparent rules, `moveSet`); just perf-fixed (snapshot discipline).
 - [[PommoraDND]] — the measurement discipline (root-caused 07-01): geometry at activation, never per move.
 - [[TableView]] · [[Interaction]] — renderer spec + the motion law (Bloom is THE pane-open primitive).
-- `7-1 - PropertiesV2 (Nexus-Wide Properties) — Decision Log.md` — defs nexus-wide; option edits cascade to every assigner; Plan 2 (assign surface) folds into View Settings.
+- PropertiesV2 (SHIPPED 07-01; spec pruned) — defs nexus-wide; option edits cascade to every assigner; Plan 2 (assign surface) folds into View Settings. Durable record: `History.md` (07-01 entry) + `Features/Properties.md`.
 - `design-system/components/PickerMenu` — the notch picker, built and unconsumed; the intended in-line edit surface.
 - `design-system/tokens/typography.css.ts` `truncateHoverScroll` + `chip.css.ts` `chipLabel` + the sidebar scroll-fade/`slideTitleBack` — the chip slide mechanic's pieces.
 
@@ -50,7 +50,7 @@
 - **B-4:** [confirmed] Date & Time's Style → **Options** = the format choices **pulled from Swift's `date_format` option set** — grounding the exact Swift enum happens at planning time. **The format plumbing is net-new (review round 1):** `formatDate` is a hardcoded `toLocaleDateString` today, `date_format` has zero read sites — Core ships the format wiring into `Cell.tsx`, reading from `column_styles` (per B-3, not the def).
 - **B-5:** [assumed] The Style submenu extends the existing native `columnMenu.ts` (Align/Hide live there; `ColumnMenuContext` grows a `style` field + per-type items). Same IPC → persist pattern as `column_alignments`.
 - **B-6:** [confirmed] **Checkbox-style status uses the Lucide `minus` glyph:** empty = To-do group, `minus` = In-Progress group, `check` = Done group — the three glyph states single-click cycles through (A-6).
-- **B-7:** [confirmed] **Status option COLOR is pickable via a menu in the Properties pane** — a per-option color menu in the pane's per-property editor (the "options — pending" area). Under PropertiesV2 this is a **global def edit** (`editProperty` on the registry — every assigning Collection sees it). Cross-ref: the pane itself is the sibling View-Settings brainstorm's surface; this directive is its first concrete option-editing requirement.
+- **B-7:** [confirmed] **Status option COLOR is pickable via a menu in the Properties pane** — a per-option color menu in the pane's per-property editor (the "options — pending" area). Under PropertiesV2 this is a **global def edit** (`editProperty` on the registry — every assigning Collection sees it). **This entry is the requirement's ONLY record** (the prep doc that co-held it was pruned) — the future View-Settings/assign-surface brainstorm inherits it from here + the Handoff's Axis 2.
 
 **Grounded facts (cell/menu explorer, 07-01):**
 - **No row context menu exists at all** in the container table (right-click on a row = nothing; `tableMenu.ts` is the MarkdownPM widget's, a false lead). Title's double-click menu is net-new — the native-menu pattern (`columnMenu.ts`) is the template.
