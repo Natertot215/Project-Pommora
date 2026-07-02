@@ -145,21 +145,14 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
   // track-set change — never per scroll or per pointermove.
   const viewRef = useRef<HTMLDivElement>(null)
   const [overflowing, setOverflowing] = useState(false)
-  // Two signals, two jobs: `overflowing` = the columns exceed the CURRENT box (the flatten +
-  // h-scroll look); `paneOverflowing` = they exceed the FULL uncompressed pane (releases the
-  // inspector's compression — Detail.css keys on it). A table that fits the open pane compresses
-  // for the inspector and scrolls within the inset; only a truly pane-exceeding one lifts.
-  const [paneOverflowing, setPaneOverflowing] = useState(false)
-  const paneOverflowingRef = useRef(false)
-  paneOverflowingRef.current = paneOverflowing
   // The cells' shared re-measure signal (OverflowScroll fades) — bumped debounced from the one
   // table-level observer instead of a ResizeObserver per cell (the per-cell version was an
   // O(cells) forced-layout storm on every frame of a column drag).
   const [measureEpoch, setMeasureEpoch] = useState(0)
   const epochTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   // The column sum (pre-zoom px), readable from the overflow check without a stale closure. The
-  // check must compare THIS against the pane — a scrollWidth read floors at clientWidth, which
-  // turns the lifted-inspector comparison into a one-way latch that never releases.
+  // check compares THIS against the box — a scrollWidth read floors at clientWidth, so any
+  // is-content-bigger comparison built on it can latch.
   const reflowRef = useRef(0)
   // The one in-cell editing surface (A-2/A-6 picker · A-8/A-12 editor). Cleared on dismiss; the
   // exit presence keeps a PICKER mounted through its Bloom-out (reading the last target from the
@@ -230,34 +223,15 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
   )
   // One mounted observer, two targets: the view (pane resizes) and the grid (its box moves when
   // the track set changes — a column resize/hide/add). Each fires one cheap read, never per-scroll.
-  // Fit is measured against the pane AS COMPRESSED by the inspector, whether or not the hover
-  // override has already lifted that compression — a fitting table gives way to the inspector, an
-  // overflowing one keeps its width and scrolls under the glass (Nathan's conditional), and
-  // measuring the hypothetical width is what keeps the boundary band from oscillating.
   useEffect(() => {
     const el = viewRef.current
     if (!el) return
     const check = (): void => {
-      const shell = el.closest('.shell')
-      const open = shell?.classList.contains('inspector-open') ?? false
-      const shellCs = open && shell ? getComputedStyle(shell) : null
-      const delta = shellCs
-        ? Number.parseFloat(shellCs.getPropertyValue('--inspector-width')) + Number.parseFloat(shellCs.getPropertyValue('--glass-inset'))
-        : 0
       const cs = getComputedStyle(el)
       const pads = Number.parseFloat(cs.paddingLeft) + Number.parseFloat(cs.paddingRight)
       const gridEl = el.querySelector('.table-grid')
       const zoom = gridEl ? Number.parseFloat(getComputedStyle(gridEl).getPropertyValue('zoom')) || 1 : 1
-      const box = el.clientWidth - pads
-      const content = reflowRef.current * zoom
-      // The flatten + h-scroll look tracks the CURRENT box; the compression release tracks the
-      // FULL pane, reconstructed from whichever padding state the box is in (compressed → add the
-      // inspector's inset delta back). Both hypotheticals are state-independent, so neither can
-      // oscillate or latch.
-      setOverflowing(content > box + 1)
-      const compressedNow = open && !paneOverflowingRef.current
-      const uncompressed = box + (compressedNow && !Number.isNaN(delta) ? delta : 0)
-      setPaneOverflowing(content > uncompressed + 1)
+      setOverflowing(reflowRef.current * zoom > el.clientWidth - pads + 1)
       // Cells re-measure their fade edges once the burst settles (drag-resize fires per move) —
       // never per frame; hover/scroll keep individual cells honest in between.
       clearTimeout(epochTimer.current)
@@ -876,7 +850,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
   }
 
   return (
-    <div ref={viewRef} className={cx('table-view', overflowing && 'overflowing', paneOverflowing && 'pane-overflowing')}>
+    <div ref={viewRef} className={cx('table-view', overflowing && 'overflowing')}>
       <OverflowMeasureContext.Provider value={measureEpoch}>
       <IconPicker open={iconPickerOpen} onClose={() => setIconPickerOpen(false)} />
       <BandDnd bands={bands} labelFor={bandLabel} onDrop={onBandDrop}>
