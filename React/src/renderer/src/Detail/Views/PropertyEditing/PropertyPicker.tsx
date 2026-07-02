@@ -1,5 +1,5 @@
 import { useRef } from 'react'
-import type { PropertyDefinition } from '@shared/properties'
+import { isUntouchedSeed, type PropertyDefinition } from '@shared/properties'
 import type { PropertyValue } from '@shared/propertyValue'
 import { PickerMenu, PickerOption } from '@renderer/design-system/components/PickerMenu/PickerMenu'
 import { useDismiss } from '@renderer/design-system/components/Popover'
@@ -7,9 +7,12 @@ import { Chip } from '@renderer/Components/Chip'
 import { chipColorFor } from '@renderer/design-system/tokens/colorMap'
 
 /** A pickable option — status options flatten out of their groups, select/multi read
- *  `select_options`. */
-const optionsOf = (def: PropertyDefinition): Array<{ value: string; label: string; color?: string }> =>
-  def.type === 'status' ? (def.status_groups ?? []).flatMap((g) => g.options) : (def.select_options ?? [])
+ *  `select_options`. An untouched creation seed is scaffolding, not defined options: the
+ *  picker renders empty until the user makes them real. */
+const optionsOf = (def: PropertyDefinition): Array<{ value: string; label: string; color?: string }> => {
+  if (isUntouchedSeed(def)) return []
+  return def.type === 'status' ? (def.status_groups ?? []).flatMap((g) => g.options) : (def.select_options ?? [])
+}
 
 const selectedValues = (current: PropertyValue | null): string[] => {
   if (!current) return []
@@ -37,11 +40,16 @@ export function PropertyPicker({
   closing: boolean
   onCommit: (value: PropertyValue | null) => void
   onDismiss: () => void
-}): React.JSX.Element {
+}): React.JSX.Element | null {
   const ref = useRef<HTMLDivElement>(null)
-  useDismiss(ref, onDismiss, !closing)
+  const options = optionsOf(def)
+  useDismiss(ref, onDismiss, !closing && options.length > 0)
   const multi = def.type === 'multi_select'
   const selected = selectedValues(current)
+
+  // No real options → nothing to pick, nothing to mount: an empty notch pane renders as a
+  // degenerate beak. The interim UX for a seed-only def (Nathan decides the real affordance later).
+  if (options.length === 0) return null
 
   const pick = (value: string): void => {
     if (multi) {
@@ -56,7 +64,7 @@ export function PropertyPicker({
   return (
     <div ref={ref}>
       <PickerMenu closing={closing}>
-        {optionsOf(def).map((o) => (
+        {options.map((o) => (
           <PickerOption key={o.value} selected={selected.includes(o.value)} onClick={() => pick(o.value)}>
             <Chip color={chipColorFor(o.color)} label={o.label} />
           </PickerOption>

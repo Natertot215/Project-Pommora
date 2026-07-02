@@ -160,3 +160,32 @@ export function defaultStatusSeed(): StatusGroup[] {
 export function defaultSelectSeed(): { value: string; label: string }[] {
   return [{ value: 'option_1', label: 'Option 1' }]
 }
+
+/** True while a def still carries EXACTLY its untouched creation seed — scaffolding, not options
+ *  the user defined. Value surfaces (the cell picker) treat a seed-only def as "no options yet"
+ *  and render empty (Nathan: "don't render groupings as options"); the checkbox-status cycle still
+ *  writes the seed values — they're its fixed 3-state backbone. Any rename/add/removal makes the
+ *  options real. */
+export function isUntouchedSeed(def: PropertyDefinition): boolean {
+  if (def.type === 'status') {
+    const groups = def.status_groups
+    if (!groups) return false
+    const seed = defaultStatusSeed()
+    return (
+      groups.length === seed.length &&
+      seed.every((sg) => {
+        const g = groups.find((x) => x.id === sg.id)
+        return (
+          g?.options.length === 1 &&
+          g.options[0].value === sg.options[0].value &&
+          g.options[0].label === sg.options[0].label
+        )
+      })
+    )
+  }
+  if (def.type === 'select' || def.type === 'multi_select') {
+    const seed = defaultSelectSeed()[0]
+    return def.select_options?.length === 1 && def.select_options[0].value === seed.value && def.select_options[0].label === seed.label
+  }
+  return false
+}

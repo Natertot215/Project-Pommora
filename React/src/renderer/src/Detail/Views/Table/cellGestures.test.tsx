@@ -377,6 +377,30 @@ describe('open actions + row-click narrowing (A-7)', () => {
   })
 })
 
+describe('PropertyPicker (direct mount) — untouched seed', () => {
+  it('a seed-only status def pickers empty — scaffolding is not defined options', async () => {
+    const { defaultStatusSeed } = await import('@shared/properties')
+    const seedDef: PropertyDefinition = {
+      id: 'prop_seed',
+      name: 'Status',
+      type: 'status',
+      status_groups: defaultStatusSeed()
+    }
+    await act(async () => {
+      root.render(
+        <PropertyPicker
+          def={seedDef}
+          current={null}
+          closing={false}
+          onCommit={vi.fn()}
+          onDismiss={vi.fn()}
+        />
+      )
+    })
+    expect(host.querySelectorAll('button').length).toBe(0)
+  })
+})
+
 describe('PropertyPicker (direct mount) — multi-select', () => {
   it('toggles values, staying open, committing the full array each time', async () => {
     const onCommit = vi.fn()
