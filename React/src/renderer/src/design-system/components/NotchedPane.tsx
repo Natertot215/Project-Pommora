@@ -4,19 +4,21 @@ import { cx } from '../cx'
 import * as s from './notchedPane.css'
 
 // The notch is ONE path used both as the frost clip-path and the SVG border stroke — shape + outline
-// are the same line. `curve` softens the base corners where the beak meets the top edge.
+// are the same line. The beak is the Apple-popover silhouette: one cubic per side, tangent to the
+// top edge at its base and horizontal over the apex — a smooth fillet into a rounded crest, no
+// straight slopes, no tip vertex. `curve` morphs sharp↔round (it scales both tangent runs; the
+// 0.25 default lands on Apple's proportions).
 function panePath(w: number, h: number, r: number, nx: number, nh: number, nw: number, curve: number): string {
-  const xL = nx - nw / 2
-  const xR = nx + nw / 2
-  const bf = Math.min((nw / 2) * curve, nw / 2 - 1) // base-corner blend run
-  const sy = nh * (1 - bf / (nw / 2)) // y where the blend rejoins the straight slope
+  const half = nw / 2
+  const xL = nx - half
+  const xR = nx + half
+  const cb = Math.min(half * (0.3 + curve), half) // base tangent run (fillet width)
+  const ct = Math.min(half * (0.15 + curve), half * 0.9) // apex tangent run (crest roundness)
   return [
     `M ${r} ${nh}`,
-    `L ${xL - bf} ${nh}`,
-    `Q ${xL} ${nh} ${xL + bf} ${sy}`,
-    `L ${nx} 0`,
-    `L ${xR - bf} ${sy}`,
-    `Q ${xR} ${nh} ${xR + bf} ${nh}`,
+    `L ${xL} ${nh}`,
+    `C ${xL + cb} ${nh} ${nx - ct} 0 ${nx} 0`,
+    `C ${nx + ct} 0 ${xR - cb} ${nh} ${xR} ${nh}`,
     `L ${w - r} ${nh}`,
     `Q ${w} ${nh} ${w} ${nh + r}`,
     `L ${w} ${h - r}`,
@@ -43,7 +45,7 @@ export function NotchedPane({
   animationClass,
   solid = false,
   radius = 14,
-  notchWidth = 28,
+  notchWidth = 34,
   notchHeight = 8,
   notchCurve = 0.25,
   notchInsetRight,
