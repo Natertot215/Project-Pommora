@@ -1,7 +1,12 @@
 import type { CSSProperties, ReactNode } from 'react'
-import { useEffect, useRef, useState } from 'react'
+import { createContext, useContext, useEffect, useRef, useState } from 'react'
 import { cx } from '../cx'
 import { truncateHoverScroll } from '../tokens/typography.css'
+
+/** Bump to make every OverflowScroll under the provider re-measure its fade edges. Hosts with
+ *  many instances (the table) broadcast ONE debounced signal from their own observer instead of
+ *  a ResizeObserver per cell — the per-cell version is an O(cells) layout storm on live resizes. */
+export const OverflowMeasureContext = createContext(0)
 
 /**
  * Slide a hover-scrolled box back to its start when the pointer leaves — scrollLeft isn't a
@@ -42,6 +47,7 @@ export function OverflowScroll({
 }): React.JSX.Element {
   const ref = useRef<HTMLSpanElement>(null)
   const [edges, setEdges] = useState({ left: false, right: false })
+  const epoch = useContext(OverflowMeasureContext)
 
   const measure = (): void => {
     const el = ref.current
@@ -50,15 +56,10 @@ export function OverflowScroll({
     const right = el.scrollLeft + el.clientWidth < el.scrollWidth - 1
     setEdges((prev) => (prev.left === left && prev.right === right ? prev : { left, right }))
   }
-  // Content/box changes re-measure through the observer; scrolling re-measures inline below.
-  useEffect(() => {
-    measure()
-    const el = ref.current
-    if (!el) return
-    const ro = new ResizeObserver(measure)
-    ro.observe(el)
-    return () => ro.disconnect()
-  }, [])
+  // Mount + host broadcasts re-measure here; scroll and hover keep the single cell honest between
+  // epochs. No per-instance observer — see OverflowMeasureContext.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: epoch is the change signal, not a read.
+  useEffect(measure, [epoch])
 
   const mask =
     edges.left || edges.right
@@ -74,6 +75,7 @@ export function OverflowScroll({
           : undefined
       }
       onScroll={measure}
+      onPointerEnter={measure}
       onPointerLeave={(e) => slideScrollBack(e.currentTarget)}
     >
       {children}

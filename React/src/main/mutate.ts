@@ -99,6 +99,23 @@ function relay<T>(r: Result<T>): MutateResult {
 
 const fault = (message: string): MutateResult => ({ ok: false, error: { code: 'operation-failed', message } })
 
+// Per-file write serialization for the hot value ops (setProperty/setTier): overlapping
+// read-modify-writes on ONE page can land out of send order, letting a stale intermediate win
+// on disk — the registry's lost-update race, one level down. Chain per resolved path (the map
+// holds one settled promise per touched file; negligible).
+const fileChains = new Map<string, Promise<unknown>>()
+function serializeOnFile<T>(path: string, fn: () => Promise<T>): Promise<T> {
+  const run = (fileChains.get(path) ?? Promise.resolve()).then(fn, fn)
+  fileChains.set(
+    path,
+    run.then(
+      () => undefined,
+      () => undefined
+    )
+  )
+  return run
+}
+
 /**
  * Create with a base name, disambiguating on collision: base, "base 2", "base 3", … The
  * "New …" UX — a fresh entity should always appear, never silently fail on a name clash.
@@ -329,24 +346,28 @@ async function dispatch(req: MutateRequest, deps: MutateDeps, root: string): Pro
       // set/clear rule — a null value deletes the key. Drives table cross-group reassignment (D-4).
       const resolved = await resolveUnderRoot(root, req.path)
       if (!resolved.ok) return relay(resolved)
-      let existing: string
-      try {
-        existing = await readFile(resolved.value, 'utf8')
-      } catch {
-        return fault('That page could not be read.')
-      }
-      const { body } = splitEnvelope(existing)
-      const fields = readFrontmatterFields(existing)
-      const properties = applyPropertyValue(fields.properties, req.propertyId, req.value)
-      await atomicWriteFile(resolved.value, mergeFrontmatter(existing, { properties }, ['properties'], body))
-      return { ok: true }
+      return serializeOnFile(resolved.value, async () => {
+        let existing: string
+        try {
+          existing = await readFile(resolved.value, 'utf8')
+        } catch {
+          return fault('That page could not be read.')
+        }
+        const { body } = splitEnvelope(existing)
+        const fields = readFrontmatterFields(existing)
+        const properties = applyPropertyValue(fields.properties, req.propertyId, req.value)
+        await atomicWriteFile(resolved.value, mergeFrontmatter(existing, { properties }, ['properties'], body))
+        return { ok: true }
+      })
     }
 
     case 'setTier': {
       const resolved = await resolveUnderRoot(root, req.path)
       if (!resolved.ok) return relay(resolved)
-      const r = await setPageTier(resolved.value, req.tier, req.contextIds)
-      return r.ok ? { ok: true } : relay(r)
+      return serializeOnFile(resolved.value, async () => {
+        const r = await setPageTier(resolved.value, req.tier, req.contextIds)
+        return r.ok ? { ok: true } : relay(r)
+      })
     }
 
     case 'movePage': {

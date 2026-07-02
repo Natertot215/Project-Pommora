@@ -60,6 +60,7 @@ export function PropertyPicker({
   const selected = selectedValues(current)
 
   const pick = (value: string): void => {
+    if (closing) return // the pane stays mounted through its Bloom-out — a mid-exit click must not re-commit
     if (multi) {
       const next = selected.includes(value) ? selected.filter((v) => v !== value) : [...selected, value]
       onCommit(contextOptions ? { kind: 'context', value: next } : { kind: 'multiSelect', value: next })

@@ -29,6 +29,7 @@ import { groupKeyToValue, REASSIGNABLE_GROUP_TYPES } from './reassign'
 import { cx } from '@renderer/design-system/cx'
 import { text } from '@renderer/design-system/tokens'
 import { useExitPresence } from '@renderer/design-system/useExitPresence'
+import { OverflowMeasureContext } from '@renderer/design-system/components/OverflowScroll'
 import { IconPicker } from '@renderer/Components/IconPicker'
 import { Icon } from '@renderer/design-system/symbols'
 import { Reveal } from '@renderer/design-system/components/Reveal'
@@ -39,6 +40,8 @@ import { TableRowDnd, useTableRowDrag } from './tableDnd'
 // flips (the sticky zone around the current slot). Larger = more deliberate / harder to leave a slot;
 // smaller = snappier. Bump this one number to taste.
 const COL_SHIFT_HYSTERESIS = 25
+// How long after the last size change before every cell re-measures its fade edges.
+const MEASURE_SETTLE_MS = 150
 
 /** A Collection uses its own schema; a Set inherits its ancestor Collection's (schema lives only on
  *  the Collection). [] when the owning Collection can't be found. */
@@ -134,6 +137,11 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
   const [overflowing, setOverflowing] = useState(false)
   const overflowingRef = useRef(false)
   overflowingRef.current = overflowing
+  // The cells' shared re-measure signal (OverflowScroll fades) — bumped debounced from the one
+  // table-level observer instead of a ResizeObserver per cell (the per-cell version was an
+  // O(cells) forced-layout storm on every frame of a column drag).
+  const [measureEpoch, setMeasureEpoch] = useState(0)
+  const epochTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   // The one in-cell editing surface (A-2/A-6 picker · A-8/A-12 editor). Cleared on dismiss; the
   // exit presence keeps a PICKER mounted through its Bloom-out (reading the last target from the
   // ref while `editing` is already null) — the editor unmounts instantly.
@@ -213,15 +221,22 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
         ? Number.parseFloat(cs.getPropertyValue('--inspector-width')) + Number.parseFloat(cs.getPropertyValue('--glass-inset'))
         : 0
       setOverflowing(el.scrollWidth > el.clientWidth - (Number.isNaN(liftedBy) ? 0 : liftedBy) + 1)
+      // Cells re-measure their fade edges once the burst settles (drag-resize fires per move) —
+      // never per frame; hover/scroll keep individual cells honest in between.
+      clearTimeout(epochTimer.current)
+      epochTimer.current = setTimeout(() => setMeasureEpoch((e) => e + 1), MEASURE_SETTLE_MS)
     }
     check()
     const ro = new ResizeObserver(check)
     ro.observe(el)
     const grid = el.querySelector('.table-grid')
     if (grid) ro.observe(grid)
-    return () => ro.disconnect()
-    // biome-ignore lint/correctness/useExhaustiveDependencies: re-bind once the loading return gives way to the real grid.
-  }, [ctx === null])
+    return () => {
+      ro.disconnect()
+      clearTimeout(epochTimer.current)
+    }
+    // biome-ignore lint/correctness/useExhaustiveDependencies: re-bind when the loading/empty returns give way to the real grid (the nodes remount without ctx changing).
+  }, [ctx === null, groups.length === 0])
   const setNames = useMemo(() => buildSetNames(source), [source])
   const setIcons = useMemo(() => buildSetIcons(source), [source])
 
@@ -513,8 +528,8 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
     header.setPointerCapture(e.pointerId)
     const hr = header.getBoundingClientRect()
     // The CSS density factor (screen px per pre-zoom track px). Read from --zoom directly, NOT back-solved
-    // from the header's rendered width ÷ its track width — the title track is now a minmax that shrinks, so
-    // that ratio no longer equals the zoom when the title is grabbed while shrunk.
+    // from the header's rendered width ÷ its track width — a rendered/track ratio bakes in whatever layout
+    // slack the grid has (it broke under the old elastic title); the token is the ground truth.
     const zoom = Number.parseFloat(getComputedStyle(grid).getPropertyValue('--zoom')) || 1
     const startCenter = hr.left + hr.width / 2 // the dragged column's centre, screen px; it tracks the cursor 1:1
     const startX = e.clientX
@@ -715,6 +730,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
 
   return (
     <div ref={viewRef} className={cx('table-view', overflowing && 'overflowing')}>
+      <OverflowMeasureContext.Provider value={measureEpoch}>
       <IconPicker open={iconPickerOpen} onClose={() => setIconPickerOpen(false)} />
       <TableRowDnd
         rows={dataRows}
@@ -767,6 +783,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
           {groups.flatMap((g) => renderRows(g, 0, true))}
         </div>
       </TableRowDnd>
+      </OverflowMeasureContext.Provider>
     </div>
   )
 }

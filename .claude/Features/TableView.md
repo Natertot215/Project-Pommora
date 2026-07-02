@@ -6,15 +6,15 @@ The built renderer of the five view types (`Views.md`) — a Collection's or dep
 
 The header band and every data row are separate CSS grids that read **one shared track set** (`--cols`, set inline) — so columns align across all bands without a `<colgroup>`. Each track is a resolved column width, and a trailing `1fr` **filler** absorbs any pane width past the summed columns so the grid always spans full-width; the filler is also the `:last-child` anchor that keeps the last real column's divider. Group sections are full-width bands *off* the column grid, so a disclosure row is independent of the columns and its members can wrap without breaking alignment.
 
-The **primary (title) column is elastic** — its track is a `minmax(floor, resolved-width)` rather than a fixed width; every other column is fixed. This one asymmetry is what lets the table reflow.
+**Every column — the title included — holds its resolved width** (the Apple table model; the earlier elastic-`minmax` title was deliberately reverted). No column is ever compressed to absorb growth or a narrowing pane.
 
-### Column Reflow
+### Overflow & Scroll
 
-Opening the inspector, toggling the sidebar, or narrowing the window changes the pane's width. Because the title track is a `minmax`, the title **yields down to its legibility floor** while the fixed property columns hold their width — the table compresses the way a Page's body reflows, instead of clipping the right columns off under the inspector. The grid's `min-width` is floored at the reflow width (the column sum with the title at its floor), so only once the title can shrink no further does the table scroll. When there's ample room the title sits at its resolved (saved/default) width and the filler eats the slack — identical to a fixed track, so the wide-pane layout is unchanged.
+While the columns' total width fits the pane, the table stays **capped** at the content inset and the filler eats the slack. The moment any mechanism pushes the sum past the pane — a resize (every type is uncapped; only the legibility mins clamp), an added column, a narrowed window — the grid's `min-width` (the full column sum) exceeds the pane and the **whole view h-scrolls**: heading and rows slide together, content passes under the edges, the left gutter stays the solid boundary. While overflowing, the right inset **flattens** to the glass edge (a scoped inset var toggled by the `overflowing` class, driven by one table-level ResizeObserver). The **inspector is conditional**: a fitting table gives way to it (the compressed right inset), an overflowing one keeps its width and scrolls beneath the hovering glass — fit is measured against the pre-compression pane width so the boundary can't oscillate.
 
 ### Full-Bleed Heading
 
-The heading band's fill + bottom seam **bleed to both glass edges** — the sidebar edge on the left, the inspector/window edge on the right — while its column tracks stay locked to the body grid. Negative side margins widen the band's border box out to the glass (the background covers the border box, so the fill reaches the edge); matching left **and** right padding then re-land its tracks on the *exact* content width of a data row. Re-landing both sides matters now that the title is elastic: an un-padded (wider) header would resolve the title wider than the narrower rows and drift every column. The band stays inside the grid, so it h-scrolls with the body.
+The heading band's fill + bottom seam **bleed to both glass edges** — the sidebar edge on the left, the inspector/window edge on the right — while its column tracks stay locked to the body grid. Negative side margins widen the band's border box out to the glass (the background covers the border box, so the fill reaches the edge); matching left **and** right padding then re-land its tracks on the *exact* content width of a data row — an un-padded (wider) header would resolve its tracks against a different box than the rows and drift every column. The band stays inside the grid, so it h-scrolls with the body.
 
 ### The Views Gutter
 
@@ -54,9 +54,9 @@ A single **zoom** knob (Standard / Compact) scales text, chips, padding, and wid
 
 - **The gutter var is shadowed inside the table.** The global gutter (content-to-glass margin) is remapped to the narrower fold-gutter grip lane within the table scope, so the grips/chevrons sit in the strip. Full-bleed surfaces (the heading band) therefore can't read the shadowed var for the true content-to-glass distance — they read a dedicated un-shadowed content-gutter alias. Mixing the two is the classic source of a few-px heading misalignment.
 
-- **The elastic title couples three rules.** The `minmax` title (reflow), the heading's both-sides padding (track re-land), and the grid's reflow-floored `min-width` are one mechanism — change one and re-check the others. A fixed title hides a heading-vs-row misalignment that an elastic title exposes.
+- **The heading's both-sides padding and the grid's summed `min-width` are one mechanism.** The padding re-lands the heading's tracks on the rows' content width; the `min-width` (the full column sum) is what makes overflow scroll instead of clip — change either and re-check the other against a heading-vs-row column drift.
 
-- **The reorder density factor is read from the zoom token, not back-solved.** Column-drag geometry reads the CSS zoom var directly; the older `header-width ÷ track-width` shortcut breaks the moment the title is grabbed while minmax-shrunk (its rendered width no longer equals its track width).
+- **The reorder density factor is read from the zoom token, not back-solved.** Column-drag geometry reads the CSS zoom var directly; a `header-width ÷ track-width` back-solve bakes in whatever layout slack the grid has (it broke under the since-reverted elastic title) — the token is the ground truth.
 
 - **A sticky group header pins at the gutter edge, losing its nesting indent while pinned.** A deeply-nested group's chevron clamps to the same x as a top-level one once scrolled far enough — a legibility-preserving pin that reverts on scroll-back, never clipping content.
 

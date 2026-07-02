@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 /**
  * The inline text editor every container view's cells share (A-12: Enter = confirm ·
@@ -25,6 +25,20 @@ export function PropertyEditor({
     done.current = true
     fn()
   }
+  // A non-blur teardown (keyboard navigation, programmatic switch) must not drop typed text —
+  // flush on unmount. Changed-text guard keeps StrictMode's dev cleanup cycle from committing
+  // the untouched initial value.
+  const textRef = useRef(text)
+  textRef.current = text
+  const commitRef = useRef(onCommit)
+  commitRef.current = onCommit
+  useEffect(
+    () => () => {
+      if (!done.current && textRef.current !== initial) finish(() => commitRef.current(textRef.current))
+    },
+    // biome-ignore lint/correctness/useExhaustiveDependencies: unmount-only flush; refs carry the latest.
+    []
+  )
   return (
     <input
       className="property-editor"

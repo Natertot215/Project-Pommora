@@ -376,7 +376,11 @@ export const useSession = create<SessionState>((set, get) => {
         await window.nexus.showError(res.error.message)
         return false
       }
-      await get().load() // refetch; reconcileSelection refreshes a moved/renamed page's path
+      // Value-only writes (a cell edit, a status cycle, a tier pick) never change the TREE —
+      // the caller's optimistic patch shows the change and the fs watcher settles canon, so the
+      // full-nexus re-walk is skipped for them (it's THE "reload the entire Y" on a hot path).
+      // Structural ops still refetch immediately; reconcileSelection refreshes a moved/renamed path.
+      if (req.op !== 'setProperty' && req.op !== 'setTier') await get().load()
       if (res.created && onCreated) await onCreated(res.created)
       return true
     }
