@@ -17,12 +17,12 @@ const def = (id: string, name: string): PropertyDefinition =>
   ({ id, name, type: 'select', select_options: [{ value: 'a', label: 'A', color: 'blue' }] }) as PropertyDefinition
 
 describe('propertiesRegistry', () => {
-  it('reads {} when the file is absent', async () => {
-    expect(await readRegistry(root)).toEqual({})
+  it('reads empty when the file is absent', async () => {
+    expect(await readRegistry(root)).toEqual({ order: [], defs: {} })
   })
 
-  it('round-trips a written registry', async () => {
-    const reg = { prop_a: def('prop_a', 'Priority'), prop_b: def('prop_b', 'Status') }
+  it('round-trips a written registry file', async () => {
+    const reg = { order: ['prop_b', 'prop_a'], defs: { prop_a: def('prop_a', 'Priority'), prop_b: def('prop_b', 'Status') } }
     await writeRegistry(root, reg)
     expect(await readRegistry(root)).toEqual(reg)
   })
@@ -33,6 +33,28 @@ describe('propertiesRegistry', () => {
       join(root, '.nexus', 'properties.json'),
       JSON.stringify({ prop_a: def('prop_a', 'Priority'), prop_bad: { id: 'prop_bad' } })
     )
-    expect(Object.keys(await readRegistry(root))).toEqual(['prop_a'])
+    expect(Object.keys((await readRegistry(root)).defs)).toEqual(['prop_a'])
+  })
+})
+
+describe('RegistryFile shape — { order, defs } with legacy migration', () => {
+  it('reads a legacy bare-Record file as { order: [], defs }', async () => {
+    await mkdir(join(root, '.nexus'), { recursive: true })
+    await writeFile(
+      join(root, '.nexus', 'properties.json'),
+      JSON.stringify({ prop_a: def('prop_a', 'Priority') })
+    )
+    const reg = await readRegistry(root)
+    expect(reg.defs.prop_a?.id).toBe('prop_a')
+    expect(reg.order).toEqual([])
+  })
+
+  it('element-filters junk order entries — non-strings and ids without defs dropped (B-3)', async () => {
+    await mkdir(join(root, '.nexus'), { recursive: true })
+    await writeFile(
+      join(root, '.nexus', 'properties.json'),
+      JSON.stringify({ order: ['prop_a', 42, null, 'prop_gone'], defs: { prop_a: def('prop_a', 'Priority') } })
+    )
+    expect((await readRegistry(root)).order).toEqual(['prop_a'])
   })
 })

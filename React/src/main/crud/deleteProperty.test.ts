@@ -49,7 +49,7 @@ describe('deleteProperty', () => {
     expect((await deleteProperty(root, id)).ok).toBe(true)
 
     // def gone, assignments gone
-    expect((await readRegistry(root))[id]).toBeUndefined()
+    expect((await readRegistry(root)).defs[id]).toBeUndefined()
     for (const folder of [notes, tasks]) {
       const sc = await readSidecar(folder, 'collection', pageCollectionSidecar)
       expect(((sc?.properties as string[]) ?? []).includes(id)).toBe(false)

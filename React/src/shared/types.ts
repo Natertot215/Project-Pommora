@@ -174,6 +174,9 @@ export interface NexusTree {
   labels: NexusLabels
   /** Resolved app accent from .nexus/settings.json (defaults to DEFAULT_ACCENT). */
   accent: AccentSetting
+  /** Every registry definition, in the nexus-wide cosmetic order (order-listed first,
+   *  unlisted appended) — reserved ids included; consumers filter (E-1/E-5). */
+  registry: PropertyDefinition[]
 }
 
 /**

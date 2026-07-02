@@ -27,7 +27,7 @@ import { savedView, type SavedView } from '@shared/views'
 import type { PropertyDefinition } from '@shared/properties'
 import { adoptedId } from './ids'
 import { pathExists, readJsonObject } from './io/atomicWrite'
-import { readRegistry, type PropertyRegistry } from './io/propertiesRegistry'
+import { orderedDefs, readRegistry, type PropertyRegistry } from './io/propertiesRegistry'
 import { asString, asStringArray, basenameNoMd } from './coerce'
 import { shouldSkipDir } from './exclusion'
 import { resolveOrder } from './order'
@@ -345,7 +345,7 @@ export async function readNexus(root: string): Promise<NexusTree> {
       (await pathExists(join(abs, SIDECAR_FILENAME.eventConfig)))
     if (hasAgendaSidecar) continue
     const isCollection = sidecarMode ? await pathExists(join(abs, SIDECAR_FILENAME.collection)) : true
-    if (isCollection) allCollections.push(await readPageCollection(abs, e.name, e.name, sidecarMode, excluded, fb, registry))
+    if (isCollection) allCollections.push(await readPageCollection(abs, e.name, e.name, sidecarMode, excluded, fb, registry.defs))
   }
   const orderedCollections = resolveOrder(allCollections, asStringArray(state.collection_order), fb)
 
@@ -369,6 +369,7 @@ export async function readNexus(root: string): Promise<NexusTree> {
     collections,
     userSections,
     labels,
-    accent
+    accent,
+    registry: orderedDefs(registry)
   }
 }

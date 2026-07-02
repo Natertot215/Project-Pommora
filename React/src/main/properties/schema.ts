@@ -34,17 +34,22 @@ export function droppingUserContexts(defs: PropertyDefinition[]): PropertyDefini
 // MARK: - Validation (mirrors Swift PropertyDefinitionValidator)
 
 /** A property name in the context of a schema: non-empty after trim + unique
- *  case-insensitively, excluding the def identified by `excludeId` (for rename). */
+ *  case-insensitively, excluding the def identified by `excludeId` (for rename).
+ *  `unique: false` skips the clash check — the registry paths allow twin names (D-3);
+ *  Agenda's callers pass nothing, so uniqueness holds there. */
 export function validateName(
   name: string,
   existing: PropertyDefinition[],
-  excludeId?: string
+  excludeId?: string,
+  opts: { unique?: boolean } = {}
 ): Result<null> {
   const trimmed = name.trim()
   if (!trimmed) return fail('invalid-property', 'A property name cannot be empty.')
-  const lower = trimmed.toLowerCase()
-  const clash = existing.some((d) => d.id !== excludeId && d.name.trim().toLowerCase() === lower)
-  if (clash) return fail('invalid-property', `A property named "${trimmed}" already exists.`)
+  if (opts.unique !== false) {
+    const lower = trimmed.toLowerCase()
+    const clash = existing.some((d) => d.id !== excludeId && d.name.trim().toLowerCase() === lower)
+    if (clash) return fail('invalid-property', `A property named "${trimmed}" already exists.`)
+  }
   return ok(null)
 }
 
@@ -52,9 +57,10 @@ export function validateName(
  *  multiSelect option constraints. Mirrors `PropertyDefinitionValidator.validate`. */
 export function validateDefinition(
   def: PropertyDefinition,
-  existing: PropertyDefinition[]
+  existing: PropertyDefinition[],
+  opts?: { unique?: boolean }
 ): Result<null> {
-  const nameCheck = validateName(def.name, existing, def.id)
+  const nameCheck = validateName(def.name, existing, def.id, opts)
   if (!nameCheck.ok) return nameCheck
   if (isReservedPropertyId(def.id)) return fail('invalid-property', 'That property id is reserved.')
   if (existing.some((d) => d.id === def.id)) {

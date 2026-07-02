@@ -45,7 +45,7 @@ async function snapshot(root: string, propertyId: string, def: PropertyRegistry[
 
 export async function deleteProperty(root: string, propertyId: string): Promise<Result<null>> {
   const registry = await readRegistry(root)
-  const def = registry[propertyId]
+  const def = registry.defs[propertyId]
   if (!def) return fail('not-found', 'Property not found.')
 
   const folders = await assigners(root, propertyId)

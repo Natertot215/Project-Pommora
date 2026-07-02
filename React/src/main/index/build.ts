@@ -13,7 +13,7 @@ import { readSidecar } from '../sidecarIO'
 import { pageCollectionSidecar, pageSetSidecar } from '@shared/schemas'
 import { SIDECAR_FILENAME } from '../paths'
 import { agendaTask, agendaEvent, AGENDA_SUFFIX } from '@shared/agenda'
-import { readRegistry } from '../io/propertiesRegistry'
+import { orderedDefs, readRegistry } from '../io/propertiesRegistry'
 import { nowIso } from '../crud/util'
 import { TIER_LEVELS, tierFieldName, tierPropertyId } from '@shared/properties'
 import { buildLinkIndex } from '../connections/resolve'
@@ -296,7 +296,8 @@ export async function buildIndex(db: Db, nexusRoot: string): Promise<void> {
     for (const c of data.collections) upsertCollection(db, c)
     // property_definitions mirrors the nexus-wide registry, one row per def (no owner —
     // assignment lives on the collection sidecars; agenda defs stay out per D-1).
-    Object.values(registry).forEach((def, position) =>
+    // `position` rides the nexus-wide cosmetic order — the same rule readNexus exposes.
+    orderedDefs(registry).forEach((def, position) =>
       upsertPropertyDefinition(db, {
         id: def.id,
         name: def.name,
