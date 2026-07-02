@@ -183,6 +183,23 @@ describe('status cell gestures', () => {
     expect(mutateSpy).not.toHaveBeenCalled()
   })
 
+  it('a single-value pick CLOSES the picker once its Bloom-out settles', async () => {
+    await mountTable(sourceWith())
+    await act(async () => {
+      statusCell().click()
+    })
+    expect([...host.querySelectorAll('button')].some((b) => b.textContent?.includes('Complete'))).toBe(true)
+    const option = [...host.querySelectorAll('button')].find((b) => b.textContent?.includes('Complete'))
+    await act(async () => {
+      option?.click()
+    })
+    // The exit presence holds the pane through its Bloom-out (380ms), then unmounts it.
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 450))
+    })
+    expect([...host.querySelectorAll('button')].some((b) => b.textContent?.includes('Not started'))).toBe(false)
+  })
+
   it('picking an option writes the status optimistically through setProperty', async () => {
     await mountTable(sourceWith())
     await act(async () => {

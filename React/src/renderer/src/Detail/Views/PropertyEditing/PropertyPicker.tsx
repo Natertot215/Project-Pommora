@@ -71,7 +71,10 @@ export function PropertyPicker({
   }
 
   return (
-    <div ref={ref}>
+    // The picker renders INSIDE the cell it edits — its clicks must never bubble to the cell's
+    // own onClick, which would re-open the picker the same instant a pick dismissed it.
+    // biome-ignore lint/a11y/noStaticElementInteractions: a propagation boundary, not a control.
+    <div ref={ref} onClick={(e) => e.stopPropagation()}>
       <PickerMenu closing={closing} solid>
         {options.length === 0 ? (
           // A seed-only def pickers EMPTY (Nathan: scaffolding isn't options) — the spacer keeps

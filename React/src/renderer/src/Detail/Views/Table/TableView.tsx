@@ -145,8 +145,13 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
   // track-set change — never per scroll or per pointermove.
   const viewRef = useRef<HTMLDivElement>(null)
   const [overflowing, setOverflowing] = useState(false)
-  const overflowingRef = useRef(false)
-  overflowingRef.current = overflowing
+  // Two signals, two jobs: `overflowing` = the columns exceed the CURRENT box (the flatten +
+  // h-scroll look); `paneOverflowing` = they exceed the FULL uncompressed pane (releases the
+  // inspector's compression — Detail.css keys on it). A table that fits the open pane compresses
+  // for the inspector and scrolls within the inset; only a truly pane-exceeding one lifts.
+  const [paneOverflowing, setPaneOverflowing] = useState(false)
+  const paneOverflowingRef = useRef(false)
+  paneOverflowingRef.current = paneOverflowing
   // The cells' shared re-measure signal (OverflowScroll fades) — bumped debounced from the one
   // table-level observer instead of a ResizeObserver per cell (the per-cell version was an
   // O(cells) forced-layout storm on every frame of a column drag).
@@ -235,17 +240,24 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
     const check = (): void => {
       const shell = el.closest('.shell')
       const open = shell?.classList.contains('inspector-open') ?? false
-      const lifted = open && overflowingRef.current
-      const shellCs = lifted && shell ? getComputedStyle(shell) : null
-      const liftedBy = shellCs
+      const shellCs = open && shell ? getComputedStyle(shell) : null
+      const delta = shellCs
         ? Number.parseFloat(shellCs.getPropertyValue('--inspector-width')) + Number.parseFloat(shellCs.getPropertyValue('--glass-inset'))
         : 0
       const cs = getComputedStyle(el)
       const pads = Number.parseFloat(cs.paddingLeft) + Number.parseFloat(cs.paddingRight)
       const gridEl = el.querySelector('.table-grid')
       const zoom = gridEl ? Number.parseFloat(getComputedStyle(gridEl).getPropertyValue('zoom')) || 1 : 1
-      const available = el.clientWidth - pads - (Number.isNaN(liftedBy) ? 0 : liftedBy)
-      setOverflowing(reflowRef.current * zoom > available + 1)
+      const box = el.clientWidth - pads
+      const content = reflowRef.current * zoom
+      // The flatten + h-scroll look tracks the CURRENT box; the compression release tracks the
+      // FULL pane, reconstructed from whichever padding state the box is in (compressed → add the
+      // inspector's inset delta back). Both hypotheticals are state-independent, so neither can
+      // oscillate or latch.
+      setOverflowing(content > box + 1)
+      const compressedNow = open && !paneOverflowingRef.current
+      const uncompressed = box + (compressedNow && !Number.isNaN(delta) ? delta : 0)
+      setPaneOverflowing(content > uncompressed + 1)
       // Cells re-measure their fade edges once the burst settles (drag-resize fires per move) —
       // never per frame; hover/scroll keep individual cells honest in between.
       clearTimeout(epochTimer.current)
@@ -864,7 +876,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
   }
 
   return (
-    <div ref={viewRef} className={cx('table-view', overflowing && 'overflowing')}>
+    <div ref={viewRef} className={cx('table-view', overflowing && 'overflowing', paneOverflowing && 'pane-overflowing')}>
       <OverflowMeasureContext.Provider value={measureEpoch}>
       <IconPicker open={iconPickerOpen} onClose={() => setIconPickerOpen(false)} />
       <BandDnd bands={bands} labelFor={bandLabel} onDrop={onBandDrop}>
