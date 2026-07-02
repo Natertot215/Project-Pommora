@@ -16,7 +16,9 @@ import { PropertyPicker } from '../PropertyEditing/PropertyPicker'
 import { nextCycleValue } from '../PropertyEditing/statusCycle'
 import { useSession } from '../../../store'
 import { buildResolveContext, type ResolveContext } from './resolveContext'
-import { buildSetIcons, buildSetNames } from './cellResolve'
+import { buildSetIcons, buildSetNames, findOption } from './cellResolve'
+import { BandDnd, type BandDrop } from './bandDnd'
+import { flattenBands } from './bandDndModel'
 import { Cell } from './Cell'
 import { GroupHeader } from './GroupHeader'
 import { columnLabel, TIER_LEVEL_BY_ID } from './columnLabel'
@@ -248,6 +250,18 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
   }, [ctx === null, groups.length === 0])
   const setNames = useMemo(() => buildSetNames(source), [source])
   const setIcons = useMemo(() => buildSetIcons(source), [source])
+
+  // The visible band list (headers only) — BandDnd's hit-test universe, snapshot at drag activation.
+  const bands = useMemo(() => flattenBands(groups, collapsed), [groups, collapsed])
+  const bandLabel = (id: string): string => {
+    if (groupPropId) {
+      if (groupPropType === 'checkbox') return id === 'true' ? 'On' : 'Off'
+      return findOption(groupPropId, id, schema)?.label ?? id
+    }
+    return setNames.get(id) ?? id
+  }
+  // Band drop commits land in Task 5 — the gesture surface ships first.
+  const onBandDrop = (_draggedId: string, _drop: BandDrop): void => {}
 
   // Persist the saved view + every live override (order + collapse) + a patch, so no one mutation
   // clobbers another's unsaved state — the exact Swift reorder/resize data-loss H-2 guards against.
@@ -742,6 +756,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
     <div ref={viewRef} className={cx('table-view', overflowing && 'overflowing')}>
       <OverflowMeasureContext.Provider value={measureEpoch}>
       <IconPicker open={iconPickerOpen} onClose={() => setIconPickerOpen(false)} />
+      <BandDnd bands={bands} labelFor={bandLabel} onDrop={onBandDrop}>
       <TableRowDnd
         rows={dataRows}
         disabled={dragDisabled}
@@ -793,6 +808,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
           {groups.flatMap((g) => renderRows(g, 0, true))}
         </div>
       </TableRowDnd>
+      </BandDnd>
       </OverflowMeasureContext.Provider>
     </div>
   )

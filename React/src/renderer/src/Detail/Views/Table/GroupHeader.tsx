@@ -7,6 +7,7 @@ import { Icon, asIconName } from '@renderer/design-system/symbols'
 import { Chip } from '@renderer/Components/Chip'
 import { chipColorFor } from '@renderer/design-system/tokens/colorMap'
 import { declaredType } from '../pipeline/value'
+import { useBandDrag } from './bandDnd'
 import { findOption } from './cellResolve'
 import type { ResolveContext } from './resolveContext'
 
@@ -65,7 +66,8 @@ function groupGlyph(
 }
 
 /** A Set / property group header: the sidebar's chevron-twisty (reused, rotates on `--disclosure`), the
- *  resolved glyph, and a hover-revealed "+" to add a page to this group (Part 2 E-4 / L). */
+ *  resolved glyph — the band-drag surface (C-6) — and a hover-revealed "+" to add a page to this group
+ *  (Part 2 E-4 / L). The twisty + "+" isolate on POINTERDOWN so they can never arm a band gesture. */
 export function GroupHeader({
   group,
   view,
@@ -83,20 +85,33 @@ export function GroupHeader({
   collapsed: boolean
   onToggle: () => void
 }): React.JSX.Element {
+  const { ref, handle, isDragging, isNestTarget } = useBandDrag(group.key)
   return (
-    <span className={cx('group-header', text.body.emphasized)}>
+    <span
+      ref={ref}
+      className={cx('group-header', text.body.emphasized, isDragging && 'band-dragging', isNestTarget && 'band-nest-target')}
+    >
       <button
         type="button"
         className="group-twisty"
         onClick={onToggle}
+        onPointerDown={(e) => e.stopPropagation()}
         aria-label={collapsed ? 'Expand group' : 'Collapse group'}
       >
         <Icon name="chevron-right" size={12} className={cx('twisty', !collapsed && 'open')} />
       </button>
-      {groupGlyph(group, view, ctx, setNames, setIcons)}
+      <span className="band-glyph" {...handle}>
+        {groupGlyph(group, view, ctx, setNames, setIcons)}
+      </span>
       {/* Hover-revealed: adds a page to this group, sorted to the group bottom (newItemsTo, default
           'bottom'). The caller is pending Nathan's creation-affordance design (Q-7/Q-9) — inert for now. */}
-      <button type="button" className="group-add" tabIndex={-1} aria-label="New page in group">
+      <button
+        type="button"
+        className="group-add"
+        tabIndex={-1}
+        onPointerDown={(e) => e.stopPropagation()}
+        aria-label="New page in group"
+      >
         <Icon name="plus" size={13} />
       </button>
     </span>

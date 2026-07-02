@@ -320,6 +320,37 @@
 .group-name > svg {
   color: var(--label-secondary);
 }
+/* — Band drag (Phase 2) — the glyph is the drag surface; the picked-up band mutes in place and the
+   shared drop line marks the slot (BandDnd's .band-dnd wrapper is its positioning context). A
+   nestable Set band tints on middle-zone hover instead of showing a line. */
+.band-dnd {
+  position: relative;
+}
+.band-glyph {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+}
+.group-header.band-dragging {
+  opacity: var(--drag-muted);
+}
+.group-header.band-nest-target {
+  background: var(--selected);
+  border-radius: 6px;
+  outline: 4px solid var(--selected);
+}
+.band-drag-ghost {
+  position: fixed;
+  padding: 4px 12px;
+  border-radius: 8px;
+  color: var(--label-primary);
+  background: color-mix(in srgb, var(--bg-window) 78%, transparent);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  box-shadow: 0 14px 34px #00000073;
+  pointer-events: none;
+  z-index: 1000;
+}
 .group-twisty,
 .group-add {
   display: inline-flex;
