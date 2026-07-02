@@ -13,6 +13,7 @@
 // the zod codec / runtime membership Set — never re-listed (the AREA_COLORS idiom in types.ts).
 
 import { z } from 'zod'
+import { columnStyle, type ColumnStyle } from './columnStyles'
 import { type PropertyDefinition, RESERVED_PROPERTY_ID } from './properties'
 
 const VIEW_TYPES = ['table', 'board', 'list', 'cards', 'gallery'] as const
@@ -81,6 +82,7 @@ export interface SavedView {
   hidden_properties: string[]
   column_widths?: Record<string, number>
   column_alignments?: Record<string, ColumnAlign>
+  column_styles?: Record<string, ColumnStyle>
   collapsed_groups?: string[]
   card_size?: CardSize
   show_cover?: boolean
@@ -171,6 +173,7 @@ export const savedView = z.looseObject({
   hidden_properties: z.array(z.string()).catch([]),
   column_widths: z.record(z.string(), z.number()).optional(),
   column_alignments: z.record(z.string(), z.enum(COLUMN_ALIGNS)).optional(),
+  column_styles: z.record(z.string(), columnStyle).catch({}).optional(),
   collapsed_groups: z.array(z.string()).optional(),
   card_size: z.enum(CARD_SIZES).optional(),
   show_cover: z.boolean().optional(),
