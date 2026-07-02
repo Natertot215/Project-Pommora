@@ -3,7 +3,6 @@ import { useSession } from "../store";
 import { MarkdownEditor } from "../MarkdownPM";
 import { buildPageIndex, flattenPages, type ConnectionsApi } from "../MarkdownPM/connections";
 import { IconPicker } from "../Components/IconPicker";
-import { asIconName } from "../design-system/symbols";
 
 const SAVE_DEBOUNCE_MS = 400;
 // Live stats settle just behind the keystroke so a long page isn't Markdown-scanned on every char.
@@ -89,7 +88,6 @@ export function PageView(): React.JSX.Element {
             initialBody={pageDetail.body}
             title={pageDetail.title}
             path={pageDetail.path}
-            icon={asIconName(pageDetail.frontmatter.icon)}
             cover={
               typeof pageDetail.frontmatter.cover === "string"
                 ? pageDetail.frontmatter.cover

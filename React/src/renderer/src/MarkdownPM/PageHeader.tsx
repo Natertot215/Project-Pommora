@@ -1,5 +1,4 @@
 import { forwardRef } from 'react'
-import type { IconName } from '@renderer/design-system/symbols'
 import { useSession } from '../store'
 import { AddBannerButton } from '../Detail/Banner/AddBannerButton'
 import { DetailTitleHeader } from '../Detail/DetailTitleHeader'
@@ -9,7 +8,6 @@ const assetUrl = (rel: string): string => `nexus-asset://nexus/${encodeURI(rel)}
 interface Props {
   path: string
   title: string
-  icon?: IconName
   cover?: string
   onRename: (newName: string) => void | Promise<boolean | void>
   onEditIcon: () => void
@@ -22,7 +20,7 @@ interface Props {
  * right-click → Change / Remove. Both menus are native + separate, never overlapping.
  */
 export const PageHeader = forwardRef<HTMLDivElement, Props>(function PageHeader(
-  { path, title, icon, cover, onRename, onEditIcon },
+  { path, title, cover, onRename, onEditIcon },
   ref
 ) {
   const mutate = useSession((s) => s.mutate)
@@ -44,7 +42,6 @@ export const PageHeader = forwardRef<HTMLDivElement, Props>(function PageHeader(
   const titleHeader = (
     <DetailTitleHeader
       title={title}
-      icon={icon}
       onRename={onRename}
       requestMenu={() => window.nexus.titleMenu()}
       onEditIcon={onEditIcon}

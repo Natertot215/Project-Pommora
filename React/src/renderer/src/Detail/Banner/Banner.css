@@ -31,9 +31,24 @@
   bottom: 12px;
   left: var(--content-inset);
   right: 28px;
+  display: flex;
+  align-items: center;
+  gap: 8px; /* the shared detail-title icon gap */
   text-shadow: 0 1px 4px rgba(0, 0, 0, 0.55);
   pointer-events: none;
   transition: left var(--duration-base) var(--ease-standard);
+}
+/* Bannered views carry the entity's glyph (banner ⇒ icon, banner-less stays text-only). The icon
+   rides the title's font-size (1em) and mirrors its shadow for legibility over the image. */
+.banner-title-icon {
+  flex: none;
+  filter: drop-shadow(0 1px 4px #0000008c);
+}
+.banner-title-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .shell.is-resizing .banner-title {
   transition: none;

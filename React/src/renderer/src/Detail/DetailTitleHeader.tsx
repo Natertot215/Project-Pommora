@@ -1,23 +1,21 @@
 import { useEffect, useRef, useState } from 'react'
-import { Icon, type IconName } from '@renderer/design-system/symbols'
 import './DetailTitleHeader.css'
 
 /**
- * Shared detail-title chrome (Swift: DetailTitleHeader) — `[icon] [name]` shown as text, with a
- * right-click → Rename / Edit Icon menu. Rename flips the name to an inline editable field. Used by
- * every banner-bearing view (the page editor + the container/context/homepage banners).
+ * Shared detail-title chrome (Swift: DetailTitleHeader) — the page editor's title-only header
+ * (pages never show an icon here, by design — bannered container/context views carry theirs in
+ * the Banner), with a right-click → Rename / Edit Icon menu. Rename flips the name to an inline
+ * editable field.
  */
 interface Props {
   title: string
-  /** The entity's assigned icon, if any — omitted/undefined renders no icon (empty). */
-  icon?: IconName
   onRename: (newName: string) => void | Promise<boolean | void>
   /** Pops the native Rename / Edit Icon menu and resolves the chosen action. */
   requestMenu: () => Promise<'rename' | 'editIcon' | null>
   onEditIcon: () => void
 }
 
-export function DetailTitleHeader({ title, icon, onRename, requestMenu, onEditIcon }: Props): React.JSX.Element {
+export function DetailTitleHeader({ title, onRename, requestMenu, onEditIcon }: Props): React.JSX.Element {
   const [editing, setEditing] = useState(false)
   const [value, setValue] = useState(title)
   const reverting = useRef(false) // Escape sets this so the blur it triggers doesn't commit
@@ -51,9 +49,8 @@ export function DetailTitleHeader({ title, icon, onRename, requestMenu, onEditIc
   }
 
   return (
-    // Only the icon glyph + the name text are Rename / Edit-Icon targets — not the full-width row.
+    // Only the name text is the Rename / Edit-Icon target — not the full-width row.
     <div className="detail-title">
-      {icon && <Icon name={icon} className="detail-title-icon" onContextMenu={editing ? undefined : openMenu} />}
       {editing ? (
         <input
           ref={inputRef}

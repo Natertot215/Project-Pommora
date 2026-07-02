@@ -4,12 +4,14 @@ import type { BannerOwnerKind } from '@shared/mutate'
 // Resolving a selection to the entity it points at, and the banner owner for any view. The
 // renderer's analog of Swift's DetailScope — the seam between "what's selected" and "what renders".
 
-/** A banner-capable view's owner: which entity holds the banner + its current image path. */
+/** A banner-capable view's owner: which entity holds the banner + its current image path. `icon`
+ *  is the entity's raw stored value — the banner validates it and falls back per kind at render. */
 export interface BannerOwner {
   path: string
   kind: BannerOwnerKind
   name: string
   banner?: string
+  icon?: string
 }
 
 /** Every top Collection across ungrouped + user sections. */
@@ -59,15 +61,16 @@ export function findCollectionForSet(tree: NexusTree | null, setId: string): Col
 export function findContext(tree: NexusTree | null, id: string): BannerOwner | null {
   if (!tree) return null
   const area = tree.contexts.areas.find((n) => n.id === id)
-  if (area) return { path: area.path, kind: 'area', name: area.title, banner: area.banner }
+  if (area) return { path: area.path, kind: 'area', name: area.title, banner: area.banner, icon: area.icon }
   const topic = tree.contexts.topics.find((n) => n.id === id)
-  if (topic) return { path: topic.path, kind: 'topic', name: topic.title, banner: topic.banner }
+  if (topic) return { path: topic.path, kind: 'topic', name: topic.title, banner: topic.banner, icon: topic.icon }
   const project = tree.contexts.projects.find((n) => n.id === id)
-  if (project) return { path: project.path, kind: 'project', name: project.title, banner: project.banner }
+  if (project)
+    return { path: project.path, kind: 'project', name: project.title, banner: project.banner, icon: project.icon }
   return null
 }
 
 /** The banner owner for a page container (Collection or Set) — same shape; kind from the node. */
 export function containerOwner(node: CollectionNode | SetNode): BannerOwner {
-  return { path: node.path, kind: node.kind, name: node.title, banner: node.banner }
+  return { path: node.path, kind: node.kind, name: node.title, banner: node.banner, icon: node.icon }
 }

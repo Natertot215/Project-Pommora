@@ -38,9 +38,8 @@ interface Props {
   onChange: (body: string) => void;
   title?: string;
   onRename?: (newName: string) => void | Promise<boolean>;
-  /** Page identity + chrome for the header (banner cover + title icon + Edit Icon). */
+  /** Page identity + chrome for the header (banner cover + Edit Icon). */
   path?: string;
-  icon?: IconName;
   cover?: string;
   onEditIcon?: () => void;
   zoom?: number;
@@ -56,7 +55,6 @@ export function MarkdownEditor({
   title,
   onRename,
   path,
-  icon,
   cover,
   onEditIcon,
   zoom = ZOOM_DEFAULT,
@@ -232,7 +230,6 @@ export function MarkdownEditor({
           ref={titleRef}
           path={path}
           title={title}
-          icon={icon}
           cover={cover}
           onRename={onRename ?? ((): void => {})}
           onEditIcon={onEditIcon ?? ((): void => {})}
