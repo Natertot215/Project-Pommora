@@ -50,6 +50,28 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* Non-homepage banners host the shared DetailTitleHeader (right-click → Rename / Edit Icon,
+   inline rename). The banner overlay is pointer-inert; only the header's icon + text re-enable
+   hits, so a right-click on empty overlay width still reaches the banner's Change/Remove menu.
+   Size/weight/color re-skin the header to the banner-title look via its own surface knob. */
+.banner-title .detail-title {
+  --detail-title-size: 20px;
+  min-width: 0;
+}
+.banner-title .detail-title-icon,
+.banner-title .detail-title-text,
+.banner-title .detail-title-input {
+  pointer-events: auto;
+}
+.banner-title .detail-title-icon {
+  color: var(--text);
+  filter: drop-shadow(0 1px 4px #0000008c);
+}
+.banner-title .detail-title-text,
+.banner-title .detail-title-input {
+  font-weight: var(--weight-semibold);
+  color: var(--text);
+}
 .shell.is-resizing .banner-title {
   transition: none;
 }

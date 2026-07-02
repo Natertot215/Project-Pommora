@@ -796,7 +796,7 @@ ipcMain.handle('nexus:titleMenu', async (e): Promise<'rename' | 'editIcon' | nul
     }
     const menu = Menu.buildFromTemplate([
       { label: 'Rename', click: () => choose('rename') },
-      { label: 'Edit Icon', click: () => choose('editIcon') }
+      { label: 'Change Icon', click: () => choose('editIcon') }
     ])
     menu.popup({ window: win, callback: () => { if (!acted) resolve(null) } })
   })

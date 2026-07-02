@@ -1,7 +1,10 @@
-import type { BannerOwnerKind } from '@shared/mutate'
+import { useState } from 'react'
+import type { BannerOwnerKind, MutableKind } from '@shared/mutate'
 import { Icon, iconNameOr, type IconName } from '@renderer/design-system/symbols'
+import { IconPicker } from '@renderer/Components/IconPicker'
 import { useSession } from '../../store'
 import type { BannerOwner } from '../Scope'
+import { DetailTitleHeader } from '../DetailTitleHeader'
 import { AddBannerButton } from './AddBannerButton'
 
 const assetUrl = (rel: string): string => `nexus-asset://nexus/${encodeURI(rel)}`
@@ -20,6 +23,8 @@ const DEFAULT_ICON: Record<BannerOwnerKind, IconName> = {
 
 export function Banner({ owner }: { owner: BannerOwner }): React.JSX.Element {
   const mutate = useSession((s) => s.mutate)
+  const submitRename = useSession((s) => s.submitRename)
+  const [iconPickerOpen, setIconPickerOpen] = useState(false)
   const setBanner = (dataUrl: string | null): Promise<boolean> =>
     mutate({ op: 'setBanner', path: owner.path, kind: owner.kind, dataUrl })
 
@@ -50,10 +55,25 @@ export function Banner({ owner }: { owner: BannerOwner }): React.JSX.Element {
       }}
     >
       <img className="banner-img" src={assetUrl(owner.banner)} alt="" />
-      <span className="banner-title">
-        <Icon name={iconNameOr(owner.icon, DEFAULT_ICON[owner.kind])} className="banner-title-icon" />
-        <span className="banner-title-text">{owner.name}</span>
-      </span>
+      {owner.kind === 'homepage' ? (
+        // The homepage isn't a MutableKind (its name is the nexus itself) and holds no stored
+        // icon — its title stays inert; right-click falls through to the banner menu.
+        <span className="banner-title">
+          <Icon name={DEFAULT_ICON.homepage} className="banner-title-icon" />
+          <span className="banner-title-text">{owner.name}</span>
+        </span>
+      ) : (
+        <div className="banner-title">
+          <DetailTitleHeader
+            title={owner.name}
+            icon={iconNameOr(owner.icon, DEFAULT_ICON[owner.kind])}
+            onRename={(newName) => submitRename(owner.path, owner.kind as MutableKind, newName)}
+            requestMenu={() => window.nexus.titleMenu()}
+            onEditIcon={() => setIconPickerOpen(true)}
+          />
+        </div>
+      )}
+      <IconPicker open={iconPickerOpen} onClose={() => setIconPickerOpen(false)} />
     </div>
   )
 }
