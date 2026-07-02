@@ -1,5 +1,5 @@
 import type { ReactNode, MouseEvent, CSSProperties } from 'react'
-import { ChevronLeft } from 'lucide-react'
+import { Icon } from '../../symbols'
 import * as s from './menu.css'
 import { cx } from '../../cx'
 
@@ -99,7 +99,7 @@ export function MenuCaption({ children }: { children: ReactNode }): React.JSX.El
 /** A back-navigation row — a leading ‹ chevron + label; pops the menu's nav stack one level. */
 export function MenuBackRow({ label, onClick }: { label: string; onClick: () => void }): React.JSX.Element {
   return (
-    <MenuItem className={s.backRow} leading={<ChevronLeft size={12} />} onClick={onClick}>
+    <MenuItem className={s.backRow} leading={<Icon name="chevron-left" size={12} />} onClick={onClick}>
       {label}
     </MenuItem>
   )

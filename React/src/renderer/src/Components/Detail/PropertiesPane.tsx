@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ChevronRight, Plus } from 'lucide-react'
+import { Icon } from '@renderer/design-system/symbols'
 import { useSession } from '../../store'
 import { isReservedPropertyId, type PropertyDefinition, type PropertyType } from '@shared/properties'
 import { MenuItem, MenuSeparator, MenuCaption, MenuBackRow } from '../../design-system/components/menu'
@@ -71,7 +71,7 @@ export function PropertiesPane({
       <>
         {backHeader('Properties', backToList)}
         {CREATABLE_TYPES.map((type) => (
-          <MenuItem key={type} leading={<PropertyTypeIcon type={type} />} trailing={<ChevronRight size={16} />} onClick={() => void create(type)}>
+          <MenuItem key={type} leading={<PropertyTypeIcon type={type} />} trailing={<Icon name="chevron-right" size={16} />} onClick={() => void create(type)}>
             {propertyTypeLabel(type)}
           </MenuItem>
         ))}
@@ -116,7 +116,7 @@ export function PropertiesPane({
             key={d.id}
             leading={<PropertyTypeIcon type={d.type} />}
             detail={propertyTypeLabel(d.type)}
-            trailing={<ChevronRight size={16} />}
+            trailing={<Icon name="chevron-right" size={16} />}
             onClick={() => setView({ kind: 'edit', id: d.id })}
           >
             {d.name}
@@ -125,7 +125,7 @@ export function PropertiesPane({
       )}
       <div className={s.footer}>
         <MenuSeparator flush />
-        <MenuItem className={s.footerAction} leading={<Plus size={12} />} onClick={() => setView({ kind: 'type' })}>
+        <MenuItem className={s.footerAction} leading={<Icon name="plus" size={12} />} onClick={() => setView({ kind: 'type' })}>
           New Property
         </MenuItem>
       </div>

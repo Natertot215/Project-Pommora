@@ -100,13 +100,12 @@ The immediate-register set, mapped to what each naturally replaces. Tabler ids a
 | `clock-hour-three` | `clock` | Recents saved node |
 | `layout-sidebar-right` | `panel-right` | toolbar Inspector |
 | `circle-dashed` | `circle-dashed` | status upcoming · select placeholder |
-| `layout-grid` | `layout-grid` | sidebar context-tier headers |
 | `stack-2` | `layers` | ViewPane Group · showcase Glass leaf |
 | `filter-2` | `list-filter` | ViewPane Filter |
 | `arrows-up-down` | `arrow-up-down` | ViewPane Sort |
 | `minus` | `minus` | status in-progress |
 | `hashtag` | `hash` | Number property type |
-| `circle-plus` | `square-plus` — shape shift, square→circle | add-banner button |
+| `circle-plus` | — registered, unassigned (Nathan reverted Add Banner to Lucide `square-plus` on sight) | — |
 | `copy` | registry `copy` (uncalled today — kept registered for future duplicate actions) | — |
 | `file-text` | `file-text` — verified, same id in Tabler | THE default page icon |
 | `file-import` | `import` — bare `import` doesn't exist in Tabler; `file-import` verified | File property type |
@@ -117,6 +116,7 @@ The immediate-register set, mapped to what each naturally replaces. Tabler ids a
 - `folder-closed` / `folder-open` — stays Lucide (supersedes the earlier plan of Tabler `folder`/`folder-opened` behind custom CSS edits — that plan is dropped)
 - `log-out` — the sidebar in-out toggle (collapse renders flipped, expand plain — App.tsx; the census's "logout button" label was wrong, this is the sidebar affordance)
 - `link` (url property type) + `link-2` (Connections/relation) — BOTH stay Lucide, preserving Icons.md's deliberate url-vs-Connections separation (supersedes the earlier Tabler `link` pick)
+- `layout-grid` (context-tier headers) + `square-plus` (Add Banner) — reverted to Lucide on live sight of the Tabler versions (supersedes the earlier `layout-grid` and `circle-plus` assignments)
 
 **First-party custom glyphs**: `square-dashed` gets drawn in-house (no Tabler counterpart chosen; Nathan's call — "create our own"). Registry consequence: PommoraIcons hosts custom SVG components alongside `@tabler` ones in the same slot shape (24 viewBox · currentColor · the 1.75 stroke default), so a custom glyph is indistinguishable from a library one at the callsite.
 

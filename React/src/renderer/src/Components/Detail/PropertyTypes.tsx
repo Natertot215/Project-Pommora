@@ -1,5 +1,5 @@
-import { Hash, SquareCheck, CalendarDays, CircleDashed, Link, Import, Link2, type LucideIcon } from 'lucide-react'
 import type { PropertyType } from '@shared/properties'
+import { Icon, type IconName } from '@renderer/design-system/symbols'
 import { DashIcon } from './DashIcon'
 
 /**
@@ -10,20 +10,20 @@ import { DashIcon } from './DashIcon'
  */
 interface TypeMeta {
   label: string
-  icon?: LucideIcon
+  icon?: IconName
   creatable?: boolean
 }
 
 const PROPERTY_TYPES: Record<PropertyType, TypeMeta> = {
-  number: { label: 'Number', icon: Hash, creatable: true },
-  checkbox: { label: 'Checkbox', icon: SquareCheck, creatable: true },
-  datetime: { label: 'Date', icon: CalendarDays, creatable: true },
+  number: { label: 'Number', icon: 'hash', creatable: true },
+  checkbox: { label: 'Checkbox', icon: 'square-check', creatable: true },
+  datetime: { label: 'Date', icon: 'calendar', creatable: true },
   select: { label: 'Select', creatable: true },
   multi_select: { label: 'Multi-Select', creatable: true },
-  status: { label: 'Status', icon: CircleDashed, creatable: true },
-  url: { label: 'Link', icon: Link, creatable: true },
-  file: { label: 'File', icon: Import, creatable: true },
-  context: { label: 'Context', icon: Link2 },
+  status: { label: 'Status', icon: 'circle-dashed', creatable: true },
+  url: { label: 'Link', icon: 'link', creatable: true },
+  file: { label: 'File', icon: 'import', creatable: true },
+  context: { label: 'Context', icon: 'link-2' },
   last_edited_time: { label: 'Last edited' }
 }
 
@@ -34,6 +34,6 @@ export const CREATABLE_TYPES = (Object.keys(PROPERTY_TYPES) as PropertyType[]).f
 )
 
 export function PropertyTypeIcon({ type, size = 16 }: { type: PropertyType; size?: number }): React.JSX.Element {
-  const Icon = PROPERTY_TYPES[type].icon
-  return Icon ? <Icon size={size} /> : <DashIcon />
+  const name = PROPERTY_TYPES[type].icon
+  return name ? <Icon name={name} size={size} /> : <DashIcon />
 }
