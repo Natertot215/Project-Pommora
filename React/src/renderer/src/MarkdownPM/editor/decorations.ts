@@ -3,6 +3,7 @@ import { Decoration, type DecorationSet, EditorView, ViewPlugin, type ViewUpdate
 import type { Extension, Range } from '@codemirror/state'
 import { chipCheckbox } from '../../design-system/tokens'
 import { tokenize, activeTokenIndices, type Token } from '../tokens'
+import { docString } from "./docCache";
 import { decorationsFor, fencedCodeRanges, GLYPH_CLASS, type WidgetSpec } from '../decorations/intent'
 import type { ConnectionsApi } from '../connections'
 import { isValidLink } from '@shared/links'
@@ -129,7 +130,7 @@ function visibleInlineTokens(view: EditorView, text: string): Token[] {
 }
 
 function build(view: EditorView, conn: ConnectionsApi | undefined): DecorationSet {
-  const text = view.state.doc.toString()
+  const text = docString(view.state.doc)
   const focused = view.hasFocus
   const sel = view.state.selection.main
   const tokens = visibleInlineTokens(view, text)
