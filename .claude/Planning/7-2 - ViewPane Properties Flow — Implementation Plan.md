@@ -22,6 +22,7 @@
 - **Main-process changes need a full dev-process restart** (not ⌘R) to test live.
 - Duplicate property NAMES are allowed on create AND rename (D-3); names must still be non-empty.
 - Reserved ids (`isReservedPropertyId`, `shared/properties.ts:114`) never appear in either pane group (E-5).
+- **Size floors/caps (the 245s, the 350 cap, --edge-fade) are NATHAN'S KNOBS**: code them where the spec names them, keep each at ONE obvious call site (`ViewPane.tsx:103` / the fade class), and never iterate their values — he adjusts them himself.
 
 ## File Map
 
@@ -427,7 +428,7 @@ git commit -m "feat(viewpane): 350px cap + scrolling slot; sidebar scroll-edge f
 ### Task 5: The All Properties section + header ⊕ create
 
 **Files:**
-- Modify: `React/src/renderer/src/design-system/symbols/index.tsx:51-90` (import `CirclePlus`, add `'circle-plus': CirclePlus`)
+- Modify: `React/src/renderer/src/design-system/symbols/index.tsx` (register `circle-plus` via the PommoraIcons registry's CURRENT conventions — it's now a mixed lucide/tabler registry per CLAUDE.md; follow whichever source the neighboring glyphs use)
 - Modify: `React/src/renderer/src/Components/Detail/PropertiesPane.tsx` (list view gains the section; footer create-row + its separator REMOVED; header gains ⊕)
 - Test: extend `propertiesPane.test.tsx`
 
