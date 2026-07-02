@@ -11,7 +11,7 @@ import {
 import { createPortal } from 'react-dom'
 import { text } from '@renderer/design-system/tokens'
 import { cx } from '@renderer/design-system/cx'
-import { ACTIVATION } from '@renderer/design-system/interactions/shared'
+import { ACTIVATION, DROP_LINE_INSET } from '@renderer/design-system/interactions/shared'
 import type { MeasuredRow } from '@renderer/Sidebar/sidebarDndModel'
 import { type Band, type BandIndex, type BandSlot, bandSlot, buildBandIndex } from './bandDndModel'
 
@@ -21,7 +21,6 @@ import { type Band, type BandIndex, type BandSlot, bandSlot, buildBandIndex } fr
 // routed by the slot's implied parent vs the dragged band's current parent) — the caller never
 // re-derives it.
 
-const LINE_INSET = 2
 
 export type BandDrop =
   | { kind: 'reorder'; beforeId: string | null }
@@ -203,7 +202,7 @@ export function BandDnd({
       <div ref={box} className="band-dnd">
         {children}
         {drag.slot && !drag.slot.nestInto && (
-          <div className="table-drop-line" aria-hidden style={{ top: drag.lineTop, left: LINE_INSET, right: LINE_INSET }}>
+          <div className="table-drop-line" aria-hidden style={{ top: drag.lineTop, left: DROP_LINE_INSET, right: DROP_LINE_INSET }}>
             <span className="table-drop-dot" />
           </div>
         )}

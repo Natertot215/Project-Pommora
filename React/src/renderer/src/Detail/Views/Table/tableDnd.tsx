@@ -1,5 +1,5 @@
 import { createContext, useContext, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
-import { ACTIVATION } from '@renderer/design-system/interactions/shared'
+import { ACTIVATION, DROP_LINE_INSET } from '@renderer/design-system/interactions/shared'
 
 // Table row drag — the sidebar drop-line gesture (B): an accent insertion LINE marks the exact slot,
 // the picked-up row mutes in place (--drag-muted), and NO row displaces. Where you drop disambiguates
@@ -7,7 +7,6 @@ import { ACTIVATION } from '@renderer/design-system/interactions/shared'
 // reassigns the grouped property (setProperty). The commits live in TableView and are passed in — this
 // file owns only the gesture + hit-testing + the line. The cursor ghost is omitted (B-2).
 
-const LINE_INSET = 2 // px the insertion line is pulled in from the row's left/right edges
 
 type Slot = { lineY: number; left: number; width: number; commit: () => void; noop: boolean }
 type MeasuredRow = { id: string; top: number; bottom: number; mid: number; left: number; contentRight: number; group: string }
@@ -104,8 +103,8 @@ export function TableRowDnd({
     const above = clientY < near.mid // drop before `near` vs after it
     const targetGroup = near.group
     const lineY = (above ? near.top : near.bottom) - snap.boxTop
-    const left = near.left - snap.boxLeft + LINE_INSET
-    const width = near.contentRight - near.left - LINE_INSET * 2
+    const left = near.left - snap.boxLeft + DROP_LINE_INSET
+    const width = near.contentRight - near.left - DROP_LINE_INSET * 2
 
     if (targetGroup === activeGroup) {
       if (!canReorderWithin) return null

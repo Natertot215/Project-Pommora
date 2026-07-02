@@ -24,6 +24,7 @@ export type DragItem = {
 }
 
 export const ACTIVATION = 5 // px the pointer must travel before a drag starts (vs. a click)
+export const DROP_LINE_INSET = 2 // px an insertion line is pulled in from its surface's edges
 export const HYSTERESIS = 6 // px a new candidate must beat the current `over` by, to switch — kills flicker
 export const SETTLE_FALLBACK = 80 // ms slack past the transition for the commit fallback (paint-start delay)
 
