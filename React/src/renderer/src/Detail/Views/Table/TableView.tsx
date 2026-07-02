@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { CollectionNode, NexusTree, ResolvedColumn, ResolvedGroup, SetNode, ViewRow } from '@shared/types'
-import type { PropertyDefinition } from '@shared/properties'
+import type { PropertyDefinition, PropertyType } from '@shared/properties'
 import type { PageFrontmatter } from '@shared/schemas'
 import type { ColumnStyle } from '@shared/columnStyles'
 import type { CellMenuContext } from '@shared/cellMenu'
@@ -56,6 +56,25 @@ function pickView(source: CollectionNode | SetNode, activeId: string | undefined
   const views = source.views ?? []
   const active = activeId ? views.find((v) => v.id === activeId) : undefined
   return active ?? views[0] ?? mintDefaultView(schema)
+}
+
+/** The right-click menu context for a cell (A-13): title = page meta; url/file = the column's Style
+ *  radios + Edit; status = Style + Clear; the other style-bearing types = Style alone; tier and
+ *  select/multi/context = Clear alone. Anything else has no menu (null). */
+function cellMenuContextFor(
+  col: ResolvedColumn,
+  type: PropertyType | 'title' | 'tier' | undefined,
+  style: ColumnStyle
+): CellMenuContext | null {
+  if (col.kind === 'title') return { kind: 'title' }
+  if (col.kind === 'tier') return { kind: 'clear-only' }
+  if (type === 'url' || type === 'file') return { kind: 'style-edit', type, current: style }
+  if (type === 'status') return { kind: 'style-only', type, current: style, clearable: true }
+  if (type === 'checkbox' || type === 'number' || type === 'datetime' || type === 'last_edited_time') {
+    return { kind: 'style-only', type, current: style }
+  }
+  if (type === 'select' || type === 'multi_select' || type === 'context') return { kind: 'clear-only' }
+  return null
 }
 
 export function TableView({ source }: { source: CollectionNode | SetNode }): React.JSX.Element {
@@ -436,21 +455,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
   const openCellMenu = async (row: ViewRow, col: ResolvedColumn, e: React.MouseEvent): Promise<void> => {
     e.preventDefault()
     e.stopPropagation()
-    const t = declaredType(col.id, schema)
-    const ctx: CellMenuContext | null =
-      col.kind === 'title'
-        ? { kind: 'title' }
-        : col.kind === 'tier'
-          ? { kind: 'clear-only' }
-          : t === 'url' || t === 'file'
-            ? { kind: 'style-edit', type: t, current: colStyle(col.id) }
-            : t === 'status'
-              ? { kind: 'style-only', type: t, current: colStyle(col.id), clearable: true }
-              : t === 'checkbox' || t === 'number' || t === 'datetime' || t === 'last_edited_time'
-                ? { kind: 'style-only', type: t, current: colStyle(col.id) }
-                : t === 'select' || t === 'multi_select' || t === 'context'
-                  ? { kind: 'clear-only' }
-                  : null
+    const ctx = cellMenuContextFor(col, declaredType(col.id, schema), colStyle(col.id))
     if (!ctx) return
     const action = await window.nexus.cellMenu(ctx)
     if (!action) return

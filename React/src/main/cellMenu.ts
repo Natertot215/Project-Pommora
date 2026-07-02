@@ -1,6 +1,7 @@
 import { Menu } from 'electron'
 import type { BrowserWindow, MenuItemConstructorOptions } from 'electron'
 import { cellMenuModel, type CellMenuAction, type CellMenuContext } from '@shared/cellMenu'
+import { styleSubmenu } from './styleMenu'
 
 // The table-cell right-click menu — popColumnMenu's shape over the shared cellMenuModel:
 // a Style ▸ submenu (per-type radios) ahead of the plain items (title meta / Edit).
@@ -15,13 +16,7 @@ export function popCellMenu(win: BrowserWindow, ctx: CellMenuContext): Promise<C
     const model = cellMenuModel(ctx)
     const items: MenuItemConstructorOptions[] = []
     if (model.style && model.style.length > 0) {
-      items.push({
-        label: 'Style',
-        submenu: model.style.flatMap((r): MenuItemConstructorOptions[] => [
-          ...(r.separatorBefore ? [{ type: 'separator' } as MenuItemConstructorOptions] : []),
-          { label: r.label, type: 'radio', checked: r.checked, click: pick(`style:${r.key}:${r.value}`) }
-        ])
-      })
+      items.push({ label: 'Style', submenu: styleSubmenu(model.style, pick) })
     }
     if (items.length > 0 && model.items.length > 0) items.push({ type: 'separator' })
     for (const it of model.items) {

@@ -6,11 +6,9 @@ import { PickerMenu, PickerOption } from '@renderer/design-system/components/Pic
 import { useDismiss } from '@renderer/design-system/components/Popover'
 import { Chip } from '@renderer/Components/Chip'
 import { ContextChip } from '@renderer/Components/ContextChip'
-import { cx } from '@renderer/design-system/cx'
-import { Icon } from '@renderer/design-system/symbols'
-import { chip, chipCapsule, chipColor } from '@renderer/design-system/tokens'
 import { chipColorFor } from '@renderer/design-system/tokens/colorMap'
-import { STATUS_GROUP_GLYPH, statusGroupOf } from './statusCycle'
+import { statusGroupOf } from './statusCycle'
+import { StatusCapsule } from './StatusCapsule'
 
 /** A pickable option — status options flatten out of their groups, select/multi read
  *  `select_options`. An untouched creation seed is scaffolding, not defined options: the
@@ -85,9 +83,7 @@ export function PropertyPicker({
             return (
               <PickerOption key={o.value} selected={selected.includes(o.value)} onClick={() => pick(o.value)}>
                 {capsule ? (
-                  <span className={cx(chip, chipColor[chipColorFor(o.color)], chipCapsule)}>
-                    <Icon name={group ? STATUS_GROUP_GLYPH[group] : 'circle-dashed'} size={13} />
-                  </span>
+                  <StatusCapsule color={o.color} group={group} />
                 ) : contextOptions ? (
                   <ContextChip color={chipColorFor(o.color)} title={o.label} />
                 ) : (

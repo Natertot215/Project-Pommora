@@ -1,6 +1,6 @@
 import type { ColumnStyle } from '@shared/columnStyles'
 import type { ResolvedColumn, ViewRow } from '@shared/types'
-import { chip, chipCapsule, chipCheckbox, chipColor } from '@renderer/design-system/tokens'
+import { chip, chipCheckbox, chipColor } from '@renderer/design-system/tokens'
 import { cx } from '@renderer/design-system/cx'
 import { Icon, asIconName } from '@renderer/design-system/symbols'
 import { Switch } from '@renderer/design-system/components/Switches/Switch'
@@ -11,6 +11,7 @@ import { OverflowScroll } from '@renderer/design-system/components/OverflowScrol
 import { resolveFieldValue } from '../pipeline/value'
 import { fileLabel, formatDate, formatNumber } from '../PropertyEditing/formatValue'
 import { STATUS_GROUP_GLYPH, statusGroupOf } from '../PropertyEditing/statusCycle'
+import { StatusCapsule } from '../PropertyEditing/StatusCapsule'
 import { findOption } from './cellResolve'
 import type { ResolveContext } from './resolveContext'
 
@@ -52,9 +53,7 @@ export function Cell({
       if (v.kind === 'status' && (style.look === 'capsule' || style.look === 'checkbox')) {
         const group = statusGroupOf(v.value, ctx.schema.find((d) => d.id === column.id))
         return style.look === 'capsule' ? (
-          <span className={cx(chip, chipColor[chipColorFor(opt?.color)], chipCapsule)}>
-            <Icon name={group ? STATUS_GROUP_GLYPH[group] : 'circle-dashed'} size={13} />
-          </span>
+          <StatusCapsule color={opt?.color} group={group} />
         ) : (
           <span className={cx(chip, chipColor[chipColorFor(opt?.color)], chipCheckbox)}>
             {group && group !== 'upcoming' ? <Icon name={STATUS_GROUP_GLYPH[group]} size={12} strokeWidth={3} /> : null}

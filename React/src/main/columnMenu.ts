@@ -2,6 +2,7 @@ import { Menu } from 'electron'
 import type { BrowserWindow, MenuItemConstructorOptions } from 'electron'
 import { styleMenuItems, type ColumnMenuAction, type ColumnMenuContext } from '@shared/columnMenu'
 import type { ColumnAlign } from '@shared/views'
+import { styleSubmenu } from './styleMenu'
 
 // The table-view column header's right-click menu (E-1/E-5) — same shape as popTableMenu. Align (a radio
 // L/C/R, current checked) + Style (per-type radios from the shared builder) + Hide; the Title column
@@ -25,13 +26,7 @@ export function popColumnMenu(win: BrowserWindow, ctx: ColumnMenuContext): Promi
     }
     const styleRows = ctx.style ? styleMenuItems(ctx.style) : []
     if (styleRows.length > 0) {
-      items.push({
-        label: 'Style',
-        submenu: styleRows.flatMap((r): MenuItemConstructorOptions[] => [
-          ...(r.separatorBefore ? [{ type: 'separator' } as MenuItemConstructorOptions] : []),
-          { label: r.label, type: 'radio', checked: r.checked, click: pick(`style:${r.key}:${r.value}`) }
-        ])
-      })
+      items.push({ label: 'Style', submenu: styleSubmenu(styleRows, pick) })
     }
     if ((ctx.alignable || styleRows.length > 0) && ctx.hideable) items.push({ type: 'separator' })
     if (ctx.hideable) items.push({ label: 'Hide', click: pick('column:hide') })
