@@ -366,9 +366,9 @@ describe('open actions + row-click narrowing (A-7)', () => {
 
   it('file chip click opens the file under the nexus root', async () => {
     await mountTable(sourceWith())
-    const chip = [...host.querySelectorAll<HTMLElement>('.data-cell')[5].querySelectorAll('span')].find((s) =>
-      s.textContent?.includes('trip.png')
-    )
+    const chip = [...host.querySelectorAll<HTMLElement>('.data-cell')[5].querySelectorAll('span')]
+      .filter((s) => s.textContent?.includes('trip.png'))
+      .at(-1)
     await act(async () => {
       chip?.click()
     })

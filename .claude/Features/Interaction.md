@@ -26,7 +26,7 @@ Pommora's canonical pane/menu open — a zoom-from-the-trigger (`scale → 1` + 
 
 The same zoom — the same keyframes + Bloom curve — mounted on the **`dropdown`** token instead: snappier than the menu Bloom, also **symmetric**. The `dropdownOpen` / `dropdownClose` classes (`animations.css.ts`) read the same `--dropdown-origin` and retract through the shared `useExitPresence`. The split is deliberate: menus get the deliberate Bloom, inline surfaces the quicker Dropdown.
 
-- **Consumers:** the inline-edit `PickerMenu` (frost `GlassPane` clipped to a notch beak; origin = the notch tip) and the `AutocompletePanel` (wikilink autocomplete, `top left` — grows from the caret; retains its last position/rows so it can retract in place after the query clears).
+- **Consumers:** the inline-edit `PickerMenu` (frost `GlassPane` clipped to a notch beak; origin = the notch tip) — mounted by the table's cell value picker (`PropertyPicker`, the status/select/multi dropdown, anchored in the editing cell and retracting through the shared presence hook) — and the `AutocompletePanel` (wikilink autocomplete, `top left` — grows from the caret; retains its last position/rows so it can retract in place after the query clears).
 
 - **Note:** liquid `GlassControls` (the autocomplete) re-samples its refraction per frame, so the zoom reads slightly less crisp mid-flight than on the frost panes — timing/scale are identical.
 

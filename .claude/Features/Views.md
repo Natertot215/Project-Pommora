@@ -8,7 +8,7 @@ Every Collection or depth-1 Set carries an ordered list of saved views, and one 
 
 #### II. Saved-View Model
 
-Each container's sidecar holds an ordered `views[]`. A saved view records its `id` (a ULID), `name`, `icon`, renderer `type`, the `property_order` and `hidden_properties` (column layout), the `sort` (a multi-key list), the `filter` (a nested group), the `group` config, and display options (card size, collapsed-group state, cover and banner toggles). The **active view is tracked per-machine** in `.nexus/activeViews.json` — a container-to-view map kept out of the synced sidecar, so switching views never churns the shared file. A toolbar dropdown switches the active view; view CRUD — create, rename, duplicate, delete, reorder — persists to the sidecar.
+Each container's sidecar holds an ordered `views[]`. A saved view records its `id` (a ULID), `name`, `icon`, renderer `type`, the column layout (`property_order`, `hidden_properties`, per-column widths, alignments, and `column_styles` — the per-type look + date/time/number format choices; display formats live per-VIEW here, a deliberate divergence from Swift's def-level format keys), the `sort` (a multi-key list), the `filter` (a nested group), the `group` config, and display options (card size, collapsed-group state, cover and banner toggles). The **active view is tracked per-machine** in `.nexus/activeViews.json` — a container-to-view map kept out of the synced sidecar, so switching views never churns the shared file. A toolbar dropdown switches the active view; view CRUD — create, rename, duplicate, delete, reorder — persists to the sidecar.
 
 #### II. The Pipeline
 
@@ -35,8 +35,6 @@ The view-settings dropdown is scoped to the selected container — a Collection 
 **Board, List, Cards, and Gallery Renderers:** The four non-Table view types. The type enum carries all five; only Table draws.
 
 **View-Settings Editing Panes:** The Filter, Group, Sort, Layout, and Visibility panes. The pipeline already honors these configs from the sidecar, so the gap is authoring them — only the Properties pane is reachable.
-
-**Rich Table Cells:** Type-aware cell rendering (Select / Status / relation chips, checkboxes), inline cell editing, and column resize and reorder. The table renders plain-text cells.
 
 ### Prospects
 
