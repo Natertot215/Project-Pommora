@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { BannerOwnerKind, MutableKind } from '@shared/mutate'
-import { Icon, iconNameOr, type IconName } from '@renderer/design-system/symbols'
+import { iconNameOr, type IconName } from '@renderer/design-system/symbols'
 import { IconPicker } from '@renderer/Components/IconPicker'
 import { useSession } from '../../store'
 import type { BannerOwner } from '../Scope'
@@ -10,14 +10,14 @@ import { AddBannerButton } from './AddBannerButton'
 const assetUrl = (rel: string): string => `nexus-asset://nexus/${encodeURI(rel)}`
 
 /** Per-kind fallback so a bannered view always carries a glyph (banner ⇒ icon, even the default);
- *  banner-less stays text-only. Pages never reach here — their header is title-only by design. */
-const DEFAULT_ICON: Record<BannerOwnerKind, IconName> = {
+ *  banner-less stays text-only. Pages never reach here (their header is title-only by design) and
+ *  the homepage shows no icon at all — Nathan's call. */
+const DEFAULT_ICON: Record<Exclude<BannerOwnerKind, 'homepage'>, IconName> = {
   collection: 'gallery-vertical-end',
   set: 'folder-closed',
   area: 'layout-grid',
   topic: 'layout-grid',
   project: 'layout-grid',
-  homepage: 'house',
   page: 'file-text'
 }
 
@@ -56,10 +56,9 @@ export function Banner({ owner }: { owner: BannerOwner }): React.JSX.Element {
     >
       <img className="banner-img" src={assetUrl(owner.banner)} alt="" />
       {owner.kind === 'homepage' ? (
-        // The homepage isn't a MutableKind (its name is the nexus itself) and holds no stored
-        // icon — its title stays inert; right-click falls through to the banner menu.
+        // The homepage isn't a MutableKind (its name is the nexus itself) and gets NO icon — its
+        // title stays inert and bare; right-click falls through to the banner menu.
         <span className="banner-title">
-          <Icon name={DEFAULT_ICON.homepage} className="banner-title-icon" />
           <span className="banner-title-text">{owner.name}</span>
         </span>
       ) : (

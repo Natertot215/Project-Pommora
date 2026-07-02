@@ -38,12 +38,6 @@
   pointer-events: none;
   transition: left var(--duration-base) var(--ease-standard);
 }
-/* Bannered views carry the entity's glyph (banner ⇒ icon, banner-less stays text-only). The icon
-   rides the title's font-size (1em) and mirrors its shadow for legibility over the image. */
-.banner-title-icon {
-  flex: none;
-  filter: drop-shadow(0 1px 4px #0000008c);
-}
 .banner-title-text {
   min-width: 0;
   overflow: hidden;
