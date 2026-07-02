@@ -11,7 +11,7 @@ import {
 import { createPortal } from 'react-dom'
 import { text } from '@renderer/design-system/tokens'
 import { cx } from '@renderer/design-system/cx'
-import { ACTIVATION, DROP_LINE_INSET } from '@renderer/design-system/interactions/shared'
+import { ACTIVATION, DROP_LINE_INSET, suppressNextClick } from '@renderer/design-system/interactions/shared'
 import type { MeasuredRow } from '@renderer/Sidebar/sidebarDndModel'
 import { type Band, type BandIndex, type BandSlot, bandSlot, buildBandIndex } from './bandDndModel'
 
@@ -128,6 +128,7 @@ export function BandDnd({
 
   const begin = (id: string, e: ReactPointerEvent): void => {
     if (e.button !== 0 || !e.isPrimary || gesture.current.kind !== 'idle') return
+    if ((e.target as HTMLElement).closest?.('input, textarea, [contenteditable="true"]')) return
     const el = els.current.get(id)
     if (!el) return
     const handlers: Handlers = { move: onMove, up: onUp, cancel: onCancel, key: onKey }
@@ -179,6 +180,7 @@ export function BandDnd({
       if (slot.nestInto) drop(g.id, { kind: 'reparent', targetParentId: slot.nestInto, beforeId: null })
       else if (slot.impliedParentId === dragged.parentId) drop(g.id, { kind: 'reorder', beforeId: slot.beforeId })
       else drop(g.id, { kind: 'reparent', targetParentId: slot.impliedParentId, beforeId: slot.beforeId })
+      suppressNextClick() // the drop's release must not also fire the glyph's toggle
     }
     reset()
   }

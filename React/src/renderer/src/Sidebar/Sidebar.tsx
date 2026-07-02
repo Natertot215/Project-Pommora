@@ -21,6 +21,7 @@ import { SidebarDnd, useSidebarDrag } from './sidebarDnd'
 import { NexusHeader } from './NexusHeader'
 import { loadOpen, saveOpen } from './disclosureState'
 import { useSession } from '../store'
+import { RenamableTitle } from '../Components/RenamableTitle'
 
 /** Right-click an entity → main pops the native context menu. Every PathNode (page +
  *  container + context) carries kind/path/title; the code-keyed saved rows don't, so they
@@ -46,21 +47,7 @@ type RenameTarget = { path: string; kind: MutableKind }
  *  (store.renamingPath === path). Commit on Enter / blur (skipped when unchanged or empty);
  *  cancel on Escape. The mutate op runs through the store. */
 function RowTitle({ path, kind, title }: { path: string; kind: MutableKind; title: string }): React.JSX.Element {
-  const renamingPath = useSession((s) => s.renamingPath)
-  const cancelRename = useSession((s) => s.cancelRename)
-  const submitRename = useSession((s) => s.submitRename)
-  if (renamingPath !== path) return <>{title}</>
-  return (
-    <EditableInput
-      value={title}
-      className="row-title-input"
-      onCommit={(next) => {
-        if (next && next !== title) void submitRename(path, kind, next)
-        else cancelRename()
-      }}
-      onCancel={cancelRename}
-    />
-  )
+  return <RenamableTitle path={path} kind={kind} title={title} className="row-title-input" />
 }
 
 // --- selection helpers ----------------------------------------------------

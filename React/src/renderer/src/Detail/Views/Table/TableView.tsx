@@ -832,6 +832,14 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
           ctx={ctx}
           setNames={setNames}
           setIcons={setIcons}
+          setPath={g.kind === 'structural-set' ? setPaths.get(g.key) : undefined}
+          // Only a Collection's direct-child Sets open (the sidebar's selectable rule) — deeper
+          // sub-Sets are expand-only organizing folders.
+          onOpen={
+            g.kind === 'structural-set' && source.kind === 'collection' && depth === 0 && setPaths.has(g.key)
+              ? () => void select({ kind: 'set', id: g.key, path: setPaths.get(g.key) as string })
+              : undefined
+          }
           collapsed={isCollapsed}
           onToggle={() => toggleCollapse(g.key)}
         />

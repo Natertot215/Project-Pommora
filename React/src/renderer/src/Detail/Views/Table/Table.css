@@ -342,6 +342,16 @@
   border-radius: 6px;
   outline: 4px solid var(--selected);
 }
+/* The band's inline rename input — the sidebar row's recipe on the header's own type scale. */
+.band-title-input {
+  min-width: 120px;
+  font: inherit;
+  color: var(--text);
+  background: var(--input-field);
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  padding: 0 4px;
+}
 .band-drag-ghost {
   position: fixed;
   padding: 4px 12px;

@@ -10,7 +10,7 @@ import {
 } from 'react'
 import { createPortal } from 'react-dom'
 import { text } from '@renderer/design-system/tokens'
-import { ACTIVATION } from '@renderer/design-system/interactions/shared'
+import { ACTIVATION, suppressNextClick } from '@renderer/design-system/interactions/shared'
 import { announce } from '@renderer/design-system/interactions/a11y'
 import type { NexusTree } from '@shared/types'
 import type { MutateRequest } from '@shared/mutate'
@@ -230,15 +230,6 @@ export function SidebarDnd({
     setDrag(IDLE)
   }
 
-  // Swallow the click that fires right after a real drag so dropping doesn't also select.
-  const suppressNextClick = (): void => {
-    const swallow = (e: MouseEvent): void => {
-      e.stopPropagation()
-      e.preventDefault()
-    }
-    document.addEventListener('click', swallow, { capture: true, once: true })
-    window.setTimeout(() => document.removeEventListener('click', swallow, { capture: true }), 0)
-  }
 
   const begin = (id: string, e: ReactPointerEvent): void => {
     if (e.button !== 0 || !e.isPrimary || gesture.current.kind !== 'idle') return

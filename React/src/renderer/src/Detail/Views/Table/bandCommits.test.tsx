@@ -121,6 +121,8 @@ let host: HTMLDivElement
 let root: Root
 let mutateSpy: ReturnType<typeof vi.fn>
 let saveSpy: ReturnType<typeof vi.fn>
+let selectSpy: ReturnType<typeof vi.fn>
+let contextMenuSpy: ReturnType<typeof vi.fn>
 
 beforeEach(() => {
   host = document.createElement('div')
@@ -128,13 +130,16 @@ beforeEach(() => {
   root = createRoot(host)
   mutateSpy = vi.fn(async () => true) // the reparent router gates its view write on this
   saveSpy = vi.fn(async () => ({ ok: true }))
+  selectSpy = vi.fn(async () => {})
+  contextMenuSpy = vi.fn(async () => {})
   ;(window as unknown as { nexus: unknown }).nexus = {
     loadValues: async () => VALUES,
     activeViews: { get: async () => ({}) },
     viewOrders: { get: async () => ({}) },
     views: { save: saveSpy },
     cellMenu: vi.fn(async () => null),
-    columnMenu: vi.fn(async () => null)
+    columnMenu: vi.fn(async () => null),
+    contextMenu: contextMenuSpy
   }
   const pair = (singular: string, plural: string): { singular: string; plural: string } => ({ singular, plural })
   useSession.setState({
@@ -153,6 +158,8 @@ beforeEach(() => {
       }
     } as never,
     selection: { kind: 'none' } as never,
+    select: selectSpy as never,
+    renamingPath: null,
     mutate: mutateSpy as never
   })
 })
@@ -191,6 +198,11 @@ const dragBand = async (index: number, toY: number): Promise<void> => {
 const drop = async (): Promise<void> => {
   await act(async () => {
     firePointer(window, 'pointerup')
+  })
+  // A committed drop arms the one-tick post-drag click swallower — flush it so a test's
+  // follow-up click isn't eaten (real clicks land a tick later anyway).
+  await act(async () => {
+    await new Promise((r) => setTimeout(r, 1))
   })
 }
 
@@ -322,5 +334,59 @@ describe('band reparent', () => {
       order: ['sA', 'sB', 'sA1']
     })
     expect(lastSavedView().group_order).toEqual(['sA', 'sA1', 'sB'])
+  })
+})
+
+describe('band header — the sidebar interaction model', () => {
+  const glyphOf = (label: string): HTMLElement => {
+    const header = [...host.querySelectorAll('.group-header')].find((h) => h.textContent?.includes(label))
+    return header?.querySelector('.band-glyph') as HTMLElement
+  }
+  const headerOf = (label: string): HTMLElement =>
+    [...host.querySelectorAll('.group-header')].find((h) => h.textContent?.includes(label)) as HTMLElement
+
+  it('a single glyph click toggles the disclosure (persisted)', async () => {
+    await mountTable(structuralSource())
+    await act(async () => {
+      glyphOf('A').dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    })
+    expect((lastSavedView().collapsed_groups ?? [])).toContain('sA')
+  })
+
+  it('double-clicking an openable Set band selects it; a sub-Set band does not', async () => {
+    await mountTable(structuralSource())
+    await act(async () => {
+      glyphOf('A').dispatchEvent(new MouseEvent('dblclick', { bubbles: true }))
+    })
+    expect(selectSpy).toHaveBeenCalledWith({ kind: 'set', id: 'sA', path: 'Col/A' })
+    selectSpy.mockClear()
+    await act(async () => {
+      glyphOf('A1').dispatchEvent(new MouseEvent('dblclick', { bubbles: true }))
+    })
+    expect(selectSpy).not.toHaveBeenCalled()
+  })
+
+  it('right-clicking a Set band pops the native set context menu', async () => {
+    await mountTable(structuralSource())
+    await act(async () => {
+      headerOf('B').dispatchEvent(new MouseEvent('contextmenu', { bubbles: true }))
+    })
+    expect(contextMenuSpy).toHaveBeenCalledWith({ kind: 'set', path: 'Col/B', title: 'B' })
+  })
+
+  it('the store rename flow renders the inline input in the band and commits a rename mutate', async () => {
+    await mountTable(structuralSource())
+    await act(async () => {
+      useSession.setState({ renamingPath: 'Col/A' })
+    })
+    const input = host.querySelector('.band-title-input') as HTMLInputElement
+    expect(input).toBeTruthy()
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set?.call(input, 'Alpha')
+      input.dispatchEvent(new Event('input', { bubbles: true }))
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
+      input.blur()
+    })
+    expect(mutateSpy).toHaveBeenCalledWith({ op: 'rename', path: 'Col/A', kind: 'set', newName: 'Alpha' })
   })
 })

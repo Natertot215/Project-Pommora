@@ -25,6 +25,17 @@ export type DragItem = {
 
 export const ACTIVATION = 5 // px the pointer must travel before a drag starts (vs. a click)
 export const DROP_LINE_INSET = 2 // px an insertion line is pulled in from its surface's edges
+
+/** Swallow the click that fires right after a committed drag, so the drop doesn't also trigger
+ *  the surface's click action (select a row, toggle a band). One capture-phase, once-only guard. */
+export function suppressNextClick(): void {
+  const swallow = (e: MouseEvent): void => {
+    e.stopPropagation()
+    e.preventDefault()
+  }
+  document.addEventListener('click', swallow, { capture: true, once: true })
+  window.setTimeout(() => document.removeEventListener('click', swallow, { capture: true }), 0)
+}
 export const HYSTERESIS = 6 // px a new candidate must beat the current `over` by, to switch — kills flicker
 export const SETTLE_FALLBACK = 80 // ms slack past the transition for the commit fallback (paint-start delay)
 

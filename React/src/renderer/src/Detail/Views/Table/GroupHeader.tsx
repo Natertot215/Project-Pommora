@@ -7,27 +7,31 @@ import { Icon, asIconName } from '@renderer/design-system/symbols'
 import { Chip } from '@renderer/Components/Chip'
 import { chipColorFor } from '@renderer/design-system/tokens/colorMap'
 import { declaredType } from '../pipeline/value'
+import { RenamableTitle } from '@renderer/Components/RenamableTitle'
 import { useBandDrag } from './bandDnd'
 import { findOption } from './cellResolve'
 import type { ResolveContext } from './resolveContext'
 
-/** The glyph for a group header. Structural Set → its name; status/select → a Chip (status is always a
- *  pill per L-1, select per L-4); checkbox → the box glyph + On/Off (L-2); date → the property icon +
+/** The glyph for a group header. Structural Set → its name (swapping to the shared inline rename
+ *  input while the store renames its path); status/select → a Chip (status is always a pill per
+ *  L-1, select per L-4); checkbox → the box glyph + On/Off (L-2); date → the property icon +
  *  bucket label (L-3); otherwise the raw key. */
 function groupGlyph(
   group: ResolvedGroup,
   view: SavedView,
   ctx: ResolveContext,
   setNames: Map<string, string>,
-  setIcons: Map<string, string | undefined>
+  setIcons: Map<string, string | undefined>,
+  setPath: string | undefined
 ): ReactNode {
   // Structural Set/folder group (E-3): the Set's own icon (or the folder default), immune to Hide Page
   // Icons — it names the container, not a page — then the Set title.
   if (group.kind === 'structural-set') {
+    const title = setNames.get(group.key) ?? group.key
     return (
       <span className="group-name">
         <Icon name={asIconName(setIcons.get(group.key)) ?? 'folder-closed'} size={13} />
-        {setNames.get(group.key) ?? group.key}
+        {setPath ? <RenamableTitle path={setPath} kind="set" title={title} className="band-title-input" /> : title}
       </span>
     )
   }
@@ -65,15 +69,20 @@ function groupGlyph(
   }
 }
 
-/** A Set / property group header: the sidebar's chevron-twisty (reused, rotates on `--disclosure`), the
- *  resolved glyph — the band-drag surface (C-6) — and a hover-revealed "+" to add a page to this group
- *  (Part 2 E-4 / L). The twisty + "+" isolate on POINTERDOWN so they can never arm a band gesture. */
+/** A Set / property group header on the sidebar's interaction model: the chevron-twisty (reused,
+ *  rotates on `--disclosure`), the resolved glyph — the band-drag surface (C-6) AND the click
+ *  surface (single-click toggles the disclosure, double-click opens an openable Set, right-click
+ *  pops the native Set menu — New Page · Rename · …) — and a hover-revealed "+" to add a page to
+ *  this group (Part 2 E-4 / L). The twisty + "+" isolate on POINTERDOWN so they can never arm a
+ *  band gesture; a double-click's two clicks toggle-and-untoggle, so the disclosure nets out. */
 export function GroupHeader({
   group,
   view,
   ctx,
   setNames,
   setIcons,
+  setPath,
+  onOpen,
   collapsed,
   onToggle
 }: {
@@ -82,14 +91,30 @@ export function GroupHeader({
   ctx: ResolveContext
   setNames: Map<string, string>
   setIcons: Map<string, string | undefined>
+  /** The structural Set's real path — enables the native menu + inline rename (undefined for
+   *  property bands). */
+  setPath?: string
+  /** Present only for OPENABLE Sets (a Collection's direct children — sub-Sets are expand-only,
+   *  matching the sidebar's selectable rule). */
+  onOpen?: () => void
   collapsed: boolean
   onToggle: () => void
 }): React.JSX.Element {
   const { ref, handle, isDragging, isNestTarget } = useBandDrag(group.key)
+  const outsideRename = (e: React.MouseEvent): boolean => !(e.target as HTMLElement).closest?.('input')
   return (
     <span
       ref={ref}
       className={cx('group-header', text.body.emphasized, isDragging && 'band-dragging', isNestTarget && 'band-nest-target')}
+      onContextMenu={
+        setPath
+          ? (e) => {
+              e.preventDefault()
+              e.stopPropagation()
+              void window.nexus.contextMenu({ kind: 'set', path: setPath, title: setNames.get(group.key) ?? group.key })
+            }
+          : undefined
+      }
     >
       <button
         type="button"
@@ -100,8 +125,21 @@ export function GroupHeader({
       >
         <Icon name="chevron-right" size={12} className={cx('twisty', !collapsed && 'open')} />
       </button>
-      <span className="band-glyph" {...handle}>
-        {groupGlyph(group, view, ctx, setNames, setIcons)}
+      <span
+        className="band-glyph"
+        {...handle}
+        onClick={(e) => {
+          if (outsideRename(e)) onToggle()
+        }}
+        onDoubleClick={
+          onOpen
+            ? (e) => {
+                if (outsideRename(e)) onOpen()
+              }
+            : undefined
+        }
+      >
+        {groupGlyph(group, view, ctx, setNames, setIcons, setPath)}
       </span>
       {/* Hover-revealed: adds a page to this group, sorted to the group bottom (newItemsTo, default
           'bottom'). The caller is pending Nathan's creation-affordance design (Q-7/Q-9) — inert for now. */}

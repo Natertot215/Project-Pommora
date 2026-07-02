@@ -1,5 +1,5 @@
 import { createContext, useContext, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
-import { ACTIVATION, DROP_LINE_INSET } from '@renderer/design-system/interactions/shared'
+import { ACTIVATION, DROP_LINE_INSET, suppressNextClick } from '@renderer/design-system/interactions/shared'
 
 // Table row drag — the sidebar drop-line gesture (B): an accent insertion LINE marks the exact slot,
 // the picked-up row mutes in place (--drag-muted), and NO row displaces. Where you drop disambiguates
@@ -143,15 +143,6 @@ export function TableRowDnd({
     gesture.current = { kind: 'idle' }
     live.current = null
     setDrag(IDLE)
-  }
-  // Swallow the click that fires right after a real drag so the drop doesn't also select the row.
-  const suppressNextClick = (): void => {
-    const swallow = (e: MouseEvent): void => {
-      e.stopPropagation()
-      e.preventDefault()
-    }
-    document.addEventListener('click', swallow, { capture: true, once: true })
-    window.setTimeout(() => document.removeEventListener('click', swallow, { capture: true }), 0)
   }
 
   const begin = (id: string, e: ReactPointerEvent): void => {
