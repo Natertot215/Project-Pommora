@@ -53,6 +53,7 @@
 - Modify: `React/src/main/properties/schema.ts:38-57` (`validateName` opt-out)
 - Modify: `React/src/main/readNexus.ts` — line 302 (`readRegistry` now returns `RegistryFile`), **line 348 (`readPageCollection(…, registry)` must pass `registry.defs` — the param at line 220 stays typed `PropertyRegistry`, feeding `resolveAssignedSchema` at 234)**, and the return object (~364-373) · `React/src/shared/types.ts:158-177`
 - Modify: `React/src/main/crud/deleteProperty.ts:47,75-76` (new shape at its two registry touches)
+- Modify: `React/src/main/index/build.ts:291,299` — the SQLite mirror also consumes `readRegistry`: `Object.values(registry)` becomes the ORDERED defs, so the `position` column rides the nexus order (self-caught in verification; the sweep missed it)
 - Test: `React/src/main/io/propertiesRegistry.test.ts`, `React/src/main/crud/registryProperty.test.ts`
 
 **Interfaces:**
@@ -175,11 +176,16 @@ export function reorderRegistry(root: string, propertyId: string, toIndex: numbe
 `shared/types.ts` (NexusTree, after `accent`): `/** Every registry definition, in the nexus-wide cosmetic order (order-listed first, unlisted appended). */ registry: PropertyDefinition[]`. In `readNexus.ts`, where `readRegistry` already loads (line 302 area), compute once and add to the return object (line ~373):
 
 ```typescript
-const orderedRegistry = [
-  ...reg.order.map((id) => reg.defs[id]),
-  ...Object.values(reg.defs).filter((d) => !reg.order.includes(d.id))
-].filter((d): d is PropertyDefinition => d !== undefined)
+/** In propertiesRegistry.ts — ONE ordering rule for every consumer (readNexus + the SQLite mirror). */
+export function orderedDefs(reg: RegistryFile): PropertyDefinition[] {
+  return [
+    ...reg.order.map((id) => reg.defs[id]),
+    ...Object.values(reg.defs).filter((d) => !reg.order.includes(d.id))
+  ].filter((d): d is PropertyDefinition => d !== undefined)
+}
 ```
+
+`readNexus` returns `registry: orderedDefs(reg)`; `build.ts:299` iterates `orderedDefs(registry).forEach((def, position) => …)` so SQLite's `position` mirrors the nexus order.
 
 Fix the tree fixtures/tests that construct `NexusTree` literals (typecheck will list them — add `registry: []`).
 
@@ -209,7 +215,7 @@ git commit -m "feat(registry): {order,defs} file shape + nexus order ops + order
 - Produces: `removeProperty(root, collectionFolder, propertyId): Promise<Result<null>>`; `restoreCachedValues(root, collectionFolder, propertyId): Promise<Result<null>>` (called from `assignProperty`); sidecar block shape `property_cache: { [propId]: { removed_at: string; values: Record<pageId, unknown> } }` (C-6); preload `window.nexus.schema.assign(containerPath, propertyId)` and `window.nexus.registry.reorder(propertyId, toIndex)`.
 - Consumes: T1's `RegistryFile`; `SchemaTransaction` (`io/schemaTransaction.ts` — `stage(target, content)` / `commit()`); `stripPageMember(content, propertyId): string | null` (`crud/schema.ts:45-52`); `parsePropertyValue`/`applyPropertyValue` (`shared/propertyValue.ts:54,145`).
 
-- [ ] **Step 1: READ FIRST** — open `crud/deleteProperty.ts:24-77` in full and note (a) how it enumerates a collection folder's member `.md` files (lines 64-73) and (b) the snapshot's `values` collection. `removeProperty` reuses the same enumeration — extract it to a shared helper `collectMembers(folder): Promise<string[]>` in `deleteProperty.ts` (exported) rather than duplicating the walk.
+- [ ] **Step 1: READ FIRST** — open `crud/deleteProperty.ts:24-77` in full. Verified idiom to reuse directly (NO extraction needed): member enumeration is the existing `listMarkdownFiles(folder)`; the sidecar reads via `readSidecar(folder, 'collection', pageCollectionSidecar)`; staged writes via `tx.stage(join(folder, SIDECAR_FILENAME.collection), serializeJson({ …sidecar, …, modified_at: nowIso() }))` — all already importable where `removeProperty.ts` lives.
 
 - [ ] **Step 2: Failing tests** — `removeProperty.test.ts` (mirror `deleteProperty.test.ts`'s harness: `mkdtemp` + `createFolderEntity` + real pages):
 
@@ -276,11 +282,12 @@ it('global Delete purges the property_cache block in every assigner sidecar (D-6
  *  collection sidecar, and unassign — ONE SchemaTransaction (E-3), so no partial state survives
  *  a failure. Not assigned → no-op ok (E-6). */
 export async function removeProperty(root: string, collectionFolder: string, propertyId: string): Promise<Result<null>> {
-  const sidecarRead = await readCollectionSidecar(collectionFolder) // the assignment.ts read helper — hoist/export it
-  if (!sidecarRead || !sidecarRead.ids.includes(propertyId)) return ok(null)
+  const sidecar = await readSidecar(collectionFolder, 'collection', pageCollectionSidecar)
+  const ids = (sidecar?.properties as string[] | undefined) ?? []
+  if (!sidecar || !ids.includes(propertyId)) return ok(null)
   const tx = new SchemaTransaction()
   const values: Record<string, unknown> = {}
-  for (const file of await collectMembers(collectionFolder)) {
+  for (const file of await listMarkdownFiles(collectionFolder)) {
     const content = await readFile(file, 'utf8')
     const raw = readFrontmatterFields(content).properties?.[propertyId] // the mutate.ts frontmatter reader
     const pageId = readFrontmatterFields(content).id
@@ -289,18 +296,18 @@ export async function removeProperty(root: string, collectionFolder: string, pro
     const stripped = stripPageMember(content, propertyId)
     if (stripped !== null) tx.stage(file, stripped)
   }
-  const cache = { ...(sidecarRead.sidecar.property_cache as Record<string, unknown> | undefined) }
-  cache[propertyId] = { removed_at: new Date().toISOString(), values }
+  const cache = { ...(sidecar.property_cache as Record<string, unknown> | undefined) }
+  cache[propertyId] = { removed_at: nowIso(), values }
   tx.stage(
-    sidecarPath(collectionFolder),
-    serializeSidecar({ ...sidecarRead.sidecar, properties: sidecarRead.ids.filter((id) => id !== propertyId), property_cache: cache })
+    join(collectionFolder, SIDECAR_FILENAME.collection),
+    serializeJson({ ...sidecar, properties: ids.filter((id) => id !== propertyId), property_cache: cache, modified_at: nowIso() })
   )
   await tx.commit()
   return ok(null)
 }
 ```
 
-(Real idiom, verified: export `assignment.ts`'s private `read(folder)` (lines 12-19, returns `{ sidecar, ids }`) as `readCollectionSidecar`; the staged sidecar write is `tx.stage(join(folder, SIDECAR_FILENAME.collection), serializeJson({ …sidecar, properties, property_cache, modified_at: nowIso() }))` — the exact `deleteProperty.ts:59-62` composition, INCLUDING the `modified_at` bump its sibling does. The sidecar is `z.looseObject`, so `property_cache` rides as a foreign key.)
+(Idiom verified first-hand against `deleteProperty.ts:52-77`: `readSidecar`/`listMarkdownFiles`/`serializeJson`/`nowIso`/`SIDECAR_FILENAME` are the real, importable names — no hoisting from `assignment.ts` needed. The `modified_at` bump matches the sibling. The sidecar is `z.looseObject`, so `property_cache` rides as a foreign key.)
 
 `restoreCachedValues` (same file): read sidecar block → if none, `ok(null)`; else fetch the def from `readRegistry(root)` and for each `[pageId, raw]`: resolve the page file among `collectMembers` (match frontmatter `id`), skip missing pages, run the reconcile gate, and stage `mergeFrontmatter` writes (the `setProperty` pattern, `main/mutate.ts:343-362`) applying `applyPropertyValue(fields.properties, propertyId, parsed)`; stage the sidecar with the block deleted; ONE `tx.commit()`. The reconcile gate (pure, exported for tests):
 
