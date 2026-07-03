@@ -7,6 +7,7 @@ import { createProperty, editProperty } from './registryProperty'
 import { assignProperty } from './assignment'
 import { createFolderEntity } from './folderEntity'
 import { createPage, updatePageProperty } from './page'
+import { serializeSchemaOp } from './schemaChain'
 import { readRegistry } from '../io/propertiesRegistry'
 import type { PropertyDefinition } from '@shared/properties'
 
@@ -61,6 +62,26 @@ describe('setOptions', () => {
     await setOptions(root, id, [])
     await editProperty(root, id, { name: 'Renamed Tags' })
     expect((await readRegistry(root)).defs[id].select_options).toEqual([])
+  })
+
+  it('serializes on the schema chain — queues behind an in-flight schema op, never interleaving', async () => {
+    const id = await mkSelect([{ value: 'A', label: 'A' }])
+    const order: string[] = []
+    let release!: () => void
+    const gate = new Promise<void>((r) => {
+      release = r
+    })
+    // Occupy the shared schema chain with a gated op, THEN fire setOptions. If setOptions rode a
+    // different lock it would slip past the gate and land first (the cross-chain race, finding #3).
+    const slow = serializeSchemaOp(async () => {
+      await gate
+      order.push('schema-op')
+    })
+    const fast = setOptions(root, id, [{ value: 'B', label: 'B' }]).then(() => order.push('setOptions'))
+    await new Promise((r) => setTimeout(r, 50))
+    release()
+    await Promise.all([slow, fast])
+    expect(order).toEqual(['schema-op', 'setOptions'])
   })
 })
 

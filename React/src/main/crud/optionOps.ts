@@ -23,20 +23,24 @@ function requireOptionType(type: PropertyType): Result<null> {
     : fail('invalid-property', 'Options can only be edited on Select or Multi-Select properties.')
 }
 
-/** Replace a Select / Multi-Select property's options wholesale (registry-only). Validates unique
- *  titles and writes the array verbatim — an emptied array stays empty (no re-seed; the >=1 floor is
- *  gone), unlike the create path's editProperty which seeds a default on an empty list. */
+/** Replace a Select / Multi-Select property's options wholesale. Validates unique titles and writes
+ *  the array verbatim — an emptied array stays empty (no re-seed; the >=1 floor is gone), unlike the
+ *  create path's editProperty which seeds a default on an empty list. Rides serializeSchemaOp (like
+ *  the page-touching ops) so it can't land inside a concurrent renameOption's cascade and desync the
+ *  registry from pages; the actual registry write still goes through mutateRegistry inside. */
 export function setOptions(root: string, propertyId: string, options: Option[]): Promise<Result<null>> {
-  return mutateRegistry<Result<null>>(root, (registry) => {
-    const current = registry.defs[propertyId]
-    if (!current) return { result: fail('not-found', 'Property not found.') }
-    const typeCheck = requireOptionType(current.type)
-    if (!typeCheck.ok) return { result: typeCheck }
-    const check = validateOptionValues(options)
-    if (!check.ok) return { result: check }
-    const next = { ...current, select_options: options }
-    return { next: { ...registry, defs: { ...registry.defs, [propertyId]: next } }, result: ok(null) }
-  })
+  return serializeSchemaOp(() =>
+    mutateRegistry<Result<null>>(root, (registry) => {
+      const current = registry.defs[propertyId]
+      if (!current) return { result: fail('not-found', 'Property not found.') }
+      const typeCheck = requireOptionType(current.type)
+      if (!typeCheck.ok) return { result: typeCheck }
+      const check = validateOptionValues(options)
+      if (!check.ok) return { result: check }
+      const next = { ...current, select_options: options }
+      return { next: { ...registry, defs: { ...registry.defs, [propertyId]: next } }, result: ok(null) }
+    })
+  )
 }
 
 /** Rewrite every assigning collection's pages through `rewrite` (null = the page doesn't hold it,
