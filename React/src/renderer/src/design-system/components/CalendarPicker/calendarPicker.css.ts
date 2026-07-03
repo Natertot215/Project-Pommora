@@ -1,6 +1,7 @@
 import { keyframes, style } from '@vanilla-extract/css'
 import { vars } from '../../tokens/color.css'
 import { TINT_STEPS, tintAt } from '../../tokens/tint'
+import { font } from '../../tokens/typography.css'
 
 const c = vars.color
 // Selection tints (Nathan's ratified pair): endpoints at tint-secondary, the in-between band a
@@ -17,8 +18,8 @@ export const root = style({ width: '216px', textAlign: 'left' })
 export const head = style({ display: 'flex', alignItems: 'center', padding: '2px 4px 8px' })
 export const title = style({
   flex: 1,
-  fontSize: '13.5px',
-  fontWeight: 600,
+  fontSize: font.scale.body.size,
+  fontWeight: font.weight.semibold,
   color: c.label.primary
 })
 export const nav = style({ display: 'flex', gap: '2px' })
@@ -37,8 +38,8 @@ export const navBtn = style({
 export const weekRow = style({ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', padding: '0 2px' })
 export const weekday = style({
   textAlign: 'center',
-  fontSize: '10px',
-  fontWeight: 600,
+  fontSize: font.scale.footnote.size,
+  fontWeight: font.weight.semibold,
   letterSpacing: '0.02em',
   color: c.label.secondary,
   padding: '3px 0 5px'
@@ -63,7 +64,7 @@ export const day = style({
   all: 'unset',
   height: '24px',
   textAlign: 'center',
-  fontSize: '11.5px',
+  fontSize: font.scale.caption.size,
   display: 'grid',
   placeItems: 'center',
   position: 'relative',
@@ -82,7 +83,7 @@ export const pill = style({
 })
 export const pillToday = style({ boxShadow: `inset 0 0 0 1px ${c.label.tertiary}` })
 export const pillSelected = style({ background: `${endpointFill} !important` })
-export const daySelected = style({ fontWeight: 650 })
+export const daySelected = style({ fontWeight: font.weight.semibold })
 /* Range endpoints stay FULLY rounded pills; the tertiary band runs UNDERNEATH them (a half-width
    under-layer toward the range side), so the strip connects while the endpoint keeps both its
    rounded edges overlapping the under-tint. */
@@ -110,7 +111,7 @@ export const field = style({
   padding: '4px 7px'
 })
 export const fieldIcon = style({ flex: 'none', color: c.label.secondary })
-export const fieldValue = style({ flex: 1, minWidth: 0, fontSize: '12px', color: c.label.primary })
+export const fieldValue = style({ flex: 1, minWidth: 0, fontSize: font.scale.control.size, color: c.label.primary })
 export const fieldEmpty = style({ color: c.label.tertiary })
 
 /* ── Boolean rows (the real Switch) ── */
@@ -120,7 +121,7 @@ export const switchRow = style({
   minHeight: '28px',
   padding: '0 2px'
 })
-export const switchLabel = style({ flex: 1, fontSize: '12.5px', color: c.label.primary })
+export const switchLabel = style({ flex: 1, fontSize: font.scale.control.size, color: c.label.primary })
 /* The real Switch at picker scale — zoom is the house density knob (the table uses the same). */
 export const switchScale = style({ zoom: 0.8 })
 
@@ -133,16 +134,16 @@ export const demoCell = style({
   flexDirection: 'column',
   gap: '8px',
   alignItems: 'flex-start',
-  width: '270px',
+  width: '280px',
   minHeight: '480px'
 })
-export const demoTag = style({ fontSize: '12px', color: c.label.secondary })
+export const demoTag = style({ fontSize: font.scale.control.size, color: c.label.secondary })
 export const demoTrigger = style({
   position: 'relative',
   border: `1px solid ${c.separator.line}`,
   borderRadius: '6px',
   padding: '3px 10px',
-  fontSize: '12px',
+  fontSize: font.scale.control.size,
   color: c.label.primary,
   background: c.state.hover
 })
