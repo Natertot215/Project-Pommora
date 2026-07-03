@@ -26,6 +26,14 @@ describe('stripPageValue', () => {
     expect(empty).not.toBeNull()
     expect(empty).not.toContain('prop_m')
   })
+
+  it('multi_select: preserves foreign (non-string) array elements it never targeted', () => {
+    const c = stripPageValue(page('  prop_m:\n    - x\n    - 5\n    - keep\n'), 'prop_m', 'x', 'multi_select')
+    expect(c).not.toBeNull()
+    expect(c).toContain('- 5')
+    expect(c).toContain('- keep')
+    expect(c).not.toContain('- x')
+  })
 })
 
 describe('replacePageValue (rename cascade)', () => {
@@ -42,6 +50,13 @@ describe('replacePageValue (rename cascade)', () => {
   it('multi_select: swaps one element in place', () => {
     const c = replacePageValue(page('  prop_m:\n    - a\n    - x\n'), 'prop_m', 'x', 'y', 'multi_select')
     expect(c).toContain('- y')
+    expect(c).not.toContain('- x')
+  })
+
+  it('multi_select: preserves foreign elements when swapping', () => {
+    const c = replacePageValue(page('  prop_m:\n    - x\n    - 5\n'), 'prop_m', 'x', 'y', 'multi_select')
+    expect(c).toContain('- y')
+    expect(c).toContain('- 5')
     expect(c).not.toContain('- x')
   })
 
