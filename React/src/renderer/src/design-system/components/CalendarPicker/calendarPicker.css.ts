@@ -175,7 +175,12 @@ export const switchRow = style({
   minHeight: '28px',
   padding: '0 2px'
 })
-export const switchLabel = style({ flex: 1, fontSize: font.scale.control.size, color: c.label.control })
+export const switchLabel = style({
+  flex: 1,
+  fontSize: font.scale.control.size,
+  fontWeight: font.weight.emphasized,
+  color: c.label.control
+})
 /* The real Switch at picker scale — zoom is the house density knob (the table uses the same). */
 export const switchScale = style({ zoom: 0.8 })
 
