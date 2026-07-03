@@ -66,6 +66,8 @@ A single **zoom** knob (Standard / Compact) scales text, chips, padding, and wid
 
 - **Row grips scroll with their row on horizontal scroll.** The disclosure headers + chevrons stay pinned, but the hover-only drag grips ride their row's cell off to the left — freezing them cleanly means freezing the whole title column (a frozen first column), which is a separate decision.
 
+- **Structural-group members lose their nesting indent once a row precedes them.** A Set / folder group should step every member one indent inside its header (see Groups); instead only a group's leading row indents, and any member with a sibling above it falls back to the flush loose-inset. Plainly visible on any folder-grouped Collection table — deferred.
+
 ### Prospects
 
 - **Per-style minimum column widths + slide animation (idea, Nathan 07-01):** each look carries its own column min (checkbox min < capsule min < pill min); when an at-minimum column's style changes to a wider look, the width "slides" to the new minimum with an animation. Design-note only for now.
