@@ -102,9 +102,9 @@ export const flushAffordance = style({ paddingLeft: 0, gap: '4px', color: c.labe
  *  the flush divider ends, instead of floating in on the row's right padding (Nathan's call). */
 export const flushTrailing = style({ paddingRight: 0 })
 
-/** Back row — flush affordance + caption type. `paddingBlock` is its own vertical-padding knob
- *  (overrides the base row's 6px), so the pane heading's height tunes apart from content rows. */
-export const backRow = style([text.caption.emphasized, flushAffordance, { paddingBlock: '6px' }])
+/** Back row — flush affordance + caption type. Vertical padding inherits the base row's;
+ *  surfaces that tune it pass their own class (the ViewPane's backRowPad knob). */
+export const backRow = style([text.caption.emphasized, flushAffordance])
 
 /** Non-interactive caption / empty-state line — body text, centered + secondary (no row geometry). */
 export const caption = style([

@@ -96,10 +96,19 @@ export function MenuCaption({ children }: { children: ReactNode }): React.JSX.El
   return <div className={s.caption}>{children}</div>
 }
 
-/** A back-navigation row — a leading ‹ chevron + label; pops the menu's nav stack one level. */
-export function MenuBackRow({ label, onClick }: { label: string; onClick: () => void }): React.JSX.Element {
+/** A back-navigation row — a leading ‹ chevron + label; pops the menu's nav stack one level.
+ *  `className` composes surface-local tuning (e.g. the ViewPane's vertical-padding knob). */
+export function MenuBackRow({
+  label,
+  onClick,
+  className
+}: {
+  label: string
+  onClick: () => void
+  className?: string
+}): React.JSX.Element {
   return (
-    <MenuItem className={s.backRow} leading={<Icon name="chevron-left" size={12} />} onClick={onClick}>
+    <MenuItem className={cx(s.backRow, className)} leading={<Icon name="chevron-left" size={12} />} onClick={onClick}>
       {label}
     </MenuItem>
   )

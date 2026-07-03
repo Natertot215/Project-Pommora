@@ -82,7 +82,7 @@ function ListGroups({
             <RowShell key={d.id} id={d.id}>
               <MenuItem
                 className={flushTrailing}
-                leading={<PropertyTypeIcon type={d.type} />}
+                leading={<PropertyTypeIcon type={d.type} size={12} />}
                 detail={propertyTypeLabel(d.type)}
                 trailing={<Icon name="chevron-right" size={16} />}
                 onClick={() => onOpenEditor(d.id)}
@@ -114,7 +114,7 @@ function ListGroups({
               <RowShell key={d.id} id={d.id}>
                 <MenuItem
                   className={cx(s.allRow, flushTrailing)}
-                  leading={<PropertyTypeIcon type={d.type} />}
+                  leading={<PropertyTypeIcon type={d.type} size={12} />}
                   onContextMenu={(e) => {
                     e.preventDefault()
                     onRowMenu(d, 'all')
@@ -185,7 +185,7 @@ export function PropertiesPane({
 
   const backHeader = (label: string, onClick: () => void): React.JSX.Element => (
     <>
-      <MenuBackRow label={label} onClick={onClick} />
+      <MenuBackRow label={label} onClick={onClick} className={s.backRowPad} />
       <MenuSeparator flush />
     </>
   )
@@ -198,7 +198,7 @@ export function PropertiesPane({
     <>
       <div className={s.paneHeader}>
         <div className={s.paneHeaderBack}>
-          <MenuBackRow label={label} onClick={onBackClick} />
+          <MenuBackRow label={label} onClick={onBackClick} className={s.backRowPad} />
         </div>
         <button type="button" className={s.headerAction} aria-label={action.ariaLabel} onClick={action.onClick}>
           <Icon name={action.icon} size={action.size} />
@@ -278,7 +278,7 @@ export function PropertiesPane({
         <MenuItem
           key={type}
           className={flushTrailing}
-          leading={<PropertyTypeIcon type={type} />}
+          leading={<PropertyTypeIcon type={type} size={12} />}
           trailing={<Icon name="chevron-right" size={16} />}
           onClick={() => void create(type)}
         >
@@ -316,7 +316,7 @@ export function PropertiesPane({
     <PaneDnd rows={paneRows} labelFor={nameFor} onDrop={(drop) => void handleDrop(drop)}>
       {actionHeader('Properties', onBack, {
         icon: 'square-plus',
-        size: 14,
+        size: 12,
         ariaLabel: 'New Property',
         onClick: () => openDetail({ kind: 'type' })
       })}

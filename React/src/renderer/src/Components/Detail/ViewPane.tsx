@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import { Server, Eye, LayoutDashboard, Layers, ListFilter, ArrowUpDown, type LucideIcon } from 'lucide-react'
 import { Icon } from '@renderer/design-system/symbols'
 import { flushTrailing } from '../../design-system/components/menu/menu.css'
+import { backRowPad } from './viewPane.css'
 import { useSession } from '../../store'
 import { findCollection, findSet, findCollectionForSet } from '../../Detail/Scope'
 import { PropertiesPane } from './PropertiesPane'
@@ -67,7 +68,7 @@ export function ViewPane(): React.JSX.Element | null {
 
   const pendingPane = (label: string, message: string): React.JSX.Element => (
     <>
-      <MenuBackRow label={label} onClick={back} />
+      <MenuBackRow label={label} onClick={back} className={backRowPad} />
       <MenuSeparator flush />
       <MenuCaption>{message}</MenuCaption>
     </>

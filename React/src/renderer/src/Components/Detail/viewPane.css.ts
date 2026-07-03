@@ -59,6 +59,9 @@ export const paneHeader = style({
 })
 export const paneHeaderBack = style({ flex: '1 1 auto', minWidth: 0 })
 
+/** THE ViewPane back-row vertical-padding knob — this pane only, apart from every other menu. */
+export const backRowPad = style({ paddingBlock: '6px' })
+
 /** Bare 20×20 icon button in the pane header — tertiary at rest, lifting to primary on hover
  *  on the Add-Banner button's color beat. */
 export const headerAction = style({
