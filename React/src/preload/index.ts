@@ -6,6 +6,7 @@ import type { FormatState } from '@shared/editorMenu'
 import type { TableMenuAction, TableMenuContext } from '@shared/tableMenu'
 import type { CalloutMenuAction } from '@shared/calloutMenu'
 import type { CellMenuAction, CellMenuContext } from '@shared/cellMenu'
+import type { PropertyMenuAction, PropertyMenuContext } from '@shared/propertyMenu'
 import type { ColumnMenuAction, ColumnMenuContext } from '@shared/columnMenu'
 import type { SavedView } from '@shared/views'
 import type { PageFrontmatter } from '@shared/schemas'
@@ -162,6 +163,9 @@ const api = {
   columnMenu: (ctx: ColumnMenuContext): Promise<ColumnMenuAction | null> => ipcRenderer.invoke('column-menu', ctx),
   // Pop a table cell's native right-click menu (title meta / per-type Style / Edit) — same contract.
   cellMenu: (ctx: CellMenuContext): Promise<CellMenuAction | null> => ipcRenderer.invoke('cell-menu', ctx),
+  // Pop a property's native menu (editor ⋮ / row right-click); Delete confirms in main first.
+  propertyMenu: (ctx: PropertyMenuContext): Promise<PropertyMenuAction | null> =>
+    ipcRenderer.invoke('property-menu', ctx),
   // Flag (on hover) whether the pointer sits on a callout grip, so the generic editor menu stands down there.
   setCalloutGrip: (on: boolean): void => ipcRenderer.send('editor:callout-grip', on),
   // Rename the open nexus's root folder + re-point the live session to the new path.

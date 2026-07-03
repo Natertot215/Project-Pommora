@@ -132,6 +132,14 @@ interface SessionState {
   /** Commit an inline rename via the mutate op, then refetch (selection reconciles the path).
    *  Resolves `true` on success, `false` if the op failed (so a caller can revert its draft). */
   submitRename: (path: string, kind: MutableKind, newName: string) => Promise<boolean>
+
+  /** The property row in inline-rename edit mode (A-10) — its OWN channel: properties are
+   *  id-keyed registry entities, not paths, so `renamingPath`/`submitRename` can't carry them. */
+  renamingProperty: { collectionPath: string; propertyId: string } | null
+  beginPropertyRename: (target: { collectionPath: string; propertyId: string }) => void
+  cancelPropertyRename: () => void
+  /** Commit through `schema:rename`, then refetch. Resolves the write's success. */
+  submitPropertyRename: (newName: string) => Promise<boolean>
   /** The one write path: run a mutate op, surface its error or refetch on success. On a create,
    *  the new entity is handed to `onCreated` (to select it, begin-renaming it, …). Every sidebar
    *  mutation — drops, renames, creates — routes through here. Resolves the op's success. */
@@ -374,6 +382,22 @@ export const useSession = create<SessionState>((set, get) => {
     submitRename: async (path, kind, newName) => {
       set({ renamingPath: null }) // exit edit mode immediately, regardless of outcome
       return get().mutate({ op: 'rename', path, kind, newName })
+    },
+
+    renamingProperty: null,
+    beginPropertyRename: (target) => set({ renamingProperty: target }),
+    cancelPropertyRename: () => set({ renamingProperty: null }),
+    submitPropertyRename: async (newName) => {
+      const target = get().renamingProperty
+      set({ renamingProperty: null }) // exit edit mode immediately, regardless of outcome
+      if (!target) return false
+      const res = await window.nexus.schema.rename(target.collectionPath, target.propertyId, newName)
+      if (!res.ok) {
+        await window.nexus.showError(res.error)
+        return false
+      }
+      await get().load()
+      return true
     },
     mutate: async (req, onCreated) => {
       const res = await window.nexus.mutate(req)

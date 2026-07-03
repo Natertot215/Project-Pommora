@@ -26,6 +26,9 @@ let host: HTMLDivElement
 let root: Root
 let loadSpy: ReturnType<typeof vi.fn>
 let assignSpy: ReturnType<typeof vi.fn>
+let renameSpy: ReturnType<typeof vi.fn>
+let propertyMenuSpy: ReturnType<typeof vi.fn>
+let destroySpy: ReturnType<typeof vi.fn>
 
 beforeEach(() => {
   host = document.createElement('div')
@@ -33,18 +36,23 @@ beforeEach(() => {
   root = createRoot(host)
   loadSpy = vi.fn(async () => {})
   assignSpy = vi.fn(async () => ({ ok: true }))
+  renameSpy = vi.fn(async () => ({ ok: true }))
+  propertyMenuSpy = vi.fn(async () => null)
+  destroySpy = vi.fn(async () => ({ ok: true }))
   ;(window as unknown as { nexus: unknown }).nexus = {
     schema: {
       add: vi.fn(async () => ({ ok: true, id: 'prop_new' })),
-      rename: vi.fn(async () => ({ ok: true })),
+      rename: renameSpy,
       reorder: vi.fn(async () => ({ ok: true })),
       delete: vi.fn(async () => ({ ok: true })),
       assign: assignSpy,
       changeType: vi.fn(async () => ({ ok: true }))
     },
+    property: { delete: destroySpy },
+    propertyMenu: propertyMenuSpy,
     showError: vi.fn(async () => {})
   }
-  useSession.setState({ load: loadSpy as never, tree: { registry: [] } as never })
+  useSession.setState({ load: loadSpy as never, tree: { registry: [] } as never, renamingProperty: null })
 })
 afterEach(() => {
   act(() => root.unmount())
@@ -215,5 +223,67 @@ describe('the two-region drag (T6) — state-level; geometry truth lives in the 
       firePointer(window, 'pointerup', { x: 100, y: 20 })
     })
     expect(assignSpy).not.toHaveBeenCalledWith('Col', 'prop_x', expect.anything())
+  })
+})
+
+describe('native menus + the inline-rename channel (T7)', () => {
+  const openEditor = async (): Promise<void> => {
+    await mountPane()
+    await act(async () => {
+      rowFor('Status').click()
+    })
+  }
+
+  it("the editor's ⋮ Remove routes through schema.delete and returns to the list (A-8)", async () => {
+    propertyMenuSpy.mockResolvedValueOnce('property:remove')
+    await openEditor()
+    await act(async () => {
+      host.querySelector<HTMLButtonElement>('[aria-label="Property Menu"]')!.click()
+    })
+    expect(propertyMenuSpy).toHaveBeenCalledWith({ kind: 'editor', name: 'Status' })
+    const del = (window as unknown as { nexus: { schema: { delete: ReturnType<typeof vi.fn> } } }).nexus.schema.delete
+    expect(del).toHaveBeenCalledWith('Col', 'prop_status')
+  })
+
+  it("⋮ Delete (main-confirmed) runs the global property.delete — and the footer Delete row is GONE (A-8/D-1)", async () => {
+    propertyMenuSpy.mockResolvedValueOnce('property:destroy')
+    await openEditor()
+    expect(host.textContent).not.toContain('Delete Property') // the old footer row died
+    await act(async () => {
+      host.querySelector<HTMLButtonElement>('[aria-label="Property Menu"]')!.click()
+    })
+    expect(destroySpy).toHaveBeenCalledWith('prop_status')
+  })
+
+  it('a row right-click Rename flips the title to the inline input; Enter commits schema.rename (A-10)', async () => {
+    propertyMenuSpy.mockResolvedValueOnce('property:rename')
+    await mountPane()
+    await act(async () => {
+      host.querySelector('[data-prop="prop_status"]')!.querySelector('[class*="item"]')!.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true }))
+    })
+    expect(propertyMenuSpy).toHaveBeenCalledWith({ kind: 'assigned-row', name: 'Status' })
+    const input = host.querySelector<HTMLInputElement>('.row-title-input')
+    expect(input).toBeTruthy()
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set?.call(input, 'Stage')
+      input!.dispatchEvent(new Event('input', { bubbles: true }))
+      input!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
+      input!.blur()
+    })
+    expect(renameSpy).toHaveBeenCalledWith('Col', 'prop_status', 'Stage')
+    expect(host.querySelector('.row-title-input')).toBeNull() // eager exit
+  })
+
+  it('a registry row offers Rename only (registry-row context)', async () => {
+    useSession.setState({ tree: { registry: [effortDef] } as never })
+    propertyMenuSpy.mockResolvedValueOnce(null)
+    await mountPane()
+    await act(async () => {
+      rowFor('All Properties').click()
+    })
+    await act(async () => {
+      host.querySelector('[data-prop="prop_x"]')!.querySelector('[class*="item"]')!.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true }))
+    })
+    expect(propertyMenuSpy).toHaveBeenCalledWith({ kind: 'registry-row', name: 'Effort' })
   })
 })

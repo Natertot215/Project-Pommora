@@ -49,21 +49,6 @@ export const dashIcon = style({
   flex: '0 0 auto'
 })
 
-/** Footing actions (New Property, Delete Property) — subline type on the shared gutter-flush affordance
- *  (aligned with the back-row ‹ heading), with a tighter row (min-height + block-padding 4px shorter
- *  than a content row) so the footing reads compact. */
-export const footerAction = style([
-  text.footnote.emphasized,
-  flushAffordance,
-  { minHeight: '20px', paddingBlock: '2px' }
-])
-
-/** Pins a pane's footer group (divider + action) to the bottom edge; body stays at the top. */
-export const footer = style({ marginTop: 'auto' })
-
-/** Destructive row (Delete property) — red label token, overrides the row's primary color. */
-export const deleteRow = style({ color: c.solid.red })
-
 /** The pane's header line: the back row takes the width, a trailing icon action rides the right
  *  edge (⊕ create on the list, ⋮ menu on the editor) at the rows' 8px inset. */
 export const paneHeader = style({

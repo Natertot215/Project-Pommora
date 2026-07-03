@@ -6,6 +6,7 @@ import { MenuItem, MenuSeparator, MenuCaption, MenuBackRow } from '../../design-
 import { Reveal } from '../../design-system/components/Reveal'
 import { duration } from '../../design-system/tokens/motion'
 import { IconPicker } from '../IconPicker'
+import { EditableInput } from '../EditableInput'
 import { InlineEditHeader } from './InlineEditHeader'
 import { PaneSlider } from './PaneSlider'
 import { PaneDnd, usePaneDrag, usePaneRegions } from './paneDnd'
@@ -34,18 +35,42 @@ function ListGroups({
   assigned,
   unassigned,
   allOpen,
+  renamingId,
   onToggleAll,
   onOpenEditor,
-  onAssign
+  onAssign,
+  onRowMenu,
+  onRenameCommit,
+  onRenameCancel
 }: {
   assigned: PropertyDefinition[]
   unassigned: PropertyDefinition[]
   allOpen: boolean
+  renamingId: string | null
   onToggleAll: () => void
   onOpenEditor: (id: string) => void
   onAssign: (id: string) => void
+  onRowMenu: (d: PropertyDefinition, group: 'assigned' | 'all') => void
+  onRenameCommit: (next: string, current: string) => void
+  onRenameCancel: () => void
 }): React.JSX.Element {
   const { assignedRef, allRef, allHighlighted } = usePaneRegions()
+  // The row title swaps to the store-driven inline rename input (A-10) — the RenamableTitle UX
+  // over the property-keyed channel (properties are registry ids, not paths).
+  const title = (d: PropertyDefinition): ReactNode =>
+    renamingId === d.id ? (
+      <EditableInput
+        value={d.name}
+        className="row-title-input"
+        onCommit={(next) => {
+          if (next && next !== d.name) onRenameCommit(next, d.name)
+          else onRenameCancel()
+        }}
+        onCancel={onRenameCancel}
+      />
+    ) : (
+      d.name
+    )
   return (
     <>
       <div data-group="assigned" ref={assignedRef}>
@@ -59,8 +84,12 @@ function ListGroups({
                 detail={propertyTypeLabel(d.type)}
                 trailing={<Icon name="chevron-right" size={16} />}
                 onClick={() => onOpenEditor(d.id)}
+                onContextMenu={(e) => {
+                  e.preventDefault()
+                  onRowMenu(d, 'assigned')
+                }}
               >
-                {d.name}
+                {title(d)}
               </MenuItem>
             </RowShell>
           ))
@@ -84,6 +113,10 @@ function ListGroups({
                 <MenuItem
                   className={s.allRow}
                   leading={<PropertyTypeIcon type={d.type} />}
+                  onContextMenu={(e) => {
+                    e.preventDefault()
+                    onRowMenu(d, 'all')
+                  }}
                   trailing={
                     <button
                       type="button"
@@ -98,7 +131,7 @@ function ListGroups({
                     </button>
                   }
                 >
-                  {d.name}
+                  {title(d)}
                 </MenuItem>
               </RowShell>
             ))}
@@ -128,6 +161,10 @@ export function PropertiesPane({
 }): React.JSX.Element {
   const load = useSession((st) => st.load)
   const registry = useSession((st) => st.tree?.registry) ?? []
+  const renamingProperty = useSession((st) => st.renamingProperty)
+  const beginPropertyRename = useSession((st) => st.beginPropertyRename)
+  const cancelPropertyRename = useSession((st) => st.cancelPropertyRename)
+  const submitPropertyRename = useSession((st) => st.submitPropertyRename)
   const [view, setView] = useState<SubView>({ kind: 'list' })
   const [iconOpen, setIconOpen] = useState(false)
   const [allOpen, setAllOpen] = useState(false)
@@ -198,6 +235,22 @@ export function PropertiesPane({
   const nameFor = (id: string): string =>
     props.find((d) => d.id === id)?.name ?? unassigned.find((d) => d.id === id)?.name ?? ''
 
+  // The editor's ⋮ (A-8): Remove, or the pane-gated Delete (main confirms before resolving).
+  const editorMenu = async (def: PropertyDefinition): Promise<void> => {
+    const action = await window.nexus.propertyMenu({ kind: 'editor', name: def.name })
+    if (action === 'property:remove') await remove(def.id)
+    else if (action === 'property:destroy' && (await commit(await window.nexus.property.delete(def.id)))) backToList()
+  }
+  // A row's right-click (A-10): Rename (both groups) · Remove (assigned only).
+  const rowMenu = async (d: PropertyDefinition, group: 'assigned' | 'all'): Promise<void> => {
+    const action = await window.nexus.propertyMenu({
+      kind: group === 'assigned' ? 'assigned-row' : 'registry-row',
+      name: d.name
+    })
+    if (action === 'property:rename') beginPropertyRename({ collectionPath, propertyId: d.id })
+    else if (action === 'property:remove') await commit(await window.nexus.schema.delete(collectionPath, d.id))
+  }
+
   const typePicker = (
     <>
       {backHeader('Properties', backToList)}
@@ -221,15 +274,17 @@ export function PropertiesPane({
     }
     return (
       <>
-        {backHeader(def.name, backToList)}
+        <div className={s.paneHeader}>
+          <div className={s.paneHeaderBack}>
+            <MenuBackRow label={def.name} onClick={backToList} />
+          </div>
+          <button type="button" className={s.headerAction} aria-label="Property Menu" onClick={() => void editorMenu(def)}>
+            <Icon name="ellipsis-vertical" size={16} />
+          </button>
+        </div>
+        <MenuSeparator flush />
         <InlineEditHeader value={def.name} onIconClick={() => setIconOpen(true)} onCommit={(next) => void rename(def.id, next)} />
         <MenuCaption>{propertyTypeLabel(def.type)} options — pending</MenuCaption>
-        <div className={s.footer}>
-          <MenuSeparator flush />
-          <MenuItem className={cx(s.deleteRow, s.footerAction)} onClick={() => void remove(def.id)}>
-            Delete Property
-          </MenuItem>
-        </div>
       </>
     )
   }
@@ -249,9 +304,13 @@ export function PropertiesPane({
         assigned={props}
         unassigned={unassigned}
         allOpen={allOpen}
+        renamingId={renamingProperty?.collectionPath === collectionPath ? renamingProperty.propertyId : null}
         onToggleAll={() => setAllOpen((o) => !o)}
         onOpenEditor={(id) => openDetail({ kind: 'edit', id })}
         onAssign={(id) => void assign(id)}
+        onRowMenu={(d, group) => void rowMenu(d, group)}
+        onRenameCommit={(next) => void submitPropertyRename(next)}
+        onRenameCancel={cancelPropertyRename}
       />
     </PaneDnd>
   )
