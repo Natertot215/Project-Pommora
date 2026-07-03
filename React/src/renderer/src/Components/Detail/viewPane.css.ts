@@ -22,7 +22,9 @@ const COLOR = {
   dragHighlight: c.state.hover, // the unassign area tint while dragging out
   eye: c.label.secondary, // the Visibility eye toggle (shown rows): secondary + ghost at rest,
   // un-ghosts on hover (no color shift); the glyph swaps open ↔ off
-  eyeHidden: c.label.tertiary // a hidden row's eye: tertiary, riding the row's ghost (single dim)
+  eyeHidden: c.label.tertiary, // a hidden row's eye: tertiary, riding the row's ghost (single dim)
+  optionsLabel: c.label.secondary, // the option editor's "Options" heading + its matching + at rest
+  optionsAddHover: c.label.primary // …the + on hover
 }
 
 /** — SIZING — (px boxes; the glyphs inside are ICON's) */
@@ -43,7 +45,7 @@ const PAD = {
 /** — OPTION EDITOR — (Select/Multi option list; px) */
 const OPTION = {
   gapAroundLabel: 6, // "Options" → first chip (the gap ABOVE "Options" is the header's own bottom pad)
-  gapBetweenChips: 4, // chip → chip
+  gapBetweenChips: 6, // chip → chip
   chipPadX: 6, // option chip horizontal padding — retunes the shared chip-label default, this pane only
   addBox: 20 // the "Options" + hit target (its glyph is ICON.optionsAdd)
 }
@@ -275,10 +277,10 @@ export const optionEditor = style({ display: 'flex', flexDirection: 'column' })
 /** The "Options" row — label left, the always-shown + right. */
 export const optionsRow = style({ display: 'flex', alignItems: 'center', justifyContent: 'space-between' })
 
-/** The "Options" label — footnote-emphasized + tertiary, matching the All Properties heading. */
-export const optionsLabel = style([text.footnote.emphasized, { color: COLOR.allHeading }])
+/** The "Options" label — footnote-emphasized, secondary (one step up from the All Properties heading). */
+export const optionsLabel = style([text.footnote.emphasized, { color: COLOR.optionsLabel }])
 
-/** The always-shown + that appends an option — the registry row's +/hover treatment, one size up. */
+/** The always-shown + that appends an option — matches the "Options" label at rest, brightening on hover. */
 export const optionsAdd = style({
   width: `${OPTION.addBox}px`,
   height: `${OPTION.addBox}px`,
@@ -289,9 +291,9 @@ export const optionsAdd = style({
   background: 'none',
   padding: 0,
   cursor: 'default',
-  color: COLOR.rowPlus,
+  color: COLOR.optionsLabel,
   transition: `color ${duration.fast} ${easing.standard}`,
-  selectors: { '&:hover': { color: COLOR.rowPlusHover } }
+  selectors: { '&:hover': { color: COLOR.optionsAddHover } }
 })
 
 /** The chip list — full-width rows (chip left, hover recolor icon at the right edge), the inter-chip
