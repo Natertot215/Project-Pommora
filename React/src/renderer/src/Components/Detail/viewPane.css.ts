@@ -14,17 +14,15 @@ const c = colorVars.color
 /** — COLOR — */
 const COLOR = {
   headerAction: c.label.tertiary, // ⊕ / ⋮ at rest
-  headerActionHover: c.label.control, // ⊕ / ⋮ hovered
   allHeading: c.label.tertiary, // "All Properties" heading (text + its chevron)
   allRow: c.label.tertiary, // unassigned registry rows
   rowPlus: c.label.tertiary, // a registry row's + at rest
-  rowPlusHover: c.label.primary, // …hovered
+  iconHover: c.state.hover, // the shared fill behind any pane icon-button on hover (not a glyph shift)
   dragHighlight: c.state.hover, // the unassign area tint while dragging out
   eye: c.label.secondary, // the Visibility eye toggle (shown rows): secondary + ghost at rest,
   // un-ghosts on hover (no color shift); the glyph swaps open ↔ off
   eyeHidden: c.label.tertiary, // a hidden row's eye: tertiary, riding the row's ghost (single dim)
-  optionsLabel: c.label.secondary, // the option editor's "Options" heading + its matching + at rest
-  optionsAddHover: c.label.primary // …the + on hover
+  optionsLabel: c.label.secondary // the option editor's "Options" heading + its matching + at rest
 }
 
 /** — SIZING — (px boxes; the glyphs inside are ICON's) */
@@ -34,7 +32,8 @@ const SIZE = {
   eyeBox: 16, // the Visibility pane's eye hit target
   iconPickerButton: 28, // the title header's square icon button
   dashIcon: 16, // the placeholder dashed square
-  dragHighlightRadius: 6 // the unassign tint's corner radius
+  dragHighlightRadius: 6, // the unassign tint's corner radius
+  iconHoverRadius: 5 // the shared icon-button hover fill's corner radius
 }
 
 /** — PADDING — (px) */
@@ -147,8 +146,9 @@ export const headerAction = style({
   padding: 0,
   cursor: 'default',
   color: COLOR.headerAction,
-  transition: `color ${duration.fast} ${easing.standard}`,
-  selectors: { '&:hover': { color: COLOR.headerActionHover } }
+  borderRadius: `${SIZE.iconHoverRadius}px`,
+  transition: `background ${duration.fast} ${easing.standard}`,
+  selectors: { '&:hover': { background: COLOR.iconHover } }
 })
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -192,7 +192,9 @@ export const rowPlus = style({
   padding: 0,
   cursor: 'default',
   color: COLOR.rowPlus,
-  selectors: { '&:hover': { color: COLOR.rowPlusHover } }
+  borderRadius: `${SIZE.iconHoverRadius}px`,
+  transition: `background ${duration.fast} ${easing.standard}`,
+  selectors: { '&:hover': { background: COLOR.iconHover } }
 })
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -233,9 +235,10 @@ export const eyeButton = style({
   cursor: 'default',
   color: COLOR.eye,
   opacity: 'var(--state-ghost)',
-  transition: `opacity ${duration.fast} ${easing.standard}`,
+  borderRadius: `${SIZE.iconHoverRadius}px`,
+  transition: `opacity ${duration.fast} ${easing.standard}, background ${duration.fast} ${easing.standard}`,
   selectors: {
-    '&:hover': { opacity: 1 },
+    '&:hover': { opacity: 1, background: COLOR.iconHover },
     [`${hiddenRow} &`]: { color: COLOR.eyeHidden, opacity: 1 }
   }
 })
@@ -292,8 +295,9 @@ export const optionsAdd = style({
   padding: 0,
   cursor: 'default',
   color: COLOR.optionsLabel,
-  transition: `color ${duration.fast} ${easing.standard}`,
-  selectors: { '&:hover': { color: COLOR.optionsAddHover } }
+  borderRadius: `${SIZE.iconHoverRadius}px`,
+  transition: `background ${duration.fast} ${easing.standard}`,
+  selectors: { '&:hover': { background: COLOR.iconHover } }
 })
 
 /** The chip list — full-width rows (chip left, hover recolor icon at the right edge), the inter-chip
@@ -337,9 +341,10 @@ export const paletteButton = style({
   cursor: 'default',
   color: COLOR.eye,
   opacity: 0,
-  transition: `opacity ${duration.fast} ${easing.standard}`,
+  borderRadius: `${SIZE.iconHoverRadius}px`,
+  transition: `opacity ${duration.fast} ${easing.standard}, background ${duration.fast} ${easing.standard}`,
   selectors: {
     [`${optionRow}:hover &`]: { opacity: 'var(--state-ghost)' },
-    [`${optionRow}:hover &:hover`]: { opacity: 1 }
+    [`${optionRow}:hover &:hover`]: { opacity: 1, background: COLOR.iconHover }
   }
 })
