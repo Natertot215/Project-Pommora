@@ -62,11 +62,11 @@ export function HomepageView({ tree }: { tree: NexusTree | null }): React.JSX.El
       owner={{ path: '', kind: 'homepage', name: tree?.nexus.name ?? 'Home', banner: tree?.homepage.banner }}
     >
       <div className={cal.demoRow}>
-        <DemoPicker tag="short · 12-hour" trigger="July 2nd">
-          <CalendarPicker formatDateValue={fmtDateFor('short')} timeFormat="twelveHour" />
+        <DemoPicker tag="short" trigger="July 2nd">
+          <CalendarPicker formatDateValue={fmtDateFor('short')} />
         </DemoPicker>
-        <DemoPicker tag="full · 24-hour (overflow demo)" trigger="Wednesday, July 2nd 2026">
-          <CalendarPicker formatDateValue={fmtDateFor('full')} timeFormat="twentyFourHour" />
+        <DemoPicker tag="full (overflow demo)" trigger="Wednesday, July 2nd 2026">
+          <CalendarPicker formatDateValue={fmtDateFor('full')} />
         </DemoPicker>
       </div>
     </DetailScaffold>

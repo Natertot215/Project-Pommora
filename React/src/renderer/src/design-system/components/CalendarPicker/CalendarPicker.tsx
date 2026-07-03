@@ -9,7 +9,6 @@ import * as s from './calendarPicker.css'
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
-const HOURS_24 = Array.from({ length: 24 }, (_, h) => h)
 const HOURS_12 = Array.from({ length: 12 }, (_, i) => i + 1)
 const MINUTES = Array.from({ length: 12 }, (_, i) => i * 5) // 5-minute steps — the granularity knob
 
@@ -71,17 +70,12 @@ const keyOf = (d: Date): string => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-
  * times are display-only until the entry UX is designed.
  */
 export function CalendarPicker({
-  formatDateValue,
-  timeFormat = 'twelveHour'
+  formatDateValue
 }: {
   /** `condensed` set = the range layout asking for the picker-only short form (withYear when the
    *  range spans years); absent = the property's own format, verbatim. */
   formatDateValue: (isoDate: string, condensed?: { withYear: boolean }) => string
-  /** The property's time config decides the segment set (the Swift DatePicker model):
-   *  twelveHour = [hh]:[mm] + an AM/PM toggle segment; twentyFourHour = [HH]:[mm]. */
-  timeFormat?: 'twelveHour' | 'twentyFourHour'
 }): React.JSX.Element {
-  const twelve = timeFormat === 'twelveHour'
   const now = new Date()
   // Per-render (never module-level) — a local-first app stays open across midnights.
   const todayKey = keyOf(now)
@@ -291,12 +285,10 @@ export function CalendarPicker({
       </OverflowScroll>
     </div>
   )
-  // Swift-DatePicker hour math: display hours in the active cycle; commits preserve the meridiem.
-  // 12h hours read unpadded (4:20, never 04:20); 24h and minutes stay two-digit.
-  const hourShown = (mins: number): number => (twelve ? ((Math.floor(mins / 60) + 11) % 12) + 1 : Math.floor(mins / 60))
-  const hourText = (v: number): string => (twelve ? String(v) : pad(v))
-  const hourToMins = (v: number, mins: number): number =>
-    (twelve ? (v % 12) + (mins >= 720 ? 12 : 0) : v) * 60 + (mins % 60)
+  // The one time reading (Nathan): (Hour):(Minutes)(PM) — 12-hour, hour unpadded (4:20, never
+  // 04:20), minutes two-digit, meridiem always present. Commits preserve the meridiem.
+  const hourShown = (mins: number): number => ((Math.floor(mins / 60) + 11) % 12) + 1
+  const hourToMins = (v: number, mins: number): number => ((v % 12) + (mins >= 720 ? 12 : 0)) * 60 + (mins % 60)
 
   const timeOptions = (which: 'start' | 'end', part: 'h' | 'm'): React.JSX.Element | null => {
     if (!timeMenu) return null
@@ -312,9 +304,9 @@ export function CalendarPicker({
         <span className={s.ddWrap} onClick={(e) => e.stopPropagation()}>
           <PickerMenu solid direction="up">
             <div className={cx(s.menuList, 'scroll-edge-fade')}>
-              {(part === 'h' ? (twelve ? HOURS_12 : HOURS_24) : MINUTES).map((v) => (
+              {(part === 'h' ? HOURS_12 : MINUTES).map((v) => (
                 <PickerOption key={v} selected={v === current} onClick={() => choose(v)}>
-                  {optionRow(part === 'h' ? hourText(v) : pad(v), v === current)}
+                  {optionRow(part === 'h' ? String(v) : pad(v), v === current)}
                 </PickerOption>
               ))}
             </div>
@@ -330,7 +322,7 @@ export function CalendarPicker({
       const mins = minsOf(segEdit.which)
       const setMins = setMinsFor(segEdit.which)
       if (segEdit.part === 'h') {
-        const clamped = twelve ? Math.min(Math.max(v, 1), 12) : Math.min(v, 23)
+        const clamped = Math.min(Math.max(v, 1), 12)
         setMins(hourToMins(clamped, mins))
       } else setMins(Math.floor(mins / 60) * 60 + Math.min(v, 59))
     }
@@ -371,7 +363,7 @@ export function CalendarPicker({
           setSegEdit({ which, part, draft: pad(part === 'h' ? Math.floor(mins / 60) : mins % 60) })
         }}
       >
-        {part === 'h' ? hourText(hourShown(mins)) : pad(mins % 60)}
+        {part === 'h' ? String(hourShown(mins)) : pad(mins % 60)}
         {timeMenu?.which === which && timeMenu.part === part && timeOptions(which, part)}
       </button>
     )
@@ -403,7 +395,7 @@ export function CalendarPicker({
             <span className={s.timeColon}>:</span>
             {timeSegment(which, 'm', mins)}
           </span>
-          {twelve && ampmSegment(which, mins)}
+          {ampmSegment(which, mins)}
         </span>
       ) : (
         <span className={cx(s.fieldValue, s.fieldEmpty)}>--</span>
