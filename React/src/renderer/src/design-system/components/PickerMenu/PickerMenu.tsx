@@ -15,6 +15,7 @@ export function PickerMenu({
   notchHeight = 8,
   notchCurve = 0.25,
   notchInsetLeft,
+  direction = 'down',
   style
 }: {
   children: ReactNode
@@ -28,12 +29,15 @@ export function PickerMenu({
   notchCurve?: number
   /** Beak aim from the pane's left edge (left-anchored hosts); omitted = centered. */
   notchInsetLeft?: number
+  /** 'up' hangs the pane ABOVE its trigger with the beak pointing down (bottom-of-pane hosts). */
+  direction?: 'down' | 'up'
   style?: CSSProperties
 }): React.JSX.Element {
+  const up = direction === 'up'
   return (
-    <div className={s.anchor}>
+    <div className={up ? s.anchorUp : s.anchor}>
       <NotchedPane
-        className={s.surface}
+        className={cx(s.surface, up && s.surfaceUp)}
         animationClass={closing ? dropdownClose : dropdownOpen}
         solid={solid}
         radius={radius}
@@ -41,6 +45,7 @@ export function PickerMenu({
         notchHeight={notchHeight}
         notchCurve={notchCurve}
         notchInsetLeft={notchInsetLeft}
+        notchSide={up ? 'bottom' : 'top'}
         style={style}
       >
         {children}

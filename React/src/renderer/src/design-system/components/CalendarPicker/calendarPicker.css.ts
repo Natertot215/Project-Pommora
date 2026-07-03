@@ -162,27 +162,28 @@ export const fieldIcon = style({ flex: 'none', color: c.label.secondary })
 export const fieldValue = style({
   flex: 1,
   minWidth: 0,
+  textAlign: 'center',
   fontSize: font.scale.control.size,
   fontWeight: font.weight.emphasized,
   color: c.label.primary
 })
 export const fieldEmpty = style({ color: c.label.tertiary })
-export const timeValue = style({ cursor: 'text' })
-/* The inline time editor — a bare input wearing the field's own type (the DetailTitleHeader
-   inline-rename recipe). */
-export const timeInput = style({
-  flex: 1,
-  minWidth: 0,
-  width: '100%',
-  border: 'none',
-  outline: 'none',
-  padding: 0,
-  background: 'transparent',
-  fontFamily: 'inherit',
+/* The date+time row splits 2/3 : 1/3 (Nathan's layout); plain rows share evenly. */
+export const fieldGrow = style({ flex: 2 })
+export const fieldTime = style({ flex: 1 })
+/* The [00][00] time segments — each is a dropdown trigger; its menu opens upward, beak-down. */
+export const timeSegs = style({ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '2px' })
+export const timeSeg = style({
+  all: 'unset',
+  position: 'relative',
+  padding: '1px 5px',
+  borderRadius: '5px',
   fontSize: font.scale.control.size,
   fontWeight: font.weight.emphasized,
-  color: c.label.primary
+  color: c.label.primary,
+  selectors: { '&:hover': { background: c.state.hover } }
 })
+export const timeColon = style({ color: c.label.secondary })
 
 /* ── Boolean rows (the real Switch) ── */
 export const switchRow = style({

@@ -10,6 +10,14 @@ export const anchor = style({
   transform: 'translateX(-50%)',
   zIndex: 20
 })
+/** Upward-opening variant — the pane hangs ABOVE its trigger (beak-down NotchedPane). */
+export const anchorUp = style({
+  position: 'absolute',
+  bottom: 'calc(100% + 6px)',
+  left: '50%',
+  transform: 'translateX(-50%)',
+  zIndex: 20
+})
 
 // GlassPane's rect border/shadow are suppressed by NotchedPane (can't trace the beak); the top
 // gutter clears the beak band via the shell's published --notch-h.
@@ -21,6 +29,12 @@ export const surface = style({
   display: 'flex',
   flexDirection: 'column',
   gap: '2px'
+})
+/** Beak-down twin: the notch band moves to the bottom gutter. Composed after `surface` so its
+ *  padding wins. */
+export const surfaceUp = style({
+  paddingTop: '6px',
+  paddingBottom: 'calc(var(--notch-h, 0px) + 6px)'
 })
 
 export const option = style({

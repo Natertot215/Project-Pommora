@@ -9,21 +9,8 @@ import * as s from './calendarPicker.css'
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
-/** Forgiving time parse → minutes: "9" · "9:30" · "9pm" · "9:30 PM" · "21:15". null = unparseable. */
-const parseTime = (raw: string): number | null => {
-  const m = raw.trim().toLowerCase().match(/^(\d{1,2})(?::(\d{2}))?\s*(am|pm)?$/)
-  if (!m) return null
-  let h = Number(m[1])
-  const min = m[2] ? Number(m[2]) : 0
-  if (min > 59) return null
-  const ap = m[3]
-  if (ap) {
-    if (h < 1 || h > 12) return null
-    if (ap === 'pm' && h !== 12) h += 12
-    if (ap === 'am' && h === 12) h = 0
-  } else if (h > 23) return null
-  return h * 60 + min
-}
+const HOURS = Array.from({ length: 24 }, (_, h) => h)
+const MINUTES = Array.from({ length: 12 }, (_, i) => i * 5) // 5-minute steps — the granularity knob
 
 /** PaneSlider's animated-viewport half, single-slot: content size changes morph on the shared
  *  beat instead of snapping (the ViewPane/menus feel). */
@@ -63,13 +50,12 @@ const todayKey = keyOf(new Date())
  * times are display-only until the entry UX is designed.
  */
 export function CalendarPicker({
-  formatDateValue,
-  formatTimeValue
+  formatDateValue
 }: {
   /** `condensed` set = the range layout asking for the picker-only short form (withYear when the
-   *  range spans years); absent = the property's own format, verbatim. */
+   *  range spans years); absent = the property's own format, verbatim. Time renders as the
+   *  [00][00] segments (24h) — the property's 12h config re-enters when an AM/PM segment lands. */
   formatDateValue: (isoDate: string, condensed?: { withYear: boolean }) => string
-  formatTimeValue: (minutes: number) => string
 }): React.JSX.Element {
   const now = new Date()
   const [cursor, setCursor] = useState(new Date(now.getFullYear(), now.getMonth(), 1))
@@ -79,23 +65,24 @@ export function CalendarPicker({
   const [endOn, setEndOn] = useState(false)
   const [timeOn, setTimeOn] = useState(false)
   const [menu, setMenu] = useState<{ kind: 'month' | 'year'; beak: number } | null>(null)
+  // The [00][00] segment dropdowns — each segment opens its own upward PickerMenu (the fields sit
+  // at the pane's bottom), beak-down at the segment.
+  const [timeMenu, setTimeMenu] = useState<{ which: 'start' | 'end'; part: 'h' | 'm'; beak: number } | null>(null)
   const rootRef = useRef<HTMLDivElement>(null)
-  useDismiss(rootRef, () => setMenu(null), menu !== null)
+  useDismiss(
+    rootRef,
+    () => {
+      setMenu(null)
+      setTimeMenu(null)
+    },
+    menu !== null || timeMenu !== null
+  )
   // A press on a selected endpoint arms a drag that re-places it live (swapping roles if it
   // crosses the other end); a no-move press falls through to the click (= remove).
   const drag = useRef<{ which: 'start' | 'end'; moved: boolean } | null>(null)
   const suppressClick = useRef(false)
   const [startMin, setStartMin] = useState(9 * 60)
   const [endMin, setEndMin] = useState(17 * 60)
-  // Inline time editing (the PropertyEditor pattern): click → input pre-selected with the current
-  // value; Enter/blur commits through the forgiving parse, Escape or garbage reverts.
-  const [timeEdit, setTimeEdit] = useState<{ which: 'start' | 'end'; draft: string } | null>(null)
-  const commitTime = (): void => {
-    if (!timeEdit) return
-    const mins = parseTime(timeEdit.draft)
-    if (mins !== null) (timeEdit.which === 'start' ? setStartMin : setEndMin)(mins)
-    setTimeEdit(null)
-  }
 
   const nav = (dir: 1 | -1): void => {
     if (slide) return
@@ -219,41 +206,68 @@ export function CalendarPicker({
     )
   }
 
-  const dateField = (k: string | null, label: string, condensed?: { withYear: boolean }): React.JSX.Element => (
-    <div className={s.field} key={label}>
+  const dateField = (
+    k: string | null,
+    label: string,
+    condensed?: { withYear: boolean },
+    grow?: boolean
+  ): React.JSX.Element => (
+    <div className={cx(s.field, grow && s.fieldGrow)} key={label}>
       <Icon name="calendar" size={14} className={s.fieldIcon} />
       <OverflowScroll className={s.fieldValue}>
         {k ? formatDateValue(k, condensed) : <span className={s.fieldEmpty}>--</span>}
       </OverflowScroll>
     </div>
   )
+  const timeOptions = (which: 'start' | 'end', part: 'h' | 'm'): React.JSX.Element => {
+    const mins = which === 'start' ? startMin : endMin
+    const setMins = which === 'start' ? setStartMin : setEndMin
+    const current = part === 'h' ? Math.floor(mins / 60) : mins % 60
+    const choose = (v: number): void => {
+      setMins(part === 'h' ? v * 60 + (mins % 60) : Math.floor(mins / 60) * 60 + v)
+      setTimeMenu(null)
+    }
+    return (
+      <span className={s.ddWrap} onClick={(e) => e.stopPropagation()}>
+        <PickerMenu solid direction="up" notchInsetLeft={timeMenu?.beak}>
+          <div className={cx(s.menuList, 'scroll-edge-fade')}>
+            {(part === 'h' ? HOURS : MINUTES).map((v) => (
+              <PickerOption key={v} selected={v === current} onClick={() => choose(v)}>
+                {optionRow(pad(v), v === current)}
+              </PickerOption>
+            ))}
+          </div>
+        </PickerMenu>
+      </span>
+    )
+  }
+  const timeSegment = (which: 'start' | 'end', part: 'h' | 'm', mins: number): React.JSX.Element => (
+    <button
+      type="button"
+      className={s.timeSeg}
+      onClick={(e) =>
+        setTimeMenu(
+          timeMenu?.which === which && timeMenu.part === part
+            ? null
+            : { which, part, beak: e.currentTarget.offsetWidth / 2 }
+        )
+      }
+    >
+      {pad(part === 'h' ? Math.floor(mins / 60) : mins % 60)}
+      {timeMenu?.which === which && timeMenu.part === part && timeOptions(which, part)}
+    </button>
+  )
   const timeField = (mins: number | null, label: string, which: 'start' | 'end'): React.JSX.Element => (
-    <div className={s.field} key={label}>
+    <div className={cx(s.field, s.fieldTime)} key={label}>
       <Icon name="clock" size={14} className={s.fieldIcon} />
-      {timeEdit?.which === which ? (
-        <input
-          className={s.timeInput}
-          value={timeEdit.draft}
-          autoFocus
-          spellCheck={false}
-          onFocus={(e) => e.currentTarget.select()}
-          onChange={(e) => setTimeEdit({ which, draft: e.target.value })}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') commitTime()
-            else if (e.key === 'Escape') setTimeEdit(null)
-          }}
-          onBlur={commitTime}
-        />
+      {mins !== null ? (
+        <span className={s.timeSegs}>
+          {timeSegment(which, 'h', mins)}
+          <span className={s.timeColon}>:</span>
+          {timeSegment(which, 'm', mins)}
+        </span>
       ) : (
-        <OverflowScroll className={s.fieldValue}>
-          {mins !== null ? (
-            <span className={s.timeValue} onClick={() => setTimeEdit({ which, draft: formatTimeValue(mins) })}>
-              {formatTimeValue(mins)}
-            </span>
-          ) : (
-            <span className={s.fieldEmpty}>--</span>
-          )}
-        </OverflowScroll>
+        <span className={cx(s.fieldValue, s.fieldEmpty)}>--</span>
       )}
     </div>
   )
@@ -375,27 +389,40 @@ export function CalendarPicker({
       </div>
       <div className={s.divider} />
       <div className={s.fields}>
-        {endOn ? (
-          <>
-            <div className={s.fieldRow}>
-              {/* Range fields always take the picker-only condensed form; the year rejoins only
-                  when the range spans multiple years. Single-date mode below stays verbatim. */}
-              {dateField(start, 'start', { withYear: start !== null && end !== null && start.slice(0, 4) !== end.slice(0, 4) })}
-              {dateField(end, 'end', { withYear: start !== null && end !== null && start.slice(0, 4) !== end.slice(0, 4) })}
-            </div>
-            {timeOn && (
+        {/* Layout algebra (Nathan): [Date][Date] for a time-less range; every date+time pairing is
+            one 2/3 : 1/3 row — range+time stacks a start row over an end row. Range fields take
+            the picker-only condensed form (year rejoins only across years); single-date stays
+            the property's format verbatim. */}
+        {(() => {
+          const spansYears = start !== null && end !== null && start.slice(0, 4) !== end.slice(0, 4)
+          const condensed = { withYear: spansYears }
+          if (endOn && timeOn)
+            return (
+              <>
+                <div className={s.fieldRow}>
+                  {dateField(start, 'start', condensed, true)}
+                  {timeField(start ? startMin : null, 'start-t', 'start')}
+                </div>
+                <div className={s.fieldRow}>
+                  {dateField(end, 'end', condensed, true)}
+                  {timeField(end ? endMin : null, 'end-t', 'end')}
+                </div>
+              </>
+            )
+          if (endOn)
+            return (
               <div className={s.fieldRow}>
-                {timeField(start ? startMin : null, 'start-t', 'start')}
-                {timeField(end ? endMin : null, 'end-t', 'end')}
+                {dateField(start, 'start', condensed)}
+                {dateField(end, 'end', condensed)}
               </div>
-            )}
-          </>
-        ) : (
-          <div className={s.fieldRow}>
-            {dateField(start, 'date')}
-            {timeOn && timeField(start ? startMin : null, 'time', 'start')}
-          </div>
-        )}
+            )
+          return (
+            <div className={s.fieldRow}>
+              {dateField(start, 'date', undefined, timeOn)}
+              {timeOn && timeField(start ? startMin : null, 'time', 'start')}
+            </div>
+          )
+        })()}
       </div>
       <div className={s.switchRow}>
         <span className={s.switchLabel}>End Date</span>
