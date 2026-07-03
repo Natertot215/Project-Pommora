@@ -48,12 +48,11 @@ export const navBtn = style({
   selectors: { '&:hover': { background: c.state.hover, color: c.label.primary } }
 })
 
-/* ── Month / Year selection dropdowns: the option list inside a nested PickerMenu; the year list
-      shows ~10 rows before it scrolls. The wrapper left-anchors the nested pane (PickerMenu
-      centers by default, which pushed it past the calendar pane's clip edge) and lifts it ABOVE
-      the calendar content. ── */
+/* ── Month / Year / time-segment dropdowns: the option list inside a nested PickerMenu, portal'd
+      to body — centered on the trigger phantom (the beak's natural aim), lifted, hit-enabled
+      (the phantom itself is pointer-inert). ── */
 export const ddWrap = style({ display: 'contents' })
-globalStyle(`${ddWrap} > div`, { left: 0, transform: 'none', zIndex: 30, pointerEvents: 'auto' })
+globalStyle(`${ddWrap} > div`, { zIndex: 30, pointerEvents: 'auto' })
 export const menuList = style({
   display: 'flex',
   flexDirection: 'column',

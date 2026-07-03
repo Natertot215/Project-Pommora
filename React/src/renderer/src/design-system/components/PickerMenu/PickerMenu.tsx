@@ -14,7 +14,6 @@ export function PickerMenu({
   notchWidth = 28,
   notchHeight = 8,
   notchCurve = 0.25,
-  notchInsetLeft,
   direction = 'down',
   style
 }: {
@@ -27,8 +26,6 @@ export function PickerMenu({
   notchWidth?: number
   notchHeight?: number
   notchCurve?: number
-  /** Beak aim from the pane's left edge (left-anchored hosts); omitted = centered. */
-  notchInsetLeft?: number
   /** 'up' hangs the pane ABOVE its trigger with the beak pointing down (bottom-of-pane hosts). */
   direction?: 'down' | 'up'
   style?: CSSProperties
@@ -44,7 +41,6 @@ export function PickerMenu({
         notchWidth={notchWidth}
         notchHeight={notchHeight}
         notchCurve={notchCurve}
-        notchInsetLeft={notchInsetLeft}
         notchSide={up ? 'bottom' : 'top'}
         style={style}
       >

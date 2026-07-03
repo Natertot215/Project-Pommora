@@ -50,7 +50,6 @@ export function NotchedPane({
   notchWidth = 34,
   notchHeight = 8,
   notchCurve = 0.25,
-  notchInsetLeft,
   notchInsetRight,
   notchSide = 'top',
   style
@@ -66,8 +65,6 @@ export function NotchedPane({
   notchWidth?: number
   notchHeight?: number
   notchCurve?: number
-  /** Beak aim from the pane's LEFT edge — for left-anchored dropdowns; wins over insetRight. */
-  notchInsetLeft?: number
   notchInsetRight?: number
   /** 'bottom' mirrors the outline for upward-opening panes — beak points DOWN at the trigger. */
   notchSide?: 'top' | 'bottom'
@@ -90,7 +87,7 @@ export function NotchedPane({
   // Clamp the beak clear of the corner radii so an aimed notch can't break the outline.
   const nxMin = radius + notchWidth / 2 + 2
   const nxMax = w - radius - notchWidth / 2 - 2
-  const nxRaw = notchInsetLeft !== undefined ? notchInsetLeft : notchInsetRight !== undefined ? w - notchInsetRight : w / 2
+  const nxRaw = notchInsetRight !== undefined ? w - notchInsetRight : w / 2
   const nx = nxMin < nxMax ? Math.min(Math.max(nxRaw, nxMin), nxMax) : w / 2
   const flip = notchSide === 'bottom'
   const d = ready ? panePath(w, h, radius, nx, notchHeight, notchWidth, notchCurve, flip) : ''

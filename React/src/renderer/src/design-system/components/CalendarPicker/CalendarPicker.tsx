@@ -60,7 +60,6 @@ const pad = (n: number): string => String(n).padStart(2, '0')
 // Local YYYY-MM-DD key (never toISOString — a UTC key shifts the day west of Greenwich; the
 // formatters parse date-only strings as LOCAL midnight, so the key must be minted locally too).
 const keyOf = (d: Date): string => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
-const todayKey = keyOf(new Date())
 
 /**
  * The date(-time) picker prototype (Nathan's Figma direction, iterating live on the Homepage):
@@ -84,6 +83,8 @@ export function CalendarPicker({
 }): React.JSX.Element {
   const twelve = timeFormat === 'twelveHour'
   const now = new Date()
+  // Per-render (never module-level) — a local-first app stays open across midnights.
+  const todayKey = keyOf(now)
   const [cursor, setCursor] = useState(new Date(now.getFullYear(), now.getMonth(), 1))
   const [slide, setSlide] = useState<{ dir: 1 | -1; from: Date } | null>(null)
   const [start, setStart] = useState<string | null>(null)
@@ -99,17 +100,30 @@ export function CalendarPicker({
   const [segEdit, setSegEdit] = useState<{ which: 'start' | 'end'; part: 'h' | 'm'; draft: string } | null>(null)
   const rootRef = useRef<HTMLDivElement>(null)
   // Portal'd menus escape the root, so dismissal is a document listener that spares the root AND
-  // any [data-calmenu] portal (useDismiss's containment check can't see through the portal).
+  // any [data-calmenu] portal (useDismiss's containment check can't see through the portal). The
+  // phantoms are frozen at open-time coordinates, so any outside scroll CLOSES them (the native
+  // popover behavior) rather than letting them float away from their triggers.
   useEffect(() => {
     if (!menu && !timeMenu) return
-    const onDown = (e: PointerEvent): void => {
-      const t = e.target as HTMLElement
-      if (rootRef.current?.contains(t) || t.closest('[data-calmenu]')) return
+    const close = (): void => {
       setMenu(null)
       setTimeMenu(null)
     }
+    const onDown = (e: PointerEvent): void => {
+      const t = e.target as HTMLElement
+      if (rootRef.current?.contains(t) || t.closest('[data-calmenu]')) return
+      close()
+    }
+    const onScroll = (e: Event): void => {
+      if ((e.target as HTMLElement)?.closest?.('[data-calmenu]')) return // the menu's own list scrolls freely
+      close()
+    }
     document.addEventListener('pointerdown', onDown, true)
-    return () => document.removeEventListener('pointerdown', onDown, true)
+    document.addEventListener('scroll', onScroll, true)
+    return () => {
+      document.removeEventListener('pointerdown', onDown, true)
+      document.removeEventListener('scroll', onScroll, true)
+    }
   }, [menu, timeMenu])
   // A press on a selected endpoint arms a drag that re-places it live (swapping roles if it
   // crosses the other end); a no-move press falls through to the click (= remove).
@@ -124,6 +138,9 @@ export function CalendarPicker({
 
   const nav = (dir: 1 | -1): void => {
     if (slide) return
+    // Sliding reflows the pane under any open phantom — close them with the move.
+    setMenu(null)
+    setTimeMenu(null)
     setSlide({ dir, from: cursor })
     setCursor(new Date(cursor.getFullYear(), cursor.getMonth() + dir, 1))
   }
@@ -149,14 +166,26 @@ export function CalendarPicker({
   }
 
   // Trackpad swipe on the calendar area only: horizontal wheel deltas accumulate to one nav per
-  // gesture (the slide lock gates repeats; natural direction — content follows the fingers).
+  // gesture (natural direction — content follows the fingers). The accumulator resets on a
+  // direction flip and on a wheel-idle gap, and a post-nav cooldown holds through the momentum
+  // tail so one hard flick can't double-nav.
   const swipe = useRef(0)
+  const swipeCooldown = useRef(false)
+  const swipeIdle = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const onGridWheel = (e: React.WheelEvent): void => {
-    if (slide || Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return
+    if (Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return
+    clearTimeout(swipeIdle.current)
+    swipeIdle.current = setTimeout(() => {
+      swipe.current = 0
+      swipeCooldown.current = false
+    }, 150)
+    if (slide || swipeCooldown.current) return
+    if (swipe.current !== 0 && Math.sign(e.deltaX) !== Math.sign(swipe.current)) swipe.current = 0
     swipe.current += e.deltaX
     if (Math.abs(swipe.current) > 60) {
       nav(swipe.current > 0 ? 1 : -1)
       swipe.current = 0
+      swipeCooldown.current = true
     }
   }
 
@@ -164,6 +193,9 @@ export function CalendarPicker({
     document.elementFromPoint(x, y)?.closest('[data-k]')?.getAttribute('data-k') ?? null
 
   const onGridPointerDown = (e: React.PointerEvent<HTMLDivElement>): void => {
+    // A fresh press always re-arms clicking — the suppress flag must never outlive one gesture
+    // (a drag released off the grid otherwise strands it and eats the next legitimate click).
+    suppressClick.current = false
     const k = (e.target as HTMLElement).closest('[data-k]')?.getAttribute('data-k')
     if (!k) return
     if (k === start) drag.current = { which: 'start', moved: false }
@@ -175,6 +207,7 @@ export function CalendarPicker({
     if (!d) return
     const k = keyAtPoint(e.clientX, e.clientY)
     if (!k || k === (d.which === 'start' ? start : end)) return
+    if (k === (d.which === 'start' ? end : start)) return // never collapse onto the other endpoint
     d.moved = true
     if (d.which === 'start') {
       if (end !== null && k > end) {
@@ -277,7 +310,7 @@ export function CalendarPicker({
     return (
       <PortalMenu rect={timeMenu.rect}>
         <span className={s.ddWrap} onClick={(e) => e.stopPropagation()}>
-          <PickerMenu solid direction="up" notchInsetLeft={timeMenu.rect.w / 2}>
+          <PickerMenu solid direction="up">
             <div className={cx(s.menuList, 'scroll-edge-fade')}>
               {(part === 'h' ? (twelve ? HOURS_12 : HOURS_24) : MINUTES).map((v) => (
                 <PickerOption key={v} selected={v === current} onClick={() => choose(v)}>
@@ -327,11 +360,12 @@ export function CalendarPicker({
         type="button"
         key={`${which}-${part}`}
         className={s.timeSeg}
-        onClick={(e) =>
+        onClick={(e) => {
+          if (e.detail > 1) return // the double-click pair's 2nd click must not toggle the menu shut
           setTimeMenu(
             timeMenu?.which === which && timeMenu.part === part ? null : { which, part, rect: rectOf(e.currentTarget) }
           )
-        }
+        }}
         onDoubleClick={() => {
           setTimeMenu(null)
           setSegEdit({ which, part, draft: pad(part === 'h' ? Math.floor(mins / 60) : mins % 60) })
@@ -402,7 +436,7 @@ export function CalendarPicker({
     menu && (
       <PortalMenu rect={menu.rect}>
         <span className={s.ddWrap} onClick={(e) => e.stopPropagation()}>
-          <PickerMenu solid notchInsetLeft={menu.rect.w / 2}>
+          <PickerMenu solid>
             <div className={cx(s.menuList, 'scroll-edge-fade')}>
               {kind === 'month'
                 ? Array.from({ length: 12 }, (_, m) => (
@@ -519,16 +553,36 @@ export function CalendarPicker({
           )
         })()}
       </div>
+      {/* Toggling unmounts field rows — any open segment menu or uncommitted caret edit dies with
+          them (an unmounting focused input never fires onBlur, so a live segEdit would otherwise
+          resurrect stale on re-toggle). */}
       <div className={s.switchRow}>
         <span className={s.switchLabel}>End Date</span>
         <span className={s.switchScale}>
-          <Switch checked={endOn} ariaLabel="End Date" onChange={(v) => { setEndOn(v); if (!v) setEnd(null) }} />
+          <Switch
+            checked={endOn}
+            ariaLabel="End Date"
+            onChange={(v) => {
+              setEndOn(v)
+              if (!v) setEnd(null)
+              setSegEdit(null)
+              setTimeMenu(null)
+            }}
+          />
         </span>
       </div>
       <div className={s.switchRow}>
         <span className={s.switchLabel}>Use Time</span>
         <span className={s.switchScale}>
-          <Switch checked={timeOn} ariaLabel="Use Time" onChange={setTimeOn} />
+          <Switch
+            checked={timeOn}
+            ariaLabel="Use Time"
+            onChange={(v) => {
+              setTimeOn(v)
+              setSegEdit(null)
+              setTimeMenu(null)
+            }}
+          />
         </span>
       </div>
       </SizeMorph>
