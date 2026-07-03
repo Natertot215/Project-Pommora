@@ -105,4 +105,8 @@ The SQLite `property_definitions` table is a pure mirror of the nexus-wide regis
 
 **Display Formats:** Number formats, date and time formats, and the Status display variant. These ride through as preserved foreign keys until a UI reads them.
 
+**Larger Color Picker:** option colors store an open solid-palette key (all ten `colors.css` solids, resolved through `chipColorFor` with a legacy read-map for old Notion values), so the ColorPicker's 2×5 grid can grow into a much larger selector (~9×12) over the shared color tokens — reusable across every color-token consumer — with no schema churn. A future enhancement, not a limitation.
+
+**Status Display Style → Per-Property:** the Status display look (pill / capsule / check) is moving out of the per-view `column_styles` (see § Where Properties Live) into a per-property style held on the Collection and keyed by the property's ULID, so every view type — table, card, gallery — honours it rather than the table alone. Lands with the Status option editor (Planning `7-3`).
+
 **Calendar Picker refinements:** the Date & Time value editor is live in table cells but pending — range values (the picker's range mode is demo-only; a datetime value is a single ISO on disk), keyboard stepping on the time segments, an in-app control for the `time_format` setting, and its own test coverage.
