@@ -11,24 +11,42 @@ import * as s from './viewPane.css'
 
 /**
  * The Select / Multi-Select option editor — the flat option list inside a property's editor pane
- * (Planning 7-3, Phase 2). Options render as squared `label`-shape chips; Status layers its three
- * groups on top of this same list (Phase 3). The caller owns persistence: `onSetOptions` writes the
- * whole array back through `property.setOptions` (+ error surface + reload).
+ * (Planning 7-3, Phase 2). Options render as squared `label`-shape chips; a right-click chip menu
+ * (native) drives Rename (inline) · Remove · Clear. The caller owns persistence: each callback maps
+ * to a `property.*Option` write (+ error surface + reload). Status layers grouping on top (Phase 3).
  */
 export function OptionEditor({
   type,
   options,
-  onSetOptions
+  onSetOptions,
+  onRenameOption,
+  onRemoveOption,
+  onClearOption
 }: {
   type: PropertyType
   options: Option[]
   onSetOptions: (next: Option[]) => void
+  onRenameOption: (oldValue: string, newTitle: string) => void
+  onRemoveOption: (value: string) => void
+  onClearOption: (value: string) => void
 }): React.JSX.Element {
   const [adding, setAdding] = useState(false)
+  const [renaming, setRenaming] = useState<string | null>(null)
 
   const commitAdd = (raw: string): void => {
     setAdding(false)
     onSetOptions(addOption(options, raw.trim() || fallbackTitle(type)))
+  }
+  const commitRename = (oldValue: string, raw: string): void => {
+    setRenaming(null)
+    const title = raw.trim() || fallbackTitle(type)
+    if (title !== oldValue) onRenameOption(oldValue, title)
+  }
+  const openMenu = async (o: Option): Promise<void> => {
+    const action = await window.nexus.optionMenu({ name: o.label })
+    if (action === 'option:rename') setRenaming(o.value)
+    else if (action === 'option:remove') onRemoveOption(o.value)
+    else if (action === 'option:clear') onClearOption(o.value)
   }
 
   return (
@@ -41,8 +59,27 @@ export function OptionEditor({
       </div>
       <div className={s.optionList}>
         {options.map((o) => (
-          <div key={o.value} className={s.optionRow}>
-            <Chip shape="label" color={chipColorFor(o.color)} label={o.label} />
+          <div
+            key={o.value}
+            className={s.optionRow}
+            onContextMenu={(e) => {
+              e.preventDefault()
+              void openMenu(o)
+            }}
+          >
+            {renaming === o.value ? (
+              <span className={cx(chipLabel, chipColor[chipColorFor(o.color)])}>
+                <EditableInput
+                  value={o.label}
+                  autoSize
+                  className={s.optionInput}
+                  onCommit={(raw) => commitRename(o.value, raw)}
+                  onCancel={() => setRenaming(null)}
+                />
+              </span>
+            ) : (
+              <Chip shape="label" color={chipColorFor(o.color)} label={o.label} />
+            )}
           </div>
         ))}
         {adding ? (

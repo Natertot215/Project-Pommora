@@ -44,10 +44,12 @@ import type { TableMenuContext } from '@shared/tableMenu'
 import type { ColumnMenuContext } from '@shared/columnMenu'
 import type { CellMenuContext } from '@shared/cellMenu'
 import type { PropertyMenuContext } from '@shared/propertyMenu'
+import type { OptionMenuContext } from '@shared/optionMenu'
 import { popCalloutMenu } from './calloutMenu'
 import { popColumnMenu } from './columnMenu'
 import { popCellMenu } from './cellMenu'
 import { popPropertyMenu } from './propertyMenu'
+import { popOptionMenu } from './optionMenu'
 import { installEditorContextMenu, setFormatState, setCalloutGrip } from './editorMenu'
 import type { FormatState } from '@shared/editorMenu'
 import { isValidLink, normalizeLinkUrl } from '@shared/links'
@@ -956,6 +958,11 @@ ipcMain.handle('cell-menu', async (e, ctx: CellMenuContext) => {
 ipcMain.handle('property-menu', async (e, ctx: PropertyMenuContext) => {
   const win = BrowserWindow.fromWebContents(e.sender)
   return win ? popPropertyMenu(win, ctx) : null
+})
+
+ipcMain.handle('option-menu', async (e, ctx: OptionMenuContext) => {
+  const win = BrowserWindow.fromWebContents(e.sender)
+  return win ? popOptionMenu(win, ctx) : null
 })
 
 // Open a page-attached file in its OS default app. The renderer-supplied path validates under the
