@@ -66,9 +66,9 @@ export function ViewPane(): React.JSX.Element | null {
   // Slot B keeps rendering the last-opened detail while sliding back, so it doesn't blank mid-retract.
   const detailId = pane === 'root' ? lastDetail.current : pane
 
-  const pendingPane = (label: string, message: string): React.JSX.Element => (
+  const pendingPane = (message: string): React.JSX.Element => (
     <>
-      <MenuBackRow label={label} onClick={back} className={backRowPad} />
+      <MenuBackRow label="Settings" onClick={back} className={backRowPad} />
       <MenuSeparator flush />
       <MenuCaption>{message}</MenuCaption>
     </>
@@ -101,10 +101,10 @@ export function ViewPane(): React.JSX.Element | null {
       schemaCollection ? (
         <PropertiesPane collectionPath={schemaCollection.path} schema={schemaCollection.properties ?? []} onBack={back} />
       ) : (
-        pendingPane('Properties', 'Schema unavailable.')
+        pendingPane('Schema unavailable.')
       )
     ) : (
-      pendingPane(PANE_LABEL[detailId], `${PANE_LABEL[detailId]} — pending`)
+      pendingPane(`${PANE_LABEL[detailId]} — pending`)
     )
 
   return (

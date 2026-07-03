@@ -309,7 +309,7 @@ export function PropertiesPane({
     }
     return (
       <>
-        {actionHeader(def.name, backToList, {
+        {actionHeader('Properties', backToList, {
           icon: 'ellipsis-vertical',
           size: s.ICON.editorMenu,
           ariaLabel: 'Property Menu',
@@ -323,7 +323,7 @@ export function PropertiesPane({
 
   const list = (
     <PaneDnd rows={paneRows} labelFor={nameFor} onDrop={(drop) => void handleDrop(drop)}>
-      {actionHeader('Properties', onBack, {
+      {actionHeader('Settings', onBack, {
         icon: 'square-plus',
         size: s.ICON.add,
         ariaLabel: 'New Property',
