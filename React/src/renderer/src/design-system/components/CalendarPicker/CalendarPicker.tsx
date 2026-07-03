@@ -329,12 +329,21 @@ export function CalendarPicker({
         {timeMenu?.which === which && timeMenu.part === part && timeOptions(which, part)}
       </button>
     )
-  // The Swift-style meridiem segment — a plain toggle (two values never earn a dropdown).
+  // The Swift-style meridiem segment — a plain toggle (two values never earn a dropdown), with a
+  // stacked compact-chevron affordance so it reads as a control.
   const ampmSegment = (which: 'start' | 'end', mins: number): React.JSX.Element => {
     const setMins = which === 'start' ? setStartMin : setEndMin
     return (
-      <button type="button" className={s.timeSeg} onClick={() => setMins(mins >= 720 ? mins - 720 : mins + 720)}>
+      <button
+        type="button"
+        className={cx(s.timeSeg, s.ampmSeg)}
+        onClick={() => setMins(mins >= 720 ? mins - 720 : mins + 720)}
+      >
         {mins >= 720 ? 'PM' : 'AM'}
+        <span className={s.ampmChevs} aria-hidden>
+          <Icon name="chevron-compact-up" size={8} />
+          <Icon name="chevron-compact-down" size={8} />
+        </span>
       </button>
     )
   }

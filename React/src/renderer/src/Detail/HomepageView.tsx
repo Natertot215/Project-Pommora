@@ -1,9 +1,8 @@
-import { useRef, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import type { NexusTree } from '@shared/types'
 import { CalendarPicker } from '@renderer/design-system/components/CalendarPicker/CalendarPicker'
 import * as cal from '@renderer/design-system/components/CalendarPicker/calendarPicker.css'
 import { PickerMenu } from '@renderer/design-system/components/PickerMenu/PickerMenu'
-import { useDismiss } from '@renderer/design-system/components/Popover'
 import { useExitPresence } from '@renderer/design-system/useExitPresence'
 import { DetailScaffold } from './DetailScaffold'
 import { condensedDate, formatDate } from './Views/PropertyEditing/formatValue'
@@ -17,12 +16,24 @@ const fmtDateFor =
     condensed ? condensedDate(k, fmt, condensed.withYear) : formatDate(k, fmt, 'none')
 
 /** One openable demo picker: the trigger toggles, click-off dismisses, the pane Blooms out through
- *  exit presence. Clicks INSIDE the pane stop at the boundary so picking never closes it. */
+ *  exit presence. Clicks INSIDE the pane stop at the boundary so picking never closes it — and the
+ *  dismiss spares [data-calmenu] portals (the picker's sub-menus live at body level; a plain
+ *  useDismiss reads them as outside and closes the main pane — the real property-editor host
+ *  needs the same carve-out). */
 function DemoPicker({ tag, trigger, children }: { tag: string; trigger: string; children: ReactNode }): React.JSX.Element {
   const [open, setOpen] = useState(true)
   const ref = useRef<HTMLButtonElement>(null)
   const p = useExitPresence(open)
-  useDismiss(ref, () => setOpen(false), open)
+  useEffect(() => {
+    if (!open) return
+    const onDown = (e: PointerEvent): void => {
+      const t = e.target as HTMLElement
+      if (ref.current?.contains(t) || t.closest('[data-calmenu]')) return
+      setOpen(false)
+    }
+    document.addEventListener('pointerdown', onDown, true)
+    return () => document.removeEventListener('pointerdown', onDown, true)
+  }, [open])
   return (
     <div className={cal.demoCell}>
       <span className={cal.demoTag}>{tag}</span>

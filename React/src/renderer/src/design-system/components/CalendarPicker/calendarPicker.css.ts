@@ -201,6 +201,15 @@ export const timeSegInput = style({
   selectors: { '&::selection': { background: 'transparent' } }
 })
 export const timeColon = style({ color: c.label.secondary })
+/* AM/PM toggle: text + a stacked compact-chevron pair (the registry's day-one compacts, finally
+   assigned) hinting the flip. */
+export const ampmSeg = style({ display: 'inline-flex', alignItems: 'center', gap: '2px', padding: '1px 3px' })
+export const ampmChevs = style({
+  display: 'flex',
+  flexDirection: 'column',
+  color: c.label.secondary
+})
+globalStyle(`${ampmChevs} > :last-child`, { marginTop: '-3px' })
 
 /* ── Boolean rows (the real Switch) ── */
 export const switchRow = style({
