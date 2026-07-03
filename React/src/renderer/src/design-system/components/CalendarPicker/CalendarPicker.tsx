@@ -218,19 +218,25 @@ export function CalendarPicker({
   const yearChoices = Array.from({ length: 21 }, (_, i) => year - 10 + i)
   const monthName = (m: number): string => new Date(2026, m, 1).toLocaleDateString('en-US', { month: 'long' })
 
+  const optionRow = (label: string | number, selected: boolean): React.JSX.Element => (
+    <span className={s.optionRow}>
+      {label}
+      {selected && <Icon name="check" size={12} className={s.optionCheck} />}
+    </span>
+  )
   const selectionMenu = (kind: 'month' | 'year'): React.JSX.Element => (
-    <span onClick={(e) => e.stopPropagation()}>
+    <span className={s.ddWrap} onClick={(e) => e.stopPropagation()}>
       <PickerMenu solid>
-        <div className={s.menuList}>
+        <div className={cx(s.menuList, 'scroll-edge-fade')}>
           {kind === 'month'
             ? Array.from({ length: 12 }, (_, m) => (
                 <PickerOption key={m} selected={m === cursor.getMonth()} onClick={() => jump(year, m)}>
-                  {monthName(m)}
+                  {optionRow(monthName(m), m === cursor.getMonth())}
                 </PickerOption>
               ))
             : yearChoices.map((y) => (
                 <PickerOption key={y} selected={y === year} onClick={() => jump(y, cursor.getMonth())}>
-                  {y}
+                  {optionRow(y, y === year)}
                 </PickerOption>
               ))}
         </div>

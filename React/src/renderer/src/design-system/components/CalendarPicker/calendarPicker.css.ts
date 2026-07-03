@@ -1,4 +1,4 @@
-import { keyframes, style } from '@vanilla-extract/css'
+import { globalStyle, keyframes, style } from '@vanilla-extract/css'
 import { vars } from '../../tokens/color.css'
 import { duration, easing } from '../../tokens/motion'
 import { TINT_STEPS, tintAt } from '../../tokens/tint'
@@ -49,17 +49,34 @@ export const navBtn = style({
 })
 
 /* ── Month / Year selection dropdowns: the option list inside a nested PickerMenu; the year list
-      shows ~10 rows before it scrolls. ── */
+      shows ~10 rows before it scrolls. The wrapper left-anchors the nested pane (PickerMenu
+      centers by default, which pushed it past the calendar pane's clip edge) and lifts it ABOVE
+      the calendar content. ── */
+export const ddWrap = style({ display: 'contents' })
+globalStyle(`${ddWrap} > div`, { left: 0, transform: 'none', zIndex: 30 })
 export const menuList = style({
   display: 'flex',
   flexDirection: 'column',
   gap: '2px',
-  minWidth: '92px',
-  maxHeight: '250px',
+  minWidth: '110px',
+  maxHeight: '136px', // ≈6 option rows before it over-scrolls (rides the shared scroll-edge-fade)
   overflowY: 'auto',
   scrollbarWidth: 'none',
   selectors: { '&::-webkit-scrollbar': { display: 'none' } }
 })
+/* Option rows: left-aligned label-control text; the selected row shows an accent check at its
+   right edge. */
+export const optionRow = style({
+  flex: 1,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: '8px',
+  textAlign: 'left',
+  fontSize: font.scale.control.size,
+  color: c.label.control
+})
+export const optionCheck = style({ flex: 'none', color: 'var(--accent)' })
 
 /* ── Week headings: Mon…Sun, label-secondary ── */
 export const weekRow = style({ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', padding: '0 2px' })
