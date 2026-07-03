@@ -155,21 +155,24 @@ export function isUntouchedSeed(def: PropertyDefinition): boolean {
   if (def.type === 'status') {
     const groups = def.status_groups
     if (!groups) return false
+    // Every field the user can edit must match, or the edit "disappears" behind the seed check:
+    // group label + the sole option's value / label / color. Colour and group-relabel count too.
     const matches = (seed: StatusGroup[]): boolean =>
       groups.length === seed.length &&
       seed.every((sg) => {
         const g = groups.find((x) => x.id === sg.id)
-        return (
-          g?.options.length === 1 &&
-          g.options[0].value === sg.options[0].value &&
-          g.options[0].label === sg.options[0].label
-        )
+        if (!g || g.label !== sg.label || g.options.length !== 1) return false
+        const [o] = g.options
+        const [so] = sg.options
+        return o.value === so.value && o.label === so.label && o.color === so.color
       })
     return matches(defaultStatusSeed()) || matches(legacyStatusSeed())
   }
   if (def.type === 'select' || def.type === 'multi_select') {
+    const opts = def.select_options
+    if (opts?.length !== 1) return false
     const seed = defaultSelectSeed()[0]
-    return def.select_options?.length === 1 && def.select_options[0].value === seed.value && def.select_options[0].label === seed.label
+    return opts[0].value === seed.value && opts[0].label === seed.label && opts[0].color === undefined
   }
   return false
 }

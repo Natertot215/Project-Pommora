@@ -120,4 +120,21 @@ describe('status seed relabel', () => {
     g[0].options.push({ value: 'Blocked', label: 'Blocked', group_id: 'upcoming' })
     expect(isUntouchedSeed({ id: 'p', name: 'S', type: 'status', status_groups: g } as PropertyDefinition)).toBe(false)
   })
+
+  it('a recolored seed option counts as touched (color, not just value/label)', () => {
+    const g = defaultStatusSeed()
+    g[0].options[0].color = 'red'
+    expect(isUntouchedSeed({ id: 'p', name: 'S', type: 'status', status_groups: g } as PropertyDefinition)).toBe(false)
+  })
+
+  it('a renamed group counts as touched (group label)', () => {
+    const g = defaultStatusSeed()
+    g[1].label = 'Doing'
+    expect(isUntouchedSeed({ id: 'p', name: 'S', type: 'status', status_groups: g } as PropertyDefinition)).toBe(false)
+  })
+
+  it('a recolored select seed counts as touched', () => {
+    const def = { id: 'p', name: 'S', type: 'select', select_options: [{ value: 'Option 1', label: 'Option 1', color: 'blue' }] } as PropertyDefinition
+    expect(isUntouchedSeed(def)).toBe(false)
+  })
 })
