@@ -1,6 +1,6 @@
 ### Framework — Roadmap
 
-Pommora's path to v1.0.0, built in React + Electron. Each minor version ships green and standalone — shipped detail → `History.md`, session state → `Handoff.md`. Scope is the **core 7** (data · properties · connections · markdown · navigation · table · gallery) plus the deferred frontier (block editor, Agenda surfacing, Board/List/Cards renderers, settings UI, global search, LLM-chat inspector, OS integrations).
+Pommora's path to v1.0.0, rebuilt in React + Electron from Swift. Each minor version ships green and standalone — shipped detail → `History.md`, session state → `Handoff.md`. Scope is the **core 7** (data · properties · connections · markdown · navigation · table · gallery) plus the deferred frontier (block editor, Agenda surfacing, Board/List/Cards renderers, settings UI, global search, LLM-chat inspector, OS integrations).
 
 ### Versioning
 
@@ -18,7 +18,7 @@ The entire write/mutation side built tests-first, no UI: CRUD for every entity, 
 
 The shipped glass material — a CSS frost that adds its own light, chosen over refractive libraries in a comparison lab — plus native window chrome. The in-house **PommoraDND** drag engine, built and proven in a standalone Interaction Lab with `@dnd-kit` retired. A hash-routed design-system showcase over opacity-derived color and tint primitives. And the first real surfaces: the "sidebar" insertion-line drag adopted app-wide, and container views (Vault / Collection tables, Context + Homepage) behind banners.
 
-#### The MarkdownPM Editor (06-20 → 06-23)
+#### The MarkdownPM Editor (06-20 → 06-25)
 
 The dynamic-syntax editor on a CodeMirror 6 substrate — Markdown markers show as raw source on the caret line and render styled when the caret leaves, the behavior layer framework-free and unit-tested. Joined by the page banner (`cover` frontmatter) plus a shared icon/title header, heading folding, and a native context menu — then full interactive GFM table editing (a widget over canonical pipe-table source, every cell a live nested editor, reorder and resize through hover grips).
 
