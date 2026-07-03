@@ -58,7 +58,8 @@ export const ICON = {
   twisty: 12, // the All Properties disclosure chevron
   rowPlus: 12, // the registry row's + glyph
   eye: 14, // the Visibility pane's eye / eye-off glyph
-  optionsAdd: 12 // the option editor's "Options" + glyph
+  optionsAdd: 12, // the option editor's "Options" + glyph
+  palette: 14 // the option row's hover recolor glyph
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -292,17 +293,17 @@ export const optionsAdd = style({
   selectors: { '&:hover': { color: COLOR.rowPlusHover } }
 })
 
-/** The chip list — left-aligned chips, the inter-chip gap between them, the "Options"→chips gap on top. */
+/** The chip list — full-width rows (chip left, hover recolor icon at the right edge), the inter-chip
+ *  gap between them, the "Options"→chips gap on top. */
 export const optionList = style({
   display: 'flex',
   flexDirection: 'column',
-  alignItems: 'flex-start',
   gap: `${OPTION.gapBetweenChips}px`,
   paddingTop: `${OPTION.gapAroundLabel}px`
 })
 
-/** One option's row — the chip (its hover palette icon lands here with recolor). */
-export const optionRow = style({ display: 'flex', alignItems: 'center' })
+/** One option's row — chip left, the hover palette icon pushed to the right edge. */
+export const optionRow = style({ display: 'flex', alignItems: 'center', justifyContent: 'space-between' })
 
 /** The inline add/rename caret — bare input inside the chip, which owns the font, padding, and fill. */
 export const optionInput = style({
@@ -313,4 +314,28 @@ export const optionInput = style({
   margin: 0,
   color: 'inherit',
   font: 'inherit'
+})
+
+/** The recolor icon's positioning context — the ColorPicker anchors (centered, below) to this. */
+export const paletteAnchor = style({ position: 'relative', display: 'flex', alignItems: 'center' })
+
+/** The per-row recolor icon — mirrors the Visibility eye: label-secondary, hidden at rest, fading in
+ *  ghosted on row hover and to full on its own hover (opacity-only). */
+export const paletteButton = style({
+  width: `${SIZE.eyeBox}px`,
+  height: `${SIZE.eyeBox}px`,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  border: 'none',
+  background: 'none',
+  padding: 0,
+  cursor: 'default',
+  color: COLOR.eye,
+  opacity: 0,
+  transition: `opacity ${duration.fast} ${easing.standard}`,
+  selectors: {
+    [`${optionRow}:hover &`]: { opacity: 'var(--state-ghost)' },
+    [`${optionRow}:hover &:hover`]: { opacity: 1 }
+  }
 })
