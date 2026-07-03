@@ -14,6 +14,15 @@ import { ok, fail, type Result } from '@shared/result'
 import { renameOption as renameInArray, type Option } from '@shared/optionModel'
 import type { PropertyType } from '@shared/properties'
 
+/** These ops edit `select_options`, so they apply to Select / Multi-Select only. A Status property's
+ *  options live in `status_groups` (Phase 3's per-group ops); other types have none. Reject anything
+ *  else up front — writing select_options onto a status def corrupts it and orphans its page values. */
+function requireOptionType(type: PropertyType): Result<null> {
+  return type === 'select' || type === 'multi_select'
+    ? ok(null)
+    : fail('invalid-property', 'Options can only be edited on Select or Multi-Select properties.')
+}
+
 /** Replace a Select / Multi-Select property's options wholesale (registry-only). Validates unique
  *  titles and writes the array verbatim — an emptied array stays empty (no re-seed; the >=1 floor is
  *  gone), unlike the create path's editProperty which seeds a default on an empty list. */
@@ -21,6 +30,8 @@ export function setOptions(root: string, propertyId: string, options: Option[]):
   return mutateRegistry<Result<null>>(root, (registry) => {
     const current = registry.defs[propertyId]
     if (!current) return { result: fail('not-found', 'Property not found.') }
+    const typeCheck = requireOptionType(current.type)
+    if (!typeCheck.ok) return { result: typeCheck }
     const check = validateOptionValues(options)
     if (!check.ok) return { result: check }
     const next = { ...current, select_options: options }
@@ -55,6 +66,8 @@ export function renameOption(root: string, propertyId: string, oldValue: string,
     const edit = await mutateRegistry<Result<PropertyType>>(root, (registry) => {
       const def = registry.defs[propertyId]
       if (!def) return { result: fail('not-found', 'Property not found.') }
+      const typeCheck = requireOptionType(def.type)
+      if (!typeCheck.ok) return { result: typeCheck }
       const nextOptions = renameInArray(def.select_options ?? [], oldValue, newTitle)
       const check = validateOptionValues(nextOptions)
       if (!check.ok) return { result: check }
@@ -73,6 +86,8 @@ export function clearOption(root: string, propertyId: string, value: string): Pr
   return serializeSchemaOp(async () => {
     const def = (await readRegistry(root)).defs[propertyId]
     if (!def) return fail('not-found', 'Property not found.')
+    const typeCheck = requireOptionType(def.type)
+    if (!typeCheck.ok) return typeCheck
     await cascadePages(root, (content) => stripPageValue(content, propertyId, value, def.type))
     return ok(null)
   })
@@ -84,6 +99,8 @@ export function removeOption(root: string, propertyId: string, value: string): P
   return serializeSchemaOp(async () => {
     const def = (await readRegistry(root)).defs[propertyId]
     if (!def) return fail('not-found', 'Property not found.')
+    const typeCheck = requireOptionType(def.type)
+    if (!typeCheck.ok) return typeCheck
     await cascadePages(root, (content) => stripPageValue(content, propertyId, value, def.type))
     return mutateRegistry<Result<null>>(root, (registry) => {
       const current = registry.defs[propertyId]

@@ -57,6 +57,21 @@ describe('setOptions', () => {
   })
 })
 
+describe('option ops reject non-select/multi properties', () => {
+  it('all four ops fail on a status property and never corrupt it', async () => {
+    const c = await createProperty(root, { id: '', name: 'Stage', type: 'status' } as PropertyDefinition)
+    if (!c.ok) throw new Error('createProperty failed')
+    const id = c.value.id
+    expect((await setOptions(root, id, [{ value: 'X', label: 'X' }])).ok).toBe(false)
+    expect((await renameOption(root, id, 'Open', 'Started')).ok).toBe(false)
+    expect((await removeOption(root, id, 'Open')).ok).toBe(false)
+    expect((await clearOption(root, id, 'Open')).ok).toBe(false)
+    const def = (await readRegistry(root)).defs[id]
+    expect(def.select_options).toBeUndefined()
+    expect(def.status_groups).toHaveLength(3)
+  })
+})
+
 describe('renameOption', () => {
   it('rewrites the def and cascades the value across pages', async () => {
     const id = await mkSelect([{ value: 'Urgent', label: 'Urgent' }])
