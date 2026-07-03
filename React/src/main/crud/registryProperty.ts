@@ -4,10 +4,13 @@ import { mintPropertyId } from '../ids'
 import { defaultStatusSeed, defaultSelectSeed, type PropertyDefinition } from '@shared/properties'
 import { ok, fail, type Result } from '@shared/result'
 
+// Seed defaults for a def that has NONE (the field is undefined — a fresh create, or a type-change
+// into select/status). An EMPTY array is a deliberate state (the user deleted every option), never
+// re-seeded — else emptying a select's options and then any unrelated edit resurrects the seed.
 function seeded(def: PropertyDefinition): PropertyDefinition {
   let d = def
   if (d.type === 'status' && d.status_groups === undefined) d = { ...d, status_groups: defaultStatusSeed() }
-  if ((d.type === 'select' || d.type === 'multi_select') && (d.select_options?.length ?? 0) === 0) {
+  if ((d.type === 'select' || d.type === 'multi_select') && d.select_options === undefined) {
     d = { ...d, select_options: defaultSelectSeed() }
   }
   return d

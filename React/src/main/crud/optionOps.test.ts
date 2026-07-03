@@ -3,7 +3,7 @@ import { mkdtemp, rm, readFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { setOptions, renameOption, removeOption, clearOption } from './optionOps'
-import { createProperty } from './registryProperty'
+import { createProperty, editProperty } from './registryProperty'
 import { assignProperty } from './assignment'
 import { createFolderEntity } from './folderEntity'
 import { createPage, updatePageProperty } from './page'
@@ -54,6 +54,13 @@ describe('setOptions', () => {
 
   it('fails for an unknown property id', async () => {
     expect((await setOptions(root, 'prop_nope', [])).ok).toBe(false)
+  })
+
+  it('an emptied options list survives an unrelated property edit — no phantom re-seed (F2)', async () => {
+    const id = await mkSelect([{ value: 'A', label: 'A' }])
+    await setOptions(root, id, [])
+    await editProperty(root, id, { name: 'Renamed Tags' })
+    expect((await readRegistry(root)).defs[id].select_options).toEqual([])
   })
 })
 
