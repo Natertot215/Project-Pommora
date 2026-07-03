@@ -60,6 +60,12 @@ describe('replacePageValue (rename cascade)', () => {
     expect(c).not.toContain('- x')
   })
 
+  it('multi_select: renaming into a value already present merges, never duplicates', () => {
+    const c = replacePageValue(page('  prop_m:\n    - x\n    - y\n'), 'prop_m', 'x', 'y', 'multi_select')
+    expect(c).not.toBeNull()
+    expect(c?.match(/^\s*- y\s*$/gm)?.length ?? 0).toBe(1)
+  })
+
   it('returns null when the page does not hold the value', () => {
     expect(replacePageValue(page('  prop_s: Other\n'), 'prop_s', 'Urgent', 'Critical', 'select')).toBeNull()
   })

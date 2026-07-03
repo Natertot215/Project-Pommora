@@ -23,7 +23,13 @@ const SKIP = Symbol('skip')
 function rewriteRaw(raw: unknown, type: PropertyType, target: string, edit: ValueEdit): unknown | typeof SKIP {
   if (type === 'multi_select') {
     if (!Array.isArray(raw) || !raw.includes(target)) return SKIP
-    if (edit.op === 'replace') return raw.map((el) => (el === target ? edit.to : el))
+    if (edit.op === 'replace') {
+      // Renaming target into a DIFFERENT value the array already holds would duplicate it — merge
+      // instead by dropping the target (its new value is already present). The `to !== target` guard
+      // keeps a no-op rename from deleting the value. Foreign elements are otherwise untouched.
+      if (edit.to !== target && raw.includes(edit.to)) return raw.filter((el) => el !== target)
+      return raw.map((el) => (el === target ? edit.to : el))
+    }
     const filtered = raw.filter((el) => el !== target)
     return filtered.length ? filtered : null
   }
