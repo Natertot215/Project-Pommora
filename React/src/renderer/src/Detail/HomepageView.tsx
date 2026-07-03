@@ -1,6 +1,7 @@
 import type { NexusTree } from '@shared/types'
 import { CalendarPicker } from '@renderer/design-system/components/CalendarPicker/CalendarPicker'
 import * as cal from '@renderer/design-system/components/CalendarPicker/calendarPicker.css'
+import { PickerMenu } from '@renderer/design-system/components/PickerMenu/PickerMenu'
 import { DetailScaffold } from './DetailScaffold'
 import { formatDate } from './Views/PropertyEditing/formatValue'
 
@@ -24,15 +25,21 @@ export function HomepageView({ tree }: { tree: NexusTree | null }): React.JSX.El
       <div className={cal.demoRow}>
         <div className={cal.demoCell}>
           <span className={cal.demoTag}>short · 12-hour</span>
-          <div className={cal.demoCard}>
-            <CalendarPicker formatDateValue={(k) => formatDate(k, 'short', 'none')} formatTimeValue={(m) => fmtTime(m, true)} />
-          </div>
+          <span className={cal.demoTrigger}>
+            July 2nd
+            <PickerMenu solid>
+              <CalendarPicker formatDateValue={(k) => formatDate(k, 'short', 'none')} formatTimeValue={(m) => fmtTime(m, true)} />
+            </PickerMenu>
+          </span>
         </div>
         <div className={cal.demoCell}>
           <span className={cal.demoTag}>full · 24-hour (overflow demo)</span>
-          <div className={cal.demoCard}>
-            <CalendarPicker formatDateValue={(k) => formatDate(k, 'full', 'none')} formatTimeValue={(m) => fmtTime(m, false)} />
-          </div>
+          <span className={cal.demoTrigger}>
+            Wednesday, July 2nd 2026
+            <PickerMenu solid>
+              <CalendarPicker formatDateValue={(k) => formatDate(k, 'full', 'none')} formatTimeValue={(m) => fmtTime(m, false)} />
+            </PickerMenu>
+          </span>
         </div>
       </div>
     </DetailScaffold>

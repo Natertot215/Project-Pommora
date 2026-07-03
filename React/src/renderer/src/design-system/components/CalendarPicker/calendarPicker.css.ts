@@ -8,7 +8,9 @@ const c = vars.color
 const endpointFill = tintAt('var(--accent)', TINT_STEPS.secondary)
 const bandFill = tintAt('var(--accent)', TINT_STEPS.tertiary)
 
-export const root = style({ width: '100%' })
+/* The picker's intrinsic width — the PickerMenu pane shrink-wraps this (+ its gutters) to ~250,
+   the Figma frame's size. THE sizing knob. */
+export const root = style({ width: '240px' })
 
 /* ── Header: Month Year (one color) + ‹ › ── */
 export const head = style({ display: 'flex', alignItems: 'center', padding: '2px 4px 8px' })
@@ -116,12 +118,25 @@ export const switchRow = style({
 })
 export const switchLabel = style({ flex: 1, fontSize: '12.5px', color: c.label.primary })
 
-/* ── Homepage demo chrome (dev mount) ── */
-export const demoRow = style({ display: 'flex', gap: '24px', flexWrap: 'wrap', alignItems: 'flex-start' })
-export const demoCell = style({ display: 'flex', flexDirection: 'column', gap: '8px', width: '250px' })
+/* ── Homepage demo chrome (dev mount): a fake value-chip trigger; the real PickerMenu pane hangs
+      under it (absolute), so the cell reserves the pane's height. ── */
+export const demoRow = style({ display: 'flex', gap: '40px', flexWrap: 'wrap', alignItems: 'flex-start' })
+export const demoCell = style({
+  position: 'relative',
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '8px',
+  alignItems: 'flex-start',
+  width: '270px',
+  minHeight: '480px'
+})
 export const demoTag = style({ fontSize: '12px', color: c.label.secondary })
-export const demoCard = style({
+export const demoTrigger = style({
+  position: 'relative',
   border: `1px solid ${c.separator.line}`,
-  borderRadius: '12px',
-  padding: '10px 10px 8px'
+  borderRadius: '6px',
+  padding: '3px 10px',
+  fontSize: '12px',
+  color: c.label.primary,
+  background: c.state.hover
 })
