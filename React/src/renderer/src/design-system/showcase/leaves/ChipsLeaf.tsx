@@ -47,15 +47,58 @@ function PillRow(): React.JSX.Element {
   )
 }
 
-const STATIC_SHAPES: Array<{ label: string; shape: string; content: () => ReactNode }> = [
+const SHAPE_ROWS: Array<{ label: string; shape: string; content: () => ReactNode }> = [
   { label: 'Label', shape: chipLabel, content: () => <span className={chipLabelWrap}>Label</span> },
   { label: 'Context', shape: chipContext, content: () => <span className={chipLabelWrap}>Context</span> },
   { label: 'Capsule', shape: chipCapsule, content: () => <Icon name="circle-dashed" size={13} /> },
   { label: 'Box', shape: chipBox, content: () => <Icon name="check" size={12} strokeWidth={3} /> }
 ]
 
+/** A reorderable row of one shape across the palette — the pill row's machinery for any shape. */
+function ShapeRow({ rowId, shape, content }: { rowId: string; shape: string; content: () => ReactNode }): React.JSX.Element {
+  const [order, setOrder] = useState<ChipColorName[]>(() => [...CHIP_COLORS])
+  const compact = useIsCompact()
+  const cells = (
+    <div className="ds-chip-row-items">
+      {order.map((k) =>
+        compact ? (
+          <span key={k} className={cx(shape, chipColor[k])} title={k}>
+            {content()}
+          </span>
+        ) : (
+          <ShapeCell key={k} id={`${rowId}:${k}`} className={cx(shape, chipColor[k])} title={k}>
+            {content()}
+          </ShapeCell>
+        )
+      )}
+    </div>
+  )
+  if (compact) return cells
+  return (
+    <SortableZone
+      items={order.map((k) => `${rowId}:${k}`)}
+      layout="grid"
+      getItemLabel={(id) => id.split(':')[1]}
+      onReorder={(a, o) =>
+        setOrder((x) => reorder(x.map((k) => ({ id: `${rowId}:${k}` })), a, o).map(({ id }) => id.split(':')[1] as ChipColorName))
+      }
+    >
+      {cells}
+    </SortableZone>
+  )
+}
+
+function ShapeCell({ id, className, title, children }: { id: string; className: string; title: string; children: ReactNode }): React.JSX.Element {
+  const { setNodeRef, style, handle } = useDragItem(id)
+  return (
+    <span ref={setNodeRef} style={style} className={className} {...handle} title={title}>
+      {children}
+    </span>
+  )
+}
+
 // Components not yet built — they land as new leaves under the Components section.
-const PENDING = ['Button', 'Label', 'Menu', 'Separator', 'Row']
+const PENDING = ['Button', 'Separator', 'Row']
 
 export function ChipsLeaf(): React.JSX.Element {
   return (
@@ -67,14 +110,10 @@ export function ChipsLeaf(): React.JSX.Element {
             <div className="ds-chip-rowlabel">Pill · drag to reorder</div>
             <PillRow />
           </div>
-          {STATIC_SHAPES.map((shape) => (
+          {SHAPE_ROWS.map((shape) => (
             <div className="ds-chip-row" key={shape.label}>
               <div className="ds-chip-rowlabel">{shape.label}</div>
-              {CHIP_COLORS.map((k) => (
-                <span key={k} className={cx(shape.shape, chipColor[k])} title={k}>
-                  {shape.content()}
-                </span>
-              ))}
+              <ShapeRow rowId={shape.label} shape={shape.shape} content={shape.content} />
             </div>
           ))}
         </div>

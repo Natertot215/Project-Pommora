@@ -47,10 +47,12 @@ function SwatchView({ name, color, dragRef, style, handle }: {
 function GhostSwatch(): React.JSX.Element {
   return (
     <div className="ds-swatch">
-      <div className="ds-swatch-chip" style={{ background: vars.color.system.white, opacity: TINT_STEPS.primary / 100 }} />
+      <div className="ds-swatch-chip" style={{ background: vars.color.background.window }}>
+        <div style={{ width: '100%', height: '100%', background: vars.color.system.white, opacity: TINT_STEPS.primary / 100 }} />
+      </div>
       <div className="ds-swatch-meta">
         <div className="ds-swatch-name">Ghost</div>
-        <div className="ds-swatch-hex">{`opacity · ${TINT_STEPS.primary}%`}</div>
+        <div className="ds-swatch-hex">{`Opacity · ${TINT_STEPS.primary}%`}</div>
       </div>
     </div>
   )
@@ -71,14 +73,16 @@ function SwatchGroup({ label, group, append }: { label: string; group: Record<st
   const compact = useIsCompact()
   const cells = (
     <div className={'ds-swatches' + (compact ? '' : ' ds-swatches-drag')}>
-      {items.map((it) =>
-        compact ? (
-          <SwatchView key={it.id} name={it.name} color={it.color} />
-        ) : (
-          <SwatchDraggable key={it.id} id={it.id} name={it.name} color={it.color} />
-        )
-      )}
-      {append}
+      {items.map((it, i) => (
+        <span key={it.id} style={{ display: 'contents' }}>
+          {i === items.length - 1 ? append : null}
+          {compact ? (
+            <SwatchView name={it.name} color={it.color} />
+          ) : (
+            <SwatchDraggable id={it.id} name={it.name} color={it.color} />
+          )}
+        </span>
+      ))}
     </div>
   )
   return (
@@ -142,8 +146,51 @@ function AccentDemo(): React.JSX.Element {
 // five steps primary → solid. Static reference (each is the color over the page).
 const TINT_ORDER = ['primary', 'secondary', 'tertiary', 'quaternary', 'solid'] as const
 
+function TintRow({ name, color }: { name: string; color: string }): React.JSX.Element {
+  const { setNodeRef, style, handle } = useDragItem(name)
+  return (
+    <div ref={setNodeRef} style={style} className="ds-tint-row" {...handle}>
+      <span className="ds-tint-rowlabel">{humanize(name)}</span>
+      {TINT_ORDER.map((k) => (
+        <span
+          key={k}
+          className="ds-tint-swatch"
+          style={{ background: tintAt(color, TINT_STEPS[k]) }}
+          title={`${name} · ${k} ${TINT_STEPS[k]}%`}
+        />
+      ))}
+    </div>
+  )
+}
+
 function TintScale(): React.JSX.Element {
-  const colors = Object.entries(vars.color.solid)
+  const [colors, setColors] = useState(() => Object.entries(vars.color.solid))
+  const compact = useIsCompact()
+  const rows = compact ? (
+    <>
+      {colors.map(([name, color]) => (
+        <div className="ds-tint-row" key={name}>
+          <span className="ds-tint-rowlabel">{humanize(name)}</span>
+          {TINT_ORDER.map((k) => (
+            <span key={k} className="ds-tint-swatch" style={{ background: tintAt(color, TINT_STEPS[k]) }} title={`${name} · ${k} ${TINT_STEPS[k]}%`} />
+          ))}
+        </div>
+      ))}
+    </>
+  ) : (
+    <SortableZone
+      items={colors.map(([n]) => n)}
+      layout="grid"
+      getItemLabel={(id) => humanize(id)}
+      onReorder={(a, o) => setColors((x) => reorder(x.map(([n, c]) => ({ id: n, c })), a, o).map(({ id, c }) => [id, c] as (typeof x)[number]))}
+    >
+      <>
+        {colors.map(([name, color]) => (
+          <TintRow key={name} name={name} color={color} />
+        ))}
+      </>
+    </SortableZone>
+  )
   return (
     <section className="ds-section">
       <h2>Color · Tints</h2>
@@ -156,19 +203,7 @@ function TintScale(): React.JSX.Element {
             </span>
           ))}
         </div>
-        {colors.map(([name, color]) => (
-          <div className="ds-tint-row" key={name}>
-            <span className="ds-tint-rowlabel">{humanize(name)}</span>
-            {TINT_ORDER.map((k) => (
-              <span
-                key={k}
-                className="ds-tint-swatch"
-                style={{ background: tintAt(color, TINT_STEPS[k]) }}
-                title={`${name} · ${k} ${TINT_STEPS[k]}%`}
-              />
-            ))}
-          </div>
-        ))}
+        {rows}
       </div>
     </section>
   )

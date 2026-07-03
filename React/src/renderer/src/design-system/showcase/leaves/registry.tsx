@@ -6,6 +6,8 @@ import { ChipsLeaf } from './ChipsLeaf'
 import { MenuLeaf } from './MenuLeaf'
 import { GlassLeaf } from './GlassLeaf'
 import { InteractionsLeaf } from './InteractionsLeaf'
+import { CalendarPickerLeaf } from './CalendarPickerLeaf'
+import { StubLeaf } from './StubLeaf'
 
 // The leaf catalog — the single source of which leaves the showcase has. Adding a
 // component to the showcase is one entry here plus its leaf module; the sidebar and
@@ -35,6 +37,11 @@ export const LEAVES: readonly Leaf[] = [
   { id: 'icons', label: 'Icons', icon: 'shapes', section: 'foundations', render: () => <IconsLeaf /> },
   { id: 'chips', label: 'Chips', icon: 'tag', section: 'components', render: () => <ChipsLeaf /> },
   { id: 'menu', label: 'Menu', icon: 'ellipsis-vertical', section: 'components', render: () => <MenuLeaf /> },
+  { id: 'calendar-picker', label: 'CalendarPicker', icon: 'calendar', section: 'components', render: () => <CalendarPickerLeaf /> },
+  { id: 'switch', label: 'Switch', icon: 'square-check', section: 'components', render: () => <StubLeaf name="Switch" /> },
+  { id: 'picker-menu', label: 'PickerMenu', icon: 'dots', section: 'components', render: () => <StubLeaf name="PickerMenu" /> },
+  { id: 'overflow-scroll', label: 'OverflowScroll', icon: 'grip-horizontal', section: 'components', render: () => <StubLeaf name="OverflowScroll" /> },
+  { id: 'notched-pane', label: 'NotchedPane', icon: 'panel-right', section: 'components', render: () => <StubLeaf name="NotchedPane" /> },
   { id: 'glass', label: 'Glass', icon: 'layers', section: 'materials', render: () => <GlassLeaf /> },
   { id: 'interactions', label: 'Interaction Lab', icon: 'arrow-up-down', section: 'interactions', render: () => <InteractionsLeaf /> }
 ]
