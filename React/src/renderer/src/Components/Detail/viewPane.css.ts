@@ -13,8 +13,8 @@ const c = colorVars.color
 
 /** — COLOR — */
 const COLOR = {
-  headerAction: 'var(--label-tertiary)', // ⊕ / ⋮ at rest
-  headerActionHover: 'var(--label-secondary)', // ⊕ / ⋮ hovered
+  headerAction: c.label.tertiary, // ⊕ / ⋮ at rest
+  headerActionHover: c.label.control, // ⊕ / ⋮ hovered
   allHeading: c.label.tertiary, // "All Properties" heading (text + its chevron)
   allRow: c.label.tertiary, // unassigned registry rows
   rowPlus: c.label.tertiary, // a registry row's + at rest
