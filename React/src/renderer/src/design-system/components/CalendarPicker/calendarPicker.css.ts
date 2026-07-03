@@ -14,15 +14,20 @@ const bandFill = tintAt('var(--accent)', TINT_STEPS.tertiary)
    picker mounted inside a <button> trigger would otherwise center every label. */
 export const root = style({ width: '216px', textAlign: 'left' })
 
-/* ── Header: Month Year (one color) + ‹ › ── */
+/* ── Header: [Month] [Year] (label-control buttons, each opening its own selection dropdown)
+      + ‹ | › nav with a segment bar between the chevrons ── */
 export const head = style({ display: 'flex', alignItems: 'center', padding: '2px 4px 8px' })
-export const title = style({
-  flex: 1,
+export const titleGroup = style({ flex: 1, display: 'flex', gap: '5px' })
+export const titleBtn = style({
+  all: 'unset',
+  position: 'relative',
   fontSize: font.scale.body.size,
   fontWeight: font.weight.semibold,
-  color: c.label.primary
+  color: c.label.control,
+  selectors: { '&:hover': { color: c.label.primary } }
 })
-export const nav = style({ display: 'flex', gap: '2px' })
+export const nav = style({ display: 'flex', alignItems: 'center', gap: '2px' })
+export const navSegment = style({ width: '1px', height: '12px', background: c.separator.segment })
 export const navBtn = style({
   all: 'unset',
   width: '24px',
@@ -32,6 +37,19 @@ export const navBtn = style({
   placeItems: 'center',
   color: c.label.secondary,
   selectors: { '&:hover': { background: c.state.hover, color: c.label.primary } }
+})
+
+/* ── Month / Year selection dropdowns: the option list inside a nested PickerMenu; the year list
+      shows ~10 rows before it scrolls. ── */
+export const menuList = style({
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '2px',
+  minWidth: '92px',
+  maxHeight: '250px',
+  overflowY: 'auto',
+  scrollbarWidth: 'none',
+  selectors: { '&::-webkit-scrollbar': { display: 'none' } }
 })
 
 /* ── Week headings: Mon…Sun, label-secondary ── */
@@ -108,7 +126,8 @@ export const field = style({
   gap: '6px',
   border: `1px solid ${c.separator.line}`,
   borderRadius: '8px',
-  padding: '4px 7px'
+  padding: '4px 7px',
+  background: c.fill.tertiary // ad-hoc fill on this surface — Nathan's call
 })
 export const fieldIcon = style({ flex: 'none', color: c.label.secondary })
 export const fieldValue = style({ flex: 1, minWidth: 0, fontSize: font.scale.control.size, color: c.label.primary })
@@ -121,7 +140,7 @@ export const switchRow = style({
   minHeight: '28px',
   padding: '0 2px'
 })
-export const switchLabel = style({ flex: 1, fontSize: font.scale.control.size, color: c.label.primary })
+export const switchLabel = style({ flex: 1, fontSize: font.scale.control.size, color: c.label.control })
 /* The real Switch at picker scale — zoom is the house density knob (the table uses the same). */
 export const switchScale = style({ zoom: 0.8 })
 

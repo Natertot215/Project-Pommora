@@ -1,7 +1,9 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Icon } from '../../symbols'
 import { Switch } from '../Switches/Switch'
 import { OverflowScroll } from '../OverflowScroll'
+import { PickerMenu, PickerOption } from '../PickerMenu/PickerMenu'
+import { useDismiss } from '../Popover'
 import { cx } from '../../cx'
 import * as s from './calendarPicker.css'
 
@@ -35,6 +37,9 @@ export function CalendarPicker({
   const [end, setEnd] = useState<string | null>(null)
   const [endOn, setEndOn] = useState(false)
   const [timeOn, setTimeOn] = useState(false)
+  const [menu, setMenu] = useState<'month' | 'year' | null>(null)
+  const rootRef = useRef<HTMLDivElement>(null)
+  useDismiss(rootRef, () => setMenu(null), menu !== null)
   const startMin = 9 * 60
   const endMin = 17 * 60
 
@@ -125,19 +130,56 @@ export function CalendarPicker({
     </div>
   )
 
-  const monthTitle = `${cursor.toLocaleDateString('en-US', { month: 'long' })} ${cursor.getFullYear()}`
   const prevMonth = slide?.from ?? cursor
+  const year = cursor.getFullYear()
+  const jump = (y: number, m: number): void => {
+    setCursor(new Date(y, m, 1))
+    setMenu(null)
+  }
+  // ~10 years visible before the list scrolls (the menu's max-height caps it); ±10 around the cursor.
+  const yearChoices = Array.from({ length: 21 }, (_, i) => year - 10 + i)
+  const monthName = (m: number): string => new Date(2026, m, 1).toLocaleDateString('en-US', { month: 'long' })
+
+  const selectionMenu = (kind: 'month' | 'year'): React.JSX.Element => (
+    <span onClick={(e) => e.stopPropagation()}>
+      <PickerMenu solid>
+        <div className={s.menuList}>
+          {kind === 'month'
+            ? Array.from({ length: 12 }, (_, m) => (
+                <PickerOption key={m} selected={m === cursor.getMonth()} onClick={() => jump(year, m)}>
+                  {monthName(m)}
+                </PickerOption>
+              ))
+            : yearChoices.map((y) => (
+                <PickerOption key={y} selected={y === year} onClick={() => jump(y, cursor.getMonth())}>
+                  {y}
+                </PickerOption>
+              ))}
+        </div>
+      </PickerMenu>
+    </span>
+  )
 
   return (
-    <div className={s.root}>
+    <div className={s.root} ref={rootRef}>
       <div className={s.head}>
-        <span className={s.title}>{monthTitle}</span>
+        <span className={s.titleGroup}>
+          <button type="button" className={s.titleBtn} onClick={() => setMenu(menu === 'month' ? null : 'month')}>
+            {cursor.toLocaleDateString('en-US', { month: 'long' })}
+            {menu === 'month' && selectionMenu('month')}
+          </button>
+          <button type="button" className={s.titleBtn} onClick={() => setMenu(menu === 'year' ? null : 'year')}>
+            {year}
+            {menu === 'year' && selectionMenu('year')}
+          </button>
+        </span>
         <span className={s.nav}>
           <button type="button" className={s.navBtn} aria-label="Previous month" onClick={() => nav(-1)}>
-            <Icon name="chevron-left" size={14} />
+            <Icon name="chevron-left" size={16} />
           </button>
+          <span className={s.navSegment} aria-hidden />
           <button type="button" className={s.navBtn} aria-label="Next month" onClick={() => nav(1)}>
-            <Icon name="chevron-right" size={14} />
+            <Icon name="chevron-right" size={16} />
           </button>
         </span>
       </div>
