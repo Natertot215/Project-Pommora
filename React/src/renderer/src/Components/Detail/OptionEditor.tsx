@@ -67,7 +67,9 @@ export function OptionEditor({
         </button>
       </div>
       <div className={s.optionList}>
-        {options.map((o) => (
+        {options.map((o) => {
+          const isColoring = coloring === o.value
+          return (
           <div
             key={o.value}
             className={s.optionRow}
@@ -91,17 +93,17 @@ export function OptionEditor({
                 <Chip shape="label" color={chipColorFor(o.color)} label={o.label} />
                 <span className={s.paletteAnchor}>
                   <button
-                    ref={coloring === o.value ? paletteBtnRef : undefined}
+                    ref={isColoring ? paletteBtnRef : undefined}
                     type="button"
                     className={s.paletteButton}
-                    style={coloring === o.value ? { opacity: 1 } : undefined}
+                    style={isColoring ? { opacity: 1 } : undefined}
                     aria-label="Recolor"
                     onClick={() => setColoring((v) => (v === o.value ? null : o.value))}
                   >
                     <Icon name="palette" size={s.ICON.palette} />
                   </button>
                   <ColorPicker
-                    open={coloring === o.value}
+                    open={isColoring}
                     selected={chipColorFor(o.color)}
                     onPick={(color) => pickColor(o, color)}
                     onDismiss={() => setColoring(null)}
@@ -111,7 +113,8 @@ export function OptionEditor({
               </>
             )}
           </div>
-        ))}
+          )
+        })}
         {adding ? (
           <div className={s.optionRow}>
             <span className={cx(chipLabel, chipColor.default)}>

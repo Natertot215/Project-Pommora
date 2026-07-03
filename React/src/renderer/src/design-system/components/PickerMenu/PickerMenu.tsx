@@ -125,6 +125,10 @@ export function PickerMenu({
     return <div className={up ? s.anchorUp : align === 'end' ? s.anchorEnd : s.anchor}>{pane}</div>
   }
 
+  // Closed (and past its exit) — render nothing, so no stray backdrop/pane sits over the page
+  // swallowing hover/clicks. The marker only needs to exist while a placement is being measured.
+  if (!mounted) return null
+
   // Self-managed — a fixed top layer (body portal) escaping any clipping ancestor, beak aimed
   // dynamically. The pane mounts hidden so it can be measured, then reveals at its computed spot.
   return (
