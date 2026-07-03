@@ -32,7 +32,10 @@ export const titleBtn = style({
   fontSize: font.scale.body.size,
   fontWeight: font.weight.semibold,
   color: c.label.control,
-  selectors: { '&:hover': { color: c.label.primary } }
+  padding: '2px 5px',
+  borderRadius: '5px',
+  transition: `background ${duration.fast} ${easing.standard}`,
+  selectors: { '&:hover': { background: c.state.hover } }
 })
 /* translateY nudges the chevron cluster up without costing the row any height. */
 export const nav = style({ display: 'flex', alignItems: 'center', gap: '2px', transform: 'translateY(-2px)' })
@@ -45,7 +48,8 @@ export const navBtn = style({
   display: 'grid',
   placeItems: 'center',
   color: c.label.secondary,
-  selectors: { '&:hover': { background: c.state.hover, color: c.label.primary } }
+  transition: `background ${duration.fast} ${easing.standard}`,
+  selectors: { '&:hover': { background: c.state.hover } }
 })
 
 /* ── Month / Year / time-segment dropdowns: the option list inside a nested PickerMenu, portal'd
