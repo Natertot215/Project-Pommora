@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { mkdtemp, rm, readFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { setOptions, renameOption } from './optionOps'
+import { setOptions, renameOption, removeOption, clearOption } from './optionOps'
 import { createProperty } from './registryProperty'
 import { assignProperty } from './assignment'
 import { createFolderEntity } from './folderEntity'
@@ -83,5 +83,40 @@ describe('renameOption', () => {
 
   it('fails for an unknown property id', async () => {
     expect((await renameOption(root, 'prop_nope', 'A', 'B')).ok).toBe(false)
+  })
+})
+
+describe('removeOption', () => {
+  it('deletes the def option and strips its value from pages', async () => {
+    const id = await mkSelect([
+      { value: 'A', label: 'A' },
+      { value: 'B', label: 'B' }
+    ])
+    const page = await pageHolding(id, 'A')
+
+    const r = await removeOption(root, id, 'A')
+    expect(r.ok).toBe(true)
+    expect((await readRegistry(root)).defs[id].select_options).toEqual([{ value: 'B', label: 'B' }])
+    expect(await readFile(page, 'utf8')).not.toContain(id)
+  })
+
+  it('fails for an unknown property id', async () => {
+    expect((await removeOption(root, 'prop_nope', 'A')).ok).toBe(false)
+  })
+})
+
+describe('clearOption', () => {
+  it('strips the value from pages but KEEPS the option', async () => {
+    const id = await mkSelect([{ value: 'A', label: 'A' }])
+    const page = await pageHolding(id, 'A')
+
+    const r = await clearOption(root, id, 'A')
+    expect(r.ok).toBe(true)
+    expect((await readRegistry(root)).defs[id].select_options).toEqual([{ value: 'A', label: 'A' }])
+    expect(await readFile(page, 'utf8')).not.toContain(id)
+  })
+
+  it('fails for an unknown property id', async () => {
+    expect((await clearOption(root, 'prop_nope', 'A')).ok).toBe(false)
   })
 })

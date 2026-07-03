@@ -3,13 +3,13 @@
 // in later tasks on the serializeSchemaOp chain. Errors flow as Result, never thrown.
 
 import { readFile } from 'node:fs/promises'
-import { mutateRegistry } from '../io/propertiesRegistry'
+import { mutateRegistry, readRegistry } from '../io/propertiesRegistry'
 import { validateOptionValues } from '../properties/schema'
 import { allCollectionFolders } from './assignment'
 import { serializeSchemaOp } from './schemaChain'
 import { SchemaTransaction } from '../io/schemaTransaction'
 import { listMarkdownFiles } from '../io/walk'
-import { replacePageValue } from './pageValue'
+import { replacePageValue, stripPageValue } from './pageValue'
 import { ok, fail, type Result } from '@shared/result'
 import { renameOption as renameInArray, type Option } from '@shared/optionModel'
 import type { PropertyType } from '@shared/properties'
@@ -64,5 +64,32 @@ export function renameOption(root: string, propertyId: string, oldValue: string,
     if (!edit.ok) return edit
     await cascadePages(root, (content) => replacePageValue(content, propertyId, oldValue, newTitle, edit.value))
     return ok(null)
+  })
+}
+
+/** Clear an option's value from every page, keeping the option in the def. Page-only fan-out on the
+ *  serializeSchemaOp chain; the registry is untouched. */
+export function clearOption(root: string, propertyId: string, value: string): Promise<Result<null>> {
+  return serializeSchemaOp(async () => {
+    const def = (await readRegistry(root)).defs[propertyId]
+    if (!def) return fail('not-found', 'Property not found.')
+    await cascadePages(root, (content) => stripPageValue(content, propertyId, value, def.type))
+    return ok(null)
+  })
+}
+
+/** Remove an option: strip its value from every page, then drop it from the def. Pages first (as
+ *  deleteProperty does) so a def edit failure never leaves the option gone with its values orphaned. */
+export function removeOption(root: string, propertyId: string, value: string): Promise<Result<null>> {
+  return serializeSchemaOp(async () => {
+    const def = (await readRegistry(root)).defs[propertyId]
+    if (!def) return fail('not-found', 'Property not found.')
+    await cascadePages(root, (content) => stripPageValue(content, propertyId, value, def.type))
+    return mutateRegistry<Result<null>>(root, (registry) => {
+      const current = registry.defs[propertyId]
+      if (!current) return { result: fail('not-found', 'Property not found.') }
+      const nextOptions = (current.select_options ?? []).filter((o) => o.value !== value)
+      return { next: { ...registry, defs: { ...registry.defs, [propertyId]: { ...current, select_options: nextOptions } } }, result: ok(null) }
+    })
   })
 }
