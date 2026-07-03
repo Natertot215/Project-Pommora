@@ -49,6 +49,13 @@ globalStyle(':root', {
     // a fade to the primary tint opacity, the same treatment MarkdownPM's drag-source uses. An opacity,
     // not a colour — consumed via `opacity: var(--state-ghost)`.
     '--state-ghost': 'var(--tint-primary)',
+    // Drag insertion line — the drop-target marker (accent line + leading dot) shared by every drop-line
+    // DnD surface: table rows/bands AND the settings-pane property reorder. Global so a pane portaled out
+    // of the table scope still resolves it; the color points at the accent, the two dims are the line's
+    // own primitive (no design-system token).
+    '--drag-line': 'var(--accent)',
+    '--drop-line-thickness': '2px',
+    '--drop-dot-size': '7px',
     // Accent: a pointer, never a baked color. The static seed is the default
     // spectrum solid (DEFAULT_ACCENT); applyAccent overrides --accent at runtime
     // from settings — any spectrum color, or the OS accent. -fill is a 15% tint

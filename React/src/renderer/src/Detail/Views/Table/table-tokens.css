@@ -46,10 +46,10 @@
   --col-highlight: var(--state-selected); /* the lifted COLUMN reads as selected mid-drag (not ghosted — ghost is for rows) */
   --col-drag-band: var(--bg-window); /* opaque backing so the dragged column glides as one solid band, not see-through */
   --col-shift-ease: var(--duration-fast) var(--ease-standard); /* neighbour columns slide to open the gap on this curve */
-  --drag-line: var(--accent); /* the row insertion line + its leading dot */
   --drag-muted: var(--state-ghost); /* the picked-up row fades to the ghost opacity — muted in place, never displaced (B-2) */
-  --drop-line-thickness: 2px; /* insertion line height */
-  --drop-dot-size: 7px; /* the insertion line's leading-dot diameter */
+  /* The insertion line (--drag-line + --drop-line-thickness + --drop-dot-size) is a GLOBAL drag primitive
+     in theme-vars.css.ts, not a table-scoped knob: its .table-drop-line class is also used by the
+     settings-pane property reorder, which renders outside .table-view, so those vars must resolve there. */
 
   /* — Empty state — */
   --empty-pad-y: 24px; /* vertical padding of the "No pages here" / "Loading…" placeholder */
