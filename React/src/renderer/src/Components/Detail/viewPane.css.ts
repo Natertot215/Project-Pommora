@@ -107,6 +107,15 @@ export const twistyOpen = style({ transform: 'rotate(90deg)' })
 /** Unassigned registry rows render dimmer than assigned ones (A-3). */
 export const allRow = style({ color: c.label.tertiary })
 
+/** The elastic gap above the All Properties block: closed it absorbs the pane floor's slack
+ *  (the block reads bottom-pinned); open it collapses on the pane's beat, so the heading RISES
+ *  to meet the assigned rows while its list unfolds beneath. */
+export const allSpacer = style({
+  flex: '1 1 0px',
+  transition: `flex-grow ${duration.base} ${easing.standard}`
+})
+export const allSpacerCollapsed = style({ flexGrow: 0 })
+
 /** The per-row `+` promote affordance (A-5) — bare 16×16, secondary to primary on hover. */
 export const rowPlus = style({
   width: '16px',
@@ -121,3 +130,18 @@ export const rowPlus = style({
   color: c.label.secondary,
   selectors: { '&:hover': { color: c.label.primary } }
 })
+
+/** The pane drag's positioning context (drop line) — fills the slot so the elastic spacer
+ *  has the floor's slack to absorb. */
+export const paneDnd = style({
+  position: 'relative',
+  display: 'flex',
+  flexDirection: 'column',
+  flex: '1 1 auto'
+})
+
+/** The unassign target's area highlight (C-4) — the whole all-group tints, no insertion line. */
+export const allHighlight = style({ background: c.state.hover, borderRadius: '6px' })
+
+/** The picked-up row fades to the ghost opacity — muted in place, never displaced. */
+export const rowDragging = style({ opacity: 'var(--state-ghost)' })

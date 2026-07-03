@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useRef, useState, type ReactNode } from 'react'
 import { Icon } from '@renderer/design-system/symbols'
 import { useSession } from '../../store'
 import { isReservedPropertyId, type PropertyDefinition, type PropertyType } from '@shared/properties'
@@ -8,6 +8,8 @@ import { duration } from '../../design-system/tokens/motion'
 import { IconPicker } from '../IconPicker'
 import { InlineEditHeader } from './InlineEditHeader'
 import { PaneSlider } from './PaneSlider'
+import { PaneDnd, usePaneDrag, usePaneRegions } from './paneDnd'
+import type { PaneDrop, PaneRow } from './paneDndModel'
 import { CREATABLE_TYPES, PropertyTypeIcon, propertyTypeLabel } from './PropertyTypes'
 import { cx } from '../../design-system/cx'
 import * as s from './viewPane.css'
@@ -15,6 +17,97 @@ import * as s from './viewPane.css'
 type DetailView = { kind: 'type' } | { kind: 'edit'; id: string }
 type SubView = { kind: 'list' } | DetailView
 type WriteResult = { ok: true } | { ok: false; error: string }
+
+/** One draggable property row — the WHOLE row is the drag surface (buttons inside never arm one). */
+function RowShell({ id, children }: { id: string; children: ReactNode }): React.JSX.Element {
+  const { ref, handle, isDragging } = usePaneDrag(id)
+  return (
+    <div ref={ref} {...handle} data-prop={id} className={cx(isDragging && s.rowDragging)}>
+      {children}
+    </div>
+  )
+}
+
+/** The two drag regions (E-4): assigned rows on top, the bottom-pinned All Properties block below
+ *  the elastic spacer. Lives outside PropertiesPane so rows never remount on its re-renders. */
+function ListGroups({
+  assigned,
+  unassigned,
+  allOpen,
+  onToggleAll,
+  onOpenEditor,
+  onAssign
+}: {
+  assigned: PropertyDefinition[]
+  unassigned: PropertyDefinition[]
+  allOpen: boolean
+  onToggleAll: () => void
+  onOpenEditor: (id: string) => void
+  onAssign: (id: string) => void
+}): React.JSX.Element {
+  const { assignedRef, allRef, allHighlighted } = usePaneRegions()
+  return (
+    <>
+      <div data-group="assigned" ref={assignedRef}>
+        {assigned.length === 0 ? (
+          <MenuCaption>No properties yet.</MenuCaption>
+        ) : (
+          assigned.map((d) => (
+            <RowShell key={d.id} id={d.id}>
+              <MenuItem
+                leading={<PropertyTypeIcon type={d.type} />}
+                detail={propertyTypeLabel(d.type)}
+                trailing={<Icon name="chevron-right" size={16} />}
+                onClick={() => onOpenEditor(d.id)}
+              >
+                {d.name}
+              </MenuItem>
+            </RowShell>
+          ))
+        )}
+      </div>
+      {/* Closed, the elastic spacer holds the block at the pane's bottom; opening collapses it on
+          the same beat as the Reveal, so the heading RISES to meet the assigned rows (Nathan's call). */}
+      <div className={cx(s.allSpacer, allOpen && s.allSpacerCollapsed)} aria-hidden />
+      <div data-group="all" ref={allRef} className={cx(allHighlighted && s.allHighlight)}>
+        <MenuItem
+          className={s.allHeading}
+          leading={<Icon name="chevron-right" size={12} className={cx(s.twisty, allOpen && s.twistyOpen)} />}
+          onClick={onToggleAll}
+        >
+          All Properties
+        </MenuItem>
+        <Reveal open={allOpen} duration={duration.base}>
+          <div>
+            {unassigned.map((d) => (
+              <RowShell key={d.id} id={d.id}>
+                <MenuItem
+                  className={s.allRow}
+                  leading={<PropertyTypeIcon type={d.type} />}
+                  trailing={
+                    <button
+                      type="button"
+                      className={s.rowPlus}
+                      aria-label={`Assign ${d.name}`}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        onAssign(d.id)
+                      }}
+                    >
+                      <Icon name="plus" size={12} />
+                    </button>
+                  }
+                >
+                  {d.name}
+                </MenuItem>
+              </RowShell>
+            ))}
+          </div>
+        </Reveal>
+      </div>
+    </>
+  )
+}
 
 /**
  * The Properties pane — the page-schema CRUD surface, a sub-nav inside the ViewPane: a list of
@@ -84,6 +177,26 @@ export function PropertiesPane({
   const assign = async (id: string): Promise<void> => {
     await commit(await window.nexus.schema.assign(collectionPath, id))
   }
+  // The four drop kinds route to their persistence targets (E-4): collection order, nexus
+  // order, atomic assign-at-slot, and the strip-and-cache Remove.
+  const handleDrop = async (drop: PaneDrop): Promise<void> => {
+    const r =
+      drop.kind === 'reorder-assigned'
+        ? await window.nexus.schema.reorder(collectionPath, drop.propId, drop.toIndex)
+        : drop.kind === 'reorder-nexus'
+          ? await window.nexus.registry.reorder(drop.propId, drop.toIndex)
+          : drop.kind === 'assign'
+            ? await window.nexus.schema.assign(collectionPath, drop.propId, drop.toIndex)
+            : await window.nexus.schema.delete(collectionPath, drop.propId)
+    await commit(r)
+  }
+
+  const paneRows: PaneRow[] = [
+    ...props.map((d) => ({ id: d.id, group: 'assigned' as const })),
+    ...unassigned.map((d) => ({ id: d.id, group: 'all' as const }))
+  ]
+  const nameFor = (id: string): string =>
+    props.find((d) => d.id === id)?.name ?? unassigned.find((d) => d.id === id)?.name ?? ''
 
   const typePicker = (
     <>
@@ -122,71 +235,25 @@ export function PropertiesPane({
   }
 
   const list = (
-    <>
+    <PaneDnd rows={paneRows} labelFor={nameFor} onDrop={(drop) => void handleDrop(drop)}>
       <div className={s.paneHeader}>
         <div className={s.paneHeaderBack}>
           <MenuBackRow label="Properties" onClick={onBack} />
         </div>
         <button type="button" className={s.headerAction} aria-label="New Property" onClick={() => openDetail({ kind: 'type' })}>
-          <Icon name="square-plus" size={16} />
+          <Icon name="square-plus" size={14} />
         </button>
       </div>
       <MenuSeparator flush />
-      <div data-group="assigned">
-        {props.length === 0 ? (
-          <MenuCaption>No properties yet.</MenuCaption>
-        ) : (
-          props.map((d) => (
-            <MenuItem
-              key={d.id}
-              leading={<PropertyTypeIcon type={d.type} />}
-              detail={propertyTypeLabel(d.type)}
-              trailing={<Icon name="chevron-right" size={16} />}
-              onClick={() => openDetail({ kind: 'edit', id: d.id })}
-            >
-              {d.name}
-            </MenuItem>
-          ))
-        )}
-      </div>
-      {/* Bottom-pinned closed (the footer slot); the unfold grows the block while margin-top:auto
-          keeps it bottom-anchored, so the heading RISES to meet the assigned rows on the same beat. */}
-      <div className={s.footer} data-group="all">
-        <MenuItem
-          className={s.allHeading}
-          leading={<Icon name="chevron-right" size={12} className={cx(s.twisty, allOpen && s.twistyOpen)} />}
-          onClick={() => setAllOpen((o) => !o)}
-        >
-          All Properties
-        </MenuItem>
-        <Reveal open={allOpen} duration={duration.base}>
-          <div>
-            {unassigned.map((d) => (
-              <MenuItem
-                key={d.id}
-                className={s.allRow}
-                leading={<PropertyTypeIcon type={d.type} />}
-                trailing={
-                  <button
-                    type="button"
-                    className={s.rowPlus}
-                    aria-label={`Assign ${d.name}`}
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      void assign(d.id)
-                    }}
-                  >
-                    <Icon name="plus" size={12} />
-                  </button>
-                }
-              >
-                {d.name}
-              </MenuItem>
-            ))}
-          </div>
-        </Reveal>
-      </div>
-    </>
+      <ListGroups
+        assigned={props}
+        unassigned={unassigned}
+        allOpen={allOpen}
+        onToggleAll={() => setAllOpen((o) => !o)}
+        onOpenEditor={(id) => openDetail({ kind: 'edit', id })}
+        onAssign={(id) => void assign(id)}
+      />
+    </PaneDnd>
   )
 
   return (

@@ -3,9 +3,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import type { PropertyDefinition } from '@shared/properties'
+import { firePointer, stubPointerCapture, stubRect } from '@renderer/testing/pointerHarness'
 import { useSession } from '../../store'
 import { PropertiesPane } from './PropertiesPane'
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
+
+stubPointerCapture()
 
 class ResizeObserverStub {
   observe(): void {}
@@ -127,5 +130,90 @@ describe('the All Properties section (T5)', () => {
     const assigned = host.querySelector('[data-group="assigned"]')
     expect(assigned?.textContent).toContain('Status')
     expect(assigned?.textContent).toContain('Count')
+  })
+})
+
+describe('the two-region drag (T6) — state-level; geometry truth lives in the live pass', () => {
+  const deleteSpy = (): ReturnType<typeof vi.fn> =>
+    (window as unknown as { nexus: { schema: { delete: ReturnType<typeof vi.fn> } } }).nexus.schema.delete
+
+  /** Rects: assigned rows at 10-30 / 30-50 (region 10-50); all block at 70-110 with x1 at 70-90. */
+  const stubGeometry = (): void => {
+    stubRect(host.querySelector('[data-group="assigned"]')!, { top: 10, bottom: 50 })
+    stubRect(host.querySelector('[data-group="all"]')!, { top: 70, bottom: 110 })
+    stubRect(host.querySelector('[data-prop="prop_status"]')!, { top: 10, bottom: 30 })
+    stubRect(host.querySelector('[data-prop="prop_n"]')!, { top: 30, bottom: 50 })
+    const x1 = host.querySelector('[data-prop="prop_x"]')
+    if (x1) stubRect(x1, { top: 70, bottom: 90 })
+  }
+
+  it('assigned → all commits the Remove (schema.delete) after an area-highlight hover', async () => {
+    useSession.setState({ tree: { registry: [effortDef] } as never })
+    await mountPane()
+    await act(async () => {
+      rowFor('All Properties').click()
+    })
+    stubGeometry()
+    const row = host.querySelector('[data-prop="prop_status"]')!
+    await act(async () => {
+      firePointer(row, 'pointerdown', { x: 100, y: 20 })
+      firePointer(window, 'pointermove', { x: 100, y: 40 }) // past activation
+      firePointer(window, 'pointermove', { x: 100, y: 80 }) // into the all region
+    })
+    expect(host.querySelector('[data-group="all"]')?.className).toContain('allHighlight')
+    await act(async () => {
+      firePointer(window, 'pointerup', { x: 100, y: 80 })
+    })
+    expect(deleteSpy()).toHaveBeenCalledWith('Col', 'prop_status')
+  })
+
+  it('all → assigned commits the atomic assign at the slot index', async () => {
+    useSession.setState({ tree: { registry: [effortDef] } as never })
+    await mountPane()
+    await act(async () => {
+      rowFor('All Properties').click()
+    })
+    stubGeometry()
+    const row = host.querySelector('[data-prop="prop_x"]')!
+    await act(async () => {
+      firePointer(row, 'pointerdown', { x: 100, y: 80 })
+      firePointer(window, 'pointermove', { x: 100, y: 60 })
+      firePointer(window, 'pointermove', { x: 100, y: 15 }) // top half of the first assigned row
+      firePointer(window, 'pointerup', { x: 100, y: 15 })
+    })
+    expect(assignSpy).toHaveBeenCalledWith('Col', 'prop_x', 0)
+  })
+
+  it('Escape aborts an active drag without committing', async () => {
+    useSession.setState({ tree: { registry: [effortDef] } as never })
+    await mountPane()
+    await act(async () => {
+      rowFor('All Properties').click()
+    })
+    stubGeometry()
+    const row = host.querySelector('[data-prop="prop_status"]')!
+    await act(async () => {
+      firePointer(row, 'pointerdown', { x: 100, y: 20 })
+      firePointer(window, 'pointermove', { x: 100, y: 80 })
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+      firePointer(window, 'pointerup', { x: 100, y: 80 })
+    })
+    expect(deleteSpy()).not.toHaveBeenCalled()
+  })
+
+  it("a press on the row's + button never arms a drag (begin guard)", async () => {
+    useSession.setState({ tree: { registry: [effortDef] } as never })
+    await mountPane()
+    await act(async () => {
+      rowFor('All Properties').click()
+    })
+    stubGeometry()
+    const plus = host.querySelector<HTMLButtonElement>('[aria-label="Assign Effort"]')!
+    await act(async () => {
+      firePointer(plus, 'pointerdown', { x: 100, y: 80 })
+      firePointer(window, 'pointermove', { x: 100, y: 20 })
+      firePointer(window, 'pointerup', { x: 100, y: 20 })
+    })
+    expect(assignSpy).not.toHaveBeenCalledWith('Col', 'prop_x', expect.anything())
   })
 })
