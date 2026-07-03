@@ -30,3 +30,22 @@ describe('chipColorFor', () => {
     expect(chipColorFor('accent')).toBe('default')
   })
 })
+
+describe('chipColorFor — open solid-palette keys', () => {
+  // Options now store an open solid-palette key, so every render key is its own valid input. The
+  // four the legacy Notion MAP never covered (lightBlue/cyan/grey/lavender) returned 'default'
+  // before the passthrough — these are the assertions that fail without it.
+  it('passes every solid key straight through', () => {
+    for (const key of ['red', 'orange', 'yellow', 'green', 'lightBlue', 'cyan', 'blue', 'purple', 'lavender', 'grey'] as const) {
+      expect(chipColorFor(key)).toBe(key)
+    }
+  })
+
+  it('still maps legacy Notion names for pre-existing data', () => {
+    expect(chipColorFor('gray')).toBe('grey')
+    expect(chipColorFor('teal')).toBe('cyan')
+    expect(chipColorFor('pink')).toBe('lavender')
+    expect(chipColorFor('brown')).toBe('orange')
+    expect(chipColorFor('indigo')).toBe('purple')
+  })
+})

@@ -28,25 +28,12 @@ export const propertyType = z.enum([
 ])
 export type PropertyType = z.infer<typeof propertyType>
 
-export const selectColor = z.enum([
-  'gray',
-  'brown',
-  'orange',
-  'yellow',
-  'green',
-  'blue',
-  'purple',
-  'pink',
-  'red',
-  'teal',
-  'indigo'
-])
-
 const selectOption = z.looseObject({
   value: z.string(),
   label: z.string(),
-  // Lenient: an unknown color degrades to undefined rather than failing the whole def parse.
-  color: selectColor.optional().catch(undefined)
+  // Open solid-palette key (chipColorFor normalizes on render). Lenient: a non-string degrades to
+  // undefined rather than failing the whole def parse.
+  color: z.string().optional().catch(undefined)
 })
 
 /** Three fixed status-group slots — a fourth breaks EventKit sync mapping. */
@@ -56,15 +43,16 @@ export type StatusGroupId = z.infer<typeof statusGroupId>
 const statusOption = z.looseObject({
   value: z.string(),
   label: z.string(),
-  color: selectColor.optional().catch(undefined),
+  color: z.string().optional().catch(undefined),
   group_id: statusGroupId
 })
 
 const statusGroup = z.looseObject({
   id: statusGroupId,
   label: z.string(),
-  // Required, but an unknown color falls back rather than dropping the group.
-  color: selectColor.catch('gray'),
+  // Open solid-palette key, required — an absent / non-string color falls back to the neutral solid
+  // rather than dropping the group.
+  color: z.string().catch('grey'),
   options: z.array(statusOption)
 })
 export type StatusGroup = z.infer<typeof statusGroup>
