@@ -168,15 +168,16 @@ export const fieldValue = style({
   color: c.label.primary
 })
 export const fieldEmpty = style({ color: c.label.tertiary })
-/* The date+time row splits 2/3 : 1/3 (Nathan's layout); plain rows share evenly. */
-export const fieldGrow = style({ flex: 2 })
-export const fieldTime = style({ flex: 1 })
+/* The date+time row splits ~2/3 : 1/3 (Nathan's layout; shaded 1.8:1.2 so the segment cluster
+   fits its box — THE ratio knob); plain rows share evenly. */
+export const fieldGrow = style({ flex: 1.8 })
+export const fieldTime = style({ flex: 1.2, gap: '4px', paddingLeft: '6px', paddingRight: '6px' })
 /* The [00][00] time segments — each is a dropdown trigger; its menu opens upward, beak-down. */
 export const timeSegs = style({ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '2px' })
 export const timeSeg = style({
   all: 'unset',
   position: 'relative',
-  padding: '1px 5px',
+  padding: '1px 4px',
   borderRadius: '5px',
   fontSize: font.scale.control.size,
   fontWeight: font.weight.emphasized,
