@@ -74,7 +74,8 @@ export const paneHeader = style({
 })
 export const paneHeaderBack = style({ flex: '1 1 auto', minWidth: 0 })
 
-/** Bare 20×20 icon button in the pane header — secondary, lifting to primary on hover. */
+/** Bare 20×20 icon button in the pane header — secondary lifting to primary on hover, on the
+ *  Add-Banner button's color beat. */
 export const headerAction = style({
   flex: '0 0 auto',
   width: '20px',
@@ -87,11 +88,13 @@ export const headerAction = style({
   padding: 0,
   cursor: 'default',
   color: c.label.secondary,
+  transition: `color ${duration.fast} ${easing.standard}`,
   selectors: { '&:hover': { color: c.label.primary } }
 })
 
-/** The "All Properties" disclosure heading — footnote-emphasized, tertiary (A-3). */
-export const allHeading = style([text.footnote.emphasized, { color: c.label.tertiary }])
+/** The "All Properties" disclosure heading — footnote-emphasized, tertiary (A-3), its chevron
+ *  flush at the gutter edge like the back-row's ‹ (the shared flush affordance). */
+export const allHeading = style([text.footnote.emphasized, flushAffordance, { color: c.label.tertiary }])
 
 /** The disclosure chevron — the sidebar's twisty, pinned to the pane's beat so the rotate,
  *  the Reveal unfold, and the height-resize land together (E-8). */

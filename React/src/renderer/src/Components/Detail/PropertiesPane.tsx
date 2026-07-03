@@ -128,7 +128,7 @@ export function PropertiesPane({
           <MenuBackRow label="Properties" onClick={onBack} />
         </div>
         <button type="button" className={s.headerAction} aria-label="New Property" onClick={() => openDetail({ kind: 'type' })}>
-          <Icon name="circle-plus" size={16} />
+          <Icon name="square-plus" size={16} />
         </button>
       </div>
       <MenuSeparator flush />
@@ -149,39 +149,43 @@ export function PropertiesPane({
           ))
         )}
       </div>
-      <MenuItem
-        className={s.allHeading}
-        leading={<Icon name="chevron-right" size={12} className={cx(s.twisty, allOpen && s.twistyOpen)} />}
-        onClick={() => setAllOpen((o) => !o)}
-      >
-        All Properties
-      </MenuItem>
-      <Reveal open={allOpen} duration={duration.base}>
-        <div data-group="all">
-          {unassigned.map((d) => (
-            <MenuItem
-              key={d.id}
-              className={s.allRow}
-              leading={<PropertyTypeIcon type={d.type} />}
-              trailing={
-                <button
-                  type="button"
-                  className={s.rowPlus}
-                  aria-label={`Assign ${d.name}`}
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    void assign(d.id)
-                  }}
-                >
-                  <Icon name="plus" size={12} />
-                </button>
-              }
-            >
-              {d.name}
-            </MenuItem>
-          ))}
-        </div>
-      </Reveal>
+      {/* Bottom-pinned closed (the footer slot); the unfold grows the block while margin-top:auto
+          keeps it bottom-anchored, so the heading RISES to meet the assigned rows on the same beat. */}
+      <div className={s.footer} data-group="all">
+        <MenuItem
+          className={s.allHeading}
+          leading={<Icon name="chevron-right" size={12} className={cx(s.twisty, allOpen && s.twistyOpen)} />}
+          onClick={() => setAllOpen((o) => !o)}
+        >
+          All Properties
+        </MenuItem>
+        <Reveal open={allOpen} duration={duration.base}>
+          <div>
+            {unassigned.map((d) => (
+              <MenuItem
+                key={d.id}
+                className={s.allRow}
+                leading={<PropertyTypeIcon type={d.type} />}
+                trailing={
+                  <button
+                    type="button"
+                    className={s.rowPlus}
+                    aria-label={`Assign ${d.name}`}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      void assign(d.id)
+                    }}
+                  >
+                    <Icon name="plus" size={12} />
+                  </button>
+                }
+              >
+                {d.name}
+              </MenuItem>
+            ))}
+          </div>
+        </Reveal>
+      </div>
     </>
   )
 

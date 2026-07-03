@@ -1,13 +1,57 @@
-/* The Apple scroll-edge fade, hoisted from the sidebar (A-6): content scrolling past the box's
-   top/bottom edges dissolves into the glass. The mask sits on the scroll viewport, so content
-   moves under a static fade. One knob: --edge-fade. */
+/* The Apple scroll-edge fade, hoisted from the sidebar (A-6) — scroll-driven like the
+   OverflowScroll eclipse: the two progress vars animate along the box's own vertical scroll
+   range, so a box whose content fits has an inactive timeline, the vars hold their 0 initials,
+   and the mask collapses to a no-op. No fade at rest; each edge fades only while content is
+   actually clipped past it. One knob: --edge-fade. */
+@property --edge-t {
+  syntax: "<number>";
+  inherits: false;
+  initial-value: 0;
+}
+@property --edge-b {
+  syntax: "<number>";
+  inherits: false;
+  initial-value: 0;
+}
+
+/* The top fade eases in over the first tenth of the scroll range; the bottom holds until the
+   last tenth and eases out into the end stop. At rest (scroll 0) that's bottom-fade-only. */
+@keyframes edge-fade-top {
+  0% {
+    --edge-t: 0;
+  }
+  10%,
+  100% {
+    --edge-t: 1;
+  }
+}
+@keyframes edge-fade-bottom {
+  0%,
+  90% {
+    --edge-b: 1;
+  }
+  100% {
+    --edge-b: 0;
+  }
+}
+
 .scroll-edge-fade {
-  --edge-fade: 22px;
+  animation-name: edge-fade-top, edge-fade-bottom;
+  animation-duration: auto;
+  animation-timing-function: linear;
+  animation-timeline: scroll(self block);
   mask-image: linear-gradient(
     to bottom,
     transparent 0,
-    #000 var(--edge-fade),
-    #000 calc(100% - var(--edge-fade)),
+    #000000 calc(var(--edge-t) * var(--edge-fade, 22px)),
+    #000000 calc(100% - var(--edge-b) * var(--edge-fade, 22px)),
+    transparent 100%
+  );
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    transparent 0,
+    #000000 calc(var(--edge-t) * var(--edge-fade, 22px)),
+    #000000 calc(100% - var(--edge-b) * var(--edge-fade, 22px)),
     transparent 100%
   );
 }
