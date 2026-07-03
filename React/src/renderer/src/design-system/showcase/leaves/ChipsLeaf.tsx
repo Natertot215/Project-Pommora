@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import { chipPill, chipLabel, chipContext, chipCapsule, chipBox, chipColor, chipLabelWrap } from '@renderer/design-system/tokens'
+import { Switch } from '@renderer/design-system/components/Switches/Switch'
 import { Icon } from '@renderer/design-system/symbols'
 import { SortableZone, useDragItem, reorder } from '@renderer/design-system/interactions/drag'
 import { cx } from '@renderer/design-system/cx'
@@ -97,6 +98,16 @@ function ShapeCell({ id, className, title, children }: { id: string; className: 
   )
 }
 
+/** A live Switch with its own state — the showcase's interactive sample. */
+function SwitchDemo({ label, initial, disabled = false }: { label: string; initial: boolean; disabled?: boolean }): React.JSX.Element {
+  const [on, setOn] = useState(initial)
+  return (
+    <span className="ds-switch-demo" title={label}>
+      <Switch checked={on} onChange={setOn} disabled={disabled} ariaLabel={label} />
+    </span>
+  )
+}
+
 // Components not yet built — they land as new leaves under the Components section.
 const PENDING = ['Button', 'Separator', 'Row']
 
@@ -116,6 +127,32 @@ export function ChipsLeaf(): React.JSX.Element {
               <ShapeRow rowId={shape.label} shape={shape.shape} content={shape.content} />
             </div>
           ))}
+        </div>
+      </section>
+
+      <section className="ds-section">
+        <h2>Switches</h2>
+        <div className="ds-chip-row-items">
+          <SwitchDemo label="Off" initial={false} />
+          <SwitchDemo label="On" initial />
+          <SwitchDemo label="Disabled" initial={false} disabled />
+          <SwitchDemo label="Disabled · On" initial disabled />
+        </div>
+      </section>
+
+      <section className="ds-section">
+        <h2>Checkboxes</h2>
+        <div className="ds-chip-row-items">
+          <span className={cx(chipBox, chipColor.default)} title="unchecked" />
+          <span className={cx(chipBox, chipColor.default)} title="checked">
+            <Icon name="check" size={12} strokeWidth={3} />
+          </span>
+          <span className={cx(chipBox, chipColor.green)} title="checked · green">
+            <Icon name="check" size={12} strokeWidth={3} />
+          </span>
+          <span className={cx(chipBox, chipColor.blue)} title="checked · blue">
+            <Icon name="check" size={12} strokeWidth={3} />
+          </span>
         </div>
       </section>
 

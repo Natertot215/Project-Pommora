@@ -620,3 +620,36 @@ code {
   border-radius: 6px;
   border: 1px solid var(--separator-border);
 }
+
+/* --- the Components page switcher — buttons swap which component demo shows --- */
+.ds-switcher {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+.ds-switcher-btn {
+  appearance: none;
+  border: 1px solid var(--separator-line, #71717A40);
+  border-radius: 8px;
+  background: var(--fill-quinary, transparent);
+  color: var(--label-secondary, #F1F1F1A6);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 12px;
+  cursor: pointer;
+}
+.ds-switcher-btn:hover {
+  background: var(--fill-quaternary, #71717A0F);
+  color: var(--label-primary, #F1F1F1);
+}
+.ds-switcher-btn.is-active {
+  background: var(--fill-tertiary, #71717A1A);
+  color: var(--label-primary, #F1F1F1);
+  border-color: var(--label-tertiary, #F1F1F159);
+}
+.ds-switch-demo {
+  display: inline-flex;
+  align-items: center;
+}

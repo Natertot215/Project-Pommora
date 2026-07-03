@@ -47,8 +47,16 @@ function SwatchView({ name, color, dragRef, style, handle }: {
 function GhostSwatch(): React.JSX.Element {
   return (
     <div className="ds-swatch">
-      <div className="ds-swatch-chip" style={{ background: vars.color.background.window }}>
-        <div style={{ width: '100%', height: '100%', background: vars.color.system.white, opacity: TINT_STEPS.primary / 100 }} />
+      <div className="ds-swatch-chip" style={{ background: vars.color.background.window, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div
+          style={{
+            width: '60%',
+            height: '55%',
+            borderRadius: '6px',
+            background: vars.color.system.white,
+            opacity: TINT_STEPS.primary / 100
+          }}
+        />
       </div>
       <div className="ds-swatch-meta">
         <div className="ds-swatch-name">Ghost</div>
