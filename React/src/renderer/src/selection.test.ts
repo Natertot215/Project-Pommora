@@ -23,6 +23,7 @@ function tree(pages: { id: string; path: string }[]): NexusTree {
     userSections: [],
     labels: DEFAULT_LABELS,
     accent: 'lavender',
+    timeFormat: 'twelveHour',
     registry: []
   }
 }

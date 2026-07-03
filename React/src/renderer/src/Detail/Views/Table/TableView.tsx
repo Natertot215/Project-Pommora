@@ -34,6 +34,9 @@ import { text } from '@renderer/design-system/tokens'
 import { useExitPresence } from '@renderer/design-system/useExitPresence'
 import { IconPicker } from '@renderer/Components/IconPicker'
 import { Icon } from '@renderer/design-system/symbols'
+import { CalendarPicker } from '@renderer/design-system/components/CalendarPicker/CalendarPicker'
+import { PickerMenu } from '@renderer/design-system/components/PickerMenu/PickerMenu'
+import { condensedDate, formatDate } from '../PropertyEditing/formatValue'
 import { Reveal } from '@renderer/design-system/components/Reveal'
 import { ACTIVATION } from '@renderer/design-system/interactions/shared'
 import { TableRowDnd, useTableRowDrag } from './tableDnd'
@@ -42,6 +45,37 @@ import { TableRowDnd, useTableRowDrag } from './tableDnd'
 // flips (the sticky zone around the current slot). Larger = more deliberate / harder to leave a slot;
 // smaller = snappier. Bump this one number to taste.
 const COL_SHIFT_HYSTERESIS = 25
+
+/** The datetime cell's picker shell: the pane chrome + a dismiss that sees through the calendar's
+ *  portal'd sub-menus ([data-calmenu]) — a plain containment check would close the pane on their
+ *  option clicks. Top-level so the picker's state survives TableView re-renders. */
+function DatetimeCellPicker({
+  closing,
+  onDismiss,
+  children
+}: {
+  closing: boolean
+  onDismiss: () => void
+  children: React.ReactNode
+}): React.JSX.Element {
+  const ref = useRef<HTMLSpanElement>(null)
+  useEffect(() => {
+    const onDown = (e: PointerEvent): void => {
+      const t = e.target as HTMLElement
+      if (ref.current?.contains(t) || t.closest('[data-calmenu]')) return
+      onDismiss()
+    }
+    document.addEventListener('pointerdown', onDown, true)
+    return () => document.removeEventListener('pointerdown', onDown, true)
+  }, [onDismiss])
+  return (
+    <span ref={ref}>
+      <PickerMenu solid closing={closing}>
+        {children}
+      </PickerMenu>
+    </span>
+  )
+}
 
 /** A Collection uses its own schema; a Set inherits its ancestor Collection's (schema lives only on
  *  the Collection). [] when the owning Collection can't be found. */
@@ -450,7 +484,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
       e.stopPropagation()
       const v = resolveFieldValue(row, col.id)
       commitCellValue(row, col.id, { kind: 'checkbox', value: !(v.kind === 'checkbox' && v.value) })
-    } else if (t === 'status' || t === 'select' || t === 'multi_select' || t === 'context') {
+    } else if (t === 'status' || t === 'select' || t === 'multi_select' || t === 'context' || t === 'datetime') {
       e.stopPropagation()
       setEditing({ rowId: row.id, colId: col.id, mode: 'picker' })
     } else if (t === 'number') {
@@ -508,6 +542,29 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
             onCommit={(raw) => commitEditorText(row, col, raw)}
             onCancel={() => setEditing(null)}
           />
+        )
+      }
+    }
+    // Date & Time routes to the CalendarPicker (Nathan's ruling) — same pane chrome, same
+    // Bloom-out hold; its segments follow the nexus-wide time format, its date text the column's
+    // style. Commits are debounced single-ISO writes; clearing the last date clears the value.
+    if (col.kind === 'property' && declaredType(col.id, schema) === 'datetime') {
+      const v = resolveFieldValue(row, col.id)
+      const dateFmt = colStyle(col.id).date_format ?? 'full'
+      return {
+        replace: false,
+        node: (
+          <DatetimeCellPicker closing={editingExit.closing} onDismiss={() => setEditing(null)}>
+            <CalendarPicker
+              range={false}
+              value={v.kind === 'datetime' ? v.value : null}
+              timeFormat={tree?.timeFormat}
+              formatDateValue={(k, condensed) =>
+                condensed ? condensedDate(k, dateFmt, condensed.withYear) : formatDate(k, dateFmt, 'none')
+              }
+              onChange={(iso) => commitCellValue(row, col.id, iso ? { kind: 'datetime', value: iso } : null)}
+            />
+          </DatetimeCellPicker>
         )
       }
     }

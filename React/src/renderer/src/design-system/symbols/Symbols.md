@@ -19,7 +19,7 @@ Pommora's icons are **PommoraIcons** — a mixed registry behind one seam (`inde
 | `minus` | Tabler | Status In-Progress glyph |
 | `sliders-horizontal` | Tabler `adjustments-horizontal` | Trio Button, Settings |
 | `chevron-left` / `chevron-right` / `chevron-up` / `chevron-down` | **Lucide keep** — THE house chevron (Tabler's draws smaller in the same box) | Twisties · menus · disclosure · toolbar Back/Forward |
-| `chevron-compact-up` / `chevron-compact-down` | Tabler | AM/PM toggle affordance (CalendarPicker time segments) |
+| `chevron-compact-up` / `chevron-compact-down` | Tabler | Registered, unassigned |
 | `map` | Tabler | Trio Button, Navigation |
 | `x` | Tabler | Chip dismiss |
 | `plus` | Tabler | Add buttons |

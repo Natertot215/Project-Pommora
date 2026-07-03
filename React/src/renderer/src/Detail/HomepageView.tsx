@@ -62,11 +62,13 @@ export function HomepageView({ tree }: { tree: NexusTree | null }): React.JSX.El
       owner={{ path: '', kind: 'homepage', name: tree?.nexus.name ?? 'Home', banner: tree?.homepage.banner }}
     >
       <div className={cal.demoRow}>
+        {/* Both cards ride the nexus-wide time_format setting — the same source the routed
+            datetime-property picker reads. */}
         <DemoPicker tag="short" trigger="July 2nd">
-          <CalendarPicker formatDateValue={fmtDateFor('short')} />
+          <CalendarPicker formatDateValue={fmtDateFor('short')} timeFormat={tree?.timeFormat} />
         </DemoPicker>
         <DemoPicker tag="full (overflow demo)" trigger="Wednesday, July 2nd 2026">
-          <CalendarPicker formatDateValue={fmtDateFor('full')} />
+          <CalendarPicker formatDateValue={fmtDateFor('full')} timeFormat={tree?.timeFormat} />
         </DemoPicker>
       </div>
     </DetailScaffold>

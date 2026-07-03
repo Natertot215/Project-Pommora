@@ -22,7 +22,7 @@ import type {
   TopicNode,
   UserSection
 } from '@shared/types'
-import { ACCENT_COLORS, AREA_COLORS, DEFAULT_ACCENT, DEFAULT_LABELS } from '@shared/types'
+import { ACCENT_COLORS, AREA_COLORS, DEFAULT_ACCENT, DEFAULT_LABELS, DEFAULT_TIME_FORMAT } from '@shared/types'
 import { savedView, type SavedView } from '@shared/views'
 import type { PropertyDefinition } from '@shared/properties'
 import { adoptedId } from './ids'
@@ -291,6 +291,7 @@ export async function readNexus(root: string): Promise<NexusTree> {
   const excluded = asStringArray(settings.excluded_folders) ?? []
   const labels = readLabels(settings.labels)
   const accent = resolveAccent(asString(settings.accent_color))
+  const timeFormat = settings.time_format === 'twentyFourHour' ? 'twentyFourHour' : DEFAULT_TIME_FORMAT
   // Profile image + subtitle live in settings (Swift parity), not nexus.json. profileImage is a
   // nexus-relative asset path the renderer serves via nexus-asset://; subtitle is plain text.
   const profileImage = asString(settings.profile_image) ?? null
@@ -370,6 +371,7 @@ export async function readNexus(root: string): Promise<NexusTree> {
     userSections,
     labels,
     accent,
+    timeFormat,
     registry: orderedDefs(registry)
   }
 }

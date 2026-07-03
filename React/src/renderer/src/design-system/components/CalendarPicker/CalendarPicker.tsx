@@ -10,6 +10,7 @@ import * as s from './calendarPicker.css'
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
 const HOURS_12 = Array.from({ length: 12 }, (_, i) => i + 1)
+const HOURS_24 = Array.from({ length: 24 }, (_, h) => h)
 const MINUTES = Array.from({ length: 12 }, (_, i) => i * 5) // 5-minute steps — the granularity knob
 
 type TriggerRect = { x: number; y: number; w: number; h: number }
@@ -70,21 +71,40 @@ const keyOf = (d: Date): string => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-
  * times are display-only until the entry UX is designed.
  */
 export function CalendarPicker({
-  formatDateValue
+  formatDateValue,
+  timeFormat = 'twelveHour',
+  value = null,
+  onChange,
+  range = true
 }: {
   /** `condensed` set = the range layout asking for the picker-only short form (withYear when the
    *  range spans years); absent = the property's own format, verbatim. */
   formatDateValue: (isoDate: string, condensed?: { withYear: boolean }) => string
+  /** The nexus-wide time format (.nexus settings): twelveHour reads (Hour):(Minutes)(PM);
+   *  twentyFourHour flattens — padded HH:MM, no meridiem. */
+  timeFormat?: 'twelveHour' | 'twentyFourHour'
+  /** The property's current ISO (bare date, or date-time) — initializes the picker; uncontrolled after mount. */
+  value?: string | null
+  /** Debounced single-value commits: the start date (+ time when Use Time), null on clear. */
+  onChange?: (iso: string | null) => void
+  /** The End Date affordance — the datetime property is single-valued, so its mount passes false. */
+  range?: boolean
 }): React.JSX.Element {
+  const twelve = timeFormat === 'twelveHour'
   const now = new Date()
   // Per-render (never module-level) — a local-first app stays open across midnights.
   const todayKey = keyOf(now)
-  const [cursor, setCursor] = useState(new Date(now.getFullYear(), now.getMonth(), 1))
+  const init = value && /^\d{4}-\d{2}-\d{2}/.test(value) ? value : null
+  const initHasTime = init?.includes('T') ?? false
+  const [cursor, setCursor] = useState(() => {
+    const seed = init ? new Date(`${init.slice(0, 10)}T00:00:00`) : now
+    return new Date(seed.getFullYear(), seed.getMonth(), 1)
+  })
   const [slide, setSlide] = useState<{ dir: 1 | -1; from: Date } | null>(null)
-  const [start, setStart] = useState<string | null>(null)
+  const [start, setStart] = useState<string | null>(init ? init.slice(0, 10) : null)
   const [end, setEnd] = useState<string | null>(null)
   const [endOn, setEndOn] = useState(false)
-  const [timeOn, setTimeOn] = useState(false)
+  const [timeOn, setTimeOn] = useState(initHasTime)
   const [menu, setMenu] = useState<{ kind: 'month' | 'year'; rect: TriggerRect } | null>(null)
   // The [00][00] segment dropdowns — each segment opens its own upward PickerMenu (the fields sit
   // at the pane's bottom), beak-down at the segment.
@@ -123,8 +143,40 @@ export function CalendarPicker({
   // crosses the other end); a no-move press falls through to the click (= remove).
   const drag = useRef<{ which: 'start' | 'end'; moved: boolean } | null>(null)
   const suppressClick = useRef(false)
-  const [startMin, setStartMin] = useState(9 * 60)
+  const [startMin, setStartMin] = useState(
+    initHasTime && init ? Number(init.slice(11, 13)) * 60 + Number(init.slice(14, 16)) : 9 * 60
+  )
   const [endMin, setEndMin] = useState(17 * 60)
+  // The write seam: compose start (+ time) into ISO and emit debounced — one commit per settle,
+  // never per drag-move (fs-write spam); a pending emit flushes on unmount so a dismiss commits.
+  const onChangeRef = useRef(onChange)
+  onChangeRef.current = onChange
+  const emitTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  const pendingEmit = useRef<string | null | undefined>(undefined)
+  const firstEmit = useRef(true)
+  useEffect(() => {
+    if (!onChangeRef.current) return
+    if (firstEmit.current) {
+      firstEmit.current = false
+      return
+    }
+    const iso = start ? (timeOn ? `${start}T${pad(Math.floor(startMin / 60))}:${pad(startMin % 60)}:00` : start) : null
+    pendingEmit.current = iso
+    clearTimeout(emitTimer.current)
+    emitTimer.current = setTimeout(() => {
+      pendingEmit.current = undefined
+      onChangeRef.current?.(iso)
+    }, 150)
+  }, [start, timeOn, startMin])
+  useEffect(
+    () => () => {
+      if (pendingEmit.current !== undefined) {
+        clearTimeout(emitTimer.current)
+        onChangeRef.current?.(pendingEmit.current)
+      }
+    },
+    []
+  )
   // Both endpoints share one time model; the segment/menu/toggle helpers all resolve their
   // endpoint through these rather than re-branching `which` at each call site.
   const minsOf = (which: 'start' | 'end'): number => (which === 'start' ? startMin : endMin)
@@ -285,10 +337,13 @@ export function CalendarPicker({
       </OverflowScroll>
     </div>
   )
-  // The one time reading (Nathan): (Hour):(Minutes)(PM) — 12-hour, hour unpadded (4:20, never
-  // 04:20), minutes two-digit, meridiem always present. Commits preserve the meridiem.
-  const hourShown = (mins: number): number => ((Math.floor(mins / 60) + 11) % 12) + 1
-  const hourToMins = (v: number, mins: number): number => ((v % 12) + (mins >= 720 ? 12 : 0)) * 60 + (mins % 60)
+  // The time reading follows the nexus-wide setting: twelveHour = (Hour):(Minutes)(PM), hour
+  // unpadded (4:20, never 04:20); twentyFourHour flattens to padded HH:MM with no meridiem.
+  // Commits preserve the meridiem in 12h mode.
+  const hourShown = (mins: number): number => (twelve ? ((Math.floor(mins / 60) + 11) % 12) + 1 : Math.floor(mins / 60))
+  const hourToMins = (v: number, mins: number): number =>
+    (twelve ? (v % 12) + (mins >= 720 ? 12 : 0) : v) * 60 + (mins % 60)
+  const hourText = (v: number): string => (twelve ? String(v) : pad(v))
 
   const timeOptions = (which: 'start' | 'end', part: 'h' | 'm'): React.JSX.Element | null => {
     if (!timeMenu) return null
@@ -304,9 +359,9 @@ export function CalendarPicker({
         <span className={s.ddWrap} onClick={(e) => e.stopPropagation()}>
           <PickerMenu solid direction="up">
             <div className={cx(s.menuList, 'scroll-edge-fade')}>
-              {(part === 'h' ? HOURS_12 : MINUTES).map((v) => (
+              {(part === 'h' ? (twelve ? HOURS_12 : HOURS_24) : MINUTES).map((v) => (
                 <PickerOption key={v} selected={v === current} onClick={() => choose(v)}>
-                  {optionRow(part === 'h' ? String(v) : pad(v), v === current)}
+                  {optionRow(part === 'h' ? hourText(v) : pad(v), v === current)}
                 </PickerOption>
               ))}
             </div>
@@ -322,7 +377,7 @@ export function CalendarPicker({
       const mins = minsOf(segEdit.which)
       const setMins = setMinsFor(segEdit.which)
       if (segEdit.part === 'h') {
-        const clamped = Math.min(Math.max(v, 1), 12)
+        const clamped = twelve ? Math.min(Math.max(v, 1), 12) : Math.min(v, 23)
         setMins(hourToMins(clamped, mins))
       } else setMins(Math.floor(mins / 60) * 60 + Math.min(v, 59))
     }
@@ -363,25 +418,17 @@ export function CalendarPicker({
           setSegEdit({ which, part, draft: pad(part === 'h' ? Math.floor(mins / 60) : mins % 60) })
         }}
       >
-        {part === 'h' ? String(hourShown(mins)) : pad(mins % 60)}
+        {part === 'h' ? hourText(hourShown(mins)) : pad(mins % 60)}
         {timeMenu?.which === which && timeMenu.part === part && timeOptions(which, part)}
       </button>
     )
-  // The Swift-style meridiem segment — a plain toggle (two values never earn a dropdown), with a
-  // stacked compact-chevron affordance so it reads as a control.
+  // The Swift-style meridiem segment — a plain click-toggle, no affordance glyph (Nathan's call;
+  // two values never earn a dropdown either).
   const ampmSegment = (which: 'start' | 'end', mins: number): React.JSX.Element => {
     const setMins = setMinsFor(which)
     return (
-      <button
-        type="button"
-        className={cx(s.timeSeg, s.ampmSeg)}
-        onClick={() => setMins(mins >= 720 ? mins - 720 : mins + 720)}
-      >
+      <button type="button" className={s.timeSeg} onClick={() => setMins(mins >= 720 ? mins - 720 : mins + 720)}>
         {mins >= 720 ? 'PM' : 'AM'}
-        <span className={s.ampmChevs} aria-hidden>
-          <Icon name="chevron-compact-up" size={8} />
-          <Icon name="chevron-compact-down" size={8} />
-        </span>
       </button>
     )
   }
@@ -395,7 +442,7 @@ export function CalendarPicker({
             <span className={s.timeColon}>:</span>
             {timeSegment(which, 'm', mins)}
           </span>
-          {ampmSegment(which, mins)}
+          {twelve && ampmSegment(which, mins)}
         </span>
       ) : (
         <span className={cx(s.fieldValue, s.fieldEmpty)}>--</span>
@@ -548,21 +595,23 @@ export function CalendarPicker({
       {/* Toggling unmounts field rows — any open segment menu or uncommitted caret edit dies with
           them (an unmounting focused input never fires onBlur, so a live segEdit would otherwise
           resurrect stale on re-toggle). */}
-      <div className={s.switchRow}>
-        <span className={s.switchLabel}>End Date</span>
-        <span className={s.switchScale}>
-          <Switch
-            checked={endOn}
-            ariaLabel="End Date"
-            onChange={(v) => {
-              setEndOn(v)
-              if (!v) setEnd(null)
-              setSegEdit(null)
-              setTimeMenu(null)
-            }}
-          />
-        </span>
-      </div>
+      {range && (
+        <div className={s.switchRow}>
+          <span className={s.switchLabel}>End Date</span>
+          <span className={s.switchScale}>
+            <Switch
+              checked={endOn}
+              ariaLabel="End Date"
+              onChange={(v) => {
+                setEndOn(v)
+                if (!v) setEnd(null)
+                setSegEdit(null)
+                setTimeMenu(null)
+              }}
+            />
+          </span>
+        </div>
+      )}
       <div className={s.switchRow}>
         <span className={s.switchLabel}>Use Time</span>
         <span className={s.switchScale}>

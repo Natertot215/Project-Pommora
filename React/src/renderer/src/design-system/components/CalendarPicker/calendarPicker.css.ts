@@ -57,7 +57,7 @@ export const menuList = style({
   display: 'flex',
   flexDirection: 'column',
   gap: '2px',
-  minWidth: '110px',
+  minWidth: '56px', // shrink-wrap to content; the floor only protects the beak's corner clamp
   maxHeight: '136px', // ≈6 option rows before it over-scrolls (rides the shared scroll-edge-fade)
   overflowY: 'auto',
   scrollbarWidth: 'none',
@@ -170,11 +170,10 @@ export const fieldEmpty = style({ color: c.label.tertiary })
 /* Equal halves everywhere (the Swift-DatePicker grid) — the time field just tightens its own
    metrics so [hh]:[mm] AM/PM fits its half. */
 export const fieldTime = style({ flex: 1, gap: '4px', paddingLeft: '6px', paddingRight: '6px' })
-/* The time cluster reads as ONE flush value — "4:20" tight (no inter-segment gaps), the AM/PM
-   select pinned to the field's right. Segments stay individual dropdown triggers under the flush
-   skin (hover reveals each). */
-export const timeSegs = style({ flex: 1, display: 'flex', alignItems: 'center', gap: '2px' })
-export const hmGroup = style({ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' })
+/* The time cluster reads as ONE flush value — "4:20 PM" tight, the WHOLE reading right-aligned in
+   its field. Segments stay individual dropdown triggers under the flush skin (hover reveals each). */
+export const timeSegs = style({ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '2px' })
+export const hmGroup = style({ display: 'flex', alignItems: 'center' })
 export const timeSeg = style({
   all: 'unset',
   position: 'relative',
@@ -203,15 +202,6 @@ export const timeSegInput = style({
   selectors: { '&::selection': { background: 'transparent' } }
 })
 export const timeColon = style({ color: c.label.secondary })
-/* AM/PM toggle: text + a stacked compact-chevron pair (the registry's day-one compacts, finally
-   assigned) hinting the flip. */
-export const ampmSeg = style({ display: 'inline-flex', alignItems: 'center', gap: '2px', padding: '1px 3px' })
-export const ampmChevs = style({
-  display: 'flex',
-  flexDirection: 'column',
-  color: c.label.secondary
-})
-globalStyle(`${ampmChevs} > :last-child`, { marginTop: '-3px' })
 
 /* ── Boolean rows (the real Switch) ── */
 export const switchRow = style({

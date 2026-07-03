@@ -59,6 +59,11 @@ export type AccentSetting = AccentColor | 'system'
  */
 export const DEFAULT_ACCENT: AccentColor = 'lavender'
 
+/** The `time_format` value in .nexus/settings.json — the nexus-wide clock for the datetime
+ *  picker (twelveHour = AM/PM segments, the default; twentyFourHour = flat HH:MM). */
+export type TimeFormatSetting = 'twelveHour' | 'twentyFourHour'
+export const DEFAULT_TIME_FORMAT: TimeFormatSetting = 'twelveHour'
+
 export interface BaseNode {
   id: string
   kind: NodeKind
@@ -174,6 +179,9 @@ export interface NexusTree {
   labels: NexusLabels
   /** Resolved app accent from .nexus/settings.json (defaults to DEFAULT_ACCENT). */
   accent: AccentSetting
+  /** Nexus-wide time format (.nexus/settings.json `time_format`) — drives the datetime picker's
+   *  segment set. Defaults to twelveHour (AM/PM). */
+  timeFormat: TimeFormatSetting
   /** Every registry definition, in the nexus-wide cosmetic order (order-listed first,
    *  unlisted appended) — reserved ids included; consumers filter (E-1/E-5). */
   registry: PropertyDefinition[]
