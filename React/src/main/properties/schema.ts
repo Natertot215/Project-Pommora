@@ -67,14 +67,18 @@ export function validateDefinition(
     return fail('invalid-property', 'That property id already exists.')
   }
   if (def.type === 'select' || def.type === 'multi_select') {
-    const options = def.select_options ?? []
-    if (options.length === 0) {
-      return fail('invalid-property', 'A select property needs at least one option.')
-    }
-    const values = options.map((o) => o.value)
-    if (new Set(values).size < values.length) {
-      return fail('invalid-property', 'Select option values must be unique.')
-    }
+    const check = validateOptionValues(def.select_options ?? [])
+    if (!check.ok) return check
+  }
+  return ok(null)
+}
+
+/** Option titles (their `value`s) must be unique within a property. No minimum count — a Select may
+ *  hold zero options. Enforced at create AND on every option edit (add / rename / reorder). */
+export function validateOptionValues(options: { value: string }[]): Result<null> {
+  const values = options.map((o) => o.value)
+  if (new Set(values).size < values.length) {
+    return fail('invalid-property', 'Option titles must be unique.')
   }
   return ok(null)
 }
