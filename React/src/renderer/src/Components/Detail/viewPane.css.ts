@@ -62,8 +62,8 @@ export const paneHeaderBack = style({ flex: '1 1 auto', minWidth: 0 })
 /** THE ViewPane back-row vertical-padding knob — this pane only, apart from every other menu. */
 export const backRowPad = style({ paddingBlock: '6px' })
 
-/** Bare 20×20 icon button in the pane header — tertiary at rest, lifting to primary on hover
- *  on the Add-Banner button's color beat. */
+/** Bare 20×20 icon button in the pane header — the back-row chevron's EXACT color binding
+ *  (the side cluster's stable var) at rest, lifting to primary on the Add-Banner beat. */
 export const headerAction = style({
   flex: '0 0 auto',
   width: '20px',
@@ -75,7 +75,7 @@ export const headerAction = style({
   background: 'none',
   padding: 0,
   cursor: 'default',
-  color: c.label.tertiary,
+  color: 'var(--label-secondary)',
   transition: `color ${duration.fast} ${easing.standard}`,
   selectors: { '&:hover': { color: c.label.primary } }
 })
