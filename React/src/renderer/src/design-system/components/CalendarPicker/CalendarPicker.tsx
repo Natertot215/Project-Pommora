@@ -98,6 +98,18 @@ export function CalendarPicker({
     }
   }
 
+  // Trackpad swipe on the calendar area only: horizontal wheel deltas accumulate to one nav per
+  // gesture (the slide lock gates repeats; natural direction — content follows the fingers).
+  const swipe = useRef(0)
+  const onGridWheel = (e: React.WheelEvent): void => {
+    if (slide || Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return
+    swipe.current += e.deltaX
+    if (Math.abs(swipe.current) > 60) {
+      nav(swipe.current > 0 ? 1 : -1)
+      swipe.current = 0
+    }
+  }
+
   const keyAtPoint = (x: number, y: number): string | null =>
     document.elementFromPoint(x, y)?.closest('[data-k]')?.getAttribute('data-k') ?? null
 
@@ -288,7 +300,7 @@ export function CalendarPicker({
           </span>
         ))}
       </div>
-      <div className={s.viewport} style={{ height: gridHeight }}>
+      <div className={s.viewport} style={{ height: gridHeight }} onWheel={onGridWheel}>
         <div
           className={cx(s.track, slide ? (slide.dir === 1 ? s.trackLeft : s.trackRight) : undefined)}
           onAnimationEnd={() => setSlide(null)}
