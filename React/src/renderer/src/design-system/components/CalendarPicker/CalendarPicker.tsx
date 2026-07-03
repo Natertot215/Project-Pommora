@@ -9,6 +9,22 @@ import * as s from './calendarPicker.css'
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
+/** Forgiving time parse → minutes: "9" · "9:30" · "9pm" · "9:30 PM" · "21:15". null = unparseable. */
+const parseTime = (raw: string): number | null => {
+  const m = raw.trim().toLowerCase().match(/^(\d{1,2})(?::(\d{2}))?\s*(am|pm)?$/)
+  if (!m) return null
+  let h = Number(m[1])
+  const min = m[2] ? Number(m[2]) : 0
+  if (min > 59) return null
+  const ap = m[3]
+  if (ap) {
+    if (h < 1 || h > 12) return null
+    if (ap === 'pm' && h !== 12) h += 12
+    if (ap === 'am' && h === 12) h = 0
+  } else if (h > 23) return null
+  return h * 60 + min
+}
+
 /** PaneSlider's animated-viewport half, single-slot: content size changes morph on the shared
  *  beat instead of snapping (the ViewPane/menus feel). */
 function SizeMorph({ children }: { children: ReactNode }): React.JSX.Element {
@@ -69,8 +85,17 @@ export function CalendarPicker({
   // crosses the other end); a no-move press falls through to the click (= remove).
   const drag = useRef<{ which: 'start' | 'end'; moved: boolean } | null>(null)
   const suppressClick = useRef(false)
-  const startMin = 9 * 60
-  const endMin = 17 * 60
+  const [startMin, setStartMin] = useState(9 * 60)
+  const [endMin, setEndMin] = useState(17 * 60)
+  // Inline time editing (the PropertyEditor pattern): click → input pre-selected with the current
+  // value; Enter/blur commits through the forgiving parse, Escape or garbage reverts.
+  const [timeEdit, setTimeEdit] = useState<{ which: 'start' | 'end'; draft: string } | null>(null)
+  const commitTime = (): void => {
+    if (!timeEdit) return
+    const mins = parseTime(timeEdit.draft)
+    if (mins !== null) (timeEdit.which === 'start' ? setStartMin : setEndMin)(mins)
+    setTimeEdit(null)
+  }
 
   const nav = (dir: 1 | -1): void => {
     if (slide) return
@@ -202,12 +227,34 @@ export function CalendarPicker({
       </OverflowScroll>
     </div>
   )
-  const timeField = (mins: number | null, label: string): React.JSX.Element => (
+  const timeField = (mins: number | null, label: string, which: 'start' | 'end'): React.JSX.Element => (
     <div className={s.field} key={label}>
       <Icon name="clock" size={14} className={s.fieldIcon} />
-      <OverflowScroll className={s.fieldValue}>
-        {mins !== null ? formatTimeValue(mins) : <span className={s.fieldEmpty}>--</span>}
-      </OverflowScroll>
+      {timeEdit?.which === which ? (
+        <input
+          className={s.timeInput}
+          value={timeEdit.draft}
+          autoFocus
+          spellCheck={false}
+          onFocus={(e) => e.currentTarget.select()}
+          onChange={(e) => setTimeEdit({ which, draft: e.target.value })}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') commitTime()
+            else if (e.key === 'Escape') setTimeEdit(null)
+          }}
+          onBlur={commitTime}
+        />
+      ) : (
+        <OverflowScroll className={s.fieldValue}>
+          {mins !== null ? (
+            <span className={s.timeValue} onClick={() => setTimeEdit({ which, draft: formatTimeValue(mins) })}>
+              {formatTimeValue(mins)}
+            </span>
+          ) : (
+            <span className={s.fieldEmpty}>--</span>
+          )}
+        </OverflowScroll>
+      )}
     </div>
   )
 
@@ -338,15 +385,15 @@ export function CalendarPicker({
             </div>
             {timeOn && (
               <div className={s.fieldRow}>
-                {timeField(start ? startMin : null, 'start-t')}
-                {timeField(end ? endMin : null, 'end-t')}
+                {timeField(start ? startMin : null, 'start-t', 'start')}
+                {timeField(end ? endMin : null, 'end-t', 'end')}
               </div>
             )}
           </>
         ) : (
           <div className={s.fieldRow}>
             {dateField(start, 'date')}
-            {timeOn && timeField(start ? startMin : null, 'time')}
+            {timeOn && timeField(start ? startMin : null, 'time', 'start')}
           </div>
         )}
       </div>

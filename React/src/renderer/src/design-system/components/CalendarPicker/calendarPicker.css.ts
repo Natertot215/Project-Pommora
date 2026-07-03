@@ -167,6 +167,22 @@ export const fieldValue = style({
   color: c.label.primary
 })
 export const fieldEmpty = style({ color: c.label.tertiary })
+export const timeValue = style({ cursor: 'text' })
+/* The inline time editor — a bare input wearing the field's own type (the DetailTitleHeader
+   inline-rename recipe). */
+export const timeInput = style({
+  flex: 1,
+  minWidth: 0,
+  width: '100%',
+  border: 'none',
+  outline: 'none',
+  padding: 0,
+  background: 'transparent',
+  fontFamily: 'inherit',
+  fontSize: font.scale.control.size,
+  fontWeight: font.weight.emphasized,
+  color: c.label.primary
+})
 
 /* ── Boolean rows (the real Switch) ── */
 export const switchRow = style({
