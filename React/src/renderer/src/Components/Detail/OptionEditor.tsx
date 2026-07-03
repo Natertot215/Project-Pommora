@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Icon } from '@renderer/design-system/symbols'
 import { chipLabel, chipColor } from '@renderer/design-system/tokens'
 import { chipColorFor } from '@renderer/design-system/tokens/colorMap'
@@ -35,16 +35,6 @@ export function OptionEditor({
   const [adding, setAdding] = useState(false)
   const [renaming, setRenaming] = useState<string | null>(null)
   const [coloring, setColoring] = useState<string | null>(null)
-
-  // Click-away closes the open recolor picker (a swatch click closes itself via onPick).
-  useEffect(() => {
-    if (coloring === null) return
-    const onDown = (e: MouseEvent): void => {
-      if (!(e.target as Element | null)?.closest(`.${s.paletteAnchor}`)) setColoring(null)
-    }
-    document.addEventListener('mousedown', onDown)
-    return () => document.removeEventListener('mousedown', onDown)
-  }, [coloring])
 
   const commitAdd = (raw: string): void => {
     setAdding(false)
@@ -107,7 +97,12 @@ export function OptionEditor({
                   >
                     <Icon name="palette" size={s.ICON.palette} />
                   </button>
-                  <ColorPicker open={coloring === o.value} selected={chipColorFor(o.color)} onPick={(color) => pickColor(o, color)} />
+                  <ColorPicker
+                    open={coloring === o.value}
+                    selected={chipColorFor(o.color)}
+                    onPick={(color) => pickColor(o, color)}
+                    onDismiss={() => setColoring(null)}
+                  />
                 </span>
               </>
             )}

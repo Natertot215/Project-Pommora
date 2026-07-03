@@ -26,6 +26,9 @@ export const anchorEnd = style({
   right: 0,
   zIndex: 20
 })
+/** The self-managed top layer — a fixed body-portal position (set inline from the measured trigger)
+ *  so the pane escapes any clipping ancestor (the settings dropdown's frost clip). */
+export const layer = style({ position: 'fixed', zIndex: 100 })
 
 // GlassPane's rect border/shadow are suppressed by NotchedPane (can't trace the beak); the top
 // gutter clears the beak band via the shell's published --notch-h.

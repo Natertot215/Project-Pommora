@@ -15,14 +15,16 @@ const SWATCHES = ['red', 'orange', 'yellow', 'green', 'lightBlue', 'cyan', 'blue
 export function ColorPicker({
   open,
   selected,
-  onPick
+  onPick,
+  onDismiss
 }: {
   open: boolean
   selected: ChipColorName
   onPick: (color: string | undefined) => void
+  onDismiss: () => void
 }): React.JSX.Element | null {
   return (
-    <PickerMenu open={open} direction="down" align="end" radius={8} notchWidth={20}>
+    <PickerMenu open={open} onDismiss={onDismiss} solid direction="down" align="end" radius={8} notchWidth={14}>
       <div className={s.grid}>
         {SWATCHES.map((color) => (
           <button
