@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { mkdtemp, rm, readFile } from 'node:fs/promises'
+import { mkdtemp, rm, readFile, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { removeProperty } from './removeProperty'
@@ -119,5 +119,34 @@ describe('restore on re-assign — per-value schema-currency reconciliation (C-3
     expect(r.ok).toBe(true)
     expect(await pageProps(pageB)).toEqual({ [propId]: { $status: 'done' } })
     expect(await cacheBlock()).toBeUndefined()
+  })
+
+  it('restores select values whose STRINGS look like dates or URLs — type-directed, never shape-inferred (breaker H-1)', async () => {
+    const sel = await createProperty(root, {
+      id: '',
+      name: 'Milestone',
+      type: 'select',
+      select_options: [
+        { value: '2024-01-01', label: 'Kickoff' },
+        { value: 'https://acme.io', label: 'Site' },
+        { value: 'note:draft', label: 'Draft' }
+      ]
+    } as PropertyDefinition)
+    if (!sel.ok) throw new Error('setup failed')
+    const id = sel.value.id
+    await assignProperty(root, folder, id)
+    const c = await createPage(folder, 'C', { body: 'b' })
+    if (!c.ok) throw new Error('setup failed')
+    await updatePageProperty(c.value.path, id, { kind: 'select', value: '2024-01-01' })
+    await removeProperty(folder, id)
+    await assignProperty(root, folder, id)
+    expect(((await pageProps(c.value.path)) as Record<string, unknown>)[id]).toBe('2024-01-01')
+  })
+
+  it('a member page without an id still gets STRIPPED on Remove — only the caching needs identity (breaker L-2)', async () => {
+    const orphan = join(folder, 'Orphan.md')
+    await writeFile(orphan, `---\nproperties:\n  ${propId}:\n    $status: active\n---\n\nbody\n`)
+    await removeProperty(folder, propId)
+    expect(await pageProps(orphan)).toEqual({})
   })
 })

@@ -10,6 +10,7 @@ import { readFile, mkdir, writeFile } from 'node:fs/promises'
 import { readRegistry, type PropertyRegistry } from '../io/propertiesRegistry'
 import { removeFromRegistry } from './registryProperty'
 import { allCollectionFolders } from './assignment'
+import { serializeSchemaOp } from './schemaChain'
 import { SchemaTransaction } from '../io/schemaTransaction'
 import { stripPageMember } from './schema'
 import { readSidecar } from '../sidecarIO'
@@ -44,7 +45,11 @@ async function snapshot(root: string, propertyId: string, def: PropertyRegistry[
   )
 }
 
-export async function deleteProperty(root: string, propertyId: string): Promise<Result<null>> {
+export function deleteProperty(root: string, propertyId: string): Promise<Result<null>> {
+  return serializeSchemaOp(() => deleteInner(root, propertyId))
+}
+
+async function deleteInner(root: string, propertyId: string): Promise<Result<null>> {
   const registry = await readRegistry(root)
   const def = registry.defs[propertyId]
   if (!def) return fail('not-found', 'Property not found.')

@@ -23,7 +23,7 @@ import { readViewOrders, writeViewOrders, type ViewOrders } from './io/viewOrder
 import { saveView, reorderViews, deleteView } from './crud/views'
 import { loadValues } from './crud/loadValues'
 import { createProperty, editProperty, removeFromRegistry, reorderRegistry } from './crud/registryProperty'
-import { assignProperty, reorderAssignment } from './crud/assignment'
+import { assignProperty, assignPropertyAt, reorderAssignment } from './crud/assignment'
 import { removeProperty } from './crud/removeProperty'
 import { deleteProperty as deletePropertyGlobal } from './crud/deleteProperty'
 import { savedView } from '@shared/views'
@@ -574,15 +574,9 @@ ipcMain.handle(
       const c = await resolveSchemaFolder(containerPath)
       if (!c.ok) return c
       if (typeof propertyId !== 'string') return { ok: false, error: 'A property id is required.' }
-      const r = await assignProperty(c.root, c.folder, propertyId)
-      if (!r.ok) return { ok: false, error: r.error.message }
-      // One handler covers a drag-assign: append + slot placement land atomically from the
-      // renderer's view (E-2).
-      if (typeof toIndex === 'number') {
-        const m = await reorderAssignment(c.folder, propertyId, toIndex)
-        if (!m.ok) return { ok: false, error: m.error.message }
-      }
-      return { ok: true }
+      // One chain slot covers a drag-assign: append + restore + slot placement land atomically (E-2).
+      const r = await assignPropertyAt(c.root, c.folder, propertyId, typeof toIndex === 'number' ? toIndex : undefined)
+      return r.ok ? { ok: true } : { ok: false, error: r.error.message }
     } catch (e) {
       return { ok: false, error: e instanceof Error ? e.message : String(e) }
     }

@@ -11,7 +11,7 @@ import { EditableInput } from '../EditableInput'
 import { InlineEditHeader } from './InlineEditHeader'
 import { PaneSlider } from './PaneSlider'
 import { PaneDnd, usePaneDrag, usePaneRegions } from './paneDnd'
-import type { PaneDrop, PaneRow } from './paneDndModel'
+import { nexusReorderIndex, type PaneDrop, type PaneRow } from './paneDndModel'
 import { CREATABLE_TYPES, PropertyTypeIcon, propertyTypeLabel } from './PropertyTypes'
 import { cx } from '../../design-system/cx'
 import * as s from './viewPane.css'
@@ -235,13 +235,22 @@ export function PropertiesPane({
     await commit(await window.nexus.schema.assign(collectionPath, id))
   }
   // The four drop kinds route to their persistence targets (E-4): collection order, nexus
-  // order, atomic assign-at-slot, and the strip-and-cache Remove.
+  // order (the visible slot translated into the full-order index — assigned ids stay in it),
+  // atomic assign-at-slot, and the strip-and-cache Remove.
   const handleDrop = async (drop: PaneDrop): Promise<void> => {
     const r =
       drop.kind === 'reorder-assigned'
         ? await window.nexus.schema.reorder(collectionPath, drop.propId, drop.toIndex)
         : drop.kind === 'reorder-nexus'
-          ? await window.nexus.registry.reorder(drop.propId, drop.toIndex)
+          ? await window.nexus.registry.reorder(
+              drop.propId,
+              nexusReorderIndex(
+                registry.map((d) => d.id),
+                unassigned.map((d) => d.id),
+                drop.propId,
+                drop.toIndex
+              )
+            )
           : drop.kind === 'assign'
             ? await window.nexus.schema.assign(collectionPath, drop.propId, drop.toIndex)
             : await window.nexus.schema.delete(collectionPath, drop.propId)

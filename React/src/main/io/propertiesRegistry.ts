@@ -18,8 +18,11 @@ const registryPath = (root: string): string => nexusConfig(root, NEXUS_CONFIG_FI
 export async function readRegistry(root: string): Promise<RegistryFile> {
   const obj = await readJsonObject(registryPath(root))
   if (obj === null) return { order: [], defs: {} }
-  const isFileShape = isPlainObject(obj.defs) || Array.isArray(obj.order)
-  const rawDefs = isFileShape ? (isPlainObject(obj.defs) ? obj.defs : {}) : obj
+  // File-shape iff `defs` is a map of OBJECTS — a legacy bare-Record file holding a def that
+  // happens to be keyed "defs"/"order" must not masquerade as the container (its values are
+  // the def's scalar fields, so this check reads it as legacy and nothing vanishes).
+  const isFileShape = isPlainObject(obj.defs) && Object.values(obj.defs).every(isPlainObject)
+  const rawDefs = isFileShape ? (obj.defs as Record<string, unknown>) : obj
   const defs: PropertyRegistry = {}
   for (const [id, value] of Object.entries(rawDefs)) {
     const parsed = propertyDefinition.safeParse(value)
@@ -31,11 +34,15 @@ export async function readRegistry(root: string): Promise<RegistryFile> {
 }
 
 /** Every def in the nexus-wide cosmetic order — order-listed first, unlisted appended.
- *  ONE ordering rule for every consumer (readNexus + the SQLite mirror). */
+ *  ONE ordering rule for every consumer (readNexus + the SQLite mirror). Both halves key on
+ *  the MAP KEY, so a hand-edited key≠id desync lists once, never twice. */
 export function orderedDefs(reg: RegistryFile): PropertyDefinition[] {
+  const listed = new Set(reg.order)
   return [
     ...reg.order.map((id) => reg.defs[id]),
-    ...Object.values(reg.defs).filter((d) => !reg.order.includes(d.id))
+    ...Object.entries(reg.defs)
+      .filter(([key]) => !listed.has(key))
+      .map(([, d]) => d)
   ].filter((d): d is PropertyDefinition => d !== undefined)
 }
 

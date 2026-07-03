@@ -41,3 +41,41 @@ it('allCollectionFolders walks every collection folder in the tree', async () =>
   if (!t.ok) throw new Error('setup failed')
   expect((await allCollectionFolders(root)).sort()).toEqual([notes, t.value.path].sort())
 })
+
+it('a Remove racing an Assign on ONE collection never loses either write (breaker H-2)', async () => {
+  const { createProperty } = await import('./registryProperty')
+  const { removeProperty } = await import('./removeProperty')
+  const { createPage, updatePageProperty } = await import('./page')
+  const { readFile } = await import('node:fs/promises')
+  const { readFrontmatterFields } = await import('../io/pageFile')
+  const mk = async (name: string): Promise<string> => {
+    const r = await createProperty(root, { id: '', name, type: 'number' } as never)
+    if (!r.ok) throw new Error('setup failed')
+    return r.value.id
+  }
+  const pC = await mk('Gone')
+  const pB = await mk('Incoming')
+  await assignProperty(root, notes, pC)
+  const page = await createPage(notes, 'A', { body: 'b' })
+  if (!page.ok) throw new Error('setup failed')
+  await updatePageProperty(page.value.path, pC, { kind: 'number', value: 7 })
+
+  // Interleave 20 rounds — under the serialized chain the end state is always coherent:
+  // pC unassigned WITH its cache block intact, pB assigned.
+  for (let round = 0; round < 20; round++) {
+    await Promise.all([removeProperty(notes, pC), assignProperty(root, notes, pB)])
+    const sc = (await readSidecar(notes, 'collection', pageCollectionSidecar)) as Record<string, unknown>
+    const assigned = (sc.properties as string[]) ?? []
+    const cached = (sc.property_cache as Record<string, { values: Record<string, unknown> }> | undefined)?.[pC]
+    expect(assigned).toContain(pB)
+    expect(assigned).not.toContain(pC)
+    expect(Object.values(cached?.values ?? {})).toEqual([7])
+    const props = readFrontmatterFields(await readFile(page.value.path, 'utf8')).properties as
+      | Record<string, unknown>
+      | undefined
+    expect(props?.[pC]).toBeUndefined()
+    // reset for the next round: re-assign restores the value, unassign pB
+    await assignProperty(root, notes, pC)
+    await removeProperty(notes, pB)
+  }
+})

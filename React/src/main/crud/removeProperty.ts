@@ -15,17 +15,17 @@ import { SIDECAR_FILENAME } from '../paths'
 import { serializeJson } from '../io/atomicWrite'
 import { readFrontmatterFields, mergeFrontmatter, splitEnvelope } from '../io/pageFile'
 import { readRegistry } from '../io/propertiesRegistry'
-import {
-  parsePropertyValue,
-  applyPropertyValue,
-  isPlainObject,
-  type PropertyValue
-} from '@shared/propertyValue'
+import { applyPropertyValue, isPlainObject, type FileRef, type PropertyValue } from '@shared/propertyValue'
 import type { PropertyDefinition } from '@shared/properties'
+import { serializeSchemaOp } from './schemaChain'
 import { nowIso } from './util'
 import { ok, type Result } from '@shared/result'
 
-export async function removeProperty(collectionFolder: string, propertyId: string): Promise<Result<null>> {
+export function removeProperty(collectionFolder: string, propertyId: string): Promise<Result<null>> {
+  return serializeSchemaOp(() => removeInner(collectionFolder, propertyId))
+}
+
+async function removeInner(collectionFolder: string, propertyId: string): Promise<Result<null>> {
   const sidecar = await readSidecar(collectionFolder, 'collection', pageCollectionSidecar)
   const ids = (sidecar?.properties as string[] | undefined) ?? []
   if (!sidecar || !ids.includes(propertyId)) return ok(null) // not assigned → no-op (E-6)
@@ -41,8 +41,10 @@ export async function removeProperty(collectionFolder: string, propertyId: strin
     }
     const fields = readFrontmatterFields(content)
     const raw = isPlainObject(fields.properties) ? fields.properties[propertyId] : undefined
-    if (raw === undefined || typeof fields.id !== 'string') continue
-    values[fields.id] = raw
+    if (raw === undefined) continue
+    // Strip unconditionally; only the CACHE needs identity — an id-less page must not leak
+    // the value Remove exists to clear (its value just isn't restorable).
+    if (typeof fields.id === 'string') values[fields.id] = raw
     const stripped = stripPageMember(content, propertyId)
     if (stripped !== null) tx.stage(file, stripped)
   }
@@ -61,41 +63,52 @@ export async function removeProperty(collectionFolder: string, propertyId: strin
   return ok(null)
 }
 
-const KIND_FOR_TYPE: Record<string, PropertyValue['kind'][]> = {
-  number: ['number'],
-  checkbox: ['checkbox'],
-  datetime: ['datetime'],
-  url: ['url'],
-  select: ['select'],
-  status: ['status'],
-  multi_select: ['multiSelect'],
-  context: ['context'],
-  file: ['file']
-}
-
-/** Per-value schema-currency gate: the cached value's kind must match the def's CURRENT
- *  type, and select/status values must be live options (multiSelect intersects; an empty
- *  intersection drops). Restore never plants a value the current schema can't validate. */
+/** Per-value schema-currency gate — type-DIRECTED, never shape-inferred (breaker H-1): the
+ *  shape-blind codec would re-infer a select value like "2024-01-01" or "https://acme.io" as
+ *  datetime/url and destroy it, so the RAW on-disk encoding validates against the def's
+ *  CURRENT type + options directly. select/status need a live option; multiSelect intersects
+ *  (an empty intersection drops). Restore never plants a value the schema can't validate. */
 export function reconcileCachedValue(def: PropertyDefinition, raw: unknown): PropertyValue | null {
-  let parsed: PropertyValue
-  try {
-    parsed = parsePropertyValue(raw)
-  } catch {
-    return null
-  }
-  if (parsed.kind === 'null' || !(KIND_FOR_TYPE[def.type] ?? []).includes(parsed.kind)) return null
   const options =
     def.type === 'status'
       ? (def.status_groups ?? []).flatMap((g) => g.options.map((o) => o.value))
       : (def.select_options ?? []).map((o) => o.value)
-  if (parsed.kind === 'select' || parsed.kind === 'status') {
-    return options.includes(parsed.value) ? parsed : null
+  switch (def.type) {
+    case 'number':
+      return typeof raw === 'number' ? { kind: 'number', value: raw } : null
+    case 'checkbox':
+      return typeof raw === 'boolean' ? { kind: 'checkbox', value: raw } : null
+    case 'url':
+      return typeof raw === 'string' && raw ? { kind: 'url', value: raw } : null
+    case 'datetime':
+      return typeof raw === 'string' && raw ? { kind: 'datetime', value: raw } : null
+    case 'select':
+      return typeof raw === 'string' && options.includes(raw) ? { kind: 'select', value: raw } : null
+    case 'status': {
+      const v = isPlainObject(raw) && typeof raw.$status === 'string' ? raw.$status : null
+      return v !== null && options.includes(v) ? { kind: 'status', value: v } : null
+    }
+    case 'multi_select': {
+      if (!Array.isArray(raw) || !raw.every((x): x is string => typeof x === 'string')) return null
+      const kept = raw.filter((v) => options.includes(v))
+      return kept.length ? { kind: 'multiSelect', value: kept } : null
+    }
+    case 'context': {
+      if (isPlainObject(raw) && typeof raw.$ctx === 'string') return { kind: 'context', value: [raw.$ctx] }
+      if (Array.isArray(raw) && raw.length && raw.every((x) => isPlainObject(x) && typeof x.$ctx === 'string')) {
+        return { kind: 'context', value: raw.map((x) => (x as { $ctx: string }).$ctx) }
+      }
+      return null
+    }
+    case 'file': {
+      if (Array.isArray(raw) && raw.length && raw.every((x) => isPlainObject(x) && typeof x.path === 'string')) {
+        return { kind: 'file', value: raw as FileRef[] }
+      }
+      return null
+    }
+    default:
+      return null // last_edited_time — computed, never restored
   }
-  if (parsed.kind === 'multiSelect') {
-    const kept = parsed.value.filter((v) => options.includes(v))
-    return kept.length ? { kind: 'multiSelect', value: kept } : null
-  }
-  return parsed
 }
 
 /** Restore the Remove-cache on re-assign: write each reconciled value back to the page

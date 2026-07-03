@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { mkdtemp, rm, writeFile, mkdir } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { readRegistry, writeRegistry } from './propertiesRegistry'
+import { orderedDefs, readRegistry, writeRegistry } from './propertiesRegistry'
 import type { PropertyDefinition } from '@shared/properties'
 
 let root: string
@@ -34,6 +34,33 @@ describe('propertiesRegistry', () => {
       JSON.stringify({ prop_a: def('prop_a', 'Priority'), prop_bad: { id: 'prop_bad' } })
     )
     expect(Object.keys((await readRegistry(root)).defs)).toEqual(['prop_a'])
+  })
+})
+
+describe('hostile hand-edited files (breaker M-2/L-1)', () => {
+  it('a LEGACY file with a def literally keyed "defs" still reads as legacy — nothing vanishes', async () => {
+    await mkdir(join(root, '.nexus'), { recursive: true })
+    await writeFile(
+      join(root, '.nexus', 'properties.json'),
+      JSON.stringify({ defs: def('prop_hostile', 'Hostile'), prop_a: def('prop_a', 'Real') })
+    )
+    const reg = await readRegistry(root)
+    expect(reg.defs.prop_a?.name).toBe('Real')
+  })
+
+  it('a LEGACY file with junk keyed "order" keeps its real defs', async () => {
+    await mkdir(join(root, '.nexus'), { recursive: true })
+    await writeFile(
+      join(root, '.nexus', 'properties.json'),
+      JSON.stringify({ order: ['garbage'], prop_a: def('prop_a', 'Real') })
+    )
+    expect((await readRegistry(root)).defs.prop_a?.name).toBe('Real')
+  })
+
+  it('orderedDefs lists a key≠id desync exactly once', async () => {
+    const desynced = { ...def('prop_b', 'Desync'), id: 'prop_b' }
+    const reg = { order: ['prop_a'], defs: { prop_a: desynced } } // map key prop_a, internal id prop_b
+    expect(orderedDefs(reg)).toHaveLength(1)
   })
 })
 

@@ -16,6 +16,24 @@ export type PaneDrop =
 export type PaneSlot = { drop: PaneDrop; lineY: number | null; highlightAll: boolean }
 export type Region = { top: number; bottom: number }
 
+/** Translate an All-Properties visible slot (counted over unassigned rows only) into the FULL
+ *  nexus-order index `registry:reorder` splices at — the full order still holds every assigned
+ *  id, so the raw visible index would land the drop among hidden rows (breaker M-1). Anchors on
+ *  the visible successor's full-order position; past the last visible row appends after it. */
+export function nexusReorderIndex(
+  orderedIds: string[],
+  visibleIds: string[],
+  draggedId: string,
+  visibleToIndex: number
+): number {
+  const full = orderedIds.filter((id) => id !== draggedId)
+  const visible = visibleIds.filter((id) => id !== draggedId)
+  const successor = visible[visibleToIndex]
+  if (successor !== undefined) return full.indexOf(successor)
+  const last = visible[visible.length - 1]
+  return last !== undefined ? full.indexOf(last) + 1 : full.length
+}
+
 export function paneSlot(
   rows: MeasuredRow[],
   byId: Map<string, PaneRow>,
