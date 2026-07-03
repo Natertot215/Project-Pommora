@@ -9,7 +9,7 @@ import { Chip } from '@renderer/Components/Chip'
 import { ContextChip } from '@renderer/Components/ContextChip'
 import { chipColorFor } from '@renderer/design-system/tokens/colorMap'
 import { OverflowScroll } from '@renderer/design-system/components/OverflowScroll'
-import { resolveFieldValue } from '../pipeline/value'
+import { declaredType, resolveFieldValue } from '../pipeline/value'
 import { fileLabel, formatDate, formatNumber } from '../PropertyEditing/formatValue'
 import { STATUS_GROUP_GLYPH, statusGroupOf } from '../PropertyEditing/statusCycle'
 import { StatusCapsule } from '../PropertyEditing/StatusCapsule'
@@ -51,6 +51,21 @@ export function Cell({
   }
 
   const v = resolveFieldValue(row, column.id)
+
+  // A checkbox column ALWAYS shows its box — even on a page with no stored value — so it toggles in
+  // place without first assigning the property. The box keys off the column's schema TYPE, not the
+  // value's presence; unchecked means no frontmatter value at all (the toggle strips the key).
+  if (declaredType(column.id, ctx.schema) === 'checkbox') {
+    const checked = v.kind === 'checkbox' && v.value
+    return style.look === 'switch' ? (
+      <Switch checked={checked} onChange={() => {}} ariaLabel="Checkbox value" />
+    ) : (
+      <span className={cx(chipBox, chipColor.default)}>
+        {checked ? <Icon name="check" size={12} strokeWidth={3} /> : null}
+      </span>
+    )
+  }
+
   switch (v.kind) {
     case 'select':
     case 'status': {
@@ -92,16 +107,6 @@ export function Cell({
             )
           })}
         </OverflowScroll>
-      )
-    case 'checkbox':
-      if (style.look === 'switch') {
-        // Read-only visual until the gesture pass wires the toggle write.
-        return <Switch checked={v.value} onChange={() => {}} ariaLabel="Checkbox value" />
-      }
-      return (
-        <span className={cx(chipBox, chipColor.default)}>
-          {v.value ? <Icon name="check" size={12} strokeWidth={3} /> : null}
-        </span>
       )
     case 'context':
       return (

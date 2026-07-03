@@ -493,7 +493,9 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
     } else if (t === 'checkbox') {
       e.stopPropagation()
       const v = resolveFieldValue(row, col.id)
-      commitCellValue(row, col.id, { kind: 'checkbox', value: !(v.kind === 'checkbox' && v.value) })
+      // Checked → strip the key (a checkbox is true-or-absent, never a stored `false`); else set true.
+      const checked = v.kind === 'checkbox' && v.value
+      commitCellValue(row, col.id, checked ? null : { kind: 'checkbox', value: true })
     } else if (t === 'status' || t === 'select' || t === 'multi_select' || t === 'context' || t === 'datetime') {
       e.stopPropagation()
       setEditing({ rowId: row.id, colId: col.id, mode: 'picker' })

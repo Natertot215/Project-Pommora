@@ -260,6 +260,23 @@ describe('checkbox cell gestures', () => {
       value: { kind: 'checkbox', value: true }
     })
   })
+
+  it('unchecking a checked box strips the property — no stored false', async () => {
+    ;(window as unknown as { nexus: { loadValues: () => Promise<unknown> } }).nexus.loadValues = async () => ({
+      p1: { id: 'p1', properties: { prop_done: true } },
+      p2: { id: 'p2', properties: {} }
+    })
+    await mountTable(sourceWith())
+    await act(async () => {
+      host.querySelectorAll<HTMLElement>('.data-cell')[2].click()
+    })
+    expect(mutateSpy).toHaveBeenCalledWith({
+      op: 'setProperty',
+      path: 'Col/Page One.md',
+      propertyId: 'prop_done',
+      value: null
+    })
+  })
 })
 
 describe('context tier cells', () => {

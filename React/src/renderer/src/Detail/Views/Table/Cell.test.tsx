@@ -106,6 +106,17 @@ describe('checkbox looks', () => {
     expect(host.querySelector('[role="switch"]')).toBeNull()
     expect(host.querySelector('svg')).toBeTruthy()
   })
+
+  it('renders the empty box even with no stored value — always checkable in place', () => {
+    mount(rowWith({}), 'prop_done', { look: 'checkbox' })
+    expect(host.querySelector('span')).toBeTruthy() // the box renders...
+    expect(host.querySelector('svg')).toBeNull() // ...unchecked, no glyph
+  })
+
+  it('switch renders unchecked with no stored value', () => {
+    mount(rowWith({}), 'prop_done', { look: 'switch' })
+    expect(host.querySelector('[role="switch"]')?.getAttribute('aria-checked')).toBe('false')
+  })
 })
 
 describe('formats', () => {
