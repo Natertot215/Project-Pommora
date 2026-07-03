@@ -15,11 +15,14 @@ export function humanize(key: string): string {
 /** Read back a rendered color → "#RRGGBB", or "#RRGGBB · NN%" when it carries an
  *  alpha (the opacity tokens), so the gallery shows base + percent, never an opaque
  *  A## byte. */
-export function formatColor(rgb: string): string {
-  const m = rgb.match(/\d+(\.\d+)?/g)
-  if (!m || m.length < 3) return rgb
-  const ch = (n: string): string => Math.round(Number(n)).toString(16).padStart(2, '0')
-  const hex = ('#' + m.slice(0, 3).map(ch).join('')).toUpperCase()
+export function formatColor(css: string): string {
+  const m = css.match(/-?\d*\.?\d+/g)
+  if (!m || m.length < 3) return css
+  // rgb()/rgba() carry 0-255 channels; color(srgb …) — what color-mix computes to — carries 0-1.
+  const srgb = css.startsWith('color(')
+  const to255 = (n: string): number => Math.round(Number(n) * (srgb ? 255 : 1))
+  const ch = (n: number): string => Math.max(0, Math.min(255, n)).toString(16).padStart(2, '0')
+  const hex = ('#' + m.slice(0, 3).map(to255).map(ch).join('')).toUpperCase()
   const a = m.length >= 4 ? Number(m[3]) : 1
   return a < 1 ? `${hex} · ${Math.round(a * 100)}%` : hex
 }

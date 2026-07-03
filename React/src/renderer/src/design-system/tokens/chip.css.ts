@@ -48,15 +48,24 @@ export const chipLabel = style([
   }
 ])
 
-/** chip-context — the context/tier chip's own shape (today the pill's geometry; its own
- *  block so context chips tune apart from pills). */
+/** chip-context — the Context reference chip: the Context color on border + text (via
+ *  chipColor) over a NEUTRAL quaternary fill and an 8px (non-pill) radius, so it reads as a
+ *  reference you can open, distinct from the saturated value chips. The doubled selector
+ *  outguns chipColor's tint background (emitted later in the sheet); `--chip-fill` follows
+ *  the fill so a removable context chip's melt smears into the neutral, not the tint. */
 export const chipContext = style([
   chipBase,
   {
     height: '20px',
     padding: '0 6px',
-    borderRadius: '10px',
-    borderWidth: '2px'
+    borderWidth: '2px',
+    selectors: {
+      '&&': {
+        borderRadius: '8px',
+        background: colorVars.color.fill.quaternary,
+        vars: { '--chip-fill': colorVars.color.fill.quaternary }
+      }
+    }
   }
 ])
 
