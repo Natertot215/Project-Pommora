@@ -653,3 +653,20 @@ code {
   display: inline-flex;
   align-items: center;
 }
+
+/* --- popup triggers on the Components page — the real component drops beneath its button --- */
+.ds-popup {
+  position: relative;
+  display: inline-flex;
+}
+.ds-popup-panel {
+  position: absolute;
+  top: calc(100% + 10px);
+  left: 0;
+  z-index: 30;
+}
+.ds-checkbox-demo {
+  appearance: none;
+  font: inherit;
+  cursor: pointer;
+}

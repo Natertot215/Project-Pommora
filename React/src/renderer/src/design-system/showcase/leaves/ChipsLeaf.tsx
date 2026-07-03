@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react'
-import { chipPill, chipLabel, chipContext, chipCapsule, chipBox, chipColor, chipLabelWrap } from '@renderer/design-system/tokens'
+import { vars, chipPill, chipLabel, chipContext, chipCapsule, chipBox, chipColor, chipLabelWrap } from '@renderer/design-system/tokens'
 import { Switch } from '@renderer/design-system/components/Switches/Switch'
 import { Icon } from '@renderer/design-system/symbols'
 import { SortableZone, useDragItem, reorder } from '@renderer/design-system/interactions/drag'
@@ -98,13 +98,25 @@ function ShapeCell({ id, className, title, children }: { id: string; className: 
   )
 }
 
-/** A live Switch with its own state — the showcase's interactive sample. */
-function SwitchDemo({ label, initial, disabled = false }: { label: string; initial: boolean; disabled?: boolean }): React.JSX.Element {
-  const [on, setOn] = useState(initial)
+/** A live Switch tinted to a palette color — the track's on-tint rides --accent, so one
+ *  var override colors it without touching the component. */
+function SwitchDemo({ color }: { color: ChipColorName }): React.JSX.Element {
+  const [on, setOn] = useState(true)
+  const solid = color === 'default' ? vars.color.solid.greyDefault : vars.color.solid[color]
   return (
-    <span className="ds-switch-demo" title={label}>
-      <Switch checked={on} onChange={setOn} disabled={disabled} ariaLabel={label} />
+    <span className="ds-switch-demo" title={color} style={{ '--accent': solid } as React.CSSProperties}>
+      <Switch checked={on} onChange={setOn} ariaLabel={color} />
     </span>
+  )
+}
+
+/** A clickable checkbox chip — toggles its check on click. */
+function CheckboxDemo({ color }: { color: ChipColorName }): React.JSX.Element {
+  const [on, setOn] = useState(true)
+  return (
+    <button type="button" className={cx(chipBox, chipColor[color], 'ds-checkbox-demo')} title={color} onClick={() => setOn((x) => !x)}>
+      {on ? <Icon name="check" size={12} strokeWidth={3} /> : null}
+    </button>
   )
 }
 
@@ -133,26 +145,18 @@ export function ChipsLeaf(): React.JSX.Element {
       <section className="ds-section">
         <h2>Switches</h2>
         <div className="ds-chip-row-items">
-          <SwitchDemo label="Off" initial={false} />
-          <SwitchDemo label="On" initial />
-          <SwitchDemo label="Disabled" initial={false} disabled />
-          <SwitchDemo label="Disabled · On" initial disabled />
+          {CHIP_COLORS.map((c) => (
+            <SwitchDemo key={c} color={c} />
+          ))}
         </div>
       </section>
 
       <section className="ds-section">
         <h2>Checkboxes</h2>
         <div className="ds-chip-row-items">
-          <span className={cx(chipBox, chipColor.default)} title="unchecked" />
-          <span className={cx(chipBox, chipColor.default)} title="checked">
-            <Icon name="check" size={12} strokeWidth={3} />
-          </span>
-          <span className={cx(chipBox, chipColor.green)} title="checked · green">
-            <Icon name="check" size={12} strokeWidth={3} />
-          </span>
-          <span className={cx(chipBox, chipColor.blue)} title="checked · blue">
-            <Icon name="check" size={12} strokeWidth={3} />
-          </span>
+          {CHIP_COLORS.map((c) => (
+            <CheckboxDemo key={c} color={c} />
+          ))}
         </div>
       </section>
 

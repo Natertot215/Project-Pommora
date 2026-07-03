@@ -6,7 +6,7 @@ type RampStyle = { standard: string; emphasized: string }
 const ALL_TYPE_KEYS: Array<keyof typeof text> = [
   'largeTitle', 'title1', 'title2', 'title3',
   'headline', 'body', 'callout', 'control',
-  'caption', 'footnote'
+  'caption', 'footnote', 'subline'
 ]
 
 const TYPE_COLUMNS: Array<{ label: string; colorVar: string }> = [

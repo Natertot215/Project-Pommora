@@ -42,30 +42,6 @@ function SwatchView({ name, color, dragRef, style, handle }: {
   )
 }
 
-/** The ghost state is an OPACITY, not a color (`opacity: var(--state-ghost)` — the drag dim):
- *  a white chip rendered AT that opacity, value shown as the percent it resolves to. */
-function GhostSwatch(): React.JSX.Element {
-  return (
-    <div className="ds-swatch">
-      <div className="ds-swatch-chip" style={{ background: vars.color.background.window, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div
-          style={{
-            width: '60%',
-            height: '55%',
-            borderRadius: '6px',
-            background: vars.color.system.white,
-            opacity: TINT_STEPS.primary / 100
-          }}
-        />
-      </div>
-      <div className="ds-swatch-meta">
-        <div className="ds-swatch-name">Ghost</div>
-        <div className="ds-swatch-hex">{`Opacity · ${TINT_STEPS.primary}%`}</div>
-      </div>
-    </div>
-  )
-}
-
 function SwatchDraggable({ id, name, color }: SwatchItem): React.JSX.Element {
   const { setNodeRef, style, handle } = useDragItem(id)
   return <SwatchView name={name} color={color} dragRef={setNodeRef} style={style} handle={handle} />
@@ -74,23 +50,20 @@ function SwatchDraggable({ id, name, color }: SwatchItem): React.JSX.Element {
 // A color group. On desktop it's a reorderable gallery (grid reflow); on a compact
 // screen the swatches are static so the page scrolls (a draggable item sets
 // touch-action:none, which would trap touch scrolling on the tall grid).
-function SwatchGroup({ label, group, append }: { label: string; group: Record<string, string>; append?: React.ReactNode }): React.JSX.Element {
+function SwatchGroup({ label, group }: { label: string; group: Record<string, string> }): React.JSX.Element {
   const [items, setItems] = useState<SwatchItem[]>(() =>
     Object.entries(group).map(([n, c]) => ({ id: n, name: humanize(n), color: c }))
   )
   const compact = useIsCompact()
   const cells = (
     <div className={'ds-swatches' + (compact ? '' : ' ds-swatches-drag')}>
-      {items.map((it, i) => (
-        <span key={it.id} style={{ display: 'contents' }}>
-          {i === items.length - 1 ? append : null}
-          {compact ? (
-            <SwatchView name={it.name} color={it.color} />
-          ) : (
-            <SwatchDraggable id={it.id} name={it.name} color={it.color} />
-          )}
-        </span>
-      ))}
+      {items.map((it) =>
+        compact ? (
+          <SwatchView key={it.id} name={it.name} color={it.color} />
+        ) : (
+          <SwatchDraggable key={it.id} id={it.id} name={it.name} color={it.color} />
+        )
+      )}
     </div>
   )
   return (
@@ -222,7 +195,7 @@ export function ColorsLeaf(): React.JSX.Element {
     <div className="ds-leaf">
       <SwatchGroup label={PRIMITIVE_GROUP[0]} group={PRIMITIVE_GROUP[1]} />
       {COLOR_GROUPS.map(([label, group]) => (
-        <SwatchGroup key={label} label={label} group={group} append={label === 'States' ? <GhostSwatch /> : undefined} />
+        <SwatchGroup key={label} label={label} group={group} />
       ))}
       <TintScale />
       <AccentDemo />
