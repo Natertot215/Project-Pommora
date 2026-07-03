@@ -26,6 +26,8 @@ import { createProperty, editProperty, removeFromRegistry, reorderRegistry } fro
 import { assignProperty, assignPropertyAt, reorderAssignment } from './crud/assignment'
 import { removeProperty } from './crud/removeProperty'
 import { deleteProperty as deletePropertyGlobal } from './crud/deleteProperty'
+import { setOptions, renameOption, removeOption, clearOption } from './crud/optionOps'
+import type { Option } from '@shared/optionModel'
 import { savedView } from '@shared/views'
 import { propertyDefinition, propertyType } from '@shared/properties'
 import type { PageFrontmatter } from '@shared/schemas'
@@ -636,6 +638,89 @@ ipcMain.handle(
       if (root === null) return { ok: false, error: 'No nexus is open.' }
       if (typeof propertyId !== 'string') return { ok: false, error: 'A property id is required.' }
       const r = await deletePropertyGlobal(root, propertyId)
+      return r.ok ? { ok: true } : { ok: false, error: r.error.message }
+    } catch (e) {
+      return { ok: false, error: e instanceof Error ? e.message : String(e) }
+    }
+  }
+)
+
+// Global option edits for a Select / Multi-Select property — registry-level, cascading to pages.
+// No-container-scope siblings of property:delete; the confirm dialog for remove/clear lives in the
+// Phase-2 option menu, not here (property:delete is likewise unconfirmed at this layer).
+function isOptionArray(v: unknown): v is Option[] {
+  return (
+    Array.isArray(v) &&
+    v.every(
+      (o) =>
+        o !== null &&
+        typeof o === 'object' &&
+        typeof (o as Record<string, unknown>).value === 'string' &&
+        typeof (o as Record<string, unknown>).label === 'string'
+    )
+  )
+}
+
+ipcMain.handle(
+  'property:setOptions',
+  async (_e, propertyId: unknown, options: unknown): Promise<{ ok: true } | { ok: false; error: string }> => {
+    try {
+      const root = sessionRoot()
+      if (root === null) return { ok: false, error: 'No nexus is open.' }
+      if (typeof propertyId !== 'string') return { ok: false, error: 'A property id is required.' }
+      if (!isOptionArray(options)) return { ok: false, error: 'Options must be an array of { value, label }.' }
+      const r = await setOptions(root, propertyId, options)
+      return r.ok ? { ok: true } : { ok: false, error: r.error.message }
+    } catch (e) {
+      return { ok: false, error: e instanceof Error ? e.message : String(e) }
+    }
+  }
+)
+
+ipcMain.handle(
+  'property:renameOption',
+  async (_e, propertyId: unknown, oldValue: unknown, newTitle: unknown): Promise<{ ok: true } | { ok: false; error: string }> => {
+    try {
+      const root = sessionRoot()
+      if (root === null) return { ok: false, error: 'No nexus is open.' }
+      if (typeof propertyId !== 'string' || typeof oldValue !== 'string' || typeof newTitle !== 'string') {
+        return { ok: false, error: 'propertyId, oldValue, and newTitle are required.' }
+      }
+      const r = await renameOption(root, propertyId, oldValue, newTitle)
+      return r.ok ? { ok: true } : { ok: false, error: r.error.message }
+    } catch (e) {
+      return { ok: false, error: e instanceof Error ? e.message : String(e) }
+    }
+  }
+)
+
+ipcMain.handle(
+  'property:removeOption',
+  async (_e, propertyId: unknown, value: unknown): Promise<{ ok: true } | { ok: false; error: string }> => {
+    try {
+      const root = sessionRoot()
+      if (root === null) return { ok: false, error: 'No nexus is open.' }
+      if (typeof propertyId !== 'string' || typeof value !== 'string') {
+        return { ok: false, error: 'A property id and value are required.' }
+      }
+      const r = await removeOption(root, propertyId, value)
+      return r.ok ? { ok: true } : { ok: false, error: r.error.message }
+    } catch (e) {
+      return { ok: false, error: e instanceof Error ? e.message : String(e) }
+    }
+  }
+)
+
+ipcMain.handle(
+  'property:clearOption',
+  async (_e, propertyId: unknown, value: unknown): Promise<{ ok: true } | { ok: false; error: string }> => {
+    try {
+      const root = sessionRoot()
+      if (root === null) return { ok: false, error: 'No nexus is open.' }
+      if (typeof propertyId !== 'string' || typeof value !== 'string') {
+        return { ok: false, error: 'A property id and value are required.' }
+      }
+      const r = await clearOption(root, propertyId, value)
       return r.ok ? { ok: true } : { ok: false, error: r.error.message }
     } catch (e) {
       return { ok: false, error: e instanceof Error ? e.message : String(e) }

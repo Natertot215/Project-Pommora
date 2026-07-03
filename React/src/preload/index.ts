@@ -104,10 +104,33 @@ const api = {
   },
   // Nexus-wide property ops (registry-level, no container scope). `property.delete` is the
   // global destructive op — snapshot, scrub every collection, purge caches, drop the def;
-  // `schema.delete` above is the per-Collection Remove (strip + cache restorably).
+  // `schema.delete` above is the per-Collection Remove (strip + cache restorably). The option
+  // ops edit a Select/Multi property's options globally: setOptions (add/recolor/reorder),
+  // renameOption (cascades the value onto pages), removeOption/clearOption (strip pages).
   property: {
     delete: (propertyId: string): Promise<{ ok: true } | { ok: false; error: string }> =>
-      ipcRenderer.invoke('property:delete', propertyId)
+      ipcRenderer.invoke('property:delete', propertyId),
+    setOptions: (
+      propertyId: string,
+      options: { value: string; label: string; color?: string }[]
+    ): Promise<{ ok: true } | { ok: false; error: string }> =>
+      ipcRenderer.invoke('property:setOptions', propertyId, options),
+    renameOption: (
+      propertyId: string,
+      oldValue: string,
+      newTitle: string
+    ): Promise<{ ok: true } | { ok: false; error: string }> =>
+      ipcRenderer.invoke('property:renameOption', propertyId, oldValue, newTitle),
+    removeOption: (
+      propertyId: string,
+      value: string
+    ): Promise<{ ok: true } | { ok: false; error: string }> =>
+      ipcRenderer.invoke('property:removeOption', propertyId, value),
+    clearOption: (
+      propertyId: string,
+      value: string
+    ): Promise<{ ok: true } | { ok: false; error: string }> =>
+      ipcRenderer.invoke('property:clearOption', propertyId, value)
   },
   // The nexus-wide cosmetic property order (B-1) — how every collection's All Properties lists.
   registry: {
