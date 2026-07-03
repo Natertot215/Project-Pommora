@@ -1,16 +1,38 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import { Icon } from '../../symbols'
 import { Switch } from '../Switches/Switch'
 import { OverflowScroll } from '../OverflowScroll'
 import { PickerMenu, PickerOption } from '../PickerMenu/PickerMenu'
-import { useDismiss } from '../Popover'
 import { cx } from '../../cx'
 import * as s from './calendarPicker.css'
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
-const HOURS = Array.from({ length: 24 }, (_, h) => h)
+const HOURS_24 = Array.from({ length: 24 }, (_, h) => h)
+const HOURS_12 = Array.from({ length: 12 }, (_, i) => i + 1)
 const MINUTES = Array.from({ length: 12 }, (_, i) => i * 5) // 5-minute steps — the granularity knob
+
+type TriggerRect = { x: number; y: number; w: number; h: number }
+const rectOf = (el: HTMLElement): TriggerRect => {
+  const r = el.getBoundingClientRect()
+  return { x: r.x, y: r.y, w: r.width, h: r.height }
+}
+
+/** The nested menus portal to body as a fixed phantom of their trigger box, so the dropdown is a
+ *  REAL dropdown — free of the calendar pane's clip-path — while PickerMenu's anchor math works
+ *  unchanged. The phantom is pointer-inert; only the menu re-enables hits. */
+function PortalMenu({ rect, children }: { rect: TriggerRect; children: ReactNode }): React.JSX.Element {
+  return createPortal(
+    <div
+      data-calmenu
+      style={{ position: 'fixed', left: rect.x, top: rect.y, width: rect.w, height: rect.h, zIndex: 100, pointerEvents: 'none' }}
+    >
+      {children}
+    </div>,
+    document.body
+  )
+}
 
 /** PaneSlider's animated-viewport half, single-slot: content size changes morph on the shared
  *  beat instead of snapping (the ViewPane/menus feel). */
@@ -50,13 +72,17 @@ const todayKey = keyOf(new Date())
  * times are display-only until the entry UX is designed.
  */
 export function CalendarPicker({
-  formatDateValue
+  formatDateValue,
+  timeFormat = 'twelveHour'
 }: {
   /** `condensed` set = the range layout asking for the picker-only short form (withYear when the
-   *  range spans years); absent = the property's own format, verbatim. Time renders as the
-   *  [00][00] segments (24h) — the property's 12h config re-enters when an AM/PM segment lands. */
+   *  range spans years); absent = the property's own format, verbatim. */
   formatDateValue: (isoDate: string, condensed?: { withYear: boolean }) => string
+  /** The property's time config decides the segment set (the Swift DatePicker model):
+   *  twelveHour = [hh]:[mm] + an AM/PM toggle segment; twentyFourHour = [HH]:[mm]. */
+  timeFormat?: 'twelveHour' | 'twentyFourHour'
 }): React.JSX.Element {
+  const twelve = timeFormat === 'twelveHour'
   const now = new Date()
   const [cursor, setCursor] = useState(new Date(now.getFullYear(), now.getMonth(), 1))
   const [slide, setSlide] = useState<{ dir: 1 | -1; from: Date } | null>(null)
@@ -64,19 +90,27 @@ export function CalendarPicker({
   const [end, setEnd] = useState<string | null>(null)
   const [endOn, setEndOn] = useState(false)
   const [timeOn, setTimeOn] = useState(false)
-  const [menu, setMenu] = useState<{ kind: 'month' | 'year'; beak: number } | null>(null)
+  const [menu, setMenu] = useState<{ kind: 'month' | 'year'; rect: TriggerRect } | null>(null)
   // The [00][00] segment dropdowns — each segment opens its own upward PickerMenu (the fields sit
   // at the pane's bottom), beak-down at the segment.
-  const [timeMenu, setTimeMenu] = useState<{ which: 'start' | 'end'; part: 'h' | 'm'; beak: number } | null>(null)
+  const [timeMenu, setTimeMenu] = useState<{ which: 'start' | 'end'; part: 'h' | 'm'; rect: TriggerRect } | null>(null)
+  // Double-click a segment → caret editing in place (select-all drives replace-on-type, but the
+  // selection paints transparent — highlighting disabled per Nathan).
+  const [segEdit, setSegEdit] = useState<{ which: 'start' | 'end'; part: 'h' | 'm'; draft: string } | null>(null)
   const rootRef = useRef<HTMLDivElement>(null)
-  useDismiss(
-    rootRef,
-    () => {
+  // Portal'd menus escape the root, so dismissal is a document listener that spares the root AND
+  // any [data-calmenu] portal (useDismiss's containment check can't see through the portal).
+  useEffect(() => {
+    if (!menu && !timeMenu) return
+    const onDown = (e: PointerEvent): void => {
+      const t = e.target as HTMLElement
+      if (rootRef.current?.contains(t) || t.closest('[data-calmenu]')) return
       setMenu(null)
       setTimeMenu(null)
-    },
-    menu !== null || timeMenu !== null
-  )
+    }
+    document.addEventListener('pointerdown', onDown, true)
+    return () => document.removeEventListener('pointerdown', onDown, true)
+  }, [menu, timeMenu])
   // A press on a selected endpoint arms a drag that re-places it live (swapping roles if it
   // crosses the other end); a no-move press falls through to the click (= remove).
   const drag = useRef<{ which: 'start' | 'end'; moved: boolean } | null>(null)
@@ -206,57 +240,104 @@ export function CalendarPicker({
     )
   }
 
-  const dateField = (
-    k: string | null,
-    label: string,
-    condensed?: { withYear: boolean },
-    grow?: boolean
-  ): React.JSX.Element => (
-    <div className={cx(s.field, grow && s.fieldGrow)} key={label}>
+  const dateField = (k: string | null, label: string, condensed?: { withYear: boolean }): React.JSX.Element => (
+    <div className={s.field} key={label}>
       <Icon name="calendar" size={14} className={s.fieldIcon} />
       <OverflowScroll className={s.fieldValue}>
         {k ? formatDateValue(k, condensed) : <span className={s.fieldEmpty}>--</span>}
       </OverflowScroll>
     </div>
   )
-  const timeOptions = (which: 'start' | 'end', part: 'h' | 'm'): React.JSX.Element => {
+  // Swift-DatePicker hour math: display hours in the active cycle; commits preserve the meridiem.
+  const hourShown = (mins: number): number => (twelve ? ((Math.floor(mins / 60) + 11) % 12) + 1 : Math.floor(mins / 60))
+  const hourToMins = (v: number, mins: number): number =>
+    (twelve ? (v % 12) + (mins >= 720 ? 12 : 0) : v) * 60 + (mins % 60)
+
+  const timeOptions = (which: 'start' | 'end', part: 'h' | 'm'): React.JSX.Element | null => {
+    if (!timeMenu) return null
     const mins = which === 'start' ? startMin : endMin
     const setMins = which === 'start' ? setStartMin : setEndMin
-    const current = part === 'h' ? Math.floor(mins / 60) : mins % 60
+    const current = part === 'h' ? hourShown(mins) : mins % 60
     const choose = (v: number): void => {
-      setMins(part === 'h' ? v * 60 + (mins % 60) : Math.floor(mins / 60) * 60 + v)
+      setMins(part === 'h' ? hourToMins(v, mins) : Math.floor(mins / 60) * 60 + v)
       setTimeMenu(null)
     }
     return (
-      <span className={s.ddWrap} onClick={(e) => e.stopPropagation()}>
-        <PickerMenu solid direction="up" notchInsetLeft={timeMenu?.beak}>
-          <div className={cx(s.menuList, 'scroll-edge-fade')}>
-            {(part === 'h' ? HOURS : MINUTES).map((v) => (
-              <PickerOption key={v} selected={v === current} onClick={() => choose(v)}>
-                {optionRow(pad(v), v === current)}
-              </PickerOption>
-            ))}
-          </div>
-        </PickerMenu>
-      </span>
+      <PortalMenu rect={timeMenu.rect}>
+        <span className={s.ddWrap} onClick={(e) => e.stopPropagation()}>
+          <PickerMenu solid direction="up" notchInsetLeft={timeMenu.rect.w / 2}>
+            <div className={cx(s.menuList, 'scroll-edge-fade')}>
+              {(part === 'h' ? (twelve ? HOURS_12 : HOURS_24) : MINUTES).map((v) => (
+                <PickerOption key={v} selected={v === current} onClick={() => choose(v)}>
+                  {optionRow(pad(v), v === current)}
+                </PickerOption>
+              ))}
+            </div>
+          </PickerMenu>
+        </span>
+      </PortalMenu>
     )
   }
-  const timeSegment = (which: 'start' | 'end', part: 'h' | 'm', mins: number): React.JSX.Element => (
-    <button
-      type="button"
-      className={s.timeSeg}
-      onClick={(e) =>
-        setTimeMenu(
-          timeMenu?.which === which && timeMenu.part === part
-            ? null
-            : { which, part, beak: e.currentTarget.offsetWidth / 2 }
-        )
-      }
-    >
-      {pad(part === 'h' ? Math.floor(mins / 60) : mins % 60)}
-      {timeMenu?.which === which && timeMenu.part === part && timeOptions(which, part)}
-    </button>
-  )
+  const segCommit = (): void => {
+    if (!segEdit) return
+    const v = Number(segEdit.draft)
+    if (segEdit.draft !== '' && Number.isFinite(v)) {
+      const mins = segEdit.which === 'start' ? startMin : endMin
+      const setMins = segEdit.which === 'start' ? setStartMin : setEndMin
+      if (segEdit.part === 'h') {
+        const clamped = twelve ? Math.min(Math.max(v, 1), 12) : Math.min(v, 23)
+        setMins(hourToMins(clamped, mins))
+      } else setMins(Math.floor(mins / 60) * 60 + Math.min(v, 59))
+    }
+    setSegEdit(null)
+  }
+  const timeSegment = (which: 'start' | 'end', part: 'h' | 'm', mins: number): React.JSX.Element =>
+    segEdit?.which === which && segEdit.part === part ? (
+      <input
+        key={`${which}-${part}-edit`}
+        className={s.timeSegInput}
+        value={segEdit.draft}
+        autoFocus
+        spellCheck={false}
+        onFocus={(e) => e.currentTarget.select()}
+        onChange={(e) => {
+          const draft = e.target.value
+          if (/^\d{0,2}$/.test(draft)) setSegEdit({ which, part, draft })
+        }}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') segCommit()
+          else if (e.key === 'Escape') setSegEdit(null)
+        }}
+        onBlur={segCommit}
+      />
+    ) : (
+      <button
+        type="button"
+        key={`${which}-${part}`}
+        className={s.timeSeg}
+        onClick={(e) =>
+          setTimeMenu(
+            timeMenu?.which === which && timeMenu.part === part ? null : { which, part, rect: rectOf(e.currentTarget) }
+          )
+        }
+        onDoubleClick={() => {
+          setTimeMenu(null)
+          setSegEdit({ which, part, draft: pad(part === 'h' ? Math.floor(mins / 60) : mins % 60) })
+        }}
+      >
+        {pad(part === 'h' ? hourShown(mins) : mins % 60)}
+        {timeMenu?.which === which && timeMenu.part === part && timeOptions(which, part)}
+      </button>
+    )
+  // The Swift-style meridiem segment — a plain toggle (two values never earn a dropdown).
+  const ampmSegment = (which: 'start' | 'end', mins: number): React.JSX.Element => {
+    const setMins = which === 'start' ? setStartMin : setEndMin
+    return (
+      <button type="button" className={s.timeSeg} onClick={() => setMins(mins >= 720 ? mins - 720 : mins + 720)}>
+        {mins >= 720 ? 'PM' : 'AM'}
+      </button>
+    )
+  }
   const timeField = (mins: number | null, label: string, which: 'start' | 'end'): React.JSX.Element => (
     <div className={cx(s.field, s.fieldTime)} key={label}>
       <Icon name="clock" size={14} className={s.fieldIcon} />
@@ -265,6 +346,7 @@ export function CalendarPicker({
           {timeSegment(which, 'h', mins)}
           <span className={s.timeColon}>:</span>
           {timeSegment(which, 'm', mins)}
+          {twelve && ampmSegment(which, mins)}
         </span>
       ) : (
         <span className={cx(s.fieldValue, s.fieldEmpty)}>--</span>
@@ -297,25 +379,28 @@ export function CalendarPicker({
       {selected && <Icon name="check" size={12} className={s.optionCheck} />}
     </span>
   )
-  const selectionMenu = (kind: 'month' | 'year'): React.JSX.Element => (
-    <span className={s.ddWrap} onClick={(e) => e.stopPropagation()}>
-      <PickerMenu solid notchInsetLeft={menu?.beak}>
-        <div className={cx(s.menuList, 'scroll-edge-fade')}>
-          {kind === 'month'
-            ? Array.from({ length: 12 }, (_, m) => (
-                <PickerOption key={m} selected={m === cursor.getMonth()} onClick={() => jump(year, m)}>
-                  {optionRow(monthName(m), m === cursor.getMonth())}
-                </PickerOption>
-              ))
-            : yearChoices.map((y) => (
-                <PickerOption key={y} selected={y === year} onClick={() => jump(y, cursor.getMonth())}>
-                  {optionRow(y, y === year)}
-                </PickerOption>
-              ))}
-        </div>
-      </PickerMenu>
-    </span>
-  )
+  const selectionMenu = (kind: 'month' | 'year'): React.JSX.Element | null =>
+    menu && (
+      <PortalMenu rect={menu.rect}>
+        <span className={s.ddWrap} onClick={(e) => e.stopPropagation()}>
+          <PickerMenu solid notchInsetLeft={menu.rect.w / 2}>
+            <div className={cx(s.menuList, 'scroll-edge-fade')}>
+              {kind === 'month'
+                ? Array.from({ length: 12 }, (_, m) => (
+                    <PickerOption key={m} selected={m === cursor.getMonth()} onClick={() => jump(year, m)}>
+                      {optionRow(monthName(m), m === cursor.getMonth())}
+                    </PickerOption>
+                  ))
+                : yearChoices.map((y) => (
+                    <PickerOption key={y} selected={y === year} onClick={() => jump(y, cursor.getMonth())}>
+                      {optionRow(y, y === year)}
+                    </PickerOption>
+                  ))}
+            </div>
+          </PickerMenu>
+        </span>
+      </PortalMenu>
+    )
 
   return (
     <div className={s.root} ref={rootRef}>
@@ -325,9 +410,7 @@ export function CalendarPicker({
           <button
             type="button"
             className={s.titleBtn}
-            onClick={(e) =>
-              setMenu(menu?.kind === 'month' ? null : { kind: 'month', beak: e.currentTarget.offsetWidth / 2 })
-            }
+            onClick={(e) => setMenu(menu?.kind === 'month' ? null : { kind: 'month', rect: rectOf(e.currentTarget) })}
           >
             {cursor.toLocaleDateString('en-US', { month: 'long' })}
             {menu?.kind === 'month' && selectionMenu('month')}
@@ -335,9 +418,7 @@ export function CalendarPicker({
           <button
             type="button"
             className={s.titleBtn}
-            onClick={(e) =>
-              setMenu(menu?.kind === 'year' ? null : { kind: 'year', beak: e.currentTarget.offsetWidth / 2 })
-            }
+            onClick={(e) => setMenu(menu?.kind === 'year' ? null : { kind: 'year', rect: rectOf(e.currentTarget) })}
           >
             {year}
             {menu?.kind === 'year' && selectionMenu('year')}
@@ -389,36 +470,31 @@ export function CalendarPicker({
       </div>
       <div className={s.divider} />
       <div className={s.fields}>
-        {/* Layout algebra (Nathan): [Date][Date] for a time-less range; every date+time pairing is
-            one 2/3 : 1/3 row — range+time stacks a start row over an end row. Range fields take
-            the picker-only condensed form (year rejoins only across years); single-date stays
-            the property's format verbatim. */}
+        {/* Grid logic (Nathan, Swift-DatePicker model): equal halves everywhere — a range is
+            [Date][Date] with times on their own [Time][Time] row; single date+time is [Date][Time].
+            Equal sizing buys the AM/PM segment its room. Range fields take the picker-only
+            condensed form (year rejoins only across years); single-date stays verbatim. */}
         {(() => {
           const spansYears = start !== null && end !== null && start.slice(0, 4) !== end.slice(0, 4)
           const condensed = { withYear: spansYears }
-          if (endOn && timeOn)
+          if (endOn)
             return (
               <>
                 <div className={s.fieldRow}>
-                  {dateField(start, 'start', condensed, true)}
-                  {timeField(start ? startMin : null, 'start-t', 'start')}
+                  {dateField(start, 'start', condensed)}
+                  {dateField(end, 'end', condensed)}
                 </div>
-                <div className={s.fieldRow}>
-                  {dateField(end, 'end', condensed, true)}
-                  {timeField(end ? endMin : null, 'end-t', 'end')}
-                </div>
+                {timeOn && (
+                  <div className={s.fieldRow}>
+                    {timeField(start ? startMin : null, 'start-t', 'start')}
+                    {timeField(end ? endMin : null, 'end-t', 'end')}
+                  </div>
+                )}
               </>
-            )
-          if (endOn)
-            return (
-              <div className={s.fieldRow}>
-                {dateField(start, 'start', condensed)}
-                {dateField(end, 'end', condensed)}
-              </div>
             )
           return (
             <div className={s.fieldRow}>
-              {dateField(start, 'date', undefined, timeOn)}
+              {dateField(start, 'date')}
               {timeOn && timeField(start ? startMin : null, 'time', 'start')}
             </div>
           )

@@ -53,7 +53,7 @@ export const navBtn = style({
       centers by default, which pushed it past the calendar pane's clip edge) and lifts it ABOVE
       the calendar content. ── */
 export const ddWrap = style({ display: 'contents' })
-globalStyle(`${ddWrap} > div`, { left: 0, transform: 'none', zIndex: 30 })
+globalStyle(`${ddWrap} > div`, { left: 0, transform: 'none', zIndex: 30, pointerEvents: 'auto' })
 export const menuList = style({
   display: 'flex',
   flexDirection: 'column',
@@ -168,10 +168,9 @@ export const fieldValue = style({
   color: c.label.primary
 })
 export const fieldEmpty = style({ color: c.label.tertiary })
-/* The date+time row splits ~2/3 : 1/3 (Nathan's layout; shaded 1.8:1.2 so the segment cluster
-   fits its box — THE ratio knob); plain rows share evenly. */
-export const fieldGrow = style({ flex: 1.8 })
-export const fieldTime = style({ flex: 1.2, gap: '4px', paddingLeft: '6px', paddingRight: '6px' })
+/* Equal halves everywhere (the Swift-DatePicker grid) — the time field just tightens its own
+   metrics so [hh]:[mm] AM/PM fits its half. */
+export const fieldTime = style({ flex: 1, gap: '4px', paddingLeft: '6px', paddingRight: '6px' })
 /* The [00][00] time segments — each is a dropdown trigger; its menu opens upward, beak-down. */
 export const timeSegs = style({ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '2px' })
 export const timeSeg = style({
@@ -182,7 +181,24 @@ export const timeSeg = style({
   fontSize: font.scale.control.size,
   fontWeight: font.weight.emphasized,
   color: c.label.primary,
+  userSelect: 'none', // double-click edits in place — never a text-selection flash
   selectors: { '&:hover': { background: c.state.hover } }
+})
+/* The double-click caret editor — the segment's own look; select-all drives replace-on-type but
+   the selection paints transparent (highlighting disabled). */
+export const timeSegInput = style({
+  width: '2ch',
+  border: 'none',
+  outline: 'none',
+  background: 'transparent',
+  textAlign: 'center',
+  padding: '1px 4px',
+  borderRadius: '5px',
+  fontFamily: 'inherit',
+  fontSize: font.scale.control.size,
+  fontWeight: font.weight.emphasized,
+  color: c.label.primary,
+  selectors: { '&::selection': { background: 'transparent' } }
 })
 export const timeColon = style({ color: c.label.secondary })
 
