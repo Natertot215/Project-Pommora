@@ -24,7 +24,7 @@ export function ColorPicker({
   onDismiss: () => void
 }): React.JSX.Element | null {
   return (
-    <PickerMenu open={open} onDismiss={onDismiss} solid direction="down" align="end" radius={8} notchWidth={14}>
+    <PickerMenu open={open} onDismiss={onDismiss} direction="down" radius={8} notchWidth={14}>
       <div className={s.grid}>
         {SWATCHES.map((color) => (
           <button

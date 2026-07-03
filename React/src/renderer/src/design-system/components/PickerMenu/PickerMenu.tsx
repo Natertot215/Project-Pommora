@@ -7,6 +7,7 @@ import { cx } from '../../cx'
 import * as s from './pickerMenu.css'
 
 const GAP = 6 // trigger → pane
+const VIEWPORT_MARGIN = 8 // keep the pane this far from the viewport edges
 
 // Uses the `dropdown` token (snappier, symmetric Bloom — same keyframes as the menu Bloom, shared with
 // AutocompletePanel). The beaked shell is the shared NotchedPane; this stays the picker-flavoured skin.
@@ -57,25 +58,27 @@ export function PickerMenu({
   const closing = selfManaged ? exitClosing : closingProp
   const paneRef = useRef<HTMLDivElement>(null)
   const markerRef = useRef<HTMLSpanElement>(null)
-  const [pos, setPos] = useState<{ top: number; left?: number; right?: number; notchInset?: number } | null>(null)
+  const [pos, setPos] = useState<{ top: number; left: number; notchInset: number } | null>(null)
 
-  // Measure the trigger (the marker's parent) → a fixed position on the top layer, beak aimed at its
-  // center. Re-measured on scroll/resize so the pane tracks the trigger.
+  // Position on the top layer: centered under the trigger, clamped into the viewport, with the beak
+  // aimed back at the trigger's center from wherever the pane lands. Measures BOTH the trigger (the
+  // marker's parent) and the pane, re-running on scroll/resize.
   useLayoutEffect(() => {
     if (!selfManaged || !mounted) return
     const trigger = markerRef.current?.parentElement
-    if (!trigger) return
+    const pane = paneRef.current
+    if (!trigger || !pane) return
     const measure = (): void => {
       const t = trigger.getBoundingClientRect()
-      setPos(
-        align === 'end'
-          ? { top: t.bottom + GAP, right: window.innerWidth - t.right, notchInset: t.width / 2 }
-          : { top: t.bottom + GAP, left: t.left + t.width / 2 }
-      )
+      const w = pane.offsetWidth
+      const center = t.left + t.width / 2
+      const left = Math.max(VIEWPORT_MARGIN, Math.min(center - w / 2, window.innerWidth - w - VIEWPORT_MARGIN))
+      setPos({ top: t.bottom + GAP, left, notchInset: left + w - center })
     }
     measure()
     const ro = new ResizeObserver(measure)
     ro.observe(trigger)
+    ro.observe(pane)
     window.addEventListener('scroll', measure, true)
     window.addEventListener('resize', measure)
     return () => {
@@ -83,7 +86,7 @@ export function PickerMenu({
       window.removeEventListener('scroll', measure, true)
       window.removeEventListener('resize', measure)
     }
-  }, [selfManaged, mounted, align])
+  }, [selfManaged, mounted])
 
   // Dismiss on an outside pointerdown / Escape — the pane AND the trigger are exempt, so clicking the
   // toggle trigger closes via its own handler instead of dismiss-then-reopen.
@@ -129,28 +132,26 @@ export function PickerMenu({
     return <div className={up ? s.anchorUp : align === 'end' ? s.anchorEnd : s.anchor}>{pane}</div>
   }
 
-  // Self-managed — a fixed top layer (body portal) escaping any clipping ancestor, beak aimed dynamically.
+  // Self-managed — a fixed top layer (body portal) escaping any clipping ancestor, beak aimed
+  // dynamically. The pane mounts hidden so it can be measured, then reveals at its computed spot.
   return (
     <>
       <span ref={markerRef} aria-hidden style={{ display: 'none' }} />
-      {mounted && pos
-        ? createPortal(
-            <div
-              ref={paneRef}
-              className={s.layer}
-              style={{
-                top: `${pos.top}px`,
-                ...(pos.right !== undefined
-                  ? { right: `${pos.right}px` }
-                  : { left: `${pos.left}px`, transform: 'translateX(-50%)' }),
-                pointerEvents: closing ? 'none' : undefined
-              }}
-            >
-              {pane}
-            </div>,
-            document.body
-          )
-        : null}
+      {createPortal(
+        <div
+          ref={paneRef}
+          className={s.layer}
+          style={{
+            top: pos ? `${pos.top}px` : '0',
+            left: pos ? `${pos.left}px` : '0',
+            visibility: pos ? undefined : 'hidden',
+            pointerEvents: closing ? 'none' : undefined
+          }}
+        >
+          {pane}
+        </div>,
+        document.body
+      )}
     </>
   )
 }
