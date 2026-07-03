@@ -1,9 +1,12 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { mkdtemp, rm } from 'node:fs/promises'
+import { mkdtemp, rm, readFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { setOptions } from './optionOps'
+import { setOptions, renameOption } from './optionOps'
 import { createProperty } from './registryProperty'
+import { assignProperty } from './assignment'
+import { createFolderEntity } from './folderEntity'
+import { createPage, updatePageProperty } from './page'
 import { readRegistry } from '../io/propertiesRegistry'
 import type { PropertyDefinition } from '@shared/properties'
 
@@ -19,6 +22,17 @@ async function mkSelect(options: { value: string; label: string; color?: string 
   const c = await createProperty(root, { id: '', name: 'Tags', type: 'select', select_options: options } as PropertyDefinition)
   if (!c.ok) throw new Error('createProperty failed')
   return c.value.id
+}
+
+/** A collection assigning `id`, holding one page whose `id` value is `value`. Returns the page path. */
+async function pageHolding(id: string, value: string): Promise<string> {
+  const col = await createFolderEntity(root, 'collection', 'Col')
+  if (!col.ok) throw new Error('folder failed')
+  await assignProperty(root, col.value.path, id)
+  const p = await createPage(col.value.path, 'One', { body: 'b' })
+  if (!p.ok) throw new Error('page failed')
+  await updatePageProperty(p.value.path, id, { kind: 'select', value })
+  return p.value.path
 }
 
 describe('setOptions', () => {
@@ -40,5 +54,34 @@ describe('setOptions', () => {
 
   it('fails for an unknown property id', async () => {
     expect((await setOptions(root, 'prop_nope', [])).ok).toBe(false)
+  })
+})
+
+describe('renameOption', () => {
+  it('rewrites the def and cascades the value across pages', async () => {
+    const id = await mkSelect([{ value: 'Urgent', label: 'Urgent' }])
+    const page = await pageHolding(id, 'Urgent')
+
+    const r = await renameOption(root, id, 'Urgent', 'Critical')
+    expect(r.ok).toBe(true)
+    expect((await readRegistry(root)).defs[id].select_options).toEqual([{ value: 'Critical', label: 'Critical' }])
+    const content = await readFile(page, 'utf8')
+    expect(content).toContain('Critical')
+    expect(content).not.toContain('Urgent')
+  })
+
+  it('rejects a rename that collides with an existing title (no page writes)', async () => {
+    const id = await mkSelect([
+      { value: 'A', label: 'A' },
+      { value: 'B', label: 'B' }
+    ])
+    const page = await pageHolding(id, 'A')
+    const r = await renameOption(root, id, 'A', 'B')
+    expect(r.ok).toBe(false)
+    expect(await readFile(page, 'utf8')).toContain('A')
+  })
+
+  it('fails for an unknown property id', async () => {
+    expect((await renameOption(root, 'prop_nope', 'A', 'B')).ok).toBe(false)
   })
 })
