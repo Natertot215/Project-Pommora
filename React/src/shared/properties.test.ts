@@ -3,10 +3,12 @@ import {
   propertyDefinition,
   propertyType,
   isReservedPropertyId,
+  isUntouchedSeed,
   tierPropertyId,
   tierFieldName,
   defaultStatusSeed,
-  RESERVED_PROPERTY_ID
+  RESERVED_PROPERTY_ID,
+  type PropertyDefinition
 } from './properties'
 
 describe('propertyType', () => {
@@ -82,11 +84,40 @@ describe('reserved property ids', () => {
   })
 })
 
-describe('defaultStatusSeed', () => {
-  it('seeds the three fixed groups with their starter options', () => {
-    const seed = defaultStatusSeed()
-    expect(seed.map((g) => g.id)).toEqual(['upcoming', 'in_progress', 'done'])
-    expect(seed[0].options[0].value).toBe('not_started')
-    expect(seed[2].options[0]).toMatchObject({ value: 'done', group_id: 'done' })
+describe('status seed relabel', () => {
+  it('seeds Open/Active/Done with value=label=title and group colors', () => {
+    const g = defaultStatusSeed()
+    expect(g.map((x) => x.id)).toEqual(['upcoming', 'in_progress', 'done'])
+    expect(g.map((x) => x.label)).toEqual(['Open', 'Active', 'Done'])
+    for (const grp of g) {
+      expect(grp.options).toHaveLength(1)
+      expect(grp.options[0].value).toBe(grp.label)
+      expect(grp.options[0].label).toBe(grp.label)
+      expect(grp.options[0].color).toBe(grp.color)
+    }
+  })
+
+  it('isUntouchedSeed recognizes the LEGACY seed so existing props stay empty', () => {
+    const legacy = {
+      id: 'prop_x',
+      name: 'Status',
+      type: 'status',
+      status_groups: [
+        { id: 'upcoming', label: 'Upcoming', color: 'gray', options: [{ value: 'not_started', label: 'Not started', group_id: 'upcoming' }] },
+        { id: 'in_progress', label: 'In Progress', color: 'blue', options: [{ value: 'in_progress', label: 'In progress', color: 'blue', group_id: 'in_progress' }] },
+        { id: 'done', label: 'Done', color: 'green', options: [{ value: 'done', label: 'Done', color: 'green', group_id: 'done' }] }
+      ]
+    } as unknown as PropertyDefinition
+    expect(isUntouchedSeed(legacy)).toBe(true)
+  })
+
+  it('isUntouchedSeed recognizes the NEW seed', () => {
+    expect(isUntouchedSeed({ id: 'p', name: 'S', type: 'status', status_groups: defaultStatusSeed() } as PropertyDefinition)).toBe(true)
+  })
+
+  it('a customized status def is not an untouched seed', () => {
+    const g = defaultStatusSeed()
+    g[0].options.push({ value: 'Blocked', label: 'Blocked', group_id: 'upcoming' })
+    expect(isUntouchedSeed({ id: 'p', name: 'S', type: 'status', status_groups: g } as PropertyDefinition)).toBe(false)
   })
 })

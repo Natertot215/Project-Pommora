@@ -118,35 +118,32 @@ export function tierPropertyId(level: number): string {
   return `_tier${level}`
 }
 
-/** Default 3-group seed written when a Status property is first added. Mirrors Swift
- *  `StatusGroup.defaultSeed()` + Properties.md § "Status property type → Default seed". */
+/** Default 3-group seed written when a Status property is first added. Group IDs stay fixed (calendar
+ *  sync); labels are Open / Active / Done, and each group seeds one option whose value=label=its group
+ *  label, carrying the group color. Per Properties.md § "Status property type → Default seed". */
 export function defaultStatusSeed(): StatusGroup[] {
   return [
-    {
-      id: 'upcoming',
-      label: 'Upcoming',
-      color: 'gray',
-      options: [{ value: 'not_started', label: 'Not started', group_id: 'upcoming' }]
-    },
-    {
-      id: 'in_progress',
-      label: 'In Progress',
-      color: 'blue',
-      options: [{ value: 'in_progress', label: 'In progress', color: 'blue', group_id: 'in_progress' }]
-    },
-    {
-      id: 'done',
-      label: 'Done',
-      color: 'green',
-      options: [{ value: 'done', label: 'Done', color: 'green', group_id: 'done' }]
-    }
+    { id: 'upcoming', label: 'Open', color: 'grey', options: [{ value: 'Open', label: 'Open', color: 'grey', group_id: 'upcoming' }] },
+    { id: 'in_progress', label: 'Active', color: 'blue', options: [{ value: 'Active', label: 'Active', color: 'blue', group_id: 'in_progress' }] },
+    { id: 'done', label: 'Done', color: 'green', options: [{ value: 'Done', label: 'Done', color: 'green', group_id: 'done' }] }
   ]
 }
 
-/** Default single-option seed written when a Select / Multi-Select property is first added. A select
- *  needs ≥1 option (validateDefinition), so creation seeds a starter the user then renames/extends. */
+/** The pre-7-3 seed (Upcoming / In Progress / Done with `not_started`-style values). A Status property
+ *  untouched since before the relabel still matches this, so `isUntouchedSeed` keeps treating it as an
+ *  empty seed-only def rather than surfacing its old starter options as real ones. */
+function legacyStatusSeed(): StatusGroup[] {
+  return [
+    { id: 'upcoming', label: 'Upcoming', color: 'gray', options: [{ value: 'not_started', label: 'Not started', group_id: 'upcoming' }] },
+    { id: 'in_progress', label: 'In Progress', color: 'blue', options: [{ value: 'in_progress', label: 'In progress', color: 'blue', group_id: 'in_progress' }] },
+    { id: 'done', label: 'Done', color: 'green', options: [{ value: 'done', label: 'Done', color: 'green', group_id: 'done' }] }
+  ]
+}
+
+/** Default single-option seed written when a Select / Multi-Select property is first added. Creation
+ *  seeds one starter option (value=label=title) the user then renames or extends. */
 export function defaultSelectSeed(): { value: string; label: string }[] {
-  return [{ value: 'option_1', label: 'Option 1' }]
+  return [{ value: 'Option 1', label: 'Option 1' }]
 }
 
 /** True while a def still carries EXACTLY its untouched creation seed — scaffolding, not options
@@ -158,8 +155,7 @@ export function isUntouchedSeed(def: PropertyDefinition): boolean {
   if (def.type === 'status') {
     const groups = def.status_groups
     if (!groups) return false
-    const seed = defaultStatusSeed()
-    return (
+    const matches = (seed: StatusGroup[]): boolean =>
       groups.length === seed.length &&
       seed.every((sg) => {
         const g = groups.find((x) => x.id === sg.id)
@@ -169,7 +165,7 @@ export function isUntouchedSeed(def: PropertyDefinition): boolean {
           g.options[0].label === sg.options[0].label
         )
       })
-    )
+    return matches(defaultStatusSeed()) || matches(legacyStatusSeed())
   }
   if (def.type === 'select' || def.type === 'multi_select') {
     const seed = defaultSelectSeed()[0]
