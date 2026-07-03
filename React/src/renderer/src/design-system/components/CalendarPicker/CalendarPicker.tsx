@@ -50,7 +50,9 @@ export function CalendarPicker({
   formatDateValue,
   formatTimeValue
 }: {
-  formatDateValue: (isoDate: string) => string
+  /** `condensed` set = the range layout asking for the picker-only short form (withYear when the
+   *  range spans years); absent = the property's own format, verbatim. */
+  formatDateValue: (isoDate: string, condensed?: { withYear: boolean }) => string
   formatTimeValue: (minutes: number) => string
 }): React.JSX.Element {
   const now = new Date()
@@ -63,6 +65,10 @@ export function CalendarPicker({
   const [menu, setMenu] = useState<'month' | 'year' | null>(null)
   const rootRef = useRef<HTMLDivElement>(null)
   useDismiss(rootRef, () => setMenu(null), menu !== null)
+  // A press on a selected endpoint arms a drag that re-places it live (swapping roles if it
+  // crosses the other end); a no-move press falls through to the click (= remove).
+  const drag = useRef<{ which: 'start' | 'end'; moved: boolean } | null>(null)
+  const suppressClick = useRef(false)
   const startMin = 9 * 60
   const endMin = 17 * 60
 
@@ -92,6 +98,39 @@ export function CalendarPicker({
     }
   }
 
+  const keyAtPoint = (x: number, y: number): string | null =>
+    document.elementFromPoint(x, y)?.closest('[data-k]')?.getAttribute('data-k') ?? null
+
+  const onGridPointerDown = (e: React.PointerEvent<HTMLDivElement>): void => {
+    const k = (e.target as HTMLElement).closest('[data-k]')?.getAttribute('data-k')
+    if (!k) return
+    if (k === start) drag.current = { which: 'start', moved: false }
+    else if (k === end) drag.current = { which: 'end', moved: false }
+    if (drag.current) e.currentTarget.setPointerCapture(e.pointerId)
+  }
+  const onGridPointerMove = (e: React.PointerEvent<HTMLDivElement>): void => {
+    const d = drag.current
+    if (!d) return
+    const k = keyAtPoint(e.clientX, e.clientY)
+    if (!k || k === (d.which === 'start' ? start : end)) return
+    d.moved = true
+    if (d.which === 'start') {
+      if (end !== null && k > end) {
+        setStart(end)
+        setEnd(k)
+        d.which = 'end'
+      } else setStart(k)
+    } else if (start !== null && k < start) {
+      setEnd(start)
+      setStart(k)
+      d.which = 'start'
+    } else setEnd(k)
+  }
+  const onGridPointerUp = (): void => {
+    if (drag.current?.moved) suppressClick.current = true
+    drag.current = null
+  }
+
   const grid = (month: Date): React.JSX.Element => {
     const y = month.getFullYear()
     const m = month.getMonth()
@@ -112,8 +151,15 @@ export function CalendarPicker({
             <button
               type="button"
               key={k}
+              data-k={k}
               className={cx(s.day, d.getMonth() !== m && s.dayOut, sel && s.daySelected)}
-              onClick={() => pick(k)}
+              onClick={() => {
+                if (suppressClick.current) {
+                  suppressClick.current = false
+                  return
+                }
+                pick(k)
+              }}
             >
               {sel && ranged && (
                 <span className={cx(s.pill, k === start ? s.bandUnderStart : s.bandUnderEnd)} />
@@ -136,11 +182,11 @@ export function CalendarPicker({
     )
   }
 
-  const dateField = (k: string | null, label: string): React.JSX.Element => (
+  const dateField = (k: string | null, label: string, condensed?: { withYear: boolean }): React.JSX.Element => (
     <div className={s.field} key={label}>
       <Icon name="calendar" size={14} className={s.fieldIcon} />
       <OverflowScroll className={s.fieldValue}>
-        {k ? formatDateValue(k) : <span className={s.fieldEmpty}>--</span>}
+        {k ? formatDateValue(k, condensed) : <span className={s.fieldEmpty}>--</span>}
       </OverflowScroll>
     </div>
   )
@@ -155,6 +201,15 @@ export function CalendarPicker({
 
   const prevMonth = slide?.from ?? cursor
   const year = cursor.getFullYear()
+  // The grid viewport's height is COMPUTED from the target month's row count (geometry mirrors
+  // the css: 24px cells · 2px row gap · 2px bottom pad) and set the instant nav fires — SizeMorph
+  // then animates the delta on the same duration-base beat as the slide keyframe, so the resize
+  // FLOWS with the horizontal move (the PaneSlider contract) instead of snapping after it.
+  const rowsFor = (month: Date): number => {
+    const lead = new Date(month.getFullYear(), month.getMonth(), 1).getDay()
+    return Math.ceil((lead + new Date(month.getFullYear(), month.getMonth() + 1, 0).getDate()) / 7)
+  }
+  const gridHeight = rowsFor(cursor) * 24 + (rowsFor(cursor) - 1) * 2 + 2
   const jump = (y: number, m: number): void => {
     setCursor(new Date(y, m, 1))
     setMenu(null)
@@ -215,10 +270,14 @@ export function CalendarPicker({
           </span>
         ))}
       </div>
-      <div className={s.viewport}>
+      <div className={s.viewport} style={{ height: gridHeight }}>
         <div
           className={cx(s.track, slide ? (slide.dir === 1 ? s.trackLeft : s.trackRight) : undefined)}
           onAnimationEnd={() => setSlide(null)}
+          onPointerDown={onGridPointerDown}
+          onPointerMove={onGridPointerMove}
+          onPointerUp={onGridPointerUp}
+          onPointerCancel={onGridPointerUp}
         >
           {slide ? (
             slide.dir === 1 ? (
@@ -242,8 +301,10 @@ export function CalendarPicker({
         {endOn ? (
           <>
             <div className={s.fieldRow}>
-              {dateField(start, 'start')}
-              {dateField(end, 'end')}
+              {/* Range fields always take the picker-only condensed form; the year rejoins only
+                  when the range spans multiple years. Single-date mode below stays verbatim. */}
+              {dateField(start, 'start', { withYear: start !== null && end !== null && start.slice(0, 4) !== end.slice(0, 4) })}
+              {dateField(end, 'end', { withYear: start !== null && end !== null && start.slice(0, 4) !== end.slice(0, 4) })}
             </div>
             {timeOn && (
               <div className={s.fieldRow}>

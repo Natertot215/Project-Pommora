@@ -56,6 +56,23 @@ export function formatDate(iso: string, dateFormat: DateFormat, timeFormat: Time
   return out
 }
 
+/** The picker's condensed range-date form (Nathan's rule — picker-only, never in cells): worded
+ *  formats collapse to the short "July 7th"; numeric formats drop to MM/DD (or DD/MM), expanding
+ *  back to the full numeric form only when the range spans multiple years. */
+export function condensedDate(iso: string, dateFormat: DateFormat, withYear: boolean): string {
+  const date = new Date(iso.includes('T') ? iso : `${iso}T00:00:00`)
+  if (Number.isNaN(date.getTime())) return iso
+  switch (dateFormat) {
+    case 'short':
+    case 'full':
+      return `${date.toLocaleDateString('en-US', { month: 'long' })} ${ordinal(date.getDate())}`
+    case 'dayMonthYear':
+      return `${pad(date.getDate())}/${pad(date.getMonth() + 1)}${withYear ? `/${date.getFullYear()}` : ''}`
+    case 'monthDayYear':
+      return `${pad(date.getMonth() + 1)}/${pad(date.getDate())}${withYear ? `/${date.getFullYear()}` : ''}`
+  }
+}
+
 /** A file chip's label per the column's look — the basename, or the full stored path. */
 export function fileLabel(ref: { path: string }, look: 'filename' | 'path'): string {
   return look === 'path' ? ref.path : (ref.path.split('/').pop() ?? ref.path)

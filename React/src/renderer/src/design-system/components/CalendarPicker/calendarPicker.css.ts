@@ -76,7 +76,10 @@ export const weekday = style({
 const slideLeft = keyframes({ from: { transform: 'translateX(0)' }, to: { transform: 'translateX(-50%)' } })
 const slideRight = keyframes({ from: { transform: 'translateX(-50%)' }, to: { transform: 'translateX(0)' } })
 export const viewport = style({ overflow: 'hidden' })
-export const track = style({ display: 'flex', width: '200%' })
+/* Top-aligned so each month grid keeps its own height — the viewport's computed height (not the
+   taller neighbor) decides the pane, and SizeMorph animates the change WITH the slide (one beat,
+   the PaneSlider contract: the horizontal move and the resize land together). */
+export const track = style({ display: 'flex', width: '200%', alignItems: 'flex-start' })
 export const trackLeft = style({ animation: `${slideLeft} var(--duration-base) var(--ease-standard) both` })
 export const trackRight = style({ animation: `${slideRight} var(--duration-base) var(--ease-standard) both` })
 export const days = style({
@@ -139,7 +142,13 @@ export const field = style({
   background: c.fill.tertiary // ad-hoc fill on this surface — Nathan's call
 })
 export const fieldIcon = style({ flex: 'none', color: c.label.secondary })
-export const fieldValue = style({ flex: 1, minWidth: 0, fontSize: font.scale.control.size, color: c.label.primary })
+export const fieldValue = style({
+  flex: 1,
+  minWidth: 0,
+  fontSize: font.scale.control.size,
+  fontWeight: font.weight.emphasized,
+  color: c.label.primary
+})
 export const fieldEmpty = style({ color: c.label.tertiary })
 
 /* ── Boolean rows (the real Switch) ── */

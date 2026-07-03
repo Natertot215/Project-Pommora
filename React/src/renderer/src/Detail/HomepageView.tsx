@@ -6,7 +6,15 @@ import { PickerMenu } from '@renderer/design-system/components/PickerMenu/Picker
 import { useDismiss } from '@renderer/design-system/components/Popover'
 import { useExitPresence } from '@renderer/design-system/useExitPresence'
 import { DetailScaffold } from './DetailScaffold'
-import { formatDate } from './Views/PropertyEditing/formatValue'
+import { condensedDate, formatDate } from './Views/PropertyEditing/formatValue'
+import type { DateFormat } from '@shared/columnStyles'
+
+/** The property-config formatter pair the picker injects: verbatim for single dates, the
+ *  picker-only condensed form for range fields (year only when the range spans years). */
+const fmtDateFor =
+  (fmt: DateFormat) =>
+  (k: string, condensed?: { withYear: boolean }): string =>
+    condensed ? condensedDate(k, fmt, condensed.withYear) : formatDate(k, fmt, 'none')
 
 const fmtTime = (mins: number, twelve: boolean): string => {
   const d = new Date(2026, 0, 1, Math.floor(mins / 60), mins % 60)
@@ -51,10 +59,10 @@ export function HomepageView({ tree }: { tree: NexusTree | null }): React.JSX.El
     >
       <div className={cal.demoRow}>
         <DemoPicker tag="short · 12-hour" trigger="July 2nd">
-          <CalendarPicker formatDateValue={(k) => formatDate(k, 'short', 'none')} formatTimeValue={(m) => fmtTime(m, true)} />
+          <CalendarPicker formatDateValue={fmtDateFor('short')} formatTimeValue={(m) => fmtTime(m, true)} />
         </DemoPicker>
         <DemoPicker tag="full · 24-hour (overflow demo)" trigger="Wednesday, July 2nd 2026">
-          <CalendarPicker formatDateValue={(k) => formatDate(k, 'full', 'none')} formatTimeValue={(m) => fmtTime(m, false)} />
+          <CalendarPicker formatDateValue={fmtDateFor('full')} formatTimeValue={(m) => fmtTime(m, false)} />
         </DemoPicker>
       </div>
     </DetailScaffold>
