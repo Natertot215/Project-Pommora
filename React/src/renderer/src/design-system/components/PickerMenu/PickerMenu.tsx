@@ -91,25 +91,15 @@ export function PickerMenu({
     }
   }, [selfManaged, mounted, reserve, triggerRef])
 
-  // Dismiss on an outside pointerdown / Escape — the pane AND the trigger are exempt, so clicking the
-  // toggle trigger closes via its own handler instead of dismiss-then-reopen.
+  // Outside clicks dismiss via the backdrop below the pane (rendered in the portal). Escape is handled
+  // here since the backdrop only catches pointers.
   useEffect(() => {
     if (!selfManaged || !onDismiss || open !== true || closing) return
-    const onDown = (e: PointerEvent): void => {
-      const target = e.target as Node
-      const trigger = triggerRef?.current ?? markerRef.current?.parentElement
-      if (paneRef.current?.contains(target) || trigger?.contains(target)) return
-      onDismiss()
-    }
     const onKey = (e: KeyboardEvent): void => {
       if (e.key === 'Escape') onDismiss()
     }
-    document.addEventListener('pointerdown', onDown, true)
     document.addEventListener('keydown', onKey)
-    return () => {
-      document.removeEventListener('pointerdown', onDown, true)
-      document.removeEventListener('keydown', onKey)
-    }
+    return () => document.removeEventListener('keydown', onKey)
   }, [selfManaged, onDismiss, open, closing])
 
   const up = direction === 'up'
@@ -141,18 +131,21 @@ export function PickerMenu({
     <>
       <span ref={markerRef} aria-hidden style={{ display: 'none' }} />
       {createPortal(
-        <div
-          ref={paneRef}
-          className={s.layer}
-          style={{
-            top: pos ? `${pos.top}px` : '0',
-            right: pos ? `${pos.right}px` : '0',
-            visibility: pos ? undefined : 'hidden',
-            pointerEvents: closing ? 'none' : undefined
-          }}
-        >
-          {pane}
-        </div>,
+        <>
+          {onDismiss && !closing ? <div className={s.backdrop} onClick={onDismiss} /> : null}
+          <div
+            ref={paneRef}
+            className={s.layer}
+            style={{
+              top: pos ? `${pos.top}px` : '0',
+              right: pos ? `${pos.right}px` : '0',
+              visibility: pos ? undefined : 'hidden',
+              pointerEvents: closing ? 'none' : undefined
+            }}
+          >
+            {pane}
+          </div>
+        </>,
         document.body
       )}
     </>
