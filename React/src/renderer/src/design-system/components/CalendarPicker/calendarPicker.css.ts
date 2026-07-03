@@ -171,12 +171,15 @@ export const fieldEmpty = style({ color: c.label.tertiary })
 /* Equal halves everywhere (the Swift-DatePicker grid) — the time field just tightens its own
    metrics so [hh]:[mm] AM/PM fits its half. */
 export const fieldTime = style({ flex: 1, gap: '4px', paddingLeft: '6px', paddingRight: '6px' })
-/* The [00][00] time segments — each is a dropdown trigger; its menu opens upward, beak-down. */
-export const timeSegs = style({ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '2px' })
+/* The time cluster reads as ONE flush value — "4:20" tight (no inter-segment gaps), the AM/PM
+   select pinned to the field's right. Segments stay individual dropdown triggers under the flush
+   skin (hover reveals each). */
+export const timeSegs = style({ flex: 1, display: 'flex', alignItems: 'center', gap: '2px' })
+export const hmGroup = style({ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' })
 export const timeSeg = style({
   all: 'unset',
   position: 'relative',
-  padding: '1px 4px',
+  padding: '1px 2px',
   borderRadius: '5px',
   fontSize: font.scale.control.size,
   fontWeight: font.weight.emphasized,

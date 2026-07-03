@@ -249,7 +249,9 @@ export function CalendarPicker({
     </div>
   )
   // Swift-DatePicker hour math: display hours in the active cycle; commits preserve the meridiem.
+  // 12h hours read unpadded (4:20, never 04:20); 24h and minutes stay two-digit.
   const hourShown = (mins: number): number => (twelve ? ((Math.floor(mins / 60) + 11) % 12) + 1 : Math.floor(mins / 60))
+  const hourText = (v: number): string => (twelve ? String(v) : pad(v))
   const hourToMins = (v: number, mins: number): number =>
     (twelve ? (v % 12) + (mins >= 720 ? 12 : 0) : v) * 60 + (mins % 60)
 
@@ -269,7 +271,7 @@ export function CalendarPicker({
             <div className={cx(s.menuList, 'scroll-edge-fade')}>
               {(part === 'h' ? (twelve ? HOURS_12 : HOURS_24) : MINUTES).map((v) => (
                 <PickerOption key={v} selected={v === current} onClick={() => choose(v)}>
-                  {optionRow(pad(v), v === current)}
+                  {optionRow(part === 'h' ? hourText(v) : pad(v), v === current)}
                 </PickerOption>
               ))}
             </div>
@@ -325,7 +327,7 @@ export function CalendarPicker({
           setSegEdit({ which, part, draft: pad(part === 'h' ? Math.floor(mins / 60) : mins % 60) })
         }}
       >
-        {pad(part === 'h' ? hourShown(mins) : mins % 60)}
+        {part === 'h' ? hourText(hourShown(mins)) : pad(mins % 60)}
         {timeMenu?.which === which && timeMenu.part === part && timeOptions(which, part)}
       </button>
     )
@@ -352,9 +354,11 @@ export function CalendarPicker({
       <Icon name="clock" size={14} className={s.fieldIcon} />
       {mins !== null ? (
         <span className={s.timeSegs}>
-          {timeSegment(which, 'h', mins)}
-          <span className={s.timeColon}>:</span>
-          {timeSegment(which, 'm', mins)}
+          <span className={s.hmGroup}>
+            {timeSegment(which, 'h', mins)}
+            <span className={s.timeColon}>:</span>
+            {timeSegment(which, 'm', mins)}
+          </span>
           {twelve && ampmSegment(which, mins)}
         </span>
       ) : (
