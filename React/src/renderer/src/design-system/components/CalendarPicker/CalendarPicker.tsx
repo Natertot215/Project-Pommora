@@ -85,12 +85,14 @@ export function CalendarPicker({
               className={cx(s.day, d.getMonth() !== m && s.dayOut, sel && s.daySelected)}
               onClick={() => pick(k)}
             >
+              {sel && ranged && (
+                <span className={cx(s.pill, k === start ? s.bandUnderStart : s.bandUnderEnd)} />
+              )}
               <span
                 className={cx(
                   s.pill,
                   k === todayKey && !sel && !mid && s.pillToday,
                   sel && s.pillSelected,
-                  sel && ranged && (k === start ? s.pillCapStart : s.pillCapEnd),
                   mid && s.pillMid,
                   mid && col === 0 && s.pillRowFirst,
                   mid && col === 6 && s.pillRowLast

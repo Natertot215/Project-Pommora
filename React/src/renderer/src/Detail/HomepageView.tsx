@@ -1,7 +1,10 @@
+import { useRef, useState, type ReactNode } from 'react'
 import type { NexusTree } from '@shared/types'
 import { CalendarPicker } from '@renderer/design-system/components/CalendarPicker/CalendarPicker'
 import * as cal from '@renderer/design-system/components/CalendarPicker/calendarPicker.css'
 import { PickerMenu } from '@renderer/design-system/components/PickerMenu/PickerMenu'
+import { useDismiss } from '@renderer/design-system/components/Popover'
+import { useExitPresence } from '@renderer/design-system/useExitPresence'
 import { DetailScaffold } from './DetailScaffold'
 import { formatDate } from './Views/PropertyEditing/formatValue'
 
@@ -10,6 +13,30 @@ const fmtTime = (mins: number, twelve: boolean): string => {
   return twelve
     ? d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
     : d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })
+}
+
+/** One openable demo picker: the trigger toggles, click-off dismisses, the pane Blooms out through
+ *  exit presence. Clicks INSIDE the pane stop at the boundary so picking never closes it. */
+function DemoPicker({ tag, trigger, children }: { tag: string; trigger: string; children: ReactNode }): React.JSX.Element {
+  const [open, setOpen] = useState(true)
+  const ref = useRef<HTMLButtonElement>(null)
+  const p = useExitPresence(open)
+  useDismiss(ref, () => setOpen(false), open)
+  return (
+    <div className={cal.demoCell}>
+      <span className={cal.demoTag}>{tag}</span>
+      <button type="button" ref={ref} className={cal.demoTrigger} onClick={() => setOpen((o) => !o)}>
+        {trigger}
+        {p.mounted && (
+          <span onClick={(e) => e.stopPropagation()}>
+            <PickerMenu solid closing={p.closing}>
+              {children}
+            </PickerMenu>
+          </span>
+        )}
+      </button>
+    </div>
+  )
 }
 
 /**
@@ -23,24 +50,12 @@ export function HomepageView({ tree }: { tree: NexusTree | null }): React.JSX.El
       owner={{ path: '', kind: 'homepage', name: tree?.nexus.name ?? 'Home', banner: tree?.homepage.banner }}
     >
       <div className={cal.demoRow}>
-        <div className={cal.demoCell}>
-          <span className={cal.demoTag}>short · 12-hour</span>
-          <span className={cal.demoTrigger}>
-            July 2nd
-            <PickerMenu solid>
-              <CalendarPicker formatDateValue={(k) => formatDate(k, 'short', 'none')} formatTimeValue={(m) => fmtTime(m, true)} />
-            </PickerMenu>
-          </span>
-        </div>
-        <div className={cal.demoCell}>
-          <span className={cal.demoTag}>full · 24-hour (overflow demo)</span>
-          <span className={cal.demoTrigger}>
-            Wednesday, July 2nd 2026
-            <PickerMenu solid>
-              <CalendarPicker formatDateValue={(k) => formatDate(k, 'full', 'none')} formatTimeValue={(m) => fmtTime(m, false)} />
-            </PickerMenu>
-          </span>
-        </div>
+        <DemoPicker tag="short · 12-hour" trigger="July 2nd">
+          <CalendarPicker formatDateValue={(k) => formatDate(k, 'short', 'none')} formatTimeValue={(m) => fmtTime(m, true)} />
+        </DemoPicker>
+        <DemoPicker tag="full · 24-hour (overflow demo)" trigger="Wednesday, July 2nd 2026">
+          <CalendarPicker formatDateValue={(k) => formatDate(k, 'full', 'none')} formatTimeValue={(m) => fmtTime(m, false)} />
+        </DemoPicker>
       </div>
     </DetailScaffold>
   )

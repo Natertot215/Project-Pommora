@@ -8,9 +8,9 @@ const c = vars.color
 const endpointFill = tintAt('var(--accent)', TINT_STEPS.secondary)
 const bandFill = tintAt('var(--accent)', TINT_STEPS.tertiary)
 
-/* The picker's intrinsic width — the PickerMenu pane shrink-wraps this (+ its gutters) to ~250,
-   the Figma frame's size. THE sizing knob. */
-export const root = style({ width: '240px' })
+/* The picker's intrinsic width — the PickerMenu pane shrink-wraps this (+ its gutters). THE
+   sizing knob; everything inside flows from it. */
+export const root = style({ width: '216px' })
 
 /* ── Header: Month Year (one color) + ‹ › ── */
 export const head = style({ display: 'flex', alignItems: 'center', padding: '2px 4px 8px' })
@@ -60,9 +60,9 @@ export const days = style({
 })
 export const day = style({
   all: 'unset',
-  height: '26px',
+  height: '24px',
   textAlign: 'center',
-  fontSize: '12px',
+  fontSize: '11.5px',
   display: 'grid',
   placeItems: 'center',
   position: 'relative',
@@ -82,8 +82,11 @@ export const pill = style({
 export const pillToday = style({ boxShadow: `inset 0 0 0 1px ${c.label.tertiary}` })
 export const pillSelected = style({ background: `${endpointFill} !important` })
 export const daySelected = style({ fontWeight: 650 })
-export const pillCapStart = style({ borderRadius: '7px 0 0 7px', inset: '1px 0 1px 1px' })
-export const pillCapEnd = style({ borderRadius: '0 7px 7px 0', inset: '1px 1px 1px 0' })
+/* Range endpoints stay FULLY rounded pills; the tertiary band runs UNDERNEATH them (a half-width
+   under-layer toward the range side), so the strip connects while the endpoint keeps both its
+   rounded edges overlapping the under-tint. */
+export const bandUnderStart = style({ background: `${bandFill} !important`, borderRadius: 0, inset: '1px 0 1px 50%' })
+export const bandUnderEnd = style({ background: `${bandFill} !important`, borderRadius: 0, inset: '1px 50% 1px 0' })
 export const pillMid = style({ background: `${bandFill} !important`, borderRadius: 0, inset: '1px 0' })
 export const pillRowFirst = style({ borderRadius: '7px 0 0 7px', inset: '1px 0 1px 1px' })
 export const pillRowLast = style({ borderRadius: '0 7px 7px 0', inset: '1px 1px 1px 0' })
@@ -91,8 +94,9 @@ export const pillRowLast = style({ borderRadius: '0 7px 7px 0', inset: '1px 1px 
 /* ── Divider between the calendar and the value/boolean area ── */
 export const divider = style({ height: '1px', background: c.separator.line, margin: '7px 2px 8px' })
 
-/* ── Value fields: separator-stroked inputs, icon + value (or the -- empty) ── */
-export const fields = style({ display: 'flex', flexDirection: 'column', gap: '6px', padding: '0 2px' })
+/* ── Value fields: separator-stroked inputs, icon + value (or the -- empty). The block keeps
+      EQUAL breathing room above (divider's 8px) and below (its own 8px margin). ── */
+export const fields = style({ display: 'flex', flexDirection: 'column', gap: '6px', padding: '0 2px', marginBottom: '8px' })
 export const fieldRow = style({ display: 'flex', gap: '6px' })
 export const field = style({
   flex: 1,
@@ -102,19 +106,18 @@ export const field = style({
   gap: '6px',
   border: `1px solid ${c.separator.line}`,
   borderRadius: '8px',
-  padding: '5px 8px'
+  padding: '4px 7px'
 })
 export const fieldIcon = style({ flex: 'none', color: c.label.secondary })
-export const fieldValue = style({ flex: 1, minWidth: 0, fontSize: '12.5px', color: c.label.primary })
+export const fieldValue = style({ flex: 1, minWidth: 0, fontSize: '12px', color: c.label.primary })
 export const fieldEmpty = style({ color: c.label.tertiary })
 
 /* ── Boolean rows (the real Switch) ── */
 export const switchRow = style({
   display: 'flex',
   alignItems: 'center',
-  minHeight: '30px',
-  padding: '0 2px',
-  marginTop: '2px'
+  minHeight: '28px',
+  padding: '0 2px'
 })
 export const switchLabel = style({ flex: 1, fontSize: '12.5px', color: c.label.primary })
 
