@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode, type RefObject } from 'react'
 import { createPortal } from 'react-dom'
 import { dropdownOpen, dropdownClose } from '../../animations.css'
 import { useExitPresence } from '../../useExitPresence'
@@ -24,6 +24,7 @@ export function PickerMenu({
   children,
   open,
   onDismiss,
+  triggerRef,
   closing: closingProp = false,
   solid = false,
   radius = 14,
@@ -39,6 +40,9 @@ export function PickerMenu({
   open?: boolean
   /** Self-managed dismissal target (outside-click / Escape). */
   onDismiss?: () => void
+  /** The element the picker hangs off — measured for placement + exempted from dismiss (so a toggle
+   *  trigger can't dismiss-then-reopen). Falls back to the marker's parent when omitted. */
+  triggerRef?: RefObject<HTMLElement | null>
   /** Manual mode: the caller's exit flag, ridden to the Bloom-out. Ignored when `open` is set. */
   closing?: boolean
   /** The Solid variation: a window-background fill under the frost, reading opaque over any backdrop. */
@@ -58,27 +62,26 @@ export function PickerMenu({
   const closing = selfManaged ? exitClosing : closingProp
   const paneRef = useRef<HTMLDivElement>(null)
   const markerRef = useRef<HTMLSpanElement>(null)
-  const [pos, setPos] = useState<{ top: number; left: number; notchInset: number } | null>(null)
+  const [pos, setPos] = useState<{ top: number; right: number; notchInset: number } | null>(null)
 
-  // Position on the top layer: centered under the trigger, clamped into the viewport, with the beak
-  // aimed back at the trigger's center from wherever the pane lands. Measures BOTH the trigger (the
-  // marker's parent) and the pane, re-running on scroll/resize.
+  // The pane hangs off the trigger's right edge and opens down-left (a stable dropdown — the pane
+  // doesn't move to center the beak). The beak lands as far right as the corner radius allows
+  // (`reserve` = the notch's clamp), so we push the pane's right edge `reserve` past the trigger
+  // center — then that clamp-limited beak sits exactly on the trigger. Re-runs on scroll/resize.
+  const reserve = radius + notchWidth / 2 + 2
   useLayoutEffect(() => {
     if (!selfManaged || !mounted) return
-    const trigger = markerRef.current?.parentElement
-    const pane = paneRef.current
-    if (!trigger || !pane) return
+    const trigger = triggerRef?.current ?? markerRef.current?.parentElement
+    if (!trigger) return
     const measure = (): void => {
       const t = trigger.getBoundingClientRect()
-      const w = pane.offsetWidth
       const center = t.left + t.width / 2
-      const left = Math.max(VIEWPORT_MARGIN, Math.min(center - w / 2, window.innerWidth - w - VIEWPORT_MARGIN))
-      setPos({ top: t.bottom + GAP, left, notchInset: left + w - center })
+      const right = Math.max(VIEWPORT_MARGIN, window.innerWidth - center - reserve)
+      setPos({ top: t.bottom + GAP, right, notchInset: reserve })
     }
     measure()
     const ro = new ResizeObserver(measure)
     ro.observe(trigger)
-    ro.observe(pane)
     window.addEventListener('scroll', measure, true)
     window.addEventListener('resize', measure)
     return () => {
@@ -86,7 +89,7 @@ export function PickerMenu({
       window.removeEventListener('scroll', measure, true)
       window.removeEventListener('resize', measure)
     }
-  }, [selfManaged, mounted])
+  }, [selfManaged, mounted, reserve, triggerRef])
 
   // Dismiss on an outside pointerdown / Escape — the pane AND the trigger are exempt, so clicking the
   // toggle trigger closes via its own handler instead of dismiss-then-reopen.
@@ -94,7 +97,7 @@ export function PickerMenu({
     if (!selfManaged || !onDismiss || open !== true || closing) return
     const onDown = (e: PointerEvent): void => {
       const target = e.target as Node
-      const trigger = markerRef.current?.parentElement
+      const trigger = triggerRef?.current ?? markerRef.current?.parentElement
       if (paneRef.current?.contains(target) || trigger?.contains(target)) return
       onDismiss()
     }
@@ -143,7 +146,7 @@ export function PickerMenu({
           className={s.layer}
           style={{
             top: pos ? `${pos.top}px` : '0',
-            left: pos ? `${pos.left}px` : '0',
+            right: pos ? `${pos.right}px` : '0',
             visibility: pos ? undefined : 'hidden',
             pointerEvents: closing ? 'none' : undefined
           }}

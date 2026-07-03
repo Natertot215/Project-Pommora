@@ -1,3 +1,4 @@
+import type { RefObject } from 'react'
 import { PickerMenu } from '@renderer/design-system/components/PickerMenu/PickerMenu'
 import type { ChipColorName } from '@renderer/design-system/tokens/chip.css'
 import { cx } from '@renderer/design-system/cx'
@@ -16,15 +17,17 @@ export function ColorPicker({
   open,
   selected,
   onPick,
-  onDismiss
+  onDismiss,
+  triggerRef
 }: {
   open: boolean
   selected: ChipColorName
   onPick: (color: string | undefined) => void
   onDismiss: () => void
+  triggerRef: RefObject<HTMLElement | null>
 }): React.JSX.Element | null {
   return (
-    <PickerMenu open={open} onDismiss={onDismiss} direction="down" radius={8} notchWidth={14}>
+    <PickerMenu open={open} onDismiss={onDismiss} triggerRef={triggerRef} direction="down" radius={8} notchWidth={14}>
       <div className={s.grid}>
         {SWATCHES.map((color) => (
           <button

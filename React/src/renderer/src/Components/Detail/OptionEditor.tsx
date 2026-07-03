@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Icon } from '@renderer/design-system/symbols'
 import { chipLabel, chipColor } from '@renderer/design-system/tokens'
 import { chipColorFor } from '@renderer/design-system/tokens/colorMap'
@@ -35,6 +35,8 @@ export function OptionEditor({
   const [adding, setAdding] = useState(false)
   const [renaming, setRenaming] = useState<string | null>(null)
   const [coloring, setColoring] = useState<string | null>(null)
+  // The open row's recolor button — the ColorPicker measures + dismiss-exempts it (only one is open).
+  const paletteBtnRef = useRef<HTMLButtonElement>(null)
 
   const commitAdd = (raw: string): void => {
     setAdding(false)
@@ -89,6 +91,7 @@ export function OptionEditor({
                 <Chip shape="label" color={chipColorFor(o.color)} label={o.label} />
                 <span className={s.paletteAnchor}>
                   <button
+                    ref={coloring === o.value ? paletteBtnRef : undefined}
                     type="button"
                     className={s.paletteButton}
                     style={coloring === o.value ? { opacity: 1 } : undefined}
@@ -102,6 +105,7 @@ export function OptionEditor({
                     selected={chipColorFor(o.color)}
                     onPick={(color) => pickColor(o, color)}
                     onDismiss={() => setColoring(null)}
+                    triggerRef={paletteBtnRef}
                   />
                 </span>
               </>
