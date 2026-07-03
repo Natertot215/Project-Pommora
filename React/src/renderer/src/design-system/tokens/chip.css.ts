@@ -37,12 +37,13 @@ export const chipPill = style([
 ])
 
 /** chip-label — the select / multi-select shape: the pill's geometry squared off to a
- *  6px radius, so option chips read apart from status pills. */
+ *  6px radius, so option chips read apart from status pills. Horizontal padding rides a var
+ *  (default 6px) so a surface can retune it in context (the option editor's chip-padding knob). */
 export const chipLabel = style([
   chipBase,
   {
     height: '20px',
-    padding: '0 6px',
+    padding: '0 var(--chip-pad-x, 6px)',
     borderRadius: '6px',
     borderWidth: '2px'
   }

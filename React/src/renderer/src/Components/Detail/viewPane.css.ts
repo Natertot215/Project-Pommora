@@ -44,6 +44,7 @@ const PAD = {
 const OPTION = {
   gapAroundLabel: 6, // "Options" → first chip (the gap ABOVE "Options" is the header's own bottom pad)
   gapBetweenChips: 4, // chip → chip
+  chipPadX: 6, // option chip horizontal padding — retunes the shared chip-label default, this pane only
   addBox: 20 // the "Options" + hit target (its glyph is ICON.optionsAdd)
 }
 
@@ -299,7 +300,8 @@ export const optionList = style({
   display: 'flex',
   flexDirection: 'column',
   gap: `${OPTION.gapBetweenChips}px`,
-  paddingTop: `${OPTION.gapAroundLabel}px`
+  paddingTop: `${OPTION.gapAroundLabel}px`,
+  vars: { '--chip-pad-x': `${OPTION.chipPadX}px` }
 })
 
 /** One option's row — chip left, the hover palette icon pushed to the right edge. */
