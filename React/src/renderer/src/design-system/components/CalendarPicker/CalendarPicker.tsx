@@ -5,7 +5,7 @@ import { OverflowScroll } from '../OverflowScroll'
 import { cx } from '../../cx'
 import * as s from './calendarPicker.css'
 
-const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const pad = (n: number): string => String(n).padStart(2, '0')
 // Local YYYY-MM-DD key (never toISOString — a UTC key shifts the day west of Greenwich; the
 // formatters parse date-only strings as LOCAL midnight, so the key must be minted locally too).
@@ -67,12 +67,14 @@ export function CalendarPicker({
   const grid = (month: Date): React.JSX.Element => {
     const y = month.getFullYear()
     const m = month.getMonth()
-    const lead = (new Date(y, m, 1).getDay() + 6) % 7 // Monday-first
+    const lead = new Date(y, m, 1).getDay() // Sunday-first
     const first = new Date(y, m, 1 - lead)
+    // Only the weeks this month occupies — no trailing all-next-month row.
+    const cellCount = Math.ceil((lead + new Date(y, m + 1, 0).getDate()) / 7) * 7
     const ranged = start !== null && end !== null
     return (
       <div className={s.days} key={keyOf(month)}>
-        {Array.from({ length: 42 }, (_, i) => {
+        {Array.from({ length: cellCount }, (_, i) => {
           const d = new Date(first.getFullYear(), first.getMonth(), first.getDate() + i)
           const k = keyOf(d)
           const sel = k === start || k === end
@@ -192,11 +194,15 @@ export function CalendarPicker({
       </div>
       <div className={s.switchRow}>
         <span className={s.switchLabel}>End Date</span>
-        <Switch checked={endOn} ariaLabel="End Date" onChange={(v) => { setEndOn(v); if (!v) setEnd(null) }} />
+        <span className={s.switchScale}>
+          <Switch checked={endOn} ariaLabel="End Date" onChange={(v) => { setEndOn(v); if (!v) setEnd(null) }} />
+        </span>
       </div>
       <div className={s.switchRow}>
         <span className={s.switchLabel}>Use Time</span>
-        <Switch checked={timeOn} ariaLabel="Use Time" onChange={setTimeOn} />
+        <span className={s.switchScale}>
+          <Switch checked={timeOn} ariaLabel="Use Time" onChange={setTimeOn} />
+        </span>
       </div>
     </div>
   )

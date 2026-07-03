@@ -9,8 +9,9 @@ const endpointFill = tintAt('var(--accent)', TINT_STEPS.secondary)
 const bandFill = tintAt('var(--accent)', TINT_STEPS.tertiary)
 
 /* The picker's intrinsic width — the PickerMenu pane shrink-wraps this (+ its gutters). THE
-   sizing knob; everything inside flows from it. */
-export const root = style({ width: '216px' })
+   sizing knob; everything inside flows from it. textAlign resets the host's inheritance — a
+   picker mounted inside a <button> trigger would otherwise center every label. */
+export const root = style({ width: '216px', textAlign: 'left' })
 
 /* ── Header: Month Year (one color) + ‹ › ── */
 export const head = style({ display: 'flex', alignItems: 'center', padding: '2px 4px 8px' })
@@ -120,6 +121,8 @@ export const switchRow = style({
   padding: '0 2px'
 })
 export const switchLabel = style({ flex: 1, fontSize: '12.5px', color: c.label.primary })
+/* The real Switch at picker scale — zoom is the house density knob (the table uses the same). */
+export const switchScale = style({ zoom: 0.8 })
 
 /* ── Homepage demo chrome (dev mount): a fake value-chip trigger; the real PickerMenu pane hangs
       under it (absolute), so the cell reserves the pane's height. ── */
