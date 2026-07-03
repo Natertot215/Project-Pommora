@@ -6,29 +6,26 @@ The component-library showcase deploys to Vercel from this repo. It builds the *
 
 `design-system.html` → the data-driven showcase (`src/renderer/src/design-system/showcase/`): color tokens, the type ramp, chips, icons, glass materials, and a live accent picker. `vite build` emits it into `dist/`, served at `/`.
 
-### The One Setting That Changed
+### How the Pointing Works (post-consolidation)
 
-The repo was consolidated — the React app is now a **subfolder** of the `Project Pommora` monorepo (no more standalone React-at-root branch). So the setting that MUST change from the old deploy is the **Root Directory**.
+The repo was consolidated — the React app is now a **subfolder** of the `Project Pommora` monorepo (no more standalone React-at-root branch). The repo carries TWO vercel.json files so the deploy works under EITHER dashboard state:
+
+- **Root `vercel.json`** — the self-sufficient path: builds with `cd React && npm run build:showcase`, output `React/dist`, plus the `/` → `/design-system.html` rewrite. This is what runs while the dashboard's Root Directory is still `.` (the pre-consolidation default) — no dashboard click required.
+- **`React/vercel.json`** — the same pins relative to `React`. This one governs if/when the dashboard's **Root Directory** is set to `React` (Vercel reads vercel.json relative to the Root Directory, so only one of the two is ever read).
 
 | Setting | Value |
 |---|---|
 | Git repository | `Natertot215/Project-Pommora` |
 | Production branch | `main` |
-| **Root Directory** | **`React`**  ← the showcase lives here now (was `.`) |
-| Framework preset | Vite |
-| Build command | `npm run build:showcase`  (pinned in `React/vercel.json`) |
-| Output directory | `dist`  (pinned in `React/vercel.json`) |
-| Install command | `npm install`  (default) |
+| Root Directory | `.` works (root vercel.json) — `React` also works (React/vercel.json) |
+| Build + output + rewrite | pinned in whichever vercel.json is read |
 
-`React/vercel.json` already pins the framework, build command, output dir, and the `/` → `/design-system.html` rewrite — Vercel reads it **relative to the Root Directory**, so it's found once Root Directory = `React`.
+### If the Site Won't Update
 
-### Bring It Back Live
-
-1. Vercel → the project → **Settings → General → Root Directory** → set `React`, save.
-2. **Settings → Git → Production Branch** → `main`.
-3. If re-importing fresh instead: pick `Natertot215/Project-Pommora`, set **Root Directory = `React`** during import; Vite auto-detects.
-4. **Deployments → Redeploy** — or just push `main` (every push to `main` builds).
-5. Open the live URL and confirm the showcase renders.
+1. Push `main` (every push to the production branch builds) — this is the whole deploy trigger.
+2. Still stale? Vercel → **Settings → Git → Production Branch** must be `main` — the old deploy tracked the retired `react` branch, and that's a dashboard-only setting the repo can't fix.
+3. If re-importing fresh: pick `Natertot215/Project-Pommora`; either Root Directory works per the table above.
+4. Open the live URL and confirm the showcase renders.
 
 ### Domain
 
