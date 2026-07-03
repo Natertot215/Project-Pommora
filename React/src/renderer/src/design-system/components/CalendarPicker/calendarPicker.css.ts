@@ -188,7 +188,8 @@ export const timeSeg = style({
 /* The double-click caret editor — the segment's own look; select-all drives replace-on-type but
    the selection paints transparent (highlighting disabled). */
 export const timeSegInput = style({
-  width: '2ch',
+  boxSizing: 'content-box', // 2-digit glyphs + caret live in the content width; padding sits outside (no clip)
+  width: '2.4ch',
   border: 'none',
   outline: 'none',
   background: 'transparent',
@@ -199,7 +200,11 @@ export const timeSegInput = style({
   fontSize: font.scale.control.size,
   fontWeight: font.weight.emphasized,
   color: c.label.primary,
-  selectors: { '&::selection': { background: 'transparent' } }
+  selectors: {
+    '&::selection': { background: 'transparent' },
+    // The set time, dimmed — the type-over hint (opacity:1 so only the token color dims it).
+    '&::placeholder': { color: c.label.tertiary, opacity: 1 }
+  }
 })
 export const timeColon = style({ color: c.label.secondary })
 

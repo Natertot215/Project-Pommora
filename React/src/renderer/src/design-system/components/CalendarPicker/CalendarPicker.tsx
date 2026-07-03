@@ -389,9 +389,9 @@ export function CalendarPicker({
         key={`${which}-${part}-edit`}
         className={s.timeSegInput}
         value={segEdit.draft}
+        placeholder={part === 'h' ? hourText(hourShown(mins)) : pad(mins % 60)}
         autoFocus
         spellCheck={false}
-        onFocus={(e) => e.currentTarget.select()}
         onChange={(e) => {
           const draft = e.target.value
           if (/^\d{0,2}$/.test(draft)) setSegEdit({ which, part, draft })
@@ -414,8 +414,10 @@ export function CalendarPicker({
           )
         }}
         onDoubleClick={() => {
+          // Enter empty — the current value shows as a label-tertiary placeholder you type over
+          // (blur/Enter with an empty draft keeps it, per segCommit).
           setTimeMenu(null)
-          setSegEdit({ which, part, draft: pad(part === 'h' ? Math.floor(mins / 60) : mins % 60) })
+          setSegEdit({ which, part, draft: '' })
         }}
       >
         {part === 'h' ? hourText(hourShown(mins)) : pad(mins % 60)}
