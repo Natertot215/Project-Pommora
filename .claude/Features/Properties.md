@@ -68,7 +68,7 @@ Every Page, Task, and Event carries an `id` (a ULID, assigned at creation), `cre
 
 #### II. Where Properties Live
 
-Properties live with the content, never in the trailing inspector (which is reserved for the Claude chat → `Inspector.md`). Definitions live in the nexus-wide registry (`.nexus/properties.json`); a Collection's sidecar holds only its assignment list, and the read walk joins the two so every surface still receives a resolved schema. The **Properties pane** in the view-settings dropdown works per Collection — creating a property mints it into the registry (seeding per-type options) and assigns it here; renames, type changes, and option edits change the global definition for every assigner; removing a property unassigns it non-destructively. **Display formats aren't definition config**: the per-type look and date/time/number formats persist per-VIEW in the SavedView's `column_styles` (a deliberate divergence from Swift's def-level format keys — those ride through definitions as inert foreign keys, round-tripping unread). The first surface for *setting values* is the table's cells (the gesture matrix → `TableView.md`); the Page Property Panel is Pending.
+Properties live with the content, never in the trailing inspector (which is reserved for the Claude chat → `Inspector.md`). Definitions live in the nexus-wide registry (`.nexus/properties.json`) alongside a nexus-wide cosmetic display order; a Collection's sidecar holds only its assignment list, and the read walk joins the two so every surface still receives a resolved schema — the tree also carries the full ordered registry, so the pane lists everything live. The **Properties pane** in the view-settings dropdown is the full assign surface, per Collection: assigned properties on top (chevron → the per-property editor), an **All Properties** disclosure pinned to the pane's bottom that rises open to list every unassigned registry definition in the nexus order, each promotable via its `+` or by dragging into the assigned group at a slot. Dragging within a group reorders it (assigned = the Collection's order; All Properties = the nexus order); dragging an assigned row out Removes it. Creating (the header's top-right `+`) mints into the registry — appending to the nexus order, seeding per-type options — and assigns here; renames (the editor header, or a row's right-click → inline rename), type changes, and option edits change the global definition for every assigner. Remove strips-and-caches (see Schema Mutations); the global **Delete lives only inside a property's own editor pane**, behind its ⋮ menu and a native confirm. **Display formats aren't definition config**: the per-type look and date/time/number formats persist per-VIEW in the SavedView's `column_styles` (a deliberate divergence from Swift's def-level format keys — those ride through definitions as inert foreign keys, round-tripping unread). The first surface for *setting values* is the table's cells (the gesture matrix → `TableView.md`); the Page Property Panel is Pending.
 
 ### Architecture
 
@@ -76,20 +76,20 @@ Properties live with the content, never in the trailing inspector (which is rese
 
 | Mutation | Effect on existing values |
 |---|---|
-| Create a property | Mints a nexus-wide definition and assigns it to the creating Collection; appears empty on every member — no member writes until a value is set. |
-| Assign a property | Adds this Collection's reference to an existing definition — idempotent, no name check. Values already sitting in members' frontmatter surface immediately. |
-| Unassign a property | Drops this Collection's reference only. Values stay in frontmatter as foreign data — re-assigning restores them; the definition and other Collections are untouched. |
+| Create a property | Mints a nexus-wide definition (appending its id to the nexus order) and assigns it to the creating Collection; appears empty on every member — no member writes until a value is set. |
+| Assign a property | Adds this Collection's reference to an existing definition — idempotent, no name check — then restores any Remove-cache: each cached value that still conforms to the definition's current type and options writes back to the page that held it; non-conforming values drop per-value, and the cache block clears either way. |
+| Remove a property | Strips the value from every member page and caches it (with which pages held it) on the Collection's own sidecar, then unassigns — one atomic transaction, no dormant foreign values left on pages. Re-assigning restores it; the definition and other Collections are untouched. |
 | Rename a property | Registry-only — members are keyed by ID; every assigner sees the new name. |
-| Reorder properties | Per-Collection assignment order; sidecar-only. |
+| Reorder properties | Per-Collection assignment order (sidecar-only); the All Properties group reorders the nexus-wide display order instead (registry-file-only). |
 | Change a property's type | A global definition edit — a value whose shape no longer matches stops rendering but stays in frontmatter. |
-| Delete a property (global) | A timestamped recovery snapshot of the definition and every value lands in `.trash`, then the value is stripped from every assigner's pages and assignment lists, and the definition leaves the registry. |
+| Delete a property (global) | A timestamped recovery snapshot of the definition and every value lands in `.trash`, then the value is stripped across every collection's pages and assignment lists, every Remove-cache block for it is purged (a cache without its definition is corrupt state), and the definition leaves the registry — nothing restorable in-app. |
 | Edit options | Global — adding, reordering, and relabeling are registry-only; deleting an option voids referencing values everywhere it's assigned. |
 
-The global delete commits atomically across every affected file, rolling back the whole set on any write failure; registry mutations serialize through one write chain so overlapping edits never lose an update. Unassign is the daily path — the global delete is the rare destructive one.
+Remove and its restore each commit atomically across every affected file (the global delete's transaction machinery), rolling back the whole set on any write failure; registry mutations serialize through one write chain so overlapping edits never lose an update. Remove is the daily path — the global delete is the rare destructive one, reachable only inside the property's own editor pane behind a native confirm.
 
 #### II. Validation
 
-At every write: a created property's `name` is non-empty and unique across the whole registry (case-insensitive), its `id` is unique and not a reserved one, and a Select / Multi-select / Status carries at least one option with unique option values. Assigning runs no name check — it's a reference to an existing definition, not a new one. `_status` on the Task and Event schemas is non-deletable. Each member value's shape must match its schema entry's type.
+At every write: a created property's `name` is non-empty, its `id` is unique and not a reserved one, and a Select / Multi-select / Status carries at least one option with unique option values. **Names need not be unique** — definitions are ID-keyed, so twin names are mechanically safe on both create and rename (a deliberate quirk; the visible All Properties list makes accidental twins unlikely). Agenda's own definitions keep the unique-name rule. Assigning runs no name check — it's a reference to an existing definition, not a new one. `_status` on the Task and Event schemas is non-deletable. Each member value's shape must match its schema entry's type.
 
 #### II. Index
 
@@ -99,8 +99,8 @@ The SQLite `property_definitions` table is a pure mirror of the nexus-wide regis
 
 **Page Property Panel:** The surface for setting property values on a Page (and on a Task or Event) — a panel attached to the content. Values round-trip on disk and through the index, but there's no UI to view or edit them on an entity.
 
-**Assignment Surface:** The UI for assigning an existing registry property to a Collection, plus the cross-assigner value strip a lossy type change should trigger. The data-layer ops exist; the pane currently creates-and-assigns only.
+**Lossy Change-Type Strip:** The cross-assigner value strip a lossy type change should trigger (the assign surface itself shipped with the 7-2 pane; `changeType` still accepts-and-ignores the drop flag).
 
-**Per-Type Value Editors:** The value-editing controls inside the schema and value surfaces — the Select / Status option editors, the date format pickers, and the relation pickers. The Properties pane manages properties but doesn't yet edit their per-type options.
+**Per-Type Value Editors:** The value-editing controls inside the schema and value surfaces — the Select / Status option editors, the date format pickers, and the relation pickers. The Properties pane manages properties but doesn't yet edit their per-type options. The Status, Multi-Select, and Select PropertyPanes are design-ready in Figma — first in line.
 
 **Display Formats:** Number formats, date and time formats, and the Status display variant. These ride through as preserved foreign keys until a UI reads them.
