@@ -10,7 +10,6 @@ import {
   IconClockHour3,
   IconCopy,
   IconDots,
-  IconDotsVertical,
   IconEye,
   IconEyeClosed,
   IconFileImport,
@@ -40,6 +39,7 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronUp,
+  EllipsisVertical,
   FolderClosed,
   FolderOpen,
   GalleryVerticalEnd,
@@ -107,7 +107,9 @@ export const icons = {
   plus: t(IconPlus),
   'circle-plus': t(IconCirclePlus),
   'square-plus': l(SquarePlus),
-  'ellipsis-vertical': t(IconDotsVertical),
+  // Lucide keep (07-02): rides beside the Lucide chevrons in pane headers — Tabler's dots
+  // draw denser at the same color, so the pair read as different brightnesses.
+  'ellipsis-vertical': l(EllipsisVertical),
   dots: t(IconDots),
   tag: t(IconTag),
   'panel-right': t(IconLayoutSidebarRight),

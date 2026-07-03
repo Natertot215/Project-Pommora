@@ -25,7 +25,7 @@ Pommora's icons are **PommoraIcons** — a mixed registry behind one seam (`inde
 | `plus` | Tabler | Add buttons |
 | `square-plus` | **Lucide keep** | Add Banner |
 | `circle-plus` | Tabler | Registered, unassigned |
-| `ellipsis-vertical` | Tabler `dots-vertical` | Menu leaf (showcase) |
+| `ellipsis-vertical` | **Lucide keep** — pairs with the Lucide chevrons in pane headers (Tabler's dots draw denser) | Property editor ⋮ · Menu leaf (showcase) |
 | `dots` | Tabler | Registered, unassigned |
 | `tag` | Tabler | Chips leaf (showcase) |
 | `panel-right` | Tabler `layout-sidebar-right` | Trio Button, Inspector toggle |
