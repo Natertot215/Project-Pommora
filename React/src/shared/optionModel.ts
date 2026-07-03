@@ -12,9 +12,10 @@ export function fallbackTitle(type: PropertyType, groupLabel?: string): string {
   return type === 'status' ? (groupLabel ?? 'Label') : 'Label'
 }
 
-/** Append a new grey-default option whose value and label both equal the title. */
+/** Append a new option whose value and label both equal the title. No color — it renders as the
+ *  neutral default (grey-default) until recolored. */
 export function addOption(options: Option[], title: string, groupId?: string): Option[] {
-  return [...options, { value: title, label: title, color: 'grey', ...(groupId ? { group_id: groupId } : {}) }]
+  return [...options, { value: title, label: title, ...(groupId ? { group_id: groupId } : {}) }]
 }
 
 /** Rename by OLD value; value and label both become the new title. Identity keys on the old value. */

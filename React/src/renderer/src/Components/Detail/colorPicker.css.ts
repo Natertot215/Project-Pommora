@@ -3,11 +3,11 @@ import { vars as colorVars } from '../../design-system/tokens/color.css'
 
 const solid = colorVars.color.solid
 
-/** The 2×5 swatch grid — 12px swatches, 2px gaps, inside the PickerMenu shell's own padding. */
+/** The 2×5 swatch grid — 16px swatches, 4px gaps, inside the PickerMenu shell's own padding. */
 export const grid = style({
   display: 'grid',
-  gridTemplateColumns: 'repeat(2, 12px)',
-  gap: '2px'
+  gridTemplateColumns: 'repeat(2, 16px)',
+  gap: '4px'
 })
 
 /** Each swatch publishes its solid as `--sw`, so the fill and the selected ring share one source
@@ -27,14 +27,11 @@ export const swatchColor = styleVariants({
 })
 
 export const swatch = style({
-  width: '12px',
-  height: '12px',
+  width: '16px',
+  height: '16px',
   borderRadius: '3px',
   border: 'none',
   padding: 0,
   cursor: 'default',
   background: 'var(--sw)'
 })
-
-/** Selected: a 2px ring in the swatch's own colour via box-shadow (no reflow — the grid never moves). */
-export const swatchSelected = style({ boxShadow: '0 0 0 2px var(--sw)' })

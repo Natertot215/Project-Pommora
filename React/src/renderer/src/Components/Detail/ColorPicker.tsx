@@ -13,21 +13,23 @@ const SWATCHES = ['red', 'orange', 'yellow', 'green', 'lightBlue', 'cyan', 'blue
  * is a Prospect — the swatch list is the only thing that grows.
  */
 export function ColorPicker({
+  open,
   selected,
   onPick
 }: {
+  open: boolean
   selected: ChipColorName
   onPick: (color: string | undefined) => void
-}): React.JSX.Element {
+}): React.JSX.Element | null {
   return (
-    <PickerMenu direction="down" radius={8} notchWidth={20}>
+    <PickerMenu open={open} direction="down" align="end" radius={8} notchWidth={20}>
       <div className={s.grid}>
         {SWATCHES.map((color) => (
           <button
             key={color}
             type="button"
             aria-label={color}
-            className={cx(s.swatch, s.swatchColor[color], selected === color && s.swatchSelected)}
+            className={cx(s.swatch, s.swatchColor[color])}
             onClick={() => onPick(selected === color ? undefined : color)}
           />
         ))}

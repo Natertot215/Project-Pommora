@@ -18,6 +18,14 @@ export const anchorUp = style({
   transform: 'translateX(-50%)',
   zIndex: 20
 })
+/** Right-edge-aligned variant — the pane's right edge sits on the trigger's, opening leftward so a
+ *  trigger near its container's right edge doesn't clip (the option row's recolor icon). */
+export const anchorEnd = style({
+  position: 'absolute',
+  top: 'calc(100% + 6px)',
+  right: 0,
+  zIndex: 20
+})
 
 // GlassPane's rect border/shadow are suppressed by NotchedPane (can't trace the beak); the top
 // gutter clears the beak band via the shell's published --notch-h.

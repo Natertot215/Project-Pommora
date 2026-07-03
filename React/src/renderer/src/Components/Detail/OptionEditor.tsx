@@ -101,12 +101,13 @@ export function OptionEditor({
                   <button
                     type="button"
                     className={s.paletteButton}
+                    style={coloring === o.value ? { opacity: 1 } : undefined}
                     aria-label="Recolor"
                     onClick={() => setColoring((v) => (v === o.value ? null : o.value))}
                   >
                     <Icon name="palette" size={s.ICON.palette} />
                   </button>
-                  {coloring === o.value ? <ColorPicker selected={chipColorFor(o.color)} onPick={(color) => pickColor(o, color)} /> : null}
+                  <ColorPicker open={coloring === o.value} selected={chipColorFor(o.color)} onPick={(color) => pickColor(o, color)} />
                 </span>
               </>
             )}
@@ -114,7 +115,7 @@ export function OptionEditor({
         ))}
         {adding ? (
           <div className={s.optionRow}>
-            <span className={cx(chipLabel, chipColor.grey)}>
+            <span className={cx(chipLabel, chipColor.default)}>
               <EditableInput value="" autoSize className={s.optionInput} onCommit={commitAdd} onCancel={() => setAdding(false)} />
             </span>
           </div>
