@@ -2,6 +2,7 @@ import { useRef, useState, type ReactNode } from 'react'
 import { Icon, type IconName } from '@renderer/design-system/symbols'
 import { useSession } from '../../store'
 import { isReservedPropertyId, type PropertyDefinition, type PropertyType } from '@shared/properties'
+import type { Option } from '@shared/optionModel'
 import { MenuItem, MenuSeparator, MenuCaption, MenuBackRow } from '../../design-system/components/menu'
 import { flushTrailing } from '../../design-system/components/menu/menu.css'
 import { Reveal } from '../../design-system/components/Reveal'
@@ -225,6 +226,9 @@ export function PropertiesPane({
   const assign = async (id: string): Promise<void> => {
     await commit(await window.nexus.schema.assign(collectionPath, id))
   }
+  const saveOptions = async (id: string, next: Option[]): Promise<void> => {
+    await commit(await window.nexus.property.setOptions(id, next))
+  }
   // The four drop kinds route to their persistence targets (E-4): collection order, nexus
   // order (the visible slot translated into the full-order index — assigned ids stay in it),
   // atomic assign-at-slot, and the strip-and-cache Remove.
@@ -308,7 +312,7 @@ export function PropertiesPane({
         })}
         <InlineEditHeader value={def.name} onIconClick={() => setIconOpen(true)} onCommit={(next) => void rename(def.id, next)} />
         {def.type === 'select' || def.type === 'multi_select' ? (
-          <OptionEditor options={def.select_options ?? []} />
+          <OptionEditor type={def.type} options={def.select_options ?? []} onSetOptions={(next) => void saveOptions(def.id, next)} />
         ) : (
           <MenuCaption>{propertyTypeLabel(def.type)} options — pending</MenuCaption>
         )}

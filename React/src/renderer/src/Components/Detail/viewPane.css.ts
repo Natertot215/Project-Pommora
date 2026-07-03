@@ -303,3 +303,14 @@ export const optionList = style({
 
 /** One option's row — the chip (its hover palette icon lands here with recolor). */
 export const optionRow = style({ display: 'flex', alignItems: 'center' })
+
+/** The inline add/rename caret — bare input inside the chip, which owns the font, padding, and fill. */
+export const optionInput = style({
+  background: 'transparent',
+  border: 'none',
+  outline: 'none',
+  padding: 0,
+  margin: 0,
+  color: 'inherit',
+  font: 'inherit'
+})
