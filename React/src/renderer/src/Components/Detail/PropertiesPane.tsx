@@ -82,9 +82,9 @@ function ListGroups({
             <RowShell key={d.id} id={d.id}>
               <MenuItem
                 className={flushTrailing}
-                leading={<PropertyTypeIcon type={d.type} size={12} />}
+                leading={<PropertyTypeIcon type={d.type} size={s.ICON.doc} />}
                 detail={propertyTypeLabel(d.type)}
-                trailing={<Icon name="chevron-right" size={16} />}
+                trailing={<Icon name="chevron-right" size={s.ICON.rowChevron} />}
                 onClick={() => onOpenEditor(d.id)}
                 onContextMenu={(e) => {
                   e.preventDefault()
@@ -103,7 +103,7 @@ function ListGroups({
       <div data-group="all" ref={allRef} className={cx(allHighlighted && s.allHighlight)}>
         <MenuItem
           className={s.allHeading}
-          leading={<Icon name="chevron-right" size={12} className={cx(s.twisty, allOpen && s.twistyOpen)} />}
+          leading={<Icon name="chevron-right" size={s.ICON.twisty} className={cx(s.twisty, allOpen && s.twistyOpen)} />}
           onClick={onToggleAll}
         >
           All Properties
@@ -114,7 +114,7 @@ function ListGroups({
               <RowShell key={d.id} id={d.id}>
                 <MenuItem
                   className={cx(s.allRow, flushTrailing)}
-                  leading={<PropertyTypeIcon type={d.type} size={12} />}
+                  leading={<PropertyTypeIcon type={d.type} size={s.ICON.doc} />}
                   onContextMenu={(e) => {
                     e.preventDefault()
                     onRowMenu(d, 'all')
@@ -129,7 +129,7 @@ function ListGroups({
                         onAssign(d.id)
                       }}
                     >
-                      <Icon name="plus" size={12} />
+                      <Icon name="plus" size={s.ICON.rowPlus} />
                     </button>
                   }
                 >
@@ -287,8 +287,8 @@ export function PropertiesPane({
         <MenuItem
           key={type}
           className={flushTrailing}
-          leading={<PropertyTypeIcon type={type} size={12} />}
-          trailing={<Icon name="chevron-right" size={16} />}
+          leading={<PropertyTypeIcon type={type} size={s.ICON.doc} />}
+          trailing={<Icon name="chevron-right" size={s.ICON.rowChevron} />}
           onClick={() => void create(type)}
         >
           {propertyTypeLabel(type)}
@@ -311,7 +311,7 @@ export function PropertiesPane({
       <>
         {actionHeader(def.name, backToList, {
           icon: 'ellipsis-vertical',
-          size: 16,
+          size: s.ICON.editorMenu,
           ariaLabel: 'Property Menu',
           onClick: () => void editorMenu(def)
         })}
@@ -325,7 +325,7 @@ export function PropertiesPane({
     <PaneDnd rows={paneRows} labelFor={nameFor} onDrop={(drop) => void handleDrop(drop)}>
       {actionHeader('Properties', onBack, {
         icon: 'square-plus',
-        size: 12,
+        size: s.ICON.add,
         ariaLabel: 'New Property',
         onClick: () => openDetail({ kind: 'type' })
       })}

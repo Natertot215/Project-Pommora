@@ -2,7 +2,7 @@ import { useRef, useState } from 'react'
 import { Server, Eye, LayoutDashboard, Layers, ListFilter, ArrowUpDown, type LucideIcon } from 'lucide-react'
 import { Icon } from '@renderer/design-system/symbols'
 import { flushTrailing } from '../../design-system/components/menu/menu.css'
-import { backRowPad } from './viewPane.css'
+import { backRowPad, ICON } from './viewPane.css'
 import { useSession } from '../../store'
 import { findCollection, findSet, findCollectionForSet } from '../../Detail/Scope'
 import { PropertiesPane } from './PropertiesPane'
@@ -86,8 +86,8 @@ export function ViewPane(): React.JSX.Element | null {
         <MenuItem
           key={e.id}
           className={flushTrailing}
-          leading={<e.Icon size={16} />}
-          trailing={<Icon name="chevron-right" size={16} />}
+          leading={<e.Icon size={ICON.rootEntry} />}
+          trailing={<Icon name="chevron-right" size={ICON.rowChevron} />}
           onClick={() => open(e.id)}
         >
           {e.label}
