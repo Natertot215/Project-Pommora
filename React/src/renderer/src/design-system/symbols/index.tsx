@@ -37,6 +37,7 @@ import {
   Palette,
   PanelRight,
   Plus,
+  Send,
   Server,
   Shapes,
   SlidersHorizontal,
@@ -44,6 +45,7 @@ import {
   SquareDashed,
   SquarePlus,
   Tag,
+  Tags,
   Type,
   X
 } from 'lucide-react'
@@ -69,6 +71,7 @@ export const icons = {
   check: Check,
   'circle-dashed': CircleDashed,
   minus: Minus,
+  tags: Tags,
   'sliders-horizontal': SlidersHorizontal,
   'chevron-left': ChevronLeft,
   'chevron-right': ChevronRight,
@@ -98,6 +101,7 @@ export const icons = {
   import: Import,
   link: Link,
   'link-2': Link2,
+  send: Send,
   server: Server,
   eye: Eye,
   'eye-off': EyeOff,

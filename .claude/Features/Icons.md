@@ -26,17 +26,17 @@ The six settings rows (`ViewPane` → `ENTRIES`):
 
 The type glyphs, shown in the type picker and on each property row. Label + icon + the creatable set are one source — `PropertyTypes.tsx` → `PROPERTY_TYPES` (rendered via `PropertyTypeIcon`):
 
-| Type          | Icon            |
-| ------------- | --------------- |
-| Number        | `hash`          |
-| Checkbox      | `square-check`  |
-| Date & Time   | `calendar` (also the Calendar saved node) |
-| Status        | `circle-dashed` |
-| Link          | `link`          |
-| File          | `import`        |
-| Relation      | `link-2` (see Misc) |
-| Select        | *pending → `DashIcon`* |
-| Multi-Select  | *pending → `DashIcon`* |
+| Type         | Icon                                      |
+| ------------ | ----------------------------------------- |
+| Number       | `hash`                                    |
+| Checkbox     | `square-check`                            |
+| Date & Time  | `calendar` (also the Calendar saved node) |
+| Status       | `circle-dashed`                           |
+| Link         | `link`                                    |
+| File         | `import`                                  |
+| Context      | `layout-grid` (matches the sidebar tiers) |
+| Select       | `send`                                    |
+| Multi-Select | `tags`                                    |
 
 **Link is the canonical name for the `url` type** — user-facing label and default new-property name ("New Link"). The on-disk type key stays `url`; only the name changed.
 
@@ -46,4 +46,4 @@ The type glyphs, shown in the type picker and on each property row. Label + icon
 | ----------- | -------- |
 | Connections | `link-2` |
 
-`link-2` is the connection/relation glyph — applied to the `relation` property type, reserved for the wider connections surface.
+`link-2` is the connections glyph — reserved for the `[[Title]]` connections surface. The Context property type wears `layout-grid` (matching the sidebar tiers), not `link-2`.

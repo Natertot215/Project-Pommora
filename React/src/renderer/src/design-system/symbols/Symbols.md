@@ -14,10 +14,11 @@ Pommora's React icons come from **Lucide** ([lucide.dev/icons](https://lucide.de
 | `gallery-vertical-end` | Collection rows |
 | `folder-closed` / `folder-open` | Collection/Set closed / open |
 | `file-text` | Page (the default page icon) |
-| `layout-grid` | Context tiers (Area / Topic / Project) |
+| `layout-grid` | Context tiers (Area / Topic / Project) · Context property type |
 | `check` | Checkbox chip · status Done glyph |
 | `circle-dashed` | Select chip placeholder · status Upcoming · Status property type |
 | `minus` | Status In-Progress glyph |
+| `tags` | Multi-Select property type |
 | `sliders-horizontal` | Trio Button, Settings |
 | `chevron-left` / `chevron-right` / `chevron-up` / `chevron-down` | Twisties · menus · disclosure · toolbar Back/Forward |
 | `map` | Trio Button, Navigation |
@@ -27,6 +28,7 @@ Pommora's React icons come from **Lucide** ([lucide.dev/icons](https://lucide.de
 | `ellipsis-vertical` | Property editor ⋮ · Menu leaf (showcase) |
 | `dots` | Registered, unassigned |
 | `tag` | Chips leaf (showcase) |
+| `send` | Select property type |
 | `panel-right` | Trio Button, Inspector toggle |
 | `square-dashed` | Unselected state · profile placeholder |
 | `copy` | Registered, unassigned (future duplicate actions) |

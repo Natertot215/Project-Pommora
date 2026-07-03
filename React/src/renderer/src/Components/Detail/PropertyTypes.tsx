@@ -18,12 +18,12 @@ const PROPERTY_TYPES: Record<PropertyType, TypeMeta> = {
   number: { label: 'Number', icon: 'hash', creatable: true },
   checkbox: { label: 'Checkbox', icon: 'square-check', creatable: true },
   datetime: { label: 'Date', icon: 'calendar', creatable: true },
-  select: { label: 'Select', creatable: true },
-  multi_select: { label: 'Multi-Select', creatable: true },
+  select: { label: 'Select', icon: 'send', creatable: true },
+  multi_select: { label: 'Multi-Select', icon: 'tags', creatable: true },
   status: { label: 'Status', icon: 'circle-dashed', creatable: true },
   url: { label: 'Link', icon: 'link', creatable: true },
   file: { label: 'File', icon: 'import', creatable: true },
-  context: { label: 'Context', icon: 'link-2' },
+  context: { label: 'Context', icon: 'layout-grid' },
   last_edited_time: { label: 'Last edited' }
 }
 
