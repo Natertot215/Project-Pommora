@@ -1,4 +1,4 @@
-import { chipPill, chipColor, chipRemovable } from '@renderer/design-system/tokens'
+import { chipContext, chipColor, chipRemovable } from '@renderer/design-system/tokens'
 import type { ChipColorName } from '@renderer/design-system/tokens/chip.css'
 import { cx } from '@renderer/design-system/cx'
 import { ChipLabel, ChipRemoveButton } from './Chip'
@@ -18,7 +18,7 @@ export function ContextChip({
 }): React.JSX.Element {
   return (
     <span
-      className={cx(chipPill, chipColor[color], onRemove && chipRemovable)}
+      className={cx(chipContext, chipColor[color], onRemove && chipRemovable)}
       style={
         {
           background: 'var(--fill-quaternary)',

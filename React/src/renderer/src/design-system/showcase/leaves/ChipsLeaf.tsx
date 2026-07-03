@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react'
-import { chipPill, chipCapsule, chipBox, chipColor, chipLabel } from '@renderer/design-system/tokens'
+import { chipPill, chipLabel, chipContext, chipCapsule, chipBox, chipColor, chipLabelWrap } from '@renderer/design-system/tokens'
 import { Icon } from '@renderer/design-system/symbols'
 import { SortableZone, useDragItem, reorder } from '@renderer/design-system/interactions/drag'
 import { cx } from '@renderer/design-system/cx'
@@ -13,7 +13,7 @@ function ChipCell({ id, color, label }: { id: string; color: ChipColorName; labe
   const { setNodeRef, style, handle } = useDragItem(id)
   return (
     <span ref={setNodeRef} style={style} className={pillClass(color)} {...handle} title={color}>
-      <span className={chipLabel}>{label}</span>
+      <span className={chipLabelWrap}>{label}</span>
     </span>
   )
 }
@@ -27,7 +27,7 @@ function PillRow(): React.JSX.Element {
     <div className="ds-chip-row-items">
       {items.map((it) =>
         compact ? (
-          <span key={it.id} className={pillClass(it.id)} title={it.id}><span className={chipLabel}>{it.name}</span></span>
+          <span key={it.id} className={pillClass(it.id)} title={it.id}><span className={chipLabelWrap}>{it.name}</span></span>
         ) : (
           <ChipCell key={it.id} id={it.id} color={it.id} label={it.name} />
         )
@@ -48,6 +48,8 @@ function PillRow(): React.JSX.Element {
 }
 
 const STATIC_SHAPES: Array<{ label: string; shape: string; content: () => ReactNode }> = [
+  { label: 'Label', shape: chipLabel, content: () => <span className={chipLabelWrap}>Label</span> },
+  { label: 'Context', shape: chipContext, content: () => <span className={chipLabelWrap}>Context</span> },
   { label: 'Capsule', shape: chipCapsule, content: () => <Icon name="circle-dashed" size={13} /> },
   { label: 'Box', shape: chipBox, content: () => <Icon name="check" size={12} strokeWidth={3} /> }
 ]

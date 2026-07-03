@@ -91,7 +91,11 @@ export function PropertyPicker({
                 ) : contextOptions ? (
                   <ContextChip color={chipColorFor(o.color)} title={o.label} />
                 ) : (
-                  <Chip color={chipColorFor(o.color)} label={o.label} />
+                  <Chip
+                    color={chipColorFor(o.color)}
+                    label={o.label}
+                    shape={def.type === 'select' || def.type === 'multi_select' ? 'label' : 'pill'}
+                  />
                 )}
               </PickerOption>
             )

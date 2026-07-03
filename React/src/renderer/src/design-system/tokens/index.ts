@@ -1,6 +1,6 @@
 import { vars as colorVars } from './color.css'
 import { font, text } from './typography.css'
-import { chipPill, chipCapsule, chipBox, chipBoxGeometry, chipColor, chipLabel, chipLabelText, chipLabelBlur, chipLabelMelt, chipRemovable, chipRemove } from './chip.css'
+import { chipPill, chipLabel, chipContext, chipCapsule, chipBox, chipBoxGeometry, chipColor, chipLabelWrap, chipLabelText, chipLabelBlur, chipLabelMelt, chipRemovable, chipRemove } from './chip.css'
 import { size, type IconSize, type ButtonSize } from './size.css'
 import { tint, tintAt, TINT_STEPS, type TintStep } from './tint'
 import './theme-vars.css' // bridges tokens → stable CSS vars for plain-CSS consumers
@@ -25,11 +25,12 @@ export { text }
 
 /**
  * Chip primitives — one class per SHAPE, composed with one `chipColor.*`:
- * `${chipPill} ${chipColor.blue}` (text) · `chipCapsule` (icon-only) ·
- * `chipBox` (the 17×17 rounded square). The unified tint: fill = base 60% ·
+ * `${chipPill} ${chipColor.blue}` (status text) · `chipLabel` (select/multi, 6px
+ * radius) · `chipContext` (context/tier) · `chipCapsule` (icon-only) · `chipBox`
+ * (the 17×17 rounded square). The unified tint: fill = base 60% ·
  * stroke = base 40% · text = label-primary + base 15%. `tint(base)` is the
  * raw recipe (e.g. an accent chip via `tint('var(--accent)')`). See chip.css.ts.
  */
-export { chipPill, chipCapsule, chipBox, chipBoxGeometry, chipColor, chipLabel, chipLabelText, chipLabelBlur, chipLabelMelt, chipRemovable, chipRemove, tint, tintAt, TINT_STEPS }
+export { chipPill, chipLabel, chipContext, chipCapsule, chipBox, chipBoxGeometry, chipColor, chipLabelWrap, chipLabelText, chipLabelBlur, chipLabelMelt, chipRemovable, chipRemove, tint, tintAt, TINT_STEPS }
 export type { TintStep }
 export { duration, easing } from './motion'

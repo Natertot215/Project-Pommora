@@ -1,8 +1,9 @@
 import type { ReactNode } from 'react'
 import {
   chipPill,
-  chipColor,
   chipLabel,
+  chipColor,
+  chipLabelWrap,
   chipLabelBlur,
   chipLabelMelt,
   chipLabelText,
@@ -13,23 +14,30 @@ import type { ChipColorName } from '@renderer/design-system/tokens/chip.css'
 import { Icon } from '@renderer/design-system/symbols'
 import { cx } from '@renderer/design-system/cx'
 
-/** The shared pill — the chip recipe (colored fill/border/text) with a capped, hover-scrolling label
- *  (Part 2 G-3). One source for table select/status/multi-select cells AND the inline picker.
- *  `onRemove` opts into the hover ×: it removes THIS chip's value, so the handler owns what that
- *  means (one option off a multi, the whole value off a single). */
+/** The chip shapes this component can wear — status wears the pill; select/multi wear the
+ *  squared label (Nathan's assignment). Context chips are ContextChip's (chip-context). */
+const SHAPE = { pill: chipPill, label: chipLabel } as const
+export type ChipShape = keyof typeof SHAPE
+
+/** The shared text chip — the chip recipe (colored fill/border/text) with a capped,
+ *  hover-scrolling label (Part 2 G-3). One source for table select/status/multi-select cells
+ *  AND the inline picker. `onRemove` opts into the hover ×: it removes THIS chip's value, so
+ *  the handler owns what that means (one option off a multi, the whole value off a single). */
 export function Chip({
   color,
   label,
+  shape = 'pill',
   icon,
   onRemove
 }: {
   color: ChipColorName
   label: string
+  shape?: ChipShape
   icon?: ReactNode
   onRemove?: () => void
 }): React.JSX.Element {
   return (
-    <span className={cx(chipPill, chipColor[color], onRemove && chipRemovable)}>
+    <span className={cx(SHAPE[shape], chipColor[color], onRemove && chipRemovable)}>
       {onRemove ? <ChipRemoveButton onRemove={onRemove} /> : null}
       {icon}
       <ChipLabel label={label} removable={!!onRemove} />
@@ -42,7 +50,7 @@ export function Chip({
  *  beneath it through opacity swaps alone (see the reveal note in chip.css.ts). */
 export function ChipLabel({ label, removable }: { label: string; removable: boolean }): React.JSX.Element {
   return (
-    <span className={chipLabel}>
+    <span className={chipLabelWrap}>
       <span className={chipLabelText}>{label}</span>
       {removable ? (
         <>

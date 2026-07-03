@@ -70,6 +70,7 @@ export function Cell({
           <Chip
             color={chipColorFor(opt?.color)}
             label={opt?.label ?? v.value}
+            shape={v.kind === 'select' ? 'label' : 'pill'}
             {...(remove ? { onRemove: () => remove(null) } : {})}
           />
         </OverflowScroll>
@@ -85,6 +86,7 @@ export function Cell({
                 key={val}
                 color={chipColorFor(o?.color)}
                 label={o?.label ?? val}
+                shape="label"
                 {...(remove ? { onRemove: () => remove({ kind: 'multiSelect', value: v.value.filter((x) => x !== val) }) } : {})}
               />
             )

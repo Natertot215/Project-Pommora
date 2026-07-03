@@ -36,6 +36,30 @@ export const chipPill = style([
   }
 ])
 
+/** chip-label — the select / multi-select shape: the pill's geometry squared off to a
+ *  6px radius, so option chips read apart from status pills. */
+export const chipLabel = style([
+  chipBase,
+  {
+    height: '20px',
+    padding: '0 6px',
+    borderRadius: '6px',
+    borderWidth: '2px'
+  }
+])
+
+/** chip-context — the context/tier chip's own shape (today the pill's geometry; its own
+ *  block so context chips tune apart from pills). */
+export const chipContext = style([
+  chipBase,
+  {
+    height: '20px',
+    padding: '0 6px',
+    borderRadius: '10px',
+    borderWidth: '2px'
+  }
+])
+
 /** chip-capsule — the icon-only shape (a single small glyph, no label; the showcase's
  *  "Select" row). Pill geometry with the glyph centered. */
 export const chipCapsule = style([
@@ -73,7 +97,8 @@ export const chipBox = style([chipBase, chipBoxGeometry])
 
 /** A chip that carries a hover-revealed remove ×. The modifier only anchors the affordance;
  *  the × itself is `chipRemove`; the label's TEXT tail blurs beneath it (`chipLabelText` +
- *  `chipLabelBlur`). */
+ *  `chipLabelBlur`). NOTE: `chipLabelWrap` here is the melt family's label WRAPPER — distinct
+ *  from the `chipLabel` SHAPE above. */
 export const chipRemovable = style({ position: 'relative' })
 
 // The cap lives on the LABEL, not the chip (a % width is unreliable in a shrink-to-fit flex chip): the
@@ -85,7 +110,7 @@ export const chipRemovable = style({ position: 'relative' })
 // pointer-inert (inherited by the text): hovering the label body must do nothing, and if the
 // label or text ever LEAVES :hover in the frame that flips the ×-reveal, Chromium drops the
 // reveal's repaint beneath it — so they must never enter the hover chain at all.
-export const chipLabel = style([
+export const chipLabelWrap = style([
   truncateHoverScroll,
   {
     maxWidth: 'var(--chip-max, 80px)',
@@ -138,7 +163,7 @@ export const chipRemove = style({
 // mask-image change on this inline text (none→gradient AND stop-swap alike) unless the restyle
 // rides an ancestor :hover — `:has()`, sibling selectors, class toggles, and inline styles all
 // compute the mask without painting it. Static masks + opacity flips paint everywhere.
-const reveal = `${chipRemove}:hover ~ ${chipLabel} &`
+const reveal = `${chipRemove}:hover ~ ${chipLabelWrap} &`
 
 /** The label's real text — swapped out for the pre-masked twins the instant the × zone is
  *  hovered (no transition: the melt twin is pixel-identical where its mask is opaque, so a
