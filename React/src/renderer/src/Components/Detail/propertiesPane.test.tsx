@@ -209,6 +209,25 @@ describe('the two-region drag (T6) — state-level; geometry truth lives in the 
     expect(deleteSpy()).not.toHaveBeenCalled()
   })
 
+  it('the all region owns its FIELD — a release in the empty space below the rows still unassigns', async () => {
+    useSession.setState({ tree: { registry: [effortDef] } as never })
+    await mountPane()
+    await act(async () => {
+      rowFor('All Properties').click()
+    })
+    stubGeometry()
+    // The pane box runs far past the all-block's rendered rows; the region must extend with it.
+    stubRect(host.querySelector('[class*="paneDnd"]')!, { top: 0, bottom: 300 })
+    const row = host.querySelector('[data-prop="prop_status"]')!
+    await act(async () => {
+      firePointer(row, 'pointerdown', { x: 100, y: 20 })
+      firePointer(window, 'pointermove', { x: 100, y: 40 })
+      firePointer(window, 'pointermove', { x: 100, y: 250 }) // well below the last rendered row
+      firePointer(window, 'pointerup', { x: 100, y: 250 })
+    })
+    expect(deleteSpy()).toHaveBeenCalledWith('Col', 'prop_status')
+  })
+
   it("a press on the row's + button never arms a drag (begin guard)", async () => {
     useSession.setState({ tree: { registry: [effortDef] } as never })
     await mountPane()

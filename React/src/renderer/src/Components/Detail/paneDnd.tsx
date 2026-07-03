@@ -95,15 +95,20 @@ export function PaneDnd({
       measured.push({ id: row.id, top: r.top, bottom: r.bottom, mid: r.top + r.height / 2 })
     }
     measured.sort((a, b) => a.top - b.top)
-    const rect = (el: HTMLElement): Region => {
-      const r = el.getBoundingClientRect()
-      return { top: r.top, bottom: r.bottom }
-    }
+    const boxRect = boxEl.getBoundingClientRect()
+    const assignedRect = assignedEl.getBoundingClientRect()
+    const allRect = allEl.getBoundingClientRect()
+    // Regions own their FIELD, not just their rendered rows (Nathan's call): assigned runs down
+    // to the All Properties heading, and the all region runs to the pane's bottom edge — the
+    // empty space around short lists is a legal drop zone, never a dead no-op.
     return {
       rows: measured,
       byId,
-      regions: { assigned: rect(assignedEl), all: rect(allEl) },
-      boxTop: boxEl.getBoundingClientRect().top
+      regions: {
+        assigned: { top: assignedRect.top, bottom: allRect.top },
+        all: { top: allRect.top, bottom: Math.max(allRect.bottom, boxRect.bottom) }
+      },
+      boxTop: boxRect.top
     }
   }
 
