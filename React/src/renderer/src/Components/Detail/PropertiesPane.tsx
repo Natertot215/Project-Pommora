@@ -3,6 +3,8 @@ import { Icon } from '@renderer/design-system/symbols'
 import { useSession } from '../../store'
 import { isReservedPropertyId, type PropertyDefinition, type PropertyType } from '@shared/properties'
 import { MenuItem, MenuSeparator, MenuCaption, MenuBackRow } from '../../design-system/components/menu'
+import { Reveal } from '../../design-system/components/Reveal'
+import { duration } from '../../design-system/tokens/motion'
 import { IconPicker } from '../IconPicker'
 import { InlineEditHeader } from './InlineEditHeader'
 import { PaneSlider } from './PaneSlider'
@@ -32,11 +34,15 @@ export function PropertiesPane({
   onBack: () => void
 }): React.JSX.Element {
   const load = useSession((st) => st.load)
+  const registry = useSession((st) => st.tree?.registry) ?? []
   const [view, setView] = useState<SubView>({ kind: 'list' })
   const [iconOpen, setIconOpen] = useState(false)
+  const [allOpen, setAllOpen] = useState(false)
   const lastDetail = useRef<DetailView>({ kind: 'type' })
 
   const props = schema.filter((d) => !isReservedPropertyId(d.id))
+  const assignedIds = new Set(schema.map((d) => d.id))
+  const unassigned = registry.filter((d) => !assignedIds.has(d.id) && !isReservedPropertyId(d.id))
   const backToList = (): void => setView({ kind: 'list' })
   const openDetail = (v: DetailView): void => {
     lastDetail.current = v
@@ -74,6 +80,9 @@ export function PropertiesPane({
   }
   const remove = async (id: string): Promise<void> => {
     if (await commit(await window.nexus.schema.delete(collectionPath, id))) backToList()
+  }
+  const assign = async (id: string): Promise<void> => {
+    await commit(await window.nexus.schema.assign(collectionPath, id))
   }
 
   const typePicker = (
@@ -114,28 +123,65 @@ export function PropertiesPane({
 
   const list = (
     <>
-      {backHeader('Properties', onBack)}
-      {props.length === 0 ? (
-        <MenuCaption>No properties yet.</MenuCaption>
-      ) : (
-        props.map((d) => (
-          <MenuItem
-            key={d.id}
-            leading={<PropertyTypeIcon type={d.type} />}
-            detail={propertyTypeLabel(d.type)}
-            trailing={<Icon name="chevron-right" size={16} />}
-            onClick={() => openDetail({ kind: 'edit', id: d.id })}
-          >
-            {d.name}
-          </MenuItem>
-        ))
-      )}
-      <div className={s.footer}>
-        <MenuSeparator flush />
-        <MenuItem className={s.footerAction} leading={<Icon name="plus" size={12} />} onClick={() => openDetail({ kind: 'type' })}>
-          New Property
-        </MenuItem>
+      <div className={s.paneHeader}>
+        <div className={s.paneHeaderBack}>
+          <MenuBackRow label="Properties" onClick={onBack} />
+        </div>
+        <button type="button" className={s.headerAction} aria-label="New Property" onClick={() => openDetail({ kind: 'type' })}>
+          <Icon name="circle-plus" size={16} />
+        </button>
       </div>
+      <MenuSeparator flush />
+      <div data-group="assigned">
+        {props.length === 0 ? (
+          <MenuCaption>No properties yet.</MenuCaption>
+        ) : (
+          props.map((d) => (
+            <MenuItem
+              key={d.id}
+              leading={<PropertyTypeIcon type={d.type} />}
+              detail={propertyTypeLabel(d.type)}
+              trailing={<Icon name="chevron-right" size={16} />}
+              onClick={() => openDetail({ kind: 'edit', id: d.id })}
+            >
+              {d.name}
+            </MenuItem>
+          ))
+        )}
+      </div>
+      <MenuItem
+        className={s.allHeading}
+        leading={<Icon name="chevron-right" size={12} className={cx(s.twisty, allOpen && s.twistyOpen)} />}
+        onClick={() => setAllOpen((o) => !o)}
+      >
+        All Properties
+      </MenuItem>
+      <Reveal open={allOpen} duration={duration.base}>
+        <div data-group="all">
+          {unassigned.map((d) => (
+            <MenuItem
+              key={d.id}
+              className={s.allRow}
+              leading={<PropertyTypeIcon type={d.type} />}
+              trailing={
+                <button
+                  type="button"
+                  className={s.rowPlus}
+                  aria-label={`Assign ${d.name}`}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    void assign(d.id)
+                  }}
+                >
+                  <Icon name="plus" size={12} />
+                </button>
+              }
+            >
+              {d.name}
+            </MenuItem>
+          ))}
+        </div>
+      </Reveal>
     </>
   )
 

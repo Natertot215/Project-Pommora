@@ -22,24 +22,26 @@ const defs: PropertyDefinition[] = [
 let host: HTMLDivElement
 let root: Root
 let loadSpy: ReturnType<typeof vi.fn>
+let assignSpy: ReturnType<typeof vi.fn>
 
 beforeEach(() => {
   host = document.createElement('div')
   document.body.appendChild(host)
   root = createRoot(host)
   loadSpy = vi.fn(async () => {})
+  assignSpy = vi.fn(async () => ({ ok: true }))
   ;(window as unknown as { nexus: unknown }).nexus = {
     schema: {
       add: vi.fn(async () => ({ ok: true, id: 'prop_new' })),
       rename: vi.fn(async () => ({ ok: true })),
       reorder: vi.fn(async () => ({ ok: true })),
       delete: vi.fn(async () => ({ ok: true })),
-      assign: vi.fn(async () => ({ ok: true })),
+      assign: assignSpy,
       changeType: vi.fn(async () => ({ ok: true }))
     },
     showError: vi.fn(async () => {})
   }
-  useSession.setState({ load: loadSpy as never })
+  useSession.setState({ load: loadSpy as never, tree: { registry: [] } as never })
 })
 afterEach(() => {
   act(() => root.unmount())
@@ -74,9 +76,56 @@ describe('the DRY nested slide (A-7)', () => {
   it('the type picker rides the same slide', async () => {
     await mountPane()
     await act(async () => {
-      rowFor('New Property').click()
+      host.querySelector<HTMLButtonElement>('[aria-label="New Property"]')!.click()
     })
     expect(host.querySelectorAll('[inert]').length).toBe(1)
     expect(host.textContent).toContain('Checkbox') // a CREATABLE_TYPES row is live
+  })
+})
+
+const effortDef: PropertyDefinition = { id: 'prop_x', name: 'Effort', type: 'number' }
+const titleDef: PropertyDefinition = { id: '_title', name: 'Title', type: 'url' }
+
+describe('the All Properties section (T5)', () => {
+  it('lists only unassigned, unreserved registry defs (A-4/E-5), in registry order (B-1)', async () => {
+    useSession.setState({ tree: { registry: [effortDef, defs[0], titleDef] } as never })
+    await mountPane([defs[0]]) // Status is assigned
+    await act(async () => {
+      rowFor('All Properties').click()
+    })
+    const all = host.querySelector('[data-group="all"]')
+    expect(all).not.toBeNull()
+    expect(all?.textContent).toContain('Effort')
+    expect(all?.textContent).not.toContain('Status') // assigned — never in both groups
+    expect(all?.textContent).not.toContain('Title') // reserved
+  })
+
+  it('+ assigns through the IPC and the row promotes on the refreshed schema', async () => {
+    useSession.setState({ tree: { registry: [effortDef] } as never })
+    await mountPane([])
+    await act(async () => {
+      rowFor('All Properties').click()
+    })
+    await act(async () => {
+      host.querySelector<HTMLButtonElement>('[aria-label="Assign Effort"]')!.click()
+    })
+    expect(assignSpy).toHaveBeenCalledWith('Col', 'prop_x')
+    expect(loadSpy).toHaveBeenCalled()
+  })
+
+  it('header ⊕ opens the type picker; the footer create-row is gone (A-9)', async () => {
+    await mountPane()
+    expect(host.textContent).not.toContain('New Property')
+    await act(async () => {
+      host.querySelector<HTMLButtonElement>('[aria-label="New Property"]')!.click()
+    })
+    expect(host.textContent).toContain('Checkbox')
+  })
+
+  it('the assigned group renders inside its region wrapper (T6 hangs rects on it)', async () => {
+    await mountPane()
+    const assigned = host.querySelector('[data-group="assigned"]')
+    expect(assigned?.textContent).toContain('Status')
+    expect(assigned?.textContent).toContain('Count')
   })
 })

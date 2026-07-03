@@ -1,6 +1,7 @@
 import { style } from '@vanilla-extract/css'
 import { vars as colorVars, inputFieldVar } from '../../design-system/tokens/color.css'
 import { text } from '../../design-system/tokens/typography.css'
+import { duration, easing } from '../../design-system/tokens/motion'
 import { flushAffordance } from '../../design-system/components/menu/menu.css'
 
 const c = colorVars.color
@@ -62,3 +63,58 @@ export const footer = style({ marginTop: 'auto' })
 
 /** Destructive row (Delete property) — red label token, overrides the row's primary color. */
 export const deleteRow = style({ color: c.solid.red })
+
+/** The pane's header line: the back row takes the width, a trailing icon action rides the right
+ *  edge (⊕ create on the list, ⋮ menu on the editor) at the rows' 8px inset. */
+export const paneHeader = style({
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  paddingRight: '8px'
+})
+export const paneHeaderBack = style({ flex: '1 1 auto', minWidth: 0 })
+
+/** Bare 20×20 icon button in the pane header — secondary, lifting to primary on hover. */
+export const headerAction = style({
+  flex: '0 0 auto',
+  width: '20px',
+  height: '20px',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  border: 'none',
+  background: 'none',
+  padding: 0,
+  cursor: 'default',
+  color: c.label.secondary,
+  selectors: { '&:hover': { color: c.label.primary } }
+})
+
+/** The "All Properties" disclosure heading — footnote-emphasized, tertiary (A-3). */
+export const allHeading = style([text.footnote.emphasized, { color: c.label.tertiary }])
+
+/** The disclosure chevron — the sidebar's twisty, pinned to the pane's beat so the rotate,
+ *  the Reveal unfold, and the height-resize land together (E-8). */
+export const twisty = style({
+  transition: `transform ${duration.base} ${easing.standard}`,
+  flex: '0 0 auto'
+})
+export const twistyOpen = style({ transform: 'rotate(90deg)' })
+
+/** Unassigned registry rows render dimmer than assigned ones (A-3). */
+export const allRow = style({ color: c.label.tertiary })
+
+/** The per-row `+` promote affordance (A-5) — bare 16×16, secondary to primary on hover. */
+export const rowPlus = style({
+  width: '16px',
+  height: '16px',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  border: 'none',
+  background: 'none',
+  padding: 0,
+  cursor: 'default',
+  color: c.label.secondary,
+  selectors: { '&:hover': { color: c.label.primary } }
+})
