@@ -1,5 +1,6 @@
 import { keyframes, style } from '@vanilla-extract/css'
 import { vars } from '../../tokens/color.css'
+import { duration, easing } from '../../tokens/motion'
 import { TINT_STEPS, tintAt } from '../../tokens/tint'
 import { font } from '../../tokens/typography.css'
 
@@ -14,9 +15,16 @@ const bandFill = tintAt('var(--accent)', TINT_STEPS.tertiary)
    picker mounted inside a <button> trigger would otherwise center every label. */
 export const root = style({ width: '216px', textAlign: 'left' })
 
+/* Content size changes (toggles, month row-count) ride the same beat as PaneSlider's viewport —
+   the ViewPane feel: measured height, transition armed only after first paint so the pane opens
+   at size instead of growing from 0. */
+export const morph = style({ overflow: 'hidden' })
+export const morphAnimated = style({ transition: `height ${duration.base} ${easing.standard}` })
+
 /* ── Header: [Month] [Year] (label-control buttons, each opening its own selection dropdown)
       + ‹ | › nav with a segment bar between the chevrons ── */
-export const head = style({ display: 'flex', alignItems: 'center', padding: '2px 4px 8px' })
+export const head = style({ display: 'flex', alignItems: 'center', padding: '2px 4px 6px' })
+export const headDivider = style({ height: '1px', background: c.separator.line, margin: '0 2px 6px' })
 export const titleGroup = style({ flex: 1, display: 'flex', gap: '5px' })
 export const titleBtn = style({
   all: 'unset',
@@ -26,7 +34,8 @@ export const titleBtn = style({
   color: c.label.control,
   selectors: { '&:hover': { color: c.label.primary } }
 })
-export const nav = style({ display: 'flex', alignItems: 'center', gap: '2px' })
+/* translateY nudges the chevron cluster up without costing the row any height. */
+export const nav = style({ display: 'flex', alignItems: 'center', gap: '2px', transform: 'translateY(-2px)' })
 export const navSegment = style({ width: '1px', height: '12px', background: c.separator.segment })
 export const navBtn = style({
   all: 'unset',

@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { Icon } from '../../symbols'
 import { Switch } from '../Switches/Switch'
 import { OverflowScroll } from '../OverflowScroll'
@@ -8,6 +8,29 @@ import { cx } from '../../cx'
 import * as s from './calendarPicker.css'
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+
+/** PaneSlider's animated-viewport half, single-slot: content size changes morph on the shared
+ *  beat instead of snapping (the ViewPane/menus feel). */
+function SizeMorph({ children }: { children: ReactNode }): React.JSX.Element {
+  const ref = useRef<HTMLDivElement>(null)
+  const [h, setH] = useState(0)
+  const [armed, setArmed] = useState(false)
+  useLayoutEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const measure = (): void => setH(el.offsetHeight)
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+  useEffect(() => setArmed(true), [])
+  return (
+    <div className={cx(s.morph, armed && s.morphAnimated)} style={{ height: h || undefined }}>
+      <div ref={ref}>{children}</div>
+    </div>
+  )
+}
 const pad = (n: number): string => String(n).padStart(2, '0')
 // Local YYYY-MM-DD key (never toISOString — a UTC key shifts the day west of Greenwich; the
 // formatters parse date-only strings as LOCAL midnight, so the key must be minted locally too).
@@ -162,6 +185,7 @@ export function CalendarPicker({
 
   return (
     <div className={s.root} ref={rootRef}>
+      <SizeMorph>
       <div className={s.head}>
         <span className={s.titleGroup}>
           <button type="button" className={s.titleBtn} onClick={() => setMenu(menu === 'month' ? null : 'month')}>
@@ -183,6 +207,7 @@ export function CalendarPicker({
           </button>
         </span>
       </div>
+      <div className={s.headDivider} />
       <div className={s.weekRow}>
         {WEEKDAYS.map((w) => (
           <span key={w} className={s.weekday}>
@@ -246,6 +271,7 @@ export function CalendarPicker({
           <Switch checked={timeOn} ariaLabel="Use Time" onChange={setTimeOn} />
         </span>
       </div>
+      </SizeMorph>
     </div>
   )
 }
