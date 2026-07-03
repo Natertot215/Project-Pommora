@@ -62,7 +62,7 @@ export function CalendarPicker({
   const [end, setEnd] = useState<string | null>(null)
   const [endOn, setEndOn] = useState(false)
   const [timeOn, setTimeOn] = useState(false)
-  const [menu, setMenu] = useState<'month' | 'year' | null>(null)
+  const [menu, setMenu] = useState<{ kind: 'month' | 'year'; beak: number } | null>(null)
   const rootRef = useRef<HTMLDivElement>(null)
   useDismiss(rootRef, () => setMenu(null), menu !== null)
   // A press on a selected endpoint arms a drag that re-places it live (swapping roles if it
@@ -226,7 +226,7 @@ export function CalendarPicker({
   )
   const selectionMenu = (kind: 'month' | 'year'): React.JSX.Element => (
     <span className={s.ddWrap} onClick={(e) => e.stopPropagation()}>
-      <PickerMenu solid>
+      <PickerMenu solid notchInsetLeft={menu?.beak}>
         <div className={cx(s.menuList, 'scroll-edge-fade')}>
           {kind === 'month'
             ? Array.from({ length: 12 }, (_, m) => (
@@ -249,13 +249,25 @@ export function CalendarPicker({
       <SizeMorph>
       <div className={s.head}>
         <span className={s.titleGroup}>
-          <button type="button" className={s.titleBtn} onClick={() => setMenu(menu === 'month' ? null : 'month')}>
+          <button
+            type="button"
+            className={s.titleBtn}
+            onClick={(e) =>
+              setMenu(menu?.kind === 'month' ? null : { kind: 'month', beak: e.currentTarget.offsetWidth / 2 })
+            }
+          >
             {cursor.toLocaleDateString('en-US', { month: 'long' })}
-            {menu === 'month' && selectionMenu('month')}
+            {menu?.kind === 'month' && selectionMenu('month')}
           </button>
-          <button type="button" className={s.titleBtn} onClick={() => setMenu(menu === 'year' ? null : 'year')}>
+          <button
+            type="button"
+            className={s.titleBtn}
+            onClick={(e) =>
+              setMenu(menu?.kind === 'year' ? null : { kind: 'year', beak: e.currentTarget.offsetWidth / 2 })
+            }
+          >
             {year}
-            {menu === 'year' && selectionMenu('year')}
+            {menu?.kind === 'year' && selectionMenu('year')}
           </button>
         </span>
         <span className={s.nav}>

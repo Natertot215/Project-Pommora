@@ -73,7 +73,7 @@ export const optionRow = style({
   justifyContent: 'space-between',
   gap: '8px',
   textAlign: 'left',
-  fontSize: font.scale.control.size,
+  fontSize: font.scale.body.size, // the pane's own scale (matches the Month/Year title)
   color: c.label.control
 })
 export const optionCheck = style({ flex: 'none', color: 'var(--accent)' })

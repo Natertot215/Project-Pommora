@@ -14,6 +14,7 @@ export function PickerMenu({
   notchWidth = 28,
   notchHeight = 8,
   notchCurve = 0.25,
+  notchInsetLeft,
   style
 }: {
   children: ReactNode
@@ -25,6 +26,8 @@ export function PickerMenu({
   notchWidth?: number
   notchHeight?: number
   notchCurve?: number
+  /** Beak aim from the pane's left edge (left-anchored hosts); omitted = centered. */
+  notchInsetLeft?: number
   style?: CSSProperties
 }): React.JSX.Element {
   return (
@@ -37,6 +40,7 @@ export function PickerMenu({
         notchWidth={notchWidth}
         notchHeight={notchHeight}
         notchCurve={notchCurve}
+        notchInsetLeft={notchInsetLeft}
         style={style}
       >
         {children}
