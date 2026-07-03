@@ -279,6 +279,26 @@ describe('checkbox cell gestures', () => {
   })
 })
 
+describe('optimistic value persistence', () => {
+  it('a just-assigned value survives a source-identity change (watcher echo) — the assign-vanish guard', async () => {
+    await mountTable(sourceWith())
+    const doneCell = (): HTMLElement => host.querySelectorAll<HTMLElement>('.data-cell')[2]
+    // Check the box → optimistic valueOverride (prop_done: true); the check glyph shows.
+    await act(async () => {
+      doneCell().click()
+    })
+    expect(doneCell().querySelector('svg')).toBeTruthy()
+    // A watcher self-echo re-mints `source`'s object identity (same id/path, so the container-open
+    // effect stays put). The value override must NOT be dropped — else the glyph reverts to the frozen
+    // pre-assign values, which is the ~1/10 assign-vanish this guards.
+    await act(async () => {
+      root.render(<TableView source={sourceWith()} />)
+    })
+    await act(async () => {})
+    expect(doneCell().querySelector('svg')).toBeTruthy()
+  })
+})
+
 describe('context tier cells', () => {
   const tierCell = (): HTMLElement => host.querySelectorAll<HTMLElement>('.data-cell')[6] // _tier1 last
 

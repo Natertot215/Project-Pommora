@@ -202,13 +202,14 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
     setColDrag(null)
     setCollapsed(new Set(view.collapsed_groups ?? []))
   }, [view.id])
-  // A fresh tree (an external mutation — e.g. a sidebar reorder — or this table's own write round-tripping
-  // back) carries the canonical page_order/values, so drop the optimistic order + value patches that were
-  // masking it. Without this a reorder/reassign here pins its optimistic state and a later external change
-  // wouldn't show until the view remounts.
+  // A fresh tree (a sidebar reorder, or this table's own write round-tripping back) carries the canonical
+  // page_order, so drop the optimistic MANUAL ORDER it was masking — order round-trips through source.pages,
+  // so canon has caught up. VALUES deliberately do NOT reset here: a PageNode carries no property value and
+  // loadValues never re-reads mid-session, so clearing valueOverride on a `source`-identity change would
+  // revert a just-assigned value to the frozen pre-write `values` whenever a watcher echo re-mints `source`
+  // (the ~1/10 assign-vanish). The value override clears+reloads only on a real container switch, above.
   useEffect(() => {
     setManualOverride(null)
-    setValueOverride(null)
   }, [source])
   // The Visibility pane writes property_order / hidden_properties from OUTSIDE this component. Once the
   // canonical view catches an override up (this table's own write round-tripped), drop it — a pinned
