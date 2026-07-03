@@ -1,140 +1,109 @@
 import {
-  IconAdjustmentsHorizontal,
-  IconArrowsUpDown,
-  IconCalendarMonth,
-  IconCheck,
-  IconChevronCompactDown,
-  IconChevronCompactUp,
-  IconCircleDashed,
-  IconCirclePlus,
-  IconClockHour3,
-  IconCopy,
-  IconDots,
-  IconEye,
-  IconEyeClosed,
-  IconFileImport,
-  IconFileText,
-  IconFilter2,
-  IconGripHorizontal,
-  IconGripVertical,
-  IconHash,
-  IconHeart,
-  IconHome,
-  IconLayoutDashboard,
-  IconLayoutSidebarRight,
-  IconMap,
-  IconMinus,
-  IconPalette,
-  IconPlus,
-  IconServer,
-  IconSquareCheck,
-  IconStack2,
-  IconTag,
-  IconTriangleSquareCircle,
-  IconTypography,
-  IconX
-} from '@tabler/icons-react'
-import {
+  ArrowUpDown,
+  Calendar,
+  Check,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
   ChevronUp,
+  CircleDashed,
+  Clock,
+  Copy,
+  Ellipsis,
   EllipsisVertical,
+  Eye,
+  EyeOff,
+  FileText,
   FolderClosed,
   FolderOpen,
   GalleryVerticalEnd,
+  GripHorizontal,
+  GripVertical,
+  Hash,
+  Heart,
+  House,
+  Import,
+  LayoutDashboard,
   LayoutGrid,
+  Layers,
   Link,
   Link2,
+  ListFilter,
   LogOut,
-  SquarePlus
+  type LucideIcon,
+  type LucideProps,
+  Map as MapIcon,
+  Minus,
+  Palette,
+  PanelRight,
+  Plus,
+  Server,
+  Shapes,
+  SlidersHorizontal,
+  SquareCheck,
+  SquareDashed,
+  SquarePlus,
+  Tag,
+  Type,
+  X
 } from 'lucide-react'
-import type { ComponentPropsWithoutRef, ComponentType } from 'react'
 import { size as sizeTokens, type IconSize } from '../tokens/size.css'
-import { SquareDashed } from './SquareDashed'
-
-/** The prop contract the seam renders through — size/stroke plus pass-through SVG props (events,
- *  aria) so callsites keep their handlers. The libraries spell the stroke-width prop differently
- *  (Tabler `stroke`, Lucide `strokeWidth`), so no one component type satisfies both: entries are
- *  cast through the helpers, and the Icon adapter guarantees each source only ever receives its
- *  own spelling. */
-type GlyphProps = {
-  size?: number | string
-  strokeWidth?: number | string
-  stroke?: number | string
-} & Omit<ComponentPropsWithoutRef<'svg'>, 'stroke' | 'strokeWidth'>
-type Glyph = ComponentType<GlyphProps>
-
-/** Tabler registrations render at this stroke (Tabler ships 2) — Nathan's ratified default. The
- *  Lucide keeps stay at their library default; the keeps were kept for how they look today. */
-const TABLER_STROKE = 1.75
-
-// ComponentType<never> admits any component; the cast to Glyph is the seam's controlled boundary.
-const t = (glyph: ComponentType<never>): { glyph: Glyph; tabler: boolean } => ({ glyph: glyph as Glyph, tabler: true })
-const l = (glyph: ComponentType<never>): { glyph: Glyph; tabler: false } => ({ glyph: glyph as Glyph, tabler: false })
 
 /**
- * PommoraIcons — the curated registry, the single source of which icons exist in the app.
- * Mixed by design (spec: Planning/7-2 PommoraIcons inventory): Tabler is the default set,
- * a handful of ratified Lucide keeps stay, and customs are first-party SVGs in the same slot
- * shape. Keys are PommoraIcons names — the app's own vocabulary (inherited from the Lucide
- * era; stored frontmatter never matched it, so keys rename freely when a glyph changes
- * identity). This registry mirrors `Symbols.md` — add a name there, then a line here.
+ * Curated icon set — Lucide (https://lucide.dev/icons). The single source of which icons exist in
+ * the app; keys are the app's icon vocabulary (mostly the lucide.dev name). This registry mirrors
+ * `Symbols.md` — add a name there, then import it above and add a line here. Tree-shaking keeps
+ * only these in the bundle. **Tabler (`@tabler/icons-react`) stays installed as a second source we
+ * can pull from** — to use one, import its `Icon*` component and add the entry (it renders through
+ * the same seam; Tabler's default stroke is 2, so pass `strokeWidth={1.75}` to match Lucide's weight).
  */
 export const icons = {
-  house: t(IconHome),
-  calendar: t(IconCalendarMonth),
-  clock: t(IconClockHour3),
-  'gallery-vertical-end': l(GalleryVerticalEnd),
-  'folder-closed': l(FolderClosed),
-  'folder-open': l(FolderOpen),
-  'file-text': t(IconFileText),
-  'layout-grid': l(LayoutGrid),
-  check: t(IconCheck),
-  'circle-dashed': t(IconCircleDashed),
-  minus: t(IconMinus),
-  'sliders-horizontal': t(IconAdjustmentsHorizontal),
-  // The cardinal chevrons are Lucide — Nathan's ruling (07-02): Lucide is THE house chevron
-  // (Tabler's draws visibly smaller in the same box). Compacts stay Tabler (no Lucide twin).
-  'chevron-left': l(ChevronLeft),
-  'chevron-right': l(ChevronRight),
-  'chevron-up': l(ChevronUp),
-  'chevron-down': l(ChevronDown),
-  'chevron-compact-up': t(IconChevronCompactUp),
-  'chevron-compact-down': t(IconChevronCompactDown),
-  map: t(IconMap),
-  x: t(IconX),
-  plus: t(IconPlus),
-  'circle-plus': t(IconCirclePlus),
-  'square-plus': l(SquarePlus),
-  // Lucide keep (07-02): rides beside the Lucide chevrons in pane headers — Tabler's dots
-  // draw denser at the same color, so the pair read as different brightnesses.
-  'ellipsis-vertical': l(EllipsisVertical),
-  dots: t(IconDots),
-  tag: t(IconTag),
-  'panel-right': t(IconLayoutSidebarRight),
-  'square-dashed': l(SquareDashed),
-  copy: t(IconCopy),
-  'arrow-up-down': t(IconArrowsUpDown),
-  'log-out': l(LogOut),
-  palette: t(IconPalette),
-  type: t(IconTypography),
-  shapes: t(IconTriangleSquareCircle),
-  layers: t(IconStack2),
-  'grip-vertical': t(IconGripVertical),
-  'grip-horizontal': t(IconGripHorizontal),
-  heart: t(IconHeart),
-  hash: t(IconHash),
-  'square-check': t(IconSquareCheck),
-  import: t(IconFileImport),
-  link: l(Link),
-  'link-2': l(Link2),
-  server: t(IconServer),
-  eye: t(IconEye),
-  'eye-off': t(IconEyeClosed),
-  'layout-dashboard': t(IconLayoutDashboard),
-  'list-filter': t(IconFilter2)
-} satisfies Record<string, { glyph: Glyph; tabler: boolean }>
+  house: House,
+  calendar: Calendar,
+  clock: Clock,
+  'gallery-vertical-end': GalleryVerticalEnd,
+  'folder-closed': FolderClosed,
+  'folder-open': FolderOpen,
+  'file-text': FileText,
+  'layout-grid': LayoutGrid,
+  check: Check,
+  'circle-dashed': CircleDashed,
+  minus: Minus,
+  'sliders-horizontal': SlidersHorizontal,
+  'chevron-left': ChevronLeft,
+  'chevron-right': ChevronRight,
+  'chevron-up': ChevronUp,
+  'chevron-down': ChevronDown,
+  map: MapIcon,
+  x: X,
+  plus: Plus,
+  'square-plus': SquarePlus,
+  'ellipsis-vertical': EllipsisVertical,
+  dots: Ellipsis,
+  tag: Tag,
+  'panel-right': PanelRight,
+  'square-dashed': SquareDashed,
+  copy: Copy,
+  'arrow-up-down': ArrowUpDown,
+  'log-out': LogOut,
+  palette: Palette,
+  type: Type,
+  shapes: Shapes,
+  layers: Layers,
+  'grip-vertical': GripVertical,
+  'grip-horizontal': GripHorizontal,
+  heart: Heart,
+  hash: Hash,
+  'square-check': SquareCheck,
+  import: Import,
+  link: Link,
+  'link-2': Link2,
+  server: Server,
+  eye: Eye,
+  'eye-off': EyeOff,
+  'layout-dashboard': LayoutDashboard,
+  'list-filter': ListFilter
+} satisfies Record<string, LucideIcon>
 
 export type IconName = keyof typeof icons
 
@@ -153,32 +122,20 @@ const isIconSize = (v: unknown): v is IconSize => typeof v === 'string' && v in 
  *
  * Size resolution:
  * - **Named step** (`size="md"`) routes to the icon-size token — set as the glyph's
- *   `font-size` while the glyph stays at `1em`, so one source (`size.icon.*`) drives it.
+ *   `font-size` while lucide stays at `1em`, so one source (`size.icon.*`) drives it.
  * - **Default** (`1em`) follows the context font-size (the type scale).
  * - **Number / CSS length** (`size={18}`) passes straight through as an escape hatch.
- * Colour follows `currentColor` in every case. `strokeWidth` is normalized across sources:
- * Tabler spells the width prop `stroke`, Lucide `strokeWidth` — callers only ever say
- * `strokeWidth`, the seam translates (and applies the Tabler 1.75 default).
+ * Colour follows `currentColor` in every case.
  */
 export function Icon({
   name,
   size = '1em',
   style,
-  strokeWidth,
   ...rest
-}: {
-  name: IconName
-  size?: IconSize | number | string
-  strokeWidth?: number | string
-} & Omit<ComponentPropsWithoutRef<'svg'>, 'name' | 'stroke' | 'strokeWidth'>): React.JSX.Element {
-  const { glyph: Glyph, tabler } = icons[name]
-  const stroke: Partial<GlyphProps> = tabler
-    ? { stroke: strokeWidth ?? TABLER_STROKE }
-    : strokeWidth !== undefined
-      ? { strokeWidth }
-      : {}
+}: { name: IconName; size?: IconSize | LucideProps['size'] } & Omit<LucideProps, 'size'>): React.JSX.Element {
+  const Glyph = icons[name]
   if (isIconSize(size)) {
-    return <Glyph size="1em" {...stroke} {...rest} style={{ ...style, fontSize: iconSizeVars[size] }} />
+    return <Glyph size="1em" {...rest} style={{ ...style, fontSize: iconSizeVars[size] }} />
   }
-  return <Glyph size={size} {...stroke} {...rest} style={style} />
+  return <Glyph size={size} {...rest} style={style} />
 }
