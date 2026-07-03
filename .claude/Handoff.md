@@ -105,13 +105,13 @@ One long session: shipped PropertiesV2 end-to-end, ratified the Tables Next-Part
 
 ### Next Session — the ViewPane arc
 
-**Nathan's directive: work on the ViewPane.** The Properties pane is shipped and closed; the dropdown's remaining panes are stubs ("{Pane} — pending" captions in `ViewPane.tsx`). The build order the record supports:
+**Nathan's directive: work on the ViewPane.** Properties AND Visibility are shipped and closed (Visibility = `HiddenPane`, spec'd live with Nathan then CDP-verified overnight — hover/hide/drag matrix all screenshot-evidenced; spec → `Features/Views.md` §Visibility Pane, decisions → History 07-03); the remaining dropdown panes are stubs ("{Pane} — pending" captions in `ViewPane.tsx`). The build order the record supports:
 
 1. **The per-type PropertyPanes first** (the ratified 7-2 log's Prospects): **Status, Multi-Select, and Select PropertyPanes are DESIGN-READY in Figma — pull the Figma designs when building.** They land inside the property editor pane (today a "{type} options — pending" caption), riding the nested-slide + pane-beat plumbing 7-2 built. The rich-editor tail (formats, change-type confirm with the lossy strip, duplicate) rides the same arc — the 6-28 spec §Pending holds the list.
-2. **The sibling panes** per the 6-28 spec §Pending: Visibility (show/hide + order + the un-hide path), Layout (Format picker · Hide Page Icons/Borders · Table Size · Display-As · new-items placement), Group, Sort, Filter — each wiring already-shipped seams (`GroupConfig`, `SortCriterion[]`, `FilterGroup`, the `views:*` IPC). The Switch consumes into Grouping/Layout/Visibility.
+2. **The remaining sibling panes** per the 6-28 spec §Pending: Layout (Format picker · Hide Page Icons/Borders · Table Size · Display-As · new-items placement), Group, Sort, Filter — each wiring already-shipped seams (`GroupConfig`, `SortCriterion[]`, `FilterGroup`, the `views:*` IPC). The Switch consumes into Grouping/Layout.
 3. **View management** (rename/duplicate/delete a view; the active-view switcher) — the Part-1 IPC is shipped, UI-less.
 
-Build discipline unchanged: the ViewPane CSS is a KNOB FILE (`viewPane.css.ts` — COLOR/SIZE/PAD/ICON groups; sizes are Nathan's, never re-tune); back rows name their DESTINATION; every pane push rides the nested PaneSlider automatically.
+Build discipline unchanged: the ViewPane CSS is a KNOB FILE (`viewPane.css.ts` — COLOR/SIZE/PAD/ICON groups; sizes are Nathan's, never re-tune); back rows name their DESTINATION; every pane push rides the nested PaneSlider automatically. Visibility's seam worth knowing: PaneDnd now takes an injectable `slot` rule (`hiddenPaneSlot` is the example) — the pattern for any pane wanting different region semantics.
 
 Open threads to confirm with Nathan while building: file chips deliberately have no hover-× (removal = deleting an attachment — unasked, never ruled); the old capsule floating-× idea (~4px right of the chip) is likely dead post-menu-Clear ruling but was never formally killed.
 
@@ -120,10 +120,8 @@ Open threads to confirm with Nathan while building: file chips deliberately have
 
 ### Pending Focuses
 
-- **Per-style minimum column widths + slide animation (idea, Nathan 07-01):** each look carries its own column min (checkbox min < capsule min < pill min); when an at-minimum column's style changes to a wider look, the width "slides" to the new minimum with an animation. Design-note only for now.
 - **Empty-picker UX** — the proportioned empty pane is interim; Nathan will design the real no-options affordance (creation entry point?) later.
 - **(Perf) Remaining debt after the 07-02 fix wave** (`e4759d0` `05b654e` `ec38b70` `d231f9d` `bb71712` — band snapshot index, var-driven column drag, parse-once value cache, tree structural sharing, memoized rows): (1) **the main process still re-walks the whole nexus per watcher event** (fs + YAML for every page; the renderer no longer cares — stabilize makes unchanged pushes identity-stable no-ops — but main's CPU/IO cost scales with nexus size; the durable fix is the surgical-reconcile arc, Swift precedent: 11 TDD commits, coarse-rebuild fallback for structural events). (2) **Virtualization** — every row still MOUNTS (memoized rows re-render only on their own changes now, but initial mount + DOM size remain O(rows); bites at thousands). (3) External VALUE edits don't live-refresh open tables (loadValues runs per container open only; the tree carries structure, not values) — pre-existing, surfaced by the audit trace.
-- **Row grips on horizontal scroll** — freezing them = a frozen title column; Nathan's call, deferred.
 - **Block Drag V2 — nesting** (separate spec): interior drop-slots inside callouts, the box-nesting guard table, cross-container re-prefix.
 - **Canvas** — spec at `Planning/6-26 - Canvas Spec.md`, pending its adversarial review → plan → build.
 - **Biome config vs code** — `biome.json` declares double-quote/organizeImports but the codebase is single-quote/no-semicolon. Settle once, in a tree with no parallel edits.
@@ -132,6 +130,8 @@ Open threads to confirm with Nathan while building: file chips deliberately have
 
 - **Block-math `$$…blank…$$` drag corrupts the doc (open).** A multi-line block-math span with a blank line parses as two halves with orphaned `$$`; block-dragging either half corrupts the document (`MarkdownPM/editor/blockModel.ts` — test-pinned, unguarded).
 - **Bullet single-word wrap drops the word below the marker** — only the `line-height` cap shipped. → `Features/MarkdownPM.md` § Known Issues.
+- The "File" property icon gets clipped by its vertical row padding on the ViewPane. 
+- **`.nexus/activeViews.json` isn't gitignored (open).** The Visibility pane's sentinel-adoption fix is the FIRST writer of this per-machine active-view pointer; the Views spec calls it "kept out of the synced sidecar," but neither it nor its per-machine siblings (`folds`/`viewOrders`/`tableHeadingColumns`) are ignored in the Nexus repo — so using the pane on a fresh container creates a would-sync file. Add these to the Nexus `.gitignore` (or have the app scaffold it) before the view-management switcher ships and starts writing it in earnest.
 
 ### Handoff Rules
 

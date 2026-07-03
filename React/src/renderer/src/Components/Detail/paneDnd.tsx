@@ -44,12 +44,16 @@ export function PaneDnd({
   rows,
   labelFor,
   onDrop,
+  slot = paneSlot,
   children
 }: {
   /** Every draggable property row (both groups) — snapshot state during a drag. */
   rows: PaneRow[]
   labelFor: (id: string) => string
   onDrop: (drop: PaneDrop) => void
+  /** The region/slot semantics — defaults to the Properties pane's; the Visibility pane injects
+   *  its own (hidden region inert, drag-in unhides). */
+  slot?: typeof paneSlot
   children: ReactNode
 }): React.JSX.Element {
   const rowsRef = useRef(rows)
@@ -181,14 +185,14 @@ export function PaneDnd({
     }
     const snap = snapshot.current
     if (!snap) return
-    const slot = paneSlot(snap.rows, snap.byId, snap.regions, e.clientY, g.id)
-    live.current = slot
+    const liveSlot = slot(snap.rows, snap.byId, snap.regions, e.clientY, g.id)
+    live.current = liveSlot
     setDrag({
       id: g.id,
       ghostX: e.clientX + 12,
       ghostY: e.clientY + 8,
-      slot,
-      lineTop: slot?.lineY != null ? slot.lineY - snap.boxTop : 0
+      slot: liveSlot,
+      lineTop: liveSlot?.lineY != null ? liveSlot.lineY - snap.boxTop : 0
     })
   }
   function onUp(): void {
@@ -249,6 +253,16 @@ export function PaneDnd({
           document.body
         )}
     </Ctx.Provider>
+  )
+}
+
+/** One draggable property row — the WHOLE row is the drag surface (buttons inside never arm one). */
+export function RowShell({ id, children }: { id: string; children: ReactNode }): React.JSX.Element {
+  const { ref, handle, isDragging } = usePaneDrag(id)
+  return (
+    <div ref={ref} {...handle} data-prop={id} className={cx(isDragging && s.rowDragging)}>
+      {children}
+    </div>
   )
 }
 

@@ -19,13 +19,17 @@ const COLOR = {
   allRow: c.label.tertiary, // unassigned registry rows
   rowPlus: c.label.tertiary, // a registry row's + at rest
   rowPlusHover: c.label.primary, // …hovered
-  dragHighlight: c.state.hover // the unassign area tint while dragging out
+  dragHighlight: c.state.hover, // the unassign area tint while dragging out
+  eye: c.label.secondary, // the Visibility eye toggle (shown rows): secondary + ghost at rest,
+  // un-ghosts on hover (no color shift); the glyph swaps open ↔ off
+  eyeHidden: c.label.tertiary // a hidden row's eye: tertiary, riding the row's ghost (single dim)
 }
 
 /** — SIZING — (px boxes; the glyphs inside are ICON's) */
 const SIZE = {
   headerActionWidth: 20, // ⊕ / ⋮ horizontal hit target (height hugs the glyph)
   rowPlusBox: 16, // the registry row's + hit target
+  eyeBox: 16, // the Visibility pane's eye hit target
   iconPickerButton: 28, // the title header's square icon button
   dashIcon: 16, // the placeholder dashed square
   dragHighlightRadius: 6 // the unassign tint's corner radius
@@ -45,7 +49,8 @@ export const ICON = {
   rowChevron: 16, // the trailing › on navigable rows (root entries + assigned rows)
   rootEntry: 16, // the root menu's leading icons (Properties · Visibility · …)
   twisty: 12, // the All Properties disclosure chevron
-  rowPlus: 12 // the registry row's + glyph
+  rowPlus: 12, // the registry row's + glyph
+  eye: 14 // the Visibility pane's eye / eye-off glyph
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -179,6 +184,59 @@ export const rowPlus = style({
 })
 
 // ═══════════════════════════════════════════════════════════════════════════
+// § VISIBILITY (HiddenPane) — the ghosted hidden zone + per-row eye toggle
+// ═══════════════════════════════════════════════════════════════════════════
+
+/** The picked-up row fades to the ghost opacity — muted in place, never displaced. Shared by both
+ *  panes' RowShell; declared here so the hidden-row ghost below can reference it (source order). */
+export const rowDragging = style({ opacity: 'var(--state-ghost)' })
+
+/** Hidden rows read de-emphasized via the shared ghost opacity (the drag-dim token — Nathan's
+ *  call: `--state-ghost`, not the muted veil). The ghost IS the shown/hidden boundary — no
+ *  heading (Nathan's call). Reset to full opacity while this row is the drag subject: `rowDragging`
+ *  already dims the wrapper to the ghost, and two stacked 60% layers composite to 36% (breaker
+ *  L-3) — the inner row rides full so the net dim is the single intended ghost. */
+export const hiddenRow = style({
+  opacity: 'var(--state-ghost)',
+  selectors: { [`${rowDragging} &`]: { opacity: 1 } }
+})
+
+/** The hidden zone sits directly below the shown rows and grows into the pane's slack (rows
+ *  top-aligned — Nathan's call: placed below, NOT bottom-pinned), so the drag-to-hide area
+ *  highlight covers the empty space beneath them even while nothing's hidden yet. */
+export const hiddenZone = style({ flex: '1 1 auto' })
+
+/** The eye toggle — secondary + ghost at rest, un-ghosting on hover (no color shift); the glyph
+ *  swaps open ↔ off (the pair passes reversed in JSX on a hidden row). On a hidden row the eye is
+ *  tertiary and its own opacity resets to 1 so it rides ONLY the row's ghost (never double-dims). */
+export const eyeButton = style({
+  width: `${SIZE.eyeBox}px`,
+  height: `${SIZE.eyeBox}px`,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  border: 'none',
+  background: 'none',
+  padding: 0,
+  cursor: 'default',
+  color: COLOR.eye,
+  opacity: 'var(--state-ghost)',
+  transition: `opacity ${duration.fast} ${easing.standard}`,
+  selectors: {
+    '&:hover': { opacity: 1 },
+    [`${hiddenRow} &`]: { color: COLOR.eyeHidden, opacity: 1 }
+  }
+})
+export const eyeRestGlyph = style({
+  display: 'flex',
+  selectors: { [`${eyeButton}:hover &`]: { display: 'none' } }
+})
+export const eyeHoverGlyph = style({
+  display: 'none',
+  selectors: { [`${eyeButton}:hover &`]: { display: 'flex' } }
+})
+
+// ═══════════════════════════════════════════════════════════════════════════
 // § DRAG CHROME — the two-region drag's box, highlight, and source dim
 // ═══════════════════════════════════════════════════════════════════════════
 
@@ -196,6 +254,3 @@ export const allHighlight = style({
   background: COLOR.dragHighlight,
   borderRadius: `${SIZE.dragHighlightRadius}px`
 })
-
-/** The picked-up row fades to the ghost opacity — muted in place, never displaced. */
-export const rowDragging = style({ opacity: 'var(--state-ghost)' })

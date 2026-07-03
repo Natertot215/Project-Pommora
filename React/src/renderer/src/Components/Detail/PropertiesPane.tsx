@@ -10,7 +10,7 @@ import { IconPicker } from '../IconPicker'
 import { EditableInput } from '../EditableInput'
 import { InlineEditHeader } from './InlineEditHeader'
 import { PaneSlider } from './PaneSlider'
-import { PaneDnd, usePaneDrag, usePaneRegions } from './paneDnd'
+import { PaneDnd, RowShell, usePaneRegions } from './paneDnd'
 import { nexusReorderIndex, type PaneDrop, type PaneRow } from './paneDndModel'
 import { CREATABLE_TYPES, PropertyTypeIcon, propertyTypeLabel } from './PropertyTypes'
 import { cx } from '../../design-system/cx'
@@ -19,16 +19,6 @@ import * as s from './viewPane.css'
 type DetailView = { kind: 'type' } | { kind: 'edit'; id: string }
 type SubView = { kind: 'list' } | DetailView
 type WriteResult = { ok: true } | { ok: false; error: string }
-
-/** One draggable property row — the WHOLE row is the drag surface (buttons inside never arm one). */
-function RowShell({ id, children }: { id: string; children: ReactNode }): React.JSX.Element {
-  const { ref, handle, isDragging } = usePaneDrag(id)
-  return (
-    <div ref={ref} {...handle} data-prop={id} className={cx(isDragging && s.rowDragging)}>
-      {children}
-    </div>
-  )
-}
 
 /** The two drag regions (E-4): assigned rows on top, the bottom-pinned All Properties block below
  *  the elastic spacer. Lives outside PropertiesPane so rows never remount on its re-renders. */

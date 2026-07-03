@@ -28,13 +28,19 @@ The **Table** renderer draws the resolved groups as nested tables, with structur
 
 #### II. View Settings
 
-The view-settings dropdown is scoped to the selected container — a Collection or depth-1 Set gets the view pane, other surfaces get none. Its root menu pushes to per-pane editors, of which the **Properties** pane (the schema editor → `Properties.md`) is built; the remaining panes are Pending.
+The view-settings dropdown is scoped to the selected container — a Collection or depth-1 Set gets the view pane, other surfaces get none. Its root menu pushes to per-pane editors, of which the **Properties** pane (the schema editor → `Properties.md`) and the **Visibility** pane are built; the remaining panes are Pending.
+
+#### II. Visibility Pane
+
+The active view's shown/hidden split (`HiddenPane`). **Contexts** sit on top as a static block — always the three tiers in the fixed Areas · Topics · Projects order, never draggable; hiding one ghosts it in place (the shared ghost opacity) rather than relocating it. Below a divider the properties run as **one list with no heading**: the shown rows in view order, then the hidden rows ghosted after them in COLLECTION order (Modified trailing) — the ghost itself is the boundary. Title appears nowhere (it can't hide, and its reorder belongs to the table's column drag).
+
+Drags carry the shared drag language. A drop **into the shown zone is positional** — a shown row reorders and a hidden row unhides at the slot, both under the drop line — and rewrites the view's `property_order`, with the shown zone acting as a window into the full column order so Title and the tiers hold their absolute slots. A shown row dropped **into the hidden zone is a membership drop** — it hides, shown as the area highlight with no line, since the hidden order is derived, never authored (hidden rows don't reorder within their zone). Every row carries a trailing eye toggle: open at rest on shown rows, slashed on hidden ones, hover swapping both the glyph and the color to preview the flip (hidden rows run the pair in reverse). Hiding only flags `hidden_properties` — `property_order` keeps the slot — so an eye-unhide restores the property where it was; only a drag-in chooses a new position. Writes save the whole view and refetch, so the table behind the dropdown updates on the same beat; the table's optimistic column-order override drops once the canonical view confirms it, keeping the two writers coherent.
 
 ### Pending
 
 **Board, List, Cards, and Gallery Renderers:** The four non-Table view types. The type enum carries all five; only Table draws.
 
-**View-Settings Editing Panes:** The Filter, Group, Sort, Layout, and Visibility panes. The pipeline already honors these configs from the sidecar, so the gap is authoring them — only the Properties pane is reachable.
+**View-Settings Editing Panes:** The Filter, Group, Sort, and Layout panes. The pipeline already honors these configs from the sidecar, so the gap is authoring them — Properties and Visibility are reachable.
 
 ### Prospects
 

@@ -6,6 +6,7 @@ import { backRowPad, ICON } from './viewPane.css'
 import { useSession } from '../../store'
 import { findCollection, findSet, findCollectionForSet } from '../../Detail/Scope'
 import { PropertiesPane } from './PropertiesPane'
+import { HiddenPane } from './HiddenPane'
 import { PaneSlider } from './PaneSlider'
 import { MenuItem, MenuSeparator, MenuCaption, MenuBackRow } from '../../design-system/components/menu'
 import { IconPicker } from '../IconPicker'
@@ -100,6 +101,12 @@ export function ViewPane(): React.JSX.Element | null {
     detailId === 'properties' ? (
       schemaCollection ? (
         <PropertiesPane collectionPath={schemaCollection.path} schema={schemaCollection.properties ?? []} onBack={back} />
+      ) : (
+        pendingPane('Schema unavailable.')
+      )
+    ) : detailId === 'visibility' ? (
+      schemaCollection ? (
+        <HiddenPane source={node} schema={schemaCollection.properties ?? []} onBack={back} />
       ) : (
         pendingPane('Schema unavailable.')
       )

@@ -27,9 +27,8 @@ The View Settings surface: the glass dropdown behind the toolbar Settings button
 - **Sort pane** — multi-key criteria list (add/remove/reorder, direction), the `isSortable` picker filter (excludes relation/file/last-edited per Part-1 note), wired to `SortCriterion[]`.
 - **Filter pane** — rule builder + the operator picker (narrower than the evaluator matrix), AND/OR (incl. nested groups), wired to `FilterGroup`.
 - **Layout pane** — `Format: Table ›` view-type picker; **Hide Page Icons** + **Hide Borders** toggles (two new `SavedView` fields, icons default ON); **Table Size: Standard | Compact** (routes typography; ships default-Compact, this pane is its eventual control); the **Display-As toggle** (switch a property's `display_as` — the renders already exist as chip forms, only the toggle is unbuilt); **new-items placement** (`newItemsTo: 'top' | 'bottom'`, default bottom); "Open Pages In" (`open_in`). Detail → Part 2 (E-5, K-1, L-5, M-1/Q-3).
-- **Visibility pane** — column show/hide + order; the **un-hide path** for Part 2's right-click "Hide Property" (which writes `hidden_properties`).
 - **View management** — rename / duplicate / delete a view; the active-view switcher — wiring the already-shipped `views:save/reorder/delete` + `activeViews:get/set` IPC (Part 1) to the UI.
-- **Switch wiring** — the Switch is built + mounted in Navigation for critique; the Grouping/Layout/Visibility panes will consume it (hide-empty, show-cover/banner, **Hide Page Icons / Hide Borders**, column show/hide). Replace the Navigation placeholder mount once a real pane uses it.
+- **Switch wiring** — the Switch is built + mounted in Navigation for critique; the Grouping/Layout panes will consume it (hide-empty, show-cover/banner, **Hide Page Icons / Hide Borders**). Replace the Navigation placeholder mount once a real pane uses it. (Visibility shipped on the eye toggle instead → `Features/Views.md` §Visibility Pane.)
 
 ### Notes
 

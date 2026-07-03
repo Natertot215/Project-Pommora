@@ -88,12 +88,15 @@ function resolveContainerSchema(tree: NexusTree, source: CollectionNode | SetNod
 }
 
 /** The view to render: the per-machine active view if still present, else the first saved view, else
- *  a freshly-minted default (sentinel id until first saved). */
-function pickView(source: CollectionNode | SetNode, activeId: string | undefined, schema: PropertyDefinition[]): SavedView {
+ *  a freshly-minted default (sentinel id until first saved). Exported: the Visibility pane picks the
+ *  same view by the same rule. */
+export function pickView(source: CollectionNode | SetNode, activeId: string | undefined, schema: PropertyDefinition[]): SavedView {
   const views = source.views ?? []
   const active = activeId ? views.find((v) => v.id === activeId) : undefined
   return active ?? views[0] ?? mintDefaultView(schema)
 }
+
+const sameIds = (a: string[], b: string[]): boolean => a.length === b.length && a.every((x, i) => x === b[i])
 
 /** The right-click menu context for a cell (A-13): title = page meta; url/file = the column's Style
  *  radios + Edit; status = Style + Clear; the other style-bearing types = Style alone; tier and
@@ -207,6 +210,13 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
     setManualOverride(null)
     setValueOverride(null)
   }, [source])
+  // The Visibility pane writes property_order / hidden_properties from OUTSIDE this component. Once the
+  // canonical view catches an override up (this table's own write round-tripped), drop it — a pinned
+  // override would mask the pane's later writes and fold stale state back over them on the next persist.
+  useEffect(() => {
+    if (orderOverride && sameIds(orderOverride, view.property_order)) setOrderOverride(null)
+    if (hiddenOverride && sameIds(hiddenOverride, view.hidden_properties)) setHiddenOverride(null)
+  }, [view, orderOverride, hiddenOverride])
   const liveView = useMemo(() => {
     if (!orderOverride && !hiddenOverride && !bandOverride) return view
     return {
