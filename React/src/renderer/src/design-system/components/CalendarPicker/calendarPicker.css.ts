@@ -223,26 +223,3 @@ export const switchLabel = style({
 })
 /* The real Switch at picker scale — zoom is the house density knob (the table uses the same). */
 export const switchScale = style({ zoom: 0.8 })
-
-/* ── Homepage demo chrome (dev mount): a fake value-chip trigger; the real PickerMenu pane hangs
-      under it (absolute), so the cell reserves the pane's height. ── */
-export const demoRow = style({ display: 'flex', gap: '40px', flexWrap: 'wrap', alignItems: 'flex-start' })
-export const demoCell = style({
-  position: 'relative',
-  display: 'flex',
-  flexDirection: 'column',
-  gap: '8px',
-  alignItems: 'flex-start',
-  width: '280px',
-  minHeight: '480px'
-})
-export const demoTag = style({ fontSize: font.scale.control.size, color: c.label.secondary })
-export const demoTrigger = style({
-  position: 'relative',
-  border: `1px solid ${c.separator.line}`,
-  borderRadius: '6px',
-  padding: '3px 10px',
-  fontSize: font.scale.control.size,
-  color: c.label.primary,
-  background: c.state.hover
-})
