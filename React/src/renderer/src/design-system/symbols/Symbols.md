@@ -18,7 +18,7 @@ Pommora's icons are **PommoraIcons** — a mixed registry behind one seam (`inde
 | `circle-dashed` | Tabler | Select chip placeholder · status Upcoming · Status property type |
 | `minus` | Tabler | Status In-Progress glyph |
 | `sliders-horizontal` | Tabler `adjustments-horizontal` | Trio Button, Settings |
-| `chevron-left` / `chevron-right` / `chevron-up` / `chevron-down` | Tabler | Twisties · menus · disclosure · toolbar Back/Forward |
+| `chevron-left` / `chevron-right` / `chevron-up` / `chevron-down` | **Lucide keep** — THE house chevron (Tabler's draws smaller in the same box) | Twisties · menus · disclosure · toolbar Back/Forward |
 | `chevron-compact-up` / `chevron-compact-down` | Tabler | Registered, unassigned |
 | `map` | Tabler | Trio Button, Navigation |
 | `x` | Tabler | Chip dismiss |

@@ -50,17 +50,17 @@ export const dashIcon = style({
 })
 
 /** The pane's header line: the back row takes the width, a trailing icon action rides the right
- *  edge (⊕ create on the list, ⋮ menu on the editor) at the rows' 8px inset. */
+ *  edge (⊕ create on the list, ⋮ menu on the editor), its right edge flush with the divider's
+ *  end — no row padding (Nathan's call). */
 export const paneHeader = style({
   display: 'flex',
   alignItems: 'center',
-  justifyContent: 'space-between',
-  paddingRight: '8px'
+  justifyContent: 'space-between'
 })
 export const paneHeaderBack = style({ flex: '1 1 auto', minWidth: 0 })
 
-/** Bare 20×20 icon button in the pane header — secondary lifting to primary on hover, on the
- *  Add-Banner button's color beat. */
+/** Bare 20×20 icon button in the pane header — tertiary at rest, lifting to primary on hover
+ *  on the Add-Banner button's color beat. */
 export const headerAction = style({
   flex: '0 0 auto',
   width: '20px',
@@ -72,7 +72,7 @@ export const headerAction = style({
   background: 'none',
   padding: 0,
   cursor: 'default',
-  color: c.label.secondary,
+  color: c.label.tertiary,
   transition: `color ${duration.fast} ${easing.standard}`,
   selectors: { '&:hover': { color: c.label.primary } }
 })
@@ -101,7 +101,7 @@ export const allSpacer = style({
 })
 export const allSpacerCollapsed = style({ flexGrow: 0 })
 
-/** The per-row `+` promote affordance (A-5) — bare 16×16, secondary to primary on hover. */
+/** The per-row `+` promote affordance (A-5) — bare 16×16, tertiary at rest like the header ⊕. */
 export const rowPlus = style({
   width: '16px',
   height: '16px',
@@ -112,7 +112,7 @@ export const rowPlus = style({
   background: 'none',
   padding: 0,
   cursor: 'default',
-  color: c.label.secondary,
+  color: c.label.tertiary,
   selectors: { '&:hover': { color: c.label.primary } }
 })
 

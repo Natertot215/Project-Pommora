@@ -5,10 +5,6 @@ import {
   IconCheck,
   IconChevronCompactDown,
   IconChevronCompactUp,
-  IconChevronDown,
-  IconChevronLeft,
-  IconChevronRight,
-  IconChevronUp,
   IconCircleDashed,
   IconCirclePlus,
   IconClockHour3,
@@ -39,7 +35,20 @@ import {
   IconTypography,
   IconX
 } from '@tabler/icons-react'
-import { FolderClosed, FolderOpen, GalleryVerticalEnd, LayoutGrid, Link, Link2, LogOut, SquarePlus } from 'lucide-react'
+import {
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  ChevronUp,
+  FolderClosed,
+  FolderOpen,
+  GalleryVerticalEnd,
+  LayoutGrid,
+  Link,
+  Link2,
+  LogOut,
+  SquarePlus
+} from 'lucide-react'
 import type { ComponentPropsWithoutRef, ComponentType } from 'react'
 import { size as sizeTokens, type IconSize } from '../tokens/size.css'
 import { SquareDashed } from './SquareDashed'
@@ -85,10 +94,12 @@ export const icons = {
   'circle-dashed': t(IconCircleDashed),
   minus: t(IconMinus),
   'sliders-horizontal': t(IconAdjustmentsHorizontal),
-  'chevron-left': t(IconChevronLeft),
-  'chevron-right': t(IconChevronRight),
-  'chevron-up': t(IconChevronUp),
-  'chevron-down': t(IconChevronDown),
+  // The cardinal chevrons are Lucide — Nathan's ruling (07-02): Lucide is THE house chevron
+  // (Tabler's draws visibly smaller in the same box). Compacts stay Tabler (no Lucide twin).
+  'chevron-left': l(ChevronLeft),
+  'chevron-right': l(ChevronRight),
+  'chevron-up': l(ChevronUp),
+  'chevron-down': l(ChevronDown),
   'chevron-compact-up': t(IconChevronCompactUp),
   'chevron-compact-down': t(IconChevronCompactDown),
   map: t(IconMap),

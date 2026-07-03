@@ -1,5 +1,7 @@
 import { useRef, useState } from 'react'
-import { ChevronRight, Server, Eye, LayoutDashboard, Layers, ListFilter, ArrowUpDown, type LucideIcon } from 'lucide-react'
+import { Server, Eye, LayoutDashboard, Layers, ListFilter, ArrowUpDown, type LucideIcon } from 'lucide-react'
+import { Icon } from '@renderer/design-system/symbols'
+import { flushTrailing } from '../../design-system/components/menu/menu.css'
 import { useSession } from '../../store'
 import { findCollection, findSet, findCollectionForSet } from '../../Detail/Scope'
 import { PropertiesPane } from './PropertiesPane'
@@ -80,7 +82,13 @@ export function ViewPane(): React.JSX.Element | null {
       />
       <MenuSeparator flush />
       {ENTRIES.map((e) => (
-        <MenuItem key={e.id} leading={<e.Icon size={16} />} trailing={<ChevronRight size={16} />} onClick={() => open(e.id)}>
+        <MenuItem
+          key={e.id}
+          className={flushTrailing}
+          leading={<e.Icon size={16} />}
+          trailing={<Icon name="chevron-right" size={16} />}
+          onClick={() => open(e.id)}
+        >
           {e.label}
         </MenuItem>
       ))}

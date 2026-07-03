@@ -1,8 +1,9 @@
 import { useRef, useState, type ReactNode } from 'react'
-import { Icon } from '@renderer/design-system/symbols'
+import { Icon, type IconName } from '@renderer/design-system/symbols'
 import { useSession } from '../../store'
 import { isReservedPropertyId, type PropertyDefinition, type PropertyType } from '@shared/properties'
 import { MenuItem, MenuSeparator, MenuCaption, MenuBackRow } from '../../design-system/components/menu'
+import { flushTrailing } from '../../design-system/components/menu/menu.css'
 import { Reveal } from '../../design-system/components/Reveal'
 import { duration } from '../../design-system/tokens/motion'
 import { IconPicker } from '../IconPicker'
@@ -80,6 +81,7 @@ function ListGroups({
           assigned.map((d) => (
             <RowShell key={d.id} id={d.id}>
               <MenuItem
+                className={flushTrailing}
                 leading={<PropertyTypeIcon type={d.type} />}
                 detail={propertyTypeLabel(d.type)}
                 trailing={<Icon name="chevron-right" size={16} />}
@@ -111,7 +113,7 @@ function ListGroups({
             {unassigned.map((d) => (
               <RowShell key={d.id} id={d.id}>
                 <MenuItem
-                  className={s.allRow}
+                  className={cx(s.allRow, flushTrailing)}
                   leading={<PropertyTypeIcon type={d.type} />}
                   onContextMenu={(e) => {
                     e.preventDefault()
@@ -187,6 +189,24 @@ export function PropertiesPane({
       <MenuSeparator flush />
     </>
   )
+  // Back row + a trailing icon action on the right edge (⊕ create on the list, ⋮ menu on the editor).
+  const actionHeader = (
+    label: string,
+    onBackClick: () => void,
+    action: { icon: IconName; size: number; ariaLabel: string; onClick: () => void }
+  ): React.JSX.Element => (
+    <>
+      <div className={s.paneHeader}>
+        <div className={s.paneHeaderBack}>
+          <MenuBackRow label={label} onClick={onBackClick} />
+        </div>
+        <button type="button" className={s.headerAction} aria-label={action.ariaLabel} onClick={action.onClick}>
+          <Icon name={action.icon} size={action.size} />
+        </button>
+      </div>
+      <MenuSeparator flush />
+    </>
+  )
 
   // Surface an IPC error, else refresh the live schema; returns whether the write landed.
   const commit = async (res: WriteResult): Promise<boolean> => {
@@ -255,7 +275,13 @@ export function PropertiesPane({
     <>
       {backHeader('Properties', backToList)}
       {CREATABLE_TYPES.map((type) => (
-        <MenuItem key={type} leading={<PropertyTypeIcon type={type} />} trailing={<Icon name="chevron-right" size={16} />} onClick={() => void create(type)}>
+        <MenuItem
+          key={type}
+          className={flushTrailing}
+          leading={<PropertyTypeIcon type={type} />}
+          trailing={<Icon name="chevron-right" size={16} />}
+          onClick={() => void create(type)}
+        >
           {propertyTypeLabel(type)}
         </MenuItem>
       ))}
@@ -274,15 +300,12 @@ export function PropertiesPane({
     }
     return (
       <>
-        <div className={s.paneHeader}>
-          <div className={s.paneHeaderBack}>
-            <MenuBackRow label={def.name} onClick={backToList} />
-          </div>
-          <button type="button" className={s.headerAction} aria-label="Property Menu" onClick={() => void editorMenu(def)}>
-            <Icon name="ellipsis-vertical" size={16} />
-          </button>
-        </div>
-        <MenuSeparator flush />
+        {actionHeader(def.name, backToList, {
+          icon: 'ellipsis-vertical',
+          size: 16,
+          ariaLabel: 'Property Menu',
+          onClick: () => void editorMenu(def)
+        })}
         <InlineEditHeader value={def.name} onIconClick={() => setIconOpen(true)} onCommit={(next) => void rename(def.id, next)} />
         <MenuCaption>{propertyTypeLabel(def.type)} options — pending</MenuCaption>
       </>
@@ -291,15 +314,12 @@ export function PropertiesPane({
 
   const list = (
     <PaneDnd rows={paneRows} labelFor={nameFor} onDrop={(drop) => void handleDrop(drop)}>
-      <div className={s.paneHeader}>
-        <div className={s.paneHeaderBack}>
-          <MenuBackRow label="Properties" onClick={onBack} />
-        </div>
-        <button type="button" className={s.headerAction} aria-label="New Property" onClick={() => openDetail({ kind: 'type' })}>
-          <Icon name="square-plus" size={14} />
-        </button>
-      </div>
-      <MenuSeparator flush />
+      {actionHeader('Properties', onBack, {
+        icon: 'square-plus',
+        size: 14,
+        ariaLabel: 'New Property',
+        onClick: () => openDetail({ kind: 'type' })
+      })}
       <ListGroups
         assigned={props}
         unassigned={unassigned}

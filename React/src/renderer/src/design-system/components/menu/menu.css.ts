@@ -98,6 +98,10 @@ export const separatorFlush = style({ padding: 0 })
  *  destructive footer (Delete) re-overrides the colour. */
 export const flushAffordance = style({ paddingLeft: 0, gap: '4px', color: c.label.secondary })
 
+/** Flush-trailing row — the trailing cluster (chevron, detail) sits against the gutter edge where
+ *  the flush divider ends, instead of floating in on the row's right padding (Nathan's call). */
+export const flushTrailing = style({ paddingRight: 0 })
+
 /** Back row — flush affordance + footnote type. */
 export const backRow = style([text.caption.standard, flushAffordance])
 
