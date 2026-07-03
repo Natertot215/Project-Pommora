@@ -117,6 +117,10 @@ export function CalendarPicker({
   const suppressClick = useRef(false)
   const [startMin, setStartMin] = useState(9 * 60)
   const [endMin, setEndMin] = useState(17 * 60)
+  // Both endpoints share one time model; the segment/menu/toggle helpers all resolve their
+  // endpoint through these rather than re-branching `which` at each call site.
+  const minsOf = (which: 'start' | 'end'): number => (which === 'start' ? startMin : endMin)
+  const setMinsFor = (which: 'start' | 'end'): typeof setStartMin => (which === 'start' ? setStartMin : setEndMin)
 
   const nav = (dir: 1 | -1): void => {
     if (slide) return
@@ -189,13 +193,19 @@ export function CalendarPicker({
     drag.current = null
   }
 
+  // Weeks the month occupies (lead blanks + its days, rounded to full weeks) — no trailing
+  // all-next-month row. Drives both the cell count and the animated viewport height.
+  const rowsFor = (month: Date): number => {
+    const lead = new Date(month.getFullYear(), month.getMonth(), 1).getDay()
+    return Math.ceil((lead + new Date(month.getFullYear(), month.getMonth() + 1, 0).getDate()) / 7)
+  }
+
   const grid = (month: Date): React.JSX.Element => {
     const y = month.getFullYear()
     const m = month.getMonth()
     const lead = new Date(y, m, 1).getDay() // Sunday-first
     const first = new Date(y, m, 1 - lead)
-    // Only the weeks this month occupies — no trailing all-next-month row.
-    const cellCount = Math.ceil((lead + new Date(y, m + 1, 0).getDate()) / 7) * 7
+    const cellCount = rowsFor(month) * 7
     const ranged = start !== null && end !== null
     return (
       <div className={s.days} key={keyOf(month)}>
@@ -257,8 +267,8 @@ export function CalendarPicker({
 
   const timeOptions = (which: 'start' | 'end', part: 'h' | 'm'): React.JSX.Element | null => {
     if (!timeMenu) return null
-    const mins = which === 'start' ? startMin : endMin
-    const setMins = which === 'start' ? setStartMin : setEndMin
+    const mins = minsOf(which)
+    const setMins = setMinsFor(which)
     const current = part === 'h' ? hourShown(mins) : mins % 60
     const choose = (v: number): void => {
       setMins(part === 'h' ? hourToMins(v, mins) : Math.floor(mins / 60) * 60 + v)
@@ -284,8 +294,8 @@ export function CalendarPicker({
     if (!segEdit) return
     const v = Number(segEdit.draft)
     if (segEdit.draft !== '' && Number.isFinite(v)) {
-      const mins = segEdit.which === 'start' ? startMin : endMin
-      const setMins = segEdit.which === 'start' ? setStartMin : setEndMin
+      const mins = minsOf(segEdit.which)
+      const setMins = setMinsFor(segEdit.which)
       if (segEdit.part === 'h') {
         const clamped = twelve ? Math.min(Math.max(v, 1), 12) : Math.min(v, 23)
         setMins(hourToMins(clamped, mins))
@@ -334,7 +344,7 @@ export function CalendarPicker({
   // The Swift-style meridiem segment — a plain toggle (two values never earn a dropdown), with a
   // stacked compact-chevron affordance so it reads as a control.
   const ampmSegment = (which: 'start' | 'end', mins: number): React.JSX.Element => {
-    const setMins = which === 'start' ? setStartMin : setEndMin
+    const setMins = setMinsFor(which)
     return (
       <button
         type="button"
@@ -373,10 +383,6 @@ export function CalendarPicker({
   // the css: 24px cells · 2px row gap · 2px bottom pad) and set the instant nav fires — SizeMorph
   // then animates the delta on the same duration-base beat as the slide keyframe, so the resize
   // FLOWS with the horizontal move (the PaneSlider contract) instead of snapping after it.
-  const rowsFor = (month: Date): number => {
-    const lead = new Date(month.getFullYear(), month.getMonth(), 1).getDay()
-    return Math.ceil((lead + new Date(month.getFullYear(), month.getMonth() + 1, 0).getDate()) / 7)
-  }
   const gridHeight = rowsFor(cursor) * 24 + (rowsFor(cursor) - 1) * 2 + 2
   const jump = (y: number, m: number): void => {
     setCursor(new Date(y, m, 1))
@@ -488,9 +494,8 @@ export function CalendarPicker({
             Equal sizing buys the AM/PM segment its room. Range fields take the picker-only
             condensed form (year rejoins only across years); single-date stays verbatim. */}
         {(() => {
-          const spansYears = start !== null && end !== null && start.slice(0, 4) !== end.slice(0, 4)
-          const condensed = { withYear: spansYears }
-          if (endOn)
+          if (endOn) {
+            const condensed = { withYear: start !== null && end !== null && start.slice(0, 4) !== end.slice(0, 4) }
             return (
               <>
                 <div className={s.fieldRow}>
@@ -505,6 +510,7 @@ export function CalendarPicker({
                 )}
               </>
             )
+          }
           return (
             <div className={s.fieldRow}>
               {dateField(start, 'date')}
