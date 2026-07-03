@@ -9,6 +9,7 @@ import { duration } from '../../design-system/tokens/motion'
 import { IconPicker } from '../IconPicker'
 import { EditableInput } from '../EditableInput'
 import { InlineEditHeader } from './InlineEditHeader'
+import { OptionEditor } from './OptionEditor'
 import { PaneSlider } from './PaneSlider'
 import { PaneDnd, RowShell, usePaneRegions } from './paneDnd'
 import { nexusReorderIndex, type PaneDrop, type PaneRow } from './paneDndModel'
@@ -306,7 +307,11 @@ export function PropertiesPane({
           onClick: () => void editorMenu(def)
         })}
         <InlineEditHeader value={def.name} onIconClick={() => setIconOpen(true)} onCommit={(next) => void rename(def.id, next)} />
-        <MenuCaption>{propertyTypeLabel(def.type)} options — pending</MenuCaption>
+        {def.type === 'select' || def.type === 'multi_select' ? (
+          <OptionEditor options={def.select_options ?? []} />
+        ) : (
+          <MenuCaption>{propertyTypeLabel(def.type)} options — pending</MenuCaption>
+        )}
       </>
     )
   }

@@ -40,6 +40,13 @@ const PAD = {
   backRowBlock: 4 // back-row vertical padding — THE pane-header height knob (no min-height floor)
 }
 
+/** — OPTION EDITOR — (Select/Multi option list; px) */
+const OPTION = {
+  gapAroundLabel: 6, // "Options" → first chip (the gap ABOVE "Options" is the header's own bottom pad)
+  gapBetweenChips: 4, // chip → chip
+  addBox: 20 // the "Options" + hit target (its glyph is ICON.optionsAdd)
+}
+
 /** — ICONS — glyph sizes, consumed by PropertiesPane/ViewPane TSX. The back-row's own
  *  ‹ chevron is the shared MenuBackRow's (12, in Menu.tsx) — not a pane-local knob. */
 export const ICON = {
@@ -50,7 +57,8 @@ export const ICON = {
   rootEntry: 16, // the root menu's leading icons (Properties · Visibility · …)
   twisty: 12, // the All Properties disclosure chevron
   rowPlus: 12, // the registry row's + glyph
-  eye: 14 // the Visibility pane's eye / eye-off glyph
+  eye: 14, // the Visibility pane's eye / eye-off glyph
+  optionsAdd: 12 // the option editor's "Options" + glyph
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -254,3 +262,44 @@ export const allHighlight = style({
   background: COLOR.dragHighlight,
   borderRadius: `${SIZE.dragHighlightRadius}px`
 })
+
+// ═══════════════════════════════════════════════════════════════════════════
+// § OPTION EDITOR — the Select / Multi-Select option list in a property's editor
+// ═══════════════════════════════════════════════════════════════════════════
+
+/** The option list container, below the InlineEditHeader (whose bottom pad sets the gap above). */
+export const optionEditor = style({ display: 'flex', flexDirection: 'column' })
+
+/** The "Options" row — label left, the always-shown + right. */
+export const optionsRow = style({ display: 'flex', alignItems: 'center', justifyContent: 'space-between' })
+
+/** The "Options" label — footnote-emphasized + tertiary, matching the All Properties heading. */
+export const optionsLabel = style([text.footnote.emphasized, { color: COLOR.allHeading }])
+
+/** The always-shown + that appends an option — the registry row's +/hover treatment, one size up. */
+export const optionsAdd = style({
+  width: `${OPTION.addBox}px`,
+  height: `${OPTION.addBox}px`,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  border: 'none',
+  background: 'none',
+  padding: 0,
+  cursor: 'default',
+  color: COLOR.rowPlus,
+  transition: `color ${duration.fast} ${easing.standard}`,
+  selectors: { '&:hover': { color: COLOR.rowPlusHover } }
+})
+
+/** The chip list — left-aligned chips, the inter-chip gap between them, the "Options"→chips gap on top. */
+export const optionList = style({
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'flex-start',
+  gap: `${OPTION.gapBetweenChips}px`,
+  paddingTop: `${OPTION.gapAroundLabel}px`
+})
+
+/** One option's row — the chip (its hover palette icon lands here with recolor). */
+export const optionRow = style({ display: 'flex', alignItems: 'center' })
