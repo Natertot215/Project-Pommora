@@ -1,5 +1,5 @@
 import type { StatusGroupId } from '@shared/properties'
-import { chip, chipCapsule, chipColor } from '@renderer/design-system/tokens'
+import { chipCapsule, chipColor } from '@renderer/design-system/tokens'
 import { chipColorFor } from '@renderer/design-system/tokens/colorMap'
 import { cx } from '@renderer/design-system/cx'
 import { Icon } from '@renderer/design-system/symbols'
@@ -10,7 +10,7 @@ import { STATUS_GROUP_GLYPH } from './statusCycle'
  *  can't drift. */
 export function StatusCapsule({ color, group }: { color?: string; group: StatusGroupId | undefined }): React.JSX.Element {
   return (
-    <span className={cx(chip, chipColor[chipColorFor(color)], chipCapsule)}>
+    <span className={cx(chipCapsule, chipColor[chipColorFor(color)])}>
       <Icon name={group ? STATUS_GROUP_GLYPH[group] : 'circle-dashed'} size={13} />
     </span>
   )

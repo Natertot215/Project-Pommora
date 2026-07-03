@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import type { ResolvedGroup } from '@shared/types'
 import type { SavedView } from '@shared/views'
-import { chip, chipCheckbox, chipColor, text } from '@renderer/design-system/tokens'
+import { chipBox, chipColor, text } from '@renderer/design-system/tokens'
 import { cx } from '@renderer/design-system/cx'
 import { Icon, asIconName } from '@renderer/design-system/symbols'
 import { Chip } from '@renderer/Components/Chip'
@@ -48,7 +48,7 @@ function groupGlyph(
       const on = group.key === 'true'
       return (
         <span className="group-name">
-          <span className={cx(chip, chipColor.default, chipCheckbox)}>
+          <span className={cx(chipBox, chipColor.default)}>
             {on ? <Icon name="check" size={12} strokeWidth={3} /> : null}
           </span>
           {on ? 'On' : 'Off'}

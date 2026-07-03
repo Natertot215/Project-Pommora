@@ -1,7 +1,7 @@
 // A ViewPlugin is valid because replaces never cross a line break (block-spanning chrome would need a StateField).
 import { Decoration, type DecorationSet, EditorView, ViewPlugin, type ViewUpdate, WidgetType } from '@codemirror/view'
 import type { Extension, Range } from '@codemirror/state'
-import { chipCheckbox } from '../../design-system/tokens'
+import { chipBoxGeometry } from '../../design-system/tokens'
 import { tokenize, activeTokenIndices, type Token } from '../tokens'
 import { docString } from "./docCache";
 import { decorationsFor, fencedCodeRanges, GLYPH_CLASS, type WidgetSpec } from '../decorations/intent'
@@ -53,7 +53,7 @@ class CheckboxWidget extends WidgetType {
     const zone = document.createElement('span')
     zone.className = `md-li-marker ${GLYPH_CLASS}`
     const box = document.createElement('span')
-    box.className = `${chipCheckbox} md-checkbox${this.checked ? ' md-checkbox-checked' : ''}`
+    box.className = `${chipBoxGeometry} md-checkbox${this.checked ? ' md-checkbox-checked' : ''}`
     if (this.checked) {
       box.innerHTML =
         '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5l10 -10"/></svg>'

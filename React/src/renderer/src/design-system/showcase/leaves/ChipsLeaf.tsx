@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react'
-import { chip, chipColor, chipCheckbox, chipCapsule, chipLabel } from '@renderer/design-system/tokens'
+import { chipPill, chipCapsule, chipBox, chipColor, chipLabel } from '@renderer/design-system/tokens'
 import { Icon } from '@renderer/design-system/symbols'
 import { SortableZone, useDragItem, reorder } from '@renderer/design-system/interactions/drag'
 import { cx } from '@renderer/design-system/cx'
@@ -7,7 +7,7 @@ import { humanize, useIsCompact } from './helpers'
 
 type ChipColorName = keyof typeof chipColor
 const CHIP_COLORS = Object.keys(chipColor) as ChipColorName[]
-const pillClass = (color: ChipColorName): string => `${chip} ${chipColor[color]}`
+const pillClass = (color: ChipColorName): string => `${chipPill} ${chipColor[color]}`
 
 function ChipCell({ id, color, label }: { id: string; color: ChipColorName; label: string }): React.JSX.Element {
   const { setNodeRef, style, handle } = useDragItem(id)
@@ -47,9 +47,9 @@ function PillRow(): React.JSX.Element {
   )
 }
 
-const STATIC_SHAPES: Array<{ label: string; extra?: string; content: () => ReactNode }> = [
-  { label: 'Select', extra: chipCapsule, content: () => <Icon name="circle-dashed" size={13} /> },
-  { label: 'Checkbox', extra: chipCheckbox, content: () => <Icon name="check" size={12} strokeWidth={3} /> }
+const STATIC_SHAPES: Array<{ label: string; shape: string; content: () => ReactNode }> = [
+  { label: 'Capsule', shape: chipCapsule, content: () => <Icon name="circle-dashed" size={13} /> },
+  { label: 'Box', shape: chipBox, content: () => <Icon name="check" size={12} strokeWidth={3} /> }
 ]
 
 // Components not yet built — they land as new leaves under the Components section.
@@ -69,7 +69,7 @@ export function ChipsLeaf(): React.JSX.Element {
             <div className="ds-chip-row" key={shape.label}>
               <div className="ds-chip-rowlabel">{shape.label}</div>
               {CHIP_COLORS.map((k) => (
-                <span key={k} className={cx(chip, chipColor[k], shape.extra)} title={k}>
+                <span key={k} className={cx(shape.shape, chipColor[k])} title={k}>
                   {shape.content()}
                 </span>
               ))}

@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import {
-  chip,
+  chipPill,
   chipColor,
   chipLabel,
   chipLabelBlur,
@@ -29,7 +29,7 @@ export function Chip({
   onRemove?: () => void
 }): React.JSX.Element {
   return (
-    <span className={cx(chip, chipColor[color], onRemove && chipRemovable)}>
+    <span className={cx(chipPill, chipColor[color], onRemove && chipRemovable)}>
       {onRemove ? <ChipRemoveButton onRemove={onRemove} /> : null}
       {icon}
       <ChipLabel label={label} removable={!!onRemove} />

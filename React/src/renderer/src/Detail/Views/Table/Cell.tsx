@@ -1,7 +1,7 @@
 import type { ColumnStyle } from '@shared/columnStyles'
 import type { PropertyValue } from '@shared/propertyValue'
 import type { ResolvedColumn, ViewRow } from '@shared/types'
-import { chip, chipCheckbox, chipColor } from '@renderer/design-system/tokens'
+import { chipBox, chipColor } from '@renderer/design-system/tokens'
 import { cx } from '@renderer/design-system/cx'
 import { Icon, asIconName } from '@renderer/design-system/symbols'
 import { Switch } from '@renderer/design-system/components/Switches/Switch'
@@ -60,7 +60,7 @@ export function Cell({
         return style.look === 'capsule' ? (
           <StatusCapsule color={opt?.color} group={group} />
         ) : (
-          <span className={cx(chip, chipColor[chipColorFor(opt?.color)], chipCheckbox)}>
+          <span className={cx(chipBox, chipColor[chipColorFor(opt?.color)])}>
             {group && group !== 'upcoming' ? <Icon name={STATUS_GROUP_GLYPH[group]} size={12} strokeWidth={3} /> : null}
           </span>
         )
@@ -97,7 +97,7 @@ export function Cell({
         return <Switch checked={v.value} onChange={() => {}} ariaLabel="Checkbox value" />
       }
       return (
-        <span className={cx(chip, chipColor.default, chipCheckbox)}>
+        <span className={cx(chipBox, chipColor.default)}>
           {v.value ? <Icon name="check" size={12} strokeWidth={3} /> : null}
         </span>
       )

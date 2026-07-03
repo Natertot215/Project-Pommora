@@ -5,9 +5,14 @@ import { TINT_STEPS, tint, tintAt } from './tint'
 
 const solid = colorVars.color.solid
 
-// One source for the Control/Emphasized text ramp — never re-state size/line/weight here.
-// Color via `chipColor.*`; shape variant via `chipCheckbox`. Compose: `${chip} ${chipColor.blue}`.
-export const chip = style([
+// ═══════════════════════════════════════════════════════════════════════════
+// § SHAPE PRIMITIVES — one class per chip shape, each complete on its own.
+// Compose exactly ONE shape with ONE color: `${chipPill} ${chipColor.blue}`.
+// Adding a new type = one block: compose `chipBase`, state the shape's
+// geometry, export it. Text ramp comes from the base — never restate it.
+// ═══════════════════════════════════════════════════════════════════════════
+
+const chipBase = style([
   text.control.semibold,
   {
     display: 'inline-flex',
@@ -15,14 +20,56 @@ export const chip = style([
     justifyContent: 'center',
     gap: '4px',
     boxSizing: 'border-box',
-    height: '20px',
-    padding: '0 6px',
-    borderRadius: '10px',
     borderStyle: 'solid',
-    borderWidth: '2px',
     whiteSpace: 'nowrap'
   }
 ])
+
+/** chip-pill — the standard text chip (status/select/multi/context labels). */
+export const chipPill = style([
+  chipBase,
+  {
+    height: '20px',
+    padding: '0 6px',
+    borderRadius: '10px',
+    borderWidth: '2px'
+  }
+])
+
+/** chip-capsule — the icon-only shape (a single small glyph, no label; the showcase's
+ *  "Select" row). Pill geometry with the glyph centered. */
+export const chipCapsule = style([
+  chipBase,
+  {
+    height: '20px',
+    padding: '0 6px',
+    borderRadius: '10px',
+    borderWidth: '2px',
+    gap: 0
+  }
+])
+
+/** The box shape's bare frame — geometry only, no chip base. Exported for non-chip
+ *  consumers that style themselves (the editor's task checkbox rides it under md-checkbox). */
+export const chipBoxGeometry = style({
+  width: '17px',
+  height: '17px',
+  padding: 0,
+  borderRadius: '5.5px',
+  borderWidth: '1.5px'
+})
+
+/** chip-box — the fixed 17×17 rounded square (radius 5.5, 1.5px stroke); holds one
+ *  glyph (the checkbox look's checkmark). */
+export const chipBox = style([chipBase, chipBoxGeometry])
+
+// ═══════════════════════════════════════════════════════════════════════════
+// § REMOVE-× MELT MACHINERY — the hover-revealed × + the label-tail melt.
+// LOAD-BEARING (Guidelines/Build-Gotchas.md § Chip Melt): masks STATIC from
+// mount, reveals flip OPACITIES only, the removable label is pointer-inert.
+// Any change here runs the re-verify matrix — computed styles lie for this
+// bug class; only live hovers are truth.
+// ═══════════════════════════════════════════════════════════════════════════
 
 /** A chip that carries a hover-revealed remove ×. The modifier only anchors the affordance;
  *  the × itself is `chipRemove`; the label's TEXT tail blurs beneath it (`chipLabelText` +
@@ -145,6 +192,11 @@ export const chipLabelBlur = style({
   }
 })
 
+// ═══════════════════════════════════════════════════════════════════════════
+// § COLOR — the unified tint, one variant per palette key. Shape-agnostic:
+// every shape above composes with any `chipColor.*`.
+// ═══════════════════════════════════════════════════════════════════════════
+
 /** tint() + the chip's FILL color as a var so descendants can paint in it — the blurred twin
  *  melts the label's tail INTO the fill, not into a text-colored haze. A surface that overrides
  *  the fill (ContextChip's neutral quaternary) must override `--chip-fill` alongside it. */
@@ -169,26 +221,3 @@ export const chipColor = styleVariants({
 
 /** The chip palette keys — the single source consumers (cells, `colorMap`) target. */
 export type ChipColorName = keyof typeof chipColor
-
-/**
- * Checkbox chip — a fixed 17×17 rounded square (radius 5.5) with a 1.5px stroke;
- * holds only a checkmark. Pill = a text `chip` — no shape modifier needed.
- */
-export const chipCheckbox = style({
-  width: '17px',
-  height: '17px',
-  padding: 0,
-  borderRadius: '5.5px',
-  borderWidth: '1.5px'
-})
-
-/**
- * Capsule chip — the icon-only shape (a single small glyph, no label; the showcase's
- * "Select" row). Geometry is the pill's with the icon centered; the named class exists
- * so consumers target the shape instead of re-deriving `chip` + icon content ad hoc.
- */
-export const chipCapsule = style({
-  padding: '0 6px',
-  gap: 0
-})
-

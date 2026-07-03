@@ -1,6 +1,6 @@
 import { vars as colorVars } from './color.css'
 import { font, text } from './typography.css'
-import { chip, chipColor, chipCheckbox, chipCapsule, chipLabel, chipLabelText, chipLabelBlur, chipLabelMelt, chipRemovable, chipRemove } from './chip.css'
+import { chipPill, chipCapsule, chipBox, chipBoxGeometry, chipColor, chipLabel, chipLabelText, chipLabelBlur, chipLabelMelt, chipRemovable, chipRemove } from './chip.css'
 import { size, type IconSize, type ButtonSize } from './size.css'
 import { tint, tintAt, TINT_STEPS, type TintStep } from './tint'
 import './theme-vars.css' // bridges tokens → stable CSS vars for plain-CSS consumers
@@ -9,7 +9,7 @@ import './theme-vars.css' // bridges tokens → stable CSS vars for plain-CSS co
  * The single token object. Read scalar values as `vars.color.*`, `vars.font.*`,
  * and `vars.size.*` (e.g. `vars.color.solid.blue`, `vars.font.weight.semibold`,
  * `vars.size.icon.md`, `vars.size.control.button.large.height`). One import:
- *   import { vars, text, chip, chipColor } from '@renderer/design-system/tokens'
+ *   import { vars, text, chipPill, chipColor } from '@renderer/design-system/tokens'
  */
 export const vars = {
   ...colorVars,
@@ -24,13 +24,12 @@ export type { IconSize, ButtonSize }
 export { text }
 
 /**
- * Chip recipe — the unified tint (fill = base 60% · stroke = base 40%, 2px /
- * 1.5px checkbox · text = label-primary + base 15%). Compose
- * `${chip} ${chipColor.blue}`; add `chipCheckbox` for the 17×17 checkbox square
- * or `chipCapsule` for the icon-only capsule. A plain `chip` is a Pill (text).
- * `tint(base)` is the raw recipe (e.g. for an accent chip via
- * `tint('var(--accent)')`). See chip.css.ts.
+ * Chip primitives — one class per SHAPE, composed with one `chipColor.*`:
+ * `${chipPill} ${chipColor.blue}` (text) · `chipCapsule` (icon-only) ·
+ * `chipBox` (the 17×17 rounded square). The unified tint: fill = base 60% ·
+ * stroke = base 40% · text = label-primary + base 15%. `tint(base)` is the
+ * raw recipe (e.g. an accent chip via `tint('var(--accent)')`). See chip.css.ts.
  */
-export { chip, chipColor, chipCheckbox, chipCapsule, chipLabel, chipLabelText, chipLabelBlur, chipLabelMelt, chipRemovable, chipRemove, tint, tintAt, TINT_STEPS }
+export { chipPill, chipCapsule, chipBox, chipBoxGeometry, chipColor, chipLabel, chipLabelText, chipLabelBlur, chipLabelMelt, chipRemovable, chipRemove, tint, tintAt, TINT_STEPS }
 export type { TintStep }
 export { duration, easing } from './motion'

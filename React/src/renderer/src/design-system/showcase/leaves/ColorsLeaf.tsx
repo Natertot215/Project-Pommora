@@ -1,5 +1,5 @@
 import { useState, type CSSProperties } from 'react'
-import { vars, chip, tint, tintAt, TINT_STEPS } from '@renderer/design-system/tokens'
+import { vars, chipPill, tint, tintAt, TINT_STEPS } from '@renderer/design-system/tokens'
 import { SortableZone, useDragItem, reorder } from '@renderer/design-system/interactions/drag'
 import { applyAccent, readCssAccentColor } from '../../accent'
 import { ACCENT_COLORS, type AccentSetting } from '@shared/types'
@@ -115,7 +115,7 @@ function AccentDemo(): React.JSX.Element {
         </div>
         <div className="ds-accent-samples">
           <span className="ds-accent-btn">Accent button</span>
-          <span className={chip} style={tint('var(--accent)')}>Accent</span>
+          <span className={chipPill} style={tint('var(--accent)')}>Accent</span>
           <span className="ds-accent-link">Accent text</span>
         </div>
       </div>
