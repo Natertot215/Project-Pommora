@@ -59,15 +59,16 @@ export const paneHeader = style({
 })
 export const paneHeaderBack = style({ flex: '1 1 auto', minWidth: 0 })
 
-/** THE ViewPane back-row vertical-padding knob — this pane only, apart from every other menu. */
-export const backRowPad = style({ paddingBlock: '6px' })
+/** THE ViewPane back-row vertical-geometry knob — this pane only. Drops the base row's 24px
+ *  min-height floor, so row height = the caption line + 2 × paddingBlock; tune the one number. */
+export const backRowPad = style({ paddingBlock: '4px', minHeight: 0 })
 
-/** Bare 20×20 icon button in the pane header — the back-row chevron's EXACT color binding
- *  (the side cluster's stable var) at rest, lifting to primary on the Add-Banner beat. */
+/** Bare header icon button (⊕ create, ⋮ menu) — tertiary at rest, secondary on hover (Nathan's
+ *  ruling), no vertical box beyond the glyph (a fixed height held the header taller than the
+ *  back row); width keeps the horizontal hit target. */
 export const headerAction = style({
   flex: '0 0 auto',
   width: '20px',
-  height: '20px',
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
@@ -75,9 +76,9 @@ export const headerAction = style({
   background: 'none',
   padding: 0,
   cursor: 'default',
-  color: 'var(--label-secondary)',
+  color: 'var(--label-tertiary)',
   transition: `color ${duration.fast} ${easing.standard}`,
-  selectors: { '&:hover': { color: c.label.primary } }
+  selectors: { '&:hover': { color: 'var(--label-secondary)' } }
 })
 
 /** The "All Properties" disclosure heading — footnote-emphasized, tertiary (A-3), its chevron
