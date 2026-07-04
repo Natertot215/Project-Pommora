@@ -12,7 +12,7 @@ import { SchemaTransaction } from '../io/schemaTransaction'
 import { listMarkdownFiles } from '../io/walk'
 import { replacePageValue, stripPageValue } from './pageValue'
 import { ok, fail, type Result } from '@shared/result'
-import { renameOption as renameInArray, type Option } from '@shared/optionModel'
+import { renameOption as renameInArray, renameStatusOption as renameStatusInArray, type Option } from '@shared/optionModel'
 import type { PropertyType, StatusGroup } from '@shared/properties'
 
 /** These ops edit `select_options`, so they apply to Select / Multi-Select only. A Status property's
@@ -62,6 +62,64 @@ export function setStatusGroups(root: string, propertyId: string, groups: Status
       return { next: { ...registry, defs: { ...registry.defs, [propertyId]: next } }, result: ok(null) }
     })
   )
+}
+
+/** These ops edit a Status property's `status_groups`; reject anything else up front. */
+function requireStatusType(type: PropertyType): Result<null> {
+  return type === 'status'
+    ? ok(null)
+    : fail('invalid-property', 'Status options can only be edited on a Status property.')
+}
+
+/** Rename a status option (value=title, like Select's renameOption) and cascade the new value onto every
+ *  assigning page's `$status`. Validates unique values property-wide before any page is touched. */
+export function renameStatusOption(root: string, propertyId: string, oldValue: string, newTitle: string): Promise<Result<null>> {
+  return serializeSchemaOp(async () => {
+    const edit = await mutateRegistry<Result<null>>(root, (registry) => {
+      const def = registry.defs[propertyId]
+      if (!def) return { result: fail('not-found', 'Property not found.') }
+      const typeCheck = requireStatusType(def.type)
+      if (!typeCheck.ok) return { result: typeCheck }
+      const nextGroups = renameStatusInArray(def.status_groups ?? [], oldValue, newTitle)
+      const check = validateOptionValues(nextGroups.flatMap((g) => g.options))
+      if (!check.ok) return { result: check }
+      const next = { ...def, status_groups: nextGroups }
+      return { next: { ...registry, defs: { ...registry.defs, [propertyId]: next } }, result: ok(null) }
+    })
+    if (!edit.ok) return edit
+    await cascadePages(root, (content) => replacePageValue(content, propertyId, oldValue, newTitle, 'status'))
+    return ok(null)
+  })
+}
+
+/** Clear a status option's value from every page, keeping the option in its group. Registry untouched. */
+export function clearStatusOption(root: string, propertyId: string, value: string): Promise<Result<null>> {
+  return serializeSchemaOp(async () => {
+    const def = (await readRegistry(root)).defs[propertyId]
+    if (!def) return fail('not-found', 'Property not found.')
+    const typeCheck = requireStatusType(def.type)
+    if (!typeCheck.ok) return typeCheck
+    await cascadePages(root, (content) => stripPageValue(content, propertyId, value, 'status'))
+    return ok(null)
+  })
+}
+
+/** Remove a status option: strip its value from every page, then drop it from its group. Pages first,
+ *  so a def-edit failure never leaves the option gone with its page values orphaned. */
+export function removeStatusOption(root: string, propertyId: string, value: string): Promise<Result<null>> {
+  return serializeSchemaOp(async () => {
+    const def = (await readRegistry(root)).defs[propertyId]
+    if (!def) return fail('not-found', 'Property not found.')
+    const typeCheck = requireStatusType(def.type)
+    if (!typeCheck.ok) return typeCheck
+    await cascadePages(root, (content) => stripPageValue(content, propertyId, value, 'status'))
+    return mutateRegistry<Result<null>>(root, (registry) => {
+      const current = registry.defs[propertyId]
+      if (!current) return { result: fail('not-found', 'Property not found.') }
+      const nextGroups = (current.status_groups ?? []).map((g) => ({ ...g, options: g.options.filter((o) => o.value !== value) }))
+      return { next: { ...registry, defs: { ...registry.defs, [propertyId]: { ...current, status_groups: nextGroups } } }, result: ok(null) }
+    })
+  })
 }
 
 /** Rewrite every assigning collection's pages through `rewrite` (null = the page doesn't hold it,

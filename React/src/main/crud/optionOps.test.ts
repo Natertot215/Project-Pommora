@@ -2,7 +2,15 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { mkdtemp, rm, readFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { setOptions, renameOption, removeOption, clearOption } from './optionOps'
+import {
+  setOptions,
+  renameOption,
+  removeOption,
+  clearOption,
+  renameStatusOption,
+  removeStatusOption,
+  clearStatusOption
+} from './optionOps'
 import { createProperty, editProperty } from './registryProperty'
 import { assignProperty } from './assignment'
 import { createFolderEntity } from './folderEntity'
@@ -34,6 +42,30 @@ async function pageHolding(id: string, value: string): Promise<string> {
   if (!p.ok) throw new Error('page failed')
   await updatePageProperty(p.value.path, id, { kind: 'select', value })
   return p.value.path
+}
+
+/** A Status property seeded Open / Active / Done (upcoming / in_progress / done groups). */
+async function mkStatus(): Promise<string> {
+  const c = await createProperty(root, { id: '', name: 'Stage', type: 'status' } as PropertyDefinition)
+  if (!c.ok) throw new Error('createProperty failed')
+  return c.value.id
+}
+
+/** A collection assigning the Status property `id`, holding one page whose `$status` is `value`. */
+async function statusPageHolding(id: string, value: string): Promise<string> {
+  const col = await createFolderEntity(root, 'collection', 'Col')
+  if (!col.ok) throw new Error('folder failed')
+  await assignProperty(root, col.value.path, id)
+  const p = await createPage(col.value.path, 'One', { body: 'b' })
+  if (!p.ok) throw new Error('page failed')
+  await updatePageProperty(p.value.path, id, { kind: 'status', value })
+  return p.value.path
+}
+
+/** Every option value across a property's status groups, flattened. */
+async function statusValues(id: string): Promise<string[]> {
+  const def = (await readRegistry(root)).defs[id]
+  return (def.status_groups ?? []).flatMap((g) => g.options.map((o) => o.value))
 }
 
 describe('setOptions', () => {
@@ -161,5 +193,66 @@ describe('clearOption', () => {
 
   it('fails for an unknown property id', async () => {
     expect((await clearOption(root, 'prop_nope', 'A')).ok).toBe(false)
+  })
+})
+
+describe('status ops reject non-status properties', () => {
+  it('all three fail on a select property and never corrupt it', async () => {
+    const id = await mkSelect([{ value: 'A', label: 'A' }])
+    expect((await renameStatusOption(root, id, 'A', 'B')).ok).toBe(false)
+    expect((await removeStatusOption(root, id, 'A')).ok).toBe(false)
+    expect((await clearStatusOption(root, id, 'A')).ok).toBe(false)
+    expect((await readRegistry(root)).defs[id].select_options).toEqual([{ value: 'A', label: 'A' }])
+  })
+})
+
+describe('renameStatusOption', () => {
+  it('rewrites the group option and cascades the value onto $status pages', async () => {
+    const id = await mkStatus()
+    const page = await statusPageHolding(id, 'Open')
+
+    const r = await renameStatusOption(root, id, 'Open', 'Started')
+    expect(r.ok).toBe(true)
+    expect(await statusValues(id)).toContain('Started')
+    expect(await statusValues(id)).not.toContain('Open')
+    const content = await readFile(page, 'utf8')
+    expect(content).toContain('Started')
+    expect(content).not.toContain('Open')
+  })
+
+  it('rejects a rename colliding with another option value property-wide (no page writes)', async () => {
+    const id = await mkStatus()
+    const page = await statusPageHolding(id, 'Open')
+    const r = await renameStatusOption(root, id, 'Open', 'Active') // 'Active' already lives in another group
+    expect(r.ok).toBe(false)
+    expect(await readFile(page, 'utf8')).toContain('Open')
+  })
+
+  it('fails for an unknown property id', async () => {
+    expect((await renameStatusOption(root, 'prop_nope', 'A', 'B')).ok).toBe(false)
+  })
+})
+
+describe('removeStatusOption', () => {
+  it('drops the option from its group and strips its value from pages', async () => {
+    const id = await mkStatus()
+    const page = await statusPageHolding(id, 'Active')
+
+    const r = await removeStatusOption(root, id, 'Active')
+    expect(r.ok).toBe(true)
+    expect(await statusValues(id)).not.toContain('Active')
+    expect(await readFile(page, 'utf8')).not.toContain(id)
+  })
+})
+
+describe('clearStatusOption', () => {
+  it('strips the value from pages but KEEPS the option in its group', async () => {
+    const id = await mkStatus()
+    const page = await statusPageHolding(id, 'Done')
+
+    const r = await clearStatusOption(root, id, 'Done')
+    expect(r.ok).toBe(true)
+    expect(await statusValues(id)).toContain('Done')
+    expect(await readFile(page, 'utf8')).not.toContain(id)
   })
 })

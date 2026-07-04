@@ -3,6 +3,7 @@ import {
   addOption,
   addStatusOption,
   recolorStatusOption,
+  renameStatusOption,
   relabelStatusGroup,
   moveStatusOption,
   renameOption,
@@ -75,5 +76,14 @@ describe('optionModel', () => {
       { value: 'A', label: 'A', group_id: 'done' },
       { value: 'D', label: 'D', group_id: 'done' }
     ])
+  })
+
+  it('renameStatusOption sets value+label to the new title in any group, keeping group_id + color', () => {
+    const groups: StatusGroup[] = [
+      { id: 'upcoming', label: 'Open', color: 'grey', options: [{ value: 'A', label: 'A', group_id: 'upcoming' }] },
+      { id: 'done', label: 'Done', color: 'green', options: [{ value: 'D', label: 'D', group_id: 'done', color: 'red' }] }
+    ]
+    expect(renameStatusOption(groups, 'D', 'Shipped')[1].options[0]).toEqual({ value: 'Shipped', label: 'Shipped', group_id: 'done', color: 'red' })
+    expect(renameStatusOption(groups, 'A', 'Todo')[0].options[0]).toEqual({ value: 'Todo', label: 'Todo', group_id: 'upcoming' })
   })
 })

@@ -18,18 +18,26 @@ import * as s from './viewPane.css'
  * option chips (pills, the exclusive status shape), defaulting to the group's colour. The per-group +
  * reveals on group hover and adds an inline-named option; a hover palette icon opens the shared
  * ColorPicker (same placement + logic as the Select/Multi editor); dragging a chip reorders it within
- * its group or across into another (including an empty one). The right-click Rename/Remove/Clear and the
- * Style picker land in later slices; every registry-only edit rides setStatusGroups.
+ * its group or across into another (including an empty one). A right-click Rename/Remove/Clear menu
+ * (native) mirrors the Select editor — Rename is inline, Remove/Clear cascade pages. The Style picker
+ * lands in a later slice; registry-only edits ride setStatusGroups, the page-touching ops their own IPC.
  */
 export function StatusEditor({
   groups,
-  onSetGroups
+  onSetGroups,
+  onRenameOption,
+  onRemoveOption,
+  onClearOption
 }: {
   groups: StatusGroup[]
   onSetGroups: (next: StatusGroup[]) => void
+  onRenameOption: (oldValue: string, newTitle: string) => void
+  onRemoveOption: (value: string) => void
+  onClearOption: (value: string) => void
 }): React.JSX.Element {
   const [adding, setAdding] = useState<string | null>(null) // the group id being added to
   const [renamingGroup, setRenamingGroup] = useState<string | null>(null) // the group id being relabeled
+  const [renaming, setRenaming] = useState<string | null>(null) // the option value being renamed
   const [coloring, setColoring] = useState<string | null>(null) // the option value being recolored
   const paletteBtnRef = useRef<HTMLButtonElement>(null)
   const reorder = useStatusReorder(
@@ -46,6 +54,17 @@ export function StatusEditor({
     setRenamingGroup(null)
     const title = raw.trim()
     if (title) onSetGroups(relabelStatusGroup(groups, groupId, title))
+  }
+  const commitRename = (oldValue: string, raw: string, groupLabel: string): void => {
+    setRenaming(null)
+    const title = raw.trim() || fallbackTitle('status', groupLabel)
+    if (title !== oldValue) onRenameOption(oldValue, title)
+  }
+  const openMenu = async (value: string, name: string): Promise<void> => {
+    const action = await window.nexus.optionMenu({ name })
+    if (action === 'option:rename') setRenaming(value)
+    else if (action === 'option:remove') onRemoveOption(value)
+    else if (action === 'option:clear') onClearOption(value)
   }
   const pickColor = (value: string, color: string | undefined): void => {
     setColoring(null)
@@ -85,27 +104,45 @@ export function StatusEditor({
                   ref={(el) => reorder.registerRow(o.value, el)}
                   className={cx(s.optionRow, reorder.dragging === o.value && s.rowDragging)}
                   onPointerDown={(e) => reorder.onRowPointerDown(o.value, e)}
+                  onContextMenu={(e) => {
+                    e.preventDefault()
+                    void openMenu(o.value, o.label)
+                  }}
                 >
-                  <Chip shape={chipShapeForType('status')} color={chipColorFor(o.color ?? g.color)} label={o.label} />
-                  <span className={s.paletteAnchor}>
-                    <button
-                      ref={isColoring ? paletteBtnRef : undefined}
-                      type="button"
-                      className={s.paletteButton}
-                      style={isColoring ? { opacity: 1 } : undefined}
-                      aria-label="Recolor"
-                      onClick={() => setColoring((v) => (v === o.value ? null : o.value))}
-                    >
-                      <Icon name="palette" size={s.ICON.palette} />
-                    </button>
-                    <ColorPicker
-                      open={isColoring}
-                      selected={chipColorFor(o.color ?? g.color)}
-                      onPick={(color) => pickColor(o.value, color)}
-                      onDismiss={() => setColoring(null)}
-                      triggerRef={paletteBtnRef}
-                    />
-                  </span>
+                  {renaming === o.value ? (
+                    <span className={cx(chipPill, chipColor[chipColorFor(o.color ?? g.color)])}>
+                      <EditableInput
+                        value={o.label}
+                        autoSize
+                        className={s.optionInput}
+                        onCommit={(raw) => commitRename(o.value, raw, g.label)}
+                        onCancel={() => setRenaming(null)}
+                      />
+                    </span>
+                  ) : (
+                    <>
+                      <Chip shape={chipShapeForType('status')} color={chipColorFor(o.color ?? g.color)} label={o.label} />
+                      <span className={s.paletteAnchor}>
+                        <button
+                          ref={isColoring ? paletteBtnRef : undefined}
+                          type="button"
+                          className={s.paletteButton}
+                          style={isColoring ? { opacity: 1 } : undefined}
+                          aria-label="Recolor"
+                          onClick={() => setColoring((v) => (v === o.value ? null : o.value))}
+                        >
+                          <Icon name="palette" size={s.ICON.palette} />
+                        </button>
+                        <ColorPicker
+                          open={isColoring}
+                          selected={chipColorFor(o.color ?? g.color)}
+                          onPick={(color) => pickColor(o.value, color)}
+                          onDismiss={() => setColoring(null)}
+                          triggerRef={paletteBtnRef}
+                        />
+                      </span>
+                    </>
+                  )}
                 </div>
               )
             })}

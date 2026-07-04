@@ -242,6 +242,15 @@ export function PropertiesPane({
   const clearOption = async (id: string, value: string): Promise<void> => {
     await commit(await window.nexus.property.clearOption(id, value))
   }
+  const renameStatusOption = async (id: string, oldValue: string, newTitle: string): Promise<void> => {
+    await commit(await window.nexus.property.renameStatusOption(id, oldValue, newTitle))
+  }
+  const removeStatusOption = async (id: string, value: string): Promise<void> => {
+    await commit(await window.nexus.property.removeStatusOption(id, value))
+  }
+  const clearStatusOption = async (id: string, value: string): Promise<void> => {
+    await commit(await window.nexus.property.clearStatusOption(id, value))
+  }
   // The four drop kinds route to their persistence targets (E-4): collection order, nexus
   // order (the visible slot translated into the full-order index — assigned ids stay in it),
   // atomic assign-at-slot, and the strip-and-cache Remove.
@@ -334,7 +343,13 @@ export function PropertiesPane({
             onClearOption={(value) => void clearOption(def.id, value)}
           />
         ) : def.type === 'status' ? (
-          <StatusEditor groups={def.status_groups ?? []} onSetGroups={(next) => void saveStatusGroups(def.id, next)} />
+          <StatusEditor
+            groups={def.status_groups ?? []}
+            onSetGroups={(next) => void saveStatusGroups(def.id, next)}
+            onRenameOption={(oldValue, newTitle) => void renameStatusOption(def.id, oldValue, newTitle)}
+            onRemoveOption={(value) => void removeStatusOption(def.id, value)}
+            onClearOption={(value) => void clearStatusOption(def.id, value)}
+          />
         ) : (
           <MenuCaption>{propertyTypeLabel(def.type)} options — pending</MenuCaption>
         )}

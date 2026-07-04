@@ -26,7 +26,16 @@ import { createProperty, editProperty, removeFromRegistry, reorderRegistry } fro
 import { assignProperty, assignPropertyAt, reorderAssignment } from './crud/assignment'
 import { removeProperty } from './crud/removeProperty'
 import { deleteProperty as deletePropertyGlobal } from './crud/deleteProperty'
-import { setOptions, setStatusGroups, renameOption, removeOption, clearOption } from './crud/optionOps'
+import {
+  setOptions,
+  setStatusGroups,
+  renameOption,
+  removeOption,
+  clearOption,
+  renameStatusOption,
+  removeStatusOption,
+  clearStatusOption
+} from './crud/optionOps'
 import type { StatusGroup } from '@shared/properties'
 import type { Option } from '@shared/optionModel'
 import { savedView } from '@shared/views'
@@ -740,6 +749,57 @@ ipcMain.handle(
         return { ok: false, error: 'A property id and value are required.' }
       }
       const r = await clearOption(root, propertyId, value)
+      return r.ok ? { ok: true } : { ok: false, error: r.error.message }
+    } catch (e) {
+      return { ok: false, error: e instanceof Error ? e.message : String(e) }
+    }
+  }
+)
+
+ipcMain.handle(
+  'property:renameStatusOption',
+  async (_e, propertyId: unknown, oldValue: unknown, newTitle: unknown): Promise<{ ok: true } | { ok: false; error: string }> => {
+    try {
+      const root = sessionRoot()
+      if (root === null) return { ok: false, error: 'No nexus is open.' }
+      if (typeof propertyId !== 'string' || typeof oldValue !== 'string' || typeof newTitle !== 'string') {
+        return { ok: false, error: 'propertyId, oldValue, and newTitle are required.' }
+      }
+      const r = await renameStatusOption(root, propertyId, oldValue, newTitle)
+      return r.ok ? { ok: true } : { ok: false, error: r.error.message }
+    } catch (e) {
+      return { ok: false, error: e instanceof Error ? e.message : String(e) }
+    }
+  }
+)
+
+ipcMain.handle(
+  'property:removeStatusOption',
+  async (_e, propertyId: unknown, value: unknown): Promise<{ ok: true } | { ok: false; error: string }> => {
+    try {
+      const root = sessionRoot()
+      if (root === null) return { ok: false, error: 'No nexus is open.' }
+      if (typeof propertyId !== 'string' || typeof value !== 'string') {
+        return { ok: false, error: 'A property id and value are required.' }
+      }
+      const r = await removeStatusOption(root, propertyId, value)
+      return r.ok ? { ok: true } : { ok: false, error: r.error.message }
+    } catch (e) {
+      return { ok: false, error: e instanceof Error ? e.message : String(e) }
+    }
+  }
+)
+
+ipcMain.handle(
+  'property:clearStatusOption',
+  async (_e, propertyId: unknown, value: unknown): Promise<{ ok: true } | { ok: false; error: string }> => {
+    try {
+      const root = sessionRoot()
+      if (root === null) return { ok: false, error: 'No nexus is open.' }
+      if (typeof propertyId !== 'string' || typeof value !== 'string') {
+        return { ok: false, error: 'A property id and value are required.' }
+      }
+      const r = await clearStatusOption(root, propertyId, value)
       return r.ok ? { ok: true } : { ok: false, error: r.error.message }
     } catch (e) {
       return { ok: false, error: e instanceof Error ? e.message : String(e) }

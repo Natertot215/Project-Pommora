@@ -137,7 +137,25 @@ const api = {
       propertyId: string,
       value: string
     ): Promise<{ ok: true } | { ok: false; error: string }> =>
-      ipcRenderer.invoke('property:clearOption', propertyId, value)
+      ipcRenderer.invoke('property:clearOption', propertyId, value),
+    // Status variants of the page-touching ops — same cascade, keyed on the Status property's
+    // `status_groups`. Rename cascades the new value onto pages; remove/clear strip it.
+    renameStatusOption: (
+      propertyId: string,
+      oldValue: string,
+      newTitle: string
+    ): Promise<{ ok: true } | { ok: false; error: string }> =>
+      ipcRenderer.invoke('property:renameStatusOption', propertyId, oldValue, newTitle),
+    removeStatusOption: (
+      propertyId: string,
+      value: string
+    ): Promise<{ ok: true } | { ok: false; error: string }> =>
+      ipcRenderer.invoke('property:removeStatusOption', propertyId, value),
+    clearStatusOption: (
+      propertyId: string,
+      value: string
+    ): Promise<{ ok: true } | { ok: false; error: string }> =>
+      ipcRenderer.invoke('property:clearStatusOption', propertyId, value)
   },
   // The nexus-wide cosmetic property order (B-1) — how every collection's All Properties lists.
   registry: {

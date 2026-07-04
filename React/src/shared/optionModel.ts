@@ -41,6 +41,15 @@ export function recolorStatusOption(groups: StatusGroup[], value: string, color:
   }))
 }
 
+/** Rename a status option (by its OLD value, wherever it lives); value + label both become the new
+ *  title (value=title). The page cascade (main-process) rewrites `$status` on every assigning page. */
+export function renameStatusOption(groups: StatusGroup[], oldValue: string, newTitle: string): StatusGroup[] {
+  return groups.map((g) => ({
+    ...g,
+    options: g.options.map((o) => (o.value === oldValue ? { ...o, value: newTitle, label: newTitle } : o))
+  }))
+}
+
 /** Rename a group's display label (by group id); its calendar-locked id + its options are untouched. */
 export function relabelStatusGroup(groups: StatusGroup[], groupId: string, label: string): StatusGroup[] {
   return groups.map((g) => (g.id === groupId ? { ...g, label } : g))
