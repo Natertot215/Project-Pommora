@@ -283,8 +283,9 @@ export const statusGroup = style({ display: 'flex', flexDirection: 'column' })
 /** The "Options" row — label left, the always-shown + right. */
 export const optionsRow = style({ display: 'flex', alignItems: 'center', justifyContent: 'space-between' })
 
-/** The "Options" label — footnote-emphasized, the shared heading-label color (matches All Properties + the back-row). */
-export const optionsLabel = style([text.footnote.emphasized, { color: COLOR.headingLabel }])
+/** The "Options" heading + the Status group labels — footnote-semibold (Nathan's call: a step heavier
+ *  than the All Properties / back-row headings), the shared heading-label color. */
+export const optionsLabel = style([text.footnote.semibold, { color: COLOR.headingLabel }])
 
 /** The always-shown + that appends an option — the shared action-symbol color, brightening on hover. */
 export const optionsAdd = style({
