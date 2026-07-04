@@ -2,21 +2,24 @@ import { useRef, useState } from 'react'
 import { Icon } from '@renderer/design-system/symbols'
 import { chipPill, chipColor } from '@renderer/design-system/tokens'
 import { chipColorFor } from '@renderer/design-system/tokens/colorMap'
-import { addStatusOption, recolorStatusOption, relabelStatusGroup, fallbackTitle } from '@shared/optionModel'
+import { DROP_LINE_INSET } from '@renderer/design-system/interactions/shared'
+import { addStatusOption, recolorStatusOption, relabelStatusGroup, moveStatusOption, fallbackTitle } from '@shared/optionModel'
 import type { StatusGroup } from '@shared/properties'
 import { cx } from '@renderer/design-system/cx'
 import { Chip, chipShapeForType } from '../Chip'
 import { EditableInput } from '../EditableInput'
 import { ColorPicker } from './ColorPicker'
+import { useStatusReorder } from './useStatusReorder'
 import * as s from './viewPane.css'
 
 /**
  * The Status option editor (Planning 7-3) — the option list grouped by status group (Open / Active /
  * Done): each group's heading (double-click to rename its label; the calendar-locked id stays) + its
- * option chips (pills, the exclusive status shape), defaulting to the group's colour. The always-present
- * per-group + reveals on group hover and adds an inline-named option; a hover palette icon opens the
- * shared ColorPicker (same placement + logic as the Select/Multi editor). Reorder / cross-group drag and
- * the right-click Rename/Remove/Clear land in later slices; all registry-only edits ride setStatusGroups.
+ * option chips (pills, the exclusive status shape), defaulting to the group's colour. The per-group +
+ * reveals on group hover and adds an inline-named option; a hover palette icon opens the shared
+ * ColorPicker (same placement + logic as the Select/Multi editor); dragging a chip reorders it within
+ * its group or across into another (including an empty one). The right-click Rename/Remove/Clear and the
+ * Style picker land in later slices; every registry-only edit rides setStatusGroups.
  */
 export function StatusEditor({
   groups,
@@ -29,6 +32,10 @@ export function StatusEditor({
   const [renamingGroup, setRenamingGroup] = useState<string | null>(null) // the group id being relabeled
   const [coloring, setColoring] = useState<string | null>(null) // the option value being recolored
   const paletteBtnRef = useRef<HTMLButtonElement>(null)
+  const reorder = useStatusReorder(
+    groups.map((g) => ({ id: g.id, values: g.options.map((o) => o.value) })),
+    (value, toGroupId, toIndex) => onSetGroups(moveStatusOption(groups, value, toGroupId, toIndex))
+  )
 
   const commitAdd = (groupId: string, raw: string): void => {
     setAdding(null)
@@ -69,11 +76,16 @@ export function StatusEditor({
               <Icon name="plus" size={s.ICON.optionsAdd} />
             </button>
           </div>
-          <div className={s.optionList}>
+          <div className={s.optionList} ref={(el) => reorder.registerGroup(g.id, el)}>
             {g.options.map((o) => {
               const isColoring = coloring === o.value
               return (
-                <div key={o.value} className={s.optionRow}>
+                <div
+                  key={o.value}
+                  ref={(el) => reorder.registerRow(o.value, el)}
+                  className={cx(s.optionRow, reorder.dragging === o.value && s.rowDragging)}
+                  onPointerDown={(e) => reorder.onRowPointerDown(o.value, e)}
+                >
                   <Chip shape={chipShapeForType('status')} color={chipColorFor(o.color ?? g.color)} label={o.label} />
                   <span className={s.paletteAnchor}>
                     <button
@@ -108,6 +120,11 @@ export function StatusEditor({
                     onCancel={() => setAdding(null)}
                   />
                 </span>
+              </div>
+            ) : null}
+            {reorder.drop?.groupId === g.id ? (
+              <div className="table-drop-line" aria-hidden style={{ top: reorder.drop.top, left: DROP_LINE_INSET, right: DROP_LINE_INSET }}>
+                <span className="table-drop-dot" />
               </div>
             ) : null}
           </div>
