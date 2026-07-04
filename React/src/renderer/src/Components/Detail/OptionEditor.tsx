@@ -6,7 +6,7 @@ import { DROP_LINE_INSET } from '@renderer/design-system/interactions/shared'
 import { addOption, recolorOption, reorderOption, fallbackTitle, type Option } from '@shared/optionModel'
 import type { PropertyType } from '@shared/properties'
 import { cx } from '@renderer/design-system/cx'
-import { Chip } from '../Chip'
+import { Chip, chipShapeForType } from '../Chip'
 import { EditableInput } from '../EditableInput'
 import { ColorPicker } from './ColorPicker'
 import { useOptionReorder } from './useOptionReorder'
@@ -98,7 +98,7 @@ export function OptionEditor({
               </span>
             ) : (
               <>
-                <Chip shape="label" color={chipColorFor(o.color)} label={o.label} />
+                <Chip shape={chipShapeForType(type)} color={chipColorFor(o.color)} label={o.label} />
                 <span className={s.paletteAnchor}>
                   <button
                     ref={isColoring ? paletteBtnRef : undefined}

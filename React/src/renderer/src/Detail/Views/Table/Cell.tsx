@@ -5,7 +5,7 @@ import { chipBox, chipColor } from '@renderer/design-system/tokens'
 import { cx } from '@renderer/design-system/cx'
 import { Icon, asIconName } from '@renderer/design-system/symbols'
 import { Switch } from '@renderer/design-system/components/Switches/Switch'
-import { Chip } from '@renderer/Components/Chip'
+import { Chip, chipShapeForType } from '@renderer/Components/Chip'
 import { ContextChip } from '@renderer/Components/ContextChip'
 import { chipColorFor } from '@renderer/design-system/tokens/colorMap'
 import { OverflowScroll } from '@renderer/design-system/components/OverflowScroll'
@@ -85,7 +85,7 @@ export function Cell({
           <Chip
             color={chipColorFor(opt?.color)}
             label={opt?.label ?? v.value}
-            shape={v.kind === 'select' ? 'label' : 'pill'}
+            shape={chipShapeForType(v.kind)}
             {...(remove ? { onRemove: () => remove(null) } : {})}
           />
         </OverflowScroll>
@@ -101,7 +101,7 @@ export function Cell({
                 key={val}
                 color={chipColorFor(o?.color)}
                 label={o?.label ?? val}
-                shape="label"
+                shape={chipShapeForType(v.kind)}
                 {...(remove ? { onRemove: () => remove({ kind: 'multiSelect', value: v.value.filter((x) => x !== val) }) } : {})}
               />
             )

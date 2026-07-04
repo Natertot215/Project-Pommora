@@ -1,6 +1,6 @@
 import { chipColorFor } from '@renderer/design-system/tokens/colorMap'
 import type { StatusGroup } from '@shared/properties'
-import { Chip } from '../Chip'
+import { Chip, chipShapeForType } from '../Chip'
 import * as s from './viewPane.css'
 
 /**
@@ -20,7 +20,7 @@ export function StatusEditor({ groups }: { groups: StatusGroup[] }): React.JSX.E
           <div className={s.optionList}>
             {g.options.map((o) => (
               <div key={o.value} className={s.optionRow}>
-                <Chip shape="label" color={chipColorFor(o.color ?? g.color)} label={o.label} />
+                <Chip shape={chipShapeForType('status')} color={chipColorFor(o.color ?? g.color)} label={o.label} />
               </div>
             ))}
           </div>

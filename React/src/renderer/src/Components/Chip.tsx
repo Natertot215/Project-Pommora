@@ -19,6 +19,13 @@ import { cx } from '@renderer/design-system/cx'
 const SHAPE = { pill: chipPill, label: chipLabel } as const
 export type ChipShape = keyof typeof SHAPE
 
+/** THE canonical shape for a property/value type — status wears the pill exclusively; select and
+ *  multi-select wear the squared label. One source, so no surface renders a status as a label by
+ *  accident. Every type-driven chip site resolves its shape through here. */
+export function chipShapeForType(type: string): ChipShape {
+  return type === 'status' ? 'pill' : 'label'
+}
+
 /** The shared text chip — the chip recipe (colored fill/border/text) with a capped,
  *  hover-scrolling label (Part 2 G-3). One source for table select/status/multi-select cells
  *  AND the inline picker. `onRemove` opts into the hover ×: it removes THIS chip's value, so

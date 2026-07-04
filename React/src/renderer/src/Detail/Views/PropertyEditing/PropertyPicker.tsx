@@ -4,7 +4,7 @@ import { isUntouchedSeed, type PropertyDefinition } from '@shared/properties'
 import type { PropertyValue } from '@shared/propertyValue'
 import { PickerMenu, PickerOption } from '@renderer/design-system/components/PickerMenu/PickerMenu'
 import { useDismiss } from '@renderer/design-system/components/Popover'
-import { Chip } from '@renderer/Components/Chip'
+import { Chip, chipShapeForType } from '@renderer/Components/Chip'
 import { ContextChip } from '@renderer/Components/ContextChip'
 import { chipColorFor } from '@renderer/design-system/tokens/colorMap'
 import { statusGroupOf } from './statusCycle'
@@ -94,7 +94,7 @@ export function PropertyPicker({
                   <Chip
                     color={chipColorFor(o.color)}
                     label={o.label}
-                    shape={def.type === 'select' || def.type === 'multi_select' ? 'label' : 'pill'}
+                    shape={chipShapeForType(def.type)}
                   />
                 )}
               </PickerOption>

@@ -4,7 +4,7 @@ import type { SavedView } from '@shared/views'
 import { chipBox, chipColor, text } from '@renderer/design-system/tokens'
 import { cx } from '@renderer/design-system/cx'
 import { Icon, asIconName } from '@renderer/design-system/symbols'
-import { Chip } from '@renderer/Components/Chip'
+import { Chip, chipShapeForType } from '@renderer/Components/Chip'
 import { chipColorFor } from '@renderer/design-system/tokens/colorMap'
 import { declaredType } from '../pipeline/value'
 import { RenamableTitle } from '@renderer/Components/RenamableTitle'
@@ -38,12 +38,12 @@ function groupGlyph(
   const propId = view.group?.kind === 'property' ? view.group.property_id : undefined
   if (!propId) return <span className="group-name">{group.key}</span>
 
-  switch (declaredType(propId, ctx.schema)) {
+  const groupType = declaredType(propId, ctx.schema)
+  switch (groupType) {
     case 'status':
     case 'select': {
       const opt = findOption(propId, group.key, ctx.schema)
-      const shape = declaredType(propId, ctx.schema) === 'select' ? 'label' : 'pill'
-      return <Chip color={chipColorFor(opt?.color)} label={opt?.label ?? group.key} shape={shape} />
+      return <Chip color={chipColorFor(opt?.color)} label={opt?.label ?? group.key} shape={chipShapeForType(groupType)} />
     }
     case 'checkbox': {
       const on = group.key === 'true'
