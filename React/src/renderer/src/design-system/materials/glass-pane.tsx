@@ -30,7 +30,7 @@ export interface FrostParams {
 
 export const PANE_FROST: FrostParams = {
   blur: 6,
-  brightness: 95,
+  brightness: 90,
   saturate: 100,
   borderAlpha: 0.12,
   topSpecular: 0.35,
