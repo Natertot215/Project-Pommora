@@ -49,8 +49,8 @@ const OPTION = {
 /** — ICONS — glyph sizes, consumed by PropertiesPane/ViewPane TSX. The back-row's own
  *  ‹ chevron is the shared MenuBackRow's (12, in Menu.tsx) — not a pane-local knob. */
 export const ICON = {
-  add: 12, // the header ⊕ (square-plus)
-  editorMenu: 16, // the editor header's ⋮
+  add: 14, // the header ⊕ (square-plus) — sized to the back-row heading (13px), per Nathan
+  editorMenu: 14, // the editor header's ⋮ — sized to the back-row heading (13px), per Nathan
   doc: 12, // the property-type icon on every row (assigned · registry · type picker)
   rowChevron: 16, // the trailing › on navigable rows (root entries + assigned rows)
   rootEntry: 16, // the root menu's leading icons (Properties · Visibility · …)
