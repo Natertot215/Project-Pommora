@@ -10,31 +10,31 @@ Phased plan in chronological order; no calendar dates. Each version ships green 
 
 #### Shipped versions (earliest → latest)
 
-##### v0.0.0 — Shell opens
+##### v0.0.0 — Shell Opens
 Toolchain proof on macOS 26+ (Tahoe). Three-pane shell (sidebar / main / pop-out inspector, inspector default closed) on SwiftUI's two-column `NavigationSplitView` + `.inspector(isPresented:)`. Both side panes drag-resizable; widths persist.
 
 ##### v0.1.0 — Nexus Foundation
 Sandboxed folder picker, security-scoped bookmark persistence, `.nexus/` init flow, per-nexus App Support subdir keyed by ULID. Sidebar mirrors the picked folder. File menu → Open Nexus; Debug menu → Reset Bookmark.
 
-##### v0.2.0 — Paradigm scaffolding + sidebar UX
+##### v0.2.0 — Paradigm Scaffolding + Sidebar UX
 Scaffolded the full locked paradigm: every entity CRUD-able end-to-end via sidebar + sheets + detail pane. Areas / Topics / Vaults sidebar sections with Pages disclosed under Vaults/Collections; Agenda in detail-pane Tables.
 
-##### v0.2.1–v0.2.6 — Infrastructure baseline
+##### v0.2.1–v0.2.6 — Infrastructure Baseline
 Sidebar UX tweaks, GitHub Actions CI (`macos-26`), `swift-format` baseline + config + CI lint step, and the `.trash//` data foundation (disk-recoverable deletes; the in-app Trash window surface lands later).
 
-##### v0.2.7.0 — Pages editor (TextKit 2)
+##### v0.2.7.0 — Pages Editor (TextKit 2)
 Native NSTextView + Apple `swift-markdown` + the Pommora-owned `MarkdownPM` package. Writing Tools, Look Up, spell-check, IME, and dynamic system colors come free. One styler walks the cached AST once. `.md` is the architectural firewall — Pages survive any future editor swap. Spec → `// Features//PageEditor.md`.
 
 ##### v0.2.7.1 — Navigation
 Liquid Glass dropdown navigation surface — Pinned + Recents tabs, single-click select / double-click open. `⌘T` opens; `⌘[` / `⌘]` walk Recents. Replaces the earlier tab-strip navigation model.
 
-##### v0.2.7.2–v0.2.7.5 — Editor construct passes
+##### v0.2.7.2–v0.2.7.5 — Editor Construct Passes
 HR, Lists, code blocks, and Blockquote rewritten through the dynamic-syntax architecture (markers shrink when the caret leaves the AST node, Bear/Notion pattern; on disk standard CommonMark). Bullet glyph substitution, task-list shorthand, bracket auto-pair, and arrow auto-format land alongside. Locked construct rules → `// Features//PageEditor.md`.
 
-##### v0.2.8 — Sidebar drag-to-reorder
+##### v0.2.8 — Sidebar Drag-To-Reorder
 Order persistence (per-sidecar order fields) plus drag-to-reorder UX on the Pages-side and Contexts rows. Navigation Pinned reorder, cross-container drag, and detail-pane Table reorder remain queued.
 
-##### v0.3.0 — Properties (data layer + SQLite + placeholder UI)
+##### v0.3.0 — Properties (Data layer + SQLite + Placeholder UI)
 The data-layer chapter. Full property data layer (10 property types, stable-ULID definitions, atomic multi-file schema commits, an every-open ID migration with preview, schema CRUD on all schema-bearing managers, validation + drift defense, file attachments with size caps + cascade-delete, Settings auto-migration scaffold). A live end-to-end SQLite index (GRDB, per-nexus `index.db`, two-phase populate, wired into every manager, Notion-style filter/sort/broken-links; mid-session mutations propagate). Placeholder UI gives every interaction a working path. Full summary → [[Resources/II. Pommora/II. Swift/History]].
 
 ##### v0.3.1 — Properties end-to-end (View Settings editor)

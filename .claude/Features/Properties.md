@@ -48,12 +48,12 @@ A value is recovered from raw JSON by **shape**, in a fixed precedence — the d
 
 #### II. Status
 
-A workflow property with three fixed, EventKit-aligned groups, each holding user-editable options:
+A workflow property with three, EventKit-aligned groups, each holding user-editable options:
 
 | Group         | Default label | Default color |
 | ------------- | ------------- | ------------- |
-| `upcoming`    | Upcoming      | gray          |
-| `in_progress` | In Progress   | blue          |
+| `upcoming`    | Open.         | gray          |
+| `in_progress` | Active.       | light-blue    |
 | `done`        | Done          | green         |
 
 Group IDs are load-bearing and the three slots are fixed — a fourth would break calendar-sync mapping — while group labels and the options inside each group are user-editable. Each option carries a canonical `value` (immutable), a renameable `label`, an optional `color`, and its `group_id`. Creating a Status property seeds one starter option per group. Sort is group position first, then option order within a group. Status is built-in and non-deletable on Tasks and Events; on a Collection it's opt-in.

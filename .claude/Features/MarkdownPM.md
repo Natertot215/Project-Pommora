@@ -1,6 +1,6 @@
 ## MarkdownPM
 
-Pommora's in-house Markdown editor: a dynamic-syntax editor on a web-native (CodeMirror 6) substrate. 
+Pommora's in-house Markdown editor for [[Studio/Pommora/II. Features/Pages|Pages]]: a dynamic-syntax editor on a web-native (CodeMirror 6) substrate. 
 ### Architecture — Three Strata, One Owned
 
 | Stratum | React uses | Ownership |
@@ -24,7 +24,7 @@ A construct's Markdown markers are **revealed** (literal editable text) when the
 
 ### Constructs
 
-- **Inline marks** — bold / italic / bold-italic, strikethrough, inline code, links, connections; caret-aware marker reveal; heading-aware sizing; suppressed inside code + literal targets.
+- **Inline marks** — bold / italic / bold-italic, strikethrough, inline code, links, [[Studio/Pommora/II. Features/Connections|Connections]]; caret-aware marker reveal; heading-aware sizing; suppressed inside code + literal targets.
 - **Headings** — H1–H6 on the em scale (H1–H4 in the menu; all six render); `#` reveals on caret. **Foldable** via a gutter chevron reusing the sidebar's disclosure language (chevron on hover when open, persistent when folded); state in `.nexus/folds.json`.
 - **Lists** — bullet (`-` → `•`), `+`, arrow `→` (typed `->`), ordered, and GFM task checkboxes — all sharing one indent/spacing zone and the full behavior set (continuation, indent, drag). On disk all are portable CommonMark except the arrow line (`→ text`, a Pommora render directive legible anywhere but only rendered as a list inside Pommora). **Drag-to-reorder by the glyph**: grab a list glyph to move the item with its nested sub-block; dropping beside a shallower item re-nests, ordered runs renumber — one source-line transaction, one undo. Pure logic in a unit-tested `editor/listDragModel.ts` under the `editor/listDrag.ts` gesture.
 - **Code** — inline + fenced share one `code` identity (mono, code color, code fill); fenced gets a copy button; syntax highlighting is a no-op seam.

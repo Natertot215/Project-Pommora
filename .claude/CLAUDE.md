@@ -63,8 +63,12 @@ The GUI only launches with `ELECTRON_RUN_AS_NODE` **unset** (this env has it set
 - Design tokens **must** be pulled from their sources in `design-system` — never hand-roll tokens without explicit direction.
 - **Connections** are in-line `[[Title]]`, resolved via SQLite, and **aren’t** displayed in any container views *(tables, galleries, lists…)*. **Contexts** are properties resolved via front-matter; content ←> content relational properties **don’t** exist. 
 - If Nathan mistakenly says "label-quaternary" or "label-quinary," he actually means fills → `design-system/tokens.` 
-- **Collections** *used* to be called “Vaults” with what’s now sets being called collections instead before a rename. If Nathan says “Vault” he means **Collection,** *not* as in Obsidians alternative for Pomona’s Nexus.
+- **Collections** *used* to be called “Vaults” with what’s now sets being called collections instead before a rename. If Nathan says “Vault,” he means Collection, not as in Obsidian's alternative for Pomona’s Nexus.
 - If Nathan says "double-click" in a context where "right-click" makes more sense, it's almost certainly what he intended to say.
+
+#### II. Project Sapphire
+
+**Sapphire** is an Obsidian plugin and parallel sub-project that functions as the interim bridge between what Pommora will bring and what Nathan's current main system (Obsidian) actually offers in the meantime: it brings Pommora-style capabilities to Obsidian natively and keeps NexusOS Pommora-compatible, so Nathan's daily vault stays aligned as Pommora matures — at a light weekly cadence, subordinate to the daily Pommora grind. 
 
 ### Working Discipline
 
