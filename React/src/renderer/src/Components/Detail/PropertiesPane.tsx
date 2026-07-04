@@ -11,6 +11,7 @@ import { IconPicker } from '../IconPicker'
 import { EditableInput } from '../EditableInput'
 import { InlineEditHeader } from './InlineEditHeader'
 import { OptionEditor } from './OptionEditor'
+import { StatusEditor } from './StatusEditor'
 import { PaneSlider } from './PaneSlider'
 import { PaneDnd, RowShell, usePaneRegions } from './paneDnd'
 import { nexusReorderIndex, type PaneDrop, type PaneRow } from './paneDndModel'
@@ -329,6 +330,8 @@ export function PropertiesPane({
             onRemoveOption={(value) => void removeOption(def.id, value)}
             onClearOption={(value) => void clearOption(def.id, value)}
           />
+        ) : def.type === 'status' ? (
+          <StatusEditor groups={def.status_groups ?? []} />
         ) : (
           <MenuCaption>{propertyTypeLabel(def.type)} options — pending</MenuCaption>
         )}

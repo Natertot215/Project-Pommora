@@ -42,7 +42,8 @@ const OPTION = {
   gapAroundLabel: 6, // "Options" → first chip (the gap ABOVE "Options" is the header's own bottom pad)
   gapBetweenChips: 6, // chip → chip
   chipPadX: 6, // option chip horizontal padding — retunes the shared chip-label default, this pane only
-  addBox: 20 // the "Options" + hit target (its glyph is ICON.optionsAdd)
+  addBox: 20, // the "Options" + hit target (its glyph is ICON.optionsAdd)
+  groupGap: 12 // status only: gap between one group's block (heading + chips) and the next
 }
 
 /** — ICONS — glyph sizes, consumed by PropertiesPane/ViewPane TSX. The back-row's own
@@ -273,6 +274,11 @@ export const allHighlight = style({
 
 /** The option list container, below the InlineEditHeader (whose bottom pad sets the gap above). */
 export const optionEditor = style({ display: 'flex', flexDirection: 'column' })
+
+/** Status only — the grouped variant: one block per group (heading + its chips), stacked with a gap.
+ *  Each block reuses `optionsRow` / `optionsLabel` / `optionList` / `optionRow` from the flat editor. */
+export const statusGroups = style({ display: 'flex', flexDirection: 'column', gap: `${OPTION.groupGap}px` })
+export const statusGroup = style({ display: 'flex', flexDirection: 'column' })
 
 /** The "Options" row — label left, the always-shown + right. */
 export const optionsRow = style({ display: 'flex', alignItems: 'center', justifyContent: 'space-between' })

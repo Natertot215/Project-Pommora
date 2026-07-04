@@ -2,7 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
-import type { PropertyDefinition } from '@shared/properties'
+import { defaultStatusSeed, type PropertyDefinition } from '@shared/properties'
 import { firePointer, stubPointerCapture, stubRect } from '@renderer/testing/pointerHarness'
 import { useSession } from '../../store'
 import { PropertiesPane } from './PropertiesPane'
@@ -18,7 +18,7 @@ class ResizeObserverStub {
 ;(globalThis as { ResizeObserver?: unknown }).ResizeObserver = ResizeObserverStub
 
 const defs: PropertyDefinition[] = [
-  { id: 'prop_status', name: 'Status', type: 'status' },
+  { id: 'prop_status', name: 'Status', type: 'status', status_groups: defaultStatusSeed() },
   { id: 'prop_n', name: 'Count', type: 'number' }
 ]
 
@@ -81,7 +81,7 @@ describe('the DRY nested slide (A-7)', () => {
     const inertSlots = host.querySelectorAll('[inert]')
     expect(inertSlots.length).toBe(1) // exactly one inert slot = slider semantics, list mounted beneath
     expect(inertSlots[0].textContent).toContain('Count') // the inert slot IS the list
-    expect(host.textContent).toContain('options — pending') // the editor is live in the active slot
+    expect(host.textContent).toContain('Open') // the Status editor is live in the active slot (a group heading)
   })
 
   it('the type picker rides the same slide', async () => {
