@@ -10,6 +10,7 @@ import { readPage } from './readPage'
 import { pathExists } from './io/atomicWrite'
 import { readAppConfig, writeAppConfig, addRecent, DEFAULT_TRASH_MODE } from './appConfig'
 import { sessionRoot, openSession, resolveRestorePath, isExistingDir } from './session'
+import { serializeOnFile } from './io/fileLock'
 import { openSessionIndex, closeSessionIndex } from './sessionIndex'
 import { stampAdopted } from './adopt'
 import { ensureIdentity } from './identity'
@@ -238,22 +239,31 @@ async function prepareOpenedNexus(path: string): Promise<void> {
 // Open a chosen nexus folder: make it the session, persist it as last-opened, and
 // push it onto the recents (deduped, capped) + the OS Recent Documents list.
 async function adoptNexus(path: string): Promise<void> {
-  openSession(path)
-  await prepareOpenedNexus(path)
+  await openSession(path)
+  // openSession canonicalized the root (realpath); thread THAT everywhere below so the watcher's
+  // session-match guard (watcher.ts) and the index/persistence key off the same string sessionRoot()
+  // returns — a raw path here would make the watcher treat every event as a session switch (F1 root fix).
+  const root = sessionRoot() ?? path
+  await prepareOpenedNexus(root)
   // Open (cold-build if needed) the index for the new session. Best-effort + off the read
   // path — the renderer's tree comes from readNexus, so a null index just means no live
   // query acceleration until the next rebuild. Replaces any prior session's handle.
-  await openSessionIndex(path)
+  await openSessionIndex(root)
   // Live-watch the new nexus (startWatcher replaces any prior session's watcher).
   // A user-initiated open always has a window; launch-restore starts its watcher
   // after createWindow below.
-  if (mainWindow) startWatcher(path, mainWindow)
+  if (mainWindow) startWatcher(root, mainWindow)
   // Persistence (last-opened + recents + OS list) is best-effort: a config-write
   // failure must not block opening the folder this session, nor leave a half-open
   // "ghost" session the renderer never re-reads.
   try {
     const userData = app.getPath('userData')
     const config = await readAppConfig(userData)
+    // Persist the RAW user-facing path, not the canonical `root`: a nexus under an iCloud-synced
+    // ~/Documents realpaths into the Mobile Documents container, which reads as gibberish in Open
+    // Recent AND breaks restore if the user later turns iCloud Desktop & Documents off (the
+    // container path disappears; ~/Documents/MyNexus survives). Canonical stays on the in-process
+    // locks only; what we save and reveal to the user stays the path they picked.
     await writeAppConfig(userData, {
       ...config,
       lastNexusPath: path,
@@ -333,7 +343,9 @@ ipcMain.handle(
       if (typeof body !== 'string') return { ok: false, error: 'A body string is required.' }
       const resolved = await resolveUnderRoot(root, relPath)
       if (!resolved.ok) return { ok: false, error: resolved.error.message }
-      const r = await updatePageBody(resolved.value, body)
+      // Under the page's file lock — the editor autosave and a link-rename cascade both rewrite
+      // this page's body, so they must serialize (F1) rather than clobber each other.
+      const r = await serializeOnFile(resolved.value, () => updatePageBody(resolved.value, body))
       return r.ok ? { ok: true } : { ok: false, error: r.error.message }
     } catch (e) {
       return { ok: false, error: e instanceof Error ? e.message : String(e) }
@@ -1091,9 +1103,10 @@ app
       const config = await readAppConfig(app.getPath('userData'))
       const restore = await resolveRestorePath(config)
       if (restore) {
-        openSession(restore)
-        await prepareOpenedNexus(restore) // same ensure+stamp prep as an explicit open
-        await openSessionIndex(restore)
+        await openSession(restore)
+        const root = sessionRoot() ?? restore // the canonicalized root (see adoptNexus)
+        await prepareOpenedNexus(root) // same ensure+stamp prep as an explicit open
+        await openSessionIndex(root)
       }
     } catch (e) {
       console.error('Restore skipped (config unreadable):', e)

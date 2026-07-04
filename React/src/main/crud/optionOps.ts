@@ -3,12 +3,11 @@
 // the serializeSchemaOp chain, cascading each edit across every assigning collection's pages. Errors
 // flow as Result, never thrown.
 
-import { readFile } from 'node:fs/promises'
 import { mutateRegistry, readRegistry } from '../io/propertiesRegistry'
 import { validateOptionValues } from '../properties/schema'
 import { allCollectionFolders } from './assignment'
 import { serializeSchemaOp } from './schemaChain'
-import { SchemaTransaction } from '../io/schemaTransaction'
+import { rewritePageSerialized } from '../io/fileLock'
 import { listMarkdownFiles } from '../io/walk'
 import { replacePageValue, stripPageValue } from './pageValue'
 import { ok, fail, type Result } from '@shared/result'
@@ -123,22 +122,16 @@ export function removeStatusOption(root: string, propertyId: string, value: stri
 }
 
 /** Rewrite every assigning collection's pages through `rewrite` (null = the page doesn't hold it,
- *  skip), atomically via one SchemaTransaction. Shared by rename (replace) and remove/clear (strip). */
+ *  skip). Each page's read-modify-write runs under its file lock — the SAME lock the cell-write path
+ *  takes — so a cascade and a concurrent cell edit on one page can't clobber each other (F1). Per
+ *  file, not all-or-nothing across pages: a partly-applied rename/strip is recoverable by re-running
+ *  and each page stays individually valid. Shared by rename (replace) and remove/clear (strip). */
 async function cascadePages(root: string, rewrite: (content: string) => string | null): Promise<void> {
-  const tx = new SchemaTransaction()
   for (const folder of await allCollectionFolders(root)) {
     for (const file of await listMarkdownFiles(folder)) {
-      let content: string
-      try {
-        content = await readFile(file, 'utf8')
-      } catch {
-        continue
-      }
-      const next = rewrite(content)
-      if (next !== null) tx.stage(file, next)
+      await rewritePageSerialized(file, rewrite)
     }
   }
-  await tx.commit()
 }
 
 /** Rename an option (value=label → newTitle) and cascade the new value onto every page that held the

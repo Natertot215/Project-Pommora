@@ -24,7 +24,7 @@ beforeEach(async () => {
   await writeFile(join(root, 'Notes', 'Daily', '_pageset.json'), JSON.stringify({ id: 'col' }))
   await writeFile(join(root, 'Notes', 'Daily', 'Alpha.md'), '---\nid: a\ntier1:\n  - area-1\n---\n\nSee [[Beta]] for more.')
   await writeFile(join(root, 'Notes', 'Daily', 'Beta.md'), '---\nid: b\n---\n\nbody')
-  openSession(root)
+  await openSession(root)
 })
 afterEach(async () => {
   closeSessionIndex()

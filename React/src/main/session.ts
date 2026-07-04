@@ -2,7 +2,7 @@
 // session is a single main-process value: the absolute root path, or null when
 // nothing is open. The IPC read/write handlers resolve against sessionRoot().
 
-import { stat } from 'node:fs/promises'
+import { realpath, stat } from 'node:fs/promises'
 import type { AppConfig } from './appConfig'
 
 let currentRoot: string | null = null
@@ -12,9 +12,13 @@ export function sessionRoot(): string | null {
   return currentRoot
 }
 
-/** Open a nexus at `root` (absolute path). */
-export function openSession(root: string): void {
-  currentRoot = root
+/** Open a nexus at `root` (absolute path). The stored root is CANONICALIZED (realpath) so it
+ *  keys the same string resolveUnderRoot hands the cell-write path: a symlinked root ancestry
+ *  (e.g. macOS /var→/private/var, an external mount) would otherwise split the cascade and
+ *  cell-write file locks into different buckets and they'd stop serializing (F1). Falls back to
+ *  the raw path if it can't be resolved (e.g. a not-yet-existing path in a test). */
+export async function openSession(root: string): Promise<void> {
+  currentRoot = await realpath(root).catch(() => root)
 }
 
 /** Close the current nexus (back to empty state). */

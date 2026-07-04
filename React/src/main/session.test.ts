@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, rmSync, writeFileSync, realpathSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { sessionRoot, openSession, closeSession, resolveRestorePath } from './session'
@@ -11,11 +11,19 @@ describe('session — open/close', () => {
     expect(sessionRoot()).toBeNull()
   })
 
-  it('opens then closes', () => {
-    openSession('/Users/x/Nexus')
-    expect(sessionRoot()).toBe('/Users/x/Nexus')
+  it('opens then closes', async () => {
+    await openSession('/Users/x/Nexus')
+    expect(sessionRoot()).toBe('/Users/x/Nexus') // non-existent → falls back to the raw path
     closeSession()
     expect(sessionRoot()).toBeNull()
+  })
+
+  it('canonicalizes the root via realpath (so its lock key matches resolveUnderRoot)', async () => {
+    const raw = mkdtempSync(join(tmpdir(), 'pom-sess-')) // macOS: /var/… symlinks to /private/var/…
+    await openSession(raw)
+    expect(sessionRoot()).toBe(realpathSync(raw))
+    closeSession()
+    rmSync(raw, { recursive: true, force: true })
   })
 })
 

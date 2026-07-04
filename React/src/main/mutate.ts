@@ -23,6 +23,7 @@ import { setChildOrder, setStateOrder } from './crud/reorder'
 import { createFolderEntity, renameFolderEntity, moveFolderEntity } from './crud/folderEntity'
 import { renameCascade, unlinkTier } from './crud/cascade'
 import { trashWithTimestamp, pathExists, readJsonObject, mutateJson, atomicWriteBinary, atomicWriteFile } from './io/atomicWrite'
+import { serializeOnFile } from './io/fileLock'
 import { splitEnvelope, mergeFrontmatter, readFrontmatterFields } from './io/pageFile'
 import { basenameNoMd } from './coerce'
 import { contextTierDir, nexusConfig, SIDECAR_FILENAME, NEXUS_CONFIG_FILES, type ContextTier, type SidecarKind } from './paths'
@@ -98,23 +99,6 @@ function relay<T>(r: Result<T>): MutateResult {
 }
 
 const fault = (message: string): MutateResult => ({ ok: false, error: { code: 'operation-failed', message } })
-
-// Per-file write serialization for the hot value ops (setProperty/setTier): overlapping
-// read-modify-writes on ONE page can land out of send order, letting a stale intermediate win
-// on disk — the registry's lost-update race, one level down. Chain per resolved path (the map
-// holds one settled promise per touched file; negligible).
-const fileChains = new Map<string, Promise<unknown>>()
-function serializeOnFile<T>(path: string, fn: () => Promise<T>): Promise<T> {
-  const run = (fileChains.get(path) ?? Promise.resolve()).then(fn, fn)
-  fileChains.set(
-    path,
-    run.then(
-      () => undefined,
-      () => undefined
-    )
-  )
-  return run
-}
 
 /**
  * Create with a base name, disambiguating on collision: base, "base 2", "base 3", … The
@@ -276,27 +260,31 @@ async function dispatch(req: MutateRequest, deps: MutateDeps, root: string): Pro
       if (req.kind === 'page') {
         const resolved = await resolveUnderRoot(root, req.path)
         if (!resolved.ok) return relay(resolved)
-        let existing: string
-        try {
-          existing = await readFile(resolved.value, 'utf8')
-        } catch {
-          return fault('That page could not be read.')
-        }
-        const { body } = splitEnvelope(existing)
-        const fields = readFrontmatterFields(existing)
-        const id = typeof fields.id === 'string' ? fields.id : null
-        if (!id) return fault('That page has no id to key its banner.')
-        const prev = typeof fields.cover === 'string' ? fields.cover : null
-        if (req.dataUrl) {
-          const rel = await writeImageAsset(root, id, req.dataUrl, 'banner')
-          if (!rel) return fault('Unsupported image data.')
-          await atomicWriteFile(resolved.value, mergeFrontmatter(existing, { cover: rel }, ['cover'], body))
-          if (prev && prev !== rel) await rm(join(root, prev), { force: true }).catch(() => {})
-        } else {
-          await atomicWriteFile(resolved.value, mergeFrontmatter(existing, {}, ['cover'], body))
-          if (prev) await rm(join(root, prev), { force: true }).catch(() => {})
-        }
-        return { ok: true }
+        // Under the page's file lock — a banner (cover) write and a property cascade both rewrite
+        // this page's frontmatter, so they must serialize (F1) rather than clobber from a stale read.
+        return serializeOnFile(resolved.value, async () => {
+          let existing: string
+          try {
+            existing = await readFile(resolved.value, 'utf8')
+          } catch {
+            return fault('That page could not be read.')
+          }
+          const { body } = splitEnvelope(existing)
+          const fields = readFrontmatterFields(existing)
+          const id = typeof fields.id === 'string' ? fields.id : null
+          if (!id) return fault('That page has no id to key its banner.')
+          const prev = typeof fields.cover === 'string' ? fields.cover : null
+          if (req.dataUrl) {
+            const rel = await writeImageAsset(root, id, req.dataUrl, 'banner')
+            if (!rel) return fault('Unsupported image data.')
+            await atomicWriteFile(resolved.value, mergeFrontmatter(existing, { cover: rel }, ['cover'], body))
+            if (prev && prev !== rel) await rm(join(root, prev), { force: true }).catch(() => {})
+          } else {
+            await atomicWriteFile(resolved.value, mergeFrontmatter(existing, {}, ['cover'], body))
+            if (prev) await rm(join(root, prev), { force: true }).catch(() => {})
+          }
+          return { ok: true }
+        })
       }
       // Resolve the config holding the banner field + the asset-folder key, per owner kind. The
       // homepage is a singleton (.nexus/homepage.json, keyed 'homepage'); the rest are folder

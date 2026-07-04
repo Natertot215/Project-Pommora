@@ -60,6 +60,8 @@ One long session: shipped PropertiesV2 end-to-end, ratified the Tables Next-Part
 
 - **Every read-modify-write surface needs its chain.** The registry had `mutateRegistry`, pages had `serializeOnFile` — the collection sidecars had nothing, and a Remove racing an Assign corrupted state 24/25 runs (breaker H-2). New RMW surface = new serialization, day one.
 
+- **A lock key must be canonicalized, or it silently splits.** `serializeOnFile` keys on the path STRING — the cell-write path passed a realpath'd path (`resolveUnderRoot`) while the cascade passed the raw session-root-joined one, so on any symlinked-root ancestry (`/var`→`/private/var`, iCloud `~/Documents`) the same file hit two buckets and never serialized. Canonicalize the root ONCE at `openSession`; canonical on the locks, RAW on what you persist or show. A green test that used raw paths on both sides hid it — a race regression test must derive its keys exactly as production does.
+
 - **Nathan's knob requests are SCOPED.** "The back-row padding in JUST the viewpane" means a viewpane-local class, not a tweak to the shared primitive — over-scoping a knob is a miss even when the value's right. And when a knob doesn't move what he's pointing at (the 24px min-height floor under a 0px padding), find the ACTUAL holder.
 
 - **Don't chain the gate and the commit in one command.** `vitest; git commit` commits on a red suite (the `;` masked a wrong-runner failure once this session). Gate, read the exit, then commit separately.
@@ -120,8 +122,7 @@ One long session: shipped PropertiesV2 end-to-end, ratified the Tables Next-Part
 1. **Finish the trivial rest-of-properties per-type panes** — the Number, Date, URL, and other value-type editor panes, riding the same nested-slide + pane-beat plumbing the option editors used. The rich tail (formats, change-type confirm with the lossy strip, duplicate) rides the same arc — 6-28 spec §Pending.
 2. **THEN the naming / duplicate-title work = §H of the 7-3 decision log** — keep value=title, add a reserved-char auto-disambiguate matcher (add-on-collision / drop-when-unique) across Select / Multi / Status together. **This cycle absorbs F2** (the `isUntouchedSeed` round-trip, Fix Log) **and a legacy-data migration** (stale group labels + `value≠label` lowercase values on pre-value=title properties — Nathan's own Status property is the live example). The duplicate-title conflict is the headline.
 3. **The in-pane chip-style picker for Status** (Standard / Compact / Checkbox → pill / capsule / check), persisted per-view in `column_styles` — but **the pane KEEPS pills regardless** (Nathan's standing revision).
-4. **F1 cascade-lock** — its own task (Fix Log): bring the page-cascade path under the per-file (or a schema-vs-mutate) lock.
-5. **The sibling panes** (Layout · Group · Sort · Filter) + **View management** (rename/duplicate/delete, the active-view switcher — Part-1 IPC shipped, UI-less), per 6-28 spec §Pending, wiring the already-shipped `GroupConfig` / `SortCriterion[]` / `FilterGroup` / `views:*` seams.
+4. **The sibling panes** (Layout · Group · Sort · Filter) + **View management** (rename/duplicate/delete, the active-view switcher — Part-1 IPC shipped, UI-less), per 6-28 spec §Pending, wiring the already-shipped `GroupConfig` / `SortCriterion[]` / `FilterGroup` / `views:*` seams.
 
 Build discipline unchanged: the ViewPane CSS is a KNOB FILE (`viewPane.css.ts` — COLOR/SIZE/PAD/ICON groups; sizes are Nathan's, never re-tune); TopRows name their DESTINATION; every pane push rides the nested PaneSlider. PaneDnd takes an injectable `slot` rule (`hiddenPaneSlot`) for panes needing different region semantics.
 
@@ -136,10 +137,10 @@ Open threads to confirm while building: file chips deliberately have no hover-×
 - **Block Drag V2 — nesting** (separate spec): interior drop-slots inside callouts, the box-nesting guard table, cross-container re-prefix.
 - **Canvas** — spec at `Planning/6-26 - Canvas Spec.md`, pending its adversarial review → plan → build.
 - **Biome config vs code** — `biome.json` declares double-quote/organizeImports but the codebase is single-quote/no-semicolon. Settle once, in a tree with no parallel edits.
+- **iCloud-sync readiness (future cloud feature, surfaced by the F1 lock work):** an in-process `serializeOnFile` can't coordinate with the iCloud daemon — cross-device edits are last-writer-wins (atomic temp+rename prevents corruption; true conflict handling is the sync feature's job). Also on that checklist: `.nexus/index.db` (SQLite) needs excluding from sync, and the page walk skips evicted `.icloud` placeholders / stalls materializing dataless reads. None are F1 regressions — recorded so the sync feature inherits them.
 
 ### Fix Log
 
-- **Status/Select option page-cascade races the cell-write path (open, HIGH — pre-existing).** `cascadePages` → `SchemaTransaction` (on `serializeSchemaOp`) writes pages WITHOUT the per-file `serializeOnFile` lock the cell-write path (`mutate.ts` `setProperty`) holds — so a rename/remove/clear cascade racing a status-cell edit on the same `.md` can clobber or orphan a value. Verified first-hand: `SchemaTransaction.commit` bypasses `serializeOnFile`; the select ops (`optionOps.ts:161/174/187`) use the same cascade, so this is NOT a Phase-3 regression — it's the shared cascade infra. Fix = route cascade writes through the per-file (or a schema-vs-mutate) lock, the 7-2 `serializeOnFile` work extended to cascades. build-breaker F1; its own task.
 - **Block-math `$$…blank…$$` drag corrupts the doc (open).** A multi-line block-math span with a blank line parses as two halves with orphaned `$$`; block-dragging either half corrupts the document (`MarkdownPM/editor/blockModel.ts` — test-pinned, unguarded).
 - **Bullet single-word wrap drops the word below the marker** — only the `line-height` cap shipped. → `Features/MarkdownPM.md` § Known Issues.
 - The "File" property icon gets clipped by its vertical row padding on the ViewPane. 

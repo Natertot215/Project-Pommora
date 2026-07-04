@@ -1,15 +1,15 @@
 // Cascades that keep references consistent when an entity's identity changes: a page
 // rename rewrites every inbound `[[link]]` across the nexus; a Context delete strips its
-// id from every page's tier array. Both walk the nexus's real pages and commit their
-// rewrites atomically via SchemaTransaction (all touched files land together-or-not-at-
-// all), so a half-applied cascade never lingers. No SQLite — the inbound set is found by
-// scanning; Phase 6's index can narrow this later, but correctness doesn't depend on it.
+// id from every page's tier array. Both walk the nexus's real pages and rewrite each under
+// its file lock (rewritePageSerialized) — the same lock the cell-write path takes, so a
+// cascade can't clobber a concurrent edit on a page. Per-file, not cross-file atomic: a
+// partly-applied cascade is recoverable by re-running. No SQLite — the inbound set is found
+// by scanning; Phase 6's index can narrow this later, but correctness doesn't depend on it.
 
-import { readFile } from 'node:fs/promises'
 import { splitFrontmatter } from '../readNexus'
 import { splitEnvelope, mergeFrontmatter } from '../io/pageFile'
 import { listMarkdownFiles } from '../io/walk'
-import { SchemaTransaction } from '../io/schemaTransaction'
+import { rewritePageSerialized } from '../io/fileLock'
 import { scanConnections } from '../connections/scan'
 import { rewriteConnections } from '../connections/rewrite'
 import { normalizeTitle } from '@shared/connections'
@@ -30,24 +30,18 @@ export async function renameCascade(
   newTitle: string
 ): Promise<Result<{ touched: string[] }>> {
   const oldKey = normalizeTitle(oldTitle)
-  const tx = new SchemaTransaction()
   const touched: string[] = []
   for (const file of await listMarkdownFiles(nexusRoot, { skipTopLevel: SKIP_TOP_LEVEL })) {
-    let content: string
-    try {
-      content = await readFile(file, 'utf8')
-    } catch {
-      continue
-    }
-    const { body } = splitEnvelope(content)
-    if (!scanConnections(body).some((c) => c.normalizedTitle === oldKey)) continue
-    if (!splitFrontmatter(content).id) continue // connections live only on real pages
-    const newBody = rewriteConnections(body, oldTitle, newTitle)
-    if (newBody === body) continue
-    tx.stage(file, mergeFrontmatter(content, {}, [], newBody))
-    touched.push(file)
+    const wrote = await rewritePageSerialized(file, (content) => {
+      const { body } = splitEnvelope(content)
+      if (!scanConnections(body).some((c) => c.normalizedTitle === oldKey)) return null
+      if (!splitFrontmatter(content).id) return null // connections live only on real pages
+      const newBody = rewriteConnections(body, oldTitle, newTitle)
+      if (newBody === body) return null
+      return mergeFrontmatter(content, {}, [], newBody)
+    })
+    if (wrote) touched.push(file)
   }
-  if (touched.length > 0) await tx.commit()
   return ok({ touched })
 }
 
@@ -61,25 +55,16 @@ export async function unlinkTier(
 ): Promise<Result<{ touched: string[] }>> {
   if (tier < 1 || tier > 3) return fail('invalid-tier', `Tier ${tier} is not 1–3.`)
   const field = tierFieldName(tier)
-  const tx = new SchemaTransaction()
   const touched: string[] = []
   for (const file of await listMarkdownFiles(nexusRoot, { skipTopLevel: SKIP_TOP_LEVEL })) {
-    let content: string
-    try {
-      content = await readFile(file, 'utf8')
-    } catch {
-      continue
-    }
-    const arr = splitFrontmatter(content)[field]
-    if (!Array.isArray(arr) || !arr.includes(contextId)) continue
-    const next = arr.filter((x) => x !== contextId)
-    const body = splitEnvelope(content).body
-    tx.stage(
-      file,
-      mergeFrontmatter(content, { [field]: next, modified_at: nowIso() }, [field, 'modified_at'], body)
-    )
-    touched.push(file)
+    const wrote = await rewritePageSerialized(file, (content) => {
+      const arr = splitFrontmatter(content)[field]
+      if (!Array.isArray(arr) || !arr.includes(contextId)) return null
+      const next = arr.filter((x) => x !== contextId)
+      const body = splitEnvelope(content).body
+      return mergeFrontmatter(content, { [field]: next, modified_at: nowIso() }, [field, 'modified_at'], body)
+    })
+    if (wrote) touched.push(file)
   }
-  if (touched.length > 0) await tx.commit()
   return ok({ touched })
 }
