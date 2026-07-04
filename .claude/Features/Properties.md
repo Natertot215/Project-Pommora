@@ -1,6 +1,6 @@
 ### Properties
 
-Pommora's property system. The same type catalog applies to Pages, Tasks, and Events. Page-property definitions live in one nexus-wide registry that Collections *assign*; Agenda keeps its own definitions on its config sidecars; values live on each member entity. The on-disk file is canonical; the SQLite index mirrors it for fast queries.
+Pommora's property system. The same type catalog applies to [[Studio/Pommora/II. Features/Pages|Pages]], Tasks, and Events. Page-property definitions live in one nexus-wide registry that [[Collections]] *assign*; Agenda keeps its own definitions on its config sidecars; values live on each member entity. The on-disk file is canonical; the SQLite index mirrors it for fast queries.
 
 A **property** is a typed field defined once in the nexus-wide registry and populated on the members of every Collection that assigns it. The registry declares each property's type and per-type config; a Collection's assignment list names which registry properties its Pages validate and show; member entities store the values.
 
@@ -24,9 +24,9 @@ Page values live in `.md` frontmatter; Task and Event values live in a `properti
 | **Date**              | `"2026-06-15"` (date-only, UTC) or `"2026-06-15T14:30:00Z"` (with time) | A bare date-only value folds into Date on read. |
 | **Select**            | `"<value>"`                                                             | Bare string; single colored pill.               |
 | **Multi-select**      | `["<value>", ...]`                                                      | Bare array; tag-style multi-pick.               |
-| **Status**            | `{"$status": "<value>"}`                                                | Tagged object; three fixed groups.              |
+| **Status**            | `{"$status": "<value>"}`                                                | Tagged object; grouped by workflow phase.       |
 | **URL**               | `"https://..."`                                                         | A string with a scheme.                         |
-| **Context** | `[{"$rel": "<id>"}, ...]`                                               | Tagged array; tier-only, not user-creatable.    |
+| **Context**           | `[{"$rel": "<id>"}, ...]`                                               | Tagged array; tier-only, not user-creatable.    |
 | **Last Edited Time**  | *(derived from `modified_at`)*                                          | Virtual — never persisted.                      |
 | **File / Attachment** | `[{ "path", "original_name", "added_at", "mime_type" }, ...]`           | Array; files copy into the Nexus.               |
 
@@ -48,15 +48,17 @@ A value is recovered from raw JSON by **shape**, in a fixed precedence — the d
 
 #### II. Status
 
-A workflow property with three, EventKit-aligned groups, each holding user-editable options:
+A workflow property whose values sort into status **groups**. The group model is open — each group is a stable `id` with a user-editable label, a color, and its own options — seeded and shipped with three calendar-phase defaults:
 
 | Group         | Default label | Default color |
 | ------------- | ------------- | ------------- |
-| `upcoming`    | Open.         | gray          |
-| `in_progress` | Active.       | light-blue    |
+| `upcoming`    | Open          | grey          |
+| `in_progress` | Active        | blue          |
 | `done`        | Done          | green         |
 
-Group IDs are load-bearing and the three slots are fixed — a fourth would break calendar-sync mapping — while group labels and the options inside each group are user-editable. Each option carries a canonical `value` (immutable), a renameable `label`, an optional `color`, and its `group_id`. Creating a Status property seeds one starter option per group. Sort is group position first, then option order within a group. Status is built-in and non-deletable on Tasks and Events; on a Collection it's opt-in.
+Group **ids** are the load-bearing keys: every value references its group by id, and all status logic (the checkbox cycle, the group glyph) keys off the id, never list position — order is display-only. The three shipped ids are stable, but the model isn't capped at three: more groups (Paused, Cancelled, or user-defined) drop into the open enum later with no data change, and a future EventKit bridge maps each group by a completion semantic (which groups count as done) rather than a fixed count. Group labels and the options within each group are user-editable. An option's `value` IS its label (value=title): renaming rewrites both and cascades the new value onto every assigning page's `$status`. Each option also carries an optional `color` and its `group_id`. Creating a Status property seeds one starter option per group. Sort is group position first, then option order within a group. Status is built-in and non-deletable on Tasks and Events; on a Collection it's opt-in.
+
+The **Status editor** edits it in place: a group-labeled option list (double-click a heading to relabel its group), each option a pill chip in its group's colour, with a per-group `+` for an inline-named option, a hover palette to recolor, drag to reorder within or across groups, and a right-click **Rename · Remove · Clear** menu.
 
 #### II. Tier Relations
 
@@ -68,22 +70,22 @@ Every Page, Task, and Event carries an `id` (a ULID, assigned at creation), `cre
 
 #### II. Where Properties Live
 
-Properties live with the content, never in the trailing inspector (which is reserved for the Claude chat → `Inspector.md`). Definitions live in the nexus-wide registry (`.nexus/properties.json`) alongside a nexus-wide cosmetic display order; a Collection's sidecar holds only its assignment list, and the read walk joins the two so every surface still receives a resolved schema — the tree also carries the full ordered registry, so the pane lists everything live. The **Properties pane** in the view-settings dropdown is the full assign surface, per Collection: assigned properties on top (chevron → the per-property editor), an **All Properties** disclosure pinned to the pane's bottom that rises open to list every unassigned registry definition in the nexus order, each promotable via its `+` or by dragging into the assigned group at a slot. Dragging within a group reorders it (assigned = the Collection's order; All Properties = the nexus order); dragging an assigned row out Removes it. Creating (the header's top-right `+`) mints into the registry — appending to the nexus order, seeding per-type options — and assigns here; renames (the editor header, or a row's right-click → inline rename), type changes, and option edits change the global definition for every assigner. Remove strips-and-caches (see Schema Mutations); the global **Delete lives only inside a property's own editor pane**, behind its ⋮ menu and a native confirm. **Display formats aren't definition config**: the per-type look and date/time/number formats persist per-VIEW in the SavedView's `column_styles` (a deliberate divergence from Swift's def-level format keys — those ride through definitions as inert foreign keys, round-tripping unread). The first surface for *setting values* is the table's cells (the gesture matrix → `TableView.md`) — a **Date & Time** cell opens the **CalendarPicker**, the calendar-grid-plus-segmented-time value editor, its clock bound to a **nexus-wide time format** (`.nexus/settings.json` `time_format`, resolved onto the tree like the accent; default 12-hour AM/PM); the Page Property Panel is Pending.
+Definitions live in the nexus-wide registry (`.nexus/properties.json`) alongside a nexus-wide cosmetic display order; a Collection's sidecar holds only its assignment list, and the read walk joins the two so every surface still receives a resolved schema — the tree also carries the full ordered registry, so the pane lists everything live. The **Properties pane** in the view-settings dropdown is the full assign surface for a Collection: assigned properties on top (chevron → the per-property editor), an **All Properties** disclosure pinned to the pane's bottom that rises open to list every unassigned registry definition in the nexus order, each promotable via its `+` or by dragging into the assigned group at a slot. Dragging within a group reorders it (assigned = the Collection's order; All Properties = the nexus order); dragging an assigned row out Removes it. Creating (the header's top-right `+`) mints into the registry — appending to the nexus order, seeding per-type options — and assigns here; renames (the editor header, or a row's right-click → inline rename), type changes, and option edits change the global definition for every assigner. Remove strips-and-caches (see Schema Mutations); the global **Delete lives only inside a property's own editor pane**, behind its ⋮ menu and a native confirm. **Display formats aren't definition config**: the per-type look and date/time/number formats persist per-VIEW in the SavedView's `column_styles` (a deliberate divergence from Swift's def-level format keys — those ride through definitions as inert foreign keys, round-tripping unread). The first surface for *setting values* is the table's cells (the gesture matrix → `TableView.md`) — a **Date & Time** cell opens the **CalendarPicker**, the calendar-grid-plus-segmented-time value editor, its clock bound to a **nexus-wide time format** (`.nexus/settings.json` `time_format`, resolved onto the tree like the accent; default 12-hour AM/PM); the Page Property Panel is Pending.
 
 ### Architecture
 
 #### II. Schema Mutations
 
-| Mutation | Effect on existing values |
-|---|---|
-| Create a property | Mints a nexus-wide definition (appending its id to the nexus order) and assigns it to the creating Collection; appears empty on every member — no member writes until a value is set. |
-| Assign a property | Adds this Collection's reference to an existing definition — idempotent, no name check — then restores any Remove-cache: each cached value that still conforms to the definition's current type and options writes back to the page that held it; non-conforming values drop per-value, and the cache block clears either way. |
-| Remove a property | Strips the value from every member page and caches it (with which pages held it) on the Collection's own sidecar, then unassigns — one atomic transaction, no dormant foreign values left on pages. Re-assigning restores it; the definition and other Collections are untouched. |
-| Rename a property | Registry-only — members are keyed by ID; every assigner sees the new name. |
-| Reorder properties | Per-Collection assignment order (sidecar-only); the All Properties group reorders the nexus-wide display order instead (registry-file-only). |
-| Change a property's type | A global definition edit — a value whose shape no longer matches stops rendering but stays in frontmatter. |
+| Mutation                   | Effect on existing values                                                                                                                                                                                                                                                                                                              |
+| -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Create a property          | Mints a nexus-wide definition (appending its id to the nexus order) and assigns it to the creating Collection; appears empty on every member — no member writes until a value is set.                                                                                                                                                  |
+| Assign a property          | Adds this Collection's reference to an existing definition — idempotent, no name check — then restores any Remove-cache: each cached value that still conforms to the definition's current type and options writes back to the page that held it; non-conforming values drop per-value, and the cache block clears either way.         |
+| Remove a property          | Strips the value from every member page and caches it (with which pages held it) on the Collection's own sidecar, then unassigns — one atomic transaction, no dormant foreign values left on pages. Re-assigning restores it; the definition and other Collections are untouched.                                                      |
+| Rename a property          | Registry-only — members are keyed by ID; every assigner sees the new name.                                                                                                                                                                                                                                                             |
+| Reorder properties         | Per-Collection assignment order (sidecar-only); the All Properties group reorders the nexus-wide display order instead (registry-file-only).                                                                                                                                                                                           |
+| Change a property's type   | A global definition edit — a value whose shape no longer matches stops rendering but stays in frontmatter.                                                                                                                                                                                                                             |
 | Delete a property (global) | A timestamped recovery snapshot of the definition and every value lands in `.trash`, then the value is stripped across every collection's pages and assignment lists, every Remove-cache block for it is purged (a cache without its definition is corrupt state), and the definition leaves the registry — nothing restorable in-app. |
-| Edit options | Global — adding, reordering, and relabeling are registry-only; deleting an option voids referencing values everywhere it's assigned. |
+| Edit options               | Global — adding, reordering, and recoloring are registry-only; renaming an option cascades its new value onto every assigning page's `$status` (value=title), and removing or clearing one strips that value from those pages.                                                                                                                                                                                                   |
 
 Remove and its restore each commit atomically across every affected file (the global delete's transaction machinery), rolling back the whole set on any write failure; registry mutations serialize through one write chain so overlapping edits never lose an update. Remove is the daily path — the global delete is the rare destructive one, reachable only inside the property's own editor pane behind a native confirm.
 
@@ -101,7 +103,7 @@ The SQLite `property_definitions` table is a pure mirror of the nexus-wide regis
 
 **Lossy Change-Type Strip:** The cross-assigner value strip a lossy type change should trigger (the assign surface itself shipped with the 7-2 pane; `changeType` still accepts-and-ignores the drop flag).
 
-**Per-Type Value Editors:** The value-editing controls inside the schema and value surfaces — the Select / Status option editors, the date format pickers, and the relation pickers. The Properties pane manages properties but doesn't yet edit their per-type options. The Status, Multi-Select, and Select PropertyPanes are design-ready in Figma — first in line.
+**Per-Type Editor Panes:** The remaining per-type property editors not yet built — the Number, Date, URL, and other value-type panes, plus the date / number format pickers and the relation (context) pickers. The Select, Multi-Select, and Status option editors have shipped (grouped / flat option lists, add · recolor · reorder · drag, and a right-click Rename · Remove · Clear); the rest follow on their patterns.
 
 **Display Formats:** Number formats, date and time formats, and the Status display variant. These ride through as preserved foreign keys until a UI reads them.
 
