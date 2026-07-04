@@ -12,6 +12,11 @@
   --glass-inset: 5px; /* gap from the window edges */
   --glass-radius: 12px; /* matched to the macOS window corner (≈ window radius − inset) */
   --toolbar-h: 38px; /* the top strip: titlebar drag region + floating toolbar clusters */
+  /* iOS safe-area insets — 0px on desktop (no cutouts); the mobile shell / drawers / bottom bar mount to these. */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
 }
 
 * {
@@ -61,7 +66,7 @@ textarea,
 
 .shell {
   position: relative;
-  height: 100vh;
+  height: 100dvh;
   --io: 0;
   transition: --io var(--duration-base) var(--ease-standard);
   /* App-level clip: zero scroll at the shell. The floating sidebar/inspector park off-screen via

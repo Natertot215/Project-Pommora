@@ -20,6 +20,18 @@ Building the companion is well-scoped work, not research. The counterintuitive p
 - **Nathan owns:** the Apple platform ceremony — the **paid Apple Developer Program** (mandatory the moment iCloud is used; there is no free path for an iCloud app), Xcode, signing, the iCloud entitlement, and getting the app onto the phone. The least-friction install for a single user is **TestFlight internal** — no App Review, builds land instantly, with a trivial re-upload roughly every ninety days. Mechanical, but only the person holding the Apple ID and the device can do it.
 - **The genuinely hard parts:** the phone form factor (real design, not porting), the sync edge-cases (evicted files, conflict copies), and the iOS known-container constraint. All named, and correctly small.
 
+### Already Shipped — Desktop Pre-Paves
+
+Cheap, behavior-preserving changes already on `main` that shrink the eventual port (all no-op or DRY on desktop; typecheck + build verified):
+
+- **App build target** — `vite.config.app.ts` + `dev:app` / `build:app`: builds the renderer standalone (`dev:app` runs the real UI in any browser; `build:app` → `dist-app/` is Capacitor's `webDir`). Verified — 2,250 modules build clean.
+- **`assetUrl.ts`** — one shared `nexus-asset://` image-URL helper (was 3 identical copies) so the mobile host swaps a single function.
+- **`DEVICE_LOCAL_NEXUS_FILES`** (`paths.ts`) — names the four per-machine `.nexus` files so iCloud sync-exclusion references one constant (C-4c).
+- **Editor input attributes** (MarkdownPM) — iOS soft-keyboard `autocapitalize` / `autocorrect` / `spellcheck` / `enterkeyhint`; inert on desktop.
+- **`viewport-fit=cover` + `--safe-*` vars** — the safe-area tokens the drawers and Liquid-Glass bottom bar mount to; all `0px` on desktop.
+- **`.shell` `100dvh`** — the shell tracks the live viewport (keyboard-safe on mobile; identical on desktop).
+- **`dist-app/` gitignored** — the mobile build output stays out of commits.
+
 ### V1 Scope and Build Sequence
 
 The phone is a **lean companion**, not a full authoring tool. Heavy structural authoring — schema design, view configuration, wrangling large multi-column tables — stays on the desktop, where a big screen and a pointer belong. The phone browses, reads, edits, and captures.

@@ -1,6 +1,7 @@
 node_modules/
 out/
 dist/
+dist-app/
 release/
 build/_dots.png
 .DS_Store
