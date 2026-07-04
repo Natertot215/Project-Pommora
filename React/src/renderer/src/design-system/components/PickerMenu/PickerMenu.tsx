@@ -69,7 +69,9 @@ export function PickerMenu({
   // center — then that clamp-limited beak sits exactly on the trigger. Re-runs on scroll/resize.
   const reserve = radius + notchWidth / 2 + 2
   useLayoutEffect(() => {
-    if (!selfManaged || !mounted) return
+    // Freeze the pane's position through the Bloom-out: once closing, a trigger that detached or moved
+    // (e.g. a pick re-grouped its row) must not re-measure to zeros and snap the fading pane away.
+    if (!selfManaged || !mounted || closing) return
     const trigger = triggerRef?.current ?? markerRef.current?.parentElement
     if (!trigger) return
     const measure = (): void => {
@@ -88,7 +90,7 @@ export function PickerMenu({
       window.removeEventListener('scroll', measure, true)
       window.removeEventListener('resize', measure)
     }
-  }, [selfManaged, mounted, reserve, triggerRef])
+  }, [selfManaged, mounted, reserve, triggerRef, closing])
 
   // Outside clicks dismiss via the backdrop below the pane (rendered in the portal). Escape is handled
   // here since the backdrop only catches pointers.

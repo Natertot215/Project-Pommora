@@ -132,11 +132,20 @@ export function CalendarPicker({
       if ((e.target as HTMLElement)?.closest?.('[data-calmenu]')) return // the menu's own list scrolls freely
       close()
     }
+    // Escape closes the innermost menu FIRST — capture + stopPropagation so a host picker's own Escape
+    // (a self-managed PickerMenu) doesn't also fire and tear down the whole pane in one keystroke.
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key !== 'Escape') return
+      e.stopPropagation()
+      close()
+    }
     document.addEventListener('pointerdown', onDown, true)
     document.addEventListener('scroll', onScroll, true)
+    document.addEventListener('keydown', onKey, true)
     return () => {
       document.removeEventListener('pointerdown', onDown, true)
       document.removeEventListener('scroll', onScroll, true)
+      document.removeEventListener('keydown', onKey, true)
     }
   }, [menu, timeMenu])
   // A press on a selected endpoint arms a drag that re-places it live (swapping roles if it
