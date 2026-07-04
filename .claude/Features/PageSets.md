@@ -1,6 +1,6 @@
 ## Page Sets
 
-The recursive sub-container on the Pages side. A Page Set is a folder inside a [Collection](Collections.md) that nests to any depth. One type, two roles by depth:
+The recursive sub-container on the [[Studio/Pommora/II. Features/Pages|Pages]] side. A Page Set is a folder inside [[Collections]] that nests to any depth. One type, two roles by depth:
 
 - **Set** (depth-1, a direct child of the Collection) — carries its own views and is selectable.
 - **Sub-Set** (depth-2+) — a plain organizing folder, expand-only.
