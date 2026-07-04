@@ -1,5 +1,15 @@
 import { describe, it, expect } from 'vitest'
-import { addOption, addStatusOption, renameOption, recolorOption, reorderOption, fallbackTitle } from './optionModel'
+import {
+  addOption,
+  addStatusOption,
+  recolorStatusOption,
+  relabelStatusGroup,
+  moveStatusOption,
+  renameOption,
+  recolorOption,
+  reorderOption,
+  fallbackTitle
+} from './optionModel'
 import type { StatusGroup } from './properties'
 
 const opt = (t: string, color?: string) => ({ value: t, label: t, ...(color ? { color } : {}) })
@@ -38,5 +48,32 @@ describe('optionModel', () => {
       { value: 'Backlog', label: 'Backlog', group_id: 'upcoming' }
     ])
     expect(next[1]).toBe(groups[1]) // the other group is left untouched (same reference)
+  })
+
+  it('recolorStatusOption sets then clears a color on the matching option in any group', () => {
+    const groups: StatusGroup[] = [
+      { id: 'upcoming', label: 'Open', color: 'grey', options: [{ value: 'Open', label: 'Open', group_id: 'upcoming' }] }
+    ]
+    expect(recolorStatusOption(groups, 'Open', 'red')[0].options[0]).toEqual({ value: 'Open', label: 'Open', group_id: 'upcoming', color: 'red' })
+    const colored: StatusGroup[] = [{ ...groups[0], options: [{ ...groups[0].options[0], color: 'red' }] }]
+    expect(recolorStatusOption(colored, 'Open', undefined)[0].options[0]).toEqual({ value: 'Open', label: 'Open', group_id: 'upcoming' })
+  })
+
+  it('relabelStatusGroup renames the label, keeping id + options', () => {
+    const groups: StatusGroup[] = [{ id: 'upcoming', label: 'Open', color: 'grey', options: [] }]
+    expect(relabelStatusGroup(groups, 'upcoming', 'Backlog')[0]).toEqual({ id: 'upcoming', label: 'Backlog', color: 'grey', options: [] })
+  })
+
+  it('moveStatusOption reassigns group_id and inserts at the target index (cross-group)', () => {
+    const groups: StatusGroup[] = [
+      { id: 'upcoming', label: 'Open', color: 'grey', options: [{ value: 'A', label: 'A', group_id: 'upcoming' }] },
+      { id: 'done', label: 'Done', color: 'green', options: [{ value: 'D', label: 'D', group_id: 'done' }] }
+    ]
+    const next = moveStatusOption(groups, 'A', 'done', 0)
+    expect(next[0].options).toEqual([])
+    expect(next[1].options).toEqual([
+      { value: 'A', label: 'A', group_id: 'done' },
+      { value: 'D', label: 'D', group_id: 'done' }
+    ])
   })
 })

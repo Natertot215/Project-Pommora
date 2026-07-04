@@ -1,7 +1,7 @@
 import { useRef, useState, type ReactNode } from 'react'
 import { Icon, type IconName } from '@renderer/design-system/symbols'
 import { useSession } from '../../store'
-import { isReservedPropertyId, type PropertyDefinition, type PropertyType } from '@shared/properties'
+import { isReservedPropertyId, type PropertyDefinition, type PropertyType, type StatusGroup } from '@shared/properties'
 import type { Option } from '@shared/optionModel'
 import { MenuItem, MenuSeparator, MenuCaption, MenuBackRow } from '../../design-system/components/menu'
 import { flushTrailing } from '../../design-system/components/menu/menu.css'
@@ -230,6 +230,9 @@ export function PropertiesPane({
   const saveOptions = async (id: string, next: Option[]): Promise<void> => {
     await commit(await window.nexus.property.setOptions(id, next))
   }
+  const saveStatusGroups = async (id: string, next: StatusGroup[]): Promise<void> => {
+    await commit(await window.nexus.property.setStatusGroups(id, next))
+  }
   const renameOption = async (id: string, oldValue: string, newTitle: string): Promise<void> => {
     await commit(await window.nexus.property.renameOption(id, oldValue, newTitle))
   }
@@ -331,7 +334,7 @@ export function PropertiesPane({
             onClearOption={(value) => void clearOption(def.id, value)}
           />
         ) : def.type === 'status' ? (
-          <StatusEditor groups={def.status_groups ?? []} />
+          <StatusEditor groups={def.status_groups ?? []} onSetGroups={(next) => void saveStatusGroups(def.id, next)} />
         ) : (
           <MenuCaption>{propertyTypeLabel(def.type)} options — pending</MenuCaption>
         )}

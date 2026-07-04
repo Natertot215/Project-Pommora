@@ -304,6 +304,17 @@ export const optionsAdd = style({
   selectors: { '&:hover': { background: COLOR.iconHover } }
 })
 
+/** Status only — the per-group + . Reuses the "Options" + button, hidden until you hover the group
+ *  (its heading or its chips), per Nathan's reveal. */
+export const groupAdd = style([
+  optionsAdd,
+  {
+    opacity: 0,
+    transition: `opacity ${duration.fast} ${easing.standard}, background ${duration.fast} ${easing.standard}`,
+    selectors: { [`${statusGroup}:hover &`]: { opacity: 1 } }
+  }
+])
+
 /** The chip list — full-width rows (chip left, hover recolor icon at the right edge), the inter-chip
  *  gap between them, the "Options"→chips gap on top. */
 export const optionList = style({
