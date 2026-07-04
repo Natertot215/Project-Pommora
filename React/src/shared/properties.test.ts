@@ -3,7 +3,6 @@ import {
   propertyDefinition,
   propertyType,
   isReservedPropertyId,
-  isUntouchedSeed,
   tierPropertyId,
   tierFieldName,
   defaultStatusSeed,
@@ -97,44 +96,4 @@ describe('status seed relabel', () => {
     }
   })
 
-  it('isUntouchedSeed recognizes the LEGACY seed so existing props stay empty', () => {
-    const legacy = {
-      id: 'prop_x',
-      name: 'Status',
-      type: 'status',
-      status_groups: [
-        { id: 'upcoming', label: 'Upcoming', color: 'gray', options: [{ value: 'not_started', label: 'Not started', group_id: 'upcoming' }] },
-        { id: 'in_progress', label: 'In Progress', color: 'blue', options: [{ value: 'in_progress', label: 'In progress', color: 'blue', group_id: 'in_progress' }] },
-        { id: 'done', label: 'Done', color: 'green', options: [{ value: 'done', label: 'Done', color: 'green', group_id: 'done' }] }
-      ]
-    } as unknown as PropertyDefinition
-    expect(isUntouchedSeed(legacy)).toBe(true)
-  })
-
-  it('isUntouchedSeed recognizes the NEW seed', () => {
-    expect(isUntouchedSeed({ id: 'p', name: 'S', type: 'status', status_groups: defaultStatusSeed() } as PropertyDefinition)).toBe(true)
-  })
-
-  it('a customized status def is not an untouched seed', () => {
-    const g = defaultStatusSeed()
-    g[0].options.push({ value: 'Blocked', label: 'Blocked', group_id: 'upcoming' })
-    expect(isUntouchedSeed({ id: 'p', name: 'S', type: 'status', status_groups: g } as PropertyDefinition)).toBe(false)
-  })
-
-  it('a recolored seed option counts as touched (color, not just value/label)', () => {
-    const g = defaultStatusSeed()
-    g[0].options[0].color = 'red'
-    expect(isUntouchedSeed({ id: 'p', name: 'S', type: 'status', status_groups: g } as PropertyDefinition)).toBe(false)
-  })
-
-  it('a renamed group counts as touched (group label)', () => {
-    const g = defaultStatusSeed()
-    g[1].label = 'Doing'
-    expect(isUntouchedSeed({ id: 'p', name: 'S', type: 'status', status_groups: g } as PropertyDefinition)).toBe(false)
-  })
-
-  it('a recolored select seed counts as touched', () => {
-    const def = { id: 'p', name: 'S', type: 'select', select_options: [{ value: 'Option 1', label: 'Option 1', color: 'blue' }] } as PropertyDefinition
-    expect(isUntouchedSeed(def)).toBe(false)
-  })
 })

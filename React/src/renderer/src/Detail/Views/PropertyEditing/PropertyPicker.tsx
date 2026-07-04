@@ -1,6 +1,6 @@
 import { useRef } from 'react'
 import type { ColumnLook } from '@shared/columnStyles'
-import { isUntouchedSeed, type PropertyDefinition } from '@shared/properties'
+import type { PropertyDefinition } from '@shared/properties'
 import type { PropertyValue } from '@shared/propertyValue'
 import { PickerMenu, PickerOption } from '@renderer/design-system/components/PickerMenu/PickerMenu'
 import { useDismiss } from '@renderer/design-system/components/Popover'
@@ -11,10 +11,9 @@ import { statusGroupOf } from './statusCycle'
 import { StatusCapsule } from './StatusCapsule'
 
 /** A pickable option — status options flatten out of their groups, select/multi read
- *  `select_options`. An untouched creation seed is scaffolding, not defined options: the
- *  picker renders empty until the user makes them real. */
+ *  `select_options`. Values are shown regardless of name (a seed-shaped option is still a real
+ *  value); the groups themselves are containers, never pickable chips. */
 const optionsOf = (def: PropertyDefinition): Array<{ value: string; label: string; color?: string }> => {
-  if (isUntouchedSeed(def)) return []
   return def.type === 'status' ? (def.status_groups ?? []).flatMap((g) => g.options) : (def.select_options ?? [])
 }
 

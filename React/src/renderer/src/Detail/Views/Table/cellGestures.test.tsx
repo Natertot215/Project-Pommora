@@ -479,8 +479,8 @@ describe('open actions + row-click narrowing (A-7)', () => {
   })
 })
 
-describe('PropertyPicker (direct mount) — untouched seed', () => {
-  it('a seed-only status def pickers empty — scaffolding is not defined options', async () => {
+describe('PropertyPicker (direct mount) — seed values', () => {
+  it('a seed status def shows its option values (values show regardless of name)', async () => {
     const { defaultStatusSeed } = await import('@shared/properties')
     const seedDef: PropertyDefinition = {
       id: 'prop_seed',
@@ -499,7 +499,8 @@ describe('PropertyPicker (direct mount) — untouched seed', () => {
         />
       )
     })
-    expect(host.querySelectorAll('button').length).toBe(0)
+    const labels = [...host.querySelectorAll('button')].map((b) => b.textContent)
+    expect(labels).toEqual(['Open', 'Active', 'Done'])
   })
 })
 

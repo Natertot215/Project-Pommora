@@ -130,50 +130,8 @@ export function defaultStatusSeed(): StatusGroup[] {
   ]
 }
 
-/** The pre-7-3 seed (Upcoming / In Progress / Done with `not_started`-style values). A Status property
- *  untouched since before the relabel still matches this, so `isUntouchedSeed` keeps treating it as an
- *  empty seed-only def rather than surfacing its old starter options as real ones. */
-function legacyStatusSeed(): StatusGroup[] {
-  return [
-    { id: 'upcoming', label: 'Upcoming', color: 'gray', options: [{ value: 'not_started', label: 'Not started', group_id: 'upcoming' }] },
-    { id: 'in_progress', label: 'In Progress', color: 'blue', options: [{ value: 'in_progress', label: 'In progress', color: 'blue', group_id: 'in_progress' }] },
-    { id: 'done', label: 'Done', color: 'green', options: [{ value: 'done', label: 'Done', color: 'green', group_id: 'done' }] }
-  ]
-}
-
 /** Default single-option seed written when a Select / Multi-Select property is first added. Creation
  *  seeds one starter option (value=label=title) the user then renames or extends. */
 export function defaultSelectSeed(): { value: string; label: string }[] {
   return [{ value: 'Option 1', label: 'Option 1' }]
-}
-
-/** True while a def still carries EXACTLY its untouched creation seed — scaffolding, not options
- *  the user defined. Value surfaces (the cell picker) treat a seed-only def as "no options yet"
- *  and render empty (Nathan: "don't render groupings as options"); the checkbox-status cycle still
- *  writes the seed values — they're its fixed 3-state backbone. Any rename/add/removal makes the
- *  options real. */
-export function isUntouchedSeed(def: PropertyDefinition): boolean {
-  if (def.type === 'status') {
-    const groups = def.status_groups
-    if (!groups) return false
-    // Every field the user can edit must match, or the edit "disappears" behind the seed check:
-    // group label + the sole option's value / label / color. Colour and group-relabel count too.
-    const matches = (seed: StatusGroup[]): boolean =>
-      groups.length === seed.length &&
-      seed.every((sg) => {
-        const g = groups.find((x) => x.id === sg.id)
-        if (!g || g.label !== sg.label || g.options.length !== 1) return false
-        const [o] = g.options
-        const [so] = sg.options
-        return o.value === so.value && o.label === so.label && o.color === so.color
-      })
-    return matches(defaultStatusSeed()) || matches(legacyStatusSeed())
-  }
-  if (def.type === 'select' || def.type === 'multi_select') {
-    const opts = def.select_options
-    if (opts?.length !== 1) return false
-    const seed = defaultSelectSeed()[0]
-    return opts[0].value === seed.value && opts[0].label === seed.label && opts[0].color === undefined
-  }
-  return false
 }
