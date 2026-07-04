@@ -6,8 +6,7 @@ import { useSession } from '../../store'
 import type { BannerOwner } from '../Scope'
 import { DetailTitleHeader } from '../DetailTitleHeader'
 import { AddBannerButton } from './AddBannerButton'
-
-const assetUrl = (rel: string): string => `nexus-asset://nexus/${encodeURI(rel)}`
+import { assetUrl } from '../../assetUrl'
 
 /** Per-kind fallback so a bannered view always carries a glyph (banner ⇒ icon, even the default);
  *  banner-less stays text-only. Pages never reach here (their header is title-only by design) and

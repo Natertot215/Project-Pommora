@@ -130,6 +130,14 @@ export function MarkdownEditor({
         // over a selection into [selection](url) against the paste-preserves-literal-text rule.
         markdown({ addKeymap: false, pasteURLAsLink: false, completeHTMLTags: false }),
         EditorView.lineWrapping,
+        // iOS soft-keyboard hints — no-ops on desktop; keep the on-screen keyboard from
+        // auto-capitalizing and "correcting" Markdown / [[wikilinks]]. Tune during the mobile editor pass.
+        EditorView.contentAttributes.of({
+          autocapitalize: "sentences",
+          autocorrect: "off",
+          spellcheck: "true",
+          enterkeyhint: "enter",
+        }),
         markdownDecorations(() => connectionsRef.current),
         // Interactive table widget — renders each Markdown table as an editable HTML table over the GFM
         // source; the connections getter lets `[[…]]` render + autocomplete inside cells.

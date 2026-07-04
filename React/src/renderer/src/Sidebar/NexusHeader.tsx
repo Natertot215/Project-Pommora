@@ -4,8 +4,7 @@ import { useSession } from '../store'
 import { EditableInput } from '../Components/EditableInput'
 import { PhotoCropModal } from '../Components/PhotoCropModal'
 import * as s from './nexusHeader.css'
-
-const assetUrl = (rel: string): string => `nexus-asset://nexus/${encodeURI(rel)}`
+import { assetUrl } from '../assetUrl'
 
 /**
  * The nexus header at the top of the sidebar: a circular profile photo beside the nexus title

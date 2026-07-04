@@ -2,8 +2,7 @@ import { forwardRef } from 'react'
 import { useSession } from '../store'
 import { AddBannerButton } from '../Detail/Banner/AddBannerButton'
 import { DetailTitleHeader } from '../Detail/DetailTitleHeader'
-
-const assetUrl = (rel: string): string => `nexus-asset://nexus/${encodeURI(rel)}`
+import { assetUrl } from '../assetUrl'
 
 interface Props {
   path: string

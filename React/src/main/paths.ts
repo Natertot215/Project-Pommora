@@ -50,3 +50,13 @@ export const NEXUS_CONFIG_FILES = {
   viewOrders: 'viewOrders.json',
   properties: 'properties.json'
 } as const
+
+/** The `.nexus/` files that are per-machine display state, never shared — the set to exclude from
+ *  any device-to-device sync (heading folds, active view, per-view row order, table-heading toggles).
+ *  Everything else under `.nexus/` (registry, Contexts, Homepage, settings, assets) is canonical. */
+export const DEVICE_LOCAL_NEXUS_FILES: ReadonlySet<string> = new Set([
+  NEXUS_CONFIG_FILES.folds,
+  NEXUS_CONFIG_FILES.activeViews,
+  NEXUS_CONFIG_FILES.viewOrders,
+  NEXUS_CONFIG_FILES.tableHeadingColumns
+])
