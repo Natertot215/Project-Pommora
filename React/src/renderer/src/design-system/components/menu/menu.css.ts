@@ -92,7 +92,7 @@ export const separatorLine = style({ height: '1px', width: '100%', background: c
 /** Flush variant — no side inset, so the hairline spans the surface gutter edge-to-edge. */
 export const separatorFlush = style({ padding: 0 })
 
-/** Gutter-flush affordance — the shared geometry/colour for the back-row heading nav and the pane
+/** Gutter-flush affordance — the shared geometry/colour for the TopRow heading nav and the pane
  *  footer actions: no item inset (so the ‹ heading and the +/Delete footer line up at one left edge),
  *  a tight 4px icon↔label gap, and label-secondary text. Each consumer sets its own type; the
  *  destructive footer (Delete) re-overrides the colour. */
