@@ -18,14 +18,6 @@ export const anchorUp = style({
   transform: 'translateX(-50%)',
   zIndex: 20
 })
-/** Right-edge-aligned variant — the pane's right edge sits on the trigger's, opening leftward so a
- *  trigger near its container's right edge doesn't clip (the option row's recolor icon). */
-export const anchorEnd = style({
-  position: 'absolute',
-  top: 'calc(100% + 6px)',
-  right: 0,
-  zIndex: 20
-})
 /** The self-managed top layer — a fixed body-portal position (set inline from the measured trigger)
  *  so the pane escapes any clipping ancestor (the settings dropdown's frost clip). */
 export const layer = style({ position: 'fixed', zIndex: 100 })

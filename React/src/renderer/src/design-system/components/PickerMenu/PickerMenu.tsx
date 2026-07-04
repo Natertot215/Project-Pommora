@@ -15,9 +15,11 @@ const VIEWPORT_MARGIN = 8 // keep the pane this far from the viewport edges
 // Two lifecycle modes:
 //  • Self-managed (pass `open` + `onDismiss`): PickerMenu owns mount → Bloom-out → unmount via
 //    useExitPresence, and renders on a fixed TOP LAYER (a body portal) so it escapes any clipping
-//    ancestor — positioned at the trigger, beak aimed at it dynamically, dismissed on an outside
-//    click/Escape (the trigger itself is exempt, so its toggle doesn't re-open). The one-liner most
-//    pickers want.
+//    ancestor — positioned at the trigger, beak aimed at it dynamically. A full-viewport backdrop
+//    under the pane catches the outside click (and covers the trigger, so a toggle can't
+//    dismiss-then-reopen); Escape closes too. Both layers carry `data-picker-portal` so a host's
+//    useDismiss spares them (its containment check can't see through the portal). The one-liner
+//    most pickers want.
 //  • Manual (pass `closing`, mount the element yourself): inline, caller-driven — for the few
 //    consumers with bespoke close logic (a multi-select picker that stays open on pick).
 export function PickerMenu({
@@ -32,7 +34,6 @@ export function PickerMenu({
   notchHeight = 8,
   notchCurve = 0.225,
   direction = 'down',
-  align = 'center',
   style
 }: {
   children: ReactNode
@@ -40,8 +41,8 @@ export function PickerMenu({
   open?: boolean
   /** Self-managed dismissal target (outside-click / Escape). */
   onDismiss?: () => void
-  /** The element the picker hangs off — measured for placement + exempted from dismiss (so a toggle
-   *  trigger can't dismiss-then-reopen). Falls back to the marker's parent when omitted. */
+  /** The element the picker hangs off — measured for placement. Falls back to the marker's parent
+   *  when omitted. (Dismiss is handled by the backdrop, which covers the trigger.) */
   triggerRef?: RefObject<HTMLElement | null>
   /** Manual mode: the caller's exit flag, ridden to the Bloom-out. Ignored when `open` is set. */
   closing?: boolean
@@ -53,8 +54,6 @@ export function PickerMenu({
   notchCurve?: number
   /** 'up' hangs the pane ABOVE its trigger with the beak pointing down (bottom-of-pane hosts). */
   direction?: 'down' | 'up'
-  /** Horizontal anchor: 'center' over the trigger, or 'end' with the pane's right edge on it. */
-  align?: 'center' | 'end'
   style?: CSSProperties
 }): React.JSX.Element | null {
   const selfManaged = open !== undefined
@@ -122,7 +121,7 @@ export function PickerMenu({
 
   // Manual (legacy) — inline, caller-mounted, centered beak.
   if (!selfManaged) {
-    return <div className={up ? s.anchorUp : align === 'end' ? s.anchorEnd : s.anchor}>{pane}</div>
+    return <div className={up ? s.anchorUp : s.anchor}>{pane}</div>
   }
 
   // Closed (and past its exit) — render nothing, so no stray backdrop/pane sits over the page
@@ -136,10 +135,11 @@ export function PickerMenu({
       <span ref={markerRef} aria-hidden style={{ display: 'none' }} />
       {createPortal(
         <>
-          {onDismiss && !closing ? <div className={s.backdrop} onClick={onDismiss} /> : null}
+          {onDismiss && !closing ? <div className={s.backdrop} data-picker-portal onClick={onDismiss} /> : null}
           <div
             ref={paneRef}
             className={s.layer}
+            data-picker-portal
             style={{
               top: pos ? `${pos.top}px` : '0',
               right: pos ? `${pos.right}px` : '0',

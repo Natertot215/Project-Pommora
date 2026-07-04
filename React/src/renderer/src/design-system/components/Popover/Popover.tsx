@@ -34,7 +34,11 @@ export function useDismiss(
   useEffect(() => {
     if (!active) return
     const onDown = (e: PointerEvent): void => {
-      if (ref.current && !ref.current.contains(e.target as Node)) onClose()
+      const target = e.target as Element
+      // A portal'd picker (its layer + backdrop) renders OUTSIDE this ref in the DOM, so a plain
+      // containment check reads any interaction with it as "outside" and dismisses the host it
+      // visually sits within. Spare the marked portal — the picker owns its own dismissal.
+      if (ref.current && !ref.current.contains(target) && !target.closest?.('[data-picker-portal]')) onClose()
     }
     const onKey = (e: KeyboardEvent): void => {
       if (e.key === 'Escape') onClose()

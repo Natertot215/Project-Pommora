@@ -10,9 +10,8 @@ export const grid = style({
   gap: '4px'
 })
 
-/** Each swatch publishes its solid as `--sw`, so the fill and the selected ring share one source
- *  (the ring reads in the swatch's OWN colour — Nathan's call). DRY'd off the shared colour tokens,
- *  so a new palette entry drops straight in. */
+/** Each swatch's solid, published as `--sw` and DRY'd off the shared colour tokens so a new palette
+ *  entry drops straight in. */
 export const swatchColor = styleVariants({
   red: { vars: { '--sw': solid.red } },
   orange: { vars: { '--sw': solid.orange } },
