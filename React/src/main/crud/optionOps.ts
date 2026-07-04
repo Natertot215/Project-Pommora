@@ -1,6 +1,7 @@
 // Option-level CRUD for Select / Multi-Select properties. setOptions is registry-only (add / recolor
-// / reorder) and rides the mutateRegistry chain; the page-touching ops (rename / remove / clear) land
-// in later tasks on the serializeSchemaOp chain. Errors flow as Result, never thrown.
+// / reorder) and rides the mutateRegistry chain; the page-touching ops (rename / remove / clear) ride
+// the serializeSchemaOp chain, cascading each edit across every assigning collection's pages. Errors
+// flow as Result, never thrown.
 
 import { readFile } from 'node:fs/promises'
 import { mutateRegistry, readRegistry } from '../io/propertiesRegistry'
