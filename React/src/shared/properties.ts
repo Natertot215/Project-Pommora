@@ -36,8 +36,9 @@ const selectOption = z.looseObject({
   color: z.string().optional().catch(undefined)
 })
 
-/** Three fixed status-group slots — a fourth breaks EventKit sync mapping. */
-export const statusGroupId = z.enum(['upcoming', 'in_progress', 'done'])
+/** Status-group ids — an OPEN set (seeded with upcoming / in_progress / done, the only three shipped
+ *  today). The count isn't capped: a future EventKit bridge maps each group by a done-flag, not a fixed 3. */
+export const statusGroupId = z.string()
 export type StatusGroupId = z.infer<typeof statusGroupId>
 
 const statusOption = z.looseObject({

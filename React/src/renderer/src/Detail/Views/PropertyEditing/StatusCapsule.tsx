@@ -3,7 +3,7 @@ import { chipCapsule, chipColor } from '@renderer/design-system/tokens'
 import { chipColorFor } from '@renderer/design-system/tokens/colorMap'
 import { cx } from '@renderer/design-system/cx'
 import { Icon } from '@renderer/design-system/symbols'
-import { STATUS_GROUP_GLYPH } from './statusCycle'
+import { statusGroupGlyph } from './statusCycle'
 
 /** The capsule look for a status value — an icon-only chip carrying its group glyph (upcoming falls
  *  back to the dashed circle). Shared by the table cell and the picker's capsule options so the two
@@ -11,7 +11,7 @@ import { STATUS_GROUP_GLYPH } from './statusCycle'
 export function StatusCapsule({ color, group }: { color?: string; group: StatusGroupId | undefined }): React.JSX.Element {
   return (
     <span className={cx(chipCapsule, chipColor[chipColorFor(color)])}>
-      <Icon name={group ? STATUS_GROUP_GLYPH[group] : 'circle-dashed'} size={13} />
+      <Icon name={statusGroupGlyph(group)} size={13} />
     </span>
   )
 }

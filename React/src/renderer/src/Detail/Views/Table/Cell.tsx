@@ -11,7 +11,7 @@ import { chipColorFor } from '@renderer/design-system/tokens/colorMap'
 import { OverflowScroll } from '@renderer/design-system/components/OverflowScroll'
 import { declaredType, resolveFieldValue } from '../pipeline/value'
 import { fileLabel, formatDate, formatNumber } from '../PropertyEditing/formatValue'
-import { STATUS_GROUP_GLYPH, statusGroupOf } from '../PropertyEditing/statusCycle'
+import { statusGroupGlyph, statusGroupOf } from '../PropertyEditing/statusCycle'
 import { StatusCapsule } from '../PropertyEditing/StatusCapsule'
 import { findOption } from './cellResolve'
 import type { ResolveContext } from './resolveContext'
@@ -76,7 +76,7 @@ export function Cell({
           <StatusCapsule color={opt?.color} group={group} />
         ) : (
           <span className={cx(chipBox, chipColor[chipColorFor(opt?.color)])}>
-            {group && group !== 'upcoming' ? <Icon name={STATUS_GROUP_GLYPH[group]} size={12} strokeWidth={3} /> : null}
+            {group && group !== 'upcoming' ? <Icon name={statusGroupGlyph(group)} size={12} strokeWidth={3} /> : null}
           </span>
         )
       }
