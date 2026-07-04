@@ -76,8 +76,8 @@ export function PropertyPicker({
     <div ref={ref} onClick={(e) => e.stopPropagation()}>
       <PickerMenu closing={closing} solid>
         {options.length === 0 ? (
-          // A seed-only def pickers EMPTY (Nathan: scaffolding isn't options) — the spacer keeps
-          // the notch pane's proportions so it doesn't collapse into a degenerate beak. Tune here.
+          // An empty option list (a Select/Multi with all options removed) — the spacer keeps the
+          // notch pane's proportions so it doesn't collapse into a degenerate beak. Tune here.
           <div style={{ minWidth: 96, height: 24 }} />
         ) : (
           options.map((o) => {
