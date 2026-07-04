@@ -10,6 +10,7 @@ import type { PropertyMenuAction, PropertyMenuContext } from '@shared/propertyMe
 import type { OptionMenuAction, OptionMenuContext } from '@shared/optionMenu'
 import type { ColumnMenuAction, ColumnMenuContext } from '@shared/columnMenu'
 import type { SavedView } from '@shared/views'
+import type { StatusGroup } from '@shared/properties'
 import type { PageFrontmatter } from '@shared/schemas'
 import type { PropertyDefinition, PropertyType } from '@shared/properties'
 
@@ -116,6 +117,11 @@ const api = {
       options: { value: string; label: string; color?: string }[]
     ): Promise<{ ok: true } | { ok: false; error: string }> =>
       ipcRenderer.invoke('property:setOptions', propertyId, options),
+    setStatusGroups: (
+      propertyId: string,
+      groups: StatusGroup[]
+    ): Promise<{ ok: true } | { ok: false; error: string }> =>
+      ipcRenderer.invoke('property:setStatusGroups', propertyId, groups),
     renameOption: (
       propertyId: string,
       oldValue: string,

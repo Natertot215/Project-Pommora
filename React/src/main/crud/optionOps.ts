@@ -13,7 +13,7 @@ import { listMarkdownFiles } from '../io/walk'
 import { replacePageValue, stripPageValue } from './pageValue'
 import { ok, fail, type Result } from '@shared/result'
 import { renameOption as renameInArray, type Option } from '@shared/optionModel'
-import type { PropertyType } from '@shared/properties'
+import type { PropertyType, StatusGroup } from '@shared/properties'
 
 /** These ops edit `select_options`, so they apply to Select / Multi-Select only. A Status property's
  *  options live in `status_groups` (Phase 3's per-group ops); other types have none. Reject anything
@@ -39,6 +39,26 @@ export function setOptions(root: string, propertyId: string, options: Option[]):
       const check = validateOptionValues(options)
       if (!check.ok) return { result: check }
       const next = { ...current, select_options: options }
+      return { next: { ...registry, defs: { ...registry.defs, [propertyId]: next } }, result: ok(null) }
+    })
+  )
+}
+
+/** Replace a Status property's `status_groups` wholesale — the registry-only path behind add / recolor
+ *  / reorder (the Status analog of setOptions). Validates unique option values PROPERTY-WIDE (a page's
+ *  `$status` references the value across all groups), then writes verbatim. Rides serializeSchemaOp so
+ *  it can't interleave with a concurrent page cascade. */
+export function setStatusGroups(root: string, propertyId: string, groups: StatusGroup[]): Promise<Result<null>> {
+  return serializeSchemaOp(() =>
+    mutateRegistry<Result<null>>(root, (registry) => {
+      const current = registry.defs[propertyId]
+      if (!current) return { result: fail('not-found', 'Property not found.') }
+      if (current.type !== 'status') {
+        return { result: fail('invalid-property', 'Status groups can only be set on a Status property.') }
+      }
+      const check = validateOptionValues(groups.flatMap((g) => g.options))
+      if (!check.ok) return { result: check }
+      const next = { ...current, status_groups: groups }
       return { next: { ...registry, defs: { ...registry.defs, [propertyId]: next } }, result: ok(null) }
     })
   )

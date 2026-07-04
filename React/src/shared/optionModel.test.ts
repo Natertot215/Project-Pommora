@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { addOption, renameOption, recolorOption, reorderOption, fallbackTitle } from './optionModel'
+import { addOption, addStatusOption, renameOption, recolorOption, reorderOption, fallbackTitle } from './optionModel'
+import type { StatusGroup } from './properties'
 
 const opt = (t: string, color?: string) => ({ value: t, label: t, ...(color ? { color } : {}) })
 
@@ -24,5 +25,18 @@ describe('optionModel', () => {
 
   it('reorderOption moves an option to a new index', () => {
     expect(reorderOption([opt('A'), opt('B'), opt('C')], 'C', 0)).toEqual([opt('C'), opt('A'), opt('B')])
+  })
+
+  it('addStatusOption appends to the matched group only, carrying its group_id', () => {
+    const groups: StatusGroup[] = [
+      { id: 'upcoming', label: 'Open', color: 'grey', options: [{ value: 'Open', label: 'Open', group_id: 'upcoming' }] },
+      { id: 'done', label: 'Done', color: 'green', options: [{ value: 'Done', label: 'Done', group_id: 'done' }] }
+    ]
+    const next = addStatusOption(groups, 'upcoming', 'Backlog')
+    expect(next[0].options).toEqual([
+      { value: 'Open', label: 'Open', group_id: 'upcoming' },
+      { value: 'Backlog', label: 'Backlog', group_id: 'upcoming' }
+    ])
+    expect(next[1]).toBe(groups[1]) // the other group is left untouched (same reference)
   })
 })

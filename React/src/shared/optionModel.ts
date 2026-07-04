@@ -2,7 +2,7 @@
 // option's `value` IS its title (value=label), so identity keys on the value string. No I/O, no React
 // — unit-tested in isolation; the IPC ops and panes are thin over these.
 
-import type { PropertyType } from './properties'
+import type { PropertyType, StatusGroup } from './properties'
 
 export type Option = { value: string; label: string; color?: string; group_id?: string }
 
@@ -16,6 +16,16 @@ export function fallbackTitle(type: PropertyType, groupLabel?: string): string {
  *  neutral default (grey-default) until recolored. */
 export function addOption(options: Option[], title: string, groupId?: string): Option[] {
   return [...options, { value: title, label: title, ...(groupId ? { group_id: groupId } : {}) }]
+}
+
+// ── Status: the same transforms, applied to one group's options within the StatusGroup[] array ──
+
+/** Append an option to one status group (matched by id). value = label = title (the value=title
+ *  model); no color, so the chip inherits the group's colour until it's recolored. */
+export function addStatusOption(groups: StatusGroup[], groupId: string, title: string): StatusGroup[] {
+  return groups.map((g) =>
+    g.id === groupId ? { ...g, options: [...g.options, { value: title, label: title, group_id: g.id }] } : g
+  )
 }
 
 /** Rename by OLD value; value and label both become the new title. Identity keys on the old value. */

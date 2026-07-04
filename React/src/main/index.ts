@@ -26,7 +26,8 @@ import { createProperty, editProperty, removeFromRegistry, reorderRegistry } fro
 import { assignProperty, assignPropertyAt, reorderAssignment } from './crud/assignment'
 import { removeProperty } from './crud/removeProperty'
 import { deleteProperty as deletePropertyGlobal } from './crud/deleteProperty'
-import { setOptions, renameOption, removeOption, clearOption } from './crud/optionOps'
+import { setOptions, setStatusGroups, renameOption, removeOption, clearOption } from './crud/optionOps'
+import type { StatusGroup } from '@shared/properties'
 import type { Option } from '@shared/optionModel'
 import { savedView } from '@shared/views'
 import { propertyDefinition, propertyType } from '@shared/properties'
@@ -672,6 +673,22 @@ ipcMain.handle(
       if (typeof propertyId !== 'string') return { ok: false, error: 'A property id is required.' }
       if (!isOptionArray(options)) return { ok: false, error: 'Options must be an array of { value, label }.' }
       const r = await setOptions(root, propertyId, options)
+      return r.ok ? { ok: true } : { ok: false, error: r.error.message }
+    } catch (e) {
+      return { ok: false, error: e instanceof Error ? e.message : String(e) }
+    }
+  }
+)
+
+ipcMain.handle(
+  'property:setStatusGroups',
+  async (_e, propertyId: unknown, groups: unknown): Promise<{ ok: true } | { ok: false; error: string }> => {
+    try {
+      const root = sessionRoot()
+      if (root === null) return { ok: false, error: 'No nexus is open.' }
+      if (typeof propertyId !== 'string') return { ok: false, error: 'A property id is required.' }
+      if (!Array.isArray(groups)) return { ok: false, error: 'Status groups must be an array.' }
+      const r = await setStatusGroups(root, propertyId, groups as StatusGroup[])
       return r.ok ? { ok: true } : { ok: false, error: r.error.message }
     } catch (e) {
       return { ok: false, error: e instanceof Error ? e.message : String(e) }
