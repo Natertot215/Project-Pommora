@@ -1,9 +1,8 @@
-import { useRef } from 'react'
+import type { RefObject } from 'react'
 import type { ColumnLook } from '@shared/columnStyles'
 import type { PropertyDefinition } from '@shared/properties'
 import type { PropertyValue } from '@shared/propertyValue'
 import { PickerMenu, PickerOption } from '@renderer/design-system/components/PickerMenu/PickerMenu'
-import { useDismiss } from '@renderer/design-system/components/Popover'
 import { Chip, chipShapeForType } from '@renderer/Components/Chip'
 import { ContextChip } from '@renderer/Components/ContextChip'
 import { chipColorFor } from '@renderer/design-system/tokens/colorMap'
@@ -27,14 +26,16 @@ const selectedValues = (current: PropertyValue | null): string[] => {
 /**
  * The value dropdown every container view's status/select/multi cells share (F-2: PickerMenu for
  * values, native menus for meta). Table-agnostic and stateless: props in, `onCommit(PropertyValue)`
- * out — the caller owns the write, the optimistic patch, and open/close (`closing` rides to the
- * PickerMenu Bloom so the exit plays before unmount). Single-value types commit + dismiss on pick;
- * multi toggles against `current` and stays open.
+ * out — the caller owns the write + the optimistic patch. Self-managed: PickerMenu portals to a body
+ * top layer off `triggerRef` (escaping the table's overflow clip), owns its Bloom-in/out off `open`,
+ * and dismisses (outside-click / Escape) via its own backdrop. Single-value types commit + dismiss on
+ * pick; multi toggles against `current` and stays open.
  */
 export function PropertyPicker({
   def,
   current,
-  closing,
+  open,
+  triggerRef,
   look,
   contextOptions,
   onCommit,
@@ -42,7 +43,10 @@ export function PropertyPicker({
 }: {
   def: PropertyDefinition
   current: PropertyValue | null
-  closing: boolean
+  /** Self-managed open state — PickerMenu blooms in on true, out on false. */
+  open: boolean
+  /** The cell the picker hangs off — measured for placement, so it escapes the table's clip. */
+  triggerRef: RefObject<HTMLElement | null>
   /** The column's resolved look — a status column on a glyph look (checkbox/capsule) renders
    *  its OPTIONS as capsule chips too (Nathan); pill columns keep labeled pills. */
   look?: ColumnLook
@@ -52,14 +56,11 @@ export function PropertyPicker({
   onCommit: (value: PropertyValue | null) => void
   onDismiss: () => void
 }): React.JSX.Element | null {
-  const ref = useRef<HTMLDivElement>(null)
   const options = contextOptions ?? optionsOf(def)
-  useDismiss(ref, onDismiss, !closing)
   const multi = def.type === 'multi_select' || contextOptions !== undefined
   const selected = selectedValues(current)
 
   const pick = (value: string): void => {
-    if (closing) return // the pane stays mounted through its Bloom-out — a mid-exit click must not re-commit
     if (multi) {
       const next = selected.includes(value) ? selected.filter((v) => v !== value) : [...selected, value]
       onCommit(contextOptions ? { kind: 'context', value: next } : { kind: 'multiSelect', value: next })
@@ -70,11 +71,7 @@ export function PropertyPicker({
   }
 
   return (
-    // The picker renders INSIDE the cell it edits — its clicks must never bubble to the cell's
-    // own onClick, which would re-open the picker the same instant a pick dismissed it.
-    // biome-ignore lint/a11y/noStaticElementInteractions: a propagation boundary, not a control.
-    <div ref={ref} onClick={(e) => e.stopPropagation()}>
-      <PickerMenu closing={closing} solid>
+    <PickerMenu open={open} onDismiss={onDismiss} triggerRef={triggerRef} solid>
         {options.length === 0 ? (
           // An empty option list (a Select/Multi with all options removed) — the spacer keeps the
           // notch pane's proportions so it doesn't collapse into a degenerate beak. Tune here.
@@ -101,6 +98,5 @@ export function PropertyPicker({
           })
         )}
       </PickerMenu>
-    </div>
   )
 }

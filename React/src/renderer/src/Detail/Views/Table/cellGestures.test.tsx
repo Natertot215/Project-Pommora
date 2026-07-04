@@ -172,14 +172,19 @@ const statusCell = (): HTMLElement => {
   return cells[1] // property_order: _title, prop_status, prop_done
 }
 
+// The value picker is now ONE table-level self-managed pane portaled to document.body (escaping the
+// table's overflow clip) — its DOM lives outside `host`, so query it through the portal marker.
+const pickerButtons = (): HTMLButtonElement[] => [...document.querySelectorAll<HTMLButtonElement>('[data-picker-portal] button')]
+const pickerText = (): string => [...document.querySelectorAll('[data-picker-portal]')].map((e) => e.textContent ?? '').join('')
+
 describe('status cell gestures', () => {
   it('single-click opens the PropertyPicker with every option as a chip', async () => {
     await mountTable(sourceWith())
     await act(async () => {
       statusCell().click()
     })
-    expect(host.textContent).toContain('Not started')
-    expect(host.textContent).toContain('Complete')
+    expect(pickerText()).toContain('Not started')
+    expect(pickerText()).toContain('Complete')
     expect(mutateSpy).not.toHaveBeenCalled()
   })
 
@@ -188,8 +193,8 @@ describe('status cell gestures', () => {
     await act(async () => {
       statusCell().click()
     })
-    expect([...host.querySelectorAll('button')].some((b) => b.textContent?.includes('Complete'))).toBe(true)
-    const option = [...host.querySelectorAll('button')].find((b) => b.textContent?.includes('Complete'))
+    expect(pickerButtons().some((b) => b.textContent?.includes('Complete'))).toBe(true)
+    const option = pickerButtons().find((b) => b.textContent?.includes('Complete'))
     await act(async () => {
       option?.click()
     })
@@ -197,7 +202,7 @@ describe('status cell gestures', () => {
     await act(async () => {
       await new Promise((r) => setTimeout(r, 450))
     })
-    expect([...host.querySelectorAll('button')].some((b) => b.textContent?.includes('Not started'))).toBe(false)
+    expect(pickerButtons().some((b) => b.textContent?.includes('Not started'))).toBe(false)
   })
 
   it('picking an option writes the status optimistically through setProperty', async () => {
@@ -205,7 +210,7 @@ describe('status cell gestures', () => {
     await act(async () => {
       statusCell().click()
     })
-    const option = [...host.querySelectorAll('button')].find((b) => b.textContent?.includes('Complete'))
+    const option = pickerButtons().find((b) => b.textContent?.includes('Complete'))
     expect(option).toBeTruthy()
     await act(async () => {
       option?.click()
@@ -223,7 +228,7 @@ describe('status cell gestures', () => {
     await act(async () => {
       statusCell().click()
     })
-    expect(host.textContent).not.toContain('Not started') // no picker options
+    expect(pickerText()).not.toContain('Not started') // no picker options
     expect(mutateSpy).toHaveBeenCalledWith({
       op: 'setProperty',
       path: 'Col/Page One.md',
@@ -239,9 +244,9 @@ describe('status cell gestures', () => {
       emptyStatusCell.click()
     })
     expect(mutateSpy).not.toHaveBeenCalled()
-    const optionButtons = emptyStatusCell.querySelectorAll('button')
+    const optionButtons = pickerButtons()
     expect(optionButtons.length).toBe(3)
-    expect(emptyStatusCell.textContent).not.toContain('Active') // capsule options carry glyphs, not labels
+    expect(pickerText()).not.toContain('Active') // capsule options carry glyphs, not labels
     expect(optionButtons[0].querySelector('svg')).toBeTruthy()
   })
 })
@@ -307,10 +312,10 @@ describe('context tier cells', () => {
     await act(async () => {
       tierCell().click()
     })
-    expect(host.textContent).toContain('Work')
-    expect(host.textContent).toContain('Personal')
+    expect(pickerText()).toContain('Work')
+    expect(pickerText()).toContain('Personal')
 
-    const work = [...tierCell().querySelectorAll('button')].find((b) => b.textContent?.includes('Work'))
+    const work = pickerButtons().find((b) => b.textContent?.includes('Work'))
     await act(async () => {
       work?.click()
     })
@@ -493,13 +498,14 @@ describe('PropertyPicker (direct mount) — seed values', () => {
         <PropertyPicker
           def={seedDef}
           current={null}
-          closing={false}
+          open
+          triggerRef={{ current: host }}
           onCommit={vi.fn()}
           onDismiss={vi.fn()}
         />
       )
     })
-    const labels = [...host.querySelectorAll('button')].map((b) => b.textContent)
+    const labels = pickerButtons().map((b) => b.textContent)
     expect(labels).toEqual(['Open', 'Active', 'Done'])
   })
 })
@@ -513,20 +519,21 @@ describe('PropertyPicker (direct mount) — multi-select', () => {
         <PropertyPicker
           def={multiDef}
           current={{ kind: 'multiSelect', value: ['a'] }}
-          closing={false}
+          open
+          triggerRef={{ current: host }}
           onCommit={onCommit}
           onDismiss={onDismiss}
         />
       )
     })
-    const beta = [...host.querySelectorAll('button')].find((b) => b.textContent?.includes('Beta'))
+    const beta = pickerButtons().find((b) => b.textContent?.includes('Beta'))
     await act(async () => {
       beta?.click()
     })
     expect(onCommit).toHaveBeenCalledWith({ kind: 'multiSelect', value: ['a', 'b'] })
     expect(onDismiss).not.toHaveBeenCalled() // multi stays open
 
-    const alpha = [...host.querySelectorAll('button')].find((b) => b.textContent?.includes('Alpha'))
+    const alpha = pickerButtons().find((b) => b.textContent?.includes('Alpha'))
     await act(async () => {
       alpha?.click()
     })

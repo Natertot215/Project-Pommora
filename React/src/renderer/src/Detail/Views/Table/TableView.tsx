@@ -1,4 +1,4 @@
-import { memo, useEffect, useMemo, useRef, useState } from 'react'
+import { memo, useEffect, useMemo, useRef, useState, type RefObject } from 'react'
 import type { CollectionNode, NexusTree, ResolvedColumn, ResolvedGroup, SetNode, ViewRow } from '@shared/types'
 import type { PropertyDefinition, PropertyType } from '@shared/properties'
 import type { PageFrontmatter } from '@shared/schemas'
@@ -31,7 +31,6 @@ import { mergeOverrides, mergeStyleRecords } from './viewMerge'
 import { groupKeyToValue, REASSIGNABLE_GROUP_TYPES } from './reassign'
 import { cx } from '@renderer/design-system/cx'
 import { text } from '@renderer/design-system/tokens'
-import { useExitPresence } from '@renderer/design-system/useExitPresence'
 import { IconPicker } from '@renderer/Components/IconPicker'
 import { Icon } from '@renderer/design-system/symbols'
 import { CalendarPicker } from '@renderer/design-system/components/CalendarPicker/CalendarPicker'
@@ -46,34 +45,24 @@ import { TableRowDnd, useTableRowDrag } from './tableDnd'
 // smaller = snappier. Bump this one number to taste.
 const COL_SHIFT_HYSTERESIS = 25
 
-/** The datetime cell's picker shell: the pane chrome + a dismiss that sees through the calendar's
- *  portal'd sub-menus ([data-calmenu]) — a plain containment check would close the pane on their
- *  option clicks. Top-level so the picker's state survives TableView re-renders. */
+/** The datetime cell's picker shell: PickerMenu portals off the cell (escaping the table's overflow
+ *  clip) and self-dismisses via its own backdrop. The calendar's [data-calmenu] sub-menus portal
+ *  ABOVE that backdrop (z-index), so their option clicks fall through to the menu, never the dismiss. */
 function DatetimeCellPicker({
-  closing,
+  open,
+  triggerRef,
   onDismiss,
   children
 }: {
-  closing: boolean
+  open: boolean
+  triggerRef: RefObject<HTMLElement | null>
   onDismiss: () => void
   children: React.ReactNode
 }): React.JSX.Element {
-  const ref = useRef<HTMLSpanElement>(null)
-  useEffect(() => {
-    const onDown = (e: PointerEvent): void => {
-      const t = e.target as HTMLElement
-      if (ref.current?.contains(t) || t.closest('[data-calmenu]')) return
-      onDismiss()
-    }
-    document.addEventListener('pointerdown', onDown, true)
-    return () => document.removeEventListener('pointerdown', onDown, true)
-  }, [onDismiss])
   return (
-    <span ref={ref}>
-      <PickerMenu solid closing={closing}>
-        {children}
-      </PickerMenu>
-    </span>
+    <PickerMenu solid open={open} onDismiss={onDismiss} triggerRef={triggerRef}>
+      {children}
+    </PickerMenu>
   )
 }
 
@@ -187,9 +176,12 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
   // exit presence keeps a PICKER mounted through its Bloom-out (reading the last target from the
   // ref while `editing` is already null) — the editor unmounts instantly.
   const [editing, setEditing] = useState<{ rowId: string; colId: string; mode: 'picker' | 'editor' } | null>(null)
-  const editingExit = useExitPresence(editing !== null)
-  const lastEditing = useRef(editing)
-  if (editing) lastEditing.current = editing
+  // The picker/datetime is ONE table-level self-managed pane — it owns its Bloom-out off `open`, so the
+  // cell only tracks WHICH cell is editing + captures its element for placement. lastPicker holds the
+  // exiting picker's content rendered through the Bloom-out; the inline editor unmounts instantly.
+  const triggerElRef = useRef<HTMLElement | null>(null)
+  const lastPicker = useRef<{ rowId: string; colId: string } | null>(null)
+  if (editing?.mode === 'picker') lastPicker.current = { rowId: editing.rowId, colId: editing.colId }
   useEffect(() => {
     setOrderOverride(null)
     setWidthOverride({})
@@ -467,6 +459,8 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
   // checkbox toggles, status/select/multi/context open the picker. Acting stops propagation so the
   // row's select doesn't also fire; anything else bubbles.
   const onCellClick = (row: ViewRow, col: ResolvedColumn, e: React.MouseEvent): void => {
+    // Capture the clicked cell for the table-level picker's placement (harmless on non-picker clicks).
+    triggerElRef.current = e.currentTarget as HTMLElement
     if (col.kind === 'title') {
       // The ONLY navigate (A-7): row-click narrowed to the title cell; row background is a no-op.
       e.stopPropagation()
@@ -539,71 +533,87 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
       commitCellValue(row, col.id, { kind: 'file', value: refs.length ? [{ ...refs[0], path: trimmed }, ...refs.slice(1)] : [{ path: trimmed }] })
     }
   }
-  // The editing surface mounted in the target cell (null everywhere else). A picker APPENDS below
-  // the cell's content and stays through its Bloom-out; the editor REPLACES the content in flow.
-  const cellOverlay = (row: ViewRow, col: ResolvedColumn): { node: React.ReactNode; replace: boolean } | null => {
-    const target =
-      editing ?? (editingExit.mounted && lastEditing.current?.mode === 'picker' ? lastEditing.current : null)
-    if (!target || target.rowId !== row.id || target.colId !== col.id) return null
-    if (target.mode === 'editor') {
-      return {
-        replace: true,
-        node: (
-          <PropertyEditor
-            initial={editorInitial(row, col)}
-            numeric={declaredType(col.id, schema) === 'number'}
-            onCommit={(raw) => commitEditorText(row, col, raw)}
-            onCancel={() => setEditing(null)}
-          />
-        )
+  // The inline text/number editor, mounted in the editing cell and REPLACING its content. The value
+  // pickers (status/select/multi/context) + the datetime picker are the table-level `cellPicker` below
+  // — they portal off the cell, so they never live inside it (and so never clip to the table's scroll).
+  const cellEditor = (row: ViewRow, col: ResolvedColumn): React.ReactNode => {
+    if (editing?.mode !== 'editor' || editing.rowId !== row.id || editing.colId !== col.id) return null
+    return (
+      <PropertyEditor
+        initial={editorInitial(row, col)}
+        numeric={declaredType(col.id, schema) === 'number'}
+        onCommit={(raw) => commitEditorText(row, col, raw)}
+        onCancel={() => setEditing(null)}
+      />
+    )
+  }
+
+  // Every row's live ViewRow by id — the table-level picker resolves its editing cell (and reads a
+  // multi-select's fresh value on each toggle) through this, not a captured-stale row.
+  const rowById = useMemo(() => {
+    const m = new Map<string, ViewRow>()
+    const walk = (gs: ResolvedGroup[]): void => {
+      for (const g of gs) {
+        for (const r of g.items) m.set(r.id, r)
+        if (g.children) walk(g.children)
       }
     }
-    // Date & Time routes to the CalendarPicker (Nathan's ruling) — same pane chrome, same
-    // Bloom-out hold; its segments follow the nexus-wide time format, its date text the column's
-    // style. Commits are debounced single-ISO writes; clearing the last date clears the value.
+    walk(groups)
+    return m
+  }, [groups])
+
+  // ONE self-managed picker/datetime pane for the whole table, hung off the editing cell (triggerElRef)
+  // and portaled to a body top layer, so it escapes the table's overflow clip (`.table-view` is an
+  // overflow-x scroller, which clips y too). `open` blooms it in on a picker cell, out when editing
+  // clears; lastPicker keeps the exiting cell's content through the out; the per-cell key remeasures on
+  // a cell switch (the position effect keys on the ref object, whose `.current` swap wouldn't re-fire it).
+  const cellPicker = (): React.ReactNode => {
+    const cell = editing?.mode === 'picker' ? editing : lastPicker.current
+    const row = cell && rowById.get(cell.rowId)
+    const col = cell && columns.find((c) => c.id === cell.colId)
+    if (!cell || !row || !col) return null
+    const open = editing?.mode === 'picker'
+    const key = `${cell.rowId}:${cell.colId}`
+    const dismiss = (): void => setEditing(null)
     if (col.kind === 'property' && declaredType(col.id, schema) === 'datetime') {
       const v = resolveFieldValue(row, col.id)
       const dateFmt = colStyle(col.id).date_format ?? 'full'
-      return {
-        replace: false,
-        node: (
-          <DatetimeCellPicker closing={editingExit.closing} onDismiss={() => setEditing(null)}>
-            <CalendarPicker
-              range={false}
-              value={v.kind === 'datetime' ? v.value : null}
-              timeFormat={tree?.timeFormat}
-              formatDateValue={(k, condensed) =>
-                condensed ? condensedDate(k, dateFmt, condensed.withYear) : formatDate(k, dateFmt, 'none')
-              }
-              onChange={(iso) => commitCellValue(row, col.id, iso ? { kind: 'datetime', value: iso } : null)}
-            />
-          </DatetimeCellPicker>
-        )
-      }
+      return (
+        <DatetimeCellPicker key={key} open={open} triggerRef={triggerElRef} onDismiss={dismiss}>
+          <CalendarPicker
+            range={false}
+            value={v.kind === 'datetime' ? v.value : null}
+            timeFormat={tree?.timeFormat}
+            formatDateValue={(k, condensed) =>
+              condensed ? condensedDate(k, dateFmt, condensed.withYear) : formatDate(k, dateFmt, 'none')
+            }
+            onChange={(iso) => commitCellValue(row, col.id, iso ? { kind: 'datetime', value: iso } : null)}
+          />
+        </DatetimeCellPicker>
+      )
     }
     const contextOptions = contextOptionsFor(col)
     // A reserved tier column has no schema def — a minimal synthetic one satisfies the picker,
     // whose options come from `contextOptions` anyway.
     const def = schema.find((d) => d.id === col.id) ?? (contextOptions ? { id: col.id, name: '', type: 'context' as const } : undefined)
     if (!def) return null
-    return {
-      replace: false,
-      node: (
-        <PropertyPicker
-          def={def}
-          current={resolveFieldValue(row, col.id)}
-          closing={editingExit.closing}
-          look={colStyle(col.id).look}
-          {...(contextOptions ? { contextOptions } : {})}
-          onCommit={(v) =>
-            col.kind === 'tier' && v?.kind === 'context'
-              ? commitTierValue(row, col.id, v.value)
-              : commitCellValue(row, col.id, v)
-          }
-          onDismiss={() => setEditing(null)}
-        />
-      )
-    }
+    return (
+      <PropertyPicker
+        key={key}
+        def={def}
+        current={resolveFieldValue(row, col.id)}
+        open={open}
+        triggerRef={triggerElRef}
+        look={colStyle(col.id).look}
+        {...(contextOptions ? { contextOptions } : {})}
+        onCommit={(v) =>
+          col.kind === 'tier' && v?.kind === 'context'
+            ? commitTierValue(row, col.id, v.value)
+            : commitCellValue(row, col.id, v)
+        }
+        onDismiss={dismiss}
+      />
+    )
   }
   // Right-click a cell → its native menu (A-13: always a menu, never an action). Title = page meta;
   // style-bearing types = the COLUMN's Style radios; link/file add Edit; picker-based cells add
@@ -655,21 +665,20 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
   )
   // ONE stable handler identity for every row — calls read the freshest closures through the ref,
   // so memoized rows never re-render for handler churn (and never call a stale state writer).
-  const cellApiRef = useRef({ openCellMenu, onCellClick, cellOverlay, removeCellValue })
-  cellApiRef.current = { openCellMenu, onCellClick, cellOverlay, removeCellValue }
+  const cellApiRef = useRef({ openCellMenu, onCellClick, cellEditor, removeCellValue })
+  cellApiRef.current = { openCellMenu, onCellClick, cellEditor, removeCellValue }
   const cellApi = useMemo<RowCellApi>(
     () => ({
       menu: (row, col, e) => void cellApiRef.current.openCellMenu(row, col, e),
       click: (row, col, e) => cellApiRef.current.onCellClick(row, col, e),
-      overlay: (row, col) => cellApiRef.current.cellOverlay(row, col),
+      overlay: (row, col) => cellApiRef.current.cellEditor(row, col),
       remove: (row, col, next) => cellApiRef.current.removeCellValue(row, col, next)
     }),
     []
   )
-  // The cell overlay's live target (open editor/picker, or the picker held through its Bloom-out).
-  // Flows to rows as primitives so ONLY the affected row re-renders on open/close/exit.
-  const overlayTarget =
-    editing ?? (editingExit.mounted && lastEditing.current?.mode === 'picker' ? lastEditing.current : null)
+  // The inline editor's target cell (mode 'editor' only — the picker is the table-level cellPicker).
+  // Flows to rows as a primitive so ONLY the editing row re-renders on open/close.
+  const overlayTarget = editing?.mode === 'editor' ? editing : null
   // Row drag (E-3): the flat data-row order + each row's group key + path, feeding the drop-line DnD
   // (tableDnd). Where you drop disambiguates (D-8) — same group reorders, a different group reassigns.
   // Memoized so a selection / resize / drag-frame render doesn't re-walk every group and rebuild both
@@ -871,7 +880,6 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
             styleByCol={styleByCol}
             api={cellApi}
             overlayCol={overlayTarget?.rowId === row.id ? overlayTarget.colId : null}
-            overlayClosing={overlayTarget?.rowId === row.id && editingExit.closing}
             hideIcon={liveView.hide_page_icons ?? false}
             selected={selection.kind === 'page' && selection.id === row.id}
             dragDisabled={dragDisabled}
@@ -969,6 +977,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
         </div>
       </TableRowDnd>
       </BandDnd>
+      {cellPicker()}
     </div>
   )
 }
@@ -1043,7 +1052,7 @@ function ColumnHeader({
 type RowCellApi = {
   menu: (row: ViewRow, col: ResolvedColumn, e: React.MouseEvent) => void
   click: (row: ViewRow, col: ResolvedColumn, e: React.MouseEvent) => void
-  overlay: (row: ViewRow, col: ResolvedColumn) => { node: React.ReactNode; replace: boolean } | null
+  overlay: (row: ViewRow, col: ResolvedColumn) => React.ReactNode
   remove: (row: ViewRow, col: ResolvedColumn, next: PropertyValue | null) => void
 }
 
@@ -1059,9 +1068,8 @@ function gapShift(d: DragShift | null, ci: number): string | undefined {
 }
 
 // Memoized: a row re-renders only when ITS inputs change — every prop is identity-stable across
-// unrelated renders (tree pushes, another row's editing, drag frames). `overlayClosing` is in the
-// props purely so the Bloom-out phase flip re-renders the overlay row (the overlay node reads the
-// live exit state through the api ref).
+// unrelated renders (tree pushes, another row's editing, drag frames). `overlayCol` flips only for the
+// row holding the inline editor, so only it re-renders on open/close.
 const DataRow = memo(function DataRow({
   row,
   columns,
@@ -1086,7 +1094,6 @@ const DataRow = memo(function DataRow({
   styleByCol: ColumnStyle[]
   api: RowCellApi
   overlayCol: string | null
-  overlayClosing: boolean
   hideIcon: boolean
   selected: boolean
   dragDisabled: boolean
@@ -1106,19 +1113,16 @@ const DataRow = memo(function DataRow({
       {columns.map((c, i) => {
         const style: React.CSSProperties = { transform: gapShift(dragShift, i), textAlign: alignByCol[i] }
         if (i === 0) style.paddingLeft = padLeft
-        const over = overlayCol === c.id ? api.overlay(row, c) : null
-        const content = over?.replace ? (
-          over.node
-        ) : (
-          <>
-            <Cell row={row} column={c} ctx={ctx} hideIcon={hideIcon} style={styleByCol[i]} remove={(next) => api.remove(row, c, next)} />
-            {over?.node}
-          </>
+        // The inline editor (mode 'editor') REPLACES the cell in flow; the value pickers are the
+        // table-level cellPicker (portaled), never in the cell.
+        const editor = overlayCol === c.id ? api.overlay(row, c) : null
+        const content = editor ?? (
+          <Cell row={row} column={c} ctx={ctx} hideIcon={hideIcon} style={styleByCol[i]} remove={(next) => api.remove(row, c, next)} />
         )
         return i === 0 ? (
           <div
             key={c.id}
-            className={cx('data-cell', 'cell-lead', dragShift?.from === i && 'col-dragging', over != null && !over.replace && 'cell-anchored')}
+            className={cx('data-cell', 'cell-lead', dragShift?.from === i && 'col-dragging')}
             style={style}
             onContextMenu={(e) => api.menu(row, c, e)}
             onClick={(e) => {
@@ -1135,7 +1139,7 @@ const DataRow = memo(function DataRow({
         ) : (
           <div
             key={c.id}
-            className={cx('data-cell', dragShift?.from === i && 'col-dragging', over != null && !over.replace && 'cell-anchored')}
+            className={cx('data-cell', dragShift?.from === i && 'col-dragging')}
             style={style}
             onContextMenu={(e) => api.menu(row, c, e)}
             onClick={(e) => {
