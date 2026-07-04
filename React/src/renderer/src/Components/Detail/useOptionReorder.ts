@@ -37,21 +37,46 @@ export function useOptionReorder(
     else rows.current.delete(value)
   }
 
-  // The drop index (0…n) the pointer is over, and the drop-line's Y within the container.
+  // Row geometry frozen at drag-start: reading a rect per row on every pointermove is layout-thrash
+  // on a high-frequency trigger (the paneDnd snapshot pattern). A mid-drag scroll dirties it and the
+  // next move re-measures.
+  type Snapshot = { rects: Array<{ top: number; bottom: number }>; containerTop: number }
+  const snapshot = useRef<Snapshot | null>(null)
+  const snapshotDirty = useRef(false)
+  const markDirty = (): void => {
+    snapshotDirty.current = true
+  }
+  const takeSnapshot = (): Snapshot | null => {
+    const cEl = container.current
+    if (!cEl) return null
+    const rects: Snapshot['rects'] = []
+    for (const value of orderRef.current) {
+      const el = rows.current.get(value)
+      if (el) {
+        const r = el.getBoundingClientRect()
+        rects.push({ top: r.top, bottom: r.bottom })
+      }
+    }
+    return { rects, containerTop: cEl.getBoundingClientRect().top }
+  }
+
+  // The drop index (0…n) the pointer is over, and the drop-line's Y within the container — read off
+  // the frozen snapshot, never the live DOM.
   const locate = (clientY: number): { index: number; top: number } => {
-    const cTop = container.current?.getBoundingClientRect().top ?? 0
-    const rects = orderRef.current.map((v) => rows.current.get(v)?.getBoundingClientRect()).filter((r): r is DOMRect => !!r)
+    const snap = snapshot.current
+    if (!snap) return { index: 0, top: 0 }
+    const { rects, containerTop } = snap
     let index = rects.length
     for (let i = 0; i < rects.length; i++) {
-      if (clientY < rects[i].top + rects[i].height / 2) {
+      if (clientY < (rects[i].top + rects[i].bottom) / 2) {
         index = i
         break
       }
     }
     const top =
       index >= rects.length
-        ? (rects[rects.length - 1]?.bottom ?? cTop) - cTop
-        : (index === 0 ? rects[0].top : (rects[index - 1].bottom + rects[index].top) / 2) - cTop
+        ? (rects[rects.length - 1]?.bottom ?? containerTop) - containerTop
+        : (index === 0 ? rects[0].top : (rects[index - 1].bottom + rects[index].top) / 2) - containerTop
     return { index, top }
   }
 
@@ -62,9 +87,12 @@ export function useOptionReorder(
     window.removeEventListener('pointerup', h.up)
     window.removeEventListener('pointercancel', h.cancel)
     window.removeEventListener('keydown', h.key, { capture: true })
+    window.removeEventListener('scroll', markDirty, { capture: true })
   }
   const clear = (): void => {
     g.current = null
+    snapshot.current = null
+    snapshotDirty.current = false
     setDragging(null)
     setLineTop(null)
   }
@@ -76,6 +104,12 @@ export function useOptionReorder(
       if (Math.hypot(e.clientX - s.sx, e.clientY - s.sy) < ACTIVATION) return
       s.active = true
       setDragging(s.value)
+      window.addEventListener('scroll', markDirty, { capture: true, passive: true })
+    }
+    // First move after activation takes the snapshot here (it's null out of clear()); scroll dirties it.
+    if (snapshotDirty.current || !snapshot.current) {
+      snapshot.current = takeSnapshot()
+      snapshotDirty.current = false
     }
     const { index, top } = locate(e.clientY)
     s.index = index
