@@ -13,16 +13,12 @@ const c = colorVars.color
 
 /** — COLOR — */
 const COLOR = {
-  headerAction: c.label.tertiary, // ⊕ / ⋮ at rest
-  allHeading: c.label.tertiary, // "All Properties" heading (text + its chevron)
+  headingLabel: c.label.secondary, // heading TEXT — "Options", "All Properties", the ‹ back-row
+  actionLabel: c.label.tertiary, // interactive SYMBOLS — icon-picker · eye toggle · recolor palette · Options + · header ⊕/⋮ · promote + (eye/palette add their own ghost-opacity rest; the glyph swaps open ↔ off)
   allRow: c.label.tertiary, // unassigned registry rows
-  rowPlus: c.label.tertiary, // a registry row's + at rest
   iconHover: c.state.hover, // the shared fill behind any pane icon-button on hover (not a glyph shift)
   dragHighlight: c.state.hover, // the unassign area tint while dragging out
-  eye: c.label.secondary, // the Visibility eye toggle (shown rows): secondary + ghost at rest,
-  // un-ghosts on hover (no color shift); the glyph swaps open ↔ off
-  eyeHidden: c.label.tertiary, // a hidden row's eye: tertiary, riding the row's ghost (single dim)
-  optionsLabel: c.label.secondary // the option editor's "Options" heading + its matching + at rest
+  eyeHidden: c.label.tertiary // a hidden row's eye: tertiary, riding the row's ghost (single dim)
 }
 
 /** — SIZING — (px boxes; the glyphs inside are ICON's) */
@@ -98,7 +94,7 @@ export const iconButton = style({
   border: 'none',
   background: inputFieldVar,
   cursor: 'default',
-  color: c.label.secondary,
+  color: COLOR.actionLabel,
   selectors: { '&:hover': { background: c.fill.quaternary } }
 })
 
@@ -129,9 +125,10 @@ export const paneHeader = style({
 })
 export const paneHeaderBack = style({ flex: '1 1 auto', minWidth: 0 })
 
-/** THE ViewPane back-row vertical-geometry knob — this pane only. Drops the base row's 24px
- *  min-height floor, so row height = the caption line + 2 × PAD.backRowBlock. */
-export const backRowPad = style({ paddingBlock: `${PAD.backRowBlock}px`, minHeight: 0 })
+/** THE ViewPane back-row knob — this pane only. Drops the base row's 24px min-height floor (row
+ *  height = the caption line + 2 × PAD.backRowBlock) and pins the ‹ heading to the shared heading-label
+ *  color (this file loads after menu.css, so it wins over the flush affordance's default). */
+export const backRowPad = style({ paddingBlock: `${PAD.backRowBlock}px`, minHeight: 0, color: COLOR.headingLabel })
 
 /** Bare header icon button (⊕ create, ⋮ menu) — no vertical box beyond the glyph (a fixed
  *  height held the header taller than the back row); width keeps the horizontal hit target. */
@@ -145,7 +142,7 @@ export const headerAction = style({
   background: 'none',
   padding: 0,
   cursor: 'default',
-  color: COLOR.headerAction,
+  color: COLOR.actionLabel,
   borderRadius: `${SIZE.iconHoverRadius}px`,
   transition: `background ${duration.fast} ${easing.standard}`,
   selectors: { '&:hover': { background: COLOR.iconHover } }
@@ -165,9 +162,9 @@ export const allSpacer = style({
 })
 export const allSpacerCollapsed = style({ flexGrow: 0 })
 
-/** The "All Properties" disclosure heading — footnote-emphasized (A-3), its chevron flush at
- *  the gutter edge like the back-row's ‹ (the shared flush affordance). */
-export const allHeading = style([text.footnote.emphasized, flushAffordance, { color: COLOR.allHeading }])
+/** The "All Properties" disclosure heading — footnote-emphasized (A-3), the shared heading-label
+ *  color, its chevron flush at the gutter edge like the back-row's ‹ (the shared flush affordance). */
+export const allHeading = style([text.footnote.emphasized, flushAffordance, { color: COLOR.headingLabel }])
 
 /** The disclosure chevron — the sidebar's twisty, pinned to the pane's beat so the rotate,
  *  the Reveal unfold, and the height-resize land together (E-8). */
@@ -191,7 +188,7 @@ export const rowPlus = style({
   background: 'none',
   padding: 0,
   cursor: 'default',
-  color: COLOR.rowPlus,
+  color: COLOR.actionLabel,
   borderRadius: `${SIZE.iconHoverRadius}px`,
   transition: `background ${duration.fast} ${easing.standard}`,
   selectors: { '&:hover': { background: COLOR.iconHover } }
@@ -220,9 +217,9 @@ export const hiddenRow = style({
  *  highlight covers the empty space beneath them even while nothing's hidden yet. */
 export const hiddenZone = style({ flex: '1 1 auto' })
 
-/** The eye toggle — secondary + ghost at rest, un-ghosting on hover (no color shift); the glyph
- *  swaps open ↔ off (the pair passes reversed in JSX on a hidden row). On a hidden row the eye is
- *  tertiary and its own opacity resets to 1 so it rides ONLY the row's ghost (never double-dims). */
+/** The eye toggle — the action-symbol color + ghost at rest, un-ghosting on hover (no color shift);
+ *  the glyph swaps open ↔ off (the pair passes reversed in JSX on a hidden row). On a hidden row it
+ *  rides eyeHidden + resets its own opacity to 1, so it dims by ONLY the row's ghost (never double-dims). */
 export const eyeButton = style({
   width: `${SIZE.eyeBox}px`,
   height: `${SIZE.eyeBox}px`,
@@ -233,7 +230,7 @@ export const eyeButton = style({
   background: 'none',
   padding: 0,
   cursor: 'default',
-  color: COLOR.eye,
+  color: COLOR.actionLabel,
   opacity: 'var(--state-ghost)',
   borderRadius: `${SIZE.iconHoverRadius}px`,
   transition: `opacity ${duration.fast} ${easing.standard}, background ${duration.fast} ${easing.standard}`,
@@ -280,10 +277,10 @@ export const optionEditor = style({ display: 'flex', flexDirection: 'column' })
 /** The "Options" row — label left, the always-shown + right. */
 export const optionsRow = style({ display: 'flex', alignItems: 'center', justifyContent: 'space-between' })
 
-/** The "Options" label — footnote-emphasized, secondary (one step up from the All Properties heading). */
-export const optionsLabel = style([text.footnote.emphasized, { color: COLOR.optionsLabel }])
+/** The "Options" label — footnote-emphasized, the shared heading-label color (matches All Properties + the back-row). */
+export const optionsLabel = style([text.footnote.emphasized, { color: COLOR.headingLabel }])
 
-/** The always-shown + that appends an option — matches the "Options" label at rest, brightening on hover. */
+/** The always-shown + that appends an option — the shared action-symbol color, brightening on hover. */
 export const optionsAdd = style({
   width: `${OPTION.addBox}px`,
   height: `${OPTION.addBox}px`,
@@ -294,7 +291,7 @@ export const optionsAdd = style({
   background: 'none',
   padding: 0,
   cursor: 'default',
-  color: COLOR.optionsLabel,
+  color: COLOR.actionLabel,
   borderRadius: `${SIZE.iconHoverRadius}px`,
   transition: `background ${duration.fast} ${easing.standard}`,
   selectors: { '&:hover': { background: COLOR.iconHover } }
@@ -328,8 +325,8 @@ export const optionInput = style({
 /** The recolor icon's positioning context — the ColorPicker anchors (centered, below) to this. */
 export const paletteAnchor = style({ position: 'relative', display: 'flex', alignItems: 'center' })
 
-/** The per-row recolor icon — mirrors the Visibility eye: label-secondary, hidden at rest, fading in
- *  ghosted on row hover and to full on its own hover (opacity-only). */
+/** The per-row recolor icon — mirrors the Visibility eye: the action-symbol color, hidden at rest,
+ *  fading in ghosted on row hover and to full on its own hover (opacity-only). */
 export const paletteButton = style({
   width: `${SIZE.eyeBox}px`,
   height: `${SIZE.eyeBox}px`,
@@ -340,7 +337,7 @@ export const paletteButton = style({
   background: 'none',
   padding: 0,
   cursor: 'default',
-  color: COLOR.eye,
+  color: COLOR.actionLabel,
   opacity: 0,
   borderRadius: `${SIZE.iconHoverRadius}px`,
   transition: `opacity ${duration.fast} ${easing.standard}, background ${duration.fast} ${easing.standard}`,
