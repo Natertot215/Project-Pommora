@@ -2,13 +2,13 @@ import { useRef, useState } from 'react'
 import { Server, Eye, LayoutDashboard, Layers, ListFilter, ArrowUpDown, type LucideIcon } from 'lucide-react'
 import { Icon } from '@renderer/design-system/symbols'
 import { flushTrailing } from '../../design-system/components/menu/menu.css'
-import { backRowPad, ICON } from './viewPane.css'
+import { topRowPad, ICON } from './viewPane.css'
 import { useSession } from '../../store'
 import { findCollection, findSet, findCollectionForSet } from '../../Detail/Scope'
 import { PropertiesPane } from './PropertiesPane'
 import { HiddenPane } from './HiddenPane'
 import { PaneSlider } from './PaneSlider'
-import { MenuItem, MenuSeparator, MenuCaption, MenuBackRow } from '../../design-system/components/menu'
+import { MenuItem, MenuSeparator, MenuCaption, MenuTopRow } from '../../design-system/components/menu'
 import { IconPicker } from '../IconPicker'
 import { InlineEditHeader } from './InlineEditHeader'
 
@@ -69,7 +69,7 @@ export function ViewPane(): React.JSX.Element | null {
 
   const pendingPane = (message: string): React.JSX.Element => (
     <>
-      <MenuBackRow label="Settings" onClick={back} className={backRowPad} />
+      <MenuTopRow label="Settings" onClick={back} className={topRowPad} />
       <MenuSeparator flush />
       <MenuCaption>{message}</MenuCaption>
     </>

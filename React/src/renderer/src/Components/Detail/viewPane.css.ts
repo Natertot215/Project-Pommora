@@ -23,7 +23,7 @@ const COLOR = {
 
 /** — SIZING — (px boxes; the glyphs inside are ICON's) */
 const SIZE = {
-  headerActionWidth: 20, // ⊕ / ⋮ horizontal hit target (height hugs the glyph)
+  topRowActionWidth: 20, // TopRow ⊕ / ⋮ horizontal hit target (height hugs the glyph)
   rowPlusBox: 16, // the registry row's + hit target
   eyeBox: 16, // the Visibility pane's eye hit target
   iconPickerButton: 28, // the title header's square icon button
@@ -34,7 +34,7 @@ const SIZE = {
 
 /** — PADDING — (px) */
 const PAD = {
-  backRowBlock: 4 // back-row vertical padding — THE pane-header height knob (no min-height floor)
+  topRowBlock: 4 // TopRow vertical padding — THE pane-header height knob (no min-height floor)
 }
 
 /** — OPTION EDITOR — (Select/Multi option list; px) */
@@ -46,8 +46,8 @@ const OPTION = {
   groupGap: 12 // status only: gap between one group's block (heading + chips) and the next
 }
 
-/** — ICONS — glyph sizes, consumed by PropertiesPane/ViewPane TSX. The back-row's own
- *  ‹ chevron is the shared MenuBackRow's (12, in Menu.tsx) — not a pane-local knob. */
+/** — ICONS — glyph sizes, consumed by PropertiesPane/ViewPane TSX. The TopRow's own
+ *  ‹ chevron is the shared MenuTopRow's (12, in Menu.tsx) — not a pane-local knob. */
 export const ICON = {
   add: 14, // the header ⊕ (square-plus) — sized to the back-row heading (13px), per Nathan
   editorMenu: 14, // the editor header's ⋮ — sized to the back-row heading (13px), per Nathan
@@ -113,40 +113,33 @@ export const dashIcon = style({
 })
 
 // ═══════════════════════════════════════════════════════════════════════════
-// § PANE HEADER — the ‹ back row + the trailing ⊕ / ⋮ action
+// § TOPROW — the ‹ back row + its trailing ⊕ / ⋮ action
 // ═══════════════════════════════════════════════════════════════════════════
 
-/** The pane's header line: the back row takes the width, a trailing icon action rides the right
- *  edge (⊕ create on the list, ⋮ menu on the editor), its right edge flush with the divider's
- *  end — no row padding (Nathan's call). */
-export const paneHeader = style({
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'space-between'
-})
-export const paneHeaderBack = style({ flex: '1 1 auto', minWidth: 0 })
+/** THE ViewPane TopRow knob — this pane only. Drops the base row's 24px min-height floor (row height =
+ *  the caption line + 2 × PAD.topRowBlock) and pins the ‹ heading to the shared heading-label colour
+ *  (this file loads after menu.css, so it wins over the flush affordance's default). */
+export const topRowPad = style({ paddingBlock: `${PAD.topRowBlock}px`, minHeight: 0, color: COLOR.headingLabel })
 
-/** THE ViewPane back-row knob — this pane only. Drops the base row's 24px min-height floor (row
- *  height = the caption line + 2 × PAD.backRowBlock) and pins the ‹ heading to the shared heading-label
- *  color (this file loads after menu.css, so it wins over the flush affordance's default). */
-export const backRowPad = style({ paddingBlock: `${PAD.backRowBlock}px`, minHeight: 0, color: COLOR.headingLabel })
-
-/** Bare header icon button (⊕ create, ⋮ menu) — no vertical box beyond the glyph (a fixed
- *  height held the header taller than the back row); width keeps the horizontal hit target. */
-export const headerAction = style({
+/** The TopRow's trailing action (⊕ create / ⋮ menu) — a bare icon button in the row's trailing slot,
+ *  glyph flush to the gutter edge. Secondary tone, as a member of the TopRow: the `&&` clears the
+ *  `.app-toolbar button` control-tone default (0,1,1) that would otherwise brighten it above the row. */
+export const topRowAction = style({
   flex: '0 0 auto',
-  width: `${SIZE.headerActionWidth}px`,
+  width: `${SIZE.topRowActionWidth}px`,
   display: 'flex',
   alignItems: 'center',
-  justifyContent: 'center',
+  justifyContent: 'flex-end',
   border: 'none',
   background: 'none',
   padding: 0,
   cursor: 'default',
-  color: COLOR.actionLabel,
   borderRadius: `${SIZE.iconHoverRadius}px`,
   transition: `background ${duration.fast} ${easing.standard}`,
-  selectors: { '&:hover': { background: COLOR.iconHover } }
+  selectors: {
+    '&&': { color: c.label.secondary },
+    '&:hover': { background: COLOR.iconHover }
+  }
 })
 
 // ═══════════════════════════════════════════════════════════════════════════

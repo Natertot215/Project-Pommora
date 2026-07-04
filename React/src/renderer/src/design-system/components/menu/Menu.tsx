@@ -96,19 +96,28 @@ export function MenuCaption({ children }: { children: ReactNode }): React.JSX.El
   return <div className={s.caption}>{children}</div>
 }
 
-/** A back-navigation row — a leading ‹ chevron + label; pops the menu's nav stack one level.
+/** A pane's TopRow — a leading ‹ chevron + label that pops the nav stack one level, plus an optional
+ *  trailing action (the property editor's ⋮ / the list's +). The action rides the row's trailing slot
+ *  so it reads — and colours — as part of the TopRow, not a floating toolbar button beside it.
  *  `className` composes surface-local tuning (e.g. the ViewPane's vertical-padding knob). */
-export function MenuBackRow({
+export function MenuTopRow({
   label,
   onClick,
-  className
+  className,
+  trailing
 }: {
   label: string
   onClick: () => void
   className?: string
+  trailing?: ReactNode
 }): React.JSX.Element {
   return (
-    <MenuItem className={cx(s.backRow, className)} leading={<Icon name="chevron-left" size={12} />} onClick={onClick}>
+    <MenuItem
+      className={cx(s.topRow, trailing != null && s.flushTrailing, className)}
+      leading={<Icon name="chevron-left" size={12} />}
+      trailing={trailing}
+      onClick={onClick}
+    >
       {label}
     </MenuItem>
   )

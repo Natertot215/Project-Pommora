@@ -3,7 +3,7 @@ import { Icon, type IconName } from '@renderer/design-system/symbols'
 import { useSession } from '../../store'
 import { isReservedPropertyId, type PropertyDefinition, type PropertyType, type StatusGroup } from '@shared/properties'
 import type { Option } from '@shared/optionModel'
-import { MenuItem, MenuSeparator, MenuCaption, MenuBackRow } from '../../design-system/components/menu'
+import { MenuItem, MenuSeparator, MenuCaption, MenuTopRow } from '../../design-system/components/menu'
 import { flushTrailing } from '../../design-system/components/menu/menu.css'
 import { Reveal } from '../../design-system/components/Reveal'
 import { duration } from '../../design-system/tokens/motion'
@@ -178,25 +178,36 @@ export function PropertiesPane({
 
   const backHeader = (label: string, onClick: () => void): React.JSX.Element => (
     <>
-      <MenuBackRow label={label} onClick={onClick} className={s.backRowPad} />
+      <MenuTopRow label={label} onClick={onClick} className={s.topRowPad} />
       <MenuSeparator flush />
     </>
   )
-  // Back row + a trailing icon action on the right edge (⊕ create on the list, ⋮ menu on the editor).
+  // TopRow with a trailing icon action (⊕ create on the list, ⋮ menu on the editor) — the action rides
+  // the row's trailing slot, so it's part of the TopRow. stopPropagation keeps its click off the back-nav.
   const actionHeader = (
     label: string,
     onBackClick: () => void,
     action: { icon: IconName; size: number; ariaLabel: string; onClick: () => void }
   ): React.JSX.Element => (
     <>
-      <div className={s.paneHeader}>
-        <div className={s.paneHeaderBack}>
-          <MenuBackRow label={label} onClick={onBackClick} className={s.backRowPad} />
-        </div>
-        <button type="button" className={s.headerAction} aria-label={action.ariaLabel} onClick={action.onClick}>
-          <Icon name={action.icon} size={action.size} />
-        </button>
-      </div>
+      <MenuTopRow
+        label={label}
+        onClick={onBackClick}
+        className={s.topRowPad}
+        trailing={
+          <button
+            type="button"
+            className={s.topRowAction}
+            aria-label={action.ariaLabel}
+            onClick={(e) => {
+              e.stopPropagation()
+              action.onClick()
+            }}
+          >
+            <Icon name={action.icon} size={action.size} />
+          </button>
+        }
+      />
       <MenuSeparator flush />
     </>
   )

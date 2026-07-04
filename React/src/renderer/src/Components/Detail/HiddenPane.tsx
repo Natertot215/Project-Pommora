@@ -4,7 +4,7 @@ import { type PropertyDefinition, RESERVED_PROPERTY_ID } from '@shared/propertie
 import { DEFAULT_VIEW_ID, type SavedView } from '@shared/views'
 import { Icon } from '@renderer/design-system/symbols'
 import { useSession } from '../../store'
-import { MenuItem, MenuSeparator, MenuBackRow } from '../../design-system/components/menu'
+import { MenuItem, MenuSeparator, MenuTopRow } from '../../design-system/components/menu'
 import { flushTrailing } from '../../design-system/components/menu/menu.css'
 import { resolveColumns } from '../../Detail/Views/pipeline/columns'
 import { columnLabel } from '../../Detail/Views/Table/columnLabel'
@@ -191,7 +191,7 @@ export function HiddenPane({
 
   return (
     <PaneDnd rows={paneRows} labelFor={nameFor} onDrop={handleDrop} slot={hiddenPaneSlot}>
-      <MenuBackRow label="Settings" onClick={onBack} className={s.backRowPad} />
+      <MenuTopRow label="Settings" onClick={onBack} className={s.topRowPad} />
       <MenuSeparator flush />
       <VisibilityGroups
         shownIds={shownIds}
