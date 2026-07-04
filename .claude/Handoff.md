@@ -105,6 +105,21 @@ One long session: shipped PropertiesV2 end-to-end, ratified the Tables Next-Part
 
 - Whether the interim empty-picker pane (a bare spacer) survives Nathan's "I'll think of a UIX solution later" — don't polish it until he decides.
 
+### Session Summary - B (mobile future-proofing — separate session)
+
+**Session B ID:** 164497e3-c3c6-4f45-978a-04a1375df1e6
+**Dates:** 07-04-2026
+**Model:** Opus 4.8
+**Agents:** general-purpose (×16 — research + code exploration), build-breaking-agent (×2 — spec review rounds)
+**Commands:** /clear, /handoff
+**Skills:** studio-brainstorm; handoff
+
+A separate session did **mobile future-proofing** — no changes to this build's product surfaces.
+
+**iOS companion — ratified spec:** A full `studio-brainstorm` on a **Capacitor-based iOS companion** (feasibility + approach: reuse the renderer in a WebView, re-host the main process natively, iCloud app-owned-container sync, single-user most-recent-wins), pressure-tested across two adversarial-review rounds — a HIGH `.nexus/`-sync-exclusion landmine and the "renderer ships untouched" overstatement both caught and folded. Spec landed under `.claude/Mobile/`: `MobileSpec` + `MobileArchitecture` · `NexusSync` · `MobilePM` · `FormFactor` · `MobileResources` · `MobileDecisionLog`, mirrored to `II. Mobile`. Verdict: a scoped **port, not a rewrite** — Claude builds the code, Nathan owns the Apple/Xcode ceremony + the phone form-factor design.
+
+**Four desktop pre-paves shipped (`02bb4e11`, main):** cheap, behavior-preserving changes that shrink the eventual port (no-op or DRY on desktop; typecheck clean) — a standalone app Vite build target (`vite.config.app.ts` → `npm run dev:app` renders the real app in any browser), one shared `assetUrl.ts` (was 3 identical copies), a `DEVICE_LOCAL_NEXUS_FILES` set in `paths.ts` (future iCloud sync-exclusion), and iOS soft-keyboard input attributes on the MarkdownPM editor. Explicit-path staged; the F1 lock work + the parallel link-color feature left untouched.
+
 ---
 
 ### Working Notes
@@ -138,6 +153,7 @@ Open threads to confirm while building: file chips deliberately have no hover-×
 - **Canvas** — spec at `Planning/6-26 - Canvas Spec.md`, pending its adversarial review → plan → build.
 - **Biome config vs code** — `biome.json` declares double-quote/organizeImports but the codebase is single-quote/no-semicolon. Settle once, in a tree with no parallel edits.
 - **iCloud-sync readiness (future cloud feature, surfaced by the F1 lock work):** an in-process `serializeOnFile` can't coordinate with the iCloud daemon — cross-device edits are last-writer-wins (atomic temp+rename prevents corruption; true conflict handling is the sync feature's job). Also on that checklist: `.nexus/index.db` (SQLite) needs excluding from sync, and the page walk skips evicted `.icloud` placeholders / stalls materializing dataless reads. None are F1 regressions — recorded so the sync feature inherits them.
+- **Mobile iOS companion (future-proofing, parked — session B):** ratified feasibility + approach spec at `.claude/Mobile/MobileSpec.md` (+ 6 siblings); 4 desktop pre-paves shipped (`02bb4e11`). The iCloud-sync considerations in the entry above are now fully documented in `Mobile/NexusSync.md` + `MobileDecisionLog.md`. The actual port is future work — **Step 1 is the gate: a `window.nexus` bridge shim + a native iCloud Swift plugin** (nothing functions until the phone can read the Nexus). No commitment to build.
 
 ### Fix Log
 
