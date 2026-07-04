@@ -305,6 +305,7 @@ export const optionsAdd = style({
 export const optionList = style({
   display: 'flex',
   flexDirection: 'column',
+  position: 'relative', // the drag drop-line positions against this
   gap: `${OPTION.gapBetweenChips}px`,
   paddingTop: `${OPTION.gapAroundLabel}px`,
   vars: { '--chip-pad-x': `${OPTION.chipPadX}px` }

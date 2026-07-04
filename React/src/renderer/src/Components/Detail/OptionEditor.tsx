@@ -2,12 +2,14 @@ import { useRef, useState } from 'react'
 import { Icon } from '@renderer/design-system/symbols'
 import { chipLabel, chipColor } from '@renderer/design-system/tokens'
 import { chipColorFor } from '@renderer/design-system/tokens/colorMap'
-import { addOption, recolorOption, fallbackTitle, type Option } from '@shared/optionModel'
+import { DROP_LINE_INSET } from '@renderer/design-system/interactions/shared'
+import { addOption, recolorOption, reorderOption, fallbackTitle, type Option } from '@shared/optionModel'
 import type { PropertyType } from '@shared/properties'
 import { cx } from '@renderer/design-system/cx'
 import { Chip } from '../Chip'
 import { EditableInput } from '../EditableInput'
 import { ColorPicker } from './ColorPicker'
+import { useOptionReorder } from './useOptionReorder'
 import * as s from './viewPane.css'
 
 /**
@@ -37,6 +39,10 @@ export function OptionEditor({
   const [coloring, setColoring] = useState<string | null>(null)
   // The open row's recolor button — the ColorPicker measures + dismiss-exempts it (only one is open).
   const paletteBtnRef = useRef<HTMLButtonElement>(null)
+  const reorder = useOptionReorder(
+    options.map((o) => o.value),
+    (value, toIndex) => onSetOptions(reorderOption(options, value, toIndex))
+  )
 
   const commitAdd = (raw: string): void => {
     setAdding(false)
@@ -66,13 +72,15 @@ export function OptionEditor({
           <Icon name="plus" size={s.ICON.optionsAdd} />
         </button>
       </div>
-      <div className={s.optionList}>
+      <div className={s.optionList} ref={reorder.containerRef}>
         {options.map((o) => {
           const isColoring = coloring === o.value
           return (
           <div
             key={o.value}
-            className={s.optionRow}
+            ref={(el) => reorder.registerRow(o.value, el)}
+            className={cx(s.optionRow, reorder.dragging === o.value && s.rowDragging)}
+            onPointerDown={(e) => reorder.onRowPointerDown(o.value, e)}
             onContextMenu={(e) => {
               e.preventDefault()
               void openMenu(o)
@@ -120,6 +128,11 @@ export function OptionEditor({
             <span className={cx(chipLabel, chipColor.default)}>
               <EditableInput value="" autoSize className={s.optionInput} onCommit={commitAdd} onCancel={() => setAdding(false)} />
             </span>
+          </div>
+        ) : null}
+        {reorder.lineTop !== null ? (
+          <div className="table-drop-line" aria-hidden style={{ top: reorder.lineTop, left: DROP_LINE_INSET, right: DROP_LINE_INSET }}>
+            <span className="table-drop-dot" />
           </div>
         ) : null}
       </div>
