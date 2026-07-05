@@ -132,6 +132,7 @@ Build discipline: the ViewPane CSS is a KNOB FILE (`viewPane.css.ts` — COLOR/S
 
 ### Fix Log
 
+- **The link rename field shows a leading empty space (open, DEPRIORITIZED — not worth deep time).** A visible gap sits before the text when a link Rename opens, fresh or already-aliased. RULED OUT as a stored/typed character: the frontmatter is byte-clean (`[` flush against the first letter), the field's `.value` carries no space, it survives backspace, and the async title is never the key. The `nativeCaret` drawn-bar was re-measured on field resize (that killed a *separate* stranded-caret offset), yet the gap persists — so the residual is a VISUAL inset, not a character. Likeliest candidates for a future quick look (NOT a 10-hour dig): the field's own left padding in `TextPicker` reading as a space, or `nativeCaret`'s position-only blind spot (a pane re-center with no resize doesn't trigger the ResizeObserver). Nathan's call: log it, don't chase it.
 - **Block-math `$$…blank…$$` drag corrupts the doc (open).** A multi-line block-math span with a blank line parses as two halves with orphaned `$$`; block-dragging either half corrupts the document (`MarkdownPM/editor/blockModel.ts` — test-pinned, unguarded).
 - **Bullet single-word wrap drops the word below the marker** — only the `line-height` cap shipped. → `Features/MarkdownPM.md` § Known Issues.
 - The "File" property icon gets clipped by its vertical row padding on the ViewPane.
