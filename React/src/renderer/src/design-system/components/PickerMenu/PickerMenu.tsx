@@ -34,6 +34,8 @@ export function PickerMenu({
   notchHeight = 8,
   notchCurve = 0.225,
   direction = 'down',
+  center = false,
+  contentClassName,
   style
 }: {
   children: ReactNode
@@ -54,6 +56,12 @@ export function PickerMenu({
   notchCurve?: number
   /** 'up' hangs the pane ABOVE its trigger with the beak pointing down (bottom-of-pane hosts). */
   direction?: 'down' | 'up'
+  /** Centred mode — the pane straddles the trigger centre with a centred beak (the TextPicker rename
+   *  field), instead of the default right-anchored dropdown. */
+  center?: boolean
+  /** Overrides the surface's content gutter (cx'd after the default) — for a picker that wants its own
+   *  inset, e.g. the tight single-field TextPicker. */
+  contentClassName?: string
   style?: CSSProperties
 }): React.JSX.Element | null {
   const selfManaged = open !== undefined
@@ -61,7 +69,7 @@ export function PickerMenu({
   const closing = selfManaged ? exitClosing : closingProp
   const paneRef = useRef<HTMLDivElement>(null)
   const markerRef = useRef<HTMLSpanElement>(null)
-  const [pos, setPos] = useState<{ top: number; right: number; notchInset: number } | null>(null)
+  const [pos, setPos] = useState<{ top: number; right?: number; left?: number; notchInset?: number } | null>(null)
 
   // The pane hangs off the trigger's right edge and opens down-left (a stable dropdown — the pane
   // doesn't move to center the beak). The beak lands as far right as the corner radius allows
@@ -76,13 +84,24 @@ export function PickerMenu({
     if (!trigger) return
     const measure = (): void => {
       const t = trigger.getBoundingClientRect()
-      const center = t.left + t.width / 2
-      const right = Math.max(VIEWPORT_MARGIN, window.innerWidth - center - reserve)
+      const c = t.left + t.width / 2
+      // Centred (TextPicker): straddle the trigger centre (translateX below) with a centred beak. Else
+      // the stable right-anchored dropdown, beak clamped onto the trigger centre.
+      if (center) {
+        // Straddle the trigger centre, but keep the pane on-screen — clamp `left` by the pane's half-width
+        // (measured; re-clamps as the field grows) so an edge cell can't push it off the viewport.
+        const half = (paneRef.current?.offsetWidth ?? 0) / 2
+        const left = Math.min(Math.max(c, VIEWPORT_MARGIN + half), window.innerWidth - VIEWPORT_MARGIN - half)
+        setPos({ top: t.bottom + GAP, left })
+        return
+      }
+      const right = Math.max(VIEWPORT_MARGIN, window.innerWidth - c - reserve)
       setPos({ top: t.bottom + GAP, right, notchInset: reserve })
     }
     measure()
     const ro = new ResizeObserver(measure)
     ro.observe(trigger)
+    if (center && paneRef.current) ro.observe(paneRef.current)
     window.addEventListener('scroll', measure, true)
     window.addEventListener('resize', measure)
     return () => {
@@ -90,7 +109,7 @@ export function PickerMenu({
       window.removeEventListener('scroll', measure, true)
       window.removeEventListener('resize', measure)
     }
-  }, [selfManaged, mounted, reserve, triggerRef, closing])
+  }, [selfManaged, mounted, reserve, triggerRef, closing, center])
 
   // Outside clicks dismiss via the backdrop below the pane (rendered in the portal). Escape is handled
   // here since the backdrop only catches pointers.
@@ -106,7 +125,7 @@ export function PickerMenu({
   const up = direction === 'up'
   const pane = (
     <NotchedPane
-      className={cx(s.surface, up && s.surfaceUp)}
+      className={cx(s.surface, up && s.surfaceUp, contentClassName)}
       animationClass={closing ? dropdownClose : dropdownOpen}
       solid={solid}
       radius={radius}
@@ -144,7 +163,9 @@ export function PickerMenu({
             data-picker-portal
             style={{
               top: pos ? `${pos.top}px` : '0',
-              right: pos ? `${pos.right}px` : '0',
+              ...(pos?.left !== undefined
+                ? { left: `${pos.left}px`, transform: 'translateX(-50%)' }
+                : { right: pos ? `${pos.right}px` : '0' }),
               visibility: pos ? undefined : 'hidden',
               pointerEvents: closing ? 'none' : undefined
             }}

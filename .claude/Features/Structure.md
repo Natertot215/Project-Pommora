@@ -51,7 +51,7 @@ One per Nexus at `.nexus/homepage.json` — a composed-blocks dashboard sharing 
 
 #### II. Settings
 
-Per-Nexus config at `.nexus/settings.json` — UI labels, accent color, a profile image and subtitle, and an app-specific `subfield` (footer) key. The file preserves unrecognized keys by value on write, so foreign keys survive every round-trip. Labels feed every renameable surface; accent applies app-wide as a spectrum color or follow-the-OS.
+Per-Nexus config at `.nexus/settings.json` — UI labels, a profile image and subtitle, the app's `subfield` (footer) key, and the `personalization` block. Labels feed every renameable surface. The full config model — the personalization block, its apply-map, write discipline, and the per-device app config → `Configuration.md`.
 
 ### Identity + Linking
 
@@ -88,4 +88,4 @@ The read side is one eager, read-only walk producing a pre-ordered `NexusTree` �
 
 **Homepage Block Surface:** The composed-blocks dashboard — embedded views, linked-content widgets, a mini-calendar — sharing the editor that Contexts will use. The Homepage renders only its banner under the Nexus header until that editor lands.
 
-**Settings Editing UI:** Labels, accent, and profile are hand-edited in `.nexus/settings.json` today. A real editor — accent picker, label rename forms, tier-label configuration — is planned.
+**Settings Editing UI:** The `personalization` block has a write path — a generic setter plus a live apply-map — but no UI yet, so accent, connection color, and the interface toggles are set in `.nexus/settings.json` directly for now; labels and profile are likewise hand-edited. A real settings surface — accent picker, toggle rows, label rename forms, tier-label configuration — is planned. Full config model + the planned editor → `Configuration.md`.

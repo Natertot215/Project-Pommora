@@ -1,5 +1,7 @@
 ## Pommora iOS Companion — Decision Log
 
+**DATE:** 7-4-2026
+
 > Feasibility + approach for a companion iPhone app. 4 of 5 research legs landed (1 pending: iCloud desktop-write mechanics). Decisions tagged `[confirmed] / [assumed] / [open]`.
 
 ### Frame

@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { mkdtemp, rm, mkdir, writeFile, readFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { ensureSettings } from './settings'
+import { ensureSettings, updateSettings } from './settings'
 import { nexusDir, nexusConfig, NEXUS_CONFIG_FILES } from './paths'
 
 let root: string
@@ -53,5 +53,22 @@ describe('ensureSettings', () => {
     const before = await readFile(path(), 'utf8')
     await ensureSettings(root) // second pass
     expect(await readFile(path(), 'utf8')).toBe(before)
+  })
+})
+
+describe('updateSettings — serialized RMW (G-1)', () => {
+  it('concurrent writes to different keys never clobber', async () => {
+    await ensureSettings(root)
+    // Fired together: unserialized read-modify-writes each merge onto the SAME stale snapshot and
+    // the last write wins, dropping the others. serializeOnFile forces them to queue, so all land.
+    await Promise.all([
+      updateSettings(root, (c) => ({ ...c, a: 1 })),
+      updateSettings(root, (c) => ({ ...c, b: 2 })),
+      updateSettings(root, (c) => ({ ...c, c: 3 })),
+      updateSettings(root, (c) => ({ ...c, d: 4 }))
+    ])
+    const s = await readSettings()
+    expect([s.a, s.b, s.c, s.d]).toEqual([1, 2, 3, 4])
+    assertFullSettings(s) // the seed keys survived the concurrent writes too
   })
 })

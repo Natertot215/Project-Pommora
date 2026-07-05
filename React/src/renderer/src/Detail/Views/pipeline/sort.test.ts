@@ -28,7 +28,8 @@ const schema: PropertyDefinition[] = [
   { id: 'prop_done', name: 'Done', type: 'checkbox' },
   { id: 'prop_when', name: 'When', type: 'datetime' },
   { id: 'prop_led', name: 'Edited', type: 'last_edited_time' },
-  { id: 'prop_rel', name: 'Rel', type: 'context', context_target: { kind: 'context_tier', tier: 1 } }
+  { id: 'prop_rel', name: 'Rel', type: 'context', context_target: { kind: 'context_tier', tier: 1 } },
+  { id: 'prop_link', name: 'Link', type: 'url' }
 ]
 
 function makeRow(
@@ -51,6 +52,17 @@ function makeRow(
 const ids = (rows: ViewRow[]): string[] => rows.map((r) => r.id)
 
 describe('makeSorter — type-aware single criterion', () => {
+  it('url sorts by the SHOWN text (alias, else URL), not the raw [alias](url) (build-breaker #3)', () => {
+    const rows = [
+      makeRow('r_zebra', { props: { prop_link: '[Zebra](https://a.co)' } }),
+      makeRow('r_apple', { props: { prop_link: '[Apple](https://z.co)' } }),
+      makeRow('r_bare', { props: { prop_link: 'https://m.co' } })
+    ]
+    const sorter = makeSorter([{ property_id: 'prop_link', direction: 'ascending' }], schema)
+    // Apple < https://m.co < Zebra by display — not clumped by the leading `[` of the two aliases.
+    expect(ids(sorter?.(rows) ?? rows)).toEqual(['r_apple', 'r_bare', 'r_zebra'])
+  })
+
   it('select sorts by schema option order, unknown values last', () => {
     const rows = [
       makeRow('r1', { props: { prop_sel: 'c' } }),

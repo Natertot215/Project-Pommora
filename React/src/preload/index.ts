@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import type { IpcRendererEvent } from 'electron'
-import type { NexusState, NexusTree, PageResult, SubfieldConfig } from '@shared/types'
+import type { NexusState, NexusTree, PageResult, Personalization, SubfieldConfig } from '@shared/types'
 import type { MutateRequest, MutateResult, ContextTarget } from '@shared/mutate'
 import type { FormatState } from '@shared/editorMenu'
 import type { TableMenuAction, TableMenuContext } from '@shared/tableMenu'
@@ -122,6 +122,12 @@ const api = {
       groups: StatusGroup[]
     ): Promise<{ ok: true } | { ok: false; error: string }> =>
       ipcRenderer.invoke('property:setStatusGroups', propertyId, groups),
+    // Registry-only display config for a URL / Link property (underline, full-url ⇄ title, color).
+    setLinkConfig: (
+      propertyId: string,
+      patch: { link_underline?: boolean; link_display?: 'link-url' | 'link-title'; link_color?: string }
+    ): Promise<{ ok: true } | { ok: false; error: string }> =>
+      ipcRenderer.invoke('property:setLinkConfig', propertyId, patch),
     renameOption: (
       propertyId: string,
       oldValue: string,
@@ -178,6 +184,14 @@ const api = {
     set: (config: SubfieldConfig): Promise<{ ok: true } | { ok: false; error: string }> =>
       ipcRenderer.invoke('subfield:set', config)
   },
+  // Personalization (accent, connection color, interface toggles) — persist one key; the tree
+  // surfaces current values (state → tree.personalization), so there's no get.
+  personalization: {
+    set: <K extends keyof Personalization>(
+      key: K,
+      value: Personalization[K]
+    ): Promise<{ ok: true } | { ok: false; error: string }> => ipcRenderer.invoke('personalization:set', key, value)
+  },
   // Renderer-initiated write (relative paths only); main resolves under the session root.
   mutate: (req: MutateRequest): Promise<MutateResult> => ipcRenderer.invoke('mutate', req),
   // Right-click an entity → main pops a native context menu + acts on it.
@@ -191,6 +205,13 @@ const api = {
   showError: (message: string): Promise<void> => ipcRenderer.invoke('error:show', message),
   // Open an external link (http/https/mailto) in the OS default browser/app.
   openExternal: (url: string): Promise<void> => ipcRenderer.invoke('link:open', url),
+  // Fetched page-title cache for URL properties in the `link-title` look. `get` returns the whole
+  // cached map (hydrated into the store on open); `fetch` resolves one URL (cache hit or live fetch).
+  linkTitles: {
+    get: (): Promise<Record<string, string>> => ipcRenderer.invoke('linkTitles:get'),
+    fetch: (url: string): Promise<{ ok: true; title: string | null } | { ok: false; error: string }> =>
+      ipcRenderer.invoke('linkTitles:fetch', url)
+  },
   // Open a page-attached file (nexus-relative path) in its OS default app.
   openFile: (path: string): Promise<{ ok: true } | { ok: false; error: string }> =>
     ipcRenderer.invoke('file:open', path),

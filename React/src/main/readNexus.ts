@@ -19,10 +19,20 @@ import type {
   ProjectNode,
   SavedNode,
   SetNode,
+  ConnectionColorSetting,
+  EntityIconKind,
+  Personalization,
   TopicNode,
   UserSection
 } from '@shared/types'
-import { ACCENT_COLORS, AREA_COLORS, DEFAULT_ACCENT, DEFAULT_LABELS, DEFAULT_TIME_FORMAT } from '@shared/types'
+import {
+  ACCENT_COLORS,
+  AREA_COLORS,
+  DEFAULT_ACCENT,
+  DEFAULT_LABELS,
+  DEFAULT_TIME_FORMAT,
+  ENTITY_ICON_KINDS
+} from '@shared/types'
 import { savedView, type SavedView } from '@shared/views'
 import type { PropertyDefinition } from '@shared/properties'
 import { adoptedId } from './ids'
@@ -58,6 +68,31 @@ function resolveAccent(raw: string | undefined): AccentSetting {
   if (raw != null && ACCENT_COLOR_SET.has(raw)) return raw as AccentColor
   if (raw != null && raw in SWIFT_ONLY_ACCENT) return SWIFT_ONLY_ACCENT[raw]
   return DEFAULT_ACCENT
+}
+
+// Coerce the on-disk `settings.personalization` blob into a validated Personalization, per-field
+// (absent/invalid → undefined = the built-in default). Accent is resolved separately into
+// tree.accent (back-compat with the legacy top-level accent_color), so it isn't surfaced here.
+function readPersonalization(raw: unknown): Personalization {
+  const p = raw != null && typeof raw === 'object' && !Array.isArray(raw) ? (raw as Record<string, unknown>) : {}
+  const bool = (v: unknown): boolean | undefined => (typeof v === 'boolean' ? v : undefined)
+  const conn = asString(p.connectionColor)
+  const rawIcons =
+    p.defaultIcons != null && typeof p.defaultIcons === 'object' && !Array.isArray(p.defaultIcons)
+      ? (p.defaultIcons as Record<string, unknown>)
+      : {}
+  const defaultIcons: Partial<Record<EntityIconKind, string>> = {}
+  for (const k of ENTITY_ICON_KINDS) {
+    const v = asString(rawIcons[k])
+    if (v) defaultIcons[k] = v
+  }
+  return {
+    connectionColor:
+      conn === 'accent' || (conn != null && ACCENT_COLOR_SET.has(conn)) ? (conn as ConnectionColorSetting) : undefined,
+    hideChevrons: bool(p.hideChevrons),
+    outlinerLines: bool(p.outlinerLines),
+    defaultIcons: Object.keys(defaultIcons).length ? defaultIcons : undefined
+  }
 }
 
 // Parse Swift's nested snake_case `settings.labels` into the structured camelCase
@@ -290,7 +325,16 @@ export async function readNexus(root: string): Promise<NexusTree> {
   const settings = (await readJsonObject(nexusConfig(root, NEXUS_CONFIG_FILES.settings))) ?? {}
   const excluded = asStringArray(settings.excluded_folders) ?? []
   const labels = readLabels(settings.labels)
-  const accent = resolveAccent(asString(settings.accent_color))
+  const rawPersonalization =
+    settings.personalization != null &&
+    typeof settings.personalization === 'object' &&
+    !Array.isArray(settings.personalization)
+      ? (settings.personalization as Record<string, unknown>)
+      : {}
+  // Accent's new home is personalization.accent; the legacy top-level accent_color is the back-compat
+  // fallback for un-migrated nexuses (G-4). resolveAccent normalizes either into an AccentSetting.
+  const accent = resolveAccent(asString(rawPersonalization.accent) ?? asString(settings.accent_color))
+  const personalization = readPersonalization(rawPersonalization)
   const timeFormat = settings.time_format === 'twentyFourHour' ? 'twentyFourHour' : DEFAULT_TIME_FORMAT
   // Profile image + subtitle live in settings (Swift parity), not nexus.json. profileImage is a
   // nexus-relative asset path the renderer serves via nexus-asset://; subtitle is plain text.
@@ -372,6 +416,7 @@ export async function readNexus(root: string): Promise<NexusTree> {
     labels,
     accent,
     timeFormat,
+    personalization,
     registry: orderedDefs(registry)
   }
 }

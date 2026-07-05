@@ -3,7 +3,7 @@ import type { ResolvedGroup } from '@shared/types'
 import type { SavedView } from '@shared/views'
 import { chipBox, chipColor, text } from '@renderer/design-system/tokens'
 import { cx } from '@renderer/design-system/cx'
-import { Icon, asIconName } from '@renderer/design-system/symbols'
+import { Icon, asIconName, defaultEntityIcon } from '@renderer/design-system/symbols'
 import { Chip, chipShapeForType } from '@renderer/Components/Chip'
 import { chipColorFor } from '@renderer/design-system/tokens/colorMap'
 import { declaredType } from '../pipeline/value'
@@ -30,7 +30,7 @@ function groupGlyph(
     const title = setNames.get(group.key) ?? group.key
     return (
       <span className="group-name">
-        <Icon name={asIconName(setIcons.get(group.key)) ?? 'folder-closed'} size={13} />
+        <Icon name={asIconName(setIcons.get(group.key)) ?? defaultEntityIcon('set')} size={13} />
         {setPath ? <RenamableTitle path={setPath} kind="set" title={title} className="band-title-input" /> : title}
       </span>
     )

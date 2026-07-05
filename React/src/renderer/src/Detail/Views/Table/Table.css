@@ -144,6 +144,11 @@
   font: inherit;
   color: inherit;
 }
+/* Ghosted while the typed value isn't a valid link yet — the field wears the link's colour (set inline)
+   faded to the shared ghost opacity, so it previews as the link, dimmed, until it snaps solid. */
+.property-editor-ghost {
+  opacity: var(--state-ghost);
+}
 /* Data-row vertical column lines — full-height hairlines (every data cell except the trailing filler). */
 .data-cell:not(:last-child) {
   border-right: var(--table-border);
@@ -263,6 +268,9 @@
 .cell-link {
   color: var(--accent);
   text-decoration: none;
+}
+.cell-link-underline {
+  text-decoration: underline;
 }
 .cell-muted {
   color: var(--text-dim);

@@ -59,10 +59,31 @@ export type AccentSetting = AccentColor | 'system'
  */
 export const DEFAULT_ACCENT: AccentColor = 'lavender'
 
+/** Connection color — the inline [[Title]] connection link color. `'accent'` (the default) tracks
+ *  the app accent live via `--connection: var(--accent)`; a spectrum solid pins it to that color. */
+export type ConnectionColorSetting = AccentColor | 'accent'
+export const DEFAULT_CONNECTION_COLOR: ConnectionColorSetting = 'accent'
+
 /** The `time_format` value in .nexus/settings.json — the nexus-wide clock for the datetime
  *  picker (twelveHour = AM/PM segments, the default; twentyFourHour = flat HH:MM). */
 export type TimeFormatSetting = 'twelveHour' | 'twentyFourHour'
 export const DEFAULT_TIME_FORMAT: TimeFormatSetting = 'twelveHour'
+
+/** Entity kinds that carry a nexus-wide default icon; an entity's own `icon` still overrides it. */
+export const ENTITY_ICON_KINDS = ['collection', 'set', 'area', 'topic', 'project', 'page'] as const
+export type EntityIconKind = (typeof ENTITY_ICON_KINDS)[number]
+
+/** Nexus-wide interface personalization — the `personalization` object in `.nexus/settings.json`
+ *  (canonical, synced). Every field optional; absent = the built-in default. One schema behind one
+ *  apply-map + one setter — a new toggle is a field here plus an apply-map row. Icon names are bare
+ *  strings (the renderer resolves them to symbols) so this stays free of renderer types. */
+export interface Personalization {
+  accent?: AccentSetting
+  connectionColor?: ConnectionColorSetting
+  hideChevrons?: boolean
+  outlinerLines?: boolean
+  defaultIcons?: Partial<Record<EntityIconKind, string>>
+}
 
 export interface BaseNode {
   id: string
@@ -182,6 +203,10 @@ export interface NexusTree {
   /** Nexus-wide time format (.nexus/settings.json `time_format`) — drives the datetime picker's
    *  segment set. Defaults to twelveHour (AM/PM). */
   timeFormat: TimeFormatSetting
+  /** Nexus-wide interface personalization (`settings.json` `personalization`) — the DRY config the
+   *  renderer's apply-map consumes. Accent is surfaced separately as `accent` above (resolved,
+   *  back-compat with the legacy top-level `accent_color`). */
+  personalization: Personalization
   /** Every registry definition, in the nexus-wide cosmetic order (order-listed first,
    *  unlisted appended) — reserved ids included; consumers filter (E-1/E-5). */
   registry: PropertyDefinition[]

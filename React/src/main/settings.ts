@@ -7,6 +7,7 @@
 import { mkdir } from 'node:fs/promises'
 import { DEFAULT_LABELS, type NexusLabels, type SubfieldConfig } from '@shared/types'
 import { readJsonObject, writeJson } from './io/atomicWrite'
+import { serializeOnFile } from './io/fileLock'
 import { swiftISODate } from './identity'
 import { nexusDir, nexusConfig, NEXUS_CONFIG_FILES } from './paths'
 
@@ -46,20 +47,36 @@ export function defaultSettingsSeed(): Record<string, unknown> {
  *  Present → backfill only the keys Swift's decoder REQUIRES (version, labels, modified_at) +
  *  defaults_version (avoids a migration rewrite) when missing; a complete file is left
  *  byte-identical (no churn). Foreign + user keys are always preserved. */
-export async function ensureSettings(root: string): Promise<void> {
+export function ensureSettings(root: string): Promise<void> {
   const path = nexusConfig(root, NEXUS_CONFIG_FILES.settings)
-  const existing = await readJsonObject(path)
-  if (!existing) {
-    await mkdir(nexusDir(root), { recursive: true })
-    await writeJson(path, defaultSettingsSeed())
-    return
-  }
-  const patch: Record<string, unknown> = {}
-  if (typeof existing.version !== 'number') patch.version = 1
-  if (typeof existing.defaults_version !== 'number') patch.defaults_version = SWIFT_DEFAULTS_VERSION
-  if (!existing.labels || typeof existing.labels !== 'object') patch.labels = labelsToDisk(DEFAULT_LABELS)
-  if (typeof existing.modified_at !== 'string') patch.modified_at = swiftISODate()
-  if (Object.keys(patch).length > 0) await writeJson(path, { ...existing, ...patch })
+  return serializeOnFile(path, async () => {
+    const existing = await readJsonObject(path)
+    if (!existing) {
+      await mkdir(nexusDir(root), { recursive: true })
+      await writeJson(path, defaultSettingsSeed())
+      return
+    }
+    const patch: Record<string, unknown> = {}
+    if (typeof existing.version !== 'number') patch.version = 1
+    if (typeof existing.defaults_version !== 'number') patch.defaults_version = SWIFT_DEFAULTS_VERSION
+    if (!existing.labels || typeof existing.labels !== 'object') patch.labels = labelsToDisk(DEFAULT_LABELS)
+    if (typeof existing.modified_at !== 'string') patch.modified_at = swiftISODate()
+    if (Object.keys(patch).length > 0) await writeJson(path, { ...existing, ...patch })
+  })
+}
+
+/** Serialized read-modify-write of settings.json — the one primitive every settings writer funnels
+ *  through, so concurrent writes to different keys can't clobber each other (G-1). A missing file
+ *  starts from the full seed (parity with the prior mutateJson fallback). */
+export function updateSettings(
+  root: string,
+  mutate: (current: Record<string, unknown>) => Record<string, unknown>
+): Promise<void> {
+  const path = nexusConfig(root, NEXUS_CONFIG_FILES.settings)
+  return serializeOnFile(path, async () => {
+    const current = (await readJsonObject(path)) ?? defaultSettingsSeed()
+    await writeJson(path, mutate(current))
+  })
 }
 
 /** Read the React-owned `subfield` foreign key from settings.json (null when absent/malformed). */
@@ -77,7 +94,19 @@ export async function readSubfield(root: string): Promise<SubfieldConfig | null>
 /** Write the `subfield` key, preserving every other (Swift-required + foreign) key in settings.json. */
 export async function writeSubfield(root: string, config: SubfieldConfig): Promise<void> {
   await ensureSettings(root)
-  const path = nexusConfig(root, NEXUS_CONFIG_FILES.settings)
-  const existing = (await readJsonObject(path)) ?? {}
-  await writeJson(path, { ...existing, subfield: config })
+  await updateSettings(root, (cur) => ({ ...cur, subfield: config }))
+}
+
+/** Merge one personalization key into `settings.json` `personalization` (serialized; foreign +
+ *  sibling keys preserved). An `undefined` value resets the key to its built-in default — JSON
+ *  omits it on write. The read-side coercion + renderer apply-map own validation. */
+export async function writePersonalization(root: string, key: string, value: unknown): Promise<void> {
+  await ensureSettings(root)
+  await updateSettings(root, (cur) => {
+    const p =
+      cur.personalization != null && typeof cur.personalization === 'object' && !Array.isArray(cur.personalization)
+        ? (cur.personalization as Record<string, unknown>)
+        : {}
+    return { ...cur, personalization: { ...p, [key]: value } }
+  })
 }

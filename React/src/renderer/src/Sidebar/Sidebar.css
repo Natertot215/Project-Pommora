@@ -193,6 +193,20 @@
   transform: rotate(90deg);
 }
 
+/* "Hide Chevrons" personalization (class on <html>): the leading chevron slot collapses to a tunable
+   gutter. KNOB: --chevron-gutter (default 0 = flush with the section header; the glyph is clipped by
+   overflow, and the negative margin cancels the row's 8px leading gap so 0 truly sits flush — bump it for
+   breathing room). Matched by the .twisty / .twisty-spacer the slot holds, so the Saved strip (no chevron
+   slot) is untouched. The header row still toggles on click. */
+.hide-chevrons .row > span:has(> .twisty),
+.hide-chevrons .row > span:has(> .twisty-spacer) {
+  --chevron-gutter: 2px;
+  width: var(--chevron-gutter);
+  min-width: var(--chevron-gutter);
+  overflow: hidden;
+  margin-right: calc(var(--chevron-gutter) - 8px);
+}
+
 /* Leaf rows align their icon under disclosure rows' icons via a chevron-width spacer. */
 .twisty-spacer {
   width: 12px;

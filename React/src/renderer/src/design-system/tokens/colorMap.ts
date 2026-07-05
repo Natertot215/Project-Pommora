@@ -47,3 +47,12 @@ export function chipColorFor(color: string | undefined): ChipColorName {
   if (color && PALETTE.has(color)) return color as ChipColorName
   return (color && MAP[color]) || 'default'
 }
+
+// User-facing display names that DON'T match the palette key. The on-disk key is unchanged — this is
+// display only. `lightBlue` reads as "Cobalt" (Nathan's term); everything else Title-cases its key.
+const COLOR_LABELS: Partial<Record<ChipColorName, string>> = { lightBlue: 'Cobalt' }
+
+/** The user-facing display name for a chip palette key (e.g. `lightBlue` → "Cobalt"). */
+export function colorLabel(name: ChipColorName): string {
+  return COLOR_LABELS[name] ?? name.charAt(0).toUpperCase() + name.slice(1)
+}

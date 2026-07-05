@@ -96,7 +96,7 @@ describe("closeConstructOnEnter — contractions don't poison quote parity", () 
   });
 });
 
-describe("continueListOnEnter — nested runs + empty-item exit", () => {
+describe("continueListOnEnter — nested runs + empty-item continuation", () => {
   it("renumbers past a nested sublist instead of duplicating numbers", () => {
     const doc = "1. a\n\t1. child\n2. b";
     const edit = continueListOnEnter(doc, 4, 4);
@@ -104,14 +104,14 @@ describe("continueListOnEnter — nested runs + empty-item exit", () => {
     const next = doc.slice(0, edit!.from) + edit!.insert + doc.slice(edit!.to);
     expect(next).toBe("1. a\n2. \n\t1. child\n3. b");
   });
-  it("exits the list on an empty item (strips the marker)", () => {
+  it("continues on an empty item instead of exiting (no auto-exit)", () => {
     const edit = continueListOnEnter("- ", 2, 2);
-    expect(edit).toEqual({ from: 0, to: 2, insert: "", selection: 0 });
+    expect(edit).toEqual({ from: 2, to: 2, insert: "\n- ", selection: 5 });
   });
-  it("keeps the `> ` when exiting an empty item inside a quote", () => {
+  it("continues an empty item inside a quote, keeping the `> `", () => {
     const doc = "> - ";
     const edit = continueListOnEnter(doc, 4, 4);
-    expect(edit).toEqual({ from: 2, to: 4, insert: "", selection: 2 });
+    expect(edit).toEqual({ from: 4, to: 4, insert: "\n> - ", selection: 9 });
   });
 });
 

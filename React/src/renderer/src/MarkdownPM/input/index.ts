@@ -41,12 +41,8 @@ export function continueListOnEnter(doc: string, selStart: number, selEnd: numbe
   if (lm === null) return null;
   if (selStart < ls + pfx.length + lm.contentStart) return null; // caret in/before the marker zone
 
-  // Enter on an EMPTY item exits the list (the universal convention) — strip the marker instead of
-  // breeding another. Inside a quote/callout the `> ` stays: the exit is out of the LIST, not the box.
-  if (line.slice(pfx.length + lm.contentStart).trim() === "") {
-    return { from: ls + pfx.length, to: lineEnd, insert: "", selection: ls + pfx.length };
-  }
-
+  // Enter ALWAYS continues the list — even on an empty item (no auto-exit). Exit a list via Shift+Enter
+  // (plain newline) or Backspace on the empty marker.
   const indent = line.slice(pfx.length, pfx.length + lm.markerStart);
   // A line that's part of the item's subtree — deeper-indented (nested list or a wrapped item's
   // continuation body) — is skipped by the sibling renumber walk, never a run terminator.

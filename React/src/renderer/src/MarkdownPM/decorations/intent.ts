@@ -10,6 +10,7 @@ import {
   headingParts,
   lineOffsets,
   type CalloutLine,
+  type ListMarker,
 } from "../detect";
 
 // A line is a nested quote INSIDE a callout when it's a callout line whose content (after the callout's own
@@ -122,7 +123,25 @@ export type DecoIntent =
   | { kind: "hide"; from: number; to: number }
   | { kind: "widget"; from: number; to: number; spec: WidgetSpec }
   | { kind: "lineWidget"; from: number; className: string }
-  | { kind: "line"; from: number; className: string; level?: number };
+  | { kind: "line"; from: number; className: string; level?: number }
+  | {
+      kind: "rail";
+      from: number;
+      level: number;
+      typeClass: string;
+      first: boolean;
+      last: boolean;
+    };
+
+// The outliner rail's x sits on its ANCESTOR's glyph centre, so its class tracks the ancestor marker's TYPE
+// (--rail-x set in CSS per class) — a nested checkbox under a bullet parent gets the bullet centre, not its own.
+// Scoped to dash-bullets and checkboxes; ordered / arrow / `+` return null (no rail) — their glyph-centre maths
+// is deferred, so a rail is only drawn under an ancestor that is one of the two supported types.
+function railTypeClass(m: ListMarker): string | null {
+  if (m.kind === "checkbox") return "md-outliner-task";
+  if (m.kind === "bullet" && m.bullet === "-") return "md-outliner-bullet";
+  return null;
+}
 
 export const CONTENT_CLASS: Partial<Record<TokenKind, string>> = {
   bold: "md-bold",
@@ -160,6 +179,11 @@ export function decorationsFor(
   const { lines, lineStarts } = splitWithOffsets(text);
   const fences = scanFencedCode(lines, lineStarts);
   const callouts = calloutLines(lines);
+
+  // Per-line list nesting depth (-1 = not a rendered list line) + the rail type-class of the marker there.
+  // Fed by pushConstruct's return; the outliner-rail pass below reads them to find run boundaries per level.
+  const listLevels = new Array<number>(lines.length).fill(-1);
+  const listKinds = new Array<string>(lines.length).fill("");
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
@@ -230,7 +254,35 @@ export function decorationsFor(
 
     // pushConstruct hides the prefix [ls, innerStart] itself, so a leading bullet/HR widget can ABSORB it into
     // one replace — CM drops a widget-replace that merely *touches* a preceding replace at the same offset.
-    pushConstruct(intents, line, ls, base, selStart);
+    const li = pushConstruct(intents, line, ls, base, selStart);
+    if (li) {
+      listLevels[i] = li.level;
+      listKinds[i] = railTypeClass(li) ?? ""; // "" = a rendered list line, but not a railed type
+    }
+  }
+
+  // Outliner rails: one vertical guide per ANCESTOR level of each nested list line, each drawn as a continuous
+  // run per level with rounded caps only at the run's two ends (mirrors the blockquote bar's first/last). A
+  // level-K rail breaks wherever a neighbour's level ≤ K (or the neighbour isn't a list line). railKind tracks
+  // the current ancestor's marker type at each level so the rail lands on THAT glyph's centre.
+  const railKind: string[] = [];
+  for (let i = 0; i < lines.length; i++) {
+    const level = listLevels[i];
+    if (level < 0) continue;
+    railKind[level] = listKinds[i];
+    railKind.length = level + 1;
+    for (let k = 0; k < level; k++) {
+      const typeClass = railKind[k];
+      if (!typeClass) continue; // ancestor isn't a railed type (ordered / arrow / + — deferred)
+      intents.push({
+        kind: "rail",
+        from: lineStarts[i],
+        level: k,
+        typeClass,
+        first: i === 0 || listLevels[i - 1] <= k,
+        last: i === lines.length - 1 || listLevels[i + 1] <= k,
+      });
+    }
   }
 
   return intents;
@@ -244,7 +296,7 @@ function pushConstruct(
   ls: number,
   base: number,
   selStart: number,
-): void {
+): ListMarker | null {
   const inner = base === 0 ? line : line.slice(base);
   const innerStart = ls + base;
   const le = ls + line.length;
@@ -303,9 +355,11 @@ function pushConstruct(
         to: innerStart + lm.contentStart,
       });
     }
+    return lm;
   } else if (lm?.kind === "bullet" && lm.bullet === "-" && !lm.box) {
-    // Raw `-` shows only when the caret is on the marker; else a `•` widget takes its exact slot. Inside a box
-    // the widget swallows the prefix too (`> -` → `•`) so it doesn't render-fail by touching the prefix-hide.
+    // Raw `-` shows only when the caret is on the marker (then the leading indent hides separately); else a
+    // `•` widget takes its slot AND ABSORBS the leading indent whitespace (replace from the line/box start,
+    // not the marker) — otherwise the source tab renders on top of the --li-col padding and double-indents.
     intents.push({ kind: "line", from: ls, className: "md-li", level: lm.level });
     if (onMarker) {
       if (lm.markerStart > 0)
@@ -313,11 +367,12 @@ function pushConstruct(
     } else {
       intents.push({
         kind: "widget",
-        from: bulletAbsorbs ? ls : innerStart + lm.markerStart,
+        from: bulletAbsorbs ? ls : innerStart,
         to: innerStart + lm.markerEnd,
         spec: { type: "bullet" },
       });
     }
+    return lm;
   } else if (lm?.kind === "arrow" || (lm?.kind === "bullet" && lm.bullet === "+" && !lm.box)) {
     // `→` and `+` ARE their own glyphs, so they stay literal source (like the ordered number): recoloured +
     // given the drag-handle class. Share the `.md-li` bullet zone.
@@ -330,6 +385,7 @@ function pushConstruct(
       to: innerStart + lm.markerEnd,
       className: `md-control ${GLYPH_CLASS}`,
     });
+    return lm;
   } else if (lm?.kind === "ordered") {
     // `N.` stays literal recoloured source (no widget) so typing after the number can't hit an atomic range.
     intents.push({ kind: "line", from: ls, className: "md-li md-li-ordered", level: lm.level });
@@ -346,6 +402,7 @@ function pushConstruct(
       from: innerStart + lm.markerEnd,
       to: innerStart + lm.contentStart,
     });
+    return lm;
   } else if (isThematicBreakLine(inner) && !caretOnLine) {
     // Inside a box the HR widget swallows the prefix (same touching-replace reason as the bullet).
     intents.push({
@@ -355,4 +412,5 @@ function pushConstruct(
       spec: { type: "hr" },
     });
   }
+  return null;
 }

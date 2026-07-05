@@ -53,12 +53,26 @@ A workflow property whose values sort into status **groups**. The group model is
 | Group         | Default label | Default color |
 | ------------- | ------------- | ------------- |
 | `upcoming`    | Open          | grey          |
-| `in_progress` | Active        | blue          |
+| `in_progress` | Active        | cobalt |
 | `done`        | Done          | green         |
 
 Group **ids** are the load-bearing keys: every value references its group by id, and all status logic (the checkbox cycle, the group glyph) keys off the id, never list position — order is display-only. The three shipped ids are stable, but the model isn't capped at three: more groups (Paused, Cancelled, or user-defined) drop into the open enum later with no data change, and a future EventKit bridge maps each group by a completion semantic (which groups count as done) rather than a fixed count. Group labels and the options within each group are user-editable. An option's `value` IS its label (value=title): renaming rewrites both and cascades the new value onto every assigning page's `$status`. Each option also carries an optional `color` and its `group_id`. Creating a Status property seeds one starter option per group. Sort is group position first, then option order within a group. Status is built-in and non-deletable on Tasks and Events; on a Collection it's opt-in.
 
 The **Status editor** edits it in place: a group-labeled option list (double-click a heading to relabel its group), each option a pill chip in its group's colour, with a per-group `+` for an inline-named option, a hover palette to recolor, drag to reorder within or across groups, and a right-click **Rename · Remove · Clear** menu.
+
+#### II. Links & URL
+
+A URL property renders each value as a clickable link (opened through the sanctioned IPC). Its variables:
+
+**Property-Specific** — set on the property, applied everywhere:
+
+- **Display** — each link as its full URL, or its fetched page title.
+- **Underline** — on or off.
+- **Color** — the link colour (a palette key; Default = the app accent).
+
+**View-Specific:** a prospect (see Pending) — a link's look is entirely property-level today; per-view link styling isn't built.
+
+A per-value **alias** (right-click → Rename, stored markdown-native as `[alias](url)`) overrides the display for a single link. In the title look, the page `<title>` is fetched once per URL and cached in `.nexus/linkTitles.json` (device-local, regeneratable), falling back to the bare domain while loading or on failure. *(A separate palette icon beside the colour chip once offered a second recolor source — removed; clicking the chip is the one affordance.)*
 
 #### II. Tier Relations
 
@@ -110,3 +124,9 @@ The SQLite `property_definitions` table is a pure mirror of the nexus-wide regis
 **Larger Color Picker:** option colors store an open solid-palette key (all ten `colors.css` solids, resolved through `chipColorFor` with a legacy read-map for old Notion values), so the ColorPicker's 2×5 grid can grow into a much larger selector (~9×12) over the shared color tokens — reusable across every color-token consumer — with no schema churn. A future enhancement, not a limitation.
 
 **Calendar Picker refinements:** the Date & Time value editor is live in table cells but pending — range values (the picker's range mode is demo-only; a datetime value is a single ISO on disk), keyboard stepping on the time segments, an in-app control for the `time_format` setting, and its own test coverage.
+
+**Per-View Link Styling:** a URL property's look — display (full-URL ⇄ title), underline, colour — is entirely property-level today; a URL column has no per-view style. Letting a view override it (one view titles, another raw URLs, of the same property) is a prospect, not a limitation — the `column_styles` seam already carries per-view looks for the other types.
+
+### Known Issues
+
+**A stray bare-string Multi-Select value reads as Select:** the read-side coercion that overrides a shape-vs-column type mismatch — a value's on-disk shape corrected to what its column actually declares — covers only the single-string kinds (URL / Select / Date). A Multi-Select value stored as a lone string rather than an array therefore stays classified as Select and drops out of grouping and filtering. Unreachable today (nothing writes that shape), but it goes live the moment the **Lossy Change-Type Strip** performs a Select→Multi-Select change; fix it there as a value migration (bare string → single-element array), not a coercion special-case.

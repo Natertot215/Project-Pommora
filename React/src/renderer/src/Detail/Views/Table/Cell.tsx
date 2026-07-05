@@ -3,7 +3,7 @@ import type { PropertyValue } from '@shared/propertyValue'
 import type { ResolvedColumn, ViewRow } from '@shared/types'
 import { chipBox, chipColor } from '@renderer/design-system/tokens'
 import { cx } from '@renderer/design-system/cx'
-import { Icon, asIconName } from '@renderer/design-system/symbols'
+import { Icon, asIconName, defaultEntityIcon } from '@renderer/design-system/symbols'
 import { Switch } from '@renderer/design-system/components/Switches/Switch'
 import { Chip, chipShapeForType } from '@renderer/Components/Chip'
 import { ContextChip } from '@renderer/Components/ContextChip'
@@ -14,6 +14,7 @@ import { fileLabel, formatDate, formatNumber } from '../PropertyEditing/formatVa
 import { statusGroupGlyph, statusGroupOf } from '../PropertyEditing/statusCycle'
 import { StatusCapsule } from '../PropertyEditing/StatusCapsule'
 import { findOption } from './cellResolve'
+import { LinkCell } from './LinkCell'
 import type { ResolveContext } from './resolveContext'
 
 /** Type-aware cell render (Part 2 G-1/G-2): the title with its page icon; chips for select/status;
@@ -27,6 +28,7 @@ export function Cell({
   ctx,
   hideIcon,
   style,
+  showFullLink,
   remove
 }: {
   row: ViewRow
@@ -34,6 +36,9 @@ export function Cell({
   ctx: ResolveContext
   hideIcon: boolean
   style: ColumnStyle
+  /** While this cell's Rename popover is open, show the raw URL instead of the alias, so you can see
+   *  what you're aliasing (a url cell only). */
+  showFullLink?: boolean
   /** Commits the value that remains after a chip's hover × (null = the property clears entirely).
    *  Only PILL chips wire it — capsule/checkbox looks clear via their menu instead. */
   remove?: (next: PropertyValue | null) => void
@@ -41,7 +46,7 @@ export function Cell({
   if (column.kind === 'title') {
     // The page's frontmatter icon, else the file-text default (the sidebar's page glyph) — so every page
     // reads with an icon (E-3). Hide Page Icons drops it entirely.
-    const iconName = hideIcon ? undefined : (asIconName(row.icon) ?? 'file-text')
+    const iconName = hideIcon ? undefined : (asIconName(row.icon) ?? defaultEntityIcon('page'))
     return (
       <OverflowScroll className="cell-title">
         {iconName ? <Icon name={iconName} size={14} /> : null}
@@ -50,7 +55,7 @@ export function Cell({
     )
   }
 
-  const v = resolveFieldValue(row, column.id)
+  const v = resolveFieldValue(row, column.id, ctx.schema)
 
   // A checkbox column ALWAYS shows its box — even on a page with no stored value — so it toggles in
   // place without first assigning the property. The box keys off the column's schema TYPE, not the
@@ -125,24 +130,10 @@ export function Cell({
         </OverflowScroll>
       )
     case 'url':
-      // The 'title' look shows the fetched page title once the fetch Prospect lands; until then
-      // both looks render the URL in the link color. Opens through the sanctioned IPC — raw <a>
-      // navigation is denied by main's will-navigate hardening.
-      return v.value ? (
-        <OverflowScroll className="cell-text-scroll">
-          <a
-            className="cell-link"
-            href={v.value}
-            onClick={(e) => {
-              e.preventDefault()
-              e.stopPropagation()
-              void window.nexus.openExternal(v.value)
-            }}
-          >
-            {v.value}
-          </a>
-        </OverflowScroll>
-      ) : null
+      // A bare URL or a markdown `[alias](url)`. LinkCell owns the render + its link-title fetch so the
+      // store subscription stays off every other cell type. showFullLink pins the raw URL while renaming.
+      return <LinkCell raw={v.value} def={ctx.schema.find((d) => d.id === column.id)} showFullLink={showFullLink} />
+
     case 'datetime':
       return (
         <OverflowScroll className="cell-text-scroll cell-muted">

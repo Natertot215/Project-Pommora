@@ -1,9 +1,9 @@
 // PropertyValue — the type-erased on-disk value used in Page/Agenda `properties`.
 // The DECLARED type lives in the schema; this codec recovers a value from raw JSON
-// by SHAPE, in a LOCKED precedence that mirrors the Swift original exactly. The
-// order is load-bearing and silent on failure — reordering a branch mistypes
-// contexts/files/multi-select with no error. Pure: no fs, no Node — importable by
-// both main and renderer.
+// by SHAPE (a heuristic — the plain-string kinds url/select/datetime are re-tagged to
+// the column's declared type by resolveFieldValue, which owns the schema). The order is
+// load-bearing and silent on failure — reordering a branch mistypes contexts/files/
+// multi-select with no error. Pure: no fs, no Node — importable by both main and renderer.
 
 /** On-disk file-attachment shape (snake_case = the on-disk DTO). Round-trips as-is;
  *  unknown keys on a file object are preserved (the codec passes the object through). */

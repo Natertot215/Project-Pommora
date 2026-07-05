@@ -28,7 +28,7 @@ import { splitEnvelope, mergeFrontmatter, readFrontmatterFields } from './io/pag
 import { basenameNoMd } from './coerce'
 import { contextTierDir, nexusConfig, SIDECAR_FILENAME, NEXUS_CONFIG_FILES, type ContextTier, type SidecarKind } from './paths'
 import { ensureIdentity } from './identity'
-import { defaultSettingsSeed } from './settings'
+import { updateSettings } from './settings'
 import { ok, fail, type Result } from '@shared/result'
 import { applyPropertyValue } from '@shared/propertyValue'
 import type { MutateRequest, MutateResult } from '@shared/mutate'
@@ -221,11 +221,7 @@ async function dispatch(req: MutateRequest, deps: MutateDeps, root: string): Pro
       // Read-merge-write settings.json (≤30 chars), preserving every other key so Swift's
       // version/defaults_version/labels/modified_at survive (no migration churn on re-open).
       const subtitle = req.subtitle.slice(0, 30)
-      await mutateJson<Record<string, unknown>>(
-        nexusConfig(root, NEXUS_CONFIG_FILES.settings),
-        defaultSettingsSeed,
-        (cur) => ({ ...cur, profile_subtitle: subtitle })
-      )
+      await updateSettings(root, (cur) => ({ ...cur, profile_subtitle: subtitle }))
       return { ok: true }
     }
 
@@ -241,10 +237,10 @@ async function dispatch(req: MutateRequest, deps: MutateDeps, root: string): Pro
         if (!rel) return fault('Unsupported image data.')
         // Set the field first, then delete a replaced file — a failed write never leaves
         // profile_image pointing at a deleted file (mirrors the banner/cover ordering).
-        await mutateJson<Record<string, unknown>>(settingsPath, defaultSettingsSeed, (cur) => ({ ...cur, profile_image: rel }))
+        await updateSettings(root, (cur) => ({ ...cur, profile_image: rel }))
         if (prev && prev !== rel) await rm(join(root, prev), { force: true }).catch(() => {})
       } else {
-        await mutateJson<Record<string, unknown>>(settingsPath, defaultSettingsSeed, (cur) => {
+        await updateSettings(root, (cur) => {
           const next = { ...cur }
           delete next.profile_image
           return next

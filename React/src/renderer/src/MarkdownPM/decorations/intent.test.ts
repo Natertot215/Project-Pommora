@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { tokenize, activeTokenIndices } from '../tokens'
-import { decorationsFor } from './intent'
+import { decorationsFor, type DecoIntent } from './intent'
 
 describe('decoration intents', () => {
   it('inactive bold → md-bold class on content + hidden markers', () => {
@@ -215,5 +215,55 @@ describe('callout box chrome + nested constructs', () => {
     expect(classes.some((c) => c.startsWith('md-callout') && !c.includes('md-cb'))).toBe(true) // box chrome present
     // every fence line is also a callout line (the box wraps the code)
     expect(classes.filter((c) => c.includes('md-callout')).length).toBe(4)
+  })
+})
+
+describe('outliner rails', () => {
+  type Rail = Extract<DecoIntent, { kind: 'rail' }>
+  const rails = (t: string): Rail[] =>
+    decorationsFor(t, tokenize(t), new Set(), 999).filter((d): d is Rail => d.kind === 'rail')
+
+  it('a top-level item has no ancestor rails', () => {
+    expect(rails('- solo')).toHaveLength(0)
+  })
+
+  it('nesting emits one rail per ancestor level, with caps only at each run’s ends', () => {
+    // levels: A0 B1 C2 D1 E0 — the worked run: level-0 rail spans B→C→D, level-1 rail is C alone.
+    const t = '- A\n\t- B\n\t\t- C\n\t- D\n- E'
+    const rs = rails(t)
+    const has = (level: number, first: boolean, last: boolean): number =>
+      rs.filter((r) => r.level === level && r.first === first && r.last === last).length
+    expect(rs).toHaveLength(4) // B(1) + C(2) + D(1)
+    expect(has(0, true, false)).toBe(1) // B — run start under A
+    expect(has(0, false, false)).toBe(1) // C — mid-run
+    expect(has(0, false, true)).toBe(1) // D — run end
+    expect(has(1, true, true)).toBe(1) // C — single-line level-1 run under B
+    expect(rs.some((r) => r.level >= 2)).toBe(false) // level-2 item has ancestors 0 and 1 only
+  })
+
+  it('a rail takes its ANCESTOR’s marker type, not the descendant’s (the checkbox-centre fix)', () => {
+    // bullet parent, checkbox child → the child’s rail centres on the bullet, not its own box.
+    const bulletParent = rails('- parent\n\t- [ ] child')
+    expect(bulletParent).toHaveLength(1)
+    expect(bulletParent[0].typeClass).toBe('md-outliner-bullet')
+
+    // checkbox parent, bullet child → the rail centres on the parent’s 17px box.
+    const taskParent = rails('- [ ] parent\n\t- child')
+    expect(taskParent).toHaveLength(1)
+    expect(taskParent[0].typeClass).toBe('md-outliner-task')
+  })
+
+  it('rails are scoped to bullets + checkboxes — ordered / arrow / + ancestors get none (deferred)', () => {
+    expect(rails('1. parent\n\t- child')).toHaveLength(0) // ordered parent
+    expect(rails('→ parent\n\t- child')).toHaveLength(0) // arrow parent
+    expect(rails('+ parent\n\t- child')).toHaveLength(0) // + parent
+  })
+
+  it('a non-list line between siblings breaks the run (caps on both sides of the gap)', () => {
+    const t = '- A\n\t- B\nprose\n\t- C'
+    const rs = rails(t)
+    // B: run ends at the prose gap (next line not a list) → last true. C: run starts after the gap → first true.
+    expect(rs.filter((r) => r.level === 0 && r.last).length).toBe(2) // B and C both cap at the break
+    expect(rs.filter((r) => r.level === 0 && r.first).length).toBe(2)
   })
 })

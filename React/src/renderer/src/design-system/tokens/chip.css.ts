@@ -248,7 +248,10 @@ export const chipColor = styleVariants({
   orange: chipTint(solid.orange),
   yellow: chipTint(solid.yellow),
   grey: chipTint(solid.grey),
-  default: chipTint(solid.greyDefault)
+  default: chipTint(solid.greyDefault),
+  // The link-color "Default": the runtime system accent, tinted like any solid. A link seeds to this
+  // (the picker's no-selection state), so it must be a real palette key — not the neutral grey default.
+  accent: chipTint('var(--system-accent)')
 })
 
 /** The chip palette keys — the single source consumers (cells, `colorMap`) target. */

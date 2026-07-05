@@ -112,7 +112,7 @@ export function bucketKey(
   schema: PropertyDefinition[],
   granularity: DateGranularity
 ): string | null {
-  const v = resolveFieldValue(row, propertyId)
+  const v = resolveFieldValue(row, propertyId, schema)
   switch (declaredType(propertyId, schema)) {
     case 'select':
     case 'status':

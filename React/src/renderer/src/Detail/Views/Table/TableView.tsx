@@ -35,10 +35,13 @@ import { IconPicker } from '@renderer/Components/IconPicker'
 import { Icon } from '@renderer/design-system/symbols'
 import { CalendarPicker } from '@renderer/design-system/components/CalendarPicker/CalendarPicker'
 import { PickerMenu } from '@renderer/design-system/components/PickerMenu/PickerMenu'
+import { TextPicker } from '@renderer/design-system/components/TextPicker'
 import { condensedDate, formatDate } from '../PropertyEditing/formatValue'
 import { Reveal } from '@renderer/design-system/components/Reveal'
 import { ACTIVATION } from '@renderer/design-system/interactions/shared'
 import { TableRowDnd, useTableRowDrag } from './tableDnd'
+import { linkColorCss } from './linkColor'
+import { parseLink, serializeLink } from './linkValue'
 
 // ── TUNABLE ── how far past a column's edge the dragged column's centre must travel before the slot
 // flips (the sticky zone around the current slot). Larger = more deliberate / harder to leave a slot;
@@ -97,7 +100,8 @@ function cellMenuContextFor(
 ): CellMenuContext | null {
   if (col.kind === 'title') return { kind: 'title' }
   if (col.kind === 'tier') return { kind: 'clear-only' }
-  if (type === 'url' || type === 'file') return { kind: 'style-edit', type, current: style }
+  if (type === 'url') return { kind: 'link' }
+  if (type === 'file') return { kind: 'style-edit', type: 'file', current: style }
   if (type === 'status') return { kind: 'style-only', type, current: style, clearable: true }
   if (type === 'checkbox' || type === 'number' || type === 'datetime' || type === 'last_edited_time') {
     return { kind: 'style-only', type, current: style }
@@ -175,13 +179,26 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
   // The one in-cell editing surface (A-2/A-6 picker · A-8/A-12 editor). Cleared on dismiss; the
   // exit presence keeps a PICKER mounted through its Bloom-out (reading the last target from the
   // ref while `editing` is already null) — the editor unmounts instantly.
-  const [editing, setEditing] = useState<{ rowId: string; colId: string; mode: 'picker' | 'editor' } | null>(null)
+  const [editing, setEditing] = useState<{
+    rowId: string
+    colId: string
+    mode: 'picker' | 'editor' | 'rename'
+    // Bumped on each rename OPEN so the popover's key changes — a reopened cell mounts a fresh
+    // TextPicker + field instead of reviving the prior session's measured position and stale input.
+    nonce?: number
+  } | null>(null)
   // The picker/datetime is ONE table-level self-managed pane — it owns its Bloom-out off `open`, so the
   // cell only tracks WHICH cell is editing + captures its element for placement. lastPicker holds the
   // exiting picker's content rendered through the Bloom-out; the inline editor unmounts instantly.
   const triggerElRef = useRef<HTMLElement | null>(null)
   const lastPicker = useRef<{ rowId: string; colId: string } | null>(null)
   if (editing?.mode === 'picker') lastPicker.current = { rowId: editing.rowId, colId: editing.colId }
+  // Its rename twin — the TextPicker alias field keeps its exiting cell through the Bloom-out the same way.
+  const renameNonce = useRef(0)
+  const lastRename = useRef<{ rowId: string; colId: string; nonce: number } | null>(null)
+  if (editing?.mode === 'rename') {
+    lastRename.current = { rowId: editing.rowId, colId: editing.colId, nonce: editing.nonce ?? 0 }
+  }
   useEffect(() => {
     setOrderOverride(null)
     setWidthOverride({})
@@ -459,6 +476,9 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
   // checkbox toggles, status/select/multi/context open the picker. Acting stops propagation so the
   // row's select doesn't also fire; anything else bubbles.
   const onCellClick = (row: ViewRow, col: ResolvedColumn, e: React.MouseEvent): void => {
+    // Ctrl+Click is macOS's secondary-click: it fires `click` alongside `contextmenu`. Bail so the
+    // right-click menu wins instead of the click acting under it (e.g. opening a link's browser tab).
+    if (e.ctrlKey) return
     // Capture the clicked cell for the table-level picker's placement (harmless on non-picker clicks).
     triggerElRef.current = e.currentTarget as HTMLElement
     if (col.kind === 'title') {
@@ -476,7 +496,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
     const t = declaredType(col.id, schema)
     if (t === 'status' && colStyle(col.id).look === 'checkbox') {
       e.stopPropagation()
-      const v = resolveFieldValue(row, col.id)
+      const v = resolveFieldValue(row, col.id, schema)
       const current = v.kind === 'status' || v.kind === 'select' ? v.value : undefined
       if (current === undefined) {
         // An EMPTY checkbox-look cell never cycles (a blind write) — it opens the picker to assign.
@@ -487,7 +507,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
       if (next !== null) commitCellValue(row, col.id, { kind: 'status', value: next })
     } else if (t === 'checkbox') {
       e.stopPropagation()
-      const v = resolveFieldValue(row, col.id)
+      const v = resolveFieldValue(row, col.id, schema)
       // Checked → strip the key (a checkbox is true-or-absent, never a stored `false`); else set true.
       const checked = v.kind === 'checkbox' && v.value
       commitCellValue(row, col.id, checked ? null : { kind: 'checkbox', value: true })
@@ -497,14 +517,21 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
     } else if (t === 'number') {
       e.stopPropagation()
       setEditing({ rowId: row.id, colId: col.id, mode: 'editor' })
+    } else if (t === 'url') {
+      e.stopPropagation()
+      // Filled → open the link (matching the rendered <a>); empty → the inline field to type one in.
+      const v = resolveFieldValue(row, col.id, schema)
+      const url = v.kind === 'url' ? parseLink(v.value).url : ''
+      if (url) void window.nexus.openExternal(url)
+      else setEditing({ rowId: row.id, colId: col.id, mode: 'editor' })
     }
   }
   // What the inline editor starts from, per the column's value shape.
   const editorInitial = (row: ViewRow, col: ResolvedColumn): string => {
     if (col.kind === 'title') return row.title
-    const v = resolveFieldValue(row, col.id)
+    const v = resolveFieldValue(row, col.id, schema)
     if (v.kind === 'number') return String(v.value)
-    if (v.kind === 'url') return v.value
+    if (v.kind === 'url') return parseLink(v.value).url
     if (v.kind === 'file') return v.value[0]?.path ?? ''
     return ''
   }
@@ -525,9 +552,13 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
       if (!Number.isNaN(n)) commitCellValue(row, col.id, { kind: 'number', value: n })
     } else if (t === 'url') {
       if (trimmed === '') return commitCellValue(row, col.id, null)
-      if (isValidLink(trimmed)) commitCellValue(row, col.id, { kind: 'url', value: normalizeLinkUrl(trimmed) })
+      // Edit rewrites only the URL; a rename-set alias rides along (parsed from the current value).
+      const cur = resolveFieldValue(row, col.id, schema)
+      const alias = cur.kind === 'url' ? parseLink(cur.value).alias : undefined
+      if (isValidLink(trimmed))
+        commitCellValue(row, col.id, { kind: 'url', value: serializeLink({ url: normalizeLinkUrl(trimmed), alias }) })
     } else if (t === 'file') {
-      const v = resolveFieldValue(row, col.id)
+      const v = resolveFieldValue(row, col.id, schema)
       const refs = v.kind === 'file' ? v.value : []
       if (trimmed === '') return commitCellValue(row, col.id, refs.length > 1 ? { kind: 'file', value: refs.slice(1) } : null)
       commitCellValue(row, col.id, { kind: 'file', value: refs.length ? [{ ...refs[0], path: trimmed }, ...refs.slice(1)] : [{ path: trimmed }] })
@@ -538,10 +569,13 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
   // — they portal off the cell, so they never live inside it (and so never clip to the table's scroll).
   const cellEditor = (row: ViewRow, col: ResolvedColumn): React.ReactNode => {
     if (editing?.mode !== 'editor' || editing.rowId !== row.id || editing.colId !== col.id) return null
+    const t = declaredType(col.id, schema)
     return (
       <PropertyEditor
         initial={editorInitial(row, col)}
-        numeric={declaredType(col.id, schema) === 'number'}
+        numeric={t === 'number'}
+        validate={t === 'url' ? isValidLink : undefined}
+        color={t === 'url' ? linkColorCss(schema.find((d) => d.id === col.id)?.link_color) : undefined}
         onCommit={(raw) => commitEditorText(row, col, raw)}
         onCancel={() => setEditing(null)}
       />
@@ -576,7 +610,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
     const key = `${cell.rowId}:${cell.colId}`
     const dismiss = (): void => setEditing(null)
     if (col.kind === 'property' && declaredType(col.id, schema) === 'datetime') {
-      const v = resolveFieldValue(row, col.id)
+      const v = resolveFieldValue(row, col.id, schema)
       const dateFmt = colStyle(col.id).date_format ?? 'full'
       return (
         <DatetimeCellPicker key={key} open={open} triggerRef={triggerElRef} onDismiss={dismiss}>
@@ -601,7 +635,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
       <PropertyPicker
         key={key}
         def={def}
-        current={resolveFieldValue(row, col.id)}
+        current={resolveFieldValue(row, col.id, schema)}
         open={open}
         triggerRef={triggerElRef}
         look={colStyle(col.id).look}
@@ -615,12 +649,45 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
       />
     )
   }
+  // The rename popover — a TextPicker hung off the editing cell (like cellPicker), for a link's alias.
+  // Its --accent is scoped to the link's own colour, so the field's focus stroke wears it; committing an
+  // empty alias drops it back to a bare URL. The alias always wins at render, so this is the only surface
+  // that sets it (Edit rewrites the URL and preserves it).
+  const renameField = (): React.ReactNode => {
+    const cell = editing?.mode === 'rename' ? editing : lastRename.current
+    const row = cell && rowById.get(cell.rowId)
+    const col = cell && columns.find((c) => c.id === cell.colId)
+    if (!cell || !row || !col) return null
+    const v = resolveFieldValue(row, col.id, schema)
+    const raw = v.kind === 'url' ? v.value : ''
+    const linkDef = schema.find((d) => d.id === col.id)
+    return (
+      <TextPicker
+        key={`${cell.rowId}:${cell.colId}:${cell.nonce}`}
+        open={editing?.mode === 'rename'}
+        triggerRef={triggerElRef}
+        value={parseLink(raw).alias ?? ''}
+        accent={linkColorCss(linkDef?.link_color)}
+        onCommit={(alias) => {
+          commitCellValue(row, col.id, {
+            kind: 'url',
+            value: serializeLink({ url: parseLink(raw).url, alias: alias.trim() || undefined })
+          })
+          setEditing(null)
+        }}
+        onDismiss={() => setEditing(null)}
+      />
+    )
+  }
   // Right-click a cell → its native menu (A-13: always a menu, never an action). Title = page meta;
   // style-bearing types = the COLUMN's Style radios; link/file add Edit; picker-based cells add
   // Clear (status gets Style + Clear; select/multi/context/tier get Clear alone).
   const openCellMenu = async (row: ViewRow, col: ResolvedColumn, e: React.MouseEvent): Promise<void> => {
     e.preventDefault()
     e.stopPropagation()
+    // Captured before the await — the synthetic event is recycled by the time the menu resolves, so
+    // the rename popover can't read `e.currentTarget` then (it anchors the TextPicker off this cell).
+    const cellEl = e.currentTarget as HTMLElement
     const ctx = cellMenuContextFor(col, declaredType(col.id, schema), colStyle(col.id))
     if (!ctx) return
     const action = await window.nexus.cellMenu(ctx)
@@ -628,7 +695,11 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
     if (action === 'title:icon') setIconPickerOpen(true)
     else if (action === 'title:delete') void mutate({ op: 'delete', path: row.path, kind: 'page' })
     else if (action === 'title:rename' || action === 'cell:edit') setEditing({ rowId: row.id, colId: col.id, mode: 'editor' })
-    else if (action === 'cell:clear') {
+    else if (action === 'cell:rename') {
+      triggerElRef.current = cellEl
+      renameNonce.current += 1
+      setEditing({ rowId: row.id, colId: col.id, mode: 'rename', nonce: renameNonce.current })
+    } else if (action === 'cell:clear') {
       if (col.kind === 'tier') commitTierValue(row, col.id, [])
       else commitCellValue(row, col.id, null)
     } else if (action.startsWith('style:')) {
@@ -679,6 +750,9 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
   // The inline editor's target cell (mode 'editor' only — the picker is the table-level cellPicker).
   // Flows to rows as a primitive so ONLY the editing row re-renders on open/close.
   const overlayTarget = editing?.mode === 'editor' ? editing : null
+  // The rename popover leaves its cell in flow (unlike the editor overlay), but flips it to the full URL
+  // while open so you see what you're aliasing. Threaded like overlayCol — only the renamed row re-renders.
+  const renameTarget = editing?.mode === 'rename' ? editing : null
   // Row drag (E-3): the flat data-row order + each row's group key + path, feeding the drop-line DnD
   // (tableDnd). Where you drop disambiguates (D-8) — same group reorders, a different group reassigns.
   // Memoized so a selection / resize / drag-frame render doesn't re-walk every group and rebuild both
@@ -880,6 +954,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
             styleByCol={styleByCol}
             api={cellApi}
             overlayCol={overlayTarget?.rowId === row.id ? overlayTarget.colId : null}
+            renameCol={renameTarget?.rowId === row.id ? renameTarget.colId : null}
             hideIcon={liveView.hide_page_icons ?? false}
             selected={selection.kind === 'page' && selection.id === row.id}
             dragDisabled={dragDisabled}
@@ -978,6 +1053,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
       </TableRowDnd>
       </BandDnd>
       {cellPicker()}
+      {renameField()}
     </div>
   )
 }
@@ -1080,6 +1156,7 @@ const DataRow = memo(function DataRow({
   styleByCol,
   api,
   overlayCol,
+  renameCol,
   hideIcon,
   selected,
   dragDisabled,
@@ -1094,6 +1171,7 @@ const DataRow = memo(function DataRow({
   styleByCol: ColumnStyle[]
   api: RowCellApi
   overlayCol: string | null
+  renameCol: string | null
   hideIcon: boolean
   selected: boolean
   dragDisabled: boolean
@@ -1117,7 +1195,15 @@ const DataRow = memo(function DataRow({
         // table-level cellPicker (portaled), never in the cell.
         const editor = overlayCol === c.id ? api.overlay(row, c) : null
         const content = editor ?? (
-          <Cell row={row} column={c} ctx={ctx} hideIcon={hideIcon} style={styleByCol[i]} remove={(next) => api.remove(row, c, next)} />
+          <Cell
+            row={row}
+            column={c}
+            ctx={ctx}
+            hideIcon={hideIcon}
+            style={styleByCol[i]}
+            showFullLink={renameCol === c.id}
+            remove={(next) => api.remove(row, c, next)}
+          />
         )
         return i === 0 ? (
           <div

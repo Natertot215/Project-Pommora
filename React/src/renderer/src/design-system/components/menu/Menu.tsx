@@ -83,9 +83,12 @@ export function MenuHeading({
 
 /** A horizontal divider between menu groups — 11px band, centered hairline. `flush` drops the side
  *  inset so the hairline spans the full gutter (aligns with full-width rows inside a MenuSurface). */
-export function MenuSeparator({ flush = false }: { flush?: boolean } = {}): React.JSX.Element {
+export function MenuSeparator({
+  flush = false,
+  className
+}: { flush?: boolean; className?: string } = {}): React.JSX.Element {
   return (
-    <div className={cx(s.separator, flush && s.separatorFlush)} role="separator">
+    <div className={cx(s.separator, flush && s.separatorFlush, className)} role="separator">
       <span className={s.separatorLine} />
     </div>
   )
@@ -114,7 +117,7 @@ export function MenuTopRow({
   return (
     <MenuItem
       className={cx(s.topRow, trailing != null && s.flushTrailing, className)}
-      leading={<Icon name="chevron-left" size={12} />}
+      leading={<Icon name="chevron-left" size={14} />}
       trailing={trailing}
       onClick={onClick}
     >

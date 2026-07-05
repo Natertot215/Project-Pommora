@@ -1,9 +1,10 @@
 import { create } from 'zustand'
-import type { NexusTree, PageDetail, SelectionState, SetNode } from '@shared/types'
+import type { NexusTree, PageDetail, Personalization, SelectionState, SetNode } from '@shared/types'
 import { DEFAULT_NEW_NAME, type MutableKind, type MutateRequest } from '@shared/mutate'
 import { reconcileSelection } from './selection'
 import { stabilize } from './treeStabilize'
 import { applyAccent, applySystemAccent } from './design-system/accent'
+import { applyPersonalization, applyPersonalizationKey } from './design-system/personalization'
 
 // Sidebar width bounds — Swift's min:180 / ideal:240, max widened +50 past Swift's 330 for extra drag room.
 const SIDEBAR_MIN = 180
@@ -92,9 +93,20 @@ interface SessionState {
   /** Per-view-kind ordered Subfield item ids (persisted per nexus); absent kinds use registry defaults. */
   subfieldOrder: Partial<Record<SelectionState['kind'], string[]>>
   setSubfieldOrder: (kind: SelectionState['kind'], ids: string[]) => void
+  /** Nexus-wide interface personalization (settings.json) — the DRY config the apply-map consumes.
+   *  Seeded from the tree; setPersonalization updates it, applies the DOM effect, and persists. */
+  personalization: Personalization
+  setPersonalization: <K extends keyof Personalization>(key: K, value: Personalization[K]) => void
   /** Last-visited page per container id — drives the breadcrumb's dimmed "forward" ghost crumb. */
   trail: Record<string, TrailEntry>
   recordTrail: (containerId: string, entry: TrailEntry) => void
+  /** Fetched page titles for URL cells in the `link-title` look, keyed by URL. Hydrated from main's
+   *  `.nexus/linkTitles.json` cache on open; a url cell requests any it's missing via resolveLinkTitle.
+   *  A url with no entry falls back to its bare domain (loading or a failed fetch look identical). */
+  linkTitles: Record<string, string>
+  /** Resolve one URL's title out-of-band: no-op if known / in-flight / already-failed this session;
+   *  otherwise asks main (cache hit or live fetch) and folds a success into `linkTitles`. */
+  resolveLinkTitle: (url: string) => void
   load: () => Promise<void>
   /** Swap in a freshly-read tree (from load() or the live watcher): set it, reconcile the selection, re-apply accent. */
   applyTree: (tree: NexusTree) => Promise<void>
@@ -164,6 +176,12 @@ export const useSession = create<SessionState>((set, get) => {
     }
   }
 
+  // Link-title fetch de-dup (not render state, so plain closures): `inFlight` blocks a concurrent
+  // second request per URL and clears when it settles; `failed` remembers a URL whose fetch yielded no
+  // title so a re-render never re-hammers it this session (next session retries once, via a fresh store).
+  const inFlightTitles = new Set<string>()
+  const failedTitles = new Set<string>()
+
   // Back/Forward replay: walk the nav history in `delta` direction, resolving each entry by id against
   // the live tree (a renamed/moved entity → its fresh path) and skipping entries whose entity was
   // deleted — the stored path is never trusted blind, mirroring how every other selection reconciles.
@@ -198,6 +216,14 @@ export const useSession = create<SessionState>((set, get) => {
               if (cfg) set({ subfieldExpanded: cfg.expanded, subfieldOrder: cfg.order })
             } catch {
               // bridge/handler absent — keep the in-memory defaults
+            }
+            // The fetched link-title cache — hydrate the whole map from main so cached titles render
+            // with no flash (only never-seen URLs fetch). A superset of what's in the store, so it never
+            // drops a session-fetched title; per-url selectors keep identity when values are unchanged.
+            try {
+              set({ linkTitles: await window.nexus.linkTitles.get() })
+            } catch {
+              // bridge/handler absent — url cells fall back to the domain
             }
             break
           case 'empty':
@@ -237,6 +263,8 @@ export const useSession = create<SessionState>((set, get) => {
       const systemColor = await window.nexus.systemAccent()
       applyAccent(tree.accent, systemColor)
       applySystemAccent(systemColor)
+      set({ personalization: tree.personalization })
+      applyPersonalization(tree.personalization)
     },
 
     // Native folder picker; on a pick, the session changed → re-read.
@@ -282,9 +310,32 @@ export const useSession = create<SessionState>((set, get) => {
       const s = get()
       void window.nexus.subfield.set({ order: s.subfieldOrder, expanded: s.subfieldExpanded }).catch(() => undefined)
     },
+    personalization: {},
+    setPersonalization: (key, value) => {
+      set((s) => ({ personalization: { ...s.personalization, [key]: value } }))
+      applyPersonalizationKey(key, value)
+      void window.nexus.personalization.set(key, value).catch(() => undefined)
+    },
     trail: {},
     recordTrail: (containerId, entry) =>
       set((s) => ({ trail: { ...s.trail, [containerId]: entry } })),
+
+    linkTitles: {},
+    resolveLinkTitle: (url) => {
+      if (inFlightTitles.has(url) || failedTitles.has(url) || get().linkTitles[url]) return
+      inFlightTitles.add(url)
+      window.nexus.linkTitles
+        .fetch(url)
+        .then((res) => {
+          // A late fetch resolving after a nexus switch merges into the new map harmlessly: a URL's
+          // <title> is identical in any nexus, and main won't persist it cross-nexus (cacheRoot === root).
+          const title = res.ok ? res.title : null
+          if (title) set((s) => ({ linkTitles: { ...s.linkTitles, [url]: title } }))
+          else failedTitles.add(url) // no title (offline / non-2xx / none) — don't re-hammer this session
+        })
+        .catch(() => failedTitles.add(url))
+        .finally(() => inFlightTitles.delete(url))
+    },
 
     selection: { kind: 'none' },
     pageStatus: 'idle',

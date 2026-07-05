@@ -8,6 +8,7 @@ import type { SortCriterion } from '@shared/views'
 import type { ViewRow } from '@shared/types'
 import { type PropertyDefinition, RESERVED_PROPERTY_ID } from '@shared/properties'
 import { declaredType, modifiedStampString, resolveFieldValue } from './value'
+import { linkDisplayText } from '../Table/linkValue'
 
 type SortKey = number | string
 type Less = (a: SortKey, b: SortKey) => boolean
@@ -44,19 +45,19 @@ function optionOrderIndex(def: PropertyDefinition): Record<string, number> {
   return index
 }
 
-function rank(row: ViewRow, propertyId: string, order: Record<string, number>): number {
-  const v = resolveFieldValue(row, propertyId)
+function rank(row: ViewRow, propertyId: string, order: Record<string, number>, schema: PropertyDefinition[]): number {
+  const v = resolveFieldValue(row, propertyId, schema)
   const key = v.kind === 'select' || v.kind === 'status' ? v.value : undefined
   return key !== undefined && order[key] !== undefined ? order[key] : Number.MAX_SAFE_INTEGER
 }
 
-function numberOf(row: ViewRow, propertyId: string): number {
-  const v = resolveFieldValue(row, propertyId)
+function numberOf(row: ViewRow, propertyId: string, schema: PropertyDefinition[]): number {
+  const v = resolveFieldValue(row, propertyId, schema)
   return v.kind === 'number' ? v.value : Number.NEGATIVE_INFINITY // absent sorts first ascending
 }
 
-function dateOf(row: ViewRow, propertyId: string): number {
-  const v = resolveFieldValue(row, propertyId)
+function dateOf(row: ViewRow, propertyId: string, schema: PropertyDefinition[]): number {
+  const v = resolveFieldValue(row, propertyId, schema)
   if (v.kind === 'datetime') {
     const t = Date.parse(v.value)
     if (!Number.isNaN(t)) return t
@@ -64,8 +65,8 @@ function dateOf(row: ViewRow, propertyId: string): number {
   return Number.NEGATIVE_INFINITY // absent / unparseable sorts first ascending (Swift .distantPast)
 }
 
-function boolRank(row: ViewRow, propertyId: string): number {
-  const v = resolveFieldValue(row, propertyId)
+function boolRank(row: ViewRow, propertyId: string, schema: PropertyDefinition[]): number {
+  const v = resolveFieldValue(row, propertyId, schema)
   return v.kind === 'checkbox' && v.value ? 1 : 0 // false (0) < true (1); absent = false
 }
 
@@ -73,11 +74,13 @@ function boolRank(row: ViewRow, propertyId: string): number {
  *  select/status sort via `rank()` (schema option order) and never reach this; relation/file/
  *  absent have no orderable text → "". (Swift's sortText keeps unreachable select/status arms;
  *  dropped here.) */
-function sortText(row: ViewRow, propertyId: string): string {
-  const v = resolveFieldValue(row, propertyId)
+function sortText(row: ViewRow, propertyId: string, schema: PropertyDefinition[]): string {
+  const v = resolveFieldValue(row, propertyId, schema)
   switch (v.kind) {
     case 'url':
-      return v.value
+      // Sort by the SHOWN text (alias, else URL) — the same parse boundary Cell renders, so an aliased
+      // link never sorts by its raw `[alias](url)` markdown.
+      return linkDisplayText(v.value)
     case 'multiSelect':
       return v.value.join(',')
     default:
@@ -111,20 +114,20 @@ function buildCriterion(c: SortCriterion, schema: PropertyDefinition[]): Resolve
     case 'status': {
       const def = schema.find((d) => d.id === c.property_id)
       const order = def ? optionOrderIndex(def) : {}
-      return { extract: (r) => rank(r, c.property_id, order), less: numericLess, ascending }
+      return { extract: (r) => rank(r, c.property_id, order, schema), less: numericLess, ascending }
     }
     case 'number':
-      return { extract: (r) => numberOf(r, c.property_id), less: numericLess, ascending }
+      return { extract: (r) => numberOf(r, c.property_id, schema), less: numericLess, ascending }
     case 'datetime':
     case 'last_edited_time':
-      return { extract: (r) => dateOf(r, c.property_id), less: numericLess, ascending }
+      return { extract: (r) => dateOf(r, c.property_id, schema), less: numericLess, ascending }
     case 'checkbox':
-      return { extract: (r) => boolRank(r, c.property_id), less: numericLess, ascending }
+      return { extract: (r) => boolRank(r, c.property_id, schema), less: numericLess, ascending }
     case 'url':
     case 'multi_select':
     case 'context':
     case 'file':
-      return { extract: (r) => sortText(r, c.property_id), less: ciLess, ascending }
+      return { extract: (r) => sortText(r, c.property_id, schema), less: ciLess, ascending }
     default:
       return null // 'tier' | undefined → not sortable
   }

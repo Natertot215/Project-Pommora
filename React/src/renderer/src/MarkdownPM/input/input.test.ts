@@ -45,6 +45,11 @@ describe('list continuation (Enter)', () => {
     const e = continueListOnEnter(doc, doc.length, doc.length)!
     expect(apply(doc, e)).toBe('- [x] done\n- [ ] ')
   })
+  it('continues even on an empty item — no auto-exit (Enter always breeds a bullet)', () => {
+    const doc = '- '
+    const e = continueListOnEnter(doc, doc.length, doc.length)!
+    expect(apply(doc, e)).toBe('- \n- ')
+  })
   it('does not fire on a non-list line', () => {
     expect(continueListOnEnter('plain', 5, 5)).toBeNull()
   })

@@ -49,6 +49,7 @@ import {
   Type,
   X
 } from 'lucide-react'
+import type { EntityIconKind } from '@shared/types'
 import { size as sizeTokens, type IconSize } from '../tokens/size.css'
 
 /**
@@ -117,6 +118,27 @@ export const asIconName = (value: unknown): IconName | undefined =>
 
 /** As `asIconName`, but falls back to a default when the value isn't a known icon. */
 export const iconNameOr = (value: unknown, fallback: IconName): IconName => asIconName(value) ?? fallback
+
+/** Per-entity-kind default icon — the seed for `personalization.defaultIcons`. One source for the
+ *  sidebar, banners, the table, and the connection autocomplete (was this same literal copied across
+ *  all of them). A nexus can override a kind's default; an entity's own `icon` overrides that in turn. */
+export const DEFAULT_ENTITY_ICONS: Record<EntityIconKind, IconName> = {
+  collection: 'gallery-vertical-end',
+  set: 'folder-closed',
+  area: 'layout-grid',
+  topic: 'layout-grid',
+  project: 'layout-grid',
+  page: 'file-text'
+}
+
+/** A kind's default icon: the nexus's personalization override when it's a real icon, else the seed.
+ *  A per-entity `icon` is layered on by the caller (iconNameOr / folderAwareIcons). */
+export function defaultEntityIcon(
+  kind: EntityIconKind,
+  overrides?: Partial<Record<EntityIconKind, string>>
+): IconName {
+  return iconNameOr(overrides?.[kind], DEFAULT_ENTITY_ICONS[kind])
+}
 
 const iconSizeVars = sizeTokens.icon
 const isIconSize = (v: unknown): v is IconSize => typeof v === 'string' && v in iconSizeVars

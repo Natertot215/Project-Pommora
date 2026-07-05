@@ -22,3 +22,4 @@ Where pure Electron lands on each macOS integration surface. Reference for the d
 - **Spaces-aware window restoration** — `electron-window-state` persists size / position only.
 
 These are structural to the Electron path: ship companion Swift bundles for QuickLook / Share, or accept the ceiling.
+- rfw

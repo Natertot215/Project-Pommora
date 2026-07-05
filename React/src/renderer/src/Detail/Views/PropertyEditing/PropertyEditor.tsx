@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { cx } from '@renderer/design-system/cx'
 
 /**
  * The inline text editor every container view's cells share (A-12: Enter = confirm ·
@@ -10,11 +11,19 @@ import { useEffect, useRef, useState } from 'react'
 export function PropertyEditor({
   initial,
   numeric = false,
+  validate,
+  color,
   onCommit,
   onCancel
 }: {
   initial: string
   numeric?: boolean
+  /** When set, non-empty text that fails it renders ghosted (faded to --state-ghost) — a live "not a
+   *  valid value yet" cue for the url field, which commits nothing until it passes. */
+  validate?: (raw: string) => boolean
+  /** Overrides the field's text colour — the url field wears its link colour, so typing previews as the
+   *  link (ghosted until valid, then solid). */
+  color?: string
   onCommit: (raw: string) => void
   onCancel: () => void
 }): React.JSX.Element {
@@ -41,7 +50,8 @@ export function PropertyEditor({
   )
   return (
     <input
-      className="property-editor"
+      className={cx('property-editor', validate != null && text.trim() !== '' && !validate(text.trim()) && 'property-editor-ghost')}
+      style={color ? { color } : undefined}
       autoFocus
       value={text}
       onChange={(e) => {

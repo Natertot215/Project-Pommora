@@ -12,6 +12,7 @@ import { EditableInput } from '../EditableInput'
 import { InlineEditHeader } from './InlineEditHeader'
 import { OptionEditor } from './OptionEditor'
 import { StatusEditor } from './StatusEditor'
+import { URLEditor, type LinkConfig } from './URLEditor'
 import { PaneSlider } from './PaneSlider'
 import { PaneDnd, RowShell, usePaneRegions } from './paneDnd'
 import { nexusReorderIndex, type PaneDrop, type PaneRow } from './paneDndModel'
@@ -179,7 +180,7 @@ export function PropertiesPane({
   const backHeader = (label: string, onClick: () => void): React.JSX.Element => (
     <>
       <MenuTopRow label={label} onClick={onClick} className={s.topRowPad} />
-      <MenuSeparator flush />
+      <MenuSeparator flush className={s.paneSeparator} />
     </>
   )
   // TopRow with a trailing icon action (⊕ create on the list, ⋮ menu on the editor) — the action rides
@@ -208,7 +209,7 @@ export function PropertiesPane({
           </button>
         }
       />
-      <MenuSeparator flush />
+      <MenuSeparator flush className={s.paneSeparator} />
     </>
   )
 
@@ -243,6 +244,9 @@ export function PropertiesPane({
   }
   const saveStatusGroups = async (id: string, next: StatusGroup[]): Promise<void> => {
     await commit(await window.nexus.property.setStatusGroups(id, next))
+  }
+  const saveLinkConfig = async (id: string, patch: LinkConfig): Promise<void> => {
+    await commit(await window.nexus.property.setLinkConfig(id, patch))
   }
   const renameOption = async (id: string, oldValue: string, newTitle: string): Promise<void> => {
     await commit(await window.nexus.property.renameOption(id, oldValue, newTitle))
@@ -360,6 +364,13 @@ export function PropertiesPane({
             onRenameOption={(oldValue, newTitle) => void renameStatusOption(def.id, oldValue, newTitle)}
             onRemoveOption={(value) => void removeStatusOption(def.id, value)}
             onClearOption={(value) => void clearStatusOption(def.id, value)}
+          />
+        ) : def.type === 'url' ? (
+          <URLEditor
+            underline={def.link_underline ?? false}
+            display={def.link_display ?? 'link-url'}
+            color={def.link_color}
+            onSetConfig={(patch) => void saveLinkConfig(def.id, patch)}
           />
         ) : (
           <MenuCaption>{propertyTypeLabel(def.type)} options — pending</MenuCaption>

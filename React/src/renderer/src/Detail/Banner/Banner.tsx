@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import type { BannerOwnerKind, MutableKind } from '@shared/mutate'
-import { iconNameOr, type IconName } from '@renderer/design-system/symbols'
+import type { MutableKind } from '@shared/mutate'
+import { defaultEntityIcon, iconNameOr } from '@renderer/design-system/symbols'
 import { IconPicker } from '@renderer/Components/IconPicker'
 import { useSession } from '../../store'
 import type { BannerOwner } from '../Scope'
@@ -8,21 +8,10 @@ import { DetailTitleHeader } from '../DetailTitleHeader'
 import { AddBannerButton } from './AddBannerButton'
 import { assetUrl } from '../../assetUrl'
 
-/** Per-kind fallback so a bannered view always carries a glyph (banner ⇒ icon, even the default);
- *  banner-less stays text-only. Pages never reach here (their header is title-only by design) and
- *  the homepage shows no icon at all — Nathan's call. */
-const DEFAULT_ICON: Record<Exclude<BannerOwnerKind, 'homepage'>, IconName> = {
-  collection: 'gallery-vertical-end',
-  set: 'folder-closed',
-  area: 'layout-grid',
-  topic: 'layout-grid',
-  project: 'layout-grid',
-  page: 'file-text'
-}
-
 export function Banner({ owner }: { owner: BannerOwner }): React.JSX.Element {
   const mutate = useSession((s) => s.mutate)
   const submitRename = useSession((s) => s.submitRename)
+  const defaultIcons = useSession((s) => s.personalization.defaultIcons)
   const [iconPickerOpen, setIconPickerOpen] = useState(false)
   const setBanner = (dataUrl: string | null): Promise<boolean> =>
     mutate({ op: 'setBanner', path: owner.path, kind: owner.kind, dataUrl })
@@ -64,7 +53,7 @@ export function Banner({ owner }: { owner: BannerOwner }): React.JSX.Element {
         <div className="banner-title">
           <DetailTitleHeader
             title={owner.name}
-            icon={iconNameOr(owner.icon, DEFAULT_ICON[owner.kind])}
+            icon={iconNameOr(owner.icon, defaultEntityIcon(owner.kind, defaultIcons))}
             onRename={(newName) => submitRename(owner.path, owner.kind as MutableKind, newName)}
             requestMenu={() => window.nexus.titleMenu()}
             onEditIcon={() => setIconPickerOpen(true)}

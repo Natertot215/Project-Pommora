@@ -83,6 +83,35 @@ class LineWidget extends WidgetType {
   }
 }
 
+// One outliner rail: an ancestor-level vertical guide, pinned at the line start (side -1) and positioned +
+// shaped entirely in CSS from --rail-level (its ancestor column) plus the type class (glyph-centre offset).
+// first/last carry the run-end caps, so a rail only rounds where its run actually begins/ends.
+class OutlinerRailWidget extends WidgetType {
+  constructor(
+    readonly level: number,
+    readonly typeClass: string,
+    readonly first: boolean,
+    readonly last: boolean
+  ) {
+    super()
+  }
+  eq(o: OutlinerRailWidget): boolean {
+    return (
+      o.level === this.level &&
+      o.typeClass === this.typeClass &&
+      o.first === this.first &&
+      o.last === this.last
+    )
+  }
+  toDOM(): HTMLElement {
+    const el = document.createElement('span')
+    el.className = `md-outliner-rail ${this.typeClass}${this.first ? ' md-outliner-first' : ''}${this.last ? ' md-outliner-last' : ''}`
+    el.style.setProperty('--rail-level', String(this.level))
+    el.setAttribute('aria-hidden', 'true')
+    return el
+  }
+}
+
 function widgetFor(spec: WidgetSpec): WidgetType {
   switch (spec.type) {
     case 'hr':
@@ -148,6 +177,15 @@ function build(view: EditorView, conn: ConnectionsApi | undefined): DecorationSe
     }
     if (it.kind === 'lineWidget') {
       ranges.push(Decoration.widget({ widget: new LineWidget(it.className), side: -1 }).range(it.from))
+      continue
+    }
+    if (it.kind === 'rail') {
+      ranges.push(
+        Decoration.widget({
+          widget: new OutlinerRailWidget(it.level, it.typeClass, it.first, it.last),
+          side: -1
+        }).range(it.from)
+      )
       continue
     }
     if (it.to <= it.from) continue

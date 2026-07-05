@@ -192,7 +192,7 @@ export function HiddenPane({
   return (
     <PaneDnd rows={paneRows} labelFor={nameFor} onDrop={handleDrop} slot={hiddenPaneSlot}>
       <MenuTopRow label="Settings" onClick={onBack} className={s.topRowPad} />
-      <MenuSeparator flush />
+      <MenuSeparator flush className={s.paneSeparator} />
       <VisibilityGroups
         shownIds={shownIds}
         hiddenIds={hiddenIds}

@@ -47,3 +47,9 @@ The whole domain paradigm was designed and versioned in a native SwiftUI build o
 - **v0.3.0 → v0.3.5 — Properties + Connections.** The property system feature-complete: 11 types, tagged `PropertyValue`, atomic `SchemaTransaction`, a GRDB index (rebuildable cache, files canonical). Then View-Settings chrome, a native IconPicker, **Contextv2** (user relations dropped — the three tiers are the only relation), and **Connections** — `[[Page Title]]` with a rename cascade and nexus-wide title uniqueness.
 - **v0.4.0 → v0.4.2 — Contexts, Sets, Views.** PagePreview as a real `NSPanel`; the tiers **decoupled into free-standing Areas / Topics / Projects**; the **Set** tier (schema-less folders in a Collection); and **Views** — SavedView v2 feeding a filter → group → sort pipeline into Table + Gallery, plus the grouping redesign.
 - **Late-Swift Hardening (06-18 → 27).** A live FSEvents **file watcher** (stamp-on-first-sight ULIDs for external `.md`s); the Nexus header + Homepage banner; a codebase-health refactor; **Collections / Sets / Sub-Sets** — the Pages model collapsed to a schema-bearing Collection + a recursive Set nesting to any depth; `modified_at` made frontmatter-canonical; and settings writes made symmetric so Swift and the nascent React build stop clobbering each other.
+
+- [ ] 
+	- [ ] 
+	- [ ] 
+- [ ] 
+- [ ] 

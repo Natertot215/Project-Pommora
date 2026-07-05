@@ -10,6 +10,7 @@ import type { ViewRow } from '@shared/types'
 import { type PropertyDefinition, type PropertyType, RESERVED_PROPERTY_ID } from '@shared/properties'
 import type { PropertyValue } from '@shared/propertyValue'
 import { declaredType, modifiedStampString, resolveFieldValue } from './value'
+import { linkDisplayText } from '../Table/linkValue'
 
 /** Operator raw strings — snake_case = the on-disk `op` values (parity with Swift FilterOperator). */
 export const FILTER_OPS = {
@@ -64,7 +65,7 @@ function evaluateRule(row: ViewRow, rule: FilterRule, schema: PropertyDefinition
 
   const t = declaredType(rule.property_id, schema)
   if (t === undefined) return true // property absent from schema → no-op pass
-  return evaluateByType(resolveFieldValue(row, rule.property_id), rule.op, rule.value, t)
+  return evaluateByType(resolveFieldValue(row, rule.property_id, schema), rule.op, rule.value, t)
 }
 
 function evaluateByType(v: PropertyValue, op: Op, expected: Expected, t: PropertyType | 'title' | 'tier'): boolean {
@@ -125,8 +126,11 @@ function textValue(v: PropertyValue): string | null {
   switch (v.kind) {
     case 'select':
     case 'status':
-    case 'url':
       return v.value
+    case 'url':
+      // Match the SHOWN text (alias, else URL) — the same parse Cell renders, so a `contains`/`is` on an
+      // aliased link tests the visible text, not its raw `[alias](url)` markdown.
+      return linkDisplayText(v.value)
     default:
       return null
   }

@@ -41,6 +41,10 @@ let mirror: HTMLDivElement | null = null
 let active: HTMLElement | null = null
 let raf = 0
 let started = false
+// A field that resizes AFTER focus (`field-sizing` growth, or a picker pane re-centering as it does) strands
+// the bar at its focus-time spot — re-measure on resize. Size-only: a pure position shift with no resize rides
+// the next caret event (input/click) instead, so an idle field that only moves can lag a frame until then.
+let fieldRO: ResizeObserver | null = null
 // The mirror's copied style only changes when the field (or layout) does, not per keystroke — cache which
 // field it's styled for + that field's line height, so the per-frame path only updates text + position.
 let styledEl: Field | null = null
@@ -155,6 +159,17 @@ export function initNativeCaret(): void {
   ensureNodes()
   document.addEventListener('focusin', (e) => {
     active = isField(e.target) || isEditable(e.target) ? (e.target as HTMLElement) : null
+    fieldRO?.disconnect()
+    if (active) {
+      // styledEl reset forces a mirror re-sync (its cached box is stale once the field resizes). Defer
+      // a frame before scheduling so the re-measure lands AFTER the pane's resultant re-center render,
+      // not on the intermediate geometry (which strands the bar a few px off).
+      fieldRO = new ResizeObserver(() => {
+        styledEl = null
+        requestAnimationFrame(schedule)
+      })
+      fieldRO.observe(active)
+    }
     schedule()
   })
   document.addEventListener('focusout', (e) => {
@@ -162,6 +177,7 @@ export function initNativeCaret(): void {
     if (e.target === active) {
       active = null
       styledEl = null
+      fieldRO?.disconnect()
       if (bar) bar.style.display = 'none'
     }
   })

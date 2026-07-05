@@ -20,6 +20,9 @@ describe('parsePropertyValue — classification (locked precedence)', () => {
     ['status (tagged)', { $status: 'todo' }, { kind: 'status', value: 'todo' }],
     ['single $ctx object', { $ctx: 'A' }, { kind: 'context', value: ['A'] }],
     ['url', 'https://example.com', { kind: 'url', value: 'https://example.com' }],
+    // A `[alias](url)` is a plain string by shape (starts with `[`, no scheme) — the codec reads it as
+    // select; resolveFieldValue re-tags it to the column's declared type (url → url, select → select).
+    ['bracketed markdown-link → select by shape', '[Docs](https://example.com)', { kind: 'select', value: '[Docs](https://example.com)' }],
     ['datetime', '2026-01-15T10:30:00Z', { kind: 'datetime', value: '2026-01-15T10:30:00Z' }],
     ['datetime offset', '2026-01-15T10:30:00+02:00', { kind: 'datetime', value: '2026-01-15T10:30:00+02:00' }],
     ['bare date → date-only datetime', '2026-01-15', { kind: 'datetime', value: '2026-01-15' }],

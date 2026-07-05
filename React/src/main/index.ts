@@ -14,7 +14,7 @@ import { serializeOnFile } from './io/fileLock'
 import { openSessionIndex, closeSessionIndex } from './sessionIndex'
 import { stampAdopted } from './adopt'
 import { ensureIdentity } from './identity'
-import { ensureSettings, readSubfield, writeSubfield } from './settings'
+import { ensureSettings, readSubfield, writePersonalization, writeSubfield } from './settings'
 import { startWatcher, stopWatcher } from './watcher'
 import { resolveUnderRoot } from './pathSafety'
 import { updatePageBody } from './crud/page'
@@ -64,6 +64,8 @@ import { popOptionMenu } from './optionMenu'
 import { installEditorContextMenu, setFormatState, setCalloutGrip } from './editorMenu'
 import type { FormatState } from '@shared/editorMenu'
 import { isValidLink, normalizeLinkUrl } from '@shared/links'
+import { getTitleCache, resolveTitle } from './linkTitles'
+import type { LinkTitleCache } from './io/linkTitles'
 
 // Dev affordance: opt-in CDP endpoint for headless screenshots / automation. Inert unless
 // POMMORA_DEBUG_PORT is set; must be appended before the app is ready.
@@ -718,6 +720,29 @@ ipcMain.handle(
 )
 
 ipcMain.handle(
+  'property:setLinkConfig',
+  async (_e, propertyId: unknown, patch: unknown): Promise<{ ok: true } | { ok: false; error: string }> => {
+    try {
+      const root = sessionRoot()
+      if (root === null) return { ok: false, error: 'No nexus is open.' }
+      if (typeof propertyId !== 'string') return { ok: false, error: 'A property id is required.' }
+      if (patch === null || typeof patch !== 'object') return { ok: false, error: 'A config patch is required.' }
+      // Whitelist only the link display fields — a config write must not patch arbitrary def fields
+      // (type, options, id) through here. Registry-only: display config doesn't touch page values.
+      const p = patch as Record<string, unknown>
+      const changes: { link_underline?: boolean; link_display?: 'link-url' | 'link-title'; link_color?: string } = {}
+      if (typeof p.link_underline === 'boolean') changes.link_underline = p.link_underline
+      if (p.link_display === 'link-url' || p.link_display === 'link-title') changes.link_display = p.link_display
+      if ('link_color' in p) changes.link_color = typeof p.link_color === 'string' ? p.link_color : undefined
+      const r = await editProperty(root, propertyId, changes)
+      return r.ok ? { ok: true } : { ok: false, error: r.error.message }
+    } catch (e) {
+      return { ok: false, error: e instanceof Error ? e.message : String(e) }
+    }
+  }
+)
+
+ipcMain.handle(
   'property:renameOption',
   async (_e, propertyId: unknown, oldValue: unknown, newTitle: unknown): Promise<{ ok: true } | { ok: false; error: string }> => {
     try {
@@ -862,6 +887,23 @@ ipcMain.handle(
   }
 )
 
+// Personalization (accent, connection color, interface toggles) — merged one key at a time into the
+// React-owned `personalization` object in `.nexus/settings.json`; the value is validated on read.
+ipcMain.handle(
+  'personalization:set',
+  async (_e, key: unknown, value: unknown): Promise<{ ok: true } | { ok: false; error: string }> => {
+    try {
+      const root = sessionRoot()
+      if (root === null) return { ok: false, error: 'No nexus is open.' }
+      if (typeof key !== 'string' || !key) return { ok: false, error: 'Invalid personalization key.' }
+      await writePersonalization(root, key, value)
+      return { ok: true }
+    } catch (e) {
+      return { ok: false, error: e instanceof Error ? e.message : String(e) }
+    }
+  }
+)
+
 // The renderer pushes the editor's active formatting state here so the native context menu
 // (built in editorMenu.ts on right-click) can render accurate checkmarks/radios.
 ipcMain.on('editor:format-state', (_e, state: FormatState) => setFormatState(state))
@@ -931,6 +973,27 @@ ipcMain.handle('link:open', async (_e, url: unknown): Promise<void> => {
   if (typeof url !== 'string' || !isValidLink(url)) return
   await shell.openExternal(normalizeLinkUrl(url))
 })
+
+// The fetched page-title cache for URL properties in the `link-title` look. `get` hydrates the
+// renderer's store on open (whole cached map); `fetch` resolves one URL (cache hit or a live network
+// fetch), persisting successes to `.nexus/linkTitles.json`. Main owns the network + the cache.
+ipcMain.handle('linkTitles:get', async (): Promise<LinkTitleCache> => {
+  const root = sessionRoot()
+  return root ? getTitleCache(root) : {}
+})
+ipcMain.handle(
+  'linkTitles:fetch',
+  async (_e, url: unknown): Promise<{ ok: true; title: string | null } | { ok: false; error: string }> => {
+    if (typeof url !== 'string') return { ok: false, error: 'invalid url' }
+    const root = sessionRoot()
+    if (!root) return { ok: false, error: 'no nexus open' }
+    try {
+      return { ok: true, title: await resolveTitle(root, url) }
+    } catch (e) {
+      return { ok: false, error: e instanceof Error ? e.message : String(e) }
+    }
+  }
+)
 
 // The OS accent (macOS 10.14+), for accent === 'system'. Electron returns
 // RRGGBBAA; surface just the RGB as '#RRGGBB'. null when unsupported/unavailable.

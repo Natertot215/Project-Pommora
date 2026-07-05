@@ -2,11 +2,12 @@
 
 The operational layer's schema-bearing top tier. A Page Collection is a top-level folder whose sidecar assigns the nexus-wide properties every Page inside it shares — at any nesting depth — plus its saved views, child ordering, and open-in mode. It has no text editor of its own — a pure database surface.
 
-| Entity | Role | On disk |
-|---|---|---|
-| **Page Collection** | Top tier; assigns the properties every Page inside shares | Folder + `_pagecollection.json` at the Nexus root |
-| **Page Set** | Recursive sub-folder (any depth); inherits the schema. Depth-1 = "Set" (own views), deeper = "Sub-Set" (plain) | Folder + `_pageset.json` → `PageSets.md` |
-| **Content** | Pages only (`.md`) | Files at any level |
+
+| Entity              | Role                                                                                                           | On disk                                           |
+| ------------------- | -------------------------------------------------------------------------------------------------------------- | ------------------------------------------------- |
+| **Page Collection** | Top tier; assigns the properties every Page inside shares                                                      | Folder + `_pagecollection.json` at the Nexus root |
+| **Page Set**        | Recursive sub-folder (any depth); inherits the schema. Depth-1 = "Set" (own views), deeper = "Sub-Set" (plain) | Folder + `_pageset.json` → `PageSets.md`          |
+| **Content**         | Pages only (`.md`)                                                                                             | Files at any level                                |
 
 Property definitions live in the nexus-wide registry (`.nexus/properties.json`); the assignment lives **only** on the Collection, and Sets inherit it whole. Nesting is unbounded, with no roll-up. The default UI label is "Collection," renameable per Nexus. Each Collection and depth-1 Set carries its own saved views — the view model, pipeline, and renderers live in `Views.md`. The recursive Set mechanics → `PageSets.md`; the page document → `Pages.md`.
 

@@ -32,7 +32,7 @@ export function optionLabel(columnId: string, value: string, schema: PropertyDef
 /** A row's cell as display text: option values → labels, tier/context ULIDs → Context titles, the
  *  rest stringified. Resolved through the context so no raw id reaches screen. */
 export function cellText(row: ViewRow, columnId: string, ctx: ResolveContext): string {
-  const v = resolveFieldValue(row, columnId)
+  const v = resolveFieldValue(row, columnId, ctx.schema)
   switch (v.kind) {
     case 'select':
     case 'status':

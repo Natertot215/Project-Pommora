@@ -76,7 +76,15 @@ export const propertyDefinition = z.looseObject({
   context_target: contextTarget.optional(),
   reverse_name: z.string().optional(),
   reverse_icon: z.string().optional(),
-  accept: z.array(z.string()).optional()
+  accept: z.array(z.string()).optional(),
+  // Link display config is def-level per-property (distinct from the per-VIEW number/date formats
+  // noted above): how a URL property's values render. `link_color` is a solid-palette key; absent =
+  // Default = the system accent. Lenient .catch so an unknown value degrades to the default look.
+  link_underline: z.boolean().optional().catch(undefined),
+  // A toggle: link-url (default) shows the URL, link-title the fetched page title. A per-value alias
+  // (a `[alias](url)` markdown value, set via Rename) overrides EITHER — the alias always wins.
+  link_display: z.enum(['link-url', 'link-title']).optional().catch(undefined),
+  link_color: z.string().optional().catch(undefined)
 })
 export type PropertyDefinition = z.infer<typeof propertyDefinition>
 

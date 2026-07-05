@@ -346,6 +346,72 @@
   text-indent: calc(-1 * var(--bullet-zone));
 }
 
+/* "Outliner lines" personalization (class on <html>): a hairline guide down each nested list run. ONE rail per
+   ANCESTOR level — a side widget (.md-outliner-rail, emitted per nested list line in intent.ts), so a level-3
+   item shows three stacked guides. SCOPED to dash-bullets (•) and checkboxes; ordered / arrow / + get no rail
+   (their glyph-centre maths is deferred — see intent.ts railTypeClass). Each level's rail is a continuous RUN:
+   square through the middle so consecutive lines connect seamlessly, with an end-gap + rounded cap ONLY at the
+   run's first/last line (md-outliner-first/-last) — the blockquote bar's trick. A rail sits centred (pixel-snapped
+   left, below) on its ANCESTOR's glyph, so --rail-x tracks the ANCESTOR marker's TYPE (bullet • / checkbox box),
+   not the descendant's — which is why a nested checkbox no longer drags the guide off-centre.
+   KNOBS (on the rail): --outliner-width weight · --outliner-color colour · --outliner-radius cap rounding ·
+   --outliner-gap end inset (both ends). The cap inset is split into --outliner-gap-top / --outliner-gap-bottom
+   (each defaults to --outliner-gap) so ONE end can be dialled without the other — a run's rail spans the LINE
+   box (so consecutive segments touch), but a glyph that sits off-centre in its line (the checkbox box rides low
+   via vertical-align, unlike baseline-centred numbers/bullets) makes the two caps read unevenly. Nudge the
+   affected end PER TYPE below to even it. Per-type horizontal centre: --rail-x.                              */
+.md-outliner-rail {
+  display: none;
+}
+.outliner-lines .mdpm-editor .cm-line.md-li {
+  position: relative;
+}
+.outliner-lines .md-outliner-rail {
+  --outliner-width: 2px;
+  --outliner-color: var(--separator-segment);
+  --outliner-gap: 3px;
+  --outliner-gap-top: var(--outliner-gap);
+  --outliner-gap-bottom: var(--outliner-gap);
+  --outliner-radius: 999px;
+  display: block;
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  /* Snap the left edge to a whole pixel (centre − half-width). --outliner-color is translucent, so a sub-pixel
+     x anti-aliases it to a different apparent shade per type — round() keeps every rail one colour. */
+  left: round(
+    calc(
+      var(--li-origin, 0px) + (var(--rail-level, 0) + 1) * var(--list-indent) + var(--rail-x, 0px) -
+        var(--outliner-width) / 2
+    ),
+    1px
+  );
+  width: var(--outliner-width);
+  background: var(--outliner-color);
+  pointer-events: none;
+}
+.outliner-lines .md-outliner-bullet {
+  --rail-x: calc(var(--bullet-size) / 4); /* • glyph centre */
+  /* Small glyph → let the rail overshoot each end so the run doesn't read stubby. */
+  --outliner-gap-top: -2px;
+  --outliner-gap-bottom: -2px;
+}
+.outliner-lines .md-outliner-task {
+  --rail-x: 8.5px; /* checkbox box centre — chipBoxGeometry 17px / 2 */
+  /* The box rides low in its line (vertical-align), so its bottom cap reads longer — raise it to even the rail. */
+  --outliner-gap-bottom: 8px;
+}
+.outliner-lines .md-outliner-first {
+  top: var(--outliner-gap-top);
+  border-top-left-radius: var(--outliner-radius);
+  border-top-right-radius: var(--outliner-radius);
+}
+.outliner-lines .md-outliner-last {
+  bottom: var(--outliner-gap-bottom);
+  border-bottom-left-radius: var(--outliner-radius);
+  border-bottom-right-radius: var(--outliner-radius);
+}
+
 .md-bullet {
   color: var(--label-control);
   font-size: var(--bullet-size);

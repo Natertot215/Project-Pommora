@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Icon, icons, type IconName } from '@renderer/design-system/symbols'
+import { Icon, icons, type IconName, defaultEntityIcon } from '@renderer/design-system/symbols'
 import { text } from '@renderer/design-system/tokens'
 import { cx } from '@renderer/design-system/cx'
 import { MenuItem } from '@renderer/design-system/components/menu'
@@ -9,6 +9,7 @@ import { EditableInput } from '../Components/EditableInput'
 import type {
   AreaNode,
   CollectionNode,
+  EntityIconKind,
   NexusTree,
   PageNode,
   SelectionState,
@@ -226,10 +227,11 @@ function PageRow({
   selection: SelectionState
   onSelectPage: (page: PageNode) => void
 }): React.JSX.Element {
+  const defaultIcons = useSession((s) => s.personalization.defaultIcons)
   return (
     <DragRow id={page.id}>
       <Leaf
-        icon="file-text"
+        icon={defaultEntityIcon('page', defaultIcons)}
         title={page.title}
         depth={depth}
         selected={isPageSelected(selection, page.id)}
@@ -282,10 +284,11 @@ function ContainerRow({
 // A Set row. Only depth-1 Sets (direct children of a Collection, `selectable`) open a view; deeper
 // Sub-Sets are expand-only organizing folders. Renders its sub-sets recursively, then its pages.
 function SetRow({ set, depth, selectable, selection, onSelectSet, onSelectPage }: { set: SetNode; depth: number; selectable: boolean; selection: SelectionState; onSelectSet: (set: SetNode) => void; onSelectPage: (page: PageNode) => void }): React.JSX.Element {
+  const setDefaultIcons = useSession((s) => s.personalization.defaultIcons)
   return (
     <ContainerRow
       node={set}
-      defaultIcon="folder-closed"
+      defaultIcon={defaultEntityIcon('set', setDefaultIcons)}
       depth={depth}
       selected={selectable && isSetSelected(selection, set.id)}
       onSelect={selectable ? () => onSelectSet(set) : undefined}
@@ -303,8 +306,9 @@ function SetRow({ set, depth, selectable, selection, onSelectSet, onSelectPage }
 // A top-level Collection — the schema-bearing container (Swift: PageCollection). Its direct Sets
 // render as selectable depth-1 rows; its loose pages follow.
 function CollectionRow({ col, depth, selection, onSelectCollection, onSelectSet, onSelectPage }: { col: CollectionNode; depth: number; selection: SelectionState; onSelectCollection: (col: CollectionNode) => void; onSelectSet: (set: SetNode) => void; onSelectPage: (page: PageNode) => void }): React.JSX.Element {
+  const defaultIcons = useSession((s) => s.personalization.defaultIcons)
   return (
-    <ContainerRow node={col} defaultIcon="gallery-vertical-end" depth={depth} selected={isCollectionSelected(selection, col.id)} onSelect={() => onSelectCollection(col)}>
+    <ContainerRow node={col} defaultIcon={defaultEntityIcon('collection', defaultIcons)} depth={depth} selected={isCollectionSelected(selection, col.id)} onSelect={() => onSelectCollection(col)}>
       {col.sets.map((s) => (
         <SetRow key={s.id} set={s} depth={depth + 1} selectable selection={selection} onSelectSet={onSelectSet} onSelectPage={onSelectPage} />
       ))}
@@ -320,10 +324,11 @@ function CollectionRow({ col, depth, selection, onSelectCollection, onSelectSet,
 function ContextRow({ node }: { node: { id: string; title: string; path: string; kind: MutableKind } }): React.JSX.Element {
   const select = useSession((s) => s.select)
   const selected = useSession((s) => s.selection.kind === 'context' && s.selection.id === node.id)
+  const defaultIcons = useSession((s) => s.personalization.defaultIcons)
   return (
     <DragRow id={node.id}>
       <Leaf
-        icon="layout-grid"
+        icon={defaultEntityIcon(node.kind as EntityIconKind, defaultIcons)}
         title={node.title}
         depth={1}
         selected={selected}
@@ -338,9 +343,15 @@ function ContextRow({ node }: { node: { id: string; title: string; path: string;
 // A context tier group (Areas / Topics / Projects) — a non-draggable disclosure under the
 // Contexts heading holding that tier's leaves. Grid icon, open by default. The tiers are
 // free-standing (no containment), so the header is a pure expand/collapse toggle.
+const TIER_ICON_KIND: Record<'areas' | 'topics' | 'projects', EntityIconKind> = {
+  areas: 'area',
+  topics: 'topic',
+  projects: 'project'
+}
 function TierDisclosure({ tierKey, label, children }: { tierKey: 'areas' | 'topics' | 'projects'; label: string; children: React.ReactNode }): React.JSX.Element {
+  const defaultIcons = useSession((s) => s.personalization.defaultIcons)
   return (
-    <Disclosure icon="layout-grid" title={label} depth={0} defaultOpen persistKey={`tier:${tierKey}`}>
+    <Disclosure icon={defaultEntityIcon(TIER_ICON_KIND[tierKey], defaultIcons)} title={label} depth={0} defaultOpen persistKey={`tier:${tierKey}`}>
       {children}
     </Disclosure>
   )

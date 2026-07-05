@@ -102,7 +102,12 @@ function ShapeCell({ id, className, title, children }: { id: string; className: 
  *  var override colors it without touching the component. */
 function SwitchDemo({ color }: { color: ChipColorName }): React.JSX.Element {
   const [on, setOn] = useState(true)
-  const solid = color === 'default' ? vars.color.solid.greyDefault : vars.color.solid[color]
+  const solid =
+    color === 'default'
+      ? vars.color.solid.greyDefault
+      : color === 'accent'
+        ? 'var(--system-accent)'
+        : vars.color.solid[color]
   return (
     <span className="ds-switch-demo" title={color} style={{ '--accent': solid } as React.CSSProperties}>
       <Switch checked={on} onChange={setOn} ariaLabel={color} />

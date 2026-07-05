@@ -34,7 +34,9 @@ const SIZE = {
 
 /** — PADDING — (px) */
 const PAD = {
-  topRowBlock: 4 // TopRow vertical padding — THE pane-header height knob (no min-height floor)
+  // THE single ViewPane header-rhythm knob — drives BOTH the TopRow's vertical padding (topRowPad) AND
+  // the header separator's bottom gap (paneSeparator), so the whole header spacing moves on one number.
+  topRowBlock: 2
 }
 
 /** — OPTION EDITOR — (Select/Multi option list; px) */
@@ -120,6 +122,11 @@ export const dashIcon = style({
  *  the caption line + 2 × PAD.topRowBlock) and pins the ‹ heading to the shared heading-label colour
  *  (this file loads after menu.css, so it wins over the flush affordance's default). */
 export const topRowPad = style({ paddingBlock: `${PAD.topRowBlock}px`, minHeight: 0, color: COLOR.headingLabel })
+
+/** The gap BELOW the header separator — a ViewPane-owned bottom space the shared MenuSeparator band
+ *  carries none of. Tied to the same topRowBlock number as the TopRow padding, so the whole header
+ *  rhythm (space above the ‹ row + space below its divider) moves on one knob. */
+export const paneSeparator = style({ marginBottom: `${PAD.topRowBlock}px` })
 
 /** The TopRow's trailing action (⊕ create / ⋮ menu) — a bare icon button in the row's trailing slot,
  *  glyph flush to the gutter edge. Secondary tone, as a member of the TopRow: the `&&` clears the
@@ -362,3 +369,33 @@ export const paletteButton = style({
     [`${optionRow}:hover &:hover`]: { opacity: 1, background: COLOR.iconHover }
   }
 })
+
+// ═══════════════════════════════════════════════════════════════════════════
+// § LINK EDITOR — the URL property's display config: two toggles + a color chip
+// (clicking the chip opens the recolor picker)
+// ═══════════════════════════════════════════════════════════════════════════
+
+/** The link config body. The editor root also scopes `--accent` (inline) to the chosen link colour,
+ *  so the Switches' on-track tints to it — this pane only (Nathan's neat thing). */
+export const linkEditor = style({
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '8px',
+  paddingTop: `${OPTION.gapAroundLabel}px`
+})
+
+/** One config row — label left, control right. */
+export const linkRow = style({ display: 'flex', alignItems: 'center', justifyContent: 'space-between', minHeight: '24px' })
+
+/** The row label (Underline · Full URL · Color) — emphasized (Nathan's call), the primary label tone. */
+export const linkLabel = style([text.control.emphasized, { color: c.label.control }])
+
+/** The Switch at pane density — shrunk to sit level with the emphasized labels + colour chip (the same
+ *  0.8 the CalendarPicker uses for its picker-scale Switches). Zoom is the house density knob. */
+export const switchScale = style({ zoom: 0.8 })
+
+/** The colour control cluster — the clickable chip; the ColorPicker anchors below. */
+export const linkColor = style({ position: 'relative', display: 'flex', alignItems: 'center', gap: '4px' })
+
+/** The bare button wrapping the colour chip — the recolor affordance (click the chip to open the picker). */
+export const linkChip = style({ border: 'none', background: 'none', padding: 0, cursor: 'default', display: 'flex' })

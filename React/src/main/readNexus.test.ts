@@ -196,6 +196,47 @@ describe('readNexus — accent setting', () => {
   })
 })
 
+describe('readNexus — personalization', () => {
+  const roots: string[] = []
+  const mk = (settings: object): string => {
+    const root = mkdtempSync(join(tmpdir(), 'pom-pers-'))
+    roots.push(root)
+    d(join(root, '.nexus'))
+    w(join(root, '.nexus', 'nexus.json'), JSON.stringify({ schemaVersion: 1, id: 'nxp', createdAt: '2026' }))
+    w(join(root, '.nexus', 'settings.json'), JSON.stringify(settings))
+    return root
+  }
+  afterAll(() => roots.forEach((r) => rmSync(r, { recursive: true, force: true })))
+
+  it('reads accent from personalization.accent (the new home)', async () => {
+    expect((await readNexus(mk({ personalization: { accent: 'blue' } }))).accent).toBe('blue')
+  })
+  it('personalization.accent wins over the legacy top-level accent_color', async () => {
+    expect((await readNexus(mk({ accent_color: 'red', personalization: { accent: 'blue' } }))).accent).toBe('blue')
+  })
+  it('reads the block, dropping invalid fields + unknown icon kinds', async () => {
+    const t = await readNexus(
+      mk({
+        personalization: {
+          connectionColor: 'cyan',
+          hideChevrons: true,
+          outlinerLines: 'nope', // not a boolean → dropped
+          defaultIcons: { collection: 'gallery-vertical-end', bogus: 'x' }
+        }
+      })
+    )
+    expect(t.personalization.connectionColor).toBe('cyan')
+    expect(t.personalization.hideChevrons).toBe(true)
+    expect(t.personalization.outlinerLines).toBeUndefined()
+    expect(t.personalization.defaultIcons).toEqual({ collection: 'gallery-vertical-end' })
+  })
+  it('absent personalization → empty block', async () => {
+    const t = await readNexus(mk({}))
+    expect(t.personalization.connectionColor).toBeUndefined()
+    expect(t.personalization.defaultIcons).toBeUndefined()
+  })
+})
+
 describe('readNexus — structured labels (Swift SettingsLabels shape)', () => {
   const roots: string[] = []
   const mk = (settings: object): string => {
