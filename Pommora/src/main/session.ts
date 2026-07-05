@@ -48,3 +48,19 @@ export async function resolveRestorePath(config: AppConfig): Promise<string | nu
   }
   return null
 }
+
+/** True when any path segment is a system, volume, or in-nexus trash dir (~/.Trash, /.Trashes, a
+ *  nexus's .trash) — a recents entry pointing into one is a deleted nexus that shouldn't resurface. */
+export function isTrashedPath(p: string): boolean {
+  return p.split('/').some((seg) => {
+    const s = seg.toLowerCase()
+    return s === '.trash' || s === '.trashes'
+  })
+}
+
+/** Filter recents to entries that still resolve to a live, non-trashed directory, order preserved —
+ *  a deleted (trashed) nexus is dropped so Open Recent never lists it. */
+export async function pruneRecents(recents: string[]): Promise<string[]> {
+  const keep = await Promise.all(recents.map((p) => (isTrashedPath(p) ? Promise.resolve(false) : isExistingDir(p))))
+  return recents.filter((_, i) => keep[i])
+}

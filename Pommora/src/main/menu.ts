@@ -1,8 +1,8 @@
 import { Menu, app, shell, BrowserWindow } from 'electron'
 import type { MenuItemConstructorOptions } from 'electron'
 import { basename } from 'node:path'
-import { readAppConfig } from './appConfig'
-import { sessionRoot } from './session'
+import { readAppConfig, writeAppConfig } from './appConfig'
+import { pruneRecents, sessionRoot } from './session'
 
 type AdoptFn = (path: string) => Promise<void>
 
@@ -11,7 +11,14 @@ type AdoptFn = (path: string) => Promise<void>
 // items (Open Recent, Reveal, Reload) act here. Rebuilt whenever the session or
 // recents change, so Open Recent + the session-gated items stay current.
 export async function installAppMenu(win: BrowserWindow, adopt: AdoptFn): Promise<void> {
-  const { recents } = await readAppConfig(app.getPath('userData'))
+  const userData = app.getPath('userData')
+  const config = await readAppConfig(userData)
+  // Drop deleted (trashed) nexuses so Open Recent never lists a dead path; self-heal the stored
+  // list when the prune removes any, so the debris doesn't linger in the config.
+  const recents = config.recents ? await pruneRecents(config.recents) : []
+  if (config.recents && recents.length !== config.recents.length) {
+    await writeAppConfig(userData, { ...config, recents })
+  }
   const hasSession = sessionRoot() !== null
   const send = (action: string): void => {
     if (!win.isDestroyed()) win.webContents.send('menu:action', action)
