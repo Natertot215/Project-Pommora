@@ -13,6 +13,7 @@ Nexus-wide interface config, stored as the React-owned `personalization` object 
 - **hideChevrons** — collapse the sidebar's disclosure-chevron gutter.
 - **outlinerLines** — nested-list indent rails in MarkdownPM.
 - **defaultIcons** — the per-kind default icon (Collection / Set / Area / Topic / Project / Page), overriding the built-in seed; an entity's own icon still wins over it.
+- **setPlacement / subSetPlacement** — whether a Collection's depth-1 Sets (`setPlacement`) and a Set's Sub-Sets (`subSetPlacement`) sit above (`top`, default) or below (`bottom`) their container's loose pages; the folder block stays contiguous — a full folder↔page interleave is the eventual model.
 
 #### II. Write Discipline
 

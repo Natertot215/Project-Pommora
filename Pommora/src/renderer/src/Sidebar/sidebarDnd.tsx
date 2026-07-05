@@ -12,7 +12,7 @@ import { createPortal } from 'react-dom'
 import { text } from '@renderer/design-system/tokens'
 import { ACTIVATION, suppressNextClick } from '@renderer/design-system/interactions/shared'
 import { announce } from '@renderer/design-system/interactions/a11y'
-import type { NexusTree } from '@shared/types'
+import type { FolderPlacement, NexusTree } from '@shared/types'
 import type { MutateRequest } from '@shared/mutate'
 import { buildIndex, nextOrder, setContainerOf, isSelfOrDescendant, slotInGroup, type Entry, type Index, type MeasuredRow } from './sidebarDndModel'
 
@@ -54,15 +54,23 @@ const Ctx = createContext<Value | null>(null)
 export function SidebarDnd({
   tree,
   onCommit,
+  setPlacement = 'top',
+  subSetPlacement = 'top',
   children
 }: {
   tree: NexusTree
   onCommit: (commit: MutateRequest) => void
+  setPlacement?: FolderPlacement
+  subSetPlacement?: FolderPlacement
   children: ReactNode
 }): React.JSX.Element {
   const index = useMemo(() => buildIndex(tree), [tree])
   const indexRef = useRef(index)
   indexRef.current = index
+  // Placement drives where an empty Sets block lands when a Set is dropped onto a container header —
+  // above its pages (top) or below them (bottom). Ref'd so the frozen-snapshot resolver reads current.
+  const placements = useRef({ set: setPlacement, subSet: subSetPlacement })
+  placements.current = { set: setPlacement, subSet: subSetPlacement }
   // A mid-drag tree swap (watcher push) can re-render rows — stale rects must not survive it.
   useEffect(() => {
     snapshotDirty.current = true
@@ -172,10 +180,22 @@ export function SidebarDnd({
         beforeId = slot.beforeId
         lineY = slot.edge - contentTop
       } else {
-        // over the container header (or one of its pages) → the head of its Sets
+        // Over the container header or one of its pages → land at the near edge of its Sets block.
+        // The block sits above or below the pages per placement, so derive the line from real
+        // geometry: an existing block's first-row top (correct either way), else — an empty block —
+        // just under the header (top) or after the container's last page (bottom).
         beforeId = group.find((id) => id !== g.id) ?? null
         const headerRect = measured.find((m) => m.id === target.id)
-        lineY = (headerRect ? headerRect.bottom : over.bottom) - contentTop
+        const headEdge = headerRect ? headerRect.bottom : over.bottom
+        if (beforeId) {
+          const firstRow = measured.find((m) => m.id === beforeId)
+          lineY = (firstRow ? firstRow.top : headEdge) - contentTop
+        } else {
+          const placement = target.kind === 'collection' ? placements.current.set : placements.current.subSet
+          const pageBottoms = target.pageIds.map((id) => measured.find((m) => m.id === id)?.bottom).filter((b): b is number => b != null)
+          const edge = placement === 'bottom' && pageBottoms.length ? Math.max(...pageBottoms) : headEdge
+          lineY = edge - contentTop
+        }
       }
       const order = nextOrder(group, g.id, beforeId)
       return {

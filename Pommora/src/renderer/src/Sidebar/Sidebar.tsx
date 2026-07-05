@@ -10,6 +10,7 @@ import type {
   AreaNode,
   CollectionNode,
   EntityIconKind,
+  FolderPlacement,
   NexusTree,
   PageNode,
   SelectionState,
@@ -281,10 +282,19 @@ function ContainerRow({
   )
 }
 
+// A container's folders form one contiguous block, placed above or below its loose pages by the
+// nexus-wide placement knob. A full folder↔page interleave is the eventual model; this top/bottom
+// flag is the interim — folders stay a block, just relocatable.
+function placeChildren(folders: React.JSX.Element[], pages: React.JSX.Element[], placement: FolderPlacement): React.JSX.Element[] {
+  return placement === 'bottom' ? [...pages, ...folders] : [...folders, ...pages]
+}
+
 // A Set row. Only depth-1 Sets (direct children of a Collection, `selectable`) open a view; deeper
-// Sub-Sets are expand-only organizing folders. Renders its sub-sets recursively, then its pages.
+// Sub-Sets are expand-only organizing folders. Renders its sub-sets and its pages, ordered by the
+// subSetPlacement knob.
 function SetRow({ set, depth, selectable, selection, onSelectSet, onSelectPage }: { set: SetNode; depth: number; selectable: boolean; selection: SelectionState; onSelectSet: (set: SetNode) => void; onSelectPage: (page: PageNode) => void }): React.JSX.Element {
   const setDefaultIcons = useSession((s) => s.personalization.defaultIcons)
+  const subSetPlacement = useSession((s) => s.personalization.subSetPlacement ?? 'top')
   return (
     <ContainerRow
       node={set}
@@ -293,28 +303,31 @@ function SetRow({ set, depth, selectable, selection, onSelectSet, onSelectPage }
       selected={selectable && isSetSelected(selection, set.id)}
       onSelect={selectable ? () => onSelectSet(set) : undefined}
     >
-      {(set.sets ?? []).map((s) => (
-        <SetRow key={s.id} set={s} depth={depth + 1} selectable={false} selection={selection} onSelectSet={onSelectSet} onSelectPage={onSelectPage} />
-      ))}
-      {set.pages.map((p) => (
-        <PageRow key={p.id} page={p} depth={depth + 1} selection={selection} onSelectPage={onSelectPage} />
-      ))}
+      {placeChildren(
+        (set.sets ?? []).map((s) => (
+          <SetRow key={s.id} set={s} depth={depth + 1} selectable={false} selection={selection} onSelectSet={onSelectSet} onSelectPage={onSelectPage} />
+        )),
+        set.pages.map((p) => <PageRow key={p.id} page={p} depth={depth + 1} selection={selection} onSelectPage={onSelectPage} />),
+        subSetPlacement
+      )}
     </ContainerRow>
   )
 }
 
 // A top-level Collection — the schema-bearing container (Swift: PageCollection). Its direct Sets
-// render as selectable depth-1 rows; its loose pages follow.
+// render as selectable depth-1 rows, ordered against its loose pages by the setPlacement knob.
 function CollectionRow({ col, depth, selection, onSelectCollection, onSelectSet, onSelectPage }: { col: CollectionNode; depth: number; selection: SelectionState; onSelectCollection: (col: CollectionNode) => void; onSelectSet: (set: SetNode) => void; onSelectPage: (page: PageNode) => void }): React.JSX.Element {
   const defaultIcons = useSession((s) => s.personalization.defaultIcons)
+  const setPlacement = useSession((s) => s.personalization.setPlacement ?? 'top')
   return (
     <ContainerRow node={col} defaultIcon={defaultEntityIcon('collection', defaultIcons)} depth={depth} selected={isCollectionSelected(selection, col.id)} onSelect={() => onSelectCollection(col)}>
-      {col.sets.map((s) => (
-        <SetRow key={s.id} set={s} depth={depth + 1} selectable selection={selection} onSelectSet={onSelectSet} onSelectPage={onSelectPage} />
-      ))}
-      {col.pages.map((p) => (
-        <PageRow key={p.id} page={p} depth={depth + 1} selection={selection} onSelectPage={onSelectPage} />
-      ))}
+      {placeChildren(
+        col.sets.map((s) => (
+          <SetRow key={s.id} set={s} depth={depth + 1} selectable selection={selection} onSelectSet={onSelectSet} onSelectPage={onSelectPage} />
+        )),
+        col.pages.map((p) => <PageRow key={p.id} page={p} depth={depth + 1} selection={selection} onSelectPage={onSelectPage} />),
+        setPlacement
+      )}
     </ContainerRow>
   )
 }
@@ -377,6 +390,8 @@ export function Sidebar({ tree }: { tree: NexusTree }): React.JSX.Element {
   const select = useSession((s) => s.select)
   const newCollection = useSession((s) => s.newCollection)
   const mutate = useSession((s) => s.mutate)
+  const setPlacement = useSession((s) => s.personalization.setPlacement ?? 'top')
+  const subSetPlacement = useSession((s) => s.personalization.subSetPlacement ?? 'top')
 
   const onSelectCollection = (col: CollectionNode): void => {
     void select({ kind: 'collection', id: col.id })
@@ -426,7 +441,7 @@ export function Sidebar({ tree }: { tree: NexusTree }): React.JSX.Element {
 
       {/* Drag to reorder any entity within its parent heading (or a page across folders); an
           insertion line marks the drop + a ghost follows the cursor. Saved stays inert above. */}
-      <SidebarDnd tree={tree} onCommit={onCommit}>
+      <SidebarDnd tree={tree} onCommit={onCommit} setPlacement={setPlacement} subSetPlacement={subSetPlacement}>
         {/* Contexts — three tier disclosures, top-to-bottom Areas → Topics → Projects (tier 1 → 3);
             the header "+" pops a picker to create any tier. */}
         <div className="section">

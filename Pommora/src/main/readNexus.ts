@@ -21,6 +21,7 @@ import type {
   SetNode,
   ConnectionColorSetting,
   EntityIconKind,
+  FolderPlacement,
   Personalization,
   TopicNode,
   UserSection
@@ -76,6 +77,7 @@ function resolveAccent(raw: string | undefined): AccentSetting {
 function readPersonalization(raw: unknown): Personalization {
   const p = raw != null && typeof raw === 'object' && !Array.isArray(raw) ? (raw as Record<string, unknown>) : {}
   const bool = (v: unknown): boolean | undefined => (typeof v === 'boolean' ? v : undefined)
+  const placement = (v: unknown): FolderPlacement | undefined => (v === 'top' || v === 'bottom' ? v : undefined)
   const conn = asString(p.connectionColor)
   const rawIcons =
     p.defaultIcons != null && typeof p.defaultIcons === 'object' && !Array.isArray(p.defaultIcons)
@@ -91,7 +93,9 @@ function readPersonalization(raw: unknown): Personalization {
       conn === 'accent' || (conn != null && ACCENT_COLOR_SET.has(conn)) ? (conn as ConnectionColorSetting) : undefined,
     hideChevrons: bool(p.hideChevrons),
     outlinerLines: bool(p.outlinerLines),
-    defaultIcons: Object.keys(defaultIcons).length ? defaultIcons : undefined
+    defaultIcons: Object.keys(defaultIcons).length ? defaultIcons : undefined,
+    setPlacement: placement(p.setPlacement),
+    subSetPlacement: placement(p.subSetPlacement)
   }
 }
 

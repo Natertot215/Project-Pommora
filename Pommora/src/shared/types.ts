@@ -73,6 +73,11 @@ export const DEFAULT_TIME_FORMAT: TimeFormatSetting = 'twelveHour'
 export const ENTITY_ICON_KINDS = ['collection', 'set', 'area', 'topic', 'project', 'page'] as const
 export type EntityIconKind = (typeof ENTITY_ICON_KINDS)[number]
 
+/** Where a container's child folders sit relative to its loose pages in the sidebar. `top` (default)
+ *  keeps folders above pages; `bottom` drops them below. A full folder↔page interleave is the eventual
+ *  model — this flag is the interim: folders stay one contiguous block, just relocatable. */
+export type FolderPlacement = 'top' | 'bottom'
+
 /** Nexus-wide interface personalization — the `personalization` object in `.nexus/settings.json`
  *  (canonical, synced). Every field optional; absent = the built-in default. One schema behind one
  *  apply-map + one setter — a new toggle is a field here plus an apply-map row. Icon names are bare
@@ -83,6 +88,10 @@ export interface Personalization {
   hideChevrons?: boolean
   outlinerLines?: boolean
   defaultIcons?: Partial<Record<EntityIconKind, string>>
+  /** Depth-1 Sets vs their Collection's loose pages. */
+  setPlacement?: FolderPlacement
+  /** Sub-Sets (depth-2+) vs their parent Set's loose pages. */
+  subSetPlacement?: FolderPlacement
 }
 
 export interface BaseNode {
