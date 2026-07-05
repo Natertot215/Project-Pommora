@@ -1,6 +1,6 @@
 ## Libraries — Build Catalog
 
-The vetted library menu. Each entry is tagged **Decided** (in `package.json` today), **Candidate** (named, not yet installed), or **Not-yet-needed** (for a deferred phase). Reconcile against `React/package.json` before trusting any version.
+The vetted library menu. Each entry is tagged **Decided** (in `package.json` today), **Candidate** (named, not yet installed), or **Not-yet-needed** (for a deferred phase). Reconcile against `Pommora/package.json` before trusting any version.
 
 ### Shell · Build · Packaging
 

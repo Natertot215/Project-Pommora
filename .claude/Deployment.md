@@ -8,16 +8,16 @@ The component-library showcase deploys to Vercel from this repo. It builds the *
 
 ### How the Pointing Works (post-consolidation)
 
-The repo was consolidated — the React app is now a **subfolder** of the `Project Pommora` monorepo (no more standalone React-at-root branch). The repo carries TWO vercel.json files so the deploy works under EITHER dashboard state:
+The repo was consolidated — the Pommora app is now a **subfolder** of the `Project Pommora` monorepo (no more standalone React-at-root branch). The repo carries TWO vercel.json files so the deploy works under EITHER dashboard state:
 
-- **Root `vercel.json`** — the self-sufficient path: builds with `cd React && npm run build:showcase`, output `React/dist`, plus the `/` → `/design-system.html` rewrite. This is what runs while the dashboard's Root Directory is still `.` (the pre-consolidation default) — no dashboard click required.
-- **`React/vercel.json`** — the same pins relative to `React`. This one governs if/when the dashboard's **Root Directory** is set to `React` (Vercel reads vercel.json relative to the Root Directory, so only one of the two is ever read).
+- **Root `vercel.json`** — the self-sufficient path: builds with `cd Pommora && npm run build:showcase`, output `Pommora/dist`, plus the `/` → `/design-system.html` rewrite. This is what runs while the dashboard's Root Directory is still `.` (the pre-consolidation default) — no dashboard click required.
+- **`Pommora/vercel.json`** — the same pins relative to `Pommora`. This one governs if/when the dashboard's **Root Directory** is set to `Pommora` (Vercel reads vercel.json relative to the Root Directory, so only one of the two is ever read).
 
 | Setting | Value |
 |---|---|
 | Git repository | `Natertot215/Project-Pommora` |
 | Production branch | `main` |
-| Root Directory | `.` works (root vercel.json) — `React` also works (React/vercel.json) |
+| Root Directory | `.` works (root vercel.json) — `Pommora` also works (Pommora/vercel.json) |
 | Build + output + rewrite | pinned in whichever vercel.json is read |
 
 ### If the Site Won't Update
@@ -33,6 +33,6 @@ Unchanged: **https://pommora-design-system.vercel.app**. The custom domain `pomm
 
 ### Assets + Gotchas
 
-- Glass-stage photos live in `React/public/surfaces/`; `vite build` copies `public/` into `dist/` automatically — no action.
+- Glass-stage photos live in `Pommora/public/surfaces/`; `vite build` copies `public/` into `dist/` automatically — no action.
 - `better-sqlite3` (a dependency) installs from a prebuilt binary, so Vercel's Linux `npm install` won't native-compile it; the showcase bundle never imports it anyway.
 - The showcase is decoupled from Electron — `build:showcase` is plain `vite build` (via `vite.config.ts`), not `electron-vite`.
