@@ -29,6 +29,8 @@ import { basenameNoMd } from './coerce'
 import { contextTierDir, nexusConfig, SIDECAR_FILENAME, NEXUS_CONFIG_FILES, type ContextTier, type SidecarKind } from './paths'
 import { ensureIdentity } from './identity'
 import { updateSettings } from './settings'
+import { newId } from './ids'
+import { mintDefaultView, VIEW_ID_PREFIX } from '@shared/views'
 import { ok, fail, type Result } from '@shared/result'
 import { applyPropertyValue } from '@shared/propertyValue'
 import type { MutateRequest, MutateResult } from '@shared/mutate'
@@ -156,6 +158,9 @@ async function dispatch(req: MutateRequest, deps: MutateDeps, root: string): Pro
         const pid = await parentContainerId(parent.value)
         if (pid) extra.parent_id = pid
       }
+      // Creation-seed (G-1): an app-made container is born with its default view on disk, so no
+      // surface ever meets an empty views[]. The ULID mints here in main (the sentinel can't).
+      extra.views = [{ ...mintDefaultView([]), id: `${VIEW_ID_PREFIX}${newId()}` }]
       const r = await createDisambiguated(req.name, (name) =>
         createFolderEntity(parent.value, req.kind, name, extra)
       )
