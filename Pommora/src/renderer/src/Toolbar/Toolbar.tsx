@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { SegmentedSymbol, type Segment } from '@renderer/design-system/components/Segmented-Controls'
 import { useDismiss } from '@renderer/design-system/components/Popover'
-import { MenuSurface, MenuCaption } from '@renderer/design-system/components/menu'
+import { MenuSurface } from '@renderer/design-system/components/menu'
 import { ToolbarTrio } from './ToolbarTrio'
 import { ViewDropdown } from './ViewDropdown'
 import { SettingsDropdown } from '../Components/Detail/SettingsDropdown'
@@ -81,7 +81,8 @@ export function Toolbar({
         {navP.mounted && (
           <div className={dropdown.anchor}>
             <MenuSurface closing={navP.closing} notchInsetRight={trioW ? (trioW * 5) / 6 : undefined}>
-              <MenuCaption>No navigation yet.</MenuCaption>
+              {/* Blank chrome until Navigation ships (no build-status copy — Guidelines/UI-Copy.md). */}
+              <div style={{ minHeight: 24 }} />
             </MenuSurface>
           </div>
         )}

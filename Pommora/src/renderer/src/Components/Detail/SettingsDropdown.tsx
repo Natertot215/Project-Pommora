@@ -1,6 +1,6 @@
 import { useSession } from '../../store'
 import { viewSettingsScope } from '../../Detail/ViewSettingsScope'
-import { MenuSurface, MenuCaption } from '../../design-system/components/menu'
+import { MenuSurface } from '../../design-system/components/menu'
 import { SettingsPane } from './SettingsPane'
 import * as s from './settingsPane.css'
 
@@ -24,7 +24,7 @@ export function SettingsDropdown({
   return (
     <div className={s.anchor}>
       <MenuSurface closing={closing} notchInsetRight={notchInsetRight}>
-        {scope === 'view' ? <SettingsPane /> : <MenuCaption>No settings for this view yet.</MenuCaption>}
+        {scope === 'view' ? <SettingsPane /> : <div style={{ minHeight: 24 }} />}
       </MenuSurface>
     </div>
   )

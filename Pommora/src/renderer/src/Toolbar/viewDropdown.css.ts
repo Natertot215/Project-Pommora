@@ -31,6 +31,10 @@ export const anchor = style({
   vars: { '--dropdown-origin': 'top center' }
 })
 
+/** The view-list menu — drops the base menu's bottom padding so the +/… footer sits close to the
+ *  pane's bottom edge (the surface keeps its own small gutter). */
+export const paneMenu = style({ paddingBottom: 0 })
+
 /** Icon-only button padding. */
 export const iconPad = style({ paddingInline: BUTTON.iconPadX })
 

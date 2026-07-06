@@ -8,6 +8,7 @@ import { dropdownRowTitle } from '../design-system/components/menu/menu.css'
 import { PaneSlider } from '../Components/Detail/PaneSlider'
 import { ViewSettings } from '../Components/Detail/ViewSettings'
 import { useSession } from '../store'
+import * as vd from './viewDropdown.css'
 
 /**
  * The ViewPane — the navigation dropdown the ViewDropdown discloses. A row per saved view (click
@@ -42,7 +43,7 @@ export function ViewPane({
   }
 
   const list = (
-    <Menu>
+    <Menu className={vd.paneMenu}>
       {views.map((v) => (
         <MenuItem
           key={v.id}
@@ -77,5 +78,7 @@ export function ViewPane({
     <ViewSettings source={node} view={editing} schema={schema} door="full" onBack={() => setEditingId(null)} onClose={onClose} />
   ) : null
 
-  return <PaneSlider active={editing ? 'b' : 'a'} slotA={list} slotB={detail} minWidth={225} minHeight={120} />
+  // No minHeight floor — the list hugs its rows + footer (no dead space under the footer); ViewSettings
+  // is naturally taller, and the slider animates between the two.
+  return <PaneSlider active={editing ? 'b' : 'a'} slotA={list} slotB={detail} minWidth={225} />
 }

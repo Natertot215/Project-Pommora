@@ -366,7 +366,8 @@ export function PropertiesPane({
             onSetConfig={(patch) => void saveLinkConfig(def.id, patch)}
           />
         ) : (
-          <MenuCaption>{propertyTypeLabel(def.type)} options — pending</MenuCaption>
+          // Blank body until this type's options UI ships (Guidelines/UI-Copy.md).
+          <div style={{ minHeight: 8 }} />
         )}
       </>
     )

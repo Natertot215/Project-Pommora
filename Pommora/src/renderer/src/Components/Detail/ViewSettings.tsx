@@ -6,6 +6,7 @@ import { Icon, type IconName } from '@renderer/design-system/symbols'
 import { MenuItem, MenuSeparator, MenuPaneTopRow, AccessoryButton } from '../../design-system/components/menu'
 import { detail, flushTrailing, side } from '../../design-system/components/menu/menu.css'
 import { PickerMenu } from '../../design-system/components/PickerMenu'
+import { fieldInputClass } from '../../design-system/components/InteractionField'
 import { useSession } from '../../store'
 import { saveViewAdopting } from '../../Detail/Views/viewMint'
 import { EditableInput } from '../EditableInput'
@@ -112,7 +113,7 @@ export function ViewSettings({
         <button type="button" className={vs.iconButton} aria-label="View icon">
           <DashIcon />
         </button>
-        <EditableInput value={view.name} className={vs.titleField} onCommit={rename} onCancel={() => {}} />
+        <EditableInput value={view.name} className={cx(fieldInputClass, vs.titleField)} onCommit={rename} onCancel={() => {}} />
       </div>
       <MenuSeparator flush />
       <div className={vs.grid}>
