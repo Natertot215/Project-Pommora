@@ -42,6 +42,7 @@ import { orderedDefs, readRegistry, type PropertyRegistry } from './io/propertie
 import { asString, asStringArray, basenameNoMd } from './coerce'
 import { shouldSkipDir } from './exclusion'
 import { resolveOrder } from './order'
+import { beginWalk, cachedParse, endWalk } from './walkCache'
 import {
   contextTierDir,
   NEXUS_CONFIG_FILES,
@@ -149,17 +150,23 @@ export function splitFrontmatter(content: string): Json {
   }
 }
 
+/** Per-folder sidecar JSON, served through the walk cache — parsed once per (mtime, size). */
+const readSidecar = (absPath: string): Promise<Json | null> =>
+  cachedParse(absPath, () => readJsonObject(absPath))
+
 // ---------- page reads ----------
 
 async function readPage(absFile: string, relFile: string): Promise<PageNode> {
-  const fm = splitFrontmatter(await readFile(absFile, 'utf8'))
-  return {
-    kind: 'page',
-    id: asString(fm.id) ?? adoptedId(relFile),
-    title: basenameNoMd(basename(absFile)),
-    icon: asString(fm.icon),
-    path: relFile
-  }
+  return cachedParse(absFile, async () => {
+    const fm = splitFrontmatter(await readFile(absFile, 'utf8'))
+    return {
+      kind: 'page',
+      id: asString(fm.id) ?? adoptedId(relFile),
+      title: basenameNoMd(basename(absFile)),
+      icon: asString(fm.icon),
+      path: relFile
+    }
+  })
 }
 
 /** `.md` files directly in `absDir` (skips `_`-prefixed). */
@@ -219,7 +226,7 @@ async function readSet(
   excluded: string[],
   fb: Fallback
 ): Promise<SetNode> {
-  const meta = sidecarMode ? ((await readJsonObject(join(absDir, SIDECAR_FILENAME.set))) ?? {}) : {}
+  const meta = sidecarMode ? ((await readSidecar(join(absDir, SIDECAR_FILENAME.set))) ?? {}) : {}
   const sets = await readChildSets(absDir, relDir, sidecarMode, excluded, fb)
   const pages = await readDirectPages(absDir, relDir)
   return {
@@ -259,7 +266,7 @@ async function readPageCollection(
   registry: PropertyRegistry
 ): Promise<CollectionNode> {
   const meta = sidecarMode
-    ? ((await readJsonObject(join(absDir, SIDECAR_FILENAME.collection))) ?? {})
+    ? ((await readSidecar(join(absDir, SIDECAR_FILENAME.collection))) ?? {})
     : {}
   const sets = await readChildSets(absDir, relDir, sidecarMode, excluded, fb)
   const pages = await readDirectPages(absDir, relDir)
@@ -294,7 +301,7 @@ async function readTier<T extends AreaNode | TopicNode | ProjectNode>(
   for (const e of await listEntries(dir)) {
     if (!e.isDirectory()) continue
     if (shouldSkipDir(e.name, e.name, excluded)) continue
-    const sc = await readJsonObject(join(dir, e.name, sidecar))
+    const sc = await readSidecar(join(dir, e.name, sidecar))
     if (sidecarMode && !sc) continue // tier entry must carry its sidecar
     const node = {
       kind,
@@ -320,7 +327,15 @@ async function readTier<T extends AreaNode | TopicNode | ProjectNode>(
 
 export async function readNexus(root: string): Promise<NexusTree> {
   if (!(await pathExists(root))) throw new Error(`Nexus root not found: ${root}`)
+  beginWalk(root)
+  try {
+    return await walkNexus(root)
+  } finally {
+    endWalk()
+  }
+}
 
+async function walkNexus(root: string): Promise<NexusTree> {
   const identity = await readJsonObject(nexusConfig(root, NEXUS_CONFIG_FILES.identity))
   const sidecarMode = !!asString(identity?.id)
   const id = sidecarMode ? (identity!.id as string) : adoptedId(root)

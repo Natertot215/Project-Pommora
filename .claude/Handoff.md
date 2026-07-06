@@ -30,7 +30,7 @@ A long multi-day session (06-27 → 07-04) that built the Properties + Tables + 
 
 **Table overflow + the DRY OverflowScroll:** every column holds its resolved width; a table wider than the pane h-scrolls the whole view past it (capped-with-filler when it fits, the right inset flattened while overflowing — from ONE table-level ResizeObserver). `design-system/components/OverflowScroll.tsx` is THE truncate-hover-scroll box (the icon rides inside the scroll box, an rAF bounce-back, a two-edge eclipse fade so clipped content never hard-cuts), wrapped around every cell content type and shared with the sidebar rows. → `Features/TableView.md` §Overflow & Scroll.
 
-**Perf posture:** the hot paths are cached/memoized — one WeakMap value-parse cache keyed on frontmatter identity, `React.memo` rows over identity-stable props, a var-driven column drag (no per-frame table re-render), store-level structural sharing (watcher echoes are no-ops), and all drag geometry snapshotted at activation (no per-pointermove rect storm). **Standing debt:** main still re-walks the whole nexus per fs event, no row virtualization (bites at thousands), and external VALUE edits don't live-refresh an open table — see Pending Focuses.
+**Perf posture:** the hot paths are cached/memoized — the mtime-gated walk cache in main (watcher events stat everything, parse only what changed — `walkCache.ts`), one WeakMap value-parse cache keyed on frontmatter identity, `React.memo` rows over identity-stable props, a var-driven column drag (no per-frame table re-render), store-level structural sharing (watcher echoes are no-ops), and all drag geometry snapshotted at activation (no per-pointermove rect storm). **Standing debt:** no row virtualization (bites at thousands), and external VALUE edits don't live-refresh an open table — see Pending Focuses.
 
 **Lessons Learned**
 
@@ -122,7 +122,8 @@ Build discipline: the ViewPane CSS is a KNOB FILE (`viewPane.css.ts` — COLOR/S
 
 ### Pending Focuses
 
-- **(Perf) Remaining debt:** (1) main re-walks the whole nexus per watcher event (fs + YAML for every page; the durable fix is the surgical-reconcile arc — Swift precedent: 11 TDD commits, coarse-rebuild fallback for structural events). (2) **Virtualization** — every row still MOUNTS; bites at thousands. (3) External VALUE edits don't live-refresh open tables (loadValues runs per container open only; the tree carries structure, not values).
+- **(Perf) Remaining debt:** (1) **Virtualization** — every row still MOUNTS; bites at thousands. (2) External VALUE edits don't live-refresh open tables (loadValues runs per container open only; the tree carries structure, not values). (The watcher walk itself is mtime-gated — stat sweep, parse-only-changed; the container-surgical reconcile arc stays the designed escalation if a measured wall ever appears at real scale.)
+- **Add-to-group:** the '+' glyph that appears next to a set's grouping label when in a view doesn't actually create anything. 
 - **Block Drag V2 — nesting** (separate spec): interior drop-slots inside callouts, the box-nesting guard table, cross-container re-prefix.
 - **Canvas** — spec at `Planning/6-26 - Canvas Spec.md`, pending its adversarial review → plan → build.
 - **Biome config vs code** — `biome.json` declares double-quote/organizeImports but the codebase is single-quote/no-semicolon. Settle once, in a tree with no parallel edits.
