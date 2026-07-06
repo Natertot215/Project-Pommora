@@ -117,11 +117,15 @@ export function MenuTopRow({
   return (
     <MenuItem
       className={cx(s.topRow, trailing != null && s.flushTrailing, className)}
-      leading={<Icon name="chevron-left" size={14} />}
+      leading={
+        <span className={s.topBarLeadingSymbol}>
+          <Icon name="chevron-left" size={14} />
+        </span>
+      }
       trailing={trailing}
       onClick={onClick}
     >
-      {label}
+      <span className={s.topBarLeadingLabel}>{label}</span>
     </MenuItem>
   )
 }
@@ -179,7 +183,11 @@ export function MenuPaneTopRow({
   /** The current pane's name — a right-side label-secondary breadcrumb when there's no action. */
   current?: string
 }): React.JSX.Element {
-  const right = trailing ?? (current ? <span className={s.topRowCurrent}>{current}</span> : undefined)
+  const right = trailing ? (
+    <span className={s.topBarTrailingSymbol}>{trailing}</span>
+  ) : current ? (
+    <span className={s.topBarTrailingLabel}>{current}</span>
+  ) : undefined
   return (
     <>
       <MenuTopRow label={label} onClick={onBack} className={s.topRowPad} trailing={right} />

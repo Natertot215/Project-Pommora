@@ -4,7 +4,7 @@ import type { PropertyDefinition } from '@shared/properties'
 import { DEFAULT_VIEW_ID, type SavedView, type ViewFormat, type ViewType } from '@shared/views'
 import { Icon, type IconName } from '@renderer/design-system/symbols'
 import { MenuItem, MenuSeparator, MenuPaneTopRow, MenuScrollFrame, AccessoryButton } from '../../design-system/components/menu'
-import { detail, flushTrailing, side } from '../../design-system/components/menu/menu.css'
+import { detail, flushTrailing, footingLabel, footingSymbol, side } from '../../design-system/components/menu/menu.css'
 import { PickerMenu } from '../../design-system/components/PickerMenu'
 import { useSession } from '../../store'
 import { saveViewAdopting } from '../../Detail/Views/viewMint'
@@ -149,16 +149,22 @@ export function ViewSettings({
       <div ref={formatRef}>
         <MenuItem
           className={flushTrailing}
-          leading={<Icon name="layers-2" size={16} />}
+          leading={
+            <span className={footingSymbol}>
+              <Icon name="layers-2" size={12} />
+            </span>
+          }
           trailing={
             <span className={side}>
               <span className={detail}>{format === 'compact' ? 'Compact' : 'Standard'}</span>
-              <Icon name="chevrons-up-down" size={16} />
+              <span className={footingSymbol}>
+                <Icon name="chevrons-up-down" size={12} />
+              </span>
             </span>
           }
           onClick={() => void openFormat()}
         >
-          Format
+          <span className={footingLabel}>Format</span>
         </MenuItem>
         {formatOpen && (
           <PickerMenu open={formatOpen} onDismiss={() => setFormatOpen(false)} triggerRef={formatRef}>
@@ -200,20 +206,17 @@ export function ViewSettings({
       {grid}
       {view.type === 'table' &&
         (door === 'full' ? (
-          <>
-            <MenuSeparator flush />
-            {LEAF_ROWS.map((r) => (
-              <MenuItem
-                key={r.id}
-                className={flushTrailing}
-                leading={<Icon name={r.icon} size={16} />}
-                trailing={<Icon name="chevron-right" size={16} />}
-                onClick={() => setLeaf(r.id)}
-              >
-                {r.label}
-              </MenuItem>
-            ))}
-          </>
+          LEAF_ROWS.map((r) => (
+            <MenuItem
+              key={r.id}
+              className={flushTrailing}
+              leading={<Icon name={r.icon} size={16} />}
+              trailing={<Icon name="chevron-right" size={16} />}
+              onClick={() => setLeaf(r.id)}
+            >
+              {r.label}
+            </MenuItem>
+          ))
         ) : (
           <LayoutToggles source={source} view={view} />
         ))}

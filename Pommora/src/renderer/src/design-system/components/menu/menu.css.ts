@@ -1,4 +1,4 @@
-import { style } from '@vanilla-extract/css'
+import { globalStyle, style } from '@vanilla-extract/css'
 import { vars as colorVars } from '../../tokens/color.css'
 import { text, truncateHoverScroll } from '../../tokens/typography.css'
 import { duration, easing } from '../../tokens/motion'
@@ -164,9 +164,15 @@ export const accessoryHiddenRest = style({
 
 /** A pane TopRow's vertical padding + heading tone — drops the base 24px floor to the caption line. */
 export const topRowPad = style({ paddingBlock: 'var(--top-row-block, 2px)', minHeight: 0, color: c.label.secondary })
-/** The TopRow's right-side breadcrumb — the current pane's name in label-secondary, no icon. Sits
- *  opposite the ‹ back label; a pane carries THIS or a trailing action, never both. */
-export const topRowCurrent = style([text.caption.emphasized, { color: c.label.secondary }])
+
+// ── TopBar tone knobs — every pane header's four parts, one source. Leading (the ‹ back nav) reads
+// label-secondary; trailing (the current pane) reads label-tertiary, so the back destination sits a
+// step above the breadcrumb. Each knob colours the text/glyph itself, so it beats the surface's
+// dropdown-title (label-control) rule. All surfaces route here via MenuTopRow / MenuPaneTopRow.
+export const topBarLeadingLabel = style([text.caption.emphasized, { color: c.label.secondary }])
+export const topBarLeadingSymbol = style({ display: 'inline-flex', color: c.label.secondary })
+export const topBarTrailingLabel = style([text.caption.emphasized, { color: c.label.tertiary }])
+export const topBarTrailingSymbol = style({ display: 'inline-flex', color: c.label.tertiary })
 /** The gap below the header separator — tied to the same `--top-row-block` rhythm knob. */
 export const paneSeparator = style({ marginBottom: 'var(--top-row-block, 2px)' })
 /** A pane footer bar — flush affordance geometry, leading pinned left / trailing pinned right. The
@@ -176,6 +182,15 @@ export const bottomRow = style([
   flushAffordance,
   { display: 'flex', alignItems: 'center', paddingRight: 0, paddingBlock: 'var(--bottom-row-block, 0px)' }
 ])
+
+// ── Footing tone knobs — the pinned footer's parts (the Format control, the +/⋮ BottomRow). A footing
+// reads a step quieter than a body row: caption size + label-secondary, an ancillary action; symbols
+// shrink to 12 (the TopBar chevron is 14). One source; the Format row + MenuBottomRow route here.
+export const footingLabel = style([text.caption.emphasized, { color: c.label.secondary }])
+export const footingSymbol = style({ display: 'inline-flex', selectors: { '&&&': { color: c.label.secondary } } })
+// A BottomRow's icon buttons read label-secondary (the footing tone), not the accessoryButton default
+// tertiary — the tripled class outranks accessoryButton's `&&`.
+globalStyle(`${bottomRow} ${accessoryButton}${accessoryButton}`, { color: c.label.secondary })
 
 // ── Scroll frame — the shared pinned-header/footer + scrolling-body primitive (MenuScrollFrame) ──
 // A pane's optional header and footer stay put (flush against the surface, never scrolling) while the
