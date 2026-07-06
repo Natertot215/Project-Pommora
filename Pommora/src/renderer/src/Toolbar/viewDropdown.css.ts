@@ -42,12 +42,16 @@ export const rowsFill = style({ flex: '1 0 auto', display: 'flex', flexDirection
 export const button = style({ paddingInline: BUTTON.padX })
 globalStyle(`${button} button`, { gap: 0 })
 
-/** The ViewPane row's push chevron — a bare button in the row's secondary tone. */
+/** A layout-neutral slot around only the button, so its right-click context menu fires on the button
+ *  chrome alone — the open pane is a sibling outside this subtree, so right-clicks there don't reach it. */
+export const buttonSlot = style({ display: 'contents' })
+
+/** The ViewPane row's push chevron — a bare button that inherits the row's trailing-cluster tone (the
+ *  `side` span's label-secondary), the same source the ViewSettings nav chevron reads. No own color. */
 export const chevronButton = style({
   border: 'none',
   background: 'none',
   padding: 0,
   cursor: 'default',
-  display: 'flex',
-  color: 'var(--label-secondary)'
+  display: 'flex'
 })

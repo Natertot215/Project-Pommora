@@ -68,10 +68,13 @@ function ViewDropdownInner({ node }: { node: CollectionNode | SetNode }): React.
   }
 
   return (
-    // biome-ignore lint/a11y/noStaticElementInteractions: onContextMenu targets the button chrome, whose
-    // interactive control is the Segmented button inside.
-    <div ref={wrapRef} className={s.wrapper} onContextMenu={(e) => void onContextMenu(e)}>
-      <SegmentedButton segments={[{ ...segment, label: view.name }]} className={s.button} labelCollapsed={!labeled} />
+    <div ref={wrapRef} className={s.wrapper}>
+      {/* The presentation menu (Show/Hide Title · Style) rides the button chrome ONLY — a display:contents
+          slot so a right-click on the open pane (a sibling below) never reaches it. */}
+      {/* biome-ignore lint/a11y/noStaticElementInteractions: the interactive control is the Segmented button inside. */}
+      <span className={s.buttonSlot} onContextMenu={(e) => void onContextMenu(e)}>
+        <SegmentedButton segments={[{ ...segment, label: view.name }]} className={s.button} labelCollapsed={!labeled} />
+      </span>
       {paneP.mounted && (
         <div className={s.anchor}>
           <MenuSurface closing={paneP.closing}>
