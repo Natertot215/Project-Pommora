@@ -17,6 +17,21 @@ import { savedView } from './views'
 
 const ulidList = z.array(z.string()).optional()
 
+// Per-container config keys. `open_in` renames from Swift's `compact | window` to `full-page |
+// page-preview`; legacy values coerce on read. Each field doubles as the read-side coercer
+// (readNexus builds nodes from raw JSON, so it calls these instead of re-parsing the whole sidecar).
+const OPEN_IN_LEGACY: Record<string, string> = { window: 'full-page', compact: 'page-preview' }
+export const openInField = z.preprocess(
+  (v) => (typeof v === 'string' ? (OPEN_IN_LEGACY[v] ?? v) : v),
+  z.enum(['full-page', 'page-preview']).optional().catch(undefined)
+)
+export const viewButtonField = z.enum(['icon', 'labeled']).optional().catch(undefined)
+export const viewStyleField = z.enum(['dropdown', 'toolbar']).optional().catch(undefined)
+
+export const coerceOpenIn = (raw: unknown): 'full-page' | 'page-preview' | undefined => openInField.parse(raw)
+export const coerceViewButton = (raw: unknown): 'icon' | 'labeled' | undefined => viewButtonField.parse(raw)
+export const coerceViewStyle = (raw: unknown): 'dropdown' | 'toolbar' | undefined => viewStyleField.parse(raw)
+
 /** Fields shared by every folder sidecar. Loose ⇒ unknown keys are retained. */
 const baseSidecar = z.looseObject({
   id: z.string(),
@@ -35,7 +50,9 @@ export const pageCollectionSidecar = baseSidecar.extend({
   properties: z.array(z.string()).optional(),
   default_sort: z.looseObject({}).optional(),
   views: z.array(savedView).optional(),
-  open_in: z.enum(['compact', 'window']).optional()
+  open_in: openInField,
+  view_button: viewButtonField,
+  view_style: viewStyleField
 })
 export type PageCollectionSidecar = z.infer<typeof pageCollectionSidecar>
 
@@ -47,7 +64,9 @@ export const pageSetSidecar = baseSidecar.extend({
   page_order: ulidList,
   set_order: ulidList,
   banner: z.string().optional(),
-  views: z.array(savedView).optional()
+  views: z.array(savedView).optional(),
+  view_button: viewButtonField,
+  view_style: viewStyleField
 })
 export type PageSetSidecar = z.infer<typeof pageSetSidecar>
 

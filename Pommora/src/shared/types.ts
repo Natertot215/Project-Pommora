@@ -142,6 +142,14 @@ export interface PageNode extends PathNode {
   kind: 'page'
 }
 
+/** How a page opens from its collection — full-view or a hovering preview window. Collection-owned;
+ *  a Set proxies its parent Collection's value. */
+export type OpenIn = 'full-page' | 'page-preview'
+/** The ViewDropdown button presentation: icon-only vs icon + view name (Show/Hide Title). */
+export type ViewButton = 'icon' | 'labeled'
+/** The view-switcher presentation: the dropdown or the inline ViewBar (Prospect). */
+export type ViewStyle = 'dropdown' | 'toolbar'
+
 export interface SetNode extends PathNode {
   kind: 'set'
   /** Child Sets nested at any depth (2-tier recursion). Optional during the migration
@@ -150,6 +158,9 @@ export interface SetNode extends PathNode {
   pages: PageNode[]
   /** Saved views from the sidecar `views[]` (depth-1 Sets only; deeper Sub-Sets ignore them). */
   views?: SavedView[]
+  /** Per-container ViewDropdown presentation (sidecar `view_button` / `view_style`). */
+  viewButton?: ViewButton
+  viewStyle?: ViewStyle
 }
 
 export interface CollectionNode extends PathNode {
@@ -161,6 +172,11 @@ export interface CollectionNode extends PathNode {
   properties?: PropertyDefinition[]
   /** Saved views from the sidecar `views[]`. */
   views?: SavedView[]
+  /** Collection-owned page-open behavior (sidecar `open_in`). */
+  openIn?: OpenIn
+  /** Per-container ViewDropdown presentation (sidecar `view_button` / `view_style`). */
+  viewButton?: ViewButton
+  viewStyle?: ViewStyle
 }
 
 export interface UserSection {

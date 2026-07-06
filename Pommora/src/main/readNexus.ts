@@ -35,6 +35,7 @@ import {
   ENTITY_ICON_KINDS
 } from '@shared/types'
 import { savedView, type SavedView } from '@shared/views'
+import { coerceOpenIn, coerceViewButton, coerceViewStyle } from '@shared/schemas'
 import type { PropertyDefinition } from '@shared/properties'
 import { adoptedId } from './ids'
 import { pathExists, readJsonObject } from './io/atomicWrite'
@@ -238,7 +239,9 @@ async function readSet(
     banner: asString(meta.banner),
     sets: resolveOrder(sets, asStringArray(meta.set_order), fb),
     pages: resolveOrder(pages, asStringArray(meta.page_order), fb),
-    views: parseViews(meta.views)
+    views: parseViews(meta.views),
+    viewButton: coerceViewButton(meta.view_button),
+    viewStyle: coerceViewStyle(meta.view_style)
   }
 }
 
@@ -280,7 +283,10 @@ async function readPageCollection(
     properties: resolveAssignedSchema(meta.properties, registry),
     sets: resolveOrder(sets, asStringArray(meta.set_order), fb),
     pages: resolveOrder(pages, asStringArray(meta.page_order), fb),
-    views: parseViews(meta.views)
+    views: parseViews(meta.views),
+    openIn: coerceOpenIn(meta.open_in),
+    viewButton: coerceViewButton(meta.view_button),
+    viewStyle: coerceViewStyle(meta.view_style)
   }
 }
 
