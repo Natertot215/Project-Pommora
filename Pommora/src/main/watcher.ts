@@ -8,7 +8,7 @@ import { relative, sep } from 'node:path'
 import chokidar, { type FSWatcher } from 'chokidar'
 import type { BrowserWindow } from 'electron'
 import { asStringArray } from './coerce'
-import { normalizeSeg } from './exclusion'
+import { excludedMatcher } from './exclusion'
 import { readJsonObject } from './io/atomicWrite'
 import { nexusConfig, NEXUS_CONFIG_FILES } from './paths'
 import { readNexus } from './readNexus'
@@ -26,24 +26,21 @@ let debounce: ReturnType<typeof setTimeout> | null = null
 // the path BELOW the root, so a dot-segment in the root's own absolute path (e.g. a nexus
 // under ~/.something) can't blank the whole watch.
 export function ignoredUnder(root: string, excluded: string[] = []): (path: string) => boolean {
-  const exclusions = excluded.map((ex) => ex.split('/').filter(Boolean).map(normalizeSeg)).filter((ex) => ex.length > 0)
+  // User-excluded folders never reach the tree, so their churn must not cost a reconcile
+  // (un-excluding a folder mid-session takes effect on the next nexus open / watcher restart).
+  const isExcluded = excludedMatcher(excluded)
   return (path) => {
     const rel = relative(root, path)
     if (!rel || rel.startsWith('..')) return false // the root itself / outside root
     const segs = rel.split(sep)
-    if (
+    return (
       segs.some(
         (seg) =>
           seg === '.trash' || // deleted items — not part of the tree
           seg.startsWith('index.db') || // SQLite index + its WAL/SHM — churns on every mutation
           (seg.startsWith('.') && seg !== '.nexus') // dotfile cruft, but .nexus holds contexts + settings
-      )
+      ) || isExcluded(segs)
     )
-      return true
-    // User-excluded folders never reach the tree, so their churn must not cost a full re-walk
-    // (un-excluding a folder mid-session takes effect on the next nexus open / watcher restart).
-    const norm = segs.map(normalizeSeg)
-    return exclusions.some((ex) => ex.every((seg, i) => norm[i] === seg))
   }
 }
 

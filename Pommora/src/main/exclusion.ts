@@ -17,15 +17,16 @@ export function shouldSkipDir(name: string, relPath: string, excluded: string[])
   // Convention skips: dot-prefixed (.nexus/.git/.trash), underscore-prefixed
   // (sidecars are files, but underscore folders are internal), and node_modules.
   if (name.startsWith('.') || name.startsWith('_') || name === 'node_modules') return true
+  return excludedMatcher(excluded)(relPath.split('/'))
+}
 
-  if (!excluded.length) return false
-
-  const rel = relPath.split('/').filter(Boolean).map(normalizeSeg)
-  for (const ex of excluded) {
-    const exSegs = ex.split('/').filter(Boolean).map(normalizeSeg)
-    if (exSegs.length === 0) continue
-    // Segment-prefix match: the excluded path is a prefix of this folder's path.
-    if (exSegs.every((seg, i) => rel[i] === seg)) return true
+/** Precompiled `excluded_folders` matcher: root-anchored, whole-segment prefix match over
+ *  normalized segments. Curried so per-event callers (the watcher) compile the list once. */
+export function excludedMatcher(excluded: string[]): (segs: string[]) => boolean {
+  const prefixes = excluded.map((ex) => ex.split('/').filter(Boolean).map(normalizeSeg)).filter((p) => p.length > 0)
+  if (prefixes.length === 0) return () => false
+  return (segs) => {
+    const norm = segs.filter(Boolean).map(normalizeSeg)
+    return prefixes.some((p) => p.every((seg, i) => norm[i] === seg))
   }
-  return false
 }
