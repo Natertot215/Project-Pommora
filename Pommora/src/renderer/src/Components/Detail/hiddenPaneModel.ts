@@ -16,7 +16,7 @@ type VisibilityPatch = Pick<SavedView, 'property_order' | 'hidden_properties'>
 
 /** The context tiers in fixed Areas · Topics · Projects order — the shown zone orders them by the
  *  view like any property; this fixed order only sequences any tiers that land in the hidden zone. */
-export const CONTEXT_TIERS = [
+const CONTEXT_TIERS = [
   RESERVED_PROPERTY_ID.tier1,
   RESERVED_PROPERTY_ID.tier2,
   RESERVED_PROPERTY_ID.tier3
