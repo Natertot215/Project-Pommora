@@ -86,6 +86,8 @@ const api = {
   // The ViewSettings Format native menu (Standard / Compact).
   viewFormatMenu: (current: 'standard' | 'compact'): Promise<'standard' | 'compact' | null> =>
     ipcRenderer.invoke('view-format-menu', current),
+  // The Configuration Open In native menu (Full Page / Preview).
+  openInMenu: (current: OpenIn): Promise<OpenIn | null> => ipcRenderer.invoke('open-in-menu', current),
   // Property schema CRUD on a Collection's page schema. containerPath is the schema-owning
   // Collection's folder (a Set inherits, so the renderer passes its ancestor Collection's path).
   schema: {

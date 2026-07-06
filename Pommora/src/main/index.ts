@@ -65,7 +65,8 @@ import { popOptionMenu } from './optionMenu'
 import { popViewButtonMenu, type ViewButtonMenuAction } from './viewButtonMenu'
 import { popViewItemMenu, type ViewItemMenuAction } from './viewItemMenu'
 import { popViewFormatMenu } from './viewFormatMenu'
-import type { ViewButton, ViewStyle } from '@shared/types'
+import { popOpenInMenu } from './openInMenu'
+import type { ViewButton, ViewStyle, OpenIn } from '@shared/types'
 import type { ViewFormat } from '@shared/views'
 import { installEditorContextMenu, setFormatState, setCalloutGrip } from './editorMenu'
 import type { FormatState } from '@shared/editorMenu'
@@ -1071,6 +1072,13 @@ ipcMain.handle('view-format-menu', async (e, current: unknown): Promise<ViewForm
   const win = BrowserWindow.fromWebContents(e.sender)
   if (!win) return null
   return popViewFormatMenu(win, current === 'compact' ? 'compact' : 'standard')
+})
+
+// The Configuration Open In control's native menu (Full Page / Preview).
+ipcMain.handle('open-in-menu', async (e, current: unknown): Promise<OpenIn | null> => {
+  const win = BrowserWindow.fromWebContents(e.sender)
+  if (!win) return null
+  return popOpenInMenu(win, current === 'page-preview' ? 'page-preview' : 'full-page')
 })
 
 // Pop a native single-item "Add Photo" menu; on click open the image picker and resolve the

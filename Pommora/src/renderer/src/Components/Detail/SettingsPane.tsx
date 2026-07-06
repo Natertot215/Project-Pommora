@@ -1,25 +1,32 @@
 import { useRef, useState } from 'react'
-import { Server, Eye, LayoutDashboard, Layers, ListFilter, ArrowUpDown, type LucideIcon } from 'lucide-react'
+import { Server, Eye, LayoutDashboard, Layers, ListFilter, ArrowUpDown, SlidersHorizontal, type LucideIcon } from 'lucide-react'
+import type { OpenIn } from '@shared/types'
 import { Icon } from '@renderer/design-system/symbols'
-import { flushTrailing } from '../../design-system/components/menu/menu.css'
+import { detail as detailText, flushTrailing, side } from '../../design-system/components/menu/menu.css'
 import { ICON } from './settingsPane.css'
 import { useSession } from '../../store'
 import { findCollection, findSet, findCollectionForSet } from '../../Detail/Scope'
+import { pickView } from '../../Detail/Views/Table/TableView'
 import { PropertiesPane } from './PropertiesPane'
 import { HiddenPane } from './HiddenPane'
+import { ViewSettings } from './ViewSettings'
 import { PaneSlider } from './PaneSlider'
 import { MenuItem, MenuSeparator, MenuCaption, MenuPaneTopRow } from '../../design-system/components/menu'
 import { IconPicker } from '../IconPicker'
 import { InlineEditHeader } from './InlineEditHeader'
 
-type PaneId = 'properties' | 'visibility' | 'layout' | 'filter' | 'group' | 'sort'
+const isMac = navigator.platform.toLowerCase().includes('mac')
+
+type PaneId = 'configuration' | 'properties' | 'visibility' | 'layout' | 'filter' | 'group' | 'sort'
 interface MenuEntry {
   id: PaneId
   label: string
   Icon: LucideIcon
 }
 
+// Root order (A-3): Configuration · Properties · Visibility · Layout · Group · Filter · Sort.
 const ENTRIES: MenuEntry[] = [
+  { id: 'configuration', label: 'Configuration', Icon: SlidersHorizontal },
   { id: 'properties', label: 'Properties', Icon: Server },
   { id: 'visibility', label: 'Visibility', Icon: Eye },
   { id: 'layout', label: 'Layout', Icon: LayoutDashboard },
@@ -27,17 +34,17 @@ const ENTRIES: MenuEntry[] = [
   { id: 'filter', label: 'Filter', Icon: ListFilter },
   { id: 'sort', label: 'Sort', Icon: ArrowUpDown }
 ]
-const PANE_LABEL = Object.fromEntries(ENTRIES.map((e) => [e.id, e.label])) as Record<PaneId, string>
 
 /**
- * The Collection/Set settings menu — the content rendered inside the settings dropdown
- * (SettingsDropdown) when a Collection or Set is selected: an icon+title header (inline rename, icon
- * → IconPicker) over Properties · Visibility · Layout | Filter · Group · Sort as a push/back nav
- * stack. The dropdown shell (anchor + glass MenuSurface) and per-view routing live in SettingsDropdown.
+ * The Collection/Set settings menu — the content rendered inside the settings dropdown when a
+ * Collection or Set is selected: an icon+title header over Configuration · Properties · Visibility ·
+ * Layout · Group · Filter · Sort as a push/back nav stack. Layout opens the active view's ViewSettings
+ * (the flat door); Configuration holds the collection's Open In. Group/Filter/Sort ship blank-leafed.
  */
 export function SettingsPane(): React.JSX.Element | null {
   const selection = useSession((st) => st.selection)
   const tree = useSession((st) => st.tree)
+  const load = useSession((st) => st.load)
   const submitRename = useSession((st) => st.submitRename)
   const [pane, setPane] = useState<PaneId | 'root'>('root')
   const lastDetail = useRef<PaneId>('properties')
@@ -49,28 +56,57 @@ export function SettingsPane(): React.JSX.Element | null {
       : selection.kind === 'set'
         ? findSet(tree, selection.id)
         : undefined
+  const activeViewId = useSession((st) => st.activeViews[node?.id ?? ''])
   if (!node) return null
 
   // Schema lives only on the Collection; a Set inherits its ancestor Collection's schema.
-  const schemaCollection =
-    selection.kind === 'collection'
-      ? findCollection(tree, selection.id)
-      : selection.kind === 'set'
-        ? findCollectionForSet(tree, selection.id)
-        : undefined
+  const schemaCollection = node.kind === 'collection' ? node : findCollectionForSet(tree, node.id)
+  const schema = schemaCollection?.properties ?? []
 
   const open = (id: PaneId): void => {
     lastDetail.current = id
     setPane(id)
   }
   const back = (): void => setPane('root')
-  // Slot B keeps rendering the last-opened detail while sliding back, so it doesn't blank mid-retract.
   const detailId = pane === 'root' ? lastDetail.current : pane
 
-  const pendingPane = (message: string): React.JSX.Element => (
+  // Open In is Collection-owned: a Set writes to (and reads from) its ancestor Collection.
+  const openInValue: OpenIn = schemaCollection?.openIn ?? 'full-page'
+  const setOpenIn = async (v: OpenIn): Promise<void> => {
+    if (!schemaCollection) return
+    await window.nexus.container.configure(schemaCollection.path, 'collection', { open_in: v })
+    await load()
+  }
+  const pickOpenIn = async (): Promise<void> => {
+    if (!isMac) return
+    const v = await window.nexus.openInMenu(openInValue)
+    if (v) await setOpenIn(v)
+  }
+
+  const blankLeaf = <MenuPaneTopRow label="Settings" onBack={back} />
+  const schemaUnavailable = (
     <>
       <MenuPaneTopRow label="Settings" onBack={back} />
-      <MenuCaption>{message}</MenuCaption>
+      <MenuCaption>Schema unavailable.</MenuCaption>
+    </>
+  )
+
+  const configurationLeaf = (
+    <>
+      <MenuPaneTopRow label="Settings" onBack={back} />
+      <MenuItem
+        className={flushTrailing}
+        leading={<Icon name="layout-grid" size={ICON.rootEntry} />}
+        trailing={
+          <span className={side}>
+            <span className={detailText}>{openInValue === 'page-preview' ? 'Preview' : 'Full Page'}</span>
+            <Icon name="chevrons-up-down" size={ICON.rowChevron} />
+          </span>
+        }
+        onClick={() => void pickOpenIn()}
+      >
+        Open In
+      </MenuItem>
     </>
   )
 
@@ -97,20 +133,24 @@ export function SettingsPane(): React.JSX.Element | null {
   )
 
   const detail =
-    detailId === 'properties' ? (
+    detailId === 'configuration' ? (
+      configurationLeaf
+    ) : detailId === 'properties' ? (
       schemaCollection ? (
-        <PropertiesPane collectionPath={schemaCollection.path} schema={schemaCollection.properties ?? []} onBack={back} />
+        <PropertiesPane collectionPath={schemaCollection.path} schema={schema} onBack={back} />
       ) : (
-        pendingPane('Schema unavailable.')
+        schemaUnavailable
       )
     ) : detailId === 'visibility' ? (
       schemaCollection ? (
-        <HiddenPane source={node} schema={schemaCollection.properties ?? []} onBack={back} />
+        <HiddenPane source={node} schema={schema} onBack={back} />
       ) : (
-        pendingPane('Schema unavailable.')
+        schemaUnavailable
       )
+    ) : detailId === 'layout' ? (
+      <ViewSettings source={node} view={pickView(node, activeViewId, schema)} schema={schema} door="flat" onBack={back} onClose={back} />
     ) : (
-      pendingPane(`${PANE_LABEL[detailId]} — pending`)
+      blankLeaf
     )
 
   return (
