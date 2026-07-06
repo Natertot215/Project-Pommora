@@ -22,6 +22,7 @@ import { readFolds, writeFolds, type FoldState } from './io/folds'
 import { readActiveViews, writeActiveViews, type ActiveViews } from './io/activeViews'
 import { readViewOrders, writeViewOrders, type ViewOrders } from './io/viewOrders'
 import { saveView, reorderViews, deleteView } from './crud/views'
+import { setContainerConfig, type ContainerConfigPatch } from './crud/containerConfig'
 import { loadValues } from './crud/loadValues'
 import { createProperty, editProperty, removeFromRegistry, reorderRegistry } from './crud/registryProperty'
 import { assignProperty, assignPropertyAt, reorderAssignment } from './crud/assignment'
@@ -443,7 +444,7 @@ ipcMain.handle(
       if (!c.ok) return c
       const parsed = savedView.safeParse(view)
       if (!parsed.success) return { ok: false, error: 'Invalid view payload.' }
-      const r = await saveView(c.folder, c.kind, parsed.data)
+      const r = await serializeOnFile(c.folder, () => saveView(c.folder, c.kind, parsed.data))
       return r.ok ? { ok: true, id: r.value.id } : { ok: false, error: r.error.message }
     } catch (e) {
       return { ok: false, error: e instanceof Error ? e.message : String(e) }
@@ -459,7 +460,7 @@ ipcMain.handle(
       if (!Array.isArray(orderedIds) || !orderedIds.every((x) => typeof x === 'string')) {
         return { ok: false, error: 'orderedIds must be a string array.' }
       }
-      const r = await reorderViews(c.folder, c.kind, orderedIds)
+      const r = await serializeOnFile(c.folder, () => reorderViews(c.folder, c.kind, orderedIds))
       return r.ok ? { ok: true } : { ok: false, error: r.error.message }
     } catch (e) {
       return { ok: false, error: e instanceof Error ? e.message : String(e) }
@@ -473,7 +474,24 @@ ipcMain.handle(
       const c = await resolveViewContainer(containerPath, kind)
       if (!c.ok) return c
       if (typeof viewId !== 'string') return { ok: false, error: 'A view id is required.' }
-      const r = await deleteView(c.folder, c.kind, viewId)
+      const r = await serializeOnFile(c.folder, () => deleteView(c.folder, c.kind, viewId))
+      return r.ok ? { ok: true } : { ok: false, error: r.error.message }
+    } catch (e) {
+      return { ok: false, error: e instanceof Error ? e.message : String(e) }
+    }
+  }
+)
+
+// Per-container non-view settings (open_in / view_button / view_style) — the synced sidecar write
+// behind the ViewDropdown context menu + the Configuration/Open In row. Serialized like the view writes.
+ipcMain.handle(
+  'container:configure',
+  async (_e, containerPath: unknown, kind: unknown, patch: unknown): Promise<{ ok: true } | { ok: false; error: string }> => {
+    try {
+      const c = await resolveViewContainer(containerPath, kind)
+      if (!c.ok) return c
+      if (patch === null || typeof patch !== 'object') return { ok: false, error: 'A config patch is required.' }
+      const r = await serializeOnFile(c.folder, () => setContainerConfig(c.folder, c.kind, patch as ContainerConfigPatch))
       return r.ok ? { ok: true } : { ok: false, error: r.error.message }
     } catch (e) {
       return { ok: false, error: e instanceof Error ? e.message : String(e) }

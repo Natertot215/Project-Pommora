@@ -6,6 +6,7 @@
 import { mkdir } from 'node:fs/promises'
 import { nexusConfig, nexusDir, NEXUS_CONFIG_FILES } from '../paths'
 import { readJsonObject, writeJson } from './atomicWrite'
+import { serializeOnFile } from './fileLock'
 
 /** view id → manual page-id order (the sort tiebreaker). */
 export type ViewOrders = Record<string, string[]>
@@ -23,11 +24,14 @@ export async function readViewOrders(root: string): Promise<ViewOrders> {
   return out
 }
 
-/** Set (or, with an empty array, clear) the manual order for a view; leaves other views intact. */
+/** Set (or, with an empty array, clear) the manual order for a view; leaves other views intact.
+ *  Serialized on the file so two overlapping writes can't lose each other's read-merge-write. */
 export async function writeViewOrders(root: string, viewId: string, order: string[]): Promise<void> {
-  const current = await readViewOrders(root)
-  if (order.length === 0) delete current[viewId]
-  else current[viewId] = order
-  await mkdir(nexusDir(root), { recursive: true })
-  await writeJson(viewOrdersPath(root), current)
+  await serializeOnFile(viewOrdersPath(root), async () => {
+    const current = await readViewOrders(root)
+    if (order.length === 0) delete current[viewId]
+    else current[viewId] = order
+    await mkdir(nexusDir(root), { recursive: true })
+    await writeJson(viewOrdersPath(root), current)
+  })
 }

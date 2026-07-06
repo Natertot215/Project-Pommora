@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import type { IpcRendererEvent } from 'electron'
-import type { NexusState, NexusTree, PageResult, Personalization, SubfieldConfig } from '@shared/types'
+import type { NexusState, NexusTree, OpenIn, PageResult, Personalization, SubfieldConfig, ViewButton, ViewStyle } from '@shared/types'
 import type { MutateRequest, MutateResult, ContextTarget } from '@shared/mutate'
 import type { FormatState } from '@shared/editorMenu'
 import type { TableMenuAction, TableMenuContext } from '@shared/tableMenu'
@@ -64,6 +64,15 @@ const api = {
       viewId: string
     ): Promise<{ ok: true } | { ok: false; error: string }> =>
       ipcRenderer.invoke('views:delete', containerPath, kind, viewId)
+  },
+  // Per-container non-view settings (open_in is collection-only; view_button / view_style either tier).
+  container: {
+    configure: (
+      containerPath: string,
+      kind: 'collection' | 'set',
+      patch: { open_in?: OpenIn; view_button?: ViewButton; view_style?: ViewStyle }
+    ): Promise<{ ok: true } | { ok: false; error: string }> =>
+      ipcRenderer.invoke('container:configure', containerPath, kind, patch)
   },
   // Property schema CRUD on a Collection's page schema. containerPath is the schema-owning
   // Collection's folder (a Set inherits, so the renderer passes its ancestor Collection's path).

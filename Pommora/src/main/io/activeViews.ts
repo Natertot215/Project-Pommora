@@ -6,6 +6,7 @@
 import { mkdir } from 'node:fs/promises'
 import { nexusConfig, nexusDir, NEXUS_CONFIG_FILES } from '../paths'
 import { readJsonObject, writeJson } from './atomicWrite'
+import { serializeOnFile } from './fileLock'
 
 /** container id → active view id. */
 export type ActiveViews = Record<string, string>
@@ -23,11 +24,14 @@ export async function readActiveViews(root: string): Promise<ActiveViews> {
   return out
 }
 
-/** Set (or, with an empty viewId, clear) the active view for a container. */
+/** Set (or, with an empty viewId, clear) the active view for a container.
+ *  Serialized on the file so rapid switches can't lose each other's read-merge-write. */
 export async function writeActiveViews(root: string, containerId: string, viewId: string): Promise<void> {
-  const current = await readActiveViews(root)
-  if (viewId === '') delete current[containerId]
-  else current[containerId] = viewId
-  await mkdir(nexusDir(root), { recursive: true })
-  await writeJson(activeViewsPath(root), current)
+  await serializeOnFile(activeViewsPath(root), async () => {
+    const current = await readActiveViews(root)
+    if (viewId === '') delete current[containerId]
+    else current[containerId] = viewId
+    await mkdir(nexusDir(root), { recursive: true })
+    await writeJson(activeViewsPath(root), current)
+  })
 }
