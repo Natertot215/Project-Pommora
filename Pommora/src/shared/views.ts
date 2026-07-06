@@ -16,8 +16,11 @@ import { z } from 'zod'
 import { columnStyle, type ColumnStyle } from './columnStyles'
 import { type PropertyDefinition, RESERVED_PROPERTY_ID } from './properties'
 
-const VIEW_TYPES = ['table', 'board', 'list', 'cards', 'gallery'] as const
+const VIEW_TYPES = ['table', 'cards', 'list', 'gallery', 'calendar', 'timeline'] as const
 export type ViewType = (typeof VIEW_TYPES)[number]
+
+const VIEW_FORMATS = ['standard', 'compact'] as const
+export type ViewFormat = (typeof VIEW_FORMATS)[number]
 
 const CARD_SIZES = ['small', 'medium', 'large'] as const
 export type CardSize = (typeof CARD_SIZES)[number]
@@ -92,6 +95,9 @@ export interface SavedView {
   sort?: SortCriterion[]
   filter?: FilterGroup
   group?: GroupConfig
+  /** Table density style — persisted per-view; drives a class on the table root (Compact CSS is a
+   *  later cycle, so this is inert on read today). */
+  format?: ViewFormat
   /** Manual structural band order — ONE flat set-id array covering every nesting level (ids are
    *  unique across the tree). View-level, not on `group`: the structural GroupConfig decoder
    *  drops extra fields. Unlisted sets trail in fs order; absent = derive from fs `set_order`. */
@@ -187,6 +193,7 @@ export const savedView = z.looseObject({
   sort: z.array(sortCriterion).optional(),
   filter: filterGroup.optional(),
   group: z.unknown().transform(decodeGroupConfig).optional(),
+  format: z.enum(VIEW_FORMATS).optional().catch(undefined),
   // Element-filtering, never whole-array catch: one bad entry drops alone, the good ids survive.
   group_order: z
     .array(z.unknown())
@@ -203,16 +210,42 @@ export const VIEW_ID_PREFIX = 'view_'
  *  this for a real `view_<ulid>` on first save (see crud/views). */
 export const DEFAULT_VIEW_ID = `${VIEW_ID_PREFIX}default`
 
-/** Mint a default Table view for a container with no saved views: Title-first, all user props
- *  visible, structural grouping, no sort, no `_modified_at` column. Carries the sentinel id. */
-export function mintDefaultView(schema: PropertyDefinition[]): SavedView {
-  return {
-    id: DEFAULT_VIEW_ID,
-    name: 'Table',
-    icon: 'tablecells',
-    type: 'table',
-    property_order: [RESERVED_PROPERTY_ID.title, ...schema.map((d) => d.id)],
-    hidden_properties: [],
-    group: { kind: 'structural' }
+/** The fields every minted view shares — sentinel id, table type, structural grouping, table glyph.
+ *  Legacy `'tablecells'` sidecars still resolve via each consumer's `iconNameOr(view.icon, 'table')`. */
+const mintBase = (name: string) => ({
+  id: DEFAULT_VIEW_ID,
+  name,
+  icon: 'table',
+  type: 'table' as const,
+  group: { kind: 'structural' as const }
+})
+
+/** Title-only visibility for a `+`-minted view of a given type — the per-ViewType seam (only Table
+ *  ships; a future type adds its own case). Table hides every schema id and all three tiers, so the
+ *  guaranteed Title is the sole column (verified through resolveColumns). */
+function mintVisibility(type: ViewType, schema: PropertyDefinition[]): Pick<SavedView, 'property_order' | 'hidden_properties'> {
+  switch (type) {
+    default:
+      return {
+        property_order: [RESERVED_PROPERTY_ID.title],
+        hidden_properties: [
+          ...schema.map((d) => d.id),
+          RESERVED_PROPERTY_ID.tier1,
+          RESERVED_PROPERTY_ID.tier2,
+          RESERVED_PROPERTY_ID.tier3
+        ]
+      }
   }
+}
+
+/** Mint the seeded/entry-minted default Table view (all user props visible, no sort, no
+ *  `_modified_at` column). Carries the sentinel id until first save. */
+export function mintDefaultView(schema: PropertyDefinition[]): SavedView {
+  return { ...mintBase('Table'), property_order: [RESERVED_PROPERTY_ID.title, ...schema.map((d) => d.id)], hidden_properties: [] }
+}
+
+/** Mint a `+`-created view: title-only (every assigned property + the default-on tiers hidden), routed
+ *  through the per-type visibility seam. Carries the sentinel id until first save. */
+export function mintNewView(name: string, schema: PropertyDefinition[]): SavedView {
+  return { ...mintBase(name), ...mintVisibility('table', schema) }
 }

@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import fixture from './__fixtures__/collection-with-status.json'
-import { savedView, decodeGroupConfig } from './views'
+import { savedView, decodeGroupConfig, mintDefaultView, mintNewView } from './views'
 import { pageCollectionSidecar } from './schemas'
+import { RESERVED_PROPERTY_ID } from './properties'
 
 describe('SavedView decode', () => {
   it('parses the fixture Table view (type, property_order, group, sort)', () => {
@@ -105,5 +106,42 @@ describe('decodeGroupConfig (lenient, mirrors Swift)', () => {
     expect(decodeGroupConfig('nope')).toEqual({ kind: 'structural' })
     expect(decodeGroupConfig([])).toEqual({ kind: 'structural' })
     expect(decodeGroupConfig({})).toEqual({ kind: 'structural' })
+  })
+})
+
+describe('SavedView format', () => {
+  const base = { id: 'view_x', name: 'B', property_order: [], hidden_properties: [] }
+  it('coerces an unknown type to table and round-trips a valid format', () => {
+    const v = savedView.parse({ ...base, type: 'board', format: 'compact' })
+    expect(v.type).toBe('table')
+    expect(v.format).toBe('compact')
+  })
+  it('drops an unknown format value', () => {
+    const v = savedView.parse({ ...base, type: 'table', format: 'huge' })
+    expect(v.format).toBeUndefined()
+  })
+})
+
+describe('mint seam', () => {
+  const schema = [{ id: 'prop_a' }, { id: 'prop_b' }] as never[]
+  it('mintNewView is title-only: schema ids and all three tiers hidden', () => {
+    const v = mintNewView('Untitled', schema)
+    expect(v.name).toBe('Untitled')
+    expect(v.type).toBe('table')
+    expect(v.icon).toBe('table')
+    expect(v.property_order).toEqual([RESERVED_PROPERTY_ID.title])
+    expect(v.hidden_properties).toEqual([
+      'prop_a',
+      'prop_b',
+      RESERVED_PROPERTY_ID.tier1,
+      RESERVED_PROPERTY_ID.tier2,
+      RESERVED_PROPERTY_ID.tier3
+    ])
+  })
+  it('mintDefaultView stays all-shown with the table glyph', () => {
+    const v = mintDefaultView(schema)
+    expect(v.hidden_properties).toEqual([])
+    expect(v.property_order).toEqual([RESERVED_PROPERTY_ID.title, 'prop_a', 'prop_b'])
+    expect(v.icon).toBe('table')
   })
 })
