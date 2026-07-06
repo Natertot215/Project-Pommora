@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useLayoutEffect, useRef, useState } from 'react'
 import type { CollectionNode, SetNode } from '@shared/types'
 import { SegmentedSymbol, SegmentedButton, type Segment } from '@renderer/design-system/components/Segmented-Controls'
 import { useDismiss } from '@renderer/design-system/components/Popover'
@@ -37,11 +37,17 @@ function ViewDropdownInner({ node }: { node: CollectionNode | SetNode }): React.
   const wrapRef = useRef<HTMLDivElement>(null)
   useDismiss(wrapRef, () => setOpen(false), open)
   const paneP = useExitPresence(open)
+  // The pane is right-aligned to the button, so aim its notch at the button's centre (half the button
+  // width in from the pane's right edge). The absolute pane doesn't affect the wrapper's in-flow width.
+  const [btnW, setBtnW] = useState(0)
+  const labeled = (node.viewButton ?? 'icon') === 'labeled'
+  useLayoutEffect(() => {
+    if (wrapRef.current) setBtnW(wrapRef.current.offsetWidth)
+  }, [labeled])
 
   const schema =
     node.kind === 'collection' ? (node.properties ?? []) : (findCollectionForSet(tree, node.id)?.properties ?? [])
   const { view } = useActiveView(node, schema)
-  const labeled = (node.viewButton ?? 'icon') === 'labeled'
 
   const onContextMenu = async (e: React.MouseEvent): Promise<void> => {
     e.preventDefault()
@@ -78,7 +84,7 @@ function ViewDropdownInner({ node }: { node: CollectionNode | SetNode }): React.
       )}
       {paneP.mounted && (
         <div className={s.anchor}>
-          <MenuSurface closing={paneP.closing}>
+          <MenuSurface closing={paneP.closing} notchInsetRight={btnW ? btnW / 2 : undefined}>
             <ViewPane node={node} schema={schema} onClose={() => setOpen(false)} />
           </MenuSurface>
         </div>
