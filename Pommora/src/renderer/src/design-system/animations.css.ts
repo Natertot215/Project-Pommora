@@ -38,3 +38,8 @@ export const dropdownClose = style({
   animation: `dropdown-menu-out ${duration.dropdown} ${BLOOM} both`,
   transformOrigin: 'var(--dropdown-origin, top center)'
 })
+
+// Title reveal — the ViewDropdown's labeled title sliding in/out as Show/Hide Title toggles. The panes'
+// Bloom curve on the snappy `dropdown` token, expressed as a transition timing (a two-state morph, not
+// a keyframe) so a consumer drops it onto whatever properties slide.
+export const titleReveal = `${duration.dropdown} ${BLOOM}`

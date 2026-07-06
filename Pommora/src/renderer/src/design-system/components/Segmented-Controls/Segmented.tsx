@@ -1,7 +1,7 @@
 import { Fragment } from 'react'
 import { GlassControls } from '../../materials'
 import { Icon, type IconName } from '../../symbols'
-import { vars, text, type ButtonSize, type IconSize } from '../../tokens'
+import { vars, type ButtonSize, type IconSize } from '../../tokens'
 import * as s from './segmented.css'
 
 /** One segment of a segmented control. `active` is accepted but never drawn (no
@@ -26,6 +26,9 @@ type SegmentedProps = {
   className?: string
   /** Drop the glass pill, rendering bare buttons (the consumer supplies its own glass layer). */
   glass?: boolean
+  /** Collapse the label to zero width (it stays mounted and slides back on toggle) — the labeled
+   *  control's icon-only state. Only meaningful with a labeled segment. */
+  labelCollapsed?: boolean
 }
 
 function Segmented({
@@ -34,6 +37,7 @@ function Segmented({
   paddingX,
   iconSize,
   withLabel,
+  labelCollapsed,
   className,
   glass = true
 }: SegmentedProps & { withLabel: boolean }): React.JSX.Element {
@@ -66,7 +70,11 @@ function Segmented({
             aria-pressed={seg.active}
           >
             <Icon name={seg.icon} />
-            {withLabel && seg.label && <span className={text.control.standard}>{seg.label}</span>}
+            {withLabel && seg.label && (
+              <span className={labelCollapsed ? `${s.labelSlot} ${s.labelSlotHidden}` : s.labelSlot}>
+                <span className={s.labelText}>{seg.label}</span>
+              </span>
+            )}
           </button>
         </Fragment>
       ))}

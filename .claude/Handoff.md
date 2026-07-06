@@ -1,150 +1,133 @@
 ## Handoff — Pommora React
 
-A long multi-day session (06-27 → 07-04) that built the Properties + Tables + ViewPane stack end-to-end, then the Link/URL property pane. Shipped green on `main` through **1140 tests**: PropertiesV2 (the nexus-wide property registry), the Tables cell-gesture + group-band system (Phases 1-3, including the grouped Status editor), and the 7-2 ViewPane Properties assign-flow. The Link/URL stint (07-04) shipped green at **1210** and is committed on `main` (`6962951c`), landed alongside the Personalization config + MarkdownPM outliner work.
-
-**Session ID:** de564e01-aa38-498e-b9f8-5db92904a48a
-**Dates:** 06-27-2026 → 07-04-2026
-
-> **Nathan (pinned):** The link/URL pane — what I assumed was the SIMPLEST interface — turned into 8+ hours of refactoring & bug fixes, because the codec, the render pipeline, and the shared caret/picker/input machinery all converge on that one cell. The next session is just finishing another property pane.
-
 > ⚡ **Cornerstone — carry into every handoff, unchanged (Nathan's voice).**
 > *"You do NOT guess — you LOOK, and you ASK. Open the file and read the code before you assert anything; ask me when you're unsure. A plan built on an unverified claim is a liability, not progress — treat every doc, every `file:line`, every 'it works like X' as a hypothesis until you've read the code that proves it. Honesty over confidence; confidence is earned through evidence."*
 
-**Model:** Opus 4.8 → Fable 5 → Opus 4.8
-**Compactions:** ~18 (best-effort; multi-window session)
-**Connectors:** Figma MCP (early — Switch component); Electron CDP for live screenshots + UI drive (not MCP)
-**Agents:** general-purpose (adversarial reviews ×6+), code-simplifier (×7), build-breaking-agent (×6)
-**Skills:** handoff; `superpowers:brainstorming` / `writing-plans` / `executing-plans`; `studio-brainstorm`
+### Recent Work
 
-**The Tables cell + group system (Phases 1-3):** the full cell-gesture matrix — title navigates; status/select/multi/context open the PickerMenu-based `PropertyPicker`; a checkbox-look status cycles its group; numbers inline-edit, urls/files open through sanctioned IPC; right-click always menus (per-type Style + Clear). Per-view looks + formats persist in the SavedView's `column_styles`, never the definition. Group bands drag to reorder — structural → the view-level `group_order`, property → `group.order` + manual mode, a Set band nests via a real `moveSet`; value-less rows flatten header-less at the bottom (no "None" band). Band headers mirror the sidebar (glyph-click toggle, double-click open, right-click the native set menu + inline rename). The reusable editing surfaces live table-agnostic in `Detail/Views/PropertyEditing/` for Gallery/List reuse. → `Features/TableView.md`.
+Prior arcs, compressed — the detail lives in `Features/*` + `History.md`.
 
-**The Status property:** an OPEN group model — each group is a stable `id` carrying a user-editable label, a color, and its own options; it ships three calendar-phase defaults (**Open / Active / Done**), and further groups drop into the enum with no data change (a future EventKit bridge maps a per-group done-semantic). Group ids are load-bearing — all status logic keys off the id; order is display-only. An option's `value` IS its label (value=title); a rename cascades the new value onto every assigning page's `$status`. The grouped Status editor edits it in place: a per-group `+` for an inline-named option, hover-recolor, drag within/across groups, and a right-click **Rename · Remove · Clear**. → `Features/Properties.md`.
+- **PropertiesV2 — the nexus-wide registry.** Definitions live in `.nexus/properties.json` (`{order, defs}`); a Collection's sidecar holds only its assignment-id array; `readNexus` joins the two so every surface gets a resolved schema. Registry mutations serialize; SQLite mirrors it as a regeneratable accelerator.
 
-**The 7-2 ViewPane Properties flow:** the Properties pane is the full assign surface — assigned rows over a bottom-pinned **All Properties** disclosure that rises open on the pane's beat; promote a definition by its `+` or by dragging it into the assigned group; drag within a group reorders (assigned = the Collection's order, All Properties = the nexus order); drag an assigned row out **Removes** it (strip-and-cache, restored by validating the cached encoding against the def's DECLARED type). The global **Delete** lives only inside a property's own editor pane, behind main's confirm. Creating mints into the registry (+ the nexus order) and assigns here. → `History.md` 07-02, `Features/Properties.md`, the 6-28 spec.
+- **Tables cell + group system (Phases 1-3).** The full cell-gesture matrix (title navigates · status/select/multi/context open the PickerMenu `PropertyPicker` · numbers inline-edit · urls/files open through IPC · right-click always menus). Per-view looks/formats persist in the SavedView's `column_styles`. Group bands drag to reorder; the reusable editing surfaces live table-agnostic in `Detail/Views/PropertyEditing/`. → `Features/TableView.md`.
 
-**PropertiesV2 — the nexus-wide registry:** definitions live nexus-wide in `.nexus/properties.json` (`{order, defs}` — the defs plus a nexus-wide cosmetic display order); a Collection's sidecar holds only its assignment-id array; `readNexus` joins the two so every surface receives a resolved schema (the `schema:*` IPC is unchanged). Registry mutations serialize; SQLite mirrors it as a pure, regeneratable accelerator. → `History.md` 07-01.
+- **Status property — an open group model.** Each group is a stable `id` with a user-editable label, color, and options; three calendar-phase defaults (Open / Active / Done). An option's `value` IS its label; a rename cascades onto every assigning page's `$status`. The grouped editor edits in place. → `Features/Properties.md`.
 
-**The Link/URL property pane (07-04):** the URL/Link property pane, front to back. Value resolution scopes to the column's DECLARED type — `resolveFieldValue` (`pipeline/value.ts`) coerces the plain-string kinds (url/select/datetime) to the column type post-cache, so a `[alias](url)` link resolves as a url, not a select pill (schema is threaded through the pipeline + sort helpers; sort/filter key on `alias ?? url`, never the async title). `link-title` mode shows a fetched page `<title>` — main owns the `net` fetch + `<title>` parse + the `.nexus/linkTitles.json` cache (sync-excluded, StringDecoder-safe across chunk boundaries), with a bare-domain fallback; an alias always wins. The rename popover sets the alias, stored markdown-native as `[alias](url)`. Nathan's takeaway (pinned): the surface he expected to be simplest cost 8+ hours because the codec, the render pipeline, and the shared caret/picker/input machinery all converge on this one cell. → `Features/Properties.md`.
+- **7-2 ViewPane Properties assign-flow.** Assigned rows over a bottom-pinned **All Properties** disclosure; promote by `+`/drag, drag-out **Removes** (strip-and-cache, restored against the DECLARED type). The global **Delete** lives only in a property's own editor pane. → `Features/Properties.md`.
 
-**Chips + the hover-×:** chips are shape primitives (`chipPill` · `chipLabel` 6px-radius owning select/multi · `chipContext` · `chipCapsule` · `chipBox`). Every PILL chip reveals a hover-× on its right third — an opacity-only melt (the text renders three times; the reveal flips opacities, a pre-masked `blur(2px)` fill-colored twin under a crisp copy), the shape forced by a Chromium dropped-repaint family (laws + a mandatory re-verify matrix → `Guidelines/Build-Gotchas.md §Chip Melt`); capsule/checkbox looks clear via their menu instead. **No-empties rule** in `applyPropertyValue`: null OR empty (`[]`/`''`) deletes the key — checkbox-false and number-0 stay, and tier `area: []` deliberately keeps writing (context-wiping fights the nexus index). → `Features/TableView.md`.
+- **Link/URL property pane (07-04).** `resolveFieldValue` coerces plain-string kinds to the column's DECLARED type post-cache; `link-title` mode fetches the page `<title>` (main owns `net` + parse + `.nexus/linkTitles.json` cache), an alias always wins, stored markdown-native as `[alias](url)`. Nathan's pin: the surface he expected to be simplest cost 8+ hours because the codec, render pipeline, and shared caret/picker/input machinery all converge on one cell.
 
-**Table overflow + the DRY OverflowScroll:** every column holds its resolved width; a table wider than the pane h-scrolls the whole view past it (capped-with-filler when it fits, the right inset flattened while overflowing — from ONE table-level ResizeObserver). `design-system/components/OverflowScroll.tsx` is THE truncate-hover-scroll box (the icon rides inside the scroll box, an rAF bounce-back, a two-edge eclipse fade so clipped content never hard-cuts), wrapped around every cell content type and shared with the sidebar rows. → `Features/TableView.md` §Overflow & Scroll.
+- **Chips · Overflow · Perf.** Chips are shape primitives with an opacity-only hover-× melt (a Chromium dropped-repaint family forces the shape → `Guidelines/Build-Gotchas.md §Chip Melt`); the no-empties rule in `applyPropertyValue` deletes null/empty keys but keeps `false`/`0` and tier `area: []`. `OverflowScroll.tsx` is THE truncate-hover-scroll box. Hot paths are cached/memoized (mtime-gated walk cache, WeakMap value-parse cache, `React.memo` rows, var-driven column drag).
 
-**Perf posture:** the hot paths are cached/memoized — the mtime-gated walk cache in main (watcher events stat everything, parse only what changed — `walkCache.ts`), one WeakMap value-parse cache keyed on frontmatter identity, `React.memo` rows over identity-stable props, a var-driven column drag (no per-frame table re-render), store-level structural sharing (watcher echoes are no-ops), and all drag geometry snapshotted at activation (no per-pointermove rect storm). **Standing debt:** no row virtualization (bites at thousands), and external VALUE edits don't live-refresh an open table — see Pending Focuses.
+- **Session B — mobile future-proofing (07-04, separate session `164497e3`).** A `studio-brainstorm` ratified a **Capacitor iOS companion** spec (reuse the renderer in a WebView, re-host main natively, iCloud app-container sync, most-recent-wins) under `.claude/Mobile/` (`MobileSpec` + 6 siblings, mirrored to `II. Mobile`); a scoped **port, not a rewrite**. Four behavior-preserving desktop pre-paves shipped (`02bb4e11`): a standalone browser Vite target (`npm run dev:app`), one shared `assetUrl.ts`, a `DEVICE_LOCAL_NEXUS_FILES` set in `paths.ts`, and iOS soft-keyboard input attrs on MarkdownPM. Parked — no build commitment.
 
-**Lessons Learned**
+### Session Summary — Multi-View Scaffolding
 
-- **"Please confirm" means STOP and talk, then wait.** State the understanding, end the turn, implement on the go-ahead. → memory `feedback-confirm-means-stop-and-talk`.
-
-- **Same nominal icon size ≠ same visual size across libraries.** Tabler and Lucide draw different glyph geometry in the same box; when surfaces must match, they share the SOURCE (the registry), not just the size literal. Nathan spots a mismatch instantly.
-
-- **A restore path must validate against the DECLARED type, never re-infer by shape.** `parsePropertyValue`'s shape precedence is load-bearing for reads, but routing restore (or any value resolution) through it destroys select values shaped like dates/URLs — validate against the column's declared type at the write-back / post-cache.
-
-- **Every read-modify-write surface needs its own serialization chain.** The registry had `mutateRegistry`, pages `serializeOnFile`; a new RMW surface with none corrupts under concurrency (a Remove racing an Assign, 24/25 runs). New RMW = new chain, day one.
-
-- **A lock key must be canonicalized, or it silently splits.** `serializeOnFile` keys on the path STRING — a realpath'd path vs a raw session-root-joined one hit two buckets on any symlinked-root ancestry, and the same file never serialized. Canonicalize the root ONCE at `openSession`; canonical on the locks, RAW on what you persist/show. A test using raw paths on both sides hid it — a race regression test must derive its keys exactly as production does.
-
-- **Nathan's knob requests are SCOPED.** "The padding in JUST the viewpane" means a viewpane-local class, not the shared primitive — over-scoping a knob is a miss even when the value's right. And when a knob doesn't move what he's pointing at, find the ACTUAL holder.
-
-- **Don't chain the gate and the commit in one command; a pipe masks an exit code.** `vitest; git commit` commits on a red suite; `vitest | tail` exits with tail's 0. Capture to a file, read `$?`, then commit separately.
-
-- **`scrollWidth` floors at `clientWidth`** — any "is content bigger than the box" that subtracts a hypothetical from `clientWidth` while comparing against `scrollWidth` is a one-way latch. Compare KNOWN content size (state) against the box.
-
-- **React 19 does not delegate `scroll`.** `onScroll` on an ancestor never fires for a descendant's scroll; use a native capture-phase listener, or own the node.
-
-- **Diagnose the real complaint in code before asking.** → memory `feedback-diagnose-before-asking`.
-
-- **An overlay rendered inside its own trigger re-fires the trigger.** A cell picker living inside the cell whose click opens it needs a propagation boundary, or the option-click bubbles back and re-opens it. Apply to every in-cell editor.
-
-- **A feature can be CDP-verified correct three times and still be wrong.** Screenshots prove mechanics, not feel — a visual-preference feature isn't done until Nathan uses it by hand.
-
-- **A memoized context freezes every closure behind it.** A context memo froze a callback to first-render props (async-loaded data didn't exist yet), so it silently no-op'd. The house fix is the ref pattern (`onDropRef.current`). Any callback crossing a memoized context + long-lived listener needs it.
-
-- **Test fixtures inherit your mental model's geometry.** Band tests measured headers as ADJACENT rows; the real render puts data rows between them, and the build-breaker caught the misplaced-reparent only by running the model over realistic gap geometry. Fixtures must model the render's real shape.
-
-- **When a verifiably-correct fix keeps "not working," suspect it isn't being SERVED before writing more code.** CSS-in-TS + component-handler edits don't reliably hot-swap (Working Notes) — a correct fix reads as a failure, tempting band-aid on band-aid. Confirm a full kill+relaunch served the change before concluding it failed. Grounding "stale server" (checking the process + the documented gotcha) is right; reflexively blaming it is not.
-
-**Key Files & Insights**
-
-- `Detail/Views/PropertyEditing/` — the table-agnostic editing home: `PropertyPicker` (+ `StatusCapsule`), `PropertyEditor`, `statusCycle` (the status group cycle + glyph map), `formatValue` (en-US pinned, local-midnight date parse). Gallery/List mount these as-is later.
-- `design-system/components/OverflowScroll.tsx` — THE overflow mechanism (hover-scroll + bounce-back; the eclipse fade is scroll-driven CSS, activated only on real overflow, so nothing measures or goes stale); the sidebar shares `slideScrollBack`.
-- `Detail/Views/Table/TableView.tsx` — gesture routing (`onCellClick`/`openCellMenu`/`cellEditor`), the table-level `cellPicker` (self-managed portal, keyed per-cell), per-view style state. No row virtualization yet — the standing perf debt.
-- `shared/columnStyles.ts` + `Table/columnStyles.ts` — type+zod+defaults live shared (main needs them for menus); the schema-aware `styleFor` resolver is renderer-side because `shared/` can't import the pipeline's `declaredType`.
-- `main/mutate.ts` `serializeOnFile` — per-path write chain for the hot value ops; the pattern to reuse for any RMW on user files.
-- `nativeCaret.ts` — a GLOBAL drawn caret over every input (hides the native one, positions a bar via a measuring mirror). Assumes LEFT-aligned text (its own comment); re-measures on field resize via a ResizeObserver so the bar tracks a `field-sizing` grow or a picker re-center — a position-only move with no resize rides the next caret event.
-
-**Landmines**
-
-- **The dev app runs against Nathan's REAL Nexus.** Value writes via the UI are his data; automated CDP must never pick/commit — open + Esc only.
-- **Parallel sessions** — stage explicit paths, never `-A`.
-- **The whole Link/URL stint is UNCOMMITTED + bundled** in the working tree — the title-fetch, the codec coercion refactor, `LinkCell`/`TextPicker`/`URLEditor`, the rename nonce, `Properties.md`, plus new files (`shared/links.test`, `Table/linkValue{,.test}`, `Table/linkColor`, `main/linkTitles{,.test}`, `main/io/linkTitles{,.test}`). Awaiting Nathan's commit go. The next (property-pane) session must NOT `git add -A` — that sweeps this AND concurrent parallel-session edits (MarkdownPM, History.md, Mobile docs are all dirty). Stage explicit paths; don't clobber the Link files.
-
-**User Feedback**
-
-- Talk-first (see Lessons). Screenshot-verify visual claims — mechanics prove nothing about feel.
-- The value picker shows option VALUES regardless of name; groups are containers, never pickable chips.
-- Capsule = the icon-only chip in the token set; picker options follow the column's glyph look.
-
-### Session Summary - B (mobile future-proofing — separate session)
-
-**Session B ID:** 164497e3-c3c6-4f45-978a-04a1375df1e6
-**Dates:** 07-04-2026
+**Session ID:** c3e6af60-f1ea-4e19-9507-08776f15d04a
+**Dates:** 07-05 → 07-06-2026
 **Model:** Opus 4.8
-**Agents:** general-purpose (×16 — research + code exploration), build-breaking-agent (×2 — spec review rounds)
-**Commands:** /clear, /handoff
-**Skills:** studio-brainstorm; handoff
+**Connectors:** Electron CDP (live screenshots + UI drive — built app on `:9222`, not MCP)
+**Agents:** build-breaking-agent, code-simplifier, general-purpose (adversarial spec/plan reviews)
+**Skills:** studio-brainstorm; `superpowers:writing-plans`; handoff
 
-A separate session did **mobile future-proofing** — no changes to this build's product surfaces.
+Built the per-container **multi-view switcher stack** end-to-end through the full discipline — decision log → 14-task plan (three review rounds folded) → inline per-task execution → CDP verification. The feature is committed per-task on `main` (`3094e8ce` → `0fc5de98`).
 
-**iOS companion — ratified spec:** A full `studio-brainstorm` on a **Capacitor-based iOS companion** (reuse the renderer in a WebView, re-host the main process natively, iCloud app-owned-container sync, single-user most-recent-wins), pressure-tested across two adversarial-review rounds — a HIGH `.nexus/`-sync-exclusion landmine and the "renderer ships untouched" overstatement both caught and folded. Spec landed under `.claude/Mobile/`: `MobileSpec` + `MobileArchitecture` · `NexusSync` · `MobilePM` · `FormFactor` · `MobileResources` · `MobileDecisionLog`, mirrored to `II. Mobile`. Verdict: a scoped **port, not a rewrite** — Claude builds the code, Nathan owns the Apple/Xcode ceremony + the phone form-factor design.
+**The surfaces.** A standalone **ViewDropdown** button sits left of the toolbar trio, rendering only on a Collection or depth-1 Set (`isDepth1Set`, `Scope.ts`); its glyph is the active view's icon, click opens the **ViewPane** (a row per saved view + a footer BottomRow), right-click opens a native presentation menu (Show/Hide Title · Style). A view row's chevron pushes into **ViewSettings** — the shared per-view editor with two doors: the *full* door (ViewPane chevron; ⋮ Duplicate/Delete + the Layout leaf) and the *flat* door (SettingsPane → Layout; no ⋮, no Layout row). The old `ViewPane` was renamed **SettingsPane** (Configuration/Open In + the flat Layout door), freeing the name.
 
-**Four desktop pre-paves shipped (`02bb4e11`, main):** cheap, behavior-preserving changes that shrink the eventual port — a standalone app Vite target (`vite.config.app.ts` → `npm run dev:app` renders the real app in any browser), one shared `assetUrl.ts` (was 3 copies), a `DEVICE_LOCAL_NEXUS_FILES` set in `paths.ts` (future iCloud sync-exclusion), and iOS soft-keyboard input attributes on the MarkdownPM editor. Explicit-path staged.
+**The G-1 invariant** ("views never empty where views can be seen") has two write sites: creation-seed (`createContainer` in `mutate.ts` seeds the default view on disk) and entry-mint (`store.select` is the SOLE mint site via `ensureContainerView`, `viewMint.ts`). All writers adopt-only through `saveViewAdopting`; an in-flight map keyed on container id guards a double-mint (HIGH-1: the guard survives a failed refetch). The store gained an `activeViews` slice + `setActiveView` (hydrated in `load()`); `useActiveView` is a pure store-selector hook (no fetch effect).
 
----
+**Container config + menus.** New sidecar keys `view_button` · `view_style` · `format` (both allowlist sides); `open_in` renamed `full-page`/`page-preview` with legacy coercion (`coerceOpenIn`/`coerceViewButton`/`coerceViewStyle`, `schemas.ts`). Menu plumbing consolidated into one home — `AccessoryButton`, `MenuPaneTopRow`, `MenuBottomRow`, `popReturningMenu`, all dropdown title tones DRY'd to `label-control` at `MenuSurface`. The type roster is six (Table · Cards · List · Gallery · Calendar · Timeline; Board dissolved) — only Table is buildable this cycle, the rest render at full weight but inert.
 
-### Working Notes
+**Build-breaker findings** (all fixed): HIGH-1 double-mint on failed refetch, HIGH-2 depth-1 violation via Back-nav, MED-3 empty ViewPane list during the mint beat, MED-4 missing maxHeight cap, LOW-5 duplicate mis-position.
 
-- UI iteration runs in **dev mode (HMR)** — CSS hot-swaps, React Fast-Refreshes, but **CM6 extension code needs ⌘R** and **`src/main`/preload need a dev-server restart**. Nathan runs his own `env -u ELECTRON_RUN_AS_NODE npm run dev` (no CDP port). For a Claude-inspectable session: `… POMMORA_DEBUG_PORT=9222 npm run dev` (HMR + CDP), or a built app on 9222 after `npm run build`. Kill: `pkill -f "Project Pommora/Pommora/node_modules/electron"`.
-- **HMR is NOT trustworthy for two change classes:** (1) **vanilla-extract `*.css.ts`** — a style edit silently keeps serving the stale compiled CSS (the split-brain gotcha); a plain restart usually heals it, ⌘R never does. (2) **A component's focus effect / event handler / attribute change** — Fast-Refresh often doesn't re-apply it to an already-loaded module. Both cost real rounds of "it still happens" when the fix was correct but never served. Do a FULL kill + relaunch before concluding a CSS-in-TS or handler change failed. → Build-Gotchas §Toolchain.
-- CDP tooling in the scratchpad: `cdp-shot.mjs` (screenshot/eval/clip) + `cdp-emulate.mjs` (viewport emulation). **Reading** a screenshot surfaces it to Nathan.
-- **Mutating gestures against the running app (real Nexus) need Nathan's explicit authorization** — with the standing condition that state is restored exactly (drop → verify on disk → reverse). Without it: drag-and-abort / open-and-Esc only.
+**Closing UIX polish (uncommitted at handoff — awaiting Nathan's go):**
 
-### Next Session — the ViewPane arc
+- **ViewDropdown title slide.** Show/Hide Title now morphs one stable `SegmentedButton` (was a `SegmentedSymbol`↔`SegmentedButton` swap that unmounted the label): the title rides a grid track collapsing `1fr → 0fr`, sliding in/out at content-width. DRY'd to a new `titleReveal` token in `animations.css.ts` (the panes' Bloom curve on the `dropdown` duration). Verified 69↔32px on a clean ease.
 
-**Property panes are the through-line.** The Select, Multi-Select, and Status option editors + the URL/Link pane have SHIPPED; the remaining ViewPane panes are stubs ("{Pane} — pending" captions in `ViewPane.tsx`). Build order:
+- **ViewSettings entry bounce, fixed.** The pane snapped open from `auto` because `slotB` (ViewSettings) is `null`/unmeasured until a chevron click. Fixed in `ViewPane.tsx` with a two-phase push — mount the detail first, flip `active` on the next frame once measured — so height animates in lockstep with the slide (sampled 93→268, no overshoot). Measuring the slot *during* the flip is the wrong fix (reading `offsetHeight` at `auto` locks the transition baseline).
 
-1. **Finish the rest-of-properties per-type panes** — the remaining stubs are **Number, Date, and the other value-type editor panes**, riding the same nested-slide + pane-beat plumbing the option editors used. This is THE next-session target. The rich tail (formats, change-type confirm with the lossy strip, duplicate) rides the same arc — 6-28 spec §Pending.
-2. **THEN the naming / duplicate-title work = §H of the 7-3 decision log** — keep value=title, add a reserved-char auto-disambiguate matcher (add-on-collision / drop-when-unique) across Select / Multi / Status together. This cycle absorbs a legacy-data migration (stale group labels + `value≠label` lowercase values on pre-value=title properties — Nathan's own Status property is the live example). The duplicate-title conflict is the headline.
-3. **The in-pane chip-style picker for Status** (Standard / Compact / Checkbox → pill / capsule / check), persisted per-view in `column_styles` — but the pane KEEPS pills regardless.
-4. **The sibling panes** (Layout · Group · Sort · Filter) + **View management** (rename/duplicate/delete, the active-view switcher — Part-1 IPC shipped, UI-less), per 6-28 spec §Pending, wiring the already-shipped `GroupConfig` / `SortCriterion[]` / `FilterGroup` / `views:*` seams.
+- **ViewPane square minimum.** The pane reserves a `PANE_SQUARE` (225) floor — a sparse list no longer collapses; rows fill it top-down with the footer pinned to the bottom (`vd.rowsFill`), and only past the square does it grow. The default active-view row highlight was removed.
 
-Build discipline: the ViewPane CSS is a KNOB FILE (`viewPane.css.ts` — COLOR/SIZE/PAD/ICON groups; sizes are Nathan's, never re-tune); TopRows name their DESTINATION; every pane push rides the nested PaneSlider. Open threads to confirm while building: file chips deliberately have no hover-× (removal = deleting an attachment); the old capsule floating-× idea is likely dead post-menu-Clear but never formally killed.
+- **Footer padding knob.** `--bottom-row-block` on `bottomRow` (`menu.css.ts`) — 0 by default, a consumer loosens the +/… bar off the surface edge.
+
+- **Table glyph.** A native-SVG redraw was tried and reverted per Nathan — `TableWide` stays the real Lucide Table CSS-rotated 90° (`customGlyphs.tsx`).
+
+### Lessons Learned
+
+- **A transition can't animate from `auto`, and measuring at `auto` poisons its baseline.** A slot that mounts on the same render that flips it is unmeasured (`0`→`auto`); forcing an `offsetHeight` read there locks the resolved size in as the from-value, so the target equals it and nothing moves. Measure the incoming slot a frame *before* the flip, never during.
+
+- **When Nathan says "just rotate the real glyph," a hand-drawn look-alike is a miss.** He'd rather keep a real-icon rotation (even with a faint rasterization tell) than a bespoke SVG that reads subtly off next to the Lucide set. Rotate the source glyph; don't substitute geometry.
+
+- **CDP drive-then-read races the invocation gap.** Arming a sampler in one `cdp eval` and triggering the action in the next loses ~200-400ms of process startup — the transition finishes before the sampler starts. Arm the rAF sampler AND fire the click in a single `eval`.
+
+- **`grid-template-columns` `1fr`↔`0fr` animates in Electron 42's Chromium** — a real content-width collapse both directions, the right tool for a label that must slide in/out without a fixed width.
+
+### Next Session — filling the multi-view stubs
+
+The scaffolding shipped; the panes and renderers behind it are stubs.
+
+1. **The non-Table view renderers** — Cards · List · Gallery · Calendar · Timeline. The type grid selects them but only Table renders; each needs its container renderer (the `PropertyEditing/` surfaces were built table-agnostic for exactly this reuse).
+
+2. **The ViewSettings sibling panes** — Layout · Group · Sort · Filter ship blank-leafed; wire them to the already-shipped `GroupConfig` / `SortCriterion[]` / `FilterGroup` seams. The Layout leaf (order + visibility) is the deferred Figma redesign.
+
+3. **The rest-of-properties per-type editor panes** — Number, Date, and the remaining value-type editors, riding the same nested-slide + pane-beat plumbing the option editors used (6-28 spec §Pending). The naming/duplicate-title work (§H of the 7-3 decision log; value=title + reserved-char auto-disambiguate across Select/Multi/Status, absorbing the legacy-data migration) is the headline that follows.
+
+Build discipline: every pane push rides the nested PaneSlider; TopRows name their DESTINATION; the ViewDropdown/ViewSettings CSS are KNOB files (sizes are Nathan's, never re-tune).
 
 ### Pending Focuses
 
-- **(Perf) Remaining debt:** (1) **Virtualization** — every row still MOUNTS; bites at thousands. (2) External VALUE edits don't live-refresh open tables (loadValues runs per container open only; the tree carries structure, not values). (The watcher walk itself is mtime-gated — stat sweep, parse-only-changed; the container-surgical reconcile arc stays the designed escalation if a measured wall ever appears at real scale.)
-- **Add-to-group:** the '+' glyph that appears next to a set's grouping label when in a view doesn't actually create anything. 
+- **(Perf) Standing debt:** (1) no row virtualization — every row MOUNTS, bites at thousands. (2) External VALUE edits don't live-refresh an open table (`loadValues` runs per container-open; the tree carries structure, not values). The mtime-gated walk is fine; the container-surgical reconcile stays the designed escalation if a measured wall appears at real scale.
+
+- **Add-to-group:** the `+` glyph next to a set's grouping label in a view doesn't create anything.
+
 - **Block Drag V2 — nesting** (separate spec): interior drop-slots inside callouts, the box-nesting guard table, cross-container re-prefix.
+
 - **Canvas** — spec at `Planning/6-26 - Canvas Spec.md`, pending its adversarial review → plan → build.
+
 - **Biome config vs code** — `biome.json` declares double-quote/organizeImports but the codebase is single-quote/no-semicolon. Settle once, in a tree with no parallel edits.
+
 - **Automatic Scrolling** — must-have for views + MarkdownPM.
-- **iCloud-sync readiness (future cloud feature):** an in-process `serializeOnFile` can't coordinate with the iCloud daemon — cross-device edits are last-writer-wins (atomic temp+rename prevents corruption; true conflict handling is the sync feature's job). Also: `.nexus/index.db` needs excluding from sync, and the page walk must skip evicted `.icloud` placeholders. Recorded so the sync feature inherits them.
-- **Mobile iOS companion (parked — session B):** ratified spec at `.claude/Mobile/MobileSpec.md` (+ 6 siblings); 4 desktop pre-paves shipped (`02bb4e11`). **Step 1 is the gate: a `window.nexus` bridge shim + a native iCloud Swift plugin** (nothing functions until the phone can read the Nexus). No commitment to build.
+
+- **iCloud-sync readiness (future):** an in-process `serializeOnFile` can't coordinate with the iCloud daemon — cross-device edits are last-writer-wins (atomic temp+rename prevents corruption). `.nexus/index.db` needs sync-exclusion; the walk must skip evicted `.icloud` placeholders.
+
+- **Mobile iOS companion (parked — session B):** spec at `.claude/Mobile/MobileSpec.md` (+ 6 siblings); 4 pre-paves shipped (`02bb4e11`). Step 1 is the gate — a `window.nexus` bridge shim + a native iCloud Swift plugin. No commitment to build.
 
 ### Fix Log
 
-- **The link rename field shows a leading empty space (open, DEPRIORITIZED — not worth deep time).** A visible gap sits before the text when a link Rename opens, fresh or already-aliased. RULED OUT as a stored/typed character: the frontmatter is byte-clean (`[` flush against the first letter), the field's `.value` carries no space, it survives backspace, and the async title is never the key. The `nativeCaret` drawn-bar was re-measured on field resize (that killed a *separate* stranded-caret offset), yet the gap persists — so the residual is a VISUAL inset, not a character. Likeliest candidates for a future quick look (NOT a 10-hour dig): the field's own left padding in `TextPicker` reading as a space, or `nativeCaret`'s position-only blind spot (a pane re-center with no resize doesn't trigger the ResizeObserver). Nathan's call: log it, don't chase it.
+- **`.nexus/activeViews.json` isn't gitignored (open — now live).** Neither it nor its per-machine siblings (`folds`/`viewOrders`/`tableHeadingColumns`/`linkTitles`) are ignored in the Nexus repo — using the multi-view pane on a fresh container creates a would-sync file. Add these to the Nexus `.gitignore` (or have the app scaffold it) — matters more now that the switcher ships.
+
+- **The "File" property icon gets clipped** by its vertical row padding on the ViewPane.
+
+- **The link rename field shows a leading empty space (DEPRIORITIZED).** A visual inset, not a stored/typed character (frontmatter byte-clean, `.value` carries no space, survives backspace, async title never the key). Likeliest future quick look: the field's own left padding in `TextPicker`, or `nativeCaret`'s position-only blind spot (a pane re-center with no resize doesn't trigger the ResizeObserver). Log it, don't chase it.
+
 - **Block-math `$$…blank…$$` drag corrupts the doc (open).** A multi-line block-math span with a blank line parses as two halves with orphaned `$$`; block-dragging either half corrupts the document (`MarkdownPM/editor/blockModel.ts` — test-pinned, unguarded).
-- **Bullet single-word wrap drops the word below the marker** — only the `line-height` cap shipped. → `Features/MarkdownPM.md` § Known Issues.
-- The "File" property icon gets clipped by its vertical row padding on the ViewPane.
-- **`.nexus/activeViews.json` isn't gitignored (open).** Neither it nor its per-machine siblings (`folds`/`viewOrders`/`tableHeadingColumns`/`linkTitles`) are ignored in the Nexus repo — using the pane on a fresh container creates a would-sync file. Add these to the Nexus `.gitignore` (or have the app scaffold it) before the view-management switcher ships.
-- You still cannot actually create a Context via sidebar crud.
-- **Outliner rails on ordered / arrow / `+` lists deferred.** Scoped to dash-bullets + checkboxes (clean glyph-centre math); ordered numbers + arrow/`+` need per-glyph centring + vertical-evenness tuning (~30 min) parked rather than shipped misaligned. → `Features/MarkdownPM.md`.
+
+- **Bullet single-word wrap drops the word below the marker** — only the `line-height` cap shipped. → `Features/MarkdownPM.md` §Known Issues.
+
+- **Context sidebar crud** — you still cannot actually create a Context via the sidebar.
+
+- **Outliner rails on ordered / arrow / `+` lists deferred** — scoped to dash-bullets + checkboxes; ordered/arrow need per-glyph centring (~30 min), parked over shipping misaligned. → `Features/MarkdownPM.md`.
+
+### Working Notes
+
+- UI iteration runs in **dev mode (HMR)** — CSS hot-swaps, React Fast-Refreshes, but **CM6 extension code needs ⌘R** and **`src/main`/preload need a dev-server restart**. Nathan runs his own `env -u ELECTRON_RUN_AS_NODE npm run dev` (no CDP). For a Claude-inspectable session: a built app on `:9222` after `npm run build`, launched `env -u ELECTRON_RUN_AS_NODE ./node_modules/.bin/electron . --remote-debugging-port=9222`. A component change needs a rebuild + `location.reload()` over CDP.
+
+- **HMR is NOT trustworthy for two change classes:** (1) vanilla-extract `*.css.ts` — a style edit can keep serving stale compiled CSS; a plain restart heals it, ⌘R never does. (2) A component's focus effect / handler / attribute change — Fast-Refresh often doesn't re-apply it. Do a FULL kill + relaunch before concluding a CSS-in-TS or handler change failed. → Build-Gotchas §Toolchain.
+
+- **The dev app runs against Nathan's REAL Nexus.** Value writes via the UI are his data; automated CDP must open + Esc only, never pick/commit — unless Nathan authorizes a mutating gesture with the standing condition that state is restored exactly (drop → verify on disk → reverse).
+
+- **CDP tooling** in the scratchpad: `cdp.mjs` (eval/click/tapxy/taptext/shot). Reading a screenshot surfaces it to Nathan. Multi-line `eval` must be wrapped in an IIFE (a bare statement block throws); pretty-printed JSON output spans lines, so don't `tail -1` it.
+
+- **Parallel sessions** — stage explicit paths, never `-A` (a dir-level add sweeps a concurrent session's edits, and a worktree's symlinked `node_modules` escapes the gitignore).
 
 ### Handoff Rules
 
-- **Never record a correction-to-obvious as a discovery.** Write the durable truth as if it was always so — "the picker shows values, not groups" was always the intent, so state it plainly and silently fix anything that contradicted it; don't narrate the reversal or version the mistake. A fresh agent should never be able to tell a mistake was made.
+- **Never record a correction-to-obvious as a discovery.** Write the durable truth as if always so — silently fix what contradicts it; don't narrate the reversal or version the mistake. A fresh agent should never be able to tell a mistake was made.
+
 - **Resolve = delete + route, never tag.** When an entry here is genuinely done, push its outcome to the canonical doc and delete the line — no `(Resolved)` tombstones.
-- **One block per session, updated in place.** Compactions bump the count, they don't add sections. Carry still-open Pending Focuses forward to a fresh sequential session.
+
+- **One block per session, updated in place.** Compactions bump the count, they don't add sections. Carry still-open Pending Focuses + Fix Log forward to a fresh session.
+
 - **Markdown only, no new folder** (per Nathan) — this stays the single `.claude/Handoff.md`, not a routed `Handoffs/` dir.
+
 - **Parallel sessions share this one doc** — a concurrent session adds its own labeled block; the Cornerstone + footer are shared; never edit another session's block.

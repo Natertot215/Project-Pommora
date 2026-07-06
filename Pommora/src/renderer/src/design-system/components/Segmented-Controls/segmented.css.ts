@@ -1,5 +1,6 @@
 import { style } from '@vanilla-extract/css'
-import { vars } from '../../tokens'
+import { titleReveal } from '../../animations.css'
+import { text, vars } from '../../tokens'
 
 /**
  * Segmented control — the icon-only (Symbol) and icon+label (Button) variants
@@ -50,3 +51,18 @@ export const divider = style({
   background: 'var(--separator-segment)',
   borderRadius: '999px'
 })
+
+// The label's collapsible slot — an inline grid track that morphs 1fr → 0fr so the title slides in/out
+// (content-width both directions) as the button toggles labeled/icon-only. The leading gap collapses
+// with it, so the hidden state is pixel-identical to a bare icon segment. `labelText` clips inside.
+export const labelSlot = style({
+  display: 'inline-grid',
+  gridTemplateColumns: '1fr',
+  marginLeft: '6px',
+  minWidth: 0,
+  transition: `grid-template-columns ${titleReveal}, margin-left ${titleReveal}, opacity ${titleReveal}`
+})
+
+export const labelSlotHidden = style({ gridTemplateColumns: '0fr', marginLeft: 0, opacity: 0 })
+
+export const labelText = style([text.control.standard, { overflow: 'hidden', whiteSpace: 'nowrap', fontWeight: 500 }])

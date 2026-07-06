@@ -5,9 +5,7 @@ const c = colorVars.color
 
 // ── KNOBS — the ViewDropdown button geometry (tune here) ──
 const BUTTON = {
-  iconPadX: '8px', // icon-only variant: horizontal padding around the glyph
-  labeledPadX: '8px', // labeled variant: horizontal padding
-  labeledWidth: '128px' // labeled variant: one fixed width; the name overflow-scrolls inside
+  padX: '8px' // horizontal padding around the segment (same both states; the label slot carries the gap)
 }
 
 /** The button + its anchored dropdown share this relative box, so the pane hangs off the button
@@ -31,17 +29,18 @@ export const anchor = style({
   vars: { '--dropdown-origin': 'top center' }
 })
 
-/** The view-list menu — drops the base menu's bottom padding so the +/… footer sits close to the
- *  pane's bottom edge (the surface keeps its own small gutter). */
-export const paneMenu = style({ paddingBottom: 0 })
+/** The view-list menu — fills the pane's reserved square (so the footer can pin to the bottom) and drops
+ *  the base menu's bottom padding so the +/… footer sits close to the pane's bottom edge. */
+export const paneMenu = style({ flex: 1, paddingBottom: 0 })
 
-/** Icon-only button padding. */
-export const iconPad = style({ paddingInline: BUTTON.iconPadX })
+/** The view rows — grow to eat the reserved square (footer pinned below), but never shrink past their
+ *  own height, so a list longer than the square pushes the pane taller (then the slot scrolls). */
+export const rowsFill = style({ flex: '1 0 auto', display: 'flex', flexDirection: 'column' })
 
-/** Labeled button (Show Title) — emphasized name at a 6px icon↔text gap (2px over the segment base). */
-export const labeled = style({ paddingInline: BUTTON.labeledPadX })
-globalStyle(`${labeled} button`, { gap: '6px' })
-globalStyle(`${labeled} button span`, { fontWeight: 500 })
+/** The view button — one padding for both states; the segment's own gap is zeroed so the collapsing
+ *  label slot (segmented.css) is the sole icon↔title spacing, and the icon-only state sits flush. */
+export const button = style({ paddingInline: BUTTON.padX })
+globalStyle(`${button} button`, { gap: 0 })
 
 /** The ViewPane row's push chevron — a bare button in the row's secondary tone. */
 export const chevronButton = style({

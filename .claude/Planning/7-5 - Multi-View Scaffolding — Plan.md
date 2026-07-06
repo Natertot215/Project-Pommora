@@ -64,8 +64,8 @@ export const headingLabel = style({ color: c.label.secondary })
 export const actionLabel = style({ color: c.label.tertiary })
 
 export const accessoryButton = style({
-  width: 'var(--accessory-box, 14px)',
-  height: 'var(--accessory-box, 14px)',
+  width: 'var(--accessory-box, 16px)',
+  height: 'var(--accessory-box, 16px)',
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
@@ -98,7 +98,7 @@ export const topRowPad = style({ paddingBlock: 'var(--top-row-block, 2px)', minH
 export const paneSeparator = style({ marginBottom: 'var(--top-row-block, 2px)' })
 ```
 
-(`duration`/`easing` import from `../../tokens/motion`. The `&&` keeps every accessory out-ranking `.app-toolbar button`'s 0,1,1 tone. **Accessory box default = 14px** per Nathan; `topRowPad`/`paneSeparator` carry the CURRENT ViewPane values verbatim — `label.secondary` tone + the `topRowBlock: 2` rhythm — the TopRow scheme reuses existing colors and sizes, never re-tunes.)
+(`duration`/`easing` import from `../../tokens/motion`. The `&&` keeps every accessory out-ranking `.app-toolbar button`'s 0,1,1 tone. **Accessory boxes preserve current per-consumer sizes — NO box change** (eye · `+` · palette = 16px; TopRow ⊕/⋮ · Options `+` = 20px); each existing consumer passes its exact box via the `box` prop, so Task 2 is a truly pixel-identical refactor. `topRowPad`/`paneSeparator` carry the CURRENT ViewPane values verbatim — `label.secondary` tone + the `topRowBlock: 2` rhythm — the TopRow scheme reuses existing colors and sizes, never re-tunes.)
 - [ ] **Step 3:** Add to `Menu.tsx`:
 
 ```tsx
@@ -431,6 +431,8 @@ export function popReturningMenu<A>(
 - [ ] **Step 4:** Commit: `feat(views): ViewPane navigation dropdown — switch, reorder, create`
 
 ### Task 12: ViewSettings — the Shared Editor, Both Doors (D-1..D-11)
+
+> **BUILD GATE (Nathan):** before writing any ViewSettings code, re-read the Decision Log §D entries AND pull the Figma design — `get_screenshot`/`get_design_context` on node `307:5248` (Design page) for the ViewSettings frame (icon+title header, the 3×2 rectangular-tile grid, Layout ›/Format ⇅ rows). Confirm the grid geometry + tile proportions against the frame, then STOP and confirm the UIX directives with Nathan before implementing.
 
 **Files:**
 - Create: `Pommora/src/renderer/src/Components/Detail/ViewSettings.tsx`, `viewSettings.css.ts`

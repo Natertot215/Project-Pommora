@@ -166,5 +166,10 @@ export const accessoryHiddenRest = style({
 export const topRowPad = style({ paddingBlock: 'var(--top-row-block, 2px)', minHeight: 0, color: c.label.secondary })
 /** The gap below the header separator — tied to the same `--top-row-block` rhythm knob. */
 export const paneSeparator = style({ marginBottom: 'var(--top-row-block, 2px)' })
-/** A pane footer bar — flush affordance geometry, leading pinned left / trailing pinned right. */
-export const bottomRow = style([flushAffordance, { display: 'flex', alignItems: 'center', paddingRight: 0 }])
+/** A pane footer bar — flush affordance geometry, leading pinned left / trailing pinned right. The
+ *  top-and-bottom breathing room around the footer row rides `--bottom-row-block` (0 = current tight
+ *  footer); a consumer sets it on the pane to loosen the +/… bar off the surface edge. */
+export const bottomRow = style([
+  flushAffordance,
+  { display: 'flex', alignItems: 'center', paddingRight: 0, paddingBlock: 'var(--bottom-row-block, 0px)' }
+])

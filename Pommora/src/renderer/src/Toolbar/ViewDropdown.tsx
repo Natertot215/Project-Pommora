@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import type { CollectionNode, SetNode } from '@shared/types'
-import { SegmentedSymbol, SegmentedButton, type Segment } from '@renderer/design-system/components/Segmented-Controls'
+import { SegmentedButton, type Segment } from '@renderer/design-system/components/Segmented-Controls'
 import { useDismiss } from '@renderer/design-system/components/Popover'
 import { MenuSurface } from '@renderer/design-system/components/menu'
 import { iconNameOr } from '@renderer/design-system/symbols'
@@ -71,11 +71,7 @@ function ViewDropdownInner({ node }: { node: CollectionNode | SetNode }): React.
     // biome-ignore lint/a11y/noStaticElementInteractions: onContextMenu targets the button chrome, whose
     // interactive control is the Segmented button inside.
     <div ref={wrapRef} className={s.wrapper} onContextMenu={(e) => void onContextMenu(e)}>
-      {labeled ? (
-        <SegmentedButton segments={[{ ...segment, label: view.name }]} className={s.labeled} />
-      ) : (
-        <SegmentedSymbol segments={[segment]} className={s.iconPad} />
-      )}
+      <SegmentedButton segments={[{ ...segment, label: view.name }]} className={s.button} labelCollapsed={!labeled} />
       {paneP.mounted && (
         <div className={s.anchor}>
           <MenuSurface closing={paneP.closing}>
