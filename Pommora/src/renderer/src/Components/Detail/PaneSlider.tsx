@@ -1,6 +1,13 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { cx } from '../../design-system/cx'
+import { duration } from '../../design-system/tokens/motion'
+import { useExitPresence } from '../../design-system/useExitPresence'
 import * as s from './paneSlider.css'
+
+// The slide runs on `base`; a close holds the detail mounted exactly that long (below) so it slides
+// OUT at full size instead of vanishing — a collapsing empty slot fed the ResizeObserver mid-slide,
+// which was the slide-out jitter.
+const SLIDE_MS = Number.parseInt(duration.base, 10)
 
 /**
  * Two-slot horizontal nav with animated height — the one slide primitive every pane rides, so no
@@ -53,6 +60,15 @@ export function PaneSlider({
     return () => cancelAnimationFrame(raf)
   }, [open])
 
+  // Hold the outgoing detail mounted through the slide-out: `open` flips false and `active` flips to
+  // 'a' immediately (the slide starts), but the caller nulls `detail` the same render — so latch the
+  // last real detail and keep rendering it until the slide lands, then drop it. The slot keeps its
+  // measured box the whole way, so the ResizeObserver reads a stable size instead of a collapsing one.
+  const { mounted } = useExitPresence(open, SLIDE_MS)
+  const latchedDetail = useRef<ReactNode>(null)
+  if (open) latchedDetail.current = detail
+  const shownDetail = open ? detail : mounted ? latchedDetail.current : null
+
   useLayoutEffect(() => {
     const a = aRef.current
     const b = bRef.current
@@ -88,7 +104,7 @@ export function PaneSlider({
         </div>
         <div className={s.slot} inert={active === 'a'}>
           <div ref={bRef} className={s.slotContent} style={{ minWidth, minHeight }}>
-            {detail}
+            {shownDetail}
           </div>
         </div>
       </div>

@@ -25,12 +25,28 @@ afterEach(() => {
 })
 
 describe('PaneSlider', () => {
-  it('keeps both slots mounted (so each is measured for the resize)', async () => {
+  it('mounts both root and detail while open (so each is measured for the resize)', async () => {
     await act(async () => {
-      root.render(<PaneSlider open={false} root={<div>alpha</div>} detail={<div>beta</div>} />)
+      root.render(<PaneSlider open={true} root={<div>alpha</div>} detail={<div>beta</div>} />)
     })
     expect(host.textContent).toContain('alpha')
     expect(host.textContent).toContain('beta')
+  })
+
+  it('holds the detail through the slide-out, then drops it once closed', async () => {
+    await act(async () => {
+      root.render(<PaneSlider open={true} root={<div>alpha</div>} detail={<div>beta</div>} />)
+    })
+    // Close: the detail stays mounted through the slide (exit-presence) so it slides out at full size.
+    await act(async () => {
+      root.render(<PaneSlider open={false} root={<div>alpha</div>} detail={null} />)
+    })
+    expect(host.textContent).toContain('beta')
+    // After the slide window elapses it's dropped.
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 320))
+    })
+    expect(host.textContent).not.toContain('beta')
   })
 
   it('never caps or scrolls a slot itself — a slot MenuScrollFrame owns that', async () => {
