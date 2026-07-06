@@ -1,14 +1,15 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import type { ReactNode } from 'react'
 import type { CollectionNode, SetNode } from '@shared/types'
 import { type PropertyDefinition, RESERVED_PROPERTY_ID } from '@shared/properties'
-import { DEFAULT_VIEW_ID, type SavedView } from '@shared/views'
+import type { SavedView } from '@shared/views'
 import { Icon } from '@renderer/design-system/symbols'
 import { useSession } from '../../store'
 import { MenuItem, MenuSeparator, MenuPaneTopRow } from '../../design-system/components/menu'
 import { flushTrailing } from '../../design-system/components/menu/menu.css'
 import { resolveColumns } from '../../Detail/Views/pipeline/columns'
 import { columnLabel } from '../../Detail/Views/Table/columnLabel'
-import { pickView } from '../../Detail/Views/Table/TableView'
+import { useActiveView } from '../../Detail/Views/useActiveView'
+import { saveViewAdopting } from '../../Detail/Views/viewMint'
 import { PaneDnd, RowShell, usePaneRegions } from './paneDnd'
 import type { PaneDrop, PaneRow } from './paneDndModel'
 import {
@@ -140,19 +141,9 @@ export function HiddenPane({
 }): React.JSX.Element | null {
   const load = useSession((st) => st.load)
   const tree = useSession((st) => st.tree)
-  const [activeViewId, setActiveViewId] = useState<string | undefined>(undefined)
-  useEffect(() => {
-    let cancelled = false
-    void window.nexus.activeViews.get().then((m) => {
-      if (!cancelled) setActiveViewId(m[source.id])
-    })
-    return () => {
-      cancelled = true
-    }
-  }, [source.id])
+  const { view } = useActiveView(source, schema)
   if (!tree) return null
 
-  const view = pickView(source, activeViewId, schema)
   const fullVisibleIds = resolveColumns(view, schema).map((c) => c.id)
   const shownIds = shownPropertyIds(fullVisibleIds)
   const hiddenIds = hiddenListIds(view.hidden_properties, schema)
@@ -160,21 +151,8 @@ export function HiddenPane({
   const nameFor = (id: string): string => columnLabel(id, schema, tree.labels)
 
   const save = async (patch: Partial<SavedView>): Promise<void> => {
-    // A view-less container renders the minted sentinel default; saveView swaps it for a real id
-    // on EVERY save that still carries the sentinel. Adopt the returned id as the active view so a
-    // second surface (the table behind) can't mint a rival default from its own stale sentinel
-    // (breaker H-1); a subsequent save then updates in place instead of spawning another view.
-    const wasSentinel = view.id === DEFAULT_VIEW_ID
-    const res = await window.nexus.views.save(source.path, source.kind, { ...view, ...patch })
-    if (!res.ok) {
-      await window.nexus.showError(res.error)
-      return
-    }
-    if (wasSentinel) {
-      await window.nexus.activeViews.set(source.id, res.id)
-      setActiveViewId(res.id)
-    }
-    await load()
+    const res = await saveViewAdopting(source, { ...view, ...patch }, load)
+    if (!res.ok) await window.nexus.showError(res.error)
   }
   // The positional kinds are the ONE placeInShown write — a shown reorder and a drag-in unhide
   // differ only in whether the hidden filter bites; the membership kind ('unassign') is a hide.

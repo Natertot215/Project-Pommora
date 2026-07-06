@@ -5,6 +5,8 @@ import { reconcileSelection } from './selection'
 import { stabilize } from './treeStabilize'
 import { applyAccent, applySystemAccent } from './design-system/accent'
 import { applyPersonalization, applyPersonalizationKey } from './design-system/personalization'
+import { findCollection, findSet, findCollectionForSet } from './Detail/Scope'
+import { ensureContainerView } from './Detail/Views/viewMint'
 
 // Sidebar width bounds — Swift's min:180 / ideal:240, max widened +50 past Swift's 330 for extra drag room.
 const SIDEBAR_MIN = 180
@@ -107,6 +109,12 @@ interface SessionState {
   /** Resolve one URL's title out-of-band: no-op if known / in-flight / already-failed this session;
    *  otherwise asks main (cache hit or live fetch) and folds a success into `linkTitles`. */
   resolveLinkTitle: (url: string) => void
+  /** Per-machine active-view pointer (container id → view id), hydrated on open. The single shared
+   *  source every view surface reads, so a switch repaints the table AND the button together. */
+  activeViews: Record<string, string>
+  /** Switch a container's active view: persist to `.nexus/activeViews.json`, then update the slice
+   *  (no tree reload — the pointer isn't in the tree). */
+  setActiveView: (containerId: string, viewId: string) => Promise<void>
   load: () => Promise<void>
   /** Swap in a freshly-read tree (from load() or the live watcher): set it, reconcile the selection, re-apply accent. */
   applyTree: (tree: NexusTree) => Promise<void>
@@ -225,6 +233,12 @@ export const useSession = create<SessionState>((set, get) => {
             } catch {
               // bridge/handler absent — url cells fall back to the domain
             }
+            // The per-machine active-view pointer — the shared slice every view surface reads.
+            try {
+              set({ activeViews: await window.nexus.activeViews.get() })
+            } catch {
+              // bridge/handler absent — surfaces fall back to the first saved view
+            }
             break
           case 'empty':
             set({ status: 'empty', tree: null })
@@ -337,6 +351,12 @@ export const useSession = create<SessionState>((set, get) => {
         .finally(() => inFlightTitles.delete(url))
     },
 
+    activeViews: {},
+    setActiveView: async (containerId, viewId) => {
+      await window.nexus.activeViews.set(containerId, viewId)
+      set((s) => ({ activeViews: { ...s.activeViews, [containerId]: viewId } }))
+    },
+
     selection: { kind: 'none' },
     pageStatus: 'idle',
     pageDetail: null,
@@ -368,14 +388,22 @@ export const useSession = create<SessionState>((set, get) => {
           // A context (area/topic/project) renders a blank page from the loaded tree — no fetch.
           set({ selection: { kind: 'context', id: target.id }, pageStatus: 'idle', pageDetail: null, pageError: undefined })
           return
-        case 'collection':
+        case 'collection': {
           // Collection detail renders from the loaded tree (banner + its pages) — no fetch.
           set({ selection: { kind: 'collection', id: target.id }, pageStatus: 'idle', pageDetail: null, pageError: undefined })
+          // Entry-mint (G-1): a view-bearing container with an empty views[] gets its default minted
+          // here, the sole mint site. A fired side-effect — the case stays synchronous for render.
+          const col = findCollection(get().tree, target.id)
+          if (col) ensureContainerView(col, col.properties ?? [], get().load)
           return
-        case 'set':
+        }
+        case 'set': {
           // A depth-1 Set's detail renders from the loaded tree (banner + its pages) — no fetch.
           set({ selection: { kind: 'set', id: target.id, path: target.path }, pageStatus: 'idle', pageDetail: null, pageError: undefined })
+          const setNode = findSet(get().tree, target.id)
+          if (setNode) ensureContainerView(setNode, findCollectionForSet(get().tree, target.id)?.properties ?? [], get().load)
           return
+        }
         case 'page': {
           set({
             selection: { kind: 'page', id: target.id, path: target.path },

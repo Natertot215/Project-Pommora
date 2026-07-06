@@ -15,6 +15,8 @@ import { PropertyEditor } from '../PropertyEditing/PropertyEditor'
 import { PropertyPicker } from '../PropertyEditing/PropertyPicker'
 import { nextCycleValue } from '../PropertyEditing/statusCycle'
 import { useSession } from '../../../store'
+import { useActiveView } from '../useActiveView'
+import { saveViewAdopting } from '../viewMint'
 import type { SetTreeNode } from '../pipeline/group'
 import { buildResolveContext, type ResolveContext } from './resolveContext'
 import { buildSetIcons, buildSetNames, buildSetPaths, groupLabel } from './cellResolve'
@@ -117,23 +119,20 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
   // The store's one write path — runs the op AND refetches immediately (load()), so a table reorder /
   // reassign propagates to the sidebar right away instead of waiting on the fs watcher's settle (~1s).
   const mutate = useSession((s) => s.mutate)
+  const load = useSession((s) => s.load)
   const [values, setValues] = useState<Record<string, PageFrontmatter>>({})
   // Optimistic property patches keyed by page id (cross-group reassignment, D-4): the loaded values
   // never re-read on a write, so a reassigned row re-groups only because this patch feeds the pipeline.
   const [valueOverride, setValueOverride] = useState<Record<string, PageFrontmatter> | null>(null)
-  const [activeViewId, setActiveViewId] = useState<string | undefined>(undefined)
   const [viewOrders, setViewOrders] = useState<Record<string, string[]>>({})
 
-  // Lazy value load + active-view pointer + manual-order cache on container open; `cancelled` guards a
-  // fast container swap.
+  // Lazy value load + manual-order cache on container open; `cancelled` guards a fast container swap.
+  // (The active-view pointer is the shared store slice — read via useActiveView, not fetched here.)
   useEffect(() => {
     let cancelled = false
     setValueOverride(null) // canonical values for the new container supersede any optimistic patches
     void window.nexus.loadValues(source.path).then((v) => {
       if (!cancelled) setValues(v)
-    })
-    void window.nexus.activeViews.get().then((m) => {
-      if (!cancelled) setActiveViewId(m[source.id])
     })
     void window.nexus.viewOrders.get().then((m) => {
       if (!cancelled) setViewOrders(m)
@@ -141,10 +140,10 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
     return () => {
       cancelled = true
     }
-  }, [source.path, source.id])
+  }, [source.path])
 
   const schema = useMemo(() => (tree ? resolveContainerSchema(tree, source) : []), [tree, source])
-  const view = useMemo(() => pickView(source, activeViewId, schema), [source, activeViewId, schema])
+  const { view } = useActiveView(source, schema)
   // Local override layer — reorder + resize + hide + collapse apply instantly, persist async (watcher
   // confirms). Order + hidden go in `liveView` (the pipeline reads them); width stays a separate
   // override so a resize doesn't re-run the pipeline. All re-seed on view change.
@@ -362,11 +361,9 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
   // Persist the saved view + every live override (order + collapse) + a patch, so no one mutation
   // clobbers another's unsaved state — the exact Swift reorder/resize data-loss H-2 guards against.
   const persistView = (patch: Partial<SavedView>): void => {
-    void window.nexus.views.save(
-      source.path,
-      source.kind,
-      mergeOverrides(liveView, widthOverride, alignOverride, collapsed, patch, styleOverride)
-    )
+    // Adopt-only (G-1): if this fires while the entry-mint is still in flight, it awaits the minted id
+    // and saves against it — never mints a rival default from its own sentinel.
+    void saveViewAdopting(source, mergeOverrides(liveView, widthOverride, alignOverride, collapsed, patch, styleOverride), load)
   }
   const toggleCollapse = (key: string): void => {
     const next = new Set(collapsed)
