@@ -1,4 +1,8 @@
-import { style } from '@vanilla-extract/css'
+import { globalStyle, style } from '@vanilla-extract/css'
+import { vars as colorVars } from '../../tokens/color.css'
+import { titleText } from './menu.css'
+
+const c = colorVars.color
 
 /**
  * The inside horizontal gutter shared by every large dropdown. Matches the sidebar's edge padding
@@ -17,4 +21,8 @@ export const surface = style({
   overflow: 'hidden',
   minWidth: '225px'
 })
+
+// Dropdown row titles read at label-control — one source for every dropdown surface (the `item`
+// primitive is shared with the sidebar, which keeps its own label-primary title outside a surface).
+globalStyle(`${surface} .${titleText}`, { color: c.label.control })
 

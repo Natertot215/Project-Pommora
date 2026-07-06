@@ -5,7 +5,7 @@ import { reconcileSelection } from './selection'
 import { stabilize } from './treeStabilize'
 import { applyAccent, applySystemAccent } from './design-system/accent'
 import { applyPersonalization, applyPersonalizationKey } from './design-system/personalization'
-import { findCollection, findSet, findCollectionForSet } from './Detail/Scope'
+import { findCollection, findSet, findCollectionForSet, isDepth1Set } from './Detail/Scope'
 import { ensureContainerView } from './Detail/Views/viewMint'
 
 // Sidebar width bounds — Swift's min:180 / ideal:240, max widened +50 past Swift's 330 for extra drag room.
@@ -400,8 +400,10 @@ export const useSession = create<SessionState>((set, get) => {
         case 'set': {
           // A depth-1 Set's detail renders from the loaded tree (banner + its pages) — no fetch.
           set({ selection: { kind: 'set', id: target.id, path: target.path }, pageStatus: 'idle', pageDetail: null, pageError: undefined })
+          // Only a DEPTH-1 Set carries views (a reparented Sub-Set can reach here via Back-nav).
           const setNode = findSet(get().tree, target.id)
-          if (setNode) ensureContainerView(setNode, findCollectionForSet(get().tree, target.id)?.properties ?? [], get().load)
+          if (setNode && isDepth1Set(get().tree, target.id))
+            ensureContainerView(setNode, findCollectionForSet(get().tree, target.id)?.properties ?? [], get().load)
           return
         }
         case 'page': {

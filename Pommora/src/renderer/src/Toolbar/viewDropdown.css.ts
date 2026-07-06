@@ -1,4 +1,4 @@
-import { style } from '@vanilla-extract/css'
+import { globalStyle, style } from '@vanilla-extract/css'
 import { vars as colorVars } from '../design-system/tokens/color.css'
 
 const c = colorVars.color
@@ -38,13 +38,17 @@ export const paneMenu = style({ paddingBottom: 0 })
 /** Icon-only button padding. */
 export const iconPad = style({ paddingInline: BUTTON.iconPadX })
 
-/** Labeled button — one fixed width; the view name overflow-scrolls inside it. */
+/** Labeled button (Show Title) — emphasized name at a 6px icon↔text gap (2px over the segment base). */
 export const labeled = style({ paddingInline: BUTTON.labeledPadX })
-export const labeledName = style({
-  display: 'inline-block',
-  maxWidth: BUTTON.labeledWidth,
-  overflow: 'hidden',
-  textOverflow: 'ellipsis',
-  whiteSpace: 'nowrap',
-  color: c.label.control
+globalStyle(`${labeled} button`, { gap: '6px' })
+globalStyle(`${labeled} button span`, { fontWeight: 500 })
+
+/** The ViewPane row's push chevron — a bare button in the row's secondary tone. */
+export const chevronButton = style({
+  border: 'none',
+  background: 'none',
+  padding: 0,
+  cursor: 'default',
+  display: 'flex',
+  color: 'var(--label-secondary)'
 })

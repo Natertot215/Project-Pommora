@@ -6,7 +6,7 @@ import { MenuSurface } from '@renderer/design-system/components/menu'
 import { iconNameOr } from '@renderer/design-system/symbols'
 import { useExitPresence } from '@renderer/design-system/useExitPresence'
 import { useSession } from '../store'
-import { findCollection, findSet, findCollectionForSet } from '../Detail/Scope'
+import { findCollection, findSet, findCollectionForSet, isDepth1Set } from '../Detail/Scope'
 import { useActiveView } from '../Detail/Views/useActiveView'
 import { ViewPane } from './ViewPane'
 import * as s from './viewDropdown.css'
@@ -23,7 +23,7 @@ export function ViewDropdown(): React.JSX.Element | null {
   const node =
     selection.kind === 'collection'
       ? findCollection(tree, selection.id)
-      : selection.kind === 'set'
+      : selection.kind === 'set' && isDepth1Set(tree, selection.id)
         ? findSet(tree, selection.id)
         : undefined
   if (!node) return null

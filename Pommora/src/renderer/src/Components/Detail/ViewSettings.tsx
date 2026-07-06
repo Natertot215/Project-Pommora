@@ -6,11 +6,9 @@ import { Icon, type IconName } from '@renderer/design-system/symbols'
 import { MenuItem, MenuSeparator, MenuPaneTopRow, AccessoryButton } from '../../design-system/components/menu'
 import { detail, flushTrailing, side } from '../../design-system/components/menu/menu.css'
 import { PickerMenu } from '../../design-system/components/PickerMenu'
-import { fieldInputClass } from '../../design-system/components/InteractionField'
 import { useSession } from '../../store'
 import { saveViewAdopting } from '../../Detail/Views/viewMint'
-import { EditableInput } from '../EditableInput'
-import { DashIcon } from './DashIcon'
+import { InlineEditHeader } from './InlineEditHeader'
 import { cx } from '../../design-system/cx'
 import * as vs from './viewSettings.css'
 
@@ -73,7 +71,7 @@ export function ViewSettings({
       if (res.ok) {
         const ids = views.map((v) => v.id).filter((id) => id !== res.id)
         const at = ids.indexOf(view.id)
-        ids.splice(at + 1, 0, res.id)
+        ids.splice(at < 0 ? ids.length : at + 1, 0, res.id)
         await window.nexus.views.reorder(source.path, source.kind, ids)
       }
       await load()
@@ -109,12 +107,8 @@ export function ViewSettings({
           ) : undefined
         }
       />
-      <div className={vs.header}>
-        <button type="button" className={vs.iconButton} aria-label="View icon">
-          <DashIcon />
-        </button>
-        <EditableInput value={view.name} className={cx(fieldInputClass, vs.titleField)} onCommit={rename} onCancel={() => {}} />
-      </div>
+      {/* Click-to-edit title (no auto-focus/select on open) — shared with the container header. */}
+      <InlineEditHeader value={view.name} onCommit={rename} onIconClick={() => {}} />
       <MenuSeparator flush />
       <div className={vs.grid}>
         {TYPE_ORDER.map((t) => (

@@ -24,11 +24,14 @@ export function ensureContainerView(
   const mint = (async () => {
     const res = await window.nexus.views.save(source.path, source.kind, mintDefaultView(schema))
     if (!res.ok) throw new Error(res.error)
-    await refetch()
+    // A refetch failure must NOT un-guard: the view IS on disk, so re-minting would double it. The
+    // stale tree self-heals on the next successful load; the guard stays so no second default is born.
+    await refetch().catch(() => {})
     return res.id
   })()
   inFlight.set(source.id, mint)
-  void mint.catch(() => {}).finally(() => inFlight.delete(source.id))
+  // Clear the guard ONLY when the save itself failed (allow a retry); a successful mint keeps it.
+  void mint.catch(() => inFlight.delete(source.id))
 }
 
 /** The ONE view writer every surface calls. A sentinel-holding write adopts the in-flight mint's real

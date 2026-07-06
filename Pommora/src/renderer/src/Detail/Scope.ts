@@ -57,6 +57,14 @@ export function findCollectionForSet(tree: NexusTree | null, setId: string): Col
   return allCollections(tree).find((c) => has(c.sets))
 }
 
+/** Whether a Set is depth-1 — a DIRECT child of a Collection (so it carries + renders views). A
+ *  deeper Sub-Set is a plain organizing folder; a reparent + Back-nav replay can surface one as a
+ *  `set` selection, so the view paths test this rather than trusting "depth-1 by construction". */
+export function isDepth1Set(tree: NexusTree | null, setId: string): boolean {
+  const col = findCollectionForSet(tree, setId)
+  return !!col && col.sets.some((s) => s.id === setId)
+}
+
 /** Resolve a context id to its banner owner, scanning the three tiers (the kind is whichever holds it). */
 export function findContext(tree: NexusTree | null, id: string): BannerOwner | null {
   if (!tree) return null

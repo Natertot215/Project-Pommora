@@ -49,7 +49,6 @@ import {
   SquareCheck,
   SquareDashed,
   SquarePlus,
-  Table,
   Tag,
   Tags,
   TextAlignJustify,
@@ -57,7 +56,7 @@ import {
   X
 } from 'lucide-react'
 import type { EntityIconKind } from '@shared/types'
-import { CardsGrid, ListRounded } from './customGlyphs'
+import { CardsGrid, ListRounded, TableWide } from './customGlyphs'
 import { size as sizeTokens, type IconSize } from '../tokens/size.css'
 
 /**
@@ -116,13 +115,13 @@ export const icons = {
   'eye-off': EyeOff,
   'layout-dashboard': LayoutDashboard,
   'list-filter': ListFilter,
-  table: Table,
   'calendar-days': CalendarDays,
   'chart-gantt': ChartGantt,
   'chevrons-up-down': ChevronsUpDown,
   'layout-panel-left': LayoutPanelLeft,
   'text-align-justify': TextAlignJustify,
   'layers-2': Layers2,
+  table: TableWide,
   'list-rounded': ListRounded,
   'cards-grid': CardsGrid
 } satisfies Record<string, LucideIcon>

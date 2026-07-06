@@ -122,13 +122,6 @@ export const menu = style({ display: 'flex', flexDirection: 'column', padding: '
 // icon-button recipe here. `item` also serves the sidebar, so a control tone can't ride the base row —
 // dropdown surfaces opt in via `dropdownRowTitle`.
 
-/** Row-title tone on dropdown surfaces (view titles, leaf rows) — never on the base `item`. */
-export const dropdownRowTitle = style({ color: c.label.control })
-/** Heading-row text tone (‹ back rows, "All Properties", "Options"). */
-export const headingLabel = style({ color: c.label.secondary })
-/** Interactive-symbol tone (the AccessoryButton glyphs). */
-export const actionLabel = style({ color: c.label.tertiary })
-
 /** The one icon-button recipe behind every TopRow/BottomRow/row affordance (ellipsis · plus · eye ·
  *  palette). Box via `--accessory-box` (consumers pass their own; 16 default). The `&&` pins the
  *  action tone above `.app-toolbar button`'s control-tone rule (0,1,1). */

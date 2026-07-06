@@ -1,7 +1,13 @@
-// The two custom view-type tile glyphs (List's rounded-circle list, Cards' 2×3 grid) — registry-
-// conforming forwardRef svgs at Lucide's 1.75 stroke weight so they sit evenly beside the Lucide set.
+// The custom registry glyphs (List's rounded-circle list, Cards' 2×3 grid) plus the wide Table — the
+// Lucide Table rotated 90° so it reads wider-than-tall. Registry-conforming forwardRef svgs at Lucide's
+// 1.75 stroke weight so they sit evenly beside the Lucide set.
 import { forwardRef } from 'react'
-import type { LucideIcon, LucideProps } from 'lucide-react'
+import { Table, type LucideIcon, type LucideProps } from 'lucide-react'
+
+/** The table glyph everywhere (view icon, rows, button, grid tile) — Lucide Table rotated 90° wide. */
+export const TableWide = forwardRef<SVGSVGElement, LucideProps>(({ style, ...rest }, ref) => (
+  <Table ref={ref} style={{ ...(style as object), transform: 'rotate(90deg)' }} {...rest} />
+)) as unknown as LucideIcon
 
 const svgBase = {
   viewBox: '0 0 24 24',
