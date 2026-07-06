@@ -1,13 +1,13 @@
 import { globalStyle, style } from '@vanilla-extract/css'
-import { vars as colorVars } from '../design-system/tokens/color.css'
 import { tintAt, TINT_STEPS } from '../design-system/tokens/tint'
-
-const c = colorVars.color
 
 // ── KNOBS — the ViewDropdown button geometry (tune here) ──
 const BUTTON = {
   padX: '8px' // horizontal padding around the segment (same both states; the label slot carries the gap)
 }
+
+// ── KNOB — the active-view row's highlight ring thickness (px) ──
+const HIGHLIGHT_RING = '1px'
 
 /** The button + its anchored dropdown share this relative box, so the pane hangs off the button
  *  (not the trio cluster). Sits left of the trio via the toolbar's inter-cluster gap. */
@@ -30,14 +30,6 @@ export const anchor = style({
   vars: { '--dropdown-origin': 'top center' }
 })
 
-/** The view-list menu — fills the pane's reserved square (so the footer can pin to the bottom) and drops
- *  the base menu's bottom padding so the +/… footer sits close to the pane's bottom edge. */
-export const paneMenu = style({ flex: 1, paddingBottom: 0 })
-
-/** The view rows — grow to eat the reserved square (footer pinned below), but never shrink past their
- *  own height, so a list longer than the square pushes the pane taller (then the slot scrolls). */
-export const rowsFill = style({ flex: '1 0 auto', display: 'flex', flexDirection: 'column' })
-
 /** The view button — one padding for both states; the segment's own gap is zeroed so the collapsing
  *  label slot (segmented.css) is the sole icon↔title spacing, and the icon-only state sits flush. */
 export const button = style({ paddingInline: BUTTON.padX })
@@ -49,7 +41,7 @@ export const buttonSlot = style({ display: 'contents' })
 
 /** The active view's row — a tint-primary inset ring (the tile-selection tone) so you can see which
  *  view you're in while the dropdown stays open. Inset, so it rides within the row's radius, no reflow. */
-export const activeRow = style({ boxShadow: `inset 0 0 0 1px ${tintAt('var(--accent)', TINT_STEPS.primary)}` })
+export const activeRow = style({ boxShadow: `inset 0 0 0 ${HIGHLIGHT_RING} ${tintAt('var(--accent)', TINT_STEPS.primary)}` })
 
 /** The ViewPane row's push chevron. It's a <button> in the toolbar's DOM, so `.app-toolbar button`'s
  *  control-tone rule (0,1,1) would paint it bright — the `&&` (0,2,0) pins it to the row's label-secondary
