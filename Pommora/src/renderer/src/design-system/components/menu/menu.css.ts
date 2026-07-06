@@ -184,9 +184,9 @@ export const bottomRow = style([
 ])
 
 // ── Footing tone knobs — the pinned footer's parts (the Format control, the +/⋮ BottomRow). A footing
-// reads a step quieter than a body row: caption size + label-secondary, an ancillary action; symbols
-// shrink to 12 (the TopBar chevron is 14). One source; the Format row + MenuBottomRow route here.
-export const footingLabel = style([text.caption.emphasized, { color: c.label.secondary }])
+// reads a step quieter than a body row: callout size + label-secondary, an ancillary action; its symbol
+// sits at 12 to match (the TopBar chevron is 14). One source; the Format row + MenuBottomRow route here.
+export const footingLabel = style([text.callout.emphasized, { color: c.label.secondary }])
 export const footingSymbol = style({ display: 'inline-flex', selectors: { '&&&': { color: c.label.secondary } } })
 // A BottomRow's icon buttons read label-secondary (the footing tone), not the accessoryButton default
 // tertiary — the tripled class outranks accessoryButton's `&&`.
