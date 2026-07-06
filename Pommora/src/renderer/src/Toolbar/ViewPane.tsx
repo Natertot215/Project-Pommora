@@ -1,15 +1,18 @@
+import { useState } from 'react'
 import type { CollectionNode, SetNode } from '@shared/types'
 import type { PropertyDefinition } from '@shared/properties'
 import { mintNewView } from '@shared/views'
 import { Icon, iconNameOr } from '@renderer/design-system/symbols'
 import { Menu, MenuItem, MenuBottomRow, AccessoryButton } from '../design-system/components/menu'
-import { dropdownRowTitle, side } from '../design-system/components/menu/menu.css'
+import { dropdownRowTitle } from '../design-system/components/menu/menu.css'
+import { PaneSlider } from '../Components/Detail/PaneSlider'
+import { ViewSettings } from '../Components/Detail/ViewSettings'
 import { useSession } from '../store'
 
 /**
  * The ViewPane — the navigation dropdown the ViewDropdown discloses. A row per saved view (click
- * switches the active view + closes; the chevron will push into ViewSettings) over a footer BottomRow
- * (+ create · … more). Reorder + the chevron push land in the ViewSettings pass.
+ * switches the active view + closes; the chevron pushes into ViewSettings) over a footer BottomRow
+ * (+ create · … more), the two levels riding one PaneSlider.
  */
 export function ViewPane({
   node,
@@ -23,7 +26,11 @@ export function ViewPane({
   const setActiveView = useSession((s) => s.setActiveView)
   const load = useSession((s) => s.load)
   const activeViewId = useSession((s) => s.activeViews[node.id])
+  const [editingId, setEditingId] = useState<string | null>(null)
   const views = node.views ?? []
+  // Re-derive the edited view from the live tree so an edit (rename/type/format) shows fresh, not a
+  // stale snapshot; a gone id (deleted) collapses back to the list.
+  const editing = editingId ? views.find((v) => v.id === editingId) : undefined
 
   const switchTo = async (id: string): Promise<void> => {
     await setActiveView(node.id, id)
@@ -34,7 +41,7 @@ export function ViewPane({
     await load()
   }
 
-  return (
+  const list = (
     <Menu>
       {views.map((v) => (
         <MenuItem
@@ -42,9 +49,17 @@ export function ViewPane({
           selected={v.id === activeViewId}
           leading={<Icon name={iconNameOr(v.icon, 'table')} size={16} />}
           trailing={
-            <span className={side}>
+            <button
+              type="button"
+              aria-label={`Edit ${v.name}`}
+              onClick={(e) => {
+                e.stopPropagation()
+                setEditingId(v.id)
+              }}
+              style={{ border: 'none', background: 'none', padding: 0, cursor: 'default', display: 'flex', color: 'var(--label-secondary)' }}
+            >
               <Icon name="chevron-right" size={16} />
-            </span>
+            </button>
           }
           onClick={() => void switchTo(v.id)}
         >
@@ -57,4 +72,10 @@ export function ViewPane({
       />
     </Menu>
   )
+
+  const detail = editing ? (
+    <ViewSettings source={node} view={editing} schema={schema} door="full" onBack={() => setEditingId(null)} onClose={onClose} />
+  ) : null
+
+  return <PaneSlider active={editing ? 'b' : 'a'} slotA={list} slotB={detail} minWidth={225} minHeight={120} />
 }

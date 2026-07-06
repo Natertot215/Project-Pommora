@@ -80,6 +80,12 @@ const api = {
     viewStyle: ViewStyle
   }): Promise<'toggle-title' | 'style-dropdown' | 'style-toolbar' | null> =>
     ipcRenderer.invoke('view-button-menu', current),
+  // The ViewSettings ⋮ menu (Duplicate / Delete); Delete disabled when the view can't be removed.
+  viewItemMenu: (canDelete: boolean): Promise<'view:duplicate' | 'view:delete' | null> =>
+    ipcRenderer.invoke('view-item-menu', canDelete),
+  // The ViewSettings Format native menu (Standard / Compact).
+  viewFormatMenu: (current: 'standard' | 'compact'): Promise<'standard' | 'compact' | null> =>
+    ipcRenderer.invoke('view-format-menu', current),
   // Property schema CRUD on a Collection's page schema. containerPath is the schema-owning
   // Collection's folder (a Set inherits, so the renderer passes its ancestor Collection's path).
   schema: {

@@ -63,7 +63,10 @@ import { popCellMenu } from './cellMenu'
 import { popPropertyMenu } from './propertyMenu'
 import { popOptionMenu } from './optionMenu'
 import { popViewButtonMenu, type ViewButtonMenuAction } from './viewButtonMenu'
+import { popViewItemMenu, type ViewItemMenuAction } from './viewItemMenu'
+import { popViewFormatMenu } from './viewFormatMenu'
 import type { ViewButton, ViewStyle } from '@shared/types'
+import type { ViewFormat } from '@shared/views'
 import { installEditorContextMenu, setFormatState, setCalloutGrip } from './editorMenu'
 import type { FormatState } from '@shared/editorMenu'
 import { isValidLink, normalizeLinkUrl } from '@shared/links'
@@ -1054,6 +1057,20 @@ ipcMain.handle('view-button-menu', async (e, current: unknown): Promise<ViewButt
   const viewButton: ViewButton = c?.viewButton === 'labeled' ? 'labeled' : 'icon'
   const viewStyle: ViewStyle = c?.viewStyle === 'toolbar' ? 'toolbar' : 'dropdown'
   return popViewButtonMenu(win, { viewButton, viewStyle })
+})
+
+// The ViewSettings ⋮ menu (Duplicate / Delete) — resolves the action to the renderer.
+ipcMain.handle('view-item-menu', async (e, canDelete: unknown): Promise<ViewItemMenuAction | null> => {
+  const win = BrowserWindow.fromWebContents(e.sender)
+  if (!win) return null
+  return popViewItemMenu(win, { canDelete: canDelete === true })
+})
+
+// The ViewSettings Format control's native menu (Standard / Compact).
+ipcMain.handle('view-format-menu', async (e, current: unknown): Promise<ViewFormat | null> => {
+  const win = BrowserWindow.fromWebContents(e.sender)
+  if (!win) return null
+  return popViewFormatMenu(win, current === 'compact' ? 'compact' : 'standard')
 })
 
 // Pop a native single-item "Add Photo" menu; on click open the image picker and resolve the

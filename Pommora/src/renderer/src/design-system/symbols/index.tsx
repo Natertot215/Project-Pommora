@@ -30,6 +30,7 @@ import {
   LayoutGrid,
   LayoutPanelLeft,
   Layers,
+  Layers2,
   Link,
   Link2,
   ListFilter,
@@ -56,6 +57,7 @@ import {
   X
 } from 'lucide-react'
 import type { EntityIconKind } from '@shared/types'
+import { CardsGrid, ListRounded } from './customGlyphs'
 import { size as sizeTokens, type IconSize } from '../tokens/size.css'
 
 /**
@@ -119,7 +121,10 @@ export const icons = {
   'chart-gantt': ChartGantt,
   'chevrons-up-down': ChevronsUpDown,
   'layout-panel-left': LayoutPanelLeft,
-  'text-align-justify': TextAlignJustify
+  'text-align-justify': TextAlignJustify,
+  'layers-2': Layers2,
+  'list-rounded': ListRounded,
+  'cards-grid': CardsGrid
 } satisfies Record<string, LucideIcon>
 
 export type IconName = keyof typeof icons
