@@ -13,7 +13,7 @@ Nexus-wide interface config, stored as the React-owned `personalization` object 
 - **hideChevrons** — collapse the sidebar's disclosure-chevron gutter.
 - **outlinerLines** — nested-list indent rails in MarkdownPM.
 - **defaultIcons** — the per-kind default icon (Collection / Set / Area / Topic / Project / Page), overriding the built-in seed; an entity's own icon still wins over it.
-- **setPlacement / subSetPlacement** — whether a Collection's depth-1 Sets (`setPlacement`) and a Set's Sub-Sets (`subSetPlacement`) sit above (`top`, default) or below (`bottom`) their container's loose pages; the folder block stays contiguous — a full folder↔page interleave is the eventual model.
+- **setPlacement / subSetPlacement** — the value names where the FOLDERS sit, never the pages: a Collection's depth-1 Sets (`setPlacement`) and a Set's Sub-Sets (`subSetPlacement`) sit above (`top`, default) or below (`bottom`) their container's loose pages — so "pages on top" is spelled `bottom`. The knobs are independent tiers: `setPlacement` never moves a Set's own pages (a Collection with no loose pages shows no visible change), and set-level pages answer only to `subSetPlacement`. The folder block stays contiguous — a full folder↔page interleave is the eventual model. Read-side only: no UI writes these keys yet — they're set by editing `settings.json` directly, and the watcher applies the change live.
 
 #### II. Write Discipline
 
