@@ -3,7 +3,7 @@ import type { CollectionNode, SetNode } from '@shared/types'
 import type { PropertyDefinition } from '@shared/properties'
 import { mintDefaultView, mintNewView } from '@shared/views'
 import { Icon, iconNameOr } from '@renderer/design-system/symbols'
-import { Menu, MenuItem, MenuBottomRow, AccessoryButton } from '../design-system/components/menu'
+import { Menu, MenuItem, MenuBottomRow, AccessoryButton, MENU_MAX_HEIGHT } from '../design-system/components/menu'
 import { PaneSlider } from '../Components/Detail/PaneSlider'
 import { ViewSettings } from '../Components/Detail/ViewSettings'
 import { useSession } from '../store'
@@ -98,9 +98,17 @@ export function ViewPane({
   ) : null
 
   // The pane reserves a square (PANE_SQUARE) so a sparse list doesn't collapse — rows fill it top-down
-  // with the footer pinned to the bottom (vd.rowsFill), and only past the square does it grow. maxHeight
-  // caps a long list / tall ViewSettings so the slot scrolls instead of clipping (H-7).
+  // with the footer pinned to the bottom (vd.rowsFill), and only past the square does it grow. The
+  // shared MENU_MAX_HEIGHT caps a long list / tall ViewSettings; past it the slot (or the leaf's own
+  // MenuScrollFrame) scrolls instead of clipping.
   return (
-    <PaneSlider active={active} slotA={list} slotB={detail} minWidth={PANE_SQUARE} minHeight={PANE_SQUARE} maxHeight={375} />
+    <PaneSlider
+      active={active}
+      slotA={list}
+      slotB={detail}
+      minWidth={PANE_SQUARE}
+      minHeight={PANE_SQUARE}
+      maxHeight={MENU_MAX_HEIGHT}
+    />
   )
 }

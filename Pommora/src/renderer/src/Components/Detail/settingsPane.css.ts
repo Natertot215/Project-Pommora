@@ -194,6 +194,18 @@ export const eyeHoverGlyph = style({
   selectors: { [`${eyeButton}:hover &`]: { display: 'flex' } }
 })
 
+/** Title's inert eye — the same glyph + box for visual parity with the other rows, but it never
+ *  hides: no hover-preview swap, no hover fill, no pointer (clicking does nothing). Sits at the rest
+ *  ghost opacity so it reads like every other row's resting eye. */
+export const eyeInert = style([
+  accessoryButton,
+  {
+    cursor: 'default',
+    opacity: 'var(--state-ghost)',
+    selectors: { '&:hover': { background: 'transparent', opacity: 'var(--state-ghost)' } }
+  }
+])
+
 // ═══════════════════════════════════════════════════════════════════════════
 // § DRAG CHROME — the two-region drag's box, highlight, and source dim
 // ═══════════════════════════════════════════════════════════════════════════

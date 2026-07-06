@@ -1,11 +1,11 @@
-// Pure model behind the Visibility pane (HiddenPane) — no React, no DOM. One list, two zones
-// (Nathan's spec): CONTEXTS on top — a static, fixed-order block whose rows ghost in place when
-// hidden, never relocating; then the properties as a single run — the shown rows in view order,
-// the hidden rows ghosted after them in collection order, NO heading between. Cross-zone drags
-// carry the drag language: INTO the shown zone lands at a slot (a drop line — the position writes
-// the view order), into the hidden zone just hides (an area highlight, no line — the hidden
-// order is derived, never authored). Title appears nowhere: it can't hide, and its reorder
-// belongs to the table's column drag.
+// Pure model behind the visibility list (the Visibility pane + the table view's Layout leaf) — no
+// React, no DOM. One flat list, two zones: the shown rows in the view's column order (Title, the
+// context tiers, and the properties all together), then the hidden rows ghosted after them, NO
+// heading between. Title rides the list as a draggable anchor but never hides (so a column can be
+// dragged before it — the point of listing it); the tiers behave like any property (drag to reorder,
+// eye to hide). Cross-zone drags carry the drag language: INTO the shown zone lands at a slot (a drop
+// line — the position writes the view order), into the hidden zone just hides (an area highlight, no
+// line — the hidden order is derived, never authored).
 
 import type { MeasuredRow } from '@renderer/Sidebar/sidebarDndModel'
 import { isReservedPropertyId, type PropertyDefinition, RESERVED_PROPERTY_ID } from '@shared/properties'
@@ -14,28 +14,22 @@ import { nexusReorderIndex, type PaneRow, type PaneSlot, type Region } from './p
 
 type VisibilityPatch = Pick<SavedView, 'property_order' | 'hidden_properties'>
 
-/** The contexts section — always all three tiers, in the FIXED Areas · Topics · Projects order
- *  (never the view's column order; the rows stay put and only their hidden flag changes). */
+/** The context tiers in fixed Areas · Topics · Projects order — the shown zone orders them by the
+ *  view like any property; this fixed order only sequences any tiers that land in the hidden zone. */
 export const CONTEXT_TIERS = [
   RESERVED_PROPERTY_ID.tier1,
   RESERVED_PROPERTY_ID.tier2,
   RESERVED_PROPERTY_ID.tier3
 ]
-const CONTEXT_SET = new Set<string>(CONTEXT_TIERS)
 
-/** The shown PROPERTIES section: the view's resolved column order minus Title and the tiers —
- *  schema props plus Modified when explicitly placed. */
-export function shownPropertyIds(resolvedIds: string[]): string[] {
-  return resolvedIds.filter((id) => id !== RESERVED_PROPERTY_ID.title && !CONTEXT_SET.has(id))
-}
-
-/** The hidden group's display order: schema props in COLLECTION order (never the view's), then
- *  Modified. Contexts never appear here (they ghost in place), and a stale hidden id displays
- *  nowhere but stays in the array (writes only ever filter the toggled id, so foreign keys
- *  survive — the loose-sidecar contract). */
+/** The hidden group's display order: hidden tiers (fixed tier order), then hidden schema props in
+ *  COLLECTION order (never the view's), then Modified. A stale hidden id displays nowhere but stays
+ *  in the array (writes only ever filter the toggled id, so foreign keys survive — the loose-sidecar
+ *  contract). Title is never here — it can't hide. */
 export function hiddenListIds(hidden: string[], schema: PropertyDefinition[]): string[] {
   const set = new Set(hidden)
   return [
+    ...CONTEXT_TIERS.filter((id) => set.has(id)),
     ...schema.filter((d) => set.has(d.id) && !isReservedPropertyId(d.id)).map((d) => d.id),
     ...(set.has(RESERVED_PROPERTY_ID.modifiedAt) ? [RESERVED_PROPERTY_ID.modifiedAt] : [])
   ]
@@ -82,7 +76,8 @@ export function unhide(view: SavedView, id: string): Pick<SavedView, 'hidden_pro
  *  slot ('assign'; one handler, placeInShown), both with a drop line. The hidden zone ('all')
  *  takes a MEMBERSHIP drop from a shown row — hide ('unassign': no slot, the hidden order is
  *  derived), shown as the area highlight; a hidden row over its own zone stays inert (no reorder
- *  within hidden). The contexts block above both is dead space: null, release is a no-op. */
+ *  within hidden). Title can reorder in the shown zone but never hides — a drop into the hidden
+ *  zone is a no-op. */
 export function hiddenPaneSlot(
   rows: MeasuredRow[],
   byId: Map<string, PaneRow>,
@@ -94,7 +89,7 @@ export function hiddenPaneSlot(
   if (!dragged) return null
   const within = (r: Region): boolean => pointerY >= r.top && pointerY <= r.bottom
   if (within(regions.all) && !within(regions.assigned)) {
-    if (dragged.group !== 'assigned') return null
+    if (dragged.group !== 'assigned' || draggedId === RESERVED_PROPERTY_ID.title) return null
     return { drop: { kind: 'unassign', propId: draggedId }, lineY: null, highlightAll: true }
   }
   if (!within(regions.assigned)) return null

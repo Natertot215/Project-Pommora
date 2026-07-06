@@ -91,6 +91,10 @@ export interface SavedView {
   show_cover?: boolean
   show_banner?: boolean
   hide_page_icons?: boolean
+  /** Table Layout "Column Icons" toggle — hide the type-icon in each column header (the title column
+   *  never carries one). Render wiring is a follow-up; the flag persists today. Other view types
+   *  surface this same flag under a different label (see Handoff: Column Icons ↔ Label Icons). */
+  hide_column_icons?: boolean
   hide_borders?: boolean
   sort?: SortCriterion[]
   filter?: FilterGroup
@@ -189,6 +193,7 @@ export const savedView = z.looseObject({
   show_cover: z.boolean().optional(),
   show_banner: z.boolean().optional(),
   hide_page_icons: z.boolean().optional(),
+  hide_column_icons: z.boolean().optional(),
   hide_borders: z.boolean().optional(),
   sort: z.array(sortCriterion).optional(),
   filter: filterGroup.optional(),

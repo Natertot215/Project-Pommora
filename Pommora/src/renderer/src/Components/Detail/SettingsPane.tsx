@@ -11,7 +11,7 @@ import { PropertiesPane } from './PropertiesPane'
 import { HiddenPane } from './HiddenPane'
 import { ViewSettings } from './ViewSettings'
 import { PaneSlider } from './PaneSlider'
-import { MenuItem, MenuSeparator, MenuCaption, MenuPaneTopRow } from '../../design-system/components/menu'
+import { MenuItem, MenuSeparator, MenuCaption, MenuPaneTopRow, MENU_MAX_HEIGHT } from '../../design-system/components/menu'
 import { IconPicker } from '../IconPicker'
 import { InlineEditHeader } from './InlineEditHeader'
 
@@ -155,7 +155,7 @@ export function SettingsPane(): React.JSX.Element | null {
 
   return (
     <>
-      <PaneSlider active={pane === 'root' ? 'a' : 'b'} slotA={root} slotB={detail} minWidth={225} minHeight={245} maxHeight={375} />
+      <PaneSlider active={pane === 'root' ? 'a' : 'b'} slotA={root} slotB={detail} minWidth={225} minHeight={245} maxHeight={MENU_MAX_HEIGHT} />
       <IconPicker open={iconOpen} onClose={() => setIconOpen(false)} />
     </>
   )

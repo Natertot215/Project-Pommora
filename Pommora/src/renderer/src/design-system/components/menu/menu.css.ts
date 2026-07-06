@@ -173,3 +173,28 @@ export const bottomRow = style([
   flushAffordance,
   { display: 'flex', alignItems: 'center', paddingRight: 0, paddingBlock: 'var(--bottom-row-block, 0px)' }
 ])
+
+// ── Scroll frame — the shared pinned-header/footer + scrolling-body primitive (MenuScrollFrame) ──
+// A pane's optional header and footer stay put (flush against the surface, never scrolling) while the
+// rows scroll BETWEEN them: the body is the only overflow region, so nothing ever slides under an edge
+// (no bleed-through, no occlusion tricks). The frame caps at MENU_MAX_HEIGHT — the one dropdown height
+// ceiling; PaneSlider caps its slot at the same value, so a non-framed pane scrolls its slot instead.
+
+/** The dropdown height ceiling — a pane grows to this, then scrolls. Shared by PaneSlider (its slot
+ *  cap) and MenuScrollFrame (its body cap) so the two never drift. */
+export const MENU_MAX_HEIGHT = 320
+
+/** The frame — a flex column that fills its slot and caps at the ceiling; the body inside scrolls. */
+export const scrollFrame = style({
+  display: 'flex',
+  flexDirection: 'column',
+  flex: '1 1 auto',
+  minHeight: 0,
+  maxHeight: `${MENU_MAX_HEIGHT}px`
+})
+
+/** A pinned edge (header or footer) — never grows, never scrolls, holds its place. */
+export const scrollFrameEdge = style({ flex: '0 0 auto' })
+
+/** The scrolling body — the sole overflow region; rows scroll here, clear of the pinned edges. */
+export const scrollFrameBody = style({ flex: '1 1 auto', minHeight: 0, overflowY: 'auto' })

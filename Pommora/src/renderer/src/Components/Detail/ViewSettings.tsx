@@ -9,6 +9,8 @@ import { PickerMenu } from '../../design-system/components/PickerMenu'
 import { useSession } from '../../store'
 import { saveViewAdopting } from '../../Detail/Views/viewMint'
 import { InlineEditHeader } from './InlineEditHeader'
+import { VisibilityList } from './HiddenPane'
+import { LayoutToggles } from './LayoutToggles'
 import { cx } from '../../design-system/cx'
 import * as vs from './viewSettings.css'
 
@@ -92,8 +94,16 @@ export function ViewSettings({
   }
 
   if (leaf) {
-    // The Layout leaf — order + visibility (deferred to the Figma redesign); blank chrome for now.
-    return <MenuPaneTopRow label="Settings" onBack={() => setLeaf(false)} />
+    // The Layout leaf — the view's visibility list (Title · tiers · properties) over the icon toggles.
+    return (
+      <VisibilityList
+        source={source}
+        schema={schema}
+        view={view}
+        onBack={() => setLeaf(false)}
+        footer={<LayoutToggles source={source} view={view} />}
+      />
+    )
   }
 
   return (
@@ -125,16 +135,20 @@ export function ViewSettings({
       </div>
       {view.type === 'table' && (
         <>
-          <MenuSeparator flush />
-          {door === 'full' && (
-            <MenuItem
-              className={flushTrailing}
-              leading={<Icon name="layout-panel-left" size={16} />}
-              trailing={<Icon name="chevron-right" size={16} />}
-              onClick={() => setLeaf(true)}
-            >
-              Layout
-            </MenuItem>
+          {door === 'full' ? (
+            <>
+              <MenuSeparator flush />
+              <MenuItem
+                className={flushTrailing}
+                leading={<Icon name="layout-panel-left" size={16} />}
+                trailing={<Icon name="chevron-right" size={16} />}
+                onClick={() => setLeaf(true)}
+              >
+                Layout
+              </MenuItem>
+            </>
+          ) : (
+            <LayoutToggles source={source} view={view} />
           )}
           <div ref={formatRef}>
             <MenuItem

@@ -88,6 +88,10 @@ Build discipline: every pane push rides the nested PaneSlider; TopRows name thei
 
 - **Automatic Scrolling** — must-have for views + MarkdownPM.
 
+- **"Column Icons" vs "Label Icons" — cross-view naming (working consideration).** The table Layout toggle is **Column Icons** (`hide_column_icons`) — accurate because a table's columns include metadata (Created/Modified) that aren't properties. Other view types (Gallery/List) have no columns, so they'd surface this same per-view flag under a different label — Nathan's suggestion is **"Label Icons."** When a second view type consumes the flag, decide whether to keep the table-specific field name or generalize it (and split the label per view type).
+
+- **Column Icons render wiring (stub).** The `hide_column_icons` flag persists and its Switch works, but the table doesn't yet respect it — the type-icon in each column header always shows. Wire the header render to the flag (Page Icons' `hide_page_icons` is the pattern — already consumed in TableView).
+
 - **iCloud-sync readiness (future):** an in-process `serializeOnFile` can't coordinate with the iCloud daemon — cross-device edits are last-writer-wins (atomic temp+rename prevents corruption). `.nexus/index.db` needs sync-exclusion; the walk must skip evicted `.icloud` placeholders.
 
 - **Mobile iOS companion (parked — session B):** spec at `.claude/Mobile/MobileSpec.md` (+ 6 siblings); 4 pre-paves shipped (`02bb4e11`). Step 1 is the gate — a `window.nexus` bridge shim + a native iCloud Swift plugin. No commitment to build.

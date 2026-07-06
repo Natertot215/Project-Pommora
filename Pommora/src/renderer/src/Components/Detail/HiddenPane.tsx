@@ -4,7 +4,7 @@ import { type PropertyDefinition, RESERVED_PROPERTY_ID } from '@shared/propertie
 import type { SavedView } from '@shared/views'
 import { Icon } from '@renderer/design-system/symbols'
 import { useSession } from '../../store'
-import { MenuItem, MenuSeparator, MenuPaneTopRow } from '../../design-system/components/menu'
+import { MenuItem, MenuPaneTopRow, MenuScrollFrame } from '../../design-system/components/menu'
 import { flushTrailing } from '../../design-system/components/menu/menu.css'
 import { resolveColumns } from '../../Detail/Views/pipeline/columns'
 import { columnLabel } from '../../Detail/Views/Table/columnLabel'
@@ -12,24 +12,17 @@ import { useActiveView } from '../../Detail/Views/useActiveView'
 import { saveViewAdopting } from '../../Detail/Views/viewMint'
 import { PaneDnd, RowShell, usePaneRegions } from './paneDnd'
 import type { PaneDrop, PaneRow } from './paneDndModel'
-import {
-  CONTEXT_TIERS,
-  hiddenListIds,
-  hiddenPaneSlot,
-  hideShown,
-  placeInShown,
-  shownPropertyIds,
-  unhide
-} from './hiddenPaneModel'
+import { hiddenListIds, hiddenPaneSlot, hideShown, placeInShown, unhide } from './hiddenPaneModel'
 import { PropertyTypeIcon } from './PropertyTypes'
 import { cx } from '../../design-system/cx'
 import * as s from './settingsPane.css'
 
-/** A row's leading glyph: schema props wear their type icon; tiers wear the context type's;
- *  Modified falls back with its type meta. */
+/** A row's leading glyph: schema props wear their type icon; Title and the tiers wear the reserved
+ *  glyph; Modified falls back with its type meta. */
 function rowIcon(id: string, schema: PropertyDefinition[]): ReactNode {
   const def = schema.find((d) => d.id === id)
   if (def) return <PropertyTypeIcon type={def.type} size={s.ICON.doc} />
+  if (id === RESERVED_PROPERTY_ID.title) return <PropertyTypeIcon type="title" size={s.ICON.doc} />
   if (id === RESERVED_PROPERTY_ID.modifiedAt) return <PropertyTypeIcon type="last_edited_time" size={s.ICON.doc} />
   return <PropertyTypeIcon type="context" size={s.ICON.doc} />
 }
@@ -57,11 +50,11 @@ function EyeToggle({ hidden, name, onToggle }: { hidden: boolean; name: string; 
   )
 }
 
-/** The pane's three sections — contexts (static; rows ghost in place when hidden), the shown
- *  properties (the one drag region), and the hidden block. Lives outside HiddenPane so rows never
- *  remount on its re-renders; the region keys ('assigned' = properties, 'all' = hidden) are the
- *  PaneDnd group names; the hidden zone grows into the pane's slack so its hide-highlight reads
- *  even while nothing's hidden. */
+/** The two zones — the shown rows (the one drag region, in view order: Title, tiers, and properties
+ *  together) then the hidden block. Lives outside the pane so rows never remount on its re-renders;
+ *  the region keys ('assigned' = shown, 'all' = hidden) are the PaneDnd group names; the hidden zone
+ *  grows into the pane's slack so its hide-highlight reads even while nothing's hidden. Title's eye is
+ *  inert (it never hides). */
 function VisibilityGroups({
   shownIds,
   hiddenIds,
@@ -78,26 +71,20 @@ function VisibilityGroups({
   onToggle: (id: string, hidden: boolean) => void
 }): React.JSX.Element {
   const { assignedRef, allRef, allHighlighted } = usePaneRegions()
-  const eye = (id: string): ReactNode => (
-    <EyeToggle hidden={hiddenSet.has(id)} name={nameFor(id)} onToggle={() => onToggle(id, hiddenSet.has(id))} />
-  )
+  const eyeFor = (id: string): ReactNode =>
+    id === RESERVED_PROPERTY_ID.title ? (
+      <span className={s.eyeInert} aria-hidden>
+        <Icon name="eye" size={s.ICON.eye} />
+      </span>
+    ) : (
+      <EyeToggle hidden={hiddenSet.has(id)} name={nameFor(id)} onToggle={() => onToggle(id, hiddenSet.has(id))} />
+    )
   return (
     <>
-      {CONTEXT_TIERS.map((id) => (
-        <MenuItem
-          key={id}
-          className={cx(flushTrailing, hiddenSet.has(id) && s.hiddenRow)}
-          leading={rowIcon(id, schema)}
-          trailing={eye(id)}
-        >
-          {nameFor(id)}
-        </MenuItem>
-      ))}
-      <MenuSeparator flush />
       <div data-group="assigned" ref={assignedRef}>
         {shownIds.map((id) => (
           <RowShell key={id} id={id}>
-            <MenuItem className={flushTrailing} leading={rowIcon(id, schema)} trailing={eye(id)}>
+            <MenuItem className={flushTrailing} leading={rowIcon(id, schema)} trailing={eyeFor(id)}>
               {nameFor(id)}
             </MenuItem>
           </RowShell>
@@ -108,7 +95,7 @@ function VisibilityGroups({
       <div data-group="all" ref={allRef} className={cx(s.hiddenZone, allHighlighted && s.allHighlight)}>
         {hiddenIds.map((id) => (
           <RowShell key={id} id={id}>
-            <MenuItem className={cx(flushTrailing, s.hiddenRow)} leading={rowIcon(id, schema)} trailing={eye(id)}>
+            <MenuItem className={cx(flushTrailing, s.hiddenRow)} leading={rowIcon(id, schema)} trailing={eyeFor(id)}>
               {nameFor(id)}
             </MenuItem>
           </RowShell>
@@ -119,33 +106,35 @@ function VisibilityGroups({
 }
 
 /**
- * The Visibility pane — the active view's shown/hidden split. Contexts sit on top as a static
- * block: fixed Areas · Topics · Projects order, eye-only, ghosting in place when hidden (they
- * never join the hidden zone). Below the divider the properties run as ONE list, no heading: the
- * shown rows in view order, then the hidden rows ghosted after them in collection order. Drags
- * carry the drag language — into the shown zone lands at a slot (drop line; the gallery case:
- * card properties have no draggable columns), into the hidden zone hides (area highlight, no
- * line — the hidden order is derived). Every row's eye toggles its side. Hiding only flags
- * (`hidden_properties`), never moves: an eye-unhide restores the property to its remembered view
- * slot; only a drag-in chooses a new one. Writes go through `views:save` + `load()`, so the live
- * table behind the dropdown updates on the same beat.
+ * The visibility list — a view's shown/hidden split as ONE flat list, shared by the Visibility pane
+ * and the table view's Layout leaf. Below the header the rows run in the view's column order (Title,
+ * the context tiers, and the properties together), then the hidden rows ghosted after them. Title
+ * rides the list as a draggable anchor but never hides (its eye is inert), so a column can be dragged
+ * before it — the reason it's listed at all. Drags carry the drag language: into the shown zone lands
+ * at a slot (drop line), into the hidden zone hides (area highlight, no line — the hidden order is
+ * derived). Hiding only flags (`hidden_properties`), never moves: an eye-unhide restores the property
+ * to its remembered view slot; only a drag-in chooses a new one. Writes go through `views:save` +
+ * `load()`, so the live table behind the dropdown updates on the same beat. An optional `footer` (the
+ * Layout leaf's icon toggles) pins below the list.
  */
-export function HiddenPane({
+export function VisibilityList({
   source,
   schema,
-  onBack
+  view,
+  onBack,
+  footer
 }: {
   source: CollectionNode | SetNode
   schema: PropertyDefinition[]
+  view: SavedView
   onBack: () => void
+  footer?: ReactNode
 }): React.JSX.Element | null {
   const load = useSession((st) => st.load)
   const tree = useSession((st) => st.tree)
-  const { view } = useActiveView(source, schema)
   if (!tree) return null
 
-  const fullVisibleIds = resolveColumns(view, schema).map((c) => c.id)
-  const shownIds = shownPropertyIds(fullVisibleIds)
+  const shownIds = resolveColumns(view, schema).map((c) => c.id)
   const hiddenIds = hiddenListIds(view.hidden_properties, schema)
   const hiddenSet = new Set(view.hidden_properties)
   const nameFor = (id: string): string => columnLabel(id, schema, tree.labels)
@@ -159,7 +148,7 @@ export function HiddenPane({
   const handleDrop = (drop: PaneDrop): void => {
     if (drop.kind === 'unassign') void save(hideShown(view, drop.propId))
     else if (drop.kind === 'reorder-assigned' || drop.kind === 'assign')
-      void save(placeInShown(view, fullVisibleIds, shownIds, drop.propId, drop.toIndex))
+      void save(placeInShown(view, shownIds, shownIds, drop.propId, drop.toIndex))
   }
 
   const paneRows: PaneRow[] = [
@@ -168,16 +157,31 @@ export function HiddenPane({
   ]
 
   return (
-    <PaneDnd rows={paneRows} labelFor={nameFor} onDrop={handleDrop} slot={hiddenPaneSlot}>
-      <MenuPaneTopRow label="Settings" onBack={onBack} />
-      <VisibilityGroups
-        shownIds={shownIds}
-        hiddenIds={hiddenIds}
-        hiddenSet={hiddenSet}
-        schema={schema}
-        nameFor={nameFor}
-        onToggle={(id, hidden) => void save(hidden ? unhide(view, id) : hideShown(view, id))}
-      />
-    </PaneDnd>
+    <MenuScrollFrame header={<MenuPaneTopRow label="Settings" onBack={onBack} />} footer={footer}>
+      <PaneDnd rows={paneRows} labelFor={nameFor} onDrop={handleDrop} slot={hiddenPaneSlot}>
+        <VisibilityGroups
+          shownIds={shownIds}
+          hiddenIds={hiddenIds}
+          hiddenSet={hiddenSet}
+          schema={schema}
+          nameFor={nameFor}
+          onToggle={(id, hidden) => void save(hidden ? unhide(view, id) : hideShown(view, id))}
+        />
+      </PaneDnd>
+    </MenuScrollFrame>
   )
+}
+
+/** The Visibility pane (SettingsPane → Visibility) — the active view's visibility list, no footer. */
+export function HiddenPane({
+  source,
+  schema,
+  onBack
+}: {
+  source: CollectionNode | SetNode
+  schema: PropertyDefinition[]
+  onBack: () => void
+}): React.JSX.Element | null {
+  const { view } = useActiveView(source, schema)
+  return <VisibilityList source={source} schema={schema} view={view} onBack={onBack} />
 }

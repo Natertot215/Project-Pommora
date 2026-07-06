@@ -3,7 +3,7 @@ import type { MeasuredRow } from '@renderer/Sidebar/sidebarDndModel'
 import { RESERVED_PROPERTY_ID, type PropertyDefinition } from '@shared/properties'
 import type { SavedView } from '@shared/views'
 import type { PaneRow } from './paneDndModel'
-import { hiddenListIds, hiddenPaneSlot, hideShown, placeInShown, shownPropertyIds, unhide } from './hiddenPaneModel'
+import { hiddenListIds, hiddenPaneSlot, hideShown, placeInShown, unhide } from './hiddenPaneModel'
 
 const { title, tier1, tier3, modifiedAt } = RESERVED_PROPERTY_ID
 
@@ -17,21 +17,15 @@ const view = (property_order: string[], hidden_properties: string[]): SavedView 
   hidden_properties
 })
 
-describe('shownPropertyIds', () => {
-  it('drops Title and the tiers, keeping the view order of the rest', () => {
-    expect(shownPropertyIds([title, 'a', tier3, 'b', modifiedAt])).toEqual(['a', 'b', modifiedAt])
-  })
-})
-
 describe('hiddenListIds', () => {
   it('orders by the COLLECTION schema, not the hidden array', () => {
     const schema = [def('a'), def('b'), def('c')]
     expect(hiddenListIds(['c', 'a'], schema)).toEqual(['a', 'c'])
   })
 
-  it('never lists contexts (they ghost in place), trails Modified, drops stale ids', () => {
+  it('lists hidden tiers first (fixed order), then props, trails Modified, drops stale ids', () => {
     const schema = [def('a')]
-    expect(hiddenListIds([tier1, modifiedAt, 'stale', 'a'], schema)).toEqual(['a', modifiedAt])
+    expect(hiddenListIds([tier1, modifiedAt, 'stale', 'a'], schema)).toEqual([tier1, 'a', modifiedAt])
   })
 })
 
@@ -128,7 +122,12 @@ describe('hiddenPaneSlot', () => {
     expect(hiddenPaneSlot(rows, byId, regions, 70, 'h')).toBeNull()
   })
 
-  it('is inert above the properties region (the contexts block) and below the pane', () => {
+  it('never hides Title — a drop into the hidden zone is a no-op', () => {
+    const withTitle = new Map(byId).set(title, { id: title, group: 'assigned' })
+    expect(hiddenPaneSlot(rows, withTitle, regions, 70, title)).toBeNull()
+  })
+
+  it('is inert above and below the pane regions', () => {
     expect(hiddenPaneSlot(rows, byId, regions, -10, 'a')).toBeNull()
     expect(hiddenPaneSlot(rows, byId, regions, 150, 'a')).toBeNull()
   })

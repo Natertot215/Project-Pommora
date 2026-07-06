@@ -11,6 +11,7 @@ import {
   ChevronUp,
   CircleDashed,
   Clock,
+  Columns3Cog,
   Copy,
   Ellipsis,
   EllipsisVertical,
@@ -123,7 +124,8 @@ export const icons = {
   'layers-2': Layers2,
   table: TableWide,
   'list-rounded': ListRounded,
-  'cards-grid': CardsGrid
+  'cards-grid': CardsGrid,
+  'columns-3-cog': Columns3Cog
 } satisfies Record<string, LucideIcon>
 
 export type IconName = keyof typeof icons
