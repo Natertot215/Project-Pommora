@@ -83,6 +83,9 @@ const api = {
   // The ViewSettings ⋮ menu (Duplicate / Delete); Delete disabled when the view can't be removed.
   viewItemMenu: (canDelete: boolean): Promise<'view:duplicate' | 'view:delete' | null> =>
     ipcRenderer.invoke('view-item-menu', canDelete),
+  // A ViewPane view row's right-click menu (Rename / Edit Icon / Delete); Delete disabled on the last view.
+  viewRowMenu: (canDelete: boolean): Promise<'view:rename' | 'view:edit-icon' | 'view:delete' | null> =>
+    ipcRenderer.invoke('view-row-menu', canDelete),
   // The ViewSettings Format native menu (Standard / Compact).
   viewFormatMenu: (current: 'standard' | 'compact'): Promise<'standard' | 'compact' | null> =>
     ipcRenderer.invoke('view-format-menu', current),

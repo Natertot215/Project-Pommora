@@ -64,6 +64,7 @@ import { popPropertyMenu } from './propertyMenu'
 import { popOptionMenu } from './optionMenu'
 import { popViewButtonMenu, type ViewButtonMenuAction } from './viewButtonMenu'
 import { popViewItemMenu, type ViewItemMenuAction } from './viewItemMenu'
+import { popViewRowMenu, type ViewRowMenuAction } from './viewRowMenu'
 import { popViewFormatMenu } from './viewFormatMenu'
 import { popOpenInMenu } from './openInMenu'
 import type { ViewButton, ViewStyle, OpenIn } from '@shared/types'
@@ -1065,6 +1066,13 @@ ipcMain.handle('view-item-menu', async (e, canDelete: unknown): Promise<ViewItem
   const win = BrowserWindow.fromWebContents(e.sender)
   if (!win) return null
   return popViewItemMenu(win, { canDelete: canDelete === true })
+})
+
+// A ViewPane view row's right-click menu (Rename / Edit Icon / Delete).
+ipcMain.handle('view-row-menu', async (e, canDelete: unknown): Promise<ViewRowMenuAction | null> => {
+  const win = BrowserWindow.fromWebContents(e.sender)
+  if (!win) return null
+  return popViewRowMenu(win, { canDelete: canDelete === true })
 })
 
 // The ViewSettings Format control's native menu (Standard / Compact).
