@@ -39,7 +39,7 @@ const IDLE: DragState = { id: null, ghostX: 0, ghostY: 0, target: null }
 
 // Gesture lifecycle: idle → pending (pressed, not yet past the activation threshold) →
 // active (dragging). pending and active carry the same fields; idle carries none.
-type Handlers = { move: (e: PointerEvent) => void; up: () => void; cancel: () => void; key: (e: KeyboardEvent) => void }
+type Handlers = { move: (e: PointerEvent) => void; up: (e: PointerEvent) => void; cancel: (e: PointerEvent) => void; key: (e: KeyboardEvent) => void }
 type Gesture =
   | { kind: 'idle' }
   | { kind: 'pending' | 'active'; id: string; el: HTMLElement; pid: number; startX: number; startY: number; grabX: number; handlers: Handlers }
@@ -223,16 +223,20 @@ export function SidebarDnd({
     return { depth: overEntry.depth, lineY: edge - contentTop, commit, noop: sameOrder(order, group) }
   }
 
-  const markSnapshotDirty = (): void => {
+  // Only a scroll that moves the rows themselves (the nav, an ancestor, the window) shifts the
+  // frozen rects — a row's inner hover-marquee scroll never changes row geometry, so it must not
+  // trigger an O(rows) re-measure on its per-frame ticks.
+  const markSnapshotDirty = (e: Event): void => {
+    if (e.target instanceof Element && contentRef.current && !e.target.contains(contentRef.current)) return
     snapshotDirty.current = true
   }
 
   const detach = (): void => {
     const g = gesture.current
     if (g.kind === 'idle') return
-    g.el.removeEventListener('pointermove', g.handlers.move)
-    g.el.removeEventListener('pointerup', g.handlers.up)
-    g.el.removeEventListener('pointercancel', g.handlers.cancel)
+    window.removeEventListener('pointermove', g.handlers.move)
+    window.removeEventListener('pointerup', g.handlers.up)
+    window.removeEventListener('pointercancel', g.handlers.cancel)
     window.removeEventListener('keydown', g.handlers.key)
     window.removeEventListener('scroll', markSnapshotDirty, { capture: true })
     try {
@@ -259,22 +263,25 @@ export function SidebarDnd({
     const r = el.getBoundingClientRect()
     const handlers: Handlers = { move: onMovePtr, up: onUp, cancel: onCancel, key: onKey }
     gesture.current = { kind: 'pending', id, el, pid: e.pointerId, startX: e.clientX, startY: e.clientY, grabX: e.clientX - r.left, handlers }
-    // Capture is deferred to activation (onMovePtr). Capturing on pointerdown would consume the
-    // click, so a tap could never toggle a disclosure or select a row — it'd always be a drag.
-    el.addEventListener('pointermove', handlers.move)
-    el.addEventListener('pointerup', handlers.up)
-    el.addEventListener('pointercancel', handlers.cancel)
-    // Escape rides the window — the row never holds focus, so a key event can't reach it.
+    // The gesture listeners live on the WINDOW, never the row: a mid-drag tree push (watcher) can
+    // move or remount the row's DOM node, which silently releases pointer capture and would starve
+    // row-hosted listeners — freezing the ghost, eating the drop, and wedging the gesture so no
+    // later drag can start. Window listeners receive every pointer event regardless.
+    window.addEventListener('pointermove', handlers.move)
+    window.addEventListener('pointerup', handlers.up)
+    window.addEventListener('pointercancel', handlers.cancel)
     window.addEventListener('keydown', handlers.key)
   }
 
   function onMovePtr(e: PointerEvent): void {
     const g = gesture.current
-    if (g.kind === 'idle') return
+    if (g.kind === 'idle' || e.pointerId !== g.pid) return
     if (g.kind === 'pending') {
       if (Math.hypot(e.clientX - g.startX, e.clientY - g.startY) < ACTIVATION) return
+      // Capture only at activation (a tap must stay a click) and purely to keep other rows
+      // hover-inert under the drag — the gesture itself never depends on it surviving.
       try {
-        g.el.setPointerCapture(g.pid) // capture only now — a real drag has started; taps stay clicks
+        g.el.setPointerCapture(g.pid)
       } catch {
         // capture unavailable
       }
@@ -288,7 +295,9 @@ export function SidebarDnd({
     setDrag({ id: g.id, ghostX: e.clientX - g.grabX, ghostY: e.clientY, target })
   }
 
-  function onUp(): void {
+  function onUp(e: PointerEvent): void {
+    const g0 = gesture.current
+    if (g0.kind === 'idle' || e.pointerId !== g0.pid) return
     detach()
     const g = gesture.current
     if (g.kind !== 'active') {
@@ -304,7 +313,9 @@ export function SidebarDnd({
     reset()
   }
 
-  function onCancel(): void {
+  function onCancel(e?: PointerEvent): void {
+    const g = gesture.current
+    if (g.kind === 'idle' || (e && e.pointerId !== g.pid)) return
     detach()
     reset()
   }
