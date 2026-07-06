@@ -40,6 +40,23 @@ The type glyphs, shown in the type picker and on each property row. Label + icon
 
 **Link is the canonical name for the `url` type** — user-facing label and default new-property name ("New Link"). The on-disk type key stays `url`; only the name changed.
 
+**Title** wears `text-align-justify` — the reserved heading column isn't a user property type, but its glyph lives beside the type map (`PropertyTypes.tsx`) so every surface renders it from one source.
+
+### View Types
+
+The saved-view type roster and its grid glyphs (the ViewSettings 3×2 picker):
+
+| Type     | Icon                                        |
+| -------- | ------------------------------------------- |
+| Table    | `table` (also the view icon + button glyph) |
+| Cards    | a custom 2×3 grid of 2:3-aspect tiles        |
+| List     | a custom rounded-circle list glyph           |
+| Gallery  | `layout-dashboard`                          |
+| Calendar | `calendar-days`                             |
+| Timeline | `chart-gantt`                               |
+
+`table` is THE table glyph everywhere (view icon, view rows, the ViewDropdown button, and the grid's Table tile) — one glyph per concept. The two customs live as registry-conforming SVG components.
+
 ### Misc
 
 | Concept     | Icon     |

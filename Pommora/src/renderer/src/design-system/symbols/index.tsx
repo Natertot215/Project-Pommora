@@ -1,10 +1,13 @@
 import {
   ArrowUpDown,
   Calendar,
+  CalendarDays,
+  ChartGantt,
   Check,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
+  ChevronsUpDown,
   ChevronUp,
   CircleDashed,
   Clock,
@@ -25,6 +28,7 @@ import {
   Import,
   LayoutDashboard,
   LayoutGrid,
+  LayoutPanelLeft,
   Layers,
   Link,
   Link2,
@@ -44,8 +48,10 @@ import {
   SquareCheck,
   SquareDashed,
   SquarePlus,
+  Table,
   Tag,
   Tags,
+  TextAlignJustify,
   Type,
   X
 } from 'lucide-react'
@@ -107,7 +113,13 @@ export const icons = {
   eye: Eye,
   'eye-off': EyeOff,
   'layout-dashboard': LayoutDashboard,
-  'list-filter': ListFilter
+  'list-filter': ListFilter,
+  table: Table,
+  'calendar-days': CalendarDays,
+  'chart-gantt': ChartGantt,
+  'chevrons-up-down': ChevronsUpDown,
+  'layout-panel-left': LayoutPanelLeft,
+  'text-align-justify': TextAlignJustify
 } satisfies Record<string, LucideIcon>
 
 export type IconName = keyof typeof icons

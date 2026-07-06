@@ -33,7 +33,11 @@ export const CREATABLE_TYPES = (Object.keys(PROPERTY_TYPES) as PropertyType[]).f
   (t) => PROPERTY_TYPES[t].creatable
 )
 
-export function PropertyTypeIcon({ type, size = 16 }: { type: PropertyType; size?: number }): React.JSX.Element {
-  const name = PROPERTY_TYPES[type].icon
+// Title isn't a user PropertyType (it's the reserved heading column), but it needs the same glyph
+// vocabulary — its icon lives here so every surface renders it from one source.
+const TITLE_META: TypeMeta = { label: 'Title', icon: 'text-align-justify' }
+
+export function PropertyTypeIcon({ type, size = 16 }: { type: PropertyType | 'title'; size?: number }): React.JSX.Element {
+  const name = (type === 'title' ? TITLE_META : PROPERTY_TYPES[type]).icon
   return name ? <Icon name={name} size={size} /> : <DashIcon />
 }
