@@ -254,7 +254,7 @@ async function adoptNexus(path: string): Promise<void> {
   // Live-watch the new nexus (startWatcher replaces any prior session's watcher).
   // A user-initiated open always has a window; launch-restore starts its watcher
   // after createWindow below.
-  if (mainWindow) startWatcher(root, mainWindow)
+  if (mainWindow) void startWatcher(root, mainWindow)
   // Persistence (last-opened + recents + OS list) is best-effort: a config-write
   // failure must not block opening the folder this session, nor leave a half-open
   // "ghost" session the renderer never re-reads.
@@ -1186,13 +1186,13 @@ app
     refreshMenu()
     // A restored nexus opened before the window existed — start its watcher now.
     const restored = sessionRoot()
-    if (restored && mainWindow) startWatcher(restored, mainWindow)
+    if (restored && mainWindow) void startWatcher(restored, mainWindow)
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) {
         createWindow()
         // Re-attach the watcher to the fresh window (the session stays open across a close).
         const root = sessionRoot()
-        if (root && mainWindow) startWatcher(root, mainWindow)
+        if (root && mainWindow) void startWatcher(root, mainWindow)
       }
     })
   })

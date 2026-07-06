@@ -29,6 +29,16 @@ describe('ignoredUnder', () => {
     expect(ignored('/elsewhere/file.md')).toBe(false)
   })
 
+  it('ignores user-excluded folders (case/NFC-insensitive, prefix match, whole segments only)', () => {
+    const withExcluded = ignoredUnder('/nexus', ['Agenda', 'Deep/Nested'])
+    expect(withExcluded('/nexus/Agenda/Task.md')).toBe(true)
+    expect(withExcluded('/nexus/agenda/sub/Task.md')).toBe(true)
+    expect(withExcluded('/nexus/Deep/Nested/x.md')).toBe(true)
+    expect(withExcluded('/nexus/Deep/Other/x.md')).toBe(false)
+    expect(withExcluded('/nexus/Agenda.md')).toBe(false) // a file merely NAMED like the folder
+    expect(withExcluded('/nexus/Notes/Agenda/x.md')).toBe(false) // exclusions anchor at the root
+  })
+
   it('works when the root path itself contains a dot-segment', () => {
     const underDot = ignoredUnder('/Users/me/.config/nexus')
     expect(underDot('/Users/me/.config/nexus/Notes/Page.md')).toBe(false)
