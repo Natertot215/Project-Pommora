@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import type { CollectionNode, SetNode } from '@shared/types'
 import type { PropertyDefinition } from '@shared/properties'
 import { mintDefaultView, mintNewView } from '@shared/views'
 import { Icon, iconNameOr } from '@renderer/design-system/symbols'
-import { Menu, MenuItem, MenuBottomRow, AccessoryButton, MENU_MAX_HEIGHT } from '../design-system/components/menu'
+import { Menu, MenuItem, MenuBottomRow, MenuScrollFrame, AccessoryButton } from '../design-system/components/menu'
 import { PaneSlider } from '../Components/Detail/PaneSlider'
 import { ViewSettings } from '../Components/Detail/ViewSettings'
 import { useSession } from '../store'
@@ -31,18 +31,6 @@ export function ViewPane({
   const setActiveView = useSession((s) => s.setActiveView)
   const load = useSession((s) => s.load)
   const [editingId, setEditingId] = useState<string | null>(null)
-  // `active` lags `editingId` by a frame on push: the detail mounts (slot B) first so the slider measures
-  // its height, THEN we flip — the viewport animates open to a known height instead of snapping from
-  // `auto` (the entry bounce). Back flips immediately so the slide-out isn't delayed.
-  const [active, setActive] = useState<'a' | 'b'>('a')
-  useEffect(() => {
-    if (!editingId) {
-      setActive('a')
-      return
-    }
-    const raf = requestAnimationFrame(() => setActive('b'))
-    return () => cancelAnimationFrame(raf)
-  }, [editingId])
   const views = node.views ?? []
   // The list never renders empty: during the entry-mint beat (a legacy container's first open, before
   // the refetch lands) show the in-memory sentinel default, same as the button + table (G-4).
@@ -61,8 +49,15 @@ export function ViewPane({
   }
 
   const list = (
-    <Menu className={vd.paneMenu}>
-      <div className={vd.rowsFill}>
+    <MenuScrollFrame
+      footer={
+        <MenuBottomRow
+          leading={<AccessoryButton icon="plus" size={12} box={20} ariaLabel="New View" onClick={() => void createView()} />}
+          trailing={<AccessoryButton icon="dots" size={12} box={20} ariaLabel="More" onClick={() => {}} />}
+        />
+      }
+    >
+      <Menu>
         {rows.map((v) => (
           <MenuItem
             key={v.id}
@@ -85,30 +80,16 @@ export function ViewPane({
             {v.name}
           </MenuItem>
         ))}
-      </div>
-      <MenuBottomRow
-        leading={<AccessoryButton icon="plus" size={12} box={20} ariaLabel="New View" onClick={() => void createView()} />}
-        trailing={<AccessoryButton icon="dots" size={12} box={20} ariaLabel="More" onClick={() => {}} />}
-      />
-    </Menu>
+      </Menu>
+    </MenuScrollFrame>
   )
 
   const detail = editing ? (
     <ViewSettings source={node} view={editing} schema={schema} door="full" onBack={() => setEditingId(null)} onClose={onClose} />
   ) : null
 
-  // The pane reserves a square (PANE_SQUARE) so a sparse list doesn't collapse — rows fill it top-down
-  // with the footer pinned to the bottom (vd.rowsFill), and only past the square does it grow. The
-  // shared MENU_MAX_HEIGHT caps a long list / tall ViewSettings; past it the slot (or the leaf's own
-  // MenuScrollFrame) scrolls instead of clipping.
-  return (
-    <PaneSlider
-      active={active}
-      slotA={list}
-      slotB={detail}
-      minWidth={PANE_SQUARE}
-      minHeight={PANE_SQUARE}
-      maxHeight={MENU_MAX_HEIGHT}
-    />
-  )
+  // The pane reserves a square (PANE_SQUARE via the slider's floors) so a sparse list doesn't collapse;
+  // the list's MenuScrollFrame fills it, pins the +/… footer at the bottom, and scrolls the rows once
+  // they'd exceed its ceiling. The slider only slides + resizes between the list and ViewSettings.
+  return <PaneSlider open={!!editing} root={list} detail={detail} minWidth={PANE_SQUARE} minHeight={PANE_SQUARE} />
 }

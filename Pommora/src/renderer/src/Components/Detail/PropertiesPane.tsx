@@ -3,7 +3,7 @@ import { Icon, type IconName } from '@renderer/design-system/symbols'
 import { useSession } from '../../store'
 import { isReservedPropertyId, type PropertyDefinition, type PropertyType, type StatusGroup } from '@shared/properties'
 import type { Option } from '@shared/optionModel'
-import { MenuItem, MenuCaption, MenuPaneTopRow, MenuScrollFrame, MenuBottomRow, AccessoryButton, MENU_MAX_HEIGHT } from '../../design-system/components/menu'
+import { MenuItem, MenuCaption, MenuPaneTopRow, MenuScrollFrame, MenuBottomRow, AccessoryButton } from '../../design-system/components/menu'
 import { flushTrailing } from '../../design-system/components/menu/menu.css'
 import { Reveal } from '../../design-system/components/Reveal'
 import { duration } from '../../design-system/tokens/motion'
@@ -333,13 +333,14 @@ export function PropertiesPane({
       )
     }
     return (
-      <>
-        {actionHeader('Properties', backToList, {
+      <MenuScrollFrame
+        header={actionHeader('Properties', backToList, {
           icon: 'ellipsis-vertical',
           size: s.ICON.editorMenu,
           ariaLabel: 'Property Menu',
           onClick: () => void editorMenu(def)
         })}
+      >
         <InlineEditHeader value={def.name} onIconClick={() => setIconOpen(true)} onCommit={(next) => void rename(def.id, next)} />
         {def.type === 'select' || def.type === 'multi_select' ? (
           <OptionEditor
@@ -369,7 +370,7 @@ export function PropertiesPane({
           // Blank body until this type's options UI ships (Guidelines/UI-Copy.md).
           <div style={{ minHeight: 8 }} />
         )}
-      </>
+      </MenuScrollFrame>
     )
   }
 
@@ -404,12 +405,11 @@ export function PropertiesPane({
   return (
     <>
       <PaneSlider
-        active={view.kind === 'list' ? 'a' : 'b'}
-        slotA={list}
-        slotB={detailView.kind === 'type' ? typePicker : editor(detailView.id)}
+        open={view.kind !== 'list'}
+        root={list}
+        detail={detailView.kind === 'type' ? typePicker : editor(detailView.id)}
         minWidth={225}
         minHeight={245}
-        maxHeight={MENU_MAX_HEIGHT}
       />
       <IconPicker open={iconOpen} onClose={() => setIconOpen(false)} />
     </>

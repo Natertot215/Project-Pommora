@@ -124,7 +124,8 @@ export function VisibilityList({
   onBack,
   footer,
   label = 'Settings',
-  current
+  current,
+  maxHeight
 }: {
   source: CollectionNode | SetNode
   schema: PropertyDefinition[]
@@ -135,6 +136,8 @@ export function VisibilityList({
    *  the ViewSettings Layout leaf reads `Views · Layout`. */
   label?: string
   current?: string
+  /** Height ceiling override — the ViewSettings Layout leaf passes ViewSettings' own max. */
+  maxHeight?: number
 }): React.JSX.Element | null {
   const load = useSession((st) => st.load)
   const tree = useSession((st) => st.tree)
@@ -163,7 +166,7 @@ export function VisibilityList({
   ]
 
   return (
-    <MenuScrollFrame header={<MenuPaneTopRow label={label} current={current} onBack={onBack} />} footer={footer}>
+    <MenuScrollFrame header={<MenuPaneTopRow label={label} current={current} onBack={onBack} />} footer={footer} maxHeight={maxHeight}>
       <PaneDnd rows={paneRows} labelFor={nameFor} onDrop={handleDrop} slot={hiddenPaneSlot}>
         <VisibilityGroups
           shownIds={shownIds}

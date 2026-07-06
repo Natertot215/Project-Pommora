@@ -11,6 +11,7 @@ import { saveViewAdopting } from '../../Detail/Views/viewMint'
 import { InlineEditHeader } from './InlineEditHeader'
 import { VisibilityList } from './HiddenPane'
 import { LayoutToggles } from './LayoutToggles'
+import { PaneSlider } from './PaneSlider'
 import { cx } from '../../design-system/cx'
 import * as vs from './viewSettings.css'
 
@@ -27,6 +28,15 @@ const TYPE_GLYPH: Record<ViewType, IconName> = {
 }
 const IMPLEMENTED: ReadonlySet<ViewType> = new Set(['table'])
 const isMac = navigator.platform.toLowerCase().includes('mac')
+
+// ── KNOB — ViewSettings' own height ceiling (its own, not the shared MENU_MAX_HEIGHT): the full door
+// stacks the tallest content (title + grid + four leaf rows + the pinned Format), so it earns more
+// room before the body scrolls. Applies to the editor + its Layout leaf. ──
+const VIEWSETTINGS_MAX_HEIGHT = 400
+// ── KNOB — the leaf slider's floors (matches the SettingsPane sibling): a blank Group/Filter/Sort leaf
+// reserves this square instead of collapsing to a bare header strip mid-slide. ──
+const LEAF_MIN_WIDTH = 225
+const LEAF_MIN_HEIGHT = 245
 
 // The full-door config leaves below the grid — same rows the SettingsPane carries, so the view config
 // is reachable without the dropdown (the future Toolbar mode). Layout opens the visibility list; the
@@ -106,24 +116,24 @@ export function ViewSettings({
     }
   }
 
-  // Full-door leaves. Layout opens the visibility list (+ its icon toggles); Group/Filter/Sort ship
-  // blank, matching the SettingsPane's — the shared panes land in their own arcs.
-  if (leaf === 'layout') {
-    return (
+  // Full-door leaves — the detail slot of the leaf slider (below). Layout opens the visibility list
+  // (+ its icon toggles); Group/Filter/Sort ship blank, matching the SettingsPane's — the shared panes
+  // land in their own arcs. Only mounted while a leaf is open, so a push measures it before the flip.
+  const leafPane =
+    leaf === 'layout' ? (
       <VisibilityList
         source={source}
         schema={schema}
         view={view}
         label="Views"
         current="Layout"
+        maxHeight={VIEWSETTINGS_MAX_HEIGHT}
         onBack={() => setLeaf(null)}
         footer={<LayoutToggles source={source} view={view} />}
       />
-    )
-  }
-  if (leaf) {
-    return <MenuPaneTopRow label="Views" current={LEAF_CURRENT[leaf]} onBack={() => setLeaf(null)} />
-  }
+    ) : leaf ? (
+      <MenuPaneTopRow label="Views" current={LEAF_CURRENT[leaf]} onBack={() => setLeaf(null)} />
+    ) : null
 
   const title = <InlineEditHeader value={view.name} onCommit={rename} onIconClick={() => {}} />
   const grid = (
@@ -147,6 +157,8 @@ export function ViewSettings({
   const formatRow =
     view.type === 'table' ? (
       <div ref={formatRef}>
+        {/* The divider above the footing — separates the pinned Format control from the scrolling body. */}
+        <MenuSeparator flush />
         <MenuItem
           className={flushTrailing}
           leading={
@@ -198,8 +210,8 @@ export function ViewSettings({
       <MenuPaneTopRow label="Settings" current="Layout" onBack={onBack} />
     )
 
-  return (
-    <MenuScrollFrame header={header} footer={formatRow}>
+  const mainFrame = (
+    <MenuScrollFrame header={header} footer={formatRow} maxHeight={VIEWSETTINGS_MAX_HEIGHT}>
       {/* Click-to-edit title (no auto-focus/select on open) — shared with the container header. */}
       {title}
       <MenuSeparator flush />
@@ -221,5 +233,12 @@ export function ViewSettings({
           <LayoutToggles source={source} view={view} />
         ))}
     </MenuScrollFrame>
+  )
+
+  // The leaf slider — the same primitive the ViewPane rides one level up, nested here so a full-door
+  // leaf (Layout/Group/Filter/Sort) slides in over the editor instead of hard-swapping. Flat door never
+  // opens a leaf, so this stays parked on the main frame.
+  return (
+    <PaneSlider open={leaf !== null} root={mainFrame} detail={leafPane} minWidth={LEAF_MIN_WIDTH} minHeight={LEAF_MIN_HEIGHT} />
   )
 }

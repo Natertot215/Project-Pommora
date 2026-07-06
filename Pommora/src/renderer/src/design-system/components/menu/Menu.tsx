@@ -211,24 +211,27 @@ export function MenuBottomRow({ leading, trailing }: { leading?: ReactNode; trai
   )
 }
 
-/** Pinned-edge scroll frame — an optional `header` and `footer` hold their place (never scroll) while
- *  `children` scroll between them, capped at the dropdown ceiling. The sole overflow region is the
- *  body, so nothing slides under an edge. The `children` own the scroll ancestor, so a drag inside
- *  auto-scrolls it. */
+/** Pinned-edge scroll frame — the pane's sole cap + scroll + footer-pin mechanism. An optional `header`
+ *  and `footer` hold their place (never scroll) while `children` scroll between them, capped at
+ *  `maxHeight` (the dropdown ceiling by default; a pane overrides for its own max). The body is the ONE
+ *  overflow region, so nothing slides under an edge; it owns the scroll ancestor, so a drag inside
+ *  auto-scrolls it, and carries the shared edge-fade mask. PaneSlider slides between frames but never
+ *  caps/scrolls a slot itself — the frame is the single source, so no pane re-wires the cap each time. */
 export function MenuScrollFrame({
   header,
   footer,
+  maxHeight = s.MENU_MAX_HEIGHT,
   children
 }: {
   header?: ReactNode
   footer?: ReactNode
+  /** Height ceiling (px) before the body scrolls — defaults to the shared MENU_MAX_HEIGHT. */
+  maxHeight?: number
   children: ReactNode
 }): React.JSX.Element {
   return (
-    <div className={s.scrollFrame}>
+    <div className={s.scrollFrame} style={{ maxHeight }}>
       {header && <div className={s.scrollFrameEdge}>{header}</div>}
-      {/* `scroll-edge-fade` (design-system) — the shared scroll-driven edge mask the sidebar + PaneSlider
-          use; the body IS the scroll container, so its rows fade under the pinned edges as they clip. */}
       <div className={cx(s.scrollFrameBody, 'scroll-edge-fade')}>{children}</div>
       {footer && <div className={s.scrollFrameEdge}>{footer}</div>}
     </div>

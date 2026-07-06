@@ -202,13 +202,13 @@ globalStyle(`${bottomRow} ${accessoryButton}${accessoryButton}`, { color: c.labe
  *  cap) and MenuScrollFrame (its body cap) so the two never drift. */
 export const MENU_MAX_HEIGHT = 320
 
-/** The frame — a flex column that fills its slot and caps at the ceiling; the body inside scrolls. */
+/** The frame — a flex column that fills its slot; the body inside scrolls. The height ceiling rides an
+ *  inline `max-height` (the MenuScrollFrame `maxHeight` prop), so a pane sets its own. */
 export const scrollFrame = style({
   display: 'flex',
   flexDirection: 'column',
   flex: '1 1 auto',
-  minHeight: 0,
-  maxHeight: `${MENU_MAX_HEIGHT}px`
+  minHeight: 0
 })
 
 /** A pinned edge (header or footer) — never grows, never scrolls, holds its place. */

@@ -78,6 +78,11 @@ describe('the DRY nested slide (A-7)', () => {
     await act(async () => {
       rowFor('Status').click()
     })
+    // The slider owns the measure-then-flip: the editor mounts first, then a frame later `active` flips
+    // to it. Advance that frame so the editor is the live slot and the list is the inert one beneath.
+    await act(async () => {
+      await new Promise((r) => requestAnimationFrame(() => r(undefined)))
+    })
     const inertSlots = host.querySelectorAll('[inert]')
     expect(inertSlots.length).toBe(1) // exactly one inert slot = slider semantics, list mounted beneath
     expect(inertSlots[0].textContent).toContain('Count') // the inert slot IS the list
