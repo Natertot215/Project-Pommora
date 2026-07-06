@@ -169,15 +169,20 @@ export function AccessoryButton({
 export function MenuPaneTopRow({
   label,
   onBack,
-  trailing
+  trailing,
+  current
 }: {
   label: string
   onBack: () => void
+  /** A trailing action (⋮) — only ViewSettings + a property editor carry one. */
   trailing?: ReactNode
+  /** The current pane's name — a right-side label-secondary breadcrumb when there's no action. */
+  current?: string
 }): React.JSX.Element {
+  const right = trailing ?? (current ? <span className={s.topRowCurrent}>{current}</span> : undefined)
   return (
     <>
-      <MenuTopRow label={label} onClick={onBack} className={s.topRowPad} trailing={trailing} />
+      <MenuTopRow label={label} onClick={onBack} className={s.topRowPad} trailing={right} />
       <MenuSeparator flush className={s.paneSeparator} />
     </>
   )

@@ -3,7 +3,7 @@ import { Icon, type IconName } from '@renderer/design-system/symbols'
 import { useSession } from '../../store'
 import { isReservedPropertyId, type PropertyDefinition, type PropertyType, type StatusGroup } from '@shared/properties'
 import type { Option } from '@shared/optionModel'
-import { MenuItem, MenuCaption, MenuPaneTopRow } from '../../design-system/components/menu'
+import { MenuItem, MenuCaption, MenuPaneTopRow, MenuScrollFrame, MenuBottomRow, AccessoryButton, MENU_MAX_HEIGHT } from '../../design-system/components/menu'
 import { flushTrailing } from '../../design-system/components/menu/menu.css'
 import { Reveal } from '../../design-system/components/Reveal'
 import { duration } from '../../design-system/tokens/motion'
@@ -180,8 +180,8 @@ export function PropertiesPane({
   const backHeader = (label: string, onClick: () => void): React.JSX.Element => (
     <MenuPaneTopRow label={label} onBack={onClick} />
   )
-  // TopRow with a trailing icon action (⊕ create on the list, ⋮ menu on the editor) — the action rides
-  // the row's trailing slot, so it's part of the TopRow. stopPropagation keeps its click off the back-nav.
+  // TopRow with a trailing icon action (the editor's ⋮ menu) — the action rides the row's trailing
+  // slot, so it's part of the TopRow. stopPropagation keeps its click off the back-nav.
   const actionHeader = (
     label: string,
     onBackClick: () => void,
@@ -374,26 +374,31 @@ export function PropertiesPane({
   }
 
   const list = (
-    <PaneDnd rows={paneRows} labelFor={nameFor} onDrop={(drop) => void handleDrop(drop)}>
-      {actionHeader('Settings', onBack, {
-        icon: 'square-plus',
-        size: s.ICON.add,
-        ariaLabel: 'New Property',
-        onClick: () => openDetail({ kind: 'type' })
-      })}
-      <ListGroups
-        assigned={props}
-        unassigned={unassigned}
-        allOpen={allOpen}
-        renamingId={renamingProperty?.collectionPath === collectionPath ? renamingProperty.propertyId : null}
-        onToggleAll={() => setAllOpen((o) => !o)}
-        onOpenEditor={(id) => openDetail({ kind: 'edit', id })}
-        onAssign={(id) => void assign(id)}
-        onRowMenu={(d, group) => void rowMenu(d, group)}
-        onRenameCommit={(next) => void submitPropertyRename(next)}
-        onRenameCancel={cancelPropertyRename}
-      />
-    </PaneDnd>
+    <MenuScrollFrame
+      header={<MenuPaneTopRow label="Settings" current="Properties" onBack={onBack} />}
+      footer={
+        <MenuBottomRow
+          leading={
+            <AccessoryButton icon="plus" size={12} box={20} ariaLabel="New Property" onClick={() => openDetail({ kind: 'type' })} />
+          }
+        />
+      }
+    >
+      <PaneDnd rows={paneRows} labelFor={nameFor} onDrop={(drop) => void handleDrop(drop)}>
+        <ListGroups
+          assigned={props}
+          unassigned={unassigned}
+          allOpen={allOpen}
+          renamingId={renamingProperty?.collectionPath === collectionPath ? renamingProperty.propertyId : null}
+          onToggleAll={() => setAllOpen((o) => !o)}
+          onOpenEditor={(id) => openDetail({ kind: 'edit', id })}
+          onAssign={(id) => void assign(id)}
+          onRowMenu={(d, group) => void rowMenu(d, group)}
+          onRenameCommit={(next) => void submitPropertyRename(next)}
+          onRenameCancel={cancelPropertyRename}
+        />
+      </PaneDnd>
+    </MenuScrollFrame>
   )
 
   return (
@@ -404,6 +409,7 @@ export function PropertiesPane({
         slotB={detailView.kind === 'type' ? typePicker : editor(detailView.id)}
         minWidth={225}
         minHeight={245}
+        maxHeight={MENU_MAX_HEIGHT}
       />
       <IconPicker open={iconOpen} onClose={() => setIconOpen(false)} />
     </>

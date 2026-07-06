@@ -35,6 +35,17 @@ const ENTRIES: MenuEntry[] = [
   { id: 'sort', label: 'Sort', Icon: ArrowUpDown }
 ]
 
+// A detail pane's right-side breadcrumb — the entry label, but Group/Filter/Sort read the active tense.
+const CURRENT_LABEL: Record<PaneId, string> = {
+  configuration: 'Configuration',
+  properties: 'Properties',
+  visibility: 'Visibility',
+  layout: 'Layout',
+  group: 'Grouping',
+  filter: 'Filtering',
+  sort: 'Sorting'
+}
+
 /**
  * The Collection/Set settings menu — the content rendered inside the settings dropdown when a
  * Collection or Set is selected: an icon+title header over Configuration · Properties · Visibility ·
@@ -83,17 +94,17 @@ export function SettingsPane(): React.JSX.Element | null {
     if (v) await setOpenIn(v)
   }
 
-  const blankLeaf = <MenuPaneTopRow label="Settings" onBack={back} />
+  const blankLeaf = <MenuPaneTopRow label="Settings" current={CURRENT_LABEL[detailId]} onBack={back} />
   const schemaUnavailable = (
     <>
-      <MenuPaneTopRow label="Settings" onBack={back} />
+      <MenuPaneTopRow label="Settings" current={CURRENT_LABEL[detailId]} onBack={back} />
       <MenuCaption>Schema unavailable.</MenuCaption>
     </>
   )
 
   const configurationLeaf = (
     <>
-      <MenuPaneTopRow label="Settings" onBack={back} />
+      <MenuPaneTopRow label="Settings" current="Configuration" onBack={back} />
       <MenuItem
         className={flushTrailing}
         leading={<Icon name="layout-grid" size={ICON.rootEntry} />}

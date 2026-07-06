@@ -122,13 +122,19 @@ export function VisibilityList({
   schema,
   view,
   onBack,
-  footer
+  footer,
+  label = 'Settings',
+  current
 }: {
   source: CollectionNode | SetNode
   schema: PropertyDefinition[]
   view: SavedView
   onBack: () => void
   footer?: ReactNode
+  /** TopRow back-label + right-side breadcrumb — the Visibility pane reads `Settings · Visibility`,
+   *  the ViewSettings Layout leaf reads `Views · Layout`. */
+  label?: string
+  current?: string
 }): React.JSX.Element | null {
   const load = useSession((st) => st.load)
   const tree = useSession((st) => st.tree)
@@ -157,7 +163,7 @@ export function VisibilityList({
   ]
 
   return (
-    <MenuScrollFrame header={<MenuPaneTopRow label="Settings" onBack={onBack} />} footer={footer}>
+    <MenuScrollFrame header={<MenuPaneTopRow label={label} current={current} onBack={onBack} />} footer={footer}>
       <PaneDnd rows={paneRows} labelFor={nameFor} onDrop={handleDrop} slot={hiddenPaneSlot}>
         <VisibilityGroups
           shownIds={shownIds}
@@ -183,5 +189,5 @@ export function HiddenPane({
   onBack: () => void
 }): React.JSX.Element | null {
   const { view } = useActiveView(source, schema)
-  return <VisibilityList source={source} schema={schema} view={view} onBack={onBack} />
+  return <VisibilityList source={source} schema={schema} view={view} onBack={onBack} current="Visibility" />
 }

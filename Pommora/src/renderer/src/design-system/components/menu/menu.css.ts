@@ -164,6 +164,9 @@ export const accessoryHiddenRest = style({
 
 /** A pane TopRow's vertical padding + heading tone — drops the base 24px floor to the caption line. */
 export const topRowPad = style({ paddingBlock: 'var(--top-row-block, 2px)', minHeight: 0, color: c.label.secondary })
+/** The TopRow's right-side breadcrumb — the current pane's name in label-secondary, no icon. Sits
+ *  opposite the ‹ back label; a pane carries THIS or a trailing action, never both. */
+export const topRowCurrent = style([text.caption.emphasized, { color: c.label.secondary }])
 /** The gap below the header separator — tied to the same `--top-row-block` rhythm knob. */
 export const paneSeparator = style({ marginBottom: 'var(--top-row-block, 2px)' })
 /** A pane footer bar — flush affordance geometry, leading pinned left / trailing pinned right. The
