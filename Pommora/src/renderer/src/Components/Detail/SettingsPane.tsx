@@ -2,7 +2,7 @@ import { useRef, useState } from 'react'
 import { Server, Eye, LayoutDashboard, Layers, ListFilter, ArrowUpDown, type LucideIcon } from 'lucide-react'
 import { Icon } from '@renderer/design-system/symbols'
 import { flushTrailing } from '../../design-system/components/menu/menu.css'
-import { topRowPad, paneSeparator, ICON } from './viewPane.css'
+import { topRowPad, paneSeparator, ICON } from './settingsPane.css'
 import { useSession } from '../../store'
 import { findCollection, findSet, findCollectionForSet } from '../../Detail/Scope'
 import { PropertiesPane } from './PropertiesPane'
@@ -30,12 +30,12 @@ const ENTRIES: MenuEntry[] = [
 const PANE_LABEL = Object.fromEntries(ENTRIES.map((e) => [e.id, e.label])) as Record<PaneId, string>
 
 /**
- * The Collection/Set view-settings menu — the content rendered inside the settings dropdown
+ * The Collection/Set settings menu — the content rendered inside the settings dropdown
  * (SettingsDropdown) when a Collection or Set is selected: an icon+title header (inline rename, icon
  * → IconPicker) over Properties · Visibility · Layout | Filter · Group · Sort as a push/back nav
  * stack. The dropdown shell (anchor + glass MenuSurface) and per-view routing live in SettingsDropdown.
  */
-export function ViewPane(): React.JSX.Element | null {
+export function SettingsPane(): React.JSX.Element | null {
   const selection = useSession((st) => st.selection)
   const tree = useSession((st) => st.tree)
   const submitRename = useSession((st) => st.submitRename)

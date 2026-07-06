@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { InteractionField, fieldInputClass } from '../../design-system/components/InteractionField'
 import { EditableInput } from '../EditableInput'
 import { DashIcon } from './DashIcon'
-import * as s from './viewPane.css'
+import * as s from './settingsPane.css'
 
 /**
  * The icon-button + inline-rename title header shared by the ViewPane (Collection/Set) and the

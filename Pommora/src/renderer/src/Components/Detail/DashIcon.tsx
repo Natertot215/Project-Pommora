@@ -1,4 +1,4 @@
-import * as s from './viewPane.css'
+import * as s from './settingsPane.css'
 
 /** Placeholder dashed-square menu icon — one per row until Nathan specifies the real symbols. */
 export function DashIcon(): React.JSX.Element {

@@ -10,7 +10,7 @@ import { Chip, chipShapeForType } from '../Chip'
 import { EditableInput } from '../EditableInput'
 import { ColorPicker } from './ColorPicker'
 import { useStatusReorder } from './useStatusReorder'
-import * as s from './viewPane.css'
+import * as s from './settingsPane.css'
 
 /**
  * The Status option editor (Planning 7-3) — the option list grouped by status group (Open / Active /

@@ -5,7 +5,7 @@ import type { ChipColorName } from '@renderer/design-system/tokens/chip.css'
 import { Switch } from '@renderer/design-system/components/Switches/Switch'
 import { Chip } from '../Chip'
 import { ColorPicker } from './ColorPicker'
-import * as s from './viewPane.css'
+import * as s from './settingsPane.css'
 
 type LinkDisplay = 'link-url' | 'link-title'
 export type LinkConfig = { link_underline?: boolean; link_display?: LinkDisplay; link_color?: string | undefined }

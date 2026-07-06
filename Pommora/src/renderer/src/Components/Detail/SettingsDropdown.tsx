@@ -1,14 +1,14 @@
 import { useSession } from '../../store'
 import { viewSettingsScope } from '../../Detail/ViewSettingsScope'
 import { MenuSurface, MenuCaption } from '../../design-system/components/menu'
-import { ViewPane } from './ViewPane'
-import * as s from './viewPane.css'
+import { SettingsPane } from './SettingsPane'
+import * as s from './settingsPane.css'
 
 /**
  * The Settings dropdown — the glass shell behind the toolbar Settings button, openable on ANY view.
  * It owns the anchor + glass MenuSurface and is generic chrome: it derives a ViewSettingsScope from
  * the current selection and switches on it to pick the pane. A Collection/Set ('view') shows the
- * ViewPane; other surfaces get a placeholder until their own panes land. The button never binds to a
+ * SettingsPane; other surfaces get a placeholder until their own panes land. The button never binds to a
  * specific pane — the in-window content view's scope decides what shows.
  */
 export function SettingsDropdown({
@@ -24,7 +24,7 @@ export function SettingsDropdown({
   return (
     <div className={s.anchor}>
       <MenuSurface closing={closing} notchInsetRight={notchInsetRight}>
-        {scope === 'view' ? <ViewPane /> : <MenuCaption>No settings for this view yet.</MenuCaption>}
+        {scope === 'view' ? <SettingsPane /> : <MenuCaption>No settings for this view yet.</MenuCaption>}
       </MenuSurface>
     </div>
   )

@@ -22,7 +22,7 @@ import {
 } from './hiddenPaneModel'
 import { PropertyTypeIcon } from './PropertyTypes'
 import { cx } from '../../design-system/cx'
-import * as s from './viewPane.css'
+import * as s from './settingsPane.css'
 
 /** A row's leading glyph: schema props wear their type icon; tiers wear the context type's;
  *  Modified falls back with its type meta. */

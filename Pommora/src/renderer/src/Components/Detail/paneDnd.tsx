@@ -15,7 +15,7 @@ import { ACTIVATION, DROP_LINE_INSET, suppressNextClick } from '@renderer/design
 import { autoScroll, findScroller } from '@renderer/design-system/interactions/autoscroll'
 import type { MeasuredRow } from '@renderer/Sidebar/sidebarDndModel'
 import { type PaneDrop, type PaneRow, type PaneSlot, type Region, paneSlot } from './paneDndModel'
-import * as s from './viewPane.css'
+import * as s from './settingsPane.css'
 
 // The Properties pane's two-region drag (the bandDnd gesture skeleton, the paneSlot model).
 // WHOLE rows are the drag surface; the two [data-group] wrappers are the region rects the

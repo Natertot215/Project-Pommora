@@ -10,7 +10,7 @@ import { Chip, chipShapeForType } from '../Chip'
 import { EditableInput } from '../EditableInput'
 import { ColorPicker } from './ColorPicker'
 import { useOptionReorder } from './useOptionReorder'
-import * as s from './viewPane.css'
+import * as s from './settingsPane.css'
 
 /**
  * The Select / Multi-Select option editor — the flat option list inside a property's editor pane
