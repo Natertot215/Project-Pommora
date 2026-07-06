@@ -4,6 +4,7 @@ import type { PropertyDefinition } from '@shared/properties'
 import { mintDefaultView, mintNewView, type SavedView } from '@shared/views'
 import { Icon, iconNameOr } from '@renderer/design-system/symbols'
 import { Menu, MenuItem, MenuBottomRow, MenuScrollFrame, AccessoryButton } from '../design-system/components/menu'
+import { titleInput } from '../design-system/components/menu/menu.css'
 import { PaneSlider } from '../Components/Detail/PaneSlider'
 import { ViewSettings } from '../Components/Detail/ViewSettings'
 import { PaneDnd, RowShell, usePaneRegions } from '../Components/Detail/paneDnd'
@@ -64,6 +65,7 @@ export function ViewPane({
 }): React.JSX.Element {
   const setActiveView = useSession((s) => s.setActiveView)
   const load = useSession((s) => s.load)
+  const storedActive = useSession((s) => s.activeViews[node.id])
   const [editingId, setEditingId] = useState<string | null>(null)
   const [renamingId, setRenamingId] = useState<string | null>(null)
   const [iconOpen, setIconOpen] = useState(false)
@@ -71,14 +73,16 @@ export function ViewPane({
   // The list never renders empty: during the entry-mint beat (a legacy container's first open, before
   // the refetch lands) show the in-memory sentinel default, same as the button + table (G-4).
   const rows = views.length ? views : [mintDefaultView(schema)]
+  // The active view whose row wears the outline — `pickView`'s fallback (a gone/unset pointer → the
+  // first row), so the ring always marks exactly one row.
+  const activeId = rows.some((v) => v.id === storedActive) ? storedActive : rows[0]?.id
   // Re-derive the edited view from the live tree so an edit (rename/type/format) shows fresh, not a
   // stale snapshot; a gone id (deleted) collapses back to the list.
   const editing = editingId ? rows.find((v) => v.id === editingId) : undefined
 
-  const switchTo = async (id: string): Promise<void> => {
-    await setActiveView(node.id, id)
-    onClose()
-  }
+  // Selecting a view switches the active view but leaves the dropdown open — the outline follows to the
+  // picked row so you can see (and keep switching) which view you're in. Dismiss closes it.
+  const switchTo = (id: string): void => void setActiveView(node.id, id)
   const createView = async (): Promise<void> => {
     await window.nexus.views.save(node.path, node.kind, mintNewView('Untitled', schema))
     await load()
@@ -128,6 +132,7 @@ export function ViewPane({
             {rows.map((v) => (
               <RowShell key={v.id} id={v.id}>
                 <MenuItem
+                  className={activeId === v.id ? vd.activeRow : undefined}
                   leading={<Icon name={iconNameOr(v.icon, 'table')} size={16} />}
                   trailing={
                     <button
@@ -142,13 +147,13 @@ export function ViewPane({
                       <Icon name="chevron-right" size={16} />
                     </button>
                   }
-                  onClick={renamingId === v.id ? undefined : () => void switchTo(v.id)}
+                  onClick={renamingId === v.id ? undefined : () => switchTo(v.id)}
                   onContextMenu={(e) => void rowMenu(v, e)}
                 >
                   {renamingId === v.id ? (
                     <EditableInput
                       value={v.name}
-                      className="row-title-input"
+                      className={titleInput}
                       caretAtEnd
                       onCommit={(next) => commitRename(v, next)}
                       onCancel={() => setRenamingId(null)}

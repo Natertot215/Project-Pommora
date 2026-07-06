@@ -77,6 +77,22 @@ export const titleWrap = style({
  *  the full value on hover (shared `truncateHoverScroll`, the chip-label behaviour). */
 export const titleText = style([truncateHoverScroll])
 
+/** Inline-rename field for a menu row — sits flush in the title slot: the row's own font, colour, and
+ *  metrics with no border/padding/background of its own, so swapping it in for the title text is
+ *  dimensionally identical (no row nudge). The caret alone marks edit mode. */
+export const titleInput = style({
+  width: '100%',
+  minWidth: 0,
+  font: 'inherit',
+  color: 'inherit',
+  background: 'transparent',
+  border: 'none',
+  padding: 0,
+  margin: 0,
+  outline: 'none',
+  WebkitAppRegion: 'no-drag'
+} as Parameters<typeof style>[0])
+
 /** Sub-label — Caption/Standard (11px), label-secondary, under the title. */
 export const subLabel = style([
   text.caption.standard,
@@ -169,7 +185,7 @@ export const topRowPad = style({ paddingBlock: 'var(--top-row-block, 2px)', minH
 // label-secondary; trailing (the current pane) reads label-tertiary, so the back destination sits a
 // step above the breadcrumb. Each knob colours the text/glyph itself, so it beats the surface's
 // dropdown-title (label-control) rule. All surfaces route here via MenuTopRow / MenuPaneTopRow.
-export const topBarLeadingLabel = style([text.caption.emphasized, { color: c.label.secondary }])
+export const topBarLeadingLabel = style([text.callout.emphasized, { color: c.label.secondary }])
 export const topBarLeadingSymbol = style({ display: 'inline-flex', color: c.label.secondary })
 export const topBarTrailingLabel = style([text.caption.emphasized, { color: c.label.tertiary }])
 export const topBarTrailingSymbol = style({ display: 'inline-flex', color: c.label.tertiary })

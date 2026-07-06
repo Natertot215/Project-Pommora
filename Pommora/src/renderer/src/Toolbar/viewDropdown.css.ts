@@ -1,5 +1,6 @@
 import { globalStyle, style } from '@vanilla-extract/css'
 import { vars as colorVars } from '../design-system/tokens/color.css'
+import { tintAt, TINT_STEPS } from '../design-system/tokens/tint'
 
 const c = colorVars.color
 
@@ -46,12 +47,18 @@ globalStyle(`${button} button`, { gap: 0 })
  *  chrome alone — the open pane is a sibling outside this subtree, so right-clicks there don't reach it. */
 export const buttonSlot = style({ display: 'contents' })
 
-/** The ViewPane row's push chevron — a bare button that inherits the row's trailing-cluster tone (the
- *  `side` span's label-secondary), the same source the ViewSettings nav chevron reads. No own color. */
+/** The active view's row — a tint-primary inset ring (the tile-selection tone) so you can see which
+ *  view you're in while the dropdown stays open. Inset, so it rides within the row's radius, no reflow. */
+export const activeRow = style({ boxShadow: `inset 0 0 0 1px ${tintAt('var(--accent)', TINT_STEPS.primary)}` })
+
+/** The ViewPane row's push chevron. It's a <button> in the toolbar's DOM, so `.app-toolbar button`'s
+ *  control-tone rule (0,1,1) would paint it bright — the `&&` (0,2,0) pins it to the row's label-secondary
+ *  trailing tone, matching the ViewSettings/SettingsPane nav chevrons (bare Icons the rule can't touch). */
 export const chevronButton = style({
   border: 'none',
   background: 'none',
   padding: 0,
   cursor: 'default',
-  display: 'flex'
+  display: 'flex',
+  selectors: { '&&': { color: 'var(--label-secondary)' } }
 })
