@@ -20,14 +20,15 @@ export const wrapper = style({
   WebkitAppRegion: 'no-drag'
 } as Parameters<typeof style>[0])
 
-/** The dropdown anchor — hangs below the button, right-aligned so it extends leftward and stays on
- *  screen (the button sits near the right window edge), blooming from the top-right corner. */
+/** The dropdown anchor — hangs straight down, centred on the button (the beak points up at its
+ *  centre via the surface's default centred notch), blooming from the top-centre. */
 export const anchor = style({
   position: 'absolute',
   top: 'calc(100% + 6px)',
-  right: 0,
+  left: '50%',
+  transform: 'translateX(-50%)',
   zIndex: 10,
-  vars: { '--dropdown-origin': 'top right' }
+  vars: { '--dropdown-origin': 'top center' }
 })
 
 /** Icon-only button padding. */
