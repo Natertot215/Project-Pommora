@@ -2,13 +2,13 @@
 
 A view is a saved presentation of a [Collection's](Collections.md) (or a depth-1 Set's) Pages. It never modifies its source — filtering, grouping, and sorting are presentation only.
 
-Every Collection or depth-1 Set carries an ordered list of saved views, and one pure pipeline drives every renderer. Five view types are modeled: **Table**, **Board**, **List**, **Cards**, and **Gallery**.
+Every Collection or depth-1 Set carries an ordered list of saved views, and one pure pipeline drives every renderer. Six view types are modeled — **Table**, **Cards**, **List**, **Gallery**, **Calendar**, and **Timeline** — an extensible registry, so a new type slots in as an add-on.
 
 ### Features
 
 #### II. Saved-View Model
 
-Each container's sidecar holds an ordered `views[]`. A saved view records its `id` (a ULID), `name`, `icon`, renderer `type`, the column layout (`property_order`, `hidden_properties`, per-column widths, alignments, and `column_styles` — the per-type look + date/time/number format choices; display formats live per-VIEW here, a deliberate divergence from Swift's def-level format keys), the `sort` (a multi-key list), the `filter` (a nested group), the `group` config plus the view-level `group_order` (the manual structural band order — one flat set-id array across every nesting level; property band order lives on `group.order`), and display options (card size, collapsed-group state, cover and banner toggles). The **active view is tracked per-machine** in `.nexus/activeViews.json` — a container-to-view map kept out of the synced sidecar, so switching views never churns the shared file. A toolbar dropdown switches the active view; view CRUD — create, rename, duplicate, delete, reorder — persists to the sidecar.
+Each container's sidecar holds an ordered `views[]`. A saved view records its `id` (a ULID), `name`, `icon`, renderer `type`, the column layout (`property_order`, `hidden_properties`, per-column widths, alignments, and `column_styles` — the per-type look + date/time/number format choices; display formats live per-VIEW here, a deliberate divergence from Swift's def-level format keys), the `sort` (a multi-key list), the `filter` (a nested group), the `group` config plus the view-level `group_order` (the manual structural band order — one flat set-id array across every nesting level; property band order lives on `group.order`), and display options (card size, collapsed-group state, cover and banner toggles). A view also records its `format` (Standard / Compact — the table density style). The **active view is tracked per-machine** in `.nexus/activeViews.json` — a container-to-view map kept out of the synced sidecar, so switching views never churns the shared file. The per-container **ViewDropdown** (a toolbar button left of the trio, glyph = the active view's icon) opens the **ViewPane** dropdown to switch the active view; view CRUD — create (title-only "Untitled"), rename, duplicate, delete, reorder — persists to the sidecar. Two per-container presentation settings ride the sidecar and sync: `view_button` (the button's Show/Hide Title) and `view_style` (Dropdown / Toolbar). A container never presents an empty `views[]`: an app-created container is seeded with its default view on disk, and an empty view-bearing container mints its default on first entry.
 
 #### II. The Pipeline
 
@@ -24,11 +24,15 @@ One pure pipeline feeds the renderer — **columns → filter → group → sort
 
 #### II. Renderers
 
-The **Table** renderer draws the resolved groups as nested tables, with structural Sub-Set nesting and row-click selection — its layout, column ergonomics, and row/group chrome are its own doc (`TableView.md`). The Board, List, Cards, and Gallery renderers are Pending.
+The **Table** renderer draws the resolved groups as nested tables, with structural Sub-Set nesting and row-click selection — its layout, column ergonomics, and row/group chrome are its own doc (`TableView.md`). The Cards, List, Gallery, Calendar, and Timeline renderers are Pending.
 
-#### II. View Settings
+#### II. Surfaces
 
-The view-settings dropdown is scoped to the selected container — a Collection or depth-1 Set gets the view pane, other surfaces get none. Its root menu pushes to per-pane editors, of which the **Properties** pane (the schema editor → `Properties.md`) and the **Visibility** pane are built; the remaining panes are Pending.
+Two dropdowns configure a container, both scoped to a selected Collection or depth-1 Set:
+
+- The **ViewPane** (opened by the ViewDropdown) is a navigation dropdown: a row per saved view (click switches the active view; the row's chevron opens that view's **ViewSettings**) over a footer (create · more). Right-clicking the ViewDropdown opens a native menu for its two presentation settings (Show/Hide Title · Style).
+- **ViewSettings** is the shared per-view editor, reachable two ways — the ViewPane row's chevron (the *full* door, carrying the ⋮ Duplicate/Delete and the leaf rows) or the SettingsPane's Layout entry (the *flat* door, for the active view, minus the ⋮ and leafs). It holds the view's icon + name, a 3×2 type-picker grid, and the type's options — for Table, the Layout leaf (order + visibility) and the **Format** control (Standard / Compact).
+- The **SettingsPane** (the toolbar sliders button) carries the container's identity + config: **Configuration** (the collection's **Open In** — full-page vs page-preview, Collection-owned), **Properties** (the schema editor → `Properties.md`), **Visibility**, and the Layout / Group / Filter / Sort leafs. Properties and Visibility are built; the rest open blank leafs.
 
 #### II. Visibility Pane
 
@@ -38,9 +42,11 @@ Drags carry the shared drag language. A drop **into the shown zone is positional
 
 ### Pending
 
-**Board, List, Cards, and Gallery Renderers:** The four non-Table view types. The type enum carries all five; only Table draws.
+**Cards, List, Gallery, Calendar, and Timeline Renderers:** The five non-Table view types. The type registry carries all six; only Table draws.
 
-**View-Settings Editing Panes:** The Filter, Group, Sort, and Layout panes. The pipeline already honors these configs from the sidecar, so the gap is authoring them — Properties and Visibility are reachable.
+**View-Settings Editing Panes:** The Group, Sort, and Filter leafs, and the Layout leaf's order + visibility section (which folds the Visibility pane in, gated on its own design). The Format control persists Standard / Compact but is visually inert until the Compact table style lands. The pipeline already honors these configs from the sidecar, so the gap is authoring them — Properties and Visibility (the standalone SettingsPane entry) are reachable.
+
+**ViewBar:** The `view_style` Toolbar option — an inline view-switcher bar as an alternative to the dropdown. The setting persists; the surface builds later.
 
 ### Prospects
 
