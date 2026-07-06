@@ -1,6 +1,7 @@
 import { style } from '@vanilla-extract/css'
 import { vars as colorVars } from '../../tokens/color.css'
 import { text, truncateHoverScroll } from '../../tokens/typography.css'
+import { duration, easing } from '../../tokens/motion'
 
 const c = colorVars.color
 
@@ -115,3 +116,62 @@ export const caption = style([
 
 /** Menu container — a flush vertical stack with 6px top/bottom breathing room. */
 export const menu = style({ display: 'flex', flexDirection: 'column', padding: '6px 0' })
+
+// ── Shared dropdown row defaults + the AccessoryButton primitive ──
+// The dropdown surfaces (SettingsPane · ViewPane · ViewSettings) route their coloring, spacing, and
+// icon-button recipe here. `item` also serves the sidebar, so a control tone can't ride the base row —
+// dropdown surfaces opt in via `dropdownRowTitle`.
+
+/** Row-title tone on dropdown surfaces (view titles, leaf rows) — never on the base `item`. */
+export const dropdownRowTitle = style({ color: c.label.control })
+/** Heading-row text tone (‹ back rows, "All Properties", "Options"). */
+export const headingLabel = style({ color: c.label.secondary })
+/** Interactive-symbol tone (the AccessoryButton glyphs). */
+export const actionLabel = style({ color: c.label.tertiary })
+
+/** The one icon-button recipe behind every TopRow/BottomRow/row affordance (ellipsis · plus · eye ·
+ *  palette). Box via `--accessory-box` (consumers pass their own; 16 default). The `&&` pins the
+ *  action tone above `.app-toolbar button`'s control-tone rule (0,1,1). */
+export const accessoryButton = style({
+  width: 'var(--accessory-box, 16px)',
+  height: 'var(--accessory-box, 16px)',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  border: 'none',
+  background: 'none',
+  padding: 0,
+  cursor: 'default',
+  borderRadius: '5px',
+  transition: `background ${duration.fast} ${easing.standard}`,
+  selectors: {
+    '&&': { color: c.label.tertiary },
+    '&:hover': { background: c.state.hover }
+  }
+})
+/** Rest-ghosted variant (the eye toggle) — dimmed at rest, full on hover. */
+export const accessoryGhostRest = style({
+  opacity: 'var(--state-ghost)',
+  transition: `opacity ${duration.fast} ${easing.standard}, background ${duration.fast} ${easing.standard}`,
+  selectors: { '&:hover': { opacity: 1 } }
+})
+/** Marker on a row whose hover reveals a hidden accessory (the recolor palette). */
+export const accessoryRevealParent = style({})
+/** Hidden-until-parent-hover variant — invisible at rest, ghost on row hover, full on own hover. */
+export const accessoryHiddenRest = style({
+  opacity: 0,
+  transition: `opacity ${duration.fast} ${easing.standard}, background ${duration.fast} ${easing.standard}`,
+  selectors: {
+    [`${accessoryRevealParent}:hover &`]: { opacity: 'var(--state-ghost)' },
+    [`${accessoryRevealParent}:hover &:hover`]: { opacity: 1 }
+  }
+})
+
+// ── TopRow / BottomRow rhythm (the current SettingsPane values, hoisted verbatim) ──
+
+/** A pane TopRow's vertical padding + heading tone — drops the base 24px floor to the caption line. */
+export const topRowPad = style({ paddingBlock: 'var(--top-row-block, 2px)', minHeight: 0, color: c.label.secondary })
+/** The gap below the header separator — tied to the same `--top-row-block` rhythm knob. */
+export const paneSeparator = style({ marginBottom: 'var(--top-row-block, 2px)' })
+/** A pane footer bar — flush affordance geometry, leading pinned left / trailing pinned right. */
+export const bottomRow = style([flushAffordance, { display: 'flex', alignItems: 'center', paddingRight: 0 }])

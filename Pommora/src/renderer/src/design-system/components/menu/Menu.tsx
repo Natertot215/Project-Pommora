@@ -1,5 +1,5 @@
 import type { ReactNode, MouseEvent, CSSProperties } from 'react'
-import { Icon } from '../../symbols'
+import { Icon, type IconName } from '../../symbols'
 import * as s from './menu.css'
 import { cx } from '../../cx'
 
@@ -129,4 +129,71 @@ export function MenuTopRow({
 /** A flush vertical stack of rows with 6px top/bottom padding. */
 export function Menu({ className, children }: { className?: string; children: ReactNode }): React.JSX.Element {
   return <div className={cx(s.menu, className)}>{children}</div>
+}
+
+/** The shared icon-button affordance (ellipsis · plus · eye · palette). Box defaults to 16px; pass
+ *  `box` for a consumer's own hit target. `variant` classes (ghost/hidden rest) compose via className. */
+export function AccessoryButton({
+  icon,
+  size,
+  ariaLabel,
+  box,
+  onClick,
+  className
+}: {
+  icon: IconName
+  size: number
+  ariaLabel: string
+  box?: number
+  onClick: () => void
+  className?: string
+}): React.JSX.Element {
+  return (
+    <button
+      type="button"
+      className={cx(s.accessoryButton, className)}
+      style={box ? ({ '--accessory-box': `${box}px` } as CSSProperties) : undefined}
+      aria-label={ariaLabel}
+      onClick={(e) => {
+        e.stopPropagation()
+        onClick()
+      }}
+    >
+      <Icon name={icon} size={size} />
+    </button>
+  )
+}
+
+/** A pane's TopRow scheme: the ‹ back row (+ optional trailing action) over its flush separator —
+ *  the header pair every pushable pane shares. */
+export function MenuPaneTopRow({
+  label,
+  onBack,
+  trailing
+}: {
+  label: string
+  onBack: () => void
+  trailing?: ReactNode
+}): React.JSX.Element {
+  return (
+    <>
+      <MenuTopRow label={label} onClick={onBack} className={s.topRowPad} trailing={trailing} />
+      <MenuSeparator flush className={s.paneSeparator} />
+    </>
+  )
+}
+
+/** A pane footer bar — a flush separator over a row with `leading` pinned left, `trailing` pinned
+ *  right. Either side may be absent (a footer needs neither). */
+export function MenuBottomRow({ leading, trailing }: { leading?: ReactNode; trailing?: ReactNode }): React.JSX.Element {
+  return (
+    <>
+      <MenuSeparator flush />
+      <div className={s.bottomRow}>
+        {leading}
+        <span style={{ flex: '1 1 auto' }} />
+        {trailing}
+      </div>
+    </>
+  )
 }

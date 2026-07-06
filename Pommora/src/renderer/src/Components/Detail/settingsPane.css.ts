@@ -2,7 +2,7 @@ import { style } from '@vanilla-extract/css'
 import { vars as colorVars, inputFieldVar } from '../../design-system/tokens/color.css'
 import { text } from '../../design-system/tokens/typography.css'
 import { duration, easing } from '../../design-system/tokens/motion'
-import { flushAffordance } from '../../design-system/components/menu/menu.css'
+import { flushAffordance, accessoryButton, accessoryGhostRest } from '../../design-system/components/menu/menu.css'
 
 const c = colorVars.color
 
@@ -24,19 +24,9 @@ const COLOR = {
 /** — SIZING — (px boxes; the glyphs inside are ICON's) */
 const SIZE = {
   topRowActionWidth: 20, // TopRow ⊕ / ⋮ horizontal hit target (height hugs the glyph)
-  rowPlusBox: 16, // the registry row's + hit target
-  eyeBox: 16, // the Visibility pane's eye hit target
   iconPickerButton: 28, // the title header's square icon button
   dashIcon: 16, // the placeholder dashed square
-  dragHighlightRadius: 6, // the unassign tint's corner radius
-  iconHoverRadius: 5 // the shared icon-button hover fill's corner radius
-}
-
-/** — PADDING — (px) */
-const PAD = {
-  // THE single ViewPane header-rhythm knob — drives BOTH the TopRow's vertical padding (topRowPad) AND
-  // the header separator's bottom gap (paneSeparator), so the whole header spacing moves on one number.
-  topRowBlock: 2
+  dragHighlightRadius: 6 // the unassign tint's corner radius
 }
 
 /** — OPTION EDITOR — (Select/Multi option list; px) */
@@ -118,36 +108,19 @@ export const dashIcon = style({
 // § TOPROW — the ‹ back row + its trailing ⊕ / ⋮ action
 // ═══════════════════════════════════════════════════════════════════════════
 
-/** THE ViewPane TopRow knob — this pane only. Drops the base row's 24px min-height floor (row height =
- *  the caption line + 2 × PAD.topRowBlock) and pins the ‹ heading to the shared heading-label colour
- *  (this file loads after menu.css, so it wins over the flush affordance's default). */
-export const topRowPad = style({ paddingBlock: `${PAD.topRowBlock}px`, minHeight: 0, color: COLOR.headingLabel })
-
-/** The gap BELOW the header separator — a ViewPane-owned bottom space the shared MenuSeparator band
- *  carries none of. Tied to the same topRowBlock number as the TopRow padding, so the whole header
- *  rhythm (space above the ‹ row + space below its divider) moves on one knob. */
-export const paneSeparator = style({ marginBottom: `${PAD.topRowBlock}px` })
-
-/** The TopRow's trailing action (⊕ create / ⋮ menu) — a bare icon button in the row's trailing slot,
- *  glyph flush to the gutter edge. Secondary tone, as a member of the TopRow: the `&&` clears the
- *  `.app-toolbar button` control-tone default (0,1,1) that would otherwise brighten it above the row. */
-export const topRowAction = style({
-  flex: '0 0 auto',
-  width: `${SIZE.topRowActionWidth}px`,
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'flex-end',
-  border: 'none',
-  background: 'none',
-  padding: 0,
-  cursor: 'default',
-  borderRadius: `${SIZE.iconHoverRadius}px`,
-  transition: `background ${duration.fast} ${easing.standard}`,
-  selectors: {
-    '&&': { color: c.label.secondary },
-    '&:hover': { background: COLOR.iconHover }
+/** The TopRow's trailing action (⊕ create / ⋮ menu) — the shared accessory recipe, retuned for the
+ *  TopRow: width-only (height hugs the glyph), right-aligned to the gutter edge, secondary tone as a
+ *  member of the back-row heading. The `&&` clears the `.app-toolbar button` control-tone default. */
+export const topRowAction = style([
+  accessoryButton,
+  {
+    flex: '0 0 auto',
+    width: `${SIZE.topRowActionWidth}px`,
+    height: 'auto',
+    justifyContent: 'flex-end',
+    selectors: { '&&': { color: c.label.secondary } }
   }
-})
+])
 
 // ═══════════════════════════════════════════════════════════════════════════
 // § ALL PROPERTIES — the bottom-pinned disclosure block + its registry rows
@@ -178,22 +151,8 @@ export const twistyOpen = style({ transform: 'rotate(90deg)' })
 /** Unassigned registry rows render dimmer than assigned ones (A-3). */
 export const allRow = style({ color: COLOR.allRow })
 
-/** The per-row `+` promote affordance (A-5). */
-export const rowPlus = style({
-  width: `${SIZE.rowPlusBox}px`,
-  height: `${SIZE.rowPlusBox}px`,
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  border: 'none',
-  background: 'none',
-  padding: 0,
-  cursor: 'default',
-  color: COLOR.actionLabel,
-  borderRadius: `${SIZE.iconHoverRadius}px`,
-  transition: `background ${duration.fast} ${easing.standard}`,
-  selectors: { '&:hover': { background: COLOR.iconHover } }
-})
+/** The per-row `+` promote affordance (A-5) — the shared accessory recipe at the 16px box. */
+export const rowPlus = accessoryButton
 
 // ═══════════════════════════════════════════════════════════════════════════
 // § VISIBILITY (HiddenPane) — the ghosted hidden zone + per-row eye toggle
@@ -221,25 +180,11 @@ export const hiddenZone = style({ flex: '1 1 auto' })
 /** The eye toggle — the action-symbol color + ghost at rest, un-ghosting on hover (no color shift);
  *  the glyph swaps open ↔ off (the pair passes reversed in JSX on a hidden row). On a hidden row it
  *  rides eyeHidden + resets its own opacity to 1, so it dims by ONLY the row's ghost (never double-dims). */
-export const eyeButton = style({
-  width: `${SIZE.eyeBox}px`,
-  height: `${SIZE.eyeBox}px`,
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  border: 'none',
-  background: 'none',
-  padding: 0,
-  cursor: 'default',
-  color: COLOR.actionLabel,
-  opacity: 'var(--state-ghost)',
-  borderRadius: `${SIZE.iconHoverRadius}px`,
-  transition: `opacity ${duration.fast} ${easing.standard}, background ${duration.fast} ${easing.standard}`,
-  selectors: {
-    '&:hover': { opacity: 1, background: COLOR.iconHover },
-    [`${hiddenRow} &`]: { color: COLOR.eyeHidden, opacity: 1 }
-  }
-})
+export const eyeButton = style([
+  accessoryButton,
+  accessoryGhostRest,
+  { selectors: { [`${hiddenRow} &`]: { color: COLOR.eyeHidden, opacity: 1 } } }
+])
 export const eyeRestGlyph = style({
   display: 'flex',
   selectors: { [`${eyeButton}:hover &`]: { display: 'none' } }
@@ -288,21 +233,7 @@ export const optionsRow = style({ display: 'flex', alignItems: 'center', justify
 export const optionsLabel = style([text.footnote.semibold, { color: COLOR.headingLabel }])
 
 /** The always-shown + that appends an option — the shared action-symbol color, brightening on hover. */
-export const optionsAdd = style({
-  width: `${OPTION.addBox}px`,
-  height: `${OPTION.addBox}px`,
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  border: 'none',
-  background: 'none',
-  padding: 0,
-  cursor: 'default',
-  color: COLOR.actionLabel,
-  borderRadius: `${SIZE.iconHoverRadius}px`,
-  transition: `background ${duration.fast} ${easing.standard}`,
-  selectors: { '&:hover': { background: COLOR.iconHover } }
-})
+export const optionsAdd = style([accessoryButton, { width: `${OPTION.addBox}px`, height: `${OPTION.addBox}px` }])
 
 /** Status only — the per-group + . Reuses the "Options" + button, hidden until you hover the group
  *  (its heading or its chips), per Nathan's reveal. Tertiary at rest, brightening on direct hover; the
@@ -350,25 +281,17 @@ export const paletteAnchor = style({ position: 'relative', display: 'flex', alig
 
 /** The per-row recolor icon — mirrors the Visibility eye: the action-symbol color, hidden at rest,
  *  fading in ghosted on row hover and to full on its own hover (opacity-only). */
-export const paletteButton = style({
-  width: `${SIZE.eyeBox}px`,
-  height: `${SIZE.eyeBox}px`,
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  border: 'none',
-  background: 'none',
-  padding: 0,
-  cursor: 'default',
-  color: COLOR.actionLabel,
-  opacity: 0,
-  borderRadius: `${SIZE.iconHoverRadius}px`,
-  transition: `opacity ${duration.fast} ${easing.standard}, background ${duration.fast} ${easing.standard}`,
-  selectors: {
-    [`${optionRow}:hover &`]: { opacity: 'var(--state-ghost)' },
-    [`${optionRow}:hover &:hover`]: { opacity: 1, background: COLOR.iconHover }
+export const paletteButton = style([
+  accessoryButton,
+  {
+    opacity: 0,
+    transition: `opacity ${duration.fast} ${easing.standard}, background ${duration.fast} ${easing.standard}`,
+    selectors: {
+      [`${optionRow}:hover &`]: { opacity: 'var(--state-ghost)' },
+      [`${optionRow}:hover &:hover`]: { opacity: 1, background: COLOR.iconHover }
+    }
   }
-})
+])
 
 // ═══════════════════════════════════════════════════════════════════════════
 // § LINK EDITOR — the URL property's display config: two toggles + a color chip
