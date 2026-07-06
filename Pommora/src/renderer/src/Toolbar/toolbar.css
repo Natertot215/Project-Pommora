@@ -39,6 +39,15 @@
   -webkit-app-region: no-drag;
 }
 
+/* The right group holds the ViewDropdown just left of the trio (10px inter-control gap — the shared
+   toolbar spacing knob). Click-through itself so the gap still drags the window; children opt back in. */
+.app-toolbar-right {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  pointer-events: none;
+}
+
 /* As the inspector slides in, the trio is "swallowed": it holds at home until the pane's leading edge
    reaches the pill (the max() gate is exactly that contact), then rides the edge to land flush inside
    the inspector's left corner — all off the shared --io, so it tracks the slide and live resize 1:1.

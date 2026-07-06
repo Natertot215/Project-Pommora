@@ -62,6 +62,8 @@ import { popColumnMenu } from './columnMenu'
 import { popCellMenu } from './cellMenu'
 import { popPropertyMenu } from './propertyMenu'
 import { popOptionMenu } from './optionMenu'
+import { popViewButtonMenu, type ViewButtonMenuAction } from './viewButtonMenu'
+import type { ViewButton, ViewStyle } from '@shared/types'
 import { installEditorContextMenu, setFormatState, setCalloutGrip } from './editorMenu'
 import type { FormatState } from '@shared/editorMenu'
 import { isValidLink, normalizeLinkUrl } from '@shared/links'
@@ -1042,6 +1044,17 @@ async function pickImageDataUrl(win: BrowserWindow): Promise<string | null> {
     return null
   }
 }
+
+// The ViewDropdown right-click menu — resolves the picked action to the renderer, which performs the
+// container-config write. macOS-native; the renderer supplies the current values for the checkmarks.
+ipcMain.handle('view-button-menu', async (e, current: unknown): Promise<ViewButtonMenuAction | null> => {
+  const win = BrowserWindow.fromWebContents(e.sender)
+  if (!win) return null
+  const c = current as { viewButton?: unknown; viewStyle?: unknown } | null
+  const viewButton: ViewButton = c?.viewButton === 'labeled' ? 'labeled' : 'icon'
+  const viewStyle: ViewStyle = c?.viewStyle === 'toolbar' ? 'toolbar' : 'dropdown'
+  return popViewButtonMenu(win, { viewButton, viewStyle })
+})
 
 // Pop a native single-item "Add Photo" menu; on click open the image picker and resolve the
 // chosen file as a data URL. Resolves null if the menu is dismissed or the picker canceled.

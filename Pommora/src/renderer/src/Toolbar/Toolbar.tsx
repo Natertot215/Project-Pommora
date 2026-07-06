@@ -3,6 +3,7 @@ import { SegmentedSymbol, type Segment } from '@renderer/design-system/component
 import { useDismiss } from '@renderer/design-system/components/Popover'
 import { MenuSurface, MenuCaption } from '@renderer/design-system/components/menu'
 import { ToolbarTrio } from './ToolbarTrio'
+import { ViewDropdown } from './ViewDropdown'
 import { SettingsDropdown } from '../Components/Detail/SettingsDropdown'
 import * as dropdown from '../Components/Detail/settingsPane.css'
 import { useSession } from '../store'
@@ -70,8 +71,10 @@ export function Toolbar({
       <div className="app-toolbar-cluster app-toolbar-cluster--nav">
         <SegmentedSymbol segments={backForward} paddingX="6px" iconSize="lg" />
       </div>
-      <div className="app-toolbar-cluster app-toolbar-cluster--trio" ref={trioRef}>
-        <ToolbarTrio segments={trio} />
+      <div className="app-toolbar-right">
+        <ViewDropdown />
+        <div className="app-toolbar-cluster app-toolbar-cluster--trio" ref={trioRef}>
+          <ToolbarTrio segments={trio} />
         {/* Beak aim: the dropdowns hang right-aligned under the trio, so each notch is measured from
             the pane's right edge to its trigger's center — Navigation at 5/6 of the trio's width,
             Settings at dead center (3 equal segments). */}
@@ -85,6 +88,7 @@ export function Toolbar({
         {settingsP.mounted && (
           <SettingsDropdown closing={settingsP.closing} notchInsetRight={trioW ? trioW / 2 : undefined} />
         )}
+        </div>
       </div>
     </div>
   )

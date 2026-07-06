@@ -74,6 +74,12 @@ const api = {
     ): Promise<{ ok: true } | { ok: false; error: string }> =>
       ipcRenderer.invoke('container:configure', containerPath, kind, patch)
   },
+  // The ViewDropdown right-click menu — resolves the picked action (or null on dismiss).
+  viewButtonMenu: (current: {
+    viewButton: ViewButton
+    viewStyle: ViewStyle
+  }): Promise<'toggle-title' | 'style-dropdown' | 'style-toolbar' | null> =>
+    ipcRenderer.invoke('view-button-menu', current),
   // Property schema CRUD on a Collection's page schema. containerPath is the schema-owning
   // Collection's folder (a Set inherits, so the renderer passes its ancestor Collection's path).
   schema: {
