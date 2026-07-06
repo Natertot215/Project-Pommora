@@ -38,6 +38,9 @@ function Segmented({
   glass = true
 }: SegmentedProps & { withLabel: boolean }): React.JSX.Element {
   const g = vars.size.control[size]
+  // A lone segment is a standalone control, not a divided group — it takes the pill's full radius
+  // (no inner segment radius, no dividers) so a single toolbar button needs no "segmented" wrapper.
+  const segmented = segments.length > 1
   const containerClass = className ? `${s.container} ${className}` : s.container
   const containerStyle = { height: g.height, borderRadius: g.radius, display: 'flex', alignItems: 'center' }
   const buttons = (
@@ -52,7 +55,7 @@ function Segmented({
             className={s.segment}
             style={{
               height: g.segmentHeight,
-              borderRadius: g.segmentRadius,
+              borderRadius: segmented ? g.segmentRadius : g.radius,
               paddingInline: paddingX ?? g.paddingX,
               fontSize: iconSize ? vars.size.icon[iconSize] : g.icon
             }}
