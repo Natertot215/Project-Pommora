@@ -275,6 +275,9 @@
 .cell-muted {
   color: var(--text-dim);
 }
+.cell-control {
+  color: var(--label-control);
+}
 
 /* — Row drag grip — sits in the views gutter (the same strip the group chevron occupies), revealed on
    row hover; the lifted row ghosts (MarkdownPM feel). */

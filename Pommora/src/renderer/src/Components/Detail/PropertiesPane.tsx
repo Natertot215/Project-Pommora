@@ -103,7 +103,7 @@ function ListGroups({
       <div data-group="all" ref={allRef} className={cx(allHighlighted && s.allHighlight)}>
         <button type="button" className={s.allHeadingRow} onClick={onToggleAll}>
           <Icon name="chevron-right" size={s.ICON.twisty} className={cx(s.twisty, allOpen && s.twistyOpen)} />
-          <span className={s.optionsLabel}>All Properties</span>
+          <span className={s.allPropertiesLabel}>All Properties</span>
         </button>
         <Reveal open={allOpen} duration={duration.base}>
           <div>

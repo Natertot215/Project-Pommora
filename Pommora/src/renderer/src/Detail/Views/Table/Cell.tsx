@@ -136,7 +136,7 @@ export function Cell({
 
     case 'datetime':
       return (
-        <OverflowScroll className="cell-text-scroll cell-muted">
+        <OverflowScroll className="cell-text-scroll cell-control">
           {formatDate(v.value, style.date_format ?? 'full', style.time_format ?? 'none', style.weekday ?? 'none')}
         </OverflowScroll>
       )

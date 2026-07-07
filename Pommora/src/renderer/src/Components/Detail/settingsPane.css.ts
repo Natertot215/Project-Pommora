@@ -261,6 +261,10 @@ export const optionsRow = style({ display: 'flex', alignItems: 'center', justify
  *  than the All Properties / back-row headings), the shared heading-label color. */
 export const optionsLabel = style([text.footnote.semibold, { color: COLOR.headingLabel }])
 
+/** The "All Properties" label — the optionsLabel look at SECONDARY, a tier up from the tertiary
+ *  section headings (Nathan's call: only this row, not every options-row). */
+export const allPropertiesLabel = style([optionsLabel, { color: c.label.secondary }])
+
 /** The always-shown + that appends an option — the shared action-symbol color, brightening on hover. */
 export const optionsAdd = style([accessoryButton, { width: `${OPTION.addBox}px`, height: `${OPTION.addBox}px` }])
 
