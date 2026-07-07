@@ -31,7 +31,7 @@ The type glyphs, shown in the type picker and on each property row. Label + icon
 | Number       | `hash`                                    |
 | Checkbox     | `square-check`                            |
 | Date & Time  | `calendar` (also the Calendar saved node) |
-| Status       | `circle-dashed`                           |
+| Status       | `progress-check` (Tabler — the first opt-in)|
 | Link         | `link`                                    |
 | File         | `import`                                  |
 | Context      | `layout-grid` (matches the sidebar tiers) |
@@ -40,7 +40,7 @@ The type glyphs, shown in the type picker and on each property row. Label + icon
 
 **Link is the canonical name for the `url` type** — user-facing label and default new-property name ("New Link"). The on-disk type key stays `url`; only the name changed.
 
-**Title** wears `text-align-justify` — the reserved heading column isn't a user property type, but its glyph lives beside the type map (`PropertyTypes.tsx`) so every surface renders it from one source.
+**Title** wears `text-align-justify` — the reserved heading column isn't a user property type, but its glyph lives beside the type map (`PropertyTypes.tsx`) so every surface renders it from one source. The reserved timestamp columns carry their own header glyphs: **Created** → `clock-plus`, **Modified** (`last_edited_time`) → `history`. Created has no PropertyType, so its glyph is set at the table header; Modified's rides the type map.
 
 ### View Types
 
@@ -48,14 +48,14 @@ The saved-view type roster and its grid glyphs (the ViewSettings 3×2 picker):
 
 | Type     | Icon                                        |
 | -------- | ------------------------------------------- |
-| Table    | `table` (also the view icon + button glyph) |
-| Cards    | a custom 2×3 grid of 2:3-aspect tiles        |
-| List     | a custom rounded-circle list glyph           |
+| Table    | `table` — a plain 3×2 grid (also the view icon + button glyph) |
+| Cards    | a custom 2×3 stretch-horizontal bar stack    |
+| List     | a custom left-rail bar + four lines          |
 | Gallery  | `layout-dashboard`                          |
 | Calendar | `calendar-days`                             |
 | Timeline | `chart-gantt`                               |
 
-`table` is THE table glyph everywhere (view icon, view rows, the ViewDropdown button, and the grid's Table tile) — one glyph per concept. The two customs live as registry-conforming SVG components.
+`table` is THE table glyph everywhere (view icon, view rows, the ViewDropdown button, and the grid's Table tile) — one glyph per concept, now a plain Lucide grid (the old rotated-Table custom caused sub-pixel aliasing). Cards + List are the two customs, registry-conforming SVG components sized to sit at the same height beside the Lucide glyphs.
 
 ### Misc
 

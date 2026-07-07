@@ -30,7 +30,7 @@ Prior arcs, compressed — the detail lives in `Features/*` + `History.md`.
 **Agents:** Explore (4x - grounding), build-breaking-agent (2x - spec review + killed impl review), code-simplifier (2x - cleanup)
 **Skills:** using-superpowers · studio-brainstorm · `superpowers:writing-plans` · `superpowers:executing-plans` · handoff
 
-Two arcs: ViewPane interaction polish (committed `fc305967`→`e3ec5c5a`), then the **Date & Time property editor built + shipped** — the ratified 7-task plan executed inline, then a full UIX-regression round Nathan drove live (`bc9c4522`→`15bd913f`). He verified the editor + the animation visually and called it done.
+Three arcs: ViewPane interaction polish (`fc305967`→`e3ec5c5a`), the **Date & Time property editor built + shipped** (`bc9c4522`→`15bd913f`), then a live **icon pass** Nathan drove — column icons, view-type glyphs, timestamp glyphs, and the type-grid aliasing fix (`e032dcdf`→`7605c3a3`). He verified each visually (CDP down) and called it a day.
 
 **ViewPane interaction polish (compressed).** PaneSlider went intrinsic + DRY'd to every pane (one `open` boolean; MenuScrollFrame owns cap/scroll/footer), the fake slide-OUT jitter got a `useExitPresence` latch, rows gained drag-reorder + a per-view Rename/Edit-Icon/Delete native menu + an active-row ring + flush inline rename, and the row chevron/context-menu tone+scoping were fixed with the `&&` (0,2,0) defeat. `fc305967`→`e3ec5c5a`. → `History.md`.
 
@@ -40,6 +40,8 @@ Two arcs: ViewPane interaction polish (committed `fc305967`→`e3ec5c5a`), then 
 
 **Two structural regressions surfaced + fixed at source.** (1) The All-Properties spacer stopped bottom-pinning: the MenuScrollFrame consolidation had dropped the flex-column its filling drag-box needs — restored on `scrollFrameBody`. `8c163f33`. (2) The pane height "bounced" on in-place growth: PaneSlider drove its height off a ResizeObserver with an always-on transition, so a `Reveal`/spacer animating in place made the height lag-chase a target that moved every frame — gated the height transition to nav flips only, letting the child's own animation own in-place growth. `adc39ec6`.
 
+**Icon pass (`e032dcdf`→`7605c3a3`).** Column headers render their type glyph (tier → context, Created → `clock-plus`, Modified → `history`), gated by `hide_column_icons` — now also a **checkbox** in the column menu above the Hide divider. View-type glyphs reworked: Table → plain Lucide `Grid3x2` (the old `rotate(90deg)` Table was the aliasing source), Cards → a custom stretch-horizontal bar stack, List → a custom left-rail bar + four lines (both sized level with the Lucide glyphs), Status → Tabler `IconProgressCheck` (first `@tabler/icons-react` opt-in, scaled ~10% via `scaleTabler`). **The type-grid aliasing was the alpha color, not the glass:** a white-alpha label tone doubles where a glyph's strokes overlap → switched the tile glyph to the opaque `solid.grey` primitive. Lucide's default stroke is 2 (not 1.75) — custom glyphs + Symbols.md corrected. → `Icons.md` + `TableView.md` + `History.md`.
+
 ### Lessons Learned
 
 - **A portalled surface escapes label-tone context — it must set its OWN tone.** PickerMenu options render into a `document.body` portal, past any label-color ancestor, so with no explicit color they fell to UA-black. The fix belongs in the shared `option` style (DRY for every picker), not the caller. Same class of trap as the toolbar-button tone: when a thing renders outside its expected DOM context, don't assume inheritance.
@@ -47,6 +49,8 @@ Two arcs: ViewPane interaction polish (committed `fc305967`→`e3ec5c5a`), then 
 - **Don't gate a self-managing exit component behind `{open && …}`.** PickerMenu already owns its mount → Bloom-out → unmount via `useExitPresence(open)`; wrapping it in `{open && <PickerMenu open={open}/>}` unmounts it before it can animate out. Always render it, drive by `open`. ColorPicker was the correct precedent; the bug was reintroducing the anti-pattern. Nothing to "DRY into" the component — the centralization already existed.
 
 - **A ResizeObserver-driven height must not CSS-transition while its content is animating in place.** PaneSlider eased height toward a ResizeObserver reading, so an in-place `Reveal`/spacer animation made the transition chase a target that moved every frame (the bounce). Separate the two motions: transition height only across a discrete navigation flip; let in-place growth track content untransitioned so the child's animation owns it.
+
+- **SVG glyph "aliasing" is often the alpha color, not the compositing.** A type-grid glyph read fuzzy; the guesses were glass backdrop + sub-pixel raster, but the real cause was the white-**alpha** label tone — where a glyph's own strokes overlap (grid crossings, bar edges) the semi-transparent strokes double, and the soft alpha edges read as aliasing. An opaque hex (`solid.grey`) composites clean. 
 
 - **A shared `titleText → primary` global overrides row-container tones.** Nathan's `menuSurface` edit pins every dropdown row title primary via `.surface .titleText` (0-2-0), which beats a row's inherited container color — so dimming a row (unassigned → secondary) needs a 0-3-0 scope (`.surface .allRow .titleText`), not a container color. Setting color on the MenuItem alone is silently dead for its title.
 
@@ -66,7 +70,9 @@ Build discipline: every pane push rides the (now intrinsic) PaneSlider; PickerMe
 
 ### Pending Focuses
 
-- **Uncommitted at handoff (Nathan's live knob edits — leave them).** `ViewSettings.tsx` (`VIEWSETTINGS_MAX_HEIGHT` → 375), `menuSurface.css.ts` (dropdown `titleText` → `label.primary`, the flip off `label.control`), and `viewDropdown.css.ts` are modified but uncommitted — his live tuning, his to land. **His `titleText → label.primary` is load-bearing** for this session's tone hierarchy (assigned rows read primary; the unassigned 0-3-0 override assumes it) — if he reverts it, the Properties-pane tiering shifts. Stage explicit paths only; never `-A`.
+- **The dropdown row-title tone is `label.primary`** (`menuSurface.css` `.surface .titleText`, committed this session with Nathan's other knobs). It's load-bearing for the Properties-pane tone hierarchy — assigned rows read primary and the unassigned-row `0-3-0` override assumes it. Don't flip it back to `label.control` without re-checking the tiering.
+
+- **View-type glyph proportions are eyeball-tunable** (`customGlyphs.tsx`): the Cards bar dims, the List rail width/height, and `TABLER_SCALE = 1.1` (the Tabler size bump) are hand-coordinates Nathan drove live — nudge on request, don't re-derive.
 
 - **"Column Icons" vs "Label Icons" — cross-view naming.** The table Layout toggle is **Column Icons** (`hide_column_icons`) — accurate because table columns include metadata (Created/Modified) that aren't properties. A columnless view (Gallery/List) would surface the same flag as **"Label Icons"** (Nathan's suggestion). Decide generalize-vs-per-view-field when a second view type consumes it.
 
