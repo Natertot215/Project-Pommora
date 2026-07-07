@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { fileLabel, formatDate, formatNumber } from './formatValue'
+import { condensedDate, fileLabel, formatDate, formatNumber } from './formatValue'
 
 describe('formatDate', () => {
   it('renders the four Swift date formats', () => {
     expect(formatDate('2026-03-01', 'short', 'none')).toBe('March 1st')
-    expect(formatDate('2026-03-01', 'full', 'none')).toBe('Sunday, March 1st 2026')
+    expect(formatDate('2026-03-01', 'full', 'none')).toBe('March 1st, 2026')
     expect(formatDate('2026-03-01', 'dayMonthYear', 'none')).toBe('01/03/2026')
     expect(formatDate('2026-03-01', 'monthDayYear', 'none')).toBe('03/01/2026')
   })
@@ -37,6 +37,55 @@ describe('formatDate', () => {
 
   it('falls back to the raw string for an unparseable value', () => {
     expect(formatDate('not-a-date', 'short', 'none')).toBe('not-a-date')
+  })
+})
+
+describe('formatDate weekday + reshaped full', () => {
+  const iso = '2026-07-06' // a Monday
+  it('full is weekday-free: Month Ordinal, Year', () => {
+    expect(formatDate(iso, 'full', 'none')).toBe('July 6th, 2026')
+  })
+  it('short is Month Ordinal', () => {
+    expect(formatDate(iso, 'short', 'none')).toBe('July 6th')
+  })
+  it('long weekday prepends on full', () => {
+    expect(formatDate(iso, 'full', 'none', 'long')).toBe('Monday, July 6th, 2026')
+  })
+  it('short weekday prepends on short', () => {
+    expect(formatDate(iso, 'short', 'none', 'short')).toBe('Mon, July 6th')
+  })
+  it('weekday is ignored on numeric formats', () => {
+    expect(formatDate(iso, 'monthDayYear', 'none', 'long')).toBe('07/06/2026')
+  })
+  it('weekday none adds nothing', () => {
+    expect(formatDate(iso, 'full', 'none', 'none')).toBe('July 6th, 2026')
+  })
+})
+
+describe('formatDate relative', () => {
+  const now = new Date('2026-07-06T12:00:00')
+  const rel = (iso: string, time: 'none' | 'twelveHour' = 'none') => formatDate(iso, 'relative', time, 'none', now)
+  it('today / yesterday / tomorrow', () => {
+    expect(rel('2026-07-06')).toBe('Today')
+    expect(rel('2026-07-05')).toBe('Yesterday')
+    expect(rel('2026-07-07')).toBe('Tomorrow')
+  })
+  it('within a week counts days both directions', () => {
+    expect(rel('2026-07-03')).toBe('3 Days Ago')
+    expect(rel('2026-07-09')).toBe('In 3 Days')
+  })
+  it('past a week rolls to weeks / months / years', () => {
+    expect(rel('2026-06-20')).toBe('2 Weeks Ago')
+    expect(rel('2026-04-06')).toBe('3 Months Ago')
+    expect(rel('2024-07-06')).toBe('2 Years Ago')
+  })
+  it('time-shown appends the clock within a week, drops it past a week', () => {
+    expect(rel('2026-07-06T15:30:00', 'twelveHour')).toBe('Today at 3:30 PM')
+    expect(rel('2026-07-05T15:30:00', 'twelveHour')).toBe('Yesterday at 3:30 PM')
+    expect(rel('2026-06-20T15:30:00', 'twelveHour')).toBe('2 Weeks Ago')
+  })
+  it('condensedDate treats relative as the worded short form (never shown relative in the picker)', () => {
+    expect(condensedDate('2026-07-06', 'relative', true)).toBe('July 6th')
   })
 })
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { columnStyle, defaultStyleFor } from './columnStyles'
+import { columnStyle, DATE_FORMATS, defaultStyleFor, WEEKDAY_FORMATS } from './columnStyles'
 
 describe('defaultStyleFor', () => {
   it('gives each look-bearing type its default look', () => {
@@ -9,9 +9,9 @@ describe('defaultStyleFor', () => {
     expect(defaultStyleFor('file')).toEqual({ look: 'filename' })
   })
 
-  it('gives the date-shaped types the full-date, no-time format defaults', () => {
-    expect(defaultStyleFor('datetime')).toEqual({ date_format: 'full', time_format: 'none' })
-    expect(defaultStyleFor('last_edited_time')).toEqual({ date_format: 'full', time_format: 'none' })
+  it('gives the date-shaped types the full-date, no-time, no-weekday format defaults', () => {
+    expect(defaultStyleFor('datetime')).toEqual({ date_format: 'full', time_format: 'none', weekday: 'none' })
+    expect(defaultStyleFor('last_edited_time')).toEqual({ date_format: 'full', time_format: 'none', weekday: 'none' })
   })
 
   it('numbers default to decimal', () => {
@@ -37,5 +37,18 @@ describe('columnStyle codec', () => {
 
   it('lets unknown keys ride through', () => {
     expect(columnStyle.parse({ look: 'pill', swift_only: true })).toEqual({ look: 'pill', swift_only: true })
+  })
+})
+
+describe('columnStyle weekday + relative', () => {
+  it('parses a weekday field', () => {
+    expect(columnStyle.parse({ weekday: 'long' })).toEqual({ weekday: 'long' })
+  })
+  it('drops an unknown weekday to undefined (lenient catch)', () => {
+    expect(columnStyle.parse({ weekday: 'bogus' }).weekday).toBeUndefined()
+  })
+  it('relative is a date format; long/short/none are weekday formats', () => {
+    expect(DATE_FORMATS).toContain('relative')
+    expect(WEEKDAY_FORMATS).toEqual(['long', 'short', 'none'])
   })
 })

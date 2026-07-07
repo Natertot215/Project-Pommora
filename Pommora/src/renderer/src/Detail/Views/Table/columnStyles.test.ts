@@ -16,13 +16,13 @@ function view(over: Partial<SavedView>): SavedView {
 describe('styleFor', () => {
   it('returns the type defaults with no view entry', () => {
     expect(styleFor('prop_status', schema, view({}))).toEqual({ look: 'pill' })
-    expect(styleFor('prop_date', schema, view({}))).toEqual({ date_format: 'full', time_format: 'none' })
+    expect(styleFor('prop_date', schema, view({}))).toEqual({ date_format: 'full', time_format: 'none', weekday: 'none' })
     expect(styleFor('prop_n', schema, view({}))).toEqual({ number_format: 'decimal' })
   })
 
   it('merges a saved column_styles entry per-key over the defaults', () => {
     const v = view({ column_styles: { prop_date: { time_format: 'twelveHour' } } })
-    expect(styleFor('prop_date', schema, v)).toEqual({ date_format: 'full', time_format: 'twelveHour' })
+    expect(styleFor('prop_date', schema, v)).toEqual({ date_format: 'full', time_format: 'twelveHour', weekday: 'none' })
   })
 
   it('honors a saved look over the default', () => {

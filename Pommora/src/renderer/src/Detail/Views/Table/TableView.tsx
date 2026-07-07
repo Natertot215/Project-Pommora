@@ -608,7 +608,8 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
     const dismiss = (): void => setEditing(null)
     if (col.kind === 'property' && declaredType(col.id, schema) === 'datetime') {
       const v = resolveFieldValue(row, col.id, schema)
-      const dateFmt = colStyle(col.id).date_format ?? 'full'
+      const rawFmt = colStyle(col.id).date_format ?? 'full'
+      const dateFmt = rawFmt === 'relative' ? 'short' : rawFmt
       return (
         <DatetimeCellPicker key={key} open={open} triggerRef={triggerElRef} onDismiss={dismiss}>
           <CalendarPicker
