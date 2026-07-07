@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { condensedDate, fileLabel, formatDate, formatNumber } from './formatValue'
+import { condensedDate, fileLabel, formatDate, formatNumber, numberDivisor } from './formatValue'
 
 describe('formatDate', () => {
   it('renders the four Swift date formats', () => {
@@ -90,16 +90,34 @@ describe('formatDate relative', () => {
 })
 
 describe('formatNumber', () => {
-  it('renders each Swift number format', () => {
-    expect(formatNumber(1234.5, 'integer')).toBe('1,235')
-    expect(formatNumber(1234.5, 'decimal')).toBe('1,234.5')
-    expect(formatNumber(0.42, 'percent')).toBe('42%')
-    expect(formatNumber(1234.5, 'currency')).toBe('$1,234.50')
+  it('groups by default and honours separators off', () => {
+    expect(formatNumber(1234.5, { number_family: 'number', number_separators: true })).toBe('1,234.5')
+    expect(formatNumber(1234.5, { number_family: 'number', number_separators: false })).toBe('1234.5')
   })
+  it('hidden decimals show as an integer; a fixed count pads', () => {
+    expect(formatNumber(3.14, { number_decimals: 'hidden' })).toBe('3')
+    expect(formatNumber(3, { number_decimals: 2 })).toBe('3.00')
+  })
+  it('percent is literal + "%", never ×100', () => {
+    expect(formatNumber(30, { number_family: 'percent' })).toBe('30%')
+  })
+  it('currency uses the chosen ISO code', () => {
+    expect(formatNumber(1234, { number_family: 'currency', number_currency: 'GBP', number_decimals: 2 })).toBe('£1,234.00')
+  })
+  it('fraction renders "N out of Value"', () => {
+    expect(formatNumber(3, { number_family: 'number', number_fraction: true, number_denominator: 10 })).toBe('3 out of 10')
+  })
+})
 
-  it('integers keep no fraction; decimals keep locale grouping', () => {
-    expect(formatNumber(7, 'integer')).toBe('7')
-    expect(formatNumber(1000000, 'decimal')).toBe('1,000,000')
+describe('numberDivisor', () => {
+  it('is 100 for percent, the denominator for fraction, undefined otherwise', () => {
+    expect(numberDivisor({ number_family: 'percent' })).toBe(100)
+    expect(numberDivisor({ number_family: 'number', number_fraction: true, number_denominator: 10 })).toBe(10)
+    expect(numberDivisor({ number_family: 'number', number_fraction: false })).toBeUndefined()
+  })
+  it('guards a zero / missing denominator', () => {
+    expect(numberDivisor({ number_family: 'number', number_fraction: true, number_denominator: 0 })).toBeUndefined()
+    expect(numberDivisor({ number_family: 'number', number_fraction: true })).toBeUndefined()
   })
 })
 

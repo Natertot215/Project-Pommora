@@ -6,12 +6,13 @@ import { chipBox, chipColor } from '@renderer/design-system/tokens'
 import { cx } from '@renderer/design-system/cx'
 import { Icon, asIconName, defaultEntityIcon } from '@renderer/design-system/symbols'
 import { Switch } from '@renderer/design-system/components/Switches/Switch'
+import { ProgressBar } from '@renderer/design-system/components/ProgressBar/ProgressBar'
 import { Chip, chipShapeForType } from '@renderer/Components/Chip'
 import { ContextChip } from '@renderer/Components/ContextChip'
 import { chipColorFor } from '@renderer/design-system/tokens/colorMap'
 import { OverflowScroll } from '@renderer/design-system/components/OverflowScroll'
 import { declaredType, resolveFieldValue } from '../pipeline/value'
-import { fileLabel, formatDate, formatNumber } from '../PropertyEditing/formatValue'
+import { fileLabel, formatDate, formatNumber, numberDivisor } from '../PropertyEditing/formatValue'
 import { statusGroupGlyph, statusGroupOf } from '../PropertyEditing/statusCycle'
 import { StatusCapsule } from '../PropertyEditing/StatusCapsule'
 import { findOption } from './cellResolve'
@@ -149,8 +150,18 @@ export function Cell({
           {formatDate(v.value, style.date_format ?? 'full', style.time_format ?? 'none', style.weekday ?? 'none')}
         </OverflowScroll>
       )
-    case 'number':
-      return <OverflowScroll className="cell-text-scroll">{formatNumber(v.value, style.number_format ?? 'decimal')}</OverflowScroll>
+    case 'number': {
+      const def = ctx.schema.find((d) => d.id === column.id)
+      const divisor = numberDivisor(def)
+      if (style.look === 'bar' && divisor !== undefined) {
+        return (
+          <span className="cell-bar">
+            <ProgressBar fill={v.value / divisor} />
+          </span>
+        )
+      }
+      return <OverflowScroll className="cell-text-scroll">{formatNumber(v.value, def)}</OverflowScroll>
+    }
     case 'file':
       // Each chip opens its own file (A-9) — the click stays on the chip, not the cell/row.
       return (

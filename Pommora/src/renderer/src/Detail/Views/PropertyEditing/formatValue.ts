@@ -2,7 +2,8 @@
 // Pinned to en-US — the ordinal-day style ("March 1st") is English-only, and pinning keeps
 // output deterministic across machines; currency follows Swift's locale formatter as USD.
 
-import type { DateFormat, NumberFormat, TimeFormat, WeekdayFormat } from '@shared/columnStyles'
+import type { DateFormat, TimeFormat, WeekdayFormat } from '@shared/columnStyles'
+import type { NumberConfig } from '@shared/properties'
 
 function ordinal(day: number): string {
   if (day % 100 >= 11 && day % 100 <= 13) return `${day}th`
@@ -113,17 +114,39 @@ export function fileLabel(ref: { path: string }, look: 'filename' | 'path'): str
   return look === 'path' ? ref.path : (ref.path.split('/').pop() ?? ref.path)
 }
 
-/** Render a number per the saved format — the Swift NumberFormatter set (percent takes the
- *  0-1 fraction: 0.42 → "42%"). */
-export function formatNumber(n: number, numberFormat: NumberFormat): string {
-  switch (numberFormat) {
-    case 'integer':
-      return new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 }).format(n)
-    case 'percent':
-      return new Intl.NumberFormat('en-US', { style: 'percent', maximumFractionDigits: 2 }).format(n)
-    case 'currency':
-      return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n)
-    case 'decimal':
-      return new Intl.NumberFormat('en-US').format(n)
+/** Fraction-option digit settings for `Intl` — 'hidden' shows no places, a fixed count pins min=max,
+ *  absent shows the number's natural decimals (Intl default). */
+function fractionDigits(decimals: NumberConfig['number_decimals']): Intl.NumberFormatOptions {
+  if (decimals === 'hidden') return { maximumFractionDigits: 0 }
+  if (typeof decimals === 'number') return { minimumFractionDigits: decimals, maximumFractionDigits: decimals }
+  return {}
+}
+
+/** One scalar formatted by the family (no fraction wrapping). Percent is LITERAL — the number plus '%',
+ *  never Intl's ×100 percent style. Currency uses the chosen ISO code (default USD). */
+function formatScalar(n: number, cfg: NumberConfig | undefined): string {
+  const useGrouping = cfg?.number_separators !== false
+  const digits = fractionDigits(cfg?.number_decimals)
+  if (cfg?.number_family === 'currency') {
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency: cfg.number_currency ?? 'USD', useGrouping, ...digits }).format(n)
   }
+  const num = new Intl.NumberFormat('en-US', { useGrouping, ...digits }).format(n)
+  return cfg?.number_family === 'percent' ? `${num}%` : num
+}
+
+/** Render a number per its def-level config. Fraction (Number/Currency) wraps the scalar as
+ *  "N out of Value"; every other case is the bare scalar. */
+export function formatNumber(n: number, cfg: NumberConfig | undefined): string {
+  if (cfg?.number_fraction && cfg.number_family !== 'percent' && cfg.number_denominator !== undefined) {
+    return `${formatScalar(n, cfg)} out of ${formatScalar(cfg.number_denominator, cfg)}`
+  }
+  return formatScalar(n, cfg)
+}
+
+/** The bar's divisor: 100 for percent, the fraction denominator for Number/Currency, else undefined
+ *  (no bar). A zero / missing denominator returns undefined so the bar never divides by zero. */
+export function numberDivisor(cfg: NumberConfig | undefined): number | undefined {
+  if (cfg?.number_family === 'percent') return 100
+  if (cfg?.number_fraction && cfg.number_denominator) return cfg.number_denominator
+  return undefined
 }

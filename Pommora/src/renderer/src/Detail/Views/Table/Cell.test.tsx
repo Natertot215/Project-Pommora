@@ -160,9 +160,9 @@ describe('formats', () => {
     expect(host.textContent).toBe('March 1st')
   })
 
-  it('number renders per the saved format', () => {
-    mount(rowWith({ prop_n: 0.42 }), 'prop_n', { number_format: 'percent' })
-    expect(host.textContent).toBe('42%')
+  it('number renders per the def-level format (grouped by default)', () => {
+    mount(rowWith({ prop_n: 1234.5 }), 'prop_n', {})
+    expect(host.textContent).toBe('1,234.5')
   })
 })
 
