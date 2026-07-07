@@ -117,9 +117,9 @@ The SQLite `property_definitions` table is a pure mirror of the nexus-wide regis
 
 **Lossy Change-Type Strip:** The cross-assigner value strip a lossy type change should trigger (the assign surface itself shipped with the 7-2 pane; `changeType` still accepts-and-ignores the drop flag).
 
-**Per-Type Editor Panes:** The remaining per-type property editors not yet built — the Number, Date, URL, and other value-type panes, plus the date / number format pickers and the relation (context) pickers. The Select, Multi-Select, and Status option editors have shipped (grouped / flat option lists, add · recolor · reorder · drag, and a right-click Rename · Remove · Clear); the rest follow on their patterns.
+**Per-Type Editor Panes:** The remaining per-type property editors not yet built — the Number value-type pane, its number-format picker, and the relation (context) pickers. The Select, Multi-Select, Status (grouped / flat option lists, add · recolor · reorder · drag, right-click Rename · Remove · Clear), URL, and Date & Time editors have shipped; the rest follow on their patterns.
 
-**Display Formats:** Number formats, date and time formats, and the Status display variant. These ride through as preserved foreign keys until a UI reads them.
+**Display Formats:** The per-view look + date/time/number formats are read by the renderers and set per-view through the column-header Style menu; the datetime property also gets a discoverable Format editor (Date · a conditional weekday Day · Time), a second surface writing the same `column_styles`. A property-editor Format surface for Number is the remaining gap. Swift's def-level format keys stay inert foreign keys (per "Where Properties Live").
 
 **Larger Color Picker:** option colors store an open solid-palette key (all ten `colors.css` solids, resolved through `chipColorFor` with a legacy read-map for old Notion values), so the ColorPicker's 2×5 grid can grow into a much larger selector (~9×12) over the shared color tokens — reusable across every color-token consumer — with no schema churn. A future enhancement, not a limitation.
 

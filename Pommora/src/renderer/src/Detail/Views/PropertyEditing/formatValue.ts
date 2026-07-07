@@ -31,8 +31,8 @@ const WEEK_DAYS = 7 // |Δdays| ≤ this shows named/day-count form (with clock 
 
 const startOfDay = (d: Date): Date => new Date(d.getFullYear(), d.getMonth(), d.getDate())
 
-/** Capitalized relative wording. Within a week: named day / "N Days Ago" / "In N Days" (+ "at <clock>"
- *  when time is shown). Past a week: weeks → months → years, clock dropped. */
+/** Capitalized relative wording. Within a week: named day / "N Days Ago" / "N Days from now" (+ "at
+ *  <clock>" when time is shown). Past a week: weeks → months → years, clock dropped. */
 function formatRelative(date: Date, hasTime: boolean, timeFormat: TimeFormat, now: Date): string {
   const DAY = 86_400_000
   const diffDays = Math.round((startOfDay(date).getTime() - startOfDay(now).getTime()) / DAY)
@@ -96,8 +96,8 @@ export function formatDate(
 export function condensedDate(iso: string, dateFormat: DateFormat, withYear: boolean): string {
   const date = new Date(iso.includes('T') ? iso : `${iso}T00:00:00`)
   if (Number.isNaN(date.getTime())) return iso
-  if (dateFormat === 'relative') return `${date.toLocaleDateString('en-US', { month: 'long' })} ${ordinal(date.getDate())}`
   switch (dateFormat) {
+    case 'relative':
     case 'short':
     case 'full':
       return `${date.toLocaleDateString('en-US', { month: 'long' })} ${ordinal(date.getDate())}`
