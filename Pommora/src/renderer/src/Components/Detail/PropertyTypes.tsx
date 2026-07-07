@@ -24,7 +24,7 @@ const PROPERTY_TYPES: Record<PropertyType, TypeMeta> = {
   url: { label: 'Link', icon: 'link', creatable: true },
   file: { label: 'File', icon: 'import', creatable: true },
   context: { label: 'Context', icon: 'layout-grid' },
-  last_edited_time: { label: 'Last edited' }
+  last_edited_time: { label: 'Last edited', icon: 'history' }
 }
 
 export const propertyTypeLabel = (type: PropertyType): string => PROPERTY_TYPES[type].label
