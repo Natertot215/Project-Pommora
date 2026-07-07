@@ -64,17 +64,11 @@ Three arcs: ViewPane interaction polish (`fc305967`→`e3ec5c5a`), the **Date & 
 
 **2. The remaining multi-view stubs** — the non-Table renderers (Cards · List · Gallery · Calendar · Timeline; the `PropertyEditing/` surfaces are table-agnostic for reuse) and the ViewSettings Group · Sort · Filter leaves (blank-leafed; wire to the shipped `GroupConfig`/`SortCriterion[]`/`FilterGroup` seams).
 
-**3. Nathan-eyeball knobs on the shipped datetime editor** (only if he flags them): the relative "within a week" cutoff (`WEEK_DAYS=7` in `formatValue.ts`), the far-end fallback (relative stays `N Years Ago`, no absolute), and the Day-row glyph (`calendar` — deliberately distinct from Date's `calendar-days`).
-
 Build discipline: every pane push rides the (now intrinsic) PaneSlider; PickerMenu options + the section-heading tones are now DRY at the shared source (don't re-tune per-surface); main/preload changes need a full dev restart, not ⌘R.
 
 ### Pending Focuses
 
 - **The dropdown row-title tone is `label.primary`** (`menuSurface.css` `.surface .titleText`, committed this session with Nathan's other knobs). It's load-bearing for the Properties-pane tone hierarchy — assigned rows read primary and the unassigned-row `0-3-0` override assumes it. Don't flip it back to `label.control` without re-checking the tiering.
-
-- **View-type glyph proportions are eyeball-tunable** (`customGlyphs.tsx`): the Cards bar dims, the List rail width/height, and `TABLER_SCALE = 1.1` (the Tabler size bump) are hand-coordinates Nathan drove live — nudge on request, don't re-derive.
-
-- **"Column Icons" vs "Label Icons" — cross-view naming.** The table Layout toggle is **Column Icons** (`hide_column_icons`) — accurate because table columns include metadata (Created/Modified) that aren't properties. A columnless view (Gallery/List) would surface the same flag as **"Label Icons"** (Nathan's suggestion). Decide generalize-vs-per-view-field when a second view type consumes it.
 
 - **(Perf) Standing debt:** (1) no row virtualization — every row MOUNTS, bites at thousands. (2) External VALUE edits don't live-refresh an open table (`loadValues` runs per container-open; the tree carries structure, not values). The mtime-gated walk is fine; container-surgical reconcile is the designed escalation at real scale.
 
@@ -113,6 +107,8 @@ Build discipline: every pane push rides the (now intrinsic) PaneSlider; PickerMe
 - **HMR is NOT trustworthy for two classes:** (1) vanilla-extract `*.css.ts` — a style edit can serve stale compiled CSS; a plain restart heals it, ⌘R never does. (2) A component's focus effect / handler / attribute change — Fast-Refresh often skips it. Full kill + relaunch before concluding a CSS-in-TS or handler change failed.
 
 - **The dev app runs against Nathan's REAL Nexus.** UI value writes are his data; CDP (when up) must open + Esc only, never pick/commit — unless he authorizes a mutating gesture with state restored exactly. CDP is currently DOWN (he runs his own dev, no debug port); Claude can't self-verify UI this arc — he verifies visually.
+
+- **"Column Icons" vs "Label Icons" — cross-view naming.** The table Layout toggle is **Column Icons** (`hide_column_icons`) — accurate because table columns include metadata (Created/Modified) that aren't properties. A columnless view (Gallery/List) would surface the same flag as **"Label Icons"** (Nathan's suggestion). Decide generalize-vs-per-view-field when a second view type consumes it.
 
 - **Gates:** `env -u ELECTRON_RUN_AS_NODE npm run typecheck` (two passes, the ONLY type gate) + `npx vitest run` + `env -u ELECTRON_RUN_AS_NODE npm run build`. Biome auto-formats on write — never run it, never hand-align.
 
