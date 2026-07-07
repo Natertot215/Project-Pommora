@@ -22,11 +22,11 @@ const svgBase = {
 /** List — a solid left rail bar + four lines beside it, sized to the table/gallery glyph height. */
 export const ListRounded = forwardRef<SVGSVGElement, LucideProps>(({ size = 24, color, ...rest }, ref) => (
   <svg ref={ref} width={size} height={size} {...svgBase} {...rest}>
-    <rect x="3.6" y="4.5" width="2.4" height="15" rx="1.2" fill="currentColor" stroke="none" />
-    <line x1="9" y1="6" x2="20" y2="6" />
-    <line x1="9" y1="10" x2="20" y2="10" />
-    <line x1="9" y1="14" x2="20" y2="14" />
-    <line x1="9" y1="18" x2="20" y2="18" />
+    <rect x="3.6" y="3.1" width="2.4" height="17.8" rx="1.2" fill="currentColor" stroke="none" />
+    <line x1="9" y1="5.1" x2="20" y2="5.1" />
+    <line x1="9" y1="9.7" x2="20" y2="9.7" />
+    <line x1="9" y1="14.3" x2="20" y2="14.3" />
+    <line x1="9" y1="18.9" x2="20" y2="18.9" />
   </svg>
 )) as unknown as LucideIcon
 
