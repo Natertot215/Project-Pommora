@@ -24,5 +24,5 @@ export const surface = style({
 
 // Dropdown row titles read at label-control — one source for every dropdown surface (the `item`
 // primitive is shared with the sidebar, which keeps its own label-primary title outside a surface).
-globalStyle(`${surface} .${titleText}`, { color: c.label.control })
+globalStyle(`${surface} .${titleText}`, { color: c.label.primary})
 

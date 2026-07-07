@@ -7,7 +7,7 @@ const BUTTON = {
 }
 
 // ── KNOB — the active-view row's highlight ring thickness (px) ──
-const HIGHLIGHT_RING = '1px'
+const HIGHLIGHT_RING = '2px'
 
 /** The button + its anchored dropdown share this relative box, so the pane hangs off the button
  *  (not the trio cluster). Sits left of the trio via the toolbar's inter-cluster gap. */
