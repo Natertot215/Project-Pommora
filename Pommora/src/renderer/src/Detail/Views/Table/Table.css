@@ -77,7 +77,8 @@
 .col-header-icon {
   display: inline-flex;
   vertical-align: middle;
-  margin-right: 4px;
+  transform: translateY(-1px);
+  margin-right: 6px;
   color: var(--label-secondary);
 }
 .col-header {

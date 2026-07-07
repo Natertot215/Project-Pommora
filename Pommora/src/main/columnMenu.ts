@@ -28,7 +28,11 @@ export function popColumnMenu(win: BrowserWindow, ctx: ColumnMenuContext): Promi
     if (styleRows.length > 0) {
       items.push({ label: 'Style', submenu: styleSubmenu(styleRows, pick) })
     }
-    if ((ctx.alignable || styleRows.length > 0) && ctx.hideable) items.push({ type: 'separator' })
+    const hasBottom = ctx.iconsShown !== undefined || ctx.hideable
+    if ((ctx.alignable || styleRows.length > 0) && hasBottom) items.push({ type: 'separator' })
+    if (ctx.iconsShown !== undefined) {
+      items.push({ label: ctx.iconsShown ? 'Hide Icon' : 'Icon', click: pick('column:toggle-icons') })
+    }
     if (ctx.hideable) items.push({ label: 'Hide', click: pick('column:hide') })
     if (items.length === 0) {
       resolve(null)

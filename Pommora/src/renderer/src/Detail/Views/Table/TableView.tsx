@@ -451,8 +451,15 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
     e.preventDefault()
     const t = declaredType(id, schema)
     const style = t !== undefined && t !== 'title' && t !== 'tier' ? { type: t, current: colStyle(id) } : undefined
-    const action = await window.nexus.columnMenu({ align: colAlign(id), alignable: !isTitle, hideable: !isTitle, style })
+    const action = await window.nexus.columnMenu({
+      align: colAlign(id),
+      alignable: !isTitle,
+      hideable: !isTitle,
+      iconsShown: isTitle ? undefined : !(liveView.hide_column_icons ?? false),
+      style
+    })
     if (action === 'column:hide') hideColumn(id)
+    else if (action === 'column:toggle-icons') persistView({ hide_column_icons: !(liveView.hide_column_icons ?? false) })
     else if (action?.startsWith('align:')) setColumnAlign(id, action.slice('align:'.length) as ColumnAlign)
     else if (action?.startsWith('style:')) {
       const parsed = parseStyleAction(action)

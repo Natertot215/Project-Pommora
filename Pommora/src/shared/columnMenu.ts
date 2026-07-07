@@ -5,7 +5,7 @@ import type { ColumnAlign } from './views'
 /** The table-view column-header right-click menu (E-1/E-5): hide the column, set its text alignment,
  *  or set a per-view display style. The renderer applies the resolved action, or no-ops on null
  *  (dismissed). Mirrors calloutMenu's shape. */
-export type ColumnMenuAction = 'column:hide' | `align:${ColumnAlign}` | `style:${string}:${string}`
+export type ColumnMenuAction = 'column:hide' | 'column:toggle-icons' | `align:${ColumnAlign}` | `style:${string}:${string}`
 
 /** Menu context — the current alignment (for the checked radio) + which items apply. The Title column is
  *  the primary column: neither alignable, hideable, nor styleable, so it pops an empty (⇒ dismissed) menu. */
@@ -13,6 +13,9 @@ export interface ColumnMenuContext {
   align: ColumnAlign
   alignable: boolean
   hideable: boolean
+  /** Whether column header icons currently show (view-wide `hide_column_icons` inverted) — drives the
+   *  Icon ⇄ Hide Icon toggle label. Undefined on the Title column's empty menu. */
+  iconsShown?: boolean
   style?: StyleMenuContext
 }
 

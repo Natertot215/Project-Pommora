@@ -22,6 +22,7 @@ import {
   FolderClosed,
   FolderOpen,
   GalleryVerticalEnd,
+  Grid3x2,
   GripHorizontal,
   GripVertical,
   Hash,
@@ -59,7 +60,7 @@ import {
   X
 } from 'lucide-react'
 import type { EntityIconKind } from '@shared/types'
-import { CardsGrid, ListRounded, TableWide } from './customGlyphs'
+import { CardsGrid, ListRounded } from './customGlyphs'
 import { size as sizeTokens, type IconSize } from '../tokens/size.css'
 
 /**
@@ -126,7 +127,7 @@ export const icons = {
   'layout-panel-left': LayoutPanelLeft,
   'text-align-justify': TextAlignJustify,
   'layers-2': Layers2,
-  table: TableWide,
+  table: Grid3x2,
   'list-rounded': ListRounded,
   'cards-grid': CardsGrid,
   'columns-3-cog': Columns3Cog
