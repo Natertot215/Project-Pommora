@@ -60,8 +60,7 @@ import {
   X
 } from 'lucide-react'
 import type { EntityIconKind } from '@shared/types'
-import { IconProgressCheck } from '@tabler/icons-react'
-import { CardsGrid, GalleryStack, ListRounded } from './customGlyphs'
+import { CardsGrid, ListRounded, ProgressCheck } from './customGlyphs'
 import { size as sizeTokens, type IconSize } from '../tokens/size.css'
 
 /**
@@ -132,9 +131,7 @@ export const icons = {
   table: Grid3x2,
   'list-rounded': ListRounded,
   'cards-grid': CardsGrid,
-  'gallery-stack': GalleryStack,
-  // Tabler opt-in (renders through the same seam; its default stroke is 2, matching Lucide).
-  'progress-check': IconProgressCheck as unknown as LucideIcon,
+  'progress-check': ProgressCheck,
   'columns-3-cog': Columns3Cog
 } satisfies Record<string, LucideIcon>
 

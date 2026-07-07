@@ -22,7 +22,7 @@ const TYPE_GLYPH: Record<ViewType, IconName> = {
   table: 'table',
   cards: 'cards-grid',
   list: 'list-rounded',
-  gallery: 'gallery-stack',
+  gallery: 'layout-dashboard',
   calendar: 'calendar-days',
   timeline: 'chart-gantt'
 }
