@@ -148,7 +148,7 @@ export function SettingsPane(): React.JSX.Element | null {
       configurationLeaf
     ) : detailId === 'properties' ? (
       schemaCollection ? (
-        <PropertiesPane collectionPath={schemaCollection.path} schema={schema} onBack={back} />
+        <PropertiesPane collectionPath={schemaCollection.path} schema={schema} onBack={back} source={node} />
       ) : (
         schemaUnavailable
       )

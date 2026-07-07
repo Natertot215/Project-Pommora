@@ -3,6 +3,12 @@ import { Icon, type IconName } from '@renderer/design-system/symbols'
 import { useSession } from '../../store'
 import { isReservedPropertyId, type PropertyDefinition, type PropertyType, type StatusGroup } from '@shared/properties'
 import type { Option } from '@shared/optionModel'
+import type { ColumnStyle } from '@shared/columnStyles'
+import type { CollectionNode, SetNode } from '@shared/types'
+import { useActiveView } from '../../Detail/Views/useActiveView'
+import { saveViewAdopting } from '../../Detail/Views/viewMint'
+import { styleFor } from '../../Detail/Views/Table/columnStyles'
+import { DateTimeEditor } from './DateTimeEditor'
 import { MenuItem, MenuCaption, MenuPaneTopRow, MenuScrollFrame, MenuBottomRow, AccessoryButton } from '../../design-system/components/menu'
 import { flushTrailing } from '../../design-system/components/menu/menu.css'
 import { Reveal } from '../../design-system/components/Reveal'
@@ -149,13 +155,16 @@ function ListGroups({
 export function PropertiesPane({
   collectionPath,
   schema,
-  onBack
+  onBack,
+  source
 }: {
   collectionPath: string
   schema: PropertyDefinition[]
   onBack: () => void
+  source: CollectionNode | SetNode
 }): React.JSX.Element {
   const load = useSession((st) => st.load)
+  const { view: activeView } = useActiveView(source, schema)
   const registry = useSession((st) => st.tree?.registry) ?? []
   const renamingProperty = useSession((st) => st.renamingProperty)
   const beginPropertyRename = useSession((st) => st.beginPropertyRename)
@@ -240,6 +249,12 @@ export function PropertiesPane({
   }
   const saveLinkConfig = async (id: string, patch: LinkConfig): Promise<void> => {
     await commit(await window.nexus.property.setLinkConfig(id, patch))
+  }
+  // The datetime display format is per-VIEW, not schema: it writes the active view's column_styles
+  // (through the one view writer), NOT the nexus property def. Merges per-key like the column menu.
+  const saveColumnStyle = (propId: string, patch: Partial<ColumnStyle>): void => {
+    const next = { ...activeView.column_styles?.[propId], ...patch }
+    void saveViewAdopting(source, { ...activeView, column_styles: { ...activeView.column_styles, [propId]: next } }, load)
   }
   const renameOption = async (id: string, oldValue: string, newTitle: string): Promise<void> => {
     await commit(await window.nexus.property.renameOption(id, oldValue, newTitle))
@@ -366,6 +381,8 @@ export function PropertiesPane({
             color={def.link_color}
             onSetConfig={(patch) => void saveLinkConfig(def.id, patch)}
           />
+        ) : def.type === 'datetime' ? (
+          <DateTimeEditor style={styleFor(def.id, schema, activeView)} onChange={(patch) => saveColumnStyle(def.id, patch)} />
         ) : (
           // Blank body until this type's options UI ships (Guidelines/UI-Copy.md).
           <div style={{ minHeight: 8 }} />

@@ -59,9 +59,11 @@ afterEach(() => {
   host.remove()
 })
 
+const source = { id: 'col1', kind: 'collection', path: 'Col', title: 'Col', views: [] } as never
+
 const mountPane = async (schema: PropertyDefinition[] = defs): Promise<void> => {
   await act(async () => {
-    root.render(<PropertiesPane collectionPath="Col" schema={schema} onBack={() => {}} />)
+    root.render(<PropertiesPane collectionPath="Col" schema={schema} onBack={() => {}} source={source} />)
   })
 }
 
