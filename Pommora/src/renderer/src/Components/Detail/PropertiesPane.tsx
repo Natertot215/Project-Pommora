@@ -1,7 +1,7 @@
 import { useRef, useState, type ReactNode } from 'react'
 import { Icon, type IconName } from '@renderer/design-system/symbols'
 import { useSession } from '../../store'
-import { isReservedPropertyId, type PropertyDefinition, type PropertyType, type StatusGroup } from '@shared/properties'
+import { isReservedPropertyId, type NumberConfig, type PropertyDefinition, type PropertyType, type StatusGroup } from '@shared/properties'
 import type { Option } from '@shared/optionModel'
 import type { ColumnStyle } from '@shared/columnStyles'
 import type { CollectionNode, SetNode } from '@shared/types'
@@ -10,6 +10,7 @@ import { saveViewAdopting } from '../../Detail/Views/viewMint'
 import { styleFor } from '../../Detail/Views/Table/columnStyles'
 import { DateTimeEditor } from './DateTimeEditor'
 import { CheckboxEditor } from './CheckboxEditor'
+import { NumberEditor } from './NumberEditor'
 import { MenuItem, MenuCaption, MenuPaneTopRow, MenuScrollFrame, MenuBottomRow, MenuSeparator, AccessoryButton } from '../../design-system/components/menu'
 import { flushTrailing } from '../../design-system/components/menu/menu.css'
 import { Reveal } from '../../design-system/components/Reveal'
@@ -254,6 +255,10 @@ export function PropertiesPane({
   const saveCheckboxColor = async (id: string, color: string | undefined): Promise<void> => {
     await commit(await window.nexus.property.setCheckboxColor(id, color))
   }
+  // A number property's format is def-level (property-wide) — its own IPC, not the view's column_styles.
+  const saveNumberFormat = async (id: string, patch: Partial<NumberConfig>): Promise<void> => {
+    await commit(await window.nexus.property.setNumberFormat(id, patch))
+  }
   // The datetime display format is per-VIEW, not schema: it writes the active view's column_styles
   // (through the one view writer), NOT the nexus property def. Merges per-key like the column menu.
   const saveColumnStyle = (propId: string, patch: Partial<ColumnStyle>): void => {
@@ -394,6 +399,20 @@ export function PropertiesPane({
             look={styleFor(def.id, schema, activeView).look === 'switch' ? 'switch' : 'checkbox'}
             accent={accent}
             onSetColor={(next) => void saveCheckboxColor(def.id, next)}
+            onSetStyle={(look) => saveColumnStyle(def.id, { look })}
+          />
+        ) : def.type === 'number' ? (
+          <NumberEditor
+            config={{
+              number_family: def.number_family,
+              number_currency: def.number_currency,
+              number_separators: def.number_separators,
+              number_decimals: def.number_decimals,
+              number_fraction: def.number_fraction,
+              number_denominator: def.number_denominator
+            }}
+            look={styleFor(def.id, schema, activeView).look === 'bar' ? 'bar' : 'number'}
+            onSetConfig={(patch) => void saveNumberFormat(def.id, patch)}
             onSetStyle={(look) => saveColumnStyle(def.id, { look })}
           />
         ) : (
