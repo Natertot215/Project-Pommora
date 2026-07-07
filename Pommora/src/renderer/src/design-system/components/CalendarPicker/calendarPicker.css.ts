@@ -25,7 +25,7 @@ export const morphAnimated = style({ transition: `height ${duration.base} ${easi
       + ‹ | › nav with a segment bar between the chevrons ── */
 export const head = style({ display: 'flex', alignItems: 'center', padding: '2px 4px 6px' })
 export const headDivider = style({ height: '1px', background: c.separator.line, margin: '0 2px 6px' })
-export const titleGroup = style({ flex: 1, display: 'flex', gap: '5px' })
+export const titleGroup = style({ flex: 1, display: 'flex', gap: '1px' })
 export const titleBtn = style({
   all: 'unset',
   position: 'relative',
