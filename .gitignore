@@ -4,21 +4,11 @@
 .env.*
 *.local
 
-# Xcode / Swift
-xcuserdata/
-*.xcuserstate
-DerivedData/
-.swiftpm/
-*.moved-aside
-*.xcscmblueprint
-*.xccheckout
-build/
-
 # Editors
 .vscode/
 .idea/
 
-# React contingency
+# React / Node
 node_modules/
 dist/
 
