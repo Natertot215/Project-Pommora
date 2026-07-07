@@ -22,11 +22,12 @@ describe('styleMenuItems', () => {
     expect(items('file', { look: 'filename' }).map((r) => r.label)).toEqual(['Filename', 'Full Path'])
   })
 
-  it('number offers the four formats keyed to number_format', () => {
-    const rows = items('number', { number_format: 'percent' })
-    expect(rows.map((r) => r.label)).toEqual(['Integer', 'Decimal', 'Percent', 'Currency'])
-    expect(rows.find((r) => r.checked)?.value).toBe('percent')
-    expect(rows.every((r) => r.key === 'number_format')).toBe(true)
+  it('number offers the Number/Bar look radios', () => {
+    const rows = items('number', { look: 'bar' })
+    expect(rows.map((r) => [r.label, r.key, r.value, r.checked])).toEqual([
+      ['Number', 'look', 'number', false],
+      ['Bar', 'look', 'bar', true]
+    ])
   })
 
   it('datetime lists dates, then weekdays, then times — each group behind a separator', () => {

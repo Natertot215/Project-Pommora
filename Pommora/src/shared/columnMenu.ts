@@ -1,4 +1,4 @@
-import { COLUMN_LOOKS, DATE_FORMATS, NUMBER_FORMATS, TIME_FORMATS, WEEKDAY_FORMATS, type ColumnStyle } from './columnStyles'
+import { COLUMN_LOOKS, DATE_FORMATS, TIME_FORMATS, WEEKDAY_FORMATS, type ColumnStyle } from './columnStyles'
 import type { PropertyType } from './properties'
 import type { ColumnAlign } from './views'
 
@@ -61,10 +61,8 @@ export function styleMenuItems(ctx: StyleMenuContext): StyleMenuItem[] {
       return [look('Title', 'title'), look('Full Link', 'full')]
     case 'file':
       return [look('Filename', 'filename'), look('Full Path', 'path')]
-    case 'number': {
-      const num = row('number_format', current.number_format)
-      return [num('Integer', 'integer'), num('Decimal', 'decimal'), num('Percent', 'percent'), num('Currency', 'currency')]
-    }
+    case 'number':
+      return [look('Number', 'number'), look('Bar', 'bar')]
     case 'datetime':
     case 'last_edited_time': {
       const date = row('date_format', current.date_format)
@@ -93,8 +91,7 @@ const STYLE_VALUES: Record<string, readonly string[]> = {
   look: COLUMN_LOOKS,
   date_format: DATE_FORMATS,
   time_format: TIME_FORMATS,
-  weekday: WEEKDAY_FORMATS,
-  number_format: NUMBER_FORMATS
+  weekday: WEEKDAY_FORMATS
 }
 
 /** Decode a `style:<key>:<value>` action; null for anything else or an unknown key/value. */

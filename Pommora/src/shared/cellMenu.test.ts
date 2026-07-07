@@ -14,9 +14,9 @@ describe('cellMenuModel', () => {
   })
 
   it('style-only: the per-type Style radios, no plain items', () => {
-    const m = cellMenuModel({ kind: 'style-only', type: 'number', current: { number_format: 'decimal' } })
+    const m = cellMenuModel({ kind: 'style-only', type: 'number', current: { look: 'bar' } })
     expect(m.items).toEqual([])
-    expect(m.style?.map((r) => r.label)).toEqual(['Integer', 'Decimal', 'Percent', 'Currency'])
+    expect(m.style?.map((r) => r.label)).toEqual(['Number', 'Bar'])
   })
 
   it('a clearable style-only (status) adds Clear under the Style radios', () => {

@@ -24,8 +24,8 @@ describe('defaultStyleFor', () => {
     expect(defaultStyleFor('last_edited_time')).toEqual({ date_format: 'full', time_format: 'none', weekday: 'none' })
   })
 
-  it('numbers default to decimal', () => {
-    expect(defaultStyleFor('number')).toEqual({ number_format: 'decimal' })
+  it('numbers default to the number look', () => {
+    expect(defaultStyleFor('number')).toEqual({ look: 'number' })
   })
 
   it('select/multi and unknown types are not style-addressable', () => {
@@ -37,12 +37,12 @@ describe('defaultStyleFor', () => {
 
 describe('columnStyle codec', () => {
   it('round-trips a full entry', () => {
-    const entry = { look: 'capsule', date_format: 'short', time_format: 'twelveHour', number_format: 'percent' }
+    const entry = { look: 'capsule', date_format: 'short', time_format: 'twelveHour', weekday: 'short' }
     expect(columnStyle.parse(entry)).toEqual(entry)
   })
 
   it('drops an unknown enum value instead of sinking the entry', () => {
-    expect(columnStyle.parse({ look: 'zebra', number_format: 'integer' })).toEqual({ number_format: 'integer' })
+    expect(columnStyle.parse({ look: 'zebra', date_format: 'short' })).toEqual({ date_format: 'short' })
   })
 
   it('lets unknown keys ride through', () => {

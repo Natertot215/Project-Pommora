@@ -15,17 +15,14 @@ export type TimeFormat = (typeof TIME_FORMATS)[number]
 export const WEEKDAY_FORMATS = ['long', 'short', 'none'] as const
 export type WeekdayFormat = (typeof WEEKDAY_FORMATS)[number]
 
-export const NUMBER_FORMATS = ['integer', 'decimal', 'percent', 'currency'] as const
-export type NumberFormat = (typeof NUMBER_FORMATS)[number]
-
 /** One column's saved style entry. Loose + per-field catch ⇒ a bad value drops that field,
- *  never the entry; unknown keys ride through. */
+ *  never the entry; unknown keys ride through. Number FORMAT is def-level (property-wide), not here —
+ *  a number's per-view style is its `look` (number/bar). */
 export const columnStyle = z.looseObject({
   look: z.enum(COLUMN_LOOKS).optional().catch(undefined),
   date_format: z.enum(DATE_FORMATS).optional().catch(undefined),
   time_format: z.enum(TIME_FORMATS).optional().catch(undefined),
-  weekday: z.enum(WEEKDAY_FORMATS).optional().catch(undefined),
-  number_format: z.enum(NUMBER_FORMATS).optional().catch(undefined)
+  weekday: z.enum(WEEKDAY_FORMATS).optional().catch(undefined)
 })
 export type ColumnStyle = z.infer<typeof columnStyle>
 
@@ -45,7 +42,7 @@ export function defaultStyleFor(declaredType: string | undefined): ColumnStyle {
     case 'last_edited_time':
       return { date_format: 'full', time_format: 'none', weekday: 'none' }
     case 'number':
-      return { number_format: 'decimal' }
+      return { look: 'number' }
     default:
       return {}
   }
