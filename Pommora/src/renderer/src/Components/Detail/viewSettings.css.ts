@@ -22,10 +22,11 @@ export const grid = style({
   padding: `${GRID.edgeY}px 0`
 })
 
-/** One type tile — a rounded rect, wider than tall, holding only its type glyph. A SOLID surface fill
- *  (not the glass backdrop) backs the glyph so its anti-aliased strokes rasterize against a known colour
- *  instead of the composited frost — the fix for the fuzzy-icon aliasing. The `&&` pins the glyph tone
- *  above `.app-toolbar button`'s control-tone rule (the pane lives in the toolbar's DOM). */
+/** One type tile — a rounded rect, wider than tall, holding only its type glyph over the glass. The glyph
+ *  is the SOLID grey primitive, not a white-alpha label tone: an alpha tone doubles where the glyph's own
+ *  strokes overlap (the grid crossings, the bar edges) and its soft edges read as aliasing — an opaque hex
+ *  composites clean. The `&&` pins it above `.app-toolbar button`'s control-tone rule (pane lives in the
+ *  toolbar's DOM). */
 export const tile = style({
   aspectRatio: `${GRID.tileAspect}`,
   display: 'flex',
@@ -33,10 +34,10 @@ export const tile = style({
   justifyContent: 'center',
   border: `${GRID.tileBorder}px solid ${c.separator.border}`,
   borderRadius: `${GRID.tileRadius}px`,
-  background: c.surface.secondary,
+  background: 'none',
   padding: 0,
   cursor: 'default',
-  selectors: { '&&': { color: c.label.secondary } }
+  selectors: { '&&': { color: c.system.grey } }
 })
 
 /** The selected type — accent border at tint-primary. */

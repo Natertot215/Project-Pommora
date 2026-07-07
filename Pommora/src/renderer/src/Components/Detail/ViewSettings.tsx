@@ -146,7 +146,7 @@ export function ViewSettings({
           aria-label={t}
           onClick={() => IMPLEMENTED.has(t) && setType(t)}
         >
-          <Icon name={TYPE_GLYPH[t]} size={23} />
+          <Icon name={TYPE_GLYPH[t]} size={24} />
         </button>
       ))}
     </div>
