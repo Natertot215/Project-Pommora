@@ -70,8 +70,6 @@ Build discipline: every pane push rides the (now intrinsic) PaneSlider; PickerMe
 
 - **"Column Icons" vs "Label Icons" — cross-view naming.** The table Layout toggle is **Column Icons** (`hide_column_icons`) — accurate because table columns include metadata (Created/Modified) that aren't properties. A columnless view (Gallery/List) would surface the same flag as **"Label Icons"** (Nathan's suggestion). Decide generalize-vs-per-view-field when a second view type consumes it.
 
-- **Column Icons render wiring (stub).** `hide_column_icons` persists + its Switch works, but the table doesn't respect it (the column-header type-icon always shows). Wire the header render to the flag — `hide_page_icons` is the pattern, already consumed in TableView.
-
 - **(Perf) Standing debt:** (1) no row virtualization — every row MOUNTS, bites at thousands. (2) External VALUE edits don't live-refresh an open table (`loadValues` runs per container-open; the tree carries structure, not values). The mtime-gated walk is fine; container-surgical reconcile is the designed escalation at real scale.
 
 - **Add-to-group:** the `+` glyph beside a set's grouping label creates nothing.
