@@ -230,5 +230,13 @@ export const scrollFrame = style({
 /** A pinned edge (header or footer) — never grows, never scrolls, holds its place. */
 export const scrollFrameEdge = style({ flex: '0 0 auto' })
 
-/** The scrolling body — the sole overflow region; rows scroll here, clear of the pinned edges. */
-export const scrollFrameBody = style({ flex: '1 1 auto', minHeight: 0, overflowY: 'auto' })
+/** The scrolling body — the sole overflow region; rows scroll here, clear of the pinned edges. A
+ *  vertical flex column so a `flex:1 1 auto` child (the Properties pane's drag box) fills the floor,
+ *  giving its elastic All-Properties spacer the slack to bottom-pin. */
+export const scrollFrameBody = style({
+  display: 'flex',
+  flexDirection: 'column',
+  flex: '1 1 auto',
+  minHeight: 0,
+  overflowY: 'auto'
+})
