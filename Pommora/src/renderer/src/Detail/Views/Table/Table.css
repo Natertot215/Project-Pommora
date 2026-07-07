@@ -74,6 +74,12 @@
   padding-left: var(--content-gutter);
   padding-right: var(--table-right-inset);
 }
+.col-header-icon {
+  display: inline-flex;
+  vertical-align: middle;
+  margin-right: 4px;
+  color: var(--label-secondary);
+}
 .col-header {
   padding: var(--heading-padding-y) var(--cell-padding-x);
   text-align: left;

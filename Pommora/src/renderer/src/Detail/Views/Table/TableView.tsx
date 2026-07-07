@@ -23,6 +23,7 @@ import { buildSetIcons, buildSetNames, buildSetPaths, groupLabel } from './cellR
 import { BandDnd, type BandDrop } from './bandDnd'
 import { allStructuralIds, flattenBands, propertyOrderAfterDrop, reparentFsOrder, structuralOrderAfterDrop } from './bandDndModel'
 import { Cell } from './Cell'
+import { PropertyTypeIcon } from '@renderer/Components/Detail/PropertyTypes'
 import { GroupHeader } from './GroupHeader'
 import { columnLabel, TIER_LEVEL_BY_ID } from './columnLabel'
 import { clampWidth, widthFor } from './columnWidths'
@@ -407,6 +408,18 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
   }
   // A column's resolved alignment (E-5..E-7): the live override, else the saved value / E-6 type default.
   const colAlign = (id: string): ColumnAlign => alignOverride[id] ?? alignFor(id, schema, liveView)
+  // A column header's type glyph, gated by the per-view Column Icons toggle (`hide_column_icons`). Tier
+  // columns wear the context glyph; a schema-less column (unknown type) gets none.
+  const headerIcon = (id: string): React.ReactNode => {
+    if (liveView.hide_column_icons) return null
+    const t = declaredType(id, schema)
+    if (t === undefined) return null
+    return (
+      <span className="col-header-icon">
+        <PropertyTypeIcon type={t === 'tier' ? 'context' : t} size={13} />
+      </span>
+    )
+  }
   // A column's resolved display style (B-1..B-5): the live override keys, over the saved per-view
   // entry, over the type default.
   const colStyle = (id: string): ColumnStyle => ({ ...styleFor(id, schema, liveView), ...styleOverride[id] })
@@ -1030,6 +1043,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
                 key={c.id}
                 id={c.id}
                 label={columnLabel(c.id, schema, ctx.labels)}
+                icon={headerIcon(c.id)}
                 width={colWidth(c.id)}
                 align={colAlign(c.id)}
                 transform={colTransform(i)}
@@ -1063,6 +1077,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
 function ColumnHeader({
   id,
   label,
+  icon,
   width,
   align,
   transform,
@@ -1074,6 +1089,7 @@ function ColumnHeader({
 }: {
   id: string
   label: string
+  icon: React.ReactNode
   width: number
   align: ColumnAlign
   transform: string | undefined
@@ -1112,6 +1128,7 @@ function ColumnHeader({
       onPointerDown={onDragStart}
       onContextMenu={onContextMenu}
     >
+      {icon}
       {label}
       <span className="col-resizer" onPointerDown={startResize} />
     </div>
