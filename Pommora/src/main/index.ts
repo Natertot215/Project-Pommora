@@ -785,6 +785,34 @@ ipcMain.handle(
 )
 
 ipcMain.handle(
+  'property:setNumberFormat',
+  async (_e, propertyId: unknown, patch: unknown): Promise<{ ok: true } | { ok: false; error: string }> => {
+    try {
+      const root = sessionRoot()
+      if (root === null) return { ok: false, error: 'No nexus is open.' }
+      if (typeof propertyId !== 'string') return { ok: false, error: 'A property id is required.' }
+      if (patch === null || typeof patch !== 'object') return { ok: false, error: 'A config patch is required.' }
+      // Whitelist ONLY the number format fields — a config write must not patch arbitrary def fields
+      // (type, options, id). Registry-only: display config never touches page values. An `in p` check
+      // lets a caller clear a field by passing undefined.
+      const p = patch as Record<string, unknown>
+      const changes: Record<string, unknown> = {}
+      if ('number_family' in p) changes.number_family = typeof p.number_family === 'string' ? p.number_family : undefined
+      if ('number_currency' in p) changes.number_currency = typeof p.number_currency === 'string' ? p.number_currency : undefined
+      if ('number_separators' in p) changes.number_separators = typeof p.number_separators === 'boolean' ? p.number_separators : undefined
+      if ('number_decimals' in p)
+        changes.number_decimals = p.number_decimals === 'hidden' || typeof p.number_decimals === 'number' ? p.number_decimals : undefined
+      if ('number_fraction' in p) changes.number_fraction = typeof p.number_fraction === 'boolean' ? p.number_fraction : undefined
+      if ('number_denominator' in p) changes.number_denominator = typeof p.number_denominator === 'number' ? p.number_denominator : undefined
+      const r = await editProperty(root, propertyId, changes)
+      return r.ok ? { ok: true } : { ok: false, error: r.error.message }
+    } catch (e) {
+      return { ok: false, error: e instanceof Error ? e.message : String(e) }
+    }
+  }
+)
+
+ipcMain.handle(
   'property:renameOption',
   async (_e, propertyId: unknown, oldValue: unknown, newTitle: unknown): Promise<{ ok: true } | { ok: false; error: string }> => {
     try {

@@ -160,6 +160,19 @@ const api = {
       color: string | undefined
     ): Promise<{ ok: true } | { ok: false; error: string }> =>
       ipcRenderer.invoke('property:setCheckboxColor', propertyId, color),
+    // Registry-only display config for a Number property: its property-wide format fields.
+    setNumberFormat: (
+      propertyId: string,
+      patch: {
+        number_family?: 'number' | 'percent' | 'currency'
+        number_currency?: string
+        number_separators?: boolean
+        number_decimals?: 'hidden' | number
+        number_fraction?: boolean
+        number_denominator?: number
+      }
+    ): Promise<{ ok: true } | { ok: false; error: string }> =>
+      ipcRenderer.invoke('property:setNumberFormat', propertyId, patch),
     renameOption: (
       propertyId: string,
       oldValue: string,
