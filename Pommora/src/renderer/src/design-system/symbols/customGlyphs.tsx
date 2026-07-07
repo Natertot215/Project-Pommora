@@ -34,12 +34,12 @@ export const ListRounded = forwardRef<SVGSVGElement, LucideProps>(({ size = 24, 
 /** Cards — two columns of stretch-horizontal bars (three rows), a bar stack read wider-than-tall. */
 export const CardsGrid = forwardRef<SVGSVGElement, LucideProps>(({ size = 24, color, ...rest }, ref) => (
   <svg ref={ref} width={size} height={size} {...svgBase} {...rest}>
-    <rect x="3.2" y="4.5" width="6.8" height="4" rx="1.4" />
-    <rect x="14" y="4.5" width="6.8" height="4" rx="1.4" />
-    <rect x="3.2" y="10" width="6.8" height="4" rx="1.4" />
-    <rect x="14" y="10" width="6.8" height="4" rx="1.4" />
-    <rect x="3.2" y="15.5" width="6.8" height="4" rx="1.4" />
-    <rect x="14" y="15.5" width="6.8" height="4" rx="1.4" />
+    <rect x="2.8" y="3.1" width="7.5" height="4.6" rx="1.4" />
+    <rect x="13.7" y="3.1" width="7.5" height="4.6" rx="1.4" />
+    <rect x="2.8" y="9.7" width="7.5" height="4.6" rx="1.4" />
+    <rect x="13.7" y="9.7" width="7.5" height="4.6" rx="1.4" />
+    <rect x="2.8" y="16.3" width="7.5" height="4.6" rx="1.4" />
+    <rect x="13.7" y="16.3" width="7.5" height="4.6" rx="1.4" />
   </svg>
 )) as unknown as LucideIcon
 
