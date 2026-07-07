@@ -28,6 +28,14 @@ export const propertyType = z.enum([
 ])
 export type PropertyType = z.infer<typeof propertyType>
 
+/** Number format families. `number` = plain, `percent` = literal + `%` (NOT ×100), `currency` = an ISO code. */
+export const NUMBER_FAMILIES = ['number', 'percent', 'currency'] as const
+export type NumberFamily = (typeof NUMBER_FAMILIES)[number]
+
+/** The currencies seeded in the Format picker; `Intl.NumberFormat` renders any ISO code, so this is the
+ *  curated common set, not a limit. */
+export const CURRENCY_CODES = ['USD', 'EUR', 'GBP', 'AUD', 'CAD', 'JPY'] as const
+
 const selectOption = z.looseObject({
   value: z.string(),
   label: z.string(),
@@ -88,9 +96,27 @@ export const propertyDefinition = z.looseObject({
   // A checkbox property's def-level color (property-wide, mirroring link_color): a solid-palette key
   // tinting both looks — the box fill (checkbox look) and the on-track (switch look). Absent = Default
   // = the system accent. The checkbox/switch LOOK itself is per-VIEW (column_styles), not here.
-  checkbox_color: z.string().optional().catch(undefined)
+  checkbox_color: z.string().optional().catch(undefined),
+  // Def-level (property-wide) number format config — a deliberate divergence from Swift, whose number
+  // format rode per-def as the inert `number_format` foreign key (still preserved in build.ts's config
+  // blob). These are READ by the renderer. `number_family` picks plain/percent/currency; percent stores
+  // the LITERAL (30 → "30%"); `number_decimals` is 'hidden' (no places shown) or a fixed 1–10; fraction
+  // renders "N out of number_denominator" (Number/Currency only). Loose .catch ⇒ a bad value drops the
+  // field, never the def.
+  number_family: z.enum(NUMBER_FAMILIES).optional().catch(undefined),
+  number_currency: z.string().optional().catch(undefined),
+  number_separators: z.boolean().optional().catch(undefined),
+  number_decimals: z.union([z.literal('hidden'), z.number().int()]).optional().catch(undefined),
+  number_fraction: z.boolean().optional().catch(undefined),
+  number_denominator: z.number().optional().catch(undefined)
 })
 export type PropertyDefinition = z.infer<typeof propertyDefinition>
+
+/** The def-level number format config, narrowed for the pure formatter + the editor. */
+export type NumberConfig = Pick<
+  PropertyDefinition,
+  'number_family' | 'number_currency' | 'number_separators' | 'number_decimals' | 'number_fraction' | 'number_denominator'
+>
 
 // MARK: - Reserved property IDs
 

@@ -70,6 +70,31 @@ describe('propertyDefinition', () => {
     expect(parsed.checkbox_color).toBeUndefined()
   })
 
+  it('round-trips a number def with its property-wide format config', () => {
+    const def = {
+      id: 'prop_n',
+      name: 'Progress',
+      type: 'number',
+      number_family: 'currency',
+      number_currency: 'GBP',
+      number_separators: true,
+      number_decimals: 2,
+      number_fraction: true,
+      number_denominator: 100
+    }
+    expect(propertyDefinition.parse(def)).toEqual(def)
+  })
+
+  it('drops a non-string number_family to undefined rather than failing the def', () => {
+    const parsed = propertyDefinition.parse({ id: 'p', name: 'x', type: 'number', number_family: 9 })
+    expect(parsed.number_family).toBeUndefined()
+  })
+
+  it('accepts number_decimals as the literal "hidden" or an integer', () => {
+    expect(propertyDefinition.parse({ id: 'p', name: 'x', type: 'number', number_decimals: 'hidden' }).number_decimals).toBe('hidden')
+    expect(propertyDefinition.parse({ id: 'p', name: 'x', type: 'number', number_decimals: 3 }).number_decimals).toBe(3)
+  })
+
   it('requires id, name, and a valid type', () => {
     expect(propertyDefinition.safeParse({ name: 'x', type: 'number' }).success).toBe(false)
     expect(propertyDefinition.safeParse({ id: 'p', type: 'number' }).success).toBe(false)
