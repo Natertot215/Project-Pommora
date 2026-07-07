@@ -22,7 +22,7 @@ const TYPE_GLYPH: Record<ViewType, IconName> = {
   table: 'table',
   cards: 'cards-grid',
   list: 'list-rounded',
-  gallery: 'layout-dashboard',
+  gallery: 'gallery-stack',
   calendar: 'calendar-days',
   timeline: 'chart-gantt'
 }
@@ -32,7 +32,7 @@ const isMac = navigator.platform.toLowerCase().includes('mac')
 // ── KNOB — ViewSettings' own height ceiling (its own, not the shared MENU_MAX_HEIGHT): the full door
 // stacks the tallest content (title + grid + four leaf rows + the pinned Format), so it earns more
 // room before the body scrolls. Applies to the editor + its Layout leaf. ──
-const VIEWSETTINGS_MAX_HEIGHT = 400
+const VIEWSETTINGS_MAX_HEIGHT = 375
 // ── KNOB — the leaf slider's floors (matches the SettingsPane sibling): a blank Group/Filter/Sort leaf
 // reserves this square instead of collapsing to a bare header strip mid-slide. ──
 const LEAF_MIN_WIDTH = 225
@@ -146,7 +146,7 @@ export function ViewSettings({
           aria-label={t}
           onClick={() => IMPLEMENTED.has(t) && setType(t)}
         >
-          <Icon name={TYPE_GLYPH[t]} size={20} />
+          <Icon name={TYPE_GLYPH[t]} size={23} />
         </button>
       ))}
     </div>

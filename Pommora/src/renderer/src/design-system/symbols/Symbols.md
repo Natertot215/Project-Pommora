@@ -2,7 +2,7 @@
 
 Pommora's React icons come from **Lucide** ([lucide.dev/icons](https://lucide.dev/icons)) — the curated registry in `index.tsx`, mirrored by this file. Add a name + purpose here, then import the Lucide component and register it. Only listed icons ship in the bundle. Keys are the app's own vocabulary (mostly the lucide.dev name); a key renames when its glyph changes identity, never for library spelling.
 
-**Tabler stays a second source we can pull from.** `@tabler/icons-react` remains installed — to use one, import its `Icon*` component and add the entry (it renders through the same seam; Tabler's default stroke is 2, so pass `strokeWidth={1.75}` to sit with Lucide's weight). Lucide is the default; Tabler is a per-icon opt-in.
+**Tabler stays a second source we can pull from.** `@tabler/icons-react` remains installed — to use one, import its `Icon*` component and add the entry (it renders through the same seam; Lucide and Tabler both default to a stroke of 2, so they sit at the same weight with no override). Lucide is the default; Tabler is a per-icon opt-in. Custom `customGlyphs` svgs match that weight too.
 
 **To use one in code:** `import { Icon } from '@renderer/design-system/symbols'` → `<Icon name="folder-closed" size={15} />`.
 

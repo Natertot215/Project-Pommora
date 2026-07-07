@@ -60,7 +60,8 @@ import {
   X
 } from 'lucide-react'
 import type { EntityIconKind } from '@shared/types'
-import { CardsGrid, ListRounded } from './customGlyphs'
+import { IconProgressCheck } from '@tabler/icons-react'
+import { CardsGrid, GalleryStack, ListRounded } from './customGlyphs'
 import { size as sizeTokens, type IconSize } from '../tokens/size.css'
 
 /**
@@ -69,7 +70,8 @@ import { size as sizeTokens, type IconSize } from '../tokens/size.css'
  * `Symbols.md` — add a name there, then import it above and add a line here. Tree-shaking keeps
  * only these in the bundle. **Tabler (`@tabler/icons-react`) stays installed as a second source we
  * can pull from** — to use one, import its `Icon*` component and add the entry (it renders through
- * the same seam; Tabler's default stroke is 2, so pass `strokeWidth={1.75}` to match Lucide's weight).
+ * the same seam; Lucide's and Tabler's default stroke are both 2, so they sit at the same weight with
+ * no override).
  */
 export const icons = {
   house: House,
@@ -130,6 +132,9 @@ export const icons = {
   table: Grid3x2,
   'list-rounded': ListRounded,
   'cards-grid': CardsGrid,
+  'gallery-stack': GalleryStack,
+  // Tabler opt-in (renders through the same seam; its default stroke is 2, matching Lucide).
+  'progress-check': IconProgressCheck as unknown as LucideIcon,
   'columns-3-cog': Columns3Cog
 } satisfies Record<string, LucideIcon>
 

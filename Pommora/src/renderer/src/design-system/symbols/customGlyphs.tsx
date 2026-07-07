@@ -1,5 +1,5 @@
-// The custom registry glyphs (List's rounded-circle list, Cards' 2×3 grid). Registry-conforming
-// forwardRef svgs at Lucide's 1.75 stroke weight so they sit evenly beside the Lucide set.
+// The custom registry glyphs (List's rounded-circle list, Cards' 2×3 grid, Gallery's 2×3 bar stack).
+// Registry-conforming forwardRef svgs at Lucide's default 2 stroke weight so they sit evenly beside it.
 import { forwardRef } from 'react'
 import { type LucideIcon, type LucideProps } from 'lucide-react'
 
@@ -7,7 +7,7 @@ const svgBase = {
   viewBox: '0 0 24 24',
   fill: 'none',
   stroke: 'currentColor',
-  strokeWidth: 1.75,
+  strokeWidth: 2,
   strokeLinecap: 'round' as const,
   strokeLinejoin: 'round' as const
 }
@@ -33,5 +33,17 @@ export const CardsGrid = forwardRef<SVGSVGElement, LucideProps>(({ size = 24, co
     <rect x="13" y="9.7" width="7.5" height="4.6" rx="1.4" />
     <rect x="3.5" y="15.4" width="7.5" height="4.6" rx="1.4" />
     <rect x="13" y="15.4" width="7.5" height="4.6" rx="1.4" />
+  </svg>
+)) as unknown as LucideIcon
+
+/** Gallery — two columns of stretch-horizontal bars (three rows), a bar stack read wider-than-tall. */
+export const GalleryStack = forwardRef<SVGSVGElement, LucideProps>(({ size = 24, color, ...rest }, ref) => (
+  <svg ref={ref} width={size} height={size} {...svgBase} {...rest}>
+    <rect x="3.2" y="5" width="7.6" height="2.8" rx="1.4" />
+    <rect x="13.2" y="5" width="7.6" height="2.8" rx="1.4" />
+    <rect x="3.2" y="10.6" width="7.6" height="2.8" rx="1.4" />
+    <rect x="13.2" y="10.6" width="7.6" height="2.8" rx="1.4" />
+    <rect x="3.2" y="16.2" width="7.6" height="2.8" rx="1.4" />
+    <rect x="13.2" y="16.2" width="7.6" height="2.8" rx="1.4" />
   </svg>
 )) as unknown as LucideIcon
