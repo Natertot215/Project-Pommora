@@ -43,7 +43,7 @@ import { condensedDate, formatDate } from '../PropertyEditing/formatValue'
 import { Reveal } from '@renderer/design-system/components/Reveal'
 import { ACTIVATION } from '@renderer/design-system/interactions/shared'
 import { TableRowDnd, useTableRowDrag } from './tableDnd'
-import { linkColorCss } from './linkColor'
+import { solidColorCss } from './solidColor'
 import { parseLink, serializeLink } from './linkValue'
 
 // ── TUNABLE ── how far past a column's edge the dragged column's centre must travel before the slot
@@ -408,10 +408,11 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
   }
   // A column's resolved alignment (E-5..E-7): the live override, else the saved value / E-6 type default.
   const colAlign = (id: string): ColumnAlign => alignOverride[id] ?? alignFor(id, schema, liveView)
-  // A column header's type glyph, gated by the per-view Column Icons toggle (`hide_column_icons`). Tier
-  // columns wear the context glyph; a schema-less column (unknown type) gets none.
+  // A column header's type glyph, gated by the per-view Column Icons toggle (`hide_column_icons`),
+  // which defaults ON (icons hidden). Tier columns wear the context glyph; a schema-less column
+  // (unknown type) gets none.
   const headerIcon = (id: string): React.ReactNode => {
-    if (liveView.hide_column_icons) return null
+    if (liveView.hide_column_icons ?? true) return null
     // Created At has a reserved column but no PropertyType, so it carries no registry glyph — give it
     // its own here (its sibling Modified At rides last_edited_time's registry icon via PropertyTypeIcon).
     if (id === RESERVED_PROPERTY_ID.createdAt) {
@@ -455,11 +456,11 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
       align: colAlign(id),
       alignable: !isTitle,
       hideable: !isTitle,
-      iconsShown: isTitle ? undefined : !(liveView.hide_column_icons ?? false),
+      iconsShown: isTitle ? undefined : !(liveView.hide_column_icons ?? true),
       style
     })
     if (action === 'column:hide') hideColumn(id)
-    else if (action === 'column:toggle-icons') persistView({ hide_column_icons: !(liveView.hide_column_icons ?? false) })
+    else if (action === 'column:toggle-icons') persistView({ hide_column_icons: !(liveView.hide_column_icons ?? true) })
     else if (action?.startsWith('align:')) setColumnAlign(id, action.slice('align:'.length) as ColumnAlign)
     else if (action?.startsWith('style:')) {
       const parsed = parseStyleAction(action)
@@ -601,7 +602,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
         initial={editorInitial(row, col)}
         numeric={t === 'number'}
         validate={t === 'url' ? isValidLink : undefined}
-        color={t === 'url' ? linkColorCss(schema.find((d) => d.id === col.id)?.link_color) : undefined}
+        color={t === 'url' ? solidColorCss(schema.find((d) => d.id === col.id)?.link_color) : undefined}
         onCommit={(raw) => commitEditorText(row, col, raw)}
         onCancel={() => setEditing(null)}
       />
@@ -694,7 +695,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
         open={editing?.mode === 'rename'}
         triggerRef={triggerElRef}
         value={parseLink(raw).alias ?? ''}
-        accent={linkColorCss(linkDef?.link_color)}
+        accent={solidColorCss(linkDef?.link_color)}
         onCommit={(alias) => {
           commitCellValue(row, col.id, {
             kind: 'url',

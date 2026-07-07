@@ -1,7 +1,6 @@
-import { useRef, useState } from 'react'
 import type { ColumnStyle, DateFormat, TimeFormat, WeekdayFormat } from '@shared/columnStyles'
 import { Icon, type IconName } from '@renderer/design-system/symbols'
-import { PickerMenu, PickerOption } from '../../design-system/components/PickerMenu'
+import { PickerControl } from './PickerControl'
 import { Reveal } from '../../design-system/components/Reveal'
 import { optionsLabel } from './settingsPane.css'
 import * as s from './dateTimeEditor.css'
@@ -23,9 +22,6 @@ const TIME_OPTIONS: { value: TimeFormat; label: string }[] = [
   { value: 'twentyFourHour', label: '24 Hours' },
   { value: 'none', label: 'Hidden' }
 ]
-const labelOf = <T extends string>(opts: { value: T; label: string }[], v: T): string =>
-  opts.find((o) => o.value === v)?.label ?? opts[0].label
-
 function PickerRow<T extends string>({
   glyph,
   label,
@@ -41,32 +37,13 @@ function PickerRow<T extends string>({
   options: { value: T; label: string }[]
   onPick: (v: T) => void
 }): React.JSX.Element {
-  const [open, setOpen] = useState(false)
-  const ref = useRef<HTMLButtonElement>(null)
   return (
     <div className={s.row}>
       <span className={s.leading}>
         <Icon name={glyph} size={16} />
       </span>
       <span className={s.label}>{label}</span>
-      <button ref={ref} type="button" className={s.trigger} aria-label={ariaLabel} onClick={() => setOpen(true)}>
-        <span className={s.value}>{labelOf(options, value)}</span>
-        <Icon name="chevrons-up-down" size={12} />
-      </button>
-      <PickerMenu open={open} onDismiss={() => setOpen(false)} triggerRef={ref} center>
-        {options.map((o) => (
-          <PickerOption
-            key={o.value}
-            selected={o.value === value}
-            onClick={() => {
-              onPick(o.value)
-              setOpen(false)
-            }}
-          >
-            {o.label}
-          </PickerOption>
-        ))}
-      </PickerMenu>
+      <PickerControl ariaLabel={ariaLabel} value={value} options={options} onPick={onPick} />
     </div>
   )
 }

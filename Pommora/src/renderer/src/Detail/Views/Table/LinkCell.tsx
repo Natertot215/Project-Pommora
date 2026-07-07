@@ -5,7 +5,7 @@ import { useSession } from '../../../store'
 import { cx } from '@renderer/design-system/cx'
 import { OverflowScroll } from '@renderer/design-system/components/OverflowScroll'
 import { parseLink, linkDisplayText } from './linkValue'
-import { linkColorCss } from './linkColor'
+import { solidColorCss } from './solidColor'
 
 /** The url-cell body, split out so ONLY url cells pay for the link-title store subscription + the
  *  on-demand fetch — Cell's other branches stay pure renders under the row memo. The alias always wins;
@@ -35,7 +35,7 @@ export function LinkCell({
     <OverflowScroll className="cell-text-scroll">
       <a
         className={cx('cell-link', def?.link_underline && 'cell-link-underline')}
-        style={{ color: linkColorCss(def?.link_color) }}
+        style={{ color: solidColorCss(def?.link_color) }}
         href={url}
         onClick={(e) => {
           e.preventDefault()

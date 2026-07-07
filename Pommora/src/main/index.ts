@@ -768,6 +768,23 @@ ipcMain.handle(
 )
 
 ipcMain.handle(
+  'property:setCheckboxColor',
+  async (_e, propertyId: unknown, color: unknown): Promise<{ ok: true } | { ok: false; error: string }> => {
+    try {
+      const root = sessionRoot()
+      if (root === null) return { ok: false, error: 'No nexus is open.' }
+      if (typeof propertyId !== 'string') return { ok: false, error: 'A property id is required.' }
+      // The def-level color is the ONLY field this writes — a non-string clears it to Default (the
+      // system accent). Registry-only: display config never touches page values.
+      const r = await editProperty(root, propertyId, { checkbox_color: typeof color === 'string' ? color : undefined })
+      return r.ok ? { ok: true } : { ok: false, error: r.error.message }
+    } catch (e) {
+      return { ok: false, error: e instanceof Error ? e.message : String(e) }
+    }
+  }
+)
+
+ipcMain.handle(
   'property:renameOption',
   async (_e, propertyId: unknown, oldValue: unknown, newTitle: unknown): Promise<{ ok: true } | { ok: false; error: string }> => {
     try {

@@ -9,6 +9,7 @@ import { chipColorFor } from '@renderer/design-system/tokens/colorMap'
 import { declaredType } from '../pipeline/value'
 import { RenamableTitle } from '@renderer/Components/RenamableTitle'
 import { useBandDrag } from './bandDnd'
+import { checkboxBoxStyle } from './checkboxLook'
 import { findOption } from './cellResolve'
 import type { ResolveContext } from './resolveContext'
 
@@ -47,9 +48,10 @@ function groupGlyph(
     }
     case 'checkbox': {
       const on = group.key === 'true'
+      const color = ctx.schema.find((d) => d.id === propId)?.checkbox_color
       return (
         <span className="group-name">
-          <span className={cx(chipBox, chipColor.default)}>
+          <span className={cx(chipBox, on ? undefined : chipColor.default)} style={checkboxBoxStyle(on, color)}>
             {on ? <Icon name="check" size={12} strokeWidth={3} /> : null}
           </span>
           {on ? 'On' : 'Off'}

@@ -19,7 +19,7 @@ Prior arcs, compressed — the detail lives in `Features/*` + `History.md`.
 
 - **Mobile iOS companion (parked — session B, 07-04).** A ratified **Capacitor** spec under `.claude/Mobile/`; a scoped port, 4 desktop pre-paves shipped (`02bb4e11`). No build commitment.
 
-### Session Summary — ViewPane Interactions + the Date & Time Editor (Built)
+### Session Summary — ViewPane Interactions + the Date & Time and Checkbox Editors (Built)
 
 **Session ID:** c3e6af60-f1ea-4e19-9507-08776f15d04a
 **Dates:** 07-05 → 07-06-2026
@@ -42,6 +42,8 @@ Three arcs: ViewPane interaction polish (`fc305967`→`e3ec5c5a`), the **Date & 
 
 **Icon pass (`e032dcdf`→`7605c3a3`).** Column headers render their type glyph (tier → context, Created → `clock-plus`, Modified → `history`), gated by `hide_column_icons` — now also a **checkbox** in the column menu above the Hide divider. View-type glyphs reworked: Table → plain Lucide `Grid3x2` (the old `rotate(90deg)` Table was the aliasing source), Cards → a custom stretch-horizontal bar stack, List → a custom left-rail bar + four lines (both sized level with the Lucide glyphs), Status → Tabler `IconProgressCheck` (first `@tabler/icons-react` opt-in, scaled ~10% via `scaleTabler`). **The type-grid aliasing was the alpha color, not the glass:** a white-alpha label tone doubles where a glyph's strokes overlap → switched the tile glyph to the opaque `solid.grey` primitive. Lucide's default stroke is 2 (not 1.75) — custom glyphs + Symbols.md corrected. → `Icons.md` + `TableView.md` + `History.md`.
 
+**Checkbox editor built + reviewed.** The blank `checkbox` branch became a **Color** chip (property-wide def-level `checkbox_color`, the Link editor's picker logic) + a **Style** picker (per-view Checkbox ⇄ Switch), sharing a `PickerControl` extracted from the datetime editor; the link `linkColorCss`/`link*` primitives generalized to `solidColorCss`/`config*`. **Locked — color is ON-state only, defaulting to the configured accent:** an empty box/off switch is neutral grey; a checked box tints its color (a set solid, else `var(--accent)`) and a switch's on-track tints — so the box matches the switch and resolves for a palette OR `system` accent (the build-breaker's three-way "Accent" mismatch, fixed). The group-header "On" box tints the same way (shared `checkboxBoxStyle`). **Column Icons flipped to default-off** (Nathan's call). Residual: the editor's "Accent" chip can't render an OS `system` accent through a palette key — noted in Properties.md Known Issues. → `Properties.md` + `TableView.md` + `History.md`.
+
 ### Lessons Learned
 
 - **A portalled surface escapes label-tone context — it must set its OWN tone.** PickerMenu options render into a `document.body` portal, past any label-color ancestor, so with no explicit color they fell to UA-black. The fix belongs in the shared `option` style (DRY for every picker), not the caller. Same class of trap as the toolbar-button tone: when a thing renders outside its expected DOM context, don't assume inheritance.
@@ -60,7 +62,7 @@ Three arcs: ViewPane interaction polish (`fc305967`→`e3ec5c5a`), the **Date & 
 
 ### Next Session
 
-**1. The remaining per-type property editors.** Date & Time shipped this session; the last per-type pane is **Number** (its value-type editor + a number-format picker), plus the relation (context) pickers — see Properties.md Pending "Per-Type Editor Panes". The datetime editor (`DateTimeEditor.tsx` + the `saveColumnStyle`/`useActiveView` plumbing in `PropertiesPane.tsx`) is the pattern to mirror.
+**1. The remaining per-type property editors.** Date & Time and Checkbox shipped this session; the last per-type pane is **Number** (its value-type editor + a number-format picker), plus the relation (context) pickers — see Properties.md Pending "Per-Type Editor Panes". The datetime/checkbox editors (`DateTimeEditor.tsx` / `CheckboxEditor.tsx` + the shared `PickerControl` + the `saveColumnStyle`/`useActiveView` plumbing in `PropertiesPane.tsx`) are the pattern to mirror.
 
 **2. The remaining multi-view stubs** — the non-Table renderers (Cards · List · Gallery · Calendar · Timeline; the `PropertyEditing/` surfaces are table-agnostic for reuse) and the ViewSettings Group · Sort · Filter leaves (blank-leafed; wire to the shipped `GroupConfig`/`SortCriterion[]`/`FilterGroup` seams).
 
@@ -106,7 +108,7 @@ Build discipline: every pane push rides the (now intrinsic) PaneSlider; PickerMe
 
 - **HMR is NOT trustworthy for two classes:** (1) vanilla-extract `*.css.ts` — a style edit can serve stale compiled CSS; a plain restart heals it, ⌘R never does. (2) A component's focus effect / handler / attribute change — Fast-Refresh often skips it. Full kill + relaunch before concluding a CSS-in-TS or handler change failed.
 
-- **The dev app runs against Nathan's REAL Nexus.** UI value writes are his data; CDP (when up) must open + Esc only, never pick/commit — unless he authorizes a mutating gesture with state restored exactly. CDP is currently DOWN (he runs his own dev, no debug port); Claude can't self-verify UI this arc — he verifies visually.
+- **The dev app runs against Nathan's REAL Nexus.** UI value writes are his data; CDP must open + Esc only, never pick/commit — unless he authorizes a mutating gesture with state restored exactly. **CDP works:** launch `env -u ELECTRON_RUN_AS_NODE npm run dev -- --remote-debugging-port=9222`, drive via a small Node built-in-`WebSocket` CDP client (`Input.dispatchMouseEvent` for real trusted clicks — synthetic React events don't open collections; `getBoundingClientRect` gives CSS coords = CDP coords; `Page.captureScreenshot` → Read the PNG). **Native OS menus (⋮ editor menu, column right-click) don't render in the DOM — CDP can't drive or screenshot them;** reach those ops through `window.nexus.*` IPC via `Runtime.evaluate` instead.
 
 - **"Column Icons" vs "Label Icons" — cross-view naming.** The table Layout toggle is **Column Icons** (`hide_column_icons`) — accurate because table columns include metadata (Created/Modified) that aren't properties. A columnless view (Gallery/List) would surface the same flag as **"Label Icons"** (Nathan's suggestion). Decide generalize-vs-per-view-field when a second view type consumes it.
 

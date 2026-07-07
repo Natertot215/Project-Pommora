@@ -9,6 +9,7 @@ import { useActiveView } from '../../Detail/Views/useActiveView'
 import { saveViewAdopting } from '../../Detail/Views/viewMint'
 import { styleFor } from '../../Detail/Views/Table/columnStyles'
 import { DateTimeEditor } from './DateTimeEditor'
+import { CheckboxEditor } from './CheckboxEditor'
 import { MenuItem, MenuCaption, MenuPaneTopRow, MenuScrollFrame, MenuBottomRow, MenuSeparator, AccessoryButton } from '../../design-system/components/menu'
 import { flushTrailing } from '../../design-system/components/menu/menu.css'
 import { Reveal } from '../../design-system/components/Reveal'
@@ -163,6 +164,7 @@ export function PropertiesPane({
   const load = useSession((st) => st.load)
   const { view: activeView } = useActiveView(source, schema)
   const registry = useSession((st) => st.tree?.registry) ?? []
+  const accent = useSession((st) => st.tree?.accent)
   const renamingProperty = useSession((st) => st.renamingProperty)
   const beginPropertyRename = useSession((st) => st.beginPropertyRename)
   const cancelPropertyRename = useSession((st) => st.cancelPropertyRename)
@@ -246,6 +248,11 @@ export function PropertiesPane({
   }
   const saveLinkConfig = async (id: string, patch: LinkConfig): Promise<void> => {
     await commit(await window.nexus.property.setLinkConfig(id, patch))
+  }
+  // A checkbox property's color is def-level (property-wide), unlike its per-view look — so it writes
+  // the nexus def through its own IPC, not the active view's column_styles.
+  const saveCheckboxColor = async (id: string, color: string | undefined): Promise<void> => {
+    await commit(await window.nexus.property.setCheckboxColor(id, color))
   }
   // The datetime display format is per-VIEW, not schema: it writes the active view's column_styles
   // (through the one view writer), NOT the nexus property def. Merges per-key like the column menu.
@@ -381,6 +388,14 @@ export function PropertiesPane({
           />
         ) : def.type === 'datetime' ? (
           <DateTimeEditor style={styleFor(def.id, schema, activeView)} onChange={(patch) => saveColumnStyle(def.id, patch)} />
+        ) : def.type === 'checkbox' ? (
+          <CheckboxEditor
+            color={def.checkbox_color}
+            look={styleFor(def.id, schema, activeView).look === 'switch' ? 'switch' : 'checkbox'}
+            accent={accent}
+            onSetColor={(next) => void saveCheckboxColor(def.id, next)}
+            onSetStyle={(look) => saveColumnStyle(def.id, { look })}
+          />
         ) : (
           // Blank body until this type's options UI ships (Guidelines/UI-Copy.md).
           <div style={{ minHeight: 8 }} />

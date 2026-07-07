@@ -13,17 +13,3 @@ export const leading = style({ display: 'inline-flex', color: c.label.secondary 
 
 /** The row label (Date · Day · Time) — the on-control label tone, matching the URL editor's rows. */
 export const label = style([text.control.emphasized, { flex: '1 1 auto', color: c.label.control }])
-
-/** The picker trigger — bare button reading in the secondary tone; `&&` beats the toolbar/UA button tone. */
-export const trigger = style({
-  display: 'inline-flex',
-  alignItems: 'center',
-  gap: '4px',
-  border: 'none',
-  background: 'none',
-  padding: 0,
-  cursor: 'default',
-  selectors: { '&&': { color: c.label.secondary } }
-})
-
-export const value = style([text.control.standard, { selectors: { '&&': { color: c.label.secondary } } }])

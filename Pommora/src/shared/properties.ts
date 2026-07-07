@@ -84,7 +84,11 @@ export const propertyDefinition = z.looseObject({
   // A toggle: link-url (default) shows the URL, link-title the fetched page title. A per-value alias
   // (a `[alias](url)` markdown value, set via Rename) overrides EITHER — the alias always wins.
   link_display: z.enum(['link-url', 'link-title']).optional().catch(undefined),
-  link_color: z.string().optional().catch(undefined)
+  link_color: z.string().optional().catch(undefined),
+  // A checkbox property's def-level color (property-wide, mirroring link_color): a solid-palette key
+  // tinting both looks — the box fill (checkbox look) and the on-track (switch look). Absent = Default
+  // = the system accent. The checkbox/switch LOOK itself is per-VIEW (column_styles), not here.
+  checkbox_color: z.string().optional().catch(undefined)
 })
 export type PropertyDefinition = z.infer<typeof propertyDefinition>
 

@@ -154,6 +154,12 @@ const api = {
       patch: { link_underline?: boolean; link_display?: 'link-url' | 'link-title'; link_color?: string }
     ): Promise<{ ok: true } | { ok: false; error: string }> =>
       ipcRenderer.invoke('property:setLinkConfig', propertyId, patch),
+    // Registry-only display config for a Checkbox property: its property-wide color (undefined = Default).
+    setCheckboxColor: (
+      propertyId: string,
+      color: string | undefined
+    ): Promise<{ ok: true } | { ok: false; error: string }> =>
+      ipcRenderer.invoke('property:setCheckboxColor', propertyId, color),
     renameOption: (
       propertyId: string,
       oldValue: string,

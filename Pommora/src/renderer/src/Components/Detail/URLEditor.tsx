@@ -1,6 +1,6 @@
 import { useRef, useState, type CSSProperties } from 'react'
 import { chipColorFor, colorLabel } from '@renderer/design-system/tokens/colorMap'
-import { linkColorCss } from '@renderer/Detail/Views/Table/linkColor'
+import { solidColorCss } from '@renderer/Detail/Views/Table/solidColor'
 import type { ChipColorName } from '@renderer/design-system/tokens/chip.css'
 import { Switch } from '@renderer/design-system/components/Switches/Switch'
 import { Chip } from '../Chip'
@@ -11,11 +11,11 @@ type LinkDisplay = 'link-url' | 'link-title'
 export type LinkConfig = { link_underline?: boolean; link_display?: LinkDisplay; link_color?: string | undefined }
 
 /** The link colour resolved for the pane: its chip key, display label, and the raw CSS colour that
- *  themes the pane (shared with the URL cell via linkColorCss). Absent = the system accent, "Default". */
+ *  themes the pane (shared with the URL cell via solidColorCss). Absent = the system accent, "Default". */
 function resolveLinkColor(color: string | undefined): { name: ChipColorName; label: string; css: string } {
-  if (!color) return { name: 'accent', label: 'Default', css: linkColorCss(undefined) }
+  if (!color) return { name: 'accent', label: 'Default', css: solidColorCss(undefined) }
   const name = chipColorFor(color)
-  return { name, label: colorLabel(name), css: linkColorCss(color) }
+  return { name, label: colorLabel(name), css: solidColorCss(color) }
 }
 
 /**
@@ -41,15 +41,15 @@ export function URLEditor({
   const link = resolveLinkColor(color)
 
   return (
-    <div className={s.linkEditor} style={{ '--accent': link.css } as CSSProperties}>
-      <div className={s.linkRow}>
-        <span className={s.linkLabel}>Underline</span>
+    <div className={s.configEditor} style={{ '--accent': link.css } as CSSProperties}>
+      <div className={s.configRow}>
+        <span className={s.configLabel}>Underline</span>
         <span className={s.switchScale}>
           <Switch checked={underline} onChange={(v) => onSetConfig({ link_underline: v })} ariaLabel="Underline links" />
         </span>
       </div>
-      <div className={s.linkRow}>
-        <span className={s.linkLabel}>Full URL</span>
+      <div className={s.configRow}>
+        <span className={s.configLabel}>Full URL</span>
         <span className={s.switchScale}>
           <Switch
             checked={display === 'link-url'}
@@ -58,10 +58,10 @@ export function URLEditor({
           />
         </span>
       </div>
-      <div className={s.linkRow}>
-        <span className={s.linkLabel}>Color</span>
-        <span className={s.linkColor}>
-          <button ref={chipRef} type="button" className={s.linkChip} onClick={() => setColoring((v) => !v)}>
+      <div className={s.configRow}>
+        <span className={s.configLabel}>Color</span>
+        <span className={s.colorCluster}>
+          <button ref={chipRef} type="button" className={s.colorChip} onClick={() => setColoring((v) => !v)}>
             <Chip shape="label" color={link.name} label={link.label} />
           </button>
           <ColorPicker

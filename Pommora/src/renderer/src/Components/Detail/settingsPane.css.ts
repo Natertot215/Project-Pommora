@@ -332,13 +332,14 @@ export const paletteButton = style([
 ])
 
 // ═══════════════════════════════════════════════════════════════════════════
-// § LINK EDITOR — the URL property's display config: two toggles + a color chip
-// (clicking the chip opens the recolor picker)
+// § CONFIG ROWS — the shared property-editor rows (label left, control right),
+// used by the Link editor (toggles + color chip) and the Checkbox editor (color
+// chip + style picker). One row primitive, one label tone, one color cluster.
 // ═══════════════════════════════════════════════════════════════════════════
 
-/** The link config body. The editor root also scopes `--accent` (inline) to the chosen link colour,
- *  so the Switches' on-track tints to it — this pane only (Nathan's neat thing). */
-export const linkEditor = style({
+/** A config body. The Link editor root also scopes `--accent` (inline) to the chosen colour, so its
+ *  Switches' on-track tints to it — that pane only (Nathan's neat thing). */
+export const configEditor = style({
   display: 'flex',
   flexDirection: 'column',
   gap: '8px',
@@ -346,17 +347,17 @@ export const linkEditor = style({
 })
 
 /** One config row — label left, control right. */
-export const linkRow = style({ display: 'flex', alignItems: 'center', justifyContent: 'space-between', minHeight: '24px' })
+export const configRow = style({ display: 'flex', alignItems: 'center', justifyContent: 'space-between', minHeight: '24px' })
 
-/** The row label (Underline · Full URL · Color) — emphasized (Nathan's call), the primary label tone. */
-export const linkLabel = style([text.control.emphasized, { color: c.label.control }])
+/** The row label (Underline · Full URL · Color · Style) — emphasized (Nathan's call), the primary label tone. */
+export const configLabel = style([text.control.emphasized, { color: c.label.control }])
 
 /** The Switch at pane density — shrunk to sit level with the emphasized labels + colour chip (the same
  *  0.8 the CalendarPicker uses for its picker-scale Switches). Zoom is the house density knob. */
 export const switchScale = style({ zoom: 0.8 })
 
 /** The colour control cluster — the clickable chip; the ColorPicker anchors below. */
-export const linkColor = style({ position: 'relative', display: 'flex', alignItems: 'center', gap: '4px' })
+export const colorCluster = style({ position: 'relative', display: 'flex', alignItems: 'center', gap: '4px' })
 
 /** The bare button wrapping the colour chip — the recolor affordance (click the chip to open the picker). */
-export const linkChip = style({ border: 'none', background: 'none', padding: 0, cursor: 'default', display: 'flex' })
+export const colorChip = style({ border: 'none', background: 'none', padding: 0, cursor: 'default', display: 'flex' })

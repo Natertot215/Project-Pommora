@@ -69,6 +69,15 @@ describe('editProperty', () => {
     if (!b.ok) return
     expect((await editProperty(root, b.value.id, { name: 'Alpha' })).ok).toBe(true)
   })
+
+  it('writes and then clears a checkbox property color in place', async () => {
+    const c = await createProperty(root, def({ name: 'Done', type: 'checkbox' }))
+    if (!c.ok) return
+    await editProperty(root, c.value.id, { checkbox_color: 'blue' })
+    expect((await readRegistry(root)).defs[c.value.id].checkbox_color).toBe('blue')
+    await editProperty(root, c.value.id, { checkbox_color: undefined })
+    expect((await readRegistry(root)).defs[c.value.id].checkbox_color).toBeUndefined()
+  })
 })
 
 describe('removeFromRegistry', () => {

@@ -35,7 +35,7 @@ export function LayoutToggles({
         trailing={
           <span className={switchScale}>
             <Switch
-              checked={!(view.hide_column_icons ?? false)}
+              checked={!(view.hide_column_icons ?? true)}
               onChange={(next) => write({ hide_column_icons: !next })}
               ariaLabel="Column Icons"
             />

@@ -60,6 +60,16 @@ describe('propertyDefinition', () => {
     expect(propertyDefinition.safeParse(def).success).toBe(true)
   })
 
+  it('round-trips a checkbox def with its property-wide color', () => {
+    const def = { id: 'prop_ck', name: 'Done', type: 'checkbox', checkbox_color: 'blue' }
+    expect(propertyDefinition.parse(def)).toEqual(def)
+  })
+
+  it('drops a non-string checkbox_color to undefined rather than failing the def', () => {
+    const parsed = propertyDefinition.parse({ id: 'p', name: 'x', type: 'checkbox', checkbox_color: 42 })
+    expect(parsed.checkbox_color).toBeUndefined()
+  })
+
   it('requires id, name, and a valid type', () => {
     expect(propertyDefinition.safeParse({ name: 'x', type: 'number' }).success).toBe(false)
     expect(propertyDefinition.safeParse({ id: 'p', type: 'number' }).success).toBe(false)

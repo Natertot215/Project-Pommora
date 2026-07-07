@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react'
 import type { ColumnStyle } from '@shared/columnStyles'
 import type { PropertyValue } from '@shared/propertyValue'
 import type { ResolvedColumn, ViewRow } from '@shared/types'
@@ -15,6 +16,8 @@ import { statusGroupGlyph, statusGroupOf } from '../PropertyEditing/statusCycle'
 import { StatusCapsule } from '../PropertyEditing/StatusCapsule'
 import { findOption } from './cellResolve'
 import { LinkCell } from './LinkCell'
+import { solidColorCss } from './solidColor'
+import { checkboxBoxStyle } from './checkboxLook'
 import type { ResolveContext } from './resolveContext'
 
 /** Type-aware cell render (Part 2 G-1/G-2): the title with its page icon; chips for select/status;
@@ -59,13 +62,19 @@ export function Cell({
 
   // A checkbox column ALWAYS shows its box — even on a page with no stored value — so it toggles in
   // place without first assigning the property. The box keys off the column's schema TYPE, not the
-  // value's presence; unchecked means no frontmatter value at all (the toggle strips the key).
+  // value's presence; unchecked means no frontmatter value at all (the toggle strips the key). The
+  // property-wide checkbox_color colors the ON state only, exactly like the switch: an empty box is
+  // always neutral grey; a checked box fills with the color (its default is the accent via var(--accent)),
+  // and the switch's on-track tints. The check glyph stays label-control.
   if (declaredType(column.id, ctx.schema) === 'checkbox') {
     const checked = v.kind === 'checkbox' && v.value
+    const color = ctx.schema.find((d) => d.id === column.id)?.checkbox_color
     return style.look === 'switch' ? (
-      <Switch checked={checked} onChange={() => {}} ariaLabel="Checkbox value" />
+      <span style={{ display: 'contents', ...(color ? { '--accent': solidColorCss(color) } : {}) } as CSSProperties}>
+        <Switch checked={checked} onChange={() => {}} ariaLabel="Checkbox value" />
+      </span>
     ) : (
-      <span className={cx(chipBox, chipColor.default)}>
+      <span className={cx(chipBox, checked ? undefined : chipColor.default)} style={checkboxBoxStyle(checked, color)}>
         {checked ? <Icon name="check" size={12} strokeWidth={3} /> : null}
       </span>
     )

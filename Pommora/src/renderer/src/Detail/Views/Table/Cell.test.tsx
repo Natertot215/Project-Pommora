@@ -5,6 +5,7 @@ import { createRoot, type Root } from 'react-dom/client'
 import type { ColumnStyle } from '@shared/columnStyles'
 import type { PropertyDefinition } from '@shared/properties'
 import type { ResolvedColumn, ViewRow } from '@shared/types'
+import { chipColor } from '@renderer/design-system/tokens'
 import { Cell } from './Cell'
 import type { ResolveContext } from './resolveContext'
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
@@ -44,6 +45,7 @@ const schema: PropertyDefinition[] = [
     ]
   },
   { id: 'prop_done', name: 'Done', type: 'checkbox' },
+  { id: 'prop_pin', name: 'Pinned', type: 'checkbox', checkbox_color: 'blue' },
   { id: 'prop_when', name: 'When', type: 'datetime' },
   { id: 'prop_n', name: 'Count', type: 'number' },
   { id: 'prop_files', name: 'Files', type: 'file' }
@@ -116,6 +118,39 @@ describe('checkbox looks', () => {
   it('switch renders unchecked with no stored value', () => {
     mount(rowWith({}), 'prop_done', { look: 'switch' })
     expect(host.querySelector('[role="switch"]')?.getAttribute('aria-checked')).toBe('false')
+  })
+
+  it('checked box tints the property color, check at label-control', () => {
+    mount(rowWith({ prop_pin: true }), 'prop_pin', { look: 'checkbox' })
+    const box = host.querySelector('span')
+    expect(box?.style.background).not.toBe('') // tinted fill, not the grey default class
+    expect(box?.className).not.toContain(chipColor.default)
+    expect(box?.style.color).toBe('var(--label-control)')
+  })
+
+  it('unchecked box is the neutral grey default, untinted', () => {
+    mount(rowWith({}), 'prop_pin', { look: 'checkbox' })
+    const box = host.querySelector('span')
+    expect(box?.className).toContain(chipColor.default)
+    expect(box?.style.background).toBe('')
+  })
+
+  it('a colorless checked box tints the configured accent via var(--accent), matching the switch', () => {
+    mount(rowWith({ prop_done: true }), 'prop_done', { look: 'checkbox' }) // prop_done has no checkbox_color
+    const box = host.querySelector('span')
+    expect(box?.style.background).toContain('var(--accent)')
+  })
+
+  it('scopes --accent to the property color so the switch on-track tints', () => {
+    mount(rowWith({ prop_pin: true }), 'prop_pin', { look: 'switch' })
+    const wrap = host.querySelector('span')
+    expect(wrap?.style.getPropertyValue('--accent')).not.toBe('')
+  })
+
+  it('leaves --accent unset when no color is chosen so the switch inherits the configured accent', () => {
+    mount(rowWith({ prop_done: true }), 'prop_done', { look: 'switch' })
+    const wrap = host.querySelector('span')
+    expect(wrap?.style.getPropertyValue('--accent')).toBe('')
   })
 })
 
