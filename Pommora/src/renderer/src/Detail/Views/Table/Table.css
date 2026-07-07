@@ -46,12 +46,15 @@
   align-items: stretch;
 }
 
-/* Hide animation: while a column collapses, animate the track set shut on the disclosure token, then
-   drop the column. Active ONLY during a hide (never during a drag), so resize stays instant. !important
-   beats the drag engine's inline `transition: none` on the row (the row is both the grid AND the drag
-   node); the header has no inline style, so this is redundant-but-harmless there. */
+/* Hide + style-slide animation: while a column collapses (Hide) or slides out to a wider per-style min
+   (a look change), animate the track set on the disclosure token. Active ONLY during those beats (never
+   during a drag), so resize stays instant. !important beats the drag engine's inline `transition: none`
+   on the row (the row is both the grid AND the drag node); the header has no inline style, so this is
+   redundant-but-harmless there. */
 .table-grid.col-hiding .table-head,
-.table-grid.col-hiding .data-row {
+.table-grid.col-hiding .data-row,
+.table-grid.col-sliding .table-head,
+.table-grid.col-sliding .data-row {
   transition: grid-template-columns var(--disclosure) var(--ease-standard) !important;
 }
 

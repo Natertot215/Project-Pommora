@@ -28,7 +28,7 @@ Structural (Set / Sub-Set disclosure) and property groups render as full-width d
 
 ### Columns
 
-Widths are per-type `{min, default, max}` (one DRY source keyed by the column's declared type), clamped on every resolve so a stale saved value can't squash a column below legibility or past its cap. Ergonomics:
+Widths are per-type `{min, default, max}` (one DRY source keyed by the column's declared type), clamped on every resolve so a stale saved value can't squash a column below legibility or past its cap. The **min is per-style** where a look needs the room — a Switch checkbox over its Checkbox min, a status's Pill over its Capsule and Checkbox — resolved from the look (an unstyled column reads its default look's min). When a style change grows the min, the track **slides** to it rather than snapping (the Hide track transition, reused, fired by one render-phase look-change detection so it covers both the column menu and the property pane). Ergonomics:
 
 - **Resize** — a right-edge hit-strip; the live track width is the feedback (no separate bar). The pointer delta is divided by the live density factor so a screen drag maps onto the pre-zoom track.
 
@@ -62,12 +62,11 @@ A single **zoom** knob (Standard / Compact) scales text, chips, padding, and wid
 
 - **A sticky group header pins at the gutter edge, losing its nesting indent while pinned.** A deeply-nested group's chevron clamps to the same x as a top-level one once scrolled far enough — a legibility-preserving pin that reverts on scroll-back, never clipping content.
 
+- **The lead cell's indent is a left-read treatment, gated to left-aligned first columns.** The Title's loose-inset + group-nesting `padLeft` rides the first column; on a *center*-aligned first column (a checkbox/switch/chip moved before the Title) it would shrink the cell and clip the control off-centre, so it's skipped there — the control centres in the full cell instead.
+
 ### Known Issues
 
 - **Row grips scroll with their row on horizontal scroll.** The disclosure headers + chevrons stay pinned, but the hover-only drag grips ride their row's cell off to the left — freezing them cleanly means freezing the whole title column (a frozen first column), which is a separate decision.
 
 - **Structural-group members lose their nesting indent once a row precedes them.** A Set / folder group should step every member one indent inside its header (see Groups); instead only a group's leading row indents, and any member with a sibling above it falls back to the flush loose-inset. Plainly visible on any folder-grouped Collection table — deferred.
 
-### Prospects
-
-- **Per-style minimum column widths + slide animation (idea, Nathan 07-01):** each look carries its own column min (checkbox min < capsule min < pill min); when an at-minimum column's style changes to a wider look, the width "slides" to the new minimum with an animation. Design-note only for now.

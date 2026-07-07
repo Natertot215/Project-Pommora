@@ -161,6 +161,12 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
   const [manualOverride, setManualOverride] = useState<string[] | null>(null)
   const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set(view.collapsed_groups ?? []))
   const [collapsing, setCollapsing] = useState<string | null>(null)
+  // Columns whose tracks are sliding to a wider per-style min after a look change (E-13): enables the
+  // same grid-template-columns transition as Hide for one beat, cleared on transitionend. Populated by
+  // a render-phase detection (below) so it fires for EVERY look-write path — the column menu AND the
+  // property pane — through one mechanism, not a per-call-site trigger.
+  const [sliding, setSliding] = useState<ReadonlySet<string>>(() => new Set())
+  const prevLooks = useRef<Record<string, string | undefined>>({})
   // Live column smooth-shift (A-4): the dragged column index + the slot it's over. Deliberately
   // NOT the cursor delta — that changes per pointermove and rides a grid-level CSS var instead
   // (--col-drag-x), so a drag frame never re-renders the unmemoized row/cell tree. Transient —
@@ -386,12 +392,12 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
   // Resize applies live (a separate override, so the pipeline doesn't re-run) and returns the clamped
   // width so the header tracks the real edge; commit persists the merged widths.
   const resizeColumn = (id: string, width: number): number => {
-    const clamped = clampWidth(Math.round(width), id, schema)
+    const clamped = clampWidth(Math.round(width), id, schema, colStyle(id).look)
     setWidthOverride((prev) => ({ ...prev, [id]: clamped }))
     return clamped
   }
   const commitResize = (id: string, width: number): void => {
-    persistView({ column_widths: { ...liveView.column_widths, ...widthOverride, [id]: clampWidth(width, id, schema) } })
+    persistView({ column_widths: { ...liveView.column_widths, ...widthOverride, [id]: clampWidth(width, id, schema, colStyle(id).look) } })
   }
   // Hide animates the column shut on the disclosure token (E-11): setCollapsing drives its grid track to
   // 0 (colWidth → 0, animated via .col-hiding); commitHide fires on the header's grid-template-columns
@@ -741,7 +747,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
   const colWidth = (id: string): number =>
     collapsing === id
       ? 0
-      : clampWidth(widthOverride[id] ?? liveView.column_widths?.[id] ?? widthFor(id, schema).default, id, schema)
+      : clampWidth(widthOverride[id] ?? liveView.column_widths?.[id] ?? widthFor(id, schema).default, id, schema, colStyle(id).look)
 
   // ---- Memoized-row inputs: every prop a DataRow receives must hold identity across unrelated
   // re-renders (a tree push, an editing toggle, a drag frame), so React.memo can bail per row. ----
@@ -755,6 +761,20 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
     }),
     [columns, schema, liveView, alignOverride, styleOverride]
   )
+  // Slide detection (E-13): mark any column whose look just changed to one whose rendered width grows,
+  // so its track eases to the new per-style min. Render-phase + a prev-look ref, so it catches EVERY
+  // look-write path — the column menu's live override AND the property pane's persisted view — through
+  // this one point (the setState is guarded, so it settles in a single extra render, no loop).
+  const widened: string[] = []
+  columns.forEach((c, i) => {
+    const look = styleByCol[i].look
+    const prev = prevLooks.current[c.id]
+    prevLooks.current[c.id] = look
+    if (prev === undefined || prev === look) return
+    const basis = widthOverride[c.id] ?? liveView.column_widths?.[c.id] ?? widthFor(c.id, schema).default
+    if (clampWidth(basis, c.id, schema, look) > clampWidth(basis, c.id, schema, prev)) widened.push(c.id)
+  })
+  if (widened.some((id) => !sliding.has(id))) setSliding((s) => new Set([...s, ...widened]))
   // The gap-shift geometry for a live column drag — identity changes on slot flips only (the
   // cursor-follow is the grid-level CSS var), which is exactly when rows must re-render.
   const dragShift = useMemo(
@@ -1042,6 +1062,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
             text.body.standard,
             liveView.hide_borders && 'no-borders',
             collapsing != null && 'col-hiding',
+            sliding.size > 0 && 'col-sliding',
             colDrag != null && 'col-dragging-active'
           )}
           style={{ minWidth: reflowWidth, ['--cols']: cols } as React.CSSProperties}
@@ -1052,7 +1073,9 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
           <div
             className="table-head"
             onTransitionEnd={(e) => {
-              if (e.propertyName === 'grid-template-columns') commitHide()
+              if (e.propertyName !== 'grid-template-columns') return
+              commitHide() // no-op unless a hide is in flight
+              setSliding((s) => (s.size ? new Set() : s)) // the style-min slide(s) settled
             }}
           >
             {columns.map((c, i) => (
@@ -1222,7 +1245,11 @@ const DataRow = memo(function DataRow({
     >
       {columns.map((c, i) => {
         const style: React.CSSProperties = { transform: gapShift(dragShift, i), textAlign: alignByCol[i] }
-        if (i === 0) style.paddingLeft = padLeft
+        // The lead cell's indent (loose-inset + group nesting) is a LEFT treatment — it tucks left-read
+        // content like the Title. A centered first column (a checkbox/switch/chip moved before the Title)
+        // must NOT get it: the indent eats the narrow cell and shoves the control off-centre / past the
+        // fold, so it clips left. Center-aligned lead → no padding, the control centres in the full cell.
+        if (i === 0 && alignByCol[i] === 'left') style.paddingLeft = padLeft
         // The inline editor (mode 'editor') REPLACES the cell in flow; the value pickers are the
         // table-level cellPicker (portaled), never in the cell.
         const editor = overlayCol === c.id ? api.overlay(row, c) : null
