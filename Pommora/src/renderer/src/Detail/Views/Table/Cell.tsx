@@ -70,7 +70,7 @@ export function Cell({
     const checked = v.kind === 'checkbox' && v.value
     const color = ctx.schema.find((d) => d.id === column.id)?.checkbox_color
     return style.look === 'switch' ? (
-      <span style={{ display: 'contents', ...(color ? { '--accent': solidColorCss(color) } : {}) } as CSSProperties}>
+      <span className="cell-switch" style={{ ...(color ? { '--accent': solidColorCss(color) } : {}) } as CSSProperties}>
         <Switch checked={checked} onChange={() => {}} ariaLabel="Checkbox value" />
       </span>
     ) : (

@@ -285,6 +285,15 @@
 .cell-control {
   color: var(--label-control);
 }
+/* The checkbox column's Switch look — scaled down to sit within the row (the Links pane's switch-scale
+   parity) and vertically centred, so a switch cell never taller than a checkbox cell and a toggle never
+   shifts the row height. */
+.cell-switch {
+  display: inline-flex;
+  align-items: center;
+  vertical-align: middle;
+  zoom: 0.8;
+}
 
 /* — Row drag grip — sits in the views gutter (the same strip the group chevron occupies), revealed on
    row hover; the lifted row ghosts (MarkdownPM feel). */
