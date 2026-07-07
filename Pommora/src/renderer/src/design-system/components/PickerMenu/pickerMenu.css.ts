@@ -46,8 +46,8 @@ export const surfaceUp = style({
 })
 
 // The portal escapes any label-tone context, so the option must set its OWN type + colour (else it
-// falls to the UA default — black, unsized — and the pane wraps). Matches a picker trigger's trailing
-// detail: the control scale at the secondary tone.
+// falls to the UA default — black, unsized — and the pane wraps). Matches a dropdown row title: the
+// control scale at the control tone.
 export const option = style([
   text.control.standard,
   {
@@ -59,7 +59,7 @@ export const option = style([
     border: 'none',
     background: 'none',
     borderRadius: '8px',
-    color: c.label.secondary,
+    color: c.label.control,
     cursor: 'default',
     selectors: { '&:hover': { background: c.state.hover } }
   }

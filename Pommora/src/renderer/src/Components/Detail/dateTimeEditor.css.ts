@@ -4,10 +4,7 @@ import { text } from '../../design-system/tokens/typography.css'
 
 const c = colorVars.color
 
-export const section = style({ display: 'flex', flexDirection: 'column', gap: '2px' })
-
-/** The "Format" section label — the shared heading tone (label-secondary, footnote semibold). */
-export const heading = style([text.footnote.semibold, { color: c.label.secondary, paddingBottom: '4px' }])
+export const section = style({ display: 'flex', flexDirection: 'column', gap: '4px' })
 
 /** One config row — leading glyph, label, trailing picker trigger. */
 export const row = style({ display: 'flex', alignItems: 'center', gap: '8px', minHeight: '28px' })

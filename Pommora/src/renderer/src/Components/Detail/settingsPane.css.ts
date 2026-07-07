@@ -1,8 +1,9 @@
-import { style } from '@vanilla-extract/css'
+import { globalStyle, style } from '@vanilla-extract/css'
 import { vars as colorVars, inputFieldVar } from '../../design-system/tokens/color.css'
 import { text } from '../../design-system/tokens/typography.css'
 import { duration, easing } from '../../design-system/tokens/motion'
-import { flushAffordance, accessoryButton, accessoryGhostRest } from '../../design-system/components/menu/menu.css'
+import { flushAffordance, accessoryButton, accessoryGhostRest, titleText } from '../../design-system/components/menu/menu.css'
+import { surface } from '../../design-system/components/menu/menuSurface.css'
 
 const c = colorVars.color
 
@@ -13,9 +14,9 @@ const c = colorVars.color
 
 /** — COLOR — */
 const COLOR = {
-  headingLabel: c.label.secondary, // heading TEXT — "Options", "All Properties", the ‹ back-row
+  headingLabel: c.label.tertiary, // section-heading TEXT — "Options", "Format", "All Properties" (the dimmest tier)
   actionLabel: c.label.tertiary, // interactive SYMBOLS — icon-picker · eye toggle · recolor palette · Options + · header ⊕/⋮ · promote + (eye/palette add their own ghost-opacity rest; the glyph swaps open ↔ off)
-  allRow: c.label.tertiary, // unassigned registry rows
+  allRow: c.label.secondary, // unassigned registry rows — dimmer than assigned (primary), brighter than the heading (tertiary)
   iconHover: c.state.hover, // the shared fill behind any pane icon-button on hover (not a glyph shift)
   dragHighlight: c.state.hover, // the unassign area tint while dragging out
   eyeHidden: c.label.tertiary // a hidden row's eye: tertiary, riding the row's ghost (single dim)
@@ -136,9 +137,21 @@ export const allSpacer = style({
 })
 export const allSpacerCollapsed = style({ flexGrow: 0 })
 
-/** The "All Properties" disclosure heading — footnote-emphasized (A-3), the shared heading-label
- *  color, its chevron flush at the gutter edge like the back-row's ‹ (the shared flush affordance). */
-export const allHeading = style([text.footnote.emphasized, flushAffordance, { color: COLOR.headingLabel }])
+/** The "All Properties" disclosure row — a bare clickable line whose LABEL rides `optionsLabel` (DRY
+ *  with the "Options"/"Format" section headings), its chevron flush at the gutter edge. It's not a
+ *  MenuItem, so its text escapes the surface's primary titleText tone and reads at the heading tier. */
+export const allHeadingRow = style({
+  display: 'flex',
+  alignItems: 'center',
+  gap: '4px',
+  width: '100%',
+  minHeight: '24px',
+  padding: '6px 6px',
+  paddingLeft: 0,
+  border: 'none',
+  background: 'none',
+  cursor: 'default'
+})
 
 /** The disclosure chevron — the sidebar's twisty, pinned to the pane's beat so the rotate,
  *  the Reveal unfold, and the height-resize land together (E-8). */
@@ -150,6 +163,10 @@ export const twistyOpen = style({ transform: 'rotate(90deg)' })
 
 /** Unassigned registry rows render dimmer than assigned ones (A-3). */
 export const allRow = style({ color: COLOR.allRow })
+
+// The row's LABEL rides the surface's primary titleText global (`.surface .titleText`, 0-2-0); beat it
+// with a 0-3-0 scope so an unassigned row's title settles one tier down at secondary, matching its icon.
+globalStyle(`.${surface} .${allRow} .${titleText}`, { color: c.label.secondary })
 
 /** The per-row `+` promote affordance (A-5) — the shared accessory recipe at the 16px box. */
 export const rowPlus = accessoryButton

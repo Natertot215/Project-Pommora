@@ -101,13 +101,10 @@ function ListGroups({
           the same beat as the Reveal, so the heading RISES to meet the assigned rows (Nathan's call). */}
       <div className={cx(s.allSpacer, allOpen && s.allSpacerCollapsed)} aria-hidden />
       <div data-group="all" ref={allRef} className={cx(allHighlighted && s.allHighlight)}>
-        <MenuItem
-          className={s.allHeading}
-          leading={<Icon name="chevron-right" size={s.ICON.twisty} className={cx(s.twisty, allOpen && s.twistyOpen)} />}
-          onClick={onToggleAll}
-        >
-          All Properties
-        </MenuItem>
+        <button type="button" className={s.allHeadingRow} onClick={onToggleAll}>
+          <Icon name="chevron-right" size={s.ICON.twisty} className={cx(s.twisty, allOpen && s.twistyOpen)} />
+          <span className={s.optionsLabel}>All Properties</span>
+        </button>
         <Reveal open={allOpen} duration={duration.base}>
           <div>
             {unassigned.map((d) => (
