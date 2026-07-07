@@ -29,19 +29,38 @@ describe('styleMenuItems', () => {
     expect(rows.every((r) => r.key === 'number_format')).toBe(true)
   })
 
-  it('datetime lists format-type names — dates, then times behind a separator', () => {
-    const rows = items('datetime', { date_format: 'full', time_format: 'none' })
-    expect(rows.map((r) => r.label)).toEqual([
-      'Short Date',
-      'Full Date',
-      'DD/MM/YYYY',
-      'MM/DD/YYYY',
-      'None',
-      '12 Hour',
-      '24 Hour'
+  it('datetime lists dates, then weekdays, then times — each group behind a separator', () => {
+    const rows = items('datetime', { date_format: 'full', time_format: 'none', weekday: 'none' })
+    expect(rows.map((r) => [r.key, r.label, r.value])).toEqual([
+      ['date_format', 'MM/DD/YYYY', 'monthDayYear'],
+      ['date_format', 'DD/MM/YYYY', 'dayMonthYear'],
+      ['date_format', 'Short Date', 'short'],
+      ['date_format', 'Full Date', 'full'],
+      ['date_format', 'Relative', 'relative'],
+      ['weekday', 'Full', 'long'],
+      ['weekday', 'Short', 'short'],
+      ['weekday', 'Hidden', 'none'],
+      ['time_format', '12 Hours', 'twelveHour'],
+      ['time_format', '24 Hours', 'twentyFourHour'],
+      ['time_format', 'Hidden', 'none']
     ])
-    expect(rows.find((r) => r.label === 'None')?.separatorBefore).toBe(true)
-    expect(rows.filter((r) => r.checked).map((r) => r.label)).toEqual(['Full Date', 'None'])
+    expect(rows.find((r) => r.key === 'weekday' && r.value === 'long')?.separatorBefore).toBe(true)
+    expect(rows.find((r) => r.key === 'time_format' && r.value === 'twelveHour')?.separatorBefore).toBe(true)
+    expect(rows.filter((r) => r.checked).map((r) => [r.key, r.value])).toEqual([
+      ['date_format', 'full'],
+      ['weekday', 'none'],
+      ['time_format', 'none']
+    ])
+  })
+
+  it('offers the Relative date radio and Full/Short/Hidden weekday radios', () => {
+    const rows = items('datetime', { date_format: 'full', time_format: 'none', weekday: 'none' })
+    expect(rows.find((r) => r.key === 'date_format' && r.value === 'relative')?.label).toBe('Relative')
+    expect(rows.filter((r) => r.key === 'weekday').map((r) => [r.label, r.value])).toEqual([
+      ['Full', 'long'],
+      ['Short', 'short'],
+      ['Hidden', 'none']
+    ])
   })
 
   it('last_edited_time shares the datetime menu', () => {
@@ -59,6 +78,10 @@ describe('parseStyleAction', () => {
   it('round-trips a style action string', () => {
     expect(parseStyleAction('style:look:capsule')).toEqual({ key: 'look', value: 'capsule' })
     expect(parseStyleAction('style:date_format:monthDayYear')).toEqual({ key: 'date_format', value: 'monthDayYear' })
+  })
+
+  it('accepts a weekday action', () => {
+    expect(parseStyleAction('style:weekday:long')).toEqual({ key: 'weekday', value: 'long' })
   })
 
   it('rejects non-style or malformed actions', () => {

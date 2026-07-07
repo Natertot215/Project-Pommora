@@ -1,4 +1,4 @@
-import { COLUMN_LOOKS, DATE_FORMATS, NUMBER_FORMATS, TIME_FORMATS, type ColumnStyle } from './columnStyles'
+import { COLUMN_LOOKS, DATE_FORMATS, NUMBER_FORMATS, TIME_FORMATS, WEEKDAY_FORMATS, type ColumnStyle } from './columnStyles'
 import type { PropertyType } from './properties'
 import type { ColumnAlign } from './views'
 
@@ -65,15 +65,20 @@ export function styleMenuItems(ctx: StyleMenuContext): StyleMenuItem[] {
     case 'datetime':
     case 'last_edited_time': {
       const date = row('date_format', current.date_format)
+      const weekday = row('weekday', current.weekday)
       const time = row('time_format', current.time_format)
       return [
+        date('MM/DD/YYYY', 'monthDayYear'),
+        date('DD/MM/YYYY', 'dayMonthYear'),
         date('Short Date', 'short'),
         date('Full Date', 'full'),
-        date('DD/MM/YYYY', 'dayMonthYear'),
-        date('MM/DD/YYYY', 'monthDayYear'),
-        time('None', 'none', true),
-        time('12 Hour', 'twelveHour'),
-        time('24 Hour', 'twentyFourHour')
+        date('Relative', 'relative'),
+        weekday('Full', 'long', true),
+        weekday('Short', 'short'),
+        weekday('Hidden', 'none'),
+        time('12 Hours', 'twelveHour', true),
+        time('24 Hours', 'twentyFourHour'),
+        time('Hidden', 'none')
       ]
     }
     default:
@@ -85,6 +90,7 @@ const STYLE_VALUES: Record<string, readonly string[]> = {
   look: COLUMN_LOOKS,
   date_format: DATE_FORMATS,
   time_format: TIME_FORMATS,
+  weekday: WEEKDAY_FORMATS,
   number_format: NUMBER_FORMATS
 }
 
