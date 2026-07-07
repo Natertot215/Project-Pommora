@@ -3,7 +3,7 @@
 
 import { z } from 'zod'
 
-export const COLUMN_LOOKS = ['pill', 'capsule', 'checkbox', 'switch', 'title', 'full', 'filename', 'path'] as const
+export const COLUMN_LOOKS = ['pill', 'capsule', 'checkbox', 'switch', 'title', 'full', 'filename', 'path', 'number', 'bar'] as const
 export type ColumnLook = (typeof COLUMN_LOOKS)[number]
 
 export const DATE_FORMATS = ['short', 'full', 'dayMonthYear', 'monthDayYear', 'relative'] as const

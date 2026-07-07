@@ -1,5 +1,15 @@
 import { describe, expect, it } from 'vitest'
-import { columnStyle, DATE_FORMATS, defaultStyleFor, WEEKDAY_FORMATS } from './columnStyles'
+import { COLUMN_LOOKS, columnStyle, DATE_FORMATS, defaultStyleFor, WEEKDAY_FORMATS } from './columnStyles'
+
+describe('COLUMN_LOOKS', () => {
+  it('includes the number looks', () => {
+    expect(COLUMN_LOOKS).toContain('number')
+    expect(COLUMN_LOOKS).toContain('bar')
+  })
+  it('parses a bar look on a column style', () => {
+    expect(columnStyle.parse({ look: 'bar' }).look).toBe('bar')
+  })
+})
 
 describe('defaultStyleFor', () => {
   it('gives each look-bearing type its default look', () => {
