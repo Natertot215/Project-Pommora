@@ -86,6 +86,21 @@ export function PaneSlider({
   // instead of growing from 0 / sliding from an arbitrary start.
   useEffect(() => setEnabled(true), [])
 
+  // Height eases ONLY across a navigation flip (active a↔b). Between flips the height stays untransitioned
+  // so an in-place resize (a child Reveal, the spacer collapse) tracks content live — the child owns that
+  // beat, and the viewport can't lag-chase a ResizeObserver that fires every animating frame (the bounce).
+  const [navigating, setNavigating] = useState(false)
+  const firstFlip = useRef(true)
+  useEffect(() => {
+    if (firstFlip.current) {
+      firstFlip.current = false
+      return
+    }
+    setNavigating(true)
+    const t = setTimeout(() => setNavigating(false), SLIDE_MS)
+    return () => clearTimeout(t)
+  }, [active])
+
   const width = active === 'a' ? size.aw : size.bw
   // The active slot's height (a MenuScrollFrame has already capped it) — the viewport animates to it.
   const height = active === 'a' ? size.ah : size.bh
@@ -93,7 +108,7 @@ export function PaneSlider({
   const shift = active === 'b' ? size.aw : 0
   return (
     <div
-      className={cx(s.viewport, enabled && s.viewportAnimated)}
+      className={cx(s.viewport, enabled && s.viewportAnimated, navigating && s.viewportNav)}
       style={{ width: width || undefined, height: height || undefined }}
     >
       <div className={cx(s.track, enabled && s.trackAnimated)} style={{ transform: `translateX(-${shift}px)` }}>
