@@ -19,15 +19,17 @@ const svgBase = {
   strokeLinejoin: 'round' as const
 }
 
-/** List — three rows, each a stroked circle bullet + a line (the default List type glyph). */
+/** List — four rows, each a stroked circle bullet + a line (the default List type glyph). */
 export const ListRounded = forwardRef<SVGSVGElement, LucideProps>(({ size = 24, color, ...rest }, ref) => (
   <svg ref={ref} width={size} height={size} {...svgBase} {...rest}>
-    <circle cx="4.5" cy="6" r="1.6" />
-    <line x1="9" y1="6" x2="20" y2="6" />
-    <circle cx="4.5" cy="12" r="1.6" />
-    <line x1="9" y1="12" x2="20" y2="12" />
-    <circle cx="4.5" cy="18" r="1.6" />
-    <line x1="9" y1="18" x2="20" y2="18" />
+    <circle cx="4.5" cy="4.5" r="1.6" />
+    <line x1="9" y1="4.5" x2="20" y2="4.5" />
+    <circle cx="4.5" cy="9.5" r="1.6" />
+    <line x1="9" y1="9.5" x2="20" y2="9.5" />
+    <circle cx="4.5" cy="14.5" r="1.6" />
+    <line x1="9" y1="14.5" x2="20" y2="14.5" />
+    <circle cx="4.5" cy="19.5" r="1.6" />
+    <line x1="9" y1="19.5" x2="20" y2="19.5" />
   </svg>
 )) as unknown as LucideIcon
 
