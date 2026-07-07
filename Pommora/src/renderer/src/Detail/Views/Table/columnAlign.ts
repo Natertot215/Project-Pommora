@@ -9,8 +9,10 @@ import type { ColumnAlign, SavedView } from '@shared/views'
 import { declaredType } from '../pipeline/value'
 
 // declaredType outputs that center by default (E-6): the chip/box-shaped values — contexts ('tier' for
-// the reserved tier columns, 'context' for a user context prop) plus checkbox/status/select/multi_select.
-const CENTERED = new Set(['checkbox', 'status', 'select', 'multi_select', 'tier', 'context'])
+// the reserved tier columns, 'context' for a user context prop), checkbox/status/select/multi_select, and
+// the user datetime property, whose formatted value reads centered. The reserved Modified timestamp keeps
+// its left metadata treatment (like Title).
+const CENTERED = new Set(['checkbox', 'status', 'select', 'multi_select', 'tier', 'context', 'datetime'])
 
 /** The E-6 default alignment for a column, from its declared type. Title is always left (its primary
  *  icon+text treatment); unknown types fall back to left. */

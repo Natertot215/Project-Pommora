@@ -40,13 +40,13 @@ function formatRelative(date: Date, hasTime: boolean, timeFormat: TimeFormat, no
   const n = Math.abs(diffDays)
 
   if (n <= WEEK_DAYS) {
-    const dayWord = n === 0 ? 'Today' : n === 1 ? (ago ? 'Yesterday' : 'Tomorrow') : ago ? `${n} Days Ago` : `In ${n} Days`
+    const dayWord = n === 0 ? 'Today' : n === 1 ? (ago ? 'Yesterday' : 'Tomorrow') : ago ? `${n} Days Ago` : `${n} Days from now`
     return hasTime && timeFormat !== 'none' ? `${dayWord} at ${clockOf(date, timeFormat)}` : dayWord
   }
   const [unit, count] =
     n < 30 ? ['Week', Math.round(n / 7)] : n < 365 ? ['Month', Math.round(n / 30)] : ['Year', Math.round(n / 365)]
   const plural = count === 1 ? unit : `${unit}s`
-  return ago ? `${count} ${plural} Ago` : `In ${count} ${plural}`
+  return ago ? `${count} ${plural} Ago` : `${count} ${plural} from now`
 }
 
 /** Render an ISO date(-time) per the saved formats. A date-only value (no `T`) never grows a

@@ -9,7 +9,7 @@ import { useActiveView } from '../../Detail/Views/useActiveView'
 import { saveViewAdopting } from '../../Detail/Views/viewMint'
 import { styleFor } from '../../Detail/Views/Table/columnStyles'
 import { DateTimeEditor } from './DateTimeEditor'
-import { MenuItem, MenuCaption, MenuPaneTopRow, MenuScrollFrame, MenuBottomRow, AccessoryButton } from '../../design-system/components/menu'
+import { MenuItem, MenuCaption, MenuPaneTopRow, MenuScrollFrame, MenuBottomRow, MenuSeparator, AccessoryButton } from '../../design-system/components/menu'
 import { flushTrailing } from '../../design-system/components/menu/menu.css'
 import { Reveal } from '../../design-system/components/Reveal'
 import { duration } from '../../design-system/tokens/motion'
@@ -357,6 +357,7 @@ export function PropertiesPane({
         })}
       >
         <InlineEditHeader value={def.name} onIconClick={() => setIconOpen(true)} onCommit={(next) => void rename(def.id, next)} />
+        <MenuSeparator flush />
         {def.type === 'select' || def.type === 'multi_select' ? (
           <OptionEditor
             type={def.type}

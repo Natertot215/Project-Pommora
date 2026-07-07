@@ -52,22 +52,20 @@ function PickerRow<T extends string>({
         <span className={s.value}>{labelOf(options, value)}</span>
         <Icon name="chevrons-up-down" size={12} />
       </button>
-      {open && (
-        <PickerMenu open={open} onDismiss={() => setOpen(false)} triggerRef={ref} center>
-          {options.map((o) => (
-            <PickerOption
-              key={o.value}
-              selected={o.value === value}
-              onClick={() => {
-                onPick(o.value)
-                setOpen(false)
-              }}
-            >
-              {o.label}
-            </PickerOption>
-          ))}
-        </PickerMenu>
-      )}
+      <PickerMenu open={open} onDismiss={() => setOpen(false)} triggerRef={ref} center>
+        {options.map((o) => (
+          <PickerOption
+            key={o.value}
+            selected={o.value === value}
+            onClick={() => {
+              onPick(o.value)
+              setOpen(false)
+            }}
+          >
+            {o.label}
+          </PickerOption>
+        ))}
+      </PickerMenu>
     </div>
   )
 }

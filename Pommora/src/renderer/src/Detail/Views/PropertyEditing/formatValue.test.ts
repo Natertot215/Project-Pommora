@@ -72,7 +72,7 @@ describe('formatDate relative', () => {
   })
   it('within a week counts days both directions', () => {
     expect(rel('2026-07-03')).toBe('3 Days Ago')
-    expect(rel('2026-07-09')).toBe('In 3 Days')
+    expect(rel('2026-07-09')).toBe('3 Days from now')
   })
   it('past a week rolls to weeks / months / years', () => {
     expect(rel('2026-06-20')).toBe('2 Weeks Ago')

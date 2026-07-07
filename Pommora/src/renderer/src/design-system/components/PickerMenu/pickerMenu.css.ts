@@ -1,5 +1,6 @@
 import { style } from '@vanilla-extract/css'
 import { vars as colorVars } from '../../tokens/color.css'
+import { text } from '../../tokens/typography.css'
 
 const c = colorVars.color
 
@@ -44,17 +45,25 @@ export const surfaceUp = style({
   paddingBottom: 'calc(var(--notch-h, 0px) + 6px)'
 })
 
-export const option = style({
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  padding: '3px 4px',
-  border: 'none',
-  background: 'none',
-  borderRadius: '8px',
-  cursor: 'default',
-  selectors: { '&:hover': { background: c.state.hover } }
-})
+// The portal escapes any label-tone context, so the option must set its OWN type + colour (else it
+// falls to the UA default — black, unsized — and the pane wraps). Matches a picker trigger's trailing
+// detail: the control scale at the secondary tone.
+export const option = style([
+  text.control.standard,
+  {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    whiteSpace: 'nowrap',
+    padding: '3px 4px',
+    border: 'none',
+    background: 'none',
+    borderRadius: '8px',
+    color: c.label.secondary,
+    cursor: 'default',
+    selectors: { '&:hover': { background: c.state.hover } }
+  }
+])
 
 export const optionSelected = style({
   background: c.state.selected,

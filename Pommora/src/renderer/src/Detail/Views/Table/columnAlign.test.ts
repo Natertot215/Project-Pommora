@@ -7,7 +7,8 @@ const schema: PropertyDefinition[] = [
   { id: 'prop_status', name: 'Status', type: 'status' },
   { id: 'prop_multi', name: 'Tags', type: 'multi_select' },
   { id: 'prop_n', name: 'Count', type: 'number' },
-  { id: 'prop_url', name: 'Link', type: 'url' }
+  { id: 'prop_url', name: 'Link', type: 'url' },
+  { id: 'prop_date', name: 'Due', type: 'datetime' }
 ]
 
 function view(over: Partial<SavedView>): SavedView {
@@ -19,6 +20,7 @@ describe('defaultAlignFor', () => {
     expect(defaultAlignFor('prop_status', schema)).toBe('center')
     expect(defaultAlignFor('prop_multi', schema)).toBe('center')
     expect(defaultAlignFor(RESERVED_PROPERTY_ID.tier1, schema)).toBe('center')
+    expect(defaultAlignFor('prop_date', schema)).toBe('center')
   })
 
   it('left-aligns title, number, url, and modified (E-6)', () => {
