@@ -39,7 +39,7 @@ import { Icon } from '@renderer/design-system/symbols'
 import { CalendarPicker } from '@renderer/design-system/components/CalendarPicker/CalendarPicker'
 import { PickerMenu } from '@renderer/design-system/components/PickerMenu/PickerMenu'
 import { TextPicker } from '@renderer/design-system/components/TextPicker'
-import { condensedDate, formatDate } from '../PropertyEditing/formatValue'
+import { condensedDate, formatDate, numberDivisor } from '../PropertyEditing/formatValue'
 import { Reveal } from '@renderer/design-system/components/Reveal'
 import { ACTIVATION } from '@renderer/design-system/interactions/shared'
 import { TableRowDnd, useTableRowDrag } from './tableDnd'
@@ -549,7 +549,14 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
       setEditing({ rowId: row.id, colId: col.id, mode: 'picker' })
     } else if (t === 'number') {
       e.stopPropagation()
-      setEditing({ rowId: row.id, colId: col.id, mode: 'editor' })
+      // A Bar-look cell has no text to replace in place, so it edits through the TextPicker dropdown (the
+      // link's rename popover, reused); a Number-look cell keeps the inline text editor.
+      if (colStyle(col.id).look === 'bar') {
+        renameNonce.current += 1
+        setEditing({ rowId: row.id, colId: col.id, mode: 'rename', nonce: renameNonce.current })
+      } else {
+        setEditing({ rowId: row.id, colId: col.id, mode: 'editor' })
+      }
     } else if (t === 'url') {
       e.stopPropagation()
       // Filled → open the link (matching the rendered <a>); empty → the inline field to type one in.
@@ -693,12 +700,38 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
     const col = cell && columns.find((c) => c.id === cell.colId)
     if (!cell || !row || !col) return null
     const v = resolveFieldValue(row, col.id, schema)
+    const open = editing?.mode === 'rename'
+    const key = `${cell.rowId}:${cell.colId}:${cell.nonce}`
+    // A Bar-look number edits its value through this same dropdown (no color scope — the app accent), with
+    // a label-tertiary "/ N" out-of hint to its right so the value reads as a numerator over the total.
+    if (declaredType(col.id, schema) === 'number') {
+      const divisor = numberDivisor(schema.find((d) => d.id === col.id))
+      return (
+        <TextPicker
+          key={key}
+          open={open}
+          triggerRef={triggerElRef}
+          value={v.kind === 'number' ? String(v.value) : ''}
+          trailing={divisor !== undefined ? `/ ${divisor}` : undefined}
+          onCommit={(text) => {
+            const trimmed = text.trim()
+            if (trimmed === '') commitCellValue(row, col.id, null)
+            else {
+              const n = Number.parseFloat(trimmed)
+              if (!Number.isNaN(n)) commitCellValue(row, col.id, { kind: 'number', value: n })
+            }
+            setEditing(null)
+          }}
+          onDismiss={() => setEditing(null)}
+        />
+      )
+    }
     const raw = v.kind === 'url' ? v.value : ''
     const linkDef = schema.find((d) => d.id === col.id)
     return (
       <TextPicker
-        key={`${cell.rowId}:${cell.colId}:${cell.nonce}`}
-        open={editing?.mode === 'rename'}
+        key={key}
+        open={open}
         triggerRef={triggerElRef}
         value={parseLink(raw).alias ?? ''}
         accent={solidColorCss(linkDef?.link_color)}

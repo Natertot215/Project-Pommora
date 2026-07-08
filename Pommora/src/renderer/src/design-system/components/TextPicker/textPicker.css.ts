@@ -22,6 +22,57 @@ export const content = style({
  *  and a 200px cap, then it scrolls internally. Focused, an `--accent` stroke at tint-secondary fades
  *  in over duration-fast; a consumer may scope `--accent` on the pane to tint it (a link wears its own
  *  colour), else it inherits the app accent. */
+/** Bar-number value editing: the shared field chrome as a fixed-width one-line box — the value fills the
+ *  left and the "/ N" out-of hint pins to the right. Focus lights the accent stroke via :focus-within,
+ *  since the bare inner input owns no chrome. */
+export const suffixField = style([
+  field,
+  {
+    gap: '6px',
+    width: '140px',
+    overflow: 'hidden',
+    boxShadow: 'inset 0 0 0 1px transparent',
+    transition: `box-shadow ${duration.fast} ${easing.standard}`,
+    selectors: {
+      '&:focus-within': { boxShadow: `inset 0 0 0 1px ${tintAt('var(--accent)', TINT_STEPS.secondary)}` }
+    }
+  }
+])
+
+/** The bare inner value input — no chrome (the wrapper owns the fill + stroke); fills the space left of
+ *  the pinned hint and scrolls its own overflow. The eclipse fade is the shared `overflow-eclipse` mask
+ *  (added at the call site) — the same edge-fade every overflowing surface uses. */
+export const suffixInput = style({
+  flex: '1 1 auto',
+  minWidth: 0,
+  minHeight: 0,
+  padding: 0,
+  whiteSpace: 'nowrap',
+  overflowX: 'auto',
+  overflowY: 'hidden',
+  scrollbarWidth: 'none',
+  lineHeight: font.scale.control.line,
+  border: 'none',
+  outline: 'none',
+  background: 'transparent',
+  fontFamily: 'inherit',
+  fontSize: font.scale.control.size,
+  fontWeight: font.weight.emphasized,
+  color: c.label.primary,
+  vars: { '--eclipse-fade': '12px' },
+  selectors: { '&::-webkit-scrollbar': { display: 'none' } }
+})
+
+/** The "/ N" out-of hint pinned to the field's right — emphasized label-tertiary, never scrolling. */
+export const trailing = style({
+  flex: '0 0 auto',
+  whiteSpace: 'nowrap',
+  color: c.label.tertiary,
+  fontSize: font.scale.control.size,
+  fontWeight: font.weight.emphasized,
+  lineHeight: font.scale.control.line
+})
+
 export const input = style([
   field,
   {
