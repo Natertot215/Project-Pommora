@@ -17,20 +17,22 @@ Prior arcs, compressed — the detail lives in `Features/*` + `History.md`.
 
 - **Multi-View Scaffolding (07-05→06, committed `3094e8ce`→`0fc5de98`).** The per-container view switcher stack end-to-end: a standalone **ViewDropdown** button left of the trio (Collection / depth-1 Set only), the **ViewPane** dropdown, the two-door shared **ViewSettings** editor, and the old ViewPane renamed **SettingsPane**. The **G-1 invariant** (views never empty where views can be seen) rides two write sites — creation-seed (`mutate.ts`) + entry-mint (`store.select`→`ensureContainerView`, `viewMint.ts`), all adopt-only through `saveViewAdopting` with a double-mint guard; the store gained an `activeViews` slice. Container keys `view_button`/`view_style`/`format` + `open_in` legacy coercion; menu plumbing consolidated (`AccessoryButton`/`MenuPaneTopRow`/`MenuBottomRow`/`popReturningMenu`). Six view types modeled, only Table buildable. → `Features/Views.md` + `History.md`.
 
+- **Per-type property editors (Date & Time · Checkbox · Number).** The blank per-type branches of the PropertiesPane editor filled in. Def-level (property-wide) config writes its own registry IPC; per-view look/format writes the active view's `column_styles` via `saveViewAdopting`. Number's format is def-level (6 fields), its Number/Bar look per-view, with a `ProgressBar` component + a bar-cell `TextPicker` value dropdown. Only the relation/context pickers remain. → `Features/Properties.md` + `History.md`.
+
 - **Mobile iOS companion (parked — session B, 07-04).** A ratified **Capacitor** spec under `.claude/Mobile/`; a scoped port, 4 desktop pre-paves shipped (`02bb4e11`). No build commitment.
 
-### Session Summary — ViewPane Interactions + the Date & Time and Checkbox Editors (Built)
+### Session Summary — ViewPane Interactions + the Date & Time, Checkbox & Number Property Editors (All Shipped)
 
 **Session ID:** c3e6af60-f1ea-4e19-9507-08776f15d04a
-**Dates:** 07-05 → 07-06-2026
+**Dates:** 07-05 → 07-07-2026
 **Model:** Opus 4.8
-**Compactions:** 3
+**Compactions:** 5
 **Connectors:** none called (CDP is DOWN this arc — Nathan runs his own dev on the debug port; he verifies UI visually)
-**Commands:** /compact · /handoff
-**Agents:** Explore (4x - grounding), build-breaking-agent (2x - spec review + killed impl review), code-simplifier (2x - cleanup)
+**Commands:** /compact · /model · /handoff
+**Agents:** Explore (5x - grounding), build-breaking-agent (3x - spec review), code-simplifier (3x - cleanup)
 **Skills:** using-superpowers · studio-brainstorm · `superpowers:writing-plans` · `superpowers:executing-plans` · handoff
 
-Three arcs: ViewPane interaction polish (`fc305967`→`e3ec5c5a`), the **Date & Time property editor built + shipped** (`bc9c4522`→`15bd913f`), then a live **icon pass** Nathan drove — column icons, view-type glyphs, timestamp glyphs, and the type-grid aliasing fix (`e032dcdf`→`7605c3a3`). He verified each visually (CDP down) and called it a day.
+Four arcs: ViewPane interaction polish (`fc305967`→`e3ec5c5a`), the **Date & Time editor** (`bc9c4522`→`15bd913f`), a live **icon pass** (`e032dcdf`→`7605c3a3`), the **Checkbox editor**, and finally the **Number property editor built + shipped end-to-end** (`d2deeaca`→`e6e1a7e0`, merged to main + pushed). Nathan verified every UI beat visually (CDP down) and drove a long live refinement loop on the Number editor before calling it shipped.
 
 **ViewPane interaction polish (compressed).** PaneSlider went intrinsic + DRY'd to every pane (one `open` boolean; MenuScrollFrame owns cap/scroll/footer), the fake slide-OUT jitter got a `useExitPresence` latch, rows gained drag-reorder + a per-view Rename/Edit-Icon/Delete native menu + an active-row ring + flush inline rename, and the row chevron/context-menu tone+scoping were fixed with the `&&` (0,2,0) defeat. `fc305967`→`e3ec5c5a`. → `History.md`.
 
@@ -43,6 +45,10 @@ Three arcs: ViewPane interaction polish (`fc305967`→`e3ec5c5a`), the **Date & 
 **Icon pass (`e032dcdf`→`7605c3a3`).** Column headers render their type glyph (tier → context, Created → `clock-plus`, Modified → `history`), gated by `hide_column_icons` — now also a **checkbox** in the column menu above the Hide divider. View-type glyphs reworked: Table → plain Lucide `Grid3x2` (the old `rotate(90deg)` Table was the aliasing source), Cards → a custom stretch-horizontal bar stack, List → a custom left-rail bar + four lines (both sized level with the Lucide glyphs), Status → Tabler `IconProgressCheck` (first `@tabler/icons-react` opt-in, scaled ~10% via `scaleTabler`). **The type-grid aliasing was the alpha color, not the glass:** a white-alpha label tone doubles where a glyph's strokes overlap → switched the tile glyph to the opaque `solid.grey` primitive. Lucide's default stroke is 2 (not 1.75) — custom glyphs + Symbols.md corrected. → `Icons.md` + `TableView.md` + `History.md`.
 
 **Checkbox editor built + reviewed.** The blank `checkbox` branch became a **Color** chip (property-wide def-level `checkbox_color`, the Link editor's picker logic) + a **Style** picker (per-view Checkbox ⇄ Switch), sharing a `PickerControl` extracted from the datetime editor; the link `linkColorCss`/`link*` primitives generalized to `solidColorCss`/`config*`. **Locked — color is ON-state only, defaulting to the configured accent:** an empty box/off switch is neutral grey; a checked box tints its color (a set solid, else `var(--accent)`) and a switch's on-track tints — so the box matches the switch and resolves for a palette OR `system` accent (the build-breaker's three-way "Accent" mismatch, fixed). The group-header "On" box tints the same way (shared `checkboxBoxStyle`). **Column Icons flipped to default-off** (Nathan's call). Residual: the editor's "Accent" chip can't render an OS `system` accent through a palette key — noted in Properties.md Known Issues. → `Properties.md` + `TableView.md` + `History.md`.
+
+**Number property editor built + SHIPPED (`d2deeaca`→`e6e1a7e0`, merged to main + pushed).** Full brainstorm → plan → inline-execute. **The load-bearing reframe:** "add a Number editor" was really "REPLACE the half-built per-view `number_format` enum with a property-wide one" — grounding caught that 60% already shipped as a per-view stub. **Locked — format config is def-level (property-wide), look is per-view** (the clean Checkbox mirror): six new `PropertyDefinition` fields (`number_family`/`number_currency`/`number_separators`/`number_decimals`/`number_fraction`/`number_denominator` — deliberately NOT `number_format`, which is Swift's foreign key in `build.ts` `configOf`), written by one batched `property:setNumberFormat` IPC (mirrors `setLinkConfig`); the per-view Number/Bar look lives in `column_styles.look` (`'number'`,`'bar'` added to `COLUMN_LOOKS`, so `STYLE_VALUES.look` covers them free). **Locked — percent stores the LITERAL** (`30`→"30%", never `Intl` ×100) for file legibility. The old per-view `number_format` enum was removed and `styleMenuItems('number')` repurposed to Number/Bar radios (else the number cell menu goes empty — review finding F2). New **`ProgressBar`** design-system component (accent fill over a `fill.secondary` track, no stroke). A **Bar-look cell edits through the link's `TextPicker` dropdown** (reused; it gained an optional `trailing` prop) with a right-pinned "/ N" out-of hint over the shared `overflow-eclipse` fade. One adversarial round: 3 findings, 0 blockers, all folded (F1 `configOf` name-collision, F2 empty-menu, F3 test migration). → `Properties.md` (new `#### II. Number`) + `TableView.md` + `Views.md` + `History.md`; decision log + plan in `Planning/`.
+
+**The Number editor's live UIX loop (Nathan-driven, ~6 rounds).** Post-functional, he drove rapid visual fixes: dropped a double "Format" heading; fixed a **phantom row-gap** (a collapsed `Reveal` is a 0-height flex item that still eats a gap on each side, so hidden rows doubled their spacing — moved the gap onto each row so it collapses with the row); made the pane **Value row a click-to-edit control** (secondary value + double-chevron at rest like the picker rows, an in-place caret only on edit). The "/ N" hint iterated hard: a frosted `backdrop-filter` overlay was **rejected** ("blur is wrong"), settled on the pinned inline hint over `overflow-eclipse`, then **all tinting removed** ("just remove any tinting"). Also a calendar month–year header spacing hotfix (`titleGroup` gap 5→1px).
 
 ### Lessons Learned
 
@@ -60,19 +66,27 @@ Three arcs: ViewPane interaction polish (`fc305967`→`e3ec5c5a`), the **Date & 
 
 - **Calibrate ceremony to the task.** The load-bearing feature (Date & Time, per-view storage, the relative-union gate) got the full brainstorm → plan → adversarial loop; the live UIX regressions Nathan drove got build-and-fix-and-verify. Both were right.
 
+- **"Add a new X" is often "replace the half-built X."** The Number editor looked like a fresh feature, but grounding found `number_format` already shipped as a per-view stub (enum + `formatNumber` + column-menu radios). The real task was a REPLACE (def-level format, remove the per-view enum, repurpose the menu), which reframes the whole plan + its doc reconciliation. Always grep for what already exists before scoping a "new" per-type surface.
+
+- **The test infra is jsdom + `createRoot`/`act`, NOT `@testing-library/react`** (not installed). My plan's test snippets assumed it; adapted to the house pattern (`beforeEach` mounts one `root`, `act(() => root.render(...))`, query the host node). Component tests: one mount per `it`, stub `ResizeObserver` when a Switch/GlassSegment is in the tree.
+
+- **A collapsed `Reveal` still consumes flex `gap` on both sides.** It's a 0-height grid item, so N hidden Reveals in a `gap`-spaced column double the spacing around each. Put the inter-row gap on the row itself (a `marginTop` that rides inside the Reveal), not on the container's `gap`, so a hidden row contributes nothing. Bit the Number editor with 5 conditional rows.
+
 ### Next Session
 
-**1. The remaining per-type property editors.** Date & Time and Checkbox shipped this session; the last per-type pane is **Number** (its value-type editor + a number-format picker), plus the relation (context) pickers — see Properties.md Pending "Per-Type Editor Panes". The datetime/checkbox editors (`DateTimeEditor.tsx` / `CheckboxEditor.tsx` + the shared `PickerControl` + the `saveColumnStyle`/`useActiveView` plumbing in `PropertiesPane.tsx`) are the pattern to mirror.
+**1. The last per-type property editor: the relation (context) pickers.** Date & Time, Checkbox, and Number all shipped this session; only the context/relation pickers remain per Properties.md Pending "Per-Type Editor Panes". The `NumberEditor.tsx` / `DateTimeEditor.tsx` / `CheckboxEditor.tsx` trio + the shared `PickerControl` + the `saveColumnStyle` (per-view) / batched-IPC (def-level) split in `PropertiesPane.tsx` are the pattern to mirror.
 
-**2. The remaining multi-view stubs** — the non-Table renderers (Cards · List · Gallery · Calendar · Timeline; the `PropertyEditing/` surfaces are table-agnostic for reuse) and the ViewSettings Group · Sort · Filter leaves (blank-leafed; wire to the shipped `GroupConfig`/`SortCriterion[]`/`FilterGroup` seams).
+**2. The remaining multi-view stubs** — the non-Table renderers (Cards · List · Gallery · Calendar · Timeline; the `PropertyEditing/` surfaces are table-agnostic for reuse) and the ViewSettings Group · Sort · Filter leaves (blank-leafed; wire to the shipped `GroupConfig`/`SortCriterion[]`/`FilterGroup` seams). The Number editor's parked **Ring + tile-grid Show-as** is the natural first per-view-look add when a vertical-room view (Gallery/Board) lands.
 
-Build discipline: every pane push rides the (now intrinsic) PaneSlider; PickerMenu options + the section-heading tones are now DRY at the shared source (don't re-tune per-surface); main/preload changes need a full dev restart, not ⌘R.
+Build discipline: every pane push rides the (now intrinsic) PaneSlider; PickerMenu options + the section-heading tones are DRY at the shared source (don't re-tune per-surface); main/preload changes need a full dev restart, not ⌘R; new component tests use jsdom + `createRoot`/`act`, not `@testing-library`.
 
 ### Pending Focuses
 
 - **The dropdown row-title tone is `label.primary`** (`menuSurface.css` `.surface .titleText`, committed this session with Nathan's other knobs). It's load-bearing for the Properties-pane tone hierarchy — assigned rows read primary and the unassigned-row `0-3-0` override assumes it. Don't flip it back to `label.control` without re-checking the tiering.
 
 - **(Perf) Standing debt:** (1) no row virtualization — every row MOUNTS, bites at thousands. (2) External VALUE edits don't live-refresh an open table (`loadValues` runs per container-open; the tree carries structure, not values). The mtime-gated walk is fine; container-surgical reconcile is the designed escalation at real scale.
+
+- **Number editor eyeball items (Nathan may still tune, not bugs):** Decimals "Hidden" semantics (shipped as display-as-integer — `3.14`→`3`, value kept), fraction wording ("N out of M" — could be "N/M"), bar clamp behaviour at the `>100%`/zero-divisor edges, the bar's strokeless look, and field widths (bar-cell picker `140px`, pane Value control). Knobs in `numberEditor.css.ts` / `textPicker.css.ts` / `formatValue.ts`.
 
 - **Add-to-group:** the `+` glyph beside a set's grouping label creates nothing.
 
