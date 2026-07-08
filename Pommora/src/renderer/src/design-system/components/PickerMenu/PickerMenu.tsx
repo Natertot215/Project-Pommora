@@ -35,6 +35,7 @@ export function PickerMenu({
   notchCurve = 0.225,
   direction = 'down',
   center = false,
+  bareSurface = false,
   contentClassName,
   style
 }: {
@@ -55,10 +56,13 @@ export function PickerMenu({
   notchHeight?: number
   notchCurve?: number
   /** 'up' hangs the pane ABOVE its trigger with the beak pointing down (bottom-of-pane hosts). */
-  direction?: 'down' | 'up'
+  direction?: 'down' | 'up' | 'left' | 'right'
   /** Centred mode — the pane straddles the trigger centre with a centred beak (the TextPicker rename
    *  field), instead of the default right-anchored dropdown. */
   center?: boolean
+  /** Drop the default surface gutter entirely — `contentClassName` is the ONLY surface class, so a
+   *  bespoke body (the icon picker) owns 100% of its padding/layout with no `surface` collision. */
+  bareSurface?: boolean
   /** Overrides the surface's content gutter (cx'd after the default) — for a picker that wants its own
    *  inset, e.g. the tight single-field TextPicker. */
   contentClassName?: string
@@ -69,7 +73,18 @@ export function PickerMenu({
   const closing = selfManaged ? exitClosing : closingProp
   const paneRef = useRef<HTMLDivElement>(null)
   const markerRef = useRef<HTMLSpanElement>(null)
-  const [pos, setPos] = useState<{ top: number; right?: number; left?: number; notchInset?: number } | null>(null)
+  const [pos, setPos] = useState<{
+    top?: number
+    bottom?: number
+    right?: number
+    left?: number
+    notchInset?: number
+    notchInsetBottom?: number
+  } | null>(null)
+  // The *effective* direction: the requested one, auto-flipped to 'down' when it wouldn't fit the
+  // viewport (a sideways pane near the screen edge, an upward pane near the top). Down is the terminal
+  // fallback, so flips converge — it never flips away from down.
+  const [effDir, setEffDir] = useState<'down' | 'up' | 'left' | 'right'>(direction)
 
   // The pane hangs off the trigger's right edge and opens down-left (a stable dropdown — the pane
   // doesn't move to center the beak). The beak lands as far right as the corner radius allows
@@ -85,23 +100,43 @@ export function PickerMenu({
     const measure = (): void => {
       const t = trigger.getBoundingClientRect()
       const c = t.left + t.width / 2
-      // Centred (TextPicker): straddle the trigger centre (translateX below) with a centred beak. Else
-      // the stable right-anchored dropdown, beak clamped onto the trigger centre.
+      // Collision test against the measured pane, then flip so the pane fits: any blocked side → down,
+      // and down itself → up only when there's no room below (down is the preferred resting direction).
+      const ph = paneRef.current?.offsetHeight ?? 0
+      const pw = paneRef.current?.offsetWidth ?? 0
+      let eff = direction
+      if (direction === 'up' && t.top - GAP - ph < VIEWPORT_MARGIN) eff = 'down'
+      else if (direction === 'left' && t.left - GAP - pw < VIEWPORT_MARGIN) eff = 'down'
+      else if (direction === 'right' && t.right + GAP + pw > window.innerWidth - VIEWPORT_MARGIN) eff = 'down'
+      else if (direction === 'down' && t.bottom + GAP + ph > window.innerHeight - VIEWPORT_MARGIN) eff = 'up'
+      setEffDir(eff)
+      // Sideways: sit beside the trigger; beak clamped onto its vertical centre (the vertical mirror of
+      // the right-anchored dropdown — anchor the far edge, aim the beak `reserve` from it).
+      if (eff === 'left' || eff === 'right') {
+        const cy = t.top + t.height / 2
+        const bottom = Math.max(VIEWPORT_MARGIN, window.innerHeight - cy - reserve)
+        if (eff === 'right') setPos({ left: t.right + GAP, bottom, notchInsetBottom: reserve })
+        else setPos({ right: window.innerWidth - t.left + GAP, bottom, notchInsetBottom: reserve })
+        return
+      }
+      // Vertical. Centred (icon picker / TextPicker): straddle the trigger, beak centred on it, clamped
+      // by the pane half-width so an edge trigger can't push it off-screen. Else the stable right-anchored
+      // dropdown, beak clamped onto the trigger centre.
       if (center) {
-        // Straddle the trigger centre, but keep the pane on-screen — clamp `left` by the pane's half-width
-        // (measured; re-clamps as the field grows) so an edge cell can't push it off the viewport.
-        const half = (paneRef.current?.offsetWidth ?? 0) / 2
+        const half = pw / 2
         const left = Math.min(Math.max(c, VIEWPORT_MARGIN + half), window.innerWidth - VIEWPORT_MARGIN - half)
-        setPos({ top: t.bottom + GAP, left })
+        if (eff === 'up') setPos({ bottom: window.innerHeight - t.top + GAP, left })
+        else setPos({ top: t.bottom + GAP, left })
         return
       }
       const right = Math.max(VIEWPORT_MARGIN, window.innerWidth - c - reserve)
-      setPos({ top: t.bottom + GAP, right, notchInset: reserve })
+      if (eff === 'up') setPos({ bottom: window.innerHeight - t.top + GAP, right, notchInset: reserve })
+      else setPos({ top: t.bottom + GAP, right, notchInset: reserve })
     }
     measure()
     const ro = new ResizeObserver(measure)
     ro.observe(trigger)
-    if (center && paneRef.current) ro.observe(paneRef.current)
+    if (paneRef.current) ro.observe(paneRef.current)
     window.addEventListener('scroll', measure, true)
     window.addEventListener('resize', measure)
     return () => {
@@ -109,7 +144,7 @@ export function PickerMenu({
       window.removeEventListener('scroll', measure, true)
       window.removeEventListener('resize', measure)
     }
-  }, [selfManaged, mounted, reserve, triggerRef, closing, center])
+  }, [selfManaged, mounted, reserve, triggerRef, closing, center, direction])
 
   // Outside clicks dismiss via the backdrop below the pane (rendered in the portal). Escape is handled
   // here since the backdrop only catches pointers.
@@ -122,10 +157,16 @@ export function PickerMenu({
     return () => document.removeEventListener('keydown', onKey)
   }, [selfManaged, onDismiss, open, closing])
 
-  const up = direction === 'up'
+  // Render off the EFFECTIVE direction (post-flip), so the beak side + gutter match where the pane sits.
+  const up = effDir === 'up'
+  const horizontal = effDir === 'left' || effDir === 'right'
+  const notchSide = effDir === 'up' ? 'bottom' : effDir === 'left' ? 'right' : effDir === 'right' ? 'left' : 'top'
   const pane = (
     <NotchedPane
-      className={cx(s.surface, up && s.surfaceUp, contentClassName)}
+      // A bespoke body (bareSurface) or a sideways pane owns its full gutter via contentClassName —
+      // the top/bottom `--notch-h` surface gutter is either unwanted or the wrong axis; vertical
+      // default panes keep the shared surface gutter.
+      className={horizontal || bareSurface ? contentClassName : cx(s.surface, up && s.surfaceUp, contentClassName)}
       animationClass={closing ? dropdownClose : dropdownOpen}
       solid={solid}
       radius={radius}
@@ -133,7 +174,8 @@ export function PickerMenu({
       notchHeight={notchHeight}
       notchCurve={notchCurve}
       notchInsetRight={pos?.notchInset}
-      notchSide={up ? 'bottom' : 'top'}
+      notchInsetBottom={pos?.notchInsetBottom}
+      notchSide={notchSide}
       style={style}
     >
       {children}
@@ -162,10 +204,15 @@ export function PickerMenu({
             className={s.layer}
             data-picker-portal
             style={{
-              top: pos ? `${pos.top}px` : '0',
+              // Vertical panes anchor by `top`; sideways panes by `bottom` (aiming the side beak).
+              ...(pos?.top !== undefined ? { top: `${pos.top}px` } : null),
+              ...(pos?.bottom !== undefined ? { bottom: `${pos.bottom}px` } : null),
               ...(pos?.left !== undefined
-                ? { left: `${pos.left}px`, transform: 'translateX(-50%)' }
-                : { right: pos ? `${pos.right}px` : '0' }),
+                ? { left: `${pos.left}px`, ...(center ? { transform: 'translateX(-50%)' } : null) }
+                : pos?.right !== undefined
+                  ? { right: `${pos.right}px` }
+                  : null),
+              ...(pos ? null : { top: '0' }),
               visibility: pos ? undefined : 'hidden',
               pointerEvents: closing ? 'none' : undefined
             }}

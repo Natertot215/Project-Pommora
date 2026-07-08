@@ -20,13 +20,13 @@ There are **two** dropdown motions, and they're the same animation at two speeds
 
 Pommora's canonical pane/menu open — a zoom-from-the-trigger (`scale → 1` + fade on the Bloom curve, no blur), inspired by Apple's popover motion but Pommora-native. The `dropdownMenu` / `dropdownMenuClosing` classes run the shared keyframes on the **`slow`** token, **symmetric** (open + close match), so a click-off **retracts** the pane instead of cutting it; the parent keeps it mounted through the exit via the shared **`useExitPresence`** hook (`design-system/useExitPresence.ts`, whose default exit window covers this slowest close). The origin point is the consumer's: the class reads `--dropdown-origin` (defaults `top center`) so the pane blooms from its own trigger. This is the **menus'** motion; the inline picker + autocomplete take the snappier `dropdown`-token variant (below).
 
-- **Consumers:** `MenuSurface` (the toolbar Navigation + Settings panels, `--dropdown-origin: top right`) and the `IconPicker` (centered `GlassPane`, origin `center`).
+- **Consumers:** `MenuSurface` (the toolbar Navigation + Settings panels, `--dropdown-origin: top right`).
 
 #### Dropdown
 
 The same zoom — the same keyframes + Bloom curve — mounted on the **`dropdown`** token instead: snappier than the menu Bloom, also **symmetric**. The `dropdownOpen` / `dropdownClose` classes (`animations.css.ts`) read the same `--dropdown-origin` and retract through the shared `useExitPresence`. The split is deliberate: menus get the deliberate Bloom, inline surfaces the quicker Dropdown.
 
-- **Consumers:** the inline-edit `PickerMenu` (frost `GlassPane` clipped to a notch beak; origin = the notch tip) — mounted by the table's cell value picker (`PropertyPicker`, the status/select/multi dropdown, anchored in the editing cell and retracting through the shared presence hook) — and the `AutocompletePanel` (wikilink autocomplete, `top left` — grows from the caret; retains its last position/rows so it can retract in place after the query clears).
+- **Consumers:** the inline-edit `PickerMenu` (frost `GlassPane` clipped to a notch beak; origin = the notch tip) — mounted by the table's cell value picker (`PropertyPicker`, the status/select/multi dropdown, anchored in the editing cell and retracting through the shared presence hook), the `AutocompletePanel` (wikilink autocomplete, `top left` — grows from the caret; retains its last position/rows so it can retract in place after the query clears), and the `IconPicker` (a searchable full-Lucide grid + right-click favorites; centered beak, opt-in horizontal beak for side triggers, auto-flipping to down when the requested side won't fit the viewport).
 
 - **Note:** liquid `GlassControls` (the autocomplete) re-samples its refraction per frame, so the zoom reads slightly less crisp mid-flight than on the frost panes — timing/scale are identical.
 
@@ -67,7 +67,7 @@ Owned by the in-house engine — see [[PommoraDND]]. In brief: a live "feel" (du
 - **Subfield** (`Detail/Subfield/subfield.css`): the footer bar height-reveal + its toggle chevron ride on `--duration-base`.
 - **Banner** (`Detail/Banner/Banner.css`): title inset slide on `--duration-base`; "Add Banner" hover reveal.
 - **Menus** (`menu.css.ts` / `menuSurface.css.ts`): row hover is an instant state swap (no transition); the surface **opens** with the Bloom (`dropdown-menu` keyframes on the `slow` token) and **retracts** with `dropdown-menu-out` on click-off.
-- **Modals / pickers:** `PhotoCropModal` is imperative (pointer-tracked, no timed motion); `IconPicker` is a stub awaiting its Figma design + a shared dropdown-open primitive.
+- **Modals / pickers:** `PhotoCropModal` is imperative (pointer-tracked, no timed motion); the `IconPicker` rides the shared `PickerMenu` (the Dropdown motion) — a beaked, trigger-anchored pane, no bespoke chrome.
 
 ### Duration Inventory & DRY Backlog
 

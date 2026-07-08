@@ -88,6 +88,8 @@ export interface Personalization {
   hideChevrons?: boolean
   outlinerLines?: boolean
   defaultIcons?: Partial<Record<EntityIconKind, string>>
+  /** Icons the user favorited in the Icon Picker — bare Lucide ids (kebab), in display/reorder order. */
+  favoriteIcons?: string[]
   /** Depth-1 Sets vs their Collection's loose pages. */
   setPlacement?: FolderPlacement
   /** Sub-Sets (depth-2+) vs their parent Set's loose pages. */

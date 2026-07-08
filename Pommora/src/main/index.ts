@@ -62,6 +62,7 @@ import { popColumnMenu } from './columnMenu'
 import { popCellMenu } from './cellMenu'
 import { popPropertyMenu } from './propertyMenu'
 import { popOptionMenu } from './optionMenu'
+import { popIconFavoriteMenu } from './iconFavoriteMenu'
 import { popViewButtonMenu, type ViewButtonMenuAction } from './viewButtonMenu'
 import { popViewItemMenu, type ViewItemMenuAction } from './viewItemMenu'
 import { popViewRowMenu, type ViewRowMenuAction } from './viewRowMenu'
@@ -1125,6 +1126,14 @@ ipcMain.handle('view-format-menu', async (e, current: unknown): Promise<ViewForm
   const win = BrowserWindow.fromWebContents(e.sender)
   if (!win) return null
   return popViewFormatMenu(win, current === 'compact' ? 'compact' : 'standard')
+})
+
+// The icon picker's right-click Favorite menu — resolves 'toggle' to the renderer, which owns the
+// favoriteIcons write. Native (not a hand-rolled popover) so it matches every other right-click menu.
+ipcMain.handle('icon-favorite-menu', async (e, favorited: unknown): Promise<'toggle' | null> => {
+  const win = BrowserWindow.fromWebContents(e.sender)
+  if (!win) return null
+  return popIconFavoriteMenu(win, favorited === true)
 })
 
 // The Configuration Open In control's native menu (Full Page / Preview).

@@ -91,6 +91,8 @@ const api = {
     ipcRenderer.invoke('view-format-menu', current),
   // The Configuration Open In native menu (Full Page / Preview).
   openInMenu: (current: OpenIn): Promise<OpenIn | null> => ipcRenderer.invoke('open-in-menu', current),
+  // The icon picker's right-click Favorite/Remove menu — resolves 'toggle' on click, null on dismiss.
+  iconFavoriteMenu: (favorited: boolean): Promise<'toggle' | null> => ipcRenderer.invoke('icon-favorite-menu', favorited),
   // Property schema CRUD on a Collection's page schema. containerPath is the schema-owning
   // Collection's folder (a Set inherits, so the renderer passes its ancestor Collection's path).
   schema: {

@@ -64,3 +64,7 @@ The saved-view type roster and its grid glyphs (the ViewSettings 3×2 picker):
 | Connections | `link-2` |
 
 `link-2` is the connections glyph — reserved for the `[[Title]]` connections surface. The Context property type wears `layout-grid` (matching the sidebar tiers), not `link-2`.
+
+### The Picker
+
+The curated registry above is the app's own **semantic vocabulary** — the fixed glyphs the UI reaches for by name. The **Icon Picker** (what the user opens to assign an entity's icon) is a separate, wider surface: it exposes the **entire Lucide set** (`design-system/symbols/AllSymbols` — every icon kebab-keyed, searchable), so a user isn't limited to the curated names. Favorited icons persist per-nexus (`personalization.favoriteIcons`). A picked id is stored as its bare Lucide kebab id, the same convention as the curated names, so the two sources render through one path.

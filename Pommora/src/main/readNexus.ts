@@ -90,12 +90,16 @@ function readPersonalization(raw: unknown): Personalization {
     const v = asString(rawIcons[k])
     if (v) defaultIcons[k] = v
   }
+  const favoriteIcons = Array.isArray(p.favoriteIcons)
+    ? p.favoriteIcons.filter((v): v is string => typeof v === 'string' && v.length > 0)
+    : []
   return {
     connectionColor:
       conn === 'accent' || (conn != null && ACCENT_COLOR_SET.has(conn)) ? (conn as ConnectionColorSetting) : undefined,
     hideChevrons: bool(p.hideChevrons),
     outlinerLines: bool(p.outlinerLines),
     defaultIcons: Object.keys(defaultIcons).length ? defaultIcons : undefined,
+    favoriteIcons: favoriteIcons.length ? favoriteIcons : undefined,
     setPlacement: placement(p.setPlacement),
     subSetPlacement: placement(p.subSetPlacement)
   }

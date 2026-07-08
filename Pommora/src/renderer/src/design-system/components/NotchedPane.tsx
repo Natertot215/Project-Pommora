@@ -33,6 +33,34 @@ function panePath(w: number, h: number, r: number, nx: number, nh: number, nw: n
   ].join(' ')
 }
 
+// The same beak silhouette on a VERTICAL edge — `panePath` with the axes transposed. `ny` is the
+// beak centre along the pane's height; `nh` its protrusion depth (in x); `nw` its width (along y).
+// The beak hangs off the LEFT edge (body inset to x=nh), pointing left at a trigger on that side;
+// `flip` mirrors it horizontally to the RIGHT edge.
+function panePathVertical(w: number, h: number, r: number, ny: number, nh: number, nw: number, curve: number, flip: boolean): string {
+  const fx = (x: number): number => (flip ? w - x : x)
+  const half = nw / 2
+  const yT = ny - half
+  const yB = ny + half
+  const cb = Math.min(half * (0.3 + curve), half)
+  const ct = Math.min(half * (0.15 + curve), half * 0.9)
+  return [
+    `M ${fx(nh)} ${r}`,
+    `L ${fx(nh)} ${yT}`,
+    `C ${fx(nh)} ${yT + cb} ${fx(0)} ${ny - ct} ${fx(0)} ${ny}`,
+    `C ${fx(0)} ${ny + ct} ${fx(nh)} ${yB - cb} ${fx(nh)} ${yB}`,
+    `L ${fx(nh)} ${h - r}`,
+    `Q ${fx(nh)} ${h} ${fx(nh + r)} ${h}`,
+    `L ${fx(w - r)} ${h}`,
+    `Q ${fx(w)} ${h} ${fx(w)} ${h - r}`,
+    `L ${fx(w)} ${r}`,
+    `Q ${fx(w)} 0 ${fx(w - r)} 0`,
+    `L ${fx(nh + r)} 0`,
+    `Q ${fx(nh)} 0 ${fx(nh)} ${r}`,
+    'Z'
+  ].join(' ')
+}
+
 /**
  * The shared beaked-glass dropdown shell (hoisted from PickerMenu): a GlassPane whose frost is
  * clipped to a rounded rect with a top beak, outlined by an SVG stroke of the SAME path (a rect
@@ -51,6 +79,7 @@ export function NotchedPane({
   notchHeight = 8,
   notchCurve = 0.25,
   notchInsetRight,
+  notchInsetBottom,
   notchSide = 'top',
   style
 }: {
@@ -65,9 +94,13 @@ export function NotchedPane({
   notchWidth?: number
   notchHeight?: number
   notchCurve?: number
+  /** Beak position for a top/bottom notch, measured from the pane's right edge (omit = centered). */
   notchInsetRight?: number
-  /** 'bottom' mirrors the outline for upward-opening panes — beak points DOWN at the trigger. */
-  notchSide?: 'top' | 'bottom'
+  /** Beak position for a left/right notch, measured from the pane's bottom edge (omit = centered). */
+  notchInsetBottom?: number
+  /** Which edge the beak hangs off: 'top' (default, downward pane) / 'bottom' (upward) / 'left' /
+   *  'right' (sideways panes — the beak points horizontally at the trigger). */
+  notchSide?: 'top' | 'bottom' | 'left' | 'right'
   style?: CSSProperties
 }): React.JSX.Element {
   const popRef = useRef<HTMLDivElement>(null)
@@ -84,13 +117,28 @@ export function NotchedPane({
 
   const { w, h } = size
   const ready = w > 0 && h > 0
-  // Clamp the beak clear of the corner radii so an aimed notch can't break the outline.
-  const nxMin = radius + notchWidth / 2 + 2
-  const nxMax = w - radius - notchWidth / 2 - 2
-  const nxRaw = notchInsetRight !== undefined ? w - notchInsetRight : w / 2
-  const nx = nxMin < nxMax ? Math.min(Math.max(nxRaw, nxMin), nxMax) : w / 2
-  const flip = notchSide === 'bottom'
-  const d = ready ? panePath(w, h, radius, nx, notchHeight, notchWidth, notchCurve, flip) : ''
+  const vertical = notchSide === 'left' || notchSide === 'right'
+  // Clamp the beak clear of the corner radii (along whichever edge it rides) so it can't break the outline.
+  const along = vertical ? h : w
+  const nMin = radius + notchWidth / 2 + 2
+  const nMax = along - radius - notchWidth / 2 - 2
+  const nRaw = vertical
+    ? notchInsetBottom !== undefined
+      ? h - notchInsetBottom
+      : h / 2
+    : notchInsetRight !== undefined
+      ? w - notchInsetRight
+      : w / 2
+  const n = nMin < nMax ? Math.min(Math.max(nRaw, nMin), nMax) : along / 2
+  const flip = notchSide === 'bottom' || notchSide === 'right'
+  const d = ready
+    ? vertical
+      ? panePathVertical(w, h, radius, n, notchHeight, notchWidth, notchCurve, flip)
+      : panePath(w, h, radius, n, notchHeight, notchWidth, notchCurve, flip)
+    : ''
+  // The Bloom starts from the beak tip: the sideways tip sits on the near vertical edge, the
+  // up/down tip on the near horizontal edge.
+  const origin = vertical ? `${flip ? w : 0}px ${n}px` : `${n}px ${flip ? h : 0}px`
 
   return (
     // The Bloom class rides the pane + frame INDIVIDUALLY (same keyframes + origin var → one move),
@@ -101,7 +149,7 @@ export function NotchedPane({
       className={s.pop}
       style={
         {
-          ...(ready ? { '--dropdown-origin': `${nx}px ${flip ? `${h}px` : '0px'}`, '--notch-h': `${notchHeight}px` } : null),
+          ...(ready ? { '--dropdown-origin': origin, '--notch-h': `${notchHeight}px` } : null),
           ...style
         } as CSSProperties
       }

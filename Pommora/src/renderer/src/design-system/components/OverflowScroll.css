@@ -61,3 +61,26 @@
     transparent 100%
   );
 }
+
+/* Vertical twin — same progress vars + keyframes (l = top edge, r = bottom), driven by the box's
+   BLOCK scroll range and masked top→bottom. For a vertically-scrolling grid (the Icon Picker). */
+.overflow-eclipse-y.overflow-eclipse-y {
+  animation-name: eclipse-left, eclipse-right;
+  animation-duration: auto;
+  animation-timing-function: linear;
+  animation-timeline: scroll(self block);
+  mask-image: linear-gradient(
+    to bottom,
+    transparent 0,
+    #000000 calc(var(--eclipse-l) * var(--eclipse-fade, 16px)),
+    #000000 calc(100% - var(--eclipse-r) * var(--eclipse-fade, 16px)),
+    transparent 100%
+  );
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    transparent 0,
+    #000000 calc(var(--eclipse-l) * var(--eclipse-fade, 16px)),
+    #000000 calc(100% - var(--eclipse-r) * var(--eclipse-fade, 16px)),
+    transparent 100%
+  );
+}
