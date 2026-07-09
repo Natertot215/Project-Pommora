@@ -25,11 +25,58 @@
   transition: none;
 }
 
+/* --- sidebar ribbon --- */
+/* A fixed icon strip pinned to the panel's left edge, OUTSIDE the scrolling .sidebar so scroll can
+   neither move it nor cross its border. Needs its own no-drag (the .surface-glass parent is a
+   window-drag region) and its own traffic-light offset (it's a separate column from .sidebar). */
+.surface-glass {
+  --ribbon-w: 44px;
+}
+.sidebar-ribbon {
+  -webkit-app-region: no-drag;
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: var(--ribbon-w);
+  z-index: 2;
+  padding-top: 46px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  border-right: 2.5px solid var(--separator-border);
+}
+.ribbon-icon {
+  -webkit-app-region: no-drag;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--label-secondary);
+  cursor: default;
+  transition: background 120ms ease, color 120ms ease;
+}
+.ribbon-icon:hover {
+  background: var(--state-hover);
+  color: var(--label-primary);
+}
+.ribbon-icon-active {
+  background: var(--state-selected);
+  color: var(--label-primary);
+}
+
 /* --- sidebar content --- */
 .sidebar {
   -webkit-app-region: no-drag;
-  /* top clears the traffic lights (positioned at y:18, ~14px tall) with breathing room */
-  padding: 46px 10px 12px;
+  /* top clears the traffic lights (positioned at y:18, ~14px tall) with breathing room; left inset
+     clears the ribbon strip so content starts to the right of its border. */
+  padding: 46px 10px 12px calc(var(--ribbon-w) + 10px);
   /* The panel is a FIXED-width view: it scrolls vertically only. overflow-x:hidden caps the row track
      at the visible width so long titles ellipsize at their row edge (and hover-scroll) instead of
      widening the scroll-area — without it, overflow-y:auto computes overflow-x:auto and the whole

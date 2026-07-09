@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type CSSProperties, type PointerEvent as R
 import { useSession } from './store'
 import { Surface } from './Components/Surface'
 import { Sidebar } from './Sidebar/Sidebar'
+import { Ribbon } from './Sidebar/Ribbon'
 import { DetailPane } from './Detail/DetailPane'
 import { Toolbar } from './Toolbar/Toolbar'
 import { InspectorPanel } from './Detail/InspectorPanel/InspectorPanel'
@@ -114,6 +115,8 @@ export function App(): React.JSX.Element {
       {/* Sidebar always mounted so collapse/expand animates (slides) instead of snapping;
           .shell.sidebar-hidden translates it off + reclaims the detail gutter. */}
       <Surface>
+          {/* Ribbon: a pinned icon strip left of the scrolling sidebar; switches sidebar modes. */}
+          {status === 'ready' && tree && <Ribbon />}
           {/* Collapse — in-line with the traffic lights (sidebar top-right); reveals on hover. */}
           <button
             type="button"
