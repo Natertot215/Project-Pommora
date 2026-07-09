@@ -11,6 +11,7 @@ import { saveViewAdopting } from '../../Detail/Views/viewMint'
 import { InlineEditHeader } from './InlineEditHeader'
 import { VisibilityList } from './HiddenPane'
 import { LayoutToggles } from './LayoutToggles'
+import { GroupingPane } from './GroupingPane'
 import { PaneSlider } from './PaneSlider'
 import { cx } from '../../design-system/cx'
 import * as vs from './viewSettings.css'
@@ -131,6 +132,8 @@ export function ViewSettings({
         onBack={() => setLeaf(null)}
         footer={<LayoutToggles source={source} view={view} />}
       />
+    ) : leaf === 'group' ? (
+      <GroupingPane source={source} view={view} schema={schema} label="Views" onBack={() => setLeaf(null)} />
     ) : leaf ? (
       <MenuPaneTopRow label="Views" current={LEAF_CURRENT[leaf]} onBack={() => setLeaf(null)} />
     ) : null

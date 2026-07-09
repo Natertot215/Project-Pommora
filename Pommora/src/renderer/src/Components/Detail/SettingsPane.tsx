@@ -9,6 +9,7 @@ import { findCollection, findSet, findCollectionForSet } from '../../Detail/Scop
 import { pickView } from '../../Detail/Views/Table/TableView'
 import { PropertiesPane } from './PropertiesPane'
 import { HiddenPane } from './HiddenPane'
+import { GroupingPane } from './GroupingPane'
 import { ViewSettings } from './ViewSettings'
 import { PaneSlider } from './PaneSlider'
 import { MenuItem, MenuSeparator, MenuCaption, MenuPaneTopRow } from '../../design-system/components/menu'
@@ -164,6 +165,8 @@ export function SettingsPane(): React.JSX.Element | null {
       )
     ) : detailId === 'layout' ? (
       <ViewSettings source={node} view={pickView(node, activeViewId, schema)} schema={schema} door="flat" onBack={back} onClose={back} />
+    ) : detailId === 'group' ? (
+      <GroupingPane source={node} view={pickView(node, activeViewId, schema)} schema={schema} label="Settings" onBack={back} />
     ) : (
       blankLeaf
     )
