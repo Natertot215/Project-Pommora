@@ -30,7 +30,16 @@ export function resolveView(input: {
   const structuralGrouping = view.group?.kind !== 'property' && view.group?.kind !== 'flat'
   const locationOrdered = structuralGrouping && view.structural_order_mode === 'location'
   const groups = orderGroups(
-    resolveGroups(filtered, view.group, schema, setTree, sorter, view.collapsed_groups, view.ungrouped_placement ?? 'bottom'),
+    resolveGroups(
+      filtered,
+      view.group,
+      schema,
+      setTree,
+      sorter,
+      view.collapsed_groups,
+      view.ungrouped_placement ?? 'bottom',
+      structuralGrouping ? view.sub_group : undefined
+    ),
     locationOrdered ? undefined : view.group_order
   )
   return { columns, groups }

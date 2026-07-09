@@ -5,7 +5,7 @@
 // identical structural path. Pure: no fs, no React.
 
 import type { CollectionNode, PageNode, ResolvedGroup, SetNode, ViewRow } from '@shared/types'
-import type { DateGranularity, EmptyPlacement, GroupConfig } from '@shared/views'
+import type { DateGranularity, EmptyPlacement, GroupConfig, SubGroupConfig } from '@shared/views'
 import type { PageFrontmatter } from '@shared/schemas'
 import type { PropertyDefinition } from '@shared/properties'
 import { UNGROUPED } from '@shared/types'
@@ -164,8 +164,13 @@ function configuredOrder(def: PropertyDefinition | undefined, present: Set<strin
 }
 
 /** Bucket display order: manual (explicit `order` then sorted tail), configured (schema order),
- *  or reversed (configured, reversed). Mirrors Swift bucketOrder. */
-function bucketOrder(group: PropertyGroup, def: PropertyDefinition | undefined, present: Set<string>): string[] {
+ *  or reversed (configured, reversed). Mirrors Swift bucketOrder. Exported for the Grouping
+ *  pane's Custom list — the one order source for property AND sub-group buckets. */
+export function bucketOrder(
+  group: Pick<PropertyGroup, 'order_mode' | 'order'>,
+  def: PropertyDefinition | undefined,
+  present: Set<string>
+): string[] {
   if (group.order_mode === 'manual') return appendTail(group.order ?? [], present)
   const configured = configuredOrder(def, present)
   return group.order_mode === 'reversed' ? [...configured].reverse() : configured
@@ -235,6 +240,65 @@ function structural(
   )
 }
 
+/** Composite collapse key for a sub-group region — set ids are ULIDs, never containing `/`, so
+ *  one set's collapse never bleeds into its twin bucket in another set (D-11a). */
+export const subGroupKey = (setId: string, bucket: string): string => `${setId}/${bucket}`
+
+/** Location + property Sub-Group: each TOP-LEVEL set stays a band, its whole subtree's pages
+ *  flatten and re-bucket by the property inside it (global bucket order, per-bucket sort); loose
+ *  root pages stay one un-bucketed tail. */
+function structuralSubGrouped(
+  rows: ViewRow[],
+  setTree: SetTreeNode[],
+  sub: SubGroupConfig,
+  schema: PropertyDefinition[],
+  sorter: Sorter | null,
+  collapsed: Set<string>,
+  placement: EmptyPlacement
+): ResolvedGroup[] {
+  const def = schema.find((d) => d.id === sub.property_id)
+  const granularity = sub.date_granularity ?? 'month'
+  const subtreeIds = (node: SetTreeNode): string[] => [node.id, ...node.children.flatMap(subtreeIds)]
+  const byParent = groupRows(rows, (r) => r.parentSetId)
+  const rootRows = byParent.get(undefined) ?? []
+
+  const groups: ResolvedGroup[] = setTree.map((node) => {
+    const pages = subtreeIds(node).flatMap((id) => byParent.get(id) ?? [])
+    const byBucket = groupRows(pages, (r) => bucketKey(r, sub.property_id, schema, granularity))
+    const noValue = byBucket.get(null) ?? []
+    byBucket.delete(null)
+    const buckets = byBucket as Map<string, ViewRow[]>
+
+    let children = bucketOrder(sub, def, new Set(buckets.keys())).flatMap((b): ResolvedGroup[] => {
+      const items = buckets.get(b)
+      if (!items) return []
+      const key = subGroupKey(node.id, b)
+      return [{ key, bucket: b, kind: 'property', items: applySort(items, sorter), isCollapsed: collapsed.has(key) }]
+    })
+    if (noValue.length > 0) {
+      const key = subGroupKey(node.id, UNGROUPED)
+      children = placeTail(
+        children,
+        { key, kind: 'ungrouped', items: applySort(noValue, sorter), isCollapsed: collapsed.has(key) },
+        placement
+      )
+    }
+    return {
+      key: node.id,
+      kind: 'structural-set',
+      items: [],
+      ...(children.length > 0 ? { children } : {}),
+      isCollapsed: collapsed.has(node.id)
+    }
+  })
+  if (rootRows.length === 0) return groups
+  return placeTail(
+    groups,
+    { key: UNGROUPED, kind: 'ungrouped', items: applySort(rootRows, sorter), isCollapsed: collapsed.has(UNGROUPED) },
+    placement
+  )
+}
+
 function flat(rows: ViewRow[], sorter: Sorter | null, collapsed: Set<string>): ResolvedGroup[] {
   if (rows.length === 0) return []
   return [{ key: UNGROUPED, kind: 'ungrouped', items: applySort(rows, sorter), isCollapsed: collapsed.has(UNGROUPED) }]
@@ -250,7 +314,8 @@ export function resolveGroups(
   setTree: SetTreeNode[],
   sorter: Sorter | null,
   collapsed: string[] = [],
-  placement: EmptyPlacement = 'bottom'
+  placement: EmptyPlacement = 'bottom',
+  subGroup?: SubGroupConfig
 ): ResolvedGroup[] {
   const collapsedSet = new Set(collapsed)
   switch (group?.kind) {
@@ -261,7 +326,11 @@ export function resolveGroups(
       if (t === undefined || !GROUPABLE.has(t)) return structural(rows, setTree, sorter, collapsedSet, placement)
       return property(rows, group, schema, sorter, collapsedSet, placement)
     }
-    default:
+    default: {
+      const t = subGroup ? declaredType(subGroup.property_id, schema) : undefined
+      if (subGroup && t !== undefined && GROUPABLE.has(t))
+        return structuralSubGrouped(rows, setTree, subGroup, schema, sorter, collapsedSet, placement)
       return structural(rows, setTree, sorter, collapsedSet, placement)
+    }
   }
 }

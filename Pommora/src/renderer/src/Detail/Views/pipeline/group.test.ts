@@ -3,7 +3,7 @@ import type { CollectionNode, PageNode, SetNode, ViewRow } from '@shared/types'
 import type { GroupConfig } from '@shared/views'
 import type { PageFrontmatter } from '@shared/schemas'
 import type { PropertyDefinition } from '@shared/properties'
-import { dateBucketKey, flattenContainer, resolveGroups } from './group'
+import { dateBucketKey, flattenContainer, resolveGroups, subGroupKey } from './group'
 
 // ---- builders ----
 const page = (id: string): PageNode => ({ kind: 'page', id, title: id, path: `${id}.md` })
@@ -147,6 +147,83 @@ describe('property grouping — status manual order', () => {
     const { rows, setTree } = flattenContainer(col, values)
     const groups = resolveGroups(rows, { ...base, hide_empty_groups: true }, statusSchema, setTree, null)
     expect(keys(groups)).toEqual(['in_progress', 'not_started', 'done'])
+  })
+})
+
+describe('sub-grouping (structural + view-level sub_group)', () => {
+  const structural: GroupConfig = { kind: 'structural' }
+  const sub = { property_id: 'prop_status', order_mode: 'configured' as const }
+  const values: Record<string, PageFrontmatter> = {
+    p_a: { id: 'p_a', properties: { prop_status: { $status: 'not_started' } } },
+    p_sub: { id: 'p_sub', properties: { prop_status: { $status: 'done' } } },
+    p_b: { id: 'p_b', properties: { prop_status: { $status: 'done' } } }
+  }
+  const col = collection(
+    [set('setA', [page('p_a')], [set('setA1', [page('p_sub')])]), set('setB', [page('p_b')])],
+    []
+  )
+
+  it('sets stay top bands; sub-set pages roll up and bucket by the property (no sub-set band)', () => {
+    const { rows, setTree } = flattenContainer(col, values)
+    const groups = resolveGroups(rows, structural, statusSchema, setTree, null, [], 'bottom', sub)
+    const setA = groups.find((g) => g.key === 'setA')!
+    expect(setA.kind).toBe('structural-set')
+    expect(setA.children!.map((c) => ({ kind: c.kind, bucket: c.bucket }))).toEqual([
+      { kind: 'property', bucket: 'not_started' },
+      { kind: 'property', bucket: 'done' }
+    ])
+    expect(itemIds(setA.children![1])).toEqual(['p_sub'])
+    expect(groups.some((g) => g.key === 'setA1')).toBe(false)
+  })
+
+  it('composite keys keep collapse per-set', () => {
+    const { rows, setTree } = flattenContainer(col, values)
+    const groups = resolveGroups(rows, structural, statusSchema, setTree, null, [subGroupKey('setA', 'done')], 'bottom', sub)
+    const setA = groups.find((g) => g.key === 'setA')!
+    const setB = groups.find((g) => g.key === 'setB')!
+    expect(setA.children!.find((c) => c.bucket === 'done')!.isCollapsed).toBe(true)
+    expect(setB.children!.find((c) => c.bucket === 'done')!.isCollapsed).toBe(false)
+  })
+
+  it('manual sub-order is global; no-value pages sit per-set placed by the knob; loose root pages stay one flat tail', () => {
+    const manual = { ...sub, order_mode: 'manual' as const, order: ['done', 'not_started'] }
+    const values2: Record<string, PageFrontmatter> = {
+      ...values,
+      p_nv: { id: 'p_nv', properties: {} },
+      p_loose: { id: 'p_loose', properties: { prop_status: { $status: 'done' } } }
+    }
+    const col2 = collection(
+      [set('setA', [page('p_a'), page('p_nv')], [set('setA1', [page('p_sub')])]), set('setB', [page('p_b')])],
+      [page('p_loose')]
+    )
+    const { rows, setTree } = flattenContainer(col2, values2)
+    const groups = resolveGroups(rows, structural, statusSchema, setTree, null, [], 'top', manual)
+    expect(groups[0]).toMatchObject({ key: '_ungrouped', kind: 'ungrouped' })
+    expect(itemIds(groups[0])).toEqual(['p_loose'])
+    const setA = groups.find((g) => g.key === 'setA')!
+    expect(setA.children![0]).toMatchObject({ kind: 'ungrouped', key: subGroupKey('setA', '_ungrouped') })
+    expect(setA.children!.filter((c) => c.kind === 'property').map((c) => c.bucket)).toEqual(['done', 'not_started'])
+  })
+
+  it('sorts within each sub-bucket', () => {
+    const values3: Record<string, PageFrontmatter> = {
+      p_z: { id: 'p_z', properties: { prop_status: { $status: 'done' } } },
+      p_a2: { id: 'p_a2', properties: { prop_status: { $status: 'done' } } }
+    }
+    const col3 = collection([set('setA', [page('p_z'), page('p_a2')])], [])
+    const byId = (r: ViewRow[]): ViewRow[] => [...r].sort((x, y) => (x.id < y.id ? -1 : 1))
+    const { rows, setTree } = flattenContainer(col3, values3)
+    const groups = resolveGroups(rows, structural, statusSchema, setTree, byId, [], 'bottom', sub)
+    expect(itemIds(groups[0].children![0])).toEqual(['p_a2', 'p_z'])
+  })
+
+  it('an unmappable sub-group property falls back to plain structural', () => {
+    const { rows, setTree } = flattenContainer(col, values)
+    const groups = resolveGroups(rows, structural, statusSchema, setTree, null, [], 'bottom', {
+      property_id: 'prop_gone',
+      order_mode: 'configured'
+    })
+    expect(groups.find((g) => g.key === 'setA')!.children!.map((c) => c.key)).toEqual(['setA1'])
   })
 })
 

@@ -355,6 +355,8 @@ export interface ResolvedGroup {
   items: ViewRow[]
   children?: ResolvedGroup[]
   isCollapsed: boolean
+  /** Sub-group bands only: the raw bucket value (`key` is the composite set/bucket collapse id). */
+  bucket?: string
 }
 
 /** The reserved `key` for the no-value / flat / structural-root band. Stored on disk in
