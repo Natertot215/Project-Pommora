@@ -21,7 +21,6 @@ import type {
   ProjectNode
 } from '@shared/types'
 import { DEFAULT_NEW_NAME, type MutableKind, type MutateRequest } from '@shared/mutate'
-import { useExitPresence } from '@renderer/design-system/useExitPresence'
 import { SidebarDnd, useSidebarDrag } from './sidebarDnd'
 import { AgendaMode } from './AgendaMode'
 import { loadOpen, saveOpen } from './disclosureState'
@@ -394,11 +393,6 @@ export function Sidebar({ tree }: { tree: NexusTree }): React.JSX.Element {
   const setPlacement = useSession((s) => s.personalization.setPlacement ?? 'top')
   const subSetPlacement = useSession((s) => s.personalization.subSetPlacement ?? 'top')
   const mode: SidebarMode = useSession((s) => s.personalization.sidebarMode ?? 'collections')
-  // Cross-fade: each mode's presence is tracked independently, so the outgoing stays mounted (as an
-  // absolute overlay fading out) while the incoming takes the flow. Opacity-only — no layout thrash.
-  const collectionsP = useExitPresence(mode === 'collections')
-  const contextsP = useExitPresence(mode === 'contexts')
-  const agendaP = useExitPresence(mode === 'agenda')
 
   const onSelectCollection = (col: CollectionNode): void => {
     void select({ kind: 'collection', id: col.id })
@@ -507,23 +501,18 @@ export function Sidebar({ tree }: { tree: NexusTree }): React.JSX.Element {
       cb()
     }
 
-  const layer = (
-    key: SidebarMode,
-    node: React.ReactNode,
-    p: { mounted: boolean; closing: boolean },
-    onCreate?: () => void
-  ): React.ReactNode =>
-    p.mounted ? (
-      <div key={key} className={cx('sidebar-mode', p.closing && 'sidebar-mode-closing')} onContextMenu={modeCtx(onCreate)}>
-        {node}
-      </div>
-    ) : null
+  const active =
+    mode === 'contexts'
+      ? { node: contextsLayer, onCreate: newContext }
+      : mode === 'agenda'
+        ? { node: <AgendaMode />, onCreate: undefined }
+        : { node: collectionsLayer, onCreate: newCollection }
 
   return (
     <nav ref={navRef} className="sidebar scroll-edge-fade">
-      {layer('collections', collectionsLayer, collectionsP, newCollection)}
-      {layer('contexts', contextsLayer, contextsP, newContext)}
-      {layer('agenda', <AgendaMode />, agendaP)}
+      <div className="sidebar-mode" onContextMenu={modeCtx(active.onCreate)}>
+        {active.node}
+      </div>
     </nav>
   )
 }

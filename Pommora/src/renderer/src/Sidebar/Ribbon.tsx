@@ -1,30 +1,31 @@
 import type { SidebarMode } from '@shared/types'
-import { Icon } from '@renderer/design-system/symbols'
+import { Icon, defaultEntityIcon } from '@renderer/design-system/symbols'
 import { useSession } from '../store'
 import { NexusPhoto } from './NexusPhoto'
 import './Sidebar.css'
 
 // The ribbon's launcher icons below the pinned Homepage. Three switch sidebarMode (the content
 // column); navigation/settings are placeholders for future glass-window surfaces (no-op for now).
-type RibbonKey = 'collections' | 'contexts' | 'agenda' | 'navigation' | 'settings'
+type RibbonKey = 'navigation' | 'agenda' | 'contexts' | 'collections' | 'settings'
 const MODE_FOR: Partial<Record<RibbonKey, SidebarMode>> = {
   collections: 'collections',
   contexts: 'contexts',
   agenda: 'agenda'
 }
-const RIBBON_ICON: Record<RibbonKey, string> = {
-  collections: 'folder',
-  contexts: 'layout-grid',
+// The mode icons reuse the entity defaults (a Collection's icon is a Collection's icon), so they
+// track any personalization override; agenda/nav/settings have no entity kind and stay literal.
+const STATIC_ICON: Record<'agenda' | 'navigation' | 'settings', string> = {
   agenda: 'calendar',
   navigation: 'map',
   settings: 'sliders-horizontal'
 }
-const DEFAULT_ORDER: RibbonKey[] = ['collections', 'contexts', 'agenda', 'navigation', 'settings']
+const DEFAULT_ORDER: RibbonKey[] = ['navigation', 'agenda', 'contexts', 'collections', 'settings']
 
 /** Resolve the display order from a persisted (possibly partial or stale) ribbonOrder, always
  *  ending with every known key so a newly-added icon never vanishes. */
 function resolveOrder(persisted: string[] | undefined): RibbonKey[] {
-  const keys = (persisted ?? []).filter((k): k is RibbonKey => k in RIBBON_ICON)
+  const known = new Set<string>(DEFAULT_ORDER)
+  const keys = (persisted ?? []).filter((k): k is RibbonKey => known.has(k))
   for (const k of DEFAULT_ORDER) if (!keys.includes(k)) keys.push(k)
   return keys
 }
@@ -33,8 +34,16 @@ export function Ribbon(): React.JSX.Element {
   const select = useSession((s) => s.select)
   const mode = useSession((s) => s.personalization.sidebarMode ?? 'collections')
   const order = useSession((s) => s.personalization.ribbonOrder)
+  const defaultIcons = useSession((s) => s.personalization.defaultIcons)
   const setPersonalization = useSession((s) => s.setPersonalization)
   const keys = resolveOrder(order)
+
+  const iconFor = (k: RibbonKey): string =>
+    k === 'collections'
+      ? defaultEntityIcon('collection', defaultIcons)
+      : k === 'contexts'
+        ? defaultEntityIcon('area', defaultIcons)
+        : STATIC_ICON[k]
 
   const onIcon = (k: RibbonKey): void => {
     const m = MODE_FOR[k]
@@ -64,7 +73,7 @@ export function Ribbon(): React.JSX.Element {
             aria-selected={active}
             onClick={() => onIcon(k)}
           >
-            <Icon name={RIBBON_ICON[k]} size={18} />
+            <Icon name={iconFor(k)} size={18} />
           </button>
         )
       })}

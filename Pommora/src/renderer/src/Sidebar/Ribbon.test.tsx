@@ -33,11 +33,11 @@ afterEach(() => {
 const buttons = (): HTMLButtonElement[] => Array.from(host.querySelectorAll('button'))
 
 describe('Ribbon', () => {
-  it('renders Homepage first, then the five launcher icons', () => {
+  it('renders Homepage first, then the five launcher icons in order', () => {
     const bs = buttons()
     expect(bs[0].getAttribute('aria-label')).toBe('Homepage')
     const labels = bs.slice(1).map((b) => b.getAttribute('aria-label'))
-    expect(labels).toEqual(['collections', 'contexts', 'agenda', 'navigation', 'settings'])
+    expect(labels).toEqual(['navigation', 'agenda', 'contexts', 'collections', 'settings'])
   })
 
   it('Homepage click selects the homepage and never switches mode', () => {

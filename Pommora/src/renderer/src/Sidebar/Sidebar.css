@@ -31,6 +31,8 @@
    window-drag region) and its own traffic-light offset (it's a separate column from .sidebar). */
 .surface-glass {
   --ribbon-w: 44px;
+  /* Tunable: the divider's inset from the sidebar's bottom edge. */
+  --ribbon-divider-bottom: 46px;
 }
 .sidebar-ribbon {
   -webkit-app-region: no-drag;
@@ -46,14 +48,13 @@
   align-items: center;
   gap: 4px;
 }
-/* The divider aligns with the top of the sidebar content (the 46px traffic-light line) and mirrors
-   that inset at the bottom, so it doesn't run edge-to-edge. A pseudo-element — a border can't be
-   partial-height. */
+/* The divider aligns with the top of the sidebar content (the 46px traffic-light line); its bottom
+   inset is a tunable knob. A pseudo-element — a border can't be partial-height. */
 .sidebar-ribbon::after {
   content: '';
   position: absolute;
   top: 46px;
-  bottom: 46px;
+  bottom: var(--ribbon-divider-bottom);
   right: 0;
   width: 2px;
   background: var(--separator-border);
@@ -71,20 +72,17 @@
   background: transparent;
   color: var(--label-secondary);
   cursor: default;
-  transition: background 120ms ease, color 120ms ease;
 }
 .ribbon-icon:hover {
   background: var(--state-hover);
-  color: var(--label-primary);
 }
 
 /* --- sidebar content --- */
 .sidebar {
   -webkit-app-region: no-drag;
-  position: relative;
   /* top clears the traffic lights (positioned at y:18, ~14px tall) with breathing room; left inset
-     clears the ribbon strip so content starts to the right of its border. */
-  padding: 46px 10px 12px calc(var(--ribbon-w) + 10px);
+     is exactly the ribbon width so content sits right against the divider (rows carry their own pad). */
+  padding: 46px 10px 12px var(--ribbon-w);
   /* The panel is a FIXED-width view: it scrolls vertically only. overflow-x:hidden caps the row track
      at the visible width so long titles ellipsize at their row edge (and hover-scroll) instead of
      widening the scroll-area — without it, overflow-y:auto computes overflow-x:auto and the whole
@@ -96,18 +94,10 @@
      tucks inside the 46px header padding, so the header stays crisp at rest. */
 }
 
-/* --- sidebar modes (cross-fade) --- */
-/* The active mode sits in normal flow (so it scrolls + fills for empty-area right-click); an
-   outgoing mode stays mounted one transition longer as an absolute overlay fading to 0 over it. */
+/* --- sidebar modes --- */
+/* The active mode fills the scroll area so empty-area right-click (create) has a target. */
 .sidebar-mode {
   min-height: 100%;
-}
-.sidebar-mode-closing {
-  position: absolute;
-  inset: 0;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity var(--duration-base) var(--ease-standard);
 }
 
 /* --- agenda mode (read-only list) --- */
