@@ -3,6 +3,7 @@
 // output deterministic across machines; currency follows Swift's locale formatter as USD.
 
 import type { DateFormat, TimeFormat, WeekdayFormat } from '@shared/columnStyles'
+import type { DateGranularity, DateSeparator } from '@shared/views'
 import type { NumberConfig } from '@shared/properties'
 
 function ordinal(day: number): string {
@@ -89,6 +90,41 @@ export function formatDate(
   }
   if (hasTime && timeFormat !== 'none') out += ` ${clockOf(date, timeFormat)}`
   return out
+}
+
+const NUMERIC_FORMATS = new Set<DateFormat>(['dayMonthYear', 'monthDayYear'])
+
+/** A date group-heading label from its stable bucket key: worded formats read written
+ *  ("July 2026"); numeric formats read numeric with the view's separator ("07-2026"). */
+export function formatBucketLabel(
+  key: string,
+  granularity: DateGranularity,
+  dateFormat: DateFormat,
+  separator: DateSeparator
+): string {
+  const numeric = NUMERIC_FORMATS.has(dateFormat)
+  const sep = separator === 'slash' ? '/' : '-'
+  switch (granularity) {
+    case 'year':
+      return key
+    case 'week': {
+      const m = /^(\d{4})-W(\d{2})$/.exec(key)
+      if (!m) return key
+      return numeric ? `W${m[2]}${sep}${m[1]}` : `Week ${Number(m[2])}, ${m[1]}`
+    }
+    case 'month': {
+      const m = /^(\d{4})-(\d{2})$/.exec(key)
+      if (!m) return key
+      if (numeric) return `${m[2]}${sep}${m[1]}`
+      const month = new Date(`${key}-01T00:00:00`).toLocaleDateString('en-US', { month: 'long' })
+      return `${month} ${m[1]}`
+    }
+    case 'day': {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(key)) return key
+      const out = formatDate(key, dateFormat, 'none')
+      return numeric && separator === 'dash' ? out.replaceAll('/', '-') : out
+    }
+  }
 }
 
 /** The picker's condensed range-date form (Nathan's rule — picker-only, never in cells): worded

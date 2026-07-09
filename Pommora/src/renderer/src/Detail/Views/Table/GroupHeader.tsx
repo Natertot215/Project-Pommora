@@ -11,6 +11,7 @@ import { RenamableTitle } from '@renderer/Components/RenamableTitle'
 import { useBandDrag } from './bandDnd'
 import { checkboxBoxStyle } from './checkboxLook'
 import { findOption } from './cellResolve'
+import { formatBucketLabel } from '../PropertyEditing/formatValue'
 import type { ResolveContext } from './resolveContext'
 
 /** The glyph for a group header. Structural Set → its name (swapping to the shared inline rename
@@ -36,18 +37,26 @@ function groupGlyph(
       </span>
     )
   }
-  const propId = view.group?.kind === 'property' ? view.group.property_id : undefined
+  // A property band lives in two homes: top-level property grouping, or a sub-group bucket
+  // inside a set band (its raw value rides `bucket`; `key` is the composite collapse id).
+  const propId =
+    view.group?.kind === 'property'
+      ? view.group.property_id
+      : view.group?.kind !== 'flat'
+        ? view.sub_group?.property_id
+        : undefined
   if (!propId) return <span className="group-name">{group.key}</span>
+  const value = group.bucket ?? group.key
 
   const groupType = declaredType(propId, ctx.schema)
   switch (groupType) {
     case 'status':
     case 'select': {
-      const opt = findOption(propId, group.key, ctx.schema)
-      return <Chip color={chipColorFor(opt?.color)} label={opt?.label ?? group.key} shape={chipShapeForType(groupType)} />
+      const opt = findOption(propId, value, ctx.schema)
+      return <Chip color={chipColorFor(opt?.color)} label={opt?.label ?? value} shape={chipShapeForType(groupType)} />
     }
     case 'checkbox': {
-      const on = group.key === 'true'
+      const on = value === 'true'
       const color = ctx.schema.find((d) => d.id === propId)?.checkbox_color
       return (
         <span className="group-name">
@@ -60,15 +69,19 @@ function groupGlyph(
     }
     case 'datetime': {
       const icon = asRenderableIcon(ctx.schema.find((d) => d.id === propId)?.icon)
+      const style = view.column_styles?.[propId]
+      const granularity =
+        (view.group?.kind === 'property' ? view.group.date_granularity : view.sub_group?.date_granularity) ?? 'month'
+      const label = formatBucketLabel(value, granularity, style?.date_format ?? 'full', view.date_separator ?? 'dash')
       return (
         <span className="group-name">
           {icon ? <Icon name={icon} size={13} /> : null}
-          {group.key}
+          {label}
         </span>
       )
     }
     default:
-      return <span className="group-name">{group.key}</span>
+      return <span className="group-name">{value}</span>
   }
 }
 
@@ -145,16 +158,20 @@ export function GroupHeader({
         {groupGlyph(group, view, ctx, setNames, setIcons, setPath)}
       </span>
       {/* Hover-revealed: adds a page to this group, sorted to the group bottom (newItemsTo, default
-          'bottom'). The caller is pending Nathan's creation-affordance design (Q-7/Q-9) — inert for now. */}
-      <button
-        type="button"
-        className="group-add"
-        tabIndex={-1}
-        onPointerDown={(e) => e.stopPropagation()}
-        aria-label="New page in group"
-      >
-        <Icon name="plus" size={13} />
-      </button>
+          'bottom'). Structural bands only — a property bucket has no inferable create location (D-5;
+          the future creation surfaces lift this). The caller is pending Nathan's creation-affordance
+          design (Q-7/Q-9) — inert for now. */}
+      {group.kind === 'structural-set' ? (
+        <button
+          type="button"
+          className="group-add"
+          tabIndex={-1}
+          onPointerDown={(e) => e.stopPropagation()}
+          aria-label="New page in group"
+        >
+          <Icon name="plus" size={13} />
+        </button>
+      ) : null}
     </span>
   )
 }
