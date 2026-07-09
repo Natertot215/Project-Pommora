@@ -25,6 +25,9 @@ import { reparentFsOrder, structuralOrderAfterDrop } from '../../Detail/Views/Ta
 import { nextOrder } from '@renderer/Sidebar/sidebarDndModel'
 import { Chip, chipShapeForType } from '../Chip'
 import { chipColorFor } from '../../design-system/tokens/colorMap'
+import { chipBox, chipColor } from '../../design-system/tokens'
+import { cx } from '../../design-system/cx'
+import { checkboxBoxStyle } from '../../Detail/Views/Table/checkboxLook'
 import { useSession } from '../../store'
 import { PickerControl, type PickerChoice } from './PickerControl'
 import { useGroupingListDrag, type GroupingDrop } from './groupingDnd'
@@ -137,6 +140,8 @@ export function GroupingPane({
   }
 
   const saveSub = (sub: SubGroupConfig | undefined): void => save({ sub_group: sub })
+  // A date grouping has no finite option list — its middle region (and separator) collapses.
+  const hasMiddle = group.kind !== 'property' || declaredType(group.property_id, schema) !== 'datetime'
 
   return (
     <>
@@ -188,7 +193,6 @@ export function GroupingPane({
           )}
           {group.kind === 'property' ? (
             <ValueRow
-              tier="sub"
               icon="arrow-up-down"
               label="Order"
               value={group.order_mode}
@@ -197,7 +201,7 @@ export function GroupingPane({
             />
           ) : (
             <ValueRow
-              tier="sub"
+              tier={subGroup ? 'sub' : 'primary'}
               icon="arrow-up-down"
               label="Order"
               value={view.structural_order_mode ?? 'custom'}
@@ -229,26 +233,30 @@ export function GroupingPane({
               )}
             </>
           )}
-          <MenuSeparator flush />
-          <div className={`${gp.middle} overflow-eclipse-y`}>
-            {group.kind === 'property' ? (
-              group.order_mode === 'manual' ? (
-                <CustomList group={group} def={activeDef} onSave={saveGroup} />
-              ) : (
-                <PropertyPreview group={group} def={activeDef} />
-              )
-            ) : (
-              <LocationHierarchy
-                source={source}
-                view={view}
-                subDef={subGroup ? schema.find((d) => d.id === subGroup.property_id) : undefined}
-                onSaveView={save}
-              />
-            )}
-          </div>
+          {hasMiddle && (
+            <>
+              <MenuSeparator flush />
+              <div className={`${gp.middle} overflow-eclipse-y`}>
+                {group.kind === 'property' ? (
+                  group.order_mode === 'manual' ? (
+                    <CustomList group={group} def={activeDef} onSave={saveGroup} />
+                  ) : (
+                    <PropertyPreview group={group} def={activeDef} />
+                  )
+                ) : (
+                  <LocationHierarchy
+                    source={source}
+                    view={view}
+                    subDef={subGroup ? schema.find((d) => d.id === subGroup.property_id) : undefined}
+                    onSaveView={save}
+                  />
+                )}
+              </div>
+            </>
+          )}
           <MenuSeparator flush />
           <FootingPick
-            icon="gallery-vertical-end"
+            icon="folder-minus"
             label="Ungrouped"
             value={(view.ungrouped_placement ?? 'bottom') === 'top' ? 'Top' : 'Bottom'}
             options={['Top', 'Bottom']}
@@ -272,8 +280,8 @@ export function GroupingPane({
                 </span>
               }
               trailing={
-                <span className={footingSymbol}>
-                  <Icon name={group.hide_empty_groups ? 'check' : 'x'} size={12} />
+                <span className={cx(chipBox, group.hide_empty_groups ? undefined : chipColor.default)} style={checkboxBoxStyle(group.hide_empty_groups, undefined)}>
+                  {group.hide_empty_groups ? <Icon name="check" size={12} strokeWidth={3} /> : null}
                 </span>
               }
               onClick={() => saveGroup({ ...group, hide_empty_groups: !group.hide_empty_groups })}
@@ -298,7 +306,7 @@ function FootingPick({
   options,
   onPick
 }: {
-  icon: IconName
+  icon: React.ComponentProps<typeof Icon>['name']
   label: string
   value: string
   options: string[]
