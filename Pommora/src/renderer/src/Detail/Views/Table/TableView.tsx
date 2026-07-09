@@ -1,4 +1,5 @@
 import { memo, useEffect, useMemo, useRef, useState, type RefObject } from 'react'
+import { UNGROUPED } from '@shared/types'
 import type { CollectionNode, NexusTree, ResolvedColumn, ResolvedGroup, SetNode, ViewRow } from '@shared/types'
 import { type PropertyDefinition, type PropertyType, RESERVED_PROPERTY_ID } from '@shared/properties'
 import type { PageFrontmatter } from '@shared/schemas'
@@ -22,6 +23,7 @@ import { buildResolveContext, type ResolveContext } from './resolveContext'
 import { buildSetIcons, buildSetNames, buildSetPaths, groupLabel } from './cellResolve'
 import { BandDnd, type BandDrop } from './bandDnd'
 import { allStructuralIds, flattenBands, propertyOrderAfterDrop, reparentFsOrder, structuralOrderAfterDrop } from './bandDndModel'
+import { nextOrder } from '@renderer/Sidebar/sidebarDndModel'
 import { Cell } from './Cell'
 import { PropertyTypeIcon } from '@renderer/Components/Detail/PropertyTypes'
 import { GroupHeader } from './GroupHeader'
@@ -256,7 +258,16 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
   const sortKeys = liveView.sort?.length ?? 0
   // The grouped property + whether a cross-group drop can reassign it (D-4): status/select/checkbox map
   // a group key straight to a value; a date bucket doesn't, so date grouping isn't reassignable.
-  const groupPropId = liveView.group?.kind === 'property' ? liveView.group.property_id : undefined
+  // The property lives in TWO homes: top-level property grouping, or the view-level sub-group
+  // bucketing inside structural bands.
+  const structuralGrouping = liveView.group?.kind !== 'property' && liveView.group?.kind !== 'flat'
+  const subGrouped = structuralGrouping && liveView.sub_group !== undefined
+  const groupPropId =
+    liveView.group?.kind === 'property'
+      ? liveView.group.property_id
+      : subGrouped
+        ? liveView.sub_group?.property_id
+        : undefined
   const groupPropType = groupPropId ? declaredType(groupPropId, schema) : undefined
   const canReassign = groupPropType !== undefined && REASSIGNABLE_GROUP_TYPES.has(groupPropType)
   // Within-group reorder is possible whenever the order is manually meaningful — anything but a multi-key
@@ -329,32 +340,58 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
   // by this drop-render's stale closure.
   const commitBandRef = useRef(commitBand)
   commitBandRef.current = commitBand
+  const childIdsOf = (nodes: SetTreeNode[], id: string): string[] | null => {
+    for (const n of nodes) {
+      if (n.id === id) return n.children.map((c) => c.id)
+      const hit = childIdsOf(n.children, id)
+      if (hit) return hit
+    }
+    return null
+  }
   const onBandDrop = (draggedId: string, drop: BandDrop): void => {
     const dragged = bands.find((b) => b.id === draggedId)
     if (!dragged) return
     if (dragged.kind === 'property') {
-      if (drop.kind !== 'reorder' || liveView.group?.kind !== 'property') return
-      const present = groups.filter((g) => g.kind === 'property').map((g) => g.key)
-      const group = {
-        ...liveView.group,
-        order_mode: 'manual' as const,
-        order: propertyOrderAfterDrop(present, draggedId, drop.beforeId)
+      if (liveView.group?.kind === 'property') {
+        if (drop.kind !== 'reorder') return
+        const present = groups.filter((g) => g.kind === 'property').map((g) => g.key)
+        const group = {
+          ...liveView.group,
+          order_mode: 'manual' as const,
+          order: propertyOrderAfterDrop(present, draggedId, drop.beforeId)
+        }
+        commitBand({ group })
+        return
       }
-      commitBand({ group })
+      if (!subGrouped || !liveView.sub_group || liveView.sub_group.order_mode !== 'manual') return
+      // F-1: global sub-order — dragging one set's bucket reorders that bucket across EVERY set. A
+      // cross-set drag arrives as kind 'reparent' (bandDnd routes by impliedParentId) and is STILL a
+      // global reorder: only the beforeId's bucket value matters, targetParentId is ignored. The
+      // key→bucket map builds once per drop, never a walk per lookup.
+      const bucketByKey = new Map(
+        groups.flatMap((g) => (g.children ?? []).flatMap((c) => (c.bucket !== undefined ? [[c.key, c.bucket] as const] : [])))
+      )
+      const draggedBucket = bucketByKey.get(draggedId)
+      const beforeBucket = drop.beforeId === null ? null : (bucketByKey.get(drop.beforeId) ?? null)
+      if (draggedBucket === undefined) return
+      const present = [...new Set(bucketByKey.values())]
+      commitBand({ sub_group: { ...liveView.sub_group, order: propertyOrderAfterDrop(present, draggedBucket, beforeBucket) } })
       return
     }
     const group_order = structuralOrderAfterDrop(liveView.group_order ?? [], allStructuralIds(groups), draggedId, drop.beforeId)
     if (drop.kind === 'reorder') {
+      if (structuralGrouping && liveView.structural_order_mode === 'location') {
+        // C-1c: Location mode — the same-parent reorder IS the filesystem write; group_order stays
+        // untouched (preserved for the flip back to Custom). The reparent branch below is mode-blind
+        // by design: its group_order write is the slot preservation.
+        const parentPath = dragged.parentId === null ? source.path : setPaths.get(dragged.parentId)
+        const siblingIds = dragged.parentId === null ? setTree.map((n) => n.id) : (childIdsOf(setTree, dragged.parentId) ?? [])
+        if (!parentPath) return
+        void mutate({ op: 'reorderChildren', parentPath, key: 'set_order', order: nextOrder(siblingIds, draggedId, drop.beforeId) })
+        return
+      }
       commitBand({ group_order })
       return
-    }
-    const childIdsOf = (nodes: SetTreeNode[], id: string): string[] | null => {
-      for (const n of nodes) {
-        if (n.id === id) return n.children.map((c) => c.id)
-        const hit = childIdsOf(n.children, id)
-        if (hit) return hit
-      }
-      return null
     }
     const path = setPaths.get(draggedId)
     const destPath = drop.targetParentId === null ? source.path : setPaths.get(drop.targetParentId)
@@ -861,6 +898,18 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
     }
   }, [groups])
 
+  // The sub-group drop targets: composite band key -> its set + bucket dimensions (F-2). Above the
+  // early returns like every hook in this component (see dataRows).
+  const subTargets = useMemo(() => {
+    const m = new Map<string, { setId: string | null; bucket: string | null }>()
+    for (const g of groups) {
+      if (g.kind === 'structural-set') {
+        for (const c of g.children ?? []) m.set(c.key, { setId: g.key, bucket: c.bucket ?? null })
+      } else if (g.kind === 'ungrouped') m.set(g.key, { setId: null, bucket: null })
+    }
+    return m
+  }, [groups])
+
   if (!ctx) return <div className="table-empty">Loading…</div>
   if (groups.length === 0) return <div className="table-empty">No pages here</div>
   // The Apple table model (Nathan, reverting the elastic-title reflow): EVERY column — title included —
@@ -977,9 +1026,35 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
   // Cross-group drop (D-4): write the dragged page's grouped property to the destination group's value
   // (the no-value band clears it), patching the loaded values now so the row re-groups before the write
   // round-trips (loadValues never re-runs mid-session).
+  // Under sub-grouping the destination key is COMPOSITE (set/bucket), so the drop carries two
+  // dimensions (F-2): a bucket change writes the property; a set change is a REAL movePage into
+  // that set — the property write lands first, while the page still has its current path.
   const reassignRow = (pageId: string, destGroupKey: string): void => {
     const path = rowPath.get(pageId)
     if (!groupPropId || !path) return
+    if (subGrouped) {
+      const dest = subTargets.get(destGroupKey)
+      const cur = subTargets.get(rowGroup.get(pageId) ?? '')
+      if (!dest) return
+      const destPath = dest.setId === null ? source.path : setPaths.get(dest.setId)
+      if (!destPath) return
+      const bucketChanged = dest.bucket !== (cur?.bucket ?? null)
+      const setChanged = dest.setId !== (cur?.setId ?? null)
+      const value = groupKeyToValue(dest.bucket ?? UNGROUPED, groupPropType)
+      if (bucketChanged) {
+        const prior = values[pageId]
+        const patched: PageFrontmatter = {
+          ...(prior ?? { id: pageId }),
+          properties: applyPropertyValue(prior?.properties, groupPropId, value)
+        }
+        setValueOverride((prev) => ({ ...prev, [pageId]: patched }))
+      }
+      void (async () => {
+        if (bucketChanged && !(await mutate({ op: 'setProperty', path, propertyId: groupPropId, value }))) return
+        if (setChanged) await mutate({ op: 'movePage', path, newParentPath: destPath })
+      })()
+      return
+    }
     const value = groupKeyToValue(destGroupKey, groupPropType)
     const prior = values[pageId]
     const patched: PageFrontmatter = {

@@ -278,6 +278,164 @@ describe('property band reorder', () => {
   })
 })
 
+describe('location order mode (structural_order_mode: location)', () => {
+  it('same-parent band reorder writes reorderChildren — group_order untouched', async () => {
+    await mountTable(structuralSource({ collapsed_groups: ['sA'], structural_order_mode: 'location' })) // bands: A (collapsed), B
+    await dragBand(1, 2) // B above A
+    await drop()
+    expect(mutateSpy).toHaveBeenCalledExactlyOnceWith({
+      op: 'reorderChildren',
+      parentPath: 'Col',
+      key: 'set_order',
+      order: ['sB', 'sA']
+    })
+    expect(saveSpy).not.toHaveBeenCalled()
+  })
+
+  it('cross-tree reparent still writes group_order after moveSet (slot preservation, mode-blind)', async () => {
+    await mountTable(structuralSource({ structural_order_mode: 'location' })) // bands: A, A1, B
+    await dragBand(2, 12) // nest B into A
+    await drop()
+    expect(mutateSpy).toHaveBeenCalledExactlyOnceWith({
+      op: 'moveSet',
+      path: 'Col/B',
+      newParentPath: 'Col/A',
+      order: ['sA1', 'sB']
+    })
+    expect(saveSpy).toHaveBeenCalledOnce()
+    expect(lastSavedView().group_order).toEqual(['sA', 'sA1', 'sB'])
+  })
+})
+
+/** A[pA1 active, pA2 complete], B[pB active] — sub-grouped by status. */
+const subGroupSource = (view?: Partial<SavedView>): CollectionNode =>
+  ({
+    kind: 'collection',
+    id: 'col1',
+    title: 'Col',
+    path: 'Col',
+    sets: [
+      {
+        kind: 'set',
+        id: 'sA',
+        title: 'A',
+        path: 'Col/A',
+        pages: [page('pA1', 'A One', 'Col/A/A One.md'), page('pA2', 'A Two', 'Col/A/A Two.md')],
+        sets: []
+      },
+      { kind: 'set', id: 'sB', title: 'B', path: 'Col/B', pages: [page('pB', 'B One', 'Col/B/B One.md')], sets: [] }
+    ],
+    pages: [],
+    properties: [statusDef],
+    views: [
+      {
+        id: 'view_1',
+        name: 'Table',
+        type: 'table',
+        property_order: ['_title', 'prop_status'],
+        hidden_properties: [],
+        group: { kind: 'structural' },
+        sub_group: { property_id: 'prop_status', order_mode: 'manual' },
+        ...view
+      }
+    ]
+  }) as unknown as CollectionNode
+
+const SUB_VALUES = {
+  pA1: { id: 'pA1', properties: { prop_status: { $status: 'active' } } },
+  pA2: { id: 'pA2', properties: { prop_status: { $status: 'complete' } } },
+  pB: { id: 'pB', properties: { prop_status: { $status: 'active' } } }
+}
+
+describe('sub-group bucket band drag', () => {
+  beforeEach(() => {
+    ;(window as unknown as { nexus: { loadValues: () => Promise<unknown> } }).nexus.loadValues = async () => SUB_VALUES
+  })
+
+  // bands: A(0), A/active(1), A/complete(2), B(3), B/active(4)
+  it('manual mode: same-set bucket reorder writes the view-level global sub_group.order', async () => {
+    await mountTable(subGroupSource())
+    await dragBand(2, 26) // A/complete above A/active (top zone of band 1)
+    await drop()
+    expect(saveSpy).toHaveBeenCalledOnce()
+    expect(lastSavedView().sub_group).toEqual({ property_id: 'prop_status', order_mode: 'manual', order: ['complete', 'active'] })
+    expect(mutateSpy).not.toHaveBeenCalled()
+  })
+
+  it('CROSS-SET bucket drag (arrives as reparent) still writes the global sub-order — no moveSet', async () => {
+    await mountTable(subGroupSource())
+    await dragBand(2, 98) // A/complete before B/active (top zone of band 4)
+    await drop()
+    expect(saveSpy).toHaveBeenCalledOnce()
+    expect(lastSavedView().sub_group).toEqual({ property_id: 'prop_status', order_mode: 'manual', order: ['complete', 'active'] })
+    expect(mutateSpy).not.toHaveBeenCalled()
+  })
+
+  it('outside manual mode the bucket drag is inert', async () => {
+    await mountTable(subGroupSource({ sub_group: { property_id: 'prop_status', order_mode: 'configured' } }))
+    await dragBand(2, 26)
+    await drop()
+    expect(saveSpy).not.toHaveBeenCalled()
+    expect(mutateSpy).not.toHaveBeenCalled()
+  })
+})
+
+describe('sub-group row drop (F-2 — the set × bucket matrix)', () => {
+  beforeEach(() => {
+    ;(window as unknown as { nexus: { loadValues: () => Promise<unknown> } }).nexus.loadValues = async () => SUB_VALUES
+  })
+
+  /** Rects: table-dnd box + each data-row stacked at 24px from y=100 (pA1, pA2, pB in DOM order). */
+  const stubRowRects = (): void => {
+    const box = host.querySelector('.table-dnd')
+    if (box) stubRect(box, { top: 0, bottom: 400 })
+    const rows = host.querySelectorAll('.data-row')
+    for (const [i, el] of [...rows].entries()) stubRect(el, { top: 100 + i * 24, bottom: 100 + i * 24 + 24 })
+  }
+  const dragRow = async (index: number, toY: number): Promise<void> => {
+    const grips = host.querySelectorAll('.row-grip')
+    await act(async () => {
+      firePointer(grips[index], 'pointerdown', { x: 5, y: 100 + index * 24 + 12 })
+    })
+    await act(async () => {
+      firePointer(window, 'pointermove', { x: 5, y: toY })
+    })
+    await drop()
+  }
+
+  it('different set + different bucket → setProperty THEN movePage', async () => {
+    await mountTable(subGroupSource())
+    stubRowRects()
+    await dragRow(1, 160) // pA2 (sA/complete) into pB's region (sB/active)
+    expect(mutateSpy).toHaveBeenNthCalledWith(1, {
+      op: 'setProperty',
+      path: 'Col/A/A Two.md',
+      propertyId: 'prop_status',
+      value: { kind: 'status', value: 'active' }
+    })
+    expect(mutateSpy).toHaveBeenNthCalledWith(2, { op: 'movePage', path: 'Col/A/A Two.md', newParentPath: 'Col/B' })
+  })
+
+  it('same set, different bucket → setProperty alone', async () => {
+    await mountTable(subGroupSource())
+    stubRowRects()
+    await dragRow(1, 105) // pA2 (sA/complete) into pA1's region (sA/active)
+    expect(mutateSpy).toHaveBeenCalledExactlyOnceWith({
+      op: 'setProperty',
+      path: 'Col/A/A Two.md',
+      propertyId: 'prop_status',
+      value: { kind: 'status', value: 'active' }
+    })
+  })
+
+  it('different set, same bucket → movePage alone', async () => {
+    await mountTable(subGroupSource())
+    stubRowRects()
+    await dragRow(2, 105) // pB (sB/active) into pA1's region (sA/active)
+    expect(mutateSpy).toHaveBeenCalledExactlyOnceWith({ op: 'movePage', path: 'Col/B/B One.md', newParentPath: 'Col/A' })
+  })
+})
+
 describe('band reparent', () => {
   it('nest-into commits moveSet with the APPENDED fs order plus the group_order slot', async () => {
     await mountTable(structuralSource()) // bands: A, A1, B

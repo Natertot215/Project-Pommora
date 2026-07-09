@@ -44,6 +44,11 @@ export function TableRowDnd({
 }): React.JSX.Element {
   const rowsRef = useRef(rows)
   rowsRef.current = rows
+  // The context value memoizes on drag.id, freezing `begin` (and the gesture's whole closure chain)
+  // at an old render — so the mutable config rides a per-render ref, the rowsRef/commitBandRef
+  // discipline: a drop always commits through the CURRENT props, never a mount-time snapshot.
+  const cfg = useRef({ disabled, canReorderWithin, canReassign, reorderTo, reassign })
+  cfg.current = { disabled, canReorderWithin, canReassign, reorderTo, reassign }
   const els = useRef(new Map<string, HTMLElement>())
   const content = useRef<HTMLDivElement | null>(null)
   const live = useRef<Slot | null>(null)
@@ -107,7 +112,7 @@ export function TableRowDnd({
     const width = near.contentRight - near.left - DROP_LINE_INSET * 2
 
     if (targetGroup === activeGroup) {
-      if (!canReorderWithin) return null
+      if (!cfg.current.canReorderWithin) return null
       // before `near` (above) or before the row after `near` in the flat order (below).
       const order = rowsRef.current.map((x) => x.id)
       const beforeId = above ? near.id : (order[order.indexOf(near.id) + 1] ?? null)
@@ -115,10 +120,10 @@ export function TableRowDnd({
       const idx = beforeId ? without.indexOf(beforeId) : without.length
       const next = [...without.slice(0, idx), g.id, ...without.slice(idx)]
       const noop = next.length === order.length && next.every((id, i) => id === order[i])
-      return { lineY, left, width, noop, commit: () => reorderTo(next, activeGroup) }
+      return { lineY, left, width, noop, commit: () => cfg.current.reorderTo(next, activeGroup) }
     }
-    if (!canReassign) return null
-    return { lineY, left, width, noop: false, commit: () => reassign(g.id, targetGroup) }
+    if (!cfg.current.canReassign) return null
+    return { lineY, left, width, noop: false, commit: () => cfg.current.reassign(g.id, targetGroup) }
   }
 
   const detach = (): void => {
@@ -146,7 +151,7 @@ export function TableRowDnd({
   }
 
   const begin = (id: string, e: ReactPointerEvent): void => {
-    if (disabled || e.button !== 0 || !e.isPrimary || gesture.current.kind !== 'idle') return
+    if (cfg.current.disabled || e.button !== 0 || !e.isPrimary || gesture.current.kind !== 'idle') return
     const el = els.current.get(id)
     if (!el) return
     const handlers: Handlers = { move: onMove, up: onUp, cancel: onCancel, key: onKey }
