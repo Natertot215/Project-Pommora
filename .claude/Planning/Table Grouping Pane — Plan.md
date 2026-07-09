@@ -38,10 +38,12 @@
 
 ---
 
-### Task 1: Model — GroupConfig Extension + SavedView Fields
+### Task 1: Model — Four View-Level SavedView Fields
+
+`GroupConfig` and `decodeGroupConfig` are UNTOUCHED. The structural-only settings live view-level beside `group_order`, which is the binding precedent (`views.ts:105-108`'s own comment: the structural decoder drops extra fields, and view-level survives Group By switches — E-1/E-3).
 
 **Files:**
-- Modify: `Pommora/src/shared/views.ts` (types ~L34–77, decoder ~L144–177, codec ~L181–208)
+- Modify: `Pommora/src/shared/views.ts` (types ~L34–41, SavedView ~L79–109, codec ~L181–208)
 - Test: `Pommora/src/shared/views.test.ts`
 
 **Interfaces (Produces):**
@@ -54,44 +56,47 @@ export interface SubGroupConfig {
   order?: string[]
   date_granularity?: DateGranularity
 }
-// GroupConfig structural variant becomes:
-//   { kind: 'structural'; order_mode?: StructuralOrderMode; sub_group?: SubGroupConfig }
-// SavedView gains: ungrouped_placement?: EmptyPlacement; date_separator?: DateSeparator
+export function decodeSubGroup(raw: unknown): SubGroupConfig | undefined
+// SavedView gains: structural_order_mode?: StructuralOrderMode; sub_group?: SubGroupConfig;
+//                  ungrouped_placement?: EmptyPlacement; date_separator?: DateSeparator
 ```
-Defaults on absence (E-1/E-2): `order_mode` → `'custom'` semantics, no `sub_group` → plain structural, `ungrouped_placement` → `'bottom'`, `date_separator` → `'dash'`.
+Defaults on absence: `structural_order_mode` → custom semantics, no `sub_group` → plain structural, `ungrouped_placement` → `'bottom'`, `date_separator` → `'dash'`.
 
 - [ ] **Step 1: Write the failing decode tests** — append to `src/shared/views.test.ts` (match its existing describe style):
 
 ```ts
-describe('decodeGroupConfig structural extension', () => {
-  it('decodes order_mode + sub_group on a structural group', () => {
-    const g = decodeGroupConfig({
-      kind: 'structural',
-      order_mode: 'location',
+describe('view-level grouping fields', () => {
+  it('savedView round-trips all four fields', () => {
+    const v = savedView.parse({
+      id: 'view_x', name: 'T', type: 'table', property_order: [], hidden_properties: [],
+      structural_order_mode: 'location', ungrouped_placement: 'top', date_separator: 'slash',
       sub_group: { property_id: 'p1', order_mode: 'manual', order: ['a', 'b'], date_granularity: 'week' }
     })
-    expect(g).toEqual({
-      kind: 'structural',
-      order_mode: 'location',
-      sub_group: { property_id: 'p1', order_mode: 'manual', order: ['a', 'b'], date_granularity: 'week' }
-    })
-  })
-  it('a bare structural decodes with no extension fields (legacy sidecars unchanged)', () => {
-    expect(decodeGroupConfig({ kind: 'structural' })).toEqual({ kind: 'structural' })
-  })
-  it('malformed extension fields drop without poisoning the group', () => {
-    const g = decodeGroupConfig({ kind: 'structural', order_mode: 'nope', sub_group: { order_mode: 'manual' } })
-    expect(g).toEqual({ kind: 'structural' }) // bad enum drops; sub_group without property_id drops whole
-  })
-  it('savedView round-trips ungrouped_placement + date_separator', () => {
-    const v = savedView.parse({ id: 'view_x', name: 'T', type: 'table', property_order: [], hidden_properties: [], ungrouped_placement: 'top', date_separator: 'slash' })
+    expect(v.structural_order_mode).toBe('location')
     expect(v.ungrouped_placement).toBe('top')
     expect(v.date_separator).toBe('slash')
+    expect(v.sub_group).toEqual({ property_id: 'p1', order_mode: 'manual', order: ['a', 'b'], date_granularity: 'week' })
+  })
+  it('a legacy view decodes with all four absent', () => {
+    const v = savedView.parse({ id: 'view_x', name: 'T', type: 'table', property_order: [], hidden_properties: [] })
+    expect(v.structural_order_mode).toBeUndefined()
+    expect(v.sub_group).toBeUndefined()
+  })
+  it('malformed fields drop without poisoning the view', () => {
+    const v = savedView.parse({
+      id: 'view_x', name: 'T', type: 'table', property_order: [], hidden_properties: [],
+      structural_order_mode: 'nope', sub_group: { order_mode: 'manual' }
+    })
+    expect(v.structural_order_mode).toBeUndefined() // bad enum drops
+    expect(v.sub_group).toBeUndefined() // no property_id drops the whole object
+  })
+  it('decodeSubGroup fills order_mode and filters non-string order entries', () => {
+    expect(decodeSubGroup({ property_id: 'p1', order: ['a', 7, 'b'] })).toEqual({ property_id: 'p1', order_mode: 'configured', order: ['a', 'b'] })
   })
 })
 ```
 
-- [ ] **Step 2:** Run `npx vitest run src/shared/views.test.ts` → expect the four new tests FAIL (fields stripped / properties absent).
+- [ ] **Step 2:** Run `npx vitest run src/shared/views.test.ts` → expect the four new tests FAIL (fields stripped / export absent).
 
 - [ ] **Step 3: Implement.** In `views.ts`:
 
@@ -102,25 +107,40 @@ export type StructuralOrderMode = (typeof STRUCTURAL_ORDER_MODES)[number]
 const DATE_SEPARATORS = ['dash', 'slash'] as const
 export type DateSeparator = (typeof DATE_SEPARATORS)[number]
 
-/** Location-mode sub-grouping — a property bucketing INSIDE each top-level set band (E-1). */
+/** Location-mode sub-grouping — a property bucketing INSIDE each top-level set band. View-level
+ *  (like group_order): the one `group` slot is replaced on a Group By switch, so anything that
+ *  must survive the round trip can't live on the config object (E-1/E-3). */
 export interface SubGroupConfig {
   property_id: string
   order_mode: GroupOrderMode
   order?: string[]
   date_granularity?: DateGranularity
 }
-```
 
-Extend the union's structural arm (L66–67):
-```ts
-export type GroupConfig =
-  | { kind: 'structural'; order_mode?: StructuralOrderMode; sub_group?: SubGroupConfig }
-  | { kind: 'flat' }
-  | { /* property arm unchanged */ }
+/** Lenient sub_group decode (the decodeGroupConfig discipline): malformed → undefined, never throws. */
+export function decodeSubGroup(raw: unknown): SubGroupConfig | undefined {
+  if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) return undefined
+  const s = raw as Record<string, unknown>
+  if (typeof s.property_id !== 'string' || s.property_id === '') return undefined
+  const order = Array.isArray(s.order) ? (s.order.filter((x) => typeof x === 'string') as string[]) : undefined
+  const granularity = asEnum<DateGranularity>(s.date_granularity, DATE_GRANULARITY_SET)
+  return {
+    property_id: s.property_id,
+    order_mode: asEnum<GroupOrderMode>(s.order_mode, GROUP_ORDER_MODE_SET) ?? 'configured',
+    ...(order !== undefined ? { order } : {}),
+    ...(granularity !== undefined ? { date_granularity: granularity } : {})
+  }
+}
 ```
+(`asEnum` + the enum sets are declared at ~L131-139 — move `decodeSubGroup` below them, or hoist the sets; keep one ordering that compiles.)
 
-Add to `SavedView` (after `group_order`, keeping the snake_case key comments style):
+Add to `SavedView` (after `group_order`, keeping the snake_case comment style):
 ```ts
+  /** Structural band-order source — 'location' mirrors the filesystem (drags write fs, group_order
+   *  is preserved-but-ignored); absent/'custom' = today's view-owned group_order (C-1/C-1a). */
+  structural_order_mode?: StructuralOrderMode
+  /** Location-mode sub-grouping config — survives Group By switches by living here (E-3). */
+  sub_group?: SubGroupConfig
   /** Global ungrouped-region placement — one view-level knob for every ungrouped tail (D-7/E-2);
    *  the property config's empty_placement stays decode parity. Absent = bottom. */
   ungrouped_placement?: EmptyPlacement
@@ -128,34 +148,10 @@ Add to `SavedView` (after `group_order`, keeping the snake_case key comments sty
   date_separator?: DateSeparator
 ```
 
-In `decodeGroupConfig`, add set + helper above the switch and replace the two `{ kind: 'structural' }` returns (L167 and the L173/L175 fallbacks) with `asStructural()`:
-```ts
-const STRUCTURAL_ORDER_MODE_SET = new Set<string>(STRUCTURAL_ORDER_MODES)
-
-const asStructural = (): GroupConfig => {
-  const order_mode = asEnum<StructuralOrderMode>(obj.order_mode, STRUCTURAL_ORDER_MODE_SET)
-  const sg = obj.sub_group
-  let sub_group: SubGroupConfig | undefined
-  if (sg !== null && typeof sg === 'object' && !Array.isArray(sg)) {
-    const s = sg as Record<string, unknown>
-    if (typeof s.property_id === 'string' && s.property_id !== '') {
-      const order = Array.isArray(s.order) ? (s.order.filter((x) => typeof x === 'string') as string[]) : undefined
-      const granularity = asEnum<DateGranularity>(s.date_granularity, DATE_GRANULARITY_SET)
-      sub_group = {
-        property_id: s.property_id,
-        order_mode: asEnum<GroupOrderMode>(s.order_mode, GROUP_ORDER_MODE_SET) ?? 'configured',
-        ...(order !== undefined ? { order } : {}),
-        ...(granularity !== undefined ? { date_granularity: granularity } : {})
-      }
-    }
-  }
-  return { kind: 'structural', ...(order_mode !== undefined ? { order_mode } : {}), ...(sub_group !== undefined ? { sub_group } : {}) }
-}
-```
-(The malformed-input guard at L145 still returns the bare literal — that path has no `obj`.)
-
 In the `savedView` zod object, after `group_order`:
 ```ts
+  structural_order_mode: z.enum(STRUCTURAL_ORDER_MODES).optional().catch(undefined),
+  sub_group: z.unknown().transform(decodeSubGroup).optional(),
   ungrouped_placement: z.enum(EMPTY_PLACEMENTS).optional().catch(undefined),
   date_separator: z.enum(DATE_SEPARATORS).optional().catch(undefined)
 ```
@@ -165,7 +161,7 @@ In the `savedView` zod object, after `group_order`:
 - [ ] **Step 5: Commit**
 ```bash
 git add src/shared/views.ts src/shared/views.test.ts
-git commit -m "feat(views): structural order_mode + sub_group config, view-level ungrouped placement + date separator"
+git commit -m "feat(views): view-level structural order mode, sub-group, ungrouped placement, date separator"
 ```
 
 ---
@@ -205,8 +201,20 @@ describe('ungrouped placement', () => {
 ```ts
 const placeTail = (groups: ResolvedGroup[], tail: ResolvedGroup, placement: EmptyPlacement): ResolvedGroup[] =>
   placement === 'top' ? [tail, ...groups] : [...groups, tail]
+
+/** The one group-by core every resolver shares (property buckets, bySet, sub-group re-bucketing). */
+function groupRows<K>(rows: ViewRow[], keyOf: (r: ViewRow) => K): Map<K, ViewRow[]> {
+  const m = new Map<K, ViewRow[]>()
+  for (const r of rows) {
+    const k = keyOf(r)
+    const arr = m.get(k)
+    if (arr) arr.push(r)
+    else m.set(k, [r])
+  }
+  return m
+}
 ```
-Thread `placement: EmptyPlacement` through `property()` and `structural()` signatures; replace both tail `groups.push({...})` blocks with `return placeTail(groups, tailGroup, placement)` construction. `flat()` unchanged (single band — placement is meaningless). `resolveGroups` gains the trailing param and passes it down. Import `EmptyPlacement` from `@shared/views`. In `resolveView.ts:29` pass `view.ungrouped_placement ?? 'bottom'`.
+Thread `placement: EmptyPlacement` through `property()` and `structural()` signatures; replace both existing tail `groups.push({...})` blocks with `placeTail` (EVERY tail emit routes through it — no surviving inline pushes) and rewrite their hand-rolled bucket-insert loops over `groupRows` (behavior-identical; kills the third and fourth copies before Task 4 would add a fifth). Note `property()`'s no-value/checkbox routing wraps `groupRows` with a pre-pass or a nullable key — keep it a thin adaptation, not a second core. `flat()` unchanged (single band — placement is meaningless). `resolveGroups` gains the trailing param and passes it down. Import `EmptyPlacement` from `@shared/views`. In `resolveView.ts:29` pass `view.ungrouped_placement ?? 'bottom'`.
 
 - [ ] **Step 4:** vitest file → PASS (including all pre-existing tests — bottom default preserves them); typecheck clean.
 
@@ -220,7 +228,7 @@ git commit -m "feat(pipeline): honor view-level ungrouped placement at every tai
 
 ### Task 3: Pipeline — Location-Order Gate
 
-C-1a: under `order_mode: 'location'` the pipeline skips `orderGroups` so fs order wins; `group_order` is preserved-but-ignored.
+C-1a: under the view-level `structural_order_mode: 'location'` the pipeline skips `orderGroups` so fs order wins; `group_order` is preserved-but-ignored.
 
 **Files:**
 - Modify: `Pommora/src/renderer/src/Detail/Views/pipeline/resolveView.ts:28-31`
@@ -228,15 +236,20 @@ C-1a: under `order_mode: 'location'` the pipeline skips `orderGroups` so fs orde
 
 - [ ] **Step 1: Failing test** (fixtures per the file's existing style):
 ```ts
-it('order_mode location ignores group_order (fs order wins, preserved not cleared)', () => {
-  const view = { ...baseView, group: { kind: 'structural' as const, order_mode: 'location' as const }, group_order: ['setB', 'setA'] }
+it('structural_order_mode location ignores group_order (fs order wins, preserved not cleared)', () => {
+  const view = { ...baseView, group: { kind: 'structural' as const }, structural_order_mode: 'location' as const, group_order: ['setB', 'setA'] }
   const { groups } = resolveView({ rows, setTree, view, schema })
   expect(groups.map((g) => g.key)).toEqual(['setA', 'setB']) // tree order, not group_order
 })
-it('custom (absent) order_mode still applies group_order', () => {
+it('custom (absent) mode still applies group_order', () => {
   const view = { ...baseView, group: { kind: 'structural' as const }, group_order: ['setB', 'setA'] }
   const { groups } = resolveView({ rows, setTree, view, schema })
   expect(groups.map((g) => g.key)).toEqual(['setB', 'setA'])
+})
+it('location mode under PROPERTY grouping is inert (mode is structural-only)', () => {
+  const view = { ...baseView, group: propertyGroup, structural_order_mode: 'location' as const, group_order: [] }
+  // resolves like any property view; no throw, no structural gating
+  expect(() => resolveView({ rows, setTree, view, schema })).not.toThrow()
 })
 ```
 
@@ -245,12 +258,15 @@ it('custom (absent) order_mode still applies group_order', () => {
 - [ ] **Step 3: Implement** in `resolveView.ts`:
 ```ts
 // Location order mirrors the filesystem: group_order is preserved on the view but ignored (C-1a).
-const locationOrdered = view.group?.kind === 'structural' && view.group.order_mode === 'location'
+// The mode is structural-only — property/flat grouping never reads it (E-3).
+const structuralGrouping = view.group?.kind !== 'property' && view.group?.kind !== 'flat'
+const locationOrdered = structuralGrouping && view.structural_order_mode === 'location'
 const groups = orderGroups(
-  resolveGroups(filtered, view.group, schema, setTree, sorter, view.collapsed_groups, view.ungrouped_placement ?? 'bottom'),
+  resolveGroups(filtered, view.group, schema, setTree, sorter, view.collapsed_groups, view.ungrouped_placement ?? 'bottom', structuralGrouping ? view.sub_group : undefined),
   locationOrdered ? undefined : view.group_order
 )
 ```
+(The `sub_group` pass-through parameter lands in Task 4 — until then pass seven args; the Task 4 signature adds the eighth.)
 
 - [ ] **Step 4:** vitest file → PASS; typecheck clean.
 
@@ -277,11 +293,12 @@ E-4's net-new stage: sets stay top-level bands, sub-sets flatten, descendant pag
 
 - [ ] **Step 1: Failing tests:**
 ```ts
-describe('sub-grouping (structural + sub_group)', () => {
-  const sub = { kind: 'structural' as const, sub_group: { property_id: 'status1', order_mode: 'configured' as const } }
+describe('sub-grouping (structural + view-level sub_group)', () => {
+  const structural = { kind: 'structural' as const }
+  const sub = { property_id: 'status1', order_mode: 'configured' as const }
   it('sets stay top bands; sub-set pages roll up and bucket by the property', () => {
     // setTree: A contains A1; rows: page in A (opt 'todo'), page in A1 (opt 'done')
-    const groups = resolveGroups(rows, sub, schema, setTree, null, [], 'bottom')
+    const groups = resolveGroups(rows, structural, schema, setTree, null, [], 'bottom', sub)
     const setA = groups.find((g) => g.key === 'setA')!
     expect(setA.kind).toBe('structural-set')
     expect(setA.children!.map((c) => ({ kind: c.kind, bucket: c.bucket }))).toEqual([
@@ -291,22 +308,22 @@ describe('sub-grouping (structural + sub_group)', () => {
     expect(groups.some((g) => g.key === 'setA1')).toBe(false)
   })
   it('composite keys keep collapse per-set', () => {
-    const groups = resolveGroups(rows, sub, schema, setTree, null, [subGroupKey('setA', 'todo')], 'bottom')
+    const groups = resolveGroups(rows, structural, schema, setTree, null, [subGroupKey('setA', 'todo')], 'bottom', sub)
     const setA = groups.find((g) => g.key === 'setA')!
     const setB = groups.find((g) => g.key === 'setB')!
     expect(setA.children!.find((c) => c.bucket === 'todo')!.isCollapsed).toBe(true)
     expect(setB.children!.find((c) => c.bucket === 'todo')!.isCollapsed).toBe(false)
   })
   it('manual sub-order is global; no-value pages sit per-set placed by the knob; loose root pages stay one flat tail', () => {
-    const manual = { ...sub, sub_group: { ...sub.sub_group, order_mode: 'manual' as const, order: ['done', 'todo'] } }
-    const groups = resolveGroups(rowsWithNoValueAndLoose, manual, schema, setTree, null, [], 'top')
+    const manual = { ...sub, order_mode: 'manual' as const, order: ['done', 'todo'] }
+    const groups = resolveGroups(rowsWithNoValueAndLoose, structural, schema, setTree, null, [], 'top', manual)
     const setA = groups.find((g) => g.key === 'setA')!
     expect(setA.children![0]).toMatchObject({ kind: 'ungrouped', key: subGroupKey('setA', UNGROUPED) }) // top placement
     expect(setA.children!.filter((c) => c.kind === 'property').map((c) => c.bucket)).toEqual(['done', 'todo'])
     expect(groups[0]).toMatchObject({ kind: 'ungrouped', key: UNGROUPED }) // loose tail at top, un-bucketed
   })
   it('sorts within each sub-bucket (E-4 obligation 3)', () => {
-    const groups = resolveGroups(unsortedRows, sub, schema, setTree, titleSorter, [], 'bottom')
+    const groups = resolveGroups(unsortedRows, structural, schema, setTree, titleSorter, [], 'bottom', sub)
     const bucket = groups.find((g) => g.key === 'setA')!.children![0]
     expect(bucket.items.map((r) => r.title)).toEqual(['Alpha', 'Beta'])
   })
@@ -339,31 +356,16 @@ function structuralSubGrouped(
 ): ResolvedGroup[] {
   const def = schema.find((d) => d.id === sub.property_id)
   const granularity = sub.date_granularity ?? 'month'
-  const rootRows: ViewRow[] = []
   const subtreeIds = (node: SetTreeNode): string[] => [node.id, ...node.children.flatMap(subtreeIds)]
-  const byParent = new Map<string, ViewRow[]>()
-  for (const r of rows) {
-    if (r.parentSetId === undefined) rootRows.push(r)
-    else {
-      const arr = byParent.get(r.parentSetId)
-      if (arr) arr.push(r)
-      else byParent.set(r.parentSetId, [r])
-    }
-  }
+  const byParent = groupRows(rows, (r) => r.parentSetId)
+  const rootRows = byParent.get(undefined) ?? []
   const groups: ResolvedGroup[] = setTree.map((node) => {
     const pages = subtreeIds(node).flatMap((id) => byParent.get(id) ?? [])
-    const buckets = new Map<string, ViewRow[]>()
-    const noValue: ViewRow[] = []
-    for (const r of pages) {
-      const key = bucketKey(r, sub.property_id, schema, granularity)
-      if (key === null) noValue.push(r)
-      else {
-        const arr = buckets.get(key)
-        if (arr) arr.push(r)
-        else buckets.set(key, [r])
-      }
-    }
-    const order = bucketOrder({ order_mode: sub.order_mode, order: sub.order } as PropertyGroup, def, new Set(buckets.keys()))
+    const byBucket = groupRows(pages, (r) => bucketKey(r, sub.property_id, schema, granularity))
+    const noValue = byBucket.get(null) ?? []
+    byBucket.delete(null)
+    const buckets = byBucket as Map<string, ViewRow[]>
+    const order = bucketOrder({ order_mode: sub.order_mode, order: sub.order }, def, new Set(buckets.keys()))
     let children: ResolvedGroup[] = order.flatMap((b) => {
       const items = buckets.get(b)
       if (!items) return []
@@ -388,13 +390,12 @@ function structuralSubGrouped(
 ```
 Note `bucketOrder`'s first param only reads `order_mode`/`order` — loosen its param to `Pick<PropertyGroup, 'order_mode' | 'order'>` (no cast), and **add `export` to it** — Task 9's Custom list imports it (DRY; no replication in the pane).
 
-Route it in `resolveGroups`'s `default:` (structural) arm:
+Route it in `resolveGroups`, which gains the trailing param `subGroup?: SubGroupConfig` (passed by resolveView only under structural grouping — Task 3), in the `default:` (structural) arm:
 ```ts
     default: {
-      const sub = group?.kind === 'structural' ? group.sub_group : undefined
-      const t = sub ? declaredType(sub.property_id, schema) : undefined
-      if (sub && t !== undefined && GROUPABLE.has(t))
-        return structuralSubGrouped(rows, setTree, sub, schema, sorter, collapsedSet, placement)
+      const t = subGroup ? declaredType(subGroup.property_id, schema) : undefined
+      if (subGroup && t !== undefined && GROUPABLE.has(t))
+        return structuralSubGrouped(rows, setTree, subGroup, schema, sorter, collapsedSet, placement)
       return structural(rows, setTree, sorter, collapsedSet, placement)
     }
 ```
@@ -491,8 +492,8 @@ Then in `GroupHeader.tsx`:
   const propId =
     view.group?.kind === 'property'
       ? view.group.property_id
-      : view.group?.kind === 'structural'
-        ? view.group.sub_group?.property_id
+      : view.group?.kind !== 'flat'
+        ? view.sub_group?.property_id
         : undefined
   if (!propId) return <span className="group-name">{group.key}</span>
   const value = group.bucket ?? group.key
@@ -505,7 +506,7 @@ Use `value` (not `group.key`) in the `findOption(propId, value, ...)` call, the 
       const icon = asRenderableIcon(def?.icon)
       const style = view.column_styles?.[propId]
       const granularity =
-        (view.group?.kind === 'property' ? view.group.date_granularity : view.group?.sub_group?.date_granularity) ?? 'month'
+        (view.group?.kind === 'property' ? view.group.date_granularity : view.sub_group?.date_granularity) ?? 'month'
       const label = formatBucketLabel(value, granularity, style?.date_format ?? 'full', view.date_separator ?? 'dash')
       return (
         <span className="group-name">
@@ -529,7 +530,7 @@ git commit -m "feat(table): formatted date group headings, sub-group band glyphs
 
 ### Task 6: Table Writes — Drop-Router Mode Branch + Sub-Order Writes
 
-C-1c: same-parent structural reorder gates on `order_mode` (Location → `reorderChildren` fs write; Custom → `group_order` as today; cross-tree reparent ALWAYS writes `group_order` after `moveSet`, every mode). F-1: sub-group bucket drag (manual mode only) writes the global `sub_group.order`.
+C-1c: same-parent structural reorder gates on the view-level `structural_order_mode` (Location → `reorderChildren` fs write; Custom → `group_order` as today; cross-tree reparent ALWAYS writes `group_order` after `moveSet`, every mode). F-1: sub-group bucket drag (manual mode only) writes the global view-level `sub_group.order`.
 
 **Files:**
 - Modify: `Pommora/src/renderer/src/Detail/Views/Table/TableView.tsx` (`onBandDrop`, ~L335–370)
@@ -538,24 +539,24 @@ C-1c: same-parent structural reorder gates on `order_mode` (Location → `reorde
 - [ ] **Step 1: Failing tests** — follow the file's existing harness (it mounts TableView with a stubbed `window.nexus` and asserts on `views.save` / `mutate` payloads):
 ```ts
 it('location mode: same-parent band reorder writes reorderChildren, not group_order', async () => {
-  // view.group = { kind: 'structural', order_mode: 'location' }; drag setB before setA (both root)
+  // view: { group: { kind: 'structural' }, structural_order_mode: 'location' }; drag setB before setA (both root)
   // assert mutate called with { op: 'reorderChildren', parentPath: source.path, key: 'set_order', order: ['setB', 'setA'] }
   // assert views.save NOT called with a group_order change
 })
 it('location mode: cross-tree reparent still writes group_order after moveSet (slot preservation)', async () => {
-  // existing reparent fixture + order_mode: 'location' — both writes still fire
+  // existing reparent fixture + structural_order_mode: 'location' — both writes still fire
 })
-it('sub-group bucket drag in manual mode writes global sub_group.order', async () => {
-  // view.group = { kind: 'structural', sub_group: { property_id, order_mode: 'manual' } }
+it('sub-group bucket drag in manual mode writes the view-level global sub_group.order', async () => {
+  // view: { group: { kind: 'structural' }, sub_group: { property_id, order_mode: 'manual' } }
   // drag bucket band `${setA}/done` before `${setA}/todo`
-  // assert views.save payload group.sub_group.order = ['done', 'todo']
+  // assert views.save payload sub_group.order = ['done', 'todo']
 })
 it('CROSS-SET bucket drag (arrives as reparent) still writes the global sub-order', async () => {
   // drag `${setA}/done` into setB's region before `${setB}/todo` → drop kind 'reparent'
-  // assert views.save payload group.sub_group.order = ['done', 'todo'] — no moveSet fires
+  // assert views.save payload sub_group.order = ['done', 'todo'] — no moveSet fires
 })
 it('sub-group bucket drag outside manual mode is inert', async () => {
-  // order_mode: 'configured' — no save fires
+  // sub_group.order_mode: 'configured' — no save fires
 })
 ```
 
@@ -570,29 +571,21 @@ Property-band branch (L335–345) extends to the sub-group home:
         if (drop.kind !== 'reorder') return
         /* existing top-level body (present/order/commitBand) unchanged — only its guard moved up */
       }
-      if (liveView.group?.kind === 'structural' && liveView.group.sub_group) {
+      if (liveView.group?.kind !== 'property' && liveView.sub_group) {
         // F-1: global sub-order, manual mode only — dragging one set's bucket reorders it everywhere.
         // A CROSS-SET bucket drag arrives as kind 'reparent' (bandDnd routes by impliedParentId —
         // bandDnd.tsx:180-182), and it's STILL a global reorder: resolve the target position from
         // drop.beforeId's bucket value (null = append), ignore targetParentId entirely.
-        if (liveView.group.sub_group.order_mode !== 'manual') return
-        const bucketOf = (key: string): string | undefined => {
-          const find = (gs: ResolvedGroup[]): string | undefined => {
-            for (const g of gs) {
-              if (g.key === key) return g.bucket
-              const hit = g.children ? find(g.children) : undefined
-              if (hit !== undefined) return hit
-            }
-            return undefined
-          }
-          return find(groups)
-        }
-        const draggedBucket = bucketOf(draggedId)
-        const beforeBucket = drop.beforeId === null ? null : (bucketOf(drop.beforeId) ?? null)
+        if (liveView.sub_group.order_mode !== 'manual') return
+        // Build the key→bucket map ONCE per drop (never a recursive find per lookup — the no-walk-per-X rule).
+        const bucketByKey = new Map(
+          groups.flatMap((g) => (g.children ?? []).flatMap((c) => (c.bucket !== undefined ? [[c.key, c.bucket] as const] : [])))
+        )
+        const draggedBucket = bucketByKey.get(draggedId)
+        const beforeBucket = drop.beforeId === null ? null : (bucketByKey.get(drop.beforeId) ?? null)
         if (draggedBucket === undefined) return
-        const present = [...new Set(groups.flatMap((g) => (g.children ?? []).flatMap((c) => (c.bucket !== undefined ? [c.bucket] : []))))]
-        const sub_group = { ...liveView.group.sub_group, order: propertyOrderAfterDrop(present, draggedBucket, beforeBucket) }
-        commitBand({ group: { ...liveView.group, sub_group } })
+        const present = [...new Set(bucketByKey.values())]
+        commitBand({ sub_group: { ...liveView.sub_group, order: propertyOrderAfterDrop(present, draggedBucket, beforeBucket) } })
       }
       return
     }
@@ -602,7 +595,7 @@ Property-band branch (L335–345) extends to the sub-group home:
 Structural reorder branch (L347–349) gates on mode:
 ```ts
     if (drop.kind === 'reorder') {
-      if (liveView.group?.kind === 'structural' && liveView.group.order_mode === 'location') {
+      if (liveView.group?.kind !== 'property' && liveView.group?.kind !== 'flat' && liveView.structural_order_mode === 'location') {
         // C-1c: Location mode — the reorder IS the filesystem write; group_order stays untouched.
         const parentId = dragged.parentId
         const parentPath = parentId === null ? source.path : setPaths.get(parentId)
@@ -620,7 +613,7 @@ Notes for the implementer: `childIdsOf` already exists below (L351–358) — ho
 
 The reparent branch (L366–369) is UNTOUCHED — it writes `group_order` in every mode by design (C-1c slot preservation).
 
-- [ ] **Step 4: The F-2 row drop — net-new dual-mutation, scoped honestly.** The cross-group row-drop orchestration is INLINE in `TableView.tsx` (`reassignRow` ~L980 + `reorderTo` ~L999; `groupKeyToValue` from `reassign.ts` is a pure value mapper — REUSED, not extended). **Blast radius first:** the `groupPropId` / `groupPropType` / `canReassign` cluster (`TableView.tsx:259-261`) is property-mode-only — it must gain the sub-group branch (`liveView.group.kind === 'structural' && liveView.group.sub_group` → resolve from `sub_group.property_id`), or `reassignRow` early-returns (`L982`) and the whole F-2 reassignment half silently no-ops. `reassignRow` also needs the destination BUCKET value (from the composite key), not the composite key itself. No cross-set row move exists today, so this is new branching in that handler for the sub-group case: resolve the target bucket band's parent SET id from its composite key's ResolvedGroup ancestry, then (a) different set + different bucket → `movePage` into that set's path AND `setProperty` via `groupKeyToValue`; (b) same set, different bucket → `setProperty` alone (existing semantic); (c) different set, same bucket → `movePage` alone. Write the three cases as TableView-level tests in `bandCommits.test.tsx`'s harness style (it asserts mutate payloads; `reassign.test.ts` stays a pure mapper test), run failing, implement.
+- [ ] **Step 4: The F-2 row drop — net-new dual-mutation, scoped honestly.** The cross-group row-drop orchestration is INLINE in `TableView.tsx` (`reassignRow` ~L980 + `reorderTo` ~L999; `groupKeyToValue` from `reassign.ts` is a pure value mapper — REUSED, not extended). **Blast radius first:** the `groupPropId` / `groupPropType` / `canReassign` cluster (`TableView.tsx:259-261`) is property-mode-only — it must gain the sub-group branch (structural grouping + `liveView.sub_group` → resolve from `liveView.sub_group.property_id`), or `reassignRow` early-returns (`L982`) and the whole F-2 reassignment half silently no-ops. `reassignRow` also needs the destination BUCKET value (from the composite key), not the composite key itself. No cross-set row move exists today, so this is new branching in that handler for the sub-group case: resolve the target bucket band's parent SET id from its composite key's ResolvedGroup ancestry, then (a) different set + different bucket → `movePage` into that set's path AND `setProperty` via `groupKeyToValue`; (b) same set, different bucket → `setProperty` alone (existing semantic); (c) different set, same bucket → `movePage` alone. Write the three cases as TableView-level tests in `bandCommits.test.tsx`'s harness style (it asserts mutate payloads; `reassign.test.ts` stays a pure mapper test), run failing, implement.
 
 - [ ] **Step 5:** `npx vitest run src/renderer/src/Detail/Views/Table/` then the full suite → PASS; typecheck clean.
 
@@ -690,8 +683,8 @@ The pane skeleton: header, the value-row stack (B-1/C-7/C-8), the Group By verti
 - Modify: `Pommora/src/renderer/src/Components/Detail/SettingsPane.tsx:167-169` (route `group`); `Pommora/src/renderer/src/Components/Detail/ViewSettings.tsx` (route its Group leaf, ~L134)
 
 **Interfaces:**
-- Consumes: `pickView` (SettingsPane already imports it), `saveViewAdopting(containerPath, kind, view)` from `Detail/Views/viewMint`, `MenuItem/MenuSeparator/MenuPaneTopRow` + `detail`/`side`/`flushTrailing` classes, `Reveal`, `PickerMenu`/`PickerOption`, `GROUPABLE`-equivalent filtering via `declaredType`.
-- Produces: `GroupingPane({ source, view, schema, onBack }): JSX` — `source: CollectionNode | SetNode`.
+- Consumes: `pickView` (SettingsPane already imports it), `saveViewAdopting(source, view, refetch)` from `Detail/Views/viewMint` (`viewMint.ts:40`), `MenuItem/MenuSeparator/MenuPaneTopRow` + `detail`/`side`/`flushTrailing` classes, `Reveal`, `PickerMenu`/`PickerOption`, `GROUPABLE`-equivalent filtering via `declaredType`.
+- Produces: `GroupingPane({ source, view, schema, label, onBack }): JSX` — `source: CollectionNode | SetNode`.
 
 - [ ] **Step 1: Component core** (complete structure; visual classes follow SettingsPane's leaf idiom):
 ```tsx
@@ -716,7 +709,8 @@ export function GroupingPane({ source, view, schema, label, onBack }: {
   view: SavedView
   schema: PropertyDefinition[]
   /** The back-destination breadcrumb — 'Settings' from SettingsPane, 'Views' from the ViewSettings
-   *  full door (matches VisibilityList's label/current pattern). */
+   *  full door (matches the label/current pattern of VisibilityList, which lives in HiddenPane.tsx —
+   *  there is no VisibilityList.tsx file). */
   label: string
   onBack: () => void
 }): React.JSX.Element {
@@ -732,11 +726,12 @@ export function GroupingPane({ source, view, schema, label, onBack }: {
   const activeDef = group.kind === 'property' ? schema.find((d) => d.id === group.property_id) : undefined
   const groupByLabel = structural ? 'Location' : (activeDef?.name ?? 'Location')
 
+  // E-3 preservation is free: structural_order_mode / sub_group are VIEW-level, so switching the
+  // one group slot never touches them — flip back to Location and they're still in force.
   const pickGroupBy = (target: 'location' | PropertyDefinition): void => {
     setGroupByOpen(false)
     if (target === 'location') {
-      // E-3: preserved fields (order_mode / sub_group) restore on the flip back.
-      saveGroup(group.kind === 'structural' ? group : { kind: 'structural' })
+      saveGroup({ kind: 'structural' })
       return
     }
     saveGroup({ kind: 'property', property_id: target.id, order_mode: 'configured', empty_placement: view.ungrouped_placement ?? 'bottom', hide_empty_groups: false })
@@ -758,17 +753,22 @@ export function GroupingPane({ source, view, schema, label, onBack }: {
       {!groupByOpen && (
         <>
           {group.kind === 'property' && declaredType(group.property_id, schema) === 'datetime' && (
-            <DateByRow value={group.date_granularity ?? 'month'} onPick={(g) => saveGroup({ ...group, date_granularity: g })} />
+            <ValueRow tier="primary" icon="calendar" label="Date By" value={group.date_granularity ?? 'month'}
+              options={GRANULARITY_OPTIONS} onPick={(g) => saveGroup({ ...group, date_granularity: g })} />
           )}
-          <OrderRow group={group} view={view} onSave={saveGroup} onSaveView={save} />
+          {/* Order row: a ValueRow call — structural writes save({ structural_order_mode }), property
+              writes saveGroup({ ...group, order_mode }) per the D-10 label↔mode maps. */}
           {group.kind === 'structural' && (
             <>
-              <SubGroupRow group={group} groupable={groupable} schema={schema} onSave={saveGroup} />
-              {group.sub_group && declaredType(group.sub_group.property_id, schema) === 'datetime' && (
-                <DateByRow value={group.sub_group.date_granularity ?? 'month'}
-                  onPick={(g) => saveGroup({ ...group, sub_group: { ...group.sub_group!, date_granularity: g } })} />
+              <SubGroupRow subGroup={view.sub_group} groupable={groupable} onSave={(sg) => save({ sub_group: sg })} />
+              {view.sub_group && declaredType(view.sub_group.property_id, schema) === 'datetime' && (
+                <ValueRow tier="primary" icon="calendar" label="Date By" value={view.sub_group.date_granularity ?? 'month'}
+                  options={GRANULARITY_OPTIONS} onPick={(g) => save({ sub_group: { ...view.sub_group!, date_granularity: g } })} />
               )}
-              {group.sub_group && <SubOrderRow group={group} schema={schema} onSave={saveGroup} />}
+              {view.sub_group && (
+                <ValueRow tier="sub" label="Order" value={view.sub_group.order_mode} options={orderOptionsFor(view.sub_group, schema)}
+                  onPick={(m) => save({ sub_group: { ...view.sub_group!, order_mode: m } })} />
+              )}
             </>
           )}
           <MenuSeparator flush />
@@ -781,11 +781,10 @@ export function GroupingPane({ source, view, schema, label, onBack }: {
 }
 ```
 Supporting pieces in the same file — write these fully:
-- `ValueRow({ tier, icon, label, value, onClick, pickerRef? })` — a `MenuItem` with `className={flushTrailing}`, trailing `<span className={side}><span className={detailText}>{value}</span><Icon name="chevrons-up-down" size={12}/></span>`. `tier: 'primary' | 'sub'` — `sub` renders the label through a new pair of classes added to a small `groupingPane.css.ts` (label-secondary + Control-Emphasized + a reduced top-margin knob, all via tokens; C-8's "slightly reduced padding" is the tunable knob — name it `--grouping-suborder-gap`).
-- `OrderRow` — a `ValueRow tier="sub"` whose click opens a self-managed `PickerMenu` (state + `triggerRef` on the row, per the DatetimeCellPicker idiom). Options by kind (D-10): structural → Custom/Location (writes `order_mode: 'custom' | 'location'`); property select/status → Default/Reversed/Custom (`order_mode: 'configured' | 'reversed' | 'manual'`); property datetime → Ascending/Descending (`configured` / `reversed`). Labels ↔ mode maps live as consts.
-- `SubGroupRow` — `ValueRow tier="primary" icon="layers" label="Sub-Group"`, PickerMenu of Location + `groupable` (C-4: empty schema ⇒ Location alone). Picking Location deletes `sub_group` (`const { sub_group: _drop, ...rest } = group; onSave(rest)`); picking a property writes `sub_group: { property_id: d.id, order_mode: 'configured' }`.
-- `SubOrderRow` — the sub-group's `ValueRow tier="sub"` Order (same option logic keyed off the sub-group property's type, writing `sub_group.order_mode`).
-- `DateByRow` — `ValueRow tier="primary"` labeled `Date By`, PickerMenu over `GRANULARITY_LABELS`.
+- **ONE generic picker row, not five components** (the `DateTimeEditor.tsx:25` `PickerRow` idiom — a labeled row whose click opens a self-managed `PickerMenu` over a `{value, label}[]` list; generalize/export that one or mirror it here): `ValueRow<T extends string>({ tier, icon?, label, value, options, onPick })` — a `MenuItem` with `className={flushTrailing}`, trailing `<span className={side}><span className={detailText}>{currentLabel}</span><Icon name="chevrons-up-down" size={12}/></span>`. `tier: 'primary' | 'sub'` — `sub` renders the label through a new pair of classes in `groupingPane.css.ts` (label-secondary + Control-Emphasized + a reduced top-margin knob via tokens; C-8's "slightly reduced padding" — name it `--grouping-suborder-gap`). The Order rows, Sub-Order row, and Date By row are then CALLS with per-row option consts (D-10 maps: structural → Custom/Location ↔ `order_mode: 'custom' | 'location'`; select/status → Default/Reversed/Custom ↔ `configured/reversed/manual`; datetime → Ascending/Descending ↔ `configured/reversed`; `GRANULARITY_LABELS` for Date By) — not separate components.
+- The Group By row is the same `MenuItem` shell with `onClick` toggling the disclosure (no picker).
+- `SubGroupRow` stays its own small component — its pick genuinely branches (Location clears the view-level field: `onSave(undefined)`, and JSON serialization drops the key on disk; a property writes `{ property_id: d.id, order_mode: 'configured' }`), which the generic row doesn't model. Options: Location + `groupable` (C-4: empty schema ⇒ Location alone).
+- `orderOptionsFor` + the D-10 label↔mode consts and `GRANULARITY_OPTIONS` (`{value, label}[]` form of `GRANULARITY_LABELS`) live as module consts/helpers.
 
 - [ ] **Step 2: Wire both doors.** SettingsPane's Group entry already routes to its `blankLeaf` fall-through (`SettingsPane.tsx:150-169`) — insert a branch before it (keep filter/sort blank):
 ```tsx
