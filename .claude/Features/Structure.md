@@ -86,6 +86,6 @@ The read side is one eager, read-only walk producing a pre-ordered `NexusTree` �
 
 ### Pending
 
-**Homepage Block Surface:** The composed-blocks dashboard — embedded views, linked-content widgets, a mini-calendar — sharing the editor that Contexts will use. The Homepage renders only its banner under the Nexus header until that editor lands.
+**Homepage Block Surface:** The composed-blocks dashboard — embedded views, linked-content widgets, a mini-calendar — sharing the editor that Contexts will use. The Homepage renders only its banner until that editor lands.
 
 **Settings Editing UI:** The `personalization` block has a write path — a generic setter plus a live apply-map — but no UI yet, so accent, connection color, and the interface toggles are set in `.nexus/settings.json` directly for now; labels and profile are likewise hand-edited. A real settings surface — accent picker, toggle rows, label rename forms, tier-label configuration — is planned. Full config model + the planned editor → `Configuration.md`.

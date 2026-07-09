@@ -22,9 +22,9 @@ There's no `parents` field and no containment. The folder name is the title — 
 
 #### II. Sidebar
 
-The three tiers surface as three disclosure rows, top to bottom Areas → Topics → Projects. A tier row is a structural disclosure — never selectable, open by default, and clicking it toggles its own disclosure only. Each tier's entities render as flat, draggable leaf rows inside it, reordered within the tier. All three tiers' entities use the grid icon.
+In the sidebar's **Contexts mode** (opened from the ribbon), the three tiers surface as three disclosure rows, top to bottom Areas → Topics → Projects. A tier row is a structural disclosure — never selectable, open by default, and clicking it toggles its own disclosure only. Each tier's entities render as flat, draggable leaf rows inside it, reordered within the tier. All three tiers' entities use the grid icon.
 
-Tier labels read from the per-Nexus label settings. Creation is the Contexts header's hover "+" (a picker offering New Area / Topic / Project) or a right-click, each path scoped to its own tier. Full sidebar layout → `Sidebar.md`.
+Tier labels read from the per-Nexus label settings. Creation is a right-click in the Contexts mode area — a native picker offering New Area / Topic / Project, each scoped to its own tier. Full sidebar layout → `Sidebar.md`.
 
 #### II. Cross-Layer Relations
 

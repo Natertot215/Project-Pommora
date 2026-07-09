@@ -51,11 +51,11 @@ A chip's color is the picked base solid at fixed opacities — a heavier fill, a
 
 #### Labels
 
-Text color is separate from surface color: three label tones — primary, secondary, tertiary — are one near-white base at descending opacities. A fourth, **control** (primary at 80%), is the chrome-glyph tint (toolbar clusters, editor markers) — one global `:root` `--label-control`. (Also in `Typography.md`.)
+Text color is separate from surface color: three label tones — primary, secondary, tertiary — are one near-white base at descending opacities. A fourth, **control** (primary at a high fixed opacity), is the chrome-glyph tint (toolbar clusters, editor markers) — one global `:root` `--label-control`. (Also in `Typography.md`.)
 
 ### Glass
 
-Two recipes in `materials/`. **Window** (the sidebar + the inspector frame), **Surface** (panels / popovers), and **Pane** (`GlassPane`, the dropdown shell) share the **frost** recipe — blur plus a slight dimming of what's behind, the drop shadow from the one `--shadow-standard` token. The **liquid** recipe is Apple **"Liquid Glass"** via `@samasante/liquid-glass` (a real `feDisplacementMap` edge-refraction over the live app), in two slots: **`GlassControls`** (the toolbar segmented buttons + the autocomplete panel), tuned as `CONTROL_OPTICS` in `materials/glass-controls.tsx`; and **`GlassSegment`** for small on-controls like the switch knob — the same liquid at full brightness + zero depth (`{...CONTROL_OPTICS, brightness: 0, depth: 0}`, spread from `GlassControls` so the optics stay one source). Layout (size / position / radius) is always the consumer's.
+Two recipes in `materials/`. **Window** (the sidebar + the inspector frame), **Surface** (panels / popovers), and **Pane** (`GlassPane`, the dropdown shell) share the **frost** recipe — blur plus a slight dimming of what's behind, the drop shadow from the one `--shadow-standard` token. The **liquid** recipe is Apple **"Liquid Glass"** via `@samasante/liquid-glass` (a real `feDisplacementMap` edge-refraction over the live app), in two slots: **`GlassControls`** (the toolbar segmented buttons + the autocomplete panel), tuned as `CONTROL_OPTICS` in `materials/glass-controls.tsx`; and **`GlassSegment`** for small on-controls like the switch knob — the same liquid at full brightness with its depth zeroed, spread from `GlassControls`' optics so the two stay one source. Layout (size / position / radius) is always the consumer's.
 
 **Voiding Liquid Glass can't be done in place** — its `backdrop-filter` displacement is a dynamically-generated SVG filter id CSS can neither reconstruct nor interpolate. So the inspector "swallow" (the trio's glass fading as the pane absorbs it) renders the pill as a **two-layer** control — a fading glass layer behind a solid bare-button layer (`Toolbar/ToolbarTrio`), rather than fading one fused control. → `History.md`.
 
@@ -63,7 +63,7 @@ Two recipes in `materials/`. **Window** (the sidebar + the inspector frame), **S
 
 ### Icons
 
-A curated icon registry: an icon is listed by name in the registry manifest and only listed icons bundle (tree-shaken). Used as `<Icon name="…" />`. SF Symbols remain the Figma design reference only — they can't ship on web.
+Icons are **Lucide** (`lucide-react`), rendered as `<Icon name="…" />`. The `design-system/symbols` registry is the **curated semantic vocabulary** — the named glyphs the app reaches for by role — while the **Icon Picker** opens the *entire* Lucide set for an arbitrary pick, stored as its bare kebab id and resolved by the same `Icon` component (curated → full set → a dashed-square fallback). `@tabler/icons-react` is a second source, pulled per-glyph where Lucide lacks one. Full spec → `Icons.md`.
 
 ### Showcase
 
@@ -71,7 +71,7 @@ A data-driven design-system site (`npm run showcase`): color groups, type, chips
 
 ### Components
 
-The reusable pieces mirror the Figma library — **Button · Label · Menu · Menu Header · Separator** — each consuming semantic tokens, built one at a time. The **Chip** tint, the **icon** system, the **Menu** rows, the **Segmented** control, and the **Switch** (`components/Switches/`, the Figma toggle on `GlassSegment`) already ship.
+The reusable pieces mirror the Figma library — one folder per component, each consuming **semantic tokens only**, built one at a time. This doc governs the tokens and materials they consume, not the roster; a component's own behaviour lives in its spec (motion → `Interaction.md`; the editor → `MarkdownPM.md`; the table → `TableView.md`).
 
 ### Not Yet Tokenized
 

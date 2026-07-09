@@ -25,7 +25,7 @@ Every `settings.json` write funnels through one per-file serialize lock (the sam
 
 ### Labels (per-Nexus)
 
-Every entity kind carries a **renameable display label** in `settings.json` (`labels.*`, synced) — the code identity is fixed, the shown name is the user's. Each is a **LabelPair** (singular + plural): the sidebar section headers derive from the plurals, and the deeper-Set label is derived as `"Sub-" + Set.singular`, never stored. A partial or absent `labels` blob falls back per field, so an unset name still resolves to its default. Each of these pairs can have both their singular and plural identification labels renamed on the user-facing level -- their code-facing names adhere to these defaults regardless. 
+Every entity kind carries a **renameable display label** in `settings.json` (`labels.*`, synced) — the code identity is fixed, the shown name is the user's. Each is a **LabelPair** (singular + plural): the sidebar's tier disclosure labels (Areas / Topics / Projects) derive from the plurals, and the deeper-Set label is derived as `"Sub-" + Set.singular`, never stored. A partial or absent `labels` blob falls back per field, so an unset name still resolves to its default. Each of these pairs can have both their singular and plural identification labels renamed on the user-facing level -- their code-facing names adhere to these defaults regardless. 
 
 Seven pairs, defaulting to:
 
