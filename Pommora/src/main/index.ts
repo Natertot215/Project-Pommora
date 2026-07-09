@@ -69,7 +69,6 @@ import { popViewItemMenu, type ViewItemMenuAction } from './viewItemMenu'
 import { popViewRowMenu, type ViewRowMenuAction } from './viewRowMenu'
 import { popViewFormatMenu } from './viewFormatMenu'
 import { popOpenInMenu } from './openInMenu'
-import { popValueMenu } from './valueMenu'
 import type { ViewButton, ViewStyle, OpenIn } from '@shared/types'
 import type { ViewFormat } from '@shared/views'
 import { installEditorContextMenu, setFormatState, setCalloutGrip } from './editorMenu'
@@ -1172,14 +1171,6 @@ ipcMain.handle('open-in-menu', async (e, current: unknown): Promise<OpenIn | nul
   const win = BrowserWindow.fromWebContents(e.sender)
   if (!win) return null
   return popOpenInMenu(win, current === 'page-preview' ? 'page-preview' : 'full-page')
-})
-
-// Generic value-pick radio menu (Grouping pane footings) — labels in, picked label (or null) out.
-ipcMain.handle('value-menu', async (e, options: unknown, current: unknown): Promise<string | null> => {
-  const win = BrowserWindow.fromWebContents(e.sender)
-  if (!win || !Array.isArray(options)) return null
-  const labels = options.filter((o): o is string => typeof o === 'string')
-  return popValueMenu(win, labels, typeof current === 'string' ? current : '')
 })
 
 // Pop a native single-item "Add Photo" menu; on click open the image picker and resolve the

@@ -10,6 +10,13 @@ import { useSession } from '../../store'
 import { GroupingPane } from './GroupingPane'
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
+class ResizeObserverStub {
+  observe(): void {}
+  unobserve(): void {}
+  disconnect(): void {}
+}
+;(globalThis as { ResizeObserver?: unknown }).ResizeObserver = ResizeObserverStub
+
 const statusDef: PropertyDefinition = {
   id: 'prop_status',
   name: 'Status',
@@ -167,12 +174,15 @@ describe('GroupingPane rows', () => {
     expect(texts()).toContain('Separation')
   })
 
-  it('the Ungrouped footing writes ungrouped_placement through the native value menu', async () => {
-    ;(window as unknown as { nexus: { valueMenu: unknown } }).nexus.valueMenu = vi.fn(async () => 'Top')
+  it('the Ungrouped footing writes ungrouped_placement through its picker', async () => {
     await mount(view())
-    const row = [...host.querySelectorAll('*')].find((el) => el.textContent === 'Ungrouped')
+    const trigger = host.querySelector('button[aria-label="Ungrouped"]') as HTMLElement
     await act(async () => {
-      ;(row!.closest('[class]') as HTMLElement).click()
+      trigger.click()
+    })
+    const top = [...document.querySelectorAll('button')].find((el) => el.textContent === 'Top')
+    await act(async () => {
+      top!.click()
     })
     expect(lastSaved().ungrouped_placement).toBe('top')
   })

@@ -1,9 +1,10 @@
 // The Grouping pane's row-tier knobs. Primary rows (Group By / Sub-Group / Date By) read the
 // MenuItem default (Body, label-primary); a subordinate Order row reads a step quieter and
 // tucks toward its parent so the pair reads grouped (C-8).
-import { style } from '@vanilla-extract/css'
+import { globalStyle, style } from '@vanilla-extract/css'
 import { vars as colorVars } from '../../design-system/tokens/color.css'
 import { text } from '../../design-system/tokens/typography.css'
+import { value as pickerValue } from './pickerControl.css'
 
 const c = colorVars.color
 
@@ -41,8 +42,13 @@ export const railRow = style({
  *  step LARGER than the menus' Footnote detail so the pane's lead value reads at full strength. */
 export const groupByValue = style([
   text.control.standard,
-  { color: c.label.secondary, display: 'inline-flex', alignItems: 'center', gap: '4px' }
+  { color: c.label.control, display: 'inline-flex', alignItems: 'center', gap: '4px' }
 ])
+
+/** Scope class for the pane's rows: every grouping picker's value reads label-control, a step
+ *  brighter than the shared PickerControl's secondary (triple-class to outrank its `&&`). */
+export const pickerTone = style({})
+globalStyle(`${pickerTone} ${pickerValue}${pickerValue}${pickerValue}`, { color: c.label.control })
 
 /** KNOB — the middle region's scroll ceiling. */
 const MIDDLE_MAX_HEIGHT = '280px'

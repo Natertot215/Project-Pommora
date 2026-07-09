@@ -29,6 +29,9 @@ const PROPERTY_TYPES: Record<PropertyType, TypeMeta> = {
 
 export const propertyTypeLabel = (type: PropertyType): string => PROPERTY_TYPES[type].label
 
+/** The type's standard glyph name — for pickers that list properties by their real icon. */
+export const propertyTypeIconName = (type: PropertyType): IconName | undefined => PROPERTY_TYPES[type].icon
+
 export const CREATABLE_TYPES = (Object.keys(PROPERTY_TYPES) as PropertyType[]).filter(
   (t) => PROPERTY_TYPES[t].creatable
 )

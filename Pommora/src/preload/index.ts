@@ -91,8 +91,6 @@ const api = {
     ipcRenderer.invoke('view-format-menu', current),
   // The Configuration Open In native menu (Full Page / Preview).
   openInMenu: (current: OpenIn): Promise<OpenIn | null> => ipcRenderer.invoke('open-in-menu', current),
-  // Generic value-pick radio menu (Grouping pane footings) — labels in, picked label (or null) out.
-  valueMenu: (options: string[], current: string): Promise<string | null> => ipcRenderer.invoke('value-menu', options, current),
   // The icon picker's right-click Favorite/Remove menu — resolves 'toggle' on click, null on dismiss.
   iconFavoriteMenu: (favorited: boolean): Promise<'toggle' | null> => ipcRenderer.invoke('icon-favorite-menu', favorited),
   // Property schema CRUD on a Collection's page schema. containerPath is the schema-owning

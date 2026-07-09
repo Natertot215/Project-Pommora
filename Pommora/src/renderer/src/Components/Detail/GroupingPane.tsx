@@ -15,7 +15,7 @@ import type {
 } from '@shared/views'
 import { Icon, asRenderableIcon, defaultEntityIcon, iconNameOr, type IconName } from '@renderer/design-system/symbols'
 import { MenuItem, MenuSeparator, MenuPaneTopRow } from '../../design-system/components/menu'
-import { detail as detailText, flushTrailing, footingLabel, footingSymbol, side } from '../../design-system/components/menu/menu.css'
+import { flushTrailing, footingLabel, footingSymbol } from '../../design-system/components/menu/menu.css'
 import { Reveal } from '../../design-system/components/Reveal'
 import { saveViewAdopting } from '../../Detail/Views/viewMint'
 import { declaredType } from '../../Detail/Views/pipeline/value'
@@ -30,6 +30,7 @@ import { cx } from '../../design-system/cx'
 import { checkboxBoxStyle } from '../../Detail/Views/Table/checkboxLook'
 import { useSession } from '../../store'
 import { PickerControl, type PickerChoice } from './PickerControl'
+import { propertyTypeIconName } from './PropertyTypes'
 import { useGroupingListDrag, type GroupingDrop } from './groupingDnd'
 import * as gp from './groupingPane.css'
 
@@ -79,7 +80,7 @@ function ValueRow<T extends string>({
 }): React.JSX.Element {
   return (
     <MenuItem
-      className={tier === 'sub' ? `${flushTrailing} ${gp.subRow}` : flushTrailing}
+      className={tier === 'sub' ? `${flushTrailing} ${gp.subRow} ${gp.pickerTone}` : `${flushTrailing} ${gp.pickerTone}`}
       leading={icon ? <Icon name={icon} size={14} /> : undefined}
       trailing={<PickerControl ariaLabel={label} value={value} options={options} onPick={onPick} />}
     >
@@ -171,7 +172,7 @@ export function GroupingPane({
           {groupable.map((d) => (
             <MenuItem
               key={d.id}
-              leading={<Icon name={asRenderableIcon(d.icon) ?? 'tag'} size={13} />}
+              leading={<Icon name={asRenderableIcon(d.icon) ?? propertyTypeIconName(d.type) ?? 'tag'} size={13} />}
               trailing={group.kind === 'property' && group.property_id === d.id ? <Icon name="check" size={12} /> : undefined}
               onClick={() => pickGroupBy(d)}
             >
@@ -258,17 +259,23 @@ export function GroupingPane({
           <FootingPick
             icon="folder-minus"
             label="Ungrouped"
-            value={(view.ungrouped_placement ?? 'bottom') === 'top' ? 'Top' : 'Bottom'}
-            options={['Top', 'Bottom']}
-            onPick={(v) => save({ ungrouped_placement: v === 'Top' ? 'top' : 'bottom' })}
+            value={view.ungrouped_placement ?? 'bottom'}
+            options={[
+              { value: 'top', label: 'Top' },
+              { value: 'bottom', label: 'Bottom' }
+            ]}
+            onPick={(v) => save({ ungrouped_placement: v === 'top' ? 'top' : 'bottom' })}
           />
           {dateHeadingProp && NUMERIC_DATE_FORMATS.has(view.column_styles?.[dateHeadingProp]?.date_format ?? 'full') && (
             <FootingPick
               icon="type"
               label="Separation"
-              value={(view.date_separator ?? 'dash') === 'dash' ? 'Dash' : 'Slash'}
-              options={['Dash', 'Slash']}
-              onPick={(v) => save({ date_separator: v === 'Dash' ? 'dash' : 'slash' })}
+              value={view.date_separator ?? 'dash'}
+              options={[
+                { value: 'dash', label: 'Dash' },
+                { value: 'slash', label: 'Slash' }
+              ]}
+              onPick={(v) => save({ date_separator: v === 'dash' ? 'dash' : 'slash' })}
             />
           )}
           {group.kind === 'property' && (
@@ -297,8 +304,8 @@ export function GroupingPane({
 
 const NUMERIC_DATE_FORMATS = new Set(['dayMonthYear', 'monthDayYear'])
 
-/** A value footing — the ViewSettings Format-footer recipe exactly (footing icon + label, side
- *  cluster with the detail value + chevron), popping the NATIVE radio menu (C-9). */
+/** A value footing — the ViewSettings Format-footer look (footing icon + label) with the Order
+ *  rows' PickerControl as its trailing picker. */
 function FootingPick({
   icon,
   label,
@@ -309,30 +316,18 @@ function FootingPick({
   icon: React.ComponentProps<typeof Icon>['name']
   label: string
   value: string
-  options: string[]
+  options: PickerChoice<string>[]
   onPick: (v: string) => void
 }): React.JSX.Element {
   return (
     <MenuItem
-      className={flushTrailing}
+      className={`${flushTrailing} ${gp.pickerTone}`}
       leading={
         <span className={footingSymbol}>
           <Icon name={icon} size={12} />
         </span>
       }
-      trailing={
-        <span className={side}>
-          <span className={detailText}>{value}</span>
-          <span className={footingSymbol}>
-            <Icon name="chevrons-up-down" size={12} />
-          </span>
-        </span>
-      }
-      onClick={() =>
-        void window.nexus.valueMenu(options, value).then((v) => {
-          if (v) onPick(v)
-        })
-      }
+      trailing={<PickerControl ariaLabel={label} value={value} options={options} onPick={onPick} />}
     >
       <span className={footingLabel}>{label}</span>
     </MenuItem>
@@ -603,7 +598,7 @@ function SubGroupRow({
 }): React.JSX.Element {
   const options: PickerChoice<string>[] = [
     { value: '_location', label: 'Location', icon: 'folder' as const },
-    ...groupable.map((d) => ({ value: d.id, label: d.name, icon: asRenderableIcon(d.icon) ?? 'tag' }))
+    ...groupable.map((d) => ({ value: d.id, label: d.name, icon: asRenderableIcon(d.icon) ?? propertyTypeIconName(d.type) }))
   ]
   return (
     <ValueRow
