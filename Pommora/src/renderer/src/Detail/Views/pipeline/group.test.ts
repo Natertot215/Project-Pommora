@@ -150,6 +150,40 @@ describe('property grouping — status manual order', () => {
   })
 })
 
+describe('ungrouped placement (the view-level knob)', () => {
+  it('structural: top placement leads with the loose tail', () => {
+    const { rows, setTree } = flattenContainer(collection([set('s1', [page('p1')])], [page('p_root')]), {})
+    const groups = resolveGroups(rows, { kind: 'structural' }, [], setTree, null, [], 'top')
+    expect(groups.map((g) => [g.key, g.kind])).toEqual([
+      ['_ungrouped', 'ungrouped'],
+      ['s1', 'structural-set']
+    ])
+  })
+
+  it('property: top placement leads with the no-value band', () => {
+    const values: Record<string, PageFrontmatter> = {
+      p1: { id: 'p1', properties: { prop_status: { $status: 'done' } } },
+      p2: { id: 'p2', properties: {} }
+    }
+    const { rows, setTree } = flattenContainer(collection([], [page('p1'), page('p2')]), values)
+    const group: GroupConfig = {
+      kind: 'property',
+      property_id: 'prop_status',
+      order_mode: 'configured',
+      empty_placement: 'bottom',
+      hide_empty_groups: false
+    }
+    const groups = resolveGroups(rows, group, statusSchema, setTree, null, [], 'top')
+    expect(keys(groups)).toEqual(['_ungrouped', 'done'])
+  })
+
+  it('default stays bottom (legacy behavior)', () => {
+    const { rows, setTree } = flattenContainer(collection([set('s1', [page('p1')])], [page('p_root')]), {})
+    const groups = resolveGroups(rows, { kind: 'structural' }, [], setTree, null)
+    expect(groups[groups.length - 1].kind).toBe('ungrouped')
+  })
+})
+
 describe('property grouping — configured / reversed / checkbox / date', () => {
   const selSchema: PropertyDefinition[] = [
     {

@@ -26,7 +26,7 @@ export function resolveView(input: {
   const filtered = applyFilter(rows, view.filter, schema)
   const sorter = makeSorter(view.sort, schema, manualOrder)
   const groups = orderGroups(
-    resolveGroups(filtered, view.group, schema, setTree, sorter, view.collapsed_groups),
+    resolveGroups(filtered, view.group, schema, setTree, sorter, view.collapsed_groups, view.ungrouped_placement ?? 'bottom'),
     view.group_order
   )
   return { columns, groups }

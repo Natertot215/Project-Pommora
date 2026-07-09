@@ -5,7 +5,7 @@
 // identical structural path. Pure: no fs, no React.
 
 import type { CollectionNode, PageNode, ResolvedGroup, SetNode, ViewRow } from '@shared/types'
-import type { DateGranularity, GroupConfig } from '@shared/views'
+import type { DateGranularity, EmptyPlacement, GroupConfig } from '@shared/views'
 import type { PageFrontmatter } from '@shared/schemas'
 import type { PropertyDefinition } from '@shared/properties'
 import { UNGROUPED } from '@shared/types'
@@ -26,6 +26,21 @@ export interface SetTreeNode {
 }
 
 const applySort = (rows: ViewRow[], sorter: Sorter | null): ViewRow[] => (sorter ? sorter(rows) : rows)
+
+const placeTail = (groups: ResolvedGroup[], tail: ResolvedGroup, placement: EmptyPlacement): ResolvedGroup[] =>
+  placement === 'top' ? [tail, ...groups] : [...groups, tail]
+
+/** The one group-by core every resolver shares (property buckets, by-set, sub-group re-bucketing). */
+function groupRows<K>(rows: ViewRow[], keyOf: (r: ViewRow) => K): Map<K, ViewRow[]> {
+  const m = new Map<K, ViewRow[]>()
+  for (const r of rows) {
+    const k = keyOf(r)
+    const arr = m.get(k)
+    if (arr) arr.push(r)
+    else m.set(k, [r])
+  }
+  return m
+}
 
 // ---- flatten ----
 
@@ -161,25 +176,17 @@ function property(
   group: PropertyGroup,
   schema: PropertyDefinition[],
   sorter: Sorter | null,
-  collapsed: Set<string>
+  collapsed: Set<string>,
+  placement: EmptyPlacement
 ): ResolvedGroup[] {
   const def = schema.find((d) => d.id === group.property_id)
   const isCheckbox = def?.type === 'checkbox'
   const granularity = group.date_granularity ?? 'month'
 
-  const buckets = new Map<string, ViewRow[]>()
-  const noValue: ViewRow[] = []
-  const push = (key: string, r: ViewRow): void => {
-    const arr = buckets.get(key)
-    if (arr) arr.push(r)
-    else buckets.set(key, [r])
-  }
-  for (const r of rows) {
-    const key = bucketKey(r, group.property_id, schema, granularity)
-    if (key !== null) push(key, r)
-    else if (isCheckbox) push('false', r)
-    else noValue.push(r)
-  }
+  const byBucket = groupRows(rows, (r) => bucketKey(r, group.property_id, schema, granularity) ?? (isCheckbox ? 'false' : null))
+  const noValue = byBucket.get(null) ?? []
+  byBucket.delete(null)
+  const buckets = byBucket as Map<string, ViewRow[]>
 
   const groups: ResolvedGroup[] = []
   for (const key of bucketOrder(group, def, new Set(buckets.keys()))) {
@@ -188,17 +195,14 @@ function property(
       groups.push({ key, kind: 'property', items: applySort(items, sorter), isCollapsed: collapsed.has(key) })
     }
   }
-  // No "None" band: value-less rows are a flattened, header-less tail pinned last — the identical
-  // treatment structural loose rows get. `empty_placement` stays decode parity, never read.
-  if (!isCheckbox && noValue.length > 0 && !group.hide_empty_groups) {
-    groups.push({
-      key: UNGROUPED,
-      kind: 'ungrouped',
-      items: applySort(noValue, sorter),
-      isCollapsed: collapsed.has(UNGROUPED)
-    })
-  }
-  return groups
+  // No "None" band: value-less rows are a flattened, header-less tail placed by the VIEW-level
+  // knob. The property config's own `empty_placement` stays decode parity, never read.
+  if (isCheckbox || noValue.length === 0 || group.hide_empty_groups) return groups
+  return placeTail(
+    groups,
+    { key: UNGROUPED, kind: 'ungrouped', items: applySort(noValue, sorter), isCollapsed: collapsed.has(UNGROUPED) },
+    placement
+  )
 }
 
 // ---- structural + flat ----
@@ -207,18 +211,11 @@ function structural(
   rows: ViewRow[],
   setTree: SetTreeNode[],
   sorter: Sorter | null,
-  collapsed: Set<string>
+  collapsed: Set<string>,
+  placement: EmptyPlacement
 ): ResolvedGroup[] {
-  const bySet = new Map<string, ViewRow[]>()
-  const rootRows: ViewRow[] = []
-  for (const r of rows) {
-    if (r.parentSetId === undefined) rootRows.push(r)
-    else {
-      const arr = bySet.get(r.parentSetId)
-      if (arr) arr.push(r)
-      else bySet.set(r.parentSetId, [r])
-    }
-  }
+  const bySet = groupRows(rows, (r) => r.parentSetId)
+  const rootRows = bySet.get(undefined) ?? []
   const build = (node: SetTreeNode): ResolvedGroup => {
     const children = node.children.map(build)
     return {
@@ -230,15 +227,12 @@ function structural(
     }
   }
   const groups = setTree.map(build)
-  if (rootRows.length > 0) {
-    groups.push({
-      key: UNGROUPED,
-      kind: 'ungrouped',
-      items: applySort(rootRows, sorter),
-      isCollapsed: collapsed.has(UNGROUPED)
-    })
-  }
-  return groups
+  if (rootRows.length === 0) return groups
+  return placeTail(
+    groups,
+    { key: UNGROUPED, kind: 'ungrouped', items: applySort(rootRows, sorter), isCollapsed: collapsed.has(UNGROUPED) },
+    placement
+  )
 }
 
 function flat(rows: ViewRow[], sorter: Sorter | null, collapsed: Set<string>): ResolvedGroup[] {
@@ -255,7 +249,8 @@ export function resolveGroups(
   schema: PropertyDefinition[],
   setTree: SetTreeNode[],
   sorter: Sorter | null,
-  collapsed: string[] = []
+  collapsed: string[] = [],
+  placement: EmptyPlacement = 'bottom'
 ): ResolvedGroup[] {
   const collapsedSet = new Set(collapsed)
   switch (group?.kind) {
@@ -263,10 +258,10 @@ export function resolveGroups(
       return flat(rows, sorter, collapsedSet)
     case 'property': {
       const t = declaredType(group.property_id, schema)
-      if (t === undefined || !GROUPABLE.has(t)) return structural(rows, setTree, sorter, collapsedSet)
-      return property(rows, group, schema, sorter, collapsedSet)
+      if (t === undefined || !GROUPABLE.has(t)) return structural(rows, setTree, sorter, collapsedSet, placement)
+      return property(rows, group, schema, sorter, collapsedSet, placement)
     }
     default:
-      return structural(rows, setTree, sorter, collapsedSet)
+      return structural(rows, setTree, sorter, collapsedSet, placement)
   }
 }
