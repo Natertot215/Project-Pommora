@@ -78,6 +78,9 @@ export type EntityIconKind = (typeof ENTITY_ICON_KINDS)[number]
  *  model — this flag is the interim: folders stay one contiguous block, just relocatable. */
 export type FolderPlacement = 'top' | 'bottom'
 
+/** Which surface the sidebar content column renders. Homepage is a selection, not a mode. */
+export type SidebarMode = 'collections' | 'contexts' | 'agenda'
+
 /** Nexus-wide interface personalization — the `personalization` object in `.nexus/settings.json`
  *  (canonical, synced). Every field optional; absent = the built-in default. One schema behind one
  *  apply-map + one setter — a new toggle is a field here plus an apply-map row. Icon names are bare
@@ -94,6 +97,10 @@ export interface Personalization {
   setPlacement?: FolderPlacement
   /** Sub-Sets (depth-2+) vs their parent Set's loose pages. */
   subSetPlacement?: FolderPlacement
+  /** The sidebar ribbon's active mode (which content the column shows). Absent = 'collections'. */
+  sidebarMode?: SidebarMode
+  /** Ribbon icon order below the pinned Homepage — bare icon keys, in display order. */
+  ribbonOrder?: string[]
 }
 
 export interface BaseNode {

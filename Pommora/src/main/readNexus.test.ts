@@ -2,7 +2,25 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync, existsSync } from 'node:fs'
 import { tmpdir, homedir } from 'node:os'
 import { join } from 'node:path'
-import { readNexus, splitFrontmatter } from './readNexus'
+import { readNexus, readPersonalization, splitFrontmatter } from './readNexus'
+
+describe('readPersonalization: ribbon knobs', () => {
+  it('coerces a valid sidebarMode + ribbonOrder', () => {
+    const p = readPersonalization({ sidebarMode: 'agenda', ribbonOrder: ['agenda', 'collections'] })
+    expect(p.sidebarMode).toBe('agenda')
+    expect(p.ribbonOrder).toEqual(['agenda', 'collections'])
+  })
+  it('drops an invalid sidebarMode and filters garbage from ribbonOrder', () => {
+    const p = readPersonalization({ sidebarMode: 'bogus', ribbonOrder: [1, '', 'contexts'] })
+    expect(p.sidebarMode).toBeUndefined()
+    expect(p.ribbonOrder).toEqual(['contexts'])
+  })
+  it('leaves both undefined when absent', () => {
+    const p = readPersonalization({})
+    expect(p.sidebarMode).toBeUndefined()
+    expect(p.ribbonOrder).toBeUndefined()
+  })
+})
 
 const d = (p: string): void => {
   mkdirSync(p, { recursive: true })

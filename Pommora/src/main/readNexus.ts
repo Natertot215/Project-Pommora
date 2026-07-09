@@ -23,6 +23,7 @@ import type {
   EntityIconKind,
   FolderPlacement,
   Personalization,
+  SidebarMode,
   TopicNode,
   UserSection
 } from '@shared/types'
@@ -76,10 +77,15 @@ function resolveAccent(raw: string | undefined): AccentSetting {
 // Coerce the on-disk `settings.personalization` blob into a validated Personalization, per-field
 // (absent/invalid → undefined = the built-in default). Accent is resolved separately into
 // tree.accent (back-compat with the legacy top-level accent_color), so it isn't surfaced here.
-function readPersonalization(raw: unknown): Personalization {
+export function readPersonalization(raw: unknown): Personalization {
   const p = raw != null && typeof raw === 'object' && !Array.isArray(raw) ? (raw as Record<string, unknown>) : {}
   const bool = (v: unknown): boolean | undefined => (typeof v === 'boolean' ? v : undefined)
   const placement = (v: unknown): FolderPlacement | undefined => (v === 'top' || v === 'bottom' ? v : undefined)
+  const mode = (v: unknown): SidebarMode | undefined =>
+    v === 'collections' || v === 'contexts' || v === 'agenda' ? v : undefined
+  const ribbonOrder = Array.isArray(p.ribbonOrder)
+    ? p.ribbonOrder.filter((v): v is string => typeof v === 'string' && v.length > 0)
+    : []
   const conn = asString(p.connectionColor)
   const rawIcons =
     p.defaultIcons != null && typeof p.defaultIcons === 'object' && !Array.isArray(p.defaultIcons)
@@ -101,7 +107,9 @@ function readPersonalization(raw: unknown): Personalization {
     defaultIcons: Object.keys(defaultIcons).length ? defaultIcons : undefined,
     favoriteIcons: favoriteIcons.length ? favoriteIcons : undefined,
     setPlacement: placement(p.setPlacement),
-    subSetPlacement: placement(p.subSetPlacement)
+    subSetPlacement: placement(p.subSetPlacement),
+    sidebarMode: mode(p.sidebarMode),
+    ribbonOrder: ribbonOrder.length ? ribbonOrder : undefined
   }
 }
 
