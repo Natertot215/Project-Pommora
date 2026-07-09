@@ -3,7 +3,7 @@ import type { ResolvedGroup } from '@shared/types'
 import type { SavedView } from '@shared/views'
 import { chipBox, chipColor, text } from '@renderer/design-system/tokens'
 import { cx } from '@renderer/design-system/cx'
-import { Icon, asIconName, defaultEntityIcon } from '@renderer/design-system/symbols'
+import { Icon, asRenderableIcon, defaultEntityIcon, iconNameOr } from '@renderer/design-system/symbols'
 import { Chip, chipShapeForType } from '@renderer/Components/Chip'
 import { chipColorFor } from '@renderer/design-system/tokens/colorMap'
 import { declaredType } from '../pipeline/value'
@@ -31,7 +31,7 @@ function groupGlyph(
     const title = setNames.get(group.key) ?? group.key
     return (
       <span className="group-name">
-        <Icon name={asIconName(setIcons.get(group.key)) ?? defaultEntityIcon('set')} size={13} />
+        <Icon name={iconNameOr(setIcons.get(group.key), defaultEntityIcon('set'))} size={13} />
         {setPath ? <RenamableTitle path={setPath} kind="set" title={title} className="band-title-input" /> : title}
       </span>
     )
@@ -59,7 +59,7 @@ function groupGlyph(
       )
     }
     case 'datetime': {
-      const icon = asIconName(ctx.schema.find((d) => d.id === propId)?.icon)
+      const icon = asRenderableIcon(ctx.schema.find((d) => d.id === propId)?.icon)
       return (
         <span className="group-name">
           {icon ? <Icon name={icon} size={13} /> : null}

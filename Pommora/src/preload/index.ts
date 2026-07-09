@@ -162,6 +162,9 @@ const api = {
       color: string | undefined
     ): Promise<{ ok: true } | { ok: false; error: string }> =>
       ipcRenderer.invoke('property:setCheckboxColor', propertyId, color),
+    // Registry-only: a property's icon (a symbol id; undefined = the type's default glyph).
+    setIcon: (propertyId: string, icon: string | undefined): Promise<{ ok: true } | { ok: false; error: string }> =>
+      ipcRenderer.invoke('property:setIcon', propertyId, icon),
     // Registry-only display config for a Number property: its property-wide format fields.
     setNumberFormat: (
       propertyId: string,

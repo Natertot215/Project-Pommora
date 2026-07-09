@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react'
-import { Icon, type IconName } from '@renderer/design-system/symbols'
+import { type Ref, useEffect, useRef, useState } from 'react'
+import { Icon } from '@renderer/design-system/symbols'
 import './DetailTitleHeader.css'
 
 /**
@@ -9,15 +9,17 @@ import './DetailTitleHeader.css'
  */
 interface Props {
   title: string
-  /** The glyph to lead with — omitted renders title-only (the page editor's mode). */
-  icon?: IconName
+  /** The glyph to lead with — omitted renders title-only (the page editor's mode). Any Lucide id. */
+  icon?: string
+  /** Registers the icon glyph as the editable target — the picker's beak anchors to it. */
+  iconRef?: Ref<SVGSVGElement>
   onRename: (newName: string) => void | Promise<boolean | void>
   /** Pops the native Rename / Edit Icon menu and resolves the chosen action. */
   requestMenu: () => Promise<'rename' | 'editIcon' | null>
   onEditIcon: () => void
 }
 
-export function DetailTitleHeader({ title, icon, onRename, requestMenu, onEditIcon }: Props): React.JSX.Element {
+export function DetailTitleHeader({ title, icon, iconRef, onRename, requestMenu, onEditIcon }: Props): React.JSX.Element {
   const [editing, setEditing] = useState(false)
   const [value, setValue] = useState(title)
   const reverting = useRef(false) // Escape sets this so the blur it triggers doesn't commit
@@ -53,7 +55,7 @@ export function DetailTitleHeader({ title, icon, onRename, requestMenu, onEditIc
   return (
     // Only the icon glyph + the name text are Rename / Edit-Icon targets — not the full-width row.
     <div className="detail-title">
-      {icon && <Icon name={icon} className="detail-title-icon" onContextMenu={editing ? undefined : openMenu} />}
+      {icon && <Icon ref={iconRef} name={icon} className="detail-title-icon" onContextMenu={editing ? undefined : openMenu} />}
       {editing ? (
         <input
           ref={inputRef}

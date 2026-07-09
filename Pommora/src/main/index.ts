@@ -786,6 +786,22 @@ ipcMain.handle(
 )
 
 ipcMain.handle(
+  'property:setIcon',
+  async (_e, propertyId: unknown, icon: unknown): Promise<{ ok: true } | { ok: false; error: string }> => {
+    try {
+      const root = sessionRoot()
+      if (root === null) return { ok: false, error: 'No nexus is open.' }
+      if (typeof propertyId !== 'string') return { ok: false, error: 'A property id is required.' }
+      // Registry-only: the def's symbol id (a non-string clears it to the type's default glyph).
+      const r = await editProperty(root, propertyId, { icon: typeof icon === 'string' ? icon : undefined })
+      return r.ok ? { ok: true } : { ok: false, error: r.error.message }
+    } catch (e) {
+      return { ok: false, error: e instanceof Error ? e.message : String(e) }
+    }
+  }
+)
+
+ipcMain.handle(
   'property:setNumberFormat',
   async (_e, propertyId: unknown, patch: unknown): Promise<{ ok: true } | { ok: false; error: string }> => {
     try {

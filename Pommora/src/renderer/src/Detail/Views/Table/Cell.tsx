@@ -4,7 +4,7 @@ import type { PropertyValue } from '@shared/propertyValue'
 import type { ResolvedColumn, ViewRow } from '@shared/types'
 import { chipBox, chipColor } from '@renderer/design-system/tokens'
 import { cx } from '@renderer/design-system/cx'
-import { Icon, asIconName, defaultEntityIcon } from '@renderer/design-system/symbols'
+import { Icon, defaultEntityIcon, iconNameOr } from '@renderer/design-system/symbols'
 import { Switch } from '@renderer/design-system/components/Switches/Switch'
 import { ProgressBar } from '@renderer/design-system/components/ProgressBar/ProgressBar'
 import { Chip, chipShapeForType } from '@renderer/Components/Chip'
@@ -50,7 +50,7 @@ export function Cell({
   if (column.kind === 'title') {
     // The page's frontmatter icon, else the file-text default (the sidebar's page glyph) — so every page
     // reads with an icon (E-3). Hide Page Icons drops it entirely.
-    const iconName = hideIcon ? undefined : (asIconName(row.icon) ?? defaultEntityIcon('page'))
+    const iconName = hideIcon ? undefined : iconNameOr(row.icon, defaultEntityIcon('page'))
     return (
       <OverflowScroll className="cell-title">
         {iconName ? <Icon name={iconName} size={14} /> : null}

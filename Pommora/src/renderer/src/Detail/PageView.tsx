@@ -13,6 +13,7 @@ export function PageView(): React.JSX.Element {
   const pageDetail = useSession((s) => s.pageDetail);
   const pageError = useSession((s) => s.pageError);
   const submitRename = useSession((s) => s.submitRename);
+  const mutate = useSession((s) => s.mutate);
   const tree = useSession((s) => s.tree);
   const select = useSession((s) => s.select);
   const setLiveBody = useSession((s) => s.setLiveBody);
@@ -113,7 +114,12 @@ export function PageView(): React.JSX.Element {
               onAction: (cb) => window.nexus.onMenuAction(cb),
             }}
           />
-          <IconPicker open={iconPickerOpen} onClose={() => setIconPickerOpen(false)} />
+          <IconPicker
+            open={iconPickerOpen}
+            onClose={() => setIconPickerOpen(false)}
+            value={typeof pageDetail.frontmatter.icon === "string" ? pageDetail.frontmatter.icon : undefined}
+            onSelect={(id) => void mutate({ op: "setIcon", path: pageDetail.path, kind: "page", icon: id })}
+          />
         </>
       );
   }

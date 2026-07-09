@@ -173,6 +173,10 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
   // set on grab + slot flips, cleared on drop; column indices into the resolved `columns`.
   const [colDrag, setColDrag] = useState<{ from: number; to: number } | null>(null)
   const [iconPickerOpen, setIconPickerOpen] = useState(false)
+  // The page a title:icon menu targeted (captured before the menu await — the row is out of scope by
+  // the time the picker commits). The cell element anchors the picker's beak.
+  const [iconTarget, setIconTarget] = useState<{ path: string; icon?: string } | null>(null)
+  const iconCellRef = useRef<HTMLElement | null>(null)
   // Columns fit → the rounded content-inset look; columns overflow → the right inset flattens and
   // the table h-scrolls to the glass edge (the left gutter holds). One read per pane resize /
   // track-set change — never per scroll or per pointermove.
@@ -759,7 +763,11 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
     if (!ctx) return
     const action = await window.nexus.cellMenu(ctx)
     if (!action) return
-    if (action === 'title:icon') setIconPickerOpen(true)
+    if (action === 'title:icon') {
+      iconCellRef.current = cellEl
+      setIconTarget({ path: row.path, icon: typeof row.icon === 'string' ? row.icon : undefined })
+      setIconPickerOpen(true)
+    }
     else if (action === 'title:delete') void mutate({ op: 'delete', path: row.path, kind: 'page' })
     else if (action === 'title:rename' || action === 'cell:edit') setEditing({ rowId: row.id, colId: col.id, mode: 'editor' })
     else if (action === 'cell:rename') {
@@ -1079,7 +1087,15 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
 
   return (
     <div ref={viewRef} className={cx('table-view', overflowing && 'overflowing')}>
-      <IconPicker open={iconPickerOpen} onClose={() => setIconPickerOpen(false)} />
+      <IconPicker
+        open={iconPickerOpen}
+        onClose={() => setIconPickerOpen(false)}
+        triggerRef={iconCellRef}
+        value={iconTarget?.icon}
+        onSelect={(icon) => {
+          if (iconTarget) void mutate({ op: 'setIcon', path: iconTarget.path, kind: 'page', icon })
+        }}
+      />
       <BandDnd bands={bands} labelFor={bandLabel} onDrop={onBandDrop}>
       <TableRowDnd
         rows={dataRows}

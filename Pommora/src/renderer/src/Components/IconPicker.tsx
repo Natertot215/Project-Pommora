@@ -14,8 +14,9 @@ const ICON_SIZE = 18
 interface Props {
   open: boolean
   onClose: () => void
-  /** The element the beak points at. Omit ⇒ PickerMenu anchors to the picker's own mount point. */
-  triggerRef?: RefObject<HTMLElement | null>
+  /** The element the beak points at (an icon glyph is an SVG, so `Element`, not just `HTMLElement`).
+   *  Omit ⇒ PickerMenu anchors to the picker's own mount point. */
+  triggerRef?: RefObject<Element | null>
   /** The currently-set icon id — highlighted in the grid/favorites. */
   value?: string
   /** Fires with the picked Lucide id; the pane then retracts. */

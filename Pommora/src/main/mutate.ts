@@ -329,6 +329,46 @@ async function dispatch(req: MutateRequest, deps: MutateDeps, root: string): Pro
       return { ok: true }
     }
 
+    case 'setIcon': {
+      // A bare symbol id. Pages carry it in `.md` frontmatter (`icon`); containers + contexts in their
+      // JSON sidecar. `null` clears it. Foreign frontmatter/keys survive (mirrors setBanner, minus the
+      // asset file).
+      if (req.kind === 'page') {
+        const resolved = await resolveUnderRoot(root, req.path)
+        if (!resolved.ok) return relay(resolved)
+        return serializeOnFile(resolved.value, async () => {
+          let existing: string
+          try {
+            existing = await readFile(resolved.value, 'utf8')
+          } catch {
+            return fault('That page could not be read.')
+          }
+          const { body } = splitEnvelope(existing)
+          const fields = req.icon ? { icon: req.icon } : {}
+          await atomicWriteFile(resolved.value, mergeFrontmatter(existing, fields, ['icon'], body))
+          return { ok: true }
+        })
+      }
+      const resolved = await resolveUnderRoot(root, req.path)
+      if (!resolved.ok) return relay(resolved)
+      if (await isReserved(root, resolved.value)) return fault('That item can’t take an icon.')
+      const cfgPath = `${resolved.value}/${SIDECAR_FILENAME[req.kind]}`
+      const existing = await readJsonObject(cfgPath)
+      const id = typeof existing?.id === 'string' ? existing.id : null
+      if (!id) return fault('That item has no id.')
+      await mutateJson<Record<string, unknown>>(
+        cfgPath,
+        () => ({ id }),
+        (cur) => {
+          const next = { ...cur }
+          if (req.icon) next.icon = req.icon
+          else delete next.icon
+          return next
+        }
+      )
+      return { ok: true }
+    }
+
     case 'setProperty': {
       // One typed property write into a page's `.md` frontmatter `properties` map; foreign frontmatter
       // + body survive (same shape as the page-banner cover write). applyPropertyValue is the shared

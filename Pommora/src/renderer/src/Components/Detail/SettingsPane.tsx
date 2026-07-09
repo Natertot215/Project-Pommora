@@ -57,9 +57,11 @@ export function SettingsPane(): React.JSX.Element | null {
   const tree = useSession((st) => st.tree)
   const load = useSession((st) => st.load)
   const submitRename = useSession((st) => st.submitRename)
+  const mutate = useSession((st) => st.mutate)
   const [pane, setPane] = useState<PaneId | 'root'>('root')
   const lastDetail = useRef<PaneId>('properties')
   const [iconOpen, setIconOpen] = useState(false)
+  const iconRef = useRef<HTMLButtonElement>(null)
 
   const node =
     selection.kind === 'collection'
@@ -125,6 +127,8 @@ export function SettingsPane(): React.JSX.Element | null {
     <>
       <InlineEditHeader
         value={node.title}
+        icon={node.icon}
+        iconRef={iconRef}
         onIconClick={() => setIconOpen(true)}
         onCommit={(next) => void submitRename(node.path, node.kind, next)}
       />
@@ -167,7 +171,13 @@ export function SettingsPane(): React.JSX.Element | null {
   return (
     <>
       <PaneSlider open={pane !== 'root'} root={root} detail={detail} minWidth={225} minHeight={245} />
-      <IconPicker open={iconOpen} onClose={() => setIconOpen(false)} />
+      <IconPicker
+        open={iconOpen}
+        onClose={() => setIconOpen(false)}
+        triggerRef={iconRef}
+        value={node.icon}
+        onSelect={(id) => void mutate({ op: 'setIcon', path: node.path, kind: node.kind, icon: id })}
+      />
     </>
   )
 }

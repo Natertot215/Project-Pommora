@@ -37,7 +37,9 @@ export const search = style({
   lineHeight: 1.2,
   color: vars.color.label.primary,
   background: vars.color.fill.secondary,
-  border: '1px solid transparent',
+  // `--icon-search-ring` = the focus-highlight border WIDTH knob (transparent at rest so no shift).
+  vars: { '--icon-search-ring': '1px' },
+  border: 'var(--icon-search-ring) solid transparent',
   borderRadius: 8,
   outline: 'none',
   selectors: {

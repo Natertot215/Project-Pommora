@@ -44,9 +44,9 @@ export function PickerMenu({
   open?: boolean
   /** Self-managed dismissal target (outside-click / Escape). */
   onDismiss?: () => void
-  /** The element the picker hangs off — measured for placement. Falls back to the marker's parent
-   *  when omitted. (Dismiss is handled by the backdrop, which covers the trigger.) */
-  triggerRef?: RefObject<HTMLElement | null>
+  /** The element the picker hangs off — measured for placement (any `Element`: an icon glyph is an
+   *  SVG). Falls back to the marker's parent when omitted. (Dismiss is handled by the backdrop.) */
+  triggerRef?: RefObject<Element | null>
   /** Manual mode: the caller's exit flag, ridden to the Bloom-out. Ignored when `open` is set. */
   closing?: boolean
   /** The Solid variation: a window-background fill under the frost, reading opaque over any backdrop. */

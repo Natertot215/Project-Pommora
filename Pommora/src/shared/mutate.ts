@@ -49,6 +49,11 @@ export type MutateRequest =
   // banner.<ext>` + record that path in the owner's config (folder sidecar, homepage.json, or — for
   // a page — the `cover` key in its `.md` frontmatter); null ⇒ clear the field + delete the file.
   | { op: 'setBanner'; path: string; kind: BannerOwnerKind; dataUrl: string | null }
+  // Set or clear an entity's icon — a bare symbol id (any Lucide id). A page carries it in its `.md`
+  // frontmatter `icon`; a container/context in its JSON sidecar. `null` clears the field. The one write
+  // for every entity kind that has an icon (pages, collections, sets, and the three context tiers);
+  // property + view icons ride their own writers (properties.json / views.save). Foreign keys survive.
+  | { op: 'setIcon'; path: string; kind: MutableKind; icon: string | null }
   // Set or clear one property in a page's `.md` frontmatter `properties` map (id-keyed PropertyValue);
   // `null` clears the key. Foreign frontmatter + body survive. Drives table cross-group reassignment
   // (D-4) + later inline edits — the single typed property write.

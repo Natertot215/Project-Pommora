@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { type Ref, useState } from 'react'
 import { InteractionField, fieldInputClass } from '../../design-system/components/InteractionField'
+import { Icon } from '../../design-system/symbols'
 import { EditableInput } from '../EditableInput'
 import { DashIcon } from './DashIcon'
 import * as s from './settingsPane.css'
@@ -7,22 +8,28 @@ import * as s from './settingsPane.css'
 /**
  * The icon-button + inline-rename title header shared by the ViewPane (Collection/Set) and the
  * property editor. Owns the editing toggle; the title commits on blur with no focus ring, and
- * `onCommit` fires only on a real change. The icon opens its picker via `onIconClick`.
+ * `onCommit` fires only on a real change. The icon button IS the editable target — it shows the
+ * current glyph (dashed-square when unset), opens its picker via `onIconClick`, and registers its
+ * element via `iconRef` so the picker's beak anchors to it.
  */
 export function InlineEditHeader({
   value,
+  icon,
+  iconRef,
   onCommit,
   onIconClick
 }: {
   value: string
+  icon?: string
+  iconRef?: Ref<HTMLButtonElement>
   onCommit: (next: string) => void
   onIconClick: () => void
 }): React.JSX.Element {
   const [editing, setEditing] = useState(false)
   return (
     <div className={s.header}>
-      <button type="button" className={s.iconButton} aria-label="Edit icon" onClick={onIconClick}>
-        <DashIcon />
+      <button ref={iconRef} type="button" className={s.iconButton} aria-label="Edit icon" onClick={onIconClick}>
+        {icon ? <Icon name={icon} /> : <DashIcon />}
       </button>
       {editing ? (
         <EditableInput

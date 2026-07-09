@@ -1,13 +1,13 @@
 import { Fragment } from 'react'
 import { GlassControls } from '../../materials'
-import { Icon, type IconName } from '../../symbols'
+import { Icon } from '../../symbols'
 import { vars, type ButtonSize, type IconSize } from '../../tokens'
 import * as s from './segmented.css'
 
 /** One segment of a segmented control. `active` is accepted but never drawn (no
  *  active-state fill, per spec) — it only surfaces as `aria-pressed` for toggles. */
 export type Segment = {
-  icon: IconName
+  icon: string
   label?: string
   onClick?: () => void
   disabled?: boolean

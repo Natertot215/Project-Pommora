@@ -180,7 +180,14 @@ export function ViewPane({
   return (
     <>
       <PaneSlider open={!!editing} root={list} detail={detail} minWidth={PANE_SQUARE} minHeight={PANE_SQUARE} />
-      <IconPicker open={iconOpen} onClose={() => setIconOpen(false)} />
+      <IconPicker
+        open={iconOpen}
+        onClose={() => setIconOpen(false)}
+        value={editing?.icon}
+        onSelect={(icon) => {
+          if (editing) void saveViewAdopting(node, { ...editing, icon }, load)
+        }}
+      />
     </>
   )
 }

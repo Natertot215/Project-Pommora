@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import type { MutableKind } from '@shared/mutate'
 import { defaultEntityIcon, iconNameOr } from '@renderer/design-system/symbols'
 import { IconPicker } from '@renderer/Components/IconPicker'
@@ -13,6 +13,7 @@ export function Banner({ owner }: { owner: BannerOwner }): React.JSX.Element {
   const submitRename = useSession((s) => s.submitRename)
   const defaultIcons = useSession((s) => s.personalization.defaultIcons)
   const [iconPickerOpen, setIconPickerOpen] = useState(false)
+  const iconRef = useRef<SVGSVGElement>(null)
   const setBanner = (dataUrl: string | null): Promise<boolean> =>
     mutate({ op: 'setBanner', path: owner.path, kind: owner.kind, dataUrl })
 
@@ -54,13 +55,20 @@ export function Banner({ owner }: { owner: BannerOwner }): React.JSX.Element {
           <DetailTitleHeader
             title={owner.name}
             icon={iconNameOr(owner.icon, defaultEntityIcon(owner.kind, defaultIcons))}
+            iconRef={iconRef}
             onRename={(newName) => submitRename(owner.path, owner.kind as MutableKind, newName)}
             requestMenu={() => window.nexus.titleMenu()}
             onEditIcon={() => setIconPickerOpen(true)}
           />
         </div>
       )}
-      <IconPicker open={iconPickerOpen} onClose={() => setIconPickerOpen(false)} />
+      <IconPicker
+        open={iconPickerOpen}
+        onClose={() => setIconPickerOpen(false)}
+        triggerRef={iconRef}
+        value={owner.icon}
+        onSelect={(id) => void mutate({ op: 'setIcon', path: owner.path, kind: owner.kind as MutableKind, icon: id })}
+      />
     </div>
   )
 }

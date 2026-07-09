@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Icon, icons, type IconName, defaultEntityIcon } from '@renderer/design-system/symbols'
+import { lucideGlyph } from '@renderer/design-system/symbols/AllSymbols'
 import { text } from '@renderer/design-system/tokens'
 import { cx } from '@renderer/design-system/cx'
 import { MenuItem } from '@renderer/design-system/components/menu'
@@ -72,11 +73,9 @@ function isPageSelected(sel: SelectionState, id: string): boolean {
 // is the folder icon. A custom icon — or a non-folder default like the vault's
 // stack — stays put when the row toggles. Falls back when the stored name isn't a
 // known symbol.
-function folderAwareIcons(
-  custom: string | undefined,
-  fallback: IconName
-): { icon: IconName; openIcon?: IconName } {
-  const icon = custom && custom in icons ? (custom as IconName) : fallback
+function folderAwareIcons(custom: string | undefined, fallback: IconName): { icon: string; openIcon?: IconName } {
+  // Keep any renderable Lucide id (curated OR the full set — a user's arbitrary pick), else the default.
+  const icon = custom && (custom in icons || lucideGlyph(custom) !== undefined) ? custom : fallback
   return { icon, openIcon: icon === 'folder-closed' ? 'folder-open' : undefined }
 }
 
@@ -92,7 +91,7 @@ function Leaf({
   onContextMenu,
   rename
 }: {
-  icon: IconName
+  icon: string
   title: string
   depth: number
   selected?: boolean
@@ -155,7 +154,7 @@ function Disclosure({
   dragId,
   children
 }: {
-  icon: IconName
+  icon: string
   openIcon?: IconName
   title: string
   depth: number

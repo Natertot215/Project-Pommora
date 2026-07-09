@@ -59,8 +59,10 @@ import {
   Type,
   X
 } from 'lucide-react'
+import { forwardRef } from 'react'
 import type { EntityIconKind } from '@shared/types'
 import { CardsGrid, ListRounded, ProgressCheck } from './customGlyphs'
+import { lucideGlyph } from './AllSymbols'
 import { size as sizeTokens, type IconSize } from '../tokens/size.css'
 
 /**
@@ -137,12 +139,19 @@ export const icons = {
 
 export type IconName = keyof typeof icons
 
-/** Coerce an arbitrary value (e.g. a frontmatter `icon` string) to a known IconName, or undefined if it isn't one. */
+/** Coerce an arbitrary value to a CURATED IconName, or undefined if it isn't one of the 61. */
 export const asIconName = (value: unknown): IconName | undefined =>
   typeof value === 'string' && value in icons ? (value as IconName) : undefined
 
-/** As `asIconName`, but falls back to a default when the value isn't a known icon. */
-export const iconNameOr = (value: unknown, fallback: IconName): IconName => asIconName(value) ?? fallback
+/** A stored icon id if it's RENDERABLE (curated OR any full-set Lucide id), else undefined — for the
+ *  optional-icon sites that show nothing when unset (vs `iconNameOr`, which always resolves a fallback). */
+export const asRenderableIcon = (value: unknown): string | undefined =>
+  typeof value === 'string' && (value in icons || lucideGlyph(value) !== undefined) ? value : undefined
+
+/** Resolve a stored icon to a renderable symbol id — kept if it's ANY Lucide id (curated OR the full
+ *  set, so a user's arbitrary pick survives), else the fallback. Returns a bare string; `Icon` renders it. */
+export const iconNameOr = (value: unknown, fallback: IconName): string =>
+  typeof value === 'string' && (value in icons || lucideGlyph(value) !== undefined) ? value : fallback
 
 /** Per-entity-kind default icon — the seed for `personalization.defaultIcons`. One source for the
  *  sidebar, banners, the table, and the connection autocomplete (was this same literal copied across
@@ -162,14 +171,18 @@ export function defaultEntityIcon(
   kind: EntityIconKind,
   overrides?: Partial<Record<EntityIconKind, string>>
 ): IconName {
-  return iconNameOr(overrides?.[kind], DEFAULT_ENTITY_ICONS[kind])
+  // Kind DEFAULTS stay curated (a sensible seed glyph); a per-entity arbitrary pick is layered on by
+  // the caller via iconNameOr / folderAwareIcons, which keep the full set.
+  return asIconName(overrides?.[kind]) ?? DEFAULT_ENTITY_ICONS[kind]
 }
 
 const iconSizeVars = sizeTokens.icon
 const isIconSize = (v: unknown): v is IconSize => typeof v === 'string' && v in iconSizeVars
 
 /**
- * Render a curated icon by name: `<Icon name="folder-closed" />`.
+ * Render an icon by id: `<Icon name="folder-closed" />`. Resolves the CURATED registry first, then the
+ * full Lucide set (a user's arbitrary pick), falling back to the dashed-square placeholder if neither
+ * matches — so `name` is a bare `string`, not just a curated `IconName`.
  *
  * Size resolution:
  * - **Named step** (`size="md"`) routes to the icon-size token — set as the glyph's
@@ -178,15 +191,13 @@ const isIconSize = (v: unknown): v is IconSize => typeof v === 'string' && v in 
  * - **Number / CSS length** (`size={18}`) passes straight through as an escape hatch.
  * Colour follows `currentColor` in every case.
  */
-export function Icon({
-  name,
-  size = '1em',
-  style,
-  ...rest
-}: { name: IconName; size?: IconSize | LucideProps['size'] } & Omit<LucideProps, 'size'>): React.JSX.Element {
-  const Glyph = icons[name]
+export const Icon = forwardRef<
+  SVGSVGElement,
+  { name: string; size?: IconSize | LucideProps['size'] } & Omit<LucideProps, 'size'>
+>(function Icon({ name, size = '1em', style, ...rest }, ref): React.JSX.Element {
+  const Glyph = (icons as Record<string, LucideIcon>)[name] ?? lucideGlyph(name) ?? icons['square-dashed']
   if (isIconSize(size)) {
-    return <Glyph size="1em" {...rest} style={{ ...style, fontSize: iconSizeVars[size] }} />
+    return <Glyph ref={ref} size="1em" {...rest} style={{ ...style, fontSize: iconSizeVars[size] }} />
   }
-  return <Glyph size={size} {...rest} style={style} />
-}
+  return <Glyph ref={ref} size={size} {...rest} style={style} />
+})

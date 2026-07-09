@@ -172,6 +172,7 @@ export function PropertiesPane({
   const submitPropertyRename = useSession((st) => st.submitPropertyRename)
   const [view, setView] = useState<SubView>({ kind: 'list' })
   const [iconOpen, setIconOpen] = useState(false)
+  const iconRef = useRef<HTMLButtonElement>(null)
   const [allOpen, setAllOpen] = useState(false)
   const lastDetail = useRef<DetailView>({ kind: 'type' })
 
@@ -258,6 +259,10 @@ export function PropertiesPane({
   // A number property's format is def-level (property-wide) — its own IPC, not the view's column_styles.
   const saveNumberFormat = async (id: string, patch: Partial<NumberConfig>): Promise<void> => {
     await commit(await window.nexus.property.setNumberFormat(id, patch))
+  }
+  // A property's icon is def-level (registry) — its own IPC, like the color/format config above.
+  const savePropertyIcon = async (id: string, icon: string): Promise<void> => {
+    await commit(await window.nexus.property.setIcon(id, icon))
   }
   // The datetime display format is per-VIEW, not schema: it writes the active view's column_styles
   // (through the one view writer), NOT the nexus property def. Merges per-key like the column menu.
@@ -365,7 +370,13 @@ export function PropertiesPane({
           onClick: () => void editorMenu(def)
         })}
       >
-        <InlineEditHeader value={def.name} onIconClick={() => setIconOpen(true)} onCommit={(next) => void rename(def.id, next)} />
+        <InlineEditHeader
+          value={def.name}
+          icon={def.icon}
+          iconRef={iconRef}
+          onIconClick={() => setIconOpen(true)}
+          onCommit={(next) => void rename(def.id, next)}
+        />
         <MenuSeparator flush />
         {def.type === 'select' || def.type === 'multi_select' ? (
           <OptionEditor
@@ -451,6 +462,9 @@ export function PropertiesPane({
     </MenuScrollFrame>
   )
 
+  const editingId = detailView.kind === 'edit' ? detailView.id : undefined
+  const editingIcon = editingId ? registry.find((d) => d.id === editingId)?.icon : undefined
+
   return (
     <>
       <PaneSlider
@@ -460,7 +474,15 @@ export function PropertiesPane({
         minWidth={225}
         minHeight={245}
       />
-      <IconPicker open={iconOpen} onClose={() => setIconOpen(false)} />
+      <IconPicker
+        open={iconOpen}
+        onClose={() => setIconOpen(false)}
+        triggerRef={iconRef}
+        value={editingIcon}
+        onSelect={(icon) => {
+          if (editingId) void savePropertyIcon(editingId, icon)
+        }}
+      />
     </>
   )
 }
