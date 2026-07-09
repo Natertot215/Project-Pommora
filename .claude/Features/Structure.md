@@ -47,7 +47,7 @@ Full spec → `Agenda.md`; the property catalog across all kinds → `Properties
 
 #### II. Homepage
 
-One per Nexus at `.nexus/homepage.json` — a composed-blocks dashboard sharing the Context block shape, with no `id`, `tier`, or `parents` (the file location is its identity). The **Nexus header** at the top of the sidebar is its entry point: selecting it opens the Homepage in the main pane. Seeded on first launch and not user-deletable.
+One per Nexus at `.nexus/homepage.json` — a composed-blocks dashboard sharing the Context block shape, with no `id`, `tier`, or `parents` (the file location is its identity). The **Homepage ribbon icon** (the Nexus's profile photo, pinned at the top of the sidebar ribbon) is its entry point: selecting it opens the Homepage in the main pane, where its title doubles as the nexus rename affordance. Seeded on first launch and not user-deletable.
 
 #### II. Settings
 

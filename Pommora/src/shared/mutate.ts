@@ -43,7 +43,9 @@ export type MutateRequest =
   // into `.nexus/assets/<nexusID>/profile-<token>.<ext>` + record the rel path in
   // `settings.profile_image`; null ⇒ clear the field + delete the file. Matches Swift.
   | { op: 'setProfileImage'; dataUrl: string | null }
-  // Set the nexus profile subtitle (≤30 chars, enforced) in `settings.profile_subtitle`.
+  // Set the nexus profile subtitle (≤30 chars, enforced) in `settings.profile_subtitle`. Parked: the
+  // sidebar NexusHeader that edited it is gone (ribbon rework); the field + op are retained for the
+  // eventual homepage/settings surface — NOT dead code.
   | { op: 'setProfileSubtitle'; subtitle: string }
   // Set or clear an entity's banner. dataUrl set ⇒ decode + copy into `.nexus/assets/<key>/
   // banner.<ext>` + record that path in the owner's config (folder sidecar, homepage.json, or — for

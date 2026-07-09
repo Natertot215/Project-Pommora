@@ -15,6 +15,10 @@ Nexus-wide interface config, stored as the React-owned `personalization` object 
 - **defaultIcons** — the per-kind default icon (Collection / Set / Area / Topic / Project / Page), overriding the built-in seed; an entity's own icon still wins over it.
 - **setPlacement / subSetPlacement** — the value names where the FOLDERS sit, never the pages: a Collection's depth-1 Sets (`setPlacement`) and a Set's Sub-Sets (`subSetPlacement`) sit above (`top`, default) or below (`bottom`) their container's loose pages — so "pages on top" is spelled `bottom`. The knobs are independent tiers: `setPlacement` never moves a Set's own pages (a Collection with no loose pages shows no visible change), and set-level pages answer only to `subSetPlacement`. The folder block stays contiguous — a full folder↔page interleave is the eventual model. Read-side only: no UI writes these keys yet — they're set by editing `settings.json` directly, and the watcher applies the change live.
 
+- **sidebarMode** — the sidebar ribbon's active content mode (Collections, Contexts, or Agenda); absent defaults to Collections. Written live by the ribbon and remembered across restarts. Not a DOM effect — the renderer reads it — so it carries no apply-map row.
+
+- **ribbonOrder** — the ribbon's launcher-icon order below the pinned Homepage, as bare icon keys. Written by drag-to-reorder; a partial or stale value is repaired on read (unknown keys dropped, missing keys appended) so a newly-added icon never vanishes.
+
 #### II. Write Discipline
 
 Every `settings.json` write funnels through one per-file serialize lock (the same lock the page-write path uses), so concurrent writers can't drop each other's keys. Unrecognized keys are preserved by value on write, so a key one build doesn't know — desktop ↔ mobile version skew — survives the round-trip.

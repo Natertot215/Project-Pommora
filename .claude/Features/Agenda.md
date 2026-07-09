@@ -53,6 +53,6 @@ Each kind maps to one EventKit entity by extension (`.task.json` → a reminder,
 
 ### Pending
 
-**Agenda Surfacing:** The UI for Tasks and Events. The data layer round-trips and indexes, but nothing renders — a Task or Event can't be selected or opened. The planned surface is a Calendar entry in the sidebar opening a combined Tasks-and-Events view, with a compact per-entity panel.
+**Agenda Surfacing:** The sidebar's **Agenda mode** (reached from the ribbon) now renders a read-only list of Tasks then Events, read on demand through a lazy `agenda:list` path — kept off the tree walk so it costs nothing until that mode is active. What's still pending is interactivity: an agenda entity can't be selected or opened (no selection kind, no detail surface), and there's no calendar/date-grouped layout or a per-entity panel yet.
 
 **EventKit Sync:** The live, opt-in bidirectional mirror between Agenda entities and the system Reminders and Calendar apps. The on-disk fields are ready; the bridge isn't built.
