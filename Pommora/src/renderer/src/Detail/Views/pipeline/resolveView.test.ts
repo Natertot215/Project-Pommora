@@ -103,6 +103,35 @@ describe('resolveView — group_order', () => {
     const { groups } = resolveView({ rows, setTree, view, schema: [] })
     expect(groups.map((g) => g.key)).toEqual(['sB', 'sA', '_ungrouped'])
   })
+
+  it('structural_order_mode location ignores group_order (fs order wins, preserved not cleared)', () => {
+    const setNode = (id: string): CollectionNode['sets'][number] => ({ kind: 'set', id, title: id, path: id, pages: [], sets: [] })
+    const col: CollectionNode = { kind: 'collection', id: 'col', title: 'Col', path: 'Col', sets: [setNode('sA'), setNode('sB')], pages: [] }
+    const view: SavedView = {
+      id: 'v',
+      name: 'V',
+      type: 'table',
+      property_order: ['_title'],
+      hidden_properties: [],
+      group: { kind: 'structural' },
+      structural_order_mode: 'location',
+      group_order: ['sB', 'sA']
+    }
+    const { rows, setTree } = flattenContainer(col, {})
+    const { groups } = resolveView({ rows, setTree, view, schema: [] })
+    expect(groups.map((g) => g.key)).toEqual(['sA', 'sB'])
+    expect(view.group_order).toEqual(['sB', 'sA'])
+  })
+
+  it('location mode under PROPERTY grouping is inert (the mode is structural-only)', () => {
+    const view = savedView.parse({
+      ...fixture.views[0],
+      structural_order_mode: 'location'
+    })
+    const schema = fixture.properties.map((id) => propertyDefinition.parse((registry as Record<string, unknown>)[id]))
+    const { rows, setTree } = flattenContainer(collection([page('p1')]), { p1: { id: 'p1', properties: {} } })
+    expect(() => resolveView({ rows, setTree, view, schema })).not.toThrow()
+  })
 })
 
 describe('mintDefaultView', () => {
