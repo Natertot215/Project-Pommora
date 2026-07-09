@@ -12,6 +12,7 @@ import { isValidLink, normalizeLinkUrl } from '@shared/links'
 import { flattenContainer } from '../pipeline/group'
 import { resolveView } from '../pipeline/resolveView'
 import { declaredType, resolveFieldValue } from '../pipeline/value'
+import { resolvedSortCount } from '../pipeline/sort'
 import { PropertyEditor } from '../PropertyEditing/PropertyEditor'
 import { PropertyPicker } from '../PropertyEditing/PropertyPicker'
 import { nextCycleValue } from '../PropertyEditing/statusCycle'
@@ -252,10 +253,12 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
   // the view is sorted or grouped (an unsorted, ungrouped view otherwise reads canonical page_order). A
   // live `manualOverride` also feeds it so an unsorted-flat reorder shows instantly (before its page_order
   // write round-trips the fs) rather than snapping back.
-  const sortedOrGrouped = (liveView.sort?.length ?? 0) > 0 || liveView.group != null
+  // Effective count only — a dead criterion (deleted property) sorts by nothing and must not
+  // retire row drag or flip the manual-order gates.
+  const sortKeys = useMemo(() => resolvedSortCount(liveView.sort, schema), [liveView.sort, schema])
+  const sortedOrGrouped = sortKeys > 0 || liveView.group != null
   const manualOrder =
     sortedOrGrouped || manualOverride ? (manualOverride ?? viewOrders[view.id]) : undefined
-  const sortKeys = liveView.sort?.length ?? 0
   // The grouped property + whether a cross-group drop can reassign it (D-4): status/select/checkbox map
   // a group key straight to a value; a date bucket doesn't, so date grouping isn't reassignable.
   // The property lives in TWO homes: top-level property grouping, or the view-level sub-group

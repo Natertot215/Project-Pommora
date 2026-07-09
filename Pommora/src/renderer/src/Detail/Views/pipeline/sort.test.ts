@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import type { ViewRow } from '@shared/types'
 import type { PropertyDefinition } from '@shared/properties'
-import { makeSorter } from './sort'
+import { makeSorter, resolvedSortCount } from './sort'
 
 const schema: PropertyDefinition[] = [
   {
@@ -267,5 +267,31 @@ describe('makeSorter — manual order tiebreaker (viewOrders, D-5/D-6)', () => {
   it('returns null when there is neither a sort nor a manual order', () => {
     expect(makeSorter(undefined, schema, [])).toBeNull()
     expect(makeSorter(undefined, schema, undefined)).toBeNull()
+  })
+})
+
+describe('resolvedSortCount', () => {
+  it('counts only criteria buildCriterion resolves — dead and tier criteria cost nothing', () => {
+    expect(resolvedSortCount(undefined, schema)).toBe(0)
+    expect(resolvedSortCount([{ property_id: 'prop_gone', direction: 'ascending' }], schema)).toBe(0)
+    expect(resolvedSortCount([{ property_id: '_tier1', direction: 'ascending' }], schema)).toBe(0)
+    expect(
+      resolvedSortCount(
+        [
+          { property_id: 'prop_sel', direction: 'ascending' },
+          { property_id: 'prop_gone', direction: 'descending' }
+        ],
+        schema
+      )
+    ).toBe(1)
+    expect(
+      resolvedSortCount(
+        [
+          { property_id: '_title', direction: 'ascending' },
+          { property_id: '_modified_at', direction: 'descending' }
+        ],
+        schema
+      )
+    ).toBe(2)
   })
 })

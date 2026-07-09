@@ -133,6 +133,13 @@ function buildCriterion(c: SortCriterion, schema: PropertyDefinition[]): Resolve
   }
 }
 
+/** The EFFECTIVE criteria count — only what buildCriterion resolves (a deleted property or tier
+ *  criterion sorts by nothing). TableView's drag/manual-order gates read this, never the raw array
+ *  length, so a dead criterion can't retire row reorder. */
+export function resolvedSortCount(sort: SortCriterion[] | undefined, schema: PropertyDefinition[]): number {
+  return (sort ?? []).filter((c) => buildCriterion(c, schema) !== null).length
+}
+
 /** Build a stable multi-key group-sorter, or null when no criterion is usable (caller keeps input
  *  order). Decorate-sort: each row's key tuple is extracted ONCE, then criteria are compared in
  *  array order (priority = index); full ties hold input order. */
