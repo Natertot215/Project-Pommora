@@ -2,7 +2,7 @@
 
 A Page is one Markdown file inside a [Collection](Collections.md) — the only operational entity that holds free prose. A Page belongs to one Collection (the one whose folder it physically lives in, at any depth) and conforms to that Collection's property schema.
 
-A Page is a single `.md` file: YAML frontmatter for identity and property values, then a Markdown body for prose. Membership is by location — a file inside a Collection, or one of its Sets at any depth, is a Page in that Collection; there's no container field. The filename is the title — there's no `title` field, and renaming in the UI renames the file. The body is standard Markdown plus Pommora's callout directive, edited in MarkdownPM → `MarkdownPM.md`.
+A Page is a single `.md` file: YAML frontmatter for identity and property values, then a Markdown body for prose. Membership is by location — a file inside a Collection, or one of its Sets at any depth, is a Page in that Collection; there's no container field. The filename is the title — there's no `title` field, and renaming in the UI renames the file. The body is standard Markdown plus Pommora's callout directive, edited in [[Studio/Pommora/II. Features/MarkdownPM|MarkdownPM]] → `MarkdownPM.md`.
 
 ### Features
 
@@ -12,7 +12,7 @@ Frontmatter carries `id` (a ULID), an optional `icon`, the per-tier relations `t
 
 #### II. Title + Membership
 
-The filename minus `.md` is the title — there's no `title` field, and a rename is a file rename. Within a folder, names must be unique: a colliding create auto-disambiguates (`Note 2`, `Note 3`, …) and a colliding rename is rejected. Titles aren't unique Nexus-wide, though — two Pages in different folders can share one, and a `[[Title]]` to a shared title resolves as ambiguous (→ `Connections.md`). Membership is purely positional: moving the file between Collections or Sets changes its membership, with no field to update. Moving across Collections brings the Page under the destination schema → `Collections.md`.
+The filename minus `.md` is the title — there's no `title` field, and a rename is a file rename. Within a folder, names must be unique: a colliding create auto-disambiguates (`Note 2`, `Note 3`, …) and a colliding rename is rejected. Titles aren't unique Nexus-wide, though — two Pages in different folders can share one, and a `[[Title]]` to a shared title resolves as ambiguous (→ `Connections.md`). Membership is purely positional: moving the file between [[Collections]] or [[Studio/Pommora/II. Features/PageSets|PageSets]] changes its membership, with no field to update. Moving across Collections brings the Page under the destination schema → `Collections.md`.
 
 #### II. Properties Surface
 
@@ -24,7 +24,7 @@ Clicking a Page opens it in the main detail pane, replacing the previous selecti
 
 #### II. Connections
 
-A Page's body can hold inline `[[Title]]` connections — Obsidian-compatible wikilinks that render as styled colored inline text and navigate on click. Resolution runs on an in-memory map built from the page tree. Canonical spec → `Connections.md`; the `tier1` / `tier2` / `tier3` context-link counterpart → `Properties.md`.
+A Page's body can hold inline `[[Title]]` [[Studio/Pommora/II. Features/Connections|Connections]] — Obsidian-compatible wikilinks that render as styled colored inline text and navigate on click. Resolution runs on an in-memory map built from the page tree. Canonical spec → `Connections.md`; the `tier1` / `tier2` / `tier3` context-link counterpart → `Properties.md`.
 
 #### II. Editor UI State
 
