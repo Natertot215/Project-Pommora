@@ -20,6 +20,7 @@ import { Reveal } from '../../design-system/components/Reveal'
 import { saveViewAdopting } from '../../Detail/Views/viewMint'
 import { declaredType } from '../../Detail/Views/pipeline/value'
 import { bucketOrder } from '../../Detail/Views/pipeline/group'
+import { NUMERIC_FORMATS } from '../../Detail/Views/PropertyEditing/formatValue'
 import type { Band } from '../../Detail/Views/Table/bandDndModel'
 import { reparentFsOrder, structuralOrderAfterDrop } from '../../Detail/Views/Table/bandDndModel'
 import { nextOrder } from '@renderer/Sidebar/sidebarDndModel'
@@ -80,7 +81,7 @@ function ValueRow<T extends string>({
 }): React.JSX.Element {
   return (
     <MenuItem
-      className={tier === 'sub' ? `${flushTrailing} ${gp.subRow} ${gp.pickerTone}` : `${flushTrailing} ${gp.pickerTone}`}
+      className={cx(flushTrailing, gp.pickerTone, tier === 'sub' && gp.subRow)}
       leading={icon ? <Icon name={icon} size={14} /> : undefined}
       trailing={<PickerControl ariaLabel={label} value={value} options={options} onPick={onPick} />}
     >
@@ -264,9 +265,9 @@ export function GroupingPane({
               { value: 'top', label: 'Top' },
               { value: 'bottom', label: 'Bottom' }
             ]}
-            onPick={(v) => save({ ungrouped_placement: v === 'top' ? 'top' : 'bottom' })}
+            onPick={(v) => save({ ungrouped_placement: v })}
           />
-          {dateHeadingProp && NUMERIC_DATE_FORMATS.has(view.column_styles?.[dateHeadingProp]?.date_format ?? 'full') && (
+          {dateHeadingProp && NUMERIC_FORMATS.has(view.column_styles?.[dateHeadingProp]?.date_format ?? 'full') && (
             <FootingPick
               icon="type"
               label="Separation"
@@ -275,7 +276,7 @@ export function GroupingPane({
                 { value: 'dash', label: 'Dash' },
                 { value: 'slash', label: 'Slash' }
               ]}
-              onPick={(v) => save({ date_separator: v === 'dash' ? 'dash' : 'slash' })}
+              onPick={(v) => save({ date_separator: v })}
             />
           )}
           {group.kind === 'property' && (
@@ -302,11 +303,9 @@ export function GroupingPane({
   )
 }
 
-const NUMERIC_DATE_FORMATS = new Set(['dayMonthYear', 'monthDayYear'])
-
 /** A value footing — the ViewSettings Format-footer look (footing icon + label) with the Order
  *  rows' PickerControl as its trailing picker. */
-function FootingPick({
+function FootingPick<T extends string>({
   icon,
   label,
   value,
@@ -315,9 +314,9 @@ function FootingPick({
 }: {
   icon: React.ComponentProps<typeof Icon>['name']
   label: string
-  value: string
-  options: PickerChoice<string>[]
-  onPick: (v: string) => void
+  value: T
+  options: PickerChoice<T>[]
+  onPick: (v: T) => void
 }): React.JSX.Element {
   return (
     <MenuItem
@@ -364,8 +363,9 @@ function PropertyPreview({ group, def }: { group: PropertyGroupConfig; def: Prop
       </>
     )
   }
-  const ordered = bucketOrder(group, def, new Set(optionsOf(def).map((o) => o.value)))
-  const byValue = new Map(optionsOf(def).map((o) => [o.value, o]))
+  const all = optionsOf(def)
+  const ordered = bucketOrder(group, def, new Set(all.map((o) => o.value)))
+  const byValue = new Map(all.map((o) => [o.value, o]))
   return <>{ordered.flatMap((v) => (byValue.has(v) ? [chip(byValue.get(v)!)] : []))}</>
 }
 
@@ -432,10 +432,12 @@ function LocationHierarchy({
   const flat = subDef !== undefined
 
   // The property sub-group's disclosed chips — the same value run under every top-level set.
+  const subOptions = optionsOf(subDef)
+  const subByValue = new Map(subOptions.map((o) => [o.value, o]))
   const subChips = subDef
-    ? bucketOrder({ order_mode: view.sub_group?.order_mode ?? 'configured', order: view.sub_group?.order }, subDef, new Set(optionsOf(subDef).map((o) => o.value)))
+    ? bucketOrder({ order_mode: view.sub_group?.order_mode ?? 'configured', order: view.sub_group?.order }, subDef, new Set(subOptions.map((o) => o.value)))
         .flatMap((v) => {
-          const o = optionsOf(subDef).find((x) => x.value === v)
+          const o = subByValue.get(v)
           return o ? [o] : []
         })
     : []

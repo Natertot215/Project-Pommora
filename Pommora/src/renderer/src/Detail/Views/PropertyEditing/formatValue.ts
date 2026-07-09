@@ -92,7 +92,9 @@ export function formatDate(
   return out
 }
 
-const NUMERIC_FORMATS = new Set<DateFormat>(['dayMonthYear', 'monthDayYear'])
+/** The date formats that render numerically (`07-2026`) rather than worded (`July 2026`) — gates
+ *  both bucket-label rendering and the pane's Separation footing. */
+export const NUMERIC_FORMATS = new Set<DateFormat>(['dayMonthYear', 'monthDayYear'])
 
 /** A date group-heading label from its stable bucket key: worded formats read written
  *  ("July 2026"); numeric formats read numeric with the view's separator ("07-2026"). */
