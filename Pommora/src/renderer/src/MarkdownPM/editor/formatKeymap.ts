@@ -13,7 +13,7 @@ export const formatKeymap = keymap.of([
   bind('Mod-b', 'format:bold'),
   bind('Mod-i', 'format:italic'),
   bind('Mod-Shift-x', 'format:strikethrough'),
-  bind('Mod-e', 'format:inlineCode'),
+  // Inline Code has no keybinding — ⌘E belongs to the ribbon toggle (settings.json commands).
   bind('Mod-k', 'format:link'),
   bind('Mod-Shift-k', 'format:connection')
 ])

@@ -75,7 +75,7 @@ function pommoraItems(wc: WebContents, s: FormatState): MenuItemConstructorOptio
         { label: 'Bold', type: 'checkbox', checked: s.bold, accelerator: 'CmdOrCtrl+B', registerAccelerator: false, click: act('format:bold') },
         { label: 'Italic', type: 'checkbox', checked: s.italic, accelerator: 'CmdOrCtrl+I', registerAccelerator: false, click: act('format:italic') },
         { label: 'Strikethrough', type: 'checkbox', checked: s.strikethrough, accelerator: 'CmdOrCtrl+Shift+X', registerAccelerator: false, click: act('format:strikethrough') },
-        { label: 'Inline Code', type: 'checkbox', checked: s.inlineCode, accelerator: 'CmdOrCtrl+E', registerAccelerator: false, click: act('format:inlineCode') },
+        { label: 'Inline Code', type: 'checkbox', checked: s.inlineCode, click: act('format:inlineCode') },
         { label: 'Link', type: 'checkbox', checked: s.link, accelerator: 'CmdOrCtrl+K', registerAccelerator: false, click: act('format:link') },
         { label: 'Connection', type: 'checkbox', checked: s.connection, accelerator: 'CmdOrCtrl+Shift+K', registerAccelerator: false, click: act('format:connection') }
       ]
