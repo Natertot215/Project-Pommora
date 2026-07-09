@@ -32,7 +32,7 @@
 .surface-glass {
   --ribbon-w: 44px;
   /* Tunable: the divider's inset from the sidebar's bottom edge. */
-  --ribbon-divider-bottom: 46px;
+  --ribbon-divider-bottom: 20px;
 }
 .sidebar-ribbon {
   -webkit-app-region: no-drag;
@@ -41,12 +41,12 @@
   top: 0;
   bottom: 0;
   width: var(--ribbon-w);
-  z-index: 2;
+  z-index: 0;
   padding-top: 46px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
 }
 /* The divider aligns with the top of the sidebar content (the 46px traffic-light line); its bottom
    inset is a tunable knob. A pseudo-element — a border can't be partial-height. */
@@ -55,9 +55,9 @@
   position: absolute;
   top: 46px;
   bottom: var(--ribbon-divider-bottom);
-  right: 0;
-  width: 2px;
-  background: var(--separator-border);
+  right: 0px;
+  width: 1.75px;
+  background: var(--fill-secondary);
 }
 .ribbon-icon {
   -webkit-app-region: no-drag;
