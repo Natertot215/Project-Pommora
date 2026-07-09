@@ -9,7 +9,7 @@ import type { PropertyDefinition } from '@shared/properties'
 import { RESERVED_PROPERTY_ID } from '@shared/properties'
 import type { SavedView, SortCriterion } from '@shared/views'
 import { Icon, asRenderableIcon, type IconName } from '@renderer/design-system/symbols'
-import { MenuItem, MenuPaneTopRow } from '../../design-system/components/menu'
+import { MenuItem, MenuPaneTopRow, MenuSeparator } from '../../design-system/components/menu'
 import { flushTrailing } from '../../design-system/components/menu/menu.css'
 import { Reveal } from '../../design-system/components/Reveal'
 import { saveViewAdopting } from '../../Detail/Views/viewMint'
@@ -17,6 +17,7 @@ import { declaredType } from '../../Detail/Views/pipeline/value'
 import { cx } from '../../design-system/cx'
 import { useSession } from '../../store'
 import { PickerControl, type PickerChoice } from './PickerControl'
+import { PropertyPreview } from './GroupingPane'
 import { propertyTypeIconName, TITLE_META } from './PropertyTypes'
 import * as gp from './groupingPane.css'
 
@@ -151,6 +152,11 @@ export function SortingPane({
     save([primary, { property_id: id, direction: 'ascending' }])
   }
 
+  // The example order (D-5): only a finite-ordered primary previews — the hasMiddle logic.
+  const primaryType = primary ? declaredType(primary.property_id, schema) : undefined
+  const finiteDef =
+    primaryType === 'select' || primaryType === 'status' ? schema.find((d) => d.id === primary?.property_id) : undefined
+
   const subOptions: PickerChoice<string>[] = [
     { value: '_none', label: 'None', icon: 'circle-off' as const },
     ...targets.filter((t) => t.id !== primary?.property_id).map((t) => ({ value: t.id, label: t.label, icon: t.icon }))
@@ -221,6 +227,17 @@ export function SortingPane({
               options={OPTION_DIRECTIONS}
               onPick={(d) => save([primary, { ...sub, direction: d }])}
             />
+          )}
+          {finiteDef && (
+            <>
+              <MenuSeparator flush />
+              <div className={`${gp.middle} overflow-eclipse-y`}>
+                <PropertyPreview
+                  group={{ order_mode: primary.direction === 'descending' ? 'reversed' : 'configured' }}
+                  def={finiteDef}
+                />
+              </div>
+            </>
           )}
         </>
       )}

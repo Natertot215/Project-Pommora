@@ -22,7 +22,15 @@ const statusDef: PropertyDefinition = {
   name: 'Status',
   type: 'status',
   status_groups: [
-    { id: 'g1', label: 'Open', color: 'gray', options: [{ value: 'todo', label: 'Todo', group_id: 'g1' }] }
+    {
+      id: 'g1',
+      label: 'Open',
+      color: 'gray',
+      options: [
+        { value: 'todo', label: 'Todo', group_id: 'g1' },
+        { value: 'done', label: 'Done', group_id: 'g1' }
+      ]
+    }
   ]
 }
 const dateDef: PropertyDefinition = { id: 'prop_when', name: 'When', type: 'datetime' }
@@ -164,6 +172,20 @@ describe('SortingPane rows', () => {
     expect(texts()).toContain('Title')
     expect(texts()).toContain('A → Z')
     expect(texts()).not.toContain('_title')
+  })
+
+  it('a status primary shows the example order; Reversed flips the run', async () => {
+    await mount(view({ sort: [{ property_id: 'prop_status', direction: 'ascending' }] }))
+    expect(texts()).toContain('Open') // the status group heading
+    expect(texts().indexOf('Todo')).toBeLessThan(texts().indexOf('Done'))
+    await mount(view({ sort: [{ property_id: 'prop_status', direction: 'descending' }] }))
+    expect(texts().indexOf('Done')).toBeLessThan(texts().indexOf('Todo'))
+  })
+
+  it('a datetime primary collapses the example middle', async () => {
+    await mount(view({ sort: [{ property_id: 'prop_when', direction: 'ascending' }] }))
+    expect(texts()).not.toContain('Todo')
+    expect(texts()).not.toContain('Open')
   })
 
   it('a dead primary shows its raw id and None still clears it', async () => {

@@ -341,8 +341,15 @@ const optionsOf = (def: PropertyDefinition | undefined): { value: string; label:
 type PropertyGroupConfig = Extract<GroupConfig, { kind: 'property' }>
 
 /** Default/Reversed read-only preview (D-9): status renders its groups as muted headings with each
- *  group's option chips beneath; select renders one flat chip run; datetime has no finite list. */
-function PropertyPreview({ group, def }: { group: PropertyGroupConfig; def: PropertyDefinition | undefined }): React.JSX.Element | null {
+ *  group's option chips beneath; select renders one flat chip run; datetime has no finite list.
+ *  Shared with the Sorting pane's example order — `group` is just the ordering pair. */
+export function PropertyPreview({
+  group,
+  def
+}: {
+  group: Pick<PropertyGroupConfig, 'order_mode' | 'order'>
+  def: PropertyDefinition | undefined
+}): React.JSX.Element | null {
   if (!def) return null
   const type = def.type === 'status' ? 'status' : 'select'
   const chip = (o: { value: string; label: string; color?: string }): React.JSX.Element => (
