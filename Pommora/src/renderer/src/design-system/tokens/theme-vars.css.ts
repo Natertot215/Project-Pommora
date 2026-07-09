@@ -56,6 +56,13 @@ globalStyle(':root', {
     '--drag-line': 'var(--accent)',
     '--drop-line-thickness': '2px',
     '--drop-dot-size': '7px',
+    // List outline (the nested-run rail) — THE shared rail primitive: MarkdownPM's outliner guides
+    // and the Grouping pane's hierarchy rail consume these knobs; each surface owns only its
+    // positioning math.
+    '--list-outline-width': '2px',
+    '--list-outline-color': 'var(--separator-segment)',
+    '--list-outline-radius': '999px',
+    '--list-outline-gap': '3px',
     // Accent: a pointer, never a baked color. The static seed is the default
     // spectrum solid (DEFAULT_ACCENT); applyAccent overrides --accent at runtime
     // from settings — any spectrum color, or the OS accent. -fill is a 15% tint

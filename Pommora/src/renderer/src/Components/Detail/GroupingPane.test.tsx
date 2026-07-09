@@ -125,8 +125,13 @@ describe('GroupingPane rows', () => {
       root.render(<GroupingPane source={nested} view={view()} schema={[statusDef, dateDef]} label="Settings" onBack={() => {}} />)
     })
     expect(texts()).toContain('Alpha')
-    expect(texts()).toContain('Nested')
+    expect(texts()).not.toContain('Nested') // sub-groups hidden by default — disclose on demand
     expect(texts()).toContain('Beta')
+    const alphaRow = [...host.querySelectorAll('*')].filter((el) => el.textContent === 'Alpha').at(-1)
+    await act(async () => {
+      ;(alphaRow!.closest('[class]') as HTMLElement).click()
+    })
+    expect(texts()).toContain('Nested') // disclosed
     await act(async () => {
       root.render(
         <GroupingPane
@@ -140,6 +145,36 @@ describe('GroupingPane rows', () => {
     })
     expect(texts()).toContain('Alpha')
     expect(texts()).not.toContain('Nested') // F-3: flat set list under sub-grouping
+  })
+
+  it('footings: Ungrouped always; Hide Empty Groups under property grouping; Separation under numeric date formats', async () => {
+    await mount(view())
+    expect(texts()).toContain('Ungrouped')
+    expect(texts()).not.toContain('Hide Empty Groups')
+    expect(texts()).not.toContain('Separation')
+    await mount(
+      view({
+        group: { kind: 'property', property_id: 'prop_status', order_mode: 'configured', empty_placement: 'bottom', hide_empty_groups: false }
+      })
+    )
+    expect(texts()).toContain('Hide Empty Groups')
+    await mount(
+      view({
+        group: { kind: 'property', property_id: 'prop_when', order_mode: 'configured', empty_placement: 'bottom', hide_empty_groups: false },
+        column_styles: { prop_when: { date_format: 'monthDayYear' } }
+      })
+    )
+    expect(texts()).toContain('Separation')
+  })
+
+  it('the Ungrouped footing writes ungrouped_placement through the native value menu', async () => {
+    ;(window as unknown as { nexus: { valueMenu: unknown } }).nexus.valueMenu = vi.fn(async () => 'Top')
+    await mount(view())
+    const row = [...host.querySelectorAll('*')].find((el) => el.textContent === 'Ungrouped')
+    await act(async () => {
+      ;(row!.closest('[class]') as HTMLElement).click()
+    })
+    expect(lastSaved().ungrouped_placement).toBe('top')
   })
 
   it('status default order shows the grouped read-only preview; custom shows the flat Options list', async () => {

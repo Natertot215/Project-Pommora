@@ -15,7 +15,7 @@ import type {
 } from '@shared/views'
 import { Icon, asRenderableIcon, defaultEntityIcon, iconNameOr, type IconName } from '@renderer/design-system/symbols'
 import { MenuItem, MenuSeparator, MenuPaneTopRow } from '../../design-system/components/menu'
-import { flushTrailing } from '../../design-system/components/menu/menu.css'
+import { detail as detailText, flushTrailing, footingLabel, footingSymbol, side } from '../../design-system/components/menu/menu.css'
 import { Reveal } from '../../design-system/components/Reveal'
 import { saveViewAdopting } from '../../Detail/Views/viewMint'
 import { declaredType } from '../../Detail/Views/pipeline/value'
@@ -109,6 +109,14 @@ export function GroupingPane({
   const groupable = schema.filter((d) => GROUPABLE_PANE.has(declaredType(d.id, schema) ?? ''))
   const activeDef = group.kind === 'property' ? schema.find((d) => d.id === group.property_id) : undefined
   const subGroup = structural ? view.sub_group : undefined
+  // The property whose date buckets head bands right now (top-level date grouping, or the date
+  // sub-group) — the Separation footing appears only when its column wears a numeric format (D-8).
+  const dateHeadingProp =
+    group.kind === 'property' && declaredType(group.property_id, schema) === 'datetime'
+      ? group.property_id
+      : subGroup && declaredType(subGroup.property_id, schema) === 'datetime'
+        ? subGroup.property_id
+        : undefined
 
   // E-3 preservation is free: structural_order_mode / sub_group are view-level, so switching the
   // one group slot never touches them — flip back to Location and they're still in force.
@@ -181,6 +189,7 @@ export function GroupingPane({
           {group.kind === 'property' ? (
             <ValueRow
               tier="sub"
+              icon="arrow-up-down"
               label="Order"
               value={group.order_mode}
               options={orderOptionsFor(declaredType(group.property_id, schema))}
@@ -189,6 +198,7 @@ export function GroupingPane({
           ) : (
             <ValueRow
               tier="sub"
+              icon="arrow-up-down"
               label="Order"
               value={view.structural_order_mode ?? 'custom'}
               options={STRUCTURAL_ORDER}
@@ -210,6 +220,7 @@ export function GroupingPane({
               {subGroup && (
                 <ValueRow
                   tier="sub"
+                  icon="arrow-up-down"
                   label="Order"
                   value={subGroup.order_mode}
                   options={orderOptionsFor(declaredType(subGroup.property_id, schema))}
@@ -227,13 +238,96 @@ export function GroupingPane({
                 <PropertyPreview group={group} def={activeDef} />
               )
             ) : (
-              <LocationHierarchy source={source} view={view} flat={subGroup !== undefined} onSaveView={save} />
+              <LocationHierarchy
+                source={source}
+                view={view}
+                subDef={subGroup ? schema.find((d) => d.id === subGroup.property_id) : undefined}
+                onSaveView={save}
+              />
             )}
           </div>
-          {/* T10: the footings. */}
+          <MenuSeparator flush />
+          <FootingPick
+            icon="gallery-vertical-end"
+            label="Ungrouped"
+            value={(view.ungrouped_placement ?? 'bottom') === 'top' ? 'Top' : 'Bottom'}
+            options={['Top', 'Bottom']}
+            onPick={(v) => save({ ungrouped_placement: v === 'Top' ? 'top' : 'bottom' })}
+          />
+          {dateHeadingProp && NUMERIC_DATE_FORMATS.has(view.column_styles?.[dateHeadingProp]?.date_format ?? 'full') && (
+            <FootingPick
+              icon="type"
+              label="Separation"
+              value={(view.date_separator ?? 'dash') === 'dash' ? 'Dash' : 'Slash'}
+              options={['Dash', 'Slash']}
+              onPick={(v) => save({ date_separator: v === 'Dash' ? 'dash' : 'slash' })}
+            />
+          )}
+          {group.kind === 'property' && (
+            <MenuItem
+              className={flushTrailing}
+              leading={
+                <span className={footingSymbol}>
+                  <Icon name="eye-off" size={12} />
+                </span>
+              }
+              trailing={
+                <span className={footingSymbol}>
+                  <Icon name={group.hide_empty_groups ? 'check' : 'x'} size={12} />
+                </span>
+              }
+              onClick={() => saveGroup({ ...group, hide_empty_groups: !group.hide_empty_groups })}
+            >
+              <span className={footingLabel}>Hide Empty Groups</span>
+            </MenuItem>
+          )}
         </>
       )}
     </>
+  )
+}
+
+const NUMERIC_DATE_FORMATS = new Set(['dayMonthYear', 'monthDayYear'])
+
+/** A value footing — the ViewSettings Format-footer recipe exactly (footing icon + label, side
+ *  cluster with the detail value + chevron), popping the NATIVE radio menu (C-9). */
+function FootingPick({
+  icon,
+  label,
+  value,
+  options,
+  onPick
+}: {
+  icon: IconName
+  label: string
+  value: string
+  options: string[]
+  onPick: (v: string) => void
+}): React.JSX.Element {
+  return (
+    <MenuItem
+      className={flushTrailing}
+      leading={
+        <span className={footingSymbol}>
+          <Icon name={icon} size={12} />
+        </span>
+      }
+      trailing={
+        <span className={side}>
+          <span className={detailText}>{value}</span>
+          <span className={footingSymbol}>
+            <Icon name="chevrons-up-down" size={12} />
+          </span>
+        </span>
+      }
+      onClick={() =>
+        void window.nexus.valueMenu(options, value).then((v) => {
+          if (v) onPick(v)
+        })
+      }
+    >
+      <span className={footingLabel}>{label}</span>
+    </MenuItem>
   )
 }
 
@@ -310,42 +404,83 @@ function CustomList({
   )
 }
 
-/** The set hierarchy (C-2): sets with sub-sets disclosed beneath them, no pages; FLAT when
- *  sub-grouped (F-3). Drags mirror the table band rules (F-4): sibling reorder writes view order
- *  in Custom / the filesystem in Location; a cross-nesting drop is always an fs reparent. */
+/** The set hierarchy (C-2): sets with their sub-group disclosed beneath them, no pages. Each set
+ *  discloses what the sub-group yields — sub-sets under Location, the property's value chips under
+ *  a property sub-group (sub-sets flatten, F-3) — both riding the rail. Drags mirror the table
+ *  band rules (F-4): sibling reorder writes view order in Custom / the filesystem in Location; a
+ *  cross-nesting drop is always an fs reparent. Chip rows are inert (their reorder surface is the
+ *  table bands, F-1). */
 function LocationHierarchy({
   source,
   view,
-  flat,
+  subDef,
   onSaveView
 }: {
   source: CollectionNode | SetNode
   view: SavedView
-  flat: boolean
+  /** The sub-group property's definition when sub-grouped by a property; undefined = Location. */
+  subDef: PropertyDefinition | undefined
   onSaveView: (patch: Partial<SavedView>) => void
 }): React.JSX.Element {
   const mutate = useSession((st) => st.mutate)
-  const [collapsedSets, setCollapsedSets] = useState<Set<string>>(new Set())
+  const hideChevrons = useSession((st) => st.personalization.hideChevrons ?? false)
+  // Sub-groups are hidden by default — a set discloses on demand.
+  const [expanded, setExpanded] = useState<Set<string>>(new Set())
+  const flat = subDef !== undefined
 
-  type Row = { id: string; title: string; icon?: string; depth: number; parentId: string | null; hasChildren: boolean; path: string }
-  const rows: Row[] = []
+  // The property sub-group's disclosed chips — the same value run under every top-level set.
+  const subChips = subDef
+    ? bucketOrder({ order_mode: view.sub_group?.order_mode ?? 'configured', order: view.sub_group?.order }, subDef, new Set(optionsOf(subDef).map((o) => o.value)))
+        .flatMap((v) => {
+          const o = optionsOf(subDef).find((x) => x.value === v)
+          return o ? [o] : []
+        })
+    : []
+
   const allIds: string[] = []
   const childIds = new Map<string | null, string[]>()
   const paths = new Map<string, string>()
-  const walk = (sets: SetNode[] | undefined, depth: number, parentId: string | null, visible: boolean): void => {
+  const bands: Band[] = []
+  const chipValueOf = new Map<string, string>()
+  const chipBandId = (setId: string, value: string): string => {
+    const id = `sub:${setId}:${value}`
+    chipValueOf.set(id, value)
+    return id
+  }
+  const index = (sets: SetNode[] | undefined, depth: number, parentId: string | null, visible: boolean): void => {
     childIds.set(parentId, (sets ?? []).map((s) => s.id))
     for (const s of sets ?? []) {
       allIds.push(s.id)
       paths.set(s.id, s.path)
       if (visible) {
-        rows.push({ id: s.id, title: s.title, icon: s.icon, depth, parentId, hasChildren: (s.sets ?? []).length > 0, path: s.path })
+        bands.push({ id: s.id, kind: 'set', depth, parentId })
+        // A disclosed chip run registers as property bands so the SAME gesture drags them (F-1's
+        // pane surface) — the drop resolves back to the value through chipValueOf.
+        if (flat && expanded.has(s.id)) {
+          for (const o of subChips) bands.push({ id: chipBandId(s.id, o.value), kind: 'property', depth: depth + 1, parentId: s.id })
+        }
       }
-      walk(s.sets, depth + 1, s.id, visible && !flat && !collapsedSets.has(s.id))
+      index(s.sets, depth + 1, s.id, visible && !flat && expanded.has(s.id))
     }
   }
-  walk(source.sets, 0, null, true)
+  index(source.sets, 0, null, true)
 
   const onDrop = (draggedId: string, drop: GroupingDrop): void => {
+    // A chip drag is a GLOBAL sub-order write regardless of drop kind or target set (F-1's
+    // semantics); dragging also flips the sub-order to Custom (the first-UI-writer pattern).
+    if (chipValueOf.has(draggedId)) {
+      const value = chipValueOf.get(draggedId)
+      const before = drop.beforeId === null ? null : (chipValueOf.get(drop.beforeId) ?? null)
+      if (value === undefined || !view.sub_group) return
+      onSaveView({
+        sub_group: {
+          ...view.sub_group,
+          order_mode: 'manual',
+          order: nextOrder(subChips.map((o) => o.value), value, before)
+        }
+      })
+      return
+    }
     if (drop.kind === 'reorder') {
       if (view.structural_order_mode === 'location') {
         const parentPath = drop.targetParentId === null ? source.path : paths.get(drop.targetParentId)
@@ -368,39 +503,80 @@ function LocationHierarchy({
     })()
   }
 
-  const bands: Band[] = rows.map((r) => ({ id: r.id, kind: 'set', depth: r.depth, parentId: flat ? null : r.parentId }))
-  const dnd = useGroupingListDrag({ bands, nestable: !flat, onDrop })
-  return (
-    <div ref={dnd.containerRef} style={{ position: 'relative' }}>
-      {rows.map((r) => (
-        <div key={r.id} ref={dnd.rowRef(r.id)} {...dnd.rowHandle(r.id)} style={dnd.draggingId === r.id ? { opacity: 0.4 } : undefined}>
+  const dnd = useGroupingListDrag({ bands, nestable: true, onDrop })
+  const toggle = (id: string): void =>
+    setExpanded((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  const subType = subDef?.type === 'status' ? 'status' : 'select'
+
+  // Recursive render: each set row + a Reveal (the sidebar's disclosure motion) carrying its
+  // sub-group — sub-sets under Location, the chip run under a property sub-group. The chevron sits
+  // LEFT of the icon (the sidebar cluster) and honors the Hide Chevrons personalization; the row
+  // itself toggles either way.
+  const renderSet = (s: SetNode): React.JSX.Element => {
+    const kids = flat ? [] : (s.sets ?? [])
+    const disclosable = flat ? subChips.length > 0 : kids.length > 0
+    const isOpen = expanded.has(s.id)
+    return (
+      <div key={s.id}>
+        <div ref={dnd.rowRef(s.id)} {...dnd.rowHandle(s.id)} style={dnd.draggingId === s.id ? { opacity: 0.4 } : undefined}>
           <MenuItem
-            indent={r.depth}
-            selected={dnd.nestTarget === r.id}
-            leading={<Icon name={iconNameOr(r.icon, defaultEntityIcon('set'))} size={13} />}
-            trailing={
-              !flat && r.hasChildren ? (
-                <Icon
-                  name="chevron-right"
-                  size={12}
-                  className={collapsedSets.has(r.id) ? undefined : 'open'}
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    setCollapsedSets((prev) => {
-                      const next = new Set(prev)
-                      if (next.has(r.id)) next.delete(r.id)
-                      else next.add(r.id)
-                      return next
-                    })
-                  }}
-                />
-              ) : undefined
+            selected={dnd.nestTarget === s.id}
+            leading={
+              <>
+                {!hideChevrons && disclosable ? (
+                  <Icon
+                    name="chevron-right"
+                    size={12}
+                    className={isOpen ? 'twisty open' : 'twisty'}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      toggle(s.id)
+                    }}
+                    onPointerDown={(e) => e.stopPropagation()}
+                  />
+                ) : null}
+                <Icon name={iconNameOr(s.icon, defaultEntityIcon('set'))} size={13} />
+              </>
             }
+            onClick={disclosable ? () => toggle(s.id) : undefined}
           >
-            {r.title}
+            {s.title}
           </MenuItem>
         </div>
-      ))}
+        {disclosable && (
+          <Reveal open={isOpen}>
+            <div className={gp.railRow}>
+              {flat
+                ? subChips.map((o) => {
+                    const id = `sub:${s.id}:${o.value}`
+                    return (
+                      <div
+                        key={o.value}
+                        ref={dnd.rowRef(id)}
+                        {...dnd.rowHandle(id)}
+                        className={`${gp.chipRow} ${gp.subChip}`}
+                        style={dnd.draggingId === id ? { opacity: 0.4 } : undefined}
+                      >
+                        <Chip color={chipColorFor(o.color)} label={o.label} shape={chipShapeForType(subType)} />
+                      </div>
+                    )
+                  })
+                : kids.map(renderSet)}
+            </div>
+          </Reveal>
+        )}
+      </div>
+    )
+  }
+
+  return (
+    <div ref={dnd.containerRef} style={{ position: 'relative' }}>
+      {(source.sets ?? []).map(renderSet)}
       {dnd.line && <div className={gp.dropLine} style={{ top: dnd.line.y }} />}
     </div>
   )

@@ -3,7 +3,7 @@
 // insertion line live here. paneDnd doesn't fit: its two-region assigned/all vocabulary has no
 // parent/nest concept, and the hierarchy list needs reparent drops (F-4).
 import { useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
-import { ACTIVATION } from '@renderer/design-system/interactions/shared'
+import { ACTIVATION, suppressNextClick } from '@renderer/design-system/interactions/shared'
 import type { Band, BandIndex, BandSlot } from '../../Detail/Views/Table/bandDndModel'
 import { bandSlot, buildBandIndex, canNest } from '../../Detail/Views/Table/bandDndModel'
 
@@ -96,6 +96,7 @@ export function useGroupingListDrag({
     const g = gesture.current
     const slot = live.current
     if (g.kind === 'active' && slot) {
+      suppressNextClick() // the release must not also fire the row's disclosure toggle
       cfg.current.onDrop(g.id, {
         kind: slot.nestInto ? 'reparent' : slot.impliedParentId === cfg.current.bands.find((b) => b.id === g.id)?.parentId ? 'reorder' : 'reparent',
         targetParentId: slot.nestInto ?? slot.impliedParentId,

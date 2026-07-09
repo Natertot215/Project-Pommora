@@ -367,12 +367,12 @@
   position: relative;
 }
 .outliner-lines .md-outliner-rail {
-  --outliner-width: 2px;
-  --outliner-color: var(--separator-segment);
-  --outliner-gap: 3px;
+  --outliner-width: var(--list-outline-width);
+  --outliner-color: var(--list-outline-color);
+  --outliner-gap: var(--list-outline-gap);
   --outliner-gap-top: var(--outliner-gap);
   --outliner-gap-bottom: var(--outliner-gap);
-  --outliner-radius: 999px;
+  --outliner-radius: var(--list-outline-radius);
   display: block;
   position: absolute;
   top: 0;

@@ -12,7 +12,30 @@ const SUB_ORDER_GAP = '-4px'
 
 export const subRow = style({ marginTop: SUB_ORDER_GAP })
 
-export const subLabel = style([text.control.emphasized, { color: c.label.secondary }])
+export const subLabel = style([text.body.emphasized, { color: c.label.secondary }])
+
+/** KNOB — the hierarchy's disclosed sub-group chips render a step smaller than table chips. */
+export const subChip = style({ zoom: 0.85 })
+
+/** KNOB — the rail's x: the parent icon's centre (8px row padding + half the 13px glyph). */
+const RAIL_X = '14px'
+
+/** A disclosed child run rides the shared list-outline rail (interactions.css), centred under the
+ *  parent's icon with rounded caps; children indent past it. */
+export const railRow = style({
+  position: 'relative',
+  paddingLeft: '20px',
+  '::before': {
+    content: '""',
+    position: 'absolute',
+    top: 'var(--list-outline-gap)',
+    bottom: 'var(--list-outline-gap)',
+    left: `calc(${RAIL_X} - var(--list-outline-width) / 2)`,
+    width: 'var(--list-outline-width)',
+    borderRadius: 'var(--list-outline-radius)',
+    background: 'var(--list-outline-color)'
+  }
+})
 
 /** The Group By row's trailing value — Control-size (the PickerControl trigger's weight class), a
  *  step LARGER than the menus' Footnote detail so the pane's lead value reads at full strength. */
