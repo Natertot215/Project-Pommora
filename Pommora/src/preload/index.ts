@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import type { IpcRendererEvent } from 'electron'
-import type { NexusState, NexusTree, OpenIn, PageResult, Personalization, SubfieldConfig, ViewButton, ViewStyle } from '@shared/types'
+import type { AgendaListResult, NexusState, NexusTree, OpenIn, PageResult, Personalization, SubfieldConfig, ViewButton, ViewStyle } from '@shared/types'
 import type { MutateRequest, MutateResult, ContextTarget } from '@shared/mutate'
 import type { FormatState } from '@shared/editorMenu'
 import type { TableMenuAction, TableMenuContext } from '@shared/tableMenu'
@@ -233,6 +233,10 @@ const api = {
     get: (): Promise<SubfieldConfig | null> => ipcRenderer.invoke('subfield:get'),
     set: (config: SubfieldConfig): Promise<{ ok: true } | { ok: false; error: string }> =>
       ipcRenderer.invoke('subfield:set', config)
+  },
+  // Agenda read for the sidebar's Agenda mode — lazy, called only when that mode is active.
+  agenda: {
+    list: (): Promise<AgendaListResult> => ipcRenderer.invoke('agenda:list')
   },
   // Personalization (accent, connection color, interface toggles) — persist one key; the tree
   // surfaces current values (state → tree.personalization), so there's no get.

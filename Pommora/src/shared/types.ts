@@ -81,6 +81,22 @@ export type FolderPlacement = 'top' | 'bottom'
 /** Which surface the sidebar content column renders. Homepage is a selection, not a mode. */
 export type SidebarMode = 'collections' | 'contexts' | 'agenda'
 
+/** A read-only agenda entity for the sidebar list (main → renderer). Dates are ISO strings or absent. */
+export interface AgendaEntry {
+  id: string
+  title: string
+  kind: 'task' | 'event'
+  icon?: string
+  dueAt?: string
+  startAt?: string
+  endAt?: string
+}
+
+/** The `agenda:list` IPC envelope — tasks + events, or an error. */
+export type AgendaListResult =
+  | { ok: true; tasks: AgendaEntry[]; events: AgendaEntry[] }
+  | { ok: false; error: string }
+
 /** Nexus-wide interface personalization — the `personalization` object in `.nexus/settings.json`
  *  (canonical, synced). Every field optional; absent = the built-in default. One schema behind one
  *  apply-map + one setter — a new toggle is a field here plus an apply-map row. Icon names are bare

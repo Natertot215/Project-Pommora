@@ -2,7 +2,8 @@ import { app, BrowserWindow, dialog, ipcMain, Menu, nativeTheme, protocol, shell
 import type { OpenDialogOptions } from 'electron'
 import { basename, dirname, extname, join, sep } from 'node:path'
 import { readFile, rename } from 'node:fs/promises'
-import type { NexusState, PageResult, SubfieldConfig } from '@shared/types'
+import type { AgendaListResult, NexusState, PageResult, SubfieldConfig } from '@shared/types'
+import { collectAgendaEntries } from './agenda/collectAgenda'
 import type { MutateRequest, MutateResult, ContextTarget } from '@shared/mutate'
 import { WINDOW_BG } from '@shared/theme'
 import { readNexus } from './readNexus'
@@ -222,6 +223,19 @@ ipcMain.handle('nexus:state', async (): Promise<NexusState> => {
     return { status: 'open', tree }
   } catch (e) {
     return { status: 'error', error: e instanceof Error ? e.message : String(e) }
+  }
+})
+
+// Lazy agenda read for the sidebar's Agenda mode — called only when that mode is active, so
+// agenda files never join the tree walk. Read-only; no EventKit, no CRUD here.
+ipcMain.handle('agenda:list', async (): Promise<AgendaListResult> => {
+  const root = sessionRoot()
+  if (root === null) return { ok: false, error: 'No nexus open' }
+  try {
+    const { tasks, events } = await collectAgendaEntries(root)
+    return { ok: true, tasks, events }
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) }
   }
 })
 
