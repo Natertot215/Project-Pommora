@@ -142,8 +142,6 @@ interface SessionState {
   reloadPage: () => Promise<void>
   /** Create a page in the selected container (or the selected page's parent), then select it. */
   newPage: () => Promise<void>
-  /** Create a top-level Collection at the nexus root, then inline-rename it. */
-  newCollection: () => Promise<void>
 
   /** The path of the sidebar row in inline-rename edit mode, or null. */
   renamingPath: string | null
@@ -450,12 +448,6 @@ export const useSession = create<SessionState>((set, get) => {
       )
     },
 
-    newCollection: async () => {
-      // create a top-level Collection, then drop it straight into inline-rename mode
-      await get().mutate({ op: 'createContainer', parentPath: '', kind: 'collection', name: DEFAULT_NEW_NAME }, (created) =>
-        get().beginRename(created.path)
-      )
-    },
 
     renamingPath: null,
     beginRename: (path) => set({ renamingPath: path }),

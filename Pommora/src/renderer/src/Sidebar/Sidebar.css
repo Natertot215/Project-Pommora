@@ -291,7 +291,7 @@
   min-width: var(--chevron-gutter);
   overflow: hidden;
   /* Absorbs the row's inset (below) on top of the gutter collapse, so the icon + title don't move. */
-  margin-right: calc(var(--chevron-gutter) - 6px - var(--sidebar-hidechevron-pad));
+  margin-right: calc(var(--chevron-gutter) - 7.5px - var(--sidebar-hidechevron-pad));
 }
 /* Inset the row — and its FULLY-ROUNDED selection/hover fill — off the ribbon when chevrons are hidden.
    A plain margin keeps the fill's corners at their true 8px radius (a transparent border would squash the

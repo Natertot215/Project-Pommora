@@ -388,7 +388,6 @@ function SectionHeader({ label, onAdd }: { label: string; onAdd?: () => void }):
 export function Sidebar({ tree }: { tree: NexusTree }): React.JSX.Element {
   const selection = useSession((s) => s.selection)
   const select = useSession((s) => s.select)
-  const newCollection = useSession((s) => s.newCollection)
   const mutate = useSession((s) => s.mutate)
   const setPlacement = useSession((s) => s.personalization.setPlacement ?? 'top')
   const subSetPlacement = useSession((s) => s.personalization.subSetPlacement ?? 'top')
@@ -407,12 +406,18 @@ export function Sidebar({ tree }: { tree: NexusTree }): React.JSX.Element {
   // A drop resolves to a MutateRequest; the store's one write path applies it (refetch on ok).
   const onCommit = (req: MutateRequest): void => void mutate(req)
 
-  // Contexts are three tiers; the header "+" pops a native picker → createContext(tier).
+  // Right-click a mode's empty area → a native create menu (never auto-create). Contexts offers the
+  // three tiers; Collections a single "New Collection" (Add Heading joins it with User Sections CRUD).
   const newContext = (): void => {
     void window.nexus.popCreateMenu([
       { label: 'New Area', req: { op: 'createContext', tier: 1, name: DEFAULT_NEW_NAME } },
       { label: 'New Topic', req: { op: 'createContext', tier: 2, name: DEFAULT_NEW_NAME } },
       { label: 'New Project', req: { op: 'createContext', tier: 3, name: DEFAULT_NEW_NAME } }
+    ])
+  }
+  const newCollectionMenu = (): void => {
+    void window.nexus.popCreateMenu([
+      { label: 'New Collection', req: { op: 'createContainer', parentPath: '', kind: 'collection', name: DEFAULT_NEW_NAME } }
     ])
   }
 
@@ -506,7 +511,7 @@ export function Sidebar({ tree }: { tree: NexusTree }): React.JSX.Element {
       ? { node: contextsLayer, onCreate: newContext }
       : mode === 'agenda'
         ? { node: <AgendaMode />, onCreate: undefined }
-        : { node: collectionsLayer, onCreate: newCollection }
+        : { node: collectionsLayer, onCreate: newCollectionMenu }
 
   return (
     <nav ref={navRef} className="sidebar scroll-edge-fade">
