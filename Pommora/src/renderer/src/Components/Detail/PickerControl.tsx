@@ -3,7 +3,7 @@ import { Icon } from '@renderer/design-system/symbols'
 import { PickerMenu, PickerOption } from '../../design-system/components/PickerMenu'
 import * as s from './pickerControl.css'
 
-export type PickerChoice<T extends string> = { value: T; label: string }
+export type PickerChoice<T extends string> = { value: T; label: string; icon?: React.ComponentProps<typeof Icon>['name'] }
 
 export const labelOf = <T extends string>(opts: PickerChoice<T>[], v: T): string =>
   opts.find((o) => o.value === v)?.label ?? opts[0].label
@@ -40,7 +40,14 @@ export function PickerControl<T extends string>({
               setOpen(false)
             }}
           >
-            {o.label}
+            {o.icon ? (
+              <span className={s.iconOption}>
+                <Icon name={o.icon} size={13} />
+                {o.label}
+              </span>
+            ) : (
+              o.label
+            )}
           </PickerOption>
         ))}
       </PickerMenu>

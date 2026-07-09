@@ -1135,7 +1135,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
     // the DOM. Each row keeps its own grid reading the inherited --cols, so wrapping never breaks the
     // column alignment (A-2).
     return [
-      <div key={`gh-${g.key}`} className="group-header-row" style={{ paddingLeft: groupIndent(depth) }}>
+      <div key={`gh-${g.key}`} className={cx('group-header-row', g.bucket !== undefined && 'sub-band')} style={{ paddingLeft: groupIndent(depth) }}>
         <GroupHeader
           group={g}
           view={liveView}

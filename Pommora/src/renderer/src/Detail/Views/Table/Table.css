@@ -340,6 +340,10 @@
   padding-top: var(--group-gap-top); /* inter-section gap */
   padding-bottom: var(--cell-padding-y); /* matches data-cell vertical padding — gap before the first row */
 }
+/* A sub-group bucket header reads as a row, not a section — its gap collapses to the row rhythm. */
+.group-header-row.sub-band {
+  padding-top: var(--subband-gap-top);
+}
 .group-header {
   /* Sticky-left so the disclosure label + its chevron hold the gutter when the columns scroll horizontally
      — the group stays legible instead of sliding off. Also the containing block for the chevron's absolute

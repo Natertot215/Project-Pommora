@@ -113,6 +113,53 @@ describe('GroupingPane rows', () => {
     expect(lastSaved().group).toMatchObject({ kind: 'property', property_id: 'prop_status', order_mode: 'configured' })
   })
 
+  it('structural: the middle region lists the set hierarchy; sub-grouped flattens it', async () => {
+    const nested = {
+      ...source,
+      sets: [
+        { kind: 'set', id: 'sA', title: 'Alpha', path: 'Col/Alpha', pages: [], sets: [{ kind: 'set', id: 'sA1', title: 'Nested', path: 'Col/Alpha/Nested', pages: [], sets: [] }] },
+        { kind: 'set', id: 'sB', title: 'Beta', path: 'Col/Beta', pages: [], sets: [] }
+      ]
+    } as unknown as CollectionNode
+    await act(async () => {
+      root.render(<GroupingPane source={nested} view={view()} schema={[statusDef, dateDef]} label="Settings" onBack={() => {}} />)
+    })
+    expect(texts()).toContain('Alpha')
+    expect(texts()).toContain('Nested')
+    expect(texts()).toContain('Beta')
+    await act(async () => {
+      root.render(
+        <GroupingPane
+          source={nested}
+          view={view({ sub_group: { property_id: 'prop_status', order_mode: 'configured' } })}
+          schema={[statusDef, dateDef]}
+          label="Settings"
+          onBack={() => {}}
+        />
+      )
+    })
+    expect(texts()).toContain('Alpha')
+    expect(texts()).not.toContain('Nested') // F-3: flat set list under sub-grouping
+  })
+
+  it('status default order shows the grouped read-only preview; custom shows the flat Options list', async () => {
+    await mount(
+      view({
+        group: { kind: 'property', property_id: 'prop_status', order_mode: 'configured', empty_placement: 'bottom', hide_empty_groups: false }
+      })
+    )
+    expect(texts()).toContain('Open') // the status group heading
+    expect(texts()).toContain('Todo')
+    expect(texts()).not.toContain('Options')
+    await mount(
+      view({
+        group: { kind: 'property', property_id: 'prop_status', order_mode: 'manual', empty_placement: 'bottom', hide_empty_groups: false }
+      })
+    )
+    expect(texts()).toContain('Options')
+    expect(texts()).toContain('Todo')
+  })
+
   it('switching Group By away and back preserves sub_group (view-level survival)', async () => {
     const v = view({ sub_group: { property_id: 'prop_status', order_mode: 'manual', order: ['todo'] } })
     await mount(v)

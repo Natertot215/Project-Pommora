@@ -38,6 +38,7 @@
 
   /* — Group sections — */
   --group-gap-top: 16px; /* vertical gap above a group header (separates sections) */
+  --subband-gap-top: var(--cell-padding-y); /* a sub-group bucket header sits at data-row height, not band height */
 
   /* — Column resize — */
   --resizer-width: 8px; /* width of the invisible drag hit-strip at a column's right edge */
