@@ -58,11 +58,12 @@ describe('Ribbon', () => {
     expect(setPersonalizationSpy).not.toHaveBeenCalled()
   })
 
-  it('marks the active mode with the highlight class', () => {
+  it('reflects the active mode via aria-selected, with no highlight class', () => {
     const collections = buttons().find((b) => b.getAttribute('aria-label') === 'collections')!
-    expect(collections.className).toContain('ribbon-icon-active')
+    expect(collections.getAttribute('aria-selected')).toBe('true')
+    expect(collections.className).not.toContain('active')
     const agenda = buttons().find((b) => b.getAttribute('aria-label') === 'agenda')!
-    expect(agenda.className).not.toContain('ribbon-icon-active')
+    expect(agenda.getAttribute('aria-selected')).toBe('false')
   })
 
   it('honors a persisted ribbonOrder, appending any missing keys', () => {

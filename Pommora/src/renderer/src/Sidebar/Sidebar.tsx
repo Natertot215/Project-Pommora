@@ -16,12 +16,14 @@ import type {
   PageNode,
   SelectionState,
   SetNode,
+  SidebarMode,
   TopicNode,
   ProjectNode
 } from '@shared/types'
 import { DEFAULT_NEW_NAME, type MutableKind, type MutateRequest } from '@shared/mutate'
+import { useExitPresence } from '@renderer/design-system/useExitPresence'
 import { SidebarDnd, useSidebarDrag } from './sidebarDnd'
-import { NexusHeader } from './NexusHeader'
+import { AgendaMode } from './AgendaMode'
 import { loadOpen, saveOpen } from './disclosureState'
 import { useSession } from '../store'
 import { RenamableTitle } from '../Components/RenamableTitle'
@@ -391,6 +393,12 @@ export function Sidebar({ tree }: { tree: NexusTree }): React.JSX.Element {
   const mutate = useSession((s) => s.mutate)
   const setPlacement = useSession((s) => s.personalization.setPlacement ?? 'top')
   const subSetPlacement = useSession((s) => s.personalization.subSetPlacement ?? 'top')
+  const mode: SidebarMode = useSession((s) => s.personalization.sidebarMode ?? 'collections')
+  // Cross-fade: each mode's presence is tracked independently, so the outgoing stays mounted (as an
+  // absolute overlay fading out) while the incoming takes the flow. Opacity-only — no layout thrash.
+  const collectionsP = useExitPresence(mode === 'collections')
+  const contextsP = useExitPresence(mode === 'contexts')
+  const agendaP = useExitPresence(mode === 'agenda')
 
   const onSelectCollection = (col: CollectionNode): void => {
     void select({ kind: 'collection', id: col.id })
@@ -431,40 +439,49 @@ export function Sidebar({ tree }: { tree: NexusTree }): React.JSX.Element {
     return () => nav.removeEventListener('scroll', onScroll, { capture: true })
   }, [])
 
-  return (
-    <nav ref={navRef} className="sidebar scroll-edge-fade">
-      {/* Nexus header. Calendar/Recents stubs are hidden until a later UIX pass. */}
+  // Contexts mode — the three free-standing tiers (Areas → Topics → Projects), its own drag zone.
+  const contextsLayer = (
+    <SidebarDnd tree={tree} onCommit={onCommit} setPlacement={setPlacement} subSetPlacement={subSetPlacement}>
       <div className="section">
-        <NexusHeader name={tree.nexus.name} profileImage={tree.nexus.profileImage} profileSubtitle={tree.nexus.profileSubtitle} />
+        <TierDisclosure tierKey="areas" label={tree.labels.area.plural}>
+          {tree.contexts.areas.map((a: AreaNode) => (
+            <ContextRow key={a.id} node={a} />
+          ))}
+        </TierDisclosure>
+        <TierDisclosure tierKey="topics" label={tree.labels.topic.plural}>
+          {tree.contexts.topics.map((t: TopicNode) => (
+            <ContextRow key={t.id} node={t} />
+          ))}
+        </TierDisclosure>
+        <TierDisclosure tierKey="projects" label={tree.labels.project.plural}>
+          {tree.contexts.projects.map((p: ProjectNode) => (
+            <ContextRow key={p.id} node={p} />
+          ))}
+        </TierDisclosure>
       </div>
+    </SidebarDnd>
+  )
 
-      {/* Drag to reorder any entity within its parent heading (or a page across folders); an
-          insertion line marks the drop + a ghost follows the cursor. Saved stays inert above. */}
-      <SidebarDnd tree={tree} onCommit={onCommit} setPlacement={setPlacement} subSetPlacement={subSetPlacement}>
-        {/* Contexts — three tier disclosures, top-to-bottom Areas → Topics → Projects (tier 1 → 3);
-            the header "+" pops a picker to create any tier. */}
-        <div className="section">
-          <SectionHeader label="Contexts" onAdd={newContext} />
-          <TierDisclosure tierKey="areas" label={tree.labels.area.plural}>
-            {tree.contexts.areas.map((a: AreaNode) => (
-              <ContextRow key={a.id} node={a} />
-            ))}
-          </TierDisclosure>
-          <TierDisclosure tierKey="topics" label={tree.labels.topic.plural}>
-            {tree.contexts.topics.map((t: TopicNode) => (
-              <ContextRow key={t.id} node={t} />
-            ))}
-          </TierDisclosure>
-          <TierDisclosure tierKey="projects" label={tree.labels.project.plural}>
-            {tree.contexts.projects.map((p: ProjectNode) => (
-              <ContextRow key={p.id} node={p} />
-            ))}
-          </TierDisclosure>
-        </div>
-
-        <div className="section">
-          <SectionHeader label={tree.labels.pageCollection.plural} onAdd={newCollection} />
-          {(tree.collections ?? []).map((c) => (
+  // Collections mode — top-level Collections plus user-named sections (their headings stay), own zone.
+  const collectionsLayer = (
+    <SidebarDnd tree={tree} onCommit={onCommit} setPlacement={setPlacement} subSetPlacement={subSetPlacement}>
+      <div className="section">
+        {(tree.collections ?? []).map((c) => (
+          <CollectionRow
+            key={c.id}
+            col={c}
+            depth={0}
+            selection={selection}
+            onSelectCollection={onSelectCollection}
+            onSelectSet={onSelectSet}
+            onSelectPage={onSelectPage}
+          />
+        ))}
+      </div>
+      {tree.userSections.map((sec) => (
+        <div className="section" key={sec.id}>
+          <SectionHeader label={sec.label} />
+          {(sec.collections ?? []).map((c) => (
             <CollectionRow
               key={c.id}
               col={c}
@@ -476,24 +493,37 @@ export function Sidebar({ tree }: { tree: NexusTree }): React.JSX.Element {
             />
           ))}
         </div>
+      ))}
+    </SidebarDnd>
+  )
 
-        {tree.userSections.map((sec) => (
-          <div className="section" key={sec.id}>
-            <SectionHeader label={sec.label} />
-            {(sec.collections ?? []).map((c) => (
-              <CollectionRow
-                key={c.id}
-                col={c}
-                depth={0}
-                selection={selection}
-                onSelectCollection={onSelectCollection}
-                onSelectSet={onSelectSet}
-                onSelectPage={onSelectPage}
-              />
-            ))}
-          </div>
-        ))}
-      </SidebarDnd>
+  // Right-click the empty mode area → its create menu (the section headers that once held the "+"
+  // are gone). Fires only on the bare layer surface, so a row's own context menu still wins.
+  const modeCtx =
+    (cb?: () => void) =>
+    (e: React.MouseEvent): void => {
+      if (!cb || e.target !== e.currentTarget) return
+      e.preventDefault()
+      cb()
+    }
+
+  const layer = (
+    key: SidebarMode,
+    node: React.ReactNode,
+    p: { mounted: boolean; closing: boolean },
+    onCreate?: () => void
+  ): React.ReactNode =>
+    p.mounted ? (
+      <div key={key} className={cx('sidebar-mode', p.closing && 'sidebar-mode-closing')} onContextMenu={modeCtx(onCreate)}>
+        {node}
+      </div>
+    ) : null
+
+  return (
+    <nav ref={navRef} className="sidebar scroll-edge-fade">
+      {layer('collections', collectionsLayer, collectionsP, newCollection)}
+      {layer('contexts', contextsLayer, contextsP, newContext)}
+      {layer('agenda', <AgendaMode />, agendaP)}
     </nav>
   )
 }

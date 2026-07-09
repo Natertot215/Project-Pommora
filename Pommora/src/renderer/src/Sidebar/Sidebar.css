@@ -45,7 +45,18 @@
   flex-direction: column;
   align-items: center;
   gap: 4px;
-  border-right: 2.5px solid var(--separator-border);
+}
+/* The divider aligns with the top of the sidebar content (the 46px traffic-light line) and mirrors
+   that inset at the bottom, so it doesn't run edge-to-edge. A pseudo-element — a border can't be
+   partial-height. */
+.sidebar-ribbon::after {
+  content: '';
+  position: absolute;
+  top: 46px;
+  bottom: 46px;
+  right: 0;
+  width: 2px;
+  background: var(--separator-border);
 }
 .ribbon-icon {
   -webkit-app-region: no-drag;
@@ -66,14 +77,11 @@
   background: var(--state-hover);
   color: var(--label-primary);
 }
-.ribbon-icon-active {
-  background: var(--state-selected);
-  color: var(--label-primary);
-}
 
 /* --- sidebar content --- */
 .sidebar {
   -webkit-app-region: no-drag;
+  position: relative;
   /* top clears the traffic lights (positioned at y:18, ~14px tall) with breathing room; left inset
      clears the ribbon strip so content starts to the right of its border. */
   padding: 46px 10px 12px calc(var(--ribbon-w) + 10px);
@@ -86,6 +94,42 @@
   height: 100%;
   /* The scroll-edge fade rides the shared .scroll-edge-fade class (design-system) — the top fade
      tucks inside the 46px header padding, so the header stays crisp at rest. */
+}
+
+/* --- sidebar modes (cross-fade) --- */
+/* The active mode sits in normal flow (so it scrolls + fills for empty-area right-click); an
+   outgoing mode stays mounted one transition longer as an absolute overlay fading to 0 over it. */
+.sidebar-mode {
+  min-height: 100%;
+}
+.sidebar-mode-closing {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--duration-base) var(--ease-standard);
+}
+
+/* --- agenda mode (read-only list) --- */
+.agenda-mode {
+  display: flex;
+  flex-direction: column;
+}
+.agenda-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px;
+  color: var(--label-secondary);
+}
+.agenda-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.agenda-empty {
+  padding: 8px 6px;
+  color: var(--label-tertiary);
 }
 
 /* Sidebar collapse / expand toggle (log-out glyph — flipped = collapse, normal = expand).

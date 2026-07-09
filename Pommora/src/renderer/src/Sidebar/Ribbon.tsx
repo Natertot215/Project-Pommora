@@ -1,6 +1,7 @@
 import type { SidebarMode } from '@shared/types'
 import { Icon } from '@renderer/design-system/symbols'
 import { useSession } from '../store'
+import { NexusPhoto } from './NexusPhoto'
 import './Sidebar.css'
 
 // The ribbon's launcher icons below the pinned Homepage. Three switch sidebarMode (the content
@@ -49,7 +50,7 @@ export function Ribbon(): React.JSX.Element {
         aria-label="Homepage"
         onClick={() => void select({ kind: 'homepage' })}
       >
-        <Icon name="house" size={18} />
+        <NexusPhoto size={24} />
       </button>
       {keys.map((k) => {
         const m = MODE_FOR[k]
@@ -58,7 +59,7 @@ export function Ribbon(): React.JSX.Element {
           <button
             key={k}
             type="button"
-            className={active ? 'ribbon-icon ribbon-icon-active' : 'ribbon-icon'}
+            className="ribbon-icon"
             aria-label={k}
             aria-selected={active}
             onClick={() => onIcon(k)}
