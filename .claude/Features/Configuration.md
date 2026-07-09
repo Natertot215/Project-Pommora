@@ -19,6 +19,12 @@ Nexus-wide interface config, stored as the React-owned `personalization` object 
 
 - **ribbonOrder** — the ribbon's launcher-icon order below the pinned Homepage, as bare icon keys. Written by drag-to-reorder; a partial or stale value is repaired on read (unknown keys dropped, missing keys appended) so a newly-added icon never vanishes.
 
+### Commands (per-Nexus)
+
+Keyboard shortcuts are data, not code: the `commands` object in `.nexus/settings.json` maps command ids to shortcut specs (`"toggle-ribbon": "cmd+e"`), and every future rebindable shortcut registers as a row in this map. Defaults live in code (`DEFAULT_COMMANDS`) and are overlaid with the on-disk block on read, so every id always resolves — a malformed or absent entry falls back to its built-in binding rather than losing the shortcut. Specs are `+`-joined modifier chains (`cmd`, `ctrl`, `alt`, `shift`) ending in a key, matched exactly so overlapping bindings can't double-fire. Read-side only: no UI writes these keys yet — rebind by editing `settings.json` directly.
+
+- **toggle-ribbon** (`cmd+e`) — slides the sidebar's ribbon strip away and back (→ `Sidebar.md`).
+
 #### II. Write Discipline
 
 Every `settings.json` write funnels through one per-file serialize lock (the same lock the page-write path uses), so concurrent writers can't drop each other's keys. Unrecognized keys are preserved by value on write, so a key one build doesn't know — desktop ↔ mobile version skew — survives the round-trip.

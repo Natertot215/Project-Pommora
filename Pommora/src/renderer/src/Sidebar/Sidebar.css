@@ -36,6 +36,8 @@
   /* Tunable: extra left inset for the content (and its selection fill) off the ribbon, applied ONLY
      when chevrons are hidden — the collapsed gutter otherwise lets the selection pill kiss the divider. */
   --sidebar-hidechevron-pad: 6px;
+  /* Tunable: the content's left inset once the ribbon is toggled away (⌘E) — mirrors the 10px right pad. */
+  --ribbon-hidden-inset: 10px;
 }
 .sidebar-ribbon {
   -webkit-app-region: no-drag;
@@ -50,6 +52,14 @@
   flex-direction: column;
   align-items: center;
   gap: 6px;
+  transition: transform var(--duration-base) var(--ease-standard);
+}
+/* ⌘E (settings.json commands.toggle-ribbon): slide the ribbon off the panel's left edge — same
+   motion as the sidebar's own collapse — while .sidebar's margin animates shut to reclaim the
+   column. The panel's overflow:hidden clips the strip as it exits. */
+.shell.ribbon-hidden .sidebar-ribbon {
+  transform: translateX(calc(-100% - 2px));
+  pointer-events: none;
 }
 /* The divider aligns with the top of the sidebar content (the 46px traffic-light line); its bottom
    inset is a tunable knob. A pseudo-element — a border can't be partial-height. */
@@ -88,6 +98,7 @@
      divider (rows carry their own pad); top clears the traffic lights. */
   margin-left: var(--ribbon-w);
   padding: 46px 10px 12px 0;
+  transition: margin-left var(--duration-base) var(--ease-standard);
   /* The panel is a FIXED-width view: it scrolls vertically only. overflow-x:hidden caps the row track
      at the visible width so long titles ellipsize at their row edge (and hover-scroll) instead of
      widening the scroll-area — without it, overflow-y:auto computes overflow-x:auto and the whole
@@ -97,6 +108,9 @@
   height: 100%;
   /* The scroll-edge fade rides the shared .scroll-edge-fade class (design-system) — the top fade
      tucks inside the 46px header padding, so the header stays crisp at rest. */
+}
+.shell.ribbon-hidden .sidebar {
+  margin-left: var(--ribbon-hidden-inset);
 }
 
 /* --- sidebar modes --- */

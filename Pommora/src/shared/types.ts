@@ -119,6 +119,13 @@ export interface Personalization {
   ribbonOrder?: string[]
 }
 
+/** Nexus-wide keyboard commands — the `commands` object in `.nexus/settings.json`. Keys are
+ *  command ids, values are shortcut specs ("cmd+e"); an absent id falls back to its default here.
+ *  Every future rebindable shortcut registers as a row in this map. */
+export const DEFAULT_COMMANDS: Record<string, string> = {
+  'toggle-ribbon': 'cmd+e'
+}
+
 export interface BaseNode {
   id: string
   kind: NodeKind
@@ -257,6 +264,9 @@ export interface NexusTree {
    *  renderer's apply-map consumes. Accent is surfaced separately as `accent` above (resolved,
    *  back-compat with the legacy top-level `accent_color`). */
   personalization: Personalization
+  /** Nexus-wide keyboard commands (`settings.json` `commands`) — DEFAULT_COMMANDS overlaid with
+   *  the user's on-disk overrides, so every id always resolves to a spec. */
+  commands: Record<string, string>
   /** Every registry definition, in the nexus-wide cosmetic order (order-listed first,
    *  unlisted appended) — reserved ids included; consumers filter (E-1/E-5). */
   registry: PropertyDefinition[]

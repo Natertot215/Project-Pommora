@@ -31,6 +31,7 @@ import {
   ACCENT_COLORS,
   AREA_COLORS,
   DEFAULT_ACCENT,
+  DEFAULT_COMMANDS,
   DEFAULT_LABELS,
   DEFAULT_TIME_FORMAT,
   ENTITY_ICON_KINDS
@@ -111,6 +112,17 @@ export function readPersonalization(raw: unknown): Personalization {
     sidebarMode: mode(p.sidebarMode),
     ribbonOrder: ribbonOrder.length ? ribbonOrder : undefined
   }
+}
+
+// Overlay the on-disk `settings.commands` map onto DEFAULT_COMMANDS — string values only, so a
+// malformed entry falls back to the built-in binding instead of poisoning the map.
+export function readCommands(raw: unknown): Record<string, string> {
+  const commands = { ...DEFAULT_COMMANDS }
+  const c = raw != null && typeof raw === 'object' && !Array.isArray(raw) ? (raw as Record<string, unknown>) : {}
+  for (const [key, value] of Object.entries(c)) {
+    if (typeof value === 'string' && value.length > 0) commands[key] = value
+  }
+  return commands
 }
 
 // Parse Swift's nested snake_case `settings.labels` into the structured camelCase
@@ -372,6 +384,7 @@ async function walkNexus(root: string): Promise<NexusTree> {
   // fallback for un-migrated nexuses (G-4). resolveAccent normalizes either into an AccentSetting.
   const accent = resolveAccent(asString(rawPersonalization.accent) ?? asString(settings.accent_color))
   const personalization = readPersonalization(rawPersonalization)
+  const commands = readCommands(settings.commands)
   const timeFormat = settings.time_format === 'twentyFourHour' ? 'twentyFourHour' : DEFAULT_TIME_FORMAT
   // Profile image + subtitle live in settings (Swift parity), not nexus.json. profileImage is a
   // nexus-relative asset path the renderer serves via nexus-asset://; subtitle is plain text.
@@ -454,6 +467,7 @@ async function walkNexus(root: string): Promise<NexusTree> {
     accent,
     timeFormat,
     personalization,
+    commands,
     registry: orderedDefs(registry)
   }
 }

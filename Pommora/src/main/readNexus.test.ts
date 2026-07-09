@@ -2,7 +2,26 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync, existsSync } from 'node:fs'
 import { tmpdir, homedir } from 'node:os'
 import { join } from 'node:path'
-import { readNexus, readPersonalization, splitFrontmatter } from './readNexus'
+import { readCommands, readNexus, readPersonalization, splitFrontmatter } from './readNexus'
+import { DEFAULT_COMMANDS } from '@shared/types'
+
+describe('readCommands', () => {
+  it('falls back to DEFAULT_COMMANDS when the block is absent or malformed', () => {
+    expect(readCommands(undefined)).toEqual(DEFAULT_COMMANDS)
+    expect(readCommands('nope')).toEqual(DEFAULT_COMMANDS)
+    expect(readCommands([])).toEqual(DEFAULT_COMMANDS)
+  })
+  it('overlays user bindings and keeps unknown-but-valid ids', () => {
+    const c = readCommands({ 'toggle-ribbon': 'cmd+shift+e', 'future-thing': 'ctrl+k' })
+    expect(c['toggle-ribbon']).toBe('cmd+shift+e')
+    expect(c['future-thing']).toBe('ctrl+k')
+  })
+  it('a non-string or empty value falls back to the default binding', () => {
+    const c = readCommands({ 'toggle-ribbon': 42, other: '' })
+    expect(c['toggle-ribbon']).toBe(DEFAULT_COMMANDS['toggle-ribbon'])
+    expect(c.other).toBeUndefined()
+  })
+})
 
 describe('readPersonalization: ribbon knobs', () => {
   it('coerces a valid sidebarMode + ribbonOrder', () => {

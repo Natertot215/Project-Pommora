@@ -7,9 +7,10 @@ import { DetailPane } from './Detail/DetailPane'
 import { Toolbar } from './Toolbar/Toolbar'
 import { InspectorPanel } from './Detail/InspectorPanel/InspectorPanel'
 import { Icon } from '@renderer/design-system/symbols'
+import { matchesCommand } from './Commands'
 
 export function App(): React.JSX.Element {
-  const { status, tree, error, sidebarVisible, sidebarWidth, setSidebarWidth, inspectorWidth, setInspectorWidth, load, applyTree, choose, openDropped, toggleSidebar, newPage, beginRename } =
+  const { status, tree, error, sidebarVisible, sidebarWidth, setSidebarWidth, inspectorWidth, setInspectorWidth, load, applyTree, choose, openDropped, toggleSidebar, ribbonVisible, toggleRibbon, commands, newPage, beginRename } =
     useSession()
 
   // Inspector toggle — window chrome state. Full-height pane that pushes content when open.
@@ -87,6 +88,20 @@ export function App(): React.JSX.Element {
     })
   }, [choose, newPage, toggleSidebar, load])
 
+  // Nexus-bound keyboard commands (settings.json `commands`) — window chrome shortcuts.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent): void => {
+      // A focused surface that claimed the chord keeps it (the editor's Mod-e = inline code).
+      if (e.defaultPrevented) return
+      if (matchesCommand(commands['toggle-ribbon'], e)) {
+        e.preventDefault()
+        toggleRibbon()
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [commands, toggleRibbon])
+
   // The sidebar only "hides" when a nexus is open (its content is the tree). With
   // nothing open, the panel is the Open-Folder prompt — keep it visible so toggling
   // off an empty window can't strand the user with no on-screen affordance.
@@ -94,7 +109,7 @@ export function App(): React.JSX.Element {
 
   return (
     <div
-      className={'shell' + (sidebarHidden ? ' sidebar-hidden' : '') + (inspectorOpen ? ' inspector-open' : '') + (resizing ? ' is-resizing' : '')}
+      className={'shell' + (sidebarHidden ? ' sidebar-hidden' : '') + (ribbonVisible ? '' : ' ribbon-hidden') + (inspectorOpen ? ' inspector-open' : '') + (resizing ? ' is-resizing' : '')}
       style={{ '--sidebar-width': `${sidebarWidth}px`, '--inspector-width': `${inspectorWidth}px` } as CSSProperties}
       onDragOver={(e) => e.preventDefault()}
       onDrop={(e) => {

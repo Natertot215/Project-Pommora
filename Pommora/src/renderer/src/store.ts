@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { NexusTree, PageDetail, Personalization, SelectionState, SetNode } from '@shared/types'
+import { DEFAULT_COMMANDS, type NexusTree, type PageDetail, type Personalization, type SelectionState, type SetNode } from '@shared/types'
 import { DEFAULT_NEW_NAME, type MutableKind, type MutateRequest } from '@shared/mutate'
 import { reconcileSelection } from './selection'
 import { stabilize } from './treeStabilize'
@@ -83,6 +83,12 @@ interface SessionState {
   tree: NexusTree | null
   error?: string
   sidebarVisible: boolean
+  /** Ribbon (the mode-switch icon strip inside the sidebar) — transient like sidebarVisible. */
+  ribbonVisible: boolean
+  toggleRibbon: () => void
+  /** Nexus-wide keyboard commands (settings.json `commands`), seeded from the tree — every id
+   *  resolves (defaults overlaid in main), so consumers index without fallbacks. */
+  commands: Record<string, string>
   /** Sidebar width in px (clamped to the Swift min/max); persisted to localStorage. */
   sidebarWidth: number
   setSidebarWidth: (w: number) => void
@@ -275,7 +281,7 @@ export const useSession = create<SessionState>((set, get) => {
       const systemColor = await window.nexus.systemAccent()
       applyAccent(tree.accent, systemColor)
       applySystemAccent(systemColor)
-      set({ personalization: tree.personalization })
+      set({ personalization: tree.personalization, commands: tree.commands ?? DEFAULT_COMMANDS })
       applyPersonalization(tree.personalization)
     },
 
@@ -287,6 +293,10 @@ export const useSession = create<SessionState>((set, get) => {
 
     sidebarVisible: true,
     toggleSidebar: () => set((s) => ({ sidebarVisible: !s.sidebarVisible })),
+
+    ribbonVisible: true,
+    toggleRibbon: () => set((s) => ({ ribbonVisible: !s.ribbonVisible })),
+    commands: DEFAULT_COMMANDS,
 
     sidebarWidth: readStoredSidebarWidth(),
     setSidebarWidth: (w) => {

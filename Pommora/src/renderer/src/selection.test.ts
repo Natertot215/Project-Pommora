@@ -25,6 +25,7 @@ function tree(pages: { id: string; path: string }[]): NexusTree {
     accent: 'lavender',
     timeFormat: 'twelveHour',
     personalization: {},
+    commands: {},
     registry: []
   }
 }
