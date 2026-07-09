@@ -1,5 +1,6 @@
 import type { SidebarMode } from '@shared/types'
 import { Icon, defaultEntityIcon } from '@renderer/design-system/symbols'
+import { reorder, SortableZone, useDragItem } from '@renderer/design-system/interactions/drag'
 import { useSession } from '../store'
 import { NexusPhoto } from './NexusPhoto'
 import './Sidebar.css'
@@ -51,6 +52,13 @@ export function Ribbon(): React.JSX.Element {
     // navigation / settings: future glass windows — no-op for now.
   }
 
+  // Drag-to-order the launcher icons (Homepage stays pinned, outside the zone). The reordered keys
+  // persist to ribbonOrder; the id-wrap mirrors the shared reorder helper's object contract.
+  const reorderIcons = (activeId: string, overId: string): void => {
+    const next = reorder(keys.map((id) => ({ id })), activeId, overId).map((x) => x.id)
+    setPersonalization('ribbonOrder', next)
+  }
+
   return (
     <div className="sidebar-ribbon" role="tablist" aria-label="Sidebar sections">
       <button
@@ -61,22 +69,39 @@ export function Ribbon(): React.JSX.Element {
       >
         <NexusPhoto size={24} />
       </button>
-      {keys.map((k) => {
-        const m = MODE_FOR[k]
-        const active = m != null && m === mode
-        return (
-          <button
-            key={k}
-            type="button"
-            className="ribbon-icon"
-            aria-label={k}
-            aria-selected={active}
-            onClick={() => onIcon(k)}
-          >
-            <Icon name={iconFor(k)} size={18} />
-          </button>
-        )
-      })}
+      <SortableZone items={keys} layout="list" axis="y" onReorder={reorderIcons}>
+        {keys.map((k) => (
+          <RibbonTab key={k} tabKey={k} icon={iconFor(k)} active={MODE_FOR[k] != null && MODE_FOR[k] === mode} onClick={() => onIcon(k)} />
+        ))}
+      </SortableZone>
     </div>
+  )
+}
+
+function RibbonTab({
+  tabKey,
+  icon,
+  active,
+  onClick
+}: {
+  tabKey: RibbonKey
+  icon: string
+  active: boolean
+  onClick: () => void
+}): React.JSX.Element {
+  const { setNodeRef, style, handle } = useDragItem(tabKey)
+  return (
+    <button
+      ref={setNodeRef}
+      style={style}
+      {...handle}
+      type="button"
+      className="ribbon-icon"
+      aria-label={tabKey}
+      aria-selected={active}
+      onClick={onClick}
+    >
+      <Icon name={icon} size={18} />
+    </button>
   )
 }
