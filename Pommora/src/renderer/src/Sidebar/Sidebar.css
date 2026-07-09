@@ -33,6 +33,9 @@
   --ribbon-w: 44px;
   /* Tunable: the divider's inset from the sidebar's bottom edge. */
   --ribbon-divider-bottom: 20px;
+  /* Tunable: extra left inset for the content (and its selection fill) off the ribbon, applied ONLY
+     when chevrons are hidden — the collapsed gutter otherwise lets the selection pill kiss the divider. */
+  --sidebar-hidechevron-pad: 6px;
 }
 .sidebar-ribbon {
   -webkit-app-region: no-drag;
@@ -288,6 +291,15 @@
   min-width: var(--chevron-gutter);
   overflow: hidden;
   margin-right: calc(var(--chevron-gutter) - 8px);
+}
+/* Inset ONLY the row's selection/hover FILL off the ribbon when chevrons are hidden — the transparent
+   left border pushes the fill in (background-clip: padding-box), and the row's own left padding drops by
+   the same amount so the icon + title stay exactly put. Manual knob → --sidebar-hidechevron-pad (max 6px,
+   the row's base side padding). */
+.hide-chevrons .row {
+  border-left: var(--sidebar-hidechevron-pad) solid transparent;
+  padding-left: calc(1px - var(--sidebar-hidechevron-pad));
+  background-clip: padding-box;
 }
 
 /* Leaf rows align their icon under disclosure rows' icons via a chevron-width spacer. */
