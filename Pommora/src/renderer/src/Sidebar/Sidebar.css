@@ -80,9 +80,11 @@
 /* --- sidebar content --- */
 .sidebar {
   -webkit-app-region: no-drag;
-  /* top clears the traffic lights (positioned at y:18, ~14px tall) with breathing room; left inset
-     is exactly the ribbon width so content sits right against the divider (rows carry their own pad). */
-  padding: 46px 10px 12px var(--ribbon-w);
+  /* left MARGIN (not padding) insets past the ribbon so the nav element doesn't extend under it —
+     an overlapping nav wins hit-testing and eats every ribbon click. Content sits against the
+     divider (rows carry their own pad); top clears the traffic lights. */
+  margin-left: var(--ribbon-w);
+  padding: 46px 10px 12px 0;
   /* The panel is a FIXED-width view: it scrolls vertically only. overflow-x:hidden caps the row track
      at the visible width so long titles ellipsize at their row edge (and hover-scroll) instead of
      widening the scroll-area — without it, overflow-y:auto computes overflow-x:auto and the whole
