@@ -40,6 +40,22 @@ export type DateGranularity = (typeof DATE_GRANULARITIES)[number]
 const EMPTY_PLACEMENTS = ['top', 'bottom'] as const
 export type EmptyPlacement = (typeof EMPTY_PLACEMENTS)[number]
 
+const STRUCTURAL_ORDER_MODES = ['custom', 'location'] as const
+export type StructuralOrderMode = (typeof STRUCTURAL_ORDER_MODES)[number]
+
+const DATE_SEPARATORS = ['dash', 'slash'] as const
+export type DateSeparator = (typeof DATE_SEPARATORS)[number]
+
+/** Location-mode sub-grouping — a property bucketing INSIDE each top-level set band. View-level
+ *  (like group_order): the one `group` slot is replaced on a Group By switch, so anything that
+ *  must survive the round trip can't live on the config object. */
+export interface SubGroupConfig {
+  property_id: string
+  order_mode: GroupOrderMode
+  order?: string[]
+  date_granularity?: DateGranularity
+}
+
 /** One sort criterion; `direction` raw strings match Swift on-disk. */
 export interface SortCriterion {
   property_id: string
@@ -106,6 +122,16 @@ export interface SavedView {
    *  unique across the tree). View-level, not on `group`: the structural GroupConfig decoder
    *  drops extra fields. Unlisted sets trail in fs order; absent = derive from fs `set_order`. */
   group_order?: string[]
+  /** Structural band-order source — 'location' mirrors the filesystem (drags write fs;
+   *  group_order is preserved-but-ignored); absent/'custom' = the view-owned group_order. */
+  structural_order_mode?: StructuralOrderMode
+  /** Location-mode sub-grouping config — survives Group By switches by living view-level. */
+  sub_group?: SubGroupConfig
+  /** Global ungrouped-region placement — one view-level knob for every ungrouped tail; the
+   *  property config's empty_placement stays decode parity. Absent = bottom. */
+  ungrouped_placement?: EmptyPlacement
+  /** Date group-heading separator under numeric formats. Absent = dash. */
+  date_separator?: DateSeparator
 }
 
 // ---- zod codec (snake_case on-disk keys; enums reuse the const arrays above) ----
@@ -136,6 +162,23 @@ const EMPTY_PLACEMENT_SET = new Set<string>(EMPTY_PLACEMENTS)
  *  lenient group decode reuses for every enum field. */
 function asEnum<T extends string>(value: unknown, allowed: ReadonlySet<string>): T | undefined {
   return typeof value === 'string' && allowed.has(value) ? (value as T) : undefined
+}
+
+/** Lenient sub_group decode (the decodeGroupConfig discipline): malformed → undefined, never throws. */
+export function decodeSubGroup(raw: unknown): SubGroupConfig | undefined {
+  if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) return undefined
+  const s = raw as Record<string, unknown>
+  if (typeof s.property_id !== 'string' || s.property_id === '') return undefined
+  const order = Array.isArray(s.order)
+    ? (s.order.filter((x) => typeof x === 'string') as string[])
+    : undefined
+  const granularity = asEnum<DateGranularity>(s.date_granularity, DATE_GRANULARITY_SET)
+  return {
+    property_id: s.property_id,
+    order_mode: asEnum<GroupOrderMode>(s.order_mode, GROUP_ORDER_MODE_SET) ?? 'configured',
+    ...(order !== undefined ? { order } : {}),
+    ...(granularity !== undefined ? { date_granularity: granularity } : {})
+  }
 }
 
 /** Lenient group decode mirroring Swift GroupConfig.init(from:) — it never throws; an
@@ -204,7 +247,11 @@ export const savedView = z.looseObject({
     .array(z.unknown())
     .catch([])
     .transform((a) => a.filter((x): x is string => typeof x === 'string'))
-    .optional()
+    .optional(),
+  structural_order_mode: z.enum(STRUCTURAL_ORDER_MODES).optional().catch(undefined),
+  sub_group: z.unknown().transform(decodeSubGroup).optional(),
+  ungrouped_placement: z.enum(EMPTY_PLACEMENTS).optional().catch(undefined),
+  date_separator: z.enum(DATE_SEPARATORS).optional().catch(undefined)
 })
 
 /** Shared on-disk prefix for view ids (`view_<ulid>`); single-sourced so the sentinel and the

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import fixture from './__fixtures__/collection-with-status.json'
-import { savedView, decodeGroupConfig, mintDefaultView, mintNewView } from './views'
+import { savedView, decodeGroupConfig, decodeSubGroup, mintDefaultView, mintNewView } from './views'
 import { pageCollectionSidecar } from './schemas'
 import { RESERVED_PROPERTY_ID } from './properties'
 
@@ -92,6 +92,42 @@ describe('SavedView decode', () => {
     const parsed = pageCollectionSidecar.parse(fixture)
     expect(parsed.views?.[0].type).toBe('table')
     expect(parsed.views?.[0].group).toMatchObject({ kind: 'property', order_mode: 'manual' })
+  })
+})
+
+describe('view-level grouping fields', () => {
+  const base = { id: 'view_x', name: 'T', type: 'table', property_order: [], hidden_properties: [] }
+  it('savedView round-trips all four fields', () => {
+    const v = savedView.parse({
+      ...base,
+      structural_order_mode: 'location',
+      ungrouped_placement: 'top',
+      date_separator: 'slash',
+      sub_group: { property_id: 'p1', order_mode: 'manual', order: ['a', 'b'], date_granularity: 'week' }
+    })
+    expect(v.structural_order_mode).toBe('location')
+    expect(v.ungrouped_placement).toBe('top')
+    expect(v.date_separator).toBe('slash')
+    expect(v.sub_group).toEqual({ property_id: 'p1', order_mode: 'manual', order: ['a', 'b'], date_granularity: 'week' })
+  })
+  it('a legacy view decodes with all four absent', () => {
+    const v = savedView.parse(base)
+    expect(v.structural_order_mode).toBeUndefined()
+    expect(v.sub_group).toBeUndefined()
+    expect(v.ungrouped_placement).toBeUndefined()
+    expect(v.date_separator).toBeUndefined()
+  })
+  it('malformed fields drop without poisoning the view', () => {
+    const v = savedView.parse({ ...base, structural_order_mode: 'nope', sub_group: { order_mode: 'manual' } })
+    expect(v.structural_order_mode).toBeUndefined()
+    expect(v.sub_group).toBeUndefined()
+  })
+  it('decodeSubGroup fills order_mode and filters non-string order entries', () => {
+    expect(decodeSubGroup({ property_id: 'p1', order: ['a', 7, 'b'] })).toEqual({
+      property_id: 'p1',
+      order_mode: 'configured',
+      order: ['a', 'b']
+    })
   })
 })
 
