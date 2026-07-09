@@ -290,16 +290,15 @@
   width: var(--chevron-gutter);
   min-width: var(--chevron-gutter);
   overflow: hidden;
-  margin-right: calc(var(--chevron-gutter) - 8px);
+  /* Absorbs the row's inset (below) on top of the gutter collapse, so the icon + title don't move. */
+  margin-right: calc(var(--chevron-gutter) - 6px - var(--sidebar-hidechevron-pad));
 }
-/* Inset ONLY the row's selection/hover FILL off the ribbon when chevrons are hidden — the transparent
-   left border pushes the fill in (background-clip: padding-box), and the row's own left padding drops by
-   the same amount so the icon + title stay exactly put. Manual knob → --sidebar-hidechevron-pad (max 6px,
-   the row's base side padding). */
+/* Inset the row — and its FULLY-ROUNDED selection/hover fill — off the ribbon when chevrons are hidden.
+   A plain margin keeps the fill's corners at their true 8px radius (a transparent border would squash the
+   ribbon-side corner); the chevron slot's negative margin above cancels the shift so content stays put.
+   Manual knob → --sidebar-hidechevron-pad. */
 .hide-chevrons .row {
-  border-left: var(--sidebar-hidechevron-pad) solid transparent;
-  padding-left: calc(1px - var(--sidebar-hidechevron-pad));
-  background-clip: padding-box;
+  margin-left: var(--sidebar-hidechevron-pad);
 }
 
 /* Leaf rows align their icon under disclosure rows' icons via a chevron-width spacer. */
