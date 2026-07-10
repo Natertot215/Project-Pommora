@@ -196,6 +196,16 @@ describe('FilterPane value editors', () => {
     expect(rule.values).toEqual(['todo', 'done'])
   })
 
+  it('two rapid picks inside the refetch window accumulate — the second never drops the first', async () => {
+    await mount(view({ filter: { match: 'all', rules: [{ property_id: 'prop_status', op: 'is' }] } }))
+    await click([...host.querySelectorAll('button')].find((b) => b.getAttribute('aria-label') === 'Filter values'))
+    // No remount between the two clicks — the stale-prop window the optimistic accumulator covers.
+    await click([...document.querySelectorAll('*')].filter((el) => el.textContent === 'Todo').at(-1))
+    await click([...document.querySelectorAll('*')].filter((el) => el.textContent === 'Done').at(-1))
+    const rule = (lastSaved().filter as { rules: unknown[] }).rules[0] as Record<string, unknown>
+    expect(rule.values).toEqual(['todo', 'done'])
+  })
+
   it('a checkbox rule renders no value editor and its operator carries the clause', async () => {
     await mount(view({ filter: { match: 'all', rules: [{ property_id: 'prop_check', op: 'is', value: 'false' }] } }))
     expect(texts()).toContain("Isn't Checked")
