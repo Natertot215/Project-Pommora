@@ -1,15 +1,16 @@
-// Type-aware view filter. Ports Swift FilterEvaluator's per-rule, per-type operator matrix (NOT the
-// narrower Part-3 picker) and EXTENDS it with nested groups (divergence #2): Swift's rules are flat;
-// here a rule child may itself be a FilterGroup, expressing mixed AND/OR like `(A AND B) OR C`. `op`
-// raw strings are snake_case (on-disk parity). An unknown op, a property absent from the schema, or
-// an op outside a type's matrix is a NO-OP PASS — a filter never excludes on what it can't apply.
-// Pure: no fs, no React.
+// Type-aware view filter. Extends Swift FilterEvaluator's per-rule, per-type operator matrix with
+// nested groups (a rule child may itself be a FilterGroup, expressing mixed AND/OR like
+// `(A AND B) OR C`), title + context + any-depth location matrices, multi-operand `values[]` chip
+// ops, and the root `match: 'none'` disable skip. `op` raw strings are snake_case (on-disk parity).
+// An unknown op, a property absent from the schema, or an op outside a type's matrix is a NO-OP
+// PASS — a filter never excludes on what it can't apply. Pure: no fs, no React.
 
 import type { FilterGroup, FilterRule } from '@shared/views'
 import type { ViewRow } from '@shared/types'
 import { type PropertyDefinition, type PropertyType, RESERVED_PROPERTY_ID } from '@shared/properties'
 import type { PropertyValue } from '@shared/propertyValue'
 import { declaredType, modifiedStampString, resolveFieldValue } from './value'
+import { type SetTreeNode, subtreeIds } from './group'
 import { linkDisplayText } from '../Table/linkValue'
 
 /** Operator raw strings — snake_case = the on-disk `op` values (parity with Swift FilterOperator). */
@@ -23,7 +24,16 @@ export const FILTER_OPS = {
   greaterThan: 'greater_than',
   lessThan: 'less_than',
   onOrAfter: 'on_or_after',
-  onOrBefore: 'on_or_before'
+  onOrBefore: 'on_or_before',
+  startsWith: 'starts_with',
+  containsAll: 'contains_all',
+  containsAny: 'contains_any',
+  isBefore: 'is_before',
+  isAfter: 'is_after',
+  greaterOrEqual: 'greater_or_equal',
+  lessOrEqual: 'less_or_equal',
+  isInside: 'is_inside',
+  isNotInside: 'is_not_inside'
 } as const
 
 const FILTER_OP_SET = new Set<string>(Object.values(FILTER_OPS))
@@ -31,14 +41,41 @@ const FILTER_OP_SET = new Set<string>(Object.values(FILTER_OPS))
 type Op = string
 type Expected = string | undefined
 
+/** Per-applyFilter location resolver — a set id to its descendant-id Set (self included), built
+ *  ONCE per operand and membership-tested per row (never a per-row ancestor walk). Unknown set
+ *  id → undefined → no-op pass. */
+type LocationIndex = (setId: string) => ReadonlySet<string> | undefined
+
+function makeLocationIndex(setTree: SetTreeNode[]): LocationIndex {
+  const cache = new Map<string, ReadonlySet<string> | undefined>()
+  const find = (nodes: SetTreeNode[], id: string): SetTreeNode | undefined => {
+    for (const n of nodes) {
+      if (n.id === id) return n
+      const hit = find(n.children, id)
+      if (hit) return hit
+    }
+    return undefined
+  }
+  return (setId) => {
+    if (!cache.has(setId)) {
+      const node = find(setTree, setId)
+      cache.set(setId, node ? new Set(subtreeIds(node)) : undefined)
+    }
+    return cache.get(setId)
+  }
+}
+
 /** Filter rows by a (possibly nested) FilterGroup. undefined ⇒ no filtering. */
 export function applyFilter(
   rows: ViewRow[],
   filter: FilterGroup | undefined,
-  schema: PropertyDefinition[]
+  schema: PropertyDefinition[],
+  setTree: SetTreeNode[] = []
 ): ViewRow[] {
-  if (!filter) return rows
-  return rows.filter((row) => matchesGroup(row, filter, schema))
+  // 'none' = the pane's disable state (root-only): rules persist untouched, filtering skips.
+  if (!filter || filter.match === 'none') return rows
+  const locate = makeLocationIndex(setTree)
+  return rows.filter((row) => matchesGroup(row, filter, schema, locate))
 }
 
 /** A child is a nested group iff it carries `rules`; otherwise it's a leaf FilterRule. */
@@ -46,15 +83,16 @@ function isGroup(node: FilterRule | FilterGroup): node is FilterGroup {
   return 'rules' in node
 }
 
-function matchesGroup(row: ViewRow, group: FilterGroup, schema: PropertyDefinition[]): boolean {
-  if (group.rules.length === 0) return true // empty filter = identity
+function matchesGroup(row: ViewRow, group: FilterGroup, schema: PropertyDefinition[], locate: LocationIndex): boolean {
+  if (group.match === 'none') return true // never pane-authored nested; a hand-authored one passes
+  if (group.rules.length === 0) return true
   const results = group.rules.map((node) =>
-    isGroup(node) ? matchesGroup(row, node, schema) : evaluateRule(row, node, schema)
+    isGroup(node) ? matchesGroup(row, node, schema, locate) : evaluateRule(row, node, schema, locate)
   )
   return group.match === 'all' ? results.every(Boolean) : results.some(Boolean)
 }
 
-function evaluateRule(row: ViewRow, rule: FilterRule, schema: PropertyDefinition[]): boolean {
+function evaluateRule(row: ViewRow, rule: FilterRule, schema: PropertyDefinition[], locate: LocationIndex): boolean {
   if (!FILTER_OP_SET.has(rule.op)) return true // unknown op → no-op pass
 
   // "Last edited" resolves to the modified∥created stamp (never a stored property) → date matrix.
@@ -63,15 +101,30 @@ function evaluateRule(row: ViewRow, rule: FilterRule, schema: PropertyDefinition
     return evaluateDate(s ? { kind: 'datetime', value: s } : { kind: 'null' }, rule.op, rule.value)
   }
 
+  // Location — not a property: membership of the row's parent set in the operand's subtree.
+  if (rule.property_id === RESERVED_PROPERTY_ID.location) {
+    if (rule.op !== FILTER_OPS.isInside && rule.op !== FILTER_OPS.isNotInside) return true
+    const inside = rule.value != null ? locate(rule.value) : undefined
+    if (!inside) return true // dead/missing set id → no-op pass
+    const hit = row.parentSetId != null && inside.has(row.parentSetId)
+    return rule.op === FILTER_OPS.isInside ? hit : !hit
+  }
+
   const t = declaredType(rule.property_id, schema)
   if (t === undefined) return true // property absent from schema → no-op pass
-  return evaluateByType(resolveFieldValue(row, rule.property_id, schema), rule.op, rule.value, t)
+  return evaluateByType(resolveFieldValue(row, rule.property_id, schema), rule.op, rule.value, rule.values, t)
 }
 
-function evaluateByType(v: PropertyValue, op: Op, expected: Expected, t: PropertyType | 'title' | 'tier'): boolean {
+function evaluateByType(
+  v: PropertyValue,
+  op: Op,
+  expected: Expected,
+  values: string[] | undefined,
+  t: PropertyType | 'title' | 'tier'
+): boolean {
   switch (t) {
     case 'tier':
-      return evaluateList(v.kind === 'context' ? v.value : [], op, expected)
+      return evaluateList(v.kind === 'context' ? v.value : [], op, expected, values)
     case 'number':
       return evaluateNumber(v, op, expected)
     case 'datetime':
@@ -82,18 +135,20 @@ function evaluateByType(v: PropertyValue, op: Op, expected: Expected, t: Propert
     case 'select':
     case 'status':
     case 'url':
-      return evaluateText(v, op, expected)
+      return evaluateText(v, op, expected, values)
     case 'multi_select':
-      return evaluateMulti(v, op, expected)
+      return evaluateMulti(v, op, expected, values)
+    case 'title':
+      // resolveFieldValue('_title') carries row.title as a select-kind string — the text matrix reads it.
+      return evaluateText(v, op, expected, values)
     case 'context':
+      return evaluateList(v.kind === 'context' ? v.value : [], op, expected, values)
     case 'file':
       return evaluatePresence(v, op)
-    default: // 'title' (and any unmodeled type) → no-op pass
+    default: // any unmodeled type → no-op pass
       return true
   }
 }
-
-// ---- operand parsers ----
 
 function parseNum(s: Expected): number | null {
   if (s == null || s.trim() === '') return null
@@ -161,10 +216,23 @@ function evaluateNumber(v: PropertyValue, op: Op, expected: Expected): boolean {
       const e = parseNum(expected)
       return n === null || e === null ? true : n < e
     }
+    case FILTER_OPS.greaterOrEqual: {
+      const e = parseNum(expected)
+      return n === null || e === null ? true : n >= e
+    }
+    case FILTER_OPS.lessOrEqual: {
+      const e = parseNum(expected)
+      return n === null || e === null ? true : n <= e
+    }
     default:
       return true
   }
 }
+
+/** Calendar-day truncation for date `is` (B-7): both sides compared by their ISO date component —
+ *  never exact-ms equality (a stored T14:30 must match its picked bare day). String truncation, not
+ *  Date math: the stored day IS the authored day regardless of the viewer's timezone. */
+const dayOf = (iso: string): string => iso.slice(0, 10)
 
 function evaluateDate(v: PropertyValue, op: Op, expected: Expected): boolean {
   const d = v.kind === 'datetime' ? parseDateMs(v.value) : null
@@ -173,6 +241,18 @@ function evaluateDate(v: PropertyValue, op: Op, expected: Expected): boolean {
       return d === null
     case FILTER_OPS.isNotEmpty:
       return d !== null
+    case FILTER_OPS.is: {
+      const raw = v.kind === 'datetime' ? v.value : null
+      return raw === null || expected == null ? true : dayOf(raw) === dayOf(expected)
+    }
+    case FILTER_OPS.isBefore: {
+      const e = parseDateMs(expected)
+      return d === null || e === null ? true : d < e
+    }
+    case FILTER_OPS.isAfter: {
+      const e = parseDateMs(expected)
+      return d === null || e === null ? true : d > e
+    }
     case FILTER_OPS.onOrAfter: {
       const e = parseDateMs(expected)
       return d === null || e === null ? true : d >= e
@@ -205,7 +285,22 @@ function evaluateCheckbox(v: PropertyValue, op: Op, expected: Expected): boolean
   }
 }
 
-function evaluateText(v: PropertyValue, op: Op, expected: Expected): boolean {
+/** The one set-membership core for multi_select AND id-lists (tiers/context). An empty `want` on
+ *  the any-shaped op passes — a mid-authoring empty chip set never blanks the table (B-6);
+ *  contains_all passes empty for free ([].every()). Returns undefined for ops it doesn't own, so
+ *  each caller keeps its own single-operand/presence branches. */
+function matchesSet(xs: string[], op: Op, want: string[]): boolean | undefined {
+  switch (op) {
+    case FILTER_OPS.containsAny:
+      return want.length === 0 ? true : want.some((w) => xs.includes(w))
+    case FILTER_OPS.containsAll:
+      return want.every((w) => xs.includes(w))
+    default:
+      return undefined
+  }
+}
+
+function evaluateText(v: PropertyValue, op: Op, expected: Expected, values?: string[]): boolean {
   const s = textValue(v)
   switch (op) {
     case FILTER_OPS.isEmpty:
@@ -213,20 +308,27 @@ function evaluateText(v: PropertyValue, op: Op, expected: Expected): boolean {
     case FILTER_OPS.isNotEmpty:
       return !(s === null || s === '')
     case FILTER_OPS.is:
+      if (values?.length) return s === null ? true : values.includes(s) // any-of (B-5)
       return s === null || expected == null ? true : s === expected
     case FILTER_OPS.isNot:
+      if (values?.length) return s === null ? true : !values.includes(s) // none-of
       return expected == null ? true : s !== expected
     case FILTER_OPS.contains:
       return s === null || expected == null ? true : s.toLowerCase().includes(expected.toLowerCase())
     case FILTER_OPS.doesNotContain:
       return expected == null ? true : !(s?.toLowerCase().includes(expected.toLowerCase()) ?? false)
+    case FILTER_OPS.startsWith:
+      return s === null || expected == null ? true : s.toLowerCase().startsWith(expected.toLowerCase())
     default:
       return true
   }
 }
 
-function evaluateMulti(v: PropertyValue, op: Op, expected: Expected): boolean {
+function evaluateMulti(v: PropertyValue, op: Op, expected: Expected, values?: string[]): boolean {
   const xs = v.kind === 'multiSelect' ? v.value : []
+  const want = values ?? (expected != null ? [expected] : [])
+  const set = matchesSet(xs, op, want)
+  if (set !== undefined) return set
   switch (op) {
     case FILTER_OPS.isEmpty:
       return xs.length === 0
@@ -234,18 +336,24 @@ function evaluateMulti(v: PropertyValue, op: Op, expected: Expected): boolean {
       return xs.length > 0
     case FILTER_OPS.is:
     case FILTER_OPS.contains:
-      return expected == null ? true : xs.includes(expected)
+      // Empty set = mid-authoring → pass, NEVER exclude ([].some() would blank the table — B-6).
+      return want.length === 0 ? true : want.some((w) => xs.includes(w))
     case FILTER_OPS.isNot:
     case FILTER_OPS.doesNotContain:
-      return expected == null ? true : !xs.includes(expected)
+      return want.length === 0 ? true : !want.some((w) => xs.includes(w))
     default:
       return true
   }
 }
 
-/** Tier / id-list membership + presence (Swift evaluateList). Note: is/contains with no operand →
- *  false (cannot match), mirroring Swift — distinct from multi-select's pass. */
-function evaluateList(ids: string[], op: Op, expected: Expected): boolean {
+/** Tier / id-list membership + presence (Swift evaluateList). DELIBERATE asymmetry, stated so
+ *  nobody "fixes" it: is/contains with a missing SINGLE operand → false (cannot match, Swift
+ *  parity) — while the chip-shaped set ops (matchesSet + values[]) pass on an empty operand set,
+ *  because a mid-authoring chip row must never blank the table. */
+function evaluateList(ids: string[], op: Op, expected: Expected, values?: string[]): boolean {
+  const want = values ?? (expected != null ? [expected] : [])
+  const set = matchesSet(ids, op, want)
+  if (set !== undefined) return set
   switch (op) {
     case FILTER_OPS.isEmpty:
       return ids.length === 0
@@ -253,16 +361,17 @@ function evaluateList(ids: string[], op: Op, expected: Expected): boolean {
       return ids.length > 0
     case FILTER_OPS.is:
     case FILTER_OPS.contains:
+      if (values?.length) return values.some((w) => ids.includes(w)) // any-of
       return expected == null ? false : ids.includes(expected)
     case FILTER_OPS.isNot:
     case FILTER_OPS.doesNotContain:
-      return expected == null ? true : !ids.includes(expected)
+      return want.length === 0 ? true : !want.some((w) => ids.includes(w))
     default:
       return true
   }
 }
 
-/** User relation / file: presence only (is/contains/etc. are no-op passes — Swift evaluatePresence). */
+/** File: presence only (is/contains/etc. are no-op passes — Swift evaluatePresence). */
 function evaluatePresence(v: PropertyValue, op: Op): boolean {
   const empty =
     v.kind === 'context' || v.kind === 'file' ? v.value.length === 0 : v.kind === 'null' ? true : false

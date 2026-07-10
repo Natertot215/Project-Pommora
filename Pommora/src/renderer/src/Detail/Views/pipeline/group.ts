@@ -48,6 +48,12 @@ function buildSetTree(sets: SetNode[] | undefined): SetTreeNode[] {
   return (sets ?? []).map((s) => ({ id: s.id, children: buildSetTree(s.sets) }))
 }
 
+/** A node's id plus every descendant's — THE subtree walk (sub-grouping, the filter's location
+ *  index). */
+export function subtreeIds(node: SetTreeNode): string[] {
+  return [node.id, ...node.children.flatMap(subtreeIds)]
+}
+
 function toRow(
   page: PageNode,
   parentSetId: string | undefined,
@@ -263,7 +269,6 @@ function structuralSubGrouped(
 ): ResolvedGroup[] {
   const def = schema.find((d) => d.id === sub.property_id)
   const granularity = sub.date_granularity ?? 'month'
-  const subtreeIds = (node: SetTreeNode): string[] => [node.id, ...node.children.flatMap(subtreeIds)]
   const byParent = groupRows(rows, (r) => r.parentSetId)
   const rootRows = byParent.get(undefined) ?? []
 

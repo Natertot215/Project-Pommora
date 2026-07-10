@@ -52,7 +52,7 @@ const CURRENT_LABEL: Record<PaneId, string> = {
  * The Collection/Set settings menu — the content rendered inside the settings dropdown when a
  * Collection or Set is selected: an icon+title header over Configuration · Properties · Visibility ·
  * Layout · Group · Filter · Sort as a push/back nav stack. Layout opens the active view's ViewSettings
- * (the flat door); Configuration holds the collection's Open In. Filter ships blank-leafed.
+ * (the flat door); Configuration holds the collection's Open In.
  */
 export function SettingsPane(): React.JSX.Element | null {
   const selection = useSession((st) => st.selection)

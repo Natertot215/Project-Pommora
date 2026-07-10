@@ -133,7 +133,10 @@ export const RESERVED_PROPERTY_ID = {
   type: '_type',
   tier1: '_tier1',
   tier2: '_tier2',
-  tier3: '_tier3'
+  tier3: '_tier3',
+  // Filter-only Location target — never a column; the filter's location branch runs before the
+  // declaredType dispatch, so this id deliberately resolves to no type.
+  location: '_location'
 } as const
 
 const RESERVED_SET = new Set<string>(Object.values(RESERVED_PROPERTY_ID))

@@ -68,23 +68,21 @@ The grouping arc, end to end in one day: brainstorm → 3-round-certified decisi
 
 ### Next Session
 
-**1. Filter + Sort panes** — the two remaining blank ViewSettings/SettingsPane leaves, now with a full pattern to mirror: the GroupingPane (leaf routing, PickerControl rows, `saveViewAdopting` writes) over the pipeline's already-honored `FilterGroup` / `SortCriterion[]`.
+**1. Redesign the Filter authoring pane.** The **filter engine shipped to main** — the pipeline applies any stored `filter` with the full operator/target/`values[]`/`none` matrix (evaluator, codec, `contextOptions`), all tested. A FilterPane was built (both doors, on the Grouping/Sorting chassis) and driven through a long live-UIX loop, then **pulled before merge — Nathan: "filter works but design is bad and must be redone."** Both leaves fall back to blank. The rebuild starts from the **ratified decision log + plan in `Planning/` (`7-9 - View Filtering — Decision Log.md`)** — flat rule rows serializing onto the recursive `FilterGroup`, the Matches (All/Any/None) header + per-row And/Or connectors, the shape-based lock predicate, the stay-open chip picker — all 3-round-certified and hardened by a shipped-code review; only the *visual* is up for redesign. `filterModel.ts` (the pure encode/decode serializer) was removed with the pane — rebuild it from the log or the git history at `02042c57^`.
 
-**2. The last per-type property editor: the relation (context) pickers** (Properties.md Pending). The editor-pane trio + `PickerControl` + the per-view/def-level write split in `PropertiesPane.tsx` are the pattern.
+**2. The Navigation system** — the next arc after filtering, cutting across the **Navigation Window**, the **Navigation Dropdown**, and the **Inspector** (→ [[Navigation]] + [[Inspector]]).
 
-**3. The non-Table renderers** (Cards · List · Gallery · Calendar · Timeline) — `PropertyEditing/` and the pipeline are renderer-agnostic and waiting; each type's grouping gets its own surface (→ [[Views]] `### Grouping`).
+**3. The last per-type property editor: the relation (context) pickers** (Properties.md Pending). The editor-pane trio + `PickerControl` + the per-view/def-level write split in `PropertiesPane.tsx` are the pattern.
 
-**4. User Sections CRUD** — the deferred "Add Heading" sidebar feature (Pending Focuses).
+**4. The non-Table renderers** (Cards · List · Gallery · Calendar · Timeline) — `PropertyEditing/` and the pipeline are renderer-agnostic and waiting; each type's grouping gets its own surface (→ [[Views]] `### Grouping`).
+
+**5. User Sections CRUD** — the deferred "Add Heading" sidebar feature (Pending Focuses).
 
 ### Pending Focuses
 
 - **"None"/flat grouping + Flatten + Hide Location** — the flattened-mode bundle, deliberately deferred (→ [[Views]] `### Grouping` for the ledger; the `flat` GroupConfig kind stays reserved).
 
 - **User Sections CRUD (the "Add Heading" feature).** Collections can *render* user-created sections but there's no way to *make* one (read-only orphans; `mutate.ts` has zero section ops). An "Add Heading" entry on the Collections right-click menu, section rename, drag-a-Collection-into-a-section. Its own brainstorm→plan→build. → `Sidebar.md` Pending.
-
-- **`hideChevrons` is TRUE in Nathan's REAL `.nexus/settings.json`** (flipped live, kept). Revertible by setting it `false`.
-
-- **The dropdown row-title tone is `label.primary`** (`menuSurface.css` `.surface .titleText`). Load-bearing for the Properties-pane tone hierarchy — don't flip it back to `label.control` without re-checking the tiering.
 
 - **(Perf) Standing debt:** (1) no row virtualization — every row MOUNTS, bites at thousands. (2) External VALUE edits don't live-refresh an open table (`loadValues` runs per container-open). Container-surgical reconcile is the designed escalation at real scale.
 
@@ -103,6 +101,8 @@ The grouping arc, end to end in one day: brainstorm → 3-round-certified decisi
 ### Fix Log
 
 - **`.nexus/activeViews.json` + per-machine siblings aren't gitignored (live).** Neither it nor `folds`/`viewOrders`/`tableHeadingColumns`/`linkTitles` are ignored — using the switcher on a fresh container creates a would-sync file. Add to the Nexus `.gitignore` (or scaffold it).
+
+- **Group By Location** locks certain configurations; custom order isn't truly independent from the filesystem and is buggy.
 
 - **The "File" property icon gets clipped** by its vertical row padding on the ViewPane.
 
