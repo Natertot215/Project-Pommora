@@ -508,12 +508,8 @@ export function Sidebar({ tree }: { tree: NexusTree }): React.JSX.Element {
 
   const layerFor = (m: SidebarMode): React.ReactNode =>
     m === 'contexts' ? contextsLayer : m === 'agenda' ? <AgendaMode /> : collectionsLayer
-  const active =
-    mode === 'contexts'
-      ? { node: contextsLayer, onCreate: newContext }
-      : mode === 'agenda'
-        ? { node: <AgendaMode />, onCreate: undefined }
-        : { node: collectionsLayer, onCreate: newCollectionMenu }
+  const activeNode = layerFor(mode)
+  const onCreate = mode === 'contexts' ? newContext : mode === 'agenda' ? undefined : newCollectionMenu
 
   // Ribbon-mode switch: hold the outgoing mode as a clipped exit overlay while the incoming sweeps
   // over it (Sidebar.css). The nav snaps to the top for the incoming; the exit layer counter-
@@ -544,8 +540,8 @@ export function Sidebar({ tree }: { tree: NexusTree }): React.JSX.Element {
             {layerFor(exit.mode)}
           </div>
         )}
-        <div key={mode} className={cx('sidebar-mode', exit !== null && 'mode-enter')} onContextMenu={modeCtx(active.onCreate)}>
-          {exit ? <div className="mode-enter-slide">{active.node}</div> : active.node}
+        <div key={mode} className={cx('sidebar-mode', exit !== null && 'mode-enter')} onContextMenu={modeCtx(onCreate)}>
+          {exit ? <div className="mode-enter-slide">{activeNode}</div> : activeNode}
         </div>
       </div>
     </nav>
