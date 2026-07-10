@@ -129,6 +129,22 @@ describe('moveTile', () => {
     expect(l.bands).toHaveLength(2)
     expect(l.bands[0]?.node).toEqual({ kind: 'tile', id: 'a' })
   })
+
+  it('reorders a whole band downward without overshooting', () => {
+    let l = insertBand(single(), 1, 'b', 100)
+    l = insertBand(l, 2, 'c', 100)
+    const moved = moveTileToBand(l, 'a', 2, 160)
+    assertValid(moved)
+    expect(moved.bands.map((b) => (b.node as { id: string }).id)).toEqual(['b', 'a', 'c'])
+  })
+
+  it('reorders a whole band upward at the stated index', () => {
+    let l = insertBand(single(), 1, 'b', 100)
+    l = insertBand(l, 2, 'c', 100)
+    const moved = moveTileToBand(l, 'c', 0, 160)
+    assertValid(moved)
+    expect(moved.bands.map((b) => (b.node as { id: string }).id)).toEqual(['c', 'a', 'b'])
+  })
 })
 
 describe('resizeDivider', () => {

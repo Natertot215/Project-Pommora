@@ -135,16 +135,21 @@ export function insertBand(
   return next
 }
 
-/** Move an existing tile out into its own band. */
+/** Move an existing tile out into its own band at `index` (an index against the
+ *  layout as given — when the tile currently IS a band above the target, its
+ *  removal shifts the band list, so the insertion compensates). */
 export function moveTileToBand(
   layout: SurfaceLayout,
   tileId: string,
   index: number,
   height: number
 ): SurfaceLayout {
-  if (!findTile(layout, tileId)) return layout
+  const at = findTile(layout, tileId)
+  if (!at) return layout
+  const ownBand = at.path.length === 0
+  const insertAt = ownBand && at.band < index ? index - 1 : index
   const removed = removeTile(layout, tileId)
-  return insertBand(removed, index, tileId, height)
+  return insertBand(removed, insertAt, tileId, height)
 }
 
 /** Drag the divider between two children of a split: redistribute the pair's

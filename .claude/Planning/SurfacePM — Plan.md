@@ -20,18 +20,19 @@
 
 ## Phase 0 — Built + Committed (recorded, not tasks)
 
-Core (`core/model.ts` · `core/ops.ts` · `core/rects.ts`, 20 tests green): the band/split/leaf model, `splitAtTile` (same-dir sibling splice, no degenerate nesting) / `removeTile` (sibling absorb + collapse) / `moveTile` / `insertBand` / `moveTileToBand` / `resizeDivider` (pair redistribution, min clamp) / `resizeBand`, `computeGeometry` (tile rects + divider zones + band edges + total height), tessellation-invariant property test. Sensor (`sensors/pointerDrag.ts`): pointer capture, threshold, rAF, Esc/pointercancel abort. `SurfaceView.tsx`: controlled component, origin-geometry hit-testing, live post-move preview, ghost, divider/band-edge resize. `SurfaceLab.tsx` mounted on the Homepage (`HomepageView.tsx`) + a showcase leaf (`surfacepm`). Chassis CSS per the knobs above.
+Core (`core/model.ts` · `core/ops.ts` · `core/rects.ts` · `core/edges.ts`, 28 tests green): the band/split/leaf model, `splitAtTile` (same-dir sibling splice, no degenerate nesting) / `removeTile` (sibling absorb + collapse) / `moveTile` / `insertBand` / `moveTileToBand` (band-reorder index compensation, both directions tested) / `resizeDivider` (pair redistribution, min clamp) / `resizeBand`, `resolveEdge` (a block edge → its shared boundary: nearest same-dir ancestor divider, else the band bottom), `computeGeometry`, tessellation-invariant property test. Sensor (`sensors/pointerDrag.ts`): pointer capture, threshold, rAF, Esc/pointercancel abort. `SurfaceView.tsx`: controlled component, **window-style resize on block edges/corners** (corners drive both axes from one origin snapshot; no bars in the gaps), origin-geometry hit-testing, live post-move preview, ghost, the `is-interacting` transition gate. `SurfaceLab.tsx` mounted on the Homepage (`HomepageView.tsx`) + a showcase leaf (`surfacepm`). Chassis CSS per the knobs above, DRY'd to `--duration-*`/`--ease-standard`/`--state-ghost`.
 
 ---
 
 ### Task 1: Pure Hit-Testing with Between-Band Drop Targets
 
-Drops currently target tile edges and append-at-bottom only; dropping a tile *between* bands (and above the first band) must create a band there. The hit-test also lives inside `SurfaceView.tsx` untested — extract it to core.
+Drops currently target tile edges and append-at-bottom only; dropping a tile *between* bands (and above the first band) must create a band there. The hit-test also lives inside `SurfaceView.tsx` untested — extract it to core. Two review-forced corrections ride along: **(a)** `bandEdges` in `core/rects.ts` currently emits its `y` at the band bottom **minus** gap/2 (the removed bars' anchor); its only consumer is now hit-testing, so re-emit it as the **seam centerline** — band bottom **plus** gap/2 — and update the `computeGeometry` expectations. **(b)** The zone thresholds are Nathan's live-tuning knobs and must not fuse: `bandZonePx` (targeting: above-first / between / append) is a separate prop from the bottom padding strip (`bottomPadPx`, replacing `bandDropPx`'s double duty); tests must run at the values `SurfaceView` actually passes, not only the default.
 
 **Files:**
 - Create: `Pommora/src/renderer/src/SurfacePM/core/hitTest.ts`
 - Create: `Pommora/src/renderer/src/SurfacePM/core/hitTest.test.ts`
-- Modify: `Pommora/src/renderer/src/SurfacePM/SurfaceView.tsx` (delete its local `hitTest`, import the core one)
+- Modify: `Pommora/src/renderer/src/SurfacePM/core/rects.ts` (bandEdges → seam centerlines) + `core/ops.test.ts` geometry expectations if touched
+- Modify: `Pommora/src/renderer/src/SurfacePM/SurfaceView.tsx` (delete its local `hitTest`, import the core one; `bandDropPx` prop splits into `bandZonePx` + `bottomPadPx`)
 
 **Interfaces:**
 - Consumes: `SurfaceGeometry` from `core/rects.ts`, `SurfaceLayout`/`Edge` from `core/model.ts`.
@@ -114,9 +115,9 @@ export function hitTest(
 }
 ```
 
-- [ ] **Step 4: Run tests** → PASS. Adjust `computeGeometry`'s `bandEdges` if the seam `y` expectation exposes an off-by-gap (the seam sits at the band's bottom + gap/2; fix the test constant to the emitted value, not the code, unless the emitted value is geometrically wrong).
+- [ ] **Step 4: Fix `bandEdges` emission + run tests** — in `core/rects.ts`, emit each band seam at `y + gap / 2` *after* `y += band.height` (the centerline of the visual gap), then run → PASS. Add one hitTest case at `bandZonePx: 10` AND one at the runtime value SurfaceView passes, so the seam zones are proven not to swallow tile interiors at real tuning values.
 
-- [ ] **Step 5: Swap `SurfaceView` to the core hitTest** — delete its local `hitTest` + `DropTarget`, `import { hitTest, type DropTarget } from './core/hitTest'`, pass `bandZonePx` from the `bandDropPx` prop. Full suite + typecheck.
+- [ ] **Step 5: Swap `SurfaceView` to the core hitTest** — delete its local `hitTest` + `DropTarget`, `import { hitTest, type DropTarget } from './core/hitTest'`; split the old `bandDropPx` into `bandZonePx` (targeting, default 10) and `bottomPadPx` (the host's bottom drop-room strip, default 28), threading `bandZonePx` into `hitTest`. Full suite + typecheck.
 
 - [ ] **Step 6: Commit** — `git add Pommora/src/renderer/src/SurfacePM && git commit -m "feat(surfacepm): pure hitTest with between-band drop targets"`
 
@@ -259,7 +260,7 @@ export function encodeLayout(layout: SurfaceLayout): unknown {
 }
 ```
 
-- [ ] **Step 4: Run → PASS** (fix the schema's recursive typing against the repo's zod version if `z.lazy` inference complains — type the lazy as `z.ZodType<unknown>` as shown and cast at `repairNode`).
+- [ ] **Step 4: Run → PASS.** Type the recursive schema **concretely** per the repo's own precedent (`shared/views.ts:159` types its recursive `FilterGroup` schema as `z.ZodType<FilterGroup>`): declare a raw-shape interface and use `z.ZodType<RawSplit>` rather than `z.ZodType<unknown>` + casts.
 
 - [ ] **Step 5: Commit** — `git commit -m "feat(surfacepm): layout codec — repairing decoder + round-trip"`
 
@@ -314,17 +315,11 @@ const TileShell = React.memo(function TileShell({
 )
 ```
 
-Make `onHandleDown` a stable `useCallback` reading live state through refs (the layout snapshot is taken inside the down handler, so a ref to the current `layout` suffices: `const layoutRef = useRef(layout); layoutRef.current = layout`).
+Make `onHandleDown` (and `onEdgeDown`) stable `useCallback`s reading live state through refs — **every live value they touch, not just `layout`** (review round 1 falsified the layout-ref-suffices shortcut: a mount-frozen `originGeometry` makes tiles added after mount undraggable and targets stale rects). Concretely: `const liveRef = useRef({ layout, originGeometry, commit, bandZonePx }); liveRef.current = { … }` — the down handler snapshots `liveRef.current` once at gesture start; nothing inside the gesture reads a closed-over prop/memo directly.
 
-- [ ] **Step 2: Gate transitions during gestures** — add to `surfacepm.css`:
+Drop `children` from the comparator entirely (a `renderTile` call mints a fresh element every render, so a `children` identity check makes the memo inert) — instead `TileShell` receives `renderTile` itself and calls it internally, with the memo comparing `renderTile` by identity. `SurfaceLab` (and any consumer) must pass a `useCallback`-stable `renderTile`; note this in the `SurfaceViewProps` doc comment.
 
-```css
-.spm-surface.is-interacting .spm-tile {
-  transition: none;
-}
-```
-
-and set `is-interacting` on the host while `tileDrag || activeDivider || bandResizing` (add a `bandResizing: number | null` state mirroring `activeDivider`). Rationale: previews must track the pointer 1:1; the ease belongs to *committed* settles only.
+- [ ] **Step 2: Verify the gesture transition gate** — `.spm-surface.is-interacting .spm-tile { transition: none }` and the `is-interacting` class (off `tileDrag || resizingId`) already shipped with the edge-resize rework; this step only confirms it survives the TileShell restructure (previews track the pointer 1:1; the ease belongs to committed settles only).
 
 - [ ] **Step 3: Stress preset** — in `SurfaceLab.tsx`, add a `Stress (60)` button: builds 6 bands × alternating splits down to ~60 tiles via a loop of `splitAtTile`. Verify by feel in the lab: divider drags stay smooth, tile drag previews don't animate.
 
@@ -341,9 +336,10 @@ The sensor and the gesture lifecycle carry the engine's correctness guarantees (
 
 **Interfaces:** consumes `startPointerDrag` only; no new API.
 
-- [ ] **Step 1: Failing tests** (jsdom `PointerEvent` shim is partial — construct with `new window.PointerEvent? ` fallback to `MouseEvent` and stub `setPointerCapture`/`hasPointerCapture`/`releasePointerCapture` on the element):
+- [ ] **Step 1: Failing tests** — **line 1 of the file MUST be `// @vitest-environment jsdom`** (the repo's vitest default is `environment: 'node'`; every DOM test opts in per-file — without the pragma this suite dies on `document is not defined` before a single assertion). vitest's jsdom is `pretendToBeVisual`, so `cancelAnimationFrame` exists. Stub `setPointerCapture`/`hasPointerCapture`/`releasePointerCapture` on the element:
 
 ```ts
+// @vitest-environment jsdom
 import { describe, expect, it, vi } from 'vitest'
 import { startPointerDrag } from './pointerDrag'
 
