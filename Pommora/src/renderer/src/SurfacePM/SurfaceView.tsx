@@ -1,4 +1,5 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { autoScroll, findScroller } from '@renderer/design-system/interactions/autoscroll'
 import type { Edge, SurfaceLayout } from './core/model'
 import { resolveEdge } from './core/edges'
 import { hitTest, type DropTarget } from './core/hitTest'
@@ -217,18 +218,23 @@ export function SurfaceView({
     const host = hostRef.current
     const rect = g.tiles.get(id)
     if (!host || !rect) return
-    const hostBox = host.getBoundingClientRect()
+    const downBox = host.getBoundingClientRect()
     // The grab offset is frozen at the down event — recomputing it per move would
     // cancel the pointer delta and pin the ghost to the tile's origin.
     const grab = {
-      x: e.clientX - hostBox.left - rect.x,
-      y: e.clientY - hostBox.top + host.scrollTop - rect.y
+      x: e.clientX - downBox.left - rect.x,
+      y: e.clientY - downBox.top + host.scrollTop - rect.y
     }
+    const scroller = findScroller(host)
     let latest: SurfaceLayout = origin
     let target: DropTarget = null
 
     startPointerDrag(e, {
       onMove: (_dx, _dy, ev) => {
+        if (scroller) autoScroll(scroller, ev.clientX, ev.clientY)
+        // The host box is re-read per move — an ancestor scroll (incl. our own
+        // autoscroll) or a window resize mid-drag shifts it.
+        const hostBox = host.getBoundingClientRect()
         const px = ev.clientX - hostBox.left
         const py = ev.clientY - hostBox.top + host.scrollTop
         setTileDrag({
@@ -237,7 +243,7 @@ export function SurfaceView({
           offset: grab,
           size: { w: rect.w, h: rect.h }
         })
-        target = hitTest(g, origin, id, px, py, zone)
+        target = hitTest(g, origin, id, px, py, zone, target)
         setDropTarget(target)
         latest = applyTarget(origin, id, target)
         setDraft(latest === origin ? null : latest)

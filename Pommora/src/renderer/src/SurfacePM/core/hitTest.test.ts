@@ -41,4 +41,23 @@ describe('hitTest', () => {
     expect(hitTest(geo, two, 'b', 500, 180, 28)).toEqual({ kind: 'band', index: 1 })
     expect(hitTest(geo, two, 'b', 500, 60, 28)).toEqual({ kind: 'tile', id: 'a', edge: 'n' })
   })
+
+  it('holds the previous edge near a quadrant diagonal (hysteresis)', () => {
+    // Tile a is 1000×200; margin = HYSTERESIS(6)/200 = 0.03 normalized.
+    const prev = { kind: 'tile', id: 'a', edge: 'n' } as const
+    // relY 0.51 vs 0.49 — 0.02 apart, under the margin: 'n' holds.
+    expect(hitTest(geo, two, 'b', 500, 102, 10, prev)).toEqual(prev)
+    // relY 0.55 vs 0.45 — 0.10 apart, past the margin: 's' wins.
+    expect(hitTest(geo, two, 'b', 500, 110, 10, prev)).toEqual({
+      kind: 'tile',
+      id: 'a',
+      edge: 's'
+    })
+    // A different tile ignores the previous edge entirely.
+    expect(hitTest(geo, two, 'a', 500, 300, 10, prev)).toEqual({
+      kind: 'tile',
+      id: 'b',
+      edge: 'n'
+    })
+  })
 })

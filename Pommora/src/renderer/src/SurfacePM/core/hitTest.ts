@@ -1,8 +1,11 @@
 // Drop-target resolution for tile moves: a pointer position resolves to a band
 // insertion (above the first band, on a between-band seam, or past the bottom)
 // or the hovered tile's nearest edge — never the dragged tile itself. Band zones
-// win over the tiles they straddle; `bandZonePx` is the live-tuning knob.
+// win over the tiles they straddle; `bandZonePx` is the live-tuning knob. Edge
+// picks within one tile carry PommoraDND's hysteresis: near a quadrant diagonal
+// the previous edge holds until the new one genuinely beats it, killing flicker.
 
+import { HYSTERESIS } from '@renderer/design-system/interactions/shared'
 import type { Edge, SurfaceLayout } from './model'
 import type { SurfaceGeometry } from './rects'
 
@@ -17,7 +20,8 @@ export function hitTest(
   dragId: string,
   px: number,
   py: number,
-  bandZonePx = 10
+  bandZonePx = 10,
+  prev: DropTarget = null
 ): DropTarget {
   if (py < bandZonePx) return { kind: 'band', index: 0 }
   // Append owns only the pad BELOW the content — the last band's south edges stay targetable.
@@ -38,7 +42,15 @@ export function hitTest(
       ['s', 1 - relY]
     ]
     dists.sort((a, b) => a[1] - b[1])
-    return { kind: 'tile', id, edge: dists[0]?.[0] ?? 'e' }
+    const best = dists[0]?.[0] ?? 'e'
+
+    if (prev?.kind === 'tile' && prev.id === id && prev.edge !== best) {
+      const margin = HYSTERESIS / Math.min(r.w, r.h)
+      const prevDist = dists.find(([edge]) => edge === prev.edge)?.[1] ?? Infinity
+      const bestDist = dists[0]?.[1] ?? 0
+      if (prevDist - bestDist < margin) return prev
+    }
+    return { kind: 'tile', id, edge: best }
   }
   return null
 }

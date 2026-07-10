@@ -329,7 +329,7 @@ Drop `children` from the comparator entirely (a `renderTile` call mints a fresh 
 
 ### Task 4: Sensor + Gesture Hardening Tests
 
-The sensor and the gesture lifecycle carry the engine's correctness guarantees (Esc law, snapshot discipline) with zero test coverage. Cover them headlessly.
+The sensor and the gesture lifecycle carry the engine's correctness guarantees (Esc law, snapshot discipline) with zero test coverage. Cover them headlessly. The sensor now shares PommoraDND's vocabulary (per Nathan's directive, landed with Task 3's follow-up): default threshold = `ACTIVATION` from `design-system/interactions/shared`, committed drags call `suppressNextClick()`, tile-drag targeting carries `HYSTERESIS` edge-hold (tested in hitTest), and handle drags autoscroll via `findScroller`/`autoScroll`. Add two assertions beyond the plan's originals: an armed commit registers the click suppressor (spy `window.addEventListener('click', …, {capture: true, once: true})` or observe a dispatched click being swallowed), and the default threshold matches `ACTIVATION` (drag of ACTIVATION−1 px never arms).
 
 **Files:**
 - Create: `Pommora/src/renderer/src/SurfacePM/sensors/pointerDrag.test.ts`

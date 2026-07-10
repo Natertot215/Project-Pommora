@@ -1,13 +1,17 @@
-// The SurfacePM pointer sensor — the engine's capture pattern (Pointer Events +
-// setPointerCapture, rAF-coalesced moves, Esc abort) reduced to a one-shot drag
-// primitive the surface's dividers and tile handles share.
+// The SurfacePM pointer sensor — PommoraDND's capture discipline (Pointer Events +
+// setPointerCapture, rAF-coalesced moves, Esc abort) as a one-shot drag primitive
+// for the surface's free-2D gestures, which the engine's list-slot Zones can't
+// host. Shares the engine's vocabulary: the app-wide ACTIVATION threshold and the
+// post-drop click suppression.
+
+import { ACTIVATION, suppressNextClick } from '@renderer/design-system/interactions/shared'
 
 export interface PointerDragHandlers {
   /** Fires rAF-coalesced with the cumulative delta from the drag origin. */
   onMove: (dx: number, dy: number, e: PointerEvent) => void
-  /** Fires once: true = commit, false = aborted (Esc / pointercancel). */
+  /** Fires once: true = commit, false = aborted (Esc / pointercancel / unarmed release). */
   onEnd: (commit: boolean) => void
-  /** Pixels of travel before the drag arms (a plain click never arms). */
+  /** Pixels of travel before the drag arms — defaults to the engine's ACTIVATION. */
   threshold?: number
 }
 
@@ -15,7 +19,7 @@ export function startPointerDrag(e: React.PointerEvent, handlers: PointerDragHan
   const el = e.currentTarget as HTMLElement
   const originX = e.clientX
   const originY = e.clientY
-  const threshold = handlers.threshold ?? 3
+  const threshold = handlers.threshold ?? ACTIVATION
   let armed = threshold === 0
   let raf = 0
   let lastX = originX
@@ -37,6 +41,7 @@ export function startPointerDrag(e: React.PointerEvent, handlers: PointerDragHan
     el.removeEventListener('pointercancel', onCancel)
     window.removeEventListener('keydown', onKey, true)
     if (el.hasPointerCapture(e.pointerId)) el.releasePointerCapture(e.pointerId)
+    if (commit && armed) suppressNextClick()
     handlers.onEnd(commit)
   }
 
