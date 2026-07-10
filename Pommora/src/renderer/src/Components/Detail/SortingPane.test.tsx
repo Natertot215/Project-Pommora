@@ -35,7 +35,8 @@ const statusDef: PropertyDefinition = {
 }
 const dateDef: PropertyDefinition = { id: 'prop_when', name: 'When', type: 'datetime' }
 const fileDef: PropertyDefinition = { id: 'prop_file', name: 'Attachment', type: 'file' }
-const schema = [statusDef, dateDef, fileDef]
+const checkDef: PropertyDefinition = { id: 'prop_check', name: 'Checked', type: 'checkbox' }
+const schema = [statusDef, dateDef, fileDef, checkDef]
 
 const view = (over?: Partial<SavedView>): SavedView => ({
   id: 'view_1',
@@ -139,6 +140,15 @@ describe('SortingPane rows', () => {
       })
     )
     expect(texts()).toContain('Reversed') // the sub Order scoped to Default/Reversed
+    await mount(
+      view({
+        sort: [
+          { property_id: 'prop_when', direction: 'ascending' },
+          { property_id: 'prop_check', direction: 'descending' }
+        ]
+      })
+    )
+    expect(texts()).toContain('Descending') // checkbox is the sub-scoping exception
   })
 
   it('None on Sort By writes sort: undefined — never []', async () => {

@@ -66,7 +66,7 @@ Each fires as one atomic transaction with a re-entry guard; all are **prefix-awa
 
 ### Context Menu + Shortcuts
 
-Right-click pops the **OS-native** menu, built in the Electron main process (`Menu.buildFromTemplate`, `frame`-wired so system items — Look Up, Services, spelling, Writing Tools — surface), with Pommora submenus (Format / Heading / Lists / Block) whose active state is computed from the live `EditorState`, not a static snapshot. Shortcuts: ⌘B / I / E / K, ⌘⇧X (strike), ⌘⇧K (connection).
+Right-click pops the **OS-native** menu, built in the Electron main process (`Menu.buildFromTemplate`, `frame`-wired so system items — Look Up, Services, spelling, Writing Tools — surface), with Pommora submenus (Format / Heading / Lists / Block) whose active state is computed from the live `EditorState`, not a static snapshot. Shortcuts: ⌘B / I / K, ⌘⇧X (strike), ⌘⇧K (connection) — Inline Code carries no keybinding (⌘E belongs to the ribbon toggle).
 
 ### Service Seams (Host-Injected)
 

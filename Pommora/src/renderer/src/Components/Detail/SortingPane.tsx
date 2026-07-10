@@ -224,7 +224,7 @@ export function SortingPane({
               icon="arrow-down-up"
               label="Order"
               value={sub.direction}
-              options={OPTION_DIRECTIONS}
+              options={declaredType(sub.property_id, schema) === 'checkbox' ? VALUE_DIRECTIONS : OPTION_DIRECTIONS}
               onPick={(d) => save([primary, { ...sub, direction: d }])}
             />
           )}
