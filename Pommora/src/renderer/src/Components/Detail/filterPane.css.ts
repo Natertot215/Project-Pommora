@@ -33,22 +33,19 @@ export const pane = style({
 export const body = style({ flex: '1 0 auto' })
 
 export const grid = style({
-  display: 'grid',
-  // Every column is content-sized — a field is only as wide as its widest row actually needs
-  // (columns still align across rows); nothing stretches to fill the pane.
-  gridTemplateColumns: 'max-content max-content max-content',
-  columnGap: '6px',
-  rowGap: '4px',
-  padding: '6px 0',
-  alignItems: 'center'
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '4px',
+  padding: '6px 0'
 })
 
+/** A rule row — a plain flex run: every field sizes to ITS OWN content, no cross-row column
+ *  alignment (rows and sections deliberately unequal). */
 export const gridRow = style({
-  gridColumn: '1 / -1',
   position: 'relative',
-  display: 'grid',
-  gridTemplateColumns: 'subgrid',
-  alignItems: 'center'
+  display: 'flex',
+  alignItems: 'center',
+  gap: '6px'
 })
 
 /** The What cell — the row's lead: row 0's field sits FLUSH at the gutter; rows 2+ lead with
@@ -69,7 +66,8 @@ export const cellField = style([
   fieldBase,
   text.body.emphasized,
   {
-    width: '100%',
+    width: 'auto',
+    flex: '0 1 auto',
     minWidth: 0,
     padding: '4px 4px 4px 8px',
     gap: '2px',
