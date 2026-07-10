@@ -11,6 +11,7 @@ import { saveViewAdopting } from '../../Detail/Views/viewMint'
 import { InlineEditHeader } from './InlineEditHeader'
 import { VisibilityList } from './HiddenPane'
 import { LayoutToggles } from './LayoutToggles'
+import { FilterPane } from './FilterPane'
 import { GroupingPane } from './GroupingPane'
 import { SortingPane } from './SortingPane'
 import { PaneSlider } from './PaneSlider'
@@ -41,8 +42,8 @@ const LEAF_MIN_WIDTH = 225
 const LEAF_MIN_HEIGHT = 245
 
 // The full-door config leaves below the grid — same rows the SettingsPane carries, so the view config
-// is reachable without the dropdown (the future Toolbar mode). Layout opens the visibility list; the
-// rest ship blank-leafed. Right-side breadcrumb reads the active tense.
+// is reachable without the dropdown (the future Toolbar mode). Right-side breadcrumb reads the
+// active tense.
 type Leaf = 'layout' | 'group' | 'filter' | 'sort'
 const LEAF_ROWS: { id: Leaf; label: string; icon: IconName }[] = [
   { id: 'layout', label: 'Layout', icon: 'layout-dashboard' },
@@ -75,6 +76,7 @@ export function ViewSettings({
   onClose: () => void
 }): React.JSX.Element {
   const load = useSession((s) => s.load)
+  const tree = useSession((s) => s.tree)
   const [leaf, setLeaf] = useState<Leaf | null>(null)
   const [formatOpen, setFormatOpen] = useState(false)
   const formatRef = useRef<HTMLDivElement>(null)
@@ -119,8 +121,7 @@ export function ViewSettings({
   }
 
   // Full-door leaves — the detail slot of the leaf slider (below). Layout opens the visibility list
-  // (+ its icon toggles); Filter ships blank, matching the SettingsPane's — its pane lands in its
-  // own arc. Only mounted while a leaf is open, so a push measures it before the flip.
+  // (+ its icon toggles). Only mounted while a leaf is open, so a push measures it before the flip.
   const leafPane =
     leaf === 'layout' ? (
       <VisibilityList
@@ -137,6 +138,8 @@ export function ViewSettings({
       <GroupingPane source={source} view={view} schema={schema} label="Views" onBack={() => setLeaf(null)} />
     ) : leaf === 'sort' ? (
       <SortingPane source={source} view={view} schema={schema} label="Views" onBack={() => setLeaf(null)} />
+    ) : leaf === 'filter' ? (
+      <FilterPane key={view.id} source={source} view={view} schema={schema} tree={tree} label="Views" onBack={() => setLeaf(null)} />
     ) : leaf ? (
       <MenuPaneTopRow label="Views" current={LEAF_CURRENT[leaf]} onBack={() => setLeaf(null)} />
     ) : null
