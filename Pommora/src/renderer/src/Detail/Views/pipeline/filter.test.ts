@@ -169,3 +169,31 @@ describe('applyFilter — no-op passes', () => {
     expect(FILTER_OPS.isNotEmpty).toBe('is_not_empty')
   })
 })
+
+describe('applyFilter — none + registry', () => {
+  const rows = [row('r1', { props: { prop_sel: 'a' } }), row('r2', { props: { prop_sel: 'b' } })]
+
+  it('a root match none skips filtering entirely', () => {
+    expect(
+      ids(rows, { match: 'none', rules: [{ match: 'all', rules: [{ property_id: 'prop_sel', op: 'is', value: 'a' }] }] })
+    ).toEqual(['r1', 'r2'])
+  })
+
+  it('a NESTED none passes (root-only semantics)', () => {
+    expect(
+      ids(rows, { match: 'all', rules: [{ match: 'none', rules: [{ property_id: 'prop_sel', op: 'is', value: 'zzz' }] }] })
+    ).toEqual(['r1', 'r2'])
+  })
+
+  it('registers every new op raw string', () => {
+    expect(FILTER_OPS.startsWith).toBe('starts_with')
+    expect(FILTER_OPS.containsAll).toBe('contains_all')
+    expect(FILTER_OPS.containsAny).toBe('contains_any')
+    expect(FILTER_OPS.isBefore).toBe('is_before')
+    expect(FILTER_OPS.isAfter).toBe('is_after')
+    expect(FILTER_OPS.greaterOrEqual).toBe('greater_or_equal')
+    expect(FILTER_OPS.lessOrEqual).toBe('less_or_equal')
+    expect(FILTER_OPS.isInside).toBe('is_inside')
+    expect(FILTER_OPS.isNotInside).toBe('is_not_inside')
+  })
+})

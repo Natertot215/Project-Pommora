@@ -10,6 +10,7 @@ import type { ViewRow } from '@shared/types'
 import { type PropertyDefinition, type PropertyType, RESERVED_PROPERTY_ID } from '@shared/properties'
 import type { PropertyValue } from '@shared/propertyValue'
 import { declaredType, modifiedStampString, resolveFieldValue } from './value'
+import type { SetTreeNode } from './group'
 import { linkDisplayText } from '../Table/linkValue'
 
 /** Operator raw strings — snake_case = the on-disk `op` values (parity with Swift FilterOperator). */
@@ -23,7 +24,16 @@ export const FILTER_OPS = {
   greaterThan: 'greater_than',
   lessThan: 'less_than',
   onOrAfter: 'on_or_after',
-  onOrBefore: 'on_or_before'
+  onOrBefore: 'on_or_before',
+  startsWith: 'starts_with',
+  containsAll: 'contains_all',
+  containsAny: 'contains_any',
+  isBefore: 'is_before',
+  isAfter: 'is_after',
+  greaterOrEqual: 'greater_or_equal',
+  lessOrEqual: 'less_or_equal',
+  isInside: 'is_inside',
+  isNotInside: 'is_not_inside'
 } as const
 
 const FILTER_OP_SET = new Set<string>(Object.values(FILTER_OPS))
@@ -31,14 +41,23 @@ const FILTER_OP_SET = new Set<string>(Object.values(FILTER_OPS))
 type Op = string
 type Expected = string | undefined
 
+/** Per-applyFilter location resolver — a set id to its descendant-id Set (Task 5 builds the real
+ *  index; undefined = unknown id → no-op pass). */
+type LocationIndex = (setId: string) => ReadonlySet<string> | undefined
+
+const makeLocationIndex = (_setTree: SetTreeNode[]): LocationIndex => () => undefined
+
 /** Filter rows by a (possibly nested) FilterGroup. undefined ⇒ no filtering. */
 export function applyFilter(
   rows: ViewRow[],
   filter: FilterGroup | undefined,
-  schema: PropertyDefinition[]
+  schema: PropertyDefinition[],
+  setTree: SetTreeNode[] = []
 ): ViewRow[] {
-  if (!filter) return rows
-  return rows.filter((row) => matchesGroup(row, filter, schema))
+  // 'none' = the pane's disable state (root-only): rules persist untouched, filtering skips.
+  if (!filter || filter.match === 'none') return rows
+  const locate = makeLocationIndex(setTree)
+  return rows.filter((row) => matchesGroup(row, filter, schema, locate))
 }
 
 /** A child is a nested group iff it carries `rules`; otherwise it's a leaf FilterRule. */
@@ -46,15 +65,16 @@ function isGroup(node: FilterRule | FilterGroup): node is FilterGroup {
   return 'rules' in node
 }
 
-function matchesGroup(row: ViewRow, group: FilterGroup, schema: PropertyDefinition[]): boolean {
+function matchesGroup(row: ViewRow, group: FilterGroup, schema: PropertyDefinition[], locate: LocationIndex): boolean {
+  if (group.match === 'none') return true // never pane-authored nested; a hand-authored one passes
   if (group.rules.length === 0) return true // empty filter = identity
   const results = group.rules.map((node) =>
-    isGroup(node) ? matchesGroup(row, node, schema) : evaluateRule(row, node, schema)
+    isGroup(node) ? matchesGroup(row, node, schema, locate) : evaluateRule(row, node, schema, locate)
   )
   return group.match === 'all' ? results.every(Boolean) : results.some(Boolean)
 }
 
-function evaluateRule(row: ViewRow, rule: FilterRule, schema: PropertyDefinition[]): boolean {
+function evaluateRule(row: ViewRow, rule: FilterRule, schema: PropertyDefinition[], locate: LocationIndex): boolean {
   if (!FILTER_OP_SET.has(rule.op)) return true // unknown op → no-op pass
 
   // "Last edited" resolves to the modified∥created stamp (never a stored property) → date matrix.
@@ -62,6 +82,7 @@ function evaluateRule(row: ViewRow, rule: FilterRule, schema: PropertyDefinition
     const s = modifiedStampString(row)
     return evaluateDate(s ? { kind: 'datetime', value: s } : { kind: 'null' }, rule.op, rule.value)
   }
+  void locate
 
   const t = declaredType(rule.property_id, schema)
   if (t === undefined) return true // property absent from schema → no-op pass
