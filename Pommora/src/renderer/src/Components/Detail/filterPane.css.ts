@@ -77,6 +77,8 @@ export const cellField = style([
     gap: '4px',
     border: 'none',
     cursor: 'default',
+    justifyContent: 'flex-start',
+    textAlign: 'left',
     color: c.label.control,
     overflow: 'hidden',
     whiteSpace: 'nowrap',
@@ -88,6 +90,7 @@ export const cellField = style([
 globalStyle(`${cellField} > span`, {
   flex: '1 1 auto',
   minWidth: 0,
+  textAlign: 'left',
   overflow: 'hidden',
   textOverflow: 'ellipsis',
   whiteSpace: 'nowrap'
@@ -100,9 +103,8 @@ export const connector = style([
   text.footnote.emphasized,
   {
     width: 'auto',
-    minHeight: 0,
     flex: '0 0 auto',
-    padding: '3px 6px',
+    padding: '0 6px',
     gap: '3px',
     border: 'none',
     cursor: 'default',
