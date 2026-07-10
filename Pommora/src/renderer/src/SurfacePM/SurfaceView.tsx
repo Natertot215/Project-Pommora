@@ -7,6 +7,7 @@ import { resolveEdge } from './core/edges'
 import { hitTest, type DropTarget } from './core/hitTest'
 import { moveTile, moveTileToBand, resizeDivider, resizeStackPair, stretchTileHeight } from './core/ops'
 import { computeGeometry, type Rect, type SurfaceGeometry } from './core/rects'
+import { snapAxis, xCandidates, yCandidates } from './core/snap'
 import { startPointerDrag } from './sensors/pointerDrag'
 import './surfacepm.css'
 
@@ -33,6 +34,8 @@ export interface SurfaceViewProps {
   bandZonePx?: number
   /** Extra empty room below the last band; dropping there appends a new band. */
   bottomPadPx?: number
+  /** Resize boundaries magnetize to other blocks' edges within this many px. */
+  snapPx?: number
   /** The displacement feel (defaults to the engine's Smooth). */
   feel?: Feel
 }
@@ -70,6 +73,7 @@ interface LiveState {
   bandZonePx: number
   minTilePx: number
   gap: number
+  snapPx: number
   feel: Feel
 }
 
@@ -151,6 +155,7 @@ export function SurfaceView({
   minTilePx = 64,
   bandZonePx = 10,
   bottomPadPx = 28,
+  snapPx = 6,
   feel = DEFAULT_FEEL
 }: SurfaceViewProps): React.JSX.Element {
   const hostRef = useRef<HTMLDivElement | null>(null)
@@ -189,9 +194,10 @@ export function SurfaceView({
     bandZonePx,
     minTilePx,
     gap,
+    snapPx,
     feel
   })
-  live.current = { layout, originGeometry, bandZonePx, minTilePx, gap, feel }
+  live.current = { layout, originGeometry, bandZonePx, minTilePx, gap, snapPx, feel }
 
   const layoutRef = useRef(layout)
   layoutRef.current = layout
@@ -222,22 +228,34 @@ export function SurfaceView({
     if (e.button !== 0) return
     e.preventDefault()
     e.stopPropagation()
-    const { layout: origin, originGeometry: g, minTilePx: minT } = live.current
+    const { layout: origin, originGeometry: g, minTilePx: minT, snapPx: snap } = live.current
+    const ownRect = g.tiles.get(id)
+    if (!ownRect) return
     const extents = new Map(g.dividers.map((d) => [refKey(d.ref), d.extentPx]))
+    const dividerX = new Map(g.dividers.map((d) => [refKey(d.ref), d.x]))
+    const snapX = xCandidates(g)
+    const snapY = yCandidates(g)
     // South edges STRETCH — exactly one tile grows, the page flows. North edges
     // negotiate the stacked boundary above; east/west move the row splitter.
+    // Each action carries its boundary's start px so its delta can magnetize to
+    // other blocks' edges (the alignment form-lock).
     type Action =
-      | { edge: Edge; kind: 'stretch' }
-      | { edge: Edge; kind: 'divider'; ref: DividerRef }
-      | { edge: Edge; kind: 'stack'; ref: DividerRef }
+      | { edge: Edge; kind: 'stretch'; start: number }
+      | { edge: Edge; kind: 'divider'; ref: DividerRef; start: number }
+      | { edge: Edge; kind: 'stack'; ref: DividerRef; start: number }
     const actions: Action[] = []
     for (const edge of edges) {
       if (edge === 's') {
-        actions.push({ edge, kind: 'stretch' })
+        actions.push({ edge, kind: 'stretch', start: ownRect.y + ownRect.h })
         continue
       }
       const boundary = resolveEdge(origin, id, edge)
-      if (boundary) actions.push({ edge, kind: boundary.kind, ref: boundary.ref })
+      if (!boundary) continue
+      const start =
+        boundary.kind === 'divider'
+          ? (dividerX.get(refKey(boundary.ref)) ?? ownRect.x)
+          : ownRect.y
+      actions.push({ edge, kind: boundary.kind, ref: boundary.ref, start })
     }
     if (actions.length === 0) return
 
@@ -247,10 +265,13 @@ export function SurfaceView({
       threshold: 0,
       onMove: (dx, dy) => {
         latest = actions.reduce((acc, action) => {
-          if (action.kind === 'stretch') return stretchTileHeight(acc, id, dy, minT)
-          if (action.kind === 'stack') return resizeStackPair(acc, action.ref, dy, minT)
+          const raw = action.kind === 'divider' ? dx : dy
+          const cands = action.kind === 'divider' ? snapX : snapY
+          const delta = snapAxis(action.start + raw, cands, snap) - action.start
+          if (action.kind === 'stretch') return stretchTileHeight(acc, id, delta, minT)
+          if (action.kind === 'stack') return resizeStackPair(acc, action.ref, delta, minT)
           const extent = extents.get(refKey(action.ref)) ?? 0
-          return resizeDivider(acc, action.ref, dx, extent, minT)
+          return resizeDivider(acc, action.ref, delta, extent, minT)
         }, origin)
         setDraft(latest)
       },
