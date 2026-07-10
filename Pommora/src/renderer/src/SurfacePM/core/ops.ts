@@ -148,6 +148,7 @@ export function moveTileToBand(
   if (!at) return layout
   const ownBand = at.path.length === 0
   const insertAt = ownBand && at.band < index ? index - 1 : index
+  if (ownBand && insertAt === at.band) return layout
   const removed = removeTile(layout, tileId)
   return insertBand(removed, insertAt, tileId, height)
 }

@@ -137,6 +137,12 @@ export function SurfaceView({
     const rect = originGeometry.tiles.get(id)
     if (!host || !rect) return
     const hostBox = host.getBoundingClientRect()
+    // The grab offset is frozen at the down event — recomputing it per move would
+    // cancel the pointer delta and pin the ghost to the tile's origin.
+    const grab = {
+      x: e.clientX - hostBox.left - rect.x,
+      y: e.clientY - hostBox.top + host.scrollTop - rect.y
+    }
     let latest: SurfaceLayout = origin
     let target: DropTarget = null
 
@@ -147,7 +153,7 @@ export function SurfaceView({
         setTileDrag({
           id,
           pointer: { x: px, y: py },
-          offset: { x: ev.clientX - hostBox.left - rect.x, y: ev.clientY - hostBox.top - rect.y },
+          offset: grab,
           size: { w: rect.w, h: rect.h }
         })
         target = hitTest(originGeometry, origin, id, px, py, bandZonePx)

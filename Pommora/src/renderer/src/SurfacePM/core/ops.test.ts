@@ -138,6 +138,14 @@ describe('moveTile', () => {
     expect(moved.bands.map((b) => (b.node as { id: string }).id)).toEqual(['b', 'a', 'c'])
   })
 
+  it('returns the same reference when a band drop is a no-move', () => {
+    let l = insertBand(single(), 1, 'b', 100)
+    l = insertBand(l, 2, 'c', 100)
+    expect(moveTileToBand(l, 'a', 0, 160)).toBe(l)
+    expect(moveTileToBand(l, 'a', 1, 160)).toBe(l)
+    expect(moveTileToBand(l, 'c', 3, 160)).toBe(l)
+  })
+
   it('reorders a whole band upward at the stated index', () => {
     let l = insertBand(single(), 1, 'b', 100)
     l = insertBand(l, 2, 'c', 100)

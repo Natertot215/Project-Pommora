@@ -24,8 +24,13 @@ describe('hitTest', () => {
     expect(hitTest(geo, two, 'b', 500, 4)).toEqual({ kind: 'band', index: 0 })
   })
 
-  it('targets past the bottom as an append', () => {
+  it('targets past the bottom as an append — but never inside the last band', () => {
     expect(hitTest(geo, two, 'a', 500, geo.totalHeight + 10)).toEqual({ kind: 'band', index: 2 })
+    expect(hitTest(geo, two, 'a', 500, geo.totalHeight - 4)).toEqual({
+      kind: 'tile',
+      id: 'b',
+      edge: 's'
+    })
   })
 
   it('never targets the dragged tile itself', () => {

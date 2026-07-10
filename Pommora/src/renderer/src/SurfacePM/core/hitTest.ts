@@ -20,7 +20,8 @@ export function hitTest(
   bandZonePx = 10
 ): DropTarget {
   if (py < bandZonePx) return { kind: 'band', index: 0 }
-  if (py > geometry.totalHeight - bandZonePx) return { kind: 'band', index: layout.bands.length }
+  // Append owns only the pad BELOW the content — the last band's south edges stay targetable.
+  if (py > geometry.totalHeight) return { kind: 'band', index: layout.bands.length }
   for (const seam of geometry.bandEdges.slice(0, -1)) {
     if (Math.abs(py - seam.y) <= bandZonePx) return { kind: 'band', index: seam.band + 1 }
   }
