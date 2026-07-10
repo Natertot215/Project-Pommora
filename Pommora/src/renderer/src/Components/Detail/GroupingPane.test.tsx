@@ -205,6 +205,17 @@ describe('GroupingPane rows', () => {
     expect(texts()).toContain('Todo')
   })
 
+  it('a dead-property grouping wears the structural chrome (the pipeline fallback, mirrored)', async () => {
+    await mount(
+      view({
+        group: { kind: 'property', property_id: 'prop_gone', order_mode: 'configured', empty_placement: 'bottom', hide_empty_groups: false }
+      })
+    )
+    expect(texts()).toContain('Location') // the truthful label — the table IS structural
+    expect(texts()).toContain('Sub-Group')
+    expect(texts()).not.toContain('Hide Empty Groups')
+  })
+
   it('switching Group By away and back preserves sub_group (view-level survival)', async () => {
     const v = view({ sub_group: { property_id: 'prop_status', order_mode: 'manual', order: ['todo'] } })
     await mount(v)

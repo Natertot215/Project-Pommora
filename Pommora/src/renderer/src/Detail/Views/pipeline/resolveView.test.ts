@@ -19,7 +19,7 @@ const collection = (pages: PageNode[]): CollectionNode => ({
 })
 
 describe('resolveView — full pipeline over the fixture', () => {
-  it('resolves columns (status-first) + grouped rows (manual order, empty bucket dropped, no-value band)', () => {
+  it('resolves columns (status-first) + grouped rows (manual order, empty band rendered, no-value tail)', () => {
     const view = savedView.parse(fixture.views[0])
     const schema = fixture.properties.map((id) =>
       propertyDefinition.parse((registry as Record<string, unknown>)[id])
@@ -35,11 +35,11 @@ describe('resolveView — full pipeline over the fixture', () => {
 
     expect(columns[0].id).toBe('prop_status')
     expect(columns.map((c) => c.id)).toEqual(['prop_status', '_title', '_tier3', '_tier2', '_tier1', 'prop_when'])
-    // manual order ['in_progress','opt_open','not_started','done'] — done empty → dropped; no-value band last
-    expect(groups.map((g) => g.key)).toEqual(['in_progress', 'opt_open', 'not_started', '_ungrouped'])
+    // manual order ['in_progress','opt_open','not_started','done'] — done empty → an empty band; no-value tail last
+    expect(groups.map((g) => g.key)).toEqual(['in_progress', 'opt_open', 'not_started', 'done', '_ungrouped'])
     expect(groups.find((g) => g.key === 'in_progress')?.items.map((r) => r.id)).toEqual(['p1'])
     expect(groups.find((g) => g.key === '_ungrouped')?.items.map((r) => r.id)).toEqual(['p4'])
-    expect(groups.some((g) => g.key === 'done')).toBe(false)
+    expect(groups.find((g) => g.key === 'done')?.items).toEqual([])
   })
 
   it('sorts rows within each group', () => {
@@ -131,6 +131,60 @@ describe('resolveView — group_order', () => {
     const schema = fixture.properties.map((id) => propertyDefinition.parse((registry as Record<string, unknown>)[id]))
     const { rows, setTree } = flattenContainer(collection([page('p1')]), { p1: { id: 'p1', properties: {} } })
     expect(() => resolveView({ rows, setTree, view, schema })).not.toThrow()
+  })
+
+  it('a DEAD-property grouping is effectively structural: location gate honored, tail placed, sub-group threaded', () => {
+    const nested: CollectionNode = {
+      kind: 'collection',
+      id: 'col',
+      title: 'Col',
+      path: 'Col',
+      sets: [
+        { kind: 'set', id: 's1', title: 'S1', path: 'Col/S1', sets: [], pages: [page('p1')] },
+        { kind: 'set', id: 's2', title: 'S2', path: 'Col/S2', sets: [], pages: [page('p2')] }
+      ],
+      pages: [page('root1')]
+    }
+    const schema: PropertyDefinition[] = [
+      {
+        id: 'prop_status',
+        name: 'S',
+        type: 'status',
+        status_groups: [
+          { id: 'g', label: 'G', color: 'blue', options: [{ value: 'todo', label: 'T', group_id: 'g' }] }
+        ]
+      }
+    ]
+    const values: Record<string, PageFrontmatter> = {
+      p1: { id: 'p1', properties: { prop_status: { $status: 'todo' } } },
+      p2: { id: 'p2', properties: {} },
+      root1: { id: 'root1', properties: {} }
+    }
+    const base: SavedView = {
+      id: 'v',
+      name: 'V',
+      type: 'table',
+      property_order: ['_title'],
+      hidden_properties: [],
+      group: { kind: 'property', property_id: 'prop_gone', order_mode: 'configured', empty_placement: 'bottom', hide_empty_groups: false }
+    }
+    const { rows, setTree } = flattenContainer(nested, values)
+    // Location ignores group_order (fs order stands) and the view-level tail placement holds top.
+    const located = resolveView({
+      rows,
+      setTree,
+      view: { ...base, structural_order_mode: 'location', group_order: ['s2', 's1'], ungrouped_placement: 'top' },
+      schema
+    })
+    expect(located.groups.map((g) => g.key)).toEqual(['_ungrouped', 's1', 's2'])
+    // The sub-group buckets inside the structural fallback exactly as under real Location grouping.
+    const subbed = resolveView({
+      rows,
+      setTree,
+      view: { ...base, sub_group: { property_id: 'prop_status', order_mode: 'configured' } },
+      schema
+    })
+    expect(subbed.groups.find((g) => g.key === 's1')?.children?.map((c) => c.bucket ?? c.key)).toEqual(['todo'])
   })
 })
 

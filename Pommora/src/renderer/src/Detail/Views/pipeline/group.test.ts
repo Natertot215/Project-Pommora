@@ -131,22 +131,23 @@ describe('property grouping — status manual order', () => {
     hide_empty_groups: false
   }
 
-  it('orders buckets by manual order, drops empty buckets, no-value band at bottom', () => {
+  it('orders buckets by manual order — an empty bucket renders as an empty band, no-value tail at bottom', () => {
     const { rows, setTree } = flattenContainer(col, values)
     const groups = resolveGroups(rows, base, statusSchema, setTree, null)
-    expect(keys(groups)).toEqual(['in_progress', 'not_started', 'done', '_ungrouped'])
+    expect(keys(groups)).toEqual(['in_progress', 'opt_open', 'not_started', 'done', '_ungrouped'])
+    expect(groups.find((g) => g.key === 'opt_open')?.items).toEqual([])
   })
 
   it('pins the no-value rows last even when empty_placement says top (the no-None-band ruling)', () => {
     const { rows, setTree } = flattenContainer(col, values)
     const groups = resolveGroups(rows, { ...base, empty_placement: 'top' }, statusSchema, setTree, null)
-    expect(keys(groups)).toEqual(['in_progress', 'not_started', 'done', '_ungrouped'])
+    expect(keys(groups)).toEqual(['in_progress', 'opt_open', 'not_started', 'done', '_ungrouped'])
   })
 
-  it('drops the no-value band when hide_empty_groups is set', () => {
+  it('hide_empty_groups drops the empty buckets; the no-value tail stays (placement governs it)', () => {
     const { rows, setTree } = flattenContainer(col, values)
     const groups = resolveGroups(rows, { ...base, hide_empty_groups: true }, statusSchema, setTree, null)
-    expect(keys(groups)).toEqual(['in_progress', 'not_started', 'done'])
+    expect(keys(groups)).toEqual(['in_progress', 'not_started', 'done', '_ungrouped'])
   })
 })
 
@@ -251,7 +252,7 @@ describe('ungrouped placement (the view-level knob)', () => {
       hide_empty_groups: false
     }
     const groups = resolveGroups(rows, group, statusSchema, setTree, null, [], 'top')
-    expect(keys(groups)).toEqual(['_ungrouped', 'done'])
+    expect(keys(groups)).toEqual(['_ungrouped', 'not_started', 'opt_open', 'in_progress', 'done'])
   })
 
   it('default stays bottom (legacy behavior)', () => {

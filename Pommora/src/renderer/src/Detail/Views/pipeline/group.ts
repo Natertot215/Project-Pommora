@@ -194,15 +194,18 @@ function property(
   const buckets = byBucket as Map<string, ViewRow[]>
 
   const groups: ResolvedGroup[] = []
+  // bucketOrder yields the FULL schema option order for select/status, so an empty option renders
+  // as an empty band — hide_empty_groups is the knob that drops those (date buckets only ever
+  // exist when populated).
   for (const key of bucketOrder(group, def, new Set(buckets.keys()))) {
-    const items = buckets.get(key)
-    if (items) {
-      groups.push({ key, kind: 'property', items: applySort(items, sorter), isCollapsed: collapsed.has(key) })
-    }
+    const items = buckets.get(key) ?? []
+    if (items.length === 0 && group.hide_empty_groups) continue
+    groups.push({ key, kind: 'property', items: applySort(items, sorter), isCollapsed: collapsed.has(key) })
   }
   // No "None" band: value-less rows are a flattened, header-less tail placed by the VIEW-level
-  // knob. The property config's own `empty_placement` stays decode parity, never read.
-  if (isCheckbox || noValue.length === 0 || group.hide_empty_groups) return groups
+  // knob — it holds rows, so hide_empty_groups never touches it. The property config's own
+  // `empty_placement` stays decode parity, never read.
+  if (isCheckbox || noValue.length === 0) return groups
   return placeTail(
     groups,
     { key: UNGROUPED, kind: 'ungrouped', items: applySort(noValue, sorter), isCollapsed: collapsed.has(UNGROUPED) },
@@ -304,9 +307,21 @@ function flat(rows: ViewRow[], sorter: Sorter | null, collapsed: Set<string>): R
   return [{ key: UNGROUPED, kind: 'ungrouped', items: applySort(rows, sorter), isCollapsed: collapsed.has(UNGROUPED) }]
 }
 
+/** The pipeline's EFFECTIVE grouping mode: a property group whose property is unresolvable or not
+ *  a groupable type renders structurally — every consumer (resolveView's location/sub-group gates,
+ *  the Grouping pane's chrome) must read this, never the raw `kind`, or they diverge from what the
+ *  table actually draws. */
+export function groupsStructurally(group: GroupConfig | undefined, schema: PropertyDefinition[]): boolean {
+  if (group?.kind === 'flat') return false
+  if (group?.kind !== 'property') return true
+  const t = declaredType(group.property_id, schema)
+  return t === undefined || !GROUPABLE.has(t)
+}
+
 /** Resolve rows into display groups, sorting within each. A property group falls back to structural
- *  when its property isn't a groupable type. `collapsed` carries the view's collapsed_groups so each
- *  group's `isCollapsed` is populated. */
+ *  when its property isn't a groupable type (groupsStructurally) — honoring the sub-group like any
+ *  structural view. `collapsed` carries the view's collapsed_groups so each group's `isCollapsed`
+ *  is populated. */
 export function resolveGroups(
   rows: ViewRow[],
   group: GroupConfig | undefined,
@@ -318,19 +333,11 @@ export function resolveGroups(
   subGroup?: SubGroupConfig
 ): ResolvedGroup[] {
   const collapsedSet = new Set(collapsed)
-  switch (group?.kind) {
-    case 'flat':
-      return flat(rows, sorter, collapsedSet)
-    case 'property': {
-      const t = declaredType(group.property_id, schema)
-      if (t === undefined || !GROUPABLE.has(t)) return structural(rows, setTree, sorter, collapsedSet, placement)
-      return property(rows, group, schema, sorter, collapsedSet, placement)
-    }
-    default: {
-      const t = subGroup ? declaredType(subGroup.property_id, schema) : undefined
-      if (subGroup && t !== undefined && GROUPABLE.has(t))
-        return structuralSubGrouped(rows, setTree, subGroup, schema, sorter, collapsedSet, placement)
-      return structural(rows, setTree, sorter, collapsedSet, placement)
-    }
-  }
+  if (group?.kind === 'flat') return flat(rows, sorter, collapsedSet)
+  if (!groupsStructurally(group, schema))
+    return property(rows, group as PropertyGroup, schema, sorter, collapsedSet, placement)
+  const t = subGroup ? declaredType(subGroup.property_id, schema) : undefined
+  if (subGroup && t !== undefined && GROUPABLE.has(t))
+    return structuralSubGrouped(rows, setTree, subGroup, schema, sorter, collapsedSet, placement)
+  return structural(rows, setTree, sorter, collapsedSet, placement)
 }

@@ -31,10 +31,12 @@ describe('orderGroups', () => {
     expect(keys(orderGroups(groups, ['D', 'B']))).toEqual(['D', 'B', 'A', 'C'])
   })
 
-  it('pins ungrouped last even when the array names every set — or names ungrouped itself', () => {
-    const groups = [sg('A'), sg('B'), ungrouped]
-    expect(keys(orderGroups(groups, ['B', 'A']))).toEqual(['B', 'A', '_ungrouped'])
-    expect(keys(orderGroups(groups, ['_ungrouped', 'B', 'A']))).toEqual(['B', 'A', '_ungrouped'])
+  it('the ungrouped tail holds its placement slot — top stays top, bottom stays bottom', () => {
+    const bottom = [sg('A'), sg('B'), ungrouped]
+    expect(keys(orderGroups(bottom, ['B', 'A']))).toEqual(['B', 'A', '_ungrouped'])
+    expect(keys(orderGroups(bottom, ['_ungrouped', 'B', 'A']))).toEqual(['B', 'A', '_ungrouped'])
+    const top = [ungrouped, sg('A'), sg('B')]
+    expect(keys(orderGroups(top, ['B', 'A']))).toEqual(['_ungrouped', 'B', 'A'])
   })
 
   it('leaves property groups untouched', () => {

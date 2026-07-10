@@ -4,7 +4,7 @@
 // (structural_order_mode, sub_group) live VIEW-level, so they survive Group By switches for free.
 import { useState } from 'react'
 import type { CollectionNode, SetNode } from '@shared/types'
-import type { PropertyDefinition } from '@shared/properties'
+import { type PropertyDefinition, statusOptions } from '@shared/properties'
 import type {
   DateGranularity,
   GroupConfig,
@@ -19,7 +19,7 @@ import { flushTrailing, footingLabel, footingSymbol } from '../../design-system/
 import { Reveal } from '../../design-system/components/Reveal'
 import { saveViewAdopting } from '../../Detail/Views/viewMint'
 import { declaredType } from '../../Detail/Views/pipeline/value'
-import { bucketOrder } from '../../Detail/Views/pipeline/group'
+import { bucketOrder, groupsStructurally } from '../../Detail/Views/pipeline/group'
 import { NUMERIC_FORMATS } from '../../Detail/Views/PropertyEditing/formatValue'
 import type { Band } from '../../Detail/Views/Table/bandDndModel'
 import { reparentFsOrder, structuralOrderAfterDrop } from '../../Detail/Views/Table/bandDndModel'
@@ -110,7 +110,10 @@ export function GroupingPane({
   const saveGroup = (group: GroupConfig): void => save({ group })
 
   const group = view.group ?? { kind: 'structural' as const }
-  const structural = group.kind !== 'property'
+  // The pipeline's EFFECTIVE mode, not the raw kind — a dead-property grouping renders structurally
+  // in the table, so the pane shows the structural chrome for it too (never a phantom "Location"
+  // label over property rows).
+  const structural = groupsStructurally(group, schema)
   const groupable = schema.filter((d) => GROUPABLE_PANE.has(declaredType(d.id, schema) ?? ''))
   const activeDef = group.kind === 'property' ? schema.find((d) => d.id === group.property_id) : undefined
   const subGroup = structural ? view.sub_group : undefined
@@ -128,7 +131,9 @@ export function GroupingPane({
   const pickGroupBy = (target: 'location' | PropertyDefinition): void => {
     setGroupByOpen(false)
     if (target === 'location') {
-      if (!structural) saveGroup({ kind: 'structural' })
+      // Keyed on the RAW kind: a dead-property config renders structurally but still sits on disk,
+      // and picking Location must heal it.
+      if (group.kind !== 'structural') saveGroup({ kind: 'structural' })
       return
     }
     if (group.kind === 'property' && group.property_id === target.id) return
@@ -193,7 +198,7 @@ export function GroupingPane({
               onPick={(g) => saveGroup({ ...group, date_granularity: g })}
             />
           )}
-          {group.kind === 'property' ? (
+          {!structural && group.kind === 'property' ? (
             <ValueRow
               icon="arrow-up-down"
               label="Order"
@@ -239,7 +244,7 @@ export function GroupingPane({
             <>
               <MenuSeparator flush />
               <div className={`${gp.middle} overflow-eclipse-y`}>
-                {group.kind === 'property' ? (
+                {!structural && group.kind === 'property' ? (
                   group.order_mode === 'manual' ? (
                     <CustomList group={group} def={activeDef} onSave={(order) => saveGroup({ ...group, order })} />
                   ) : (
@@ -279,7 +284,7 @@ export function GroupingPane({
               onPick={(v) => save({ date_separator: v })}
             />
           )}
-          {group.kind === 'property' && (
+          {!structural && group.kind === 'property' && (
             <MenuItem
               className={flushTrailing}
               leading={
@@ -336,7 +341,7 @@ function FootingPick<T extends string>({
 // ---- middle-region bodies ----
 
 export const optionsOf = (def: PropertyDefinition | undefined): { value: string; label: string; color?: string }[] =>
-  def?.select_options ?? def?.status_groups?.flatMap((g) => g.options) ?? []
+  def?.select_options ?? statusOptions(def)
 
 type PropertyGroupConfig = Extract<GroupConfig, { kind: 'property' }>
 
@@ -364,7 +369,9 @@ export function PropertyPreview({
         {groups.map((g) => (
           <div key={g.id}>
             <div className={gp.previewHeading}>{g.label}</div>
-            {(group.order_mode === 'reversed' ? [...g.options].reverse() : g.options).map(chip)}
+            {(group.order_mode === 'reversed' ? [...g.options].reverse() : g.options).map((o) =>
+              chip(o.color ? o : { ...o, color: g.color })
+            )}
           </div>
         ))}
       </>

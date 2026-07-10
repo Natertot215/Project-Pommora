@@ -8,7 +8,7 @@ import type { ResolvedColumn, ResolvedGroup, ViewRow } from '@shared/types'
 import type { SavedView } from '@shared/views'
 import { applyFilter } from './filter'
 import { orderGroups } from './bandOrder'
-import { resolveGroups, type SetTreeNode } from './group'
+import { groupsStructurally, resolveGroups, type SetTreeNode } from './group'
 import { makeSorter } from './sort'
 import { resolveColumns } from './columns'
 
@@ -26,8 +26,9 @@ export function resolveView(input: {
   const filtered = applyFilter(rows, view.filter, schema)
   const sorter = makeSorter(view.sort, schema, manualOrder)
   // Location order mirrors the filesystem: group_order is preserved on the view but ignored (C-1a).
-  // The mode is structural-only — property/flat grouping never reads it.
-  const structuralGrouping = view.group?.kind !== 'property' && view.group?.kind !== 'flat'
+  // The mode is structural-only — and "structural" is the EFFECTIVE mode (a dead-property grouping
+  // renders structurally), so the location gate + sub-group thread whenever the table draws sets.
+  const structuralGrouping = groupsStructurally(view.group, schema)
   const locationOrdered = structuralGrouping && view.structural_order_mode === 'location'
   const groups = orderGroups(
     resolveGroups(
