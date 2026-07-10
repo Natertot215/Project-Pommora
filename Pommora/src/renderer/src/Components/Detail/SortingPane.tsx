@@ -209,7 +209,10 @@ export function SortingPane({
             label="Order"
             value={primary.direction}
             options={directionOptions(primary.property_id, schema)}
-            onPick={(d) => save(sub ? [{ ...primary, direction: d }, sub] : [{ ...primary, direction: d }])}
+            onPick={(d) => {
+              const next = { ...primary, direction: d }
+              save(sub ? [next, sub] : [next])
+            }}
           />
           <ValueRow
             icon="arrow-up-down"
