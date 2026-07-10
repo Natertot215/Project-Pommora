@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { DividerRef, Edge, SurfaceLayout } from './core/model'
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import type { Edge, SurfaceLayout } from './core/model'
 import { resolveEdge } from './core/edges'
 import { hitTest, type DropTarget } from './core/hitTest'
 import { moveTile, moveTileToBand, resizeBand, resizeDivider } from './core/ops'
-import { computeGeometry, type Rect } from './core/rects'
+import { computeGeometry, type Rect, type SurfaceGeometry } from './core/rects'
 import { startPointerDrag } from './sensors/pointerDrag'
 import './surfacepm.css'
 
@@ -14,18 +14,20 @@ import './surfacepm.css'
 // accent highlight. Moving is the border handle; drops preview the real post-move
 // tessellation. Every gesture is snapshot → preview → commit/abort: recomputed from
 // the frozen drag-origin layout each move, hit-tested against the origin geometry,
-// Esc restores.
+// Esc restores. Gesture handlers are identity-stable (tiles memoize on them) and
+// read every live value through a per-render ref at gesture start.
 
 export interface SurfaceViewProps {
   layout: SurfaceLayout
   onLayoutChange: (layout: SurfaceLayout) => void
+  /** MUST be identity-stable (useCallback) — tiles memoize on it. */
   renderTile: (id: string, rect: Rect) => React.ReactNode
   gap?: number
   minTilePx?: number
   minBandPx?: number
-  /** Band-targeting zone radius (above-first / between-band seams / append) — a live-tuning knob. */
+  /** Band-targeting zone radius (above-first / between-band seams) — a live-tuning knob. */
   bandZonePx?: number
-  /** Extra empty room below the last band so an append drop has somewhere to land. */
+  /** Extra empty room below the last band; dropping there appends a new band. */
   bottomPadPx?: number
 }
 
@@ -36,7 +38,6 @@ interface TileDrag {
   size: { w: number; h: number }
 }
 
-/** The resize affordances a block offers: four edges + four corners. */
 const EDGE_ZONES: Array<{ zone: string; edges: Edge[] }> = [
   { zone: 'n', edges: ['n'] },
   { zone: 's', edges: ['s'] },
@@ -48,7 +49,74 @@ const EDGE_ZONES: Array<{ zone: string; edges: Edge[] }> = [
   { zone: 'sw', edges: ['s', 'w'] }
 ]
 
-const refKey = (ref: DividerRef): string => `${ref.band}|${ref.path.join('.')}|${ref.index}`
+const refKey = (ref: { band: number; path: number[]; index: number }): string =>
+  `${ref.band}|${ref.path.join('.')}|${ref.index}`
+
+interface LiveState {
+  layout: SurfaceLayout
+  originGeometry: SurfaceGeometry
+  commit: (next: SurfaceLayout | null) => void
+  bandZonePx: number
+  minTilePx: number
+  minBandPx: number
+}
+
+const TileShell = memo(
+  function TileShell({
+    id,
+    rect,
+    dragging,
+    resizing,
+    targetEdge,
+    renderTile,
+    onHandleDown,
+    onEdgeDown
+  }: {
+    id: string
+    rect: Rect
+    dragging: boolean
+    resizing: boolean
+    targetEdge: Edge | null
+    renderTile: (id: string, rect: Rect) => React.ReactNode
+    onHandleDown: (id: string, e: React.PointerEvent) => void
+    onEdgeDown: (id: string, edges: Edge[], e: React.PointerEvent) => void
+  }) {
+    return (
+      <div
+        className={`spm-tile${dragging ? ' is-dragging' : ''}${resizing ? ' is-resizing' : ''}${
+          targetEdge ? ` is-target edge-${targetEdge}` : ''
+        }`}
+        style={{
+          transform: `translate(${rect.x}px, ${rect.y}px)`,
+          width: rect.w,
+          height: rect.h
+        }}
+      >
+        <div className="spm-handle" onPointerDown={(e) => onHandleDown(id, e)} />
+        {EDGE_ZONES.map(({ zone, edges }) => (
+          <div
+            key={zone}
+            className={`spm-edge spm-edge-${zone}`}
+            onPointerDown={(e) => onEdgeDown(id, edges, e)}
+          />
+        ))}
+        <div className="spm-tile-body">{renderTile(id, rect)}</div>
+      </div>
+    )
+  },
+  (a, b) =>
+    a.id === b.id &&
+    a.dragging === b.dragging &&
+    a.resizing === b.resizing &&
+    a.targetEdge === b.targetEdge &&
+    a.renderTile === b.renderTile &&
+    a.onHandleDown === b.onHandleDown &&
+    a.onEdgeDown === b.onEdgeDown &&
+    a.rect.x === b.rect.x &&
+    a.rect.y === b.rect.y &&
+    a.rect.w === b.rect.w &&
+    a.rect.h === b.rect.h
+)
 
 export function SurfaceView({
   layout,
@@ -97,12 +165,25 @@ export function SurfaceView({
     [layout, onLayoutChange]
   )
 
-  const onEdgeDown = (id: string, edges: Edge[]) => (e: React.PointerEvent) => {
+  // Every live value a gesture reads, refreshed each render — the handlers stay
+  // identity-stable while never seeing a stale layout, geometry, or knob.
+  const live = useRef<LiveState>({
+    layout,
+    originGeometry,
+    commit,
+    bandZonePx,
+    minTilePx,
+    minBandPx
+  })
+  live.current = { layout, originGeometry, commit, bandZonePx, minTilePx, minBandPx }
+
+  const onEdgeDown = useCallback((id: string, edges: Edge[], e: React.PointerEvent) => {
     if (e.button !== 0) return
     e.preventDefault()
     e.stopPropagation()
-    const origin = layout
-    const extents = new Map(originGeometry.dividers.map((d) => [refKey(d.ref), d.extentPx]))
+    const { layout: origin, originGeometry: g, commit: end, minTilePx: minT, minBandPx: minB } =
+      live.current
+    const extents = new Map(g.dividers.map((d) => [refKey(d.ref), d.extentPx]))
     const boundaries = edges
       .map((edge) => ({ edge, boundary: resolveEdge(origin, id, edge) }))
       .filter((b) => b.boundary !== null)
@@ -115,26 +196,26 @@ export function SurfaceView({
       onMove: (dx, dy) => {
         latest = boundaries.reduce((acc, { edge, boundary }) => {
           const delta = edge === 'e' || edge === 'w' ? dx : dy
-          if (boundary?.kind === 'band') return resizeBand(acc, boundary.band, delta, minBandPx)
+          if (boundary?.kind === 'band') return resizeBand(acc, boundary.band, delta, minB)
           if (boundary?.kind === 'divider') {
             const extent = extents.get(refKey(boundary.ref)) ?? 0
-            return resizeDivider(acc, boundary.ref, delta, extent, minTilePx)
+            return resizeDivider(acc, boundary.ref, delta, extent, minT)
           }
           return acc
         }, origin)
         setDraft(latest)
       },
-      onEnd: (commitDrag) => commit(commitDrag ? latest : null)
+      onEnd: (commitDrag) => end(commitDrag ? latest : null)
     })
-  }
+  }, [])
 
-  const onHandleDown = (id: string) => (e: React.PointerEvent) => {
+  const onHandleDown = useCallback((id: string, e: React.PointerEvent) => {
     if (e.button !== 0) return
     e.preventDefault()
     e.stopPropagation()
-    const origin = layout
+    const { layout: origin, originGeometry: g, commit: end, bandZonePx: zone } = live.current
     const host = hostRef.current
-    const rect = originGeometry.tiles.get(id)
+    const rect = g.tiles.get(id)
     if (!host || !rect) return
     const hostBox = host.getBoundingClientRect()
     // The grab offset is frozen at the down event — recomputing it per move would
@@ -156,7 +237,7 @@ export function SurfaceView({
           offset: grab,
           size: { w: rect.w, h: rect.h }
         })
-        target = hitTest(originGeometry, origin, id, px, py, bandZonePx)
+        target = hitTest(g, origin, id, px, py, zone)
         setDropTarget(target)
         latest = applyTarget(origin, id, target)
         setDraft(latest === origin ? null : latest)
@@ -164,10 +245,10 @@ export function SurfaceView({
       onEnd: (commitDrag) => {
         setTileDrag(null)
         setDropTarget(null)
-        commit(commitDrag && target ? latest : null)
+        end(commitDrag && target ? latest : null)
       }
     })
-  }
+  }, [])
 
   const dragRect = tileDrag ? originGeometry.tiles.get(tileDrag.id) : undefined
   const interacting = tileDrag !== null || resizingId !== null
@@ -179,25 +260,17 @@ export function SurfaceView({
       style={{ height: geometry.totalHeight + bottomPadPx }}
     >
       {[...geometry.tiles.entries()].map(([id, rect]) => (
-        <div
+        <TileShell
           key={id}
-          className={cxTile(id, tileDrag, dropTarget, resizingId)}
-          style={{
-            transform: `translate(${rect.x}px, ${rect.y}px)`,
-            width: rect.w,
-            height: rect.h
-          }}
-        >
-          <div className="spm-handle" onPointerDown={onHandleDown(id)} />
-          {EDGE_ZONES.map(({ zone, edges }) => (
-            <div
-              key={zone}
-              className={`spm-edge spm-edge-${zone}`}
-              onPointerDown={onEdgeDown(id, edges)}
-            />
-          ))}
-          <div className="spm-tile-body">{renderTile(id, rect)}</div>
-        </div>
+          id={id}
+          rect={rect}
+          dragging={tileDrag?.id === id}
+          resizing={resizingId === id}
+          targetEdge={dropTarget?.kind === 'tile' && dropTarget.id === id ? dropTarget.edge : null}
+          renderTile={renderTile}
+          onHandleDown={onHandleDown}
+          onEdgeDown={onEdgeDown}
+        />
       ))}
 
       {tileDrag && dragRect && (
@@ -214,20 +287,6 @@ export function SurfaceView({
       )}
     </div>
   )
-}
-
-function cxTile(
-  id: string,
-  drag: TileDrag | null,
-  target: DropTarget,
-  resizingId: string | null
-): string {
-  const dragging = drag?.id === id
-  const targeted = target?.kind === 'tile' && target.id === id
-  const resizing = resizingId === id
-  return `spm-tile${dragging ? ' is-dragging' : ''}${resizing ? ' is-resizing' : ''}${
-    targeted ? ` is-target edge-${target.edge}` : ''
-  }`
 }
 
 function applyTarget(origin: SurfaceLayout, id: string, target: DropTarget): SurfaceLayout {
