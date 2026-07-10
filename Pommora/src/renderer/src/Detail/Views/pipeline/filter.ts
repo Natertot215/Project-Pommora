@@ -86,13 +86,19 @@ function evaluateRule(row: ViewRow, rule: FilterRule, schema: PropertyDefinition
 
   const t = declaredType(rule.property_id, schema)
   if (t === undefined) return true // property absent from schema → no-op pass
-  return evaluateByType(resolveFieldValue(row, rule.property_id, schema), rule.op, rule.value, t)
+  return evaluateByType(resolveFieldValue(row, rule.property_id, schema), rule.op, rule.value, rule.values, t)
 }
 
-function evaluateByType(v: PropertyValue, op: Op, expected: Expected, t: PropertyType | 'title' | 'tier'): boolean {
+function evaluateByType(
+  v: PropertyValue,
+  op: Op,
+  expected: Expected,
+  values: string[] | undefined,
+  t: PropertyType | 'title' | 'tier'
+): boolean {
   switch (t) {
     case 'tier':
-      return evaluateList(v.kind === 'context' ? v.value : [], op, expected)
+      return evaluateList(v.kind === 'context' ? v.value : [], op, expected, values)
     case 'number':
       return evaluateNumber(v, op, expected)
     case 'datetime':
@@ -103,9 +109,9 @@ function evaluateByType(v: PropertyValue, op: Op, expected: Expected, t: Propert
     case 'select':
     case 'status':
     case 'url':
-      return evaluateText(v, op, expected)
+      return evaluateText(v, op, expected, values)
     case 'multi_select':
-      return evaluateMulti(v, op, expected)
+      return evaluateMulti(v, op, expected, values)
     case 'context':
     case 'file':
       return evaluatePresence(v, op)
@@ -251,7 +257,22 @@ function evaluateCheckbox(v: PropertyValue, op: Op, expected: Expected): boolean
   }
 }
 
-function evaluateText(v: PropertyValue, op: Op, expected: Expected): boolean {
+/** The one set-membership core for multi_select AND id-lists (tiers/context). An empty `want` on
+ *  the any-shaped op passes — a mid-authoring empty chip set never blanks the table (B-6);
+ *  contains_all passes empty for free ([].every()). Returns undefined for ops it doesn't own, so
+ *  each caller keeps its own single-operand/presence branches. */
+function matchesSet(xs: string[], op: Op, want: string[]): boolean | undefined {
+  switch (op) {
+    case FILTER_OPS.containsAny:
+      return want.length === 0 ? true : want.some((w) => xs.includes(w))
+    case FILTER_OPS.containsAll:
+      return want.every((w) => xs.includes(w))
+    default:
+      return undefined
+  }
+}
+
+function evaluateText(v: PropertyValue, op: Op, expected: Expected, values?: string[]): boolean {
   const s = textValue(v)
   switch (op) {
     case FILTER_OPS.isEmpty:
@@ -259,8 +280,10 @@ function evaluateText(v: PropertyValue, op: Op, expected: Expected): boolean {
     case FILTER_OPS.isNotEmpty:
       return !(s === null || s === '')
     case FILTER_OPS.is:
+      if (values?.length) return s === null ? true : values.includes(s) // any-of (B-5)
       return s === null || expected == null ? true : s === expected
     case FILTER_OPS.isNot:
+      if (values?.length) return s === null ? true : !values.includes(s) // none-of
       return expected == null ? true : s !== expected
     case FILTER_OPS.contains:
       return s === null || expected == null ? true : s.toLowerCase().includes(expected.toLowerCase())
@@ -273,8 +296,11 @@ function evaluateText(v: PropertyValue, op: Op, expected: Expected): boolean {
   }
 }
 
-function evaluateMulti(v: PropertyValue, op: Op, expected: Expected): boolean {
+function evaluateMulti(v: PropertyValue, op: Op, expected: Expected, values?: string[]): boolean {
   const xs = v.kind === 'multiSelect' ? v.value : []
+  const want = values ?? (expected != null ? [expected] : [])
+  const set = matchesSet(xs, op, want)
+  if (set !== undefined) return set
   switch (op) {
     case FILTER_OPS.isEmpty:
       return xs.length === 0
@@ -282,18 +308,24 @@ function evaluateMulti(v: PropertyValue, op: Op, expected: Expected): boolean {
       return xs.length > 0
     case FILTER_OPS.is:
     case FILTER_OPS.contains:
-      return expected == null ? true : xs.includes(expected)
+      // Empty set = mid-authoring → pass, NEVER exclude ([].some() would blank the table — B-6).
+      return want.length === 0 ? true : want.some((w) => xs.includes(w))
     case FILTER_OPS.isNot:
     case FILTER_OPS.doesNotContain:
-      return expected == null ? true : !xs.includes(expected)
+      return want.length === 0 ? true : !want.some((w) => xs.includes(w))
     default:
       return true
   }
 }
 
-/** Tier / id-list membership + presence (Swift evaluateList). Note: is/contains with no operand →
- *  false (cannot match), mirroring Swift — distinct from multi-select's pass. */
-function evaluateList(ids: string[], op: Op, expected: Expected): boolean {
+/** Tier / id-list membership + presence (Swift evaluateList). DELIBERATE asymmetry, stated so
+ *  nobody "fixes" it: is/contains with a missing SINGLE operand → false (cannot match, Swift
+ *  parity) — while the chip-shaped set ops (matchesSet + values[]) pass on an empty operand set,
+ *  because a mid-authoring chip row must never blank the table. */
+function evaluateList(ids: string[], op: Op, expected: Expected, values?: string[]): boolean {
+  const want = values ?? (expected != null ? [expected] : [])
+  const set = matchesSet(ids, op, want)
+  if (set !== undefined) return set
   switch (op) {
     case FILTER_OPS.isEmpty:
       return ids.length === 0
@@ -301,10 +333,11 @@ function evaluateList(ids: string[], op: Op, expected: Expected): boolean {
       return ids.length > 0
     case FILTER_OPS.is:
     case FILTER_OPS.contains:
+      if (values?.length) return values.some((w) => ids.includes(w)) // any-of
       return expected == null ? false : ids.includes(expected)
     case FILTER_OPS.isNot:
     case FILTER_OPS.doesNotContain:
-      return expected == null ? true : !ids.includes(expected)
+      return want.length === 0 ? true : !want.some((w) => ids.includes(w))
     default:
       return true
   }

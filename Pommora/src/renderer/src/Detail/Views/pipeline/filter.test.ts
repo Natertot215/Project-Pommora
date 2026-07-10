@@ -236,3 +236,33 @@ describe('applyFilter — new single-operand ops', () => {
     expect(ids([rows[4], rows[5]], { match: 'all', rules: [{ property_id: 'prop_sel', op: 'starts_with' }] })).toEqual(['sApple', 'sBanana'])
   })
 })
+
+describe('applyFilter — multi-operand values[]', () => {
+  const rows = [
+    row('a', { props: { prop_sel: 'a' } }),
+    row('b', { props: { prop_sel: 'b' } }),
+    row('ab', { props: { prop_tags: ['a', 'b'] } }),
+    row('ac', { props: { prop_tags: ['a', 'c'] } }),
+    row('t1', { tier1: ['area1', 'area2'] })
+  ]
+
+  it('select is with values[] = any-of; is_not = none-of', () => {
+    expect(ids([rows[0], rows[1]], { match: 'all', rules: [{ property_id: 'prop_sel', op: 'is', values: ['a', 'zzz'] }] })).toEqual(['a'])
+    expect(ids([rows[0], rows[1]], { match: 'all', rules: [{ property_id: 'prop_sel', op: 'is_not', values: ['a'] }] })).toEqual(['b'])
+  })
+
+  it('multi_select contains_all / contains_any / does_not_contain over values[]', () => {
+    expect(ids([rows[2], rows[3]], { match: 'all', rules: [{ property_id: 'prop_tags', op: 'contains_all', values: ['a', 'b'] }] })).toEqual(['ab'])
+    expect(ids([rows[2], rows[3]], { match: 'all', rules: [{ property_id: 'prop_tags', op: 'contains_any', values: ['b', 'zzz'] }] })).toEqual(['ab'])
+    expect(ids([rows[2], rows[3]], { match: 'all', rules: [{ property_id: 'prop_tags', op: 'does_not_contain', values: ['b'] }] })).toEqual(['ac'])
+  })
+
+  it('contains_any with an EMPTY set passes — the mid-authoring guard', () => {
+    expect(ids([rows[2], rows[3]], { match: 'all', rules: [{ property_id: 'prop_tags', op: 'contains_any', values: [] }] })).toEqual(['ab', 'ac'])
+  })
+
+  it('tier contains_all / contains_any', () => {
+    expect(ids([rows[4]], { match: 'all', rules: [{ property_id: '_tier1', op: 'contains_all', values: ['area1', 'area2'] }] })).toEqual(['t1'])
+    expect(ids([rows[4]], { match: 'all', rules: [{ property_id: '_tier1', op: 'contains_any', values: ['zzz'] }] })).toEqual([])
+  })
+})
