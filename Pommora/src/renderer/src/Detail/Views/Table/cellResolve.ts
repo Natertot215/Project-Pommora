@@ -3,7 +3,7 @@
 // titles — so no raw id ever reaches screen. The type-aware chip rendering (Task 7) resolves through
 // the same helpers. Pure: no React.
 
-import type { PropertyDefinition } from '@shared/properties'
+import { type PropertyDefinition, statusOptions } from '@shared/properties'
 import type { CollectionNode, ResolvedGroup, SetNode, ViewRow } from '@shared/types'
 import type { SavedView } from '@shared/views'
 import { resolveFieldValue } from '../pipeline/value'
@@ -18,10 +18,7 @@ export function findOption(
   schema: PropertyDefinition[]
 ): { label: string; color?: string } | undefined {
   const def = schema.find((d) => d.id === columnId)
-  return (
-    def?.select_options?.find((o) => o.value === value) ??
-    def?.status_groups?.flatMap((g) => g.options).find((o) => o.value === value)
-  )
+  return def?.select_options?.find((o) => o.value === value) ?? statusOptions(def).find((o) => o.value === value)
 }
 
 /** A select/status option's label for a stored value (undefined if unknown). */

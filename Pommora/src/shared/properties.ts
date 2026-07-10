@@ -55,6 +55,7 @@ const statusOption = z.looseObject({
   color: z.string().optional().catch(undefined),
   group_id: statusGroupId
 })
+export type StatusOption = z.infer<typeof statusOption>
 
 const statusGroup = z.looseObject({
   id: statusGroupId,
@@ -160,6 +161,13 @@ export function tierPropertyId(level: number): string {
 /** Default 3-group seed written when a Status property is first added. Group IDs stay fixed (calendar
  *  sync); labels are Open / Active / Done, and each group seeds one option whose value=label=its group
  *  label, carrying the group color. Per Properties.md § "Status property type → Default seed". */
+/** A status def's options flattened for display — an option without its own color wears its
+ *  GROUP's (the on-disk contract: group color is the default, option color the override). THE
+ *  read for status chips anywhere the group isn't separately in scope. */
+export function statusOptions(def: Pick<PropertyDefinition, 'status_groups'> | undefined): StatusOption[] {
+  return (def?.status_groups ?? []).flatMap((g) => g.options.map((o) => (o.color ? o : { ...o, color: g.color })))
+}
+
 export function defaultStatusSeed(): StatusGroup[] {
   return [
     { id: 'upcoming', label: 'Open', color: 'grey', options: [{ value: 'Open', label: 'Open', color: 'grey', group_id: 'upcoming' }] },

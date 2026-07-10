@@ -1,6 +1,6 @@
 import type { RefObject } from 'react'
 import type { ColumnLook } from '@shared/columnStyles'
-import type { PropertyDefinition } from '@shared/properties'
+import { type PropertyDefinition, statusOptions } from '@shared/properties'
 import type { PropertyValue } from '@shared/propertyValue'
 import { PickerMenu, PickerOption } from '@renderer/design-system/components/PickerMenu/PickerMenu'
 import { Chip, chipShapeForType } from '@renderer/Components/Chip'
@@ -13,7 +13,7 @@ import { StatusCapsule } from './StatusCapsule'
  *  `select_options`. Values are shown regardless of name (a seed-shaped option is still a real
  *  value); the groups themselves are containers, never pickable chips. */
 const optionsOf = (def: PropertyDefinition): Array<{ value: string; label: string; color?: string }> => {
-  return def.type === 'status' ? (def.status_groups ?? []).flatMap((g) => g.options) : (def.select_options ?? [])
+  return def.type === 'status' ? statusOptions(def) : (def.select_options ?? [])
 }
 
 const selectedValues = (current: PropertyValue | null): string[] => {
