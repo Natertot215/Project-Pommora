@@ -4,13 +4,15 @@
   min-height: 120px;
 }
 
+/* Block chassis knobs — Nathan tunes these live: border 2px separator,
+   radius starts at 18px, inter-block spacing starts at 8px (the gap prop). */
 .spm-tile {
   position: absolute;
   top: 0;
   left: 0;
-  border: 1px solid var(--separator-border);
-  border-radius: 8px;
-  background: var(--fill-quaternary, transparent);
+  border: 2px solid var(--separator-border);
+  border-radius: 18px;
+  background: var(--fill-quaternary);
   transition:
     transform 140ms ease,
     width 140ms ease,
@@ -96,7 +98,7 @@
   left: 0;
   z-index: 4;
   pointer-events: none;
-  border: 1px solid var(--accent);
-  border-radius: 8px;
+  border: 2px solid var(--accent);
+  border-radius: 18px;
   opacity: 0.6;
 }
