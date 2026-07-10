@@ -1,16 +1,19 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { DividerRef, Edge, SurfaceLayout } from './core/model'
+import { resolveEdge } from './core/edges'
 import { moveTile, moveTileToBand, resizeBand, resizeDivider } from './core/ops'
 import { computeGeometry, type Rect } from './core/rects'
 import { startPointerDrag } from './sensors/pointerDrag'
 import './surfacepm.css'
 
-// The SurfacePM surface: renders a layout tree as absolutely-positioned tiles,
-// dividers as shared-edge splitters, band bottoms as page-flow resizers, and a
-// tile drag that previews the real post-move tessellation live. Every gesture
-// works snapshot → preview → commit/abort: the drag origin's layout is frozen,
-// each move recomputes the preview from it (never from the previous preview),
-// Esc restores it. Controlled: `layout` in, `onLayoutChange` out on commit.
+// The SurfacePM surface: a layout tree rendered as absolutely-positioned blocks.
+// Resizing lives on each block's own edges and corners (window-style — never bars
+// in the gaps): an edge drag moves the shared boundary it resolves to (core/edges),
+// a corner drives both axes at once, and the grabbed block's border carries the
+// accent highlight. Moving is the border handle; drops preview the real post-move
+// tessellation. Every gesture is snapshot → preview → commit/abort: recomputed from
+// the frozen drag-origin layout each move, hit-tested against the origin geometry,
+// Esc restores.
 
 export interface SurfaceViewProps {
   layout: SurfaceLayout
@@ -19,7 +22,7 @@ export interface SurfaceViewProps {
   gap?: number
   minTilePx?: number
   minBandPx?: number
-  /** Bottom strip height for "drop here as a new band" targeting. */
+  /** Bottom strip height for "drop here as a new band" targeting during moves. */
   bandDropPx?: number
 }
 
@@ -35,6 +38,20 @@ type DropTarget =
   | { kind: 'band'; index: number }
   | null
 
+/** The resize affordances a block offers: four edges + four corners. */
+const EDGE_ZONES: Array<{ zone: string; edges: Edge[] }> = [
+  { zone: 'n', edges: ['n'] },
+  { zone: 's', edges: ['s'] },
+  { zone: 'e', edges: ['e'] },
+  { zone: 'w', edges: ['w'] },
+  { zone: 'ne', edges: ['n', 'e'] },
+  { zone: 'nw', edges: ['n', 'w'] },
+  { zone: 'se', edges: ['s', 'e'] },
+  { zone: 'sw', edges: ['s', 'w'] }
+]
+
+const refKey = (ref: DividerRef): string => `${ref.band}|${ref.path.join('.')}|${ref.index}`
+
 export function SurfaceView({
   layout,
   onLayoutChange,
@@ -49,7 +66,7 @@ export function SurfaceView({
   const [draft, setDraft] = useState<SurfaceLayout | null>(null)
   const [tileDrag, setTileDrag] = useState<TileDrag | null>(null)
   const [dropTarget, setDropTarget] = useState<DropTarget>(null)
-  const [activeDivider, setActiveDivider] = useState<DividerRef | null>(null)
+  const [resizingId, setResizingId] = useState<string | null>(null)
 
   useEffect(() => {
     const el = hostRef.current
@@ -65,9 +82,8 @@ export function SurfaceView({
     () => computeGeometry(shown, Math.max(0, width), gap),
     [shown, width, gap]
   )
-  // Hit-testing during a tile drag runs against the frozen origin's geometry,
-  // not the previewed one — otherwise the preview shifting under the pointer
-  // retargets itself (the oscillation class the RGL teardown pinned).
+  // Hit-testing and boundary extents run against the frozen origin's geometry —
+  // a preview shifting under the pointer must never retarget the gesture.
   const originGeometry = useMemo(
     () => computeGeometry(layout, Math.max(0, width), gap),
     [layout, width, gap]
@@ -76,38 +92,37 @@ export function SurfaceView({
   const commit = useCallback(
     (next: SurfaceLayout | null) => {
       setDraft(null)
-      setActiveDivider(null)
+      setResizingId(null)
       if (next && next !== layout) onLayoutChange(next)
     },
     [layout, onLayoutChange]
   )
 
-  const onDividerDown = (ref: DividerRef, extentPx: number) => (e: React.PointerEvent) => {
+  const onEdgeDown = (id: string, edges: Edge[]) => (e: React.PointerEvent) => {
     if (e.button !== 0) return
     e.preventDefault()
+    e.stopPropagation()
     const origin = layout
-    const horizontal = geometry.dividers.find((d) => sameDivider(d.ref, ref))?.dir === 'row'
-    setActiveDivider(ref)
+    const extents = new Map(originGeometry.dividers.map((d) => [refKey(d.ref), d.extentPx]))
+    const boundaries = edges
+      .map((edge) => ({ edge, boundary: resolveEdge(origin, id, edge) }))
+      .filter((b) => b.boundary !== null)
+    if (boundaries.length === 0) return
+
+    setResizingId(id)
     let latest: SurfaceLayout = origin
     startPointerDrag(e, {
       threshold: 0,
       onMove: (dx, dy) => {
-        latest = resizeDivider(origin, ref, horizontal ? dx : dy, extentPx, minTilePx)
-        setDraft(latest)
-      },
-      onEnd: (commitDrag) => commit(commitDrag ? latest : null)
-    })
-  }
-
-  const onBandEdgeDown = (band: number) => (e: React.PointerEvent) => {
-    if (e.button !== 0) return
-    e.preventDefault()
-    const origin = layout
-    let latest: SurfaceLayout = origin
-    startPointerDrag(e, {
-      threshold: 0,
-      onMove: (_dx, dy) => {
-        latest = resizeBand(origin, band, dy, minBandPx)
+        latest = boundaries.reduce((acc, { edge, boundary }) => {
+          const delta = edge === 'e' || edge === 'w' ? dx : dy
+          if (boundary?.kind === 'band') return resizeBand(acc, boundary.band, delta, minBandPx)
+          if (boundary?.kind === 'divider') {
+            const extent = extents.get(refKey(boundary.ref)) ?? 0
+            return resizeDivider(acc, boundary.ref, delta, extent, minTilePx)
+          }
+          return acc
+        }, origin)
         setDraft(latest)
       },
       onEnd: (commitDrag) => commit(commitDrag ? latest : null)
@@ -150,17 +165,18 @@ export function SurfaceView({
   }
 
   const dragRect = tileDrag ? originGeometry.tiles.get(tileDrag.id) : undefined
+  const interacting = tileDrag !== null || resizingId !== null
 
   return (
     <div
       ref={hostRef}
-      className="spm-surface"
+      className={`spm-surface${interacting ? ' is-interacting' : ''}`}
       style={{ height: geometry.totalHeight + bandDropPx }}
     >
       {[...geometry.tiles.entries()].map(([id, rect]) => (
         <div
           key={id}
-          className={cxTile(id, tileDrag, dropTarget)}
+          className={cxTile(id, tileDrag, dropTarget, resizingId)}
           style={{
             transform: `translate(${rect.x}px, ${rect.y}px)`,
             width: rect.w,
@@ -168,28 +184,15 @@ export function SurfaceView({
           }}
         >
           <div className="spm-handle" onPointerDown={onHandleDown(id)} />
+          {EDGE_ZONES.map(({ zone, edges }) => (
+            <div
+              key={zone}
+              className={`spm-edge spm-edge-${zone}`}
+              onPointerDown={onEdgeDown(id, edges)}
+            />
+          ))}
           <div className="spm-tile-body">{renderTile(id, rect)}</div>
         </div>
-      ))}
-
-      {geometry.dividers.map((d) => (
-        <div
-          key={`d-${d.ref.band}-${d.ref.path.join('.')}-${d.ref.index}`}
-          className={`spm-divider ${d.dir === 'row' ? 'is-vertical' : 'is-horizontal'} ${
-            activeDivider && sameDivider(activeDivider, d.ref) ? 'is-active' : ''
-          }`}
-          style={hitZone(d, gap)}
-          onPointerDown={onDividerDown(d.ref, d.extentPx)}
-        />
-      ))}
-
-      {geometry.bandEdges.map((edge) => (
-        <div
-          key={`b-${edge.band}`}
-          className="spm-band-edge"
-          style={{ transform: `translate(0px, ${edge.y - 4}px)`, width: '100%', height: 9 }}
-          onPointerDown={onBandEdgeDown(edge.band)}
-        />
       ))}
 
       {tileDrag && dragRect && (
@@ -208,22 +211,18 @@ export function SurfaceView({
   )
 }
 
-function sameDivider(a: DividerRef, b: DividerRef): boolean {
-  return a.band === b.band && a.index === b.index && a.path.join('.') === b.path.join('.')
-}
-
-function cxTile(id: string, drag: TileDrag | null, target: DropTarget): string {
+function cxTile(
+  id: string,
+  drag: TileDrag | null,
+  target: DropTarget,
+  resizingId: string | null
+): string {
   const dragging = drag?.id === id
   const targeted = target?.kind === 'tile' && target.id === id
-  return `spm-tile${dragging ? ' is-dragging' : ''}${targeted ? ` is-target edge-${target.edge}` : ''}`
-}
-
-/** Widen a divider's visual gap into a comfortable grab zone. */
-function hitZone(d: { x: number; y: number; w: number; h: number; dir: string }, gap: number) {
-  const pad = Math.max(0, (10 - gap) / 2)
-  return d.dir === 'row'
-    ? { transform: `translate(${d.x - pad}px, ${d.y}px)`, width: d.w + pad * 2, height: d.h }
-    : { transform: `translate(${d.x}px, ${d.y - pad}px)`, width: d.w, height: d.h + pad * 2 }
+  const resizing = resizingId === id
+  return `spm-tile${dragging ? ' is-dragging' : ''}${resizing ? ' is-resizing' : ''}${
+    targeted ? ` is-target edge-${target.edge}` : ''
+  }`
 }
 
 function hitTest(
@@ -241,7 +240,6 @@ function hitTest(
     if (px < r.x || px > r.x + r.w || py < r.y || py > r.y + r.h) continue
     const relX = (px - r.x) / r.w
     const relY = (py - r.y) / r.h
-    // Nearest edge by normalized distance — the classic quadrant carve.
     const dists: Array<[Edge, number]> = [
       ['w', relX],
       ['e', 1 - relX],
@@ -254,11 +252,7 @@ function hitTest(
   return null
 }
 
-function applyTarget(
-  origin: SurfaceLayout,
-  id: string,
-  target: DropTarget
-): SurfaceLayout {
+function applyTarget(origin: SurfaceLayout, id: string, target: DropTarget): SurfaceLayout {
   if (!target) return origin
   if (target.kind === 'band') return moveTileToBand(origin, id, target.index, 160)
   return moveTile(origin, id, target.id, target.edge)
