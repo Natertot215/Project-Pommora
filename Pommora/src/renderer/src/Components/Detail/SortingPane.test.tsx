@@ -184,6 +184,28 @@ describe('SortingPane rows', () => {
     expect(texts()).not.toContain('_title')
   })
 
+  it('Custom on an option primary seeds the current sequence; the middle becomes the draggable Options list', async () => {
+    await mount(view({ sort: [{ property_id: 'prop_status', direction: 'descending' }] }))
+    const trigger = host.querySelectorAll('button[aria-label="Order"]')[0] as HTMLElement
+    await click(trigger)
+    await click([...document.querySelectorAll('button')].find((el) => el.textContent === 'Custom'))
+    expect(lastSaved().sort).toEqual([
+      { property_id: 'prop_status', direction: 'descending', order: ['done', 'todo'] } // seeded reversed
+    ])
+    await mount(view({ sort: [{ property_id: 'prop_status', direction: 'ascending', order: ['done', 'todo'] }] }))
+    expect(texts()).toContain('Custom')
+    expect(texts()).toContain('Options') // the draggable CustomList heading
+    expect(texts().indexOf('Done')).toBeLessThan(texts().indexOf('Todo'))
+  })
+
+  it('Default strips a custom order back off the criterion', async () => {
+    await mount(view({ sort: [{ property_id: 'prop_status', direction: 'ascending', order: ['done', 'todo'] }] }))
+    const trigger = host.querySelectorAll('button[aria-label="Order"]')[0] as HTMLElement
+    await click(trigger)
+    await click([...document.querySelectorAll('button')].find((el) => el.textContent === 'Default'))
+    expect(lastSaved().sort).toEqual([{ property_id: 'prop_status', direction: 'ascending' }])
+  })
+
   it('a status primary shows the example order; Reversed flips the run', async () => {
     await mount(view({ sort: [{ property_id: 'prop_status', direction: 'ascending' }] }))
     expect(texts()).toContain('Open') // the status group heading

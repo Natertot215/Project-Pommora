@@ -95,6 +95,21 @@ describe('SavedView decode', () => {
   })
 })
 
+describe('sort criterion custom order', () => {
+  const base = { id: 'view_s', name: 'S', type: 'table', property_order: [], hidden_properties: [] }
+  it('round-trips a criterion order array and leaves it absent otherwise', () => {
+    const v = savedView.parse({
+      ...base,
+      sort: [
+        { property_id: 'p1', direction: 'ascending', order: ['a', 'b'] },
+        { property_id: 'p2', direction: 'descending' }
+      ]
+    })
+    expect(v.sort?.[0].order).toEqual(['a', 'b'])
+    expect(v.sort?.[1].order).toBeUndefined()
+  })
+})
+
 describe('view-level grouping fields', () => {
   const base = { id: 'view_x', name: 'T', type: 'table', property_order: [], hidden_properties: [] }
   it('savedView round-trips all four fields', () => {

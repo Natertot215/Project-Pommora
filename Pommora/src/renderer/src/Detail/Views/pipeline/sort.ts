@@ -112,6 +112,11 @@ function buildCriterion(c: SortCriterion, schema: PropertyDefinition[]): Resolve
   switch (declaredType(c.property_id, schema)) {
     case 'select':
     case 'status': {
+      // A Custom criterion ranks by its own order (unknowns last); direction is moot for it.
+      if (c.order?.length) {
+        const order = Object.fromEntries(c.order.map((v, i) => [v, i]))
+        return { extract: (r) => rank(r, c.property_id, order, schema), less: numericLess, ascending: true }
+      }
       const def = schema.find((d) => d.id === c.property_id)
       const order = def ? optionOrderIndex(def) : {}
       return { extract: (r) => rank(r, c.property_id, order, schema), less: numericLess, ascending }

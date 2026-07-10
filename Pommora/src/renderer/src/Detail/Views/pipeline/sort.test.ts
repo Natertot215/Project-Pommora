@@ -270,6 +270,19 @@ describe('makeSorter — manual order tiebreaker (viewOrders, D-5/D-6)', () => {
   })
 })
 
+describe('custom option order', () => {
+  it('a criterion order ranks rows by the sequence, unknowns last, direction moot', () => {
+    const rows = [
+      makeRow('r1', { props: { prop_sel: 'a' } }),
+      makeRow('r2', { props: { prop_sel: 'b' } }),
+      makeRow('r3', { props: { prop_sel: 'zz' } }),
+      makeRow('r4', { props: { prop_sel: 'c' } })
+    ]
+    const sorter = makeSorter([{ property_id: 'prop_sel', direction: 'descending', order: ['c', 'a', 'b'] }], schema)!
+    expect(ids(sorter(rows))).toEqual(['r4', 'r1', 'r2', 'r3'])
+  })
+})
+
 describe('resolvedSortCount', () => {
   it('counts only criteria buildCriterion resolves — dead and tier criteria cost nothing', () => {
     expect(resolvedSortCount(undefined, schema)).toBe(0)

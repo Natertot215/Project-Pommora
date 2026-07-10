@@ -241,7 +241,7 @@ export function GroupingPane({
               <div className={`${gp.middle} overflow-eclipse-y`}>
                 {group.kind === 'property' ? (
                   group.order_mode === 'manual' ? (
-                    <CustomList group={group} def={activeDef} onSave={saveGroup} />
+                    <CustomList group={group} def={activeDef} onSave={(order) => saveGroup({ ...group, order })} />
                   ) : (
                     <PropertyPreview group={group} def={activeDef} />
                   )
@@ -335,7 +335,7 @@ function FootingPick<T extends string>({
 
 // ---- middle-region bodies ----
 
-const optionsOf = (def: PropertyDefinition | undefined): { value: string; label: string; color?: string }[] =>
+export const optionsOf = (def: PropertyDefinition | undefined): { value: string; label: string; color?: string }[] =>
   def?.select_options ?? def?.status_groups?.flatMap((g) => g.options) ?? []
 
 type PropertyGroupConfig = Extract<GroupConfig, { kind: 'property' }>
@@ -376,15 +376,16 @@ export function PropertyPreview({
   return <>{ordered.flatMap((v) => (byValue.has(v) ? [chip(byValue.get(v)!)] : []))}</>
 }
 
-/** Custom (manual) order: one flat "Options" list of draggable chips writing group.order (D-2). */
-function CustomList({
+/** Custom (manual) order: one flat "Options" list of draggable chips handing back the reordered
+ *  value sequence (D-2). Shared with the Sorting pane's Custom order — the caller owns the write. */
+export function CustomList({
   group,
   def,
   onSave
 }: {
-  group: PropertyGroupConfig
+  group: Pick<PropertyGroupConfig, 'order_mode' | 'order'>
   def: PropertyDefinition | undefined
-  onSave: (g: GroupConfig) => void
+  onSave: (order: string[]) => void
 }): React.JSX.Element | null {
   const all = optionsOf(def)
   const ordered = bucketOrder(group, def, new Set(all.map((o) => o.value)))
@@ -393,7 +394,7 @@ function CustomList({
   const dnd = useGroupingListDrag({
     bands,
     nestable: false,
-    onDrop: (draggedId, drop) => onSave({ ...group, order: nextOrder(ordered, draggedId, drop.beforeId) })
+    onDrop: (draggedId, drop) => onSave(nextOrder(ordered, draggedId, drop.beforeId))
   })
   if (!def) return null
   const type = def.type === 'status' ? 'status' : 'select'

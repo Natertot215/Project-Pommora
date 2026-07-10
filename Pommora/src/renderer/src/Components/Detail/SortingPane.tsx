@@ -17,7 +17,8 @@ import { declaredType } from '../../Detail/Views/pipeline/value'
 import { cx } from '../../design-system/cx'
 import { useSession } from '../../store'
 import { PickerControl, type PickerChoice } from './PickerControl'
-import { PropertyPreview } from './GroupingPane'
+import { CustomList, PropertyPreview, optionsOf } from './GroupingPane'
+import { bucketOrder } from '../../Detail/Views/pipeline/group'
 import { propertyTypeIconName, TITLE_META } from './PropertyTypes'
 import * as gp from './groupingPane.css'
 
@@ -32,6 +33,10 @@ const OPTION_DIRECTIONS: PickerChoice<Direction>[] = [
   { value: 'ascending', label: 'Default' },
   { value: 'descending', label: 'Reversed' }
 ]
+/** The primary's option-type Order adds Custom (a draggable value order on the criterion) — the
+ *  sub Order stays two-choice (no editing surface for a second custom list). */
+type OrderChoice = Direction | 'custom'
+const CUSTOM_OPTION_DIRECTIONS: PickerChoice<OrderChoice>[] = [...OPTION_DIRECTIONS, { value: 'custom', label: 'Custom' }]
 const VALUE_DIRECTIONS: PickerChoice<Direction>[] = [
   { value: 'ascending', label: 'Ascending' },
   { value: 'descending', label: 'Descending' }
@@ -157,6 +162,17 @@ export function SortingPane({
   const finiteDef =
     primaryType === 'select' || primaryType === 'status' ? schema.find((d) => d.id === primary?.property_id) : undefined
 
+  /** A primary rewrite keeps the sub slot (wholesale two-slot ownership). */
+  const savePrimary = (next: SortCriterion): void => save(sub ? [next, sub] : [next])
+  // Picking Custom snapshots the CURRENT effective sequence (the first-UI-writer pattern) so the
+  // list starts where the preview left off.
+  const seededOrder = (): string[] =>
+    bucketOrder(
+      { order_mode: primary?.direction === 'descending' ? 'reversed' : 'configured' },
+      finiteDef,
+      new Set(optionsOf(finiteDef).map((o) => o.value))
+    )
+
   const subOptions: PickerChoice<string>[] = [
     { value: '_none', label: 'None', icon: 'circle-off' as const },
     ...targets.filter((t) => t.id !== primary?.property_id).map((t) => ({ value: t.id, label: t.label, icon: t.icon }))
@@ -203,16 +219,19 @@ export function SortingPane({
       </Reveal>
       {!sortByOpen && primary && (
         <>
-          <ValueRow
+          <ValueRow<OrderChoice>
             tier={sub ? 'sub' : 'primary'}
             icon="arrow-down-up"
             label="Order"
-            value={primary.direction}
-            options={directionOptions(primary.property_id, schema)}
-            onPick={(d) => {
-              const next = { ...primary, direction: d }
-              save(sub ? [next, sub] : [next])
-            }}
+            value={finiteDef && primary.order ? 'custom' : primary.direction}
+            options={finiteDef ? CUSTOM_OPTION_DIRECTIONS : directionOptions(primary.property_id, schema)}
+            onPick={(v) =>
+              savePrimary(
+                v === 'custom'
+                  ? { ...primary, order: seededOrder() }
+                  : { property_id: primary.property_id, direction: v }
+              )
+            }
           />
           <ValueRow
             icon="arrow-up-down"
@@ -235,10 +254,18 @@ export function SortingPane({
             <>
               <MenuSeparator flush />
               <div className={`${gp.middle} overflow-eclipse-y`}>
-                <PropertyPreview
-                  group={{ order_mode: primary.direction === 'descending' ? 'reversed' : 'configured' }}
-                  def={finiteDef}
-                />
+                {primary.order ? (
+                  <CustomList
+                    group={{ order_mode: 'manual', order: primary.order }}
+                    def={finiteDef}
+                    onSave={(order) => savePrimary({ ...primary, order })}
+                  />
+                ) : (
+                  <PropertyPreview
+                    group={{ order_mode: primary.direction === 'descending' ? 'reversed' : 'configured' }}
+                    def={finiteDef}
+                  />
+                )}
               </div>
             </>
           )}

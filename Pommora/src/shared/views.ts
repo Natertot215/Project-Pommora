@@ -56,10 +56,12 @@ export interface SubGroupConfig {
   date_granularity?: DateGranularity
 }
 
-/** One sort criterion; `direction` raw strings match Swift on-disk. */
+/** One sort criterion; `direction` raw strings match Swift on-disk. `order` is the Custom option
+ *  ranking for select/status — present means rank by this sequence (unknowns last), direction moot. */
 export interface SortCriterion {
   property_id: string
   direction: (typeof SORT_DIRECTIONS)[number]
+  order?: string[]
 }
 
 /** One filter rule. `op` is a snake_case raw string (see FILTER_OPS in pipeline/filter.ts);
@@ -138,7 +140,8 @@ export interface SavedView {
 
 const sortCriterion = z.object({
   property_id: z.string(),
-  direction: z.enum(SORT_DIRECTIONS)
+  direction: z.enum(SORT_DIRECTIONS),
+  order: z.array(z.string()).optional()
 })
 
 const filterRule = z.object({
