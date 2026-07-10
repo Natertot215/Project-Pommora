@@ -197,3 +197,42 @@ describe('applyFilter — none + registry', () => {
     expect(FILTER_OPS.isNotInside).toBe('is_not_inside')
   })
 })
+
+describe('applyFilter — new single-operand ops', () => {
+  const rows = [
+    row('n5', { props: { prop_num: 5 } }),
+    row('n9', { props: { prop_num: 9 } }),
+    row('d20', { props: { prop_when: '2026-06-20T14:30:00Z' } }),
+    row('d25', { props: { prop_when: '2026-06-25' } }),
+    row('sApple', { props: { prop_sel: 'apple' } }),
+    row('sBanana', { props: { prop_sel: 'banana' } })
+  ]
+
+  it('number greater_or_equal / less_or_equal (absent values pass)', () => {
+    expect(ids(rows, { match: 'all', rules: [{ property_id: 'prop_num', op: 'greater_or_equal', value: '5' }] })).toEqual([
+      'n5',
+      'n9',
+      'd20',
+      'd25',
+      'sApple',
+      'sBanana'
+    ])
+    expect(ids([rows[0], rows[1]], { match: 'all', rules: [{ property_id: 'prop_num', op: 'less_or_equal', value: '5' }] })).toEqual(['n5'])
+  })
+
+  it('date is matches the CALENDAR DAY, ignoring the time component', () => {
+    expect(ids([rows[2], rows[3]], { match: 'all', rules: [{ property_id: 'prop_when', op: 'is', value: '2026-06-20' }] })).toEqual(['d20'])
+  })
+
+  it('date is_before / is_after are strict', () => {
+    expect(ids([rows[2], rows[3]], { match: 'all', rules: [{ property_id: 'prop_when', op: 'is_before', value: '2026-06-25' }] })).toEqual(['d20'])
+    expect(
+      ids([rows[2], rows[3]], { match: 'all', rules: [{ property_id: 'prop_when', op: 'is_after', value: '2026-06-20T14:30:00Z' }] })
+    ).toEqual(['d25'])
+  })
+
+  it('starts_with is case-insensitive; missing operand passes', () => {
+    expect(ids([rows[4], rows[5]], { match: 'all', rules: [{ property_id: 'prop_sel', op: 'starts_with', value: 'APP' }] })).toEqual(['sApple'])
+    expect(ids([rows[4], rows[5]], { match: 'all', rules: [{ property_id: 'prop_sel', op: 'starts_with' }] })).toEqual(['sApple', 'sBanana'])
+  })
+})

@@ -182,10 +182,23 @@ function evaluateNumber(v: PropertyValue, op: Op, expected: Expected): boolean {
       const e = parseNum(expected)
       return n === null || e === null ? true : n < e
     }
+    case FILTER_OPS.greaterOrEqual: {
+      const e = parseNum(expected)
+      return n === null || e === null ? true : n >= e
+    }
+    case FILTER_OPS.lessOrEqual: {
+      const e = parseNum(expected)
+      return n === null || e === null ? true : n <= e
+    }
     default:
       return true
   }
 }
+
+/** Calendar-day truncation for date `is` (B-7): both sides compared by their ISO date component —
+ *  never exact-ms equality (a stored T14:30 must match its picked bare day). String truncation, not
+ *  Date math: the stored day IS the authored day regardless of the viewer's timezone. */
+const dayOf = (iso: string): string => iso.slice(0, 10)
 
 function evaluateDate(v: PropertyValue, op: Op, expected: Expected): boolean {
   const d = v.kind === 'datetime' ? parseDateMs(v.value) : null
@@ -194,6 +207,18 @@ function evaluateDate(v: PropertyValue, op: Op, expected: Expected): boolean {
       return d === null
     case FILTER_OPS.isNotEmpty:
       return d !== null
+    case FILTER_OPS.is: {
+      const raw = v.kind === 'datetime' ? v.value : null
+      return raw === null || expected == null ? true : dayOf(raw) === dayOf(expected)
+    }
+    case FILTER_OPS.isBefore: {
+      const e = parseDateMs(expected)
+      return d === null || e === null ? true : d < e
+    }
+    case FILTER_OPS.isAfter: {
+      const e = parseDateMs(expected)
+      return d === null || e === null ? true : d > e
+    }
     case FILTER_OPS.onOrAfter: {
       const e = parseDateMs(expected)
       return d === null || e === null ? true : d >= e
@@ -241,6 +266,8 @@ function evaluateText(v: PropertyValue, op: Op, expected: Expected): boolean {
       return s === null || expected == null ? true : s.toLowerCase().includes(expected.toLowerCase())
     case FILTER_OPS.doesNotContain:
       return expected == null ? true : !(s?.toLowerCase().includes(expected.toLowerCase()) ?? false)
+    case FILTER_OPS.startsWith:
+      return s === null || expected == null ? true : s.toLowerCase().startsWith(expected.toLowerCase())
     default:
       return true
   }
