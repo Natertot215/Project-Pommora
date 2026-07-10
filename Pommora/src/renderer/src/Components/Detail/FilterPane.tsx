@@ -23,6 +23,7 @@ import { styleFor } from '../../Detail/Views/Table/columnStyles'
 import { condensedDate, formatDate } from '../../Detail/Views/PropertyEditing/formatValue'
 import { contextOptionsFor, type ContextOption } from '../../Detail/Views/pipeline/contextOptions'
 import { declaredType } from '../../Detail/Views/pipeline/value'
+import { solidColorCss } from '../../Detail/Views/Table/solidColor'
 import { cx } from '../../design-system/cx'
 import { useSession } from '../../store'
 import { PickerControl, type PickerChoice } from './PickerControl'
@@ -53,12 +54,14 @@ function FieldPicker({
   ariaLabel,
   display,
   icon,
+  iconColor,
   placeholder,
   children
 }: {
   ariaLabel: string
   display: string | null
   icon?: React.ComponentProps<typeof Icon>['name']
+  iconColor?: string
   placeholder: string
   children: (close: () => void) => React.ReactNode
 }): React.JSX.Element {
@@ -67,7 +70,7 @@ function FieldPicker({
   return (
     <>
       <button ref={ref} type="button" className={fp.cellField} aria-label={ariaLabel} onClick={() => setOpen(true)}>
-        {icon ? <Icon name={icon} size={13} /> : null}
+        {icon ? <Icon name={icon} size={13} {...(iconColor ? { style: { color: iconColor } } : {})} /> : null}
         <span className={display === null ? fp.placeholder : undefined}>{display ?? placeholder}</span>
         <Icon name="chevrons-up-down" size={12} />
       </button>
@@ -357,6 +360,12 @@ export function FilterPane({
     const ops = operatorsFor(row.rule.property_id, schema)
     const current = ops.find((o) => o.op === row.rule.op && (o.impliedValue === undefined || o.impliedValue === row.rule.value))
     const target = targetById.get(row.rule.property_id)
+    // The checkbox family leads with its box glyph — checked wears the def's property-wide
+    // checkbox_color (absent = the accent), an empty box stays neutral (F-5, the Cell recipe).
+    const isCheckbox = declaredType(row.rule.property_id, schema) === 'checkbox'
+    const checkboxColor = solidColorCss(schema.find((d) => d.id === row.rule.property_id)?.checkbox_color)
+    const checkboxGlyph = (o: OperatorChoice): { icon: 'square-check' | 'square'; color?: string } =>
+      o.impliedValue === 'true' ? { icon: 'square-check', color: checkboxColor } : { icon: 'square' }
     return (
       <div key={index} className={fp.gridRow}>
         {row.connector === null ? (
@@ -375,7 +384,12 @@ export function FilterPane({
         >
           {(close) => targetOptions((id) => id !== row.rule.property_id && replaceRule(index, mintRule(id, schema)), close)}
         </FieldPicker>
-        <FieldPicker ariaLabel="Filter operator" display={current?.label ?? row.rule.op} placeholder="Condition">
+        <FieldPicker
+          ariaLabel="Filter operator"
+          display={current?.label ?? row.rule.op}
+          {...(isCheckbox && current ? { icon: checkboxGlyph(current).icon, iconColor: checkboxGlyph(current).color } : {})}
+          placeholder="Condition"
+        >
           {(close) =>
             ops.map((o) => (
               <PickerOption
@@ -396,7 +410,18 @@ export function FilterPane({
                   })
                 }}
               >
-                {o.label}
+                {isCheckbox ? (
+                  <span className={fp.pickerOptionRow}>
+                    <Icon
+                      name={checkboxGlyph(o).icon}
+                      size={13}
+                      {...(checkboxGlyph(o).color ? { style: { color: checkboxGlyph(o).color } } : {})}
+                    />
+                    {o.label}
+                  </span>
+                ) : (
+                  o.label
+                )}
               </PickerOption>
             ))
           }
