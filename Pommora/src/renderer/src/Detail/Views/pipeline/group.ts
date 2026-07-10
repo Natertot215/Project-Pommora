@@ -44,7 +44,7 @@ function groupRows<K>(rows: ViewRow[], keyOf: (r: ViewRow) => K): Map<K, ViewRow
 
 // ---- flatten ----
 
-export function buildSetTree(sets: SetNode[] | undefined): SetTreeNode[] {
+function buildSetTree(sets: SetNode[] | undefined): SetTreeNode[] {
   return (sets ?? []).map((s) => ({ id: s.id, children: buildSetTree(s.sets) }))
 }
 

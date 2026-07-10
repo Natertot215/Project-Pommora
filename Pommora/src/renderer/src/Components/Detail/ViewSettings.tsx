@@ -11,7 +11,6 @@ import { saveViewAdopting } from '../../Detail/Views/viewMint'
 import { InlineEditHeader } from './InlineEditHeader'
 import { VisibilityList } from './HiddenPane'
 import { LayoutToggles } from './LayoutToggles'
-import { FilterPane } from './FilterPane'
 import { GroupingPane } from './GroupingPane'
 import { SortingPane } from './SortingPane'
 import { PaneSlider } from './PaneSlider'
@@ -76,7 +75,6 @@ export function ViewSettings({
   onClose: () => void
 }): React.JSX.Element {
   const load = useSession((s) => s.load)
-  const tree = useSession((s) => s.tree)
   const [leaf, setLeaf] = useState<Leaf | null>(null)
   const [formatOpen, setFormatOpen] = useState(false)
   const formatRef = useRef<HTMLDivElement>(null)
@@ -138,8 +136,6 @@ export function ViewSettings({
       <GroupingPane source={source} view={view} schema={schema} label="Views" onBack={() => setLeaf(null)} />
     ) : leaf === 'sort' ? (
       <SortingPane source={source} view={view} schema={schema} label="Views" onBack={() => setLeaf(null)} />
-    ) : leaf === 'filter' ? (
-      <FilterPane key={view.id} source={source} view={view} schema={schema} tree={tree} label="Views" onBack={() => setLeaf(null)} />
     ) : leaf ? (
       <MenuPaneTopRow label="Views" current={LEAF_CURRENT[leaf]} onBack={() => setLeaf(null)} />
     ) : null

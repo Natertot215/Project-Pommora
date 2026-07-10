@@ -9,7 +9,6 @@ import { findCollection, findSet, findCollectionForSet } from '../../Detail/Scop
 import { pickView } from '../../Detail/Views/Table/TableView'
 import { PropertiesPane } from './PropertiesPane'
 import { HiddenPane } from './HiddenPane'
-import { FilterPane } from './FilterPane'
 import { GroupingPane } from './GroupingPane'
 import { SortingPane } from './SortingPane'
 import { ViewSettings } from './ViewSettings'
@@ -171,11 +170,6 @@ export function SettingsPane(): React.JSX.Element | null {
       <GroupingPane source={node} view={pickView(node, activeViewId, schema)} schema={schema} label="Settings" onBack={back} />
     ) : detailId === 'sort' ? (
       <SortingPane source={node} view={pickView(node, activeViewId, schema)} schema={schema} label="Settings" onBack={back} />
-    ) : detailId === 'filter' ? (
-      (() => {
-        const v = pickView(node, activeViewId, schema)
-        return <FilterPane key={v.id} source={node} view={v} schema={schema} tree={tree} label="Settings" onBack={back} />
-      })()
     ) : (
       blankLeaf
     )
