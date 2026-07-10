@@ -115,8 +115,6 @@ A full brainstorm arc: Nathan's Contexts rethink became a review-certified spec 
 
 - **`.nexus/activeViews.json` + per-machine siblings aren't gitignored (live).** Neither it nor `folds`/`viewOrders`/`tableHeadingColumns`/`linkTitles` are ignored — using the switcher on a fresh container creates a would-sync file. Add to the Nexus `.gitignore` (or scaffold it).
 
-- **Group By Location** locks certain configurations; custom order isn't truly independent from the filesystem and is buggy.
-
 - **The "File" property icon gets clipped** by its vertical row padding on the ViewPane.
 
 - **The link rename field shows a leading empty space (DEPRIORITIZED).** A visual inset, not a stored/typed char. Log it, don't chase it.
