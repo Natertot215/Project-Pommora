@@ -506,6 +506,8 @@ export function Sidebar({ tree }: { tree: NexusTree }): React.JSX.Element {
       cb()
     }
 
+  const layerFor = (m: SidebarMode): React.ReactNode =>
+    m === 'contexts' ? contextsLayer : m === 'agenda' ? <AgendaMode /> : collectionsLayer
   const active =
     mode === 'contexts'
       ? { node: contextsLayer, onCreate: newContext }
@@ -513,10 +515,34 @@ export function Sidebar({ tree }: { tree: NexusTree }): React.JSX.Element {
         ? { node: <AgendaMode />, onCreate: undefined }
         : { node: collectionsLayer, onCreate: newCollectionMenu }
 
+  // Ribbon-mode switch: hold the outgoing mode as a clipped exit overlay while the incoming sweeps
+  // over it (Sidebar.css). The nav snaps to the top for the incoming; the exit layer counter-
+  // translates by the captured scroll so its visible window holds still while it's overtaken.
+  const [exit, setExit] = useState<{ mode: SidebarMode; scroll: number } | null>(null)
+  const prevMode = useRef(mode)
+  useEffect(() => {
+    if (prevMode.current === mode) return
+    const from = prevMode.current
+    prevMode.current = mode
+    setExit({ mode: from, scroll: navRef.current?.scrollTop ?? 0 })
+    if (navRef.current) navRef.current.scrollTop = 0
+  }, [mode])
+
   return (
     <nav ref={navRef} className="sidebar scroll-edge-fade">
-      <div className="sidebar-mode" onContextMenu={modeCtx(active.onCreate)}>
-        {active.node}
+      <div className="sidebar-mode-stage">
+        {exit && (
+          <div
+            className="sidebar-mode mode-exit"
+            style={{ transform: `translateY(${-exit.scroll}px)` }}
+            onAnimationEnd={(e) => e.target === e.currentTarget && setExit(null)}
+          >
+            {layerFor(exit.mode)}
+          </div>
+        )}
+        <div key={mode} className={cx('sidebar-mode', exit && 'mode-enter')} onContextMenu={modeCtx(active.onCreate)}>
+          {exit ? <div className="mode-enter-slide">{active.node}</div> : active.node}
+        </div>
       </div>
     </nav>
   )

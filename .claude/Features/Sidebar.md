@@ -15,7 +15,7 @@ The ribbon is vertically pinned — it never scrolls with the content — and it
 
 #### II. Content Modes
 
-The content column renders one mode at a time (an instant swap — no transition). The ribbon tab is the label, so no mode carries an in-content heading:
+The content column renders one mode at a time. A ribbon switch plays the **overtake sweep**: the incoming mode slides in rightward from the ribbon edge and covers the sitting content — two complementary clip-path sweeps tile the width at every frame (the glass layers are transparent, so a plain overlay would double the text) while the outgoing layer holds still, counter-translated so its visible window doesn't jump when the scroll snaps to the incoming's top. Shell-move tokens, same as the sidebar's own collapse. The ribbon tab is the label, so no mode carries an in-content heading:
 
 - **Collections** — each Collection's root Pages and depth-1 Sets, recursively, plus any user-created sibling sections (whose headings stay). A depth-1 Set is selectable and opens its scoped view; a Sub-Set is expand-only; Pages are leaf rows. Full container behaviour → `Collections.md` + `PageSets.md`.
 - **Contexts** — the three free-standing tiers as disclosure rows, top to bottom Areas → Topics → Projects, each holding its draggable leaf rows. Full tier behaviour → `Contexts.md`.

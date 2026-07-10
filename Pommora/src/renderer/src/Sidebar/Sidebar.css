@@ -114,9 +114,62 @@
 }
 
 /* --- sidebar modes --- */
+/* The stage hosts the active mode plus, during a ribbon switch, the outgoing one — relative so the
+   exit layer can overlay. Flex column so the mode keeps filling the scroll area (a percentage
+   min-height can't resolve against the stage's auto height). */
+.sidebar-mode-stage {
+  position: relative;
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+}
 /* The active mode fills the scroll area so empty-area right-click (create) has a target. */
 .sidebar-mode {
-  min-height: 100%;
+  flex: 1 0 auto;
+}
+
+/* Ribbon-mode switch: the incoming mode sweeps in from the ribbon edge and OVERTAKES the sitting
+   content. Both layers are transparent glass, so a plain overlay would read as text-on-text —
+   instead two complementary clip sweeps tile the width at every frame (incoming visible left of
+   the edge, outgoing right of it), while an inner translate gives the incoming content its
+   rightward slide. Shell-move tokens (--duration-base / --ease-standard), like every other slide. */
+.mode-exit {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  pointer-events: none;
+  animation: sidebar-mode-out var(--duration-base) var(--ease-standard) forwards;
+}
+.mode-enter {
+  animation: sidebar-mode-in var(--duration-base) var(--ease-standard);
+}
+.mode-enter-slide {
+  animation: sidebar-mode-slide var(--duration-base) var(--ease-standard);
+}
+@keyframes sidebar-mode-in {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+@keyframes sidebar-mode-out {
+  from {
+    clip-path: inset(0 0 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 100%);
+  }
+}
+@keyframes sidebar-mode-slide {
+  from {
+    transform: translateX(-24px);
+  }
+  to {
+    transform: translateX(0);
+  }
 }
 
 /* --- agenda mode (read-only list) --- */
