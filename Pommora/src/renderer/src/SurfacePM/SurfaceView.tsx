@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { DividerRef, Edge, SurfaceLayout } from './core/model'
 import { resolveEdge } from './core/edges'
+import { hitTest, type DropTarget } from './core/hitTest'
 import { moveTile, moveTileToBand, resizeBand, resizeDivider } from './core/ops'
 import { computeGeometry, type Rect } from './core/rects'
 import { startPointerDrag } from './sensors/pointerDrag'
@@ -22,8 +23,10 @@ export interface SurfaceViewProps {
   gap?: number
   minTilePx?: number
   minBandPx?: number
-  /** Bottom strip height for "drop here as a new band" targeting during moves. */
-  bandDropPx?: number
+  /** Band-targeting zone radius (above-first / between-band seams / append) — a live-tuning knob. */
+  bandZonePx?: number
+  /** Extra empty room below the last band so an append drop has somewhere to land. */
+  bottomPadPx?: number
 }
 
 interface TileDrag {
@@ -32,11 +35,6 @@ interface TileDrag {
   offset: { x: number; y: number }
   size: { w: number; h: number }
 }
-
-type DropTarget =
-  | { kind: 'tile'; id: string; edge: Edge }
-  | { kind: 'band'; index: number }
-  | null
 
 /** The resize affordances a block offers: four edges + four corners. */
 const EDGE_ZONES: Array<{ zone: string; edges: Edge[] }> = [
@@ -59,7 +57,8 @@ export function SurfaceView({
   gap = 8,
   minTilePx = 64,
   minBandPx = 80,
-  bandDropPx = 28
+  bandZonePx = 10,
+  bottomPadPx = 28
 }: SurfaceViewProps): React.JSX.Element {
   const hostRef = useRef<HTMLDivElement | null>(null)
   const [width, setWidth] = useState(0)
@@ -151,7 +150,7 @@ export function SurfaceView({
           offset: { x: ev.clientX - hostBox.left - rect.x, y: ev.clientY - hostBox.top - rect.y },
           size: { w: rect.w, h: rect.h }
         })
-        target = hitTest(originGeometry, origin, id, px, py, bandDropPx)
+        target = hitTest(originGeometry, origin, id, px, py, bandZonePx)
         setDropTarget(target)
         latest = applyTarget(origin, id, target)
         setDraft(latest === origin ? null : latest)
@@ -171,7 +170,7 @@ export function SurfaceView({
     <div
       ref={hostRef}
       className={`spm-surface${interacting ? ' is-interacting' : ''}`}
-      style={{ height: geometry.totalHeight + bandDropPx }}
+      style={{ height: geometry.totalHeight + bottomPadPx }}
     >
       {[...geometry.tiles.entries()].map(([id, rect]) => (
         <div
@@ -223,33 +222,6 @@ function cxTile(
   return `spm-tile${dragging ? ' is-dragging' : ''}${resizing ? ' is-resizing' : ''}${
     targeted ? ` is-target edge-${target.edge}` : ''
   }`
-}
-
-function hitTest(
-  geometry: ReturnType<typeof computeGeometry>,
-  layout: SurfaceLayout,
-  dragId: string,
-  px: number,
-  py: number,
-  bandDropPx: number
-): DropTarget {
-  if (py > geometry.totalHeight - bandDropPx / 2) return { kind: 'band', index: layout.bands.length }
-
-  for (const [id, r] of geometry.tiles) {
-    if (id === dragId) continue
-    if (px < r.x || px > r.x + r.w || py < r.y || py > r.y + r.h) continue
-    const relX = (px - r.x) / r.w
-    const relY = (py - r.y) / r.h
-    const dists: Array<[Edge, number]> = [
-      ['w', relX],
-      ['e', 1 - relX],
-      ['n', relY],
-      ['s', 1 - relY]
-    ]
-    dists.sort((a, b) => a[1] - b[1])
-    return { kind: 'tile', id, edge: dists[0]?.[0] ?? 'e' }
-  }
-  return null
 }
 
 function applyTarget(origin: SurfaceLayout, id: string, target: DropTarget): SurfaceLayout {

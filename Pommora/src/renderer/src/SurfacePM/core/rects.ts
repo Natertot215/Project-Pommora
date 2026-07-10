@@ -76,7 +76,8 @@ export function computeGeometry(
   layout.bands.forEach((band, i) => {
     walk(band.node, { x: 0, y, w: width, h: band.height }, i, [])
     y += band.height
-    bandEdges.push({ band: i, x: 0, y: y - gap / 2, w: width, h: Math.max(gap, 1) })
+    // The seam CENTERLINE of the gap below this band — hit-testing's anchor.
+    bandEdges.push({ band: i, x: 0, y: y + gap / 2, w: width, h: Math.max(gap, 1) })
     y += gap
   })
 
