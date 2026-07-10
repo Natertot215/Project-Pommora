@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Icon, icons, type IconName, defaultEntityIcon } from '@renderer/design-system/symbols'
 import { lucideGlyph } from '@renderer/design-system/symbols/AllSymbols'
 import { text } from '@renderer/design-system/tokens'
@@ -518,7 +518,9 @@ export function Sidebar({ tree }: { tree: NexusTree }): React.JSX.Element {
   // sweep) instead of swapping content under a half-run animation.
   const [exit, setExit] = useState<{ mode: SidebarMode; scroll: number; epoch: number } | null>(null)
   const prevMode = useRef(mode)
-  useEffect(() => {
+  // Layout effect: the capture + scroll snap must land BEFORE the switch's first paint, or one
+  // frame of the new mode flashes un-animated at the old scroll position.
+  useLayoutEffect(() => {
     if (prevMode.current === mode) return
     const from = prevMode.current
     prevMode.current = mode
@@ -540,8 +542,13 @@ export function Sidebar({ tree }: { tree: NexusTree }): React.JSX.Element {
             {layerFor(exit.mode)}
           </div>
         )}
-        <div key={mode} className={cx('sidebar-mode', exit !== null && 'mode-enter')} onContextMenu={modeCtx(onCreate)}>
-          {exit ? <div className="mode-enter-slide">{activeNode}</div> : activeNode}
+        <div key={mode} className={cx('sidebar-mode', exit !== null && 'mode-enter')}>
+          {/* The slide wrapper is permanent (class-only toggle) — swapping the element shape at
+              animation end would remount the whole mode tree. It fills the mode and carries the
+              empty-area create menu (modeCtx gates on target === currentTarget). */}
+          <div className={cx('mode-body', exit !== null && 'mode-enter-slide')} onContextMenu={modeCtx(onCreate)}>
+            {activeNode}
+          </div>
         </div>
       </div>
     </nav>

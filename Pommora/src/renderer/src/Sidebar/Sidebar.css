@@ -123,8 +123,14 @@
   display: flex;
   flex-direction: column;
 }
-/* The active mode fills the scroll area so empty-area right-click (create) has a target. */
+/* The active mode fills the scroll area; the inner body carries the slide and the empty-area
+   right-click target, so it must fill too. */
 .sidebar-mode {
+  flex: 1 0 auto;
+  display: flex;
+  flex-direction: column;
+}
+.mode-body {
   flex: 1 0 auto;
 }
 

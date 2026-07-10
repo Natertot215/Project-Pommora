@@ -195,11 +195,13 @@ function property(
 
   const groups: ResolvedGroup[] = []
   // bucketOrder yields the FULL schema option order for select/status, so an empty option renders
-  // as an empty band — hide_empty_groups is the knob that drops those (date buckets only ever
-  // exist when populated).
+  // as an empty band — hide_empty_groups is the knob that drops those. Only LIVE schema keys earn
+  // an empty band: a stale manual-order key (deleted option, an old date bucket snapshotted by a
+  // band drag) must never render a ghost band.
+  const liveKeys = new Set(schemaOptionOrder(def) ?? (isCheckbox ? ['false', 'true'] : []))
   for (const key of bucketOrder(group, def, new Set(buckets.keys()))) {
     const items = buckets.get(key) ?? []
-    if (items.length === 0 && group.hide_empty_groups) continue
+    if (items.length === 0 && (group.hide_empty_groups || !liveKeys.has(key))) continue
     groups.push({ key, kind: 'property', items: applySort(items, sorter), isCollapsed: collapsed.has(key) })
   }
   // No "None" band: value-less rows are a flattened, header-less tail placed by the VIEW-level

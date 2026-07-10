@@ -144,6 +144,12 @@ describe('property grouping — status manual order', () => {
     expect(keys(groups)).toEqual(['in_progress', 'opt_open', 'not_started', 'done', '_ungrouped'])
   })
 
+  it('a stale manual-order key (deleted option) never renders a ghost band; live empty options do', () => {
+    const { rows, setTree } = flattenContainer(col, values)
+    const groups = resolveGroups(rows, { ...base, order: ['gone_opt', ...(base.order ?? [])] }, statusSchema, setTree, null)
+    expect(keys(groups)).toEqual(['in_progress', 'opt_open', 'not_started', 'done', '_ungrouped'])
+  })
+
   it('hide_empty_groups drops the empty buckets; the no-value tail stays (placement governs it)', () => {
     const { rows, setTree } = flattenContainer(col, values)
     const groups = resolveGroups(rows, { ...base, hide_empty_groups: true }, statusSchema, setTree, null)
