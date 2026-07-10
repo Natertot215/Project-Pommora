@@ -23,7 +23,9 @@ import './surfacepm.css'
 export interface SurfaceViewProps {
   layout: SurfaceLayout
   onLayoutChange: (layout: SurfaceLayout) => void
-  /** MUST be identity-stable (useCallback) — tiles memoize on it. */
+  /** MUST be identity-stable (useCallback) — tiles memoize on it. Corollary: it
+   *  must not close over mutable per-tile data (the memo would skip the update);
+   *  content that changes renders a component that subscribes to its own state. */
   renderTile: (id: string, rect: Rect) => React.ReactNode
   gap?: number
   minTilePx?: number
@@ -269,20 +271,25 @@ export function SurfaceView({
     // cancel the pointer delta and pin the lifted block to its origin.
     const grab = {
       x: e.clientX - downBox.left - rect.x,
-      y: e.clientY - downBox.top + host.scrollTop - rect.y
+      y: e.clientY - downBox.top - rect.y
     }
+    // Scroll compensation reads the REAL scroll ancestor's delta (the host never
+    // scrolls itself) — cheap per move, no forced layout, and it also folds our
+    // own autoscroll back into the pointer math. A mid-gesture WIDTH change stays
+    // deliberately frozen (the origin-snapshot semantics; rare, self-corrects on
+    // the next gesture).
     const scroller = findScroller(host)
+    const scroll0 = { x: scroller?.scrollLeft ?? 0, y: scroller?.scrollTop ?? 0 }
     let latest: SurfaceLayout = origin
     let target: DropTarget = null
 
     startPointerDrag(e, {
       onMove: (_dx, _dy, ev) => {
         if (scroller) autoScroll(scroller, ev.clientX, ev.clientY)
-        // The host box is re-read per move — an ancestor scroll (incl. our own
-        // autoscroll) or a window resize mid-drag shifts it.
-        const hostBox = host.getBoundingClientRect()
-        const px = ev.clientX - hostBox.left
-        const py = ev.clientY - hostBox.top + host.scrollTop
+        const dsx = (scroller?.scrollLeft ?? 0) - scroll0.x
+        const dsy = (scroller?.scrollTop ?? 0) - scroll0.y
+        const px = ev.clientX - downBox.left + dsx
+        const py = ev.clientY - downBox.top + dsy
         setTileDrag({ id, lift: { x: px - grab.x, y: py - grab.y, w: rect.w, h: rect.h } })
         target = hitTest(g, origin, id, px, py, zone, target)
         setDropTarget(target)
