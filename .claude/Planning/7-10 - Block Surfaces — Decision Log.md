@@ -148,11 +148,17 @@
 
 - **G-7:** [confirmed — Nathan] **New blocks default to markdown blocks**, converted to other types afterward via the border handle's block-actions menu (Turn Into). Converting away from markdown trashes the backing `.md` recoverably (E-5's discipline, confirmed with it); converting into markdown mints one. Embed conversions never touch the embedded Page/view (E-5).
 
-- **G-8:** [confirmed — Nathan] **The exact design of the handles and hover chrome (B-6, G-4) is gated on Figma designs**, which will be ready before anything here turns into a plan. The log records the *mechanics* (drag = move, click = block actions, hover-reveal, border placement); the pixels wait for Figma.
+- **G-8:** [confirmed — Nathan] **The handle + hover chrome adopts MarkdownPM's established drag-handle method** — the same visual treatment and the same interaction grammar (drag the handle = move; click / right-click the handle = the interactive block menus). No Figma gate: the precedent is the spec, and the feature arc's non-design-dependent work proceeds on it.
 
 - **G-9:** [confirmed — Nathan] **The right-click Insert menu** offers three entries: **Page · View · Block.** *Block* creates a new markdown block directly (the G-7 default). *Page* always opens a search over the Collections' pages to pick the embed target. *View* opens the **View Source picker**: a menu listing the Collections as drill-in rows over a **+ Custom** footer (the Custom View's entry point). Drilling into a Collection shows its Sets as chevron rows above that Collection's own views — **no create-new inside the picker** (Linked means pre-configured). A Set's chevron opens a compact picker-menu of that Set's views rather than another full drill level; Sub-Sets carry no views (existing spec). Exact visuals ride the G-8 Figma gate.
 
 - **G-10:** [confirmed — Nathan] **Embedded views render slightly zoomed out** relative to a full container surface — the existing zoom mechanism, tuned at build time.
+
+- **G-11:** [confirmed — Nathan] **Page embedding is one shared framework:** the machinery that renders a Page inside a foreign surface serves both SurfacePM's page-embed tiles AND MarkdownPM's future `![[Embed]]` in-page embeds (the Canvas `![[canvas:ULID]]` directive family). One seam, two consumers — built with the block arc, consumed by the editor later.
+
+- **G-12:** [confirmed — Nathan] **The Homepage is the persistence dev host** — block documents write to `homepage.json` behind the BlockHost seam while the contexts decision stays parked. Explicitly removable: the seam makes the host swappable, and Nathan clears it when the real hosts land.
+
+- **G-13:** [confirmed — Nathan] **Alignment form-lock:** resize boundaries magnetize to other blocks' edges when within a few px of perfect alignment (`snapPx` knob, default 6) — shipped in the engine.
 
 - **G-5:** [confirmed — Nathan] **The view lock generalizes to a first-class per-container feature** — all views of any Collection/Set get it, not just embeds: a **lock icon in the ViewPane's `MenuBottomRow` footer** (`Toolbar/ViewPane.tsx` — the "+ create · … more" strip) that, when engaged, **dims the SettingsPane and ViewPanes across that entire Collection or Set** (view configuration disabled container-wide; interaction untouched). Same configure-vs-interact line as the embed hover-lock. Persists in the container's sidecar (synced) [confirmed — Nathan]. **The lock's scope includes view CRUD** — create/rename/delete/reorder live in the panes it dims, so they lock with it (per Nathan's "dims the SettingPane and ViewPanes"). Standalone-buildable — doesn't wait for the block system.
 
