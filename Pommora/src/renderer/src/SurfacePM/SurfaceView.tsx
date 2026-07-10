@@ -207,14 +207,17 @@ export function SurfaceView({
   onLayoutChangeRef.current = onLayoutChange
 
   // Decide-then-animate: the settle transition ends (or the engine's fallback
-  // timer fires) → the decided layout commits and the gesture state clears.
+  // timer fires) → the decided layout commits and the gesture state clears. The
+  // ref mirrors the state so the commit runs as a plain event side effect —
+  // never inside a state updater (React forbids cross-component updates there).
+  const settleRef = useRef<Settle | null>(null)
   const finishSettle = useCallback((id: string) => {
-    setSettle((s) => {
-      if (!s || s.id !== id) return s
-      if (s.next && s.next !== layoutRef.current) onLayoutChangeRef.current(s.next)
-      setDraft(null)
-      return null
-    })
+    const s = settleRef.current
+    if (!s || s.id !== id) return
+    settleRef.current = null
+    setSettle(null)
+    setDraft(null)
+    if (s.next && s.next !== layoutRef.current) onLayoutChangeRef.current(s.next)
   }, [])
 
   useEffect(() => {
@@ -306,7 +309,9 @@ export function SurfaceView({
         setTileDrag(null)
         setDropTarget(null)
         if (!decided) setDraft(null)
-        setSettle({ id, to, next: decided })
+        const s: Settle = { id, to, next: decided }
+        settleRef.current = s
+        setSettle(s)
       }
     })
   }, [])
@@ -320,7 +325,13 @@ export function SurfaceView({
       className={`spm-surface${interacting ? ' is-interacting' : ''}`}
       style={{ height: geometry.totalHeight + bottomPadPx }}
     >
-      {[...geometry.tiles.entries()].map(([id, rect]) => {
+      {/* Tiles render in STABLE id order, never tree order — a mid-drag preview
+          reorders the tree, and letting React move the keyed DOM nodes to match
+          silently releases pointer capture (the pointerup never lands → zombie
+          gesture, stuck floating tile). Position is absolute; DOM order is moot. */}
+      {[...geometry.tiles.entries()]
+        .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+        .map(([id, rect]) => {
         const lifted = tileDrag?.id === id
         const settling = settle?.id === id
         const phase: TilePhase = lifted

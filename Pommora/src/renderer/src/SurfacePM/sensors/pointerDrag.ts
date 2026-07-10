@@ -39,6 +39,7 @@ export function startPointerDrag(e: React.PointerEvent, handlers: PointerDragHan
     el.removeEventListener('pointermove', onMove)
     el.removeEventListener('pointerup', onUp)
     el.removeEventListener('pointercancel', onCancel)
+    el.removeEventListener('lostpointercapture', onLost)
     window.removeEventListener('keydown', onKey, true)
     if (el.hasPointerCapture(e.pointerId)) el.releasePointerCapture(e.pointerId)
     if (commit && armed) suppressNextClick()
@@ -57,6 +58,10 @@ export function startPointerDrag(e: React.PointerEvent, handlers: PointerDragHan
   }
   const onUp = (): void => finish(armed)
   const onCancel = (): void => finish(false)
+  // Capture can be torn away without a pointerup (the element re-inserted or
+  // removed mid-gesture) — treat it as an abort, never a zombie. On a normal
+  // release this fires after pointerup, where `done` already gates it out.
+  const onLost = (): void => finish(false)
   const onKey = (ev: KeyboardEvent): void => {
     if (ev.key === 'Escape') {
       ev.stopPropagation()
@@ -68,5 +73,6 @@ export function startPointerDrag(e: React.PointerEvent, handlers: PointerDragHan
   el.addEventListener('pointermove', onMove)
   el.addEventListener('pointerup', onUp)
   el.addEventListener('pointercancel', onCancel)
+  el.addEventListener('lostpointercapture', onLost)
   window.addEventListener('keydown', onKey, true)
 }
