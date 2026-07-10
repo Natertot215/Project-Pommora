@@ -68,13 +68,15 @@ The grouping arc, end to end in one day: brainstorm → 3-round-certified decisi
 
 ### Next Session
 
-**1. Filter + Sort panes** — the two remaining blank ViewSettings/SettingsPane leaves, now with a full pattern to mirror: the GroupingPane (leaf routing, PickerControl rows, `saveViewAdopting` writes) over the pipeline's already-honored `FilterGroup` / `SortCriterion[]`.
+**1. The Filter pane (this session)** — the final blank ViewSettings/SettingsPane leaf, with the GroupingPane/SortingPane chassis as the pattern (leaf routing, PickerControl rows, `saveViewAdopting` writes) over the pipeline's already-honored `FilterGroup`. Brainstorm-driven investigation underway; Figma design pending. 
 
-**2. The last per-type property editor: the relation (context) pickers** (Properties.md Pending). The editor-pane trio + `PickerControl` + the per-view/def-level write split in `PropertiesPane.tsx` are the pattern.
+**2. The Navigation system** — the next arc after filtering, cutting across the **Navigation Window**, the **Navigation Dropdown**, and the **Inspector** (→ [[Navigation]] + [[Inspector]]).
 
-**3. The non-Table renderers** (Cards · List · Gallery · Calendar · Timeline) — `PropertyEditing/` and the pipeline are renderer-agnostic and waiting; each type's grouping gets its own surface (→ [[Views]] `### Grouping`).
+**3. The last per-type property editor: the relation (context) pickers** (Properties.md Pending). The editor-pane trio + `PickerControl` + the per-view/def-level write split in `PropertiesPane.tsx` are the pattern.
 
-**4. User Sections CRUD** — the deferred "Add Heading" sidebar feature (Pending Focuses).
+**4. The non-Table renderers** (Cards · List · Gallery · Calendar · Timeline) — `PropertyEditing/` and the pipeline are renderer-agnostic and waiting; each type's grouping gets its own surface (→ [[Views]] `### Grouping`).
+
+**5. User Sections CRUD** — the deferred "Add Heading" sidebar feature (Pending Focuses).
 
 ### Pending Focuses
 
@@ -103,6 +105,8 @@ The grouping arc, end to end in one day: brainstorm → 3-round-certified decisi
 ### Fix Log
 
 - **`.nexus/activeViews.json` + per-machine siblings aren't gitignored (live).** Neither it nor `folds`/`viewOrders`/`tableHeadingColumns`/`linkTitles` are ignored — using the switcher on a fresh container creates a would-sync file. Add to the Nexus `.gitignore` (or scaffold it).
+
+- **Group By Location** locks certain configurations; custom order isn't truly independent from the filesystem and is buggy.
 
 - **The "File" property icon gets clipped** by its vertical row padding on the ViewPane.
 
