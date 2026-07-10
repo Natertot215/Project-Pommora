@@ -9,18 +9,16 @@ describe('codec', () => {
     expect(decodeLayout(encodeLayout(l))).toEqual(l)
   })
 
-  it('repairs drifted ratios by renormalizing', () => {
+  it('repairs drifted row ratios by renormalizing', () => {
     const raw = {
       bands: [
         {
-          height: 200,
           node: {
-            kind: 'split',
-            dir: 'row',
+            kind: 'row',
             ratios: [2, 2],
             children: [
-              { kind: 'tile', id: 'a' },
-              { kind: 'tile', id: 'b' }
+              { kind: 'tile', id: 'a', h: 100 },
+              { kind: 'tile', id: 'b', h: 100 }
             ]
           }
         }
@@ -35,14 +33,12 @@ describe('codec', () => {
     const raw = {
       bands: [
         {
-          height: 120,
           node: {
-            kind: 'split',
-            dir: 'column',
+            kind: 'row',
             ratios: [1],
             children: [
-              { kind: 'tile', id: 'a' },
-              { kind: 'tile', id: 'b' }
+              { kind: 'tile', id: 'a', h: 100 },
+              { kind: 'tile', id: 'b', h: 100 }
             ]
           }
         }
@@ -51,51 +47,52 @@ describe('codec', () => {
     expect(decodeLayout(raw)?.bands[0]?.node).toMatchObject({ ratios: [0.5, 0.5] })
   })
 
-  it('collapses a single-child split and floors band heights', () => {
+  it('collapses single-child splits and floors tile heights', () => {
     const raw = {
       bands: [
         {
-          height: -5,
-          node: { kind: 'split', dir: 'row', ratios: [1], children: [{ kind: 'tile', id: 'a' }] }
+          node: {
+            kind: 'column',
+            children: [{ kind: 'row', ratios: [1], children: [{ kind: 'tile', id: 'a', h: -9 }] }]
+          }
         }
       ]
     }
     const l = decodeLayout(raw)
-    expect(l?.bands[0]).toMatchObject({ height: 80, node: { kind: 'tile', id: 'a' } })
+    expect(l?.bands[0]?.node).toEqual({ kind: 'tile', id: 'a', h: 32 })
+  })
+
+  it('drops duplicate tile ids — later occurrences, the space closes', () => {
+    const dup = {
+      bands: [
+        { node: { kind: 'tile', id: 'a', h: 100 } },
+        { node: { kind: 'tile', id: 'a', h: 100 } }
+      ]
+    }
+    expect(decodeLayout(dup)?.bands).toHaveLength(1)
+
+    const inRow = {
+      bands: [
+        {
+          node: {
+            kind: 'row',
+            ratios: [0.5, 0.5],
+            children: [
+              { kind: 'tile', id: 'x', h: 80 },
+              { kind: 'tile', id: 'x', h: 80 }
+            ]
+          }
+        }
+      ]
+    }
+    expect(decodeLayout(inRow)?.bands[0]?.node).toEqual({ kind: 'tile', id: 'x', h: 80 })
   })
 
   it('returns null for garbage', () => {
     expect(decodeLayout(42)).toBeNull()
     expect(decodeLayout({ bands: 'no' })).toBeNull()
     expect(decodeLayout(null)).toBeNull()
-  })
-
-  it('drops duplicate tile ids — later occurrences, space absorbed', () => {
-    const dupAcrossBands = {
-      bands: [
-        { height: 200, node: { kind: 'tile', id: 'a' } },
-        { height: 200, node: { kind: 'tile', id: 'a' } }
-      ]
-    }
-    expect(decodeLayout(dupAcrossBands)?.bands).toHaveLength(1)
-
-    const dupInSplit = {
-      bands: [
-        {
-          height: 200,
-          node: {
-            kind: 'split',
-            dir: 'row',
-            ratios: [0.5, 0.5],
-            children: [
-              { kind: 'tile', id: 'x' },
-              { kind: 'tile', id: 'x' }
-            ]
-          }
-        }
-      ]
-    }
-    expect(decodeLayout(dupInSplit)?.bands[0]?.node).toEqual({ kind: 'tile', id: 'x' })
+    expect(decodeLayout({ bands: [{ node: { kind: 'tile', id: 'a', h: Number.NaN } }] })).toBeNull()
   })
 
   it('every repaired decode passes validateLayout — the completeness oracle', () => {
@@ -103,21 +100,19 @@ describe('codec', () => {
       { bands: [] },
       {
         bands: [
-          { height: 200, node: { kind: 'tile', id: 'a' } },
-          { height: 200, node: { kind: 'tile', id: 'a' } }
+          { node: { kind: 'tile', id: 'a', h: 100 } },
+          { node: { kind: 'tile', id: 'a', h: 100 } }
         ]
       },
       {
         bands: [
           {
-            height: -1,
             node: {
-              kind: 'split',
-              dir: 'row',
+              kind: 'row',
               ratios: [3, 0, 1],
               children: [
-                { kind: 'tile', id: 'p' },
-                { kind: 'tile', id: 'q' }
+                { kind: 'tile', id: 'p', h: 1 },
+                { kind: 'tile', id: 'q', h: 500 }
               ]
             }
           }
@@ -126,17 +121,16 @@ describe('codec', () => {
       {
         bands: [
           {
-            height: 50,
             node: {
-              kind: 'split',
-              dir: 'column',
-              ratios: [1],
+              kind: 'column',
               children: [
+                { kind: 'tile', id: 'solo', h: 40 },
                 {
-                  kind: 'split',
-                  dir: 'row',
-                  ratios: [1],
-                  children: [{ kind: 'tile', id: 'solo' }]
+                  kind: 'column',
+                  children: [
+                    { kind: 'tile', id: 'n1', h: 40 },
+                    { kind: 'tile', id: 'n2', h: 40 }
+                  ]
                 }
               ]
             }

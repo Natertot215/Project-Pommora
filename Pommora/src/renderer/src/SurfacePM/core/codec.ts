@@ -1,70 +1,85 @@
 // The layout tree's persistence codec. Decoding REPAIRS rather than rejects —
-// drifted ratios renormalize, ratio/child count mismatches rebuild uniform,
-// single-child splits collapse, band heights floor — so a hand-edited or
-// foreign-written tree renders sanely instead of blanking the host. Unknown
-// keys and the surrounding block document are the block-doc layer's concern,
-// not this codec's.
+// drifted row ratios renormalize, ratio/child count mismatches rebuild uniform,
+// single-child splits collapse, tile heights floor, duplicate tile ids drop
+// (later occurrences; the space closes up) — so a hand-edited or foreign-written
+// tree renders sanely instead of blanking the host. Unknown keys and the
+// surrounding block document are the block-doc layer's concern, not this codec's.
 
 import { z } from 'zod'
-import type { LayoutNode, SurfaceLayout } from './model'
+import type { LayoutNode, SurfaceLayout, TileLeaf } from './model'
 
-const MIN_BAND = 80
+const MIN_TILE = 32
 
 interface RawTile {
   kind: 'tile'
   id: string
+  h: number
 }
 
-interface RawSplit {
-  kind: 'split'
-  dir: 'row' | 'column'
+interface RawRow {
+  kind: 'row'
   ratios: number[]
-  children: Array<RawTile | RawSplit>
+  children: Array<RawTile | RawRow | RawColumn>
 }
 
-const tileSchema: z.ZodType<RawTile> = z.object({ kind: z.literal('tile'), id: z.string().min(1) })
+interface RawColumn {
+  kind: 'column'
+  children: Array<RawTile | RawRow | RawColumn>
+}
 
-const splitSchema: z.ZodType<RawSplit> = z.lazy(() =>
+const tileSchema: z.ZodType<RawTile> = z.object({
+  kind: z.literal('tile'),
+  id: z.string().min(1),
+  h: z.number()
+})
+
+const rowSchema: z.ZodType<RawRow> = z.lazy(() =>
   z.object({
-    kind: z.literal('split'),
-    dir: z.enum(['row', 'column']),
+    kind: z.literal('row'),
     ratios: z.array(z.number()),
-    children: z.array(z.union([tileSchema, splitSchema])).min(1)
+    children: z.array(z.union([tileSchema, rowSchema, columnSchema])).min(1)
+  })
+)
+
+const columnSchema: z.ZodType<RawColumn> = z.lazy(() =>
+  z.object({
+    kind: z.literal('column'),
+    children: z.array(z.union([tileSchema, rowSchema, columnSchema])).min(1)
   })
 )
 
 const layoutSchema = z.object({
-  bands: z.array(z.object({ height: z.number(), node: z.union([tileSchema, splitSchema]) }))
+  bands: z.array(z.object({ node: z.union([tileSchema, rowSchema, columnSchema]) }))
 })
 
-/** Repair one node, dropping any tile whose id was already seen — a duplicate
- *  leaf would make ops (first occurrence) and geometry (last, Map-keyed by id)
- *  disagree about which region a tile owns. The payload still renders exactly
- *  once; siblings absorb the dropped space through the usual collapse. */
-function repairNode(node: RawTile | RawSplit, seen: Set<string>): LayoutNode | null {
+function repairNode(node: RawTile | RawRow | RawColumn, seen: Set<string>): LayoutNode | null {
   if (node.kind === 'tile') {
     if (seen.has(node.id)) return null
     seen.add(node.id)
-    return { kind: 'tile', id: node.id }
+    return { kind: 'tile', id: node.id, h: Math.max(MIN_TILE, node.h) } satisfies TileLeaf
   }
-  const pairs: Array<{ repaired: LayoutNode; ratio: number | undefined }> = []
-  node.children.forEach((child, i) => {
-    const repaired = repairNode(child, seen)
-    if (repaired) pairs.push({ repaired, ratio: node.ratios[i] })
-  })
-  if (pairs.length === 0) return null
-  if (pairs.length === 1) return (pairs[0] as { repaired: LayoutNode }).repaired
 
-  const kept = pairs.map((p) => p.ratio)
-  const positive = kept.filter((r): r is number => typeof r === 'number' && r > 0)
+  const kept: Array<{ child: LayoutNode; ratio: number | undefined }> = []
+  node.children.forEach((raw, i) => {
+    const child = repairNode(raw, seen)
+    if (child) kept.push({ child, ratio: node.kind === 'row' ? node.ratios[i] : undefined })
+  })
+  if (kept.length === 0) return null
+  if (kept.length === 1) return (kept[0] as { child: LayoutNode }).child
+
+  const children = kept.map((k) => k.child)
+  if (node.kind === 'column') return { kind: 'column', children }
+
+  const raw = kept.map((k) => k.ratio)
+  const positive = raw.filter((r): r is number => typeof r === 'number' && r > 0)
   const ratios =
-    positive.length === pairs.length
+    positive.length === kept.length
       ? (() => {
           const sum = positive.reduce((a, r) => a + r, 0)
           return positive.map((r) => r / sum)
         })()
-      : pairs.map(() => 1 / pairs.length)
-  return { kind: 'split', dir: node.dir, ratios, children: pairs.map((p) => p.repaired) }
+      : kept.map(() => 1 / kept.length)
+  return { kind: 'row', ratios, children }
 }
 
 export function decodeLayout(raw: unknown): SurfaceLayout | null {
@@ -73,7 +88,7 @@ export function decodeLayout(raw: unknown): SurfaceLayout | null {
   const seen = new Set<string>()
   const bands = parsed.data.bands.flatMap((b) => {
     const node = repairNode(b.node, seen)
-    return node ? [{ height: Math.max(MIN_BAND, b.height), node }] : []
+    return node ? [{ node }] : []
   })
   return { bands }
 }

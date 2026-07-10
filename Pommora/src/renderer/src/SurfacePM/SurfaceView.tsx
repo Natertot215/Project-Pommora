@@ -5,7 +5,7 @@ import { SETTLE_FALLBACK } from '@renderer/design-system/interactions/shared'
 import type { DividerRef, Edge, SurfaceLayout } from './core/model'
 import { resolveEdge } from './core/edges'
 import { hitTest, type DropTarget } from './core/hitTest'
-import { moveTile, moveTileToBand, resizeDivider, stretchTileHeight } from './core/ops'
+import { moveTile, moveTileToBand, resizeDivider, resizeStackPair, stretchTileHeight } from './core/ops'
 import { computeGeometry, type Rect, type SurfaceGeometry } from './core/rects'
 import { startPointerDrag } from './sensors/pointerDrag'
 import './surfacepm.css'
@@ -222,12 +222,14 @@ export function SurfaceView({
     if (e.button !== 0) return
     e.preventDefault()
     e.stopPropagation()
-    const { layout: origin, originGeometry: g, minTilePx: minT, gap: gapPx } = live.current
+    const { layout: origin, originGeometry: g, minTilePx: minT } = live.current
     const extents = new Map(g.dividers.map((d) => [refKey(d.ref), d.extentPx]))
-    // South edges STRETCH — the block grows, stacked neighbors keep their pixels,
-    // the page flows (covers full-band tiles too). North/east/west edges move the
-    // shared boundary they resolve to (splitter redistribution).
-    type Action = { edge: Edge; kind: 'stretch' } | { edge: Edge; kind: 'divider'; ref: DividerRef }
+    // South edges STRETCH — exactly one tile grows, the page flows. North edges
+    // negotiate the stacked boundary above; east/west move the row splitter.
+    type Action =
+      | { edge: Edge; kind: 'stretch' }
+      | { edge: Edge; kind: 'divider'; ref: DividerRef }
+      | { edge: Edge; kind: 'stack'; ref: DividerRef }
     const actions: Action[] = []
     for (const edge of edges) {
       if (edge === 's') {
@@ -235,7 +237,7 @@ export function SurfaceView({
         continue
       }
       const boundary = resolveEdge(origin, id, edge)
-      if (boundary?.kind === 'divider') actions.push({ edge, kind: 'divider', ref: boundary.ref })
+      if (boundary) actions.push({ edge, kind: boundary.kind, ref: boundary.ref })
     }
     if (actions.length === 0) return
 
@@ -245,10 +247,10 @@ export function SurfaceView({
       threshold: 0,
       onMove: (dx, dy) => {
         latest = actions.reduce((acc, action) => {
-          if (action.kind === 'stretch') return stretchTileHeight(acc, id, dy, minT, gapPx)
-          const delta = action.edge === 'e' || action.edge === 'w' ? dx : dy
+          if (action.kind === 'stretch') return stretchTileHeight(acc, id, dy, minT)
+          if (action.kind === 'stack') return resizeStackPair(acc, action.ref, dy, minT)
           const extent = extents.get(refKey(action.ref)) ?? 0
-          return resizeDivider(acc, action.ref, delta, extent, minT)
+          return resizeDivider(acc, action.ref, dx, extent, minT)
         }, origin)
         setDraft(latest)
       },
@@ -382,6 +384,6 @@ export function SurfaceView({
 
 function applyTarget(origin: SurfaceLayout, id: string, target: DropTarget): SurfaceLayout {
   if (!target) return origin
-  if (target.kind === 'band') return moveTileToBand(origin, id, target.index, 160)
+  if (target.kind === 'band') return moveTileToBand(origin, id, target.index)
   return moveTile(origin, id, target.id, target.edge)
 }
