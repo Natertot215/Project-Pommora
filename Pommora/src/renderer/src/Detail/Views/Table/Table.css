@@ -159,9 +159,16 @@
 .property-editor-ghost {
   opacity: var(--state-ghost);
 }
-/* Data-row vertical column lines — full-height hairlines (every data cell except the trailing filler). */
+/* Data-row vertical column lines — full-height hairlines (every data cell except the trailing filler).
+   A single-column table (everything hidden but Title) is a plain list — no trailing line to bound. */
 .data-cell:not(:last-child) {
   border-right: var(--table-border);
+}
+.table-grid.single-column .data-cell {
+  border-right: none;
+}
+.table-grid.single-column .col-header::after {
+  content: none;
 }
 /* Heading column dividers — a short, vertically-centred, fully-rounded segment bar (segmented-control
    feel), shorter than the row, instead of the data rows' full-height hairline. The ::after sits on each

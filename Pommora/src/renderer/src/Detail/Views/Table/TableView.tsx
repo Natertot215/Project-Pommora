@@ -1188,6 +1188,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
             'table-grid',
             text.body.standard,
             liveView.hide_borders && 'no-borders',
+            columns.length === 1 && 'single-column',
             collapsing != null && 'col-hiding',
             sliding.size > 0 && 'col-sliding',
             colDrag != null && 'col-dragging-active'
