@@ -69,4 +69,85 @@ describe('codec', () => {
     expect(decodeLayout({ bands: 'no' })).toBeNull()
     expect(decodeLayout(null)).toBeNull()
   })
+
+  it('drops duplicate tile ids — later occurrences, space absorbed', () => {
+    const dupAcrossBands = {
+      bands: [
+        { height: 200, node: { kind: 'tile', id: 'a' } },
+        { height: 200, node: { kind: 'tile', id: 'a' } }
+      ]
+    }
+    expect(decodeLayout(dupAcrossBands)?.bands).toHaveLength(1)
+
+    const dupInSplit = {
+      bands: [
+        {
+          height: 200,
+          node: {
+            kind: 'split',
+            dir: 'row',
+            ratios: [0.5, 0.5],
+            children: [
+              { kind: 'tile', id: 'x' },
+              { kind: 'tile', id: 'x' }
+            ]
+          }
+        }
+      ]
+    }
+    expect(decodeLayout(dupInSplit)?.bands[0]?.node).toEqual({ kind: 'tile', id: 'x' })
+  })
+
+  it('every repaired decode passes validateLayout — the completeness oracle', () => {
+    const fixtures: unknown[] = [
+      { bands: [] },
+      {
+        bands: [
+          { height: 200, node: { kind: 'tile', id: 'a' } },
+          { height: 200, node: { kind: 'tile', id: 'a' } }
+        ]
+      },
+      {
+        bands: [
+          {
+            height: -1,
+            node: {
+              kind: 'split',
+              dir: 'row',
+              ratios: [3, 0, 1],
+              children: [
+                { kind: 'tile', id: 'p' },
+                { kind: 'tile', id: 'q' }
+              ]
+            }
+          }
+        ]
+      },
+      {
+        bands: [
+          {
+            height: 50,
+            node: {
+              kind: 'split',
+              dir: 'column',
+              ratios: [1],
+              children: [
+                {
+                  kind: 'split',
+                  dir: 'row',
+                  ratios: [1],
+                  children: [{ kind: 'tile', id: 'solo' }]
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ]
+    for (const raw of fixtures) {
+      const decoded = decodeLayout(raw)
+      expect(decoded).not.toBeNull()
+      expect(decoded && validateLayout(decoded)).toEqual([])
+    }
+  })
 })

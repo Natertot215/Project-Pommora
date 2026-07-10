@@ -37,30 +37,45 @@ const layoutSchema = z.object({
   bands: z.array(z.object({ height: z.number(), node: z.union([tileSchema, splitSchema]) }))
 })
 
-function repairNode(node: RawTile | RawSplit): LayoutNode {
-  if (node.kind === 'tile') return { kind: 'tile', id: node.id }
-  const children = node.children.map(repairNode)
-  if (children.length === 1) return children[0] as LayoutNode
-  const positive = node.ratios.filter((r) => r > 0)
+/** Repair one node, dropping any tile whose id was already seen — a duplicate
+ *  leaf would make ops (first occurrence) and geometry (last, Map-keyed by id)
+ *  disagree about which region a tile owns. The payload still renders exactly
+ *  once; siblings absorb the dropped space through the usual collapse. */
+function repairNode(node: RawTile | RawSplit, seen: Set<string>): LayoutNode | null {
+  if (node.kind === 'tile') {
+    if (seen.has(node.id)) return null
+    seen.add(node.id)
+    return { kind: 'tile', id: node.id }
+  }
+  const pairs: Array<{ repaired: LayoutNode; ratio: number | undefined }> = []
+  node.children.forEach((child, i) => {
+    const repaired = repairNode(child, seen)
+    if (repaired) pairs.push({ repaired, ratio: node.ratios[i] })
+  })
+  if (pairs.length === 0) return null
+  if (pairs.length === 1) return (pairs[0] as { repaired: LayoutNode }).repaired
+
+  const kept = pairs.map((p) => p.ratio)
+  const positive = kept.filter((r): r is number => typeof r === 'number' && r > 0)
   const ratios =
-    positive.length === children.length
+    positive.length === pairs.length
       ? (() => {
           const sum = positive.reduce((a, r) => a + r, 0)
           return positive.map((r) => r / sum)
         })()
-      : children.map(() => 1 / children.length)
-  return { kind: 'split', dir: node.dir, ratios, children }
+      : pairs.map(() => 1 / pairs.length)
+  return { kind: 'split', dir: node.dir, ratios, children: pairs.map((p) => p.repaired) }
 }
 
 export function decodeLayout(raw: unknown): SurfaceLayout | null {
   const parsed = layoutSchema.safeParse(raw)
   if (!parsed.success) return null
-  return {
-    bands: parsed.data.bands.map((b) => ({
-      height: Math.max(MIN_BAND, b.height),
-      node: repairNode(b.node)
-    }))
-  }
+  const seen = new Set<string>()
+  const bands = parsed.data.bands.flatMap((b) => {
+    const node = repairNode(b.node, seen)
+    return node ? [{ height: Math.max(MIN_BAND, b.height), node }] : []
+  })
+  return { bands }
 }
 
 export function encodeLayout(layout: SurfaceLayout): unknown {
