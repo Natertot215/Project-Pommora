@@ -34,14 +34,12 @@ export const body = style({ flex: '1 0 auto' })
 
 export const grid = style({
   display: 'grid',
-  // What = content (a target label never stretches) · Operator = content with a floor so its
-  // chevron pins to the field's right edge · Value = the only stretch track (fills, and its
-  // content extends the pane).
-  gridTemplateColumns: 'max-content minmax(56px, max-content) minmax(48px, 1fr)',
+  // Every column is content-sized — a field is only as wide as its widest row actually needs
+  // (columns still align across rows); nothing stretches to fill the pane.
+  gridTemplateColumns: 'max-content max-content max-content',
   columnGap: '6px',
   rowGap: '4px',
   padding: '6px 0',
-  width: '100%',
   alignItems: 'center'
 })
 
@@ -145,8 +143,10 @@ export const cellInput = style([
   fieldBase,
   text.body.emphasized,
   {
-    width: '100%',
-    minWidth: 0,
+    // Sizes to its text (an input's intrinsic width otherwise ignores content); small floor for empty.
+    fieldSizing: 'content',
+    width: 'auto',
+    minWidth: '64px',
     padding: '4px 8px',
     border: 'none',
     outline: 'none',

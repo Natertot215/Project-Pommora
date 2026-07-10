@@ -398,7 +398,7 @@ export function FilterPane({
           {row.connector !== null && (
             <button type="button" className={fp.connector} aria-label="Toggle connector" onClick={() => toggleConnector(index)}>
               {row.connector === 'and' ? 'And' : 'Or'}
-              <Icon name="chevrons-up-down" size={10} />
+              <Icon name="chevrons-up-down" size={12} />
             </button>
           )}
           <FieldPicker
