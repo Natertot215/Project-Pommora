@@ -52,12 +52,21 @@ RGL v2 is **8,771 non-test lines in two decks**:
 
 **Size honesty:** post-prune inherit ≈ 1,200–1,400 lines of math; rebuild ≈ 600–900 lines of sensors/components/state. SurfacePM lands around **2k owned lines** replacing an 8.8k-line dependency plus its two drag libraries.
 
-### Open Questions (block the SurfacePM plan)
+### The Geometry Verdict (resolved with Nathan, by example images)
 
-- **Q1 — What exactly does "no dangling spaces, compacted horizontally AND vertically like Notion" mean when a row's tile widths don't sum to full width?** RGL compacts one axis only; this is SurfacePM's new algorithm and its semantics fork:
-  - **(A) Pack up, then left:** every tile pulls up as far as it can, then left. No floating gaps *between* tiles — but a row whose widths sum under 12 columns still has empty space at its right edge, and tile widths stay exactly what the user set.
-  - **(B) Notion-true row fill (ratio widths):** tiles in a row always stretch to share the full width as ratios — empty cells never exist anywhere. The cost: width stops being a fixed value the user set (adding a tile to a row shrinks its neighbors), and East/West resize becomes *redistribution between row neighbors* rather than free sizing. This is genuinely how Notion columns behave — but it's a row-structured geometry, not a free 2D grid.
-  - **(C) A + opt-in fill:** pack-up-then-left, plus a per-tile "fill row" stretch.
-- **Q2 — Resize into a neighbor:** growing a tile east into another tile — clamp at the neighbor's edge, or push the neighbor (which under both-axis compaction can wrap it to the next row mid-gesture)? Recommendation: clamp for East/West, push-down for South (predictable, no mid-resize reflow surprises); under Q1-B this question becomes "redistribute," answering itself.
-- **Q3 — Drag-time grid visualization:** RGL's extras include a grid-background renderer (cells/dots during drag, the math is `calcGridCellDimensions`). Cheap to keep — want it in v1's chrome (Figma pass decides the look), or forget?
-- **Q4 — Per-tile `static` (pinned-in-place):** the model supports it natively and the G-3 grid lock is just "all tiles static." Keep the per-tile flag in the block document (free now, enables per-tile pinning later), or drop to the grid-wide lock only?
+- **Q1 resolved — the surface is a tessellated mosaic, not a compacted grid.** Nathan's target (shown by example): tiles span freely (a tile can stretch under two neighbors, edges don't globally align), rows/regions can run different lengths — but **interior empty space cannot exist**; every region is covered by exactly one tile. Not column-stacks, not both-axis compaction: a **tessellation invariant**.
+
+- **The implementation model is a split tree** (the tiling-window-manager lineage — i3/tmux/react-mosaic's family): the layout is nested splits (`row`/`column` nodes with ratio arrays) with tiles as leaves. The invariant holds *by construction*: deletion → the sibling absorbs the space (holes impossible); insertion/drop-on-edge → the target region splits; **resize = changing one node's ratio** — the shared divider moves and everything bordering it adjusts together (Nathan's confirmed splitter semantics, min-size clamped), which also dissolves the T-junction ambiguity a free x/y/w/h grid would suffer.
+
+- **Q2 resolved:** shared-edge redistribution with a minimum-size clamp is THE resize model. Q3: drag-time boundary/region visualization kept, color DRY'd to an existing token. Q4: no per-tile pinning — locking stays the block/host lock mechanism only.
+
+- **Deliberately build-tuned (Nathan):** the exact vertical semantics — stack-internal edge behavior, ragged region ends, how the flowing page bottom behaves — are played with live once the build stands, not spec'd in prose.
+
+### Inheritance Verdict, Revised
+
+The tessellation model **retires RGL's brain**: collision cascades, gravity compaction, `moveElement`, and x/y/w/h coordinate math all exist to manage tiles floating on a grid *with* empty space — a problem SurfacePM's geometry doesn't have. What survives from the teardown:
+
+- **Patterns, not code:** the placeholder-ghost-during-drag pattern, drag/resize state orchestration (snapshot-on-start → preview → commit/abort), the scale-aware pointer math concept (`clientRect / scale` — for zoomed content, G-10), and the recompute-from-snapshot discipline (their accumulation bug stays instructive).
+- **Possibly small verbatim pieces:** the eight-direction resize-edge composition idea (`resizeItemInDirection`'s shape, simplified — dividers are single-axis in a tree), the ResizeObserver container-width hook shape.
+- **The clone stays as reference** (`scratchpad/rgl-src`, MIT) — but SurfacePM is now a genuine in-house engine: a split-tree layout model + PommoraDND-pattern sensors + flex/percent rendering. Simpler than the grid it replaces: no collision solver, no compactor, insertion is a tree splice, resize is one ratio write.
+- **The block document's geometry** (Decision Log D-3) becomes the layout tree + per-leaf tile payloads — not per-tile `x,y,w,h`. → amended in the decision log.
