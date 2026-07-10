@@ -10,6 +10,7 @@ import { pickView } from '../../Detail/Views/Table/TableView'
 import { PropertiesPane } from './PropertiesPane'
 import { HiddenPane } from './HiddenPane'
 import { GroupingPane } from './GroupingPane'
+import { SortingPane } from './SortingPane'
 import { ViewSettings } from './ViewSettings'
 import { PaneSlider } from './PaneSlider'
 import { MenuItem, MenuSeparator, MenuCaption, MenuPaneTopRow } from '../../design-system/components/menu'
@@ -51,7 +52,7 @@ const CURRENT_LABEL: Record<PaneId, string> = {
  * The Collection/Set settings menu — the content rendered inside the settings dropdown when a
  * Collection or Set is selected: an icon+title header over Configuration · Properties · Visibility ·
  * Layout · Group · Filter · Sort as a push/back nav stack. Layout opens the active view's ViewSettings
- * (the flat door); Configuration holds the collection's Open In. Group/Filter/Sort ship blank-leafed.
+ * (the flat door); Configuration holds the collection's Open In. Filter ships blank-leafed.
  */
 export function SettingsPane(): React.JSX.Element | null {
   const selection = useSession((st) => st.selection)
@@ -167,6 +168,8 @@ export function SettingsPane(): React.JSX.Element | null {
       <ViewSettings source={node} view={pickView(node, activeViewId, schema)} schema={schema} door="flat" onBack={back} onClose={back} />
     ) : detailId === 'group' ? (
       <GroupingPane source={node} view={pickView(node, activeViewId, schema)} schema={schema} label="Settings" onBack={back} />
+    ) : detailId === 'sort' ? (
+      <SortingPane source={node} view={pickView(node, activeViewId, schema)} schema={schema} label="Settings" onBack={back} />
     ) : (
       blankLeaf
     )

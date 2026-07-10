@@ -12,6 +12,7 @@ import { InlineEditHeader } from './InlineEditHeader'
 import { VisibilityList } from './HiddenPane'
 import { LayoutToggles } from './LayoutToggles'
 import { GroupingPane } from './GroupingPane'
+import { SortingPane } from './SortingPane'
 import { PaneSlider } from './PaneSlider'
 import { cx } from '../../design-system/cx'
 import * as vs from './viewSettings.css'
@@ -118,8 +119,8 @@ export function ViewSettings({
   }
 
   // Full-door leaves — the detail slot of the leaf slider (below). Layout opens the visibility list
-  // (+ its icon toggles); Group/Filter/Sort ship blank, matching the SettingsPane's — the shared panes
-  // land in their own arcs. Only mounted while a leaf is open, so a push measures it before the flip.
+  // (+ its icon toggles); Filter ships blank, matching the SettingsPane's — its pane lands in its
+  // own arc. Only mounted while a leaf is open, so a push measures it before the flip.
   const leafPane =
     leaf === 'layout' ? (
       <VisibilityList
@@ -134,6 +135,8 @@ export function ViewSettings({
       />
     ) : leaf === 'group' ? (
       <GroupingPane source={source} view={view} schema={schema} label="Views" onBack={() => setLeaf(null)} />
+    ) : leaf === 'sort' ? (
+      <SortingPane source={source} view={view} schema={schema} label="Views" onBack={() => setLeaf(null)} />
     ) : leaf ? (
       <MenuPaneTopRow label="Views" current={LEAF_CURRENT[leaf]} onBack={() => setLeaf(null)} />
     ) : null
