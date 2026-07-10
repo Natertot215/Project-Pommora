@@ -167,7 +167,8 @@
 .table-grid.single-column .data-cell {
   border-right: none;
 }
-.table-grid.single-column .col-header::after {
+.table-grid.single-column .col-header::after,
+.table-grid.single-column .col-header::before {
   content: none;
 }
 /* Heading column dividers — a short, vertically-centred, fully-rounded segment bar (segmented-control

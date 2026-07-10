@@ -9,7 +9,7 @@ import { parseStyleAction } from '@shared/columnMenu'
 import { type ColumnAlign, type SavedView, mintDefaultView } from '@shared/views'
 import { applyPropertyValue, type PropertyValue } from '@shared/propertyValue'
 import { isValidLink, normalizeLinkUrl } from '@shared/links'
-import { flattenContainer } from '../pipeline/group'
+import { flattenContainer, groupsStructurally } from '../pipeline/group'
 import { resolveView } from '../pipeline/resolveView'
 import { declaredType, resolveFieldValue } from '../pipeline/value'
 import { resolvedSortCount } from '../pipeline/sort'
@@ -263,7 +263,10 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
   // a group key straight to a value; a date bucket doesn't, so date grouping isn't reassignable.
   // The property lives in TWO homes: top-level property grouping, or the view-level sub-group
   // bucketing inside structural bands.
-  const structuralGrouping = liveView.group?.kind !== 'property' && liveView.group?.kind !== 'flat'
+  // EFFECTIVE mode, the pipeline's own predicate — a dead-property grouping renders structural
+  // bands, so the drag writers (page_order vs viewOrders; location set_order vs group_order) must
+  // agree with what's actually drawn.
+  const structuralGrouping = groupsStructurally(liveView.group, schema)
   const subGrouped = structuralGrouping && liveView.sub_group !== undefined
   const groupPropId =
     liveView.group?.kind === 'property'

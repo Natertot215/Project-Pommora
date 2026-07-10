@@ -518,13 +518,16 @@ export function Sidebar({ tree }: { tree: NexusTree }): React.JSX.Element {
   // Ribbon-mode switch: hold the outgoing mode as a clipped exit overlay while the incoming sweeps
   // over it (Sidebar.css). The nav snaps to the top for the incoming; the exit layer counter-
   // translates by the captured scroll so its visible window holds still while it's overtaken.
-  const [exit, setExit] = useState<{ mode: SidebarMode; scroll: number } | null>(null)
+  // The epoch keys the exit layer so a mid-transition switch remounts it (restarting the clip
+  // sweep) instead of swapping content under a half-run animation.
+  const [exit, setExit] = useState<{ mode: SidebarMode; scroll: number; epoch: number } | null>(null)
   const prevMode = useRef(mode)
   useEffect(() => {
     if (prevMode.current === mode) return
     const from = prevMode.current
     prevMode.current = mode
-    setExit({ mode: from, scroll: navRef.current?.scrollTop ?? 0 })
+    const scroll = navRef.current?.scrollTop ?? 0
+    setExit((prev) => ({ mode: from, scroll, epoch: (prev?.epoch ?? 0) + 1 }))
     if (navRef.current) navRef.current.scrollTop = 0
   }, [mode])
 
@@ -533,6 +536,7 @@ export function Sidebar({ tree }: { tree: NexusTree }): React.JSX.Element {
       <div className="sidebar-mode-stage">
         {exit && (
           <div
+            key={exit.epoch}
             className="sidebar-mode mode-exit"
             style={{ transform: `translateY(${-exit.scroll}px)` }}
             onAnimationEnd={(e) => e.target === e.currentTarget && setExit(null)}
@@ -540,7 +544,7 @@ export function Sidebar({ tree }: { tree: NexusTree }): React.JSX.Element {
             {layerFor(exit.mode)}
           </div>
         )}
-        <div key={mode} className={cx('sidebar-mode', exit && 'mode-enter')} onContextMenu={modeCtx(active.onCreate)}>
+        <div key={mode} className={cx('sidebar-mode', exit !== null && 'mode-enter')} onContextMenu={modeCtx(active.onCreate)}>
           {exit ? <div className="mode-enter-slide">{active.node}</div> : active.node}
         </div>
       </div>

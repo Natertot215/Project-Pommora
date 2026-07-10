@@ -67,7 +67,7 @@ function directionOptions(propertyId: string, schema: PropertyDefinition[]): Pic
 interface SortTarget {
   id: string
   label: string
-  icon: IconName | undefined
+  icon: React.ComponentProps<typeof Icon>['name'] | undefined
 }
 
 /** Title + Modified are reserved columns, not schema defs — offered as fixed targets ahead of the

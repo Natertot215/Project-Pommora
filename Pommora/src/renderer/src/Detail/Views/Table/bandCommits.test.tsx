@@ -259,22 +259,24 @@ describe('structural band reorder', () => {
 
 describe('property band reorder', () => {
   it('persists group.order + order_mode manual and renders optimistically', async () => {
-    await mountTable(propertySource()) // bands: Active, Complete (configured schema order)
-    expect(headerTexts()[0]).toContain('Active')
-    await dragBand(1, 2) // Complete above Active
+    // Bands in configured schema order — Not started leads as an EMPTY band (no rows, hide off).
+    await mountTable(propertySource())
+    expect(headerTexts()[0]).toContain('Not started')
+    expect(headerTexts()[1]).toContain('Active')
+    await dragBand(2, 26) // Complete above Active
     await drop()
     expect(saveSpy).toHaveBeenCalledOnce()
     expect(lastSavedView().group).toEqual({
       kind: 'property',
       property_id: 'prop_status',
       order_mode: 'manual',
-      order: ['complete', 'active'],
+      order: ['not_started', 'complete', 'active'],
       empty_placement: 'bottom',
       hide_empty_groups: false
     })
     expect(lastSavedView().group_order).toBeUndefined()
     expect(mutateSpy).not.toHaveBeenCalled()
-    expect(headerTexts()[0]).toContain('Complete')
+    expect(headerTexts()[1]).toContain('Complete')
   })
 })
 
