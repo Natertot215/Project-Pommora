@@ -152,6 +152,10 @@ describe('FilterPane', () => {
     )
     expect(texts()).toContain('Hand-authored filter')
     expect(texts()).toContain('Reset Filter')
+    // The Matches control must be ABSENT in the locked state — it's the only way a stray pick could
+    // obliterate the authored tree; Reset is the sole writing action.
+    expect([...host.querySelectorAll('button')].some((b) => b.getAttribute('aria-label') === 'Matches')).toBe(false)
+    expect(texts()).not.toContain('Matches')
     await click([...host.querySelectorAll('*')].find((el) => el.textContent === 'Reset Filter'))
     expect(lastSaved().filter).toBeUndefined()
   })

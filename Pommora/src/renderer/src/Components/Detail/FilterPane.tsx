@@ -478,14 +478,9 @@ export function FilterPane({
   return (
     <div className={fp.pane}>
       <MenuPaneTopRow label={label} current="Filtering" onBack={onBack} />
-      <MenuItem
-        className={cx(flushTrailing, gp.pickerTone)}
-        trailing={<PickerControl ariaLabel="Matches" value={mode} options={MATCH_OPTIONS} onPick={pickMatch} />}
-      >
-        Matches
-      </MenuItem>
-      <MenuSeparator flush />
       {decoded.kind === 'locked' ? (
+        // A locked (hand-authored) tree the pane can't represent: NO Matches control — Reset is the
+        // ONLY action that writes, so a stray mode pick can't silently obliterate the authored filter.
         <>
           <div className={fp.lockedCaption}>Hand-authored filter — edited outside the pane.</div>
           <MenuItem
@@ -502,6 +497,13 @@ export function FilterPane({
         </>
       ) : (
         <>
+          <MenuItem
+            className={cx(flushTrailing, gp.pickerTone)}
+            trailing={<PickerControl ariaLabel="Matches" value={mode} options={MATCH_OPTIONS} onPick={pickMatch} />}
+          >
+            Matches
+          </MenuItem>
+          <MenuSeparator flush />
           <div className={cx(gp.middle, fp.body, 'overflow-eclipse-y', !enabled && fp.disabled)}>
             <div className={fp.grid}>
               {rows.map(ruleRow)}
