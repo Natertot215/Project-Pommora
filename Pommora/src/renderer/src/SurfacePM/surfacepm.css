@@ -22,13 +22,20 @@
   overflow: hidden;
 }
 
-/* Previews track the pointer 1:1 — the ease belongs to committed settles only. */
+/* Resizes track the pointer 1:1 — transitions gate off for the whole surface.
+   (Tile-move reflow/settle transitions are inline, driven by the shared Feel.) */
 .spm-surface.is-interacting .spm-tile {
   transition: none;
 }
 
-.spm-tile.is-dragging {
-  opacity: var(--state-ghost);
+/* The lifted block — PommoraDND's overlay treatment: the block itself rides the
+   pointer, elevated. Shadow value = the engine's own (interactions.css .ix-overlay);
+   hoist both to a token when a third consumer appears. */
+.spm-tile.is-lifted {
+  z-index: 10;
+  cursor: grabbing;
+  box-shadow: 0 12px 30px #00000066;
+  background: var(--surface-tertiary);
 }
 
 /* Resizing and drop-targeting highlight the block's own border — never the gaps. */
@@ -137,13 +144,3 @@
   cursor: nwse-resize;
 }
 
-.spm-ghost {
-  position: absolute;
-  top: 0;
-  left: 0;
-  z-index: 4;
-  pointer-events: none;
-  border: 2px solid var(--accent);
-  border-radius: 16px;
-  opacity: var(--state-ghost);
-}

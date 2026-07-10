@@ -1,5 +1,7 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { autoScroll, findScroller } from '@renderer/design-system/interactions/autoscroll'
+import { DEFAULT_FEEL, type Feel } from '@renderer/design-system/interactions/feel'
+import { SETTLE_FALLBACK } from '@renderer/design-system/interactions/shared'
 import type { Edge, SurfaceLayout } from './core/model'
 import { resolveEdge } from './core/edges'
 import { hitTest, type DropTarget } from './core/hitTest'
@@ -8,15 +10,15 @@ import { computeGeometry, type Rect, type SurfaceGeometry } from './core/rects'
 import { startPointerDrag } from './sensors/pointerDrag'
 import './surfacepm.css'
 
-// The SurfacePM surface: a layout tree rendered as absolutely-positioned blocks.
-// Resizing lives on each block's own edges and corners (window-style — never bars
-// in the gaps): an edge drag moves the shared boundary it resolves to (core/edges),
-// a corner drives both axes at once, and the grabbed block's border carries the
-// accent highlight. Moving is the border handle; drops preview the real post-move
-// tessellation. Every gesture is snapshot → preview → commit/abort: recomputed from
-// the frozen drag-origin layout each move, hit-tested against the origin geometry,
-// Esc restores. Gesture handlers are identity-stable (tiles memoize on them) and
-// read every live value through a per-render ref at gesture start.
+// The SurfacePM surface: a layout tree rendered as absolutely-positioned blocks,
+// with PommoraDND's interaction feel throughout. Moving a block lifts THE BLOCK
+// ITSELF under the pointer (shadowed, 1:1, no ghost) while its siblings reflow
+// through the shared Feel transition; releasing settles it into its slot as an
+// animation and the layout commits on transitionend (decide-then-animate, with
+// the engine's fallback timer). Resizing lives on each block's own edges and
+// corners — an edge drag moves the shared boundary it resolves to (core/edges),
+// tracking 1:1 with transitions gated off. Every gesture is snapshot → preview →
+// commit/abort against the frozen drag-origin layout; Esc settles home.
 
 export interface SurfaceViewProps {
   layout: SurfaceLayout
@@ -30,13 +32,21 @@ export interface SurfaceViewProps {
   bandZonePx?: number
   /** Extra empty room below the last band; dropping there appends a new band. */
   bottomPadPx?: number
+  /** The displacement feel (defaults to the engine's Smooth). */
+  feel?: Feel
 }
+
+type TilePhase = 'idle' | 'reflow' | 'lifted' | 'settling'
 
 interface TileDrag {
   id: string
-  pointer: { x: number; y: number }
-  offset: { x: number; y: number }
-  size: { w: number; h: number }
+  lift: Rect
+}
+
+interface Settle {
+  id: string
+  to: Rect
+  next: SurfaceLayout | null
 }
 
 const EDGE_ZONES: Array<{ zone: string; edges: Edge[] }> = [
@@ -56,41 +66,56 @@ const refKey = (ref: { band: number; path: number[]; index: number }): string =>
 interface LiveState {
   layout: SurfaceLayout
   originGeometry: SurfaceGeometry
-  commit: (next: SurfaceLayout | null) => void
   bandZonePx: number
   minTilePx: number
   minBandPx: number
+  gap: number
+  feel: Feel
 }
 
 const TileShell = memo(
   function TileShell({
     id,
     rect,
-    dragging,
-    resizing,
+    phase,
+    feel,
     targetEdge,
+    resizing,
     renderTile,
     onHandleDown,
-    onEdgeDown
+    onEdgeDown,
+    onSettled
   }: {
     id: string
     rect: Rect
-    dragging: boolean
-    resizing: boolean
+    phase: TilePhase
+    feel: Feel
     targetEdge: Edge | null
+    resizing: boolean
     renderTile: (id: string, rect: Rect) => React.ReactNode
     onHandleDown: (id: string, e: React.PointerEvent) => void
     onEdgeDown: (id: string, edges: Edge[], e: React.PointerEvent) => void
+    onSettled: (id: string) => void
   }) {
+    const transition =
+      phase === 'lifted'
+        ? 'none'
+        : phase === 'reflow' || phase === 'settling'
+          ? `transform ${feel.duration}ms ${feel.easing}, width ${feel.duration}ms ${feel.easing}, height ${feel.duration}ms ${feel.easing}`
+          : undefined
     return (
       <div
-        className={`spm-tile${dragging ? ' is-dragging' : ''}${resizing ? ' is-resizing' : ''}${
-          targetEdge ? ` is-target edge-${targetEdge}` : ''
-        }`}
+        className={`spm-tile${phase === 'lifted' || phase === 'settling' ? ' is-lifted' : ''}${
+          resizing ? ' is-resizing' : ''
+        }${targetEdge ? ` is-target edge-${targetEdge}` : ''}`}
         style={{
           transform: `translate(${rect.x}px, ${rect.y}px)`,
           width: rect.w,
-          height: rect.h
+          height: rect.h,
+          transition
+        }}
+        onTransitionEnd={(e) => {
+          if (phase === 'settling' && e.propertyName === 'transform') onSettled(id)
         }}
       >
         <div className="spm-handle" onPointerDown={(e) => onHandleDown(id, e)} />
@@ -107,12 +132,14 @@ const TileShell = memo(
   },
   (a, b) =>
     a.id === b.id &&
-    a.dragging === b.dragging &&
-    a.resizing === b.resizing &&
+    a.phase === b.phase &&
+    a.feel === b.feel &&
     a.targetEdge === b.targetEdge &&
+    a.resizing === b.resizing &&
     a.renderTile === b.renderTile &&
     a.onHandleDown === b.onHandleDown &&
     a.onEdgeDown === b.onEdgeDown &&
+    a.onSettled === b.onSettled &&
     a.rect.x === b.rect.x &&
     a.rect.y === b.rect.y &&
     a.rect.w === b.rect.w &&
@@ -127,12 +154,14 @@ export function SurfaceView({
   minTilePx = 64,
   minBandPx = 80,
   bandZonePx = 10,
-  bottomPadPx = 28
+  bottomPadPx = 28,
+  feel = DEFAULT_FEEL
 }: SurfaceViewProps): React.JSX.Element {
   const hostRef = useRef<HTMLDivElement | null>(null)
   const [width, setWidth] = useState(0)
   const [draft, setDraft] = useState<SurfaceLayout | null>(null)
   const [tileDrag, setTileDrag] = useState<TileDrag | null>(null)
+  const [settle, setSettle] = useState<Settle | null>(null)
   const [dropTarget, setDropTarget] = useState<DropTarget>(null)
   const [resizingId, setResizingId] = useState<string | null>(null)
 
@@ -157,33 +186,46 @@ export function SurfaceView({
     [layout, width, gap]
   )
 
-  const commit = useCallback(
-    (next: SurfaceLayout | null) => {
-      setDraft(null)
-      setResizingId(null)
-      if (next && next !== layout) onLayoutChange(next)
-    },
-    [layout, onLayoutChange]
-  )
-
   // Every live value a gesture reads, refreshed each render — the handlers stay
   // identity-stable while never seeing a stale layout, geometry, or knob.
   const live = useRef<LiveState>({
     layout,
     originGeometry,
-    commit,
     bandZonePx,
     minTilePx,
-    minBandPx
+    minBandPx,
+    gap,
+    feel
   })
-  live.current = { layout, originGeometry, commit, bandZonePx, minTilePx, minBandPx }
+  live.current = { layout, originGeometry, bandZonePx, minTilePx, minBandPx, gap, feel }
+
+  const layoutRef = useRef(layout)
+  layoutRef.current = layout
+  const onLayoutChangeRef = useRef(onLayoutChange)
+  onLayoutChangeRef.current = onLayoutChange
+
+  // Decide-then-animate: the settle transition ends (or the engine's fallback
+  // timer fires) → the decided layout commits and the gesture state clears.
+  const finishSettle = useCallback((id: string) => {
+    setSettle((s) => {
+      if (!s || s.id !== id) return s
+      if (s.next && s.next !== layoutRef.current) onLayoutChangeRef.current(s.next)
+      setDraft(null)
+      return null
+    })
+  }, [])
+
+  useEffect(() => {
+    if (!settle) return
+    const t = setTimeout(() => finishSettle(settle.id), live.current.feel.duration + SETTLE_FALLBACK)
+    return () => clearTimeout(t)
+  }, [settle, finishSettle])
 
   const onEdgeDown = useCallback((id: string, edges: Edge[], e: React.PointerEvent) => {
     if (e.button !== 0) return
     e.preventDefault()
     e.stopPropagation()
-    const { layout: origin, originGeometry: g, commit: end, minTilePx: minT, minBandPx: minB } =
-      live.current
+    const { layout: origin, originGeometry: g, minTilePx: minT, minBandPx: minB } = live.current
     const extents = new Map(g.dividers.map((d) => [refKey(d.ref), d.extentPx]))
     const boundaries = edges
       .map((edge) => ({ edge, boundary: resolveEdge(origin, id, edge) }))
@@ -206,7 +248,11 @@ export function SurfaceView({
         }, origin)
         setDraft(latest)
       },
-      onEnd: (commitDrag) => end(commitDrag ? latest : null)
+      onEnd: (commitDrag) => {
+        setResizingId(null)
+        setDraft(null)
+        if (commitDrag && latest !== origin) onLayoutChangeRef.current(latest)
+      }
     })
   }, [])
 
@@ -214,13 +260,13 @@ export function SurfaceView({
     if (e.button !== 0) return
     e.preventDefault()
     e.stopPropagation()
-    const { layout: origin, originGeometry: g, commit: end, bandZonePx: zone } = live.current
+    const { layout: origin, originGeometry: g, bandZonePx: zone } = live.current
     const host = hostRef.current
     const rect = g.tiles.get(id)
     if (!host || !rect) return
     const downBox = host.getBoundingClientRect()
     // The grab offset is frozen at the down event — recomputing it per move would
-    // cancel the pointer delta and pin the ghost to the tile's origin.
+    // cancel the pointer delta and pin the lifted block to its origin.
     const grab = {
       x: e.clientX - downBox.left - rect.x,
       y: e.clientY - downBox.top + host.scrollTop - rect.y
@@ -237,27 +283,29 @@ export function SurfaceView({
         const hostBox = host.getBoundingClientRect()
         const px = ev.clientX - hostBox.left
         const py = ev.clientY - hostBox.top + host.scrollTop
-        setTileDrag({
-          id,
-          pointer: { x: px, y: py },
-          offset: grab,
-          size: { w: rect.w, h: rect.h }
-        })
+        setTileDrag({ id, lift: { x: px - grab.x, y: py - grab.y, w: rect.w, h: rect.h } })
         target = hitTest(g, origin, id, px, py, zone, target)
         setDropTarget(target)
         latest = applyTarget(origin, id, target)
         setDraft(latest === origin ? null : latest)
       },
       onEnd: (commitDrag) => {
+        const decided = commitDrag && target && latest !== origin ? latest : null
+        // Settle into the decided slot (the final layout's rect), or back home.
+        const finalGeometry = decided
+          ? computeGeometry(decided, Math.max(0, host.clientWidth), live.current.gap)
+          : g
+        const to = finalGeometry.tiles.get(id) ?? rect
         setTileDrag(null)
         setDropTarget(null)
-        end(commitDrag && target ? latest : null)
+        if (!decided) setDraft(null)
+        setSettle({ id, to, next: decided })
       }
     })
   }, [])
 
-  const dragRect = tileDrag ? originGeometry.tiles.get(tileDrag.id) : undefined
-  const interacting = tileDrag !== null || resizingId !== null
+  const dragId = tileDrag?.id ?? settle?.id ?? null
+  const interacting = resizingId !== null
 
   return (
     <div
@@ -265,32 +313,39 @@ export function SurfaceView({
       className={`spm-surface${interacting ? ' is-interacting' : ''}`}
       style={{ height: geometry.totalHeight + bottomPadPx }}
     >
-      {[...geometry.tiles.entries()].map(([id, rect]) => (
-        <TileShell
-          key={id}
-          id={id}
-          rect={rect}
-          dragging={tileDrag?.id === id}
-          resizing={resizingId === id}
-          targetEdge={dropTarget?.kind === 'tile' && dropTarget.id === id ? dropTarget.edge : null}
-          renderTile={renderTile}
-          onHandleDown={onHandleDown}
-          onEdgeDown={onEdgeDown}
-        />
-      ))}
-
-      {tileDrag && dragRect && (
-        <div
-          className="spm-ghost"
-          style={{
-            transform: `translate(${tileDrag.pointer.x - tileDrag.offset.x}px, ${
-              tileDrag.pointer.y - tileDrag.offset.y
-            }px)`,
-            width: tileDrag.size.w,
-            height: tileDrag.size.h
-          }}
-        />
-      )}
+      {[...geometry.tiles.entries()].map(([id, rect]) => {
+        const lifted = tileDrag?.id === id
+        const settling = settle?.id === id
+        const phase: TilePhase = lifted
+          ? 'lifted'
+          : settling
+            ? 'settling'
+            : dragId !== null
+              ? 'reflow'
+              : 'idle'
+        const shownRect = lifted
+          ? (tileDrag as TileDrag).lift
+          : settling
+            ? (settle as Settle).to
+            : rect
+        return (
+          <TileShell
+            key={id}
+            id={id}
+            rect={shownRect}
+            phase={phase}
+            feel={feel}
+            resizing={resizingId === id}
+            targetEdge={
+              dropTarget?.kind === 'tile' && dropTarget.id === id ? dropTarget.edge : null
+            }
+            renderTile={renderTile}
+            onHandleDown={onHandleDown}
+            onEdgeDown={onEdgeDown}
+            onSettled={finishSettle}
+          />
+        )
+      })}
     </div>
   )
 }
