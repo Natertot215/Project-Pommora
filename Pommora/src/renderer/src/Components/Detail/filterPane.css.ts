@@ -31,11 +31,15 @@ export const body = style({ flex: '1 0 auto' })
 
 export const grid = style({
   display: 'grid',
-  gridTemplateColumns: 'max-content minmax(56px, 1.4fr) fit-content(140px) minmax(48px, 1fr)',
+  gridTemplateColumns: 'minmax(40px, 1.4fr) fit-content(140px) minmax(36px, 1fr)',
   columnGap: '6px',
   rowGap: '4px',
-  padding: '6px 8px',
-  alignItems: 'center'
+  padding: '6px 0',
+  alignItems: 'center',
+  // The grid never drives the pane's width — it fills whatever the pane's other content set
+  // (the flush divider is the gutter truth; fields span edge to edge and clip inside).
+  width: 0,
+  minWidth: '100%'
 })
 
 export const gridRow = style({
@@ -46,19 +50,27 @@ export const gridRow = style({
   alignItems: 'center'
 })
 
+/** The What cell — the row's lead: row 0's field sits FLUSH at the gutter; rows 2+ lead with
+ *  their And/Or connector inside this cell, indenting the field. */
+export const whatCell = style({
+  display: 'flex',
+  alignItems: 'center',
+  gap: '6px',
+  minWidth: 0
+})
+
 /** The one field stroke — the menu separator hairline as an inset ring. */
 const fieldStroke = `inset 0 0 0 1px ${c.separator.line}`
 
-/** The shared input-field recipe at grid-cell metrics: fills its column flush to the gutters,
- *  control-sized, no 28px floor, separator-hairline stroke. */
+/** The shared input-field recipe in its column: flush to the gutters, STANDARD field height
+ *  (the interactionField 28px floor), body-size type, separator-hairline stroke. */
 export const cellField = style([
   fieldBase,
-  text.control.emphasized,
+  text.body.emphasized,
   {
     width: '100%',
     minWidth: 0,
-    minHeight: 0,
-    padding: '3px 8px',
+    padding: '4px 8px',
     gap: '4px',
     border: 'none',
     cursor: 'default',
@@ -92,9 +104,6 @@ export const connector = style([
   }
 ])
 
-/** Row 0's empty connector cell — holds the column so rows 1+ read indented. */
-export const connectorSpacer = style({ minWidth: '1px' })
-
 export const placeholder = style({ color: c.label.tertiary })
 
 /** The hover-revealed row remove — floats over the row's right edge (absolute, off the grid flow)
@@ -125,12 +134,11 @@ export const lockedCaption = style([text.footnote.standard, { color: c.label.sec
  *  inset accent stroke (the TextPicker recipe). */
 export const cellInput = style([
   fieldBase,
-  text.control.emphasized,
+  text.body.emphasized,
   {
     width: '100%',
     minWidth: 0,
-    minHeight: 0,
-    padding: '3px 8px',
+    padding: '4px 8px',
     border: 'none',
     outline: 'none',
     fontFamily: 'inherit',
