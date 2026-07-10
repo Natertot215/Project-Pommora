@@ -144,7 +144,7 @@ There is no free-form text type — the filename is the title, and text-shaped v
 
 A view is a saved presentation of a Collection's (or depth-1 Set's) Pages — it never modifies its source. Each container's sidecar holds an ordered list of saved views; the active view is tracked per-machine so switching it doesn't churn the synced file. A view records its renderer type, property layout (column order plus a hidden set), and its sort / filter / group config, fed by one pure pipeline: **fetch → filter → group → sort**.
 
-V1 view types are **Table**, **Board**, **List**, **Gallery**, and **Cards**. Views also embed as widgets inside a Context or the Homepage with per-embed overrides. Two capabilities go beyond the baseline: multi-key sort, and recursive AND/OR filter groups. Full detail → `Features/Views.md`.
+V1 view types are **Table**, **Board**, **List**, **Gallery**, and **Cards**. Views also embed as tiles in block-host surfaces — a **Linked View** referencing a saved view, or a **Custom View** with embed-owned, nexus-wide config (→ `Planning/7-10 - Block Surfaces — Decision Log.md`). Two capabilities go beyond the baseline: multi-key sort, and recursive AND/OR filter groups. Full detail → `Features/Views.md`.
 
 #### The Local-End Translation Principle
 

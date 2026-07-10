@@ -1,0 +1,211 @@
+## Block Surfaces — Decision Log
+
+> **This log is a prerequisite to any Contexts / Spaces architectural rethink.** It specifies only the block-like surfaces and how they work — the host-agnostic tile system. The contexts resolution (keep the current design / user-created groups / a separate Spaces entity), the sidebar surfaces, and Homepage are deliberately parked for their own pass, and nothing here may depend on how they land.
+>
+> **Status: REVIEW-CERTIFIED.** Three adversarial rounds ran (the Review-Discipline cap); every finding was independently verified against the code and folded; every decision is `[confirmed]`. The one gate before planning: the **G-8 Figma designs** for handle/hover chrome.
+
+### Frame
+
+- **Purpose:** Specify the **block/tile system** — Pommora's composable dashboard surface — as a host-agnostic core that works identically under every resolution of the contexts question, and record the contexts direction only as far as it's actually settled.
+- **Core Value:** The block system's architecture (document shape, host abstraction, grid engine, tile types, storage, chrome, config surfaces) is fully understood and buildable *before* the contexts decision — nothing in it forecloses any contexts future.
+- **Success Criteria:** (1) The block system is spec'd end-to-end and review-certified; (2) every contexts option maps cleanly onto it via the host abstraction; (3) the deliberately-parked decisions are enumerated with nothing silently depending on them; (4) no `[assumed]` tag survives ratification.
+
+### Sources
+
+- [[Contexts]] — the ratified tier spec: 3 free-standing folder+sidecar tiers under `.nexus/`, tag-only (no pages, no schema), `tierN` bare-ULID arrays as the only relation; detail view is a Pending composed-blocks surface; `blocks` rides as a preserved foreign key.
+- [[Structure]] — the two-layer domain model; Homepage singleton at `.nexus/homepage.json`; NexusTree walk surfaces the three tiers.
+- `PommoraPRD.md` — L147: views "embed as widgets inside a Context or the Homepage **with per-embed overrides**" (the prior embed discussion — pick-a-view + overrides, Notion-style); L205: "**Inline editing of embedded views**" is v1 scope; the Items→Pages convergence history.
+- [[Views]] — saved-view model + pipeline; `SavedView` (`src/shared/views.ts:102`) verified **fully portable** — no owning-container id anywhere in the shape, so an inline embed config can carry the same vocabulary.
+- `Framework.md` — v0.8.0 ("Contexts + Homepage Editor") is the ratified direction this log supersedes (→ F-1).
+- `Planning/6-26 - Canvas Spec.md` — adjacent-but-distinct feature; its **filename-is-title + internal-ULID + reference-by-ULID** pattern and single-live-editor pattern are cited precedent.
+- Code exploration (Explore agent report + directly re-verified where load-bearing):
+  - `src/shared/properties.ts` — `TIER_LEVELS = [1,2,3]`, `tierFieldName`, `tierPropertyId`; `RESERVED_PROPERTY_ID` hardcodes `_tier1/2/3`.
+  - `src/main/crud/folderEntity.ts` — the generic folder-entity CRUD; zero tier knowledge; sibling-collision refusal on create/rename; `deleteFolderEntity` trashes **folders** (no file-level trash op exists — → E-5).
+  - ~20 non-test files hardcode exactly three tiers vs ~6 looping `TIER_LEVELS`; storage (`tier: number`, numeric SQLite column) would tolerate N.
+  - **`blocks[]` rides preserved on disk** on context sidecars + `homepage.json`: preserved **by construction** (loose `contextBase` + read-merge-write); the disk round-trip test exists for homepage (`mutate.test.ts:311-317`), contexts inherit the mechanism (in-memory parse test only, `schemas.test.ts:63-65`).
+  - **View rendering is deeply container-coupled** (directly verified): `TableView.tsx` binds `source` in ~15 load-bearing places beyond rows/schema/view — `loadValues(source.path)` (:139), `resolveContainerSchema(tree, source)` (:150), set-name/path/icon builders (:319-324), and every write-back: `saveViewAdopting(source,…)` (:421), band/set drops mutating by `source.path` (:394-411, :1045). The *pipeline below* (`resolveView`) is pure. "Inject a triple into TableView" is NOT viable — embeds need their own pure consumer (→ C-1, D-5).
+  - `src/main/exclusion.ts:16-21` — walks skip dot-prefixed dirs (`.nexus` contents invisible to adoption/collection walks); `src/main/adopt.ts` — `stampPage`/`stampFolder`/`stampTree` stamp loose `.md` + folders at the Nexus root (→ root-lift is breaking, Prospects).
+  - `src/main/watcher.ts` — watches `.nexus` (deliberately), any event → debounced **full `readNexus` re-walk** (→ E-3).
+  - `design-system/tokens/theme-vars.css.ts:38` — `--separator-border` exists (the tile border token, per Nathan "border-separator").
+- External research (web agent; RGL claims re-verified first-hand — README + releases fetched, version npm-checked):
+  - **react-grid-layout v2.2.3** (TS/hooks rewrite, active): `autoSize` flowing height; pluggable compaction (vertical gravity / `noCompactor` / wrap); `resizeConfig.handles` + per-item min/max + constraints system; `dragConfig.handle`/`cancel`; `dropConfig` outside-drop; **no native content-driven auto-height**; ≥2.2.1 (2.2.0 known-bad).
+  - Block-editor libraries rejected (BlockNote: second ProseMirror runtime, lossy markdown, GPL'd columns; Plate/Lexical: frameworks; Editor.js: DOM-owner; Yoopta: bus factor 1). Hand-roll pattern (Grafana/Notion/AFFiNE): typed `blocks[]` + own DND + switch-renderer.
+  - Prior art: Tana unifies tag+dashboard; Anytype/Capacities separate with an addressable surface per type; Notion fully separates; Logseq DB's half-merge is the cautionary tale. Task managers: opinionated defaults beat builders.
+  - Storage: Obsidian Bases (sidecar + embed-by-reference), JSON Canvas (`text` inline / `file` references `.md`), Grafana `panels[]+gridPos`.
+- Grid-engine survey (web agent, key claims independently spot-verified via a local npm install of RGL 2.2.3):
+  - **The 2025–26 field produced no new React tile-grid engine** — react-mosaic (tree-splits, no coords), dockview (IDE docking), swapy (GPL, swap-only, stale), pragmatic-drag-and-drop (sensors only, no grid math — redundant with PommoraDND), @dnd-kit/react (0.x, no 2D math). GridStackEngine is the one other headless engine (gridstack-shaped semantics, undocumented standalone).
+  - **Real-app precedents:** Grafana never hand-rolled — ships upstream RGL 1.4.4 plus ONE yarn patch (`flushSync` around drag setState, the React-batching jitter fix); its old fork is archived. Homarr forked gridstack and is now 590 commits behind upstream — the DOM-owning-library tax. Notion itself uses no coordinate grid (columns are flex-ratio blocks); a gravity-tile dashboard is Grafana/Homarr-shaped.
+  - **RGL v2 publishes its math as a dependency-free entry** — `react-grid-layout/core` (MIT): collision/moveElement/compactors/constraints. **Locally verified:** the core chain is ~1,053 compiled lines, zero React imports. The React component layer (still on react-draggable/react-resizable — the React-19-fragile chain) is fully separate; v2's maturity risk (7 months old, one maintainer, an open re-render perf discussion) is concentrated in that component layer.
+  - **The algorithm is small and portable** (v1: one ~800-line utils file; v2 core: collision 65 + compactors 353 + layout 509 source lines; the Angular port copies it verbatim). RGL's remaining bulk is scope Pommora deletes: SSR, responsive breakpoints, touch, legacy adapters, the draggable dep chain.
+  - **Honest hand-roll costs:** mid-drag reflow must recompute from the pre-drag snapshot on every move (never accumulate frame-to-frame), resize-collision push + per-handle direction math is fiddlier than drag, plus the long tail (static items, bounds clamping, scroll-while-drag). PommoraDND's pointer-capture model already sidesteps the React-batching class Grafana patches.
+
+### Decisions
+
+#### A — The Diagnosis + Direction
+
+- **A-1:** [confirmed] The rethink decomposes into two independent axes: (1) the **tag vocabulary**; (2) the **dashboard surface**. Nathan's original Ideas A and B were different pairings of positions on these axes.
+
+- **A-2:** [confirmed — Nathan] The pain is the **fusion**: the ratified design makes the three tag tiers the *only* holders of the block-dashboard capability (plus Homepage), forcing one entity to be both organizational tag and composed surface. The three-level vocabulary itself is fine — Areas/Topics/Projects stay; other dimensions (People, Courses…) belong to properties.
+
+- **A-3:** [confirmed — Nathan] What's actually locked: **block functionality reserved exclusively to the three tag tiers is the no-go.** The leading candidate resolution is Idea-B-shaped — Contexts simplify to structural tag surfaces while Spaces ship as their own block-dashboard entity — but the final contexts resolution is deliberately parked (→ D-1); the block system may not depend on any particular outcome.
+
+- **A-4:** [confirmed — Nathan] Contexts do **not** get page-style properties. Context→context linking is directionally sensible (scope TBD — Prospects).
+
+#### B — Surface Model
+
+- **B-1:** [confirmed — Nathan] The block surface is a **flowing-length tile grid**: the page grows as short or long as its content, blocks are drag-to-position, drag-to-resize tiles (react-grid-layout model). Columns are emergent from tile placement, never structured column blocks.
+
+- **B-2:** [open — parked with the contexts decision] Whether Context detail views are themselves block surfaces (Nathan: they "shouldn't be excluded" from it) and/or carry a structured Linked-From default.
+
+- **B-3:** [confirmed — Nathan] **Homepage is deferred out of this arc entirely** (graph-view host idea logged as a Prospect). Nothing here depends on it.
+
+- **B-4:** [confirmed — Nathan] **Vertical gravity compaction.** The exact block feel is tuned by Nathan live at build time (the live-HMR cadence) — the architecture only commits to gravity as the default mode.
+
+- **B-5:** [confirmed — Nathan] **Markdown-block tiles edit in place** — the tile itself is the editor surface. **Page-embed tiles are scrollable AND editable in place**, gated by a **hover-lock in the tile's top-right corner**; a separate open action navigates to the real Page. The hover-lock is **kind-specific**: a locked **page** block prevents editing the page's content *and clicking into it*; a locked **view** block prevents **configuring** the view (layout, groups, sorts, filters…) while **interacting** with its content — dragging pages, assigning values — stays live.
+
+- **B-6:** [confirmed — Nathan, revised] Tile drags are handle-scoped (`dragConfig.handle`); `cancel` guards interactive innards. The handle is a **hover handle set into the block's border itself** (left edge, per Nathan's sketch) working like the existing MarkdownPM drag handles: **drag it to move the block, click it to open the block-actions menu** (Turn Into a different block type, among others). Embedded views' internal drag surfaces (PommoraDND rows/bands/chips) must never fight the grid.
+
+- **B-7:** [confirmed — Nathan] **The grid engine is `SurfacePM`** — an in-house reconstruction of react-grid-layout, the MarkdownPM precedent applied: **keep the math and what can't easily be replaced** (vendor the MIT `core` entry — locally verified dependency-free, ~1k compiled lines: collision / moveElement / compactors / constraints), **remove the clutter Pommora never loads** (SSR, responsive breakpoints, touch, legacy adapters, the react-draggable/react-resizable chain), **find and fix issues during the rebuild** (the flushSync batching class Grafana patches, the v2 component-layer re-render regression), and repackage with our own components + PommoraDND-style pointer-capture sensors. MIT attribution rides with the vendored math. SurfacePM sits behind the thin engine seam like every other library (no-dependency-lock-in rule).
+
+- **B-8:** [confirmed — Nathan] **Embed row-title navigation honors the configured Open In:** a title click opens the page as a **page preview or full main-pane page depending on what's configured** — Linked views follow the source Collection's Open In; **Custom views carry their own "Open In" knob in their configuration**. Full-page opens are ordinary single-pane navigation (Back returns to the host). **Honest dependency (round 3):** the `open_in` config is stored and editable but **no surface consumes it yet** — `select()` has no preview branch (`store.ts`); the preview path (and Custom View's Open In knob) is inert until the page-preview surface ships, for embeds and ordinary Collections alike. Full-page is the working behavior until then.
+
+#### C — Invariant Work (direction-independent)
+
+- **C-1:** [confirmed — code-grounded, re-verified twice] The two genuinely new subsystems are: (1) the **block/tile renderer** (`blocks[]` reserved on disk, zero modeling/rendering exists), and (2) the **embedded-view host**: since embeds are fully interactive with write-backs *intended* (D-12), the mechanism is the existing container-view machinery **pointed at the embedded source from inside a tile**, plus **three seams** (adversarial round 2 falsified "persistence is the one refactor"):
+  - **View resolution is per-instance, never global** — today which view renders derives solely from the container-keyed `activeViews[source.id]` slot (`useActiveView.ts:14`) and `pickView` searches only `source.views` (`TableView.tsx:92-96`), so a Custom View's payload-owned config is unreachable and two mounts of one collection fight over one slot. The embed host takes its view from the **tile payload** (Linked: resolve `view_id` against `source.views`; Custom: the inline config) and never touches `activeViews` — independent views per mount by construction; the main pane keeps its slot.
+  - **View persistence routes by kind** — Linked → `saveViewAdopting(source)` as today; Custom → the block payload.
+  - **Embed chrome** — tile bounds, banner excluded, toggleable in-line title (G-4).
+
+  TableView's remaining `source` coupling (values, set paths, mutations) is *correct behavior* for embeds.
+
+- **C-2:** [confirmed — code-grounded] Cost asymmetry: a new sibling entity kind is cheap (generic `folderEntity` CRUD, kind-agnostic banner/icon/order plumbing); user-creatable tier *vocabulary* is invasive (~20 hardcoded-3 files). Informs the parked contexts pass, not this one.
+
+#### D — The Block System
+
+- **D-1:** [confirmed — Nathan] This spec is **pre-contexts-decision**: the block system must work identically under do-nothing / Idea A / Idea B. The block system is the core; contexts wiring is the variable.
+
+- **D-2:** [confirmed — engineering shape, no product choice in it] The system binds to a **BlockHost abstraction**: any folder entity whose sidecar carries the block document. All contexts options produce valid hosts; tier contexts' reserved `blocks[]` means even "do nothing" provides one. (User-facing consequences — any-entity-can-host, contexts-decision independence — separately confirmed in D-1/A-3.) **One uniform block system across Spaces / Homepage / Contexts for now** [confirmed — Nathan]; the abstraction must leave room for **per-host-kind rules down the road** (differing tile allowances, defaults, or behaviors once the contexts fork resolves) — don't build the divergence, don't foreclose it.
+
+- **D-3:** [confirmed — engineering shape, no product choice in it] The **block document** is host-agnostic: `blocks[]` of tagged-union tiles, each `{ id (ULID), type, x, y, w, h, …type payload }` — geometry in grid units, zod-validated in shared types, unknown entries preserved (E-1, separately confirmed).
+
+- **D-4:** [confirmed — Nathan] **Markdown-block tiles are file-backed:** a real `.md` in the host's own folder — no properties, non-discoverable by search. The host folder generalizes the folder-with-sidecar idiom: sidecar = layout, loose `.md` = its prose.
+
+- **D-5:** [confirmed — Nathan + PRD:147] **View-embed tiles come in two kinds** (vocabulary locked): a **Linked View** references an existing saved view of a Collection/depth-1 Set and follows its future edits; a **Custom View** is embed-owned config that diverges freely — and **queries nexus-wide**: its filters and groups span all Collections through the nexus-wide property registry (PRD's cross-collection queryability made real). The inline config is `SavedView`-shaped; a Custom View additionally carries its own Open In (B-8, gated). **Authoring-pane UIX pending design (G-8); the plumbing — including the nexus-wide row source — must exist.** Round 3 forced the four sub-decisions the nexus-wide claim rests on:
+  - **D-5a [confirmed — Nathan]: a Custom View is *always* nexus-wide**, narrowed by its filters — scoping to one Collection is just a Location filter (the existing view Location filter's mechanics extended nexus-wide). No source picker exists on Custom Views; the tile payload carries no container ref. "Pick a source" is the **Linked View's** flow (→ G-9).
+  - **D-5b [confirmed — engineering, PRD-backed]: schema = the nexus-wide property registry.** PropertiesV2 already defines every property nexus-wide (collections merely assign subsets); a Custom View's columns/filters resolve against the full registry, and pages lacking a property show empty — exactly the PRD's "one shared property id means the same thing everywhere."
+  - **D-5c [confirmed — engineering]: values load through a new batch nexus-wide IPC** — one sweep, cached per host-open, most-recent-wins refresh (E-3's per-host pattern gains this one named exception; the walk stays value-free). The SQLite accelerator's return is the *designed escalation* at real scale, consistent with its reserved query-accelerator role — not a v1 dependency.
+  - **D-5d [confirmed — Nathan]: set-structural grouping works nexus-wide as the forest generalization** — top-level bands per Collection, Sets nesting inside exactly as they do container-locally; property grouping unchanged. "By Collection" is simply the forest's first level; the flat `group_order` id array stays coherent (ULIDs are nexus-unique).
+
+- **D-6:** [confirmed — Nathan] Block hosts live under **`.nexus/`** — shielded from other apps. Root-lift is **not** additive (→ Prospects; verified: the adoption pass would stamp a root-level host's `.md` blocks into Pages and the host into a Collection).
+
+- **D-7:** [confirmed — Nathan] Prose tiles come two ways: **page-embed** (a scrollable embedded view of a collection-managed Page) and **markdown block** (host-local `.md`, no properties, non-searchable).
+
+- **D-8:** [confirmed — Nathan] Local markdown blocks **join the SQLite link graph** — their outbound `[[connections]]` index — but are **deliberately excluded from any graph-view surface** and stay **non-discoverable by search**. They're link *sources*, not destinations (→ D-11: nothing links to them). **Verified cost (round 2):** two `.nexus`-skipping subsystems must each gain a host-folder pass to deliver this — the connection indexer builds only from walked pages (`index/build.ts:316-326`), and `renameCascade` skips `.nexus` wholesale (`crud/cascade.ts:20`), so without both extensions block links would never index AND would silently go stale when a target page renames. Both extensions are Core work, not options.
+
+- **D-9:** [assumed] v1 tile types: **markdown block · page embed · view embed.** Widgets are Prospects.
+
+- **D-10:** [open — parked with the contexts decision] Sidebar/navigation surfaces for hosts.
+
+- **D-11:** [confirmed — Nathan] **Markdown-block files are ULID-named** (`<tile-ulid>.md`) — no title, no frontmatter needed. Nothing ever links *to* a markdown block (they only link outward, → D-8), so filename-is-title buys nothing; the ULID name makes the tile↔file reference direct and rename-proof by construction.
+
+- **D-12:** [confirmed — Nathan] **Embedded views are fully interactive — controlling a Collection's content from a block surface is the point.** Two embed kinds with locked vocabulary:
+  - **Linked View** — references one of the source Collection/Set's pre-configured saved views. Reordering or reconfiguring it from inside the embed **writes to the source's saved view itself** (two-way: it IS the collection's view, edited from anywhere).
+  - **Custom View** — per-block config. Its view configuration is block-owned and diverges freely; its **data edits still write through to the source** like any view's.
+
+  Data writes always flow through in both kinds — value-cell edits AND drag-a-page-between-property-groups (a property write to the page file). Structural set-reparent drags (real file moves between Sets) also live inside embeds [confirmed — Nathan: "unified structural continuity, it's consistent"]. The routing difference is *config persistence only*: Linked → the source sidecar, Custom → the block payload.
+
+#### E — Sweep Outcomes (robustness + interaction)
+
+- **E-1:** [assumed] **Unknown/malformed tile entries are preserved and rendered inert** — never stripped, never crashing the host (the filter-registry lesson applied deliberately).
+
+- **E-2:** [assumed] **Dead references render inert placeholders** (deleted Page/Collection/view); the tile persists until the user removes it. No auto-cleanup cascade.
+
+- **E-3:** [confirmed — Nathan] **Write + read cadence:** layout writes once on drag/resize-stop, debounced; mid-drag layout is transient renderer state. **Block content is a targeted per-host load** (the `loadValues(source.path)` pattern), never folded into the whole-tree walk; block mutations refresh through the store's direct load path. Named honestly: any write under `.nexus/` still triggers the watcher's full re-walk today (same cost page edits already pay) — the walk must simply never *parse* block content; watcher-side handling is a plan-stage knob. **Value coherence — most recent wins:** the single-pane model makes "main pane + embed of the same collection" impossible by construction (the pane shows the host OR the collection, never both) — the only multi-mount case is one host embedding a collection twice, and there **the most recent edit/load wins**; no shared value store is mandated (live sync between duplicate tiles is a plan-stage option, not a requirement).
+
+- **E-4:** [assumed] **Markdown tiles render static, edit live** — a live MarkdownPM instance mounts only on entering edit (the table-cell/Canvas single-live-editor pattern); N tiles ≠ N live editors. Edit exits on click-out/Esc.
+
+- **E-5:** [confirmed — Nathan] **Removing a markdown-block tile trashes its backing `.md`** — a **new file-level trash op** (verified: `deleteFolderEntity` is folder-only; Pages delete via the page op), `.trash` destination settled at plan time. **Removing a page-embed or view-embed tile deletes only the tile entry — the real Page/view is never touched.** Deleting a host folder trashes the folder with its blocks inside.
+
+- **E-6:** [confirmed — Nathan] **Right-click is the primary creation surface: block surfaces get their own fully-equipped context menus** — insert-block entries at minimum, per the app's native-menu convention. Exact menu contents are a design-pass detail.
+
+- **E-7:** [confirmed — resolved by B-7] **Esc-abort for tile drags ships natively in SurfacePM** — owning the sensor layer means the app's Esc-abort gesture law applies by construction (PommoraDND's discipline), closing the gap RGL's component layer never documented.
+
+- **E-8:** [confirmed — verified against the real Nexus] **Swift left no block content:** every `blocks[]` in Nathan's live Nexus (homepage.json + all Area sidecars) is an empty array; Topics/Projects hold no entities. The codec starts from a clean slate — no legacy shape to honor; E-1's preservation still guards any foreign future content.
+
+- **E-9:** [assumed] **Layout undo is out of v1** — gravity makes mis-drags recoverable, destructive acts route to `.trash`; grid history is a Prospect. The grid never captures ⌘Z.
+
+#### G — Surface Chrome + Config
+
+- **G-1:** [confirmed — Nathan] Tiles render as **standard rectangular bordered blocks using the separator border token** (`--separator-border`); **during a resize drag the border highlights in accent**. Docs name the tokens; exact values live in code.
+
+- **G-2:** [confirmed — Nathan] **Block components live in their own components directory** — a dedicated `Blocks/` family, not scattered into Detail/.
+
+- **G-3:** [confirmed — Nathan] **The SettingsPane for any block-content surface is WIRED but not built** — the only real control at first is a **footing "lock" icon that prevents resize and reorder** (grid-wide static mode: drags + resizes disabled). All locks — this one and G-5's container lock — **persist in their entity's sidecar (synced)**, never per-machine [confirmed — Nathan].
+
+- **G-4:** [confirmed — Nathan] **Per-tile hover chrome:** the border drag handle (B-6, drag = move · click = block actions); a **vertical-ellipsis (⋮) actions menu in the top-right on hover** carrying at minimum the banner toggle (page embeds) and show/hide in-line title; page and view embeds carry the kind-specific hover-lock (B-5). **Banners: view embeds never show banners** — a banner's controls are liquid-glass buttons, which don't belong inside a view — while **page embeds keep their banners** (no glass buttons needed), toggleable via the ⋮. In-line titles stay on both kinds.
+
+- **G-6:** [confirmed — Nathan] **A view embed's in-line title defaults to the source Collection/Set's name; renaming it renames only the block's display title** (a per-block payload override), never the actual Collection or Set.
+
+- **G-7:** [confirmed — Nathan] **New blocks default to markdown blocks**, converted to other types afterward via the border handle's block-actions menu (Turn Into). Converting away from markdown trashes the backing `.md` recoverably (E-5's discipline, confirmed with it); converting into markdown mints one. Embed conversions never touch the embedded Page/view (E-5).
+
+- **G-8:** [confirmed — Nathan] **The exact design of the handles and hover chrome (B-6, G-4) is gated on Figma designs**, which will be ready before anything here turns into a plan. The log records the *mechanics* (drag = move, click = block actions, hover-reveal, border placement); the pixels wait for Figma.
+
+- **G-9:** [confirmed — Nathan] **The Linked View source picker** (insert flow): a "View Source" menu lists the Collections as drill-in rows over a **+ Custom** footer (the Custom View's entry point). Drilling into a Collection shows its Sets as chevron rows above that Collection's own views — **no create-new inside the picker** (Linked means pre-configured). A Set's chevron opens a compact picker-menu of that Set's views rather than another full drill level; Sub-Sets carry no views (existing spec). Exact visuals ride the G-8 Figma gate.
+
+- **G-5:** [confirmed — Nathan] **The view lock generalizes to a first-class per-container feature** — all views of any Collection/Set get it, not just embeds: a **lock icon in the ViewPane's `MenuBottomRow` footer** (`Toolbar/ViewPane.tsx` — the "+ create · … more" strip) that, when engaged, **dims the SettingsPane and ViewPanes across that entire Collection or Set** (view configuration disabled container-wide; interaction untouched). Same configure-vs-interact line as the embed hover-lock. Persists in the container's sidecar (synced) [confirmed — Nathan]. **The lock's scope includes view CRUD** — create/rename/delete/reorder live in the panes it dims, so they lock with it (per Nathan's "dims the SettingPane and ViewPanes"). Standalone-buildable — doesn't wait for the block system.
+
+#### F — Reconciliation Forecast (docs this makes false when ratified)
+
+- **F-1:** [confirmed — adjacency] `Framework.md` v0.8.0 ("Contexts + Homepage Editor" — flow-blocks + widgets + slash-menu) is superseded: tile grid, Homepage deferred, hosts pre-contexts-decision.
+- **F-2:** [confirmed — adjacency] `Contexts.md` Pending ("Context Block-Pages") and `Views.md` Prospects ("Composed-block surfaces (Contexts, Homepage) get embeds") reframe to the BlockHost model.
+- **F-3:** [confirmed — adjacency] `PommoraPRD.md` L147/L205 embed lines re-point to the host abstraction; contexts *vocabulary* text stands until that decision lands.
+- **F-4:** [confirmed — adjacency] `Structure.md` composed-blocks references defer with Homepage; the Canvas spec is untouched (distinct feature, cited precedent).
+
+### Core (must-have)
+
+The invariant block system — buildable before, and regardless of, the contexts decision:
+
+- The **block document schema** in shared types (zod, tagged-union tiles + RGL-unit geometry, unknown-entry preservation).
+- The **BlockHost read/write path**: sidecar `blocks[]` modeling, IPC envelope ops for layout writes (debounced) + local markdown-block CRUD including the new file-level trash op; targeted per-host content loads, most-recent-wins value coherence (E-3).
+- **Link-graph extensions for markdown blocks** (D-8's verified cost): the connection indexer gains a host-folder pass over `.nexus/<host>/*.md`, and `renameCascade` includes host `.md` files so target renames rewrite block bodies.
+- The **grid surface**: **SurfacePM** (B-7 — vendored RGL core math + PommoraDND-style sensors + own components) — gravity compaction, flowing autoSize length, the border drag handle, fine row granularity, Esc-abort native; separator-token borders with accent resize highlight.
+- **Three tile types** in a dedicated `Blocks/` component family: markdown block (file-backed, static-render + edit-in-place via mount-on-edit) · page embed (scrollable, open action) · view embed (view-ref or inline config).
+- The **embedded-view host**: the container-view machinery pointed at the embedded source, with per-instance view resolution (C-1), the view-persistence seam (Linked → source sidecar, Custom → block payload), and embed chrome (G-4). **Custom Views additionally need the nexus-wide row source** — rows + values spanning all Collections through the shared property registry (D-5); pane UIX pending design, plumbing in scope.
+- **Right-click insert menus** on the surface; the **wired SettingsPane** with the lock footing.
+- At least one working host to prove it on (the tier contexts' reserved `blocks[]` provides one even pre-decision).
+
+#### Prospects (allowed later, not now)
+
+- **The contexts resolution** (do nothing / Idea A / Idea B + Spaces) with the sidebar/nav surface — its own design pass; the BlockHost abstraction is the room left for it.
+- **Per-host-kind block rules** (D-2's rider) — Spaces/Homepage/Contexts may diverge in tile allowances, defaults, or behaviors after the contexts fork resolves; uniform until then.
+- **Widget tiles** (mini-calendar, link-list, linked-pages) — a registry entry each once the system stands.
+- **Free-placement / per-host compaction mode** (`noCompactor`) — additive mode flag.
+- **Auto-grow markdown tiles** (measure→set-`h`) — feel enhancement.
+- **Root-level host lift — breaking, not additive** (verified): requires a file-level kind discriminator before the adoption pass and collection walk can coexist with host folders at the root. Door stays closed until that lands.
+- **Context↔context linking**; **search/connection opt-in for local markdown blocks**; **grid-layout undo history**; **Homepage as a graph-view host**; **in-embed structural interactivity** (band drags, view persistence from inside an embed); **full SettingsPane content** beyond the lock footing.
+
+#### Out of Scope (won't do — distinct from Prospects)
+
+- Contexts carrying page-style properties (A-4).
+- Content tagging a block host / hosts entering the tier-relation system — Contexts remain the tag layer.
+- Structured column blocks — columns are emergent tile placement (B-1).
+- Adopting a block-editor library — rejected with reasons below.
+
+#### Considered & Rejected
+
+- **Idea A — user-creatable context groups replacing the three tiers** — rejected by Nathan: the three-level vocabulary isn't the pain; property dimensions cover extra groupings; expanding tag entities to carry dashboard needs is the wrong fix.
+- **Contexts carrying page-style properties** — scrapped by Nathan.
+- **Block-editor libraries (BlockNote / Plate / Lexical / Editor.js / Yoopta)** — second editor runtime beside CM6, lossy markdown, GPL'd columns, DOM-owning cores, or bus-factor-1.
+- **Read-only view embeds** — reviewer-proposed, rejected against PRD:205 and Nathan's intent: controlling a Collection's content from a block surface is the point. Embeds are fully interactive (D-12).
+- **A new pure/read-only render path as the embed mechanism** — briefly held after adversarial round 1 flagged TableView's `source` write-backs as dangerous from inside a tile; dissolved when D-12 established the write-backs are *intended*. The mechanism is TableView-against-the-source with a view-persistence seam (C-1), not a parallel renderer.
+
+#### Lessons
+
+- **A capability granted exclusively to one entity kind quietly fuses two jobs onto it.** Reserving the block surface to the tag tiers made "organizer" and "dashboard" one entity and capped the surface's reach. Spec capabilities host-agnostic; let entities opt in. → routes to `Guidelines/`.
+
+### Still Open — the log doesn't close until these do
+
+1. **Figma gate (G-8):** handle + hover chrome designs precede the plan.
+2. **Parked by design:** B-2 (contexts as block surfaces), D-10 (sidebar), the contexts resolution, Homepage.
+
+Adversarial review ran its full three rounds (the Review-Discipline cap); all findings verified and folded; every decision is `[confirmed]`. The log is certified — planning may begin once the G-8 designs land.

@@ -76,7 +76,7 @@ The SQLite index — a regeneratable accelerator off the read path — holds a `
 
 ### Pending
 
-**Context Block-Pages:** The Context detail view is a placeholder — a blank surface under the banner. The design is a live, fully-editable composed-blocks page of views and queries, sharing the Homepage block shape. The reserved `blocks` field rides through as a preserved foreign key until the block editor lands.
+**Context Block Surfaces:** The Context detail view is a placeholder — a blank surface under the banner. The block-surface system is spec'd host-agnostic (→ `Planning/7-10 - Block Surfaces — Decision Log.md`); whether and how Contexts host block surfaces rides the contexts-architecture pass. The reserved `blocks` field rides through as a preserved foreign key until then.
 
 **Linked-From:** The inbound reverse query (`context_links` by target) is indexed, but the surface that lists every entity tagging a Context — grouped by kind — isn't built.
 

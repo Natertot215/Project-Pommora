@@ -48,9 +48,9 @@ Tasks and Events surfacing through a Calendar entry (the data layer is done) wit
 
 The Settings editing UI (accent picker, label rename forms, tier-config consolidation), Quick Capture (a global entry surface creating Pages / Tasks / Events), the Claude-chat inspector (a local-CLI frontend), and global `⌘K` search over an FTS index.
 
-#### v0.8.0 — Contexts + Homepage Editor
+#### v0.8.0 — Block Surfaces (SurfacePM)
 
-The composed-blocks editor for the Context detail views and the Homepage — paragraph, headings, lists, callout, code, image, columns, plus widgets (embedded-collection-view, linked-pages, link-list, mini-calendar) with drag-and-drop reorder and slash-menu insertion. Plus the Context Linked-From surface.
+The host-agnostic tile-grid system: **SurfacePM** (an in-house reconstruction of react-grid-layout — its vendored MIT core math over PommoraDND-style sensors and own components), the BlockHost document model, and the three v1 tile types — markdown block · page embed · view embed (**Linked** referencing a saved view, **Custom** with embed-owned nexus-wide config). Full review-certified spec → `Planning/7-10 - Block Surfaces — Decision Log.md`; handle/hover chrome gated on Figma designs. The contexts resolution, its sidebar surfaces, the Context Linked-From surface, and the Homepage's shape are their own later passes.
 
 #### v1.0.0 — Stabilization
 
