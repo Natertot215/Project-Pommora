@@ -20,6 +20,9 @@ const FILTER_MAX_WIDTH = '420px'
 const FILTER_MIN_HEIGHT = '245px'
 
 export const pane = style({
+  // Shrink-wrap to the longest row's content (chips can push it out) up to the ceiling; the host's
+  // 225px floor keeps short states from collapsing.
+  width: 'max-content',
   maxWidth: FILTER_MAX_WIDTH,
   minHeight: FILTER_MIN_HEIGHT,
   display: 'flex',
@@ -31,15 +34,15 @@ export const body = style({ flex: '1 0 auto' })
 
 export const grid = style({
   display: 'grid',
-  gridTemplateColumns: 'minmax(40px, 1.4fr) fit-content(140px) minmax(36px, 1fr)',
+  // What = content (a target label never stretches) · Operator = content with a floor so its
+  // chevron pins to the field's right edge · Value = the only stretch track (fills, and its
+  // content extends the pane).
+  gridTemplateColumns: 'max-content minmax(56px, max-content) minmax(48px, 1fr)',
   columnGap: '6px',
   rowGap: '4px',
   padding: '6px 0',
-  alignItems: 'center',
-  // The grid never drives the pane's width — it fills whatever the pane's other content set
-  // (the flush divider is the gutter truth; fields span edge to edge and clip inside).
-  width: 0,
-  minWidth: '100%'
+  width: '100%',
+  alignItems: 'center'
 })
 
 export const gridRow = style({
@@ -81,22 +84,26 @@ export const cellField = style([
   }
 ])
 
+// The label span grows to fill the field so a trailing chevron pins to the field's right edge.
 globalStyle(`${cellField} > span`, {
+  flex: '1 1 auto',
+  minWidth: 0,
   overflow: 'hidden',
   textOverflow: 'ellipsis',
   whiteSpace: 'nowrap'
 })
 
-/** The And/Or connector — a mini field in the footnote/secondary register (the trailing-option tone). */
+/** The And/Or connector — a mini field in the footnote/secondary register (the trailing-option
+ *  tone); never shrinks, so "And"/"Or" + its chevron stay uncramped. */
 export const connector = style([
   fieldBase,
   text.footnote.emphasized,
   {
     width: 'auto',
-    minWidth: 0,
     minHeight: 0,
-    padding: '2px 6px',
-    gap: '2px',
+    flex: '0 0 auto',
+    padding: '3px 6px',
+    gap: '3px',
     border: 'none',
     cursor: 'default',
     color: c.label.secondary,
