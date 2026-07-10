@@ -73,8 +73,8 @@ export const cellField = style([
   {
     width: '100%',
     minWidth: 0,
-    padding: '4px 8px',
-    gap: '4px',
+    padding: '4px 4px 4px 8px',
+    gap: '2px',
     border: 'none',
     cursor: 'default',
     justifyContent: 'flex-start',
@@ -100,12 +100,12 @@ globalStyle(`${cellField} > span`, {
  *  tone); never shrinks, so "And"/"Or" + its chevron stay uncramped. */
 export const connector = style([
   fieldBase,
-  text.footnote.emphasized,
+  text.body.emphasized,
   {
     width: 'auto',
     flex: '0 0 auto',
-    padding: '0 6px',
-    gap: '3px',
+    padding: '0 4px 0 8px',
+    gap: '2px',
     border: 'none',
     cursor: 'default',
     color: c.label.secondary,
