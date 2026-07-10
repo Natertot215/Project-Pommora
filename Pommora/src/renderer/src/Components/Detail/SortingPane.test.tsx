@@ -139,7 +139,7 @@ describe('SortingPane rows', () => {
         ]
       })
     )
-    expect(texts()).toContain('Reversed') // the sub Order scoped to Default/Reversed
+    expect(texts()).toContain('Reversed') // the sub Order shares the primary's per-type vocabulary
     await mount(
       view({
         sort: [
@@ -148,7 +148,7 @@ describe('SortingPane rows', () => {
         ]
       })
     )
-    expect(texts()).toContain('Descending') // checkbox is the sub-scoping exception
+    expect(texts()).toContain('Descending') // a checkbox sub reads the value vocabulary
   })
 
   it('None on Sort By writes sort: undefined — never []', async () => {
