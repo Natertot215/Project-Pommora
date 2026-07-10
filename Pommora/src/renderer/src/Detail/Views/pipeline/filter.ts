@@ -85,7 +85,7 @@ function isGroup(node: FilterRule | FilterGroup): node is FilterGroup {
 
 function matchesGroup(row: ViewRow, group: FilterGroup, schema: PropertyDefinition[], locate: LocationIndex): boolean {
   if (group.match === 'none') return true // never pane-authored nested; a hand-authored one passes
-  if (group.rules.length === 0) return true // empty filter = identity
+  if (group.rules.length === 0) return true
   const results = group.rules.map((node) =>
     isGroup(node) ? matchesGroup(row, node, schema, locate) : evaluateRule(row, node, schema, locate)
   )
@@ -149,8 +149,6 @@ function evaluateByType(
       return true
   }
 }
-
-// ---- operand parsers ----
 
 function parseNum(s: Expected): number | null {
   if (s == null || s.trim() === '') return null
