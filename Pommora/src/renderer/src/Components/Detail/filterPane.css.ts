@@ -5,6 +5,8 @@
 // behind its own overflow before the pane grows past the max-width knob.
 import { globalStyle, style } from '@vanilla-extract/css'
 import { vars as colorVars } from '../../design-system/tokens/color.css'
+import { duration, easing } from '../../design-system/tokens/motion'
+import { TINT_STEPS, tintAt } from '../../design-system/tokens/tint'
 import { text } from '../../design-system/tokens/typography.css'
 import { field as fieldBase } from '../../design-system/components/interactionField.css'
 
@@ -94,6 +96,41 @@ export const removeButton = style({
 export const disabled = style({ opacity: 'var(--state-ghost)', pointerEvents: 'none' })
 
 export const lockedCaption = style([text.footnote.standard, { color: c.label.secondary, padding: '8px 10px 4px' }])
+
+/** The typed value input — the cell-field recipe as a bare <input>, focus lighting the shared
+ *  inset accent stroke (the TextPicker recipe). */
+export const cellInput = style([
+  fieldBase,
+  text.control.emphasized,
+  {
+    width: 'auto',
+    minWidth: 0,
+    minHeight: 0,
+    padding: '3px 8px',
+    border: 'none',
+    outline: 'none',
+    fontFamily: 'inherit',
+    color: c.label.control,
+    boxShadow: 'inset 0 0 0 1px transparent',
+    transition: `box-shadow ${duration.fast} ${easing.standard}`,
+    selectors: {
+      '&:focus, &:focus-visible': {
+        outline: 'none',
+        boxShadow: `inset 0 0 0 1px ${tintAt('var(--accent)', TINT_STEPS.secondary)}`
+      }
+    }
+  }
+])
+
+/** The chip run inside a chips field — shrunk a step (the pane's subChip treatment rides in the
+ *  component) and clipped to the cell. */
+export const chipRun = style({
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: '3px',
+  minWidth: 0,
+  overflow: 'hidden'
+})
 
 /** An icon-bearing picker option row — leading glyph + label, left-aligned. */
 export const pickerOptionRow = style({

@@ -10,14 +10,23 @@ import type { PropertyDefinition } from '@shared/properties'
 import { RESERVED_PROPERTY_ID } from '@shared/properties'
 import type { FilterRule, SavedView } from '@shared/views'
 import { Icon } from '@renderer/design-system/symbols'
+import { Chip, chipShapeForType } from '@renderer/Components/Chip'
+import { ContextChip } from '@renderer/Components/ContextChip'
+import { chipColorFor } from '@renderer/design-system/tokens/colorMap'
 import { MenuItem, MenuPaneTopRow, MenuSeparator } from '../../design-system/components/menu'
 import { flushTrailing, footingLabel, footingSymbol } from '../../design-system/components/menu/menu.css'
 import { PickerMenu, PickerOption } from '../../design-system/components/PickerMenu'
+import { CalendarPicker } from '../../design-system/components/CalendarPicker/CalendarPicker'
 import { saveViewAdopting } from '../../Detail/Views/viewMint'
 import { tierLabel, TIER_LEVEL_BY_ID } from '../../Detail/Views/Table/columnLabel'
+import { styleFor } from '../../Detail/Views/Table/columnStyles'
+import { condensedDate, formatDate } from '../../Detail/Views/PropertyEditing/formatValue'
+import { contextOptionsFor, type ContextOption } from '../../Detail/Views/pipeline/contextOptions'
+import { declaredType } from '../../Detail/Views/pipeline/value'
 import { cx } from '../../design-system/cx'
 import { useSession } from '../../store'
 import { PickerControl, type PickerChoice } from './PickerControl'
+import { optionsOf } from './GroupingPane'
 import {
   type Connector,
   type DecodedFilter,
@@ -74,6 +83,99 @@ function FieldPicker({
 function mintRule(targetId: string, schema: PropertyDefinition[]): FilterRule {
   const first = operatorsFor(targetId, schema)[0]
   return { property_id: targetId, op: first?.op ?? '', ...(first?.impliedValue ? { value: first.impliedValue } : {}) }
+}
+
+/** The typed value input (text / number) — commits on blur and Enter. Keyed remount on external
+ *  value change keeps it uncontrolled between commits. */
+function ValueInput({
+  value,
+  numeric,
+  onCommit
+}: {
+  value: string | undefined
+  numeric: boolean
+  onCommit: (next: string | undefined) => void
+}): React.JSX.Element {
+  const commit = (raw: string): void => {
+    const next = raw.trim() === '' ? undefined : raw
+    if (next !== value) onCommit(next)
+  }
+  return (
+    <input
+      key={value ?? ''}
+      className={fp.cellInput}
+      defaultValue={value ?? ''}
+      placeholder="Value"
+      {...(numeric ? { inputMode: 'decimal' as const } : {})}
+      onBlur={(e) => commit(e.currentTarget.value)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') commit(e.currentTarget.value)
+      }}
+    />
+  )
+}
+
+/** The chips field — the FILTER-OWNED picker host: the same stay-open toggle vocabulary as the
+ *  cell pickers, but committing raw option-value strings into the rule's values[] (never a
+ *  PropertyValue — the cell pickers' commit shape is a different axis). */
+function ChipsField({
+  values,
+  options,
+  isContext,
+  chipShape,
+  onCommit
+}: {
+  values: string[]
+  options: ContextOption[]
+  isContext: boolean
+  chipShape: 'pill' | 'label'
+  onCommit: (next: string[]) => void
+}): React.JSX.Element {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLButtonElement>(null)
+  const byValue = new Map(options.map((o) => [o.value, o]))
+  const toggle = (v: string): void => onCommit(values.includes(v) ? values.filter((x) => x !== v) : [...values, v])
+  return (
+    <>
+      <button ref={ref} type="button" className={fp.cellField} aria-label="Filter values" onClick={() => setOpen(true)}>
+        {values.length === 0 ? (
+          <span className={fp.placeholder}>Value</span>
+        ) : (
+          <span className={cx(fp.chipRun, gp.subChip)}>
+            {values.map((v) => {
+              const o = byValue.get(v)
+              return isContext ? (
+                <ContextChip key={v} color={chipColorFor(o?.color)} title={o?.label ?? v} />
+              ) : (
+                <Chip key={v} color={chipColorFor(o?.color)} label={o?.label ?? v} shape={chipShape} onRemove={() => toggle(v)} />
+              )
+            })}
+          </span>
+        )}
+        <Icon name="chevrons-up-down" size={12} />
+      </button>
+      <PickerMenu open={open} onDismiss={() => setOpen(false)} triggerRef={ref} solid>
+        {options.length === 0 ? (
+          <div style={{ minWidth: 96, height: 24 }} />
+        ) : (
+          options.map((o) => (
+            <PickerOption key={o.value} selected={values.includes(o.value)} onClick={() => toggle(o.value)}>
+              {isContext ? (
+                <ContextChip color={chipColorFor(o.color)} title={o.label} />
+              ) : (
+                <Chip color={chipColorFor(o.color)} label={o.label} shape={chipShape} />
+              )}
+            </PickerOption>
+          ))
+        )}
+      </PickerMenu>
+    </>
+  )
+}
+
+/** A Collection/Set's sets flattened depth-first with indentation depth — the Location picker's list. */
+function flattenSets(sets: SetNode[] | undefined, depth = 0): Array<{ id: string; title: string; depth: number }> {
+  return (sets ?? []).flatMap((s) => [{ id: s.id, title: s.title, depth }, ...flattenSets(s.sets, depth + 1)])
 }
 
 export function FilterPane({
@@ -167,14 +269,87 @@ export function FilterPane({
       </PickerOption>
     ))
 
-  /** Task 8 replaces this static display with the per-slot editors. */
-  const valueCell = (row: PaneRow, op: OperatorChoice | undefined): React.ReactNode => {
+  /** The per-slot value editor (F-4). */
+  const valueCell = (row: PaneRow, index: number, op: OperatorChoice | undefined): React.ReactNode => {
     if (!op || op.slot === 'none') return <span />
-    const shown = row.rule.values?.join(', ') ?? row.rule.value ?? null
+    const rule = row.rule
+    const def = schema.find((d) => d.id === rule.property_id)
+    const patch = (next: Partial<Pick<FilterRule, 'value' | 'values'>>): void =>
+      replaceRule(index, {
+        property_id: rule.property_id,
+        op: rule.op,
+        ...(next.value !== undefined ? { value: next.value } : {}),
+        ...(next.values !== undefined && next.values.length > 0 ? { values: next.values } : {})
+      })
+
+    if (op.slot === 'text' || op.slot === 'number')
+      return <ValueInput value={rule.value} numeric={op.slot === 'number'} onCommit={(v) => patch({ value: v })} />
+
+    if (op.slot === 'date') {
+      const fmtRaw = styleFor(rule.property_id, schema, view).date_format ?? 'full'
+      const fmt = fmtRaw === 'relative' ? 'short' : fmtRaw
+      return (
+        <FieldPicker
+          ariaLabel="Filter date"
+          display={rule.value ? formatDate(rule.value, fmt, 'none') : null}
+          placeholder="Date"
+        >
+          {() => (
+            <CalendarPicker
+              range={false}
+              value={rule.value ?? null}
+              timeFormat={tree?.timeFormat}
+              formatDateValue={(k, condensed) => (condensed ? condensedDate(k, fmt, condensed.withYear) : formatDate(k, fmt, 'none'))}
+              onChange={(iso) => patch({ value: iso ?? undefined })}
+            />
+          )}
+        </FieldPicker>
+      )
+    }
+
+    if (op.slot === 'chips') {
+      const type = declaredType(rule.property_id, schema)
+      const tierLevel = TIER_LEVEL_BY_ID[rule.property_id] ?? def?.context_target?.tier
+      const isContext = type === 'tier' || type === 'context'
+      const options: ContextOption[] = isContext ? (tree && tierLevel ? contextOptionsFor(tierLevel, tree) : []) : optionsOf(def)
+      return (
+        <ChipsField
+          values={rule.values ?? []}
+          options={options}
+          isContext={isContext}
+          chipShape={chipShapeForType(type ?? 'select')}
+          onCommit={(values) => patch({ values })}
+        />
+      )
+    }
+
+    // slot === 'set' (Location)
+    const sets = flattenSets(source.kind === 'collection' ? source.sets : source.sets)
+    const current = sets.find((s) => s.id === rule.value)
     return (
-      <span className={fp.cellField}>
-        <span className={shown === null ? fp.placeholder : undefined}>{shown ?? 'Value'}</span>
-      </span>
+      <FieldPicker ariaLabel="Filter location" display={current?.title ?? rule.value ?? null} placeholder="Set">
+        {(close) =>
+          sets.length === 0 ? (
+            <div style={{ minWidth: 96, height: 24 }} />
+          ) : (
+            sets.map((s) => (
+              <PickerOption
+                key={s.id}
+                selected={s.id === rule.value}
+                onClick={() => {
+                  close()
+                  patch({ value: s.id })
+                }}
+              >
+                <span className={fp.pickerOptionRow} style={{ paddingLeft: s.depth * 12 }}>
+                  <Icon name="folder" size={13} />
+                  {s.title}
+                </span>
+              </PickerOption>
+            ))
+          )
+        }
+      </FieldPicker>
     )
   }
 
@@ -226,7 +401,7 @@ export function FilterPane({
             ))
           }
         </FieldPicker>
-        {valueCell(row, current)}
+        {valueCell(row, index, current)}
         <button type="button" className={fp.removeButton} aria-label="Remove filter" onClick={() => removeRow(index)}>
           <Icon name="circle-x" size={12} />
         </button>

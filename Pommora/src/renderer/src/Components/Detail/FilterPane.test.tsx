@@ -179,3 +179,41 @@ describe('FilterPane', () => {
     })
   })
 })
+
+describe('FilterPane value editors', () => {
+  it('the chips picker toggles values[] and stays open — never a value key', async () => {
+    await mount(view({ filter: { match: 'all', rules: [{ property_id: 'prop_status', op: 'is' }] } }))
+    await click([...host.querySelectorAll('button')].find((b) => b.getAttribute('aria-label') === 'Filter values'))
+    await click([...document.querySelectorAll('*')].filter((el) => el.textContent === 'Todo').at(-1))
+    let rule = (lastSaved().filter as { rules: unknown[] }).rules[0] as Record<string, unknown>
+    expect(rule.values).toEqual(['todo'])
+    expect('value' in rule).toBe(false)
+    // Stays open: the second option is still clickable without reopening.
+    await mount(view({ filter: lastSaved().filter }))
+    await click([...host.querySelectorAll('button')].find((b) => b.getAttribute('aria-label') === 'Filter values'))
+    await click([...document.querySelectorAll('*')].filter((el) => el.textContent === 'Done').at(-1))
+    rule = (lastSaved().filter as { rules: unknown[] }).rules[0] as Record<string, unknown>
+    expect(rule.values).toEqual(['todo', 'done'])
+  })
+
+  it('a checkbox rule renders no value editor and its operator carries the clause', async () => {
+    await mount(view({ filter: { match: 'all', rules: [{ property_id: 'prop_check', op: 'is', value: 'false' }] } }))
+    expect(texts()).toContain("Isn't Checked")
+    expect([...host.querySelectorAll('input')]).toHaveLength(0)
+    expect([...host.querySelectorAll('button')].some((b) => b.getAttribute('aria-label') === 'Filter values')).toBe(false)
+  })
+
+  it('a text rule commits its input on Enter', async () => {
+    await mount(view({ filter: { match: 'all', rules: [{ property_id: '_title', op: 'contains' }] } }))
+    const input = host.querySelector('input')
+    expect(input).toBeTruthy()
+    await act(async () => {
+      if (input) {
+        input.value = 'idea'
+        input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
+      }
+    })
+    const rule = (lastSaved().filter as { rules: unknown[] }).rules[0] as Record<string, unknown>
+    expect(rule.value).toBe('idea')
+  })
+})

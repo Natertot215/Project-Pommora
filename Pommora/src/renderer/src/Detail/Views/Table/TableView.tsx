@@ -11,6 +11,7 @@ import { applyPropertyValue, type PropertyValue } from '@shared/propertyValue'
 import { isValidLink, normalizeLinkUrl } from '@shared/links'
 import { flattenContainer, groupsStructurally } from '../pipeline/group'
 import { resolveView } from '../pipeline/resolveView'
+import { contextOptionsFor as contextOptionsForTier } from '../pipeline/contextOptions'
 import { declaredType, resolveFieldValue } from '../pipeline/value'
 import { resolvedSortCount } from '../pipeline/sort'
 import { PropertyEditor } from '../PropertyEditing/PropertyEditor'
@@ -535,8 +536,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
   const contextOptionsFor = (col: ResolvedColumn): Array<{ value: string; label: string; color?: string }> | null => {
     const level = col.kind === 'tier' ? TIER_LEVEL_BY_ID[col.id] : schema.find((d) => d.id === col.id)?.context_target?.tier
     if (!level || !tree) return null
-    const list = level === 1 ? tree.contexts.areas : level === 2 ? tree.contexts.topics : tree.contexts.projects
-    return list.map((c) => ({ value: c.id, label: c.title, ...('color' in c && c.color ? { color: c.color } : {}) }))
+    return contextOptionsForTier(level, tree)
   }
   // A reserved tier column writes the BARE frontmatter array (`tier1/2/3`) through its own op;
   // a user context prop writes through setProperty like every other property value.
