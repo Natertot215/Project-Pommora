@@ -29,7 +29,8 @@ const COLUMN_ALIGNS = ['left', 'center', 'right'] as const
 export type ColumnAlign = (typeof COLUMN_ALIGNS)[number]
 
 const SORT_DIRECTIONS = ['ascending', 'descending'] as const
-const MATCH_MODES = ['all', 'any'] as const
+const MATCH_MODES = ['all', 'any', 'none'] as const
+export type MatchMode = (typeof MATCH_MODES)[number]
 
 const GROUP_ORDER_MODES = ['configured', 'reversed', 'manual'] as const
 export type GroupOrderMode = (typeof GROUP_ORDER_MODES)[number]
@@ -65,18 +66,22 @@ export interface SortCriterion {
 }
 
 /** One filter rule. `op` is a snake_case raw string (see FILTER_OPS in pipeline/filter.ts);
- *  `value` is the serialized payload (absent for is_empty / is_not_empty). */
+ *  `value` is the single serialized operand; `values` is the multi-operand set (chip ops:
+ *  contains_all / contains_any / any-of Is / none-of Isn't). Both absent for presence ops. */
 export interface FilterRule {
   property_id: string
   op: string
   value?: string
+  values?: string[]
 }
 
 /** A group of filter rules combined by `match` (all = AND, any = OR). RECURSIVE: a child may
  *  itself be a FilterGroup, expressing mixed AND/OR like `(A AND B) OR C` (React-ahead of
- *  Swift's flat rules). */
+ *  Swift's flat rules). `match: 'none'` is the pane's disable state, root-only by authorship —
+ *  the pipeline skips filtering when the ROOT is none (rules persist untouched, wrapped as the
+ *  root's single child group); a nested none evaluates as a pass. */
 export interface FilterGroup {
-  match: (typeof MATCH_MODES)[number]
+  match: MatchMode
   rules: Array<FilterRule | FilterGroup>
 }
 
@@ -147,7 +152,8 @@ const sortCriterion = z.object({
 const filterRule = z.object({
   property_id: z.string(),
   op: z.string(),
-  value: z.string().optional()
+  value: z.string().optional(),
+  values: z.array(z.string()).optional()
 })
 
 const filterGroup: z.ZodType<FilterGroup> = z.lazy(() =>

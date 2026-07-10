@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import fixture from './__fixtures__/collection-with-status.json'
-import { savedView, decodeGroupConfig, decodeSubGroup, mintDefaultView, mintNewView } from './views'
+import { savedView, decodeGroupConfig, decodeSubGroup, mintDefaultView, mintNewView, type FilterGroup, type FilterRule } from './views'
 import { pageCollectionSidecar } from './schemas'
 import { RESERVED_PROPERTY_ID } from './properties'
 
@@ -194,5 +194,34 @@ describe('mint seam', () => {
     expect(v.hidden_properties).toEqual([])
     expect(v.property_order).toEqual([RESERVED_PROPERTY_ID.title, 'prop_a', 'prop_b'])
     expect(v.icon).toBe('table')
+  })
+})
+
+describe('filter codec', () => {
+  it('round-trips a filter with values[], match none, and nesting', () => {
+    const view = savedView.parse({
+      id: 'view_x',
+      name: 'T',
+      type: 'table',
+      property_order: [],
+      hidden_properties: [],
+      filter: {
+        match: 'none',
+        rules: [
+          {
+            match: 'any',
+            rules: [
+              { property_id: 'prop_tags', op: 'contains_any', values: ['a', 'b'] },
+              { match: 'all', rules: [{ property_id: 'prop_sel', op: 'is', value: 'x' }] }
+            ]
+          }
+        ]
+      }
+    })
+    const group = view.filter as FilterGroup
+    expect(group.match).toBe('none')
+    const inner = group.rules[0] as FilterGroup
+    expect(inner.match).toBe('any')
+    expect((inner.rules[0] as FilterRule).values).toEqual(['a', 'b'])
   })
 })
