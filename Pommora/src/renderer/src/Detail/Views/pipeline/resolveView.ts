@@ -23,7 +23,7 @@ export function resolveView(input: {
 }): { columns: ResolvedColumn[]; groups: ResolvedGroup[] } {
   const { rows, setTree, view, schema, manualOrder } = input
   const columns = resolveColumns(view, schema)
-  const filtered = applyFilter(rows, view.filter, schema)
+  const filtered = applyFilter(rows, view.filter, schema, setTree)
   const sorter = makeSorter(view.sort, schema, manualOrder)
   // Location order mirrors the filesystem: group_order is preserved on the view but ignored (C-1a).
   // The mode is structural-only — and "structural" is the EFFECTIVE mode (a dead-property grouping

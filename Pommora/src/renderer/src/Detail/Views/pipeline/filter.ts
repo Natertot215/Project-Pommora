@@ -1,16 +1,16 @@
-// Type-aware view filter. Ports Swift FilterEvaluator's per-rule, per-type operator matrix (NOT the
-// narrower Part-3 picker) and EXTENDS it with nested groups (divergence #2): Swift's rules are flat;
-// here a rule child may itself be a FilterGroup, expressing mixed AND/OR like `(A AND B) OR C`. `op`
-// raw strings are snake_case (on-disk parity). An unknown op, a property absent from the schema, or
-// an op outside a type's matrix is a NO-OP PASS — a filter never excludes on what it can't apply.
-// Pure: no fs, no React.
+// Type-aware view filter. Extends Swift FilterEvaluator's per-rule, per-type operator matrix with
+// nested groups (a rule child may itself be a FilterGroup, expressing mixed AND/OR like
+// `(A AND B) OR C`), title + context + any-depth location matrices, multi-operand `values[]` chip
+// ops, and the root `match: 'none'` disable skip. `op` raw strings are snake_case (on-disk parity).
+// An unknown op, a property absent from the schema, or an op outside a type's matrix is a NO-OP
+// PASS — a filter never excludes on what it can't apply. Pure: no fs, no React.
 
 import type { FilterGroup, FilterRule } from '@shared/views'
 import type { ViewRow } from '@shared/types'
 import { type PropertyDefinition, type PropertyType, RESERVED_PROPERTY_ID } from '@shared/properties'
 import type { PropertyValue } from '@shared/propertyValue'
 import { declaredType, modifiedStampString, resolveFieldValue } from './value'
-import type { SetTreeNode } from './group'
+import { type SetTreeNode, subtreeIds } from './group'
 import { linkDisplayText } from '../Table/linkValue'
 
 /** Operator raw strings — snake_case = the on-disk `op` values (parity with Swift FilterOperator). */
@@ -41,11 +41,29 @@ const FILTER_OP_SET = new Set<string>(Object.values(FILTER_OPS))
 type Op = string
 type Expected = string | undefined
 
-/** Per-applyFilter location resolver — a set id to its descendant-id Set (Task 5 builds the real
- *  index; undefined = unknown id → no-op pass). */
+/** Per-applyFilter location resolver — a set id to its descendant-id Set (self included), built
+ *  ONCE per operand and membership-tested per row (never a per-row ancestor walk). Unknown set
+ *  id → undefined → no-op pass. */
 type LocationIndex = (setId: string) => ReadonlySet<string> | undefined
 
-const makeLocationIndex = (_setTree: SetTreeNode[]): LocationIndex => () => undefined
+function makeLocationIndex(setTree: SetTreeNode[]): LocationIndex {
+  const cache = new Map<string, ReadonlySet<string> | undefined>()
+  const find = (nodes: SetTreeNode[], id: string): SetTreeNode | undefined => {
+    for (const n of nodes) {
+      if (n.id === id) return n
+      const hit = find(n.children, id)
+      if (hit) return hit
+    }
+    return undefined
+  }
+  return (setId) => {
+    if (!cache.has(setId)) {
+      const node = find(setTree, setId)
+      cache.set(setId, node ? new Set(subtreeIds(node)) : undefined)
+    }
+    return cache.get(setId)
+  }
+}
 
 /** Filter rows by a (possibly nested) FilterGroup. undefined ⇒ no filtering. */
 export function applyFilter(
@@ -82,7 +100,15 @@ function evaluateRule(row: ViewRow, rule: FilterRule, schema: PropertyDefinition
     const s = modifiedStampString(row)
     return evaluateDate(s ? { kind: 'datetime', value: s } : { kind: 'null' }, rule.op, rule.value)
   }
-  void locate
+
+  // Location — not a property: membership of the row's parent set in the operand's subtree.
+  if (rule.property_id === RESERVED_PROPERTY_ID.location) {
+    if (rule.op !== FILTER_OPS.isInside && rule.op !== FILTER_OPS.isNotInside) return true
+    const inside = rule.value != null ? locate(rule.value) : undefined
+    if (!inside) return true // dead/missing set id → no-op pass
+    const hit = row.parentSetId != null && inside.has(row.parentSetId)
+    return rule.op === FILTER_OPS.isInside ? hit : !hit
+  }
 
   const t = declaredType(rule.property_id, schema)
   if (t === undefined) return true // property absent from schema → no-op pass
@@ -112,10 +138,14 @@ function evaluateByType(
       return evaluateText(v, op, expected, values)
     case 'multi_select':
       return evaluateMulti(v, op, expected, values)
+    case 'title':
+      // resolveFieldValue('_title') carries row.title as a select-kind string — the text matrix reads it.
+      return evaluateText(v, op, expected, values)
     case 'context':
+      return evaluateList(v.kind === 'context' ? v.value : [], op, expected, values)
     case 'file':
       return evaluatePresence(v, op)
-    default: // 'title' (and any unmodeled type) → no-op pass
+    default: // any unmodeled type → no-op pass
       return true
   }
 }
@@ -343,7 +373,7 @@ function evaluateList(ids: string[], op: Op, expected: Expected, values?: string
   }
 }
 
-/** User relation / file: presence only (is/contains/etc. are no-op passes — Swift evaluatePresence). */
+/** File: presence only (is/contains/etc. are no-op passes — Swift evaluatePresence). */
 function evaluatePresence(v: PropertyValue, op: Op): boolean {
   const empty =
     v.kind === 'context' || v.kind === 'file' ? v.value.length === 0 : v.kind === 'null' ? true : false

@@ -130,12 +130,13 @@ describe('applyFilter — per-type matrix', () => {
     expect(ids(rows, { match: 'all', rules: [{ property_id: 'prop_done', op: 'is_not_empty' }] })).toEqual(['t', 'f', 'n'])
   })
 
-  it('tier filters by membership; user relation is/contains are no-op passes', () => {
+  it('tier AND user relation filter by id-list membership', () => {
     const rA = row('rA', { tier1: ['area1'] })
     const rB = row('rB', { tier1: ['area2'] })
     const rRel = row('rRel', { props: { prop_rel: [{ $ctx: 'x' }] } })
     expect(ids([rA, rB], { match: 'all', rules: [{ property_id: '_tier1', op: 'contains', value: 'area1' }] })).toEqual(['rA'])
-    expect(ids([rA, rRel], { match: 'all', rules: [{ property_id: 'prop_rel', op: 'is', value: 'x' }] })).toEqual(['rA', 'rRel'])
+    expect(ids([rA, rRel], { match: 'all', rules: [{ property_id: 'prop_rel', op: 'is', value: 'x' }] })).toEqual(['rRel'])
+    expect(ids([rA, rRel], { match: 'all', rules: [{ property_id: 'prop_rel', op: 'contains_any', values: ['x', 'y'] }] })).toEqual(['rRel'])
     expect(ids([rA, rRel], { match: 'all', rules: [{ property_id: 'prop_rel', op: 'is_not_empty' }] })).toEqual(['rRel'])
   })
 
@@ -159,8 +160,9 @@ describe('applyFilter — no-op passes', () => {
     expect(ids(rows, { match: 'all', rules: [{ property_id: 'prop_ghost', op: 'is', value: 'a' }] })).toEqual(['a'])
   })
 
-  it('a _title rule passes (not in the filter matrix, Swift parity)', () => {
-    expect(ids(rows, { match: 'all', rules: [{ property_id: '_title', op: 'contains', value: 'zzz' }] })).toEqual(['a'])
+  it('a _title rule filters by the row title as text', () => {
+    expect(ids(rows, { match: 'all', rules: [{ property_id: '_title', op: 'contains', value: 'zzz' }] })).toEqual([])
+    expect(ids(rows, { match: 'all', rules: [{ property_id: '_title', op: 'is', value: 'a' }] })).toEqual(['a'])
   })
 
   it('exposes snake_case op raw strings', () => {
@@ -264,5 +266,32 @@ describe('applyFilter — multi-operand values[]', () => {
   it('tier contains_all / contains_any', () => {
     expect(ids([rows[4]], { match: 'all', rules: [{ property_id: '_tier1', op: 'contains_all', values: ['area1', 'area2'] }] })).toEqual(['t1'])
     expect(ids([rows[4]], { match: 'all', rules: [{ property_id: '_tier1', op: 'contains_any', values: ['zzz'] }] })).toEqual([])
+  })
+})
+
+describe('applyFilter — title, context membership, location', () => {
+  const tree = [
+    { id: 'set_a', children: [{ id: 'set_a1', children: [] }] },
+    { id: 'set_b', children: [] }
+  ]
+  const inA1 = { ...row('inA1'), parentSetId: 'set_a1' }
+  const inB = { ...row('inB'), parentSetId: 'set_b' }
+  const atRoot = row('atRoot')
+  const loc = (rows: ViewRow[], op: string, value: string): string[] =>
+    applyFilter(rows, { match: 'all', rules: [{ property_id: '_location', op, value }] }, schema, tree).map((r) => r.id)
+
+  it('title filters as text (Starts With / Contains, case-insensitive)', () => {
+    const rows = [row('Apple Pie'), row('Banana')]
+    expect(ids(rows, { match: 'all', rules: [{ property_id: '_title', op: 'starts_with', value: 'app' }] })).toEqual(['Apple Pie'])
+    expect(ids(rows, { match: 'all', rules: [{ property_id: '_title', op: 'contains', value: 'NAN' }] })).toEqual(['Banana'])
+  })
+
+  it('is_inside matches any depth; is_not_inside inverts; root pages are inside nothing', () => {
+    expect(loc([inA1, inB, atRoot], 'is_inside', 'set_a')).toEqual(['inA1'])
+    expect(loc([inA1, inB, atRoot], 'is_not_inside', 'set_a')).toEqual(['inB', 'atRoot'])
+  })
+
+  it('a dead set id is a no-op pass', () => {
+    expect(loc([inA1, inB], 'is_inside', 'set_ghost')).toEqual(['inA1', 'inB'])
   })
 })
