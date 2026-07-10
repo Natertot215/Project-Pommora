@@ -8,7 +8,8 @@ import {
   removeTile,
   resizeBand,
   resizeDivider,
-  splitAtTile
+  splitAtTile,
+  stretchTileHeight
 } from './ops'
 import { computeGeometry } from './rects'
 
@@ -175,6 +176,58 @@ describe('resizeDivider', () => {
   it('no-ops when the pair cannot host two minimums', () => {
     const l = splitAtTile(single(), 'a', 'e', 'b')
     expect(resizeDivider(l, { band: 0, path: [], index: 0 }, 10, 60, 40)).toBe(l)
+  })
+})
+
+describe('stretchTileHeight', () => {
+  // band 300, gap 8: column [a, b] → usable 292, a = b = 146.
+  const stacked = splitAtTile(insertBand({ bands: [] }, 0, 'a', 300), 'a', 's', 'b')
+
+  it('grows the tile and the band; the stacked neighbor keeps its pixels', () => {
+    const l = stretchTileHeight(stacked, 'a', 50, 64, 8)
+    assertValid(l)
+    expect(l.bands[0]?.height).toBe(350)
+    const node = l.bands[0]?.node as { ratios: number[] }
+    // usable 342: a = 196/342, b stays 146/342.
+    expect((node.ratios[0] as number) * 342).toBeCloseTo(196)
+    expect((node.ratios[1] as number) * 342).toBeCloseTo(146)
+  })
+
+  it('shrinks with a floor at minPx', () => {
+    const l = stretchTileHeight(stacked, 'a', -500, 64, 8)
+    assertValid(l)
+    const node = l.bands[0]?.node as { ratios: number[] }
+    expect(l.bands[0]?.height).toBe(300 - (146 - 64))
+    expect((node.ratios[0] as number) * (l.bands[0]!.height - 8)).toBeCloseTo(64)
+  })
+
+  it('stretches a full-band tile by growing the band alone', () => {
+    const solo = insertBand({ bands: [] }, 0, 'x', 200)
+    const l = stretchTileHeight(solo, 'x', 70, 64, 8)
+    expect(l.bands[0]?.height).toBe(270)
+  })
+
+  it('keeps every stacked ancestor sibling at fixed pixels through nesting', () => {
+    // row [ column[a, row[c, d]], e ] in band 300 — stretch c: a keeps px, e stretches full-height.
+    let l = insertBand({ bands: [] }, 0, 'a', 300)
+    l = splitAtTile(l, 'a', 'e', 'e1')
+    l = splitAtTile(l, 'a', 's', 'c')
+    l = splitAtTile(l, 'c', 'e', 'd')
+    const before = l
+    const after = stretchTileHeight(before, 'c', 60, 64, 8)
+    assertValid(after)
+    expect(after.bands[0]?.height).toBe(360)
+    // a kept its pixels: old usable 292 → a=146; new usable 352 → ratio*352 ≈ 146.
+    const col = (after.bands[0]?.node as { children: Array<{ ratios?: number[] }> }).children[0] as {
+      ratios: number[]
+    }
+    expect((col.ratios[0] as number) * 352).toBeCloseTo(146)
+    expect((col.ratios[1] as number) * 352).toBeCloseTo(206)
+  })
+
+  it('no-ops on unknown tiles and zero delta', () => {
+    expect(stretchTileHeight(stacked, 'ghost', 50, 64, 8)).toBe(stacked)
+    expect(stretchTileHeight(stacked, 'a', 0, 64, 8)).toBe(stacked)
   })
 })
 

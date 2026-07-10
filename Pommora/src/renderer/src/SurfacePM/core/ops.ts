@@ -186,6 +186,63 @@ export function resizeDivider(
   return next
 }
 
+/** Stretch a tile's height by `deltaPx` WITHOUT deforming its stacked neighbors:
+ *  every column-split ancestor re-ratios so the tile's branch absorbs the whole
+ *  delta while sibling branches keep their exact pixels, and the band grows by
+ *  the same amount — the page flows, nothing redistributes. (Full-height row
+ *  siblings still stretch with the band: holes can't exist.) */
+export function stretchTileHeight(
+  layout: SurfaceLayout,
+  tileId: string,
+  deltaPx: number,
+  minPx: number,
+  gap: number
+): SurfaceLayout {
+  if (deltaPx === 0) return layout
+  const at = findTile(layout, tileId)
+  if (!at) return layout
+  const band = layout.bands[at.band]
+  if (!band) return layout
+
+  // First pass: the tile's current pixel height (band height filtered through
+  // each column-split ancestor's ratio; row splits don't partition height).
+  let heightPx = band.height
+  const usables: number[] = []
+  let node: LayoutNode = band.node
+  for (const i of at.path) {
+    if (node.kind !== 'split') return layout
+    if (node.dir === 'column') {
+      const usable = heightPx - gap * (node.children.length - 1)
+      usables.push(usable)
+      heightPx = (node.ratios[i] ?? 0) * usable
+    }
+    node = node.children[i] as LayoutNode
+  }
+  const delta = Math.max(minPx - heightPx, deltaPx)
+  if (delta === 0) return layout
+
+  // Second pass on the clone: each column ancestor's branch gains `delta` px,
+  // its siblings keep theirs; the band absorbs the delta.
+  const next = cloneLayout(layout)
+  const nextBand = next.bands[at.band] as Band
+  nextBand.height = band.height + delta
+  let n: LayoutNode = nextBand.node
+  let colIdx = 0
+  for (const i of at.path) {
+    if (n.kind !== 'split') break
+    if (n.dir === 'column') {
+      const usable = usables[colIdx++] as number
+      const grown = usable + delta
+      n.ratios = n.ratios.map((r, j) => {
+        const px = r * usable
+        return (j === i ? px + delta : px) / grown
+      })
+    }
+    n = n.children[i] as LayoutNode
+  }
+  return next
+}
+
 /** Drag a band's bottom edge: the band grows or shrinks and the page flows. */
 export function resizeBand(
   layout: SurfaceLayout,

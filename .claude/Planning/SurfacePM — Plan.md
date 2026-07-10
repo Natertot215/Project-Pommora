@@ -401,7 +401,11 @@ describe('startPointerDrag', () => {
 
 ---
 
-### Task 5: Band-Resize Semantics Toggle (Nathan's Live A/B)
+### Task 5: RESOLVED LIVE — Vertical Semantics Decided (no build)
+
+Nathan decided the vertical model during live driving, superseding this task's A/B toggle: **south edges STRETCH** — `stretchTileHeight` grows the block, every column-split ancestor re-ratios so stacked neighbors keep their exact pixels, and the band flows (full-height row siblings stretch with it; holes can't exist). North edges keep splitter redistribution (a top edge can only move by negotiating with the neighbor above). Shipped with tests + CDP-verified (+60 stretch: neighbor pixel-identical, band +60). `resizeBand`/`resizeBandPair` stay core-level ops (the codec/future consumers), unused by the view.
+
+<details><summary>Original task (superseded)</summary>
 
 The decision log deliberately leaves vertical feel to live tuning. Give the lab the A/B: band bottom-edge drag either **flows** (page grows/shrinks — current behavior) or **redistributes** with the next band (total height constant, splitter-style).
 
@@ -461,6 +465,8 @@ export function resizeBandPair(
 - [ ] **Step 3: Wire the prop + lab toggle** — `onBandEdgeDown` picks `resizeBand` vs `resizeBandPair` off the prop; the lab renders a two-option toggle labeled `Band Resize: Flow / Redistribute`.
 
 - [ ] **Step 4: Gates + commit** — `git commit -m "feat(surfacepm): band-resize A/B — flow vs redistribute, lab toggle"`
+
+</details>
 
 ---
 

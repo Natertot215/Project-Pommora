@@ -19,7 +19,8 @@
     height var(--duration-fast) var(--ease-standard),
     opacity var(--duration-fast) var(--ease-standard),
     border-color var(--duration-fast) var(--ease-standard);
-  overflow: hidden;
+  /* No overflow clip here — the edge zones straddle the border by design; the
+     body does the content clipping. */
 }
 
 /* Resizes track the pointer 1:1 — transitions gate off for the whole surface.
@@ -29,26 +30,41 @@
 }
 
 /* The lifted block — PommoraDND's overlay treatment: the block itself rides the
-   pointer, elevated. Shadow value = the engine's own (interactions.css .ix-overlay);
-   hoist both to a token when a third consumer appears. */
+   pointer, elevated. No surface fill — the state-hover wash + tinted accent
+   border. Shadow value = the engine's own (interactions.css .ix-overlay); hoist
+   both to a token when a third consumer appears. */
 .spm-tile.is-lifted {
   z-index: 10;
   cursor: grabbing;
   box-shadow: 0 12px 30px #00000066;
-  background: var(--fill-tertiary);
+  background: var(--state-hover);
+  border-color: color-mix(in srgb, var(--accent) var(--tint-primary), transparent);
 }
 
-/* Resizing and drop-targeting highlight the block's own border — never the gaps. */
+/* Resizing highlights the block's own border — never the gaps. Accent borders
+   run at the primary tint, not the raw solid. */
 .spm-tile.is-resizing,
-.spm-tile.is-target,
 .spm-tile:has(> .spm-edge:hover) {
-  border-color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) var(--tint-primary), transparent);
+}
+
+/* The placement preview — where the lifted block will land: accent at the
+   secondary tint, under every tile. */
+.spm-placement {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 0;
+  pointer-events: none;
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--accent) var(--tint-secondary), transparent);
 }
 
 .spm-tile-body {
   width: 100%;
   height: 100%;
   overflow: hidden;
+  border-radius: inherit;
 }
 
 /* Lab-grade handle: mechanics only — the real border-handle chrome is the

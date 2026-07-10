@@ -2,10 +2,10 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { autoScroll, findScroller } from '@renderer/design-system/interactions/autoscroll'
 import { DEFAULT_FEEL, type Feel } from '@renderer/design-system/interactions/feel'
 import { SETTLE_FALLBACK } from '@renderer/design-system/interactions/shared'
-import type { Edge, SurfaceLayout } from './core/model'
+import type { DividerRef, Edge, SurfaceLayout } from './core/model'
 import { resolveEdge } from './core/edges'
 import { hitTest, type DropTarget } from './core/hitTest'
-import { moveTile, moveTileToBand, resizeBand, resizeDivider } from './core/ops'
+import { moveTile, moveTileToBand, resizeDivider, stretchTileHeight } from './core/ops'
 import { computeGeometry, type Rect, type SurfaceGeometry } from './core/rects'
 import { startPointerDrag } from './sensors/pointerDrag'
 import './surfacepm.css'
@@ -29,7 +29,6 @@ export interface SurfaceViewProps {
   renderTile: (id: string, rect: Rect) => React.ReactNode
   gap?: number
   minTilePx?: number
-  minBandPx?: number
   /** Band-targeting zone radius (above-first / between-band seams) — a live-tuning knob. */
   bandZonePx?: number
   /** Extra empty room below the last band; dropping there appends a new band. */
@@ -70,7 +69,6 @@ interface LiveState {
   originGeometry: SurfaceGeometry
   bandZonePx: number
   minTilePx: number
-  minBandPx: number
   gap: number
   feel: Feel
 }
@@ -81,7 +79,6 @@ const TileShell = memo(
     rect,
     phase,
     feel,
-    targetEdge,
     resizing,
     renderTile,
     onHandleDown,
@@ -92,7 +89,6 @@ const TileShell = memo(
     rect: Rect
     phase: TilePhase
     feel: Feel
-    targetEdge: Edge | null
     resizing: boolean
     renderTile: (id: string, rect: Rect) => React.ReactNode
     onHandleDown: (id: string, e: React.PointerEvent) => void
@@ -109,7 +105,7 @@ const TileShell = memo(
       <div
         className={`spm-tile${phase === 'lifted' || phase === 'settling' ? ' is-lifted' : ''}${
           resizing ? ' is-resizing' : ''
-        }${targetEdge ? ` is-target edge-${targetEdge}` : ''}`}
+        }`}
         style={{
           transform: `translate(${rect.x}px, ${rect.y}px)`,
           width: rect.w,
@@ -136,7 +132,6 @@ const TileShell = memo(
     a.id === b.id &&
     a.phase === b.phase &&
     a.feel === b.feel &&
-    a.targetEdge === b.targetEdge &&
     a.resizing === b.resizing &&
     a.renderTile === b.renderTile &&
     a.onHandleDown === b.onHandleDown &&
@@ -154,7 +149,6 @@ export function SurfaceView({
   renderTile,
   gap = 8,
   minTilePx = 64,
-  minBandPx = 80,
   bandZonePx = 10,
   bottomPadPx = 28,
   feel = DEFAULT_FEEL
@@ -164,7 +158,6 @@ export function SurfaceView({
   const [draft, setDraft] = useState<SurfaceLayout | null>(null)
   const [tileDrag, setTileDrag] = useState<TileDrag | null>(null)
   const [settle, setSettle] = useState<Settle | null>(null)
-  const [dropTarget, setDropTarget] = useState<DropTarget>(null)
   const [resizingId, setResizingId] = useState<string | null>(null)
 
   useEffect(() => {
@@ -195,11 +188,10 @@ export function SurfaceView({
     originGeometry,
     bandZonePx,
     minTilePx,
-    minBandPx,
     gap,
     feel
   })
-  live.current = { layout, originGeometry, bandZonePx, minTilePx, minBandPx, gap, feel }
+  live.current = { layout, originGeometry, bandZonePx, minTilePx, gap, feel }
 
   const layoutRef = useRef(layout)
   layoutRef.current = layout
@@ -230,26 +222,33 @@ export function SurfaceView({
     if (e.button !== 0) return
     e.preventDefault()
     e.stopPropagation()
-    const { layout: origin, originGeometry: g, minTilePx: minT, minBandPx: minB } = live.current
+    const { layout: origin, originGeometry: g, minTilePx: minT, gap: gapPx } = live.current
     const extents = new Map(g.dividers.map((d) => [refKey(d.ref), d.extentPx]))
-    const boundaries = edges
-      .map((edge) => ({ edge, boundary: resolveEdge(origin, id, edge) }))
-      .filter((b) => b.boundary !== null)
-    if (boundaries.length === 0) return
+    // South edges STRETCH — the block grows, stacked neighbors keep their pixels,
+    // the page flows (covers full-band tiles too). North/east/west edges move the
+    // shared boundary they resolve to (splitter redistribution).
+    type Action = { edge: Edge; kind: 'stretch' } | { edge: Edge; kind: 'divider'; ref: DividerRef }
+    const actions: Action[] = []
+    for (const edge of edges) {
+      if (edge === 's') {
+        actions.push({ edge, kind: 'stretch' })
+        continue
+      }
+      const boundary = resolveEdge(origin, id, edge)
+      if (boundary?.kind === 'divider') actions.push({ edge, kind: 'divider', ref: boundary.ref })
+    }
+    if (actions.length === 0) return
 
     setResizingId(id)
     let latest: SurfaceLayout = origin
     startPointerDrag(e, {
       threshold: 0,
       onMove: (dx, dy) => {
-        latest = boundaries.reduce((acc, { edge, boundary }) => {
-          const delta = edge === 'e' || edge === 'w' ? dx : dy
-          if (boundary?.kind === 'band') return resizeBand(acc, boundary.band, delta, minB)
-          if (boundary?.kind === 'divider') {
-            const extent = extents.get(refKey(boundary.ref)) ?? 0
-            return resizeDivider(acc, boundary.ref, delta, extent, minT)
-          }
-          return acc
+        latest = actions.reduce((acc, action) => {
+          if (action.kind === 'stretch') return stretchTileHeight(acc, id, dy, minT, gapPx)
+          const delta = action.edge === 'e' || action.edge === 'w' ? dx : dy
+          const extent = extents.get(refKey(action.ref)) ?? 0
+          return resizeDivider(acc, action.ref, delta, extent, minT)
         }, origin)
         setDraft(latest)
       },
@@ -295,7 +294,6 @@ export function SurfaceView({
         const py = ev.clientY - downBox.top + dsy
         setTileDrag({ id, lift: { x: px - grab.x, y: py - grab.y, w: rect.w, h: rect.h } })
         target = hitTest(g, origin, id, px, py, zone, target)
-        setDropTarget(target)
         latest = applyTarget(origin, id, target)
         setDraft(latest === origin ? null : latest)
       },
@@ -307,7 +305,6 @@ export function SurfaceView({
           : g
         const to = finalGeometry.tiles.get(id) ?? rect
         setTileDrag(null)
-        setDropTarget(null)
         if (!decided) setDraft(null)
         const s: Settle = { id, to, next: decided }
         settleRef.current = s
@@ -354,9 +351,6 @@ export function SurfaceView({
             phase={phase}
             feel={feel}
             resizing={resizingId === id}
-            targetEdge={
-              dropTarget?.kind === 'tile' && dropTarget.id === id ? dropTarget.edge : null
-            }
             renderTile={renderTile}
             onHandleDown={onHandleDown}
             onEdgeDown={onEdgeDown}
@@ -364,6 +358,24 @@ export function SurfaceView({
           />
         )
       })}
+
+      {/* The placement preview — the area the lifted block will occupy, washed in
+          the accent tint. Reads off the draft geometry, so it IS the future slot. */}
+      {tileDrag &&
+        draft &&
+        (() => {
+          const slot = geometry.tiles.get(tileDrag.id)
+          return slot ? (
+            <div
+              className="spm-placement"
+              style={{
+                transform: `translate(${slot.x}px, ${slot.y}px)`,
+                width: slot.w,
+                height: slot.h
+              }}
+            />
+          ) : null
+        })()}
     </div>
   )
 }
