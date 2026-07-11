@@ -9,7 +9,6 @@
 .table-empty {
   /* — Density — */
   --zoom: 1; /* Standard (default); Compact = 0.9. One knob scales text + chips + padding + widths together. */
-  --group-chip-zoom: 1; /* group-band CHIP size, multiplied on top of --zoom — Nathan's knob (chips only, never band titles) */
 
   /* — Cell spacing — */
   --cell-padding-x: 12px; /* cell content padding, left + right */

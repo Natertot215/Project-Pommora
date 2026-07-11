@@ -53,11 +53,7 @@ function groupGlyph(
     case 'status':
     case 'select': {
       const opt = findOption(propId, value, ctx.schema)
-      return (
-        <span className="group-chip">
-          <Chip color={chipColorFor(opt?.color)} label={opt?.label ?? value} shape={chipShapeForType(groupType)} />
-        </span>
-      )
+      return <Chip color={chipColorFor(opt?.color)} label={opt?.label ?? value} shape={chipShapeForType(groupType)} />
     }
     case 'checkbox': {
       const on = value === 'true'
