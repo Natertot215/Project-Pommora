@@ -3,7 +3,6 @@ import { knownBlock, type BlockEntry, type BlockHostRef, type BlockStyle, type P
 import { FEEL_PRESETS } from '@renderer/design-system/interactions/feel'
 import { buildPageIndex, flattenPages, type ConnectionsApi } from '@renderer/MarkdownPM/connections'
 import { attachBelow, insertBand, removeTile as removeLeaf } from '@renderer/SurfacePM/core/ops'
-import type { Rect } from '@renderer/SurfacePM/core/rects'
 import { SurfaceView, type BackdropTarget } from '@renderer/SurfacePM/SurfaceView'
 import { useSession } from '@renderer/store'
 import type { CollectionNode, NexusTree, SetNode } from '@shared/types'
@@ -144,7 +143,7 @@ export function BlockSurface({ host }: { host: BlockHostRef }): React.JSX.Elemen
   )
 
   const renderTile = useCallback(
-    (id: string, _rect: Rect) => {
+    (id: string) => {
       const entry = entries.get(id)
       if (entry?.type === 'markdown')
         return (

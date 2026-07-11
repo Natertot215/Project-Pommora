@@ -20,15 +20,12 @@ export function PageEmbedBlock({
   connections?: ConnectionsApi
 }): React.JSX.Element | null {
   const tree = useSession((s) => s.tree)
-  const select = useSession((s) => s.select)
 
   const page = useMemo(
     () => (tree ? (flattenPages(tree).find((p) => p.id === entry.page_id) ?? null) : null),
     [tree, entry.page_id]
   )
 
-  // Navigation + header chrome return with the ⋮ pass; the resolver stays wired.
-  void select
   if (!page) return null // dead reference — inert, space holds (E-2)
   return (
     <PageEmbed path={page.path} editing={editing} onBeginEdit={() => onBeginEdit(entry.id)} connections={connections} />
