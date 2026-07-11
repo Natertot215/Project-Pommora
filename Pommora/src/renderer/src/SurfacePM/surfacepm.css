@@ -11,7 +11,8 @@
   position: absolute;
   top: 0;
   left: 0;
-  border: 1.25px solid var(--separator-border);
+  --tile-border: 1.25px; /* one source — the handle's outline + centering math read it */
+  border: var(--tile-border) solid var(--separator-border);
   border-radius: 16px;
   transition:
     transform var(--duration-base) var(--ease-standard),
@@ -75,22 +76,28 @@
 .spm-handle {
   position: absolute;
   top: 16px;
-  left: -10px;
-  width: 14px;
-  height: 24px;
-  border: 2px solid; /* same width as the tile border — the notch reads as one line */
+  --handle-w: 12px;
+  --grip-size: 14px; /* the glyph's size — independent of the chip */
+  /* Chip center sits EXACTLY on the border's centerline (offsets resolve from the
+     padding box, so one border-width folds back out of the shift). */
+  left: calc((var(--handle-w) + var(--tile-border)) / -2);
+  width: var(--handle-w);
+  height: 22px;
+  border: var(--tile-border) solid; /* same width as the tile border — the notch reads as one line */
   border-color: inherit;
-  border-radius: 6px;
+  border-radius: 4px;
   background: var(--main-bg);
   opacity: 0;
   cursor: grab;
   z-index: 3;
   transition: opacity var(--duration-slow) var(--ease-standard);
 }
+/* The glyph paints on its own --grip-size box, centered on the chip — sizing it
+   never touches the chip's geometry. */
 .spm-handle::before {
   content: '';
   position: absolute;
-  inset: 0;
+  inset: calc((100% - var(--grip-size)) / 2);
   background-color: var(--label-secondary);
   -webkit-mask: var(--grip-glyph) center / contain no-repeat;
   mask: var(--grip-glyph) center / contain no-repeat;
