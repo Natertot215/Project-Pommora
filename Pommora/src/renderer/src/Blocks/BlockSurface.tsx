@@ -56,13 +56,14 @@ function viewPickerItems(tree: NexusTree, defaultIcons?: Partial<Record<EntityIc
   const collectionItem = (c: CollectionNode): ViewPickerItem => ({
     label: c.title,
     icon: iconNameOr(c.icon, defaultEntityIcon('collection', defaultIcons)),
+    // The collection's own views sit ABOVE its Sets (Nathan's call); + Custom stays the pinned footer.
     submenu: [
+      ...containerViews(c),
       ...c.sets.map((s) => ({
         label: s.title,
         icon: iconNameOr(s.icon, defaultEntityIcon('set', defaultIcons)),
         submenu: containerViews(s)
-      })),
-      ...containerViews(c)
+      }))
     ]
   })
   return [...tree.collections, ...tree.userSections.flatMap((u) => u.collections)].map(collectionItem)
