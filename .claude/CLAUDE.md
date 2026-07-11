@@ -82,7 +82,7 @@ Specs live in `Features/`; root docs (PRD · Handoff · History · Framework) si
 Product spec — what Pommora is + how its data is shaped
   PommoraPRD.md   vision · domain model · storage philosophy · v1 scope
   Structure.md    domain-model map (two layers, identity, linking) + Homepage/Settings singletons
-  Contexts · Collections · Views · PageSets · Pages · Properties ·
+  Contexts · Collections · Views · PageSets · Pages · Properties · Blocks ·
   Agenda · Connections · Navigation · Sidebar · Inspector · QuickCapture ·
   Configuration    per-entity + per-surface + config specs
 

@@ -47,7 +47,7 @@ Full spec → `Agenda.md`; the property catalog across all kinds → `Properties
 
 #### II. Homepage
 
-One per Nexus at `.nexus/homepage.json` — a block-host singleton (its surface shape is its own pending design pass), with no `id`, `tier`, or `parents` (the file location is its identity). The **Homepage ribbon icon** (the Nexus's profile photo, pinned at the top of the sidebar ribbon) is its entry point: selecting it opens the Homepage in the main pane, where its title doubles as the nexus rename affordance. Seeded on first launch and not user-deletable.
+One per Nexus at `.nexus/homepage.json` — a block-host singleton (the block system's live dev host, → [[Blocks]]; its final surface shape is its own pending design pass), with no `id`, `tier`, or `parents` (the file location is its identity). The **Homepage ribbon icon** (the Nexus's profile photo, pinned at the top of the sidebar ribbon) is its entry point: selecting it opens the Homepage in the main pane, where its title doubles as the nexus rename affordance. Seeded on first launch and not user-deletable.
 
 #### II. Settings
 
@@ -86,6 +86,6 @@ The read side is one eager, read-only walk producing a pre-ordered `NexusTree` �
 
 ### Pending
 
-**Homepage Block Surface:** Deferred to its own design pass (a graph-view host with custom widgets is the current direction). The block-surface system itself is spec'd host-agnostic (→ `Planning/7-10 - Block Surfaces — Decision Log.md`); the Homepage renders only its banner until its pass runs.
+**Homepage's Final Shape:** Deferred to its own design pass (a graph-view host with custom widgets is the current direction). Until then the Homepage serves as the block system's removable dev host ([[Blocks]]) — it renders a live block surface under its banner.
 
 **Settings Editing UI:** The `personalization` block has a write path — a generic setter plus a live apply-map — but no UI yet, so accent, connection color, and the interface toggles are set in `.nexus/settings.json` directly for now; labels and profile are likewise hand-edited. A real settings surface — accent picker, toggle rows, label rename forms, tier-label configuration — is planned. Full config model + the planned editor → `Configuration.md`.
