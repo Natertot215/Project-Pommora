@@ -61,9 +61,7 @@ function DrillLevel({
         }
       >
         {bodyNodes.map((n, i) =>
-          n.separator ? (
-            <MenuSeparator key={`sep-${String(i)}`} flush />
-          ) : n.submenu ? (
+          n.submenu ? (
             <MenuItem
               key={`${n.label}-${String(i)}`}
               className={cx(s.row, n.submenu.length === 0 && s.rowDisabled)}

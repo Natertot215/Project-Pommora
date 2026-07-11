@@ -10,7 +10,7 @@ const c = colorVars.color
 // locking every pane to one width kills the shift and sets the menu's footprint.
 export const PANE_W = 120
 // The stretch ceiling — a pane may grow to fit content up to this, then labels truncate.
-export const PANE_MAX_W = 200
+export const PANE_MAX_W = 180
 
 export const pane = style({ minWidth: PANE_W, maxWidth: PANE_MAX_W, boxSizing: 'border-box' })
 
@@ -35,7 +35,7 @@ export const rowDisabled = style({
 
 // ── KNOB — the picker's height ceiling: a drill list grows to this, then its body
 // scrolls (MenuScrollFrame owns the cap; header + footer stay pinned).
-export const PICKER_MAX_H = 250
+export const PICKER_MAX_H = 240
 
 /** Header/footer density for this thin menu — the house zoom knob scales the whole bar
  *  (Nathan's call: the scaled bars read right here; tones stay the house classes). */
