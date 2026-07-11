@@ -2,7 +2,7 @@
 
 > **This log is a prerequisite to any Contexts / Spaces architectural rethink.** It specifies only the block-like surfaces and how they work — the host-agnostic tile system. The contexts resolution (keep the current design / user-created groups / a separate Spaces entity), the sidebar surfaces, and Homepage are deliberately parked for their own pass, and nothing here may depend on how they land.
 >
-> **Status: REVIEW-CERTIFIED.** Three adversarial rounds ran (the Review-Discipline cap); every finding was independently verified against the code and folded; every decision is `[confirmed]`. The one gate before planning: the **G-8 Figma designs** for handle/hover chrome.
+> **Status: REVIEW-CERTIFIED · Section H reopened.** Three adversarial rounds ran (the Review-Discipline cap); every finding was independently verified against the code and folded. Chrome adopted MarkdownPM's handle method (G-8), so no design gate remains. **Section H (embed mechanics, end to end) is reopened at Nathan's direction** — its `[open]` entries are the live questions; everything else stands certified.
 
 ### Frame
 
@@ -162,6 +162,31 @@
 
 - **G-5:** [confirmed — Nathan] **The view lock generalizes to a first-class per-container feature** — all views of any Collection/Set get it, not just embeds: a **lock icon in the ViewPane's `MenuBottomRow` footer** (`Toolbar/ViewPane.tsx` — the "+ create · … more" strip) that, when engaged, **dims the SettingsPane and ViewPanes across that entire Collection or Set** (view configuration disabled container-wide; interaction untouched). Same configure-vs-interact line as the embed hover-lock. Persists in the container's sidecar (synced) [confirmed — Nathan]. **The lock's scope includes view CRUD** — create/rename/delete/reorder live in the panes it dims, so they lock with it (per Nathan's "dims the SettingPane and ViewPanes"). Standalone-buildable — doesn't wait for the block system.
 
+#### H — Embed Mechanics, End To End (reopened)
+
+How a page or view actually lives inside a tile — the walkthrough the D/G decisions imply, with the fine-grained calls pinned. Certified decisions are restated with their tags; the `[open]` entries are what this reopening exists to settle.
+
+- **H-1 — Creation** [confirmed — restates G-9/G-7]: embeds are **references, not files** — Insert → *Page* searches every Collection's pages and stores the pick as `page_id` (ULID, rename-proof); Insert → *View* runs the source drill (Collections → Sets chevron → that container's views, **+ Custom** footer) and stores `source_id` + `view_id` (Linked) or the inline config (Custom). Only markdown blocks mint files; an embed's tile payload is the entire artifact.
+
+- **H-2 — Page embed anatomy** [confirmed — B-5/E-4/G-4]: the tile is a **scrollable, editable window onto the real page** — banner shown (toggleable via ⋮), in-line title on, body rendered static at rest with a live MarkdownPM mounting only on click-in (the single-live-editor pattern); edits flow through the same debounced body-write path as the full page editor, so an embed edit IS a page edit. The same page embedded twice resolves by most-recent-wins (E-3).
+
+- **H-3 — Page-embed lock + navigation** [confirmed — B-5/B-8; one assumption]: the hover-lock freezes *content* — no editing, no click-into-the-body — while the **open action stays available** (a lock guards the page's text, not your ability to visit it) `[assumed — flag if wrong]`. Opening honors the source Collection's Open In; full-page is the working behavior until the preview surface ships.
+
+- **H-4 — View embed anatomy** [confirmed — C-1/D-12/G-4/G-6/G-10]: the tile renders the **view body only** — heading band + rows, slightly zoomed out, never a banner, in-line title defaulting to the source's name (renaming it retitles only the block). The view resolves **per-instance from the tile payload** — never the global active-view slot (`activeViews[source.id]`, read today by the table, the properties pane, the view pane, and the settings pane: `TableView.tsx:151`, `PropertiesPane.tsx:166`, `ViewPane.tsx:68`, `SettingsPane.tsx:74` — so every config surface an embed opens must receive the embed's resolution, not the slot's).
+
+- **H-5 — View-embed configuration surface** [open — THE reopened question]: D-12 grants "reconfigure from inside the embed," but a tile can't carry the container's full toolbar row. The candidate shapes:
+  1. **⋮-homed config (recommended):** the tile's ⋮ menu opens the existing ViewSettings surface scoped to the embed — full configuration power, zero standing chrome; switching which view a Linked embed shows lives in the same menu (it's a payload edit).
+  2. **Compact in-tile toolbar:** a slimmed ViewDropdown + settings affordance pinned in the tile header — faster access, permanent visual weight in every view tile.
+  3. **Config only at the source:** embeds render, interaction lives, but reconfiguration means visiting the real Collection — cheapest, but walks back D-12's two-way editing.
+
+- **H-6 — Write-through routing** [confirmed — D-12/C-1]: data edits (cell values, drag-between-groups, set-reparent drags) write to the source from either kind, always. Config edits route by kind: Linked → `saveViewAdopting(source)` (it IS the collection's view, edited from anywhere); Custom → the block payload. The view lock (B-5) freezes the config half only; interaction stays live.
+
+- **H-7 — Custom view runtime** [confirmed — D-5a–d]: always nexus-wide, narrowed by filters (Location filter = the scoping tool); columns/filters resolve against the full property registry; rows + values arrive through the batch nexus-wide IPC, cached per host-open, most-recent-wins refresh; structural grouping is the forest (top bands per Collection, Sets nesting inside); carries its own Open In (inert until the preview surface, like every Open In).
+
+- **H-8 — Death + conversion** [confirmed — E-2/E-5/G-7]: removing an embed tile deletes the tile entry only — the page/view is never touched. A dead reference (deleted page, deleted view, deleted Collection) renders an inert placeholder that holds its space until the user removes it; no auto-cleanup. Turn Into conversions never touch the embedded source; converting a markdown block away trashes its `.md` recoverably.
+
+- **H-9 — Embed scroll + sizing feel** [assumed — build-tuned]: a scrolling tile contains its overscroll (inner scroll exhausts before the host page moves); view embeds want a wider practical minimum than markdown tiles. Both are live-HMR knobs, not spec.
+
 #### F — Reconciliation Forecast (docs this makes false when ratified)
 
 - **F-1:** [confirmed — adjacency] `Framework.md` v0.8.0 ("Contexts + Homepage Editor" — flow-blocks + widgets + slash-menu) is superseded: tile grid, Homepage deferred, hosts pre-contexts-decision.
@@ -213,7 +238,8 @@ The invariant block system — buildable before, and regardless of, the contexts
 
 ### Still Open — the log doesn't close until these do
 
-1. **Figma gate (G-8):** handle + hover chrome designs precede the plan.
-2. **Parked by design:** B-2 (contexts as block surfaces), D-10 (sidebar), the contexts resolution, Homepage.
+1. **H-5:** the view-embed configuration surface (⋮-homed ViewSettings vs compact in-tile toolbar vs source-only).
+2. **H-3's assumption:** a locked page embed keeps its open action (flag if wrong).
+3. **Parked by design:** B-2 (contexts as block surfaces), D-10 (sidebar), the contexts resolution, Homepage's final role.
 
-Adversarial review ran its full three rounds (the Review-Discipline cap); all findings verified and folded; every decision is `[confirmed]`. The log is certified — planning may begin once the G-8 designs land.
+Adversarial review ran its full three rounds (the Review-Discipline cap); all findings verified and folded. Everything outside Section H stands certified and is being built (→ `Block Surfaces — Plumbing Plan.md`); H's opens gate the view-embed chrome, not the plumbing beneath it.
