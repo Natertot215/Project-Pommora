@@ -19,6 +19,8 @@ interface BlockDocState {
 
 export interface BlockDocSession extends BlockDocState {
   setLayout: (layout: SurfaceLayout) => void
+  commitLayout: (layout: SurfaceLayout) => void
+  refreshEntries: () => void
 }
 
 export function useBlockDoc(host: BlockHostRef): BlockDocSession {
@@ -71,5 +73,24 @@ export function useBlockDoc(host: BlockHostRef): BlockDocSession {
     [flush]
   )
 
-  return { ...state, setLayout }
+  // Immediate variant — structural mutations (tile create/remove) write the layout
+  // NOW, before their entry op runs, so a crash leaves an invisible orphan rather
+  // than a dead box (the plan's removal-order rule).
+  const commitLayout = useCallback(
+    (layout: SurfaceLayout) => {
+      setState((s) => ({ ...s, layout }))
+      pending.current.layout = layout
+      flush()
+    },
+    [flush]
+  )
+
+  /** Re-pull the entry list after a main-side blocks[] mutation; the local layout stays. */
+  const refreshEntries = useCallback(() => {
+    void window.nexus.blocks.get(hostRef.current).then((r) => {
+      if (r.ok) setState((s) => ({ ...s, blocks: r.doc.blocks }))
+    })
+  }, [])
+
+  return { ...state, setLayout, commitLayout, refreshEntries }
 }

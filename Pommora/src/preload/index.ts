@@ -234,7 +234,18 @@ const api = {
   blocks: {
     get: (host: BlockHostRef): Promise<BlocksGetResult> => ipcRenderer.invoke('blocks:get', host),
     save: (host: BlockHostRef, patch: BlockDocPatch): Promise<BlocksSaveResult> =>
-      ipcRenderer.invoke('blocks:save', host, patch)
+      ipcRenderer.invoke('blocks:save', host, patch),
+    // Markdown-block lifecycle: create mints the ULID + file + entry (the renderer splices
+    // the layout after); remove drops the entry + trashes a markdown tile's file; the
+    // read/write pair is the tile editor's pure-body persistence.
+    createMarkdown: (host: BlockHostRef): Promise<{ ok: true; id: string } | { ok: false; error: string }> =>
+      ipcRenderer.invoke('blocks:createMarkdown', host),
+    removeTile: (host: BlockHostRef, tileId: string): Promise<BlocksSaveResult> =>
+      ipcRenderer.invoke('blocks:removeTile', host, tileId),
+    readMarkdown: (host: BlockHostRef, tileId: string): Promise<{ ok: true; body: string } | { ok: false; error: string }> =>
+      ipcRenderer.invoke('blocks:readMarkdown', host, tileId),
+    writeMarkdown: (host: BlockHostRef, tileId: string, body: string): Promise<BlocksSaveResult> =>
+      ipcRenderer.invoke('blocks:writeMarkdown', host, tileId, body)
   },
   // Subfield (footer) config — React-owned `subfield` key in `.nexus/settings.json`.
   subfield: {

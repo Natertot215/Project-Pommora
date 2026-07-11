@@ -1,0 +1,66 @@
+/* Block tile content family (G-2). The tile chassis (border, radius, clipping)
+   is SurfacePM's; these style what lives inside. */
+
+.blk-md {
+  height: 100%;
+  overflow-y: auto;
+  padding: 10px 14px;
+  overscroll-behavior: contain;
+}
+
+.blk-md-empty {
+  color: var(--text-dim);
+  font-size: 13px;
+}
+
+/* The tile's editor fills the tile, no page chrome. */
+.blk-md.is-editing {
+  padding: 0;
+}
+.blk-md.is-editing .mdpm-shell {
+  height: 100%;
+}
+
+.blk-inert {
+  height: 100%;
+}
+
+/* Interim affordances — replaced by the Task 6 handle/Insert chrome. */
+.blk-remove {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  z-index: 3;
+  width: 18px;
+  height: 18px;
+  border: 0;
+  border-radius: 4px;
+  background: var(--fill-tertiary);
+  color: var(--text-dim);
+  font-size: 11px;
+  line-height: 1;
+  opacity: 0;
+  cursor: pointer;
+  transition: opacity var(--duration-fast) var(--ease-standard);
+}
+.spm-tile:hover .blk-remove {
+  opacity: 1;
+}
+.blk-remove:hover {
+  color: var(--text);
+}
+
+.blk-add {
+  margin-top: 10px;
+  border: 1px solid var(--separator-border);
+  border-radius: 8px;
+  background: none;
+  color: var(--text-dim);
+  padding: 4px 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.blk-add:hover {
+  color: var(--text);
+  background: var(--state-hover);
+}

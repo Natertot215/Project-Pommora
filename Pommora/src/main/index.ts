@@ -8,7 +8,8 @@ import type { MutateRequest, MutateResult, ContextTarget } from '@shared/mutate'
 import { WINDOW_BG } from '@shared/theme'
 import { readNexus } from './readNexus'
 import { readPage } from './readPage'
-import { readBlockDoc, writeBlockDoc } from './blocks'
+import { createMarkdownBlock, readBlockDoc, readMarkdownBlock, removeBlockTile, writeBlockDoc, writeMarkdownBlock } from './blocks'
+import { isUlid } from './ids'
 import { blockPatchProblem, coerceBlockHost, type BlockDocPatch, type BlocksGetResult, type BlocksSaveResult } from '@shared/blocks'
 import { pathExists } from './io/atomicWrite'
 import { readAppConfig, writeAppConfig, addRecent, DEFAULT_TRASH_MODE } from './appConfig'
@@ -1013,6 +1014,57 @@ ipcMain.handle('blocks:save', async (_e, host: unknown, patch: unknown): Promise
     const problem = blockPatchProblem(patch as BlockDocPatch)
     if (problem) return { ok: false, error: problem }
     await writeBlockDoc(root, h, patch as BlockDocPatch)
+    return { ok: true }
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) }
+  }
+})
+
+// Markdown-block file ops. Tile ids gate on isUlid — the id becomes a filename, so a
+// renderer-supplied value must never carry path segments.
+const blockHostAnd = (host: unknown, tileId?: unknown): { root: string; h: { kind: 'homepage' } } | string => {
+  const root = sessionRoot()
+  if (root === null) return 'No nexus is open.'
+  const h = coerceBlockHost(host)
+  if (!h) return 'Unknown block host.'
+  if (tileId !== undefined && (typeof tileId !== 'string' || !isUlid(tileId))) return 'Invalid tile id.'
+  return { root, h }
+}
+ipcMain.handle('blocks:createMarkdown', async (_e, host: unknown): Promise<{ ok: true; id: string } | { ok: false; error: string }> => {
+  try {
+    const ctx = blockHostAnd(host)
+    if (typeof ctx === 'string') return { ok: false, error: ctx }
+    return { ok: true, id: await createMarkdownBlock(ctx.root, ctx.h) }
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) }
+  }
+})
+ipcMain.handle('blocks:removeTile', async (_e, host: unknown, tileId: unknown): Promise<BlocksSaveResult> => {
+  try {
+    const ctx = blockHostAnd(host, tileId)
+    if (typeof ctx === 'string') return { ok: false, error: ctx }
+    await removeBlockTile(ctx.root, ctx.h, tileId as string)
+    return { ok: true }
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) }
+  }
+})
+ipcMain.handle('blocks:readMarkdown', async (_e, host: unknown, tileId: unknown): Promise<{ ok: true; body: string } | { ok: false; error: string }> => {
+  try {
+    const ctx = blockHostAnd(host, tileId)
+    if (typeof ctx === 'string') return { ok: false, error: ctx }
+    const body = await readMarkdownBlock(ctx.root, ctx.h, tileId as string)
+    return body === null ? { ok: false, error: 'Block file not found.' } : { ok: true, body }
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) }
+  }
+})
+ipcMain.handle('blocks:writeMarkdown', async (_e, host: unknown, tileId: unknown, body: unknown): Promise<BlocksSaveResult> => {
+  try {
+    const ctx = blockHostAnd(host, tileId)
+    if (typeof ctx === 'string') return { ok: false, error: ctx }
+    if (typeof body !== 'string') return { ok: false, error: 'Body must be a string.' }
+    await writeMarkdownBlock(ctx.root, ctx.h, tileId as string, body)
     return { ok: true }
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : String(e) }
