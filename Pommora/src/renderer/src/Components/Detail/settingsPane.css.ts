@@ -368,3 +368,9 @@ export const crumbRow = style([
   footingLabel,
   { display: 'inline-flex', alignItems: 'center', gap: '4px', minWidth: 0 }
 ])
+
+/** The scoped footer's lock reads the footing TRAILING tone — label-tertiary (Nathan), a
+ *  step under the leading breadcrumb; quadrupled to outrank the BottomRow secondary bump. */
+export const footerLock = style({
+  selectors: { '&&&&': { color: c.label.tertiary } }
+})
