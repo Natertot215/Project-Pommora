@@ -96,4 +96,6 @@ Shipped early during live direction (already merged): the notched grip handle + 
 
 ### Verification Discipline
 
+**Design disclosure is mandatory:** anything user-visible ships one of two ways — the exact design disclosed to Nathan and confirmed BEFORE implementing, or CDP-screenshotted immediately after building and shown for sign-off. Never both skipped; when in doubt, disclose first.
+
 Per task: gates → build-breaking-agent review (findings verified first-hand) → fold → commit. CDP self-verify against the dev app (`-- --remote-debugging-port=9222`, playwright-core `connectOverCDP`; scratchpad has drive scripts). Post-functional UIX review closes the arc. Re-assess this plan between green tasks — later tasks re-ground their cited files before code.
