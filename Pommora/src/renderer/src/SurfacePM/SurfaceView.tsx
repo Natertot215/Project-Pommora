@@ -38,6 +38,10 @@ export interface SurfaceViewProps {
   snapPx?: number
   /** The displacement feel (defaults to the engine's Smooth). */
   feel?: Feel
+  /** Per-tile chassis class (e.g. the host's style variants) — engine-agnostic. */
+  tileClassName?: (id: string) => string | undefined
+  /** Click / right-click on a tile's drag handle — the host's menu hook. */
+  onHandleMenu?: (id: string, e: React.MouseEvent) => void
 }
 
 type TilePhase = 'idle' | 'reflow' | 'lifted' | 'settling'
@@ -84,8 +88,10 @@ const TileShell = memo(
     phase,
     feel,
     resizing,
+    extraClass,
     renderTile,
     onHandleDown,
+    onHandleMenu,
     onEdgeDown,
     onSettled
   }: {
@@ -94,8 +100,10 @@ const TileShell = memo(
     phase: TilePhase
     feel: Feel
     resizing: boolean
+    extraClass?: string
     renderTile: (id: string, rect: Rect) => React.ReactNode
     onHandleDown: (id: string, e: React.PointerEvent) => void
+    onHandleMenu?: (id: string, e: React.MouseEvent) => void
     onEdgeDown: (id: string, edges: Edge[], e: React.PointerEvent) => void
     onSettled: (id: string) => void
   }) {
@@ -109,7 +117,7 @@ const TileShell = memo(
       <div
         className={`spm-tile${phase === 'lifted' || phase === 'settling' ? ' is-lifted' : ''}${
           resizing ? ' is-resizing' : ''
-        }`}
+        }${extraClass ? ` ${extraClass}` : ''}`}
         style={{
           transform: `translate(${rect.x}px, ${rect.y}px)`,
           width: rect.w,
@@ -123,7 +131,17 @@ const TileShell = memo(
             onSettled(id)
         }}
       >
-        <div className="spm-handle" onPointerDown={(e) => onHandleDown(id, e)} />
+        {/* Unarmed clicks pass through the sensor (suppressNextClick fires only on
+            armed drags) — click and right-click both open the host's handle menu. */}
+        <div
+          className="spm-handle"
+          onPointerDown={(e) => onHandleDown(id, e)}
+          onClick={(e) => onHandleMenu?.(id, e)}
+          onContextMenu={(e) => {
+            e.preventDefault()
+            onHandleMenu?.(id, e)
+          }}
+        />
         {EDGE_ZONES.map(({ zone, edges }) => (
           <div
             key={zone}
@@ -140,8 +158,10 @@ const TileShell = memo(
     a.phase === b.phase &&
     a.feel === b.feel &&
     a.resizing === b.resizing &&
+    a.extraClass === b.extraClass &&
     a.renderTile === b.renderTile &&
     a.onHandleDown === b.onHandleDown &&
+    a.onHandleMenu === b.onHandleMenu &&
     a.onEdgeDown === b.onEdgeDown &&
     a.onSettled === b.onSettled &&
     a.rect.x === b.rect.x &&
@@ -159,7 +179,9 @@ export function SurfaceView({
   bandZonePx = 10,
   bottomPadPx = 28,
   snapPx = 6,
-  feel = DEFAULT_FEEL
+  feel = DEFAULT_FEEL,
+  tileClassName,
+  onHandleMenu
 }: SurfaceViewProps): React.JSX.Element {
   const hostRef = useRef<HTMLDivElement | null>(null)
   const [width, setWidth] = useState(0)
@@ -413,8 +435,10 @@ export function SurfaceView({
             phase={phase}
             feel={feel}
             resizing={resizingId === id}
+            extraClass={tileClassName?.(id)}
             renderTile={renderTile}
             onHandleDown={onHandleDown}
+            onHandleMenu={onHandleMenu}
             onEdgeDown={onEdgeDown}
             onSettled={finishSettle}
           />

@@ -21,6 +21,7 @@ export interface BlockDocSession extends BlockDocState {
   setLayout: (layout: SurfaceLayout) => void
   commitLayout: (update: SurfaceLayout | ((cur: SurfaceLayout) => SurfaceLayout)) => void
   refreshEntries: () => void
+  saveBlocks: (next: unknown[]) => void
 }
 
 export function useBlockDoc(host: BlockHostRef): BlockDocSession {
@@ -98,5 +99,11 @@ export function useBlockDoc(host: BlockHostRef): BlockDocSession {
     })
   }, [])
 
-  return { ...state, setLayout, commitLayout, refreshEntries }
+  /** Write the whole entry list (per-entry field edits, e.g. style) — immediate. */
+  const saveBlocks = useCallback((next: unknown[]) => {
+    setState((s) => ({ ...s, blocks: next }))
+    void window.nexus.blocks.save(hostRef.current, { blocks: next })
+  }, [])
+
+  return { ...state, setLayout, commitLayout, refreshEntries, saveBlocks }
 }

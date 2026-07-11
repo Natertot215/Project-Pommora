@@ -10,7 +10,7 @@ import type { PropertyMenuAction, PropertyMenuContext } from '@shared/propertyMe
 import type { OptionMenuAction, OptionMenuContext } from '@shared/optionMenu'
 import type { ColumnMenuAction, ColumnMenuContext } from '@shared/columnMenu'
 import type { SavedView } from '@shared/views'
-import type { BlockDocPatch, BlockHostRef, BlocksGetResult, BlocksSaveResult } from '@shared/blocks'
+import type { BlockDocPatch, BlockHandleMenuAction, BlockHostRef, BlockStyle, BlocksGetResult, BlocksSaveResult } from '@shared/blocks'
 import type { StatusGroup } from '@shared/properties'
 import type { PageFrontmatter } from '@shared/schemas'
 import type { PropertyDefinition, PropertyType } from '@shared/properties'
@@ -245,7 +245,10 @@ const api = {
     readMarkdown: (host: BlockHostRef, tileId: string): Promise<{ ok: true; body: string } | { ok: false; error: string }> =>
       ipcRenderer.invoke('blocks:readMarkdown', host, tileId),
     writeMarkdown: (host: BlockHostRef, tileId: string, body: string): Promise<BlocksSaveResult> =>
-      ipcRenderer.invoke('blocks:writeMarkdown', host, tileId, body)
+      ipcRenderer.invoke('blocks:writeMarkdown', host, tileId, body),
+    // The drag-handle menu (Type ▸ / Style ▸ / Remove) — Remove confirms in main first.
+    handleMenu: (ctx: { style: BlockStyle }): Promise<BlockHandleMenuAction | null> =>
+      ipcRenderer.invoke('block-handle-menu', ctx)
   },
   // Subfield (footer) config — React-owned `subfield` key in `.nexus/settings.json`.
   subfield: {

@@ -9,8 +9,9 @@ import { WINDOW_BG } from '@shared/theme'
 import { readNexus } from './readNexus'
 import { readPage } from './readPage'
 import { createMarkdownBlock, readBlockDoc, readMarkdownBlock, removeBlockTile, writeBlockDoc, writeMarkdownBlock } from './blocks'
+import { popBlockHandleMenu } from './blockHandleMenu'
 import { isUlid } from './ids'
-import { blockPatchProblem, coerceBlockHost, type BlockDocPatch, type BlocksGetResult, type BlocksSaveResult } from '@shared/blocks'
+import { blockPatchProblem, coerceBlockHost, type BlockDocPatch, type BlockHandleMenuAction, type BlocksGetResult, type BlocksSaveResult } from '@shared/blocks'
 import { pathExists } from './io/atomicWrite'
 import { readAppConfig, writeAppConfig, addRecent, DEFAULT_TRASH_MODE } from './appConfig'
 import { sessionRoot, openSession, resolveRestorePath, isExistingDir } from './session'
@@ -1218,6 +1219,14 @@ ipcMain.handle('view-button-menu', async (e, current: unknown): Promise<ViewButt
   const viewButton: ViewButton = c?.viewButton === 'labeled' ? 'labeled' : 'icon'
   const viewStyle: ViewStyle = c?.viewStyle === 'toolbar' ? 'toolbar' : 'dropdown'
   return popViewButtonMenu(win, { viewButton, viewStyle })
+})
+
+// The block drag-handle menu (Type ▸ / Style ▸ / Remove; Remove confirms here).
+ipcMain.handle('block-handle-menu', async (e, ctx: unknown): Promise<BlockHandleMenuAction | null> => {
+  const win = BrowserWindow.fromWebContents(e.sender)
+  if (!win) return null
+  const style = (ctx as { style?: unknown } | null)?.style === 'borderless' ? 'borderless' : 'bordered'
+  return popBlockHandleMenu(win, { style })
 })
 
 // The ViewSettings ⋮ menu (Duplicate / Delete) — resolves the action to the renderer.

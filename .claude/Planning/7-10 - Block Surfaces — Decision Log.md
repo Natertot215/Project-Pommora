@@ -160,6 +160,8 @@
 
 - **G-13:** [confirmed — Nathan] **Alignment form-lock:** resize boundaries magnetize to other blocks' edges when within a few px of perfect alignment (`snapPx` knob, default 6) — shipped in the engine.
 
+- **G-14:** [confirmed — Nathan] **The handle menu + per-tile Style.** Click / right-click on the drag handle opens the block menu: **Type ▸** (View · Page — the Turn Into family, live once the embed pickers ship) · **Style ▸** (Bordered · Borderless) · **Remove** (confirms in main before resolving; a markdown block's file trashes recoverably per E-5). **Borderless** is a per-tile entry field: the chassis hides until you reach for it — border and notch return on border/handle hover and while dragging or resizing — and a locked host pins it hidden (wires with G-3).
+
 - **G-5:** [confirmed — Nathan] **The view lock generalizes to a first-class per-container feature** — all views of any Collection/Set get it, not just embeds: a **lock icon in the ViewPane's `MenuBottomRow` footer** (`Toolbar/ViewPane.tsx` — the "+ create · … more" strip) that, when engaged, **dims the SettingsPane and ViewPanes across that entire Collection or Set** (view configuration disabled container-wide; interaction untouched). Same configure-vs-interact line as the embed hover-lock. Persists in the container's sidecar (synced) [confirmed — Nathan]. **The lock's scope includes view CRUD** — create/rename/delete/reorder live in the panes it dims, so they lock with it (per Nathan's "dims the SettingPane and ViewPanes"). Standalone-buildable — doesn't wait for the block system.
 
 #### H — Embed Mechanics, End To End (reopened)

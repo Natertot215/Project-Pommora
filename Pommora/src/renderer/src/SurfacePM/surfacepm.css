@@ -31,14 +31,13 @@
 }
 
 /* The lifted block — PommoraDND's overlay treatment: the block itself rides the
-   pointer, elevated. No surface fill — the state-hover wash + tinted accent
-   border. Shadow value = the engine's own (interactions.css .ix-overlay); hoist
-   both to a token when a third consumer appears. */
+   pointer, elevated on the shared lift shadow. OPAQUE: the state-hover wash
+   layers over --main-bg so underlying tiles never show through a dragged block. */
 .spm-tile.is-lifted {
   z-index: 10;
   cursor: grabbing;
-  box-shadow: 0 12px 30px #00000066;
-  background: var(--state-hover);
+  box-shadow: var(--shadow-lift);
+  background: linear-gradient(var(--state-hover), var(--state-hover)), var(--main-bg);
   border-color: color-mix(in srgb, var(--accent) var(--tint-primary), transparent);
 }
 
@@ -98,13 +97,20 @@
   content: '';
   position: absolute;
   inset: calc((100% - var(--grip-size)) / 2);
-  background-color: var(--label-secondary);
+  background-color: var(--label-tertiary);
   -webkit-mask: var(--grip-glyph) center / contain no-repeat;
   mask: var(--grip-glyph) center / contain no-repeat;
 }
 
 .spm-tile:hover .spm-handle {
   opacity: 1;
+}
+
+/* Borderless style (G-14): the chassis hides until you reach for it — the border
+   (and the notch with it) returns on border/handle hover and while dragging or
+   resizing. A locked host will pin it hidden (lands with G-3). */
+.spm-tile.is-borderless:not(.is-lifted):not(.is-resizing):not(:has(> .spm-edge:hover)):not(:has(> .spm-handle:hover)) {
+  border-color: transparent;
 }
 
 /* Resize zones ride the block's own edges and corners (window-style), straddling

@@ -1,6 +1,12 @@
 /* Interaction Lab. Sorting transitions come from JS (useDragItem);
    the tree's expand + caret use the same feel via the --ix-dur / --ix-ease CSS vars. */
 
+/* The lift shadow — one source for every dragged-overlay treatment (the engine's
+   .ix-overlay + SurfacePM's lifted tile). */
+:root {
+  --shadow-lift: 0 12px 30px #00000066;
+}
+
 .ix-wrap {
   max-width: 1180px;
   margin: 0 auto;

@@ -61,16 +61,23 @@ export function coerceBlockHost(raw: unknown): BlockHostRef | null {
     : null
 }
 
+/** Per-tile chassis style (G-14): borderless hides the border until you reach for
+ *  it — border/handle hover, drag, resize — and a locked host pins it hidden. */
+export type BlockStyle = 'bordered' | 'borderless'
+const styleField = z.enum(['bordered', 'borderless']).optional().catch(undefined)
+
 /** Markdown block: body lives in `<id>.md` inside the host's own folder (D-11). */
 export interface MarkdownBlockEntry {
   id: string
   type: 'markdown'
+  style?: BlockStyle
 }
 
 export interface PageBlockEntry {
   id: string
   type: 'page'
   page_id: string
+  style?: BlockStyle
 }
 
 export interface ViewBlockEntry {
@@ -78,19 +85,24 @@ export interface ViewBlockEntry {
   type: 'view'
   view_id?: string
   source_id?: string
+  style?: BlockStyle
 }
 
 export type BlockEntry = MarkdownBlockEntry | PageBlockEntry | ViewBlockEntry
 
-const markdownEntry = z.looseObject({ id: z.string().min(1), type: z.literal('markdown') })
-const pageEntry = z.looseObject({ id: z.string().min(1), type: z.literal('page'), page_id: z.string().min(1) })
+const markdownEntry = z.looseObject({ id: z.string().min(1), type: z.literal('markdown'), style: styleField })
+const pageEntry = z.looseObject({ id: z.string().min(1), type: z.literal('page'), page_id: z.string().min(1), style: styleField })
 const viewEntry = z.looseObject({
   id: z.string().min(1),
   type: z.literal('view'),
   view_id: z.string().optional(),
-  source_id: z.string().optional()
+  source_id: z.string().optional(),
+  style: styleField
 })
 const knownEntry = z.union([markdownEntry, pageEntry, viewEntry])
+
+/** The handle menu's returning-picker actions (the renderer performs the write). */
+export type BlockHandleMenuAction = 'type:view' | 'type:page' | 'style:bordered' | 'style:borderless' | 'remove'
 
 /** Type one raw `blocks[]` entry, or null for shapes this build doesn't know —
  *  the caller keeps the raw value either way (E-1: never strip, render inert). */

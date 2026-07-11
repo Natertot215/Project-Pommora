@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { knownBlock, type BlockEntry, type BlockHostRef } from '@shared/blocks'
+import { knownBlock, type BlockEntry, type BlockHostRef, type BlockStyle } from '@shared/blocks'
 import { FEEL_PRESETS } from '@renderer/design-system/interactions/feel'
 import { buildPageIndex, flattenPages, type ConnectionsApi } from '@renderer/MarkdownPM/connections'
 import { insertBand, removeTile as removeLeaf } from '@renderer/SurfacePM/core/ops'
@@ -19,7 +19,7 @@ const NEW_TILE_H = 160
 // click-out or Esc exits it.
 
 export function BlockSurface({ host }: { host: BlockHostRef }): React.JSX.Element | null {
-  const { layout, blocks, ready, setLayout, commitLayout, refreshEntries } = useBlockDoc(host)
+  const { layout, blocks, ready, setLayout, commitLayout, refreshEntries, saveBlocks } = useBlockDoc(host)
   const [editingId, setEditingId] = useState<string | null>(null)
   // Tiles mid-removal: their editor's flush-on-unmount must NOT run — the write
   // would land after the trash and resurrect the file as an entry-less orphan.
@@ -64,9 +64,9 @@ export function BlockSurface({ host }: { host: BlockHostRef }): React.JSX.Elemen
     }
   }, [editingId])
 
-  // THE removal flow — no affordance triggers it yet; the Task 6 handle menu is
-  // its consumer. Order is load-bearing: suppress the tile's editor flush, layout
-  // first (invisible orphan beats a dead box on a crash), then the entry + file.
+  // THE removal flow — the handle menu's Remove (main-confirmed) is its trigger.
+  // Order is load-bearing: suppress the tile's editor flush, layout first
+  // (invisible orphan beats a dead box on a crash), then the entry + file.
   const removeBlock = useCallback(
     (id: string) => {
       removing.current.add(id)
@@ -76,8 +76,35 @@ export function BlockSurface({ host }: { host: BlockHostRef }): React.JSX.Elemen
     },
     [commitLayout, refreshEntries, host]
   )
-  void removeBlock // wired by the Task 6 handle menu
   const suppressFlush = useCallback((id: string) => removing.current.has(id), [])
+
+  // The handle's returning-picker menu: main resolves the action (confirming
+  // Remove there), the renderer performs the write. Style edits spread the RAW
+  // entry so foreign fields survive (E-1); Type converts wait on the embed pickers.
+  const onHandleMenu = useCallback(
+    (id: string) => {
+      const entry = entries.get(id)
+      void window.nexus.blocks
+        .handleMenu({ style: entry?.style === 'borderless' ? 'borderless' : 'bordered' })
+        .then((action) => {
+          if (action === 'remove') removeBlock(id)
+          else if (action === 'style:bordered' || action === 'style:borderless') {
+            const style = action.slice('style:'.length) as BlockStyle
+            saveBlocks(
+              blocks.map((b) =>
+                knownBlock(b)?.id === id ? { ...(b as Record<string, unknown>), style } : b
+              )
+            )
+          }
+        })
+    },
+    [entries, blocks, saveBlocks, removeBlock]
+  )
+
+  const tileClassName = useCallback(
+    (id: string) => (entries.get(id)?.style === 'borderless' ? 'is-borderless' : undefined),
+    [entries]
+  )
 
   const renderTile = useCallback(
     (id: string, _rect: Rect) => {
@@ -114,7 +141,14 @@ export function BlockSurface({ host }: { host: BlockHostRef }): React.JSX.Elemen
   return (
     <div className="blk-surface">
       {/* Blocks reflow on Glide — the roomier displacement feel for big surfaces. */}
-      <SurfaceView layout={layout} onLayoutChange={setLayout} renderTile={renderTile} feel={FEEL_PRESETS.Glide} />
+      <SurfaceView
+        layout={layout}
+        onLayoutChange={setLayout}
+        renderTile={renderTile}
+        feel={FEEL_PRESETS.Glide}
+        tileClassName={tileClassName}
+        onHandleMenu={onHandleMenu}
+      />
       {/* Interim add — the right-click Insert menu (G-9, Task 6) replaces it. */}
       <button type="button" className="blk-add" onClick={addBlock}>
         Add Block
