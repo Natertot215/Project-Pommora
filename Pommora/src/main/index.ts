@@ -68,6 +68,7 @@ import { popPropertyMenu } from './propertyMenu'
 import { popOptionMenu } from './optionMenu'
 import { popIconFavoriteMenu } from './iconFavoriteMenu'
 import { popViewButtonMenu, type ViewButtonMenuAction } from './viewButtonMenu'
+import { popEmbedTitleMenu, popEmbedAreaMenu, type EmbedTitleMenuAction, type EmbedAreaMenuAction } from './viewEmbedMenu'
 import { popViewItemMenu, type ViewItemMenuAction } from './viewItemMenu'
 import { popViewRowMenu, type ViewRowMenuAction } from './viewRowMenu'
 import { popViewFormatMenu } from './viewFormatMenu'
@@ -1266,6 +1267,25 @@ ipcMain.handle('view-button-menu', async (e, current: unknown): Promise<ViewButt
   const viewButton: ViewButton = c?.viewButton === 'labeled' ? 'labeled' : 'icon'
   const viewStyle: ViewStyle = c?.viewStyle === 'toolbar' ? 'toolbar' : 'dropdown'
   return popViewButtonMenu(win, { viewButton, viewStyle })
+})
+
+// The view embed's title-row right-click menu (Hide/Show Icon · Hide Title).
+ipcMain.handle('view-embed-title-menu', async (e, iconShown: unknown): Promise<EmbedTitleMenuAction | null> => {
+  const win = BrowserWindow.fromWebContents(e.sender)
+  if (!win) return null
+  return popEmbedTitleMenu(win, iconShown === true)
+})
+
+// The view embed switcher area's right-click menu (Hide/Show Titles · New View · Style).
+ipcMain.handle('view-embed-area-menu', async (e, current: unknown): Promise<EmbedAreaMenuAction | null> => {
+  const win = BrowserWindow.fromWebContents(e.sender)
+  if (!win) return null
+  const c = current as { viewButton?: unknown; viewStyle?: unknown; titleShown?: unknown } | null
+  return popEmbedAreaMenu(win, {
+    viewButton: c?.viewButton === 'icon' ? 'icon' : 'labeled',
+    viewStyle: c?.viewStyle === 'dropdown' ? 'dropdown' : 'toolbar',
+    titleShown: c?.titleShown !== false
+  })
 })
 
 // The ViewSettings ⋮ menu (Duplicate / Delete) — resolves the action to the renderer.

@@ -8,6 +8,7 @@
 // the repair pass on top.
 
 import { z } from 'zod'
+import type { ViewButton, ViewStyle } from './types'
 
 export interface RawTile {
   kind: 'tile'
@@ -93,8 +94,10 @@ export interface EmbeddedView {
   config?: unknown
 }
 
-/** View embed (H-4/H-5): `views` is list-shaped from day one so the tabbed switcher
- *  never migrates the on-disk format — single-entry lists until it ships. */
+/** View embed (H-4/H-5): `views` is the switcher's list; `active` indexes into it. The header
+ *  chrome follows the page embed's absent-=-shown convention (G-4) — `title` hides the title row,
+ *  `icon` the view icon beside it — and the switcher reuses the container presentation vocabulary
+ *  (`view_button` icon/labeled pills, `view_style` toolbar/dropdown), defaulting labeled + toolbar. */
 export interface ViewBlockEntry {
   id: string
   type: 'view'
@@ -102,6 +105,10 @@ export interface ViewBlockEntry {
   active?: number
   style?: BlockStyle
   display_title?: string
+  title?: boolean
+  icon?: boolean
+  view_button?: ViewButton
+  view_style?: ViewStyle
 }
 
 export type BlockEntry = MarkdownBlockEntry | PageBlockEntry | ViewBlockEntry
@@ -126,7 +133,11 @@ const viewEntry = z.looseObject({
   views: z.array(embeddedView).min(1),
   active: z.number().int().nonnegative().optional().catch(undefined),
   style: styleField,
-  display_title: z.string().optional().catch(undefined)
+  display_title: z.string().optional().catch(undefined),
+  title: z.boolean().optional().catch(undefined),
+  icon: z.boolean().optional().catch(undefined),
+  view_button: z.enum(['icon', 'labeled']).optional().catch(undefined),
+  view_style: z.enum(['dropdown', 'toolbar']).optional().catch(undefined)
 })
 const knownEntry = z.union([markdownEntry, pageEntry, viewEntry])
 

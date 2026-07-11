@@ -27,6 +27,23 @@ describe('knownBlock', () => {
     })
   })
 
+  it('view chrome keys ride through; malformed ones degrade, not reject', () => {
+    expect(
+      knownBlock({
+        id: 'c',
+        type: 'view',
+        views: [{ source_id: 's1' }],
+        title: false,
+        icon: false,
+        view_button: 'icon',
+        view_style: 'dropdown'
+      })
+    ).toMatchObject({ title: false, icon: false, view_button: 'icon', view_style: 'dropdown' })
+    expect(
+      knownBlock({ id: 'c', type: 'view', views: [{ source_id: 's1' }], view_button: 'huge', view_style: 7, title: 'yes' })
+    ).toMatchObject({ type: 'view', view_button: undefined, view_style: undefined, title: undefined })
+  })
+
   it('returns null for unknown types and garbage — the caller renders inert', () => {
     expect(knownBlock({ id: 'x', type: 'widget' })).toBeNull()
     expect(knownBlock({ type: 'page', page_id: 'p1' })).toBeNull()

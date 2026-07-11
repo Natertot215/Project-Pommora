@@ -226,20 +226,16 @@ export function BlockSurface({ host }: { host: BlockHostRef }): React.JSX.Elemen
     [entries, editingId, handleMenu]
   )
 
-  // The scope's payload writer: one view element's copied config swaps in place —
-  // updater form + raw spreads, so foreign keys on the entry AND its elements survive (E-1).
-  const persistViewConfig = useCallback(
-    (entryId: string, index: number, config: SavedView) => {
+  // The view-entry payload writer: hands the embed the RAW entry to transform — updater
+  // form + raw spreads inside the transforms, so foreign keys on the entry AND its
+  // elements survive (E-1). Config swaps, chrome toggles, and view CRUD all ride it.
+  const mutateViewEntry = useCallback(
+    (entryId: string, fn: (raw: Record<string, unknown>) => Record<string, unknown>) => {
       saveBlocks((cur) =>
         cur.map((raw) => {
           const e = knownBlock(raw)
           if (e?.id !== entryId || e.type !== 'view') return raw
-          const r = raw as Record<string, unknown>
-          const views = Array.isArray(r.views) ? [...(r.views as unknown[])] : []
-          const el = views[index]
-          if (typeof el !== 'object' || el === null) return raw
-          views[index] = { ...(el as Record<string, unknown>), config }
-          return { ...r, views }
+          return fn(raw as Record<string, unknown>)
         })
       )
     },
@@ -267,10 +263,10 @@ export function BlockSurface({ host }: { host: BlockHostRef }): React.JSX.Elemen
           <PageEmbedBlock page={page} entryId={entry.id} editing={editingId === id} onBeginEdit={setEditingId} connections={connections} />
         )
       }
-      if (entry?.type === 'view') return <ViewEmbedBlock entry={entry} persistViewConfig={persistViewConfig} />
+      if (entry?.type === 'view') return <ViewEmbedBlock entry={entry} mutateEntry={mutateViewEntry} />
       return <div className="blk-inert" /> // no/foreign/unknown entry — space holds, nothing breaks
     },
-    [entries, editingId, connections, suppressFlush, pagesById, host, persistViewConfig]
+    [entries, editingId, connections, suppressFlush, pagesById, host, mutateViewEntry]
   )
 
   // Right-click on the surface background creates a block (G-9's Block default,

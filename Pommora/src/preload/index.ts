@@ -81,6 +81,16 @@ const api = {
     viewStyle: ViewStyle
   }): Promise<'toggle-title' | 'style-dropdown' | 'style-toolbar' | null> =>
     ipcRenderer.invoke('view-button-menu', current),
+  // The view embed's title-row right-click menu (Hide/Show Icon · Hide Title).
+  viewEmbedTitleMenu: (iconShown: boolean): Promise<'toggle-icon' | 'hide-title' | null> =>
+    ipcRenderer.invoke('view-embed-title-menu', iconShown),
+  // The view embed switcher area's right-click menu (Hide/Show Titles · New View · Style).
+  viewEmbedAreaMenu: (current: {
+    viewButton: ViewButton
+    viewStyle: ViewStyle
+    titleShown: boolean
+  }): Promise<'toggle-pill-titles' | 'show-title' | 'new-view' | 'style-dropdown' | 'style-toolbar' | null> =>
+    ipcRenderer.invoke('view-embed-area-menu', current),
   // The ViewSettings ⋮ menu (Duplicate / Delete); Delete disabled when the view can't be removed.
   viewItemMenu: (canDelete: boolean): Promise<'view:duplicate' | 'view:delete' | null> =>
     ipcRenderer.invoke('view-item-menu', canDelete),
