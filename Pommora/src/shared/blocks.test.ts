@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { coerceBlockHost, knownBlock, rawLayoutSchema } from './blocks'
+import { blockPatchProblem, coerceBlockHost, knownBlock, rawLayoutSchema } from './blocks'
 
 describe('knownBlock', () => {
   it('types the three known entry kinds', () => {
@@ -38,6 +38,16 @@ describe('rawLayoutSchema', () => {
     }
     expect(rawLayoutSchema.safeParse(tree).success).toBe(true)
     expect(rawLayoutSchema.safeParse({ bands: 'no' }).success).toBe(false)
+  })
+})
+
+describe('blockPatchProblem', () => {
+  it('passes well-shaped patches and names the malformed ones', () => {
+    expect(blockPatchProblem({ layout: { bands: [] } })).toBeNull()
+    expect(blockPatchProblem({ blocks: [], locked: true })).toBeNull()
+    expect(blockPatchProblem({ layout: 'garbage' })).toBe('Malformed layout.')
+    expect(blockPatchProblem({ blocks: 'no' as unknown as unknown[] })).toBe('blocks must be an array.')
+    expect(blockPatchProblem({ locked: 'yes' as unknown as boolean })).toBe('locked must be a boolean.')
   })
 })
 

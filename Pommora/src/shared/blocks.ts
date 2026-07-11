@@ -116,3 +116,13 @@ export interface BlockDocPatch {
 
 export type BlocksGetResult = { ok: true; doc: BlockDoc } | { ok: false; error: string }
 export type BlocksSaveResult = { ok: true } | { ok: false; error: string }
+
+/** Main-side gate for a blocks:save patch (the views:save convention) — a shape CHECK
+ *  only: the ORIGINAL values are what get written, since zod's parse output strips
+ *  unknown keys and foreign keys must survive (E-1). Returns the problem, or null. */
+export function blockPatchProblem(patch: BlockDocPatch): string | null {
+  if ('layout' in patch && !rawLayoutSchema.safeParse(patch.layout).success) return 'Malformed layout.'
+  if ('blocks' in patch && !Array.isArray(patch.blocks)) return 'blocks must be an array.'
+  if ('locked' in patch && typeof patch.locked !== 'boolean') return 'locked must be a boolean.'
+  return null
+}

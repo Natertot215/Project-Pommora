@@ -108,11 +108,44 @@ describe('codec', () => {
     expect(decodeLayout(inRow)?.bands[0]?.node).toEqual({ kind: 'tile', id: 'x', h: 80 })
   })
 
-  it('returns null for garbage', () => {
+  it('returns null only for the truly shapeless', () => {
     expect(decodeLayout(42)).toBeNull()
     expect(decodeLayout({ bands: 'no' })).toBeNull()
     expect(decodeLayout(null)).toBeNull()
-    expect(decodeLayout({ bands: [{ node: { kind: 'tile', id: 'a', h: Number.NaN } }] })).toBeNull()
+  })
+
+  it('salvages a broken tile height instead of rejecting — hand-edits happen', () => {
+    const l = decodeLayout({ bands: [{ node: { kind: 'tile', id: 'a', h: Number.NaN } }] })
+    expect(l?.bands[0]?.node).toEqual({ kind: 'tile', id: 'a', h: 32 })
+    expect(decodeLayout({ bands: [{ node: { kind: 'tile', id: 'b', h: null } }] })?.bands).toHaveLength(1)
+  })
+
+  it('one malformed node never wipes the document — survivors keep their space', () => {
+    const raw = {
+      bands: [
+        { node: { kind: 'tile', id: 'good1', h: 100 } },
+        { node: { kind: 'tile', id: 'broken', h: null } },
+        { node: { kind: 'what-even' } },
+        {
+          node: {
+            kind: 'row',
+            ratios: [0.5, 0.5],
+            children: [
+              { kind: 'tile', id: 'good2', h: 80 },
+              { kind: 'tile', id: 'bad-child', h: 'tall' }
+            ]
+          }
+        }
+      ]
+    }
+    const l = decodeLayout(raw)
+    expect(l).not.toBeNull()
+    expect(l && validateLayout(l)).toEqual([])
+    const ids = l ? l.bands.map((b) => JSON.stringify(b.node)) : []
+    expect(ids.join()).toContain('good1')
+    expect(ids.join()).toContain('good2')
+    expect(ids.join()).toContain('broken') // height repaired, tile kept
+    expect(ids.join()).not.toContain('what-even')
   })
 
   it('every repaired decode passes validateLayout — the completeness oracle', () => {

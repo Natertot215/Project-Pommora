@@ -9,7 +9,7 @@ import { WINDOW_BG } from '@shared/theme'
 import { readNexus } from './readNexus'
 import { readPage } from './readPage'
 import { readBlockDoc, writeBlockDoc } from './blocks'
-import { coerceBlockHost, type BlockDocPatch, type BlocksGetResult, type BlocksSaveResult } from '@shared/blocks'
+import { blockPatchProblem, coerceBlockHost, type BlockDocPatch, type BlocksGetResult, type BlocksSaveResult } from '@shared/blocks'
 import { pathExists } from './io/atomicWrite'
 import { readAppConfig, writeAppConfig, addRecent, DEFAULT_TRASH_MODE } from './appConfig'
 import { sessionRoot, openSession, resolveRestorePath, isExistingDir } from './session'
@@ -1010,6 +1010,8 @@ ipcMain.handle('blocks:save', async (_e, host: unknown, patch: unknown): Promise
     const h = coerceBlockHost(host)
     if (!h) return { ok: false, error: 'Unknown block host.' }
     if (!patch || typeof patch !== 'object') return { ok: false, error: 'Invalid block-doc patch.' }
+    const problem = blockPatchProblem(patch as BlockDocPatch)
+    if (problem) return { ok: false, error: problem }
     await writeBlockDoc(root, h, patch as BlockDocPatch)
     return { ok: true }
   } catch (e) {
