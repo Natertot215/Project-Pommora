@@ -73,11 +73,15 @@ export interface MarkdownBlockEntry {
   style?: BlockStyle
 }
 
+/** Page embed (H-2): a scrollable, editable window onto the real page. `banner` /
+ *  `title` are the chrome toggles (absent = shown, per G-4). */
 export interface PageBlockEntry {
   id: string
   type: 'page'
   page_id: string
   style?: BlockStyle
+  banner?: boolean
+  title?: boolean
 }
 
 export interface ViewBlockEntry {
@@ -91,7 +95,14 @@ export interface ViewBlockEntry {
 export type BlockEntry = MarkdownBlockEntry | PageBlockEntry | ViewBlockEntry
 
 const markdownEntry = z.looseObject({ id: z.string().min(1), type: z.literal('markdown'), style: styleField })
-const pageEntry = z.looseObject({ id: z.string().min(1), type: z.literal('page'), page_id: z.string().min(1), style: styleField })
+const pageEntry = z.looseObject({
+  id: z.string().min(1),
+  type: z.literal('page'),
+  page_id: z.string().min(1),
+  style: styleField,
+  banner: z.boolean().optional().catch(undefined),
+  title: z.boolean().optional().catch(undefined)
+})
 const viewEntry = z.looseObject({
   id: z.string().min(1),
   type: z.literal('view'),
@@ -103,6 +114,13 @@ const knownEntry = z.union([markdownEntry, pageEntry, viewEntry])
 
 /** The handle menu's returning-picker actions (the renderer performs the write). */
 export type BlockHandleMenuAction = 'type:view' | 'type:page' | 'style:bordered' | 'style:borderless' | 'remove'
+
+/** One node of the native page-picker drill menu (renderer-built — main has no tree). */
+export interface PagePickerItem {
+  label: string
+  pageId?: string
+  submenu?: PagePickerItem[]
+}
 
 /** Type one raw `blocks[]` entry, or null for shapes this build doesn't know —
  *  the caller keeps the raw value either way (E-1: never strip, render inert). */

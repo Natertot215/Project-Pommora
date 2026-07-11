@@ -17,7 +17,7 @@ export function popBlockHandleMenu(win: BrowserWindow, opts: { style: BlockStyle
         label: 'Type',
         submenu: [
           { label: 'View', enabled: false, click: pick('type:view') },
-          { label: 'Page', enabled: false, click: pick('type:page') }
+          { label: 'Page', click: pick('type:page') }
         ]
       },
       {

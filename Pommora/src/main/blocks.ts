@@ -89,6 +89,28 @@ export async function removeBlockTile(root: string, host: BlockHostRef, tileId: 
   }
 }
 
+/** Turn Into → Page (G-7): the entry becomes a page embed (style survives), and a
+ *  markdown tile's backing `.md` trashes recoverably. The embedded page itself is
+ *  never touched — the entry only references it. */
+export async function convertTileToPage(root: string, host: BlockHostRef, tileId: string, pageId: string): Promise<void> {
+  let wasMarkdown = false
+  await mutateDoc(root, host, (cur) => {
+    const blocks = Array.isArray(cur.blocks) ? cur.blocks : []
+    const next = blocks.map((b) => {
+      const entry = knownBlock(b)
+      if (entry?.id !== tileId) return b
+      if (entry.type === 'markdown') wasMarkdown = true
+      const style = entry.style
+      return style ? { id: tileId, type: 'page', page_id: pageId, style } : { id: tileId, type: 'page', page_id: pageId }
+    })
+    return { ...cur, blocks: next }
+  })
+  if (wasMarkdown) {
+    const file = blockFilePath(root, host, tileId)
+    if (await pathExists(file)) await trashWithTimestamp(root, file)
+  }
+}
+
 export async function readMarkdownBlock(root: string, host: BlockHostRef, tileId: string): Promise<string | null> {
   try {
     return await readFile(blockFilePath(root, host, tileId), 'utf8')

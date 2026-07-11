@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import ReactMarkdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
 import type { BlockHostRef } from '@shared/blocks'
+import { StaticMarkdown } from '@renderer/Embeds/StaticMarkdown'
 import { MarkdownEditor } from '@renderer/MarkdownPM'
 import type { ConnectionsApi } from '@renderer/MarkdownPM/connections'
 
@@ -91,7 +90,7 @@ export function MarkdownBlock({
         onBeginEdit(tileId)
       }}
     >
-      {body.trim() === '' ? null : <ReactMarkdown remarkPlugins={[remarkGfm]}>{body}</ReactMarkdown>}
+      <StaticMarkdown body={body} />
     </div>
   )
 }

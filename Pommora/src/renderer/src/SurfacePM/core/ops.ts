@@ -148,6 +148,12 @@ export function removeTile(layout: SurfaceLayout, tileId: string): SurfaceLayout
   return next
 }
 
+/** Attach a NEW tile directly below the target with its own height — the wedge
+ *  fill: the target keeps its height, the newcomer takes the ragged remainder. */
+export function attachBelow(layout: SurfaceLayout, targetId: string, newId: string, h: number): SurfaceLayout {
+  return placeLeaf(layout, targetId, 's', { kind: 'tile', id: newId, h }, 0.5)
+}
+
 /** Insert a tile as its own full-width band at `index`. */
 export function insertBand(
   layout: SurfaceLayout,
@@ -245,6 +251,27 @@ export function resizeStackPair(
   const below = node.children[ref.index + 1]
   // Pair negotiation is tile-to-tile; a nested split neighbor doesn't have one
   // height to give — those edges stretch instead (the caller falls back).
+  if (above?.kind !== 'tile' || below?.kind !== 'tile') return layout
+  const delta = clamp(deltaPx, minPx - above.h, below.h - minPx)
+  if (delta === 0) return layout
+  above.h += delta
+  below.h -= delta
+  return next
+}
+
+/** The band-seam twin of resizeStackPair: two adjacent FULL-WIDTH single-tile
+ *  bands negotiate the boundary — one grows what the other gives, so the blocks
+ *  below stay put (the neighbor "fills the space" instead of the page flowing). */
+export function resizeBandPair(
+  layout: SurfaceLayout,
+  aboveIndex: number,
+  deltaPx: number,
+  minPx: number
+): SurfaceLayout {
+  if (deltaPx === 0) return layout
+  const next = cloneLayout(layout)
+  const above = next.bands[aboveIndex]?.node
+  const below = next.bands[aboveIndex + 1]?.node
   if (above?.kind !== 'tile' || below?.kind !== 'tile') return layout
   const delta = clamp(deltaPx, minPx - above.h, below.h - minPx)
   if (delta === 0) return layout

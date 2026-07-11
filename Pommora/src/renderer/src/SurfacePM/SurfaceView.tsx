@@ -2,10 +2,11 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { autoScroll, findScroller } from '@renderer/design-system/interactions/autoscroll'
 import { DEFAULT_FEEL, type Feel } from '@renderer/design-system/interactions/feel'
 import { SETTLE_FALLBACK } from '@renderer/design-system/interactions/shared'
+import { findTile } from './core/model'
 import type { DividerRef, Edge, SurfaceLayout } from './core/model'
 import { resolveEdge } from './core/edges'
 import { hitTest, type DropTarget } from './core/hitTest'
-import { moveTile, moveTileToBand, resizeDivider, resizeStackPair, stretchTileHeight } from './core/ops'
+import { moveTile, moveTileToBand, resizeBandPair, resizeDivider, resizeStackPair, stretchTileHeight } from './core/ops'
 import { computeGeometry, type Rect, type SurfaceGeometry } from './core/rects'
 import { snapAxis, xCandidates, yCandidates } from './core/snap'
 import { startPointerDrag } from './sensors/pointerDrag'
@@ -42,7 +43,13 @@ export interface SurfaceViewProps {
   tileClassName?: (id: string) => string | undefined
   /** Click / right-click on a tile's drag handle — the host's menu hook. */
   onHandleMenu?: (id: string, e: React.MouseEvent) => void
+  /** Right-click on the surface BACKGROUND — resolved to a semantic create target:
+   *  a ragged wedge under a tile (fill it flush to the row bottom) or a plain
+   *  append below all content. */
+  onBackdrop?: (target: BackdropTarget, e: React.MouseEvent) => void
 }
+
+export type BackdropTarget = { kind: 'append' } | { kind: 'wedge'; above: string; fillPx: number }
 
 type TilePhase = 'idle' | 'reflow' | 'lifted' | 'settling'
 
@@ -181,7 +188,8 @@ export function SurfaceView({
   snapPx = 6,
   feel = DEFAULT_FEEL,
   tileClassName,
-  onHandleMenu
+  onHandleMenu,
+  onBackdrop
 }: SurfaceViewProps): React.JSX.Element {
   const hostRef = useRef<HTMLDivElement | null>(null)
   const [width, setWidth] = useState(0)
@@ -190,13 +198,26 @@ export function SurfaceView({
   const [settle, setSettle] = useState<Settle | null>(null)
   const [resizingId, setResizingId] = useState<string | null>(null)
 
+  // While the surface WIDTH is animating (sidebar/inspector toggling), tiles must
+  // track 1:1 — their own width transition would lag the pane. `tracking` holds
+  // until the observer goes quiet.
+  const [tracking, setTracking] = useState(false)
+  const trackingSettle = useRef<ReturnType<typeof setTimeout> | null>(null)
   useEffect(() => {
     const el = hostRef.current
     if (!el) return
     setWidth(el.clientWidth)
-    const ro = new ResizeObserver(() => setWidth(el.clientWidth))
+    const ro = new ResizeObserver(() => {
+      setWidth(el.clientWidth)
+      setTracking(true)
+      if (trackingSettle.current) clearTimeout(trackingSettle.current)
+      trackingSettle.current = setTimeout(() => setTracking(false), 160)
+    })
     ro.observe(el)
-    return () => ro.disconnect()
+    return () => {
+      ro.disconnect()
+      if (trackingSettle.current) clearTimeout(trackingSettle.current)
+    }
   }, [])
 
   const shown = draft ?? layout
@@ -292,6 +313,7 @@ export function SurfaceView({
       | { edge: Edge; kind: 'stretch'; start: number; cands: number[] }
       | { edge: Edge; kind: 'divider'; ref: DividerRef; start: number; cands: number[] }
       | { edge: Edge; kind: 'stack'; ref: DividerRef; start: number; cands: number[] }
+      | { edge: Edge; kind: 'bandpair'; above: number; start: number; cands: number[] }
     const actions: Action[] = []
     for (const edge of edges) {
       if (edge === 's') {
@@ -301,6 +323,11 @@ export function SurfaceView({
       }
       const boundary = resolveEdge(origin, id, edge)
       if (!boundary) continue
+      if (boundary.kind === 'bandpair') {
+        const start = ownRect.y
+        actions.push({ edge, kind: 'bandpair', above: boundary.above, start, cands: withoutOwn(snapY, start) })
+        continue
+      }
       const start =
         boundary.kind === 'divider'
           ? (dividerX.get(refKey(boundary.ref)) ?? ownRect.x)
@@ -320,6 +347,7 @@ export function SurfaceView({
           const delta = snapAxis(action.start + raw, action.cands, snap) - action.start
           if (action.kind === 'stretch') return stretchTileHeight(acc, id, delta, minT)
           if (action.kind === 'stack') return resizeStackPair(acc, action.ref, delta, minT)
+          if (action.kind === 'bandpair') return resizeBandPair(acc, action.above, delta, minT)
           const extent = extents.get(refKey(action.ref)) ?? 0
           return resizeDivider(acc, action.ref, delta, extent, minT)
         }, origin)
@@ -398,13 +426,46 @@ export function SurfaceView({
   }, [])
 
   const dragId = tileDrag?.id ?? settle?.id ?? null
-  const interacting = resizingId !== null
+  const interacting = resizingId !== null || tracking
+
+  // A background right-click resolves to a semantic create target: the ragged
+  // wedge under the tile above the point (fill flush to the row bottom), or a
+  // plain append when nothing sits above. Tiles swallow their own right-clicks.
+  const onSurfaceContextMenu = (e: React.MouseEvent): void => {
+    if (!onBackdrop || e.target !== e.currentTarget) return
+    e.preventDefault()
+    const host = hostRef.current
+    if (!host) return
+    const box = host.getBoundingClientRect()
+    const px = e.clientX - box.left
+    const py = e.clientY - box.top
+    const g = live.current.originGeometry
+    let above: { id: string; bottom: number; band: number } | null = null
+    for (const [id, r] of g.tiles) {
+      const bottom = r.y + r.h
+      if (px >= r.x && px <= r.x + r.w && py >= bottom && (!above || bottom > above.bottom)) {
+        const at = findTile(live.current.layout, id)
+        if (at) above = { id, bottom, band: at.band }
+      }
+    }
+    if (!above) {
+      onBackdrop({ kind: 'append' }, e)
+      return
+    }
+    // The band's bottom = its seam centerline minus half the gap.
+    const seam = g.bandEdges[above.band]
+    const bandBottom = seam ? seam.y - live.current.gap / 2 : g.totalHeight
+    const fillPx = bandBottom - above.bottom - live.current.gap
+    if (fillPx < live.current.minTilePx || py > bandBottom) onBackdrop({ kind: 'append' }, e)
+    else onBackdrop({ kind: 'wedge', above: above.id, fillPx }, e)
+  }
 
   return (
     <div
       ref={hostRef}
       className={`spm-surface${interacting ? ' is-interacting' : ''}`}
       style={{ height: geometry.totalHeight + bottomPadPx }}
+      onContextMenu={onSurfaceContextMenu}
     >
       {/* Tiles render in STABLE id order, never tree order — a mid-drag preview
           reorders the tree, and letting React move the keyed DOM nodes to match

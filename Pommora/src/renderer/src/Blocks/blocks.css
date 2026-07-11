@@ -2,12 +2,35 @@
    is SurfacePM's; these style what lives inside. */
 
 /* Vertical padding matches the editor's boundary→first-line gap (the MarkdownPM
-   header's 16px pad-bottom — the app's text-meets-edge standard). */
+   header's 16px pad-bottom — the app's text-meets-edge standard). Padding is the
+   BLOCK's own, measured off its border — never the host page's insets. */
 .blk-md {
+  position: relative;
   height: 100%;
   overflow-y: auto;
   padding: 16px 14px;
   overscroll-behavior: contain;
+}
+/* Content that fits must still own the wheel: a 1px phantom keeps the container a
+   real scroller, so overscroll containment locks the pane (pseudo-scroll). */
+.blk-md::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: -1px;
+  width: 1px;
+  pointer-events: none;
+}
+
+/* The tile's editor pads like the tile, not like a page — MarkdownPM's page-level
+   insets (--content-inset / --fold-gutter / the 90px page head-tail) don't apply
+   inside a block. */
+.blk-md.is-editing .mdpm-editor {
+  padding-left: 0;
+  padding-right: 0;
+}
+.blk-md.is-editing .mdpm-editor .cm-content {
+  padding: 16px 14px;
 }
 
 /* The tile's editor fills the tile, no page chrome. */
@@ -22,18 +45,3 @@
   height: 100%;
 }
 
-/* Interim add — replaced by the Task 6 right-click Insert menu. */
-.blk-add {
-  margin-top: 10px;
-  border: 1px solid var(--separator-border);
-  border-radius: 8px;
-  background: none;
-  color: var(--text-dim);
-  padding: 4px 10px;
-  font-size: 12px;
-  cursor: pointer;
-}
-.blk-add:hover {
-  color: var(--text);
-  background: var(--state-hover);
-}

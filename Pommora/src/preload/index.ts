@@ -10,7 +10,7 @@ import type { PropertyMenuAction, PropertyMenuContext } from '@shared/propertyMe
 import type { OptionMenuAction, OptionMenuContext } from '@shared/optionMenu'
 import type { ColumnMenuAction, ColumnMenuContext } from '@shared/columnMenu'
 import type { SavedView } from '@shared/views'
-import type { BlockDocPatch, BlockHandleMenuAction, BlockHostRef, BlockStyle, BlocksGetResult, BlocksSaveResult } from '@shared/blocks'
+import type { BlockDocPatch, BlockHandleMenuAction, BlockHostRef, BlockStyle, BlocksGetResult, BlocksSaveResult, PagePickerItem } from '@shared/blocks'
 import type { StatusGroup } from '@shared/properties'
 import type { PageFrontmatter } from '@shared/schemas'
 import type { PropertyDefinition, PropertyType } from '@shared/properties'
@@ -248,7 +248,13 @@ const api = {
       ipcRenderer.invoke('blocks:writeMarkdown', host, tileId, body),
     // The drag-handle menu (Type ▸ / Style ▸ / Remove) — Remove confirms in main first.
     handleMenu: (ctx: { style: BlockStyle }): Promise<BlockHandleMenuAction | null> =>
-      ipcRenderer.invoke('block-handle-menu', ctx)
+      ipcRenderer.invoke('block-handle-menu', ctx),
+    // Turn Into → Page: the entry becomes a page embed; a markdown tile's .md trashes.
+    convertToPage: (host: BlockHostRef, tileId: string, pageId: string): Promise<BlocksSaveResult> =>
+      ipcRenderer.invoke('blocks:convertToPage', host, tileId, pageId),
+    // The embed page picker — drill items built renderer-side from the tree.
+    pagePicker: (items: PagePickerItem[]): Promise<string | null> =>
+      ipcRenderer.invoke('blocks:pagePicker', items)
   },
   // Subfield (footer) config — React-owned `subfield` key in `.nexus/settings.json`.
   subfield: {

@@ -38,7 +38,8 @@
   z-index: 10;
   cursor: grabbing;
   box-shadow: var(--shadow-lift);
-  background: linear-gradient(var(--state-hover), var(--state-hover)), var(--main-bg);
+  /* The selected tone (5%) — a notch brighter than hover, still opaque over main-bg. */
+  background: linear-gradient(var(--state-selected), var(--state-selected)), var(--main-bg);
 }
 
 /* Resize highlight — the block's own border tints accent on edge hover + during
@@ -108,18 +109,36 @@
   opacity: 1;
 }
 
-/* The handle warms with intent — hover states layer over --main-bg (the notch
-   fill must stay opaque). state-hover: the handle or a resize edge is hovered,
-   or the block is actively resizing. state-selected: the handle itself is
-   grabbed (pressed or dragging the block). */
-.spm-handle:hover,
-.spm-tile.is-resizing .spm-handle,
-.spm-tile:has(> .spm-edge:hover) .spm-handle {
-  background: linear-gradient(var(--state-hover), var(--state-hover)), var(--main-bg);
+/* The handle warms with intent — the wash is its own layer so it FADES on
+   duration-base instead of snapping (a swapped background can't interpolate).
+   state-hover: the handle or a resize edge is hovered, or the block is actively
+   resizing. state-selected: the handle itself is grabbed. The chip's own
+   --main-bg stays put underneath (the notch fill must remain opaque). */
+.spm-handle::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--state-hover);
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity var(--duration-base) var(--ease-standard),
+    background var(--duration-base) var(--ease-standard);
 }
-.spm-handle:active,
-.spm-tile.is-lifted .spm-handle {
-  background: linear-gradient(var(--state-selected), var(--state-selected)), var(--main-bg);
+.spm-handle:hover::after,
+.spm-tile.is-resizing .spm-handle::after,
+.spm-tile:has(> .spm-edge:hover) .spm-handle::after {
+  opacity: 1;
+}
+.spm-handle:active::after,
+.spm-tile.is-lifted .spm-handle::after {
+  background: var(--state-selected);
+  opacity: 1;
+}
+/* Dots stay crisp above the wash. */
+.spm-handle::before {
+  z-index: 1;
 }
 
 /* Borderless style (G-14): the chassis hides until you reach for it — the border

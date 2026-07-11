@@ -1,16 +1,31 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { knownBlock, type BlockEntry, type BlockHostRef, type BlockStyle } from '@shared/blocks'
+import { knownBlock, type BlockEntry, type BlockHostRef, type BlockStyle, type PagePickerItem } from '@shared/blocks'
 import { FEEL_PRESETS } from '@renderer/design-system/interactions/feel'
 import { buildPageIndex, flattenPages, type ConnectionsApi } from '@renderer/MarkdownPM/connections'
-import { insertBand, removeTile as removeLeaf } from '@renderer/SurfacePM/core/ops'
+import { attachBelow, insertBand, removeTile as removeLeaf } from '@renderer/SurfacePM/core/ops'
 import type { Rect } from '@renderer/SurfacePM/core/rects'
-import { SurfaceView } from '@renderer/SurfacePM/SurfaceView'
+import { SurfaceView, type BackdropTarget } from '@renderer/SurfacePM/SurfaceView'
 import { useSession } from '@renderer/store'
+import type { CollectionNode, NexusTree, SetNode } from '@shared/types'
 import { MarkdownBlock } from './MarkdownBlock'
+import { PageEmbedBlock } from './PageEmbedBlock'
 import { useBlockDoc } from './useBlockDoc'
 import './blocks.css'
 
 const NEW_TILE_H = 160
+
+/** The page-picker drill tree: Collections → their pages, Sets nesting inside. */
+function pagePickerItems(tree: NexusTree): PagePickerItem[] {
+  const setItem = (s: SetNode): PagePickerItem => ({
+    label: s.title,
+    submenu: [...(s.sets ?? []).map(setItem), ...s.pages.map((p) => ({ label: p.title, pageId: p.id }))]
+  })
+  const collectionItem = (c: CollectionNode): PagePickerItem => ({
+    label: c.title,
+    submenu: [...c.sets.map(setItem), ...c.pages.map((p) => ({ label: p.title, pageId: p.id }))]
+  })
+  return [...tree.collections, ...tree.userSections.flatMap((u) => u.collections)].map(collectionItem)
+}
 
 // The host-facing block surface (G-2): the SurfacePM engine over a persisted
 // block document. Tile content resolves per typed entry; a leaf whose id has no
@@ -78,9 +93,24 @@ export function BlockSurface({ host }: { host: BlockHostRef }): React.JSX.Elemen
   )
   const suppressFlush = useCallback((id: string) => removing.current.has(id), [])
 
+  // Turn Into → Page: the native drill picker (Collections → Sets → pages, built
+  // here — main has no tree) resolves a page id; main rewrites the entry and
+  // trashes a markdown tile's file (G-7).
+  const convertToPage = useCallback(
+    (id: string) => {
+      if (!tree) return
+      void window.nexus.blocks.pagePicker(pagePickerItems(tree)).then((pageId) => {
+        if (!pageId) return
+        setEditingId((cur) => (cur === id ? null : cur))
+        void window.nexus.blocks.convertToPage(host, id, pageId).then(refreshEntries)
+      })
+    },
+    [tree, refreshEntries, host]
+  )
+
   // The handle's returning-picker menu: main resolves the action (confirming
   // Remove there), the renderer performs the write. Style edits spread the RAW
-  // entry so foreign fields survive (E-1); Type converts wait on the embed pickers.
+  // entry so foreign fields survive (E-1); View converts wait on Task 4's picker.
   const onHandleMenu = useCallback(
     (id: string) => {
       const entry = entries.get(id)
@@ -88,6 +118,7 @@ export function BlockSurface({ host }: { host: BlockHostRef }): React.JSX.Elemen
         .handleMenu({ style: entry?.style === 'borderless' ? 'borderless' : 'bordered' })
         .then((action) => {
           if (action === 'remove') removeBlock(id)
+          else if (action === 'type:page') convertToPage(id)
           else if (action === 'style:bordered' || action === 'style:borderless') {
             const style = action.slice('style:'.length) as BlockStyle
             saveBlocks(
@@ -98,7 +129,7 @@ export function BlockSurface({ host }: { host: BlockHostRef }): React.JSX.Elemen
           }
         })
     },
-    [entries, blocks, saveBlocks, removeBlock]
+    [entries, blocks, saveBlocks, removeBlock, convertToPage]
   )
 
   const tileClassName = useCallback(
@@ -109,8 +140,8 @@ export function BlockSurface({ host }: { host: BlockHostRef }): React.JSX.Elemen
   const renderTile = useCallback(
     (id: string, _rect: Rect) => {
       const entry = entries.get(id)
-      const body =
-        entry?.type === 'markdown' ? (
+      if (entry?.type === 'markdown')
+        return (
           <MarkdownBlock
             host={host}
             tileId={id}
@@ -119,23 +150,34 @@ export function BlockSurface({ host }: { host: BlockHostRef }): React.JSX.Elemen
             connections={connections}
             suppressFlush={suppressFlush}
           />
-        ) : (
-          <div className="blk-inert" /> // no/foreign/not-yet-built entry — space holds, nothing breaks
         )
-      return body
+      if (entry?.type === 'page')
+        return (
+          <PageEmbedBlock entry={entry} editing={editingId === id} onBeginEdit={setEditingId} connections={connections} />
+        )
+      return <div className="blk-inert" /> // no/foreign/not-yet-built entry — space holds, nothing breaks
     },
     [entries, editingId, connections, suppressFlush, host]
   )
 
-  const addBlock = useCallback(() => {
-    void window.nexus.blocks.createMarkdown(host).then((r) => {
-      if (!r.ok) return
-      refreshEntries()
-      // Updater form — a gesture (or second add) committing during the IPC await
-      // must not be overwritten by a render-captured layout.
-      commitLayout((cur) => insertBand(cur, cur.bands.length, r.id, NEW_TILE_H))
-    })
-  }, [commitLayout, refreshEntries, host])
+  // Right-click on the surface background creates a block (G-9's Block default,
+  // menu-less until Task 6): a wedge target fits flush inside the ragged gap, an
+  // append lands as a new full-width band. Updater form — a gesture committing
+  // during the IPC await must not be overwritten by a render-captured layout.
+  const onBackdrop = useCallback(
+    (target: BackdropTarget) => {
+      void window.nexus.blocks.createMarkdown(host).then((r) => {
+        if (!r.ok) return
+        refreshEntries()
+        commitLayout((cur) =>
+          target.kind === 'wedge'
+            ? attachBelow(cur, target.above, r.id, target.fillPx)
+            : insertBand(cur, cur.bands.length, r.id, NEW_TILE_H)
+        )
+      })
+    },
+    [commitLayout, refreshEntries, host]
+  )
 
   if (!ready) return null
   return (
@@ -148,11 +190,8 @@ export function BlockSurface({ host }: { host: BlockHostRef }): React.JSX.Elemen
         feel={FEEL_PRESETS.Glide}
         tileClassName={tileClassName}
         onHandleMenu={onHandleMenu}
+        onBackdrop={onBackdrop}
       />
-      {/* Interim add — the right-click Insert menu (G-9, Task 6) replaces it. */}
-      <button type="button" className="blk-add" onClick={addBlock}>
-        Add Block
-      </button>
     </div>
   )
 }

@@ -52,4 +52,15 @@ describe('resolveEdge', () => {
     expect(resolveEdge(l, 'd', 'e')).toBeNull()
     expect(resolveEdge(l, 'ghost', 'e')).toBeNull()
   })
+
+  it('a full-width block negotiates the band seam when both roots are tiles', () => {
+    let bands = insertBand({ bands: [] }, 0, 'top', 200)
+    bands = insertBand(bands, 1, 'bottom', 160)
+    expect(resolveEdge(bands, 'bottom', 'n')).toEqual({ kind: 'bandpair', above: 0 })
+    expect(resolveEdge(bands, 'top', 'n')).toBeNull() // first band — nothing above
+
+    // a split band above declines — no single height to give
+    const splitAbove = insertBand(splitAtTile(insertBand({ bands: [] }, 0, 'x', 200), 'x', 'e', 'y'), 1, 'z', 160)
+    expect(resolveEdge(splitAbove, 'z', 'n')).toBeNull()
+  })
 })

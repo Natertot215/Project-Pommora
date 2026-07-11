@@ -8,10 +8,11 @@ import type { MutateRequest, MutateResult, ContextTarget } from '@shared/mutate'
 import { WINDOW_BG } from '@shared/theme'
 import { readNexus } from './readNexus'
 import { readPage } from './readPage'
-import { createMarkdownBlock, readBlockDoc, readMarkdownBlock, removeBlockTile, writeBlockDoc, writeMarkdownBlock } from './blocks'
+import { convertTileToPage, createMarkdownBlock, readBlockDoc, readMarkdownBlock, removeBlockTile, writeBlockDoc, writeMarkdownBlock } from './blocks'
 import { popBlockHandleMenu } from './blockHandleMenu'
+import { popPagePickerMenu } from './blockPagePicker'
 import { isUlid } from './ids'
-import { blockPatchProblem, coerceBlockHost, type BlockDocPatch, type BlockHandleMenuAction, type BlocksGetResult, type BlocksSaveResult } from '@shared/blocks'
+import { blockPatchProblem, coerceBlockHost, type BlockDocPatch, type BlockHandleMenuAction, type BlocksGetResult, type BlocksSaveResult, type PagePickerItem } from '@shared/blocks'
 import { pathExists } from './io/atomicWrite'
 import { readAppConfig, writeAppConfig, addRecent, DEFAULT_TRASH_MODE } from './appConfig'
 import { sessionRoot, openSession, resolveRestorePath, isExistingDir } from './session'
@@ -1070,6 +1071,23 @@ ipcMain.handle('blocks:writeMarkdown', async (_e, host: unknown, tileId: unknown
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : String(e) }
   }
+})
+ipcMain.handle('blocks:convertToPage', async (_e, host: unknown, tileId: unknown, pageId: unknown): Promise<BlocksSaveResult> => {
+  try {
+    const ctx = blockHostAnd(host, tileId)
+    if (typeof ctx === 'string') return { ok: false, error: ctx }
+    if (typeof pageId !== 'string' || pageId.length === 0) return { ok: false, error: 'Invalid page id.' }
+    await convertTileToPage(ctx.root, ctx.h, tileId as string, pageId)
+    return { ok: true }
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) }
+  }
+})
+// The embed page picker — renderer-built drill items (main has no tree), native popup.
+ipcMain.handle('blocks:pagePicker', async (e, items: unknown): Promise<string | null> => {
+  const win = BrowserWindow.fromWebContents(e.sender)
+  if (!win || !Array.isArray(items)) return null
+  return popPagePickerMenu(win, items as PagePickerItem[])
 })
 
 // Personalization (accent, connection color, interface toggles) — merged one key at a time into the
