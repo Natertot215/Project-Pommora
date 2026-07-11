@@ -4,6 +4,13 @@ import { font } from '../design-system/tokens/typography.css'
 
 const c = colorVars.color
 
+// ── KNOB — the picker's ONE pane width. The slider viewport follows the active slot's
+// measured width, so unequal panes would shift the anchored picker on every slide;
+// locking every pane to one width kills the shift and sets the menu's footprint.
+export const PANE_W = 132
+
+export const pane = style({ width: PANE_W, boxSizing: 'border-box' })
+
 /** Handle-menu rows read at control size in the control label tone (Nathan's call) —
  *  the && doubles specificity over MenuItem's own class. */
 export const row = style({
