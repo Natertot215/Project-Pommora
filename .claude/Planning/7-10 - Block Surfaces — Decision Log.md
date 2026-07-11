@@ -174,10 +174,7 @@ How a page or view actually lives inside a tile — the walkthrough the D/G deci
 
 - **H-4 — View embed anatomy** [confirmed — C-1/D-12/G-4/G-6/G-10]: the tile renders the **view body only** — heading band + rows, slightly zoomed out, never a banner, in-line title defaulting to the source's name (renaming it retitles only the block). The view resolves **per-instance from the tile payload** — never the global active-view slot (`activeViews[source.id]`, read today by the table, the properties pane, the view pane, and the settings pane: `TableView.tsx:151`, `PropertiesPane.tsx:166`, `ViewPane.tsx:68`, `SettingsPane.tsx:74` — so every config surface an embed opens must receive the embed's resolution, not the slot's).
 
-- **H-5 — View-embed configuration surface** [open — THE reopened question]: D-12 grants "reconfigure from inside the embed," but a tile can't carry the container's full toolbar row. The candidate shapes:
-  1. **⋮-homed config (recommended):** the tile's ⋮ menu opens the existing ViewSettings surface scoped to the embed — full configuration power, zero standing chrome; switching which view a Linked embed shows lives in the same menu (it's a payload edit).
-  2. **Compact in-tile toolbar:** a slimmed ViewDropdown + settings affordance pinned in the tile header — faster access, permanent visual weight in every view tile.
-  3. **Config only at the source:** embeds render, interaction lives, but reconfiguration means visiting the real Collection — cheapest, but walks back D-12's two-way editing.
+- **H-5 — View-embed configuration surface** [confirmed — Nathan, by Notion screenshot]: the embed carries a **slim header row** — the in-line title (G-6) on the left, the config affordance on the right, a divider beneath, the view body below — Notion's embedded-database pattern. No toolbar row. The config affordance rides the tile's hover chrome (G-4's top-right family) and opens the existing **ViewSettings surface scoped to the embed** — full configuration power reading the embed's per-instance resolution (H-4), never the global slot; switching which view a Linked embed shows lives in the same surface (a payload edit).
 
 - **H-6 — Write-through routing** [confirmed — D-12/C-1]: data edits (cell values, drag-between-groups, set-reparent drags) write to the source from either kind, always. Config edits route by kind: Linked → `saveViewAdopting(source)` (it IS the collection's view, edited from anywhere); Custom → the block payload. The view lock (B-5) freezes the config half only; interaction stays live.
 
@@ -238,8 +235,7 @@ The invariant block system — buildable before, and regardless of, the contexts
 
 ### Still Open — the log doesn't close until these do
 
-1. **H-5:** the view-embed configuration surface (⋮-homed ViewSettings vs compact in-tile toolbar vs source-only).
-2. **H-3's assumption:** a locked page embed keeps its open action (flag if wrong).
-3. **Parked by design:** B-2 (contexts as block surfaces), D-10 (sidebar), the contexts resolution, Homepage's final role.
+1. **H-3's assumption:** a locked page embed keeps its open action (flag if wrong).
+2. **Parked by design:** B-2 (contexts as block surfaces), D-10 (sidebar), the contexts resolution, Homepage's final role.
 
 Adversarial review ran its full three rounds (the Review-Discipline cap); all findings verified and folded. Everything outside Section H stands certified and is being built (→ `Block Surfaces — Plumbing Plan.md`); H's opens gate the view-embed chrome, not the plumbing beneath it.
