@@ -16,7 +16,7 @@
 - Layout writes are debounced on gesture end; block content loads are targeted per-host, never woven into the tree walk (E-3).
 - Tokens only; no keyboard shortcuts beyond Esc; main-process changes need a dev restart; CDP verification drives throwaway content only — though `homepage.json` writes are real by design (G-12).
 
-### Task 1 — Block Document + Persistence
+### Task 1 — Block Document + Persistence (SHIPPED)
 
 **Files:** Create `src/shared/blocks.ts` + `blocks.test.ts`; create `src/main/blocks.ts` + `blocks.test.ts`; modify `src/shared/types.ts` (nothing — doc types live in `blocks.ts` like `mutate.ts` does), `src/main/paths.ts` (host-folder path helper), `src/main/index.ts` (handlers), `src/preload/index.ts`, `src/renderer/src/SurfacePM/core/codec.ts` (import raw layout schemas from shared), `src/renderer/src/Detail/HomepageView.tsx` (real surface over the doc).
 
@@ -45,7 +45,7 @@ The raw layout zod schemas (`RawTile`/`RawRow`/`RawColumn` + the bands object) *
 - [ ] Renderer: `useBlockDoc(host)` hook — loads on mount, decodes layout through the repairing codec, exposes `saveLayout` debounced (gesture-end writes, E-3). `HomepageView` swaps `SurfaceLab` for `SurfaceView` over the doc (Lab stays reachable from the showcase leaf).
 - [ ] Gates; live check: drag/resize on the Homepage, relaunch dev, layout survived. Commit.
 
-### Task 2 — Markdown Block Tiles
+### Task 2 — Markdown Block Tiles (SHIPPED)
 
 **Files:** Create `src/renderer/src/Blocks/MarkdownBlock.tsx` (the G-2 family starts here); modify `main/blocks.ts` + `index.ts` + preload (create/remove/read/write ops), `HomepageView` wiring (renderTile switches on resolved payload).
 
@@ -53,32 +53,56 @@ The raw layout zod schemas (`RawTile`/`RawRow`/`RawColumn` + the bands object) *
 
 **Steps:** IPC ops + tests (create mints + file exists; remove trashes file + drops entry; foreign entries untouched) → `MarkdownBlock` static render (existing `react-markdown` read path) with click-to-edit mounting MarkdownPM, single live editor, exit on click-out/Esc (E-4; CM6 remount gotcha: extension changes need ⌘R) → new-tile flow: a plain "add" affordance in the host (chrome lands in Task 6; G-7 default = markdown) → gates, CDP pass on a throwaway tile, commit.
 
-### Task 3 — Shared Page-Embed Framework (G-11)
+### Task 3 — Shared Page-Embed Framework (SHIPPED — revised live: the CM6 portal, E-4; header parked pending the ⋮ pass)
 
 **Files:** Create `src/renderer/src/Embeds/PageEmbed.tsx` (+ helpers); create `Blocks/PageEmbedBlock.tsx`; extend `shared/blocks.ts` page-entry chrome fields (`banner?: boolean; title?: boolean; locked?: boolean; display_title?: string`).
 
 **One seam, two consumers:** `PageEmbed` renders a Page inside any foreign surface — SurfacePM tiles now, MarkdownPM `![[Embed]]` later — so its props speak in page identity + chrome flags, never in tile vocabulary. Scrollable; edit-in-place via the same single-live-editor pattern; kind-specific hover-lock (B-5: locked page = no edit, no click-in); banner toggleable, in-line title per G-4/G-6. Dead page ref → inert placeholder (E-2). Re-ground `page:open`/`PageDetail` + MarkdownPM's mount contract at task start.
 
-### Task 4 — View Embeds: Linked, Then Custom
+### Task 4 — View Embeds: Linked (4a), Then Custom (4b)
 
-**4a Linked (D-12/C-1):** `Blocks/ViewEmbedBlock.tsx` resolves `source_id` against the tree; **per-instance view resolution** — the payload's `view_id` picks from `source.views`, `activeViews` is never touched; view-config edits persist via the existing `views.save(sourcePath, kind, view)`; data edits/drags already write through TableView's source-bound paths (correct behavior per C-1). The seam is **deeper than one hook**: the active-view slot is read by six surfaces — `useActiveView` in `TableView:151`, `ViewDropdown:44`, `PropertiesPane:166`, `HiddenPane:194`, plus **direct** `activeViews[node.id]` reads in `ViewPane.tsx:68` and `SettingsPane.tsx:74` — so the embed's resolution (view + id + persistence sink) threads through a provider/context scoped to the embed subtree, or the embed simply never mounts the slot-reading chrome. Re-ground all six at task start. Chrome: no banner ever (G-4), zoomed out via the existing `--zoom` knob (G-10), display-title override (G-6).
+**4a — Linked views.** Order of work:
 
-**4b Custom (D-5a–d):** payload-owned `SavedView`-shaped config; **nexus-wide row source** — a new batch IPC generalizing `loadValues` to the whole nexus (`listMarkdownFiles(root, { skipTopLevel: ['.nexus', '.trash'] })` joined to tree pages), columns/filters against the full registry (D-5b), cached per-host-open, most-recent-wins (D-5c); forest structural grouping = by-Collection top bands (D-5d). The arc's mountain — if a session runs short, 4a is a clean stop.
+1. **Entry contract** (`shared/blocks.ts`): the view entry finalizes as `{ id, type: 'view', source_id, view_id, style?, display_title? }` for Linked; Custom adds `config` (SavedView-shaped, raw-preserved) instead of `view_id`. Lock fields ride inert until Task 6.
+2. **The embed view scope** — the C-1 seam: an `Embeds/ViewEmbedScope` React context carrying `{ view, activeViewId, setActiveViewId, persistView }`. `useActiveView` gains a context-first read (one edit covers its four consumers: `TableView:151`, `ViewDropdown:44`, `PropertiesPane:166`, `HiddenPane:194`); the two DIRECT slot reads (`ViewPane.tsx:68`, `SettingsPane.tsx:74`) get the same context check. `[re-ground the six call sites at task start — the one mandatory grounding gap]` Outside a scope everything behaves exactly as today.
+3. **`Blocks/ViewEmbedBlock.tsx`**: resolves `source_id` against the tree (Collection or depth-1 Set; dead ref → inert, E-2), renders the **H-5 slim header** (display title per G-6, config affordance in the hover chrome opening ViewSettings INSIDE the scope), then TableView under the provider at the fixed embed zoom (G-10; the `--zoom` knob — resize is viewport-only, H-10). Never a banner (G-4).
+4. **Persistence routing** (D-12): view-config edits → `views.save(sourcePath, kind, view)` (it IS the source's view); switching which view the embed shows → a `view_id` payload write (`saveBlocks` updater). Data edits + drags already write through TableView's source-bound paths — untouched.
+5. **Creation**: enable Type ▸ View → the source drill picker (the `blockPagePicker` returning-menu pattern: Collections → Sets chevron → that container's views, **+ Custom** footer per G-9) → a `blocks:convertToView` op (raw-entry spread; trashes a markdown tile's `.md` under the file lock — the convertToPage recipe).
+
+**4a checkpoint:** two embeds of ONE Collection holding different views simultaneously; a config edit made inside an embed visible on the real Collection; the main pane's own view slot untouched throughout.
+
+**4b — Custom views (the arc's mountain).** Order of work:
+
+1. **The nexus-wide row source**: a `blocks:queryRows` IPC — main generalizes the `loadValues` walk to the whole nexus (`listMarkdownFiles(root, { skipTopLevel: ['.nexus', '.trash'] })`), returning `ViewRow`s joined to tree pages PLUS each row's Collection/Set lineage (D-5d's forest needs it — extend `ViewRow` or ship a parallel lineage map; decide at build against the pipeline's shape).
+2. **Caching** (D-5c): rows cached per host-open in a store slice, refreshed most-recent-wins on embed open and after the embed's own writes — never woven into the tree walk (E-3).
+3. **Pipeline wiring**: the pure `resolveView` pipeline consumes nexus rows + the FULL registry as schema (D-5b — pages lacking a property show empty); the payload's SavedView-shaped `config` is the view.
+4. **Forest grouping** (D-5d): structural grouping generalizes — top-level bands per Collection, Sets nesting inside exactly as container-locally; `group_order` stays a flat ULID list.
+5. **Scoping**: the existing Location filter mechanics extended nexus-wide — a Custom view narrows by filters, never by a source ref (D-5a).
+6. **+ Custom** in the picker footer mints a default nexus-wide view into the payload.
+
+**4b checkpoint:** a Custom view on the homepage showing pages from two Collections in one table, grouped by Collection, editable write-through. If a session runs short, 4a is the clean stop.
 
 ### Task 5 — Link-Graph Host Passes (D-8)
 
-**Files:** Modify `src/main/index/build.ts` (~:316 — connections build only from walked pages) and `src/main/crud/cascade.ts` (`SKIP_TOP_LEVEL` at :20 skips `.nexus` wholesale).
+Order of work:
 
-Both gain a **host-folder pass** over `blockHostDir` files (just `.nexus/homepage` until real hosts land), and the two halves have different shapes:
+1. **`main/blocks.ts`: `listBlockBodies(root)`** — enumerate every host dir's `<ulid>.md` with its tile id (just `.nexus/homepage` until real hosts land; the helper is the single place that learns new host dirs).
+2. **Indexer pass** (`index/build.ts` ~:316): feed each block body through `connectionEdges(tileUlid, body, linkIndex)` — the source id is caller-supplied already — and parameterize the upsert to stamp `source_kind: 'markdown_block'` + `surface: 'block_body'` (the discriminator D-8's search/graph exclusion depends on; today it hardcodes page/page_body).
+3. **`blockRenameCascade(root, oldTitle, newTitle)`** — a DEDICATED pass over block bodies, NOT an extension of `renameCascade` (its `!frontmatter.id → skip` guard at `cascade.ts:38` is load-bearing for pages; block files are id-less by design, D-11). Rewrites under `serializeOnFile` — the same lock the live block editor and the trash paths take. Called from mutate's page-rename case beside `renameCascade`, same revert-on-failure envelope.
+4. **Tests with a frontmatter-free fixture** (an id-bearing one would falsely pass): block `.md` linking `[[X]]` → rename X → body rewritten; connections row exists with the block source kind; a block body that ALSO fails the rewrite reverts with the page rename.
 
-- **Indexer:** `connectionEdges(sourceId, body, index)` already takes a caller-supplied source id — key block sources by the tile ULID from `blocks[]`. But the upsert stamps `source_kind: 'page'` / `surface: 'page_body'` today — parameterize it (or add a block variant) to stamp `source_kind: 'markdown_block'` + `surface: 'block_body'`, the discriminator D-8's search/graph-view exclusion depends on.
-- **Rename:** a **dedicated block-body rewrite pass**, NOT an extension of `renameCascade`'s page loop — that loop's `!frontmatter.id → skip` guard (`cascade.ts:38`) is load-bearing for pages and block files are id-less by design (D-11), so routing them through it silently no-ops. The block pass gates on nothing but the host-dir membership, rewrites under `serializeOnFile` (the same lock the live block editor takes).
+**Checkpoint:** type `[[Some Page]]` in a block → it indexes as a block-sourced connection; rename that page → the block body heals.
 
-Tests use a **frontmatter-free** block fixture (an id-bearing one would falsely pass the rename half): block `.md` linking `[[X]]` → rename X → body rewritten; connections row exists with the block source kind.
+### Task 6 — Chrome Completion
 
-### Task 6 — Chrome Mechanics (G-8, No Figma Gate)
+Shipped early during live direction (already merged): the notched grip handle + its menu (Type ▸ / Style ▸ / Remove-confirmed), Borderless, background right-click create with wedge fill, Turn Into → Page with the drill picker, proximity reveal, caret-priority scroll. Remaining:
 
-**MarkdownPM handle method:** ground the editor's drag-handle implementation (`renderer/src/MarkdownPM/` — decorations/input) at task start; the `spm-handle` adopts its visual treatment + grammar: drag = move (exists), **click / right-click = the block menus** (Turn Into per G-7 — converting away from markdown trashes the `.md` recoverably, into markdown mints one; Delete; kind-specific entries). **Insert menu (G-9):** right-click on surface background → native menu (the `contextMenu.ts` pattern): Page (search picker) · View (source drill: Collections → Sets chevron → views, + Custom footer) · Block. **Locks:** `blocks_locked` (G-3) → SurfaceView gains a `static` prop (gestures disabled); per-tile `locked` consumed by the Blocks components (B-5); G-5's container view-lock (ViewPane `MenuBottomRow`) is standalone — build it here or split out if the task runs heavy.
+1. **The Insert menu** (G-9): the background right-click upgrades from create-markdown-directly to the full native menu — **Page** (the existing page drill picker) · **View** (4a's source drill) · **Block** (the current default create). One `returningMenu` assembly; the wedge/append target resolution is already built and stays.
+2. **Turn Into completion**: → Markdown (mints a fresh `.md`, G-7; embed conversions never touch the source) and → View (4a's op); the Type submenu becomes context-aware (current type checked/disabled).
+3. **Locks**: `blocks_locked` (G-3) → a SurfaceView `static` prop gating all gestures + the wired SettingsPane lock footing; per-tile `locked` consumed kind-specifically (B-5: page = no edit/no click-in, open action stays per H-3; view = config frozen, interaction live); **G-5's container view-lock** (ViewPane `MenuBottomRow`, dims SettingsPane/ViewPanes container-wide, sidecar-synced, view CRUD included) — standalone; split to its own task if 6 runs heavy.
+4. **Page-embed header returns** via the ⋮ hover menu: banner/title toggles + `display_title` (fields already wired; H-2's open scroll clause may land here too once Nathan adjudicates).
+
+**Checkpoint:** every creation and conversion path reachable from the surface itself; a locked host is fully static; a locked page embed reads but never edits.
 
 ### Verification Discipline
 
