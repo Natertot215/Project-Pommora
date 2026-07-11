@@ -113,6 +113,13 @@ describe('moveTile', () => {
     expect(findTile(l, 'c')?.path[0]).toBeDefined()
   })
 
+  it('adopts the target height on a row placement — the drop lands flush', () => {
+    let l = insertBand(single(), 1, 'b', 240)
+    l = moveTile(l, 'b', 'a', 'e')
+    assertValid(l)
+    expect(getTile(l, 'b')?.h).toBe(getTile(l, 'a')?.h)
+  })
+
   it('no-ops on self-drop and unknown ids', () => {
     const l = splitAtTile(single(), 'a', 'e', 'b')
     expect(moveTile(l, 'a', 'a', 'e')).toBe(l)

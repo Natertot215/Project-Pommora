@@ -96,7 +96,9 @@ export function splitAtTile(
   return placed
 }
 
-/** Move an existing tile against a target edge — the mover keeps its own height. */
+/** Move an existing tile against a target edge. A row placement (e/w) adopts the
+ *  target's height — dropping beside a block lands flush with it instead of
+ *  importing the mover's old height as a ragged end; stacking (n/s) keeps it. */
 export function moveTile(
   layout: SurfaceLayout,
   tileId: string,
@@ -107,8 +109,10 @@ export function moveTile(
   const mover = getTile(layout, tileId)
   if (!mover || !findTile(layout, targetId)) return layout
   const removed = removeTile(layout, tileId)
-  if (!findTile(removed, targetId)) return layout
-  return placeLeaf(removed, targetId, edge, { kind: 'tile', id: tileId, h: mover.h }, 0.5)
+  const target = getTile(removed, targetId)
+  if (!target) return layout
+  const h = edge === 'e' || edge === 'w' ? target.h : mover.h
+  return placeLeaf(removed, targetId, edge, { kind: 'tile', id: tileId, h }, 0.5)
 }
 
 /** Remove a tile; a row's siblings absorb its width, a column's stack closes up,

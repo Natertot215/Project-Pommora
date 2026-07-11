@@ -1,5 +1,6 @@
 import { useCallback, useMemo } from 'react'
 import { knownBlock, type BlockEntry, type BlockHostRef } from '@shared/blocks'
+import { FEEL_PRESETS } from '@renderer/design-system/interactions/feel'
 import { insertBand } from '@renderer/SurfacePM/core/ops'
 import type { Rect } from '@renderer/SurfacePM/core/rects'
 import { SurfaceView } from '@renderer/SurfacePM/SurfaceView'
@@ -40,7 +41,8 @@ export function BlockSurface({ host }: { host: BlockHostRef }): React.JSX.Elemen
   if (!ready) return null
   return (
     <div className="blk-surface">
-      <SurfaceView layout={layout} onLayoutChange={setLayout} renderTile={renderTile} />
+      {/* Blocks reflow on Glide — the roomier displacement feel for big surfaces. */}
+      <SurfaceView layout={layout} onLayoutChange={setLayout} renderTile={renderTile} feel={FEEL_PRESETS.Glide} />
       <button type="button" onClick={addTile}>
         Add Block
       </button>

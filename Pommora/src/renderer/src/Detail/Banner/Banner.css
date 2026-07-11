@@ -94,11 +94,11 @@
    gutter portion swaps — floating sidebar/inspector clearance stays); other
    hosts' headers keep the standard inset. */
 .banner.is-homepage .banner-title {
-  left: calc(var(--content-inset) - var(--gutter) + 8px);
+  left: calc(var(--content-inset) - var(--gutter) + 12px);
 }
 .banner-empty.is-homepage {
-  padding-left: calc(var(--content-inset) - var(--gutter) + 8px);
-  padding-right: calc(var(--content-inset-right) - var(--gutter) + 8px);
+  padding-left: calc(var(--content-inset) - var(--gutter) + 12px);
+  padding-right: calc(var(--content-inset-right) - var(--gutter) + 12px);
 }
 .banner-empty-title {
   line-height: 1.2;
