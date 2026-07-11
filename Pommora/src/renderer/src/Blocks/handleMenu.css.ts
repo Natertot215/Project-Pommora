@@ -37,6 +37,10 @@ export const rowDisabled = style({
 // scrolls (MenuScrollFrame owns the cap; header + footer stay pinned).
 export const PICKER_MAX_H = 250
 
+/** Header/footer density for this thin menu — the house zoom knob scales the whole bar
+ *  (Nathan's call: the scaled bars read right here; tones stay the house classes). */
+export const barScale = style({ zoom: 0.85 })
+
 /** A pinned-footer text action (+ Custom) — footing tone over the accessory hover pill. */
 export const footerAction = style([
   footingLabel,
