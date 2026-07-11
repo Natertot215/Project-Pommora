@@ -8,7 +8,9 @@ import { useSession } from '@renderer/store'
 import { findCollection, findCollectionForSet, findSet } from '@renderer/Detail/Scope'
 import { mintDefaultView } from '@shared/views'
 import type { CollectionNode, NexusTree, SetNode } from '@shared/types'
+import type { SavedView } from '@shared/views'
 import { MarkdownBlock } from './MarkdownBlock'
+import { ViewEmbedBlock } from './ViewEmbedBlock'
 import { PageEmbedBlock } from './PageEmbedBlock'
 import { useBlockDoc } from './useBlockDoc'
 import './blocks.css'
@@ -189,6 +191,26 @@ export function BlockSurface({ host }: { host: BlockHostRef }): React.JSX.Elemen
     [entries, editingId]
   )
 
+  // The scope's payload writer: one view element's copied config swaps in place —
+  // updater form + raw spreads, so foreign keys on the entry AND its elements survive (E-1).
+  const persistViewConfig = useCallback(
+    (entryId: string, index: number, config: SavedView) => {
+      saveBlocks((cur) =>
+        cur.map((raw) => {
+          const e = knownBlock(raw)
+          if (e?.id !== entryId || e.type !== 'view') return raw
+          const r = raw as Record<string, unknown>
+          const views = Array.isArray(r.views) ? [...(r.views as unknown[])] : []
+          const el = views[index]
+          if (typeof el !== 'object' || el === null) return raw
+          views[index] = { ...(el as Record<string, unknown>), config }
+          return { ...r, views }
+        })
+      )
+    },
+    [saveBlocks]
+  )
+
   const renderTile = useCallback(
     (id: string) => {
       const entry = entries.get(id)
@@ -210,9 +232,10 @@ export function BlockSurface({ host }: { host: BlockHostRef }): React.JSX.Elemen
           <PageEmbedBlock page={page} entryId={entry.id} editing={editingId === id} onBeginEdit={setEditingId} connections={connections} />
         )
       }
-      return <div className="blk-inert" /> // no/foreign/not-yet-built entry — space holds, nothing breaks
+      if (entry?.type === 'view') return <ViewEmbedBlock entry={entry} persistViewConfig={persistViewConfig} />
+      return <div className="blk-inert" /> // no/foreign/unknown entry — space holds, nothing breaks
     },
-    [entries, editingId, connections, suppressFlush, pagesById, host]
+    [entries, editingId, connections, suppressFlush, pagesById, host, persistViewConfig]
   )
 
   // Right-click on the surface background creates a block (G-9's Block default,

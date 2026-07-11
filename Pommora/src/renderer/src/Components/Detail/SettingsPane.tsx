@@ -3,7 +3,7 @@ import { Server, Eye, LayoutDashboard, Layers, ListFilter, ArrowUpDown, SlidersH
 import type { OpenIn } from '@shared/types'
 import { Icon, defaultEntityIcon, iconNameOr } from '@renderer/design-system/symbols'
 import { detail as detailText, flushTrailing, side } from '../../design-system/components/menu/menu.css'
-import { ICON } from './settingsPane.css'
+import { crumbRow, ICON } from './settingsPane.css'
 import { useSession } from '../../store'
 import { findCollection, findSet, findCollectionForSet } from '../../Detail/Scope'
 import { pickView } from '../../Detail/Views/Table/TableView'
@@ -13,9 +13,10 @@ import { GroupingPane } from './GroupingPane'
 import { SortingPane } from './SortingPane'
 import { ViewSettings } from './ViewSettings'
 import { PaneSlider } from './PaneSlider'
-import { MenuItem, MenuSeparator, MenuCaption, MenuPaneTopRow } from '../../design-system/components/menu'
+import { MenuBottomRow, MenuItem, MenuSeparator, MenuCaption, MenuPaneTopRow } from '../../design-system/components/menu'
 import { IconPicker } from '../IconPicker'
 import { InlineEditHeader } from './InlineEditHeader'
+import { useViewEmbedScope } from '@renderer/Embeds/ViewEmbedScope'
 
 const isMac = navigator.platform.toLowerCase().includes('mac')
 
@@ -66,18 +67,26 @@ export function SettingsPane(): React.JSX.Element | null {
   const [iconOpen, setIconOpen] = useState(false)
   const iconRef = useRef<HTMLButtonElement>(null)
 
-  const node =
+  // In a view embed the ENTIRE node derivation goes scope-first — the selection names
+  // whatever the sidebar has open, not the embed's source; and the pane is a view-config
+  // surface there: view-identity header, no Configuration leaf, config writes → payload.
+  const scope = useViewEmbedScope()
+  const selectionNode =
     selection.kind === 'collection'
       ? findCollection(tree, selection.id)
       : selection.kind === 'set'
         ? findSet(tree, selection.id)
         : undefined
+  const node = scope?.source ?? selectionNode
   const activeViewId = useSession((st) => st.activeViews[node?.id ?? ''])
   if (!node) return null
 
   // Schema lives only on the Collection; a Set inherits its ancestor Collection's schema.
   const schemaCollection = node.kind === 'collection' ? node : findCollectionForSet(tree, node.id)
   const schema = schemaCollection?.properties ?? []
+  const view = scope?.view ?? pickView(node, activeViewId, schema)
+  // Open In has no payload target until the preview surface ships (B-8) — the leaf sits out in scope.
+  const entries = scope ? ENTRIES.filter((e) => e.id !== 'configuration') : ENTRIES
 
   const open = (id: PaneId): void => {
     lastDetail.current = id
@@ -129,14 +138,20 @@ export function SettingsPane(): React.JSX.Element | null {
   const root = (
     <>
       <InlineEditHeader
-        value={node.title}
-        icon={iconNameOr(node.icon, defaultEntityIcon(node.kind, defaultIcons))}
+        value={scope ? view.name : node.title}
+        icon={scope ? iconNameOr(view.icon, 'table') : iconNameOr(node.icon, defaultEntityIcon(node.kind, defaultIcons))}
         iconRef={iconRef}
         onIconClick={() => setIconOpen(true)}
-        onCommit={(next) => void submitRename(node.path, node.kind, next)}
+        onCommit={(next) => {
+          // The header is the VIEW's identity in scope (G-6/H-5) — renaming the source
+          // folder from an embed is exactly the mutation the scope exists to prevent.
+          if (scope) {
+            if (next && next !== view.name) scope.persistConfig({ ...view, name: next })
+          } else void submitRename(node.path, node.kind, next)
+        }}
       />
       <MenuSeparator flush />
-      {ENTRIES.map((e) => (
+      {entries.map((e) => (
         <MenuItem
           key={e.id}
           className={flushTrailing}
@@ -147,6 +162,27 @@ export function SettingsPane(): React.JSX.Element | null {
           {e.label}
         </MenuItem>
       ))}
+      {scope && schemaCollection && (
+        <>
+          <MenuSeparator flush />
+          <MenuBottomRow
+            leading={
+              <span className={crumbRow}>
+                <Icon name={iconNameOr(schemaCollection.icon, defaultEntityIcon('collection', defaultIcons))} size={ICON.rowChevron} />
+                <span>{schemaCollection.title}</span>
+                {node.kind === 'set' && (
+                  <>
+                    <span>›</span>
+                    <Icon name={iconNameOr(node.icon, defaultEntityIcon('set', defaultIcons))} size={ICON.rowChevron} />
+                    <span>{node.title}</span>
+                  </>
+                )}
+              </span>
+            }
+            trailing={<Icon name="lock" size={ICON.rowChevron} />}
+          />
+        </>
+      )}
     </>
   )
 
@@ -166,11 +202,11 @@ export function SettingsPane(): React.JSX.Element | null {
         schemaUnavailable
       )
     ) : detailId === 'layout' ? (
-      <ViewSettings source={node} view={pickView(node, activeViewId, schema)} schema={schema} door="flat" onBack={back} onClose={back} />
+      <ViewSettings source={node} view={view} schema={schema} door="flat" onBack={back} onClose={back} />
     ) : detailId === 'group' ? (
-      <GroupingPane source={node} view={pickView(node, activeViewId, schema)} schema={schema} label="Settings" onBack={back} />
+      <GroupingPane source={node} view={view} schema={schema} label="Settings" onBack={back} />
     ) : detailId === 'sort' ? (
-      <SortingPane source={node} view={pickView(node, activeViewId, schema)} schema={schema} label="Settings" onBack={back} />
+      <SortingPane source={node} view={view} schema={schema} label="Settings" onBack={back} />
     ) : (
       blankLeaf
     )
@@ -182,8 +218,11 @@ export function SettingsPane(): React.JSX.Element | null {
         open={iconOpen}
         onClose={() => setIconOpen(false)}
         triggerRef={iconRef}
-        value={node.icon}
-        onSelect={(id) => void mutate({ op: 'setIcon', path: node.path, kind: node.kind, icon: id })}
+        value={scope ? view.icon : node.icon}
+        onSelect={(id) => {
+          if (scope) scope.persistConfig({ ...view, icon: id })
+          else void mutate({ op: 'setIcon', path: node.path, kind: node.kind, icon: id })
+        }}
       />
     </>
   )

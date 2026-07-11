@@ -361,3 +361,10 @@ export const colorCluster = style({ position: 'relative', display: 'flex', align
 
 /** The bare button wrapping the colour chip — the recolor affordance (click the chip to open the picker). */
 export const colorChip = style({ border: 'none', background: 'none', padding: 0, cursor: 'default', display: 'flex' })
+
+/** The scoped-pane footer breadcrumb — the embed's source path, `(icon) Collection › (icon) Set`
+ *  (H-5: label-secondary at footnote emphasized; the lock rides the row's trailing slot). */
+export const crumbRow = style([
+  text.footnote.emphasized,
+  { display: 'inline-flex', alignItems: 'center', gap: '4px', color: c.label.secondary, minWidth: 0 }
+])
