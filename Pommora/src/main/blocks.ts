@@ -13,8 +13,12 @@ import { atomicWriteFile, mutateJson, pathExists, readJsonObject, trashWithTimes
 import { serializeOnFile } from './io/fileLock'
 import { blockHostDir, nexusConfig, NEXUS_CONFIG_FILES } from './paths'
 
-export function blockHostConfig(root: string, _host: BlockHostRef): string {
-  return nexusConfig(root, NEXUS_CONFIG_FILES.homepage)
+/** The block document lives in the host's CONTENT dir (`_blocks.json` beside the
+ *  block `.md` files) — the watcher ignores that dir, so a layout gesture never
+ *  costs a nexus re-walk. `homepage.json` (watched — the tree reads its banner)
+ *  holds no block keys. */
+export function blockHostConfig(root: string, host: BlockHostRef): string {
+  return join(blockHostDir(root, host), '_blocks.json')
 }
 
 /** A markdown block's backing file: `<tile-ulid>.md` in the host's own folder (D-11). */
@@ -29,10 +33,41 @@ async function mutateDoc(
   fn: (cur: Record<string, unknown>) => Record<string, unknown>
 ): Promise<void> {
   const path = blockHostConfig(root, host)
+  await mkdir(blockHostDir(root, host), { recursive: true })
   await serializeOnFile(path, () => mutateJson<Record<string, unknown>>(path, () => ({}), fn))
 }
 
+/** One-time migration: earlier builds kept the doc on homepage.json — lift those
+ *  keys into the sidecar and strip them, so the watched file never carries block
+ *  churn again. No-op once the sidecar exists. */
+async function migrateLegacyDoc(root: string, host: BlockHostRef): Promise<void> {
+  if (host.kind !== 'homepage' || (await pathExists(blockHostConfig(root, host)))) return
+  const legacyPath = nexusConfig(root, NEXUS_CONFIG_FILES.homepage)
+  const legacy = await readJsonObject(legacyPath)
+  if (!legacy || !('layout' in legacy || 'blocks' in legacy || 'blocks_locked' in legacy)) return
+  await mutateDoc(root, host, (cur) => ({
+    ...cur,
+    ...('layout' in legacy ? { layout: legacy.layout } : {}),
+    ...('blocks' in legacy ? { blocks: legacy.blocks } : {}),
+    ...('blocks_locked' in legacy ? { blocks_locked: legacy.blocks_locked } : {})
+  }))
+  await serializeOnFile(legacyPath, () =>
+    mutateJson<Record<string, unknown>>(
+      legacyPath,
+      () => ({}),
+      (cur) => {
+        const next = { ...cur }
+        delete next.layout
+        delete next.blocks
+        delete next.blocks_locked
+        return next
+      }
+    )
+  )
+}
+
 export async function readBlockDoc(root: string, host: BlockHostRef): Promise<BlockDoc> {
+  await migrateLegacyDoc(root, host)
   const raw = await readJsonObject(blockHostConfig(root, host))
   return {
     layout: raw?.layout,

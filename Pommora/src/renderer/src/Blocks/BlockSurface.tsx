@@ -50,13 +50,18 @@ export function BlockSurface({ host }: { host: BlockHostRef }): React.JSX.Elemen
     return map
   }, [blocks])
 
+  // ONE tree flatten per push, shared by everything that resolves pages — the
+  // connections index and every page-embed lookup (never per-embed walks).
+  const flatPages = useMemo(() => (tree ? flattenPages(tree) : []), [tree])
+  const pagesById = useMemo(() => new Map(flatPages.map((p) => [p.id, p])), [flatPages])
+
   // Markdown blocks are link SOURCES (D-8) — the tile editor gets the same
   // [[connection]] autocomplete + click-through the page editor has.
   const connections = useMemo<ConnectionsApi | undefined>(() => {
     if (!tree) return undefined
-    const idx = buildPageIndex(flattenPages(tree))
+    const idx = buildPageIndex(flatPages)
     return { ...idx, open: (page) => void select({ kind: 'page', id: page.id, path: page.path }) }
-  }, [tree, select])
+  }, [tree, flatPages, select])
 
   useEffect(() => {
     if (!editingId) return
@@ -156,13 +161,16 @@ export function BlockSurface({ host }: { host: BlockHostRef }): React.JSX.Elemen
             suppressFlush={suppressFlush}
           />
         )
-      if (entry?.type === 'page')
+      if (entry?.type === 'page') {
+        const page = pagesById.get(entry.page_id)
+        if (!page) return <div className="blk-inert" /> // dead reference — inert, space holds (E-2)
         return (
-          <PageEmbedBlock entry={entry} editing={editingId === id} onBeginEdit={setEditingId} connections={connections} />
+          <PageEmbedBlock page={page} entryId={entry.id} editing={editingId === id} onBeginEdit={setEditingId} connections={connections} />
         )
+      }
       return <div className="blk-inert" /> // no/foreign/not-yet-built entry — space holds, nothing breaks
     },
-    [entries, editingId, connections, suppressFlush, host]
+    [entries, editingId, connections, suppressFlush, pagesById, host]
   )
 
   // Right-click on the surface background creates a block (G-9's Block default,

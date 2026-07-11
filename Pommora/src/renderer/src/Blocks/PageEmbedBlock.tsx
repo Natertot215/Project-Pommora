@@ -1,33 +1,22 @@
-import { useMemo } from 'react'
-import type { PageBlockEntry } from '@shared/blocks'
 import { PageEmbed } from '@renderer/Embeds/PageEmbed'
-import { flattenPages, type ConnectionsApi } from '@renderer/MarkdownPM/connections'
-import { useSession } from '@renderer/store'
+import type { ConnPage, ConnectionsApi } from '@renderer/MarkdownPM/connections'
 
-// The tile-flavored consumer of the shared PageEmbed seam (G-11): resolves the
-// entry's page_id against the live tree and renders the embed. A dead reference
-// renders nothing and keeps its space (E-2) — the tile persists until removed.
-
+// The tile-flavored consumer of the shared PageEmbed seam (G-11). The page is
+// resolved by the surface's ONE shared id→page map — never a per-embed tree walk.
 export function PageEmbedBlock({
-  entry,
+  page,
+  entryId,
   editing,
   onBeginEdit,
   connections
 }: {
-  entry: PageBlockEntry
+  page: ConnPage
+  entryId: string
   editing: boolean
   onBeginEdit: (tileId: string) => void
   connections?: ConnectionsApi
-}): React.JSX.Element | null {
-  const tree = useSession((s) => s.tree)
-
-  const page = useMemo(
-    () => (tree ? (flattenPages(tree).find((p) => p.id === entry.page_id) ?? null) : null),
-    [tree, entry.page_id]
-  )
-
-  if (!page) return null // dead reference — inert, space holds (E-2)
+}): React.JSX.Element {
   return (
-    <PageEmbed path={page.path} editing={editing} onBeginEdit={() => onBeginEdit(entry.id)} connections={connections} />
+    <PageEmbed path={page.path} editing={editing} onBeginEdit={() => onBeginEdit(entryId)} connections={connections} />
   )
 }

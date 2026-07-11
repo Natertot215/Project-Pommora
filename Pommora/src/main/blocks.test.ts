@@ -16,12 +16,13 @@ import {
 const HOST = { kind: 'homepage' } as const
 
 let root: string
-const configPath = (): string => join(root, '.nexus', 'homepage.json')
+const configPath = (): string => join(root, '.nexus', 'homepage', '_blocks.json')
+const legacyPath = (): string => join(root, '.nexus', 'homepage.json')
 const readConfig = async (): Promise<Record<string, unknown>> => JSON.parse(await readFile(configPath(), 'utf8'))
 
 beforeEach(async () => {
   root = await mkdtemp(join(tmpdir(), 'blocks-'))
-  await mkdir(join(root, '.nexus'), { recursive: true })
+  await mkdir(join(root, '.nexus', 'homepage'), { recursive: true })
 })
 
 describe('readBlockDoc', () => {
@@ -42,14 +43,30 @@ describe('readBlockDoc', () => {
 })
 
 describe('writeBlockDoc', () => {
-  it('touches only the patched keys — banner and foreign keys survive', async () => {
-    await writeFile(configPath(), JSON.stringify({ banner: 'b.png', swift_future: { x: 1 }, blocks: [] }))
+  it('touches only the patched keys — foreign keys survive; homepage.json is never written', async () => {
+    await writeFile(legacyPath(), JSON.stringify({ banner: 'b.png' }))
+    await mkdir(join(root, '.nexus', 'homepage'), { recursive: true })
+    await writeFile(configPath(), JSON.stringify({ swift_future: { x: 1 }, blocks: [] }))
     await writeBlockDoc(root, HOST, { layout: { bands: [] } })
     const cfg = await readConfig()
-    expect(cfg.banner).toBe('b.png')
     expect(cfg.swift_future).toEqual({ x: 1 })
     expect(cfg.layout).toEqual({ bands: [] })
     expect(cfg.blocks).toEqual([])
+    expect(JSON.parse(await readFile(legacyPath(), 'utf8'))).toEqual({ banner: 'b.png' })
+  })
+
+  it('migrates a legacy homepage.json doc into the sidecar once, stripping the watched file', async () => {
+    await writeFile(
+      legacyPath(),
+      JSON.stringify({ banner: 'b.png', layout: { bands: [] }, blocks: [{ id: 'a', type: 'markdown' }], blocks_locked: true })
+    )
+    const doc = await readBlockDoc(root, HOST)
+    expect(doc.layout).toEqual({ bands: [] })
+    expect(doc.blocks).toEqual([{ id: 'a', type: 'markdown' }])
+    expect(doc.locked).toBe(true)
+    const legacy = JSON.parse(await readFile(legacyPath(), 'utf8'))
+    expect(legacy).toEqual({ banner: 'b.png' })
+    expect((await readConfig()).blocks).toEqual([{ id: 'a', type: 'markdown' }])
   })
 
   it('sets and clears the lock key', async () => {
