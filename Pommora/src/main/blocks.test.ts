@@ -6,6 +6,7 @@ import { pathExists } from './io/atomicWrite'
 import {
   blockFilePath,
   convertTileToView,
+  duplicateBlockTile,
   createMarkdownBlock,
   readBlockDoc,
   readMarkdownBlock,
@@ -142,6 +143,27 @@ describe('markdown block lifecycle', () => {
     expect(await pathExists(blockFilePath(root, HOST, id))).toBe(false)
     const trashed = await readdir(join(root, '.trash'))
     expect(trashed.some((f) => f.includes(id))).toBe(true)
+  })
+
+  it('duplicate copies the raw entry + file; a view copy re-mints its config ids', async () => {
+    const id = await createMarkdownBlock(root, HOST)
+    await writeMarkdownBlock(root, HOST, id, 'body text')
+    await writeBlockDoc(root, HOST, { blocks: [{ id, type: 'markdown', style: 'borderless', alien: 1 }] })
+    const dupId = await duplicateBlockTile(root, HOST, id)
+    expect(dupId).toBeTruthy()
+    expect(await readMarkdownBlock(root, HOST, dupId as string)).toBe('body text')
+    const blocks = (await readConfig()).blocks as Array<Record<string, unknown>>
+    const copy = blocks.find((b) => b.id === dupId)
+    expect(copy).toMatchObject({ type: 'markdown', style: 'borderless', alien: 1 })
+
+    await writeBlockDoc(root, HOST, {
+      blocks: [{ id: 'v1', type: 'view', views: [{ source_id: 's', config: { id: 'cfg-a', name: 'T' } }] }]
+    })
+    const dupView = await duplicateBlockTile(root, HOST, 'v1')
+    const after = (await readConfig()).blocks as Array<Record<string, unknown>>
+    const viewCopy = after.find((b) => b.id === dupView) as { views: Array<{ config: { id: string } }> }
+    expect(viewCopy.views[0].config.id).not.toBe('cfg-a')
+    expect((after.find((b) => b.id === 'v1') as { views: Array<{ config: { id: string } }> }).views[0].config.id).toBe('cfg-a')
   })
 
   it('removing a non-markdown tile touches no files', async () => {

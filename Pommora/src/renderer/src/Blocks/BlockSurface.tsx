@@ -10,6 +10,7 @@ import { mintDefaultView } from '@shared/views'
 import type { CollectionNode, NexusTree, SetNode } from '@shared/types'
 import type { SavedView } from '@shared/views'
 import { MarkdownBlock } from './MarkdownBlock'
+import { BlockHandleMenu } from './BlockHandleMenu'
 import { ViewEmbedBlock } from './ViewEmbedBlock'
 import { PageEmbedBlock } from './PageEmbedBlock'
 import { useBlockDoc } from './useBlockDoc'
@@ -155,29 +156,47 @@ export function BlockSurface({ host }: { host: BlockHostRef }): React.JSX.Elemen
     [tree, refreshEntries, host]
   )
 
-  // The handle's returning-picker menu: main resolves the action (confirming
-  // Remove there), the renderer performs the write. Style edits spread the RAW
-  // entry so foreign fields survive (E-1).
-  const onHandleMenu = useCallback(
-    (id: string) => {
-      const entry = entries.get(id)
-      void window.nexus.blocks
-        .handleMenu({ style: entry?.style === 'borderless' ? 'borderless' : 'bordered' })
-        .then((action) => {
-          if (action === 'remove') removeBlock(id)
-          else if (action === 'type:page') convertToPage(id)
-          else if (action === 'type:view') convertToView(id)
-          else if (action === 'style:bordered' || action === 'style:borderless') {
-            const style = action.slice('style:'.length) as BlockStyle
-            // Updater form — the native menu held the closure open; compose with
-            // the LIVE entry list, never the capture.
-            saveBlocks((cur) =>
-              cur.map((b) => (knownBlock(b)?.id === id ? { ...(b as Record<string, unknown>), style } : b))
-            )
-          }
-        })
+  // The handle menu is the in-app PickerMenu (G-16), anchored to the clicked handle;
+  // Delete still confirms natively in main first. Style edits spread the RAW entry so
+  // foreign fields survive (E-1); Duplicate lands directly below via the attach logic.
+  const [handleMenu, setHandleMenu] = useState<{ id: string; el: HTMLElement } | null>(null)
+  const onHandleMenu = useCallback((id: string, e: React.MouseEvent) => {
+    setHandleMenu({ id, el: e.currentTarget as HTMLElement })
+  }, [])
+  const setStyle = useCallback(
+    (id: string, style: BlockStyle) => {
+      saveBlocks((cur) => cur.map((b) => (knownBlock(b)?.id === id ? { ...(b as Record<string, unknown>), style } : b)))
     },
-    [entries, saveBlocks, removeBlock, convertToPage, convertToView]
+    [saveBlocks]
+  )
+  const duplicateBlock = useCallback(
+    (id: string) => {
+      void window.nexus.blocks.duplicateTile(host, id).then((r) => {
+        if (!r.ok) return
+        refreshEntries()
+        commitLayout((cur) => {
+          const findH = (n: { kind: string; id?: string; h?: number; children?: unknown[] }): number | null => {
+            if (n.kind === 'tile') return n.id === id ? (n.h ?? null) : null
+            for (const c of n.children ?? []) {
+              const h = findH(c as { kind: string })
+              if (h !== null) return h
+            }
+            return null
+          }
+          const h = cur.bands.map((b) => findH(b.node)).find((v) => v !== null) ?? NEW_TILE_H
+          return attachBelow(cur, id, r.id, h)
+        })
+      })
+    },
+    [refreshEntries, commitLayout, host]
+  )
+  const confirmRemove = useCallback(
+    (id: string) => {
+      void window.nexus.blocks.confirmRemove().then((ok) => {
+        if (ok) removeBlock(id)
+      })
+    },
+    [removeBlock]
   )
 
   const tileClassName = useCallback(
@@ -270,6 +289,19 @@ export function BlockSurface({ host }: { host: BlockHostRef }): React.JSX.Elemen
         onHandleMenu={onHandleMenu}
         onBackdrop={onBackdrop}
       />
+      {handleMenu && entries.get(handleMenu.id) && (
+        <BlockHandleMenu
+          entry={entries.get(handleMenu.id) as BlockEntry}
+          anchor={handleMenu.el}
+          onClose={() => setHandleMenu(null)}
+          onLinkView={() => convertToView(handleMenu.id)}
+          onLinkPage={() => convertToPage(handleMenu.id)}
+          onSource={() => convertToPage(handleMenu.id)}
+          onStyle={(style) => setStyle(handleMenu.id, style)}
+          onDuplicate={() => duplicateBlock(handleMenu.id)}
+          onRemove={() => confirmRemove(handleMenu.id)}
+        />
+      )}
     </div>
   )
 }

@@ -151,6 +151,40 @@ export async function convertTileToView(root: string, host: BlockHostRef, tileId
   await flipTile(root, host, tileId, { type: 'view', views: stamped, active: 0 })
 }
 
+/** Duplicate a tile: the RAW entry copies under a fresh id (foreign fields + chrome
+ *  survive, E-1); a markdown tile's body file copies FIRST (a crash leaks an orphan
+ *  file, never an entry without one); a view tile's copied configs re-mint their
+ *  payload-local ids (they key per-machine state — two tiles must never share one). */
+export async function duplicateBlockTile(root: string, host: BlockHostRef, tileId: string): Promise<string | null> {
+  const doc = await readBlockDoc(root, host)
+  const src = doc.blocks.find((b) => knownBlock(b)?.id === tileId)
+  const entry = src ? knownBlock(src) : null
+  if (!src || !entry) return null
+  const id = newId()
+  if (entry.type === 'markdown') {
+    const body = (await readMarkdownBlock(root, host, tileId)) ?? ''
+    await mkdir(blockHostDir(root, host), { recursive: true })
+    await atomicWriteFile(blockFilePath(root, host, id), body)
+  }
+  let copy: Record<string, unknown> = { ...(src as Record<string, unknown>), id }
+  if (entry.type === 'view' && Array.isArray(copy.views)) {
+    copy = {
+      ...copy,
+      views: (copy.views as unknown[]).map((v) => {
+        if (typeof v !== 'object' || v === null) return v
+        const el = v as Record<string, unknown>
+        if (typeof el.config !== 'object' || el.config === null) return el
+        return { ...el, config: { ...(el.config as Record<string, unknown>), id: newId() } }
+      })
+    }
+  }
+  await mutateDoc(root, host, (cur) => ({
+    ...cur,
+    blocks: [...(Array.isArray(cur.blocks) ? cur.blocks : []), copy]
+  }))
+  return id
+}
+
 export async function readMarkdownBlock(root: string, host: BlockHostRef, tileId: string): Promise<string | null> {
   try {
     return await readFile(blockFilePath(root, host, tileId), 'utf8')

@@ -130,9 +130,6 @@ const viewEntry = z.looseObject({
 })
 const knownEntry = z.union([markdownEntry, pageEntry, viewEntry])
 
-/** The handle menu's returning-picker actions (the renderer performs the write). */
-export type BlockHandleMenuAction = 'type:view' | 'type:page' | 'style:bordered' | 'style:borderless' | 'remove'
-
 /** One node of a native returning drill menu (renderer-built — main has no tree).
  *  A node with `pick` resolves the menu; a node with `submenu` drills. */
 export interface DrillPickItem<T> {

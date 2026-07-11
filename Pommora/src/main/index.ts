@@ -8,11 +8,10 @@ import type { MutateRequest, MutateResult, ContextTarget } from '@shared/mutate'
 import { WINDOW_BG } from '@shared/theme'
 import { readNexus } from './readNexus'
 import { readPage } from './readPage'
-import { convertTileToPage, convertTileToView, createMarkdownBlock, readBlockDoc, readMarkdownBlock, removeBlockTile, writeBlockDoc, writeMarkdownBlock } from './blocks'
-import { popBlockHandleMenu } from './blockHandleMenu'
+import { convertTileToPage, convertTileToView, createMarkdownBlock, duplicateBlockTile, readBlockDoc, readMarkdownBlock, removeBlockTile, writeBlockDoc, writeMarkdownBlock } from './blocks'
 import { popDrillMenu } from './blockPicker'
 import { isUlid } from './ids'
-import { blockPatchProblem, coerceBlockHost, type BlockDocPatch, type BlockHandleMenuAction, type BlocksGetResult, type BlocksSaveResult, type PagePickerItem, type ViewPick, type ViewPickerItem } from '@shared/blocks'
+import { blockPatchProblem, coerceBlockHost, type BlockDocPatch, type BlocksGetResult, type BlocksSaveResult, type PagePickerItem, type ViewPick, type ViewPickerItem } from '@shared/blocks'
 import { pathExists } from './io/atomicWrite'
 import { readAppConfig, writeAppConfig, addRecent, DEFAULT_TRASH_MODE } from './appConfig'
 import { sessionRoot, openSession, resolveRestorePath, isExistingDir } from './session'
@@ -1108,6 +1107,30 @@ ipcMain.handle('blocks:viewPicker', async (e, items: unknown): Promise<ViewPick 
   if (!win || !Array.isArray(items)) return null
   return popDrillMenu(win, items as ViewPickerItem[])
 })
+ipcMain.handle('blocks:duplicateTile', async (_e, host: unknown, tileId: unknown): Promise<{ ok: true; id: string } | { ok: false; error: string }> => {
+  try {
+    const ctx = blockHostAnd(host, tileId)
+    if (typeof ctx === 'string') return { ok: false, error: ctx }
+    const id = await duplicateBlockTile(ctx.root, ctx.h, tileId as string)
+    return id ? { ok: true, id } : { ok: false, error: 'No such tile.' }
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) }
+  }
+})
+// Delete keeps the native confirm (Nathan's call) — the in-app menu asks main first.
+ipcMain.handle('blocks:confirmRemove', async (e): Promise<boolean> => {
+  const win = BrowserWindow.fromWebContents(e.sender)
+  if (!win) return false
+  const { response } = await dialog.showMessageBox(win, {
+    type: 'warning',
+    buttons: ['Remove', 'Cancel'],
+    defaultId: 0,
+    cancelId: 1,
+    message: 'Remove this block?',
+    detail: 'A markdown block\u2019s file moves to the nexus\u2019s .trash (recoverable); embeds only remove the tile.'
+  })
+  return response === 0
+})
 
 // Personalization (accent, connection color, interface toggles) — merged one key at a time into the
 // React-owned `personalization` object in `.nexus/settings.json`; the value is validated on read.
@@ -1256,14 +1279,6 @@ ipcMain.handle('view-button-menu', async (e, current: unknown): Promise<ViewButt
   const viewButton: ViewButton = c?.viewButton === 'labeled' ? 'labeled' : 'icon'
   const viewStyle: ViewStyle = c?.viewStyle === 'toolbar' ? 'toolbar' : 'dropdown'
   return popViewButtonMenu(win, { viewButton, viewStyle })
-})
-
-// The block drag-handle menu (Type ▸ / Style ▸ / Remove; Remove confirms here).
-ipcMain.handle('block-handle-menu', async (e, ctx: unknown): Promise<BlockHandleMenuAction | null> => {
-  const win = BrowserWindow.fromWebContents(e.sender)
-  if (!win) return null
-  const style = (ctx as { style?: unknown } | null)?.style === 'borderless' ? 'borderless' : 'bordered'
-  return popBlockHandleMenu(win, { style })
 })
 
 // The ViewSettings ⋮ menu (Duplicate / Delete) — resolves the action to the renderer.
