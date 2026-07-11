@@ -345,6 +345,7 @@
 .group-header-row {
   /* text weight comes from the text.body.emphasized alias on GroupHeader's span — no raw font-weight. */
   color: var(--text);
+  zoom: var(--zoom); /* the band sits OFF the column grid, so the density knob must land here too */
   padding-top: var(--group-gap-top); /* inter-section gap */
   padding-bottom: var(--cell-padding-y); /* matches data-cell vertical padding — gap before the first row */
 }

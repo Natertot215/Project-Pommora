@@ -164,7 +164,6 @@ export function SettingsPane(): React.JSX.Element | null {
       ))}
       {scope && schemaCollection && (
         <>
-          <MenuSeparator flush />
           <MenuBottomRow
             leading={
               <span className={crumbRow}>

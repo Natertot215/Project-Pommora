@@ -1,11 +1,9 @@
 import { globalStyle, style } from '@vanilla-extract/css'
 import { vars as colorVars } from '../design-system/tokens/color.css'
 import { text } from '../design-system/tokens/typography.css'
+import { EMBED_ZOOM } from '../Embeds/embedScale'
 
 const c = colorVars.color
-
-/** THE embed zoom knob (G-10): one fixed amount; resize is a viewport, never a scale (H-10). */
-const EMBED_ZOOM = '0.9'
 
 export const tile = style({ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 })
 
@@ -41,5 +39,5 @@ export const body = style({ flex: '1 1 auto', minWidth: 0, minHeight: 0, overflo
 
 /** The fixed embed zoom lands on the table's own token scope — the var is declared ON
  *  .table-view (table-tokens.css), so only a descendant-scoped redeclaration outranks it. */
-globalStyle(`${body} .table-view, ${body} .table-empty`, { vars: { '--zoom': EMBED_ZOOM } })
+globalStyle(`${body} .table-view, ${body} .table-empty`, { vars: { '--zoom': String(EMBED_ZOOM) } })
 

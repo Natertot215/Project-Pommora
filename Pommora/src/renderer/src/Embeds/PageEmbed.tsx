@@ -6,8 +6,7 @@ import './embeds.css'
 const SAVE_DEBOUNCE_MS = 400
 /** The embed's fixed zoom-out (G-10), as a LINEAR scale — converted once to the
  *  editor's exponential zoom. The knob. */
-const EMBED_SCALE = 0.9
-const EMBED_ZOOM = 1 + Math.log2(EMBED_SCALE)
+import { EMBED_SCALE, EMBED_ZOOM } from './embedScale'
 
 // THE shared page-embed framework (G-11): a window onto a real Page inside a
 // foreign surface — SurfacePM's page-embed tiles now, MarkdownPM's ![[Embed]]
