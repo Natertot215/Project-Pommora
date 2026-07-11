@@ -62,3 +62,5 @@ Grouping is **shipped for tables** — the pane, the pipeline mechanics, and the
 ### Prospects
 
 **In-Line View Embeds in Pages:** A saved view embedded as a live widget inside a Page body. Block-host surfaces get embeds — Linked + Custom view tiles, → [[SurfacePM]]; Page bodies don't.
+
+**View Switcher as Dropdown or Tabs:** The container toolbar's view switcher renders as the current dropdown or as inline tabs, per-container choice. View embeds mirror the same duality in their header switcher (→ [[SurfacePM]]).
