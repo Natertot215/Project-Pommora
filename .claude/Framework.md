@@ -50,7 +50,7 @@ The Settings editing UI (accent picker, label rename forms, tier-config consolid
 
 #### v0.8.0 — Block Surfaces (SurfacePM)
 
-The host-agnostic tile system — **SurfacePM** (the from-scratch split-tree engine; patterns studied from react-grid-layout, no code copied), the BlockHost document model, and the three v1 tile types. The engine, markdown blocks, the shared page-embed framework, and the handle/create chrome are **live on the Homepage dev host**; view embeds (Linked → Custom + the nexus-wide row source), locks, and the link-graph host passes complete the phase. Spec → [[Blocks]]; decision provenance → `Planning/7-10 - Block Surfaces — Decision Log.md`. The contexts resolution, its sidebar surfaces, the Context Linked-From surface, and the Homepage's final shape are their own later passes.
+The host-agnostic tile system — **SurfacePM** (the from-scratch split-tree engine; patterns studied from react-grid-layout, no code copied), the BlockHost document model, and the three v1 tile types. The engine, markdown blocks, the shared page-embed framework, and the handle/create chrome are **live on the Homepage dev host**; view embeds (Linked → Custom + the nexus-wide row source), locks, and the link-graph host passes complete the phase. Spec → [[SurfacePM]]; decision provenance → `Planning/7-10 - Block Surfaces — Decision Log.md`. The contexts resolution, its sidebar surfaces, the Context Linked-From surface, and the Homepage's final shape are their own later passes.
 
 #### v1.0.0 — Stabilization
 

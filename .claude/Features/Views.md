@@ -61,4 +61,4 @@ Grouping is **shipped for tables** — the pane, the pipeline mechanics, and the
 
 ### Prospects
 
-**In-Line View Embeds in Pages:** A saved view embedded as a live widget inside a Page body. Block-host surfaces get embeds — Linked + Custom view tiles, → [[Blocks]]; Page bodies don't.
+**In-Line View Embeds in Pages:** A saved view embedded as a live widget inside a Page body. Block-host surfaces get embeds — Linked + Custom view tiles, → [[SurfacePM]]; Page bodies don't.

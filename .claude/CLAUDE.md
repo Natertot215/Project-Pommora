@@ -82,13 +82,14 @@ Specs live in `Features/`; root docs (PRD · Handoff · History · Framework) si
 Product spec — what Pommora is + how its data is shaped
   PommoraPRD.md   vision · domain model · storage philosophy · v1 scope
   Structure.md    domain-model map (two layers, identity, linking) + Homepage/Settings singletons
-  Contexts · Collections · Views · PageSets · Pages · Properties · Blocks ·
+  Contexts · Collections · Views · PageSets · Pages · Properties ·
   Agenda · Connections · Navigation · Sidebar · Inspector · QuickCapture ·
   Configuration    per-entity + per-surface + config specs
 
 Implementation — how this build works
   Architecture.md   data / read / IPC architecture
   MarkdownPM.md     CodeMirror 6 page editor      TableView.md    the table view renderer
+  SurfacePM.md      the block/tile system
   Design · Typography · Interaction · Icons    design system · type scale · motion · icon set
   PommoraDND.md     in-house drag engine          Subfield.md     the footer
 

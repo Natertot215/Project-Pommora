@@ -18,7 +18,7 @@ Each tier is a **folder with a config sidecar** under `.nexus/` — the same fol
 
 All three tiers share one sidecar shape: `id` (ULID), `tier` (1 / 2 / 3), an optional `icon`, an optional `banner` (a Nexus-relative image path), `modified_at`, and any foreign keys preserved by value. **Areas additionally carry an optional `color`** drawn from a fixed ten-value palette (gray, brown, orange, yellow, green, blue, purple, pink, red, accent); an unrecognized value degrades to no color rather than failing the sidecar. Topics and Projects carry no color.
 
-There's no `parents` field and no containment. The folder name is the title — there's no `title` field on disk, and renaming in the UI renames the folder. A `blocks` field, if present, rides through as a preserved foreign key — the block-surface system it's reserved for is built ([[Blocks]]); whether Contexts host it rides the contexts-architecture pass.
+There's no `parents` field and no containment. The folder name is the title — there's no `title` field on disk, and renaming in the UI renames the folder. A `blocks` field, if present, rides through as a preserved foreign key — the block-surface system it's reserved for is built ([[SurfacePM]]); whether Contexts host it rides the contexts-architecture pass.
 
 #### II. Sidebar
 
@@ -76,7 +76,7 @@ The SQLite index — a regeneratable accelerator off the read path — holds a `
 
 ### Pending
 
-**Context Block Surfaces:** The Context detail view is a placeholder — a blank surface under the banner. The block-surface system is built host-agnostic ([[Blocks]] — live on the Homepage dev host); whether and how Contexts host it rides the contexts-architecture pass. The reserved `blocks` field rides through as a preserved foreign key until then.
+**Context Block Surfaces:** The Context detail view is a placeholder — a blank surface under the banner. The block-surface system is built host-agnostic ([[SurfacePM]] — live on the Homepage dev host); whether and how Contexts host it rides the contexts-architecture pass. The reserved `blocks` field rides through as a preserved foreign key until then.
 
 **Linked-From:** The inbound reverse query (`context_links` by target) is indexed, but the surface that lists every entity tagging a Context — grouped by kind — isn't built.
 

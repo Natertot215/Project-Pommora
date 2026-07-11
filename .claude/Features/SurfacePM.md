@@ -1,4 +1,4 @@
-## Blocks
+## SurfacePM
 
 Pommora's composable dashboard layer: any **BlockHost** — a folder entity whose config carries the block document — renders a mosaic of draggable, resizable tiles holding real content. The system is deliberately **host-agnostic** (D-2): it works identically under every resolution of the contexts question, with the Homepage (`homepage.json`) serving as the removable dev host until the real hosts land. The layout engine beneath it is **SurfacePM** (→ [[PommoraDND]]'s sibling; engine internals in `SurfacePM/README.md`); this doc is the durable spec of the block system itself. Full decision provenance: `Planning/7-10 - Block Surfaces — Decision Log.md`.
 

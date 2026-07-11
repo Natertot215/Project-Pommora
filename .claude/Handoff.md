@@ -30,7 +30,7 @@ Prior arcs, compressed — the detail lives in `Features/*` + `History.md`.
 
 One session, the whole arc: the Contexts rethink became a certified spec, the spec became SurfacePM, and SurfacePM became a live block system Nathan drove all evening.
 
-**The spec:** `Planning/7-10 - Block Surfaces — Decision Log.md` — review-certified through three adversarial rounds, then reopened live for Section H (embed mechanics, all confirmed) and extended through G-15/H-11 as Nathan drip-fed decisions. The capability-fusion diagnosis (block dashboards reserved to tag tiers) drove the host-agnostic BlockHost design; the contexts resolution stays parked. Durable spec now lives at [[Blocks]].
+**The spec:** `Planning/7-10 - Block Surfaces — Decision Log.md` — review-certified through three adversarial rounds, then reopened live for Section H (embed mechanics, all confirmed) and extended through G-15/H-11 as Nathan drip-fed decisions. The capability-fusion diagnosis (block dashboards reserved to tag tiers) drove the host-agnostic BlockHost design; the contexts resolution stays parked. Durable spec now lives at [[SurfacePM]].
 
 **SurfacePM shipped from scratch** (the RGL teardown informed patterns; zero code copied — `SurfacePM/README.md` records provenance): the split-tree model (row ratios / independent column stacks / per-tile px heights), window-style edge resize (south stretch · north stack + cross-band pair · e/w splitters · alignment snap), PommoraDND feel (lift-follow-settle on Glide), the notched grip handle with its menu (Type ▸ / Style ▸ / Remove-confirmed), right-click background create with wedge fill, and pane-toggle 1:1 tracking. Consolidated engine review folded (settle interlock, snap dead band, codec salvage).
 
