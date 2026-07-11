@@ -44,6 +44,12 @@ describe('knownBlock', () => {
     ).toMatchObject({ type: 'view', view_button: undefined, view_style: undefined, title: undefined })
   })
 
+  it('title_level accepts 1–6 and degrades out-of-range / non-int', () => {
+    expect(knownBlock({ id: 'c', type: 'view', views: [{ source_id: 's1' }], title_level: 2 })).toMatchObject({ title_level: 2 })
+    expect(knownBlock({ id: 'c', type: 'view', views: [{ source_id: 's1' }], title_level: 9 })).toMatchObject({ title_level: undefined })
+    expect(knownBlock({ id: 'c', type: 'view', views: [{ source_id: 's1' }], title_level: 2.5 })).toMatchObject({ title_level: undefined })
+  })
+
   it('returns null for unknown types and garbage — the caller renders inert', () => {
     expect(knownBlock({ id: 'x', type: 'widget' })).toBeNull()
     expect(knownBlock({ type: 'page', page_id: 'p1' })).toBeNull()

@@ -6,11 +6,23 @@ import type { BrowserWindow } from 'electron'
 import type { ViewButton, ViewStyle } from '@shared/types'
 import { popReturningMenu } from './returningMenu'
 
-export type EmbedTitleMenuAction = 'toggle-icon' | 'hide-title'
+export type EmbedTitleMenuAction = 'toggle-icon' | 'hide-title' | `size-${number}`
 
-export function popEmbedTitleMenu(win: BrowserWindow, iconShown: boolean): Promise<EmbedTitleMenuAction | null> {
+const TITLE_SIZES = [1, 2, 3, 4, 5, 6] as const
+
+export function popEmbedTitleMenu(win: BrowserWindow, iconShown: boolean, level: number): Promise<EmbedTitleMenuAction | null> {
   return popReturningMenu<EmbedTitleMenuAction>(win, (pick) => [
     { label: iconShown ? 'Hide Icon' : 'Show Icon', click: pick('toggle-icon') },
+    {
+      label: 'Title Size',
+      submenu: TITLE_SIZES.map((n) => ({
+        label: `Heading ${n}`,
+        type: 'checkbox' as const,
+        checked: level === n,
+        click: pick(`size-${n}`)
+      }))
+    },
+    { type: 'separator' as const },
     { label: 'Hide Title', click: pick('hide-title') }
   ])
 }

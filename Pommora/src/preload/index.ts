@@ -81,9 +81,9 @@ const api = {
     viewStyle: ViewStyle
   }): Promise<'toggle-title' | 'style-dropdown' | 'style-toolbar' | null> =>
     ipcRenderer.invoke('view-button-menu', current),
-  // The view embed's title-row right-click menu (Hide/Show Icon · Hide Title).
-  viewEmbedTitleMenu: (iconShown: boolean): Promise<'toggle-icon' | 'hide-title' | null> =>
-    ipcRenderer.invoke('view-embed-title-menu', iconShown),
+  // The view embed's title-row right-click menu (Hide/Show Icon · Title Size · Hide Title).
+  viewEmbedTitleMenu: (arg: { iconShown: boolean; level: number }): Promise<'toggle-icon' | 'hide-title' | `size-${number}` | null> =>
+    ipcRenderer.invoke('view-embed-title-menu', arg),
   // The view embed switcher area's right-click menu (Hide/Show Titles · New View · Style).
   viewEmbedAreaMenu: (current: {
     viewButton: ViewButton

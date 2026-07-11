@@ -7,27 +7,35 @@ const c = colorVars.color
 
 export const tile = style({ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 })
 
-/** H-5's title row — the ####-scale editable title over the switcher; its bottom hairline is
- *  the header's ONLY divider (none under the pills, none once the title row is hidden). */
+/** H-5's title row — the editable heading over the switcher; its bottom hairline is the header's
+ *  ONLY divider (none under the pills, none once the title row is hidden). The row establishes
+ *  markdownPM's editor font-size as the em base, so the `.md-hN` class on the title resolves its
+ *  `1.2em` (etc.) to the exact px a markdownPM heading would — same code, uniform result. */
 export const titleRow = style({
   display: 'flex',
   alignItems: 'center',
   gap: '8px',
   padding: '13px 12px 8px 14px',
   borderBottom: `1px solid ${c.separator.segment}`,
-  flex: 'none'
+  flex: 'none',
+  fontSize: 'var(--editor-font-size, 15px)'
 })
 
-const titleType = [text.title3.bold, { color: c.label.primary }] as const
-
-export const titleText = style([
-  ...titleType,
-  { flex: '1 1 auto', minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }
-])
-
-/** The mini-doc title mount — a single-line MarkdownPM editor sized to the ####-scale title,
- *  chromeless (no banner/gutter), so an inline `[[link]]` or emphasis renders like any page. */
-export const titleDoc = style({ flex: '1 1 auto', minWidth: 0 })
+/** The title text + its in-place rename input. Size + weight come from the `.md-hN` class the caller
+ *  appends (markdownPM's own heading code); this carries only colour, truncation, and the input reset. */
+export const titleText = style({
+  flex: '1 1 auto',
+  minWidth: 0,
+  whiteSpace: 'nowrap',
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
+  color: c.label.primary,
+  fontFamily: 'inherit',
+  border: 'none',
+  background: 'none',
+  padding: 0,
+  outline: 'none'
+})
 
 /** The switcher row — view pills (+ New View) leading, the config affordance trailing when
  *  the title row is hidden and this line is the whole header. */

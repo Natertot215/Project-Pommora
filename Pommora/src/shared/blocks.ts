@@ -107,6 +107,8 @@ export interface ViewBlockEntry {
   display_title?: string
   title?: boolean
   icon?: boolean
+  /** Heading level for the title (1–6, absent = the #### default) — sized by markdownPM's own `.md-hN`. */
+  title_level?: number
   view_button?: ViewButton
   view_style?: ViewStyle
 }
@@ -136,6 +138,7 @@ const viewEntry = z.looseObject({
   display_title: z.string().optional().catch(undefined),
   title: z.boolean().optional().catch(undefined),
   icon: z.boolean().optional().catch(undefined),
+  title_level: z.number().int().min(1).max(6).optional().catch(undefined),
   view_button: z.enum(['icon', 'labeled']).optional().catch(undefined),
   view_style: z.enum(['dropdown', 'toolbar']).optional().catch(undefined)
 })

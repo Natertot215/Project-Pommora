@@ -36,13 +36,15 @@ function coerceConfig(raw: unknown, schema: PropertyDefinition[], fallbackId: st
   return v.id === DEFAULT_VIEW_ID ? { ...v, id: fallbackId } : v
 }
 
-/** The ####-scale display title — click flips it to an in-place rename field (a doc title,
- *  no menu needed); Enter/blur commit, Escape reverts. Empty commits clear back to the source. */
-function EmbedTitle({ title, onCommit }: { title: string; onCommit: (next: string) => void }): React.JSX.Element {
+/** The display title — sized by markdownPM's own `.md-h{level}` heading class (they're the same code,
+ *  so a title reads uniform with any rendered heading), click-to-rename in place; Enter/blur commit,
+ *  Escape reverts. Empty commits clear back to the source. */
+function EmbedTitle({ title, level, onCommit }: { title: string; level: number; onCommit: (next: string) => void }): React.JSX.Element {
   const [editing, setEditing] = useState(false)
   const [value, setValue] = useState(title)
   const reverting = useRef(false) // Escape sets this so the blur it triggers doesn't commit
   const inputRef = useRef<HTMLInputElement>(null)
+  const heading = `${s.titleText} md-h${level}`
 
   useEffect(() => setValue(title), [title])
   useEffect(() => {
@@ -60,14 +62,14 @@ function EmbedTitle({ title, onCommit }: { title: string; onCommit: (next: strin
   if (!editing)
     return (
       // biome-ignore lint/a11y/noStaticElementInteractions: click-to-rename text, the doc-title idiom.
-      <span className={s.titleText} onClick={() => setEditing(true)}>
+      <span className={heading} onClick={() => setEditing(true)}>
         {title}
       </span>
     )
   return (
     <input
       ref={inputRef}
-      className={s.titleText}
+      className={heading}
       value={value}
       spellCheck={false}
       onChange={(e) => setValue(e.target.value)}
@@ -187,6 +189,7 @@ export function ViewEmbedBlock({
   const view = views[index]
   const titleShown = entry.title !== false
   const iconShown = entry.icon !== false
+  const titleLevel = entry.title_level ?? 4 // #### default
   const labeled = (entry.view_button ?? 'labeled') === 'labeled'
   const dropdown = entry.view_style === 'dropdown'
 
@@ -259,9 +262,13 @@ export function ViewEmbedBlock({
 
   const titleMenu = async (e: React.MouseEvent): Promise<void> => {
     e.preventDefault()
-    const action = await window.nexus.viewEmbedTitleMenu(iconShown)
+    const action = await window.nexus.viewEmbedTitleMenu({ iconShown, level: titleLevel })
     if (action === 'toggle-icon') patchEntry({ icon: iconShown ? false : undefined })
     else if (action === 'hide-title') patchEntry({ title: false })
+    else if (action?.startsWith('size-')) {
+      const n = Number(action.slice(5))
+      patchEntry({ title_level: n === 4 ? undefined : n }) // default level stores absent
+    }
   }
   const areaMenu = async (e: React.MouseEvent): Promise<void> => {
     e.preventDefault()
@@ -346,7 +353,7 @@ export function ViewEmbedBlock({
           // biome-ignore lint/a11y/noStaticElementInteractions: right-click chrome menu on the title row.
           <div className={s.titleRow} onContextMenu={(e) => void titleMenu(e)}>
             {iconShown && <Icon name={iconNameOr(view.icon, 'table')} size={15} />}
-            <EmbedTitle title={entry.display_title ?? source.title} onCommit={commitTitle} />
+            <EmbedTitle title={entry.display_title ?? source.title} level={titleLevel} onCommit={commitTitle} />
             {configButton}
           </div>
         )}

@@ -1269,11 +1269,13 @@ ipcMain.handle('view-button-menu', async (e, current: unknown): Promise<ViewButt
   return popViewButtonMenu(win, { viewButton, viewStyle })
 })
 
-// The view embed's title-row right-click menu (Hide/Show Icon · Hide Title).
-ipcMain.handle('view-embed-title-menu', async (e, iconShown: unknown): Promise<EmbedTitleMenuAction | null> => {
+// The view embed's title-row right-click menu (Hide/Show Icon · Title Size · Hide Title).
+ipcMain.handle('view-embed-title-menu', async (e, arg: unknown): Promise<EmbedTitleMenuAction | null> => {
   const win = BrowserWindow.fromWebContents(e.sender)
   if (!win) return null
-  return popEmbedTitleMenu(win, iconShown === true)
+  const a = arg as { iconShown?: unknown; level?: unknown } | null
+  const level = typeof a?.level === 'number' && a.level >= 1 && a.level <= 6 ? a.level : 4
+  return popEmbedTitleMenu(win, a?.iconShown === true, level)
 })
 
 // The view embed switcher area's right-click menu (Hide/Show Titles · New View · Style).
