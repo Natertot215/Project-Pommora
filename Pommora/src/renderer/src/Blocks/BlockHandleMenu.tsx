@@ -36,27 +36,21 @@ function DrillLevel({
     <div className={s.pane}>
       <MenuScrollFrame
         maxHeight={s.PICKER_MAX_H}
-        header={
-          <div className={s.barScale}>
-            <MenuPaneTopRow label={backLabel} current={title} onBack={onBack} />
-          </div>
-        }
+        header={<MenuPaneTopRow label={backLabel} current={title} onBack={onBack} />}
         footer={
           footerNodes.length ? (
-            <div className={s.barScale}>
-              <MenuBottomRow
-                leading={footerNodes.map((n, i) => (
-                  <button
-                    key={`${n.label}-${String(i)}`}
-                    type="button"
-                    className={s.footerAction}
-                    onClick={n.pick === undefined ? undefined : () => resolve(n.pick)}
-                  >
-                    {n.label}
-                  </button>
-                ))}
-              />
-            </div>
+            <MenuBottomRow
+              leading={footerNodes.map((n, i) => (
+                <button
+                  key={`${n.label}-${String(i)}`}
+                  type="button"
+                  className={s.footerAction}
+                  onClick={n.pick === undefined ? undefined : () => resolve(n.pick)}
+                >
+                  {n.label}
+                </button>
+              ))}
+            />
           ) : undefined
         }
       >
@@ -177,9 +171,7 @@ export function BlockHandleMenu({
 
   const stylePane = (
     <div className={s.pane}>
-      <div className={s.barScale}>
-        <MenuPaneTopRow label="Block" current="Style" onBack={() => setPane('root')} />
-      </div>
+      <MenuPaneTopRow label="Block" current="Style" onBack={() => setPane('root')} />
       {(['bordered', 'borderless'] as const).map((v) => (
         <MenuItem
           key={v}
