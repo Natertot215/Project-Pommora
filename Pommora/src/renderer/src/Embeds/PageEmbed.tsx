@@ -74,15 +74,16 @@ export function PageEmbed({
     pending.current = { body: next, timer: setTimeout(() => flushRef.current(), SAVE_DEBOUNCE_MS) }
   }
 
+  // Header chrome (banner + title) is parked — it returns with the ⋮ toggle pass;
+  // the fields + props stay wired so nothing re-plumbs.
+  void assetUrl
+  void cover
+  void title
+  void onOpen
+  void showBanner
+  void showTitle
   return (
     <div className="pgembed">
-      {showBanner && cover ? <img className="pgembed-banner" src={assetUrl(cover)} alt="" /> : null}
-      {showTitle ? (
-        // biome-ignore lint/a11y/useKeyWithClickEvents: navigation is pointer-first; keyboard rides later chrome
-        <div className="pgembed-title" onClick={onOpen} title={onOpen ? 'Open page' : undefined}>
-          {title}
-        </div>
-      ) : null}
       {body === null ? null : editing ? (
         <div className="pgembed-body is-editing">
           <MarkdownEditor
