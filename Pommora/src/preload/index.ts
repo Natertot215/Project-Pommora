@@ -10,7 +10,7 @@ import type { PropertyMenuAction, PropertyMenuContext } from '@shared/propertyMe
 import type { OptionMenuAction, OptionMenuContext } from '@shared/optionMenu'
 import type { ColumnMenuAction, ColumnMenuContext } from '@shared/columnMenu'
 import type { SavedView } from '@shared/views'
-import type { BlockDocPatch, BlockHostRef, BlockStyle, BlocksGetResult, BlocksSaveResult, EmbeddedView, PagePickerItem, ViewPick, ViewPickerItem } from '@shared/blocks'
+import type { BlockDocPatch, BlockHostRef, BlockStyle, BlocksGetResult, BlocksSaveResult, EmbeddedView } from '@shared/blocks'
 import type { StatusGroup } from '@shared/properties'
 import type { PageFrontmatter } from '@shared/schemas'
 import type { PropertyDefinition, PropertyType } from '@shared/properties'
@@ -249,16 +249,10 @@ const api = {
     // Turn Into → Page: the entry becomes a page embed; a markdown tile's .md trashes.
     convertToPage: (host: BlockHostRef, tileId: string, pageId: string): Promise<BlocksSaveResult> =>
       ipcRenderer.invoke('blocks:convertToPage', host, tileId, pageId),
-    // The embed page picker — drill items built renderer-side from the tree.
-    pagePicker: (items: PagePickerItem[]): Promise<string | null> =>
-      ipcRenderer.invoke('blocks:pagePicker', items),
     // Link View: the entry becomes a view embed carrying the COPIED config (D-12);
     // main re-mints each config id payload-local.
     convertToView: (host: BlockHostRef, tileId: string, views: EmbeddedView[]): Promise<BlocksSaveResult> =>
       ipcRenderer.invoke('blocks:convertToView', host, tileId, views),
-    // The embed view-source picker — Collections → Sets → views, + Custom per drill (G-9).
-    viewPicker: (items: ViewPickerItem[]): Promise<ViewPick | null> =>
-      ipcRenderer.invoke('blocks:viewPicker', items),
     // Duplicate a tile — raw-entry copy under a fresh id; markdown copies its file,
     // a view tile re-mints its config ids.
     duplicateTile: (host: BlockHostRef, tileId: string): Promise<{ ok: true; id: string } | { ok: false; error: string }> =>

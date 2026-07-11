@@ -118,40 +118,32 @@ export function BlockSurface({ host }: { host: BlockHostRef }): React.JSX.Elemen
   )
   const suppressFlush = useCallback((id: string) => removing.current.has(id), [])
 
-  // Turn Into → Page: the native drill picker (Collections → Sets → pages, built
-  // here — main has no tree) resolves a page id; main rewrites the entry and
-  // trashes a markdown tile's file (G-7).
-  const convertToPage = useCallback(
-    (id: string) => {
-      if (!tree) return
-      void window.nexus.blocks.pagePicker(pagePickerItems(tree)).then((pageId) => {
-        if (!pageId) return
-        setEditingId((cur) => (cur === id ? null : cur))
-        void window.nexus.blocks.convertToPage(host, id, pageId).then(refreshEntries)
-      })
+  // Turn Into → Page (G-7): the handle menu's drill pane resolved the page; main
+  // rewrites the entry and trashes a markdown tile's file.
+  const applyPagePick = useCallback(
+    (id: string, pageId: string) => {
+      setEditingId((cur) => (cur === id ? null : cur))
+      void window.nexus.blocks.convertToPage(host, id, pageId).then(refreshEntries)
     },
-    [tree, refreshEntries, host]
+    [refreshEntries, host]
   )
 
-  // Link View: the source drill resolves a view to COPY (or + Custom → the blank
-  // default against that source's schema); main re-mints the config id payload-local
-  // and flips the entry (D-12: copied, never synced).
-  const convertToView = useCallback(
-    (id: string) => {
+  // Link View: the drill pane resolved a view to COPY (or + Custom → the blank default
+  // against that source's schema); main re-mints the config id payload-local and flips
+  // the entry (D-12: copied, never synced).
+  const applyViewPick = useCallback(
+    (id: string, pick: ViewPick) => {
       if (!tree) return
-      void window.nexus.blocks.viewPicker(viewPickerItems(tree)).then((pick: ViewPick | null) => {
-        if (!pick) return
-        const container = findCollection(tree, pick.source_id) ?? findSet(tree, pick.source_id)
-        if (!container) return
-        const config = pick.custom
-          ? mintDefaultView(
-              (container.kind === 'collection' ? container : findCollectionForSet(tree, container.id))?.properties ?? []
-            )
-          : (container.views ?? []).find((v) => v.id === pick.view_id)
-        if (!config) return
-        setEditingId((cur) => (cur === id ? null : cur))
-        void window.nexus.blocks.convertToView(host, id, [{ source_id: pick.source_id, config }]).then(refreshEntries)
-      })
+      const container = findCollection(tree, pick.source_id) ?? findSet(tree, pick.source_id)
+      if (!container) return
+      const config = pick.custom
+        ? mintDefaultView(
+            (container.kind === 'collection' ? container : findCollectionForSet(tree, container.id))?.properties ?? []
+          )
+        : (container.views ?? []).find((v) => v.id === pick.view_id)
+      if (!config) return
+      setEditingId((cur) => (cur === id ? null : cur))
+      void window.nexus.blocks.convertToView(host, id, [{ source_id: pick.source_id, config }]).then(refreshEntries)
     },
     [tree, refreshEntries, host]
   )
@@ -289,14 +281,15 @@ export function BlockSurface({ host }: { host: BlockHostRef }): React.JSX.Elemen
         onHandleMenu={onHandleMenu}
         onBackdrop={onBackdrop}
       />
-      {handleMenu && entries.get(handleMenu.id) && (
+      {handleMenu && entries.get(handleMenu.id) && tree && (
         <BlockHandleMenu
           entry={entries.get(handleMenu.id) as BlockEntry}
           anchor={handleMenu.el}
+          pageItems={pagePickerItems(tree)}
+          viewItems={viewPickerItems(tree)}
           onClose={() => setHandleMenu(null)}
-          onLinkView={() => convertToView(handleMenu.id)}
-          onLinkPage={() => convertToPage(handleMenu.id)}
-          onSource={() => convertToPage(handleMenu.id)}
+          onPickPage={(pageId) => applyPagePick(handleMenu.id, pageId)}
+          onPickView={(pick) => applyViewPick(handleMenu.id, pick)}
           onStyle={(style) => setStyle(handleMenu.id, style)}
           onDuplicate={() => duplicateBlock(handleMenu.id)}
           onRemove={() => confirmRemove(handleMenu.id)}

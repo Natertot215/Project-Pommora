@@ -4,14 +4,14 @@ import { font } from '../design-system/tokens/typography.css'
 
 const c = colorVars.color
 
-/** Handle-menu rows read a step quieter than body rows (Nathan: label-control rows,
- *  label-secondary labels) — the && doubles specificity over MenuItem's own class. */
+/** Handle-menu rows read at control size in the control label tone (Nathan's call) —
+ *  the && doubles specificity over MenuItem's own class. */
 export const row = style({
   selectors: {
     '&&': {
       fontSize: font.scale.control.size,
       lineHeight: font.scale.control.line,
-      color: c.label.secondary
+      color: c.label.control
     }
   }
 })

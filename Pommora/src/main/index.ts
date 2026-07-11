@@ -9,9 +9,8 @@ import { WINDOW_BG } from '@shared/theme'
 import { readNexus } from './readNexus'
 import { readPage } from './readPage'
 import { convertTileToPage, convertTileToView, createMarkdownBlock, duplicateBlockTile, readBlockDoc, readMarkdownBlock, removeBlockTile, writeBlockDoc, writeMarkdownBlock } from './blocks'
-import { popDrillMenu } from './blockPicker'
 import { isUlid } from './ids'
-import { blockPatchProblem, coerceBlockHost, type BlockDocPatch, type BlocksGetResult, type BlocksSaveResult, type PagePickerItem, type ViewPick, type ViewPickerItem } from '@shared/blocks'
+import { blockPatchProblem, coerceBlockHost, type BlockDocPatch, type BlocksGetResult, type BlocksSaveResult } from '@shared/blocks'
 import { pathExists } from './io/atomicWrite'
 import { readAppConfig, writeAppConfig, addRecent, DEFAULT_TRASH_MODE } from './appConfig'
 import { sessionRoot, openSession, resolveRestorePath, isExistingDir } from './session'
@@ -1082,12 +1081,6 @@ ipcMain.handle('blocks:convertToPage', async (_e, host: unknown, tileId: unknown
     return { ok: false, error: e instanceof Error ? e.message : String(e) }
   }
 })
-// The embed page picker — renderer-built drill items (main has no tree), native popup.
-ipcMain.handle('blocks:pagePicker', async (e, items: unknown): Promise<string | null> => {
-  const win = BrowserWindow.fromWebContents(e.sender)
-  if (!win || !Array.isArray(items)) return null
-  return popDrillMenu(win, items as PagePickerItem[])
-})
 ipcMain.handle('blocks:convertToView', async (_e, host: unknown, tileId: unknown, views: unknown): Promise<BlocksSaveResult> => {
   try {
     const ctx = blockHostAnd(host, tileId)
@@ -1100,12 +1093,6 @@ ipcMain.handle('blocks:convertToView', async (_e, host: unknown, tileId: unknown
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : String(e) }
   }
-})
-// The embed view-source picker — same renderer-built drill as the page picker (G-9).
-ipcMain.handle('blocks:viewPicker', async (e, items: unknown): Promise<ViewPick | null> => {
-  const win = BrowserWindow.fromWebContents(e.sender)
-  if (!win || !Array.isArray(items)) return null
-  return popDrillMenu(win, items as ViewPickerItem[])
 })
 ipcMain.handle('blocks:duplicateTile', async (_e, host: unknown, tileId: unknown): Promise<{ ok: true; id: string } | { ok: false; error: string }> => {
   try {
