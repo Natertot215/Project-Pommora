@@ -92,8 +92,6 @@ One session, the whole arc: the Contexts rethink became a certified spec, the sp
 
 - **"None"/flat grouping + Flatten + Hide Location** — the flattened-mode bundle, deliberately deferred (→ [[Views]] `### Grouping`; the `flat` GroupConfig kind stays reserved).
 
-- **(Perf) Watcher self-write echo (app-wide):** every debounced page-body save triggers a full readNexus re-walk + whole-tree IPC push for a byte-identical tree — newly hot because typing in a Homepage page embed fires it every 400ms. Fix is echo suppression (compare last-written content/mtime) or a harder walk debounce; the block doc itself already moved out of the watched file.
-
 - **(Perf) Standing debt:** (1) no row virtualization — every row MOUNTS, bites at thousands. (2) External VALUE edits don't live-refresh an open table. Container-surgical reconcile is the designed escalation at real scale.
 
 - **Number editor eyeball items (Nathan may tune, not bugs):** Decimals "Hidden", fraction wording, bar clamp edges, the strokeless bar look, field widths. Knobs in `numberEditor.css.ts` / `textPicker.css.ts` / `formatValue.ts`.
