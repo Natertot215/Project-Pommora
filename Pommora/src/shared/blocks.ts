@@ -84,12 +84,24 @@ export interface PageBlockEntry {
   title?: boolean
 }
 
+/** One view a view-embed tile carries (D-5a): its own source container + the copied
+ *  config (D-12: snapshotted at pick time, never synced). The config's `id` is
+ *  payload-local, minted at copy — never the source view's id and never the
+ *  DEFAULT_VIEW_ID mint sentinel; both are live keys outside the payload. */
+export interface EmbeddedView {
+  source_id: string
+  config?: unknown
+}
+
+/** View embed (H-4/H-5): `views` is list-shaped from day one so the tabbed switcher
+ *  never migrates the on-disk format — single-entry lists until it ships. */
 export interface ViewBlockEntry {
   id: string
   type: 'view'
-  view_id?: string
-  source_id?: string
+  views: EmbeddedView[]
+  active?: number
   style?: BlockStyle
+  display_title?: string
 }
 
 export type BlockEntry = MarkdownBlockEntry | PageBlockEntry | ViewBlockEntry
@@ -103,12 +115,18 @@ const pageEntry = z.looseObject({
   banner: z.boolean().optional().catch(undefined),
   title: z.boolean().optional().catch(undefined)
 })
+// Elements are looseObjects too — a strict element shape would strip nested foreign keys (E-1).
+const embeddedView = z.looseObject({
+  source_id: z.string().min(1),
+  config: z.unknown().optional() // zod 4 treats a bare unknown() key as required
+})
 const viewEntry = z.looseObject({
   id: z.string().min(1),
   type: z.literal('view'),
-  view_id: z.string().optional(),
-  source_id: z.string().optional(),
-  style: styleField
+  views: z.array(embeddedView).min(1),
+  active: z.number().int().nonnegative().optional().catch(undefined),
+  style: styleField,
+  display_title: z.string().optional().catch(undefined)
 })
 const knownEntry = z.union([markdownEntry, pageEntry, viewEntry])
 

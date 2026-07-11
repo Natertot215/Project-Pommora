@@ -5,11 +5,26 @@ describe('knownBlock', () => {
   it('types the three known entry kinds', () => {
     expect(knownBlock({ id: 'a', type: 'markdown' })).toEqual({ id: 'a', type: 'markdown' })
     expect(knownBlock({ id: 'b', type: 'page', page_id: 'p1' })).toMatchObject({ type: 'page', page_id: 'p1' })
-    expect(knownBlock({ id: 'c', type: 'view', view_id: 'view_x' })).toMatchObject({ type: 'view' })
+    expect(knownBlock({ id: 'c', type: 'view', views: [{ source_id: 's1', config: { id: 'v' } }] })).toMatchObject({
+      type: 'view',
+      views: [{ source_id: 's1' }]
+    })
   })
 
-  it('keeps foreign keys on a known entry (loose)', () => {
+  it('keeps foreign keys on a known entry (loose) — including inside view elements', () => {
     expect(knownBlock({ id: 'a', type: 'markdown', future_field: 1 })).toMatchObject({ future_field: 1 })
+    expect(
+      knownBlock({ id: 'c', type: 'view', views: [{ source_id: 's1', config: {}, swift_key: true }] })
+    ).toMatchObject({ views: [{ swift_key: true }] })
+  })
+
+  it('a view entry needs a non-empty views list; a bad active index degrades, not rejects', () => {
+    expect(knownBlock({ id: 'c', type: 'view', views: [] })).toBeNull()
+    expect(knownBlock({ id: 'c', type: 'view' })).toBeNull()
+    expect(knownBlock({ id: 'c', type: 'view', views: [{ source_id: 's1' }], active: -2 })).toMatchObject({
+      type: 'view',
+      active: undefined
+    })
   })
 
   it('returns null for unknown types and garbage — the caller renders inert', () => {
