@@ -1,4 +1,5 @@
 import { useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { Icon, defaultEntityIcon } from '@renderer/design-system/symbols'
 import { GlassControls } from '@renderer/design-system/materials'
 import { dropdownOpen, dropdownClose } from '@renderer/design-system/animations.css'
@@ -26,7 +27,11 @@ export function AutocompletePanel({ open, candidates, index, left, top, query, o
 
   const v = last.current
   const matchLen = v.query.length
-  return (
+  // Body-level portal: the panel is position:fixed on viewport coords, and a
+  // transformed ancestor (a SurfacePM tile rides translate()) re-anchors fixed
+  // to ITSELF — misplacing and clipping the panel. Popups never render inside a
+  // tile's subtree.
+  return createPortal(
     <GlassControls
       className={`${closing ? dropdownClose : dropdownOpen} mdpm-ac`}
       style={
@@ -54,6 +59,7 @@ export function AutocompletePanel({ open, candidates, index, left, top, query, o
           </span>
         </div>
       ))}
-    </GlassControls>
+    </GlassControls>,
+    document.body
   )
 }

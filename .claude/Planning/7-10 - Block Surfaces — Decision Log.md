@@ -188,6 +188,8 @@ How a page or view actually lives inside a tile — the walkthrough the D/G deci
 
 - **H-9 — Embed scroll + sizing feel** [assumed — build-tuned]: a scrolling tile contains its overscroll (inner scroll exhausts before the host page moves); view embeds want a wider practical minimum than markdown tiles. Both are live-HMR knobs, not spec.
 
+- **H-11 — Embedded popups escape the tile** [confirmed — Nathan]: any popup or dropdown born inside an embed (the `[[` autocomplete, future menus) must never clip against the tile's borders — they render through a **body-level portal**. The engineering rule underneath: a SurfacePM tile is a `transform`ed ancestor, which re-anchors `position: fixed` descendants to itself — so fixed-position UI inside a tile's subtree is broken by construction; portal out, always. The portal also carries every MarkdownPM affordance: tiles define their own `--fold-gutter` strip so grips + fold chevrons render exactly as they do on a page.
+
 - **H-10 — Resize is a viewport, never a scale** [confirmed — Nathan]: expanding or resizing an embed tile — page or view — changes only **how much of the content is visible** (the window's width/height onto it), never how big the content renders. The embed zoom (G-10) is one fixed amount; content never rescales with tile size. A narrower view embed shows fewer columns' worth of width, a shorter one fewer rows — like resizing an OS window, not zooming a canvas.
 
 #### F — Reconciliation Forecast (docs this makes false when ratified)
