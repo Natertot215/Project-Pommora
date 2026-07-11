@@ -91,11 +91,7 @@ export function MarkdownBlock({
         onBeginEdit(tileId)
       }}
     >
-      {body.trim() === '' ? (
-        <span className="blk-md-empty">Empty block — click to write</span>
-      ) : (
-        <ReactMarkdown remarkPlugins={[remarkGfm]}>{body}</ReactMarkdown>
-      )}
+      {body.trim() === '' ? null : <ReactMarkdown remarkPlugins={[remarkGfm]}>{body}</ReactMarkdown>}
     </div>
   )
 }

@@ -32,20 +32,22 @@
 
 /* The lifted block — PommoraDND's overlay treatment: the block itself rides the
    pointer, elevated on the shared lift shadow. OPAQUE: the state-hover wash
-   layers over --main-bg so underlying tiles never show through a dragged block. */
+   layers over --main-bg so underlying tiles never show through a dragged block.
+   No accent tint while dragged — the border stays the separator. */
 .spm-tile.is-lifted {
   z-index: 10;
   cursor: grabbing;
   box-shadow: var(--shadow-lift);
   background: linear-gradient(var(--state-hover), var(--state-hover)), var(--main-bg);
-  border-color: color-mix(in srgb, var(--accent) var(--tint-primary), transparent);
 }
 
-/* Resizing highlights the block's own border — never the gaps. Accent borders
-   run at the primary tint, not the raw solid. */
+/* Resize highlight — the block's own border tints accent on edge hover + during
+   the resize, never while dragged. --tile-border-hot is its thickness knob
+   (defaults to the cell border; bump it for a heavier highlight). */
 .spm-tile.is-resizing,
 .spm-tile:has(> .spm-edge:hover) {
   border-color: color-mix(in srgb, var(--accent) var(--tint-primary), transparent);
+  border-width: var(--tile-border-hot, var(--tile-border));
 }
 
 /* The placement preview — where the lifted block will land: accent at the
@@ -104,6 +106,20 @@
 
 .spm-tile:hover .spm-handle {
   opacity: 1;
+}
+
+/* The handle warms with intent — hover states layer over --main-bg (the notch
+   fill must stay opaque). state-hover: the handle or a resize edge is hovered,
+   or the block is actively resizing. state-selected: the handle itself is
+   grabbed (pressed or dragging the block). */
+.spm-handle:hover,
+.spm-tile.is-resizing .spm-handle,
+.spm-tile:has(> .spm-edge:hover) .spm-handle {
+  background: linear-gradient(var(--state-hover), var(--state-hover)), var(--main-bg);
+}
+.spm-handle:active,
+.spm-tile.is-lifted .spm-handle {
+  background: linear-gradient(var(--state-selected), var(--state-selected)), var(--main-bg);
 }
 
 /* Borderless style (G-14): the chassis hides until you reach for it — the border
