@@ -178,7 +178,7 @@ export function BlockHandleMenu({
   const stylePane = (
     <div className={s.pane}>
       <div className={s.barScale}>
-        <MenuPaneTopRow label="Block" current="Style" onBack={() => setPane('root')} />
+        <MenuPaneTopRow label="Menu" current="Style" onBack={() => setPane('root')} />
       </div>
       {(['bordered', 'borderless'] as const).map((v) => (
         <MenuItem
@@ -201,7 +201,7 @@ export function BlockHandleMenu({
       <DrillLevel
         nodes={pane === 'page' ? pageItems : viewItems}
         title={drillRootLabel}
-        backLabel="Block"
+        backLabel="Menu"
         onBack={() => setPane('root')}
         resolve={(v) => {
           onClose()
