@@ -2,7 +2,7 @@ import { useState } from 'react'
 import type { BlockEntry, BlockStyle, DrillPickItem, PagePickerItem, ViewPick, ViewPickerItem } from '@shared/blocks'
 import { Icon } from '@renderer/design-system/symbols'
 import { PickerMenu } from '@renderer/design-system/components/PickerMenu'
-import { MenuItem, MenuPaneTopRow, MenuScrollFrame, MenuSeparator } from '@renderer/design-system/components/menu'
+import { MenuBottomRow, MenuItem, MenuPaneTopRow, MenuScrollFrame, MenuSeparator } from '@renderer/design-system/components/menu'
 import { PaneSlider } from '@renderer/Components/Detail/PaneSlider'
 import { cx } from '@renderer/design-system/cx'
 import * as s from './handleMenu.css'
@@ -28,12 +28,36 @@ function DrillLevel({
   resolve: (pick: unknown) => void
 }): React.JSX.Element {
   const [openIdx, setOpenIdx] = useState<number | null>(null)
-  const child = openIdx != null ? nodes[openIdx] : null
+  const bodyNodes = nodes.filter((n) => !n.footer)
+  const footerNodes = nodes.filter((n) => n.footer)
+  const child = openIdx != null ? bodyNodes[openIdx] : null
   const chevron = <Icon name="chevron-right" size={GLYPH} />
   const rows = (
     <div className={s.pane}>
-      <MenuScrollFrame header={<MenuPaneTopRow label={backLabel} current={title} onBack={onBack} />}>
-        {nodes.map((n, i) =>
+      <MenuScrollFrame
+        header={
+          <div className={s.topRowScale}>
+            <MenuPaneTopRow label={backLabel} current={title} onBack={onBack} />
+          </div>
+        }
+        footer={
+          footerNodes.length ? (
+            <MenuBottomRow
+              leading={footerNodes.map((n, i) => (
+                <button
+                  key={`${n.label}-${String(i)}`}
+                  type="button"
+                  className={s.footerAction}
+                  onClick={n.pick === undefined ? undefined : () => resolve(n.pick)}
+                >
+                  {n.label}
+                </button>
+              ))}
+            />
+          ) : undefined
+        }
+      >
+        {bodyNodes.map((n, i) =>
           n.separator ? (
             <MenuSeparator key={`sep-${String(i)}`} flush />
           ) : n.submenu ? (
@@ -148,7 +172,9 @@ export function BlockHandleMenu({
 
   const stylePane = (
     <div className={s.pane}>
-      <MenuPaneTopRow label="Block" current="Style" onBack={() => setPane('root')} />
+      <div className={s.topRowScale}>
+        <MenuPaneTopRow label="Block" current="Style" onBack={() => setPane('root')} />
+      </div>
       {(['bordered', 'borderless'] as const).map((v) => (
         <MenuItem
           key={v}
@@ -181,7 +207,7 @@ export function BlockHandleMenu({
     ) : null
 
   return (
-    <PickerMenu open onDismiss={onClose} triggerRef={{ current: anchor }}>
+    <PickerMenu open onDismiss={onClose} triggerRef={{ current: anchor }} center>
       <PaneSlider open={pane !== 'root'} root={root} detail={detail} />
     </PickerMenu>
   )

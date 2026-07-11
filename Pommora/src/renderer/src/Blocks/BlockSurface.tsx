@@ -37,8 +37,7 @@ function pagePickerItems(tree: NexusTree): PagePickerItem[] {
 function viewPickerItems(tree: NexusTree): ViewPickerItem[] {
   const containerViews = (node: CollectionNode | SetNode): ViewPickerItem[] => [
     ...(node.views ?? []).map((v) => ({ label: v.name, pick: { source_id: node.id, view_id: v.id } })),
-    { label: '', separator: true },
-    { label: '+ Custom', pick: { source_id: node.id, custom: true } }
+    { label: '+ Custom', pick: { source_id: node.id, custom: true }, footer: true }
   ]
   const collectionItem = (c: CollectionNode): ViewPickerItem => ({
     label: c.title,
@@ -195,11 +194,12 @@ export function BlockSurface({ host }: { host: BlockHostRef }): React.JSX.Elemen
     (id: string) => {
       const classes = [
         entries.get(id)?.style === 'borderless' ? 'is-borderless' : null,
-        editingId === id ? 'is-editing-tile' : null
+        editingId === id ? 'is-editing-tile' : null,
+        handleMenu?.id === id ? 'handle-pinned' : null // the open picker's anchor stays shown
       ].filter(Boolean)
       return classes.length ? classes.join(' ') : undefined
     },
-    [entries, editingId]
+    [entries, editingId, handleMenu]
   )
 
   // The scope's payload writer: one view element's copied config swaps in place —

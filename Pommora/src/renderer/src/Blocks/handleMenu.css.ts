@@ -1,13 +1,14 @@
 import { style } from '@vanilla-extract/css'
 import { vars as colorVars } from '../design-system/tokens/color.css'
 import { font } from '../design-system/tokens/typography.css'
+import { footingLabel } from '../design-system/components/menu/menu.css'
 
 const c = colorVars.color
 
 // ── KNOB — the picker's ONE pane width. The slider viewport follows the active slot's
 // measured width, so unequal panes would shift the anchored picker on every slide;
 // locking every pane to one width kills the shift and sets the menu's footprint.
-export const PANE_W = 132
+export const PANE_W = 120
 
 export const pane = style({ width: PANE_W, boxSizing: 'border-box' })
 
@@ -29,3 +30,19 @@ export const rowDisabled = style({
     '&&': { opacity: 0.4, pointerEvents: 'none' }
   }
 })
+
+/** TopRow density for this thin menu — the house zoom knob scales label + chevron together. */
+export const topRowScale = style({ zoom: 0.85 })
+
+/** A pinned-footer text action (+ Custom) — footing tone over the accessory hover pill. */
+export const footerAction = style([
+  footingLabel,
+  {
+    border: 'none',
+    background: 'none',
+    padding: '2px 4px',
+    borderRadius: '5px',
+    cursor: 'default',
+    selectors: { '&:hover': { background: colorVars.color.state.hover } }
+  }
+])

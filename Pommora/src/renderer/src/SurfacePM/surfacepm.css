@@ -118,6 +118,12 @@
 .spm-tile.is-editing-tile .spm-handle:hover {
   opacity: 1;
 }
+/* A tile whose handle menu is open keeps its handle shown — the picker's anchor must
+   not vanish when the pointer leaves for the pane. Doubled class outranks the
+   editing-tile hide. */
+.spm-tile.handle-pinned.handle-pinned .spm-handle {
+  opacity: 1;
+}
 
 /* The handle warms with intent — the wash is its own layer so it FADES on
    duration-base instead of snapping (a swapped background can't interpolate).

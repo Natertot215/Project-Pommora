@@ -137,6 +137,8 @@ export interface DrillPickItem<T> {
   pick?: T
   submenu?: Array<DrillPickItem<T>>
   separator?: boolean
+  /** Renders in the pane's pinned BottomRow instead of the scrolling body (+ Custom). */
+  footer?: boolean
 }
 
 /** The Link Page drill resolves a page id. */
