@@ -49,19 +49,11 @@ export const ProgressCheck = forwardRef<SVGSVGElement, LucideProps>(({ size = 24
 )) as unknown as LucideIcon
 
 
-// ── SF Symbols (phranck/sf-symbols-lib, monochrome) — fill-based glyphs, boxed so they sit
-// at Lucide's visual coverage (~80% of the box). SF_BOX is the Nathan-tunable seat.
-const SF_LOCK_BOX = 31.5 // glyph is 17.5×25.2051; 25.2/31.5 ≈ 80% coverage, Lucide-level
-
-/** SF Symbols `lock` — THE lock glyph (Nathan's pick over Lucide's). */
-export const SFLock = forwardRef<SVGSVGElement, LucideProps>(({ size = 24, color, ...rest }, ref) => (
-  <svg ref={ref} width={size} height={size} viewBox={`0 0 ${SF_LOCK_BOX} ${SF_LOCK_BOX}`} fill="none" {...rest}>
-    <g transform={`translate(${(SF_LOCK_BOX - 17.5) / 2} ${(SF_LOCK_BOX - 25.2051) / 2})`}>
-      <path
-        d="M2.73438 24.541L14.4043 24.541C16.1523 24.541 17.1387 23.5352 17.1387 21.6602L17.1387 12.7734C17.1387 10.8984 16.1523 9.89258 14.4043 9.89258L2.73438 9.89258C0.976562 9.89258 0 10.8984 0 12.7734L0 21.6602C0 23.5352 0.976562 24.541 2.73438 24.541ZM2.77344 22.9102C2.13867 22.9102 1.73828 22.4805 1.73828 21.7676L1.73828 12.6562C1.73828 11.9434 2.13867 11.5234 2.77344 11.5234L14.375 11.5234C15.0098 11.5234 15.3906 11.9434 15.3906 12.6562L15.3906 21.7676C15.3906 22.4805 15.0098 22.9102 14.375 22.9102ZM2.23633 10.7129L3.95508 10.7129L3.95508 6.72852C3.95508 3.47656 6.01562 1.63086 8.56445 1.63086C11.1133 1.63086 13.1934 3.47656 13.1934 6.72852L13.1934 10.7129L14.9121 10.7129L14.9121 6.92383C14.9121 2.38281 11.9434 0 8.56445 0C5.19531 0 2.23633 2.38281 2.23633 6.92383Z"
-        fill="currentColor"
-        fillOpacity="0.85"
-      />
-    </g>
+// ── The lock (Nathan-supplied glyph) — solid rounded body + thick shackle, drawn to his
+// reference image's proportions (body ~15/24 wide, shackle stroke ~2.6). Fill-based.
+export const LockSolid = forwardRef<SVGSVGElement, LucideProps>(({ size = 24, color, ...rest }, ref) => (
+  <svg ref={ref} width={size} height={size} viewBox="0 0 24 24" fill="none" {...rest}>
+    <path d="M7.2 12 V7.7 a4.8 4.8 0 0 1 9.6 0 V12" stroke="currentColor" strokeWidth="2.6" fill="none" />
+    <rect x="4.5" y="10.6" width="15" height="10.8" rx="2.6" fill="currentColor" stroke="none" />
   </svg>
 )) as unknown as LucideIcon

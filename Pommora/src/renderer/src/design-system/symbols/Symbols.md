@@ -49,4 +49,4 @@ Pommora's React icons come from **Lucide** ([lucide.dev/icons](https://lucide.de
 | `palette` | Colors leaf (showcase) |
 | `type` | Typography leaf (showcase) |
 | `shapes` | Icons leaf (showcase) |
-| `lock` | View-config locks (SF Symbols `lock` via phranck/sf-symbols-lib — the one non-Lucide/Tabler glyph) |
+| `lock` | View-config locks (Nathan-supplied solid glyph — custom, drawn in `customGlyphs`) |

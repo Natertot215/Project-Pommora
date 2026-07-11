@@ -61,7 +61,7 @@ import {
 } from 'lucide-react'
 import { forwardRef } from 'react'
 import type { EntityIconKind } from '@shared/types'
-import { CardsGrid, ListRounded, ProgressCheck, SFLock } from './customGlyphs'
+import { CardsGrid, ListRounded, LockSolid, ProgressCheck } from './customGlyphs'
 import { lucideGlyph } from './AllSymbols'
 import { size as sizeTokens, type IconSize } from '../tokens/size.css'
 
@@ -135,7 +135,7 @@ export const icons = {
   'cards-grid': CardsGrid,
   'progress-check': ProgressCheck,
   'columns-3-cog': Columns3Cog,
-  lock: SFLock
+  lock: LockSolid
 } satisfies Record<string, LucideIcon>
 
 export type IconName = keyof typeof icons
