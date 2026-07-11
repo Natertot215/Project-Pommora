@@ -19,7 +19,7 @@ import { PropertyPicker } from '../PropertyEditing/PropertyPicker'
 import { nextCycleValue } from '../PropertyEditing/statusCycle'
 import { useSession } from '../../../store'
 import { useActiveView } from '../useActiveView'
-import { saveViewAdopting } from '../viewMint'
+import { useSaveView } from '@renderer/Embeds/ViewEmbedScope'
 import type { SetTreeNode } from '../pipeline/group'
 import { buildResolveContext, type ResolveContext } from './resolveContext'
 import { buildSetIcons, buildSetNames, buildSetPaths, groupLabel } from './cellResolve'
@@ -125,6 +125,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
   // reassign propagates to the sidebar right away instead of waiting on the fs watcher's settle (~1s).
   const mutate = useSession((s) => s.mutate)
   const load = useSession((s) => s.load)
+  const saveView = useSaveView(source, load)
   const [values, setValues] = useState<Record<string, PageFrontmatter>>({})
   // Optimistic property patches keyed by page id (cross-group reassignment, D-4): the loaded values
   // never re-read on a write, so a reassigned row re-groups only because this patch feeds the pipeline.
@@ -418,7 +419,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
   const persistView = (patch: Partial<SavedView>): void => {
     // Adopt-only (G-1): if this fires while the entry-mint is still in flight, it awaits the minted id
     // and saves against it — never mints a rival default from its own sentinel.
-    void saveViewAdopting(source, mergeOverrides(liveView, widthOverride, alignOverride, collapsed, patch, styleOverride), load)
+    void saveView(mergeOverrides(liveView, widthOverride, alignOverride, collapsed, patch, styleOverride))
   }
   const toggleCollapse = (key: string): void => {
     const next = new Set(collapsed)

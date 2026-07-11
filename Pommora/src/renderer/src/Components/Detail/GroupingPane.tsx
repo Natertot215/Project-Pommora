@@ -17,7 +17,7 @@ import { Icon, asRenderableIcon, defaultEntityIcon, iconNameOr, type IconName } 
 import { MenuItem, MenuSeparator, MenuPaneTopRow } from '../../design-system/components/menu'
 import { flushTrailing, footingLabel, footingSymbol } from '../../design-system/components/menu/menu.css'
 import { Reveal } from '../../design-system/components/Reveal'
-import { saveViewAdopting } from '../../Detail/Views/viewMint'
+import { useSaveView } from '@renderer/Embeds/ViewEmbedScope'
 import { declaredType } from '../../Detail/Views/pipeline/value'
 import { bucketOrder, groupsStructurally } from '../../Detail/Views/pipeline/group'
 import { NUMERIC_FORMATS } from '../../Detail/Views/PropertyEditing/formatValue'
@@ -106,7 +106,8 @@ export function GroupingPane({
 }): React.JSX.Element {
   const load = useSession((st) => st.load)
   const [groupByOpen, setGroupByOpen] = useState(false)
-  const save = (patch: Partial<SavedView>): void => void saveViewAdopting(source, { ...view, ...patch }, load)
+  const saveView = useSaveView(source, load)
+  const save = (patch: Partial<SavedView>): void => void saveView({ ...view, ...patch })
   const saveGroup = (group: GroupConfig): void => save({ group })
 
   const group = view.group ?? { kind: 'structural' as const }

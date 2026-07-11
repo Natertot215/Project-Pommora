@@ -7,7 +7,7 @@ import { MenuItem, MenuSeparator, MenuPaneTopRow, MenuScrollFrame, AccessoryButt
 import { detail, flushTrailing, footingLabel, footingSymbol, side } from '../../design-system/components/menu/menu.css'
 import { PickerMenu } from '../../design-system/components/PickerMenu'
 import { useSession } from '../../store'
-import { saveViewAdopting } from '../../Detail/Views/viewMint'
+import { useSaveView } from '@renderer/Embeds/ViewEmbedScope'
 import { InlineEditHeader } from './InlineEditHeader'
 import { VisibilityList } from './HiddenPane'
 import { LayoutToggles } from './LayoutToggles'
@@ -82,7 +82,8 @@ export function ViewSettings({
   const canDelete = views.length > 1 && view.id !== DEFAULT_VIEW_ID
   const format: ViewFormat = view.format ?? 'standard'
 
-  const write = (patch: Partial<SavedView>): void => void saveViewAdopting(source, { ...view, ...patch }, load)
+  const saveView = useSaveView(source, load)
+  const write = (patch: Partial<SavedView>): void => void saveView({ ...view, ...patch })
   const rename = (name: string): void => {
     if (name && name !== view.name) write({ name })
   }

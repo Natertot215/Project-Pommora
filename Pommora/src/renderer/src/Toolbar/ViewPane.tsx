@@ -9,7 +9,7 @@ import { PaneSlider } from '../Components/Detail/PaneSlider'
 import { ViewSettings } from '../Components/Detail/ViewSettings'
 import { PaneDnd, RowShell, usePaneRegions } from '../Components/Detail/paneDnd'
 import { type PaneDrop, type PaneRow, paneSlot } from '../Components/Detail/paneDndModel'
-import { saveViewAdopting } from '../Detail/Views/viewMint'
+import { useSaveView, useViewEmbedScope } from '@renderer/Embeds/ViewEmbedScope'
 import { EditableInput } from '../Components/EditableInput'
 import { IconPicker } from '../Components/IconPicker'
 import { useSession } from '../store'
@@ -65,10 +65,15 @@ export function ViewPane({
 }): React.JSX.Element {
   const setActiveView = useSession((s) => s.setActiveView)
   const load = useSession((s) => s.load)
+  const saveView = useSaveView(node, load)
   const storedActive = useSession((s) => s.activeViews[node.id])
   const [editingId, setEditingId] = useState<string | null>(null)
   const [renamingId, setRenamingId] = useState<string | null>(null)
   const [iconOpen, setIconOpen] = useState(false)
+  const scope = useViewEmbedScope()
+  // ViewPane never mounts inside a view embed until the payload switcher lands (H-5);
+  // its source-CRUD family (create/reorder/delete/switch) must route to the payload first.
+  if (scope) return <></>
   const views = node.views ?? []
   // The list never renders empty: during the entry-mint beat (a legacy container's first open, before
   // the refetch lands) show the in-memory sentinel default, same as the button + table (G-4).
@@ -103,7 +108,7 @@ export function ViewPane({
 
   const commitRename = (v: SavedView, next: string): void => {
     setRenamingId(null)
-    if (next && next !== v.name) void saveViewAdopting(node, { ...v, name: next }, load)
+    if (next && next !== v.name) void saveView({ ...v, name: next })
   }
   const rowMenu = async (v: SavedView, e: React.MouseEvent): Promise<void> => {
     e.preventDefault()
@@ -185,7 +190,7 @@ export function ViewPane({
         onClose={() => setIconOpen(false)}
         value={editing?.icon}
         onSelect={(icon) => {
-          if (editing) void saveViewAdopting(node, { ...editing, icon }, load)
+          if (editing) void saveView({ ...editing, icon })
         }}
       />
     </>
