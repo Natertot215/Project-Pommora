@@ -152,7 +152,7 @@
 
 - **G-9:** [confirmed — Nathan] **The right-click Insert menu** offers three entries: **Page · View · Block.** *Block* creates a new markdown block directly (the G-7 default). *Page* always opens a search over the Collections' pages to pick the embed target. *View* opens the **View Source picker**: a menu listing the Collections as drill-in rows over a **+ Custom** footer (the Custom View's entry point). Drilling into a Collection shows its Sets as chevron rows above that Collection's own views — **no create-new inside the picker** (Linked means pre-configured). A Set's chevron opens a compact picker-menu of that Set's views rather than another full drill level; Sub-Sets carry no views (existing spec). Exact visuals ride the G-8 Figma gate.
 
-- **G-10:** [confirmed — Nathan] **Embedded views render slightly zoomed out** relative to a full container surface — the existing zoom mechanism, tuned at build time.
+- **G-10:** [confirmed — Nathan] **Embedded views render slightly zoomed out** relative to a full container surface — the existing zoom mechanism, at a **fixed amount** tuned at build time. The zoom never varies with tile size (→ H-10).
 
 - **G-11:** [confirmed — Nathan] **Page embedding is one shared framework:** the machinery that renders a Page inside a foreign surface serves both SurfacePM's page-embed tiles AND MarkdownPM's future `![[Embed]]` in-page embeds (the Canvas `![[canvas:ULID]]` directive family). One seam, two consumers — built with the block arc, consumed by the editor later.
 
@@ -183,6 +183,8 @@ How a page or view actually lives inside a tile — the walkthrough the D/G deci
 - **H-8 — Death + conversion** [confirmed — E-2/E-5/G-7]: removing an embed tile deletes the tile entry only — the page/view is never touched. A dead reference (deleted page, deleted view, deleted Collection) renders an inert placeholder that holds its space until the user removes it; no auto-cleanup. Turn Into conversions never touch the embedded source; converting a markdown block away trashes its `.md` recoverably.
 
 - **H-9 — Embed scroll + sizing feel** [assumed — build-tuned]: a scrolling tile contains its overscroll (inner scroll exhausts before the host page moves); view embeds want a wider practical minimum than markdown tiles. Both are live-HMR knobs, not spec.
+
+- **H-10 — Resize is a viewport, never a scale** [confirmed — Nathan]: expanding or resizing an embed tile — page or view — changes only **how much of the content is visible** (the window's width/height onto it), never how big the content renders. The embed zoom (G-10) is one fixed amount; content never rescales with tile size. A narrower view embed shows fewer columns' worth of width, a shorter one fewer rows — like resizing an OS window, not zooming a canvas.
 
 #### F — Reconciliation Forecast (docs this makes false when ratified)
 
