@@ -2,7 +2,7 @@ import { useRef, useState } from 'react'
 import { Server, Eye, LayoutDashboard, Layers, ListFilter, ArrowUpDown, SlidersHorizontal, type LucideIcon } from 'lucide-react'
 import type { OpenIn } from '@shared/types'
 import { Icon, defaultEntityIcon, iconNameOr } from '@renderer/design-system/symbols'
-import { detail as detailText, flushTrailing, side } from '../../design-system/components/menu/menu.css'
+import { detail as detailText, flushTrailing, footingSymbol, side } from '../../design-system/components/menu/menu.css'
 import { crumbRow, ICON } from './settingsPane.css'
 import { useSession } from '../../store'
 import { findCollection, findSet, findCollectionForSet } from '../../Detail/Scope'
@@ -13,7 +13,7 @@ import { GroupingPane } from './GroupingPane'
 import { SortingPane } from './SortingPane'
 import { ViewSettings } from './ViewSettings'
 import { PaneSlider } from './PaneSlider'
-import { MenuBottomRow, MenuItem, MenuSeparator, MenuCaption, MenuPaneTopRow } from '../../design-system/components/menu'
+import { AccessoryButton, MenuBottomRow, MenuItem, MenuScrollFrame, MenuSeparator, MenuCaption, MenuPaneTopRow } from '../../design-system/components/menu'
 import { IconPicker } from '../IconPicker'
 import { InlineEditHeader } from './InlineEditHeader'
 import { useViewEmbedScope } from '@renderer/Embeds/ViewEmbedScope'
@@ -162,27 +162,39 @@ export function SettingsPane(): React.JSX.Element | null {
           {e.label}
         </MenuItem>
       ))}
-      {scope && schemaCollection && (
-        <>
-          <MenuBottomRow
-            leading={
-              <span className={crumbRow}>
-                <Icon name={iconNameOr(schemaCollection.icon, defaultEntityIcon('collection', defaultIcons))} size={ICON.rowChevron} />
-                <span>{schemaCollection.title}</span>
-                {node.kind === 'set' && (
-                  <>
-                    <span>›</span>
-                    <Icon name={iconNameOr(node.icon, defaultEntityIcon('set', defaultIcons))} size={ICON.rowChevron} />
-                    <span>{node.title}</span>
-                  </>
-                )}
-              </span>
-            }
-            trailing={<Icon name="lock" size={ICON.rowChevron} />}
-          />
-        </>
-      )}
     </>
+  )
+
+  // The scoped footer follows the house footing (ViewPane / PropertiesPane): a
+  // MenuBottomRow in the scroll frame's footer slot, footing-toned content, the
+  // lock as a 12-in-20 AccessoryButton (inert until the locks task wires it).
+  const scopedRoot = scope && schemaCollection && (
+    <MenuScrollFrame
+      footer={
+        <MenuBottomRow
+          leading={
+            <span className={crumbRow}>
+              <span className={footingSymbol}>
+                <Icon name={iconNameOr(schemaCollection.icon, defaultEntityIcon('collection', defaultIcons))} size={12} />
+              </span>
+              <span>{schemaCollection.title}</span>
+              {node.kind === 'set' && (
+                <>
+                  <span>›</span>
+                  <span className={footingSymbol}>
+                    <Icon name={iconNameOr(node.icon, defaultEntityIcon('set', defaultIcons))} size={12} />
+                  </span>
+                  <span>{node.title}</span>
+                </>
+              )}
+            </span>
+          }
+          trailing={<AccessoryButton icon="lock" size={12} box={20} ariaLabel="Lock view configuration" onClick={() => {}} />}
+        />
+      }
+    >
+      {root}
+    </MenuScrollFrame>
   )
 
   const detail =
@@ -212,7 +224,7 @@ export function SettingsPane(): React.JSX.Element | null {
 
   return (
     <>
-      <PaneSlider open={pane !== 'root'} root={root} detail={detail} minWidth={225} minHeight={245} />
+      <PaneSlider open={pane !== 'root'} root={scopedRoot || root} detail={detail} minWidth={225} minHeight={245} />
       <IconPicker
         open={iconOpen}
         onClose={() => setIconOpen(false)}

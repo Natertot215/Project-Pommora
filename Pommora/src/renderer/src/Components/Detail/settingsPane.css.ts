@@ -2,7 +2,7 @@ import { globalStyle, style } from '@vanilla-extract/css'
 import { vars as colorVars, inputFieldVar } from '../../design-system/tokens/color.css'
 import { text } from '../../design-system/tokens/typography.css'
 import { duration, easing } from '../../design-system/tokens/motion'
-import { flushAffordance, accessoryButton, accessoryGhostRest, titleText } from '../../design-system/components/menu/menu.css'
+import { flushAffordance, accessoryButton, accessoryGhostRest, footingLabel, titleText } from '../../design-system/components/menu/menu.css'
 import { surface } from '../../design-system/components/menu/menuSurface.css'
 
 const c = colorVars.color
@@ -362,9 +362,9 @@ export const colorCluster = style({ position: 'relative', display: 'flex', align
 /** The bare button wrapping the colour chip — the recolor affordance (click the chip to open the picker). */
 export const colorChip = style({ border: 'none', background: 'none', padding: 0, cursor: 'default', display: 'flex' })
 
-/** The scoped-pane footer breadcrumb — the embed's source path, `(icon) Collection › (icon) Set`
- *  (H-5: label-secondary at footnote emphasized; the lock rides the row's trailing slot). */
+/** The scoped-pane footer breadcrumb — the embed's source path, `(icon) Collection › (icon) Set`,
+ *  wearing the house footing tone (menu.css footingLabel); the lock rides the trailing slot. */
 export const crumbRow = style([
-  text.footnote.emphasized,
-  { display: 'inline-flex', alignItems: 'center', gap: '4px', color: c.label.secondary, minWidth: 0 }
+  footingLabel,
+  { display: 'inline-flex', alignItems: 'center', gap: '4px', minWidth: 0 }
 ])
