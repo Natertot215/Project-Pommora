@@ -105,7 +105,16 @@ globalStyle(`${tile}:hover ${configBtn}`, { opacity: 1 })
 /** The dropdown-mode view list — the ViewPane's row anatomy inside a PickerMenu. */
 export const listPane = style({ minWidth: 150 })
 
-export const body = style({ flex: '1 1 auto', minWidth: 0, minHeight: 0, overflow: 'hidden' })
+// The embed owns its table gutter (row grips + group chevrons strip) rather than inheriting
+// --fold-gutter from a host rule — the container-table treatment no longer reaches a block surface,
+// so the embedded table sets its own, the way .blk-md / .pgembed each set theirs.
+export const body = style({
+  flex: '1 1 auto',
+  minWidth: 0,
+  minHeight: 0,
+  overflow: 'hidden',
+  vars: { '--fold-gutter': '20px' }
+})
 
 /** The fixed embed zoom lands on the table's own token scope — the var is declared ON
  *  .table-view (table-tokens.css), so only a descendant-scoped redeclaration outranks it. */
