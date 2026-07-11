@@ -61,6 +61,13 @@
   padding-top: 0;
   padding-left: calc(var(--content-inset) - var(--fold-gutter));
 }
+/* A block-enabled surface (Homepage, contexts…): tiles run tight 8px gutters —
+   swapped for the gutter PORTION of the inset only, so the floating sidebar /
+   inspector clearance stays intact. The title/icon header keeps the standard inset. */
+.detail-body:has(.blk-surface) {
+  padding-left: calc(var(--content-inset) - var(--gutter) + 8px);
+  padding-right: calc(var(--content-inset-right) - var(--gutter) + 8px);
+}
 
 /* During an edge-drag resize, track the cursor 1:1 (no easing lag). */
 .shell.is-resizing .detail,

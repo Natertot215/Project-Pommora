@@ -39,7 +39,7 @@ export function BlockSurface({ host }: { host: BlockHostRef }): React.JSX.Elemen
 
   if (!ready) return null
   return (
-    <div>
+    <div className="blk-surface">
       <SurfaceView layout={layout} onLayoutChange={setLayout} renderTile={renderTile} />
       <button type="button" onClick={addTile}>
         Add Block

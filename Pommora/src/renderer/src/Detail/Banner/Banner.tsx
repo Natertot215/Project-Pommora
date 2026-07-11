@@ -50,9 +50,10 @@ export function Banner({ owner }: { owner: BannerOwner }): React.JSX.Element {
     else if (action === 'remove') await setBanner(null)
   }
 
+  const homeClass = owner.kind === 'homepage' ? ' is-homepage' : ''
   if (!owner.banner) {
     return (
-      <div className="banner-empty">
+      <div className={`banner-empty${homeClass}`}>
         <AddBannerButton onClick={() => void addOrChange()} />
         {owner.kind === 'homepage' ? (
           homeTitle('banner-empty-title')
@@ -64,7 +65,7 @@ export function Banner({ owner }: { owner: BannerOwner }): React.JSX.Element {
   }
   return (
     <div
-      className="banner"
+      className={`banner${homeClass}`}
       onContextMenu={(e) => {
         e.preventDefault()
         void openMenu()
