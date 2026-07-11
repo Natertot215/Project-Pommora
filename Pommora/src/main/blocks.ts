@@ -103,20 +103,22 @@ export async function removeBlockTile(root: string, host: BlockHostRef, tileId: 
     })
     return { ...cur, blocks: kept }
   })
-  if (wasMarkdown) {
-    const file = blockFilePath(root, host, tileId)
-    // On the FILE lock — orders against a still-pending editor flush, so a late
-    // body write can never land after the trash and resurrect the file.
-    await serializeOnFile(file, async () => {
-      if (await pathExists(file)) await trashWithTimestamp(root, file)
-    })
-  }
+  if (wasMarkdown) await trashTileFile(root, host, tileId)
 }
 
-/** Turn Into → Page (G-7): the entry becomes a page embed (foreign fields + chrome
- *  payload survive the flip), and a markdown tile's backing `.md` trashes
- *  recoverably. The embedded page itself is never touched. */
-export async function convertTileToPage(root: string, host: BlockHostRef, tileId: string, pageId: string): Promise<void> {
+/** Trash a markdown tile's backing file on ITS lock — ordered against a still-pending
+ *  editor flush, so a late body write can never land after the trash and resurrect it. */
+async function trashTileFile(root: string, host: BlockHostRef, tileId: string): Promise<void> {
+  const file = blockFilePath(root, host, tileId)
+  await serializeOnFile(file, async () => {
+    if (await pathExists(file)) await trashWithTimestamp(root, file)
+  })
+}
+
+/** Linking IS the one conversion (G-7, markdown → embed): the RAW entry spreads so
+ *  foreign keys + chrome survive (E-1), the backing `.md` trashes recoverably (E-5),
+ *  and the embedded source is never touched. */
+async function flipTile(root: string, host: BlockHostRef, tileId: string, patch: Record<string, unknown>): Promise<void> {
   let wasMarkdown = false
   await mutateDoc(root, host, (cur) => {
     const blocks = Array.isArray(cur.blocks) ? cur.blocks : []
@@ -124,20 +126,29 @@ export async function convertTileToPage(root: string, host: BlockHostRef, tileId
       const entry = knownBlock(b)
       if (entry?.id !== tileId) return b
       if (entry.type === 'markdown') wasMarkdown = true
-      // Spread the RAW entry — foreign keys and chrome payload survive the
-      // type flip (E-1); only the type + target change.
-      return { ...(b as Record<string, unknown>), type: 'page', page_id: pageId }
+      return { ...(b as Record<string, unknown>), ...patch }
     })
     return { ...cur, blocks: next }
   })
-  if (wasMarkdown) {
-    const file = blockFilePath(root, host, tileId)
-    // On the FILE lock — orders against a still-pending editor flush, so a late
-    // body write can never land after the trash and resurrect the file.
-    await serializeOnFile(file, async () => {
-      if (await pathExists(file)) await trashWithTimestamp(root, file)
-    })
-  }
+  if (wasMarkdown) await trashTileFile(root, host, tileId)
+}
+
+export async function convertTileToPage(root: string, host: BlockHostRef, tileId: string, pageId: string): Promise<void> {
+  await flipTile(root, host, tileId, { type: 'page', page_id: pageId })
+}
+
+/** Link View: the entry becomes a view embed carrying the COPIED config(s) (D-12).
+ *  Each config's `id` is re-minted here as a payload-local ULID — the source view's id
+ *  and the DEFAULT_VIEW_ID sentinel are both live keys outside the payload, and a
+ *  preserved one would silently re-couple the "detached" snapshot to its source. */
+export async function convertTileToView(root: string, host: BlockHostRef, tileId: string, views: unknown[]): Promise<void> {
+  const stamped = views.map((v) => {
+    if (typeof v !== 'object' || v === null) return v
+    const el = v as Record<string, unknown>
+    if (typeof el.config !== 'object' || el.config === null) return el
+    return { ...el, config: { ...(el.config as Record<string, unknown>), id: newId() } }
+  })
+  await flipTile(root, host, tileId, { type: 'view', views: stamped, active: 0 })
 }
 
 export async function readMarkdownBlock(root: string, host: BlockHostRef, tileId: string): Promise<string | null> {

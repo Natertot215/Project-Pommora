@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { pathExists } from './io/atomicWrite'
 import {
   blockFilePath,
+  convertTileToView,
   createMarkdownBlock,
   readBlockDoc,
   readMarkdownBlock,
@@ -112,6 +113,32 @@ describe('markdown block lifecycle', () => {
     const id = await createMarkdownBlock(root, HOST)
     await removeBlockTile(root, HOST, id)
     expect((await readConfig()).blocks).toEqual([{ id: 'alien', type: 'widget', keep: true }])
+    expect(await pathExists(blockFilePath(root, HOST, id))).toBe(false)
+    const trashed = await readdir(join(root, '.trash'))
+    expect(trashed.some((f) => f.includes(id))).toBe(true)
+  })
+
+  it('convert to view stamps a payload-local config id and trashes the markdown file', async () => {
+    const id = await createMarkdownBlock(root, HOST)
+    await writeBlockDoc(root, HOST, {
+      blocks: [{ id, type: 'markdown', style: 'borderless', swift_key: 1 }]
+    })
+    await convertTileToView(root, HOST, id, [
+      { source_id: 'src1', config: { id: 'source-view-id', name: 'Table', foreign: true } }
+    ])
+    const blocks = (await readConfig()).blocks as Array<Record<string, unknown>>
+    const entry = blocks[0]
+    expect(entry.type).toBe('view')
+    expect(entry.style).toBe('borderless')
+    expect(entry.swift_key).toBe(1)
+    expect(entry.active).toBe(0)
+    const view = (entry.views as Array<Record<string, unknown>>)[0]
+    expect(view.source_id).toBe('src1')
+    const config = view.config as Record<string, unknown>
+    expect(config.name).toBe('Table')
+    expect(config.foreign).toBe(true)
+    expect(config.id).not.toBe('source-view-id')
+    expect(typeof config.id).toBe('string')
     expect(await pathExists(blockFilePath(root, HOST, id))).toBe(false)
     const trashed = await readdir(join(root, '.trash'))
     expect(trashed.some((f) => f.includes(id))).toBe(true)

@@ -133,12 +133,25 @@ const knownEntry = z.union([markdownEntry, pageEntry, viewEntry])
 /** The handle menu's returning-picker actions (the renderer performs the write). */
 export type BlockHandleMenuAction = 'type:view' | 'type:page' | 'style:bordered' | 'style:borderless' | 'remove'
 
-/** One node of the native page-picker drill menu (renderer-built — main has no tree). */
-export interface PagePickerItem {
+/** One node of a native returning drill menu (renderer-built — main has no tree).
+ *  A node with `pick` resolves the menu; a node with `submenu` drills. */
+export interface DrillPickItem<T> {
   label: string
-  pageId?: string
-  submenu?: PagePickerItem[]
+  pick?: T
+  submenu?: Array<DrillPickItem<T>>
+  separator?: boolean
 }
+
+/** The Link Page drill resolves a page id. */
+export type PagePickerItem = DrillPickItem<string>
+
+/** The Link View drill resolves a source view to copy, or + Custom on a container (G-9/D-5a). */
+export interface ViewPick {
+  source_id: string
+  view_id?: string
+  custom?: boolean
+}
+export type ViewPickerItem = DrillPickItem<ViewPick>
 
 /** Type one raw `blocks[]` entry, or null for shapes this build doesn't know —
  *  the caller keeps the raw value either way (E-1: never strip, render inert). */

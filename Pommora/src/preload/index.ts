@@ -10,7 +10,7 @@ import type { PropertyMenuAction, PropertyMenuContext } from '@shared/propertyMe
 import type { OptionMenuAction, OptionMenuContext } from '@shared/optionMenu'
 import type { ColumnMenuAction, ColumnMenuContext } from '@shared/columnMenu'
 import type { SavedView } from '@shared/views'
-import type { BlockDocPatch, BlockHandleMenuAction, BlockHostRef, BlockStyle, BlocksGetResult, BlocksSaveResult, PagePickerItem } from '@shared/blocks'
+import type { BlockDocPatch, BlockHandleMenuAction, BlockHostRef, BlockStyle, BlocksGetResult, BlocksSaveResult, EmbeddedView, PagePickerItem, ViewPick, ViewPickerItem } from '@shared/blocks'
 import type { StatusGroup } from '@shared/properties'
 import type { PageFrontmatter } from '@shared/schemas'
 import type { PropertyDefinition, PropertyType } from '@shared/properties'
@@ -254,7 +254,14 @@ const api = {
       ipcRenderer.invoke('blocks:convertToPage', host, tileId, pageId),
     // The embed page picker — drill items built renderer-side from the tree.
     pagePicker: (items: PagePickerItem[]): Promise<string | null> =>
-      ipcRenderer.invoke('blocks:pagePicker', items)
+      ipcRenderer.invoke('blocks:pagePicker', items),
+    // Link View: the entry becomes a view embed carrying the COPIED config (D-12);
+    // main re-mints each config id payload-local.
+    convertToView: (host: BlockHostRef, tileId: string, views: EmbeddedView[]): Promise<BlocksSaveResult> =>
+      ipcRenderer.invoke('blocks:convertToView', host, tileId, views),
+    // The embed view-source picker — Collections → Sets → views, + Custom per drill (G-9).
+    viewPicker: (items: ViewPickerItem[]): Promise<ViewPick | null> =>
+      ipcRenderer.invoke('blocks:viewPicker', items)
   },
   // Subfield (footer) config — React-owned `subfield` key in `.nexus/settings.json`.
   subfield: {

@@ -8,11 +8,11 @@ import type { MutateRequest, MutateResult, ContextTarget } from '@shared/mutate'
 import { WINDOW_BG } from '@shared/theme'
 import { readNexus } from './readNexus'
 import { readPage } from './readPage'
-import { convertTileToPage, createMarkdownBlock, readBlockDoc, readMarkdownBlock, removeBlockTile, writeBlockDoc, writeMarkdownBlock } from './blocks'
+import { convertTileToPage, convertTileToView, createMarkdownBlock, readBlockDoc, readMarkdownBlock, removeBlockTile, writeBlockDoc, writeMarkdownBlock } from './blocks'
 import { popBlockHandleMenu } from './blockHandleMenu'
-import { popPagePickerMenu } from './blockPagePicker'
+import { popDrillMenu } from './blockPicker'
 import { isUlid } from './ids'
-import { blockPatchProblem, coerceBlockHost, type BlockDocPatch, type BlockHandleMenuAction, type BlocksGetResult, type BlocksSaveResult, type PagePickerItem } from '@shared/blocks'
+import { blockPatchProblem, coerceBlockHost, type BlockDocPatch, type BlockHandleMenuAction, type BlocksGetResult, type BlocksSaveResult, type PagePickerItem, type ViewPick, type ViewPickerItem } from '@shared/blocks'
 import { pathExists } from './io/atomicWrite'
 import { readAppConfig, writeAppConfig, addRecent, DEFAULT_TRASH_MODE } from './appConfig'
 import { sessionRoot, openSession, resolveRestorePath, isExistingDir } from './session'
@@ -1087,7 +1087,26 @@ ipcMain.handle('blocks:convertToPage', async (_e, host: unknown, tileId: unknown
 ipcMain.handle('blocks:pagePicker', async (e, items: unknown): Promise<string | null> => {
   const win = BrowserWindow.fromWebContents(e.sender)
   if (!win || !Array.isArray(items)) return null
-  return popPagePickerMenu(win, items as PagePickerItem[])
+  return popDrillMenu(win, items as PagePickerItem[])
+})
+ipcMain.handle('blocks:convertToView', async (_e, host: unknown, tileId: unknown, views: unknown): Promise<BlocksSaveResult> => {
+  try {
+    const ctx = blockHostAnd(host, tileId)
+    if (typeof ctx === 'string') return { ok: false, error: ctx }
+    const list = Array.isArray(views) ? views : null
+    const valid = list?.length && list.every((v) => typeof (v as { source_id?: unknown })?.source_id === 'string')
+    if (!valid) return { ok: false, error: 'Invalid view list.' }
+    await convertTileToView(ctx.root, ctx.h, tileId as string, list as unknown[])
+    return { ok: true }
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) }
+  }
+})
+// The embed view-source picker — same renderer-built drill as the page picker (G-9).
+ipcMain.handle('blocks:viewPicker', async (e, items: unknown): Promise<ViewPick | null> => {
+  const win = BrowserWindow.fromWebContents(e.sender)
+  if (!win || !Array.isArray(items)) return null
+  return popDrillMenu(win, items as ViewPickerItem[])
 })
 
 // Personalization (accent, connection color, interface toggles) — merged one key at a time into the

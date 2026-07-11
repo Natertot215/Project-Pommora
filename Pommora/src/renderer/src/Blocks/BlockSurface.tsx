@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { knownBlock, type BlockEntry, type BlockHostRef, type BlockStyle, type PagePickerItem } from '@shared/blocks'
+import { knownBlock, type BlockEntry, type BlockHostRef, type BlockStyle, type PagePickerItem, type ViewPick, type ViewPickerItem } from '@shared/blocks'
 import { FEEL_PRESETS } from '@renderer/design-system/interactions/feel'
 import { buildPageIndex, flattenPages, type ConnectionsApi } from '@renderer/MarkdownPM/connections'
 import { attachBelow, insertBand, removeTile as removeLeaf } from '@renderer/SurfacePM/core/ops'
 import { SurfaceView, type BackdropTarget } from '@renderer/SurfacePM/SurfaceView'
 import { useSession } from '@renderer/store'
+import { findCollection, findCollectionForSet, findSet } from '@renderer/Detail/Scope'
+import { mintDefaultView } from '@shared/views'
 import type { CollectionNode, NexusTree, SetNode } from '@shared/types'
 import { MarkdownBlock } from './MarkdownBlock'
 import { PageEmbedBlock } from './PageEmbedBlock'
@@ -17,11 +19,27 @@ const NEW_TILE_H = 160
 function pagePickerItems(tree: NexusTree): PagePickerItem[] {
   const setItem = (s: SetNode): PagePickerItem => ({
     label: s.title,
-    submenu: [...(s.sets ?? []).map(setItem), ...s.pages.map((p) => ({ label: p.title, pageId: p.id }))]
+    submenu: [...(s.sets ?? []).map(setItem), ...s.pages.map((p) => ({ label: p.title, pick: p.id }))]
   })
   const collectionItem = (c: CollectionNode): PagePickerItem => ({
     label: c.title,
-    submenu: [...c.sets.map(setItem), ...c.pages.map((p) => ({ label: p.title, pageId: p.id }))]
+    submenu: [...c.sets.map(setItem), ...c.pages.map((p) => ({ label: p.title, pick: p.id }))]
+  })
+  return [...tree.collections, ...tree.userSections.flatMap((u) => u.collections)].map(collectionItem)
+}
+
+/** The view-source drill (G-9): Collections → Sets chevron above that container's
+ *  views, a + Custom footer per drill (D-5a: the source is picked here, always).
+ *  Sub-Sets carry no views, so only depth-1 Sets drill. */
+function viewPickerItems(tree: NexusTree): ViewPickerItem[] {
+  const containerViews = (node: CollectionNode | SetNode): ViewPickerItem[] => [
+    ...(node.views ?? []).map((v) => ({ label: v.name, pick: { source_id: node.id, view_id: v.id } })),
+    { label: '', separator: true },
+    { label: '+ Custom', pick: { source_id: node.id, custom: true } }
+  ]
+  const collectionItem = (c: CollectionNode): ViewPickerItem => ({
+    label: c.title,
+    submenu: [...c.sets.map((s) => ({ label: s.title, submenu: containerViews(s) })), ...containerViews(c)]
   })
   return [...tree.collections, ...tree.userSections.flatMap((u) => u.collections)].map(collectionItem)
 }
@@ -112,9 +130,32 @@ export function BlockSurface({ host }: { host: BlockHostRef }): React.JSX.Elemen
     [tree, refreshEntries, host]
   )
 
+  // Link View: the source drill resolves a view to COPY (or + Custom → the blank
+  // default against that source's schema); main re-mints the config id payload-local
+  // and flips the entry (D-12: copied, never synced).
+  const convertToView = useCallback(
+    (id: string) => {
+      if (!tree) return
+      void window.nexus.blocks.viewPicker(viewPickerItems(tree)).then((pick: ViewPick | null) => {
+        if (!pick) return
+        const container = findCollection(tree, pick.source_id) ?? findSet(tree, pick.source_id)
+        if (!container) return
+        const config = pick.custom
+          ? mintDefaultView(
+              (container.kind === 'collection' ? container : findCollectionForSet(tree, container.id))?.properties ?? []
+            )
+          : (container.views ?? []).find((v) => v.id === pick.view_id)
+        if (!config) return
+        setEditingId((cur) => (cur === id ? null : cur))
+        void window.nexus.blocks.convertToView(host, id, [{ source_id: pick.source_id, config }]).then(refreshEntries)
+      })
+    },
+    [tree, refreshEntries, host]
+  )
+
   // The handle's returning-picker menu: main resolves the action (confirming
   // Remove there), the renderer performs the write. Style edits spread the RAW
-  // entry so foreign fields survive (E-1); View converts wait on Task 4's picker.
+  // entry so foreign fields survive (E-1).
   const onHandleMenu = useCallback(
     (id: string) => {
       const entry = entries.get(id)
@@ -123,6 +164,7 @@ export function BlockSurface({ host }: { host: BlockHostRef }): React.JSX.Elemen
         .then((action) => {
           if (action === 'remove') removeBlock(id)
           else if (action === 'type:page') convertToPage(id)
+          else if (action === 'type:view') convertToView(id)
           else if (action === 'style:bordered' || action === 'style:borderless') {
             const style = action.slice('style:'.length) as BlockStyle
             // Updater form — the native menu held the closure open; compose with
@@ -133,7 +175,7 @@ export function BlockSurface({ host }: { host: BlockHostRef }): React.JSX.Elemen
           }
         })
     },
-    [entries, saveBlocks, removeBlock, convertToPage]
+    [entries, saveBlocks, removeBlock, convertToPage, convertToView]
   )
 
   const tileClassName = useCallback(
