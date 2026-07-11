@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { knownBlock, type BlockEntry, type BlockHostRef } from '@shared/blocks'
 import { FEEL_PRESETS } from '@renderer/design-system/interactions/feel'
 import { buildPageIndex, flattenPages, type ConnectionsApi } from '@renderer/MarkdownPM/connections'
@@ -21,6 +21,9 @@ const NEW_TILE_H = 160
 export function BlockSurface({ host }: { host: BlockHostRef }): React.JSX.Element | null {
   const { layout, blocks, ready, setLayout, commitLayout, refreshEntries } = useBlockDoc(host)
   const [editingId, setEditingId] = useState<string | null>(null)
+  // Tiles mid-removal: their editor's flush-on-unmount must NOT run — the write
+  // would land after the trash and resurrect the file as an entry-less orphan.
+  const removing = useRef(new Set<string>())
   const tree = useSession((s) => s.tree)
   const select = useSession((s) => s.select)
 
@@ -43,29 +46,35 @@ export function BlockSurface({ host }: { host: BlockHostRef }): React.JSX.Elemen
 
   useEffect(() => {
     if (!editingId) return
+    // Capture phase: a gesture handler's stopPropagation (SurfacePM's handles/edges)
+    // must not swallow the click-out — any pointerdown outside the live editor exits.
     const onDown = (e: PointerEvent): void => {
       if (!(e.target as Element | null)?.closest?.('.blk-md.is-editing')) setEditingId(null)
     }
     const onKey = (e: KeyboardEvent): void => {
-      if (e.key === 'Escape') setEditingId(null)
+      // CM6 consumes Esc first when its autocomplete is open (preventDefault) —
+      // that press closes the popup only, the next one exits the editor.
+      if (e.key === 'Escape' && !e.defaultPrevented) setEditingId(null)
     }
-    document.addEventListener('pointerdown', onDown)
+    document.addEventListener('pointerdown', onDown, true)
     window.addEventListener('keydown', onKey)
     return () => {
-      document.removeEventListener('pointerdown', onDown)
+      document.removeEventListener('pointerdown', onDown, true)
       window.removeEventListener('keydown', onKey)
     }
   }, [editingId])
 
   const removeBlock = useCallback(
     (id: string) => {
-      if (editingId === id) setEditingId(null)
+      removing.current.add(id)
+      setEditingId((cur) => (cur === id ? null : cur))
       // Layout first (invisible orphan beats a dead box on a crash), then the entry + file.
-      commitLayout(removeLeaf(layout, id))
+      commitLayout((cur) => removeLeaf(cur, id))
       void window.nexus.blocks.removeTile(host, id).then(refreshEntries)
     },
-    [layout, commitLayout, refreshEntries, editingId, host]
+    [commitLayout, refreshEntries, host]
   )
+  const suppressFlush = useCallback((id: string) => removing.current.has(id), [])
 
   const renderTile = useCallback(
     (id: string, _rect: Rect) => {
@@ -78,6 +87,7 @@ export function BlockSurface({ host }: { host: BlockHostRef }): React.JSX.Elemen
             editing={editingId === id}
             onBeginEdit={setEditingId}
             connections={connections}
+            suppressFlush={suppressFlush}
           />
         ) : (
           <div className="blk-inert" /> // no/foreign/not-yet-built entry — space holds, nothing breaks
@@ -92,16 +102,18 @@ export function BlockSurface({ host }: { host: BlockHostRef }): React.JSX.Elemen
         </>
       )
     },
-    [entries, editingId, connections, removeBlock, host]
+    [entries, editingId, connections, removeBlock, suppressFlush, host]
   )
 
   const addBlock = useCallback(() => {
     void window.nexus.blocks.createMarkdown(host).then((r) => {
       if (!r.ok) return
       refreshEntries()
-      commitLayout(insertBand(layout, layout.bands.length, r.id, NEW_TILE_H))
+      // Updater form — a gesture (or second add) committing during the IPC await
+      // must not be overwritten by a render-captured layout.
+      commitLayout((cur) => insertBand(cur, cur.bands.length, r.id, NEW_TILE_H))
     })
-  }, [layout, commitLayout, refreshEntries, host])
+  }, [commitLayout, refreshEntries, host])
 
   if (!ready) return null
   return (

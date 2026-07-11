@@ -19,7 +19,7 @@ interface BlockDocState {
 
 export interface BlockDocSession extends BlockDocState {
   setLayout: (layout: SurfaceLayout) => void
-  commitLayout: (layout: SurfaceLayout) => void
+  commitLayout: (update: SurfaceLayout | ((cur: SurfaceLayout) => SurfaceLayout)) => void
   refreshEntries: () => void
 }
 
@@ -37,16 +37,18 @@ export function useBlockDoc(host: BlockHostRef): BlockDocSession {
     layout: null
   })
 
+  // The always-current layout — async continuations (IPC .then) must never build
+  // on a render-captured layout; a gesture committing during the await would be
+  // silently overwritten.
+  const liveLayout = useRef<SurfaceLayout>(state.layout)
+
   useEffect(() => {
     let cancelled = false
     void window.nexus.blocks.get(hostRef.current).then((r) => {
       if (cancelled || !r.ok) return
-      setState({
-        layout: decodeLayout(r.doc.layout) ?? emptyLayout(),
-        blocks: r.doc.blocks,
-        locked: r.doc.locked,
-        ready: true
-      })
+      const layout = decodeLayout(r.doc.layout) ?? emptyLayout()
+      liveLayout.current = layout
+      setState({ layout, blocks: r.doc.blocks, locked: r.doc.locked, ready: true })
     })
     return () => {
       cancelled = true
@@ -64,6 +66,7 @@ export function useBlockDoc(host: BlockHostRef): BlockDocSession {
 
   const setLayout = useCallback(
     (layout: SurfaceLayout) => {
+      liveLayout.current = layout
       setState((s) => ({ ...s, layout }))
       const p = pending.current
       if (p.timer) clearTimeout(p.timer)
@@ -75,9 +78,12 @@ export function useBlockDoc(host: BlockHostRef): BlockDocSession {
 
   // Immediate variant — structural mutations (tile create/remove) write the layout
   // NOW, before their entry op runs, so a crash leaves an invisible orphan rather
-  // than a dead box (the plan's removal-order rule).
+  // than a dead box. Takes an updater so async callers compose with the LIVE
+  // layout, never a stale render capture.
   const commitLayout = useCallback(
-    (layout: SurfaceLayout) => {
+    (update: SurfaceLayout | ((cur: SurfaceLayout) => SurfaceLayout)) => {
+      const layout = typeof update === 'function' ? update(liveLayout.current) : update
+      liveLayout.current = layout
       setState((s) => ({ ...s, layout }))
       pending.current.layout = layout
       flush()

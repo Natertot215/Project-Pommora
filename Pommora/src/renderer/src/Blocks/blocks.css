@@ -25,11 +25,13 @@
   height: 100%;
 }
 
-/* Interim affordances — replaced by the Task 6 handle/Insert chrome. */
+/* Interim affordances — replaced by the Task 6 handle/Insert chrome. Sits clear of
+   the ne resize corner (which owns the tile's top-right 14px) and hit-tests only
+   while visible — an invisible button must never catch a click. */
 .blk-remove {
   position: absolute;
-  top: 6px;
-  right: 6px;
+  top: 8px;
+  right: 26px;
   z-index: 3;
   width: 18px;
   height: 18px;
@@ -40,11 +42,13 @@
   font-size: 11px;
   line-height: 1;
   opacity: 0;
+  pointer-events: none;
   cursor: pointer;
   transition: opacity var(--duration-fast) var(--ease-standard);
 }
 .spm-tile:hover .blk-remove {
   opacity: 1;
+  pointer-events: auto;
 }
 .blk-remove:hover {
   color: var(--text);

@@ -18,13 +18,17 @@ export function MarkdownBlock({
   tileId,
   editing,
   onBeginEdit,
-  connections
+  connections,
+  suppressFlush
 }: {
   host: BlockHostRef
   tileId: string
   editing: boolean
   onBeginEdit: (tileId: string) => void
   connections?: ConnectionsApi
+  /** True while this tile is being removed — a flush then would land AFTER the
+   *  trash and resurrect the file as an entry-less orphan. */
+  suppressFlush?: (tileId: string) => boolean
 }): React.JSX.Element {
   const [body, setBody] = useState<string | null>(null)
   const pending = useRef<{ timer: ReturnType<typeof setTimeout>; body: string } | null>(null)
@@ -45,6 +49,7 @@ export function MarkdownBlock({
     if (!p) return
     clearTimeout(p.timer)
     pending.current = null
+    if (suppressFlush?.(tileId)) return
     void window.nexus.blocks.writeMarkdown(host, tileId, p.body)
   }
   const flushRef = useRef(flush)
@@ -76,7 +81,15 @@ export function MarkdownBlock({
   }
   return (
     // biome-ignore lint/a11y/useKeyWithClickEvents: edit entry is pointer-first; keyboard entry rides Task 6 chrome
-    <div className="blk-md" onClick={() => onBeginEdit(tileId)}>
+    <div
+      className="blk-md"
+      onClick={() => {
+        // Selecting static text to copy ends in a click — that's a copy, not an edit.
+        const sel = window.getSelection()
+        if (sel && !sel.isCollapsed) return
+        onBeginEdit(tileId)
+      }}
+    >
       {body.trim() === '' ? (
         <span className="blk-md-empty">Empty block — click to write</span>
       ) : (
