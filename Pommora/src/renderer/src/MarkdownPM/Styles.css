@@ -162,7 +162,8 @@
 .mdpm-editor .cm-line.md-foldable::before {
   content: '';
   position: absolute;
-  left: calc(-1 * var(--fold-gutter));
+  /* Centered in the gutter strip — the anchor self-adjusts to glyph + gutter size. */
+  left: calc(-1 * var(--fold-gutter) + (var(--fold-gutter) - var(--fold-chevron-size)) / 2);
   top: 50%;
   width: var(--fold-chevron-size);
   height: var(--fold-chevron-size);
@@ -210,7 +211,7 @@
 .mdpm-editor .cm-line.md-block-handle::before {
   content: '';
   position: absolute;
-  left: calc(-1 * var(--fold-gutter));
+  left: calc(-1 * var(--fold-gutter) + (var(--fold-gutter) - 14px * var(--mdpm-scale)) / 2);
   /* Centre on the FIRST visual row's text (half the 1.6 line-height − half the 14px grip), so it lines up
      with the content even when the block's first line wraps. --grip-top is the knob; box blocks raise it. */
   top: var(--grip-top, calc(0.8em - 7px));
@@ -224,7 +225,7 @@
    but positioned + hover-revealed exactly like the rail grips. The drag rides md-bq-first. */
 .mdpm-editor .cm-line.md-bq-first .md-bq-grip {
   position: absolute;
-  left: calc(-1 * var(--fold-gutter));
+  left: calc(-1 * var(--fold-gutter) + (var(--fold-gutter) - 14px * var(--mdpm-scale)) / 2);
   top: var(--grip-top, calc(0.8em - 7px));
   transition: opacity var(--duration-fast) var(--ease-standard);
 }

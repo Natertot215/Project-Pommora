@@ -3,15 +3,19 @@
    own (the editor's 16px boundary-to-first-line standard), never the host's
    insets. Header chrome (banner + title) is parked — returns with the ⋮ pass. */
 
+/* Scroll model: wheel-transparent at rest (the page scrolls); the embed scrolls
+   internally only while it holds the caret — contained, with the 1px phantom
+   keeping it a real scroller even when content fits. */
 .pgembed {
   position: relative;
   height: 100%;
+  overflow: hidden;
+}
+.spm-tile.is-editing-tile .pgembed {
   overflow-y: auto;
   overscroll-behavior: contain;
 }
-/* Content that fits must still own the wheel: a 1px phantom keeps the container a
-   real scroller, so overscroll containment locks the pane (pseudo-scroll). */
-.pgembed::after {
+.spm-tile.is-editing-tile .pgembed::after {
   content: '';
   position: absolute;
   top: 0;

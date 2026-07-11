@@ -3,22 +3,34 @@
 
 /* The tile IS the CM6 portal (read-only at rest). Its padding is the BLOCK's own
    — the editor's 16px boundary-to-first-line standard via .cm-content, never the
-   host page's insets (--content-inset / --fold-gutter / the 90px page head-tail). */
+   host page's insets (--content-inset / --fold-gutter / the 90px page head-tail).
+
+   SCROLL MODEL: at rest a block is wheel-transparent — the PAGE scrolls, the
+   block never captures (and shows no text I-beam). Only the block holding the
+   caret scrolls internally; its wheel is contained there (the 1px phantom keeps
+   it a real scroller even when content fits). */
 .blk-md {
   position: relative;
   height: 100%;
+  overflow: hidden;
+}
+.spm-tile.is-editing-tile .blk-md {
   overflow-y: auto;
   overscroll-behavior: contain;
 }
-/* Content that fits must still own the wheel: a 1px phantom keeps the container a
-   real scroller, so overscroll containment locks the pane (pseudo-scroll). */
-.blk-md::after {
+.spm-tile.is-editing-tile .blk-md::after {
   content: '';
   position: absolute;
   top: 0;
   bottom: -1px;
   width: 1px;
   pointer-events: none;
+}
+.spm-tile:not(.is-editing-tile) :is(.blk-md, .pgembed) .cm-scroller {
+  overflow: hidden !important; /* CM6 injects its own overflow rule at runtime */
+}
+.spm-tile:not(.is-editing-tile) :is(.blk-md, .pgembed) .cm-content {
+  cursor: default;
 }
 .blk-md .mdpm-shell {
   height: 100%;
@@ -36,16 +48,6 @@
   padding: 16px 14px 16px var(--fold-gutter);
 }
 
-/* While a block holds the caret, every OTHER block yields the wheel to the page —
-   hovering a different block scrolls the homepage, never that block's view. */
-.blk-surface.has-live-editor .spm-tile:not(.is-editing-tile) .blk-md,
-.blk-surface.has-live-editor .spm-tile:not(.is-editing-tile) .pgembed {
-  overflow-y: hidden;
-  overscroll-behavior: auto;
-}
-.blk-surface.has-live-editor .spm-tile:not(.is-editing-tile) .cm-scroller {
-  overflow-y: hidden !important; /* CM6 injects its own overflow rule at runtime */
-}
 
 .blk-inert {
   height: 100%;
