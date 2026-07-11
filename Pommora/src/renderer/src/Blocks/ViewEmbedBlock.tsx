@@ -7,6 +7,7 @@ import { Icon, iconNameOr } from '@renderer/design-system/symbols'
 import { PickerMenu } from '@renderer/design-system/components/PickerMenu'
 import { AccessoryButton, Menu, MenuBottomRow, MenuItem, MenuScrollFrame } from '@renderer/design-system/components/menu'
 import { titleInput as rowInput } from '@renderer/design-system/components/menu/menu.css'
+import { reorder, SortableZone, useDragItem } from '@renderer/design-system/interactions/drag'
 import { activeRow } from '@renderer/Toolbar/viewDropdown.css'
 import { EditableInput } from '@renderer/Components/EditableInput'
 import { IconPicker } from '@renderer/Components/IconPicker'
@@ -66,7 +67,7 @@ function EmbedTitle({ title, onCommit }: { title: string; onCommit: (next: strin
   return (
     <input
       ref={inputRef}
-      className={s.titleInput}
+      className={s.titleText}
       value={value}
       spellCheck={false}
       onChange={(e) => setValue(e.target.value)}
@@ -91,6 +92,50 @@ function EmbedTitle({ title, onCommit }: { title: string; onCommit: (next: strin
   )
 }
 
+/** One draggable view pill (toolbar mode). Reorder rides the shared drag engine (`useDragItem`),
+ *  the same mechanism the sidebar ribbon uses; enter/exit slides run off the css presence classes. */
+function ViewPill({
+  id,
+  view,
+  active,
+  entering,
+  exiting,
+  labeled,
+  renameNode,
+  onSwitch,
+  onMenu,
+  onAnimEnd
+}: {
+  id: string
+  view: SavedView
+  active: boolean
+  entering: boolean
+  exiting: boolean
+  labeled: boolean
+  renameNode: React.ReactNode | null
+  onSwitch: () => void
+  onMenu: (e: React.MouseEvent) => void
+  onAnimEnd: () => void
+}): React.JSX.Element {
+  const { setNodeRef, style, handle } = useDragItem(id)
+  const cls = [s.pill, active && s.pillActive, entering && s.pillEntering, exiting && s.pillExiting].filter(Boolean).join(' ')
+  return (
+    <button
+      ref={setNodeRef}
+      style={style}
+      {...handle}
+      type="button"
+      className={cls}
+      onClick={renameNode ? undefined : onSwitch}
+      onContextMenu={onMenu}
+      onAnimationEnd={onAnimEnd}
+    >
+      <Icon name={iconNameOr(view.icon, 'table')} size={12} />
+      {renameNode ?? (labeled && <span>{view.name}</span>)}
+    </button>
+  )
+}
+
 // The view-embed tile (H-4/H-5): the title row (editable ####, right-click chrome menu) over the
 // view switcher (pills or a dropdown, right-click presentation menu) over the REAL TableView at
 // the fixed embed zoom, all inside the ViewEmbedScope — resolution reads the payload config,
@@ -107,6 +152,10 @@ export function ViewEmbedBlock({
   const [listOpen, setListOpen] = useState(false)
   const [renaming, setRenaming] = useState<number | null>(null)
   const [iconFor, setIconFor] = useState<number | null>(null)
+  const [exitingId, setExitingId] = useState<string | null>(null)
+  const [enteringIds, setEnteringIds] = useState<Set<string>>(() => new Set())
+  const prevIdsRef = useRef<Set<string> | null>(null)
+  const viewsRef = useRef<SavedView[]>([])
   const btnRef = useRef<HTMLButtonElement>(null)
   const dropRef = useRef<HTMLButtonElement>(null)
 
@@ -114,13 +163,28 @@ export function ViewEmbedBlock({
   const embedded = entry.views[index]
   const source: CollectionNode | SetNode | undefined =
     embedded && tree ? (findCollection(tree, embedded.source_id) ?? findSet(tree, embedded.source_id)) : undefined
+
+  const schemaCollection = source && source.kind !== 'collection' ? findCollectionForSet(tree, source.id) : source
+  const schema = (schemaCollection as CollectionNode | undefined)?.properties ?? []
+  const views = source ? entry.views.map((v, i) => coerceConfig(v.config, schema, `embed:${entry.id}:${i}`)) : []
+  viewsRef.current = views
+  const idKey = views.map((v) => v.id).join(',')
+
+  // A view added since the last render slides in (a fresh DOM node whose entering class survives
+  // re-renders because it's state, not derived — a derived flag would clear mid-animation).
+  useEffect(() => {
+    const prev = prevIdsRef.current
+    const cur = new Set(viewsRef.current.map((v) => v.id))
+    if (prev) {
+      const added = [...cur].filter((id) => !prev.has(id))
+      if (added.length) setEnteringIds((s0) => new Set([...s0, ...added]))
+    }
+    prevIdsRef.current = cur
+  }, [idKey])
+
   if (!embedded || !source || !tree) return <div className="blk-inert" /> // dead source — inert, space holds (E-2)
 
-  const schemaCollection = source.kind === 'collection' ? source : findCollectionForSet(tree, source.id)
-  const schema = schemaCollection?.properties ?? []
-  const views = entry.views.map((v, i) => coerceConfig(v.config, schema, `embed:${entry.id}:${i}`))
   const view = views[index]
-
   const titleShown = entry.title !== false
   const iconShown = entry.icon !== false
   const labeled = (entry.view_button ?? 'labeled') === 'labeled'
@@ -158,13 +222,35 @@ export function ViewEmbedBlock({
       arr.push({ source_id: source.id, config: { ...mintNewView('Untitled', schema), id: `embed:${entry.id}:${slot}` } })
       return { ...raw, views: arr, active: arr.length - 1 }
     })
-  const deleteView = (i: number): void =>
+  const deleteViewAt = (i: number): void =>
     mutateEntry(entry.id, (raw) => {
       const arr = Array.isArray(raw.views) ? [...(raw.views as unknown[])] : []
       if (arr.length <= 1) return raw // the switcher never empties (views min(1))
       arr.splice(i, 1)
       const cur = typeof raw.active === 'number' ? raw.active : 0
       return { ...raw, views: arr, active: Math.min(cur > i ? cur - 1 : cur, arr.length - 1) }
+    })
+  // Toolbar delete slides out first: mark the pill exiting; its animationend commits the removal.
+  const beginDeleteView = (i: number): void => {
+    if (entry.views.length <= 1) return
+    setExitingId(views[i].id)
+  }
+  const finishExit = (id: string): void => {
+    const i = viewsRef.current.findIndex((v) => v.id === id)
+    if (i >= 0) deleteViewAt(i)
+    setExitingId(null)
+  }
+  const reorderViews = (activeId: string, overId: string): void =>
+    mutateEntry(entry.id, (raw) => {
+      const arr = Array.isArray(raw.views) ? (raw.views as unknown[]) : []
+      const seq = reorder(
+        viewsRef.current.map((v, i) => ({ id: v.id, i })),
+        activeId,
+        overId
+      )
+      const next = seq.map((x) => arr[x.i]).filter((x) => x != null)
+      const newActive = seq.findIndex((x) => x.i === index)
+      return { ...raw, views: next, active: newActive >= 0 ? newActive : 0 }
     })
   const commitTitle = (next: string): void => {
     const t = next.trim()
@@ -190,14 +276,19 @@ export function ViewEmbedBlock({
     else if (action === 'style-dropdown') patchEntry({ view_style: 'dropdown' })
     else if (action === 'style-toolbar') patchEntry({ view_style: undefined })
   }
-  // A pill/list row's own menu — the ViewPane row family (Rename / Edit Icon / Delete).
-  const rowMenu = async (i: number, e: React.MouseEvent): Promise<void> => {
+  // A pill/list row's own menu — the ViewPane row family (Rename / Edit Icon / Delete). `animate`
+  // routes the pill's delete through the slide-out; the dropdown list removes in place.
+  const rowMenu = async (i: number, e: React.MouseEvent, animate: boolean): Promise<void> => {
     e.preventDefault()
     e.stopPropagation() // the switcher row underneath owns the area menu
     const action = await window.nexus.viewRowMenu(entry.views.length > 1)
     if (action === 'view:rename') setRenaming(i)
     else if (action === 'view:edit-icon') setIconFor(i)
-    else if (action === 'view:delete') deleteView(i)
+    else if (action === 'view:delete') (animate ? beginDeleteView : deleteViewAt)(i)
+  }
+  const pillAnimEnd = (id: string): void => {
+    if (exitingId === id) finishExit(id)
+    else if (enteringIds.has(id)) setEnteringIds((s0) => (s0.has(id) ? new Set([...s0].filter((x) => x !== id)) : s0))
   }
 
   const renameField = (i: number): React.JSX.Element => (
@@ -227,18 +318,23 @@ export function ViewEmbedBlock({
     </button>
   ) : (
     <>
-      {views.map((v, i) => (
-        <button
-          key={`${i}:${v.id}`}
-          type="button"
-          className={i === index ? `${s.pill} ${s.pillActive}` : s.pill}
-          onClick={renaming === i ? undefined : () => patchEntry({ active: i })}
-          onContextMenu={(e) => void rowMenu(i, e)}
-        >
-          <Icon name={iconNameOr(v.icon, 'table')} size={12} />
-          {renaming === i ? renameField(i) : labeled && <span>{v.name}</span>}
-        </button>
-      ))}
+      <SortableZone items={views.map((v) => v.id)} layout="list" axis="x" onReorder={reorderViews}>
+        {views.map((v, i) => (
+          <ViewPill
+            key={v.id}
+            id={v.id}
+            view={v}
+            active={i === index}
+            entering={enteringIds.has(v.id)}
+            exiting={exitingId === v.id}
+            labeled={labeled}
+            renameNode={renaming === i ? renameField(i) : null}
+            onSwitch={() => patchEntry({ active: i })}
+            onMenu={(e) => void rowMenu(i, e, true)}
+            onAnimEnd={() => pillAnimEnd(v.id)}
+          />
+        ))}
+      </SortableZone>
       <AccessoryButton icon="plus" size={12} box={20} ariaLabel="New View" onClick={addView} />
     </>
   )
@@ -287,11 +383,11 @@ export function ViewEmbedBlock({
               <Menu>
                 {views.map((v, i) => (
                   <MenuItem
-                    key={`${i}:${v.id}`}
+                    key={v.id}
                     className={i === index ? activeRow : undefined}
                     leading={<Icon name={iconNameOr(v.icon, 'table')} size={16} />}
                     onClick={renaming === i ? undefined : () => patchEntry({ active: i })}
-                    onContextMenu={(e) => void rowMenu(i, e)}
+                    onContextMenu={(e) => void rowMenu(i, e, false)}
                   >
                     {renaming === i ? renameField(i) : v.name}
                   </MenuItem>

@@ -1,6 +1,5 @@
-import { globalStyle, style } from '@vanilla-extract/css'
+import { globalStyle, keyframes, style } from '@vanilla-extract/css'
 import { vars as colorVars } from '../design-system/tokens/color.css'
-import { TINT_STEPS, tintAt } from '../design-system/tokens/tint'
 import { text } from '../design-system/tokens/typography.css'
 import { VIEW_EMBED_ZOOM } from '../Embeds/embedScale'
 
@@ -9,13 +8,13 @@ const c = colorVars.color
 export const tile = style({ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 })
 
 /** H-5's title row — the ####-scale editable title over the switcher; its bottom hairline is
- *  the header's ONLY divider (none under the pills, none at all once the row is hidden). */
+ *  the header's ONLY divider (none under the pills, none once the title row is hidden). */
 export const titleRow = style({
   display: 'flex',
   alignItems: 'center',
   gap: '8px',
-  padding: '9px 12px 7px 14px',
-  borderBottom: `1px solid ${c.fill.quaternary}`,
+  padding: '13px 12px 8px 14px',
+  borderBottom: `1px solid ${c.separator.segment}`,
   flex: 'none'
 })
 
@@ -26,11 +25,9 @@ export const titleText = style([
   { flex: '1 1 auto', minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }
 ])
 
-/** The rename field the title flips into on click — the same text, editable in place. */
-export const titleInput = style([
-  ...titleType,
-  { flex: '1 1 auto', minWidth: 0, border: 'none', background: 'none', padding: 0, outline: 'none' }
-])
+/** The mini-doc title mount — a single-line MarkdownPM editor sized to the ####-scale title,
+ *  chromeless (no banner/gutter), so an inline `[[link]]` or emphasis renders like any page. */
+export const titleDoc = style({ flex: '1 1 auto', minWidth: 0 })
 
 /** The switcher row — view pills (+ New View) leading, the config affordance trailing when
  *  the title row is hidden and this line is the whole header. */
@@ -42,17 +39,17 @@ export const switcherRow = style({
   flex: 'none'
 })
 
-/** A view pill: icon + label-control title on the quinary fill, hairline-bordered. The active
- *  view's pill wears the accent tint on its border — the pane's active-row marker, pill-shaped. */
+/** A view pill: icon + label-control title on the quaternary fill, hairline-bordered, 6pt. The
+ *  active view's pill lifts on the selected-state fill (the surfacepm active idiom, not an outline). */
 export const pill = style([
   text.control.emphasized,
   {
     display: 'inline-flex',
     alignItems: 'center',
     gap: '5px',
-    padding: '3px 8px',
-    borderRadius: '4px',
-    background: c.fill.quinary,
+    padding: '5px 8px',
+    borderRadius: '6px',
+    background: c.fill.quaternary,
     border: `1px solid ${c.separator.segment}`,
     color: c.label.secondary,
     whiteSpace: 'nowrap',
@@ -61,8 +58,33 @@ export const pill = style([
 ])
 
 export const pillActive = style({
-  borderColor: tintAt('var(--accent)', TINT_STEPS.primary),
+  background: `linear-gradient(var(--state-selected), var(--state-selected)), ${c.fill.quaternary}`,
   color: c.label.primary
+})
+
+// Create/delete slide (H-5): a new pill grows in from the leading edge, a deleted one collapses
+// out — max-width + opacity on the dropdown token, the negative margin swallowing the row gap so
+// siblings close up. No house horizontal-list primitive exists; this is the pill's own.
+const pillIn = keyframes({
+  '0%': { opacity: 0, maxWidth: 0, marginRight: '-6px', transform: 'translateX(-4px)' },
+  '100%': { opacity: 1, maxWidth: '240px', transform: 'none' }
+})
+const pillOut = keyframes({
+  '0%': { opacity: 1, maxWidth: '240px' },
+  '100%': { opacity: 0, maxWidth: 0, marginRight: '-6px', transform: 'translateX(-4px)' }
+})
+export const pillEntering = style({
+  overflow: 'hidden',
+  animationName: pillIn,
+  animationDuration: 'var(--duration-dropdown)',
+  animationTimingFunction: 'var(--ease-standard)'
+})
+export const pillExiting = style({
+  overflow: 'hidden',
+  pointerEvents: 'none',
+  animationName: pillOut,
+  animationDuration: 'var(--duration-dropdown)',
+  animationTimingFunction: 'var(--ease-standard)'
 })
 
 export const spacer = style({ flex: '1 1 auto' })
