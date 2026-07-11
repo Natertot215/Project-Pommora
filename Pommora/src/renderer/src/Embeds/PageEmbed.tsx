@@ -66,6 +66,7 @@ export function PageEmbed({
     // biome-ignore lint/a11y/useKeyWithClickEvents: edit entry is pointer-first
     <div
       className={`pgembed${editing ? ' is-editing' : ''}`}
+      style={{ '--mdpm-scale': EMBED_SCALE } as React.CSSProperties}
       onClick={() => {
         if (editing) return
         const sel = window.getSelection()

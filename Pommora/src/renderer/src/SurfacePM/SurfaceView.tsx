@@ -64,6 +64,10 @@ interface Settle {
   next: SurfaceLayout | null
 }
 
+/** How close (px, from the tile's top-left corner) the pointer must be to reveal
+ *  a caret-active tile's handle — the proximity affordance knob. */
+const HANDLE_REVEAL_PX = 240
+
 const EDGE_ZONES: Array<{ zone: string; edges: Edge[] }> = [
   { zone: 'n', edges: ['n'] },
   { zone: 's', edges: ['s'] },
@@ -120,11 +124,30 @@ const TileShell = memo(
         : phase === 'reflow' || phase === 'settling'
           ? `transform ${feel.duration}ms ${feel.easing}, width ${feel.duration}ms ${feel.easing}, height ${feel.duration}ms ${feel.easing}`
           : undefined
+    // Proximity reveal: distance from the tile's top-left corner, rect cached on
+    // enter (no per-move layout reads), state flips only on threshold crossing.
+    // CSS decides who uses it (caret-active tiles reveal their handle by it).
+    const [handleNear, setHandleNear] = useState(false)
+    const cornerRef = useRef<{ x: number; y: number } | null>(null)
     return (
       <div
         className={`spm-tile${phase === 'lifted' || phase === 'settling' ? ' is-lifted' : ''}${
           resizing ? ' is-resizing' : ''
-        }${extraClass ? ` ${extraClass}` : ''}`}
+        }${extraClass ? ` ${extraClass}` : ''}${handleNear ? ' handle-near' : ''}`}
+        onPointerEnter={(e) => {
+          const r = e.currentTarget.getBoundingClientRect()
+          cornerRef.current = { x: r.left, y: r.top }
+        }}
+        onPointerMove={(e) => {
+          const c = cornerRef.current
+          if (!c) return
+          const near = Math.hypot(e.clientX - c.x, e.clientY - c.y) < HANDLE_REVEAL_PX
+          if (near !== handleNear) setHandleNear(near)
+        }}
+        onPointerLeave={() => {
+          cornerRef.current = null
+          if (handleNear) setHandleNear(false)
+        }}
         style={{
           transform: `translate(${rect.x}px, ${rect.y}px)`,
           width: rect.w,

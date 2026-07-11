@@ -3,13 +3,18 @@
    grip in the app renders identically. Global on purpose: consumers span surfaces. */
 :root {
   --grip-glyph: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='9' cy='12' r='1'/%3E%3Ccircle cx='9' cy='5' r='1'/%3E%3Ccircle cx='9' cy='19' r='1'/%3E%3Ccircle cx='15' cy='12' r='1'/%3E%3Ccircle cx='15' cy='5' r='1'/%3E%3Ccircle cx='15' cy='19' r='1'/%3E%3C/svg%3E");
+  /* --mdpm-scale: the editor's SINGLE size factor — every px-fixed dimension
+     (glyphs, gutter, chrome) derives from it; a host scales the whole editor by
+     setting it on any ancestor (embeds pair it with the matching font zoom).
+     Global default so a host's value inherits INTO the shell. */
+  --mdpm-scale: 1;
 }
 
 .mdpm-shell {
   /* --fold-gutter (set on .detail-page) is the width of the left strip the fold chevron lives in, carved
      from the --content-inset margin so the body still lands on --content-inset. --fold-chevron-size:
      chevron glyph size (title3). (--label-control is the single global :root def.) */
-  --fold-chevron-size: var(--text-title3-size);
+  --fold-chevron-size: calc(var(--text-title3-size) * var(--mdpm-scale));
   --fold-chevron-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m9 18 6-6-6-6'/%3E%3C/svg%3E");
   position: relative;
   /* Own stacking context (sits below the sidebar's z-index:1) so the absolutely-positioned banner
@@ -186,12 +191,12 @@
    ::before on the line, so it can't drift below callouts/folds). Hover-revealed. Glyph mirrors the
    table/callout grips (the shared --grip-glyph). KNOBS: --fold-gutter (rail x) · --grip-top (first-line
    offset — box blocks override it to drop the grip onto their padded first row, e.g. the code fence). */
-/* Shared 14px masked-grip recipe (look only — each instance owns its own anchor below). */
+/* Shared masked-grip recipe, 14px at scale 1 (look only — each instance owns its own anchor below). */
 .mdpm-editor .cm-line.md-block-handle::before,
 .mdpm-editor .cm-line.md-bq-first .md-bq-grip,
 .mdpm-editor .cm-line.md-callout-first::after {
-  width: 14px;
-  height: 14px;
+  width: calc(14px * var(--mdpm-scale));
+  height: calc(14px * var(--mdpm-scale));
   background-color: var(--label-secondary);
   -webkit-mask: var(--grip-glyph) center / contain no-repeat;
   mask: var(--grip-glyph) center / contain no-repeat;

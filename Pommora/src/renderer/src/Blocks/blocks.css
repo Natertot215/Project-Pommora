@@ -36,6 +36,17 @@
   padding: 16px 14px 16px var(--fold-gutter);
 }
 
+/* While a block holds the caret, every OTHER block yields the wheel to the page —
+   hovering a different block scrolls the homepage, never that block's view. */
+.blk-surface.has-live-editor .spm-tile:not(.is-editing-tile) .blk-md,
+.blk-surface.has-live-editor .spm-tile:not(.is-editing-tile) .pgembed {
+  overflow-y: hidden;
+  overscroll-behavior: auto;
+}
+.blk-surface.has-live-editor .spm-tile:not(.is-editing-tile) .cm-scroller {
+  overflow-y: hidden !important; /* CM6 injects its own overflow rule at runtime */
+}
+
 .blk-inert {
   height: 100%;
 }

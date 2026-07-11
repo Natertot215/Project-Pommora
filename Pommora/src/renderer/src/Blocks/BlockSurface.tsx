@@ -187,7 +187,7 @@ export function BlockSurface({ host }: { host: BlockHostRef }): React.JSX.Elemen
 
   if (!ready) return null
   return (
-    <div className="blk-surface">
+    <div className={`blk-surface${editingId ? ' has-live-editor' : ''}`}>
       {/* Blocks reflow on Glide — the roomier displacement feel for big surfaces. */}
       <SurfaceView
         layout={layout}

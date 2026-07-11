@@ -21,16 +21,18 @@
 }
 
 /* The portal pads like the embed, not like a page — MarkdownPM's page-level
-   insets don't apply inside a foreign surface. The embed carries its own fold
-   gutter (the page defines it on .detail-page, out of scope here) — the strip
-   MarkdownPM's grips + chevrons render into. */
+   insets don't apply inside a foreign surface. EVERYTHING sizes off --mdpm-scale
+   (set inline by PageEmbed from its single EMBED_SCALE knob): the editor's own
+   glyph/chrome recipes derive from it at the source, and the embed's gutter +
+   padding do the same here — one variable, the whole system follows. */
 .pgembed {
-  --fold-gutter: 20px;
+  --fold-gutter: calc(20px * var(--mdpm-scale));
 }
 .pgembed .mdpm-editor {
   padding-left: 0;
   padding-right: 0;
 }
 .pgembed .mdpm-editor .cm-content {
-  padding: 16px 14px 16px var(--fold-gutter);
+  padding: calc(16px * var(--mdpm-scale)) calc(14px * var(--mdpm-scale)) calc(16px * var(--mdpm-scale))
+    var(--fold-gutter);
 }
