@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react'
 import { Server, Eye, LayoutDashboard, Layers, ListFilter, ArrowUpDown, SlidersHorizontal, type LucideIcon } from 'lucide-react'
 import type { OpenIn } from '@shared/types'
-import { Icon } from '@renderer/design-system/symbols'
+import { Icon, defaultEntityIcon, iconNameOr } from '@renderer/design-system/symbols'
 import { detail as detailText, flushTrailing, side } from '../../design-system/components/menu/menu.css'
 import { ICON } from './settingsPane.css'
 import { useSession } from '../../store'
@@ -56,6 +56,7 @@ const CURRENT_LABEL: Record<PaneId, string> = {
  */
 export function SettingsPane(): React.JSX.Element | null {
   const selection = useSession((st) => st.selection)
+  const defaultIcons = useSession((st) => st.personalization.defaultIcons)
   const tree = useSession((st) => st.tree)
   const load = useSession((st) => st.load)
   const submitRename = useSession((st) => st.submitRename)
@@ -129,7 +130,7 @@ export function SettingsPane(): React.JSX.Element | null {
     <>
       <InlineEditHeader
         value={node.title}
-        icon={node.icon}
+        icon={iconNameOr(node.icon, defaultEntityIcon(node.kind, defaultIcons))}
         iconRef={iconRef}
         onIconClick={() => setIconOpen(true)}
         onCommit={(next) => void submitRename(node.path, node.kind, next)}
