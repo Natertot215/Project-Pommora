@@ -134,6 +134,8 @@ const knownEntry = z.union([markdownEntry, pageEntry, viewEntry])
  *  A node with `pick` resolves the menu; a node with `submenu` drills. */
 export interface DrillPickItem<T> {
   label: string
+  /** Leading glyph — locations carry their entity icon, views their view icon. */
+  icon?: string
   pick?: T
   submenu?: Array<DrillPickItem<T>>
   separator?: boolean

@@ -4,6 +4,8 @@ import { FEEL_PRESETS } from '@renderer/design-system/interactions/feel'
 import { buildPageIndex, flattenPages, type ConnectionsApi } from '@renderer/MarkdownPM/connections'
 import { attachBelow, insertBand, removeTile as removeLeaf } from '@renderer/SurfacePM/core/ops'
 import { SurfaceView, type BackdropTarget } from '@renderer/SurfacePM/SurfaceView'
+import { defaultEntityIcon, iconNameOr } from '@renderer/design-system/symbols'
+import type { EntityIconKind } from '@shared/types'
 import { useSession } from '@renderer/store'
 import { findCollection, findCollectionForSet, findSet } from '@renderer/Detail/Scope'
 import { mintDefaultView } from '@shared/views'
@@ -18,15 +20,23 @@ import './blocks.css'
 
 const NEW_TILE_H = 160
 
-/** The page-picker drill tree: Collections → their pages, Sets nesting inside. */
-function pagePickerItems(tree: NexusTree): PagePickerItem[] {
+/** The page-picker drill tree: Collections → their pages, Sets nesting inside — every
+ *  row wearing its entity icon (custom, else the kind default). */
+function pagePickerItems(tree: NexusTree, defaultIcons?: Partial<Record<EntityIconKind, string>>): PagePickerItem[] {
+  const pageItem = (p: { id: string; title: string; icon?: string }): PagePickerItem => ({
+    label: p.title,
+    icon: iconNameOr(p.icon, defaultEntityIcon('page', defaultIcons)),
+    pick: p.id
+  })
   const setItem = (s: SetNode): PagePickerItem => ({
     label: s.title,
-    submenu: [...(s.sets ?? []).map(setItem), ...s.pages.map((p) => ({ label: p.title, pick: p.id }))]
+    icon: iconNameOr(s.icon, defaultEntityIcon('set', defaultIcons)),
+    submenu: [...(s.sets ?? []).map(setItem), ...s.pages.map(pageItem)]
   })
   const collectionItem = (c: CollectionNode): PagePickerItem => ({
     label: c.title,
-    submenu: [...c.sets.map(setItem), ...c.pages.map((p) => ({ label: p.title, pick: p.id }))]
+    icon: iconNameOr(c.icon, defaultEntityIcon('collection', defaultIcons)),
+    submenu: [...c.sets.map(setItem), ...c.pages.map(pageItem)]
   })
   return [...tree.collections, ...tree.userSections.flatMap((u) => u.collections)].map(collectionItem)
 }
@@ -34,14 +44,26 @@ function pagePickerItems(tree: NexusTree): PagePickerItem[] {
 /** The view-source drill (G-9): Collections → Sets chevron above that container's
  *  views, a + Custom footer per drill (D-5a: the source is picked here, always).
  *  Sub-Sets carry no views, so only depth-1 Sets drill. */
-function viewPickerItems(tree: NexusTree): ViewPickerItem[] {
+function viewPickerItems(tree: NexusTree, defaultIcons?: Partial<Record<EntityIconKind, string>>): ViewPickerItem[] {
   const containerViews = (node: CollectionNode | SetNode): ViewPickerItem[] => [
-    ...(node.views ?? []).map((v) => ({ label: v.name, pick: { source_id: node.id, view_id: v.id } })),
+    ...(node.views ?? []).map((v) => ({
+      label: v.name,
+      icon: iconNameOr(v.icon, 'table'),
+      pick: { source_id: node.id, view_id: v.id }
+    })),
     { label: '+ Custom', pick: { source_id: node.id, custom: true }, footer: true }
   ]
   const collectionItem = (c: CollectionNode): ViewPickerItem => ({
     label: c.title,
-    submenu: [...c.sets.map((s) => ({ label: s.title, submenu: containerViews(s) })), ...containerViews(c)]
+    icon: iconNameOr(c.icon, defaultEntityIcon('collection', defaultIcons)),
+    submenu: [
+      ...c.sets.map((s) => ({
+        label: s.title,
+        icon: iconNameOr(s.icon, defaultEntityIcon('set', defaultIcons)),
+        submenu: containerViews(s)
+      })),
+      ...containerViews(c)
+    ]
   })
   return [...tree.collections, ...tree.userSections.flatMap((u) => u.collections)].map(collectionItem)
 }
@@ -59,6 +81,7 @@ export function BlockSurface({ host }: { host: BlockHostRef }): React.JSX.Elemen
   // would land after the trash and resurrect the file as an entry-less orphan.
   const removing = useRef(new Set<string>())
   const tree = useSession((s) => s.tree)
+  const defaultIcons = useSession((s) => s.personalization.defaultIcons)
   const select = useSession((s) => s.select)
 
   const entries = useMemo(() => {
@@ -285,8 +308,8 @@ export function BlockSurface({ host }: { host: BlockHostRef }): React.JSX.Elemen
         <BlockHandleMenu
           entry={entries.get(handleMenu.id) as BlockEntry}
           anchor={handleMenu.el}
-          pageItems={pagePickerItems(tree)}
-          viewItems={viewPickerItems(tree)}
+          pageItems={pagePickerItems(tree, defaultIcons)}
+          viewItems={viewPickerItems(tree, defaultIcons)}
           onClose={() => setHandleMenu(null)}
           onPickPage={(pageId) => applyPagePick(handleMenu.id, pageId)}
           onPickView={(pick) => applyViewPick(handleMenu.id, pick)}

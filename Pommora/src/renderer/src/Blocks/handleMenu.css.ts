@@ -9,8 +9,10 @@ const c = colorVars.color
 // measured width, so unequal panes would shift the anchored picker on every slide;
 // locking every pane to one width kills the shift and sets the menu's footprint.
 export const PANE_W = 120
+// The stretch ceiling — a pane may grow to fit content up to this, then labels truncate.
+export const PANE_MAX_W = 220
 
-export const pane = style({ width: PANE_W, boxSizing: 'border-box' })
+export const pane = style({ minWidth: PANE_W, maxWidth: PANE_MAX_W, boxSizing: 'border-box' })
 
 /** Handle-menu rows read at control size in the control label tone (Nathan's call) —
  *  the && doubles specificity over MenuItem's own class. */
@@ -31,8 +33,12 @@ export const rowDisabled = style({
   }
 })
 
-/** TopRow density for this thin menu — the house zoom knob scales label + chevron together. */
-export const topRowScale = style({ zoom: 0.85 })
+// ── KNOB — the picker's height ceiling: a drill list grows to this, then its body
+// scrolls (MenuScrollFrame owns the cap; header + footer stay pinned).
+export const PICKER_MAX_H = 280
+
+/** Header/footer density for this thin menu — the house zoom knob scales the whole bar. */
+export const barScale = style({ zoom: 0.85 })
 
 /** A pinned-footer text action (+ Custom) — footing tone over the accessory hover pill. */
 export const footerAction = style([
