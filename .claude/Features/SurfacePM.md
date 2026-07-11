@@ -41,7 +41,8 @@ Hosts live under `.nexus/` (shielded from other apps; root-lift is a breaking Pr
 
 #### Pending
 
-- View embeds (Linked → Custom, both bound to a single source container — a view's + New Page needs a home) with the H-5 slim header chrome.
+- View embeds — block-owned config copied at pick time (Linked = seeded from a saved view, Custom = blank; never synced back), each bound to a single source container (a view's + New Page needs a home) — with the H-5 slim header chrome.
+- The block menu component — a PickerMenu shell over the menu family's sliding panes (G-16); the native handle menu + page picker are interim scaffolding until it lands.
 - Page-embed header chrome (banner + in-line title toggles via the ⋮ menu) — parked; fields stay wired.
 - Locks: the host lock (grid-wide static mode), kind-specific tile hover-locks, the container view lock.
 - Link-graph host passes: the connection indexer and rename cascade must each gain a host-folder pass (block links currently neither index nor rename-heal).
