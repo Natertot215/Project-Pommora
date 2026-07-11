@@ -85,13 +85,17 @@ export async function removeBlockTile(root: string, host: BlockHostRef, tileId: 
   })
   if (wasMarkdown) {
     const file = blockFilePath(root, host, tileId)
-    if (await pathExists(file)) await trashWithTimestamp(root, file)
+    // On the FILE lock — orders against a still-pending editor flush, so a late
+    // body write can never land after the trash and resurrect the file.
+    await serializeOnFile(file, async () => {
+      if (await pathExists(file)) await trashWithTimestamp(root, file)
+    })
   }
 }
 
-/** Turn Into → Page (G-7): the entry becomes a page embed (style survives), and a
- *  markdown tile's backing `.md` trashes recoverably. The embedded page itself is
- *  never touched — the entry only references it. */
+/** Turn Into → Page (G-7): the entry becomes a page embed (foreign fields + chrome
+ *  payload survive the flip), and a markdown tile's backing `.md` trashes
+ *  recoverably. The embedded page itself is never touched. */
 export async function convertTileToPage(root: string, host: BlockHostRef, tileId: string, pageId: string): Promise<void> {
   let wasMarkdown = false
   await mutateDoc(root, host, (cur) => {
@@ -100,14 +104,19 @@ export async function convertTileToPage(root: string, host: BlockHostRef, tileId
       const entry = knownBlock(b)
       if (entry?.id !== tileId) return b
       if (entry.type === 'markdown') wasMarkdown = true
-      const style = entry.style
-      return style ? { id: tileId, type: 'page', page_id: pageId, style } : { id: tileId, type: 'page', page_id: pageId }
+      // Spread the RAW entry — foreign keys and chrome payload survive the
+      // type flip (E-1); only the type + target change.
+      return { ...(b as Record<string, unknown>), type: 'page', page_id: pageId }
     })
     return { ...cur, blocks: next }
   })
   if (wasMarkdown) {
     const file = blockFilePath(root, host, tileId)
-    if (await pathExists(file)) await trashWithTimestamp(root, file)
+    // On the FILE lock — orders against a still-pending editor flush, so a late
+    // body write can never land after the trash and resurrect the file.
+    await serializeOnFile(file, async () => {
+      if (await pathExists(file)) await trashWithTimestamp(root, file)
+    })
   }
 }
 

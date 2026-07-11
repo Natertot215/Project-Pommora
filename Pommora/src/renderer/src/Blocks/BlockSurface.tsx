@@ -120,15 +120,15 @@ export function BlockSurface({ host }: { host: BlockHostRef }): React.JSX.Elemen
           else if (action === 'type:page') convertToPage(id)
           else if (action === 'style:bordered' || action === 'style:borderless') {
             const style = action.slice('style:'.length) as BlockStyle
-            saveBlocks(
-              blocks.map((b) =>
-                knownBlock(b)?.id === id ? { ...(b as Record<string, unknown>), style } : b
-              )
+            // Updater form — the native menu held the closure open; compose with
+            // the LIVE entry list, never the capture.
+            saveBlocks((cur) =>
+              cur.map((b) => (knownBlock(b)?.id === id ? { ...(b as Record<string, unknown>), style } : b))
             )
           }
         })
     },
-    [entries, blocks, saveBlocks, removeBlock, convertToPage]
+    [entries, saveBlocks, removeBlock, convertToPage]
   )
 
   const tileClassName = useCallback(

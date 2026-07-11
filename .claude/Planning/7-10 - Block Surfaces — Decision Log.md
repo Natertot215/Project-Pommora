@@ -172,7 +172,7 @@ How a page or view actually lives inside a tile — the walkthrough the D/G deci
 
 - **H-1 — Creation** [confirmed — restates G-9/G-7]: embeds are **references, not files** — Insert → *Page* searches every Collection's pages and stores the pick as `page_id` (ULID, rename-proof); Insert → *View* runs the source drill (Collections → Sets chevron → that container's views, **+ Custom** footer) and stores `source_id` + `view_id` (Linked) or the inline config (Custom). Only markdown blocks mint files; an embed's tile payload is the entire artifact.
 
-- **H-2 — Page embed anatomy** [confirmed — B-5/E-4/G-4]: the tile is a **scrollable, editable window onto the real page** — banner shown (toggleable via ⋮), in-line title on, body rendered static at rest with a live MarkdownPM mounting only on click-in (the single-live-editor pattern); edits flow through the same debounced body-write path as the full page editor, so an embed edit IS a page edit. The same page embedded twice resolves by most-recent-wins (E-3).
+- **H-2 — Page embed anatomy** [confirmed — B-5/E-4/G-4; scroll clause open]: the tile is an **editable window onto the real page** — the CM6 portal (E-4), header chrome parked pending the ⋮ pass; edits flow through the same debounced body-write path as the full page editor, so an embed edit IS a page edit. The same page embedded twice resolves by most-recent-wins (E-3). **Scrolling rides the caret-priority model** (blocks wheel-transparent at rest, the caret's block scrolls contained) — which leaves a long page's tail unreachable at rest: `[open]` whether page embeds regain at-rest scroll (B-5's original wording), get a visible more-content affordance, or stay viewport-only per H-10. Nathan adjudicates; the H-3 lock decision compounds it (a locked embed can't enter edit to scroll).
 
 - **H-3 — Page-embed lock + navigation** [confirmed — B-5/B-8; one assumption]: the hover-lock freezes *content* — no editing, no click-into-the-body — while the **open action stays available** (a lock guards the page's text, not your ability to visit it) `[assumed — flag if wrong]`. Opening honors the source Collection's Open In; full-page is the working behavior until the preview surface ships.
 
@@ -243,7 +243,8 @@ The invariant block system — buildable before, and regardless of, the contexts
 
 ### Still Open — the log doesn't close until these do
 
-1. **H-3's assumption:** a locked page embed keeps its open action (flag if wrong).
-2. **Parked by design:** B-2 (contexts as block surfaces), D-10 (sidebar), the contexts resolution, Homepage's final role.
+1. **H-2's scroll clause:** long page embeds are unreachable past the fold at rest under caret-priority scroll — at-rest scroll for page embeds only, an affordance, or viewport-only stands.
+2. **H-3's assumption:** a locked page embed keeps its open action (flag if wrong).
+3. **Parked by design:** B-2 (contexts as block surfaces), D-10 (sidebar), the contexts resolution, Homepage's final role.
 
 Adversarial review ran its full three rounds (the Review-Discipline cap); all findings verified and folded. Everything outside Section H stands certified and is being built (→ `Block Surfaces — Plumbing Plan.md`); H's opens gate the view-embed chrome, not the plumbing beneath it.

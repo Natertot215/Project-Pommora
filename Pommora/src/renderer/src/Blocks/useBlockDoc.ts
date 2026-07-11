@@ -21,7 +21,7 @@ export interface BlockDocSession extends BlockDocState {
   setLayout: (layout: SurfaceLayout) => void
   commitLayout: (update: SurfaceLayout | ((cur: SurfaceLayout) => SurfaceLayout)) => void
   refreshEntries: () => void
-  saveBlocks: (next: unknown[]) => void
+  saveBlocks: (update: unknown[] | ((cur: unknown[]) => unknown[])) => void
 }
 
 export function useBlockDoc(host: BlockHostRef): BlockDocSession {
@@ -99,8 +99,15 @@ export function useBlockDoc(host: BlockHostRef): BlockDocSession {
     })
   }, [])
 
-  /** Write the whole entry list (per-entry field edits, e.g. style) — immediate. */
-  const saveBlocks = useCallback((next: unknown[]) => {
+  // Entry writes take an updater for the same reason commitLayout does — a menu
+  // or IPC window between capture and write must not clobber concurrent changes.
+  const liveBlocks = useRef<unknown[]>(state.blocks)
+  liveBlocks.current = state.blocks
+
+  /** Write the entry list (per-entry field edits, e.g. style) — immediate. */
+  const saveBlocks = useCallback((update: unknown[] | ((cur: unknown[]) => unknown[])) => {
+    const next = typeof update === 'function' ? update(liveBlocks.current) : update
+    liveBlocks.current = next
     setState((s) => ({ ...s, blocks: next }))
     void window.nexus.blocks.save(hostRef.current, { blocks: next })
   }, [])

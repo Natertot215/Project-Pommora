@@ -76,7 +76,7 @@ One session, the whole arc: the Contexts rethink became a certified spec, the sp
 
 ### Next Session
 
-**1. Interaction testing + foolproofing (Nathan's #1).** Continue live-hands testing of the block surface: the closeout reviews' findings + live-probe lists (native menus, feel judgments, the flows CDP can't drive). Fold, fix, re-verify — the system is feature-rich but young.
+**1. Interaction testing + foolproofing (Nathan's #1).** Continue live-hands testing of the block surface. The closeout review's probe list for Nathan's hands: (a) **long page embed at rest** — the tail is unreachable under caret-priority scroll; adjudicate H-2's open scroll clause; (b) **borderless half-step** — body-hover reveals the grip while the border stays hidden (naked floating grip?); (c) **page-editor glyphs** — the centering pass shifted page grips/chevrons ~3px right; eyeball; (d) **native menus** — handle menu (Remove confirm, disabled View), page-picker deep drilling; (e) **chrome-strip scroll feel** — wheel over an editing tile's handle/edge strip scrolls the page, its gutter scrolls the tile.
 
 **2. The Navigation system (Nathan's #2).** The prior arc's next: Navigation Window + Dropdown + Inspector, → [[Navigation]] + [[Inspector]].
 
