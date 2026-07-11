@@ -10,7 +10,7 @@ import type { BrowserWindow } from 'electron'
 import { asStringArray } from './coerce'
 import { excludedMatcher } from './exclusion'
 import { readJsonObject } from './io/atomicWrite'
-import { nexusConfig, NEXUS_CONFIG_FILES } from './paths'
+import { HOMEPAGE_HOST_DIRNAME, nexusConfig, NEXUS_CONFIG_FILES } from './paths'
 import { readNexus } from './readNexus'
 import { sessionRoot } from './session'
 
@@ -39,7 +39,12 @@ export function ignoredUnder(root: string, excluded: string[] = []): (path: stri
           seg === '.trash' || // deleted items — not part of the tree
           seg.startsWith('index.db') || // SQLite index + its WAL/SHM — churns on every mutation
           (seg.startsWith('.') && seg !== '.nexus') // dotfile cruft, but .nexus holds contexts + settings
-      ) || isExcluded(segs)
+      ) ||
+      // Block-host content loads through blocks:get, never the tree walk (E-3) —
+      // a debounced block-body write must not cost a full re-walk. The
+      // homepage.json config FILE stays watched (the tree reads its banner).
+      (segs[0] === '.nexus' && segs[1] === HOMEPAGE_HOST_DIRNAME) ||
+      isExcluded(segs)
     )
   }
 }

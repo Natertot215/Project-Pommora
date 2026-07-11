@@ -10,6 +10,7 @@ import type { PropertyMenuAction, PropertyMenuContext } from '@shared/propertyMe
 import type { OptionMenuAction, OptionMenuContext } from '@shared/optionMenu'
 import type { ColumnMenuAction, ColumnMenuContext } from '@shared/columnMenu'
 import type { SavedView } from '@shared/views'
+import type { BlockDocPatch, BlockHostRef, BlocksGetResult, BlocksSaveResult } from '@shared/blocks'
 import type { StatusGroup } from '@shared/properties'
 import type { PageFrontmatter } from '@shared/schemas'
 import type { PropertyDefinition, PropertyType } from '@shared/properties'
@@ -227,6 +228,13 @@ const api = {
     get: (): Promise<Record<string, number[]>> => ipcRenderer.invoke('tableHeadingCols:get'),
     set: (pageId: string, indices: number[]): Promise<{ ok: true } | { ok: false; error: string }> =>
       ipcRenderer.invoke('tableHeadingCols:set', pageId, indices)
+  },
+  // The block document behind the BlockHost seam — targeted per-host load + locked
+  // partial writes (layout / blocks / locked) on the host's config.
+  blocks: {
+    get: (host: BlockHostRef): Promise<BlocksGetResult> => ipcRenderer.invoke('blocks:get', host),
+    save: (host: BlockHostRef, patch: BlockDocPatch): Promise<BlocksSaveResult> =>
+      ipcRenderer.invoke('blocks:save', host, patch)
   },
   // Subfield (footer) config — React-owned `subfield` key in `.nexus/settings.json`.
   subfield: {

@@ -5,52 +5,10 @@
 // tree renders sanely instead of blanking the host. Unknown keys and the
 // surrounding block document are the block-doc layer's concern, not this codec's.
 
-import { z } from 'zod'
+import { rawLayoutSchema, type RawColumn, type RawRow, type RawTile } from '@shared/blocks'
 import type { LayoutNode, SurfaceLayout, TileLeaf } from './model'
 
 const MIN_TILE = 32
-
-interface RawTile {
-  kind: 'tile'
-  id: string
-  h: number
-}
-
-interface RawRow {
-  kind: 'row'
-  ratios: number[]
-  children: Array<RawTile | RawRow | RawColumn>
-}
-
-interface RawColumn {
-  kind: 'column'
-  children: Array<RawTile | RawRow | RawColumn>
-}
-
-const tileSchema: z.ZodType<RawTile> = z.object({
-  kind: z.literal('tile'),
-  id: z.string().min(1),
-  h: z.number()
-})
-
-const rowSchema: z.ZodType<RawRow> = z.lazy(() =>
-  z.object({
-    kind: z.literal('row'),
-    ratios: z.array(z.number()),
-    children: z.array(z.union([tileSchema, rowSchema, columnSchema])).min(1)
-  })
-)
-
-const columnSchema: z.ZodType<RawColumn> = z.lazy(() =>
-  z.object({
-    kind: z.literal('column'),
-    children: z.array(z.union([tileSchema, rowSchema, columnSchema])).min(1)
-  })
-)
-
-const layoutSchema = z.object({
-  bands: z.array(z.object({ node: z.union([tileSchema, rowSchema, columnSchema]) }))
-})
 
 function repairNode(node: RawTile | RawRow | RawColumn, seen: Set<string>): LayoutNode | null {
   if (node.kind === 'tile') {
@@ -86,7 +44,7 @@ function repairNode(node: RawTile | RawRow | RawColumn, seen: Set<string>): Layo
 }
 
 export function decodeLayout(raw: unknown): SurfaceLayout | null {
-  const parsed = layoutSchema.safeParse(raw)
+  const parsed = rawLayoutSchema.safeParse(raw)
   if (!parsed.success) return null
   const seen = new Set<string>()
   const bands = parsed.data.bands.flatMap((b) => {

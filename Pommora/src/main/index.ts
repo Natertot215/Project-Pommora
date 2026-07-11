@@ -8,6 +8,8 @@ import type { MutateRequest, MutateResult, ContextTarget } from '@shared/mutate'
 import { WINDOW_BG } from '@shared/theme'
 import { readNexus } from './readNexus'
 import { readPage } from './readPage'
+import { readBlockDoc, writeBlockDoc } from './blocks'
+import { coerceBlockHost, type BlockDocPatch, type BlocksGetResult, type BlocksSaveResult } from '@shared/blocks'
 import { pathExists } from './io/atomicWrite'
 import { readAppConfig, writeAppConfig, addRecent, DEFAULT_TRASH_MODE } from './appConfig'
 import { sessionRoot, openSession, resolveRestorePath, isExistingDir } from './session'
@@ -987,6 +989,33 @@ ipcMain.handle(
     }
   }
 )
+
+// The block document (D-3) — a targeted per-host load + locked partial writes on the host's
+// config (homepage.json for the dev host), never woven into the tree walk (E-3).
+ipcMain.handle('blocks:get', async (_e, host: unknown): Promise<BlocksGetResult> => {
+  try {
+    const root = sessionRoot()
+    if (root === null) return { ok: false, error: 'No nexus is open.' }
+    const h = coerceBlockHost(host)
+    if (!h) return { ok: false, error: 'Unknown block host.' }
+    return { ok: true, doc: await readBlockDoc(root, h) }
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) }
+  }
+})
+ipcMain.handle('blocks:save', async (_e, host: unknown, patch: unknown): Promise<BlocksSaveResult> => {
+  try {
+    const root = sessionRoot()
+    if (root === null) return { ok: false, error: 'No nexus is open.' }
+    const h = coerceBlockHost(host)
+    if (!h) return { ok: false, error: 'Unknown block host.' }
+    if (!patch || typeof patch !== 'object') return { ok: false, error: 'Invalid block-doc patch.' }
+    await writeBlockDoc(root, h, patch as BlockDocPatch)
+    return { ok: true }
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) }
+  }
+})
 
 // Personalization (accent, connection color, interface toggles) — merged one key at a time into the
 // React-owned `personalization` object in `.nexus/settings.json`; the value is validated on read.

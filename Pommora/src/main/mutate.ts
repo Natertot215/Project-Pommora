@@ -316,14 +316,20 @@ async function dispatch(req: MutateRequest, deps: MutateDeps, root: string): Pro
         if (!rel) return fault('Unsupported image data.')
         // Set the field first; only THEN delete a replaced file, so a failed write never
         // leaves `banner` pointing at a deleted file (mirrors the cover/photo ordering).
-        await mutateJson<Record<string, unknown>>(cfgPath, () => fallback, (cur) => ({ ...cur, banner: rel }))
+        // Locked on the config path — the block-doc writers share this file (homepage.json
+        // carries layout/blocks), and two unlocked read-merge-writes lose whole keys.
+        await serializeOnFile(cfgPath, () =>
+          mutateJson<Record<string, unknown>>(cfgPath, () => fallback, (cur) => ({ ...cur, banner: rel }))
+        )
         if (prev && prev !== rel) await rm(join(root, prev), { force: true }).catch(() => {})
       } else {
-        await mutateJson<Record<string, unknown>>(cfgPath, () => fallback, (cur) => {
-          const next = { ...cur }
-          delete next.banner
-          return next
-        })
+        await serializeOnFile(cfgPath, () =>
+          mutateJson<Record<string, unknown>>(cfgPath, () => fallback, (cur) => {
+            const next = { ...cur }
+            delete next.banner
+            return next
+          })
+        )
         if (prev) await rm(join(root, prev), { force: true }).catch(() => {})
       }
       return { ok: true }
