@@ -17,7 +17,21 @@ export function snapAxis(value: number, candidates: number[], threshold: number)
   return bestDistance <= threshold ? best : value
 }
 
-const dedupe = (values: number[]): number[] => [...new Set(values.map((v) => Math.round(v)))]
+// Dedupe by rounded key but keep RAW positions — a snap must land exactly on the
+// neighbor's edge, and a rounded candidate vs a fractional boundary would commit
+// noise-level deltas on every near-aligned drag.
+const dedupe = (values: number[]): number[] => {
+  const seen = new Set<number>()
+  const out: number[] = []
+  for (const v of values) {
+    const key = Math.round(v)
+    if (!seen.has(key)) {
+      seen.add(key)
+      out.push(v)
+    }
+  }
+  return out
+}
 
 /** Every tile's left + right edge — the vertical-boundary magnet lines. */
 export function xCandidates(geometry: SurfaceGeometry): number[] {

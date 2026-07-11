@@ -72,13 +72,16 @@ function repairNode(node: RawTile | RawRow | RawColumn, seen: Set<string>): Layo
 
   const raw = kept.map((k) => k.ratio)
   const positive = raw.filter((r): r is number => typeof r === 'number' && r > 0)
-  const ratios =
-    positive.length === kept.length
-      ? (() => {
-          const sum = positive.reduce((a, r) => a + r, 0)
-          return positive.map((r) => r / sum)
-        })()
-      : kept.map(() => 1 / kept.length)
+  const ratios = (() => {
+    if (positive.length === kept.length) {
+      const sum = positive.reduce((a, r) => a + r, 0)
+      const norm = positive.map((r) => r / sum)
+      // Extreme inputs overflow the sum (→ Infinity → 0-ratios) or underflow a
+      // share — a "repaired" tree validateLayout would reject. Uniform instead.
+      if (norm.every((r) => Number.isFinite(r) && r > 0)) return norm
+    }
+    return kept.map(() => 1 / kept.length)
+  })()
   return { kind: 'row', ratios, children }
 }
 

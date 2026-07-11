@@ -117,7 +117,10 @@ const TileShell = memo(
           transition
         }}
         onTransitionEnd={(e) => {
-          if (phase === 'settling' && e.propertyName === 'transform') onSettled(id)
+          // Target-guarded: tile CONTENT animating a transform bubbles its
+          // transitionend up here — only the shell's own settle may commit.
+          if (phase === 'settling' && e.target === e.currentTarget && e.propertyName === 'transform')
+            onSettled(id)
         }}
       >
         <div className="spm-handle" onPointerDown={(e) => onHandleDown(id, e)} />
@@ -224,11 +227,35 @@ export function SurfaceView({
     return () => clearTimeout(t)
   }, [settle, finishSettle])
 
+  // A gesture starting during a live settle takes over: finalize the pending
+  // commit NOW and hand back the decided layout — the parent hasn't re-rendered
+  // yet, so live.current still holds the pre-commit origin, and a gesture built
+  // on that stale origin would silently erase the just-dropped move.
+  const takePendingSettle = useCallback((): SurfaceLayout | null => {
+    const s = settleRef.current
+    if (!s) return null
+    finishSettle(s.id)
+    return s.next
+  }, [finishSettle])
+
+  // The boundary's own edge is always among the snap candidates — left in, it
+  // magnetizes the drag back to its start and makes sub-snapPx adjustment
+  // impossible (a dead band on every resize). Filter it per action.
+  const withoutOwn = (candidates: number[], start: number): number[] =>
+    candidates.filter((c) => Math.abs(c - start) > 0.5)
+
   const onEdgeDown = useCallback((id: string, edges: Edge[], e: React.PointerEvent) => {
     if (e.button !== 0) return
     e.preventDefault()
     e.stopPropagation()
-    const { layout: origin, originGeometry: g, minTilePx: minT, snapPx: snap } = live.current
+    const pending = takePendingSettle()
+    const { minTilePx: minT, snapPx: snap } = live.current
+    const origin = pending ?? live.current.layout
+    const host = hostRef.current
+    const g =
+      pending && host
+        ? computeGeometry(pending, Math.max(0, host.clientWidth), live.current.gap)
+        : live.current.originGeometry
     const ownRect = g.tiles.get(id)
     if (!ownRect) return
     const extents = new Map(g.dividers.map((d) => [refKey(d.ref), d.extentPx]))
@@ -237,16 +264,17 @@ export function SurfaceView({
     const snapY = yCandidates(g)
     // South edges STRETCH — exactly one tile grows, the page flows. North edges
     // negotiate the stacked boundary above; east/west move the row splitter.
-    // Each action carries its boundary's start px so its delta can magnetize to
-    // other blocks' edges (the alignment form-lock).
+    // Each action carries its boundary's start px + own-edge-filtered candidates
+    // so its delta can magnetize to OTHER blocks' edges (the alignment form-lock).
     type Action =
-      | { edge: Edge; kind: 'stretch'; start: number }
-      | { edge: Edge; kind: 'divider'; ref: DividerRef; start: number }
-      | { edge: Edge; kind: 'stack'; ref: DividerRef; start: number }
+      | { edge: Edge; kind: 'stretch'; start: number; cands: number[] }
+      | { edge: Edge; kind: 'divider'; ref: DividerRef; start: number; cands: number[] }
+      | { edge: Edge; kind: 'stack'; ref: DividerRef; start: number; cands: number[] }
     const actions: Action[] = []
     for (const edge of edges) {
       if (edge === 's') {
-        actions.push({ edge, kind: 'stretch', start: ownRect.y + ownRect.h })
+        const start = ownRect.y + ownRect.h
+        actions.push({ edge, kind: 'stretch', start, cands: withoutOwn(snapY, start) })
         continue
       }
       const boundary = resolveEdge(origin, id, edge)
@@ -255,7 +283,8 @@ export function SurfaceView({
         boundary.kind === 'divider'
           ? (dividerX.get(refKey(boundary.ref)) ?? ownRect.x)
           : ownRect.y
-      actions.push({ edge, kind: boundary.kind, ref: boundary.ref, start })
+      const axis = boundary.kind === 'divider' ? snapX : snapY
+      actions.push({ edge, kind: boundary.kind, ref: boundary.ref, start, cands: withoutOwn(axis, start) })
     }
     if (actions.length === 0) return
 
@@ -266,8 +295,7 @@ export function SurfaceView({
       onMove: (dx, dy) => {
         latest = actions.reduce((acc, action) => {
           const raw = action.kind === 'divider' ? dx : dy
-          const cands = action.kind === 'divider' ? snapX : snapY
-          const delta = snapAxis(action.start + raw, cands, snap) - action.start
+          const delta = snapAxis(action.start + raw, action.cands, snap) - action.start
           if (action.kind === 'stretch') return stretchTileHeight(acc, id, delta, minT)
           if (action.kind === 'stack') return resizeStackPair(acc, action.ref, delta, minT)
           const extent = extents.get(refKey(action.ref)) ?? 0
@@ -287,10 +315,16 @@ export function SurfaceView({
     if (e.button !== 0) return
     e.preventDefault()
     e.stopPropagation()
-    const { layout: origin, originGeometry: g, bandZonePx: zone } = live.current
+    const pending = takePendingSettle()
+    const zone = live.current.bandZonePx
+    const origin = pending ?? live.current.layout
     const host = hostRef.current
+    if (!host) return
+    const g = pending
+      ? computeGeometry(pending, Math.max(0, host.clientWidth), live.current.gap)
+      : live.current.originGeometry
     const rect = g.tiles.get(id)
-    if (!host || !rect) return
+    if (!rect) return
     const downBox = host.getBoundingClientRect()
     // The grab offset is frozen at the down event — recomputing it per move would
     // cancel the pointer delta and pin the lifted block to its origin.
@@ -307,9 +341,11 @@ export function SurfaceView({
     const scroll0 = { x: scroller?.scrollLeft ?? 0, y: scroller?.scrollTop ?? 0 }
     let latest: SurfaceLayout = origin
     let target: DropTarget = null
+    let moved = false
 
     startPointerDrag(e, {
       onMove: (_dx, _dy, ev) => {
+        moved = true
         if (scroller) autoScroll(scroller, ev.clientX, ev.clientY)
         const dsx = (scroller?.scrollLeft ?? 0) - scroll0.x
         const dsy = (scroller?.scrollTop ?? 0) - scroll0.y
@@ -322,6 +358,9 @@ export function SurfaceView({
       },
       onEnd: (commitDrag) => {
         const decided = commitDrag && target && latest !== origin ? latest : null
+        // An unarmed click never moved anything — a settle here would only flash
+        // the lifted styling and stall a pointless commit pass on the timer.
+        if (!moved && !decided) return
         // Settle into the decided slot (the final layout's rect), or back home.
         const finalGeometry = decided
           ? computeGeometry(decided, Math.max(0, host.clientWidth), live.current.gap)

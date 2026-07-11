@@ -62,6 +62,26 @@ describe('codec', () => {
     expect(l?.bands[0]?.node).toEqual({ kind: 'tile', id: 'a', h: 32 })
   })
 
+  it('rebuilds overflow ratios as uniform — a summed Infinity would zero them', () => {
+    const raw = {
+      bands: [
+        {
+          node: {
+            kind: 'row',
+            ratios: [1e308, 1e308],
+            children: [
+              { kind: 'tile', id: 'a', h: 100 },
+              { kind: 'tile', id: 'b', h: 100 }
+            ]
+          }
+        }
+      ]
+    }
+    const l = decodeLayout(raw)
+    expect(l?.bands[0]?.node).toMatchObject({ ratios: [0.5, 0.5] })
+    expect(l && validateLayout(l)).toEqual([])
+  })
+
   it('drops duplicate tile ids — later occurrences, the space closes', () => {
     const dup = {
       bands: [

@@ -33,4 +33,15 @@ describe('candidates', () => {
     expect(ys).toContain(308)
     expect(new Set(xs).size).toBe(xs.length)
   })
+
+  it('keeps raw positions — a snap must land exactly on a fractional edge', () => {
+    let l = insertBand({ bands: [] }, 0, 'a', 200)
+    l = splitAtTile(l, 'a', 'e', 'b', 1 / 3)
+    const geo = computeGeometry(l, 1000, 8)
+    const a = geo.tiles.get('a')
+    if (!a) throw new Error('missing tile')
+    const aRight = a.x + a.w
+    expect(Number.isInteger(aRight)).toBe(false)
+    expect(xCandidates(geo)).toContain(aRight)
+  })
 })
