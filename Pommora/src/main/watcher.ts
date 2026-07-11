@@ -10,6 +10,7 @@ import type { BrowserWindow } from 'electron'
 import { asStringArray } from './coerce'
 import { excludedMatcher } from './exclusion'
 import { readJsonObject } from './io/atomicWrite'
+import { isRecentWrite } from './io/writeEcho'
 import { HOMEPAGE_HOST_DIRNAME, nexusConfig, NEXUS_CONFIG_FILES } from './paths'
 import { readNexus } from './readNexus'
 import { sessionRoot } from './session'
@@ -62,7 +63,11 @@ export async function startWatcher(root: string, win: BrowserWindow): Promise<vo
     awaitWriteFinish: { stabilityThreshold: SETTLE_MS, pollInterval: 50 },
     atomic: true // coalesce the mv-_tmp atomic writes our writers use
   })
-  const onEvent = (): void => {
+  const onEvent = (path: string): void => {
+    // The app's own atomic writes echo back here — skip them: every tree-relevant
+    // in-app write refetches explicitly, so the echo only buys a wasted full walk
+    // (hot under block gestures + embed typing). External edits still walk.
+    if (isRecentWrite(path)) return
     if (debounce) clearTimeout(debounce)
     debounce = setTimeout(() => void push(root, win), SETTLE_MS)
   }
