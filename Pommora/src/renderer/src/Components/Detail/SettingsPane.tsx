@@ -86,7 +86,7 @@ export function SettingsPane(): React.JSX.Element | null {
   const schema = schemaCollection?.properties ?? []
   const view = scope?.view ?? pickView(node, activeViewId, schema)
   // Open In has no payload target until the preview surface ships (B-8) — the leaf sits out in scope.
-  const entries = scope ? ENTRIES.filter((e) => e.id !== 'configuration') : ENTRIES
+  const entries = scope ? ENTRIES.filter((e) => e.id !== 'configuration' && e.id !== 'filter') : ENTRIES
 
   const open = (id: PaneId): void => {
     lastDetail.current = id

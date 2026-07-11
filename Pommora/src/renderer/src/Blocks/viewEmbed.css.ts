@@ -43,5 +43,3 @@ export const body = style({ flex: '1 1 auto', minWidth: 0, minHeight: 0, overflo
  *  .table-view (table-tokens.css), so only a descendant-scoped redeclaration outranks it. */
 globalStyle(`${body} .table-view, ${body} .table-empty`, { vars: { '--zoom': EMBED_ZOOM } })
 
-/** The scoped settings dropdown — body-portaled (H-11: a tile ancestor clips). */
-export const pop = style({ position: 'fixed', zIndex: 100 })
