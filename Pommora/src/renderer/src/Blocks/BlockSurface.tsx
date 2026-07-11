@@ -133,8 +133,14 @@ export function BlockSurface({ host }: { host: BlockHostRef }): React.JSX.Elemen
   )
 
   const tileClassName = useCallback(
-    (id: string) => (entries.get(id)?.style === 'borderless' ? 'is-borderless' : undefined),
-    [entries]
+    (id: string) => {
+      const classes = [
+        entries.get(id)?.style === 'borderless' ? 'is-borderless' : null,
+        editingId === id ? 'is-editing-tile' : null
+      ].filter(Boolean)
+      return classes.length ? classes.join(' ') : undefined
+    },
+    [entries, editingId]
   )
 
   const renderTile = useCallback(

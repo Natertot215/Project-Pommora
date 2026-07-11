@@ -27,17 +27,10 @@ export function PageEmbedBlock({
     [tree, entry.page_id]
   )
 
+  // Navigation + header chrome return with the ⋮ pass; the resolver stays wired.
+  void select
   if (!page) return null // dead reference — inert, space holds (E-2)
   return (
-    <PageEmbed
-      path={page.path}
-      title={page.title}
-      editing={editing}
-      onBeginEdit={() => onBeginEdit(entry.id)}
-      onOpen={() => void select({ kind: 'page', id: page.id, path: page.path })}
-      showBanner={entry.banner !== false}
-      showTitle={entry.title !== false}
-      connections={connections}
-    />
+    <PageEmbed path={page.path} editing={editing} onBeginEdit={() => onBeginEdit(entry.id)} connections={connections} />
   )
 }

@@ -1,16 +1,15 @@
 import { useEffect, useRef, useState } from 'react'
 import type { BlockHostRef } from '@shared/blocks'
-import { StaticMarkdown } from '@renderer/Embeds/StaticMarkdown'
 import { MarkdownEditor } from '@renderer/MarkdownPM'
 import type { ConnectionsApi } from '@renderer/MarkdownPM/connections'
 
 const SAVE_DEBOUNCE_MS = 400
 
-// A markdown block tile: static markdown at rest, a live MarkdownPM mounting only
-// while THIS tile is the surface's single live editor (E-4). The body loads once
-// per tile and stays local truth from then on — edits update it in place, so
-// leaving edit mode never needs a disk round-trip. Body writes are pure (no
-// frontmatter — D-11) and debounce like the page editor's.
+// A markdown block tile — the CM6 portal: one view per tile, read-only at rest
+// (full decorations), editability reconfigured in place while THIS tile is the
+// surface's single live editor (E-4's revised at-rest form) — no remount, no
+// jitter. Body writes are pure (no frontmatter — D-11) and debounce like the
+// page editor's.
 
 export function MarkdownBlock({
   host,
@@ -64,33 +63,19 @@ export function MarkdownBlock({
   }
 
   if (body === null) return <div className="blk-md" />
-  if (editing) {
-    return (
-      <div className="blk-md is-editing">
-        <MarkdownEditor
-          initialBody={body}
-          onChange={(next) => {
-            setBody(next)
-            scheduleSave(next)
-          }}
-          connections={connections}
-          autoFocus
-        />
-      </div>
-    )
-  }
   return (
     // biome-ignore lint/a11y/useKeyWithClickEvents: edit entry is pointer-first; keyboard entry rides Task 6 chrome
     <div
-      className="blk-md"
+      className={`blk-md${editing ? ' is-editing' : ''}`}
       onClick={() => {
-        // Selecting static text to copy ends in a click — that's a copy, not an edit.
+        if (editing) return
+        // Selecting rendered text to copy ends in a click — that's a copy, not an edit.
         const sel = window.getSelection()
         if (sel && !sel.isCollapsed) return
         onBeginEdit(tileId)
       }}
     >
-      <StaticMarkdown body={body} />
+      <MarkdownEditor initialBody={body} onChange={scheduleSave} connections={connections} readOnly={!editing} autoFocus />
     </div>
   )
 }

@@ -1,14 +1,13 @@
 /* Block tile content family (G-2). The tile chassis (border, radius, clipping)
    is SurfacePM's; these style what lives inside. */
 
-/* Vertical padding matches the editor's boundary→first-line gap (the MarkdownPM
-   header's 16px pad-bottom — the app's text-meets-edge standard). Padding is the
-   BLOCK's own, measured off its border — never the host page's insets. */
+/* The tile IS the CM6 portal (read-only at rest). Its padding is the BLOCK's own
+   — the editor's 16px boundary-to-first-line standard via .cm-content, never the
+   host page's insets (--content-inset / --fold-gutter / the 90px page head-tail). */
 .blk-md {
   position: relative;
   height: 100%;
   overflow-y: auto;
-  padding: 16px 14px;
   overscroll-behavior: contain;
 }
 /* Content that fits must still own the wheel: a 1px phantom keeps the container a
@@ -21,24 +20,15 @@
   width: 1px;
   pointer-events: none;
 }
-
-/* The tile's editor pads like the tile, not like a page — MarkdownPM's page-level
-   insets (--content-inset / --fold-gutter / the 90px page head-tail) don't apply
-   inside a block. */
-.blk-md.is-editing .mdpm-editor {
+.blk-md .mdpm-shell {
+  height: 100%;
+}
+.blk-md .mdpm-editor {
   padding-left: 0;
   padding-right: 0;
 }
-.blk-md.is-editing .mdpm-editor .cm-content {
+.blk-md .mdpm-editor .cm-content {
   padding: 16px 14px;
-}
-
-/* The tile's editor fills the tile, no page chrome. */
-.blk-md.is-editing {
-  padding: 0;
-}
-.blk-md.is-editing .mdpm-shell {
-  height: 100%;
 }
 
 .blk-inert {

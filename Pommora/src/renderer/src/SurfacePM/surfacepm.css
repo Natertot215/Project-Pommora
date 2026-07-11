@@ -108,6 +108,14 @@
 .spm-tile:hover .spm-handle {
   opacity: 1;
 }
+/* While the tile's editor holds the caret, whole-tile hover doesn't reveal the
+   handle — only hovering its own strip does. */
+.spm-tile.is-editing-tile:hover .spm-handle {
+  opacity: 0;
+}
+.spm-tile.is-editing-tile .spm-handle:hover {
+  opacity: 1;
+}
 
 /* The handle warms with intent — the wash is its own layer so it FADES on
    duration-base instead of snapping (a swapped background can't interpolate).

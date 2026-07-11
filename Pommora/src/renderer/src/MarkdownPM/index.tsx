@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { docString } from "./editor/docCache";
 import { EditorView, keymap } from "@codemirror/view";
-import { Prec } from "@codemirror/state";
+import { Compartment, EditorState, Prec } from "@codemirror/state";
 import { history, historyKeymap, defaultKeymap } from "@codemirror/commands";
 import { markdown } from "@codemirror/lang-markdown";
 import { markdownDecorations } from "./editor/decorations";
@@ -49,6 +49,9 @@ interface Props {
   menu?: EditorMenuApi;
   /** Focus the editor on mount — for click-to-edit surfaces (block tiles). */
   autoFocus?: boolean;
+  /** Read-only portal mode: the SAME view, editing gated by a live-reconfigured
+   *  compartment — flipping it never remounts (embeds' jitter-free enter-edit). */
+  readOnly?: boolean;
 }
 
 export function MarkdownEditor({
@@ -65,7 +68,10 @@ export function MarkdownEditor({
   tableHeadingColumns,
   menu,
   autoFocus = false,
+  readOnly = false,
 }: Props): React.JSX.Element {
+  const editableGate = useRef(new Compartment());
+  const readOnlyAtMount = useRef(readOnly);
   const host = useRef<HTMLDivElement>(null);
   const shellRef = useRef<HTMLDivElement>(null);
   const titleRef = useRef<HTMLDivElement>(null);
@@ -103,6 +109,10 @@ export function MarkdownEditor({
       doc: initialBody,
       parent,
       extensions: [
+        editableGate.current.of([
+          EditorView.editable.of(!readOnlyAtMount.current),
+          EditorState.readOnly.of(readOnlyAtMount.current),
+        ]),
         history(),
         Prec.highest(
           keymap.of([
@@ -201,8 +211,8 @@ export function MarkdownEditor({
     });
     viewRef.current = view;
     // Click-to-edit surfaces (block tiles) mount THIS editor in response to a click
-    // that landed on the static render — without a focus the caret goes nowhere.
-    if (autoFocus) view.focus();
+    // that landed on the at-rest render — without a focus the caret goes nowhere.
+    if (autoFocus && !readOnlyAtMount.current) view.focus();
     // Restore this page's saved folds once the view's lines exist (the widget clones them).
     void foldsRef.current?.load().then((keys) => applySavedFolds(view, keys));
     // Restore this page's heading-column tables (rebuilds the affected table widgets).
@@ -219,6 +229,24 @@ export function MarkdownEditor({
     // Mount once per page — the host keys on path; initialBody is the seed, not a live binding.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // The portal flip: reconfigure editability on the LIVE view — same doc, same
+  // decorations, no remount. Entering edit focuses when the surface asked for it.
+  useEffect(() => {
+    const view = viewRef.current;
+    if (!view || readOnly === readOnlyAtMount.current) {
+      readOnlyAtMount.current = readOnly;
+      return;
+    }
+    readOnlyAtMount.current = readOnly;
+    view.dispatch({
+      effects: editableGate.current.reconfigure([
+        EditorView.editable.of(!readOnly),
+        EditorState.readOnly.of(readOnly),
+      ]),
+    });
+    if (!readOnly && autoFocus) view.focus();
+  }, [readOnly, autoFocus]);
 
   // Body top-padding tracks the header height, so toggling the banner resizes the gutter automatically.
   useEffect(() => {

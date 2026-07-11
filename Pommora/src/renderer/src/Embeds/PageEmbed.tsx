@@ -1,55 +1,42 @@
 import { useEffect, useRef, useState } from 'react'
-import { assetUrl } from '@renderer/assetUrl'
 import { MarkdownEditor } from '@renderer/MarkdownPM'
 import type { ConnectionsApi } from '@renderer/MarkdownPM/connections'
-import { StaticMarkdown } from './StaticMarkdown'
 import './embeds.css'
 
 const SAVE_DEBOUNCE_MS = 400
+/** The embed's fixed zoom-out (G-10), as a LINEAR scale — converted once to the
+ *  editor's exponential zoom. The knob. */
+const EMBED_SCALE = 0.9
+const EMBED_ZOOM = 1 + Math.log2(EMBED_SCALE)
 
-// THE shared page-embed framework (G-11): a scrollable, editable window onto a
-// real Page inside a foreign surface. One seam, two consumers — SurfacePM's
-// page-embed tiles now, MarkdownPM's ![[Embed]] later — so it speaks in page
-// identity + chrome flags, never in tile vocabulary. An embed edit IS a page
-// edit: body writes flow through the same debounced page save the full editor
-// uses (H-2). Static at rest; the live editor mounts on click-in (E-4).
+// THE shared page-embed framework (G-11): a window onto a real Page inside a
+// foreign surface — SurfacePM's page-embed tiles now, MarkdownPM's ![[Embed]]
+// later. It IS the CM6 view (a read-only portal at rest, full decorations);
+// entering edit reconfigures the SAME view's editability — no remount, no
+// jitter. An embed edit IS a page edit: body writes flow through the page's own
+// debounced save (H-2). Header chrome (banner + title) is parked — it returns
+// with the ⋮ toggle pass; entry fields stay wired.
 
 export function PageEmbed({
   path,
-  title,
   editing,
   onBeginEdit,
-  onOpen,
-  showBanner = true,
-  showTitle = true,
   connections
 }: {
   /** Nexus-relative path to the `.md` — the page's address for load + save. */
   path: string
-  title: string
   editing: boolean
   onBeginEdit: () => void
-  /** Navigate to the real page (B-8 — full-page until the preview surface ships). */
-  onOpen?: () => void
-  showBanner?: boolean
-  showTitle?: boolean
   connections?: ConnectionsApi
 }): React.JSX.Element {
   const [body, setBody] = useState<string | null>(null)
-  const [cover, setCover] = useState<string | undefined>(undefined)
   const pending = useRef<{ timer: ReturnType<typeof setTimeout>; body: string } | null>(null)
 
   useEffect(() => {
     let live = true
     setBody(null)
     void window.nexus.openPage(path).then((r) => {
-      if (!live) return
-      if (r.ok) {
-        setBody(r.page.body)
-        setCover(typeof r.page.frontmatter.cover === 'string' ? r.page.frontmatter.cover : undefined)
-      } else {
-        setBody('')
-      }
+      if (live) setBody(r.ok ? r.page.body : '')
     })
     return () => {
       live = false
@@ -74,41 +61,26 @@ export function PageEmbed({
     pending.current = { body: next, timer: setTimeout(() => flushRef.current(), SAVE_DEBOUNCE_MS) }
   }
 
-  // Header chrome (banner + title) is parked — it returns with the ⋮ toggle pass;
-  // the fields + props stay wired so nothing re-plumbs.
-  void assetUrl
-  void cover
-  void title
-  void onOpen
-  void showBanner
-  void showTitle
+  if (body === null) return <div className="pgembed" />
   return (
-    <div className="pgembed">
-      {body === null ? null : editing ? (
-        <div className="pgembed-body is-editing">
-          <MarkdownEditor
-            initialBody={body}
-            onChange={(next) => {
-              setBody(next)
-              scheduleSave(next)
-            }}
-            connections={connections}
-            autoFocus
-          />
-        </div>
-      ) : (
-        // biome-ignore lint/a11y/useKeyWithClickEvents: edit entry is pointer-first
-        <div
-          className="pgembed-body"
-          onClick={() => {
-            const sel = window.getSelection()
-            if (sel && !sel.isCollapsed) return
-            onBeginEdit()
-          }}
-        >
-          <StaticMarkdown body={body} />
-        </div>
-      )}
+    // biome-ignore lint/a11y/useKeyWithClickEvents: edit entry is pointer-first
+    <div
+      className={`pgembed${editing ? ' is-editing' : ''}`}
+      onClick={() => {
+        if (editing) return
+        const sel = window.getSelection()
+        if (sel && !sel.isCollapsed) return
+        onBeginEdit()
+      }}
+    >
+      <MarkdownEditor
+        initialBody={body}
+        onChange={scheduleSave}
+        connections={connections}
+        readOnly={!editing}
+        autoFocus
+        zoom={EMBED_ZOOM}
+      />
     </div>
   )
 }
