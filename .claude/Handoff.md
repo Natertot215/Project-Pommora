@@ -80,7 +80,7 @@ One session, the whole arc: the Contexts rethink became a certified spec, the sp
 
 **2. The Navigation system (Nathan's #2).** The prior arc's next: Navigation Window + Dropdown + Inspector, → [[Navigation]] + [[Inspector]].
 
-**3. Plumbing plan Tasks 4–6** — view embeds (Linked first: per-instance view resolution across the four slot readers, then Custom + the nexus-wide row source), the link-graph host passes (indexer + the id-less block-body rename pass — cascade.ts:38's guard means a dedicated pass, NOT an extension), chrome completion (Insert menu, locks, page-embed header via ⋮ toggles).
+**3. Plumbing plan Tasks 4–6** — view embeds (Linked first: per-instance view resolution across the four slot readers; then Custom as a thin variant — single-source per D-5a, config in the block payload; cross-nexus views are a Prospect gated on a creation story), the link-graph host passes (indexer + the id-less block-body rename pass — cascade.ts:38's guard means a dedicated pass, NOT an extension), chrome completion (Insert menu, locks, page-embed header via ⋮ toggles).
 
 **4. The contexts-resolution brainstorm** — parked companion pass (sidebar, contexts-as-hosts, Homepage's final shape).
 

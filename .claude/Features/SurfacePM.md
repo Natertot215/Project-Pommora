@@ -41,7 +41,7 @@ Hosts live under `.nexus/` (shielded from other apps; root-lift is a breaking Pr
 
 #### Pending
 
-- View embeds (Linked → Custom + the nexus-wide row source) with the H-5 slim header chrome.
+- View embeds (Linked → Custom, both bound to a single source container — a view's + New Page needs a home) with the H-5 slim header chrome.
 - Page-embed header chrome (banner + in-line title toggles via the ⋮ menu) — parked; fields stay wired.
 - Locks: the host lock (grid-wide static mode), kind-specific tile hover-locks, the container view lock.
 - Link-graph host passes: the connection indexer and rename cascade must each gain a host-folder pass (block links currently neither index nor rename-heal).

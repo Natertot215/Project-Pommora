@@ -63,24 +63,21 @@ The raw layout zod schemas (`RawTile`/`RawRow`/`RawColumn` + the bands object) *
 
 **4a — Linked views.** Order of work:
 
-1. **Entry contract** (`shared/blocks.ts`): the view entry finalizes as `{ id, type: 'view', source_id, view_id, style?, display_title? }` for Linked; Custom adds `config` (SavedView-shaped, raw-preserved) instead of `view_id`. Lock fields ride inert until Task 6.
+1. **Entry contract** (`shared/blocks.ts`): the view entry finalizes as `{ id, type: 'view', source_id, view_id, style?, display_title? }` for Linked; Custom keeps `source_id` (never optional — D-5a) and carries `config` (SavedView-shaped, raw-preserved) instead of `view_id`. Lock fields ride inert until Task 6.
 2. **The embed view scope** — the C-1 seam: an `Embeds/ViewEmbedScope` React context carrying `{ view, activeViewId, setActiveViewId, persistView }`. `useActiveView` gains a context-first read (one edit covers its four consumers: `TableView:151`, `ViewDropdown:44`, `PropertiesPane:166`, `HiddenPane:194`); the two DIRECT slot reads (`ViewPane.tsx:68`, `SettingsPane.tsx:74`) get the same context check. `[re-ground the six call sites at task start — the one mandatory grounding gap]` Outside a scope everything behaves exactly as today.
 3. **`Blocks/ViewEmbedBlock.tsx`**: resolves `source_id` against the tree (Collection or depth-1 Set; dead ref → inert, E-2), renders the **H-5 slim header** (display title per G-6, config affordance in the hover chrome opening ViewSettings INSIDE the scope), then TableView under the provider at the fixed embed zoom (G-10; the `--zoom` knob — resize is viewport-only, H-10). Never a banner (G-4).
 4. **Persistence routing** (D-12): view-config edits → `views.save(sourcePath, kind, view)` (it IS the source's view); switching which view the embed shows → a `view_id` payload write (`saveBlocks` updater). Data edits + drags already write through TableView's source-bound paths — untouched.
-5. **Creation**: enable Type ▸ View → the source drill picker (the `blockPagePicker` returning-menu pattern: Collections → Sets chevron → that container's views, **+ Custom** footer per G-9) → a `blocks:convertToView` op (raw-entry spread; trashes a markdown tile's `.md` under the file lock — the convertToPage recipe).
+5. **Creation**: enable Type ▸ View → the source drill picker (the `blockPagePicker` returning-menu pattern: Collections → Sets chevron → that container's views, **+ Custom** footer inside each container's drill per G-9/D-5a) → a `blocks:convertToView` op (raw-entry spread; trashes a markdown tile's `.md` under the file lock — the convertToPage recipe).
 
 **4a checkpoint:** two embeds of ONE Collection holding different views simultaneously; a config edit made inside an embed visible on the real Collection; the main pane's own view slot untouched throughout.
 
-**4b — Custom views (the arc's mountain).** Order of work:
+**4b — Custom views (a thin variant of 4a — same source, different config home).** Order of work:
 
-1. **The nexus-wide row source**: a `blocks:queryRows` IPC — main generalizes the `loadValues` walk to the whole nexus (`listMarkdownFiles(root, { skipTopLevel: ['.nexus', '.trash'] })`), returning `ViewRow`s joined to tree pages PLUS each row's Collection/Set lineage (D-5d's forest needs it — extend `ViewRow` or ship a parallel lineage map; decide at build against the pipeline's shape).
-2. **Caching** (D-5c): rows cached per host-open in a store slice, refreshed most-recent-wins on embed open and after the embed's own writes — never woven into the tree walk (E-3).
-3. **Pipeline wiring**: the pure `resolveView` pipeline consumes nexus rows + the FULL registry as schema (D-5b — pages lacking a property show empty); the payload's SavedView-shaped `config` is the view.
-4. **Forest grouping** (D-5d): structural grouping generalizes — top-level bands per Collection, Sets nesting inside exactly as container-locally; `group_order` stays a flat ULID list.
-5. **Scoping**: the existing Location filter mechanics extended nexus-wide — a Custom view narrows by filters, never by a source ref (D-5a).
-6. **+ Custom** in the picker footer mints a default nexus-wide view into the payload.
+1. **Resolution**: `ViewEmbedBlock` resolves `source_id` identically to Linked; the scope's `view` comes from the payload's `config` instead of `source.views` — same rows, same schema, same pipeline (D-5a/H-7).
+2. **Persistence routing**: the scope's `persistView` writes the block payload (`saveBlocks` updater), never `views.save` — the Collection's own saved views are untouchable from a Custom embed.
+3. **+ Custom** in a container's drill mints a default `SavedView`-shaped `config` bound to that source.
 
-**4b checkpoint:** a Custom view on the homepage showing pages from two Collections in one table, grouped by Collection, editable write-through. If a session runs short, 4a is the clean stop.
+**4b checkpoint:** a Custom view diverging freely from its source's saved views (columns/sorts/filters local to the tile), config surviving relaunch in the block payload, the Collection's view list unchanged; + New Page from either kind lands in the source container. If a session runs short, 4a is the clean stop.
 
 ### Task 5 — Link-Graph Host Passes (D-8)
 
