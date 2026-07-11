@@ -11,14 +11,14 @@
   position: absolute;
   top: 0;
   left: 0;
-  border: 2px solid var(--separator-border);
+  border: 1.25px solid var(--separator-border);
   border-radius: 16px;
   transition:
-    transform var(--duration-fast) var(--ease-standard),
-    width var(--duration-fast) var(--ease-standard),
-    height var(--duration-fast) var(--ease-standard),
-    opacity var(--duration-fast) var(--ease-standard),
-    border-color var(--duration-fast) var(--ease-standard);
+    transform var(--duration-base) var(--ease-standard),
+    width var(--duration-base) var(--ease-standard),
+    height var(--duration-base) var(--ease-standard),
+    opacity var(--duration-base) var(--ease-standard),
+    border-color var(--duration-base) var(--ease-standard);
   /* No overflow clip here — the edge zones straddle the border by design; the
      body does the content clipping. */
 }
@@ -67,21 +67,33 @@
   border-radius: inherit;
 }
 
-/* Lab-grade handle: mechanics only — the real border-handle chrome is the
-   Figma pass's job. Hover-revealed, drag = move. */
+/* The block drag handle — a bordered chip NOTCHED into the left border: its own
+   rounded border is the curve, its --main-bg fill erases the straight border line
+   behind it, and its border-color inherits the tile's (so the accent resize/lift
+   highlight flows through). The grip glyph (shared --grip-glyph) rides inside.
+   Hover-revealed; drag = move; click/right-click menus ride Task 6. */
 .spm-handle {
   position: absolute;
-  top: 6px;
-  left: 6px;
+  top: 16px;
+  left: -10px;
   width: 14px;
-  height: 14px;
-  border-radius: 4px;
-  border: 1px solid var(--separator-border);
-  background: var(--fill-tertiary);
+  height: 24px;
+  border: 2px solid; /* same width as the tile border — the notch reads as one line */
+  border-color: inherit;
+  border-radius: 6px;
+  background: var(--main-bg);
   opacity: 0;
   cursor: grab;
   z-index: 3;
   transition: opacity var(--duration-slow) var(--ease-standard);
+}
+.spm-handle::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-color: var(--label-secondary);
+  -webkit-mask: var(--grip-glyph) center / contain no-repeat;
+  mask: var(--grip-glyph) center / contain no-repeat;
 }
 
 .spm-tile:hover .spm-handle {

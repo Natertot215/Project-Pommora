@@ -64,16 +64,19 @@ export function BlockSurface({ host }: { host: BlockHostRef }): React.JSX.Elemen
     }
   }, [editingId])
 
+  // THE removal flow — no affordance triggers it yet; the Task 6 handle menu is
+  // its consumer. Order is load-bearing: suppress the tile's editor flush, layout
+  // first (invisible orphan beats a dead box on a crash), then the entry + file.
   const removeBlock = useCallback(
     (id: string) => {
       removing.current.add(id)
       setEditingId((cur) => (cur === id ? null : cur))
-      // Layout first (invisible orphan beats a dead box on a crash), then the entry + file.
       commitLayout((cur) => removeLeaf(cur, id))
       void window.nexus.blocks.removeTile(host, id).then(refreshEntries)
     },
     [commitLayout, refreshEntries, host]
   )
+  void removeBlock // wired by the Task 6 handle menu
   const suppressFlush = useCallback((id: string) => removing.current.has(id), [])
 
   const renderTile = useCallback(
@@ -92,17 +95,9 @@ export function BlockSurface({ host }: { host: BlockHostRef }): React.JSX.Elemen
         ) : (
           <div className="blk-inert" /> // no/foreign/not-yet-built entry — space holds, nothing breaks
         )
-      return (
-        <>
-          {body}
-          {/* Interim remove — the Task 6 handle menu replaces it. */}
-          <button type="button" className="blk-remove" aria-label="Remove block" onClick={() => removeBlock(id)}>
-            ✕
-          </button>
-        </>
-      )
+      return body
     },
-    [entries, editingId, connections, removeBlock, suppressFlush, host]
+    [entries, editingId, connections, suppressFlush, host]
   )
 
   const addBlock = useCallback(() => {

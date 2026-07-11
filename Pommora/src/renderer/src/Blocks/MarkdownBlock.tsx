@@ -75,6 +75,7 @@ export function MarkdownBlock({
             scheduleSave(next)
           }}
           connections={connections}
+          autoFocus
         />
       </div>
     )

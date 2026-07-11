@@ -47,6 +47,8 @@ interface Props {
   folds?: FoldsApi;
   tableHeadingColumns?: TableHeadingColsApi;
   menu?: EditorMenuApi;
+  /** Focus the editor on mount — for click-to-edit surfaces (block tiles). */
+  autoFocus?: boolean;
 }
 
 export function MarkdownEditor({
@@ -62,6 +64,7 @@ export function MarkdownEditor({
   folds,
   tableHeadingColumns,
   menu,
+  autoFocus = false,
 }: Props): React.JSX.Element {
   const host = useRef<HTMLDivElement>(null);
   const shellRef = useRef<HTMLDivElement>(null);
@@ -197,6 +200,9 @@ export function MarkdownEditor({
       ],
     });
     viewRef.current = view;
+    // Click-to-edit surfaces (block tiles) mount THIS editor in response to a click
+    // that landed on the static render — without a focus the caret goes nowhere.
+    if (autoFocus) view.focus();
     // Restore this page's saved folds once the view's lines exist (the widget clones them).
     void foldsRef.current?.load().then((keys) => applySavedFolds(view, keys));
     // Restore this page's heading-column tables (rebuilds the affected table widgets).
