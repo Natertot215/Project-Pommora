@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { BlockEntry, BlockStyle, DrillPickItem, PagePickerItem, ViewPick, ViewPickerItem } from '@shared/blocks'
 import { Icon } from '@renderer/design-system/symbols'
 import { PickerMenu } from '@renderer/design-system/components/PickerMenu'
+import { paneContext } from '@renderer/design-system/components/menu/menuSurface.css'
 import { MenuBottomRow, MenuItem, MenuPaneTopRow, MenuScrollFrame, MenuSeparator } from '@renderer/design-system/components/menu'
 import { PaneSlider } from '@renderer/Components/Detail/PaneSlider'
 import { cx } from '@renderer/design-system/cx'
@@ -204,7 +205,7 @@ export function BlockHandleMenu({
     ) : null
 
   return (
-    <PickerMenu open onDismiss={onClose} triggerRef={{ current: anchor }} center>
+    <PickerMenu open onDismiss={onClose} triggerRef={{ current: anchor }} center contentClassName={paneContext}>
       <PaneSlider open={pane !== 'root'} root={root} detail={detail} />
     </PickerMenu>
   )
