@@ -396,7 +396,7 @@ export function ViewEmbedBlock({
           />
         ))}
       </SortableZone>
-      {newViewButton}
+      <span className={s.newViewReveal}>{newViewButton}</span>
     </>
   )
 

@@ -18,9 +18,11 @@ export const PILL_ICON = 13
 const HEAD_PAD_L = '14px'
 const HEAD_PAD_R = '12px'
 
-// KNOB — how far the scroll region rises BEHIND the switcher so the top scroll-fade's disappear point
-// (the mask's transparent edge) lands at the pill midline. ≈ half the switcher height; tune to taste.
-const FADE_RISE = '18px'
+// KNOB — how far the scroll region rises BEHIND the transparent switcher so rows flow UNDER the whole
+// toolbar and dissolve at the title divider (not just under its lower half). The full switcher height:
+// PILL_H + its 6px top/bottom padding. The scroll-fade (--edge-fade below) spans the same distance so a
+// row is fully gone by the divider.
+const FADE_RISE = `calc(${PILL_H} + 12px)`
 
 export const tile = style({ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 })
 
@@ -145,6 +147,15 @@ export const slideWrap = style({
 
 export const spacer = style({ flex: '1 1 auto' })
 
+/** The switcher's New-View "+" — hidden until the toolbar area is hovered (the group-header "+" idiom),
+ *  opacity-only so the pills never reflow. Reveal rides switcherRow hover, not whole-tile. */
+export const newViewReveal = style({
+  display: 'inline-flex',
+  opacity: 0,
+  transition: 'opacity var(--duration-fast) var(--ease-standard)'
+})
+globalStyle(`${switcherRow}:hover ${newViewReveal}`, { opacity: 1 })
+
 /** The config affordance — hover chrome (G-4's top-right family), same glyph as the toolbar Settings. */
 export const configBtn = style({
   border: 'none',
@@ -188,7 +199,9 @@ export const body = style({
   // margin pulls the scroll box up under the pills, the matching padding keeps the first row clear of them.
   marginTop: `calc(-1 * ${FADE_RISE})`,
   paddingTop: FADE_RISE,
-  vars: { '--fold-gutter': '20px' }
+  // The top scroll-fade spans the toolbar height (matches FADE_RISE), so a row dissolves fully as it
+  // rises under the transparent switcher, disappearing at the title divider.
+  vars: { '--fold-gutter': '20px', '--edge-fade': `calc(${PILL_H} + 12px)` }
 })
 
 /** The fixed embed zoom lands on the table's own token scope — the var is declared ON
