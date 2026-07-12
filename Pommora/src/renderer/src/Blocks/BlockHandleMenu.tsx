@@ -167,7 +167,7 @@ export function BlockHandleMenu({
         Style
       </MenuItem>
       <MenuItem
-        className={s.row}
+        className={cx(s.row, locked && s.lockDim)}
         leading={<Icon name="lock" size={GLYPH} />}
         trailing={locked ? <Icon name="check" size={GLYPH} className={s.accentCheck} /> : undefined}
         onClick={() => onToggleLock()}

@@ -38,6 +38,15 @@ export const accentCheck = style({
   selectors: { '&&': { color: 'var(--accent)' } }
 })
 
+/** The Lock row while locked: dimmed like the frozen actions so the whole menu reads pinned — but
+ *  still LIVE (it brightens on hover), since Unlock is the one action a locked tile allows. */
+export const lockDim = style({
+  selectors: {
+    '&&': { opacity: 0.4 },
+    '&&:hover': { opacity: 1 }
+  }
+})
+
 // ── KNOB — the picker's height ceiling: a drill list grows to this, then its body
 // scrolls (MenuScrollFrame owns the cap; header + footer stay pinned).
 export const PICKER_MAX_H = 240
