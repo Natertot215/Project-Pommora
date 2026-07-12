@@ -35,6 +35,12 @@
   }
 }
 
+/* Top-only variant: drop the bottom keyframe so --edge-b holds its 0 initial and the mask stays solid
+   to the bottom edge — the fade eases in at the top as content scrolls up under it, nowhere else. */
+.scroll-edge-fade.top-only {
+  animation-name: edge-fade-top;
+}
+
 .scroll-edge-fade {
   animation-name: edge-fade-top, edge-fade-bottom;
   animation-duration: auto;

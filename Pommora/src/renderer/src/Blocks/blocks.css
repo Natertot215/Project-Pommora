@@ -5,10 +5,11 @@
    — the editor's 16px boundary-to-first-line standard via .cm-content, never the
    host page's insets (--content-inset / --fold-gutter / the 90px page head-tail).
 
-   SCROLL MODEL: at rest a block is wheel-transparent — the PAGE scrolls, the
-   block never captures (and shows no text I-beam). Only the block holding the
-   caret scrolls internally; its wheel is contained there (the 1px phantom keeps
-   it a real scroller even when content fits). */
+   SCROLL MODEL (edge-release, matching view embeds): at rest a block scrolls its
+   OWN overflow, releasing to the page at its top/bottom bound (default scroll-
+   chaining) — a block whose content fits has nothing to scroll, so the wheel
+   passes straight through to the page. Editing traps the wheel instead
+   (overscroll-behavior: contain) so a live edit can't leak scroll to the page. */
 .blk-md {
   position: relative;
   height: 100%;
@@ -27,7 +28,11 @@
   pointer-events: none;
 }
 .spm-tile:not(.is-editing-tile) :is(.blk-md, .pgembed) .cm-scroller {
-  overflow: hidden !important; /* CM6 injects its own overflow rule at runtime */
+  /* Rest-scroll: the CM6 scroller scrolls vertically with default chaining (edge-release), the same
+     model as the view embed's body — !important beats CM6's own runtime overflow rule. Horizontal
+     stays clipped (prose wraps). */
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
 }
 .spm-tile:not(.is-editing-tile) :is(.blk-md, .pgembed) .cm-content {
   cursor: default;

@@ -218,9 +218,14 @@ export function ViewSettings({
 
   const mainFrame = (
     <MenuScrollFrame header={header} footer={formatRow} maxHeight={VIEWSETTINGS_MAX_HEIGHT}>
-      {/* Click-to-edit title (no auto-focus/select on open) — shared with the container header. */}
-      {title}
-      <MenuSeparator flush />
+      {/* The full door carries its own click-to-edit identity; the flat door (SettingsPane → Layout)
+          drops it — the TopRow already names the view, so a second title + divider is redundant. */}
+      {door === 'full' && (
+        <>
+          {title}
+          <MenuSeparator flush />
+        </>
+      )}
       {grid}
       {view.type === 'table' &&
         (door === 'full' ? (

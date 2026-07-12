@@ -15,6 +15,10 @@ const PILL_PAD_X = '10px'
 const HEAD_PAD_L = '14px'
 const HEAD_PAD_R = '12px'
 
+// KNOB — how far the scroll region rises BEHIND the switcher so the top scroll-fade's disappear point
+// (the mask's transparent edge) lands at the pill midline. ≈ half the switcher height; tune to taste.
+const FADE_RISE = '18px'
+
 export const tile = style({ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 })
 
 /** H-5's title row — the editable heading over the switcher; its bottom hairline is the header's
@@ -64,7 +68,9 @@ export const switcherRow = style({
   alignItems: 'center',
   gap: '6px',
   padding: `6px ${HEAD_PAD_R} 6px ${HEAD_PAD_L}`,
-  flex: 'none'
+  flex: 'none',
+  position: 'relative',
+  zIndex: 1 // paints over the scroll region that rises behind it (FADE_RISE)
 })
 
 /** A view pill: icon + label-control title on the quaternary fill, hairline-bordered — a fixed height
@@ -120,6 +126,19 @@ export const pillExiting = style({
   animationTimingFunction: 'var(--ease-standard)'
 })
 
+// View-switch slide (the sidebar mode-switch's translate + the shell-move tokens): the incoming view
+// slides in from the clicked pill's side — `--slide-from` carries the signed offset (+ from the right,
+// − from the left), re-triggered by re-keying the wrapper on the active index.
+const viewSwitchSlide = keyframes({
+  from: { transform: 'translateX(var(--slide-from, 0px))', opacity: 0.5 },
+  to: { transform: 'translateX(0)', opacity: 1 }
+})
+export const slideWrap = style({
+  animationName: viewSwitchSlide,
+  animationDuration: 'var(--duration-base)',
+  animationTimingFunction: 'var(--ease-standard)'
+})
+
 export const spacer = style({ flex: '1 1 auto' })
 
 /** The config affordance — hover chrome (G-4's top-right family), same glyph as the toolbar Settings. */
@@ -127,13 +146,22 @@ export const configBtn = style({
   border: 'none',
   background: 'none',
   padding: '2px',
+  borderRadius: '4px',
   display: 'flex',
   color: c.label.tertiary,
   opacity: 0,
-  transition: 'opacity 120ms ease',
+  transition: 'opacity 120ms ease, background 120ms ease',
   ':hover': { color: c.label.secondary }
 })
 globalStyle(`${tile}:hover ${configBtn}`, { opacity: 1 })
+
+/** While the settings pane is open the button stays shown and pressed — the selected-state fill held
+ *  as if hovered, so it reads as the anchor of the open pane even once the pointer leaves the tile. */
+export const configBtnActive = style({
+  opacity: 1,
+  color: c.label.secondary,
+  background: 'var(--state-selected)'
+})
 
 /** The dropdown-mode view list — the ViewPane's row anatomy inside a PickerMenu. */
 export const listPane = style({ minWidth: 150 })
@@ -141,11 +169,21 @@ export const listPane = style({ minWidth: 150 })
 // The embed owns its table gutter (row grips + group chevrons strip) rather than inheriting
 // --fold-gutter from a host rule — the container-table treatment no longer reaches a block surface,
 // so the embedded table sets its own, the way .blk-md / .pgembed each set theirs.
+//
+// SCROLL MODEL (edge-release): the rows scroll vertically inside the body (the header rows stay pinned
+// above it), and the default scroll-chaining releases to the page once the table bottoms out. A table
+// that fits its tile has nothing to scroll, so the wheel passes straight through to the page — only a
+// genuinely-overflowing table ever captures. Horizontal stays the table's own (.table-view overflow-x).
 export const body = style({
   flex: '1 1 auto',
   minWidth: 0,
   minHeight: 0,
-  overflow: 'hidden',
+  overflowX: 'hidden',
+  overflowY: 'auto',
+  // Rise behind the switcher so the top scroll-fade dissolves rows AT the pill midline: the negative
+  // margin pulls the scroll box up under the pills, the matching padding keeps the first row clear of them.
+  marginTop: `calc(-1 * ${FADE_RISE})`,
+  paddingTop: FADE_RISE,
   vars: { '--fold-gutter': '20px' }
 })
 

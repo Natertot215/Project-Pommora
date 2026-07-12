@@ -3,9 +3,9 @@
    own (the editor's 16px boundary-to-first-line standard), never the host's
    insets. Header chrome (banner + title) is parked — returns with the ⋮ pass. */
 
-/* Scroll model: wheel-transparent at rest (the page scrolls); the embed scrolls
-   internally only while it holds the caret — contained, with the 1px phantom
-   keeping it a real scroller even when content fits. */
+/* Scroll model (edge-release, matching view embeds): at rest the embed scrolls its
+   own overflow via the inner CM6 scroller, releasing to the page at its bound; a page
+   that fits passes the wheel straight through. Editing traps the wheel (contain). */
 .pgembed {
   position: relative;
   height: 100%;

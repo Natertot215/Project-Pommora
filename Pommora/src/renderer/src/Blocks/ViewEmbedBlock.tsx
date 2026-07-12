@@ -172,6 +172,13 @@ export function ViewEmbedBlock({
   const dropRef = useRef<HTMLButtonElement>(null)
 
   const index = Math.min(entry.active ?? 0, entry.views.length - 1)
+  // View-switch slide direction: a higher index (a pill to the right) enters from the right (+), a lower
+  // one from the left (−). prevIndexRef holds the last-committed index so the offset reads at switch time.
+  const prevIndexRef = useRef(index)
+  const slideFrom = index > prevIndexRef.current ? '24px' : index < prevIndexRef.current ? '-24px' : '0px'
+  useEffect(() => {
+    prevIndexRef.current = index
+  }, [index])
   const embedded = entry.views[index]
   const source: CollectionNode | SetNode | undefined =
     embedded && tree ? (findCollection(tree, embedded.source_id) ?? findSet(tree, embedded.source_id)) : undefined
@@ -322,7 +329,13 @@ export function ViewEmbedBlock({
   )
 
   const configButton = (
-    <button ref={btnRef} type="button" className={s.configBtn} aria-label="View settings" onClick={() => setCfgOpen(true)}>
+    <button
+      ref={btnRef}
+      type="button"
+      className={cfgOpen ? `${s.configBtn} ${s.configBtnActive}` : s.configBtn}
+      aria-label="View settings"
+      onClick={() => setCfgOpen(true)}
+    >
       <Icon name="sliders-horizontal" size={14} />
     </button>
   )
@@ -379,8 +392,10 @@ export function ViewEmbedBlock({
             </>
           )}
         </div>
-        <div className={s.body}>
-          <TableView key={source.id} source={source} />
+        <div className={`${s.body} scroll-edge-fade top-only`}>
+          <div key={index} className={s.slideWrap} style={{ '--slide-from': slideFrom } as React.CSSProperties}>
+            <TableView key={source.id} source={source} />
+          </div>
         </div>
         {/* PickerMenu owns the anchoring — body portal (H-11), scroll/resize re-measure,
             collision flip; a hand-rolled fixed portal detaches when the surface scrolls. */}

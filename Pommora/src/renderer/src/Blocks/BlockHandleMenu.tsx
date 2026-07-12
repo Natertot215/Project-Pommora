@@ -36,11 +36,7 @@ function DrillLevel({
     <div className={s.pane}>
       <MenuScrollFrame
         maxHeight={s.PICKER_MAX_H}
-        header={
-          <div className={s.barScale}>
-            <MenuPaneTopRow label={backLabel} current={title} onBack={onBack} />
-          </div>
-        }
+        header={<MenuPaneTopRow label={backLabel} current={title} onBack={onBack} contentClassName={s.barScale} />}
         footer={
           footerNodes.length ? (
             <div className={s.barScale}>
@@ -175,9 +171,8 @@ export function BlockHandleMenu({
 
   const stylePane = (
     <div className={s.pane}>
-      <div className={s.barScale}>
-        <MenuPaneTopRow label="Menu" current="Style" onBack={() => setPane('root')} />
-      </div>
+      <MenuPaneTopRow label="Menu" current="Style" onBack={() => setPane('root')} contentClassName={s.barScale} />
+
       {(['bordered', 'borderless'] as const).map((v) => (
         <MenuItem
           key={v}
