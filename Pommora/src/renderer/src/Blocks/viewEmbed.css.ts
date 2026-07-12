@@ -10,6 +10,11 @@ const c = colorVars.color
 const PILL_H = '24px'
 const PILL_PAD_X = '10px'
 
+// The header's horizontal insets — shared by the title row, the switcher row, and the title divider,
+// so the divider aligns with the content instead of bleeding to the block edges.
+const HEAD_PAD_L = '14px'
+const HEAD_PAD_R = '12px'
+
 export const tile = style({ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 })
 
 /** H-5's title row — the editable heading over the switcher; its bottom hairline is the header's
@@ -20,10 +25,20 @@ export const titleRow = style({
   display: 'flex',
   alignItems: 'center',
   gap: '8px',
-  padding: '13px 12px 8px 14px',
-  borderBottom: `1px solid ${c.separator.segment}`,
+  padding: `13px ${HEAD_PAD_R} 8px ${HEAD_PAD_L}`,
   flex: 'none',
-  fontSize: 'var(--editor-font-size, 15px)'
+  fontSize: 'var(--editor-font-size, 15px)',
+  position: 'relative',
+  // The divider inset to the header padding (not a full-bleed border), so it aligns with the content.
+  '::after': {
+    content: '""',
+    position: 'absolute',
+    bottom: 0,
+    left: HEAD_PAD_L,
+    right: HEAD_PAD_R,
+    height: '1px',
+    background: c.separator.segment
+  }
 })
 
 /** The title text + its in-place rename input. Size + weight come from the `.md-hN` class the caller
@@ -48,7 +63,7 @@ export const switcherRow = style({
   display: 'flex',
   alignItems: 'center',
   gap: '6px',
-  padding: '6px 12px 6px 14px',
+  padding: `6px ${HEAD_PAD_R} 6px ${HEAD_PAD_L}`,
   flex: 'none'
 })
 
@@ -66,7 +81,7 @@ export const pill = style([
     boxSizing: 'border-box',
     height: PILL_H,
     paddingInline: PILL_PAD_X,
-    borderRadius: '6px',
+    borderRadius: '8px',
     background: c.fill.quaternary,
     border: `1px solid ${c.separator.segment}`,
     color: c.label.secondary,
