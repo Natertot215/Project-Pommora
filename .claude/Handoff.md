@@ -20,13 +20,13 @@ Prior arcs, compressed — the detail lives in `Features/*` + `History.md`.
 ### Session Summary — Block Surfaces: Certified Spec → Live System
 
 **Session ID:** abc3bafe-70bc-41e4-adfd-aa052cfee424
-**Date:** 07-10-2026
-**Model:** Fable 5
-**Compactions:** 1
+**Dates:** 07-10-2026 → 07-12-2026
+**Model:** Fable 5 → Opus 4.8 (1M)
+**Compactions:** 3
 **Connectors:** none
-**Commands:** /clear · /handoff · /compact
-**Agents:** Explore (1x - census) · general-purpose (2x - research) · build-breaking-agent (7x - spec rounds + per-task reviews) · code-simplifier (1x - closeout)
-**Skills:** studio-brainstorm · superpowers:writing-plans · superpowers:executing-plans · handoff
+**Commands:** /clear · /handoff · /compact · /loop
+**Agents:** Explore (1x - census) · general-purpose (3x - research + SurfacePM cleanup audit) · build-breaking-agent (9x - spec rounds + per-task reviews) · code-simplifier (2x - closeout + Task 5)
+**Skills:** studio-brainstorm · superpowers:writing-plans · superpowers:executing-plans · superpowers:systematic-debugging · handoff
 
 One session, the whole arc: the Contexts rethink became a certified spec, the spec became SurfacePM, and SurfacePM became a live block system Nathan drove all evening.
 
@@ -35,6 +35,8 @@ One session, the whole arc: the Contexts rethink became a certified spec, the sp
 **SurfacePM shipped from scratch** (the RGL teardown informed patterns; zero code copied — `SurfacePM/README.md` records provenance): the split-tree model (row ratios / independent column stacks / per-tile px heights), window-style edge resize (south stretch · north stack + cross-band pair · e/w splitters · alignment snap), PommoraDND feel (lift-follow-settle on Glide), the notched grip handle with its menu (Type ▸ / Style ▸ / Remove-confirmed), right-click background create with wedge fill, and pane-toggle 1:1 tracking. Consolidated engine review folded (settle interlock, snap dead band, codec salvage).
 
 **The plumbing arc ran Tasks 0–3** of `Planning/Block Surfaces — Plumbing Plan.md` (plan itself plan-attacked; H1/H2 findings pre-empted real corruption): the block document behind the BlockHost seam (locked read-merge-writes on homepage.json, main-side patch validation, watcher ignores host dirs), markdown block tiles (ULID `.md` lifecycle, pure-body writes, trash-recoverable), and the shared page-embed framework — where Nathan redirected the static-render plan into **the CM6 portal**: every prose tile IS a read-only MarkdownPM view, editability flipped by compartment (E-4 rewritten), one `--mdpm-scale` variable sizing the whole editor, popups portaled to body (a transformed tile re-anchors `position:fixed` — H-11), gutter glyphs self-centering, caret-priority scroll.
+
+**Continuation (07-11 → 12).** The H-5 view-embed chrome + edge-release scroll landed and were live-iterated (title row sized by markdownPM's own `.md-hN`, pill switcher with drag-reorder + create/delete slide, dropdown mode, top+bottom scroll-fade), then the arc closed its plumbing + hardening. A mid-compact **selection bug** (at-rest markdownPM embeds unselectable — `EditorView.editable.of(false)` killed native selection; fix keeps editable true, gates edits through `EditorState.readOnly` alone), the per-nexus **default view scale** (`personalization.defaultViewScale`, applied main-side on open + ⌘0, empty-state + no-flash review folded), view embeds **corner-scoping their handle while busy**, and **Task 5 — the link graph** (block `[[links]]` → first-class edges + rename heal, review-certified after folding read-only-build + mtime-safe findings). Then Nathan's four directives: both stale worktrees removed, the **`[[link]]` bracket bug fixed at source** (`pageLinkPattern` tolerates internal brackets — repairs page + block bodies at once; a trailing `]` is the one irreducible grammar ambiguity, degrades to a phantom), and the **view-embed config lock** in the SettingsPane footer (freezes config via the single `persistConfig` chokepoint, no dim; `setLocked` via unguarded `patchEntry` so you can always unlock). A SurfacePM-wide cleanup audit ran + its safe findings folded (two dead `::after` rules, `getTile` reuse, hygiene).
 
 **Lessons Learned**
 
@@ -80,7 +82,12 @@ One session, the whole arc: the Contexts rethink became a certified spec, the sp
 
 **2. The Navigation system (Nathan's #2).** The prior arc's next: Navigation Window + Dropdown + Inspector, → [[Navigation]] + [[Inspector]].
 
-**3. Remaining plumbing — Task 5 + Task 6 leftovers.** Task 5 (link-graph host passes: indexer + the id-less block-body rename pass — cascade.ts:38's guard means a dedicated pass, NOT an extension) is untouched. Task 6 leftovers, now narrowed after the H-5 chrome + scroll model shipped: the **G-9 Insert menu** (background right-click → Page/View/Block through the same picker), the **three lock tiers** (G-3 host lock · B-5 kind-specific tile locks · G-5 container view-lock — the scoped-settings footer lock is rendered but inert), the **page-embed header** ⋮ toggles (banner/title + `display_title` — fields wired; the view-embed header is DONE), and the **G-16 Link Page SEARCH pane** (typed search over recents-descending; the page-open MRU record is new plumbing with a reserved `state.json` home, shared with Navigation).
+**3. Remaining Task 6 — the design-gated UI.** Task 5 (link graph) + the B-5 view-embed config lock shipped; what's left needs Nathan's design calls (the ratified plan under-specified the UI, confirmed by grounding each):
+
+- **6.4 Page-embed header** — do FIRST (unblocks the page-embed lock). Banners are **deferred** (Nathan: "pages don't need banners for embeds for now"); the ⋮ menu mirrors the view-embed's. No `display_title` on page embeds (a page embed's title IS the real page's).
+- **6.1 leftover locks** — Tier A host lock (whole board + pins the borderless chassis) and Tier C container view-lock. Both need a toggle HOME — there's **no host-settings surface** (HomepageView = banner + board), so placement is Nathan's call. The B-5 **page-embed** lock also waits on 6.4's ⋮ menu (page embeds have no config pane). Gating is ready: `blocks_locked` round-trips (host); `useBlockDoc.locked` reaches the renderer unread.
+- **6.2 G-9 Insert menu** — background right-click → Page/View/Block through the shipped picker; its Page branch wants 6.3.
+- **6.3 G-16 Link Page search pane + shared recents** — the recents record is pure plumbing (a locked `state.json` MRU, append-on-open through `serializeOnFile`, `record:false`-guarded, shared with Navigation); the search PANE is a new UI surface to design.
 
 **4. The contexts-resolution brainstorm** — parked companion pass (sidebar, contexts-as-hosts, Homepage's final shape).
 

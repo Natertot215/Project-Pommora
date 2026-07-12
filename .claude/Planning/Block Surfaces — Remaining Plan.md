@@ -2,6 +2,13 @@
 
 The forward plan for the Block Surfaces arc after the H-5 chrome + scroll model shipped. The spec is the certified `7-10 - Block Surfaces — Decision Log.md`; this breaks the remaining work into ordered, independently-shippable tasks with the five just-ratified decisions baked in. Each task re-grounds its exact `file:line` seams at pickup (Studio discipline) — the paths below are verified current, not line-pinned. **Review-hardened:** one adversarial plan-review pass grounded every named seam against the real code — corrected the link-index walk site (`index/build.ts`, not `scan.ts`), the block-edge insert (`replaceConnections` hardcodes `source_kind: 'page'`), the state.json concurrency gap, and the page-embed field set (no `display_title`); all five ratified decisions verified honored.
 
+### Status
+
+- **Task 5 — Link graph: SHIPPED + review-certified** (`12e023a3` + `fb6604a0`). Block `[[links]]` index as block-source edges; a page rename heals block bodies beside `renameCascade`. Folded review findings: the build walk reads config directly (read-only), mtime-safe listing.
+- **Task 6.1 Tier B (view-embed config lock): SHIPPED** (`5c6cc101`). Nathan's call: the lock lives in the **SettingsPane footer, no dimming**. It freezes the view config via the single `persistConfig` chokepoint (every leaf pane + header routes through it) + guards view CRUD; `setLocked` writes the entry directly so you can always unlock. `locked?` rides `ViewBlockEntry`.
+- **Bracket bug fixed at source** (`704344ea`, outside this plan): `pageLinkPattern` now tolerates internal brackets in a title — repairs page + block bodies at once; names with brackets stay legal.
+- **Remaining is design-gated** — the calls Nathan still owns are folded into each task below.
+
 ### Settled Decisions (baked in)
 
 - **Locked page embed keeps its open action** (H-3) — a lock guards content, never navigation.
@@ -86,7 +93,7 @@ Interaction foolproofing runs with Nathan's hands alongside all of it.
 
 ### Task 6.4 — Page-Embed Header
 
-**What it does (plain):** the view-embed header is done; the page-embed still needs its hover ⋮ menu with the banner/title toggles.
+**What it does (plain):** the view-embed header is done; the page-embed still needs its hover ⋮ menu. **Banners are deferred** (Nathan: "pages don't need banners for embeds for now") — so this narrows to the `title` toggle + the ⋮ menu itself (mirroring the view-embed title-row menu). Do this BEFORE the B-5 page-embed lock, whose toggle has no home until this menu exists.
 
 **Seams:** `src/renderer/src/Blocks/PageEmbedBlock.tsx` + `src/renderer/src/Embeds/PageEmbed.tsx`. The `banner`/`title` fields exist on `PageBlockEntry` **in the schema only** — `PageEmbedBlock` doesn't forward them and `PageEmbed`'s header chrome is parked/unrendered. So this is three pieces, not one: **thread** `banner`/`title` from the entry through `PageEmbedBlock` → `PageEmbed`, **render** the banner/title conditionally, and **add the ⋮ toggle** (the G-4 top-right hover chrome, mirroring the view-embed title-row menu). There is **no `display_title` on page embeds** — a page embed's title is the real page's title (H-2/G-6: you can't rename a source from an embed), so the ⋮ toggles `banner` + `title` visibility only, no per-block title override.
 
