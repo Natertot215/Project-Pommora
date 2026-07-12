@@ -131,10 +131,11 @@ export function BlockHandleMenu({
 }): React.JSX.Element {
   const [pane, setPane] = useState<'root' | 'style' | 'page' | 'view'>('root')
   const style: BlockStyle = entry.style === 'borderless' ? 'borderless' : 'bordered'
-  // Per-tile content lock (B-5): frozen tiles mute + inert every action but Lock itself, which stays
-  // live to toggle back. Toggling keeps the menu open so the check + muting flip in place.
+  // Per-tile content lock (B-5): frozen tiles dim + inert every action but Lock itself, which stays
+  // live to toggle back. The dim is the house rowDisabled (opacity on the row content, so the text +
+  // labels fade, not a full-row veil). Toggling keeps the menu open so the check + dim flip in place.
   const locked = entry.locked ?? false
-  const rowMute = locked ? s.rowMuted : undefined
+  const rowMute = locked ? s.rowDisabled : undefined
   const act = (fn: () => void) => () => {
     onClose()
     fn()

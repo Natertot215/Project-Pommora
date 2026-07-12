@@ -33,21 +33,6 @@ export const rowDisabled = style({
   }
 })
 
-/** A locked tile's non-Lock rows: inert + veiled by the --state-muted de-emphasis wash (its first
- *  consumer). The veil overlays the row content so the action reads dimmed; the row itself is inert. */
-export const rowMuted = style({
-  position: 'relative',
-  pointerEvents: 'none',
-  '::after': {
-    content: '""',
-    position: 'absolute',
-    inset: 0,
-    borderRadius: 'inherit',
-    background: c.state.muted,
-    pointerEvents: 'none'
-  }
-})
-
 /** The Lock row's on-state check — accent, so "locked" reads at a glance. */
 export const accentCheck = style({
   selectors: { '&&': { color: 'var(--accent)' } }
