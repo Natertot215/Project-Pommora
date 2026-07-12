@@ -120,7 +120,8 @@ export function BlockHandleMenu({
   onDuplicate,
   onRemove,
   onToggleLock,
-  onOpenPage
+  onOpenPage,
+  containerLocked = false
 }: {
   entry: BlockEntry
   anchor: HTMLElement
@@ -139,6 +140,9 @@ export function BlockHandleMenu({
   onToggleLock: () => void
   /** Open the source page full-view (respects Open In — full-page for now). */
   onOpenPage: () => void
+  /** The host board is locked (G-3): the per-tile lock is subsumed, so the footer reads a muted,
+   *  inert "Locked" instead of the Lock/Unlock toggle. */
+  containerLocked?: boolean
 }): React.JSX.Element {
   const [pane, setPane] = useState<'root' | 'style' | 'page' | 'view'>('root')
   const style: BlockStyle = entry.style === 'borderless' ? 'borderless' : 'bordered'
@@ -160,15 +164,22 @@ export function BlockHandleMenu({
           <div className={s.barScale}>
             <MenuBottomRow
               leading={
-                <button
-                  type="button"
-                  className={s.footerLockAction}
-                  aria-label={locked ? 'Unlock tile' : 'Lock tile'}
-                  onClick={() => onToggleLock()}
-                >
-                  <Icon name="lock" size={GLYPH} className={s.lockIcon} />
-                  {locked ? 'Unlock' : 'Lock'}
-                </button>
+                containerLocked ? (
+                  <span className={`${s.footerLockAction} ${s.rowDisabled}`} aria-label="Locked by the board">
+                    <Icon name="lock" size={GLYPH} className={s.lockIcon} />
+                    Locked
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    className={s.footerLockAction}
+                    aria-label={locked ? 'Unlock tile' : 'Lock tile'}
+                    onClick={() => onToggleLock()}
+                  >
+                    <Icon name="lock" size={GLYPH} className={s.lockIcon} />
+                    {locked ? 'Unlock' : 'Lock'}
+                  </button>
+                )
               }
             />
           </div>

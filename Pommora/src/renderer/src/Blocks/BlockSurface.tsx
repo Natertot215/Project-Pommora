@@ -85,6 +85,9 @@ export function BlockSurface({ host }: { host: BlockHostRef }): React.JSX.Elemen
   const tree = useSession((s) => s.tree)
   const defaultIcons = useSession((s) => s.personalization.defaultIcons)
   const select = useSession((s) => s.select)
+  // The host board lock (G-3) — the store is the cross-subtree source (the SettingsPane toggles it
+  // from a different subtree). Homepage is the only host today; real hosts would key this by host.
+  const hostLocked = useSession((s) => s.homepageLocked)
 
   const entries = useMemo(() => {
     const map = new Map<string, BlockEntry>()
@@ -330,7 +333,7 @@ export function BlockSurface({ host }: { host: BlockHostRef }): React.JSX.Elemen
     ? { title: menuLoc.title, icon: iconNameOr(menuLoc.icon, defaultEntityIcon(menuLoc.kind, defaultIcons)) }
     : undefined
   return (
-    <div className={`blk-surface${editingId ? ' has-live-editor' : ''}`}>
+    <div className={`blk-surface${editingId ? ' has-live-editor' : ''}${hostLocked ? ' is-host-locked' : ''}`}>
       {/* Blocks reflow on Glide — the roomier displacement feel for big surfaces. */}
       <SurfaceView
         layout={layout}
@@ -338,7 +341,7 @@ export function BlockSurface({ host }: { host: BlockHostRef }): React.JSX.Elemen
         renderTile={renderTile}
         feel={FEEL_PRESETS.Glide}
         tileClassName={tileClassName}
-        isTileStatic={(id) => entries.get(id)?.locked ?? false}
+        isTileStatic={(id) => hostLocked || (entries.get(id)?.locked ?? false)}
         onHandleMenu={onHandleMenu}
         onBackdrop={onBackdrop}
       />
@@ -358,6 +361,7 @@ export function BlockSurface({ host }: { host: BlockHostRef }): React.JSX.Elemen
           onRemove={() => confirmRemove(handleMenu.id)}
           onToggleLock={() => toggleLock(handleMenu.id)}
           onOpenPage={() => menuPage && select({ kind: 'page', id: menuPage.id, path: menuPage.path })}
+          containerLocked={hostLocked}
         />
       )}
     </div>

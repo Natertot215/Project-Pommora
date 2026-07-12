@@ -243,3 +243,12 @@
   cursor: default;
 }
 
+/* A locked HOST (G-3) is a geometry lock, not a full freeze: SurfaceView gates the drag + resize gestures
+   (isTileStatic), so the edges and the handle drop their grab/resize cursors and read inert. Everything
+   else stays live — the handle still opens its menu on click (Duplicate/Link/…), tile content stays
+   editable, borderless tiles reveal on hover as usual. The lock guards position + size only. */
+.blk-surface.is-host-locked .spm-edge,
+.blk-surface.is-host-locked .spm-handle {
+  cursor: default;
+}
+
