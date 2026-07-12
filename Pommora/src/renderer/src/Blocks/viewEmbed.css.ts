@@ -9,9 +9,9 @@ const c = colorVars.color
 // button's slightly-rectangular ratio at the pill's own (smaller) size. PILL_MIN_W floors the width (0 =
 // sized to content); PILL_ICON is the leading glyph size (px, consumed by ViewEmbedBlock).
 const PILL_H = '24px'
-const PILL_PAD_X = '10px'
+const PILL_PAD_X = '12px'
 const PILL_MIN_W = '0px'
-export const PILL_ICON = 12
+export const PILL_ICON = 13
 
 // The header's horizontal insets — shared by the title row, the switcher row, and the title divider,
 // so the divider aligns with the content instead of bleeding to the block edges.
@@ -198,3 +198,10 @@ globalStyle(`${body} .table-view, ${body} .table-empty`, { vars: { '--zoom': Str
 /** Embedded tables shed the column-header band chrome — no heading fill, no divider under it;
  *  the header row reads as bare column labels over the data. */
 globalStyle(`${body} .table-head`, { background: 'none', borderBottom: 'none' })
+
+/** The heading strip's leading cap (.col-header:first-child::before) marks the gutter↔Title junction, so
+ *  it sits --fold-gutter in — but the embed header insets at HEAD_PAD_L. Pull ONLY the cap out to the
+ *  header inset so the strip's left edge lines up under the title + pills; the columns + gutter stay put.
+ *  The col-header clips overflow (label truncation), so the first one lets its leading cap escape left. */
+globalStyle(`${body} .col-header:first-child`, { overflow: 'visible' })
+globalStyle(`${body} .col-header:first-child::before`, { left: `calc(${HEAD_PAD_L} - var(--fold-gutter))` })
