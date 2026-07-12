@@ -375,8 +375,8 @@ export const footerLock = style({
   selectors: { '&&&&': { color: c.label.tertiary } }
 })
 
-/** Locked state — the pressed fill idiom (no dim), lifted a tone to primary so the lock reads engaged. */
+/** Locked state — reads engaged via the active state fill alone (no color lift). `--state-active` isn't
+ *  a token (state = hover / selected / muted); this is its `--state-selected` mapping. */
 export const footerLockActive = style({
-  background: 'var(--state-selected)',
-  selectors: { '&&&&&': { color: c.label.primary } }
+  background: 'var(--state-selected)'
 })
