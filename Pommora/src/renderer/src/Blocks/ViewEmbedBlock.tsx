@@ -223,9 +223,14 @@ export function ViewEmbedBlock({
   const labeled = (entry.view_button ?? 'labeled') === 'labeled'
   const dropdown = entry.view_style === 'dropdown'
 
+  const locked = entry.locked ?? false
   // Every write transforms the RAW entry (raw spreads — foreign keys survive, E-1); chrome
   // defaults are stored as ABSENT keys, so clearing a toggle deletes it rather than pinning it.
-  const patchEntry = (patch: Record<string, unknown>): void =>
+  // While locked (B-5) this is the freeze for all chrome (title rename, hide title/icon, heading size,
+  // pill/switcher style): only the lock toggle itself and the active-view SWITCH (viewing, not editing)
+  // still write — so a locked tile's title + presentation are frozen to match the handle menu's promise.
+  const patchEntry = (patch: Record<string, unknown>): void => {
+    if (locked && !('locked' in patch) && !('active' in patch)) return
     mutateEntry(entry.id, (raw) => {
       const next = { ...raw }
       for (const [k, v] of Object.entries(patch)) {
@@ -234,8 +239,8 @@ export function ViewEmbedBlock({
       }
       return next
     })
-  const locked = entry.locked ?? false
-  // The lock toggle writes the entry directly (never the frozen persistConfig, so you can always unlock).
+  }
+  // The lock toggle rides patchEntry's `locked` exemption above, so you can always unlock.
   const setLocked = (v: boolean): void => patchEntry({ locked: v ? true : undefined })
   const persistConfig = (i: number, config: SavedView): void => {
     if (locked) return // B-5: every config surface routes through here, so this one gate freezes them all

@@ -194,7 +194,9 @@ export function BlockSurface({ host }: { host: BlockHostRef }): React.JSX.Elemen
         cur.map((b) => {
           if (knownBlock(b)?.id !== id) return b
           const next = { ...(b as Record<string, unknown>) }
-          if (next.locked) delete next.locked
+          // Toggle off the STRICT boolean, matching what the menu displays: a foreign truthy `locked`
+          // (e.g. 1 / "yes") parses to unlocked, so the first click must lock, not delete-to-no-op.
+          if (next.locked === true) delete next.locked
           else next.locked = true
           return next
         })
