@@ -163,10 +163,14 @@ function ViewPill({
 // config writes land on it, data writes flow through to the source (D-12).
 export function ViewEmbedBlock({
   entry,
-  mutateEntry
+  mutateEntry,
+  onActivate
 }: {
   entry: ViewBlockEntry
   mutateEntry: (entryId: string, fn: (raw: Record<string, unknown>) => Record<string, unknown>) => void
+  /** Mark this tile the surface's active one — a view has no text-edit mode, so interacting with it
+   *  (any pointerdown inside) is its "busy" signal, which corner-scopes its drag handle like an editor. */
+  onActivate?: () => void
 }): React.JSX.Element {
   const tree = useSession((st) => st.tree)
   const [cfgOpen, setCfgOpen] = useState(false)
@@ -382,7 +386,7 @@ export function ViewEmbedBlock({
 
   return (
     <ViewEmbedScopeProvider value={{ source, view, persistConfig: (next) => persistConfig(index, next) }}>
-      <div className={s.tile}>
+      <div className={s.tile} onPointerDownCapture={onActivate}>
         {titleShown && (
           // biome-ignore lint/a11y/noStaticElementInteractions: right-click chrome menu on the title row.
           <div className={s.titleRow} onContextMenu={(e) => void titleMenu(e)}>

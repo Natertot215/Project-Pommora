@@ -110,9 +110,11 @@ export function BlockSurface({ host }: { host: BlockHostRef }): React.JSX.Elemen
   useEffect(() => {
     if (!editingId) return
     // Capture phase: a gesture handler's stopPropagation (SurfacePM's handles/edges)
-    // must not swallow the click-out — any pointerdown outside the live editor exits.
+    // must not swallow the click-out — any pointerdown outside the active tile exits it. The
+    // active tile's shell (any kind: editing markdown/page, or a busy view) carries is-editing-tile,
+    // so match that rather than one content class — a click anywhere inside it keeps it active.
     const onDown = (e: PointerEvent): void => {
-      if (!(e.target as Element | null)?.closest?.('.blk-md.is-editing')) setEditingId(null)
+      if (!(e.target as Element | null)?.closest?.('.spm-tile.is-editing-tile')) setEditingId(null)
     }
     const onKey = (e: KeyboardEvent): void => {
       // CM6 consumes Esc first when its autocomplete is open (preventDefault) —
@@ -263,7 +265,8 @@ export function BlockSurface({ host }: { host: BlockHostRef }): React.JSX.Elemen
           <PageEmbedBlock page={page} entryId={entry.id} editing={editingId === id} onBeginEdit={setEditingId} connections={connections} />
         )
       }
-      if (entry?.type === 'view') return <ViewEmbedBlock entry={entry} mutateEntry={mutateViewEntry} />
+      if (entry?.type === 'view')
+        return <ViewEmbedBlock entry={entry} mutateEntry={mutateViewEntry} onActivate={() => setEditingId(id)} />
       return <div className="blk-inert" /> // no/foreign/unknown entry — space holds, nothing breaks
     },
     [entries, editingId, connections, suppressFlush, pagesById, host, mutateViewEntry]
