@@ -74,7 +74,7 @@ export function MarkdownEditor({
   readOnly = false,
   edgeFade = false,
 }: Props): React.JSX.Element {
-  const editableGate = useRef(new Compartment());
+  const readOnlyGate = useRef(new Compartment());
   const readOnlyAtMount = useRef(readOnly);
   const host = useRef<HTMLDivElement>(null);
   const shellRef = useRef<HTMLDivElement>(null);
@@ -113,10 +113,11 @@ export function MarkdownEditor({
       doc: initialBody,
       parent,
       extensions: [
-        editableGate.current.of([
-          EditorView.editable.of(!readOnlyAtMount.current),
-          EditorState.readOnly.of(readOnlyAtMount.current),
-        ]),
+        // Editable stays true even in the read-only portal: MarkdownPM renders selection natively (no
+        // drawSelection layer), so the at-rest embed must remain a focusable contenteditable to be
+        // selectable at all. Edits are blocked by EditorState.readOnly alone — never by a non-editable DOM.
+        EditorView.editable.of(true),
+        readOnlyGate.current.of(EditorState.readOnly.of(readOnlyAtMount.current)),
         history(),
         Prec.highest(
           keymap.of([
@@ -237,8 +238,9 @@ export function MarkdownEditor({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // The portal flip: reconfigure editability on the LIVE view — same doc, same
-  // decorations, no remount. Entering edit focuses when the surface asked for it.
+  // The portal flip: reconfigure the read-only gate on the LIVE view — same doc, same
+  // decorations, no remount (editable stays true throughout, see the mount comment). Entering
+  // edit focuses when the surface asked for it.
   useEffect(() => {
     const view = viewRef.current;
     if (!view || readOnly === readOnlyAtMount.current) {
@@ -247,10 +249,7 @@ export function MarkdownEditor({
     }
     readOnlyAtMount.current = readOnly;
     view.dispatch({
-      effects: editableGate.current.reconfigure([
-        EditorView.editable.of(!readOnly),
-        EditorState.readOnly.of(readOnly),
-      ]),
+      effects: readOnlyGate.current.reconfigure(EditorState.readOnly.of(readOnly)),
     });
     if (!readOnly && autoFocus) view.focus();
   }, [readOnly, autoFocus]);
