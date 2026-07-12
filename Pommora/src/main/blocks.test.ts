@@ -195,6 +195,13 @@ describe('listBlockBodies', () => {
     await writeBlockDoc(root, HOST, { blocks: [{ id: 'ghost', type: 'markdown' }] })
     expect(await listBlockBodies(root)).toEqual([])
   })
+
+  it('is read-only — a legacy _blocks.json sidecar survives the build walk', async () => {
+    // The index build calls this; it must not trigger healSplitDoc's fold-and-delete write.
+    await writeFile(sidecarPath(), JSON.stringify({ blocks: [{ id: 's1', type: 'markdown' }] }))
+    await listBlockBodies(root)
+    expect(await pathExists(sidecarPath())).toBe(true)
+  })
 })
 
 describe('rewriteBlockConnections', () => {

@@ -20,6 +20,8 @@ import { blockHostDir, nexusConfig, NEXUS_CONFIG_FILES } from './paths'
 // (G-12); this list grows in lockstep with the BlockHostRef union when real hosts land.
 const BLOCK_HOSTS: BlockHostRef[] = [{ kind: 'homepage' }]
 
+const EPOCH = '1970-01-01T00:00:00.000Z'
+
 /** The host's own config carries the block document (D-2/D-3 — one file, one
  *  entity). Its writes don't cost a re-walk: the app's own writes are echo-
  *  suppressed at the watcher (io/writeEcho). */
@@ -214,8 +216,12 @@ export async function writeMarkdownBlock(root: string, host: BlockHostRef, tileI
 async function markdownBlockFiles(root: string): Promise<{ id: string; file: string }[]> {
   const out: { id: string; file: string }[] = []
   for (const host of BLOCK_HOSTS) {
-    const doc = await readBlockDoc(root, host)
-    for (const b of doc.blocks) {
+    // Read the config DIRECTLY, not via readBlockDoc — its healSplitDoc fold is a WRITE, and the index
+    // build (a read path) must stay read-only by construction. A nexus still carrying the legacy
+    // `_blocks.json` sidecar gets folded by the renderer's normal load and indexed on the next rebuild.
+    const raw = await readJsonObject(blockHostConfig(root, host))
+    const blocks = Array.isArray(raw?.blocks) ? raw.blocks : []
+    for (const b of blocks) {
       const entry = knownBlock(b)
       if (entry?.type !== 'markdown') continue
       out.push({ id: entry.id, file: blockFilePath(root, host, entry.id) })
@@ -229,12 +235,22 @@ async function markdownBlockFiles(root: string): Promise<{ id: string; file: str
 export async function listBlockBodies(root: string): Promise<{ id: string; body: string; modifiedAt: string }[]> {
   const out: { id: string; body: string; modifiedAt: string }[] = []
   for (const { id, file } of await markdownBlockFiles(root)) {
+    let body: string
     try {
-      const body = await readFile(file, 'utf8')
-      out.push({ id, body, modifiedAt: (await stat(file)).mtime.toISOString() })
+      body = await readFile(file, 'utf8')
     } catch {
-      // entry without a backing file — skip
+      continue // entry without a backing file — skip
     }
+    // A missing/corrupt mtime must not throw (toISOString on an Invalid Date) and silently drop the
+    // whole block from the index — fall back to the epoch so the block + its edges still index.
+    let modifiedAt = EPOCH
+    try {
+      const m = (await stat(file)).mtime
+      if (!Number.isNaN(m.getTime())) modifiedAt = m.toISOString()
+    } catch {
+      // keep EPOCH
+    }
+    out.push({ id, body, modifiedAt })
   }
   return out
 }
