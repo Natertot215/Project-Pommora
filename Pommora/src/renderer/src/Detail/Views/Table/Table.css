@@ -323,6 +323,7 @@
 .row-grip {
   position: absolute;
   left: calc(-1 * var(--gutter)); /* the views gutter, left of the grid (same lane as the chevron) */
+  width: var(--gutter); /* span the lane so justify-content centres the glyph in it, not flush-left */
   top: 50%;
   transform: translateY(-50%);
   display: inline-flex;
@@ -430,6 +431,7 @@
   /* In the views gutter, one --gutter left of the header content — which now starts flush on the grid
      (groupIndent has no cell-padding-x base), so the chevron lands in the grip lane. */
   left: calc(-1 * var(--gutter));
+  width: var(--gutter); /* span the lane so justify-content centres the chevron in it, not flush-left */
   top: 50%;
   transform: translateY(-50%);
   justify-content: center;
