@@ -15,14 +15,6 @@
   overflow-y: auto;
   overscroll-behavior: contain;
 }
-.spm-tile.is-editing-tile .pgembed::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  bottom: -1px;
-  width: 1px;
-  pointer-events: none;
-}
 
 /* The portal pads like the embed, not like a page — MarkdownPM's page-level
    insets don't apply inside a foreign surface. EVERYTHING sizes off --mdpm-scale

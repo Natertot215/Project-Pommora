@@ -256,7 +256,7 @@ const api = {
       ipcRenderer.invoke('blocks:readMarkdown', host, tileId),
     writeMarkdown: (host: BlockHostRef, tileId: string, body: string): Promise<BlocksSaveResult> =>
       ipcRenderer.invoke('blocks:writeMarkdown', host, tileId, body),
-    // Turn Into → Page: the entry becomes a page embed; a markdown tile's .md trashes.
+    // Link Page: the entry becomes a page embed; a markdown tile's .md trashes.
     convertToPage: (host: BlockHostRef, tileId: string, pageId: string): Promise<BlocksSaveResult> =>
       ipcRenderer.invoke('blocks:convertToPage', host, tileId, pageId),
     // Link View: the entry becomes a view embed carrying the COPIED config (D-12);

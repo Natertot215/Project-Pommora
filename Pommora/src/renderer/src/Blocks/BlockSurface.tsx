@@ -3,6 +3,7 @@ import { knownBlock, type BlockEntry, type BlockHostRef, type BlockStyle, type P
 import { FEEL_PRESETS } from '@renderer/design-system/interactions/feel'
 import { buildPageIndex, flattenPages, type ConnectionsApi } from '@renderer/MarkdownPM/connections'
 import { attachBelow, insertBand, removeTile as removeLeaf } from '@renderer/SurfacePM/core/ops'
+import { getTile } from '@renderer/SurfacePM/core/model'
 import { SurfaceView, type BackdropTarget } from '@renderer/SurfacePM/SurfaceView'
 import { defaultEntityIcon, iconNameOr } from '@renderer/design-system/symbols'
 import type { EntityIconKind } from '@shared/types'
@@ -143,7 +144,7 @@ export function BlockSurface({ host }: { host: BlockHostRef }): React.JSX.Elemen
   )
   const suppressFlush = useCallback((id: string) => removing.current.has(id), [])
 
-  // Turn Into → Page (G-7): the handle menu's drill pane resolved the page; main
+  // Link Page (G-7): the handle menu's drill pane resolved the page; main
   // rewrites the entry and trashes a markdown tile's file.
   const applyPagePick = useCallback(
     (id: string, pageId: string) => {
@@ -191,18 +192,8 @@ export function BlockSurface({ host }: { host: BlockHostRef }): React.JSX.Elemen
       void window.nexus.blocks.duplicateTile(host, id).then((r) => {
         if (!r.ok) return
         refreshEntries()
-        commitLayout((cur) => {
-          const findH = (n: { kind: string; id?: string; h?: number; children?: unknown[] }): number | null => {
-            if (n.kind === 'tile') return n.id === id ? (n.h ?? null) : null
-            for (const c of n.children ?? []) {
-              const h = findH(c as { kind: string })
-              if (h !== null) return h
-            }
-            return null
-          }
-          const h = cur.bands.map((b) => findH(b.node)).find((v) => v !== null) ?? NEW_TILE_H
-          return attachBelow(cur, id, r.id, h)
-        })
+        // The duplicate lands directly below its source at the source's own height.
+        commitLayout((cur) => attachBelow(cur, id, r.id, getTile(cur, id)?.h ?? NEW_TILE_H))
       })
     },
     [refreshEntries, commitLayout, host]

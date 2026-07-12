@@ -19,14 +19,6 @@
   overflow-y: auto;
   overscroll-behavior: contain;
 }
-.spm-tile.is-editing-tile .blk-md::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  bottom: -1px;
-  width: 1px;
-  pointer-events: none;
-}
 .spm-tile:not(.is-editing-tile) :is(.blk-md, .pgembed) .cm-scroller {
   /* Rest-scroll: the CM6 scroller scrolls vertically with default chaining (edge-release), the same
      model as the view embed's body — !important beats CM6's own runtime overflow rule. Horizontal

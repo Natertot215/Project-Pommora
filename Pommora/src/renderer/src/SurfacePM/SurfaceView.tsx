@@ -67,6 +67,8 @@ interface Settle {
 /** How close (px, from the tile's top-left corner) the pointer must be to reveal
  *  a caret-active tile's handle — the proximity affordance knob. */
 const HANDLE_REVEAL_PX = 240
+// How long the width-tracking flag holds after the ResizeObserver goes quiet (sidebar/inspector settle).
+const TRACK_SETTLE_MS = 160
 
 const EDGE_ZONES: Array<{ zone: string; edges: Edge[] }> = [
   { zone: 'n', edges: ['n'] },
@@ -234,7 +236,7 @@ export function SurfaceView({
       setWidth(el.clientWidth)
       setTracking(true)
       if (trackingSettle.current) clearTimeout(trackingSettle.current)
-      trackingSettle.current = setTimeout(() => setTracking(false), 160)
+      trackingSettle.current = setTimeout(() => setTracking(false), TRACK_SETTLE_MS)
     })
     ro.observe(el)
     return () => {
