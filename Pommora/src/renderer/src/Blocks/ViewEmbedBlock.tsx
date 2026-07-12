@@ -234,7 +234,11 @@ export function ViewEmbedBlock({
       }
       return next
     })
-  const persistConfig = (i: number, config: SavedView): void =>
+  const locked = entry.locked ?? false
+  // The lock toggle writes the entry directly (never the frozen persistConfig, so you can always unlock).
+  const setLocked = (v: boolean): void => patchEntry({ locked: v ? true : undefined })
+  const persistConfig = (i: number, config: SavedView): void => {
+    if (locked) return // B-5: every config surface routes through here, so this one gate freezes them all
     mutateEntry(entry.id, (raw) => {
       const arr = rawViews(raw)
       const el = arr[i]
@@ -242,11 +246,13 @@ export function ViewEmbedBlock({
       arr[i] = { ...(el as Record<string, unknown>), config }
       return { ...raw, views: arr }
     })
+  }
   // A new view mints blank on the ACTIVE view's source and becomes active. Its payload-local id
   // takes the first free slot in the coerce family — deletes shift indexes, so the next slot
   // number can already be taken by a survivor and a plain length-stamp would collide (viewOrders
   // keys on config id; two views must never share one).
-  const addView = (): void =>
+  const addView = (): void => {
+    if (locked) return
     mutateEntry(entry.id, (raw) => {
       const arr = rawViews(raw)
       const used = new Set(arr.map((el) => ((el as { config?: { id?: unknown } })?.config?.id as string) ?? ''))
@@ -255,6 +261,7 @@ export function ViewEmbedBlock({
       arr.push({ source_id: source.id, config: { ...mintNewView('Untitled', schema), id: `embed:${entry.id}:${slot}` } })
       return { ...raw, views: arr, active: arr.length - 1 }
     })
+  }
   const deleteViewAt = (i: number): void =>
     mutateEntry(entry.id, (raw) => {
       const arr = rawViews(raw)
@@ -265,7 +272,7 @@ export function ViewEmbedBlock({
     })
   // Toolbar delete slides out first: mark the pill exiting; its animationend commits the removal.
   const beginDeleteView = (i: number): void => {
-    if (entry.views.length <= 1) return
+    if (locked || entry.views.length <= 1) return
     setExitingId(views[i].id)
   }
   const finishExit = (id: string): void => {
@@ -273,7 +280,8 @@ export function ViewEmbedBlock({
     if (i >= 0) deleteViewAt(i)
     setExitingId(null)
   }
-  const reorderViews = (activeId: string, overId: string): void =>
+  const reorderViews = (activeId: string, overId: string): void => {
+    if (locked) return
     mutateEntry(entry.id, (raw) => {
       const arr = rawViews(raw)
       const seq = reorder(
@@ -285,6 +293,7 @@ export function ViewEmbedBlock({
       const newActive = seq.findIndex((x) => x.i === index)
       return { ...raw, views: next, active: newActive >= 0 ? newActive : 0 }
     })
+  }
   const commitTitle = (next: string): void => {
     const t = next.trim()
     patchEntry({ display_title: !t || t === source.title ? undefined : t })
@@ -385,7 +394,7 @@ export function ViewEmbedBlock({
   )
 
   return (
-    <ViewEmbedScopeProvider value={{ source, view, persistConfig: (next) => persistConfig(index, next) }}>
+    <ViewEmbedScopeProvider value={{ source, view, persistConfig: (next) => persistConfig(index, next), locked, setLocked }}>
       <div className={s.tile} onPointerDownCapture={onActivate}>
         {titleShown && (
           // biome-ignore lint/a11y/noStaticElementInteractions: right-click chrome menu on the title row.

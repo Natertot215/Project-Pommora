@@ -374,3 +374,9 @@ export const crumbRow = style([
 export const footerLock = style({
   selectors: { '&&&&': { color: c.label.tertiary } }
 })
+
+/** Locked state — the pressed fill idiom (no dim), lifted a tone to primary so the lock reads engaged. */
+export const footerLockActive = style({
+  background: 'var(--state-selected)',
+  selectors: { '&&&&&': { color: c.label.primary } }
+})

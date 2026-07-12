@@ -12,8 +12,13 @@ import { saveViewAdopting } from '@renderer/Detail/Views/viewMint'
 export interface ViewEmbedScopeValue {
   source: CollectionNode | SetNode
   view: SavedView
-  /** Persist the tile's copied config — writes the block payload via the saveBlocks updater. */
+  /** Persist the tile's copied config — writes the block payload via the saveBlocks updater. A no-op
+   *  while `locked` (B-5): every config surface routes through here, so one gate freezes them all. */
   persistConfig: (next: SavedView) => void
+  /** B-5 per-tile config lock. Frozen: view config + view CRUD. Live: data drags + value edits. */
+  locked: boolean
+  /** Toggle the lock — writes the tile entry directly (never through the frozen persistConfig). */
+  setLocked: (locked: boolean) => void
 }
 
 const Ctx = createContext<ViewEmbedScopeValue | null>(null)

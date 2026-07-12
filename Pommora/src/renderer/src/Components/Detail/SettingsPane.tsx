@@ -3,7 +3,7 @@ import { Server, Eye, LayoutDashboard, Layers, ListFilter, ArrowUpDown, SlidersH
 import type { OpenIn } from '@shared/types'
 import { Icon, defaultEntityIcon, iconNameOr } from '@renderer/design-system/symbols'
 import { detail as detailText, flushTrailing, footingSymbol, side } from '../../design-system/components/menu/menu.css'
-import { crumbRow, footerLock, ICON } from './settingsPane.css'
+import { crumbRow, footerLock, footerLockActive, ICON } from './settingsPane.css'
 import { useSession } from '../../store'
 import { findCollection, findSet, findCollectionForSet } from '../../Detail/Scope'
 import { pickView } from '../../Detail/Views/Table/TableView'
@@ -189,7 +189,16 @@ export function SettingsPane(): React.JSX.Element | null {
               )}
             </span>
           }
-          trailing={<AccessoryButton icon="lock" size={12} box={20} ariaLabel="Lock view configuration" className={footerLock} onClick={() => {}} />}
+          trailing={
+            <AccessoryButton
+              icon="lock"
+              size={12}
+              box={20}
+              ariaLabel={scope.locked ? 'Unlock view configuration' : 'Lock view configuration'}
+              className={scope.locked ? `${footerLock} ${footerLockActive}` : footerLock}
+              onClick={() => scope.setLocked(!scope.locked)}
+            />
+          }
         />
       }
     >

@@ -111,6 +111,9 @@ export interface ViewBlockEntry {
   title_level?: number
   view_button?: ViewButton
   view_style?: ViewStyle
+  /** B-5 per-tile config lock: freezes this embed's view config + view CRUD (data interaction stays
+   *  live). The SettingsPane footer lock writes it; absent = unlocked. */
+  locked?: boolean
 }
 
 export type BlockEntry = MarkdownBlockEntry | PageBlockEntry | ViewBlockEntry
@@ -140,7 +143,8 @@ const viewEntry = z.looseObject({
   icon: z.boolean().optional().catch(undefined),
   title_level: z.number().int().min(1).max(6).optional().catch(undefined),
   view_button: z.enum(['icon', 'labeled']).optional().catch(undefined),
-  view_style: z.enum(['dropdown', 'toolbar']).optional().catch(undefined)
+  view_style: z.enum(['dropdown', 'toolbar']).optional().catch(undefined),
+  locked: z.boolean().optional().catch(undefined)
 })
 const knownEntry = z.union([markdownEntry, pageEntry, viewEntry])
 
