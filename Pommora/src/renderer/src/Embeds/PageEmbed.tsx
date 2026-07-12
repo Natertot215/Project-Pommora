@@ -20,13 +20,16 @@ export function PageEmbed({
   path,
   editing,
   onBeginEdit,
-  connections
+  connections,
+  locked = false
 }: {
   /** Nexus-relative path to the `.md` — the page's address for load + save. */
   path: string
   editing: boolean
   onBeginEdit: () => void
   connections?: ConnectionsApi
+  /** B-5 content lock: a locked embed can't be entered for editing (stays a selectable portal). */
+  locked?: boolean
 }): React.JSX.Element {
   const [body, setBody] = useState<string | null>(null)
   const pending = useRef<{ timer: ReturnType<typeof setTimeout>; body: string } | null>(null)
@@ -67,7 +70,7 @@ export function PageEmbed({
       className={`pgembed${editing ? ' is-editing' : ''}`}
       style={{ '--mdpm-scale': EMBED_SCALE } as React.CSSProperties}
       onClick={() => {
-        if (editing) return
+        if (editing || locked) return // locked: no edit entry; selection still works
         const sel = window.getSelection()
         if (sel && !sel.isCollapsed) return
         onBeginEdit()

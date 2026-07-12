@@ -114,7 +114,8 @@ export function BlockHandleMenu({
   onPickView,
   onStyle,
   onDuplicate,
-  onRemove
+  onRemove,
+  onToggleLock
 }: {
   entry: BlockEntry
   anchor: HTMLElement
@@ -126,9 +127,14 @@ export function BlockHandleMenu({
   onStyle: (style: BlockStyle) => void
   onDuplicate: () => void
   onRemove: () => void
+  onToggleLock: () => void
 }): React.JSX.Element {
   const [pane, setPane] = useState<'root' | 'style' | 'page' | 'view'>('root')
   const style: BlockStyle = entry.style === 'borderless' ? 'borderless' : 'bordered'
+  // Per-tile content lock (B-5): frozen tiles mute + inert every action but Lock itself, which stays
+  // live to toggle back. Toggling keeps the menu open so the check + muting flip in place.
+  const locked = entry.locked ?? false
+  const rowMute = locked ? s.rowMuted : undefined
   const act = (fn: () => void) => () => {
     onClose()
     fn()
@@ -139,31 +145,39 @@ export function BlockHandleMenu({
     <div className={s.pane}>
       {entry.type === 'markdown' ? (
         <>
-          <MenuItem className={s.row} leading={<Icon name="link" size={GLYPH} />} trailing={chevron} onClick={() => setPane('view')}>
+          <MenuItem className={cx(s.row, rowMute)} leading={<Icon name="link" size={GLYPH} />} trailing={chevron} onClick={locked ? undefined : () => setPane('view')}>
             Link View
           </MenuItem>
-          <MenuItem className={s.row} leading={<Icon name="link" size={GLYPH} />} trailing={chevron} onClick={() => setPane('page')}>
+          <MenuItem className={cx(s.row, rowMute)} leading={<Icon name="link" size={GLYPH} />} trailing={chevron} onClick={locked ? undefined : () => setPane('page')}>
             Link Page
           </MenuItem>
         </>
       ) : (
         <MenuItem
-          className={cx(s.row, entry.type === 'view' && s.rowDisabled)}
+          className={cx(s.row, entry.type === 'view' && s.rowDisabled, rowMute)}
           leading={<Icon name="link" size={GLYPH} />}
           trailing={chevron}
-          onClick={entry.type === 'page' ? () => setPane('page') : undefined}
+          onClick={!locked && entry.type === 'page' ? () => setPane('page') : undefined}
         >
           Source
         </MenuItem>
       )}
-      <MenuItem className={s.row} leading={<Icon name="palette" size={GLYPH} />} trailing={chevron} onClick={() => setPane('style')}>
+      <MenuItem className={cx(s.row, rowMute)} leading={<Icon name="palette" size={GLYPH} />} trailing={chevron} onClick={locked ? undefined : () => setPane('style')}>
         Style
       </MenuItem>
+      <MenuItem
+        className={s.row}
+        leading={<Icon name="lock" size={GLYPH} />}
+        trailing={locked ? <Icon name="check" size={GLYPH} className={s.accentCheck} /> : undefined}
+        onClick={() => onToggleLock()}
+      >
+        Lock
+      </MenuItem>
       <MenuSeparator flush />
-      <MenuItem className={s.row} leading={<Icon name="copy" size={GLYPH} />} onClick={act(onDuplicate)}>
+      <MenuItem className={cx(s.row, rowMute)} leading={<Icon name="copy" size={GLYPH} />} onClick={locked ? undefined : act(onDuplicate)}>
         Duplicate
       </MenuItem>
-      <MenuItem className={s.row} leading={<Icon name="x" size={GLYPH} />} onClick={act(onRemove)}>
+      <MenuItem className={cx(s.row, rowMute)} leading={<Icon name="x" size={GLYPH} />} onClick={locked ? undefined : act(onRemove)}>
         Delete
       </MenuItem>
     </div>

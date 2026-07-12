@@ -17,7 +17,8 @@ export function MarkdownBlock({
   editing,
   onBeginEdit,
   connections,
-  suppressFlush
+  suppressFlush,
+  locked = false
 }: {
   host: BlockHostRef
   tileId: string
@@ -27,6 +28,8 @@ export function MarkdownBlock({
   /** True while this tile is being removed — a flush then would land AFTER the
    *  trash and resurrect the file as an entry-less orphan. */
   suppressFlush?: (tileId: string) => boolean
+  /** B-5 content lock: a locked tile can't be entered for editing (it stays a selectable portal). */
+  locked?: boolean
 }): React.JSX.Element {
   const [body, setBody] = useState<string | null>(null)
   const pending = useRef<{ timer: ReturnType<typeof setTimeout>; body: string } | null>(null)
@@ -68,7 +71,7 @@ export function MarkdownBlock({
     <div
       className={`blk-md${editing ? ' is-editing' : ''}`}
       onClick={() => {
-        if (editing) return
+        if (editing || locked) return // locked: no edit entry; selection (portal is read-only) still works
         // Selecting rendered text to copy ends in a click — that's a copy, not an edit.
         const sel = window.getSelection()
         if (sel && !sel.isCollapsed) return

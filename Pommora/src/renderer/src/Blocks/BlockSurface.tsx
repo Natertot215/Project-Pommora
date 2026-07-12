@@ -187,6 +187,21 @@ export function BlockSurface({ host }: { host: BlockHostRef }): React.JSX.Elemen
     },
     [saveBlocks]
   )
+  // Per-tile content lock (B-5) — the raw entry spreads so foreign fields survive (E-1); absent = unlocked.
+  const toggleLock = useCallback(
+    (id: string) => {
+      saveBlocks((cur) =>
+        cur.map((b) => {
+          if (knownBlock(b)?.id !== id) return b
+          const next = { ...(b as Record<string, unknown>) }
+          if (next.locked) delete next.locked
+          else next.locked = true
+          return next
+        })
+      )
+    },
+    [saveBlocks]
+  )
   const duplicateBlock = useCallback(
     (id: string) => {
       void window.nexus.blocks.duplicateTile(host, id).then((r) => {
@@ -247,13 +262,14 @@ export function BlockSurface({ host }: { host: BlockHostRef }): React.JSX.Elemen
             onBeginEdit={setEditingId}
             connections={connections}
             suppressFlush={suppressFlush}
+            locked={entry.locked ?? false}
           />
         )
       if (entry?.type === 'page') {
         const page = pagesById.get(entry.page_id)
         if (!page) return <div className="blk-inert" /> // dead reference — inert, space holds (E-2)
         return (
-          <PageEmbedBlock page={page} entryId={entry.id} editing={editingId === id} onBeginEdit={setEditingId} connections={connections} />
+          <PageEmbedBlock page={page} entryId={entry.id} editing={editingId === id} onBeginEdit={setEditingId} connections={connections} locked={entry.locked ?? false} />
         )
       }
       if (entry?.type === 'view')
@@ -307,6 +323,7 @@ export function BlockSurface({ host }: { host: BlockHostRef }): React.JSX.Elemen
           onStyle={(style) => setStyle(handleMenu.id, style)}
           onDuplicate={() => duplicateBlock(handleMenu.id)}
           onRemove={() => confirmRemove(handleMenu.id)}
+          onToggleLock={() => toggleLock(handleMenu.id)}
         />
       )}
     </div>

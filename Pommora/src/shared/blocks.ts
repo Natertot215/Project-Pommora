@@ -72,6 +72,8 @@ export interface MarkdownBlockEntry {
   id: string
   type: 'markdown'
   style?: BlockStyle
+  /** Per-tile content lock (B-5): frozen prose can't be entered for editing. Absent = unlocked. */
+  locked?: boolean
 }
 
 /** Page embed (H-2): a scrollable, editable window onto the real page. `banner` /
@@ -83,6 +85,8 @@ export interface PageBlockEntry {
   style?: BlockStyle
   banner?: boolean
   title?: boolean
+  /** Per-tile content lock (B-5): a frozen page embed can't be entered for editing. Absent = unlocked. */
+  locked?: boolean
 }
 
 /** One view a view-embed tile carries (D-5a): its own source container + the copied
@@ -118,14 +122,21 @@ export interface ViewBlockEntry {
 
 export type BlockEntry = MarkdownBlockEntry | PageBlockEntry | ViewBlockEntry
 
-const markdownEntry = z.looseObject({ id: z.string().min(1), type: z.literal('markdown'), style: styleField })
+const lockedField = z.boolean().optional().catch(undefined)
+const markdownEntry = z.looseObject({
+  id: z.string().min(1),
+  type: z.literal('markdown'),
+  style: styleField,
+  locked: lockedField
+})
 const pageEntry = z.looseObject({
   id: z.string().min(1),
   type: z.literal('page'),
   page_id: z.string().min(1),
   style: styleField,
   banner: z.boolean().optional().catch(undefined),
-  title: z.boolean().optional().catch(undefined)
+  title: z.boolean().optional().catch(undefined),
+  locked: lockedField
 })
 // Elements are looseObjects too — a strict element shape would strip nested foreign keys (E-1).
 const embeddedView = z.looseObject({
@@ -144,7 +155,7 @@ const viewEntry = z.looseObject({
   title_level: z.number().int().min(1).max(6).optional().catch(undefined),
   view_button: z.enum(['icon', 'labeled']).optional().catch(undefined),
   view_style: z.enum(['dropdown', 'toolbar']).optional().catch(undefined),
-  locked: z.boolean().optional().catch(undefined)
+  locked: lockedField
 })
 const knownEntry = z.union([markdownEntry, pageEntry, viewEntry])
 
