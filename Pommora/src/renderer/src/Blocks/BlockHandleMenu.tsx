@@ -155,7 +155,7 @@ export function BlockHandleMenu({
                   aria-label={locked ? 'Unlock tile' : 'Lock tile'}
                   onClick={() => onToggleLock()}
                 >
-                  <Icon name="lock" size={GLYPH} />
+                  <Icon name="lock" size={GLYPH} className={s.lockIcon} />
                   {locked ? 'Unlock' : 'Lock'}
                 </button>
               }

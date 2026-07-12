@@ -55,6 +55,8 @@ export const footerAction = style([
   }
 ])
 
-/** The footing lock action — a left-pinned labeled toggle (lock icon + "Lock"/"Unlock"), the footing-
- *  emphasized tone + hover of footerAction, laid out for the icon↔label pair. */
+/** The footing lock action — a left-pinned labeled toggle (lock icon + "Lock"/"Unlock"): label-secondary
+ *  text (footerAction), a step-quieter label-tertiary icon, and the footerAction hover. No pressed/
+ *  selected state — it never mutes on lock (only the actions above do). */
 export const footerLockAction = style([footerAction, { display: 'inline-flex', alignItems: 'center', gap: '5px' }])
+export const lockIcon = style({ selectors: { '&&': { color: c.label.tertiary } } })
