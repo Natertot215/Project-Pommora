@@ -13,7 +13,6 @@ const SAVE_DEBOUNCE_MS = 300
 interface BlockDocState {
   layout: SurfaceLayout
   blocks: unknown[]
-  locked: boolean
   ready: boolean
 }
 
@@ -28,7 +27,6 @@ export function useBlockDoc(host: BlockHostRef): BlockDocSession {
   const [state, setState] = useState<BlockDocState>({
     layout: emptyLayout(),
     blocks: [],
-    locked: false,
     ready: false
   })
   const hostRef = useRef(host)
@@ -49,7 +47,7 @@ export function useBlockDoc(host: BlockHostRef): BlockDocSession {
       if (cancelled || !r.ok) return
       const layout = decodeLayout(r.doc.layout) ?? emptyLayout()
       liveLayout.current = layout
-      setState({ layout, blocks: r.doc.blocks, locked: r.doc.locked, ready: true })
+      setState({ layout, blocks: r.doc.blocks, ready: true })
     })
     return () => {
       cancelled = true

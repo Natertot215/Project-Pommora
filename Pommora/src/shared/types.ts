@@ -256,8 +256,11 @@ export interface NexusTree {
    *  nexus-relative path into `.nexus/assets/<id>/` (or null) and `profileSubtitle` a
    *  ≤30-char blurb — both from `.nexus/settings.json`, matching Swift (not nexus.json). */
   nexus: { id: string; rootPath: string; name: string; profileImage: string | null; profileSubtitle: string }
-  /** Homepage singleton (`.nexus/homepage.json`) — v1 surfaces just its optional banner. */
-  homepage: { banner?: string }
+  /** Homepage singleton (`.nexus/homepage.json`) — its optional banner plus the board
+   *  lock (G-3): the block doc's heavy layout/blocks stay off the walk (loaded lazily by
+   *  useBlockDoc), but the single `blocks_locked` boolean rides here like `banner` so the
+   *  store can seed the freeze without a second read. Absent = unlocked. */
+  homepage: { banner?: string; locked: boolean }
   saved: SavedNode[]
   contexts: {
     projects: ProjectNode[]

@@ -460,7 +460,7 @@ async function walkNexus(root: string): Promise<NexusTree> {
 
   return {
     nexus: { id, rootPath: root, name: basename(root), profileImage, profileSubtitle },
-    homepage: { banner: asString(homepageConfig.banner) },
+    homepage: { banner: asString(homepageConfig.banner), locked: homepageConfig.blocks_locked === true },
     saved,
     contexts,
     collections,

@@ -351,6 +351,27 @@ describe('readNexus — saved-config items[] (Swift shape)', () => {
   })
 })
 
+describe('readNexus — homepage lock (blocks_locked → homepage.locked)', () => {
+  const roots: string[] = []
+  const mk = (homepage: object): string => {
+    const root = mkdtempSync(join(tmpdir(), 'pom-hp-'))
+    roots.push(root)
+    d(join(root, '.nexus'))
+    w(join(root, '.nexus', 'nexus.json'), JSON.stringify({ schemaVersion: 1, id: 'nxh', createdAt: '2026' }))
+    w(join(root, '.nexus', 'homepage.json'), JSON.stringify(homepage))
+    return root
+  }
+  afterAll(() => roots.forEach((r) => rmSync(r, { recursive: true, force: true })))
+
+  it('surfaces blocks_locked:true as homepage.locked', async () => {
+    expect((await readNexus(mk({ blocks_locked: true }))).homepage.locked).toBe(true)
+  })
+  it('defaults homepage.locked to false when absent or non-strict-true', async () => {
+    expect((await readNexus(mk({}))).homepage.locked).toBe(false)
+    expect((await readNexus(mk({ blocks_locked: 1 }))).homepage.locked).toBe(false)
+  })
+})
+
 describe('readNexus — profile (from settings, Swift parity)', () => {
   const roots: string[] = []
   const mk = (settings: object): string => {
