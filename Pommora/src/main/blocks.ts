@@ -5,13 +5,20 @@
 // the config path: this module and setBanner's homepage branch share the lock, or
 // a banner write racing a debounced layout write becomes a whole-file lost update.
 
-import { mkdir, readFile, rm } from 'node:fs/promises'
+import { mkdir, readFile, rm, stat } from 'node:fs/promises'
 import { join } from 'node:path'
 import { knownBlock, type BlockDoc, type BlockDocPatch, type BlockHostRef } from '@shared/blocks'
+import { normalizeTitle } from '@shared/connections'
+import { scanConnections } from './connections/scan'
+import { rewriteConnections } from './connections/rewrite'
 import { newId } from './ids'
 import { atomicWriteFile, mutateJson, pathExists, readJsonObject, trashWithTimestamp } from './io/atomicWrite'
 import { serializeOnFile } from './io/fileLock'
 import { blockHostDir, nexusConfig, NEXUS_CONFIG_FILES } from './paths'
+
+// The block hosts to walk for the link graph + rename heal. The dev host is the only one today
+// (G-12); this list grows in lockstep with the BlockHostRef union when real hosts land.
+const BLOCK_HOSTS: BlockHostRef[] = [{ kind: 'homepage' }]
 
 /** The host's own config carries the block document (D-2/D-3 — one file, one
  *  entity). Its writes don't cost a re-walk: the app's own writes are echo-
@@ -198,4 +205,57 @@ export async function readMarkdownBlock(root: string, host: BlockHostRef, tileId
 export async function writeMarkdownBlock(root: string, host: BlockHostRef, tileId: string, body: string): Promise<void> {
   const file = blockFilePath(root, host, tileId)
   await serializeOnFile(file, () => atomicWriteFile(file, body))
+}
+
+/** Every markdown block across all hosts as `{ id, file }` — the shared walk under both the
+ *  link-index read and the rename heal (a block id is globally unique, so the host isn't threaded
+ *  out past the file path). Non-markdown tiles are filtered here; a missing backing file is left
+ *  to each caller to tolerate. */
+async function markdownBlockFiles(root: string): Promise<{ id: string; file: string }[]> {
+  const out: { id: string; file: string }[] = []
+  for (const host of BLOCK_HOSTS) {
+    const doc = await readBlockDoc(root, host)
+    for (const b of doc.blocks) {
+      const entry = knownBlock(b)
+      if (entry?.type !== 'markdown') continue
+      out.push({ id: entry.id, file: blockFilePath(root, host, entry.id) })
+    }
+  }
+  return out
+}
+
+/** Every markdown block's body + mtime — the block half of the link index reads from here. A
+ *  blocks[] entry whose file is missing is skipped, never fatal to the build. */
+export async function listBlockBodies(root: string): Promise<{ id: string; body: string; modifiedAt: string }[]> {
+  const out: { id: string; body: string; modifiedAt: string }[] = []
+  for (const { id, file } of await markdownBlockFiles(root)) {
+    try {
+      const body = await readFile(file, 'utf8')
+      out.push({ id, body, modifiedAt: (await stat(file)).mtime.toISOString() })
+    } catch {
+      // entry without a backing file — skip
+    }
+  }
+  return out
+}
+
+/** Heal markdown-block bodies on a page rename: rewrite every `[[oldTitle]]` → `[[newTitle]]`,
+ *  each under its own file lock (the same lock a live block edit takes). renameCascade can't reach
+ *  these — they're id-less and .nexus-resident — so this runs beside it. Best-effort and per-file:
+ *  re-runnable, never cross-file atomic; a failure leaves the page renamed and blocks stale. */
+export async function rewriteBlockConnections(root: string, oldTitle: string, newTitle: string): Promise<void> {
+  const oldKey = normalizeTitle(oldTitle)
+  for (const { file } of await markdownBlockFiles(root)) {
+    await serializeOnFile(file, async () => {
+      let body: string
+      try {
+        body = await readFile(file, 'utf8')
+      } catch {
+        return
+      }
+      if (!scanConnections(body).some((c) => c.normalizedTitle === oldKey)) return
+      const next = rewriteConnections(body, oldTitle, newTitle)
+      if (next !== body) await atomicWriteFile(file, next)
+    })
+  }
 }

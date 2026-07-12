@@ -22,6 +22,7 @@ import { createPage, renamePage, movePage, setPageTier } from './crud/page'
 import { setChildOrder, setStateOrder } from './crud/reorder'
 import { createFolderEntity, renameFolderEntity, moveFolderEntity } from './crud/folderEntity'
 import { renameCascade, unlinkTier } from './crud/cascade'
+import { rewriteBlockConnections } from './blocks'
 import { trashWithTimestamp, pathExists, readJsonObject, mutateJson, atomicWriteBinary, atomicWriteFile } from './io/atomicWrite'
 import { serializeOnFile } from './io/fileLock'
 import { splitEnvelope, mergeFrontmatter, readFrontmatterFields } from './io/pageFile'
@@ -196,6 +197,14 @@ async function dispatch(req: MutateRequest, deps: MutateDeps, root: string): Pro
         } catch {
           await renamePage(r.value.path, oldTitle)
           return fault('Rename cascade failed; the rename was reverted.')
+        }
+        // Heal markdown-block bodies too (renameCascade skips .nexus-resident, id-less block files).
+        // Best-effort AFTER the page cascade committed: a failure here leaves blocks stale (re-runnable),
+        // never un-reverts the now-successful page rename.
+        try {
+          await rewriteBlockConnections(root, oldTitle, req.newName)
+        } catch {
+          // blocks stay stale until the next rewrite — the page rename stands
         }
         return { ok: true }
       }

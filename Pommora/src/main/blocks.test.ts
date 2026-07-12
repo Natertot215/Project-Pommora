@@ -8,9 +8,11 @@ import {
   convertTileToView,
   duplicateBlockTile,
   createMarkdownBlock,
+  listBlockBodies,
   readBlockDoc,
   readMarkdownBlock,
   removeBlockTile,
+  rewriteBlockConnections,
   writeBlockDoc,
   writeMarkdownBlock
 } from './blocks'
@@ -171,5 +173,42 @@ describe('markdown block lifecycle', () => {
     await removeBlockTile(root, HOST, 'p1')
     expect((await readConfig()).blocks).toEqual([])
     expect(await pathExists(join(root, '.trash'))).toBe(false)
+  })
+})
+
+describe('listBlockBodies', () => {
+  it('returns each markdown block body, skipping non-markdown tiles', async () => {
+    const md = await createMarkdownBlock(root, HOST)
+    await writeMarkdownBlock(root, HOST, md, 'hello [[X]]')
+    await writeBlockDoc(root, HOST, {
+      blocks: [
+        { id: md, type: 'markdown' },
+        { id: 'v1', type: 'view', views: [] }
+      ]
+    })
+    const bodies = await listBlockBodies(root)
+    expect(bodies).toHaveLength(1)
+    expect(bodies[0]).toMatchObject({ id: md, body: 'hello [[X]]' })
+  })
+
+  it('skips a blocks[] entry whose backing file is missing', async () => {
+    await writeBlockDoc(root, HOST, { blocks: [{ id: 'ghost', type: 'markdown' }] })
+    expect(await listBlockBodies(root)).toEqual([])
+  })
+})
+
+describe('rewriteBlockConnections', () => {
+  it('rewrites [[oldTitle]] → [[newTitle]] in block bodies, leaving non-matches untouched', async () => {
+    const id = await createMarkdownBlock(root, HOST)
+    await writeMarkdownBlock(root, HOST, id, 'see [[Target]] and [[Other]]')
+    await rewriteBlockConnections(root, 'Target', 'Renamed')
+    expect(await readMarkdownBlock(root, HOST, id)).toBe('see [[Renamed]] and [[Other]]')
+  })
+
+  it('leaves a body without the old title byte-identical (no needless write)', async () => {
+    const id = await createMarkdownBlock(root, HOST)
+    await writeMarkdownBlock(root, HOST, id, 'see [[Other]]')
+    await rewriteBlockConnections(root, 'Target', 'Renamed')
+    expect(await readMarkdownBlock(root, HOST, id)).toBe('see [[Other]]')
   })
 })
