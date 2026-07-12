@@ -37,60 +37,70 @@ function coerceConfig(raw: unknown, schema: PropertyDefinition[], fallbackId: st
 }
 
 /** The display title — sized by markdownPM's own `.md-h{level}` heading class (they're the same code,
- *  so a title reads uniform with any rendered heading), click-to-rename in place; Enter/blur commit,
- *  Escape reverts. Empty commits clear back to the source. */
+ *  so a title reads uniform with any rendered heading). Editing happens in place on the SAME element via
+ *  contentEditable — no input swap, so the field is the text itself: the caret drops in and it reads
+ *  smooth. Enter/blur commit, Escape reverts; an empty commit clears back to the source. */
 function EmbedTitle({ title, level, onCommit }: { title: string; level: number; onCommit: (next: string) => void }): React.JSX.Element {
   const [editing, setEditing] = useState(false)
-  const [value, setValue] = useState(title)
+  const ref = useRef<HTMLSpanElement>(null)
   const reverting = useRef(false) // Escape sets this so the blur it triggers doesn't commit
-  const inputRef = useRef<HTMLInputElement>(null)
-  const heading = `${s.titleText} md-h${level}`
 
-  useEffect(() => setValue(title), [title])
+  // On entering edit, focus and select the whole title so a first keystroke replaces it.
   useEffect(() => {
-    if (editing) {
-      inputRef.current?.focus()
-      inputRef.current?.select()
-    }
+    const el = ref.current
+    if (!editing || !el) return
+    el.focus()
+    const range = document.createRange()
+    range.selectNodeContents(el)
+    const sel = window.getSelection()
+    sel?.removeAllRanges()
+    sel?.addRange(range)
   }, [editing])
 
   const commit = (): void => {
     setEditing(false)
-    if (value.trim() !== title) onCommit(value)
+    const next = (ref.current?.textContent ?? '').trim()
+    if (next !== title) onCommit(next)
   }
 
-  if (!editing)
-    return (
-      // biome-ignore lint/a11y/noStaticElementInteractions: click-to-rename text, the doc-title idiom.
-      <span className={heading} onClick={() => setEditing(true)}>
-        {title}
-      </span>
-    )
   return (
-    <input
-      ref={inputRef}
-      className={heading}
-      value={value}
+    <span
+      ref={ref}
+      className={`${s.titleText} md-h${level}`}
+      contentEditable={editing}
+      suppressContentEditableWarning
       spellCheck={false}
-      onChange={(e) => setValue(e.target.value)}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter') {
-          e.preventDefault()
-          commit()
-        } else if (e.key === 'Escape') {
-          reverting.current = true
-          setValue(title)
-          setEditing(false)
-        }
-      }}
-      onBlur={() => {
-        if (reverting.current) {
-          reverting.current = false
-          return
-        }
-        commit()
-      }}
-    />
+      role="textbox"
+      tabIndex={editing ? 0 : undefined}
+      onClick={editing ? undefined : () => setEditing(true)}
+      onKeyDown={
+        editing
+          ? (e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault()
+                commit()
+              } else if (e.key === 'Escape') {
+                reverting.current = true
+                if (ref.current) ref.current.textContent = title
+                setEditing(false)
+              }
+            }
+          : undefined
+      }
+      onBlur={
+        editing
+          ? () => {
+              if (reverting.current) {
+                reverting.current = false
+                return
+              }
+              commit()
+            }
+          : undefined
+      }
+    >
+      {title}
+    </span>
   )
 }
 
@@ -352,7 +362,9 @@ export function ViewEmbedBlock({
         {titleShown && (
           // biome-ignore lint/a11y/noStaticElementInteractions: right-click chrome menu on the title row.
           <div className={s.titleRow} onContextMenu={(e) => void titleMenu(e)}>
-            {iconShown && <Icon name={iconNameOr(view.icon, 'table')} size={15} />}
+            {/* size omitted → Icon defaults to 1em; the .md-hN class sets the em base, so the icon
+                scales with the title level in lockstep with the text. */}
+            {iconShown && <Icon name={iconNameOr(view.icon, 'table')} className={`md-h${titleLevel}`} />}
             <EmbedTitle title={entry.display_title ?? source.title} level={titleLevel} onCommit={commitTitle} />
             {configButton}
           </div>

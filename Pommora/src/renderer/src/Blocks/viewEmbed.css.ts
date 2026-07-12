@@ -5,6 +5,11 @@ import { VIEW_EMBED_ZOOM } from '../Embeds/embedScale'
 
 const c = colorVars.color
 
+// KNOBS — the switcher pill's box: a fixed height with a wider horizontal padding gives the ViewDropdown
+// button's slightly-rectangular ratio at the pill's own (smaller) size. Tune the two to reshape it.
+const PILL_H = '24px'
+const PILL_PAD_X = '10px'
+
 export const tile = style({ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 })
 
 /** H-5's title row — the editable heading over the switcher; its bottom hairline is the header's
@@ -47,15 +52,20 @@ export const switcherRow = style({
   flex: 'none'
 })
 
-/** A view pill: icon + label-control title on the quaternary fill, hairline-bordered, 6pt. The
- *  active view's pill lifts on the selected-state fill (the surfacepm active idiom, not an outline). */
+/** A view pill: icon + label-control title on the quaternary fill, hairline-bordered — a fixed height
+ *  with wider horizontal padding for the ViewDropdown button's slightly-rectangular ratio (PILL_H /
+ *  PILL_PAD_X). The active view's pill lifts on the selected-state fill (surfacepm idiom, not outline). */
 export const pill = style([
   text.control.emphasized,
   {
     display: 'inline-flex',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: '5px',
-    padding: '5px 8px',
+    flexShrink: 0,
+    boxSizing: 'border-box',
+    height: PILL_H,
+    paddingInline: PILL_PAD_X,
     borderRadius: '6px',
     background: c.fill.quaternary,
     border: `1px solid ${c.separator.segment}`,
