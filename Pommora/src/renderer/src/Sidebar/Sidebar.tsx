@@ -334,14 +334,14 @@ function CollectionRow({ col, depth, selection, onSelectCollection, onSelectSet,
 
 // A context leaf (Area / Topic / Project) — a draggable row reordered within its tier disclosure
 // (depth 1, under the tier header). Every tier uses the grid icon.
-function ContextRow({ node }: { node: { id: string; title: string; path: string; kind: MutableKind } }): React.JSX.Element {
+function ContextRow({ node }: { node: { id: string; title: string; path: string; kind: MutableKind; icon?: string } }): React.JSX.Element {
   const select = useSession((s) => s.select)
   const selected = useSession((s) => s.selection.kind === 'context' && s.selection.id === node.id)
   const defaultIcons = useSession((s) => s.personalization.defaultIcons)
   return (
     <DragRow id={node.id}>
       <Leaf
-        icon={defaultEntityIcon(node.kind as EntityIconKind, defaultIcons)}
+        icon={node.icon || defaultEntityIcon(node.kind as EntityIconKind, defaultIcons)}
         title={node.title}
         depth={1}
         selected={selected}
