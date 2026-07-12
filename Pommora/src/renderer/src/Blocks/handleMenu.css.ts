@@ -33,14 +33,6 @@ export const rowDisabled = style({
   }
 })
 
-/** The footer lock affordance — the SettingsPane footing idiom: a 12-in-20 AccessoryButton toned to
- *  the footing tertiary at rest, wearing the pressed state fill when the tile is locked. */
-export const footerLock = style({
-  selectors: { '&&&&': { color: c.label.tertiary } }
-})
-export const footerLockActive = style({
-  background: 'var(--state-selected)'
-})
 
 // ── KNOB — the picker's height ceiling: a drill list grows to this, then its body
 // scrolls (MenuScrollFrame owns the cap; header + footer stay pinned).
@@ -62,3 +54,7 @@ export const footerAction = style([
     selectors: { '&:hover': { background: colorVars.color.state.hover } }
   }
 ])
+
+/** The footing lock action — a left-pinned labeled toggle (lock icon + "Lock"/"Unlock"), the footing-
+ *  emphasized tone + hover of footerAction, laid out for the icon↔label pair. */
+export const footerLockAction = style([footerAction, { display: 'inline-flex', alignItems: 'center', gap: '5px' }])

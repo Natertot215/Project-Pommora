@@ -2,7 +2,7 @@ import { useState } from 'react'
 import type { BlockEntry, BlockStyle, DrillPickItem, PagePickerItem, ViewPick, ViewPickerItem } from '@shared/blocks'
 import { Icon } from '@renderer/design-system/symbols'
 import { PickerMenu } from '@renderer/design-system/components/PickerMenu'
-import { AccessoryButton, MenuBottomRow, MenuItem, MenuPaneTopRow, MenuScrollFrame, MenuSeparator } from '@renderer/design-system/components/menu'
+import { MenuBottomRow, MenuItem, MenuPaneTopRow, MenuScrollFrame, MenuSeparator } from '@renderer/design-system/components/menu'
 import { PaneSlider } from '@renderer/Components/Detail/PaneSlider'
 import { cx } from '@renderer/design-system/cx'
 import * as s from './handleMenu.css'
@@ -148,15 +148,16 @@ export function BlockHandleMenu({
         footer={
           <div className={s.barScale}>
             <MenuBottomRow
-              trailing={
-                <AccessoryButton
-                  icon="lock"
-                  size={12}
-                  box={20}
-                  ariaLabel={locked ? 'Unlock tile' : 'Lock tile'}
-                  className={cx(s.footerLock, locked && s.footerLockActive)}
+              leading={
+                <button
+                  type="button"
+                  className={s.footerLockAction}
+                  aria-label={locked ? 'Unlock tile' : 'Lock tile'}
                   onClick={() => onToggleLock()}
-                />
+                >
+                  <Icon name="lock" size={GLYPH} />
+                  {locked ? 'Unlock' : 'Lock'}
+                </button>
               }
             />
           </div>
