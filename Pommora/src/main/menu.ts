@@ -4,6 +4,7 @@ import { basename } from 'node:path'
 import { readAppConfig, writeAppConfig } from './appConfig'
 import { pruneRecents, sessionRoot } from './session'
 import { readDefaultViewScale } from './settings'
+import { VIEW_SCALE_DEFAULT } from '@shared/types'
 
 type AdoptFn = (path: string) => Promise<void>
 
@@ -83,7 +84,7 @@ export async function installAppMenu(win: BrowserWindow, adopt: AdoptFn): Promis
           accelerator: 'CmdOrCtrl+0',
           click: async () => {
             const root = sessionRoot()
-            const scale = root ? await readDefaultViewScale(root) : 1
+            const scale = root ? await readDefaultViewScale(root) : VIEW_SCALE_DEFAULT
             const w = BrowserWindow.getFocusedWindow() ?? win
             if (!w.isDestroyed()) w.webContents.setZoomFactor(scale)
           }
