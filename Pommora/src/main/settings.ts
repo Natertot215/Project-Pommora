@@ -5,7 +5,7 @@
 // app with no conflict (the identity half is ensureIdentity).
 
 import { mkdir } from 'node:fs/promises'
-import { DEFAULT_LABELS, type NexusLabels, type SubfieldConfig } from '@shared/types'
+import { coerceViewScale, DEFAULT_LABELS, type NexusLabels, type SubfieldConfig } from '@shared/types'
 import { readJsonObject, writeJson } from './io/atomicWrite'
 import { serializeOnFile } from './io/fileLock'
 import { swiftISODate } from './identity'
@@ -77,6 +77,16 @@ export function updateSettings(
     const current = (await readJsonObject(path)) ?? defaultSettingsSeed()
     await writeJson(path, mutate(current))
   })
+}
+
+/** The nexus's default window zoom from `personalization.defaultViewScale` — the factor the window
+ *  opens at and ⌘0 resets to. A direct settings.json read (never a full readNexus walk), clamped to a
+ *  usable range; absent/malformed → 1.0. */
+export async function readDefaultViewScale(root: string): Promise<number> {
+  const existing = await readJsonObject(nexusConfig(root, NEXUS_CONFIG_FILES.settings))
+  const p = existing?.personalization
+  const raw = p && typeof p === 'object' && !Array.isArray(p) ? (p as Record<string, unknown>).defaultViewScale : undefined
+  return coerceViewScale(raw)
 }
 
 /** Read the React-owned `subfield` foreign key from settings.json (null when absent/malformed). */

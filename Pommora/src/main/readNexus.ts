@@ -34,7 +34,8 @@ import {
   DEFAULT_COMMANDS,
   DEFAULT_LABELS,
   DEFAULT_TIME_FORMAT,
-  ENTITY_ICON_KINDS
+  ENTITY_ICON_KINDS,
+  coerceViewScale
 } from '@shared/types'
 import { savedView, type SavedView } from '@shared/views'
 import { coerceOpenIn, coerceViewButton, coerceViewStyle } from '@shared/schemas'
@@ -110,7 +111,8 @@ export function readPersonalization(raw: unknown): Personalization {
     setPlacement: placement(p.setPlacement),
     subSetPlacement: placement(p.subSetPlacement),
     sidebarMode: mode(p.sidebarMode),
-    ribbonOrder: ribbonOrder.length ? ribbonOrder : undefined
+    ribbonOrder: ribbonOrder.length ? ribbonOrder : undefined,
+    defaultViewScale: coerceViewScale(p.defaultViewScale)
   }
 }
 

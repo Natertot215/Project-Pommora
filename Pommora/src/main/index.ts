@@ -18,7 +18,7 @@ import { serializeOnFile } from './io/fileLock'
 import { openSessionIndex, closeSessionIndex } from './sessionIndex'
 import { stampAdopted } from './adopt'
 import { ensureIdentity } from './identity'
-import { ensureSettings, readSubfield, writePersonalization, writeSubfield } from './settings'
+import { ensureSettings, readDefaultViewScale, readSubfield, writePersonalization, writeSubfield } from './settings'
 import { startWatcher, stopWatcher } from './watcher'
 import { resolveUnderRoot } from './pathSafety'
 import { updatePageBody } from './crud/page'
@@ -172,6 +172,16 @@ function refreshMenu(): void {
   if (mainWindow) void installAppMenu(mainWindow, adoptNexus)
 }
 
+// Set the window to the open nexus's default view scale (personalization.defaultViewScale) — the
+// zoom it opens at and ⌘0 resets to. Applied on every load (did-finish-load: launch-restore + ⌘R)
+// and on nexus switch (adoptNexus, where no reload fires); ⌘ +/− nudge live from here.
+async function applyDefaultZoom(win: BrowserWindow): Promise<void> {
+  const root = sessionRoot()
+  if (!root || win.isDestroyed()) return
+  const scale = await readDefaultViewScale(root)
+  if (!win.isDestroyed()) win.webContents.setZoomFactor(scale)
+}
+
 function createWindow(): void {
   const win = new BrowserWindow({
     width: 1280,
@@ -200,6 +210,10 @@ function createWindow(): void {
   win.on('closed', () => {
     if (mainWindow === win) mainWindow = null
   })
+
+  // Open (and reload) at the nexus's default view scale — the session root is set before the window
+  // is created on launch-restore, so it's known by the time the page finishes loading.
+  win.webContents.on('did-finish-load', () => void applyDefaultZoom(win))
 
   // Deny-by-default navigation hardening (cheap, ahead of user-Markdown links).
   win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
@@ -282,6 +296,9 @@ async function adoptNexus(path: string): Promise<void> {
   // A user-initiated open always has a window; launch-restore starts its watcher
   // after createWindow below.
   if (mainWindow) void startWatcher(root, mainWindow)
+  // Switching nexus doesn't reload the renderer (no did-finish-load fires), so apply the new
+  // nexus's default scale here — the launch-restore path gets it via did-finish-load instead.
+  if (mainWindow) void applyDefaultZoom(mainWindow)
   // Persistence (last-opened + recents + OS list) is best-effort: a config-write
   // failure must not block opening the folder this session, nor leave a half-open
   // "ghost" session the renderer never re-reads.

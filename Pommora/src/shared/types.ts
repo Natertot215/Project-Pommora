@@ -117,6 +117,19 @@ export interface Personalization {
   sidebarMode?: SidebarMode
   /** Ribbon icon order below the pinned Homepage — bare icon keys, in display order. */
   ribbonOrder?: string[]
+  /** The window zoom the nexus opens at (and ⌘0 resets to). Absent = 1.0. Set by hand in
+   *  settings.json for now; ⌘ +/− nudge live from it. Applied main-side (webContents zoom). */
+  defaultViewScale?: number
+}
+
+/** The per-nexus default window zoom (`personalization.defaultViewScale`). Clamped so a hand-typed
+ *  settings.json value can't make the window unusable; absent/invalid → 1.0 (100%). */
+export const VIEW_SCALE_DEFAULT = 1
+export const VIEW_SCALE_MIN = 0.5
+export const VIEW_SCALE_MAX = 3
+export function coerceViewScale(v: unknown): number {
+  if (typeof v !== 'number' || !Number.isFinite(v)) return VIEW_SCALE_DEFAULT
+  return Math.min(VIEW_SCALE_MAX, Math.max(VIEW_SCALE_MIN, v))
 }
 
 /** Nexus-wide keyboard commands — the `commands` object in `.nexus/settings.json`. Keys are

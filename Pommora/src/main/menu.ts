@@ -3,6 +3,7 @@ import type { MenuItemConstructorOptions } from 'electron'
 import { basename } from 'node:path'
 import { readAppConfig, writeAppConfig } from './appConfig'
 import { pruneRecents, sessionRoot } from './session'
+import { readDefaultViewScale } from './settings'
 
 type AdoptFn = (path: string) => Promise<void>
 
@@ -75,7 +76,18 @@ export async function installAppMenu(win: BrowserWindow, adopt: AdoptFn): Promis
       submenu: [
         { label: 'Toggle Sidebar', accelerator: 'CmdOrCtrl+\\', click: () => send('toggle-sidebar') },
         { type: 'separator' },
-        { role: 'resetZoom' },
+        // ⌘0 resets to the nexus's default view scale (personalization.defaultViewScale), not a
+        // hardcoded 1.0 — read fresh so a settings.json edit takes effect without a relaunch.
+        {
+          label: 'Actual Size',
+          accelerator: 'CmdOrCtrl+0',
+          click: async () => {
+            const root = sessionRoot()
+            const scale = root ? await readDefaultViewScale(root) : 1
+            const w = BrowserWindow.getFocusedWindow() ?? win
+            if (!w.isDestroyed()) w.webContents.setZoomFactor(scale)
+          }
+        },
         { role: 'zoomIn' },
         { role: 'zoomOut' },
         { type: 'separator' },
