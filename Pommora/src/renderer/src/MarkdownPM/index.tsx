@@ -115,9 +115,14 @@ export function MarkdownEditor({
       extensions: [
         // Editable stays true even in the read-only portal: MarkdownPM renders selection natively (no
         // drawSelection layer), so the at-rest embed must remain a focusable contenteditable to be
-        // selectable at all. Edits are blocked by EditorState.readOnly alone — never by a non-editable DOM.
+        // selectable at all — never blocked by a non-editable DOM.
         EditorView.editable.of(true),
         readOnlyGate.current.of(EditorState.readOnly.of(readOnlyAtMount.current)),
+        // EditorState.readOnly is ADVISORY — it stops the view's own input pipeline but NOT a
+        // programmatic view.dispatch({changes}) (formatKeymap, the list/table/checkbox commands). With a
+        // focusable read-only portal that would let Cmd+B edit + autosave a read-only surface, so drop
+        // every doc-changing transaction while read-only at the one sink that catches them all.
+        EditorState.changeFilter.of((tr) => !(tr.startState.readOnly && tr.docChanged)),
         history(),
         Prec.highest(
           keymap.of([

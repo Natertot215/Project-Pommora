@@ -262,7 +262,8 @@ export function ViewEmbedBlock({
       return { ...raw, views: arr, active: arr.length - 1 }
     })
   }
-  const deleteViewAt = (i: number): void =>
+  const deleteViewAt = (i: number): void => {
+    if (locked) return // the sink for BOTH paths (dropdown row menu = un-animated; pill = via finishExit)
     mutateEntry(entry.id, (raw) => {
       const arr = rawViews(raw)
       if (arr.length <= 1) return raw // the switcher never empties (views min(1))
@@ -270,6 +271,7 @@ export function ViewEmbedBlock({
       const cur = typeof raw.active === 'number' ? raw.active : 0
       return { ...raw, views: arr, active: Math.min(cur > i ? cur - 1 : cur, arr.length - 1) }
     })
+  }
   // Toolbar delete slides out first: mark the pill exiting; its animationend commits the removal.
   const beginDeleteView = (i: number): void => {
     if (locked || entry.views.length <= 1) return
