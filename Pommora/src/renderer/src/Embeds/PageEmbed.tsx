@@ -80,6 +80,7 @@ export function PageEmbed({
         readOnly={!editing}
         autoFocus
         zoom={EMBED_ZOOM}
+        edgeFade
       />
     </div>
   )

@@ -392,7 +392,7 @@ export function ViewEmbedBlock({
             </>
           )}
         </div>
-        <div className={`${s.body} scroll-edge-fade top-only`}>
+        <div className={`${s.body} scroll-edge-fade`}>
           <div key={index} className={s.slideWrap} style={{ '--slide-from': slideFrom } as React.CSSProperties}>
             <TableView key={source.id} source={source} />
           </div>

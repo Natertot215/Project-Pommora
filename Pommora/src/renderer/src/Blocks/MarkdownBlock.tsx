@@ -75,7 +75,7 @@ export function MarkdownBlock({
         onBeginEdit(tileId)
       }}
     >
-      <MarkdownEditor initialBody={body} onChange={scheduleSave} connections={connections} readOnly={!editing} autoFocus />
+      <MarkdownEditor initialBody={body} onChange={scheduleSave} connections={connections} readOnly={!editing} autoFocus edgeFade />
     </div>
   )
 }

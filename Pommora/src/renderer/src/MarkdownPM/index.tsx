@@ -52,6 +52,9 @@ interface Props {
   /** Read-only portal mode: the SAME view, editing gated by a live-reconfigured
    *  compartment — flipping it never remounts (embeds' jitter-free enter-edit). */
   readOnly?: boolean;
+  /** Apply the shared scroll-edge fade to the editor's scroller — the embed treatment; the full page
+   *  editor leaves it off. */
+  edgeFade?: boolean;
 }
 
 export function MarkdownEditor({
@@ -69,6 +72,7 @@ export function MarkdownEditor({
   menu,
   autoFocus = false,
   readOnly = false,
+  edgeFade = false,
 }: Props): React.JSX.Element {
   const editableGate = useRef(new Compartment());
   const readOnlyAtMount = useRef(readOnly);
@@ -210,6 +214,9 @@ export function MarkdownEditor({
       ],
     });
     viewRef.current = view;
+    // Embed treatment: the shared scroll-edge fade rides the CM scroller (the real scroll element), so
+    // top/bottom content dissolves as it scrolls — same mask + scroll-timeline as every other faded box.
+    if (edgeFade) view.scrollDOM.classList.add("scroll-edge-fade");
     // Click-to-edit surfaces (block tiles) mount THIS editor in response to a click
     // that landed on the at-rest render — without a focus the caret goes nowhere.
     if (autoFocus && !readOnlyAtMount.current) view.focus();
