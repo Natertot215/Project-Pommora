@@ -37,6 +37,14 @@ function coerceConfig(raw: unknown, schema: PropertyDefinition[], fallbackId: st
   return v.id === DEFAULT_VIEW_ID ? { ...v, id: fallbackId } : v
 }
 
+/** A fresh shallow copy of the entry's raw `views` array — a caller can mutate then return it
+ *  without touching the input (elements stay the untouched `{ source_id, config }` records). */
+const rawViews = (raw: Record<string, unknown>): unknown[] =>
+  Array.isArray(raw.views) ? [...(raw.views as unknown[])] : []
+
+/** A view's leading glyph, falling back to the table icon when unset (legacy `'tablecells'` too). */
+const viewIcon = (v: SavedView): string => iconNameOr(v.icon, 'table')
+
 /** The display title — sized by markdownPM's own `.md-h{level}` heading class (they're the same code,
  *  so a title reads uniform with any rendered heading). Editing happens in place on the SAME element via
  *  contentEditable — no input swap, so the field is the text itself: the caret drops in and it reads
@@ -143,7 +151,7 @@ function ViewPill({
       onContextMenu={onMenu}
       onAnimationEnd={onAnimEnd}
     >
-      <Icon name={iconNameOr(view.icon, 'table')} size={PILL_ICON} />
+      <Icon name={viewIcon(view)} size={PILL_ICON} />
       {renameNode ?? (labeled && <span>{view.name}</span>)}
     </button>
   )
@@ -224,7 +232,7 @@ export function ViewEmbedBlock({
     })
   const persistConfig = (i: number, config: SavedView): void =>
     mutateEntry(entry.id, (raw) => {
-      const arr = Array.isArray(raw.views) ? [...(raw.views as unknown[])] : []
+      const arr = rawViews(raw)
       const el = arr[i]
       if (typeof el !== 'object' || el === null) return raw
       arr[i] = { ...(el as Record<string, unknown>), config }
@@ -236,7 +244,7 @@ export function ViewEmbedBlock({
   // keys on config id; two views must never share one).
   const addView = (): void =>
     mutateEntry(entry.id, (raw) => {
-      const arr = Array.isArray(raw.views) ? [...(raw.views as unknown[])] : []
+      const arr = rawViews(raw)
       const used = new Set(arr.map((el) => ((el as { config?: { id?: unknown } })?.config?.id as string) ?? ''))
       let slot = arr.length
       while (used.has(`embed:${entry.id}:${slot}`)) slot++
@@ -245,7 +253,7 @@ export function ViewEmbedBlock({
     })
   const deleteViewAt = (i: number): void =>
     mutateEntry(entry.id, (raw) => {
-      const arr = Array.isArray(raw.views) ? [...(raw.views as unknown[])] : []
+      const arr = rawViews(raw)
       if (arr.length <= 1) return raw // the switcher never empties (views min(1))
       arr.splice(i, 1)
       const cur = typeof raw.active === 'number' ? raw.active : 0
@@ -263,7 +271,7 @@ export function ViewEmbedBlock({
   }
   const reorderViews = (activeId: string, overId: string): void =>
     mutateEntry(entry.id, (raw) => {
-      const arr = Array.isArray(raw.views) ? (raw.views as unknown[]) : []
+      const arr = rawViews(raw)
       const seq = reorder(
         viewsRef.current.map((v, i) => ({ id: v.id, i })),
         activeId,
@@ -341,9 +349,11 @@ export function ViewEmbedBlock({
     </button>
   )
 
+  const newViewButton = <AccessoryButton icon="plus" size={12} box={20} ariaLabel="New View" onClick={addView} />
+
   const switcher = dropdown ? (
     <button ref={dropRef} type="button" className={s.pill} onClick={() => setListOpen(true)}>
-      <Icon name={iconNameOr(view.icon, 'table')} size={PILL_ICON} />
+      <Icon name={viewIcon(view)} size={PILL_ICON} />
       {labeled && <span>{view.name}</span>}
       <Icon name="chevron-down" size={10} />
     </button>
@@ -366,7 +376,7 @@ export function ViewEmbedBlock({
           />
         ))}
       </SortableZone>
-      <AccessoryButton icon="plus" size={12} box={20} ariaLabel="New View" onClick={addView} />
+      {newViewButton}
     </>
   )
 
@@ -378,7 +388,7 @@ export function ViewEmbedBlock({
           <div className={s.titleRow} onContextMenu={(e) => void titleMenu(e)}>
             {/* size omitted → Icon defaults to 1em; the .md-hN class sets the em base, so the icon
                 scales with the title level in lockstep with the text. */}
-            {iconShown && <Icon name={iconNameOr(view.icon, 'table')} className={`md-h${titleLevel}`} />}
+            {iconShown && <Icon name={viewIcon(view)} className={`md-h${titleLevel}`} />}
             <EmbedTitle title={entry.display_title ?? source.title} level={titleLevel} onCommit={commitTitle} />
             {configButton}
           </div>
@@ -411,7 +421,7 @@ export function ViewEmbedBlock({
               maxHeight={PICKER_MAX_H}
               footer={
                 <MenuBottomRow
-                  leading={<AccessoryButton icon="plus" size={12} box={20} ariaLabel="New View" onClick={addView} />}
+                  leading={newViewButton}
                 />
               }
             >
@@ -420,7 +430,7 @@ export function ViewEmbedBlock({
                   <MenuItem
                     key={v.id}
                     className={i === index ? activeRow : undefined}
-                    leading={<Icon name={iconNameOr(v.icon, 'table')} size={16} />}
+                    leading={<Icon name={viewIcon(v)} size={16} />}
                     onClick={renaming === i ? undefined : () => patchEntry({ active: i })}
                     onContextMenu={(e) => void rowMenu(i, e, false)}
                   >
