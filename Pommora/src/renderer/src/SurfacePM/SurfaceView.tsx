@@ -41,6 +41,9 @@ export interface SurfaceViewProps {
   feel?: Feel
   /** Per-tile chassis class (e.g. the host's style variants) — engine-agnostic. */
   tileClassName?: (id: string) => string | undefined
+  /** A tile that answers true is STATIC — its drag + resize gestures are frozen (its handle still
+   *  opens the menu). The host derives it (e.g. a locked block); the engine only gates the gesture. */
+  isTileStatic?: (id: string) => boolean
   /** Click / right-click on a tile's drag handle — the host's menu hook. */
   onHandleMenu?: (id: string, e: React.MouseEvent) => void
   /** Right-click on the surface BACKGROUND — resolved to a semantic create target:
@@ -210,9 +213,10 @@ export function SurfaceView({
   minTilePx = 64,
   bandZonePx = 10,
   bottomPadPx = 28,
-  snapPx = 6,
+  snapPx = 9,
   feel = DEFAULT_FEEL,
   tileClassName,
+  isTileStatic,
   onHandleMenu,
   onBackdrop
 }: SurfaceViewProps): React.JSX.Element {
@@ -274,6 +278,10 @@ export function SurfaceView({
   layoutRef.current = layout
   const onLayoutChangeRef = useRef(onLayoutChange)
   onLayoutChangeRef.current = onLayoutChange
+  // Static tiles freeze their gestures — read through a ref so the memoized gesture callbacks stay
+  // identity-stable (a changing predicate must not re-render every tile).
+  const isTileStaticRef = useRef(isTileStatic)
+  isTileStaticRef.current = isTileStatic
 
   // Decide-then-animate: the settle transition ends (or the engine's fallback
   // timer fires) → the decided layout commits and the gesture state clears. The
@@ -313,7 +321,7 @@ export function SurfaceView({
     candidates.filter((c) => Math.abs(c - start) > 0.5)
 
   const onEdgeDown = useCallback((id: string, edges: Edge[], e: React.PointerEvent) => {
-    if (e.button !== 0) return
+    if (e.button !== 0 || isTileStaticRef.current?.(id)) return
     e.preventDefault()
     e.stopPropagation()
     const pending = takePendingSettle()
@@ -387,7 +395,7 @@ export function SurfaceView({
   }, [])
 
   const onHandleDown = useCallback((id: string, e: React.PointerEvent) => {
-    if (e.button !== 0) return
+    if (e.button !== 0 || isTileStaticRef.current?.(id)) return
     e.preventDefault()
     e.stopPropagation()
     const pending = takePendingSettle()

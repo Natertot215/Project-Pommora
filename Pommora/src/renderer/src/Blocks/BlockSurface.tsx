@@ -229,6 +229,7 @@ export function BlockSurface({ host }: { host: BlockHostRef }): React.JSX.Elemen
       const classes = [
         entries.get(id)?.style === 'borderless' ? 'is-borderless' : null,
         editingId === id ? 'is-editing-tile' : null,
+        entries.get(id)?.locked ? 'is-locked' : null, // frozen gestures (SurfaceView) + a resting cursor
         handleMenu?.id === id ? 'handle-pinned' : null // the open picker's anchor stays shown
       ].filter(Boolean)
       return classes.length ? classes.join(' ') : undefined
@@ -310,6 +311,7 @@ export function BlockSurface({ host }: { host: BlockHostRef }): React.JSX.Elemen
         renderTile={renderTile}
         feel={FEEL_PRESETS.Glide}
         tileClassName={tileClassName}
+        isTileStatic={(id) => entries.get(id)?.locked ?? false}
         onHandleMenu={onHandleMenu}
         onBackdrop={onBackdrop}
       />

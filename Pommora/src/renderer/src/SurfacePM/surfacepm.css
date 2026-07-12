@@ -236,3 +236,10 @@
   cursor: nwse-resize;
 }
 
+/* A locked tile freezes drag + resize (SurfaceView gates the gestures) — drop the grab/resize cursors
+   so the frozen edges + handle read inert; the handle still opens the menu on click (to unlock). */
+.spm-tile.is-locked .spm-edge,
+.spm-tile.is-locked .spm-handle {
+  cursor: default;
+}
+
