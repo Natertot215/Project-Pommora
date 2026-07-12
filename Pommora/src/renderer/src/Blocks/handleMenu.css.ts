@@ -33,18 +33,13 @@ export const rowDisabled = style({
   }
 })
 
-/** The Lock row's on-state check — accent, so "locked" reads at a glance. */
-export const accentCheck = style({
-  selectors: { '&&': { color: 'var(--accent)' } }
+/** The footer lock affordance — the SettingsPane footing idiom: a 12-in-20 AccessoryButton toned to
+ *  the footing tertiary at rest, wearing the pressed state fill when the tile is locked. */
+export const footerLock = style({
+  selectors: { '&&&&': { color: c.label.tertiary } }
 })
-
-/** The Lock row while locked: dimmed like the frozen actions so the whole menu reads pinned — but
- *  still LIVE (it brightens on hover), since Unlock is the one action a locked tile allows. */
-export const lockDim = style({
-  selectors: {
-    '&&': { opacity: 0.4 },
-    '&&:hover': { opacity: 1 }
-  }
+export const footerLockActive = style({
+  background: 'var(--state-selected)'
 })
 
 // ── KNOB — the picker's height ceiling: a drill list grows to this, then its body

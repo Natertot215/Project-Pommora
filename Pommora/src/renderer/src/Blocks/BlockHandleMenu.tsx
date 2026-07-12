@@ -2,7 +2,7 @@ import { useState } from 'react'
 import type { BlockEntry, BlockStyle, DrillPickItem, PagePickerItem, ViewPick, ViewPickerItem } from '@shared/blocks'
 import { Icon } from '@renderer/design-system/symbols'
 import { PickerMenu } from '@renderer/design-system/components/PickerMenu'
-import { MenuBottomRow, MenuItem, MenuPaneTopRow, MenuScrollFrame, MenuSeparator } from '@renderer/design-system/components/menu'
+import { AccessoryButton, MenuBottomRow, MenuItem, MenuPaneTopRow, MenuScrollFrame, MenuSeparator } from '@renderer/design-system/components/menu'
 import { PaneSlider } from '@renderer/Components/Detail/PaneSlider'
 import { cx } from '@renderer/design-system/cx'
 import * as s from './handleMenu.css'
@@ -144,43 +144,54 @@ export function BlockHandleMenu({
 
   const root = (
     <div className={s.pane}>
-      {entry.type === 'markdown' ? (
-        <>
-          <MenuItem className={cx(s.row, rowMute)} leading={<Icon name="link" size={GLYPH} />} trailing={chevron} onClick={locked ? undefined : () => setPane('view')}>
-            Link View
-          </MenuItem>
-          <MenuItem className={cx(s.row, rowMute)} leading={<Icon name="link" size={GLYPH} />} trailing={chevron} onClick={locked ? undefined : () => setPane('page')}>
-            Link Page
-          </MenuItem>
-        </>
-      ) : (
-        <MenuItem
-          className={cx(s.row, entry.type === 'view' && s.rowDisabled, rowMute)}
-          leading={<Icon name="link" size={GLYPH} />}
-          trailing={chevron}
-          onClick={!locked && entry.type === 'page' ? () => setPane('page') : undefined}
-        >
-          Source
-        </MenuItem>
-      )}
-      <MenuItem className={cx(s.row, rowMute)} leading={<Icon name="palette" size={GLYPH} />} trailing={chevron} onClick={locked ? undefined : () => setPane('style')}>
-        Style
-      </MenuItem>
-      <MenuItem
-        className={cx(s.row, locked && s.lockDim)}
-        leading={<Icon name="lock" size={GLYPH} />}
-        trailing={locked ? <Icon name="check" size={GLYPH} className={s.accentCheck} /> : undefined}
-        onClick={() => onToggleLock()}
+      <MenuScrollFrame
+        footer={
+          <div className={s.barScale}>
+            <MenuBottomRow
+              trailing={
+                <AccessoryButton
+                  icon="lock"
+                  size={12}
+                  box={20}
+                  ariaLabel={locked ? 'Unlock tile' : 'Lock tile'}
+                  className={locked ? cx(s.footerLock, s.footerLockActive) : s.footerLock}
+                  onClick={() => onToggleLock()}
+                />
+              }
+            />
+          </div>
+        }
       >
-        Lock
-      </MenuItem>
-      <MenuSeparator flush />
-      <MenuItem className={cx(s.row, rowMute)} leading={<Icon name="copy" size={GLYPH} />} onClick={locked ? undefined : act(onDuplicate)}>
-        Duplicate
-      </MenuItem>
-      <MenuItem className={cx(s.row, rowMute)} leading={<Icon name="x" size={GLYPH} />} onClick={locked ? undefined : act(onRemove)}>
-        Delete
-      </MenuItem>
+        {entry.type === 'markdown' ? (
+          <>
+            <MenuItem className={cx(s.row, rowMute)} leading={<Icon name="link" size={GLYPH} />} trailing={chevron} onClick={locked ? undefined : () => setPane('view')}>
+              Link View
+            </MenuItem>
+            <MenuItem className={cx(s.row, rowMute)} leading={<Icon name="link" size={GLYPH} />} trailing={chevron} onClick={locked ? undefined : () => setPane('page')}>
+              Link Page
+            </MenuItem>
+          </>
+        ) : (
+          <MenuItem
+            className={cx(s.row, entry.type === 'view' && s.rowDisabled, rowMute)}
+            leading={<Icon name="link" size={GLYPH} />}
+            trailing={chevron}
+            onClick={!locked && entry.type === 'page' ? () => setPane('page') : undefined}
+          >
+            Source
+          </MenuItem>
+        )}
+        <MenuItem className={cx(s.row, rowMute)} leading={<Icon name="palette" size={GLYPH} />} trailing={chevron} onClick={locked ? undefined : () => setPane('style')}>
+          Style
+        </MenuItem>
+        <MenuSeparator flush />
+        <MenuItem className={cx(s.row, rowMute)} leading={<Icon name="copy" size={GLYPH} />} onClick={locked ? undefined : act(onDuplicate)}>
+          Duplicate
+        </MenuItem>
+        <MenuItem className={cx(s.row, rowMute)} leading={<Icon name="x" size={GLYPH} />} onClick={locked ? undefined : act(onRemove)}>
+          Delete
+        </MenuItem>
+      </MenuScrollFrame>
     </div>
   )
 
