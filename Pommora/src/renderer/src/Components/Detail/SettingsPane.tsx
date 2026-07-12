@@ -166,8 +166,8 @@ export function SettingsPane(): React.JSX.Element | null {
   )
 
   // The scoped footer follows the house footing (ViewPane / PropertiesPane): a
-  // MenuBottomRow in the scroll frame's footer slot, footing-toned content, the
-  // lock as a 12-in-20 AccessoryButton (inert until the locks task wires it).
+  // MenuBottomRow in the scroll frame's footer slot, footing-toned content, the B-5
+  // config lock as a 12-in-20 AccessoryButton — pressed while it freezes the view config.
   const scopedRoot = scope && schemaCollection && (
     <MenuScrollFrame
       footer={

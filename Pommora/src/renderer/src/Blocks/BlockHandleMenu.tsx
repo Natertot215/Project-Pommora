@@ -154,7 +154,7 @@ export function BlockHandleMenu({
                   size={12}
                   box={20}
                   ariaLabel={locked ? 'Unlock tile' : 'Lock tile'}
-                  className={locked ? cx(s.footerLock, s.footerLockActive) : s.footerLock}
+                  className={cx(s.footerLock, locked && s.footerLockActive)}
                   onClick={() => onToggleLock()}
                 />
               }
