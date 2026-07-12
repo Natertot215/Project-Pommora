@@ -6,9 +6,12 @@ import { VIEW_EMBED_ZOOM } from '../Embeds/embedScale'
 const c = colorVars.color
 
 // KNOBS — the switcher pill's box: a fixed height with a wider horizontal padding gives the ViewDropdown
-// button's slightly-rectangular ratio at the pill's own (smaller) size. Tune the two to reshape it.
+// button's slightly-rectangular ratio at the pill's own (smaller) size. PILL_MIN_W floors the width (0 =
+// sized to content); PILL_ICON is the leading glyph size (px, consumed by ViewEmbedBlock).
 const PILL_H = '24px'
 const PILL_PAD_X = '10px'
+const PILL_MIN_W = '0px'
+export const PILL_ICON = 12
 
 // The header's horizontal insets — shared by the title row, the switcher row, and the title divider,
 // so the divider aligns with the content instead of bleeding to the block edges.
@@ -86,6 +89,7 @@ export const pill = style([
     flexShrink: 0,
     boxSizing: 'border-box',
     height: PILL_H,
+    minWidth: PILL_MIN_W,
     paddingInline: PILL_PAD_X,
     borderRadius: '8px',
     background: c.fill.quaternary,

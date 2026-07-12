@@ -17,6 +17,7 @@ import { SettingsPane } from '@renderer/Components/Detail/SettingsPane'
 import { ViewEmbedScopeProvider } from '@renderer/Embeds/ViewEmbedScope'
 import { useSession } from '@renderer/store'
 import { PICKER_MAX_H } from './handleMenu.css'
+import { PILL_ICON } from './viewEmbed.css'
 import * as s from './viewEmbed.css'
 
 /** The copied config is ours by construction; a foreign or malformed one degrades to the
@@ -142,7 +143,7 @@ function ViewPill({
       onContextMenu={onMenu}
       onAnimationEnd={onAnimEnd}
     >
-      <Icon name={iconNameOr(view.icon, 'table')} size={12} />
+      <Icon name={iconNameOr(view.icon, 'table')} size={PILL_ICON} />
       {renameNode ?? (labeled && <span>{view.name}</span>)}
     </button>
   )
@@ -342,7 +343,7 @@ export function ViewEmbedBlock({
 
   const switcher = dropdown ? (
     <button ref={dropRef} type="button" className={s.pill} onClick={() => setListOpen(true)}>
-      <Icon name={iconNameOr(view.icon, 'table')} size={12} />
+      <Icon name={iconNameOr(view.icon, 'table')} size={PILL_ICON} />
       {labeled && <span>{view.name}</span>}
       <Icon name="chevron-down" size={10} />
     </button>
