@@ -74,6 +74,7 @@ import { popViewRowMenu, type ViewRowMenuAction } from './viewRowMenu'
 import { popViewFormatMenu } from './viewFormatMenu'
 import { popOpenInMenu } from './openInMenu'
 import type { ViewButton, ViewStyle, OpenIn } from '@shared/types'
+import { VIEW_SCALE_DEFAULT } from '@shared/types'
 import type { ViewFormat } from '@shared/views'
 import { installEditorContextMenu, setFormatState, setCalloutGrip } from './editorMenu'
 import type { FormatState } from '@shared/editorMenu'
@@ -176,9 +177,11 @@ function refreshMenu(): void {
 // zoom it opens at and ⌘0 resets to. Applied on every load (did-finish-load: launch-restore + ⌘R)
 // and on nexus switch (adoptNexus, where no reload fires); ⌘ +/− nudge live from here.
 async function applyDefaultZoom(win: BrowserWindow): Promise<void> {
+  if (win.isDestroyed()) return
+  // Empty state (no nexus) normalizes to 1.0 — the same value ⌘0 asserts there — so the welcome
+  // screen never inherits a prior nexus's host zoom (Electron zoom is per-render-host, shared).
   const root = sessionRoot()
-  if (!root || win.isDestroyed()) return
-  const scale = await readDefaultViewScale(root)
+  const scale = root ? await readDefaultViewScale(root) : VIEW_SCALE_DEFAULT
   if (!win.isDestroyed()) win.webContents.setZoomFactor(scale)
 }
 
@@ -204,7 +207,9 @@ function createWindow(): void {
     }
   })
 
-  win.on('ready-to-show', () => win.show())
+  // Apply the default zoom BEFORE the first paint is shown, so the window opens at scale instead of
+  // flashing 100% → scale. finally() guarantees show() even if the (error-swallowing) read somehow stalls.
+  win.on('ready-to-show', () => void applyDefaultZoom(win).finally(() => win.show()))
   installEditorContextMenu(win)
   mainWindow = win
   win.on('closed', () => {
