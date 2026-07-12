@@ -361,10 +361,30 @@ const TIER_ICON_KIND: Record<'areas' | 'topics' | 'projects', EntityIconKind> = 
   topics: 'topic',
   projects: 'project'
 }
-function TierDisclosure({ tierKey, label, children }: { tierKey: 'areas' | 'topics' | 'projects'; label: string; children: React.ReactNode }): React.JSX.Element {
+const TIER_NUM: Record<'areas' | 'topics' | 'projects', 1 | 2 | 3> = { areas: 1, topics: 2, projects: 3 }
+function TierDisclosure({
+  tierKey,
+  label,
+  singular,
+  children
+}: { tierKey: 'areas' | 'topics' | 'projects'; label: string; singular: string; children: React.ReactNode }): React.JSX.Element {
   const defaultIcons = useSession((s) => s.personalization.defaultIcons)
+  // Right-click the tier → create into THAT tier (the collection/set row's own right-click idiom),
+  // instead of the global three-way menu that never scoped to a tier.
+  const onCreate = (): void => {
+    void window.nexus.popCreateMenu([
+      { label: `New ${singular}`, req: { op: 'createContext', tier: TIER_NUM[tierKey], name: DEFAULT_NEW_NAME } }
+    ])
+  }
   return (
-    <Disclosure icon={defaultEntityIcon(TIER_ICON_KIND[tierKey], defaultIcons)} title={label} depth={0} defaultOpen persistKey={`tier:${tierKey}`}>
+    <Disclosure
+      icon={defaultEntityIcon(TIER_ICON_KIND[tierKey], defaultIcons)}
+      title={label}
+      depth={0}
+      defaultOpen
+      persistKey={`tier:${tierKey}`}
+      onContextMenu={onCreate}
+    >
       {children}
     </Disclosure>
   )
@@ -442,17 +462,17 @@ export function Sidebar({ tree }: { tree: NexusTree }): React.JSX.Element {
   const contextsLayer = (
     <SidebarDnd tree={tree} onCommit={onCommit} setPlacement={setPlacement} subSetPlacement={subSetPlacement}>
       <div className="section">
-        <TierDisclosure tierKey="areas" label={tree.labels.area.plural}>
+        <TierDisclosure tierKey="areas" label={tree.labels.area.plural} singular={tree.labels.area.singular}>
           {tree.contexts.areas.map((a: AreaNode) => (
             <ContextRow key={a.id} node={a} />
           ))}
         </TierDisclosure>
-        <TierDisclosure tierKey="topics" label={tree.labels.topic.plural}>
+        <TierDisclosure tierKey="topics" label={tree.labels.topic.plural} singular={tree.labels.topic.singular}>
           {tree.contexts.topics.map((t: TopicNode) => (
             <ContextRow key={t.id} node={t} />
           ))}
         </TierDisclosure>
-        <TierDisclosure tierKey="projects" label={tree.labels.project.plural}>
+        <TierDisclosure tierKey="projects" label={tree.labels.project.plural} singular={tree.labels.project.singular}>
           {tree.contexts.projects.map((p: ProjectNode) => (
             <ContextRow key={p.id} node={p} />
           ))}
