@@ -20,4 +20,9 @@ describe('scanConnections', () => {
   it('ignores empty / whitespace-only links and returns [] for a plain body', () => {
     expect(scanConnections('[[]] [[   ]] no links here')).toEqual([])
   })
+
+  it('tolerates internal brackets in a title (a `]` is content unless it closes the pair)', () => {
+    expect(titles('see [[Notes [WIP] final]] and [[A [x] B]]')).toEqual(['a [x] b', 'notes [wip] final'])
+    expect(titles('[[A]] then [[B]]')).toEqual(['a', 'b']) // adjacent links still split
+  })
 })
