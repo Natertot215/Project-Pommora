@@ -214,7 +214,7 @@
   left: calc(-1 * var(--fold-gutter) + (var(--fold-gutter) - 14px * var(--mdpm-scale)) / 2);
   /* Centre on the FIRST visual row's text (half the 1.6 line-height − half the 14px grip), so it lines up
      with the content even when the block's first line wraps. --grip-top is the knob; box blocks raise it. */
-  top: var(--grip-top, calc(0.8em - 7px));
+  top: var(--grip-top, calc(0.8em - 7px * var(--mdpm-scale)));
   transition: opacity var(--duration-fast) var(--ease-standard);
 }
 .mdpm-editor .cm-line.md-block-handle.md-grip-hot::before {
@@ -226,7 +226,7 @@
 .mdpm-editor .cm-line.md-bq-first .md-bq-grip {
   position: absolute;
   left: calc(-1 * var(--fold-gutter) + (var(--fold-gutter) - 14px * var(--mdpm-scale)) / 2);
-  top: var(--grip-top, calc(0.8em - 7px));
+  top: var(--grip-top, calc(0.8em - 7px * var(--mdpm-scale)));
   transition: opacity var(--duration-fast) var(--ease-standard);
 }
 .mdpm-editor .cm-line.md-bq-first.md-grip-hot .md-bq-grip {
