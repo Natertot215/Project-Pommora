@@ -1,6 +1,6 @@
 import { style } from '@vanilla-extract/css'
 import { vars as colorVars } from '../design-system/tokens/color.css'
-import { font } from '../design-system/tokens/typography.css'
+import { font, truncateHoverScroll } from '../design-system/tokens/typography.css'
 import { footingLabel } from '../design-system/components/menu/menu.css'
 
 const c = colorVars.color
@@ -60,3 +60,38 @@ export const footerAction = style([
  *  selected state — it never mutes on lock (only the actions above do). */
 export const footerLockAction = style([footerAction, { display: 'inline-flex', alignItems: 'center', gap: '5px' }])
 export const lockIcon = style({ selectors: { '&&': { color: c.label.tertiary } } })
+
+/** The page-embed title field (G-16) — the source page's identity as a bordered "field" reading like an
+ *  input but acting as a link: clicking it opens the page full-view. A segment hairline (no divider below
+ *  it), a two-tier stack (page title over its location), and tight vertical rhythm. `textAlign: left`
+ *  undoes the button's default centering; both labels ride the shared ellipsis-at-rest / scroll-on-hover
+ *  mechanic. */
+export const titleField = style({
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '1px',
+  width: '100%',
+  boxSizing: 'border-box',
+  margin: '0 0 3px',
+  padding: '3px 6px',
+  border: `1px solid ${c.separator.segment}`,
+  borderRadius: '5px',
+  background: 'none',
+  textAlign: 'left',
+  cursor: 'pointer',
+  overflow: 'hidden',
+  selectors: { '&:hover': { background: c.state.hover } }
+})
+export const titleFieldRow = style({ display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden' })
+/** Page title — control type + tone, matching the menu's rows (truncateHoverScroll caps long titles). */
+export const titleFieldText = style([
+  truncateHoverScroll,
+  { flex: 1, minWidth: 0, fontSize: font.scale.control.size, lineHeight: font.scale.control.line, color: c.label.control }
+])
+/** Location sub-line — footnote (a step under the title), label-secondary. */
+export const titleFieldLoc = style([
+  truncateHoverScroll,
+  { flex: 1, minWidth: 0, fontSize: font.scale.footnote.size, lineHeight: font.scale.footnote.line, color: c.label.secondary }
+])
+export const titleFieldIcon = style({ selectors: { '&&': { color: c.label.secondary } } })
+export const titleFieldLocIcon = style({ selectors: { '&&': { color: c.label.tertiary } } })

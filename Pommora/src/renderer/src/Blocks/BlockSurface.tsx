@@ -100,6 +100,22 @@ export function BlockSurface({ host }: { host: BlockHostRef }): React.JSX.Elemen
   const flatPages = useMemo(() => (tree ? flattenPages(tree) : []), [tree])
   const pagesById = useMemo(() => new Map(flatPages.map((p) => [p.id, p])), [flatPages])
 
+  // Container path → its display (title + icon + kind), for resolving a page-embed's location sub-line.
+  // Built once per tree push, never per menu-open.
+  const containersByPath = useMemo(() => {
+    const map = new Map<string, { title: string; icon?: string; kind: 'collection' | 'set' }>()
+    const addSet = (sNode: SetNode): void => {
+      map.set(sNode.path, { title: sNode.title, icon: sNode.icon, kind: 'set' })
+      for (const sub of sNode.sets ?? []) addSet(sub)
+    }
+    const addCol = (c: CollectionNode): void => {
+      map.set(c.path, { title: c.title, icon: c.icon, kind: 'collection' })
+      for (const s of c.sets) addSet(s)
+    }
+    for (const c of [...(tree?.collections ?? []), ...(tree?.userSections ?? []).flatMap((u) => u.collections)]) addCol(c)
+    return map
+  }, [tree])
+
   // Markdown blocks are link SOURCES (D-8) — the tile editor gets the same
   // [[connection]] autocomplete + click-through the page editor has.
   const connections = useMemo<ConnectionsApi | undefined>(() => {
@@ -302,6 +318,17 @@ export function BlockSurface({ host }: { host: BlockHostRef }): React.JSX.Elemen
   )
 
   if (!ready) return null
+  // The open handle menu's page identity (page embeds only) — resolved off the shared id→page map,
+  // never a per-embed walk. Drives the title field + its full-view open.
+  const menuEntry = handleMenu ? entries.get(handleMenu.id) : undefined
+  const menuPage = menuEntry?.type === 'page' ? pagesById.get(menuEntry.page_id) : undefined
+  const menuPageInfo = menuPage
+    ? { title: menuPage.title, icon: iconNameOr(menuPage.icon, defaultEntityIcon('page', defaultIcons)) }
+    : undefined
+  const menuLoc = menuPage ? containersByPath.get(menuPage.path.split('/').slice(0, -1).join('/')) : undefined
+  const menuLocInfo = menuLoc
+    ? { title: menuLoc.title, icon: iconNameOr(menuLoc.icon, defaultEntityIcon(menuLoc.kind, defaultIcons)) }
+    : undefined
   return (
     <div className={`blk-surface${editingId ? ' has-live-editor' : ''}`}>
       {/* Blocks reflow on Glide — the roomier displacement feel for big surfaces. */}
@@ -321,6 +348,8 @@ export function BlockSurface({ host }: { host: BlockHostRef }): React.JSX.Elemen
           anchor={handleMenu.el}
           pageItems={pagePickerItems(tree, defaultIcons)}
           viewItems={viewPickerItems(tree, defaultIcons)}
+          pageInfo={menuPageInfo}
+          location={menuLocInfo}
           onClose={() => setHandleMenu(null)}
           onPickPage={(pageId) => applyPagePick(handleMenu.id, pageId)}
           onPickView={(pick) => applyViewPick(handleMenu.id, pick)}
@@ -328,6 +357,7 @@ export function BlockSurface({ host }: { host: BlockHostRef }): React.JSX.Elemen
           onDuplicate={() => duplicateBlock(handleMenu.id)}
           onRemove={() => confirmRemove(handleMenu.id)}
           onToggleLock={() => toggleLock(handleMenu.id)}
+          onOpenPage={() => menuPage && select({ kind: 'page', id: menuPage.id, path: menuPage.path })}
         />
       )}
     </div>

@@ -10,6 +10,8 @@ import * as s from './handleMenu.css'
 // Icon seats follow the SettingsPane ladder at this menu's control-size rows:
 // the property-row 12 (ICON.doc) for leading glyphs, the twisty 12 for chevrons.
 const GLYPH = 12
+// The title field's location sub-line rides a step smaller than its glyph.
+const LOC_GLYPH = 11
 
 /** One drill level — a nested PaneSlider per depth (the slider's documented composition),
  *  so every push AND back slides; a flat content swap animates neither. Rows come from the
@@ -109,18 +111,25 @@ export function BlockHandleMenu({
   anchor,
   pageItems,
   viewItems,
+  pageInfo,
+  location,
   onClose,
   onPickPage,
   onPickView,
   onStyle,
   onDuplicate,
   onRemove,
-  onToggleLock
+  onToggleLock,
+  onOpenPage
 }: {
   entry: BlockEntry
   anchor: HTMLElement
   pageItems: PagePickerItem[]
   viewItems: ViewPickerItem[]
+  /** A page embed's source identity — its title + resolved icon, for the openable title field. */
+  pageInfo?: { title: string; icon: string }
+  /** The source page's parent container (its location) — title + resolved icon, for the field's sub-line. */
+  location?: { title: string; icon: string }
   onClose: () => void
   onPickPage: (pageId: string) => void
   onPickView: (pick: ViewPick) => void
@@ -128,6 +137,8 @@ export function BlockHandleMenu({
   onDuplicate: () => void
   onRemove: () => void
   onToggleLock: () => void
+  /** Open the source page full-view (respects Open In — full-page for now). */
+  onOpenPage: () => void
 }): React.JSX.Element {
   const [pane, setPane] = useState<'root' | 'style' | 'page' | 'view'>('root')
   const style: BlockStyle = entry.style === 'borderless' ? 'borderless' : 'bordered'
@@ -163,6 +174,22 @@ export function BlockHandleMenu({
           </div>
         }
       >
+        {entry.type === 'page' && pageInfo && (
+          // The source page's identity as an openable field (not muted by lock — opening is read-only):
+          // page title over its location, both left-aligned + capped.
+          <button type="button" className={s.titleField} onClick={() => { onClose(); onOpenPage() }}>
+            <span className={s.titleFieldRow}>
+              <Icon name={pageInfo.icon} size={GLYPH} className={s.titleFieldIcon} />
+              <span className={s.titleFieldText}>{pageInfo.title}</span>
+            </span>
+            {location && (
+              <span className={s.titleFieldRow}>
+                <Icon name={location.icon} size={LOC_GLYPH} className={s.titleFieldLocIcon} />
+                <span className={s.titleFieldLoc}>{location.title}</span>
+              </span>
+            )}
+          </button>
+        )}
         {entry.type === 'markdown' ? (
           <>
             <MenuItem className={cx(s.row, rowMute)} leading={<Icon name="link" size={GLYPH} />} trailing={chevron} onClick={locked ? undefined : () => setPane('view')}>
