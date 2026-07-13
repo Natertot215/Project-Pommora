@@ -61,3 +61,13 @@
     transparent 100%
   );
 }
+
+/* Opt-in (page/markdown embeds): hold the TOP fade until a full fade-height of scroll has actually
+   passed under it. A first line at rest — or a small autofocus scroll offset — shouldn't blur; the
+   fade needs real scroll first. The top animation starts at --edge-fade of scroll (fill-mode both pins
+   --edge-t to its 0 keyframe before then); the bottom keeps the full range. Base users (menus, sidebar,
+   the view-embed FADE_RISE) are untouched — their top fade still eases from the first pixel. */
+.scroll-edge-fade.edge-fade-top-gated {
+  animation-fill-mode: both;
+  animation-range: var(--edge-fade, 22px) 100%, normal;
+}

@@ -222,7 +222,9 @@ export function MarkdownEditor({
     viewRef.current = view;
     // Embed treatment: the shared scroll-edge fade rides the CM scroller (the real scroll element), so
     // top/bottom content dissolves as it scrolls — same mask + scroll-timeline as every other faded box.
-    if (edgeFade) view.scrollDOM.classList.add("scroll-edge-fade");
+    // The top fade is gated to need a full fade-height of real scroll first (edge-fade-top-gated), so a
+    // first line at rest — or CM's autofocus scroll offset — never blurs.
+    if (edgeFade) view.scrollDOM.classList.add("scroll-edge-fade", "edge-fade-top-gated");
     // Click-to-edit surfaces (block tiles) mount THIS editor in response to a click
     // that landed on the at-rest render — without a focus the caret goes nowhere.
     if (autoFocus && !readOnlyAtMount.current) view.focus();
