@@ -89,6 +89,7 @@ Product spec — what Pommora is + how its data is shaped
 Implementation — how this build works
   Architecture.md   data / read / IPC architecture
   MarkdownPM.md     CodeMirror 6 page editor      TableView.md    the table view renderer
+  SurfacePM.md      the block/tile system
   Design · Typography · Interaction · Icons    design system · type scale · motion · icon set
   PommoraDND.md     in-house drag engine          Subfield.md     the footer
 

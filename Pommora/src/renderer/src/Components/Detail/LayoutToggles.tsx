@@ -6,7 +6,7 @@ import { MenuItem, MenuSeparator } from '../../design-system/components/menu'
 import { flushTrailing } from '../../design-system/components/menu/menu.css'
 import { cx } from '../../design-system/cx'
 import { useSession } from '../../store'
-import { saveViewAdopting } from '../../Detail/Views/viewMint'
+import { useSaveView } from '@renderer/Embeds/ViewEmbedScope'
 import { ICON, switchScale, toggleRow } from './settingsPane.css'
 
 /**
@@ -24,7 +24,8 @@ export function LayoutToggles({
   view: SavedView
 }): React.JSX.Element {
   const load = useSession((st) => st.load)
-  const write = (patch: Partial<SavedView>): void => void saveViewAdopting(source, { ...view, ...patch }, load)
+  const saveView = useSaveView(source, load)
+  const write = (patch: Partial<SavedView>): void => void saveView({ ...view, ...patch })
 
   return (
     <>

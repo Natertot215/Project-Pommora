@@ -5,6 +5,7 @@ import { IconsLeaf } from './IconsLeaf'
 import { ComponentsLeaf } from './ComponentsLeaf'
 import { GlassLeaf } from './GlassLeaf'
 import { InteractionsLeaf } from './InteractionsLeaf'
+import { SurfaceLab } from '@renderer/SurfacePM/SurfaceLab'
 
 // The leaf catalog — the single source of which leaves the showcase has. Adding a
 // component to the showcase is one entry here plus its leaf module; the sidebar and
@@ -34,7 +35,8 @@ export const LEAVES: readonly Leaf[] = [
   { id: 'icons', label: 'Icons', icon: 'shapes', section: 'foundations', render: () => <IconsLeaf /> },
   { id: 'components', label: 'Components', icon: 'tag', section: 'components', render: () => <ComponentsLeaf /> },
   { id: 'glass', label: 'Glass', icon: 'layers', section: 'materials', render: () => <GlassLeaf /> },
-  { id: 'interactions', label: 'Interaction Lab', icon: 'arrow-up-down', section: 'interactions', render: () => <InteractionsLeaf /> }
+  { id: 'interactions', label: 'Interaction Lab', icon: 'arrow-up-down', section: 'interactions', render: () => <InteractionsLeaf /> },
+  { id: 'surfacepm', label: 'SurfacePM Lab', icon: 'layout-dashboard', section: 'interactions', render: () => <SurfaceLab /> }
 ]
 
 /** Resolve a hash id to a leaf, falling back to the first leaf. */

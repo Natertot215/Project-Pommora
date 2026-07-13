@@ -32,7 +32,10 @@
    the trailing 1fr filler track eat slack. zoom is the Compact density knob. */
 .table-grid {
   width: 100%;
-  zoom: var(--zoom); /* Chromium resolves % zoom-aware, so width:100% still fills the pane */
+  /* Base density (--zoom) × the per-block Scale (--block-zoom, set on a SurfacePM tile; absent = 1). The
+     table scales as a unit within the tile's fixed inset. Chromium resolves % zoom-aware, so width:100%
+     still fills the pane; the drag/resize math reads the resolved `zoom` so hits stay 1:1. */
+  zoom: calc(var(--zoom) * var(--block-zoom, 1));
 }
 
 /* Header band + every data row share the column tracks; the final 1fr is the filler. Stretch (not center)
@@ -323,6 +326,7 @@
 .row-grip {
   position: absolute;
   left: calc(-1 * var(--gutter)); /* the views gutter, left of the grid (same lane as the chevron) */
+  width: var(--gutter); /* span the lane so justify-content centres the glyph in it, not flush-left */
   top: 50%;
   transform: translateY(-50%);
   display: inline-flex;
@@ -345,6 +349,10 @@
 .group-header-row {
   /* text weight comes from the text.body.emphasized alias on GroupHeader's span — no raw font-weight. */
   color: var(--text);
+  /* Base density only — NOT the per-block Scale. The band is a grid child of .table-grid, so it already
+     inherits the grid's compound zoom (base × --block-zoom); re-applying --block-zoom here would scale it
+     twice (--block-zoom²) and shrink group headers out of proportion with the rows. */
+  zoom: var(--zoom);
   padding-top: var(--group-gap-top); /* inter-section gap */
   padding-bottom: var(--cell-padding-y); /* matches data-cell vertical padding — gap before the first row */
 }
@@ -429,6 +437,7 @@
   /* In the views gutter, one --gutter left of the header content — which now starts flush on the grid
      (groupIndent has no cell-padding-x base), so the chevron lands in the grip lane. */
   left: calc(-1 * var(--gutter));
+  width: var(--gutter); /* span the lane so justify-content centres the chevron in it, not flush-left */
   top: 50%;
   transform: translateY(-50%);
   justify-content: center;

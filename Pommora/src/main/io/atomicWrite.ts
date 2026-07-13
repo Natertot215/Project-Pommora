@@ -7,14 +7,18 @@ import writeFileAtomic from 'write-file-atomic'
 import { readFile, rename, mkdir, stat } from 'node:fs/promises'
 import { join, basename } from 'node:path'
 import { isPlainObject } from '@shared/propertyValue'
+import { recordWrite } from './writeEcho'
 
-/** Atomically write a UTF-8 string to `filePath`. */
+/** Atomically write a UTF-8 string to `filePath`. Recorded for watcher echo
+ *  suppression — the app's own writes never trigger its own re-walk. */
 export async function atomicWriteFile(filePath: string, data: string): Promise<void> {
+  recordWrite(filePath)
   await writeFileAtomic(filePath, data, { encoding: 'utf8' })
 }
 
 /** Atomically write raw bytes to `filePath` (binary siblings of the UTF-8 writer). */
 export async function atomicWriteBinary(filePath: string, data: Buffer): Promise<void> {
+  recordWrite(filePath)
   await writeFileAtomic(filePath, data)
 }
 

@@ -47,3 +47,13 @@ const TablerProgressCheck = IconProgressCheck as unknown as LucideIcon
 export const ProgressCheck = forwardRef<SVGSVGElement, LucideProps>(({ size = 24, ...rest }, ref) => (
   <TablerProgressCheck ref={ref} size={scaleTabler(size)} {...rest} />
 )) as unknown as LucideIcon
+
+
+// ── The lock (Nathan-supplied glyph) — solid rounded body + thick shackle, drawn to his
+// reference image's proportions (body ~15/24 wide, shackle stroke ~2.6). Fill-based.
+export const LockSolid = forwardRef<SVGSVGElement, LucideProps>(({ size = 24, color, ...rest }, ref) => (
+  <svg ref={ref} width={size} height={size} viewBox="0 0 24 24" fill="none" {...rest}>
+    <path d="M7.2 12 V7.7 a4.8 4.8 0 0 1 9.6 0 V12" stroke="currentColor" strokeWidth="2.6" fill="none" />
+    <rect x="4.5" y="10.6" width="15" height="10.8" rx="2.6" fill="currentColor" stroke="none" />
+  </svg>
+)) as unknown as LucideIcon

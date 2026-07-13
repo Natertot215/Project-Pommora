@@ -15,6 +15,9 @@ const solid = colorVars.color.solid
 const chipBase = style([
   text.control.semibold,
   {
+    // THE chip-size knob — scales every chip shape (pill/label/context/capsule/box)
+    // everywhere; set --chip-zoom on any scope (or :root) to retune. Default 1.
+    zoom: 'var(--chip-zoom, 0.9)',
     display: 'inline-flex',
     alignItems: 'center',
     justifyContent: 'center',

@@ -43,6 +43,9 @@ export type MutateRequest =
   // into `.nexus/assets/<nexusID>/profile-<token>.<ext>` + record the rel path in
   // `settings.profile_image`; null ⇒ clear the field + delete the file. Matches Swift.
   | { op: 'setProfileImage'; dataUrl: string | null }
+  // Set/clear the nexus glyph icon (the identity fallback when no photo is set) in
+  // `settings.profile_icon`. A symbol-registry name (e.g. "house"); null ⇒ clear the field.
+  | { op: 'setProfileIcon'; icon: string | null }
   // Set the nexus profile subtitle (≤30 chars, enforced) in `settings.profile_subtitle`. Parked: the
   // sidebar NexusHeader that edited it is gone (ribbon rework); the field + op are retained for the
   // eventual homepage/settings surface — NOT dead code.
@@ -51,6 +54,9 @@ export type MutateRequest =
   // banner.<ext>` + record that path in the owner's config (folder sidecar, homepage.json, or — for
   // a page — the `cover` key in its `.md` frontmatter); null ⇒ clear the field + delete the file.
   | { op: 'setBanner'; path: string; kind: BannerOwnerKind; dataUrl: string | null }
+  // Hide or show an entity's banner-heading icon (G-4 chrome) — a `heading_icon_hidden` boolean in the
+  // owner's config (folder sidecar or homepage.json; absent = shown). `true` hides, `false` clears it.
+  | { op: 'setHeadingIconHidden'; path: string; kind: BannerOwnerKind; hidden: boolean }
   // Set or clear an entity's icon — a bare symbol id (any Lucide id). A page carries it in its `.md`
   // frontmatter `icon`; a container/context in its JSON sidecar. `null` clears the field. The one write
   // for every entity kind that has an icon (pages, collections, sets, and the three context tiers);

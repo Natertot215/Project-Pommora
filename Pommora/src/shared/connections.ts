@@ -15,9 +15,20 @@ export function normalizeTitle(raw: string): string {
 
 /** A fresh global regex matching `[[Title]]` / `[[Title|legacy]]` (pipe segment dropped),
  *  excluding `![[ ]]` image embeds. `[[ ]]` is the only connection syntax. Returned fresh
- *  per call so callers never share `lastIndex`. Capture group 1 = the raw title. */
+ *  per call so callers never share `lastIndex`. Capture group 1 = the raw title.
+ *
+ *  The title tolerates internal brackets — `[[Notes [WIP] final]]` captures `Notes [WIP] final`
+ *  — by treating a `]` as content unless it's the closing `]]` pair (`\](?!\])`). A title ending
+ *  in `]` (`[[Notes [WIP]]]`) is the one irreducible ambiguity of the `[[ ]]` grammar (`]]]` could
+ *  split either way): it degrades to a recognized phantom, never corrupts the surrounding text. `|`
+ *  stays the legacy-alias delimiter, so it can't appear in a title.
+ *
+ *  Title + alias are length-capped at 255 (the filesystem name limit — a longer title can't name a
+ *  real page anyway). The cap is load-bearing, not cosmetic: allowing `[` in the class made an
+ *  unclosed `[`-run backtrack quadratically at every `[[` start, so an unbounded `+` here is a
+ *  ReDoS that freezes buildIndex + the live tokenizer on a pathological body. */
 export function pageLinkPattern(): RegExp {
-  return /(?<!!)\[\[([^[\]\r\n|]+)(?:\|[^\]\r\n]*)?\]\]/g
+  return /(?<!!)\[\[((?:[^\]\r\n|]|\](?!\])){1,255})(?:\|[^\]\r\n]{0,255})?\]\]/g
 }
 
 /** A `[[Title]]` occurrence found in a body, aggregated by normalized title. */

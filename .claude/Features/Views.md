@@ -57,8 +57,8 @@ Grouping is **shipped for tables** — the pane, the pipeline mechanics, and the
 
 **View-Settings Editing Panes:** The **Filter authoring pane** (the engine ships — the pipeline applies any stored filter with the full operator/target matrix — but the pane UI was pulled for a design redo; the leaf is blank until it's rebuilt, spec preserved in the decision log), and the Layout leaf's order + visibility section (which folds the Visibility pane in, gated on its own design). The Format control persists Standard / Compact but is visually inert until the Compact table style lands.
 
-**ViewBar:** The `view_style` Toolbar option — an inline view-switcher bar as an alternative to the dropdown. The setting persists; the surface builds later.
+**ViewBar:** The `view_style` Toolbar option — an inline view-switcher bar as an alternative to the dropdown. The setting persists; the surface builds later. View embeds mirror the same duality in their header switcher (→ [[SurfacePM]]).
 
 ### Prospects
 
-**In-Line View Embeds in Pages:** A saved view embedded as a live widget inside a Page body. Block-host surfaces get embeds — Linked + Custom view tiles, → `Planning/7-10 - Block Surfaces — Decision Log.md`; Page bodies don't.
+**In-Line View Embeds in Pages:** A saved view embedded as a live widget inside a Page body. Block-host surfaces get embeds — Linked + Custom view tiles, → [[SurfacePM]]; Page bodies don't.

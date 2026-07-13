@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { Icon, icons, type IconName, defaultEntityIcon } from '@renderer/design-system/symbols'
+import { Icon, icons, type IconName, defaultEntityIcon, iconNameOr } from '@renderer/design-system/symbols'
 import { lucideGlyph } from '@renderer/design-system/symbols/AllSymbols'
 import { text } from '@renderer/design-system/tokens'
 import { cx } from '@renderer/design-system/cx'
@@ -334,14 +334,14 @@ function CollectionRow({ col, depth, selection, onSelectCollection, onSelectSet,
 
 // A context leaf (Area / Topic / Project) — a draggable row reordered within its tier disclosure
 // (depth 1, under the tier header). Every tier uses the grid icon.
-function ContextRow({ node }: { node: { id: string; title: string; path: string; kind: MutableKind } }): React.JSX.Element {
+function ContextRow({ node }: { node: { id: string; title: string; path: string; kind: MutableKind; icon?: string } }): React.JSX.Element {
   const select = useSession((s) => s.select)
   const selected = useSession((s) => s.selection.kind === 'context' && s.selection.id === node.id)
   const defaultIcons = useSession((s) => s.personalization.defaultIcons)
   return (
     <DragRow id={node.id}>
       <Leaf
-        icon={defaultEntityIcon(node.kind as EntityIconKind, defaultIcons)}
+        icon={iconNameOr(node.icon, defaultEntityIcon(node.kind as EntityIconKind, defaultIcons))}
         title={node.title}
         depth={1}
         selected={selected}
@@ -361,10 +361,30 @@ const TIER_ICON_KIND: Record<'areas' | 'topics' | 'projects', EntityIconKind> = 
   topics: 'topic',
   projects: 'project'
 }
-function TierDisclosure({ tierKey, label, children }: { tierKey: 'areas' | 'topics' | 'projects'; label: string; children: React.ReactNode }): React.JSX.Element {
+const TIER_NUM: Record<'areas' | 'topics' | 'projects', 1 | 2 | 3> = { areas: 1, topics: 2, projects: 3 }
+function TierDisclosure({
+  tierKey,
+  label,
+  singular,
+  children
+}: { tierKey: 'areas' | 'topics' | 'projects'; label: string; singular: string; children: React.ReactNode }): React.JSX.Element {
   const defaultIcons = useSession((s) => s.personalization.defaultIcons)
+  // Right-click the tier → create into THAT tier (the collection/set row's own right-click idiom),
+  // instead of the global three-way menu that never scoped to a tier.
+  const onCreate = (): void => {
+    void window.nexus.popCreateMenu([
+      { label: `New ${singular}`, req: { op: 'createContext', tier: TIER_NUM[tierKey], name: DEFAULT_NEW_NAME } }
+    ])
+  }
   return (
-    <Disclosure icon={defaultEntityIcon(TIER_ICON_KIND[tierKey], defaultIcons)} title={label} depth={0} defaultOpen persistKey={`tier:${tierKey}`}>
+    <Disclosure
+      icon={defaultEntityIcon(TIER_ICON_KIND[tierKey], defaultIcons)}
+      title={label}
+      depth={0}
+      defaultOpen
+      persistKey={`tier:${tierKey}`}
+      onContextMenu={onCreate}
+    >
       {children}
     </Disclosure>
   )
@@ -442,17 +462,17 @@ export function Sidebar({ tree }: { tree: NexusTree }): React.JSX.Element {
   const contextsLayer = (
     <SidebarDnd tree={tree} onCommit={onCommit} setPlacement={setPlacement} subSetPlacement={subSetPlacement}>
       <div className="section">
-        <TierDisclosure tierKey="areas" label={tree.labels.area.plural}>
+        <TierDisclosure tierKey="areas" label={tree.labels.area.plural} singular={tree.labels.area.singular}>
           {tree.contexts.areas.map((a: AreaNode) => (
             <ContextRow key={a.id} node={a} />
           ))}
         </TierDisclosure>
-        <TierDisclosure tierKey="topics" label={tree.labels.topic.plural}>
+        <TierDisclosure tierKey="topics" label={tree.labels.topic.plural} singular={tree.labels.topic.singular}>
           {tree.contexts.topics.map((t: TopicNode) => (
             <ContextRow key={t.id} node={t} />
           ))}
         </TierDisclosure>
-        <TierDisclosure tierKey="projects" label={tree.labels.project.plural}>
+        <TierDisclosure tierKey="projects" label={tree.labels.project.plural} singular={tree.labels.project.singular}>
           {tree.contexts.projects.map((p: ProjectNode) => (
             <ContextRow key={p.id} node={p} />
           ))}

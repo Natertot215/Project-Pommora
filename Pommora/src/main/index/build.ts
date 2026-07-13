@@ -25,6 +25,7 @@ import type { CollectionNode, SetNode } from '@shared/types'
 import { openIndex } from './open'
 import { stampSchemaVersion } from './schema'
 import { transact, type Db } from './db'
+import { listBlockBodies } from '../blocks'
 import {
   upsertCollection,
   upsertSet,
@@ -34,7 +35,8 @@ import {
   upsertAgendaTask,
   upsertAgendaEvent,
   replaceContextLinks,
-  replaceConnections
+  replaceConnections,
+  replaceBlockConnections
 } from './upsert'
 
 const EPOCH = '1970-01-01T00:00:00.000Z'
@@ -290,6 +292,8 @@ export async function buildIndex(db: Db, nexusRoot: string): Promise<void> {
   const agenda = await collectAgenda(nexusRoot)
   const registry = await readRegistry(nexusRoot)
   const linkIndex = buildLinkIndex(data.pages.map((p) => ({ id: p.id, title: p.title })))
+  // Block bodies are read async (off the sync transaction), then their edges upserted inside it.
+  const blockBodies = await listBlockBodies(nexusRoot)
 
   transact(db, () => {
     for (const c of data.contexts) upsertContext(db, c)
@@ -324,6 +328,20 @@ export async function buildIndex(db: Db, nexusRoot: string): Promise<void> {
           modifiedAt: p.modifiedAt
         }))
       replaceConnections(db, p.id, conns)
+    }
+
+    // Markdown-block [[links]] are block-source edges (D-11 bodies carry no title, so no self-link
+    // to skip). Keyed by the block's ulid, resolved against the same page link index.
+    for (const blk of blockBodies) {
+      const conns = connectionEdges(blk.id, blk.body, linkIndex).map((e) => ({
+        id: `${blk.id}:${e.normalizedTitle}`,
+        targetId: e.targetId,
+        targetTitle: e.normalizedTitle,
+        multiplicity: e.multiplicity,
+        resolved: e.status === 'resolved',
+        modifiedAt: blk.modifiedAt
+      }))
+      replaceBlockConnections(db, blk.id, conns)
     }
 
     for (const t of agenda.tasks) {

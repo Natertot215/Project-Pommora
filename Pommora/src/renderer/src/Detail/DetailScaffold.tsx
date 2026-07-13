@@ -1,5 +1,5 @@
 import { Banner } from './Banner/Banner'
-import type { BannerOwner } from './Scope'
+import { isSurfaceKind, type BannerOwner } from './Scope'
 
 /**
  * The shared detail surface (Swift: ViewSurface): a full-bleed banner (or, banner-less, a title
@@ -14,7 +14,7 @@ export function DetailScaffold({
   children?: React.ReactNode
 }): React.JSX.Element {
   return (
-    <div className={'detail-scroll' + (owner ? ' has-header' : '')}>
+    <div className={'detail-scroll' + (owner ? ' has-header' : '') + (owner && isSurfaceKind(owner.kind) ? ' is-surface' : '')}>
       {owner ? <Banner owner={owner} /> : null}
       <div className="detail-body">{children}</div>
     </div>

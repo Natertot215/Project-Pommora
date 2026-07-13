@@ -55,11 +55,27 @@
 }
 /* A table content-view (collection/set): the banner scrolls away with the rows, and the body carries
    the views gutter (grips + group chevrons) carved from the inset — grid still lands on --content-inset
-   (page-consistent) — with the heading band flush under the banner divider. */
-.detail-scroll.has-header .detail-body:has(.table-head) {
+   (page-consistent) — with the heading band flush under the banner divider. Scoped OFF block surfaces:
+   a homepage/context tile that merely embeds a view carries a `.table-head` deep inside, and this flush
+   treatment is for a WHOLE-PAGE table, never a surface that only contains one. */
+.detail-scroll.has-header .detail-body:has(.table-head):not(:has(.blk-surface)) {
   --fold-gutter: 20px;
   padding-top: 0;
   padding-left: calc(var(--content-inset) - var(--fold-gutter));
+}
+/* A block-based surface (Homepage, contexts): tiles run the tight --surface-inset (8px gutter lane)
+   instead of the content inset + fold-gutter — the tile handles supply the grip/chevron actions, so no
+   reserved lane is needed. Driven by kind (is-surface), so a context with no live block surface still
+   insets tight and its body stays aligned with its banner. */
+.detail-scroll.is-surface .detail-body {
+  padding-left: var(--surface-inset);
+  padding-right: var(--surface-inset-right);
+}
+/* Under a banner the tiles clear it by the SAME tight tile gutter they run on the sides (the 8px
+   inter-tile rhythm) — uniform all around, and never the container-table flush above. KNOB: the
+   banner→first-tile clearance. */
+.detail-scroll.has-header.is-surface .detail-body {
+  padding-top: 8px;
 }
 
 /* During an edge-drag resize, track the cursor 1:1 (no easing lag). */

@@ -37,6 +37,14 @@ export function contextTierDir(root: string, tier: ContextTier): string {
   return join(nexusDir(root), tier)
 }
 
+/** The homepage block host's content folder — its markdown-block `.md` files live here
+ *  (distinct from the `homepage.json` config file). Real hosts use their own folders. */
+export const HOMEPAGE_HOST_DIRNAME = 'homepage'
+
+export function blockHostDir(root: string, _host: { kind: 'homepage' }): string {
+  return join(nexusDir(root), HOMEPAGE_HOST_DIRNAME)
+}
+
 export const NEXUS_CONFIG_FILES = {
   identity: 'nexus.json',
   settings: 'settings.json',

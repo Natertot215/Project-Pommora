@@ -18,11 +18,11 @@ Each tier is a **folder with a config sidecar** under `.nexus/` — the same fol
 
 All three tiers share one sidecar shape: `id` (ULID), `tier` (1 / 2 / 3), an optional `icon`, an optional `banner` (a Nexus-relative image path), `modified_at`, and any foreign keys preserved by value. **Areas additionally carry an optional `color`** drawn from a fixed ten-value palette (gray, brown, orange, yellow, green, blue, purple, pink, red, accent); an unrecognized value degrades to no color rather than failing the sidecar. Topics and Projects carry no color.
 
-There's no `parents` field and no containment. The folder name is the title — there's no `title` field on disk, and renaming in the UI renames the folder. A `blocks` field, if present, rides through as a preserved foreign key — the composed-blocks surface it's reserved for is Pending.
+There's no `parents` field and no containment. The folder name is the title — there's no `title` field on disk, and renaming in the UI renames the folder. A `blocks` field, if present, rides through as a preserved foreign key — the block-surface system it's reserved for is built ([[SurfacePM]]); whether Contexts host it rides the contexts-architecture pass.
 
 #### II. Sidebar
 
-In the sidebar's **Contexts mode** (opened from the ribbon), the three tiers surface as three disclosure rows, top to bottom Areas → Topics → Projects. A tier row is a structural disclosure — never selectable, open by default, and clicking it toggles its own disclosure only. Each tier's entities render as flat, draggable leaf rows inside it, reordered within the tier. All three tiers' entities use the grid icon.
+In the sidebar's **Contexts mode** (opened from the ribbon), the three tiers surface as three disclosure rows, top to bottom Areas → Topics → Projects. A tier row is a structural disclosure — never selectable, open by default, and clicking it toggles its own disclosure only. Each tier's entities render as flat, draggable leaf rows inside it, reordered within the tier. All three tiers' entities default to the grid icon; a per-entity icon overrides it.
 
 Tier labels read from the per-Nexus label settings. Creation is a right-click in the Contexts mode area — a native picker offering New Area / Topic / Project, each scoped to its own tier. Full sidebar layout → `Sidebar.md`.
 
@@ -76,7 +76,7 @@ The SQLite index — a regeneratable accelerator off the read path — holds a `
 
 ### Pending
 
-**Context Block Surfaces:** The Context detail view is a placeholder — a blank surface under the banner. The block-surface system is spec'd host-agnostic (→ `Planning/7-10 - Block Surfaces — Decision Log.md`); whether and how Contexts host block surfaces rides the contexts-architecture pass. The reserved `blocks` field rides through as a preserved foreign key until then.
+**Context Block Surfaces:** The Context detail view is a placeholder — a blank surface under the banner. The block-surface system is built host-agnostic ([[SurfacePM]] — live on the Homepage dev host); whether and how Contexts host it rides the contexts-architecture pass. The reserved `blocks` field rides through as a preserved foreign key until then.
 
 **Linked-From:** The inbound reverse query (`context_links` by target) is indexed, but the surface that lists every entity tagging a Context — grouped by kind — isn't built.
 

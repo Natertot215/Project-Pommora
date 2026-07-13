@@ -6,7 +6,7 @@ import type { Option } from '@shared/optionModel'
 import type { ColumnStyle } from '@shared/columnStyles'
 import type { CollectionNode, SetNode } from '@shared/types'
 import { useActiveView } from '../../Detail/Views/useActiveView'
-import { saveViewAdopting } from '../../Detail/Views/viewMint'
+import { useSaveView } from '@renderer/Embeds/ViewEmbedScope'
 import { styleFor } from '../../Detail/Views/Table/columnStyles'
 import { DateTimeEditor } from './DateTimeEditor'
 import { CheckboxEditor } from './CheckboxEditor'
@@ -163,6 +163,7 @@ export function PropertiesPane({
   source: CollectionNode | SetNode
 }): React.JSX.Element {
   const load = useSession((st) => st.load)
+  const saveView = useSaveView(source, load)
   const { view: activeView } = useActiveView(source, schema)
   const registry = useSession((st) => st.tree?.registry) ?? []
   const accent = useSession((st) => st.tree?.accent)
@@ -268,7 +269,7 @@ export function PropertiesPane({
   // (through the one view writer), NOT the nexus property def. Merges per-key like the column menu.
   const saveColumnStyle = (propId: string, patch: Partial<ColumnStyle>): void => {
     const next = { ...activeView.column_styles?.[propId], ...patch }
-    void saveViewAdopting(source, { ...activeView, column_styles: { ...activeView.column_styles, [propId]: next } }, load)
+    void saveView({ ...activeView, column_styles: { ...activeView.column_styles, [propId]: next } })
   }
   const renameOption = async (id: string, oldValue: string, newTitle: string): Promise<void> => {
     await commit(await window.nexus.property.renameOption(id, oldValue, newTitle))

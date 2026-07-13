@@ -153,27 +153,36 @@ export function replaceContextLinks(
   }
 }
 
-/** Replace all body connections for one (page) source. target_id is null while phantom;
- *  source/target kind + surface are fixed (connections are page-body→page). */
-export function replaceConnections(
-  db: Db,
-  sourceId: string,
-  conns: { id: string; targetId?: string; targetTitle: string; multiplicity: number; resolved: boolean; modifiedAt: string }[]
-): void {
+type ConnInput = { id: string; targetId?: string; targetTitle: string; multiplicity: number; resolved: boolean; modifiedAt: string }
+
+/** Replace one source's body connections (delete-then-insert per source). target is always a page
+ *  (target_id null while phantom); source_kind + surface distinguish a page body from a block body. */
+function replaceConnectionsFor(db: Db, sourceId: string, sourceKind: string, surface: string, conns: ConnInput[]): void {
   db.prepare('DELETE FROM connections WHERE source_id = ?').run(sourceId)
   for (const c of conns) {
     upsertRow(db, 'connections', {
       id: c.id,
       source_id: sourceId,
-      source_kind: 'page',
+      source_kind: sourceKind,
       target_id: c.targetId ?? null,
       target_kind: 'page',
       target_title: c.targetTitle,
-      surface: 'page_body',
+      surface,
       multiplicity: c.multiplicity,
       weight: 1.0,
       resolved: c.resolved ? 1 : 0,
       modified_at: c.modifiedAt
     })
   }
+}
+
+/** Replace all body connections for one page source (page-body → page). */
+export function replaceConnections(db: Db, sourceId: string, conns: ConnInput[]): void {
+  replaceConnectionsFor(db, sourceId, 'page', 'page_body', conns)
+}
+
+/** Replace all connections for one markdown-block source (block-body → page) — a block's `[[links]]`
+ *  are first-class edges, keyed by the block's own ulid (distinct from any page id, so no collision). */
+export function replaceBlockConnections(db: Db, blockId: string, conns: ConnInput[]): void {
+  replaceConnectionsFor(db, blockId, 'block', 'block_body', conns)
 }

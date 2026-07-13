@@ -7,7 +7,7 @@ import { MenuItem, MenuSeparator, MenuPaneTopRow, MenuScrollFrame, AccessoryButt
 import { detail, flushTrailing, footingLabel, footingSymbol, side } from '../../design-system/components/menu/menu.css'
 import { PickerMenu } from '../../design-system/components/PickerMenu'
 import { useSession } from '../../store'
-import { saveViewAdopting } from '../../Detail/Views/viewMint'
+import { useSaveView } from '@renderer/Embeds/ViewEmbedScope'
 import { InlineEditHeader } from './InlineEditHeader'
 import { VisibilityList } from './HiddenPane'
 import { LayoutToggles } from './LayoutToggles'
@@ -82,7 +82,8 @@ export function ViewSettings({
   const canDelete = views.length > 1 && view.id !== DEFAULT_VIEW_ID
   const format: ViewFormat = view.format ?? 'standard'
 
-  const write = (patch: Partial<SavedView>): void => void saveViewAdopting(source, { ...view, ...patch }, load)
+  const saveView = useSaveView(source, load)
+  const write = (patch: Partial<SavedView>): void => void saveView({ ...view, ...patch })
   const rename = (name: string): void => {
     if (name && name !== view.name) write({ name })
   }
@@ -217,9 +218,14 @@ export function ViewSettings({
 
   const mainFrame = (
     <MenuScrollFrame header={header} footer={formatRow} maxHeight={VIEWSETTINGS_MAX_HEIGHT}>
-      {/* Click-to-edit title (no auto-focus/select on open) — shared with the container header. */}
-      {title}
-      <MenuSeparator flush />
+      {/* The full door carries its own click-to-edit identity; the flat door (SettingsPane → Layout)
+          drops it — the TopRow already names the view, so a second title + divider is redundant. */}
+      {door === 'full' && (
+        <>
+          {title}
+          <MenuSeparator flush />
+        </>
+      )}
       {grid}
       {view.type === 'table' &&
         (door === 'full' ? (

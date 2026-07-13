@@ -10,7 +10,8 @@ import type { BrowserWindow } from 'electron'
 import { asStringArray } from './coerce'
 import { excludedMatcher } from './exclusion'
 import { readJsonObject } from './io/atomicWrite'
-import { nexusConfig, NEXUS_CONFIG_FILES } from './paths'
+import { isRecentWrite } from './io/writeEcho'
+import { HOMEPAGE_HOST_DIRNAME, nexusConfig, NEXUS_CONFIG_FILES } from './paths'
 import { readNexus } from './readNexus'
 import { sessionRoot } from './session'
 
@@ -39,7 +40,12 @@ export function ignoredUnder(root: string, excluded: string[] = []): (path: stri
           seg === '.trash' || // deleted items — not part of the tree
           seg.startsWith('index.db') || // SQLite index + its WAL/SHM — churns on every mutation
           (seg.startsWith('.') && seg !== '.nexus') // dotfile cruft, but .nexus holds contexts + settings
-      ) || isExcluded(segs)
+      ) ||
+      // Block-host content loads through blocks:get, never the tree walk (E-3) —
+      // a debounced block-body write must not cost a full re-walk. The
+      // homepage.json config FILE stays watched (the tree reads its banner).
+      (segs[0] === '.nexus' && segs[1] === HOMEPAGE_HOST_DIRNAME) ||
+      isExcluded(segs)
     )
   }
 }
@@ -57,7 +63,11 @@ export async function startWatcher(root: string, win: BrowserWindow): Promise<vo
     awaitWriteFinish: { stabilityThreshold: SETTLE_MS, pollInterval: 50 },
     atomic: true // coalesce the mv-_tmp atomic writes our writers use
   })
-  const onEvent = (): void => {
+  const onEvent = (path: string): void => {
+    // The app's own atomic writes echo back here — skip them: every tree-relevant
+    // in-app write refetches explicitly, so the echo only buys a wasted full walk
+    // (hot under block gestures + embed typing). External edits still walk.
+    if (isRecentWrite(path)) return
     if (debounce) clearTimeout(debounce)
     debounce = setTimeout(() => void push(root, win), SETTLE_MS)
   }

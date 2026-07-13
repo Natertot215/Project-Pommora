@@ -117,6 +117,19 @@ export interface Personalization {
   sidebarMode?: SidebarMode
   /** Ribbon icon order below the pinned Homepage — bare icon keys, in display order. */
   ribbonOrder?: string[]
+  /** The window zoom the nexus opens at (and ⌘0 resets to). Absent = 1.0. Set by hand in
+   *  settings.json for now; ⌘ +/− nudge live from it. Applied main-side (webContents zoom). */
+  defaultViewScale?: number
+}
+
+/** The per-nexus default window zoom (`personalization.defaultViewScale`). Clamped so a hand-typed
+ *  settings.json value can't make the window unusable; absent/invalid → 1.0 (100%). */
+export const VIEW_SCALE_DEFAULT = 1
+export const VIEW_SCALE_MIN = 0.5
+export const VIEW_SCALE_MAX = 3
+export function coerceViewScale(v: unknown): number {
+  if (typeof v !== 'number' || !Number.isFinite(v)) return VIEW_SCALE_DEFAULT
+  return Math.min(VIEW_SCALE_MAX, Math.max(VIEW_SCALE_MIN, v))
 }
 
 /** Nexus-wide keyboard commands — the `commands` object in `.nexus/settings.json`. Keys are
@@ -149,6 +162,9 @@ export interface PathNode extends BaseNode {
    *  owners (Collections/Sets + contexts) populate it, surfaced from the sidecar `banner` field
    *  (a page's future banner rides here too — distinct from the page-level `cover`). */
   banner?: string
+  /** The banner-heading icon is hidden (G-4 show/hide chrome), from the sidecar `heading_icon_hidden`.
+   *  Absent/false = shown. */
+  headingIconHidden?: boolean
 }
 
 export interface SavedNode extends BaseNode {
@@ -242,9 +258,12 @@ export interface NexusTree {
   /** `name` is the root folder's basename (filename = title). `profileImage` is a
    *  nexus-relative path into `.nexus/assets/<id>/` (or null) and `profileSubtitle` a
    *  ≤30-char blurb — both from `.nexus/settings.json`, matching Swift (not nexus.json). */
-  nexus: { id: string; rootPath: string; name: string; profileImage: string | null; profileSubtitle: string }
-  /** Homepage singleton (`.nexus/homepage.json`) — v1 surfaces just its optional banner. */
-  homepage: { banner?: string }
+  nexus: { id: string; rootPath: string; name: string; profileImage: string | null; profileIcon?: string; profileSubtitle: string }
+  /** Homepage singleton (`.nexus/homepage.json`) — its optional banner plus the board
+   *  lock (G-3): the block doc's heavy layout/blocks stay off the walk (loaded lazily by
+   *  useBlockDoc), but the single `blocks_locked` boolean rides here like `banner` so the
+   *  store can seed the freeze without a second read. Absent = unlocked. */
+  homepage: { banner?: string; locked: boolean; headingIconHidden: boolean }
   saved: SavedNode[]
   contexts: {
     projects: ProjectNode[]

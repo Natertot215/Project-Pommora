@@ -121,6 +121,11 @@ interface SessionState {
   /** Switch a container's active view: persist to `.nexus/activeViews.json`, then update the slice
    *  (no tree reload — the pointer isn't in the tree). */
   setActiveView: (containerId: string, viewId: string) => Promise<void>
+  /** The homepage board lock (G-3), seeded from `tree.homepage.locked` on every applyTree and
+   *  the single cross-subtree source: the toolbar-dropdown SettingsPane toggles it, the detail-pane
+   *  BlockSurface reads it to freeze the board (a React scope can't bridge the two subtrees). */
+  homepageLocked: boolean
+  setHomepageLocked: (v: boolean) => Promise<void>
   load: () => Promise<void>
   /** Swap in a freshly-read tree (from load() or the live watcher): set it, reconcile the selection, re-apply accent. */
   applyTree: (tree: NexusTree) => Promise<void>
@@ -170,6 +175,12 @@ interface SessionState {
   mutate: (req: MutateRequest, onCreated?: (created: { id: string; path: string }) => void | Promise<void>) => Promise<boolean>
 }
 
+// Homepage-lock writes in flight. applyTree reseeds `homepageLocked` from the canonical tree on
+// every push, but the lock's own write is echo-suppressed (no self-push) — so an UNRELATED push
+// landing mid-write would read the pre-commit homepage.json and revert the optimistic value with no
+// follow-up push to heal it. While a local write is in flight we trust the optimistic value instead.
+let homepageLockWritesInFlight = 0
+
 export const useSession = create<SessionState>((set, get) => {
   // Shared "open attempt" path for the picker and drag-to-open: run the bridge
   // call; on success re-read state via load() (one read path). A rejected bridge
@@ -212,6 +223,18 @@ export const useSession = create<SessionState>((set, get) => {
     status: 'idle',
     tree: null,
     error: undefined,
+    homepageLocked: false,
+    // Optimistic + persist; the in-flight counter fences the applyTree reseed against a concurrent
+    // unrelated push (see homepageLockWritesInFlight). The disk write self-suppresses at the watcher.
+    setHomepageLocked: async (v) => {
+      homepageLockWritesInFlight++
+      set({ homepageLocked: v })
+      try {
+        await window.nexus.blocks.save({ kind: 'homepage' }, { locked: v })
+      } finally {
+        homepageLockWritesInFlight--
+      }
+    },
     load: async () => {
       // Only show the full-screen loading state on the FIRST load (nothing on screen yet).
       // A refetch after a mutation keeps the tree mounted, so the sidebar's expand/collapse
@@ -283,6 +306,7 @@ export const useSession = create<SessionState>((set, get) => {
       applySystemAccent(systemColor)
       set({ personalization: tree.personalization, commands: tree.commands ?? DEFAULT_COMMANDS })
       applyPersonalization(tree.personalization)
+      if (homepageLockWritesInFlight === 0) set({ homepageLocked: tree.homepage.locked })
     },
 
     // Native folder picker; on a pick, the session changed → re-read.

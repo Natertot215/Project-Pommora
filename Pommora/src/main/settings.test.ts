@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { mkdtemp, rm, mkdir, writeFile, readFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { ensureSettings, updateSettings } from './settings'
+import { ensureSettings, readDefaultViewScale, updateSettings } from './settings'
 import { nexusDir, nexusConfig, NEXUS_CONFIG_FILES } from './paths'
 
 let root: string
@@ -70,5 +70,32 @@ describe('updateSettings — serialized RMW (G-1)', () => {
     const s = await readSettings()
     expect([s.a, s.b, s.c, s.d]).toEqual([1, 2, 3, 4])
     assertFullSettings(s) // the seed keys survived the concurrent writes too
+  })
+})
+
+describe('readDefaultViewScale', () => {
+  it('defaults to 1.0 when the file or the key is absent', async () => {
+    expect(await readDefaultViewScale(root)).toBe(1) // no settings.json at all
+    await write({ personalization: {} })
+    expect(await readDefaultViewScale(root)).toBe(1) // present, key absent
+  })
+
+  it('returns a valid in-range scale', async () => {
+    await write({ personalization: { defaultViewScale: 1.25 } })
+    expect(await readDefaultViewScale(root)).toBe(1.25)
+  })
+
+  it('clamps out-of-range values so a typo cannot brick the window', async () => {
+    await write({ personalization: { defaultViewScale: 125 } })
+    expect(await readDefaultViewScale(root)).toBe(3) // MAX
+    await write({ personalization: { defaultViewScale: 0.1 } })
+    expect(await readDefaultViewScale(root)).toBe(0.5) // MIN
+  })
+
+  it('falls back to 1.0 on a non-numeric or malformed value', async () => {
+    await write({ personalization: { defaultViewScale: 'big' } })
+    expect(await readDefaultViewScale(root)).toBe(1)
+    await write({ personalization: 'nope' })
+    expect(await readDefaultViewScale(root)).toBe(1)
   })
 })

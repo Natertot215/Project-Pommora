@@ -29,12 +29,14 @@
 .banner-title {
   position: absolute;
   bottom: 12px;
-  left: var(--content-inset);
+  /* Every banner title sits on the tight --surface-banner-inset (12px), content and surface views alike
+     (Nathan's call) — the title hugs the block gutter even when the body carries the wider fold-gutter. */
+  left: var(--surface-banner-inset);
   right: 28px;
   display: flex;
   align-items: center;
   gap: 8px; /* the shared detail-title icon gap */
-  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.55);
+  text-shadow: 0 1px 4px #0000008c;
   pointer-events: none;
   transition: left var(--duration-base) var(--ease-standard);
 }
@@ -43,6 +45,15 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  /* The EditableInput shares this class, so the rename reads exactly like the title it replaces — the
+     borderless view-banner style (DRY with DetailTitleHeader's .detail-title-input), no default box. */
+  border: none;
+  outline: none;
+  background: transparent;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: inherit;
 }
 /* Non-homepage banners host the shared DetailTitleHeader (right-click → Rename / Edit Icon,
    inline rename). The banner overlay is pointer-inert; only the header's icon + text re-enable
@@ -66,6 +77,38 @@
   font-weight: var(--weight-semibold);
   color: var(--text);
 }
+/* The homepage identity icon leads its title (photo or glyph), sized to the title glyph. It and the
+   title re-enable pointer hits (the overlay is otherwise inert) so their right-click reaches the
+   Hide/Show-Icon menu and the title's double-click rename fires. */
+.banner-home-icon {
+  width: var(--detail-title-size, 20px);
+  height: var(--detail-title-size, 20px);
+  max-width: var(--detail-title-size, 20px);
+  min-width: 0;
+  flex: 0 0 auto;
+  border-radius: 5px;
+  object-fit: cover;
+  overflow: hidden;
+  color: var(--text);
+  filter: drop-shadow(0 1px 4px #0000008c);
+  /* Hide/show slides the icon in/out on the slide token (--duration-base) — max-width collapses the
+     space, the translate carries it, and the negative margin swallows the banner-title gap. */
+  transition:
+    max-width var(--duration-base) var(--ease-standard),
+    opacity var(--duration-base) var(--ease-standard),
+    transform var(--duration-base) var(--ease-standard),
+    margin-right var(--duration-base) var(--ease-standard);
+}
+.banner-home-icon.is-hidden {
+  max-width: 0;
+  opacity: 0;
+  transform: translateX(-6px);
+  margin-right: -8px;
+}
+.banner.is-homepage .banner-home-icon,
+.banner.is-homepage .banner-title-text {
+  pointer-events: auto;
+}
 .shell.is-resizing .banner-title {
   transition: none;
 }
@@ -78,8 +121,9 @@
      Top pad clears the toolbar (glass-inset + 1px optical + toolbar-h) so the zone starts exactly at
      the toolbar's bottom edge, and the button centers vertically inside that zone (see .add-banner-strip). */
   --add-banner-zone: 44px;
+  /* Title on the unified 12px surface inset (matches the banner-image header's title). */
   padding: calc(var(--glass-inset) + 1px + var(--toolbar-h)) var(--content-inset-right) 14px
-    var(--content-inset);
+    var(--surface-banner-inset);
   /* Full-width divider below the title — content-views always carry it (banner or not), unlike
      pages' inset divider. The shared heading↔body seam, same as the banner image's bottom. */
   border-bottom: var(--border-heading);
@@ -89,6 +133,11 @@
 }
 .shell.is-resizing .banner-empty {
   transition: none;
+}
+/* A banner-less block surface tightens its header's RIGHT edge to match (the title's left is already the
+   unified surface inset; page/table headers keep the standard right). */
+.banner-empty.is-surface {
+  padding-right: var(--surface-banner-inset-right);
 }
 .banner-empty-title {
   line-height: 1.2;
@@ -116,7 +165,7 @@
   color: var(--text-dim);
   cursor: default;
   opacity: 0;
-  transition: opacity 180ms ease, color 180ms ease;
+  transition: opacity var(--duration-fast) var(--ease-standard), color var(--duration-fast) var(--ease-standard);
 }
 .add-banner-strip:hover .add-banner-btn,
 .add-banner-btn:focus-visible {

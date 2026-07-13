@@ -12,6 +12,7 @@ import type { z } from 'zod'
 import { newId } from '../ids'
 import { readSidecar, writeSidecar } from '../sidecarIO'
 import { trashWithTimestamp } from '../io/atomicWrite'
+import { recordWrite } from '../io/writeEcho'
 import { pathExists, invalidName } from './util'
 import type { SidecarKind } from '../paths'
 import { ok, fail, type Result } from '@shared/result'
@@ -29,6 +30,10 @@ export async function createFolderEntity(
   if (await pathExists(folder)) return fail('exists', `"${name}" already exists.`, kind)
   const id = newId()
   await mkdir(folder, { recursive: true })
+  // Suppress the new folder's addDir echo (the sidecar write self-suppresses via atomicWrite, the mkdir
+  // doesn't): the create already refetches explicitly, and an un-suppressed watcher swap mid-rename
+  // remounts the fresh row and drops the inline-rename keystrokes.
+  recordWrite(folder)
   await writeSidecar(folder, kind, { id, ...extra })
   return ok({ id, path: folder })
 }

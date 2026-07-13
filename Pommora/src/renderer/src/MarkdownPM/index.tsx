@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { docString } from "./editor/docCache";
 import { EditorView, keymap } from "@codemirror/view";
-import { Prec } from "@codemirror/state";
+import { Compartment, EditorState, Prec } from "@codemirror/state";
 import { history, historyKeymap, defaultKeymap } from "@codemirror/commands";
 import { markdown } from "@codemirror/lang-markdown";
 import { markdownDecorations } from "./editor/decorations";
@@ -47,6 +47,14 @@ interface Props {
   folds?: FoldsApi;
   tableHeadingColumns?: TableHeadingColsApi;
   menu?: EditorMenuApi;
+  /** Focus the editor on mount — for click-to-edit surfaces (block tiles). */
+  autoFocus?: boolean;
+  /** Read-only portal mode: the SAME view, editing gated by a live-reconfigured
+   *  compartment — flipping it never remounts (embeds' jitter-free enter-edit). */
+  readOnly?: boolean;
+  /** Apply the shared scroll-edge fade to the editor's scroller — the embed treatment; the full page
+   *  editor leaves it off. */
+  edgeFade?: boolean;
 }
 
 export function MarkdownEditor({
@@ -62,7 +70,12 @@ export function MarkdownEditor({
   folds,
   tableHeadingColumns,
   menu,
+  autoFocus = false,
+  readOnly = false,
+  edgeFade = false,
 }: Props): React.JSX.Element {
+  const readOnlyGate = useRef(new Compartment());
+  const readOnlyAtMount = useRef(readOnly);
   const host = useRef<HTMLDivElement>(null);
   const shellRef = useRef<HTMLDivElement>(null);
   const titleRef = useRef<HTMLDivElement>(null);
@@ -100,6 +113,16 @@ export function MarkdownEditor({
       doc: initialBody,
       parent,
       extensions: [
+        // Editable stays true even in the read-only portal: MarkdownPM renders selection natively (no
+        // drawSelection layer), so the at-rest embed must remain a focusable contenteditable to be
+        // selectable at all — never blocked by a non-editable DOM.
+        EditorView.editable.of(true),
+        readOnlyGate.current.of(EditorState.readOnly.of(readOnlyAtMount.current)),
+        // EditorState.readOnly is ADVISORY — it stops the view's own input pipeline but NOT a
+        // programmatic view.dispatch({changes}) (formatKeymap, the list/table/checkbox commands). With a
+        // focusable read-only portal that would let Cmd+B edit + autosave a read-only surface, so drop
+        // every doc-changing transaction while read-only at the one sink that catches them all.
+        EditorState.changeFilter.of((tr) => !(tr.startState.readOnly && tr.docChanged)),
         history(),
         Prec.highest(
           keymap.of([
@@ -197,6 +220,14 @@ export function MarkdownEditor({
       ],
     });
     viewRef.current = view;
+    // Embed treatment: the shared scroll-edge fade rides the CM scroller (the real scroll element), so
+    // top/bottom content dissolves as it scrolls — same mask + scroll-timeline as every other faded box.
+    // The top fade is gated to need a full fade-height of real scroll first (edge-fade-top-gated), so a
+    // first line at rest — or CM's autofocus scroll offset — never blurs.
+    if (edgeFade) view.scrollDOM.classList.add("scroll-edge-fade", "edge-fade-top-gated");
+    // Click-to-edit surfaces (block tiles) mount THIS editor in response to a click
+    // that landed on the at-rest render — without a focus the caret goes nowhere.
+    if (autoFocus && !readOnlyAtMount.current) view.focus();
     // Restore this page's saved folds once the view's lines exist (the widget clones them).
     void foldsRef.current?.load().then((keys) => applySavedFolds(view, keys));
     // Restore this page's heading-column tables (rebuilds the affected table widgets).
@@ -213,6 +244,22 @@ export function MarkdownEditor({
     // Mount once per page — the host keys on path; initialBody is the seed, not a live binding.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // The portal flip: reconfigure the read-only gate on the LIVE view — same doc, same
+  // decorations, no remount (editable stays true throughout, see the mount comment). Entering
+  // edit focuses when the surface asked for it.
+  useEffect(() => {
+    const view = viewRef.current;
+    if (!view || readOnly === readOnlyAtMount.current) {
+      readOnlyAtMount.current = readOnly;
+      return;
+    }
+    readOnlyAtMount.current = readOnly;
+    view.dispatch({
+      effects: readOnlyGate.current.reconfigure(EditorState.readOnly.of(readOnly)),
+    });
+    if (!readOnly && autoFocus) view.focus();
+  }, [readOnly, autoFocus]);
 
   // Body top-padding tracks the header height, so toggling the banner resizes the gutter automatically.
   useEffect(() => {

@@ -8,6 +8,9 @@ import type { MutateRequest, MutateResult, ContextTarget } from '@shared/mutate'
 import { WINDOW_BG } from '@shared/theme'
 import { readNexus } from './readNexus'
 import { readPage } from './readPage'
+import { convertTileToPage, convertTileToView, createMarkdownBlock, duplicateBlockTile, readBlockDoc, readMarkdownBlock, removeBlockTile, writeBlockDoc, writeMarkdownBlock } from './blocks'
+import { isUlid } from './ids'
+import { blockPatchProblem, coerceBlockHost, type BlockDocPatch, type BlocksGetResult, type BlocksSaveResult } from '@shared/blocks'
 import { pathExists } from './io/atomicWrite'
 import { readAppConfig, writeAppConfig, addRecent, DEFAULT_TRASH_MODE } from './appConfig'
 import { sessionRoot, openSession, resolveRestorePath, isExistingDir } from './session'
@@ -15,7 +18,7 @@ import { serializeOnFile } from './io/fileLock'
 import { openSessionIndex, closeSessionIndex } from './sessionIndex'
 import { stampAdopted } from './adopt'
 import { ensureIdentity } from './identity'
-import { ensureSettings, readSubfield, writePersonalization, writeSubfield } from './settings'
+import { ensureSettings, readDefaultViewScale, readSubfield, writePersonalization, writeSubfield } from './settings'
 import { startWatcher, stopWatcher } from './watcher'
 import { resolveUnderRoot } from './pathSafety'
 import { updatePageBody } from './crud/page'
@@ -65,11 +68,13 @@ import { popPropertyMenu } from './propertyMenu'
 import { popOptionMenu } from './optionMenu'
 import { popIconFavoriteMenu } from './iconFavoriteMenu'
 import { popViewButtonMenu, type ViewButtonMenuAction } from './viewButtonMenu'
+import { popEmbedTitleMenu, popEmbedAreaMenu, type EmbedTitleMenuAction, type EmbedAreaMenuAction } from './viewEmbedMenu'
 import { popViewItemMenu, type ViewItemMenuAction } from './viewItemMenu'
 import { popViewRowMenu, type ViewRowMenuAction } from './viewRowMenu'
 import { popViewFormatMenu } from './viewFormatMenu'
 import { popOpenInMenu } from './openInMenu'
 import type { ViewButton, ViewStyle, OpenIn } from '@shared/types'
+import { VIEW_SCALE_DEFAULT } from '@shared/types'
 import type { ViewFormat } from '@shared/views'
 import { installEditorContextMenu, setFormatState, setCalloutGrip } from './editorMenu'
 import type { FormatState } from '@shared/editorMenu'
@@ -168,6 +173,18 @@ function refreshMenu(): void {
   if (mainWindow) void installAppMenu(mainWindow, adoptNexus)
 }
 
+// Set the window to the open nexus's default view scale (personalization.defaultViewScale) — the
+// zoom it opens at and ⌘0 resets to. Applied on every load (did-finish-load: launch-restore + ⌘R)
+// and on nexus switch (adoptNexus, where no reload fires); ⌘ +/− nudge live from here.
+async function applyDefaultZoom(win: BrowserWindow): Promise<void> {
+  if (win.isDestroyed()) return
+  // Empty state (no nexus) normalizes to 1.0 — the same value ⌘0 asserts there — so the welcome
+  // screen never inherits a prior nexus's host zoom (Electron zoom is per-render-host, shared).
+  const root = sessionRoot()
+  const scale = root ? await readDefaultViewScale(root) : VIEW_SCALE_DEFAULT
+  if (!win.isDestroyed()) win.webContents.setZoomFactor(scale)
+}
+
 function createWindow(): void {
   const win = new BrowserWindow({
     width: 1280,
@@ -190,12 +207,18 @@ function createWindow(): void {
     }
   })
 
-  win.on('ready-to-show', () => win.show())
+  // Apply the default zoom BEFORE the first paint is shown, so the window opens at scale instead of
+  // flashing 100% → scale. finally() guarantees show() even if the (error-swallowing) read somehow stalls.
+  win.on('ready-to-show', () => void applyDefaultZoom(win).finally(() => win.show()))
   installEditorContextMenu(win)
   mainWindow = win
   win.on('closed', () => {
     if (mainWindow === win) mainWindow = null
   })
+
+  // Open (and reload) at the nexus's default view scale — the session root is set before the window
+  // is created on launch-restore, so it's known by the time the page finishes loading.
+  win.webContents.on('did-finish-load', () => void applyDefaultZoom(win))
 
   // Deny-by-default navigation hardening (cheap, ahead of user-Markdown links).
   win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
@@ -278,6 +301,9 @@ async function adoptNexus(path: string): Promise<void> {
   // A user-initiated open always has a window; launch-restore starts its watcher
   // after createWindow below.
   if (mainWindow) void startWatcher(root, mainWindow)
+  // Switching nexus doesn't reload the renderer (no did-finish-load fires), so apply the new
+  // nexus's default scale here — the launch-restore path gets it via did-finish-load instead.
+  if (mainWindow) void applyDefaultZoom(mainWindow)
   // Persistence (last-opened + recents + OS list) is best-effort: a config-write
   // failure must not block opening the folder this session, nor leave a half-open
   // "ghost" session the renderer never re-reads.
@@ -988,6 +1014,134 @@ ipcMain.handle(
   }
 )
 
+// The block document (D-3) — a targeted per-host load + locked partial writes on the host's
+// config (homepage.json for the dev host), never woven into the tree walk (E-3).
+ipcMain.handle('blocks:get', async (_e, host: unknown): Promise<BlocksGetResult> => {
+  try {
+    const root = sessionRoot()
+    if (root === null) return { ok: false, error: 'No nexus is open.' }
+    const h = coerceBlockHost(host)
+    if (!h) return { ok: false, error: 'Unknown block host.' }
+    return { ok: true, doc: await readBlockDoc(root, h) }
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) }
+  }
+})
+ipcMain.handle('blocks:save', async (_e, host: unknown, patch: unknown): Promise<BlocksSaveResult> => {
+  try {
+    const root = sessionRoot()
+    if (root === null) return { ok: false, error: 'No nexus is open.' }
+    const h = coerceBlockHost(host)
+    if (!h) return { ok: false, error: 'Unknown block host.' }
+    if (!patch || typeof patch !== 'object') return { ok: false, error: 'Invalid block-doc patch.' }
+    const problem = blockPatchProblem(patch as BlockDocPatch)
+    if (problem) return { ok: false, error: problem }
+    await writeBlockDoc(root, h, patch as BlockDocPatch)
+    return { ok: true }
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) }
+  }
+})
+
+// Markdown-block file ops. Tile ids gate on isUlid — the id becomes a filename, so a
+// renderer-supplied value must never carry path segments.
+const blockHostAnd = (host: unknown, tileId?: unknown): { root: string; h: { kind: 'homepage' } } | string => {
+  const root = sessionRoot()
+  if (root === null) return 'No nexus is open.'
+  const h = coerceBlockHost(host)
+  if (!h) return 'Unknown block host.'
+  if (tileId !== undefined && (typeof tileId !== 'string' || !isUlid(tileId))) return 'Invalid tile id.'
+  return { root, h }
+}
+ipcMain.handle('blocks:createMarkdown', async (_e, host: unknown): Promise<{ ok: true; id: string } | { ok: false; error: string }> => {
+  try {
+    const ctx = blockHostAnd(host)
+    if (typeof ctx === 'string') return { ok: false, error: ctx }
+    return { ok: true, id: await createMarkdownBlock(ctx.root, ctx.h) }
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) }
+  }
+})
+ipcMain.handle('blocks:removeTile', async (_e, host: unknown, tileId: unknown): Promise<BlocksSaveResult> => {
+  try {
+    const ctx = blockHostAnd(host, tileId)
+    if (typeof ctx === 'string') return { ok: false, error: ctx }
+    await removeBlockTile(ctx.root, ctx.h, tileId as string)
+    return { ok: true }
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) }
+  }
+})
+ipcMain.handle('blocks:readMarkdown', async (_e, host: unknown, tileId: unknown): Promise<{ ok: true; body: string } | { ok: false; error: string }> => {
+  try {
+    const ctx = blockHostAnd(host, tileId)
+    if (typeof ctx === 'string') return { ok: false, error: ctx }
+    const body = await readMarkdownBlock(ctx.root, ctx.h, tileId as string)
+    return body === null ? { ok: false, error: 'Block file not found.' } : { ok: true, body }
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) }
+  }
+})
+ipcMain.handle('blocks:writeMarkdown', async (_e, host: unknown, tileId: unknown, body: unknown): Promise<BlocksSaveResult> => {
+  try {
+    const ctx = blockHostAnd(host, tileId)
+    if (typeof ctx === 'string') return { ok: false, error: ctx }
+    if (typeof body !== 'string') return { ok: false, error: 'Body must be a string.' }
+    await writeMarkdownBlock(ctx.root, ctx.h, tileId as string, body)
+    return { ok: true }
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) }
+  }
+})
+ipcMain.handle('blocks:convertToPage', async (_e, host: unknown, tileId: unknown, pageId: unknown): Promise<BlocksSaveResult> => {
+  try {
+    const ctx = blockHostAnd(host, tileId)
+    if (typeof ctx === 'string') return { ok: false, error: ctx }
+    if (typeof pageId !== 'string' || pageId.length === 0) return { ok: false, error: 'Invalid page id.' }
+    await convertTileToPage(ctx.root, ctx.h, tileId as string, pageId)
+    return { ok: true }
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) }
+  }
+})
+ipcMain.handle('blocks:convertToView', async (_e, host: unknown, tileId: unknown, views: unknown): Promise<BlocksSaveResult> => {
+  try {
+    const ctx = blockHostAnd(host, tileId)
+    if (typeof ctx === 'string') return { ok: false, error: ctx }
+    const list = Array.isArray(views) ? views : null
+    const valid = list?.length && list.every((v) => typeof (v as { source_id?: unknown })?.source_id === 'string')
+    if (!valid) return { ok: false, error: 'Invalid view list.' }
+    await convertTileToView(ctx.root, ctx.h, tileId as string, list as unknown[])
+    return { ok: true }
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) }
+  }
+})
+ipcMain.handle('blocks:duplicateTile', async (_e, host: unknown, tileId: unknown): Promise<{ ok: true; id: string } | { ok: false; error: string }> => {
+  try {
+    const ctx = blockHostAnd(host, tileId)
+    if (typeof ctx === 'string') return { ok: false, error: ctx }
+    const id = await duplicateBlockTile(ctx.root, ctx.h, tileId as string)
+    return id ? { ok: true, id } : { ok: false, error: 'No such tile.' }
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) }
+  }
+})
+// Delete keeps the native confirm (Nathan's call) — the in-app menu asks main first.
+ipcMain.handle('blocks:confirmRemove', async (e): Promise<boolean> => {
+  const win = BrowserWindow.fromWebContents(e.sender)
+  if (!win) return false
+  const { response } = await dialog.showMessageBox(win, {
+    type: 'warning',
+    buttons: ['Remove', 'Cancel'],
+    defaultId: 0,
+    cancelId: 1,
+    message: 'Remove this block?',
+    detail: 'A markdown block\u2019s file moves to the nexus\u2019s .trash (recoverable); embeds only remove the tile.'
+  })
+  return response === 0
+})
+
 // Personalization (accent, connection color, interface toggles) — merged one key at a time into the
 // React-owned `personalization` object in `.nexus/settings.json`; the value is validated on read.
 ipcMain.handle(
@@ -1137,6 +1291,27 @@ ipcMain.handle('view-button-menu', async (e, current: unknown): Promise<ViewButt
   return popViewButtonMenu(win, { viewButton, viewStyle })
 })
 
+// The view embed's title-row right-click menu (Hide/Show Icon · Title Size · Hide Title).
+ipcMain.handle('view-embed-title-menu', async (e, arg: unknown): Promise<EmbedTitleMenuAction | null> => {
+  const win = BrowserWindow.fromWebContents(e.sender)
+  if (!win) return null
+  const a = arg as { iconShown?: unknown; level?: unknown } | null
+  const level = typeof a?.level === 'number' && a.level >= 1 && a.level <= 6 ? a.level : 4
+  return popEmbedTitleMenu(win, a?.iconShown === true, level)
+})
+
+// The view embed switcher area's right-click menu (Hide/Show Titles · New View · Style).
+ipcMain.handle('view-embed-area-menu', async (e, current: unknown): Promise<EmbedAreaMenuAction | null> => {
+  const win = BrowserWindow.fromWebContents(e.sender)
+  if (!win) return null
+  const c = current as { viewButton?: unknown; viewStyle?: unknown; titleShown?: unknown } | null
+  return popEmbedAreaMenu(win, {
+    viewButton: c?.viewButton === 'icon' ? 'icon' : 'labeled',
+    viewStyle: c?.viewStyle === 'dropdown' ? 'dropdown' : 'toolbar',
+    titleShown: c?.titleShown !== false
+  })
+})
+
 // The ViewSettings ⋮ menu (Duplicate / Delete) — resolves the action to the renderer.
 ipcMain.handle('view-item-menu', async (e, canDelete: unknown): Promise<ViewItemMenuAction | null> => {
   const win = BrowserWindow.fromWebContents(e.sender)
@@ -1175,13 +1350,22 @@ ipcMain.handle('open-in-menu', async (e, current: unknown): Promise<OpenIn | nul
 
 // Pop a native single-item "Add Photo" menu; on click open the image picker and resolve the
 // chosen file as a data URL. Resolves null if the menu is dismissed or the picker canceled.
-ipcMain.handle('nexus:photoMenu', async (e): Promise<string | null> => {
+// The nexus identity icon menu (Change Icon → the renderer's glyph picker; Add/Change Photo → the native
+// image pick, done renderer-side). Returns the chosen action; the renderer runs the picker/pick + mutate.
+type NexusIconAction = 'changeIcon' | 'addPhoto' | 'removePhoto' | 'removeIcon'
+ipcMain.handle('nexus:iconMenu', async (e, arg: unknown): Promise<NexusIconAction | null> => {
   const win = BrowserWindow.fromWebContents(e.sender)
   if (!win) return null
-  return await new Promise<string | null>((resolve) => {
+  const opts = (arg ?? {}) as { hasPhoto?: boolean; hasGlyph?: boolean }
+  return await new Promise<NexusIconAction | null>((resolve) => {
     let acted = false
+    const pick = (v: NexusIconAction) => () => { acted = true; resolve(v) }
     const menu = Menu.buildFromTemplate([
-      { label: 'Add Photo', click: async () => { acted = true; resolve(await pickImageDataUrl(win)) } }
+      { label: 'Change Icon', click: pick('changeIcon') },
+      { label: opts.hasPhoto ? 'Change Photo' : 'Add Photo', click: pick('addPhoto') },
+      ...(opts.hasPhoto || opts.hasGlyph ? [{ type: 'separator' as const }] : []),
+      ...(opts.hasPhoto ? [{ label: 'Remove Photo', click: pick('removePhoto') }] : []),
+      ...(opts.hasGlyph ? [{ label: 'Remove Icon', click: pick('removeIcon') }] : [])
     ])
     menu.popup({ window: win, callback: () => { if (!acted) resolve(null) } })
   })
@@ -1213,19 +1397,20 @@ ipcMain.handle('nexus:bannerMenu', async (e): Promise<'change' | 'remove' | null
   })
 })
 
-// Pop a native Rename / Edit Icon menu for a detail title (matches Swift's DetailTitleHeader).
-ipcMain.handle('nexus:titleMenu', async (e): Promise<'rename' | 'editIcon' | null> => {
+// Pop a native detail-title menu. Rename is always offered; Change Icon unless `noEditIcon` (the homepage
+// sets its icon from the settings pane, not here); `toggleIcon` adds the Hide/Show Icon item (G-4).
+type TitleMenuAction = 'rename' | 'editIcon' | 'toggleIcon'
+ipcMain.handle('nexus:titleMenu', async (e, arg: unknown): Promise<TitleMenuAction | null> => {
   const win = BrowserWindow.fromWebContents(e.sender)
   if (!win) return null
-  return await new Promise<'rename' | 'editIcon' | null>((resolve) => {
+  const opts = (arg ?? {}) as { toggleIcon?: boolean; iconHidden?: boolean; noEditIcon?: boolean }
+  return await new Promise<TitleMenuAction | null>((resolve) => {
     let acted = false
-    const choose = (action: 'rename' | 'editIcon'): void => {
-      acted = true
-      resolve(action)
-    }
+    const choose = (action: TitleMenuAction) => () => { acted = true; resolve(action) }
     const menu = Menu.buildFromTemplate([
-      { label: 'Rename', click: () => choose('rename') },
-      { label: 'Change Icon', click: () => choose('editIcon') }
+      { label: 'Rename', click: choose('rename') },
+      ...(opts.noEditIcon ? [] : [{ label: 'Change Icon', click: choose('editIcon') }]),
+      ...(opts.toggleIcon ? [{ label: opts.iconHidden ? 'Show Icon' : 'Hide Icon', click: choose('toggleIcon') }] : [])
     ])
     menu.popup({ window: win, callback: () => { if (!acted) resolve(null) } })
   })

@@ -22,6 +22,7 @@ import { createPage, renamePage, movePage, setPageTier } from './crud/page'
 import { setChildOrder, setStateOrder } from './crud/reorder'
 import { createFolderEntity, renameFolderEntity, moveFolderEntity } from './crud/folderEntity'
 import { renameCascade, unlinkTier } from './crud/cascade'
+import { rewriteBlockConnections } from './blocks'
 import { trashWithTimestamp, pathExists, readJsonObject, mutateJson, atomicWriteBinary, atomicWriteFile } from './io/atomicWrite'
 import { serializeOnFile } from './io/fileLock'
 import { splitEnvelope, mergeFrontmatter, readFrontmatterFields } from './io/pageFile'
@@ -197,6 +198,14 @@ async function dispatch(req: MutateRequest, deps: MutateDeps, root: string): Pro
           await renamePage(r.value.path, oldTitle)
           return fault('Rename cascade failed; the rename was reverted.')
         }
+        // Heal markdown-block bodies too (renameCascade skips .nexus-resident, id-less block files).
+        // Best-effort AFTER the page cascade committed: a failure here leaves blocks stale (re-runnable),
+        // never un-reverts the now-successful page rename.
+        try {
+          await rewriteBlockConnections(root, oldTitle, req.newName)
+        } catch {
+          // blocks stay stale until the next rewrite — the page rename stands
+        }
         return { ok: true }
       }
       // Containers + contexts: rename the folder. No link cascade — [[links]] target pages,
@@ -252,6 +261,18 @@ async function dispatch(req: MutateRequest, deps: MutateDeps, root: string): Pro
         })
         if (prev) await rm(join(root, prev), { force: true }).catch(() => {})
       }
+      return { ok: true }
+    }
+
+    case 'setProfileIcon': {
+      // Glyph identity fallback → `settings.profile_icon` (read-merge-write, other keys preserved);
+      // null clears it. No asset write — it's a symbol name, not an image.
+      await updateSettings(root, (cur) => {
+        const next = { ...cur }
+        if (req.icon) next.profile_icon = req.icon
+        else delete next.profile_icon
+        return next
+      })
       return { ok: true }
     }
 
@@ -316,16 +337,52 @@ async function dispatch(req: MutateRequest, deps: MutateDeps, root: string): Pro
         if (!rel) return fault('Unsupported image data.')
         // Set the field first; only THEN delete a replaced file, so a failed write never
         // leaves `banner` pointing at a deleted file (mirrors the cover/photo ordering).
-        await mutateJson<Record<string, unknown>>(cfgPath, () => fallback, (cur) => ({ ...cur, banner: rel }))
+        // Locked on the config path — the block-doc writers share this file (homepage.json
+        // carries layout/blocks), and two unlocked read-merge-writes lose whole keys.
+        await serializeOnFile(cfgPath, () =>
+          mutateJson<Record<string, unknown>>(cfgPath, () => fallback, (cur) => ({ ...cur, banner: rel }))
+        )
         if (prev && prev !== rel) await rm(join(root, prev), { force: true }).catch(() => {})
       } else {
-        await mutateJson<Record<string, unknown>>(cfgPath, () => fallback, (cur) => {
-          const next = { ...cur }
-          delete next.banner
-          return next
-        })
+        await serializeOnFile(cfgPath, () =>
+          mutateJson<Record<string, unknown>>(cfgPath, () => fallback, (cur) => {
+            const next = { ...cur }
+            delete next.banner
+            return next
+          })
+        )
         if (prev) await rm(join(root, prev), { force: true }).catch(() => {})
       }
+      return { ok: true }
+    }
+
+    case 'setHeadingIconHidden': {
+      // The banner-heading icon show/hide flag (G-4) → `heading_icon_hidden` in the owner's config
+      // (homepage.json for the singleton, the folder sidecar otherwise). Locked on the config path —
+      // homepage.json is shared with the block-doc writers. Absent = shown.
+      let cfgPath: string
+      let fallback: Record<string, unknown>
+      if (req.kind === 'homepage') {
+        cfgPath = nexusConfig(root, NEXUS_CONFIG_FILES.homepage)
+        fallback = {}
+      } else if (req.kind === 'page') {
+        return fault('A page has no heading icon.')
+      } else {
+        const resolved = await resolveUnderRoot(root, req.path)
+        if (!resolved.ok) return relay(resolved)
+        cfgPath = `${resolved.value}/${SIDECAR_FILENAME[req.kind]}`
+        const id = (await readJsonObject(cfgPath))?.id
+        if (typeof id !== 'string') return fault('That item has no id.')
+        fallback = { id }
+      }
+      await serializeOnFile(cfgPath, () =>
+        mutateJson<Record<string, unknown>>(cfgPath, () => fallback, (cur) => {
+          const next = { ...cur }
+          if (req.hidden) next.heading_icon_hidden = true
+          else delete next.heading_icon_hidden
+          return next
+        })
+      )
       return { ok: true }
     }
 

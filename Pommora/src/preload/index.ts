@@ -10,6 +10,7 @@ import type { PropertyMenuAction, PropertyMenuContext } from '@shared/propertyMe
 import type { OptionMenuAction, OptionMenuContext } from '@shared/optionMenu'
 import type { ColumnMenuAction, ColumnMenuContext } from '@shared/columnMenu'
 import type { SavedView } from '@shared/views'
+import type { BlockDocPatch, BlockHostRef, BlockStyle, BlocksGetResult, BlocksSaveResult, EmbeddedView } from '@shared/blocks'
 import type { StatusGroup } from '@shared/properties'
 import type { PageFrontmatter } from '@shared/schemas'
 import type { PropertyDefinition, PropertyType } from '@shared/properties'
@@ -80,6 +81,16 @@ const api = {
     viewStyle: ViewStyle
   }): Promise<'toggle-title' | 'style-dropdown' | 'style-toolbar' | null> =>
     ipcRenderer.invoke('view-button-menu', current),
+  // The view embed's title-row right-click menu (Hide/Show Icon · Title Size · Hide Title).
+  viewEmbedTitleMenu: (arg: { iconShown: boolean; level: number }): Promise<'toggle-icon' | 'hide-title' | `size-${number}` | null> =>
+    ipcRenderer.invoke('view-embed-title-menu', arg),
+  // The view embed switcher area's right-click menu (Hide/Show Titles · New View · Style).
+  viewEmbedAreaMenu: (current: {
+    viewButton: ViewButton
+    viewStyle: ViewStyle
+    titleShown: boolean
+  }): Promise<'toggle-pill-titles' | 'show-title' | 'new-view' | 'style-dropdown' | 'style-toolbar' | null> =>
+    ipcRenderer.invoke('view-embed-area-menu', current),
   // The ViewSettings ⋮ menu (Duplicate / Delete); Delete disabled when the view can't be removed.
   viewItemMenu: (canDelete: boolean): Promise<'view:duplicate' | 'view:delete' | null> =>
     ipcRenderer.invoke('view-item-menu', canDelete),
@@ -228,6 +239,37 @@ const api = {
     set: (pageId: string, indices: number[]): Promise<{ ok: true } | { ok: false; error: string }> =>
       ipcRenderer.invoke('tableHeadingCols:set', pageId, indices)
   },
+  // The block document behind the BlockHost seam — targeted per-host load + locked
+  // partial writes (layout / blocks / locked) on the host's config.
+  blocks: {
+    get: (host: BlockHostRef): Promise<BlocksGetResult> => ipcRenderer.invoke('blocks:get', host),
+    save: (host: BlockHostRef, patch: BlockDocPatch): Promise<BlocksSaveResult> =>
+      ipcRenderer.invoke('blocks:save', host, patch),
+    // Markdown-block lifecycle: create mints the ULID + file + entry (the renderer splices
+    // the layout after); remove drops the entry + trashes a markdown tile's file; the
+    // read/write pair is the tile editor's pure-body persistence.
+    createMarkdown: (host: BlockHostRef): Promise<{ ok: true; id: string } | { ok: false; error: string }> =>
+      ipcRenderer.invoke('blocks:createMarkdown', host),
+    removeTile: (host: BlockHostRef, tileId: string): Promise<BlocksSaveResult> =>
+      ipcRenderer.invoke('blocks:removeTile', host, tileId),
+    readMarkdown: (host: BlockHostRef, tileId: string): Promise<{ ok: true; body: string } | { ok: false; error: string }> =>
+      ipcRenderer.invoke('blocks:readMarkdown', host, tileId),
+    writeMarkdown: (host: BlockHostRef, tileId: string, body: string): Promise<BlocksSaveResult> =>
+      ipcRenderer.invoke('blocks:writeMarkdown', host, tileId, body),
+    // Link Page: the entry becomes a page embed; a markdown tile's .md trashes.
+    convertToPage: (host: BlockHostRef, tileId: string, pageId: string): Promise<BlocksSaveResult> =>
+      ipcRenderer.invoke('blocks:convertToPage', host, tileId, pageId),
+    // Link View: the entry becomes a view embed carrying the COPIED config (D-12);
+    // main re-mints each config id payload-local.
+    convertToView: (host: BlockHostRef, tileId: string, views: EmbeddedView[]): Promise<BlocksSaveResult> =>
+      ipcRenderer.invoke('blocks:convertToView', host, tileId, views),
+    // Duplicate a tile — raw-entry copy under a fresh id; markdown copies its file,
+    // a view tile re-mints its config ids.
+    duplicateTile: (host: BlockHostRef, tileId: string): Promise<{ ok: true; id: string } | { ok: false; error: string }> =>
+      ipcRenderer.invoke('blocks:duplicateTile', host, tileId),
+    // Delete keeps the native confirm (Nathan's call).
+    confirmRemove: (): Promise<boolean> => ipcRenderer.invoke('blocks:confirmRemove')
+  },
   // Subfield (footer) config — React-owned `subfield` key in `.nexus/settings.json`.
   subfield: {
     get: (): Promise<SubfieldConfig | null> => ipcRenderer.invoke('subfield:get'),
@@ -270,14 +312,21 @@ const api = {
   openFile: (path: string): Promise<{ ok: true } | { ok: false; error: string }> =>
     ipcRenderer.invoke('file:open', path),
   systemAccent: (): Promise<string | null> => ipcRenderer.invoke('theme:systemAccent'),
-  // Pop a native "Add Photo" menu → native image picker; resolves the chosen image as a data URL (null if dismissed/canceled).
-  photoMenu: (): Promise<string | null> => ipcRenderer.invoke('nexus:photoMenu'),
+  // Pop the native nexus-identity icon menu (Change Icon / Add·Change Photo / removes) → the chosen action.
+  iconMenu: (opts: {
+    hasPhoto: boolean
+    hasGlyph: boolean
+  }): Promise<'changeIcon' | 'addPhoto' | 'removePhoto' | 'removeIcon' | null> => ipcRenderer.invoke('nexus:iconMenu', opts),
   // Open the native image picker directly → data URL (null if canceled). Banner Add / Change.
   pickImage: (): Promise<string | null> => ipcRenderer.invoke('nexus:pickImage'),
   // Pop the native Change / Remove banner menu → the chosen action (null if dismissed).
   bannerMenu: (): Promise<'change' | 'remove' | null> => ipcRenderer.invoke('nexus:bannerMenu'),
   // Pop the native Rename / Edit Icon menu for a detail title → the chosen action (null if dismissed).
-  titleMenu: (): Promise<'rename' | 'editIcon' | null> => ipcRenderer.invoke('nexus:titleMenu'),
+  titleMenu: (opts?: {
+    toggleIcon?: boolean
+    iconHidden?: boolean
+    noEditIcon?: boolean
+  }): Promise<'rename' | 'editIcon' | 'toggleIcon' | null> => ipcRenderer.invoke('nexus:titleMenu', opts),
   // Pop the table grip's native right-click menu → the chosen action (null if dismissed).
   tableMenu: (ctx: TableMenuContext): Promise<TableMenuAction | null> => ipcRenderer.invoke('table-menu', ctx),
   // Pop the callout grip's native right-click menu → the chosen action (null if dismissed).

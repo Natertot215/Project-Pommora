@@ -2,7 +2,7 @@ import { globalStyle, style } from '@vanilla-extract/css'
 import { vars as colorVars, inputFieldVar } from '../../design-system/tokens/color.css'
 import { text } from '../../design-system/tokens/typography.css'
 import { duration, easing } from '../../design-system/tokens/motion'
-import { flushAffordance, accessoryButton, accessoryGhostRest, titleText } from '../../design-system/components/menu/menu.css'
+import { flushAffordance, accessoryButton, accessoryGhostRest, footingLabel, titleText } from '../../design-system/components/menu/menu.css'
 import { surface } from '../../design-system/components/menu/menuSurface.css'
 
 const c = colorVars.color
@@ -94,6 +94,10 @@ export const iconButton = style({
 
 /** The title interaction-field / input takes the remaining width. */
 export const titleField = style({ flex: '1 1 auto', minWidth: 0 })
+
+/** A profile photo filling the square icon-button slot (homepage identity) — cover-fit, corners
+ *  matched to the button so it reads as the icon's photo rather than a floating thumbnail. */
+export const headerPhotoImg = style({ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '8px', display: 'block' })
 
 /** Placeholder dashed-square menu icon (until Nathan specifies the real symbols). */
 export const dashIcon = style({
@@ -361,3 +365,22 @@ export const colorCluster = style({ position: 'relative', display: 'flex', align
 
 /** The bare button wrapping the colour chip — the recolor affordance (click the chip to open the picker). */
 export const colorChip = style({ border: 'none', background: 'none', padding: 0, cursor: 'default', display: 'flex' })
+
+/** The scoped-pane footer breadcrumb — the embed's source path, `(icon) Collection › (icon) Set`,
+ *  wearing the house footing tone (menu.css footingLabel); the lock rides the trailing slot. */
+export const crumbRow = style([
+  footingLabel,
+  { display: 'inline-flex', alignItems: 'center', gap: '4px', minWidth: 0 }
+])
+
+/** The scoped footer's lock reads the footing TRAILING tone — label-tertiary (Nathan), a
+ *  step under the leading breadcrumb; quadrupled to outrank the BottomRow secondary bump. */
+export const footerLock = style({
+  selectors: { '&&&&': { color: c.label.tertiary } }
+})
+
+/** Locked state — reads engaged via the active state fill alone (no color lift). `--state-active` isn't
+ *  a token (state = hover / selected / muted); this is its `--state-selected` mapping. */
+export const footerLockActive = style({
+  background: 'var(--state-selected)'
+})

@@ -34,7 +34,8 @@ import {
   DEFAULT_COMMANDS,
   DEFAULT_LABELS,
   DEFAULT_TIME_FORMAT,
-  ENTITY_ICON_KINDS
+  ENTITY_ICON_KINDS,
+  coerceViewScale
 } from '@shared/types'
 import { savedView, type SavedView } from '@shared/views'
 import { coerceOpenIn, coerceViewButton, coerceViewStyle } from '@shared/schemas'
@@ -110,7 +111,8 @@ export function readPersonalization(raw: unknown): Personalization {
     setPlacement: placement(p.setPlacement),
     subSetPlacement: placement(p.subSetPlacement),
     sidebarMode: mode(p.sidebarMode),
-    ribbonOrder: ribbonOrder.length ? ribbonOrder : undefined
+    ribbonOrder: ribbonOrder.length ? ribbonOrder : undefined,
+    defaultViewScale: coerceViewScale(p.defaultViewScale)
   }
 }
 
@@ -261,6 +263,7 @@ async function readSet(
     icon: asString(meta.icon),
     path: relDir,
     banner: asString(meta.banner),
+    headingIconHidden: meta.heading_icon_hidden === true,
     sets: resolveOrder(sets, asStringArray(meta.set_order), fb),
     pages: resolveOrder(pages, asStringArray(meta.page_order), fb),
     views: parseViews(meta.views),
@@ -304,6 +307,7 @@ async function readPageCollection(
     icon: asString(meta.icon),
     path: relDir,
     banner: asString(meta.banner),
+    headingIconHidden: meta.heading_icon_hidden === true,
     properties: resolveAssignedSchema(meta.properties, registry),
     sets: resolveOrder(sets, asStringArray(meta.set_order), fb),
     pages: resolveOrder(pages, asStringArray(meta.page_order), fb),
@@ -341,7 +345,8 @@ async function readTier<T extends AreaNode | TopicNode | ProjectNode>(
       // Contexts live under .nexus/<tier>/ — the real on-disk path a mutation resolves
       // (distinct from the adoptedId seed above, which is layout-agnostic by design).
       path: `.nexus/${tier}/${e.name}`,
-      banner: asString(sc?.banner)
+      banner: asString(sc?.banner),
+      headingIconHidden: sc?.heading_icon_hidden === true
     } as T
     if (kind === 'area') {
       const c = sc?.color
@@ -389,6 +394,7 @@ async function walkNexus(root: string): Promise<NexusTree> {
   // Profile image + subtitle live in settings (Swift parity), not nexus.json. profileImage is a
   // nexus-relative asset path the renderer serves via nexus-asset://; subtitle is plain text.
   const profileImage = asString(settings.profile_image) ?? null
+  const profileIcon = asString(settings.profile_icon)
   const profileSubtitle = asString(settings.profile_subtitle) ?? ''
   const state = (await readJsonObject(nexusConfig(root, NEXUS_CONFIG_FILES.state))) ?? {}
   const savedConfig = (await readJsonObject(nexusConfig(root, NEXUS_CONFIG_FILES.savedConfig))) ?? {}
@@ -457,8 +463,12 @@ async function walkNexus(root: string): Promise<NexusTree> {
   const collections = orderedCollections.filter((c) => !claimed.has(c.id))
 
   return {
-    nexus: { id, rootPath: root, name: basename(root), profileImage, profileSubtitle },
-    homepage: { banner: asString(homepageConfig.banner) },
+    nexus: { id, rootPath: root, name: basename(root), profileImage, profileIcon, profileSubtitle },
+    homepage: {
+      banner: asString(homepageConfig.banner),
+      locked: homepageConfig.blocks_locked === true,
+      headingIconHidden: homepageConfig.heading_icon_hidden === true
+    },
     saved,
     contexts,
     collections,

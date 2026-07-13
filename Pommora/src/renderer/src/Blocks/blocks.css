@@ -1,0 +1,50 @@
+/* Block tile content family (G-2). The tile chassis (border, radius, clipping)
+   is SurfacePM's; these style what lives inside. */
+
+/* The tile IS the CM6 portal (read-only at rest). Its padding is the BLOCK's own
+   — the editor's 16px boundary-to-first-line standard via .cm-content, never the
+   host page's insets (--content-inset / --fold-gutter / the 90px page head-tail).
+
+   SCROLL MODEL (edge-release, matching view embeds): at rest a block scrolls its
+   OWN overflow, releasing to the page at its top/bottom bound (default scroll-
+   chaining) — a block whose content fits has nothing to scroll, so the wheel
+   passes straight through to the page. Editing traps the wheel instead
+   (overscroll-behavior: contain) so a live edit can't leak scroll to the page. */
+.blk-md {
+  position: relative;
+  height: 100%;
+  overflow: hidden;
+  /* The tile carries its own fold gutter (the page defines it on .detail-page, out of a
+     tile's scope) — the strip MarkdownPM's grips + chevrons render into. */
+  --fold-gutter: 20px;
+}
+.spm-tile.is-editing-tile .blk-md {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.spm-tile:not(.is-editing-tile) :is(.blk-md, .pgembed) .cm-scroller {
+  /* Rest-scroll: the CM6 scroller scrolls vertically with default chaining (edge-release), the same
+     model as the view embed's body — !important beats CM6's own runtime overflow rule. Horizontal
+     stays clipped (prose wraps). */
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+}
+.spm-tile:not(.is-editing-tile) :is(.blk-md, .pgembed) .cm-content {
+  cursor: default;
+}
+.blk-md .mdpm-shell {
+  height: 100%;
+}
+.blk-md .mdpm-editor {
+  padding-left: 0;
+  padding-right: 0;
+}
+.blk-md .mdpm-editor .cm-content {
+  padding: 16px 14px 16px var(--fold-gutter);
+}
+
+
+.blk-inert {
+  height: 100%;
+}
+

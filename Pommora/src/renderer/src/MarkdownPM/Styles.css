@@ -1,12 +1,35 @@
+/* The per-block Scale factor (G-10), registered so it's an ANIMATABLE number: a `.blk-zoom-*` class
+   change interpolates it over --duration-base (transition on .spm-tile), and everything reading it —
+   the .cm-content font, --glyph-scale — follows in lockstep, giving one smooth zoom in/out. inherits so
+   it cascades from the tile into the editor shell. */
+@property --block-zoom {
+  syntax: '<number>';
+  inherits: true;
+  initial-value: 1;
+}
+
+/* The 6-dot drag-grip glyph (lucide grip-vertical) — one source for the editor's rail grips,
+   the callout grip, the blockquote widget grip, AND SurfacePM's block handle, so every drag
+   grip in the app renders identically. Global on purpose: consumers span surfaces. */
+:root {
+  --grip-glyph: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='9' cy='12' r='1'/%3E%3Ccircle cx='9' cy='5' r='1'/%3E%3Ccircle cx='9' cy='19' r='1'/%3E%3Ccircle cx='15' cy='12' r='1'/%3E%3Ccircle cx='15' cy='5' r='1'/%3E%3Ccircle cx='15' cy='19' r='1'/%3E%3C/svg%3E");
+  /* --mdpm-scale: the editor's SINGLE size factor — every px-fixed dimension
+     (glyphs, gutter, chrome) derives from it; a host scales the whole editor by
+     setting it on any ancestor (embeds pair it with the matching font zoom).
+     Global default so a host's value inherits INTO the shell. */
+  --mdpm-scale: 1;
+}
+
 .mdpm-shell {
   /* --fold-gutter (set on .detail-page) is the width of the left strip the fold chevron lives in, carved
      from the --content-inset margin so the body still lands on --content-inset. --fold-chevron-size:
      chevron glyph size (title3). (--label-control is the single global :root def.) */
-  --fold-chevron-size: var(--text-title3-size);
+  /* Glyph scale = the structural px scale × the per-block Scale (G-10). Structural dims (gutter WIDTH,
+     content padding) stay on --mdpm-scale and never see --block-zoom; only glyphs read this. Absent
+     --block-zoom (full-page editor, or a 1.0 tile) makes this identical to --mdpm-scale. */
+  --glyph-scale: calc(var(--mdpm-scale) * var(--block-zoom, 1));
+  --fold-chevron-size: calc(var(--text-title3-size) * var(--glyph-scale));
   --fold-chevron-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m9 18 6-6-6-6'/%3E%3C/svg%3E");
-  /* The 6-dot drag-grip glyph (lucide grip-vertical) — one source for the rail grips, the callout grip, and
-     the blockquote widget grip, so they render identically. */
-  --grip-glyph: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='9' cy='12' r='1'/%3E%3Ccircle cx='9' cy='5' r='1'/%3E%3Ccircle cx='9' cy='19' r='1'/%3E%3Ccircle cx='15' cy='12' r='1'/%3E%3Ccircle cx='15' cy='5' r='1'/%3E%3Ccircle cx='15' cy='19' r='1'/%3E%3C/svg%3E");
   position: relative;
   /* Own stacking context (sits below the sidebar's z-index:1) so the absolutely-positioned banner
      header can layer above the editor body WITHOUT its z-index escaping to cover the floating sidebar. */
@@ -57,7 +80,10 @@
      Left re-adds the --fold-gutter the editor reclaimed, so text lands on --content-inset and the chevron
      strip stays inside the scroller's clip. */
   padding: var(--header-zone, 90px) 0 90px var(--fold-gutter);
-  font-size: var(--editor-font-size, 15px);
+  /* The base is --editor-font-size (the editor `zoom` prop). --block-zoom applies the per-block Scale
+     LINEARLY here — NOT through the clamped zoom curve — so it stays locked to --glyph-scale (both are
+     × --block-zoom) and never floors. Absent --block-zoom ⇒ unchanged. em children ride this root. */
+  font-size: calc(var(--editor-font-size, 15px) * var(--block-zoom, 1));
 }
 
 /* Page header — scroll-tracks: translates up over its own height as you scroll (banner scrolls away). */
@@ -153,7 +179,8 @@
 .mdpm-editor .cm-line.md-foldable::before {
   content: '';
   position: absolute;
-  left: calc(-1 * var(--fold-gutter));
+  /* Centered in the gutter strip — the anchor self-adjusts to glyph + gutter size. */
+  left: calc(-1 * var(--fold-gutter) + (var(--fold-gutter) - var(--fold-chevron-size)) / 2);
   top: 50%;
   width: var(--fold-chevron-size);
   height: var(--fold-chevron-size);
@@ -182,12 +209,12 @@
    ::before on the line, so it can't drift below callouts/folds). Hover-revealed. Glyph mirrors the
    table/callout grips (the shared --grip-glyph). KNOBS: --fold-gutter (rail x) · --grip-top (first-line
    offset — box blocks override it to drop the grip onto their padded first row, e.g. the code fence). */
-/* Shared 14px masked-grip recipe (look only — each instance owns its own anchor below). */
+/* Shared masked-grip recipe, 14px at scale 1 (look only — each instance owns its own anchor below). */
 .mdpm-editor .cm-line.md-block-handle::before,
 .mdpm-editor .cm-line.md-bq-first .md-bq-grip,
 .mdpm-editor .cm-line.md-callout-first::after {
-  width: 14px;
-  height: 14px;
+  width: calc(14px * var(--glyph-scale));
+  height: calc(14px * var(--glyph-scale));
   background-color: var(--label-secondary);
   -webkit-mask: var(--grip-glyph) center / contain no-repeat;
   mask: var(--grip-glyph) center / contain no-repeat;
@@ -201,10 +228,10 @@
 .mdpm-editor .cm-line.md-block-handle::before {
   content: '';
   position: absolute;
-  left: calc(-1 * var(--fold-gutter));
+  left: calc(-1 * var(--fold-gutter) + (var(--fold-gutter) - 14px * var(--glyph-scale)) / 2);
   /* Centre on the FIRST visual row's text (half the 1.6 line-height − half the 14px grip), so it lines up
      with the content even when the block's first line wraps. --grip-top is the knob; box blocks raise it. */
-  top: var(--grip-top, calc(0.8em - 7px));
+  top: var(--grip-top, calc(0.8em - 7px * var(--glyph-scale)));
   transition: opacity var(--duration-fast) var(--ease-standard);
 }
 .mdpm-editor .cm-line.md-block-handle.md-grip-hot::before {
@@ -215,8 +242,8 @@
    but positioned + hover-revealed exactly like the rail grips. The drag rides md-bq-first. */
 .mdpm-editor .cm-line.md-bq-first .md-bq-grip {
   position: absolute;
-  left: calc(-1 * var(--fold-gutter));
-  top: var(--grip-top, calc(0.8em - 7px));
+  left: calc(-1 * var(--fold-gutter) + (var(--fold-gutter) - 14px * var(--glyph-scale)) / 2);
+  top: var(--grip-top, calc(0.8em - 7px * var(--glyph-scale)));
   transition: opacity var(--duration-fast) var(--ease-standard);
 }
 .mdpm-editor .cm-line.md-bq-first.md-grip-hot .md-bq-grip {

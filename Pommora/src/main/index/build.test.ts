@@ -3,8 +3,9 @@ import { mkdtemp, rm, mkdir, writeFile, utimes } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { rebuildIndex } from './build'
+import { blockFilePath } from '../blocks'
 import { writeJson } from '../io/atomicWrite'
-import { nexusDir, nexusConfig, NEXUS_CONFIG_FILES, contextTierDir } from '../paths'
+import { nexusDir, nexusConfig, NEXUS_CONFIG_FILES, contextTierDir, blockHostDir } from '../paths'
 import { createFolderEntity } from '../crud/folderEntity'
 import { createProperty } from '../crud/registryProperty'
 import { assignProperty } from '../crud/assignment'
@@ -130,6 +131,30 @@ describe('rebuildIndex (cold build)', () => {
     // property_definitions mirrors the nexus-wide registry only — agenda config defs stay out (D-1)
     expect(get(db, "SELECT * FROM property_definitions WHERE id = '_status'")).toBeUndefined()
 
+    db.close()
+  })
+
+  it('indexes markdown-block [[links]] as block-source edges (D-11)', async () => {
+    // A homepage host with one markdown block linking PageB (from the fixture).
+    const host = { kind: 'homepage' } as const
+    const blockId = '01BLOCKTILE0000000000000A'
+    await mkdir(blockHostDir(root, host), { recursive: true })
+    await writeFile(blockFilePath(root, host, blockId), 'see [[PageB]]', 'utf8')
+    await writeJson(nexusConfig(root, NEXUS_CONFIG_FILES.homepage), { blocks: [{ id: blockId, type: 'markdown' }] })
+
+    const db = await rebuildIndex(root)
+    expect(db).not.toBeNull()
+    if (!db) return
+    const conns = db.prepare('SELECT * FROM connections WHERE source_id = ?').all(blockId) as Record<string, unknown>[]
+    expect(conns).toHaveLength(1)
+    expect(conns[0]).toMatchObject({
+      source_kind: 'block',
+      surface: 'block_body',
+      target_kind: 'page',
+      target_title: 'pageb',
+      target_id: ids.b,
+      resolved: 1
+    })
     db.close()
   })
 

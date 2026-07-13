@@ -12,7 +12,7 @@ import { Icon, asRenderableIcon, type IconName } from '@renderer/design-system/s
 import { MenuItem, MenuPaneTopRow, MenuSeparator } from '../../design-system/components/menu'
 import { flushTrailing } from '../../design-system/components/menu/menu.css'
 import { Reveal } from '../../design-system/components/Reveal'
-import { saveViewAdopting } from '../../Detail/Views/viewMint'
+import { useSaveView } from '@renderer/Embeds/ViewEmbedScope'
 import { declaredType } from '../../Detail/Views/pipeline/value'
 import { cx } from '../../design-system/cx'
 import { useSession } from '../../store'
@@ -126,7 +126,8 @@ export function SortingPane({
 }): React.JSX.Element {
   const load = useSession((st) => st.load)
   const [sortByOpen, setSortByOpen] = useState(false)
-  const save = (sort: SortCriterion[] | undefined): void => void saveViewAdopting(source, { ...view, sort }, load)
+  const saveView = useSaveView(source, load)
+  const save = (sort: SortCriterion[] | undefined): void => void saveView({ ...view, sort })
 
   const primary = view.sort?.[0]
   const sub = view.sort?.[1]

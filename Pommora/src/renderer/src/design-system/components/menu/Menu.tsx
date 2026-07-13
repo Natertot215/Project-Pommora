@@ -174,7 +174,8 @@ export function MenuPaneTopRow({
   label,
   onBack,
   trailing,
-  current
+  current,
+  contentClassName
 }: {
   label: string
   onBack: () => void
@@ -182,6 +183,9 @@ export function MenuPaneTopRow({
   trailing?: ReactNode
   /** The current pane's name — a right-side label-secondary breadcrumb when there's no action. */
   current?: string
+  /** Scale/tone the CONTENT row only (e.g. the handle menu's barScale) — the separator stays full so a
+   *  density zoom never thins or shifts the divider. */
+  contentClassName?: string
 }): React.JSX.Element {
   const right = trailing ? (
     <span className={s.topBarTrailingSymbol}>{trailing}</span>
@@ -190,7 +194,7 @@ export function MenuPaneTopRow({
   ) : undefined
   return (
     <>
-      <MenuTopRow label={label} onClick={onBack} className={s.topRowPad} trailing={right} />
+      <MenuTopRow label={label} onClick={onBack} className={cx(s.topRowPad, contentClassName)} trailing={right} />
       <MenuSeparator flush className={s.paneSeparator} />
     </>
   )

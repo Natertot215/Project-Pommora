@@ -9,7 +9,7 @@ import { flushTrailing } from '../../design-system/components/menu/menu.css'
 import { resolveColumns } from '../../Detail/Views/pipeline/columns'
 import { columnLabel } from '../../Detail/Views/Table/columnLabel'
 import { useActiveView } from '../../Detail/Views/useActiveView'
-import { saveViewAdopting } from '../../Detail/Views/viewMint'
+import { useSaveView } from '@renderer/Embeds/ViewEmbedScope'
 import { PaneDnd, RowShell, usePaneRegions } from './paneDnd'
 import type { PaneDrop, PaneRow } from './paneDndModel'
 import { hiddenListIds, hiddenPaneSlot, hideShown, placeInShown, unhide } from './hiddenPaneModel'
@@ -140,6 +140,7 @@ export function VisibilityList({
   maxHeight?: number
 }): React.JSX.Element | null {
   const load = useSession((st) => st.load)
+  const saveView = useSaveView(source, load)
   const tree = useSession((st) => st.tree)
   if (!tree) return null
 
@@ -149,7 +150,7 @@ export function VisibilityList({
   const nameFor = (id: string): string => columnLabel(id, schema, tree.labels)
 
   const save = async (patch: Partial<SavedView>): Promise<void> => {
-    const res = await saveViewAdopting(source, { ...view, ...patch }, load)
+    const res = await saveView({ ...view, ...patch })
     if (!res.ok) await window.nexus.showError(res.error)
   }
   // The positional kinds are the ONE placeInShown write — a shown reorder and a drag-in unhide

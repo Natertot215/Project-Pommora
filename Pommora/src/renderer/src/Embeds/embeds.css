@@ -1,0 +1,39 @@
+/* The shared page-embed chrome (G-11) — tile-agnostic: the host surface sizes it,
+   the embed fills and scrolls. The embed IS the CM6 portal; its padding is its
+   own (the editor's 16px boundary-to-first-line standard), never the host's
+   insets. Header chrome (banner + title) is parked — returns with the ⋮ pass. */
+
+/* Scroll model (edge-release, matching view embeds): at rest the embed scrolls its
+   own overflow via the inner CM6 scroller, releasing to the page at its bound; a page
+   that fits passes the wheel straight through. Editing traps the wheel (contain). */
+.pgembed {
+  position: relative;
+  height: 100%;
+  overflow: hidden;
+  /* The portal pads like the embed, not a page — MarkdownPM's page-level insets don't apply inside
+     a foreign surface. The fold gutter scales off --mdpm-scale (set inline by PageEmbed from its single
+     EMBED_SCALE knob), so the whole embed's geometry follows one variable. */
+  --fold-gutter: calc(20px * var(--mdpm-scale));
+}
+.spm-tile.is-editing-tile .pgembed {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.pgembed .mdpm-editor {
+  padding-left: 0;
+  padding-right: 0;
+}
+.pgembed .mdpm-editor .cm-content {
+  padding: calc(16px * var(--mdpm-scale)) calc(14px * var(--mdpm-scale)) calc(16px * var(--mdpm-scale))
+    var(--fold-gutter);
+}
+/* The task checkbox rides the shared fixed chip-box geometry (17px), which the scale vars don't reach —
+   so in a scaled block it reads oversized against the text. Zoom the whole widget (box + stroke +
+   checkmark) to --glyph-scale so it tracks both the embed's base scale AND the per-block Scale in
+   lockstep with the glyphs. Scoped to the two block contexts: the chipBoxGeometry token and every chip
+   using it stay untouched in the full-page editor (an atomic widget, so zoom doesn't disturb caret
+   mapping). Absent scale ⇒ zoom:1, a no-op. */
+:is(.pgembed, .blk-md) .md-checkbox {
+  zoom: var(--glyph-scale);
+}

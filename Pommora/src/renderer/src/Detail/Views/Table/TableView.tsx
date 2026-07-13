@@ -19,7 +19,7 @@ import { PropertyPicker } from '../PropertyEditing/PropertyPicker'
 import { nextCycleValue } from '../PropertyEditing/statusCycle'
 import { useSession } from '../../../store'
 import { useActiveView } from '../useActiveView'
-import { saveViewAdopting } from '../viewMint'
+import { useSaveView } from '@renderer/Embeds/ViewEmbedScope'
 import type { SetTreeNode } from '../pipeline/group'
 import { buildResolveContext, type ResolveContext } from './resolveContext'
 import { buildSetIcons, buildSetNames, buildSetPaths, groupLabel } from './cellResolve'
@@ -125,6 +125,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
   // reassign propagates to the sidebar right away instead of waiting on the fs watcher's settle (~1s).
   const mutate = useSession((s) => s.mutate)
   const load = useSession((s) => s.load)
+  const saveView = useSaveView(source, load)
   const [values, setValues] = useState<Record<string, PageFrontmatter>>({})
   // Optimistic property patches keyed by page id (cross-group reassignment, D-4): the loaded values
   // never re-read on a write, so a reassigned row re-groups only because this patch feeds the pipeline.
@@ -418,7 +419,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
   const persistView = (patch: Partial<SavedView>): void => {
     // Adopt-only (G-1): if this fires while the entry-mint is still in flight, it awaits the minted id
     // and saves against it — never mints a rival default from its own sentinel.
-    void saveViewAdopting(source, mergeOverrides(liveView, widthOverride, alignOverride, collapsed, patch, styleOverride), load)
+    void saveView(mergeOverrides(liveView, widthOverride, alignOverride, collapsed, patch, styleOverride))
   }
   const toggleCollapse = (key: string): void => {
     const next = new Set(collapsed)
@@ -951,10 +952,11 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
     if (!grid) return
     header.setPointerCapture(e.pointerId)
     const hr = header.getBoundingClientRect()
-    // The CSS density factor (screen px per pre-zoom track px). Read from --zoom directly, NOT back-solved
-    // from the header's rendered width ÷ its track width — a rendered/track ratio bakes in whatever layout
-    // slack the grid has (it broke under the old elastic title); the token is the ground truth.
-    const zoom = Number.parseFloat(getComputedStyle(grid).getPropertyValue('--zoom')) || 1
+    // The CSS density factor (screen px per pre-zoom track px) — the RESOLVED `zoom`, which compounds the
+    // base density token (--zoom) with the per-block Scale (--block-zoom on a SurfacePM tile). Read the
+    // computed property, not the --zoom token alone, so a scaled tile's drag maps 1:1; NOT back-solved from
+    // the header's rendered width ÷ its track width (that ratio bakes in the grid's layout slack).
+    const zoom = Number.parseFloat(getComputedStyle(grid).getPropertyValue('zoom')) || 1
     const startCenter = hr.left + hr.width / 2 // the dragged column's centre, screen px; it tracks the cursor 1:1
     const startX = e.clientX
     const startY = e.clientY

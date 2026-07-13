@@ -81,6 +81,7 @@ export function NotchedPane({
   notchInsetRight,
   notchInsetBottom,
   notchSide = 'top',
+  accentOutline = false,
   style
 }: {
   children: ReactNode
@@ -101,6 +102,9 @@ export function NotchedPane({
   /** Which edge the beak hangs off: 'top' (default, downward pane) / 'bottom' (upward) / 'left' /
    *  'right' (sideways panes — the beak points horizontally at the trigger). */
   notchSide?: 'top' | 'bottom' | 'left' | 'right'
+  /** Outline the pane in accent @ tint-secondary (the page-location border signal) instead of the
+   *  default white frost stroke — opt-in for the block-surface pickers only. */
+  accentOutline?: boolean
   style?: CSSProperties
 }): React.JSX.Element {
   const popRef = useRef<HTMLDivElement>(null)
@@ -167,7 +171,21 @@ export function NotchedPane({
       </GlassPane>
       {d && (
         <svg className={cx(s.frame, animationClass)} width={w} height={h} aria-hidden>
-          <path d={d} fill="none" stroke="#FFFFFF" strokeOpacity={PANE_FROST.borderAlpha} strokeWidth={1} />
+          {/* Default: the white frost stroke. accentOutline (block-surface pickers): accent @ tint-secondary,
+              the page-location border signal — set via the CSS `stroke` property, not the SVG attribute, so
+              var()/color-mix() resolve (the tokens live on :root/html, which the body portal inherits). */}
+          <path
+            d={d}
+            fill="none"
+            strokeWidth={1}
+            stroke={accentOutline ? undefined : '#FFFFFF'}
+            strokeOpacity={accentOutline ? undefined : PANE_FROST.borderAlpha}
+            style={
+              accentOutline
+                ? { stroke: 'color-mix(in srgb, var(--accent) var(--tint-secondary), transparent)' }
+                : undefined
+            }
+          />
         </svg>
       )}
     </div>

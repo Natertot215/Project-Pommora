@@ -1,0 +1,56 @@
+// Drop-target resolution for tile moves: a pointer position resolves to a band
+// insertion (above the first band, on a between-band seam, or past the bottom)
+// or the hovered tile's nearest edge — never the dragged tile itself. Band zones
+// win over the tiles they straddle; `bandZonePx` is the live-tuning knob. Edge
+// picks within one tile carry PommoraDND's hysteresis: near a quadrant diagonal
+// the previous edge holds until the new one genuinely beats it, killing flicker.
+
+import { HYSTERESIS } from '@renderer/design-system/interactions/shared'
+import type { Edge, SurfaceLayout } from './model'
+import type { SurfaceGeometry } from './rects'
+
+export type DropTarget =
+  | { kind: 'tile'; id: string; edge: Edge }
+  | { kind: 'band'; index: number }
+  | null
+
+export function hitTest(
+  geometry: SurfaceGeometry,
+  layout: SurfaceLayout,
+  dragId: string,
+  px: number,
+  py: number,
+  bandZonePx = 10,
+  prev: DropTarget = null
+): DropTarget {
+  if (py < bandZonePx) return { kind: 'band', index: 0 }
+  // Append owns only the pad BELOW the content — the last band's south edges stay targetable.
+  if (py > geometry.totalHeight) return { kind: 'band', index: layout.bands.length }
+  for (const seam of geometry.bandEdges.slice(0, -1)) {
+    if (Math.abs(py - seam.y) <= bandZonePx) return { kind: 'band', index: seam.band + 1 }
+  }
+
+  for (const [id, r] of geometry.tiles) {
+    if (id === dragId) continue
+    if (px < r.x || px > r.x + r.w || py < r.y || py > r.y + r.h) continue
+    const relX = (px - r.x) / r.w
+    const relY = (py - r.y) / r.h
+    const dists: Array<[Edge, number]> = [
+      ['w', relX],
+      ['e', 1 - relX],
+      ['n', relY],
+      ['s', 1 - relY]
+    ]
+    dists.sort((a, b) => a[1] - b[1])
+    const best = dists[0]?.[0] ?? 'e'
+
+    if (prev?.kind === 'tile' && prev.id === id && prev.edge !== best) {
+      const margin = HYSTERESIS / Math.min(r.w, r.h)
+      const prevDist = dists.find(([edge]) => edge === prev.edge)?.[1] ?? Infinity
+      const bestDist = dists[0]?.[1] ?? 0
+      if (prevDist - bestDist < margin) return prev
+    }
+    return { kind: 'tile', id, edge: best }
+  }
+  return null
+}

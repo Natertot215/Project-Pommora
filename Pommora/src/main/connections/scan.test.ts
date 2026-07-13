@@ -20,4 +20,18 @@ describe('scanConnections', () => {
   it('ignores empty / whitespace-only links and returns [] for a plain body', () => {
     expect(scanConnections('[[]] [[   ]] no links here')).toEqual([])
   })
+
+  it('tolerates internal brackets in a title (a `]` is content unless it closes the pair)', () => {
+    expect(titles('see [[Notes [WIP] final]] and [[A [x] B]]')).toEqual(['a [x] b', 'notes [wip] final'])
+    expect(titles('[[A]] then [[B]]')).toEqual(['a', 'b']) // adjacent links still split
+  })
+
+  it('caps title length and never backtracks on a pathological bracket run (ReDoS guard)', () => {
+    // Under an unbounded `+` this would hang for seconds — completing at all IS the guard.
+    expect(scanConnections('['.repeat(50000))).toEqual([])
+    expect(scanConnections(`[[a|${'['.repeat(50000)}`)).toEqual([])
+    // The title is capped at the filesystem name limit (255): at the bound matches, past it doesn't.
+    expect(titles(`[[${'x'.repeat(255)}]]`)).toEqual(['x'.repeat(255)])
+    expect(scanConnections(`[[${'x'.repeat(256)}]]`)).toEqual([])
+  })
 })
