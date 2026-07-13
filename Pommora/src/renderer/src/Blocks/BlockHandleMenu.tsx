@@ -177,6 +177,7 @@ export function BlockHandleMenu({
     }
   }, [scaleOpen])
   const style: BlockStyle = entry.style === 'borderless' ? 'borderless' : 'bordered'
+  const currentStep = zoomStep(zoom) // the tile's resolved Scale step — trailing value + the picker's active check
   // Content/board lock: a per-tile lock (B-5) OR the host board lock (G-3) dims + inerts every action —
   // the menu still opens (grab-menu stays reachable + reads its lock state), it just can't mutate a locked
   // board/tile. The dim is the house rowDisabled (opacity on the row content, not a full-row veil). The
@@ -268,7 +269,7 @@ export function BlockHandleMenu({
               className={s.scaleTrailing}
               onClick={locked ? undefined : () => setScaleOpen((o) => !o)}
             >
-              <span className={s.scaleValue}>{zoomStep(zoom).inline}</span>
+              <span className={s.scaleValue}>{currentStep.inline}</span>
               <Icon name="chevrons-up-down" size={GLYPH} />
             </button>
           }
@@ -337,7 +338,7 @@ export function BlockHandleMenu({
                 key={st.label}
                 className={s.row}
                 trailing={
-                  zoomStep(zoom).factor === st.factor ? (
+                  currentStep.factor === st.factor ? (
                     <Icon name="check" size={GLYPH} className={s.scaleCheck} />
                   ) : undefined
                 }
