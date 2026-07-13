@@ -164,6 +164,15 @@
   border-color: transparent;
 }
 
+/* An embedded PAGE reads as one at a glance: an accent border (accent @ tint-secondary) while the
+   pointer is over it OR the caret is inside it — the handle's menu carries the exact location, so the
+   border only signals "this is an embed." Non-locked only (a lock, host or per-tile, keeps the
+   separator); it yields to the stronger resize accent (tint-primary) at the edges. */
+.blk-surface:not(.is-host-locked) .spm-tile:not(.is-locked):has(.pgembed):hover:not(.is-resizing):not(:has(> .spm-edge:hover)),
+.blk-surface:not(.is-host-locked) .spm-tile:not(.is-locked):has(.pgembed).is-editing-tile:not(.is-resizing):not(:has(> .spm-edge:hover)) {
+  border-color: color-mix(in srgb, var(--accent) var(--tint-secondary), transparent);
+}
+
 /* Resize zones ride the block's own edges and corners (window-style), straddling
    the border. Corners sit above edges so a corner grab wins both axes. */
 .spm-edge {

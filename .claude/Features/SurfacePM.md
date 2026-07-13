@@ -37,13 +37,15 @@ Resize is window-style on the tile's own edges and corners: south stretches the 
 
 A **host lock** is geometry-only: it freezes every tile's position and size — no drag, no resize — while the grab-menu, content editing, and background-create stay live. It pins borderless chassis hidden and mutes the handle menu's mutating rows to an inert "Locked."
 
+An embedded **page** signals itself with an accent border (accent at the secondary tint) while the pointer is over it or the caret is inside it — non-locked tiles only, and it yields to the stronger resize accent at the edges. The border is the ambient "this is an embed" cue; the handle menu carries the page's exact location.
+
 ### Storage + Host Rules
 
 Hosts live under `.nexus/` (shielded from other apps; root-lift is a breaking Prospect). The block document loads per-host on open — never in the tree walk — and layout writes debounce on gesture end; the watcher ignores host content folders so block edits never cost a re-walk. Markdown-block bodies write pure (no frontmatter envelope, no stamp), locked per file.
 
 #### Pending
 
-- **Page-embed header + banners** — designed, deferred. **Banner off** (the page-embed default): a hover-revealed breadcrumb at the top of the embed — `Collection › Set › Page`, the path in `--label-secondary`, the page name in `--label-control`, at `control` size, an overlay that fades in on embed-hover or active edit (opacity-only, no reflow, non-clickable). **Banner on**: the page's real banner image with its in-line title over it. The toggle is a right-click context menu in the heading area, mirroring the view-embed chrome menus. Threads the entry's `banner` / `title` through `PageEmbedBlock → PageEmbed`; it's the page embed's path to view-embed parity and the home for its per-tile lock.
+- **Page banners on embeds** — the banner-**on** state: the page's real banner image with its in-line title over it, toggled by a right-click context menu in the embed's heading area (mirroring the view-embed chrome menus). The banner-**off** default is the plain embed — its accent-border hover signal ships (see Surface Interaction); the entry's `banner` / `title` stay wired. That heading menu is also the home for the page embed's per-tile lock.
 - **The Insert menu (G-9)** — background right-click offering Page / View / Block through the shipped picker, with the Link-Page search pane + a shared `state.json` recents record (Navigation reuses the same record) behind its Page branch.
 - **The remaining locks** — the host lock (geometry-only) and the view-embed config lock ship; still open are the container view-lock (G-5, locks a Collection/Set's views everywhere) and the page-embed per-tile lock (waits on the ⋮ menu above).
 - **Navigation surfaces for hosts + the contexts resolution** — parked by design.
