@@ -952,10 +952,11 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
     if (!grid) return
     header.setPointerCapture(e.pointerId)
     const hr = header.getBoundingClientRect()
-    // The CSS density factor (screen px per pre-zoom track px). Read from --zoom directly, NOT back-solved
-    // from the header's rendered width ÷ its track width — a rendered/track ratio bakes in whatever layout
-    // slack the grid has (it broke under the old elastic title); the token is the ground truth.
-    const zoom = Number.parseFloat(getComputedStyle(grid).getPropertyValue('--zoom')) || 1
+    // The CSS density factor (screen px per pre-zoom track px) — the RESOLVED `zoom`, which compounds the
+    // base density token (--zoom) with the per-block Scale (--block-zoom on a SurfacePM tile). Read the
+    // computed property, not the --zoom token alone, so a scaled tile's drag maps 1:1; NOT back-solved from
+    // the header's rendered width ÷ its track width (that ratio bakes in the grid's layout slack).
+    const zoom = Number.parseFloat(getComputedStyle(grid).getPropertyValue('zoom')) || 1
     const startCenter = hr.left + hr.width / 2 // the dragged column's centre, screen px; it tracks the cursor 1:1
     const startX = e.clientX
     const startY = e.clientY

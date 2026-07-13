@@ -31,9 +31,10 @@
   transition: none;
 }
 
-/* Per-block Scale (G-10): one discrete var on the tile; the font (via .cm-content), the editor glyphs
-   (via --glyph-scale), and the handle all read it — the frozen gutter/padding do not. Five steps; 1.0
-   needs no class (--block-zoom falls back to 1). */
+/* Per-block Scale (G-10): one discrete var on the tile. Markdown/page tiles read it for the font (via
+   .cm-content) + the editor glyphs (via --glyph-scale); a view tile's table reads it in its own grid
+   `zoom` (base density × --block-zoom). The handle, resize edges, gutter, and padding do NOT read it —
+   chrome + structure stay fixed. Five steps; 1.0 needs no class (--block-zoom falls back to 1). */
 .spm-tile.blk-zoom-125 {
   --block-zoom: 1.25;
 }

@@ -255,25 +255,26 @@ export function BlockHandleMenu({
         <MenuItem className={cx(s.row, rowMute)} leading={<Icon name="palette" size={GLYPH} />} trailing={chevron} onClick={locked ? undefined : () => setPane('style')}>
           Style
         </MenuItem>
-        {entry.type !== 'view' && (
-          <MenuItem
-            className={cx(s.row, rowMute)}
-            leading={<Icon name="scaling" size={GLYPH} />}
-            trailing={
-              <button
-                type="button"
-                ref={scaleTriggerRef}
-                className={s.scaleTrailing}
-                onClick={locked ? undefined : () => setScaleOpen((o) => !o)}
-              >
-                <span className={s.scaleValue}>{zoomStep(zoom).inline}</span>
-                <Icon name="chevrons-up-down" size={GLYPH} />
-              </button>
-            }
-          >
-            Scale
-          </MenuItem>
-        )}
+        {/* Scale is view-agnostic — every tile type carries it. Markdown/page tiles freeze-inset (only
+            content + glyphs scale); a view tile scales as a unit within the fixed inset (the grid's own
+            CSS zoom compounds --block-zoom). */}
+        <MenuItem
+          className={cx(s.row, rowMute)}
+          leading={<Icon name="scaling" size={GLYPH} />}
+          trailing={
+            <button
+              type="button"
+              ref={scaleTriggerRef}
+              className={s.scaleTrailing}
+              onClick={locked ? undefined : () => setScaleOpen((o) => !o)}
+            >
+              <span className={s.scaleValue}>{zoomStep(zoom).inline}</span>
+              <Icon name="chevrons-up-down" size={GLYPH} />
+            </button>
+          }
+        >
+          Scale
+        </MenuItem>
         <MenuSeparator flush />
         <MenuItem className={cx(s.row, rowMute)} leading={<Icon name="copy" size={GLYPH} />} onClick={locked ? undefined : act(onDuplicate)}>
           Duplicate
