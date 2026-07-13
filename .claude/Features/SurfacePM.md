@@ -43,7 +43,7 @@ Hosts live under `.nexus/` (shielded from other apps; root-lift is a breaking Pr
 
 #### Pending
 
-- **Page-embed header** — the hover ⋮ menu + in-line title toggle (banner deferred); the entry's `banner`/`title` fields stay wired until it renders them. It's the page embed's remaining path to view-embed parity, and the home for its per-tile lock.
+- **Page-embed header + banners** — designed, deferred. **Banner off** (the page-embed default): a hover-revealed breadcrumb at the top of the embed — `Collection › Set › Page`, the path in `--label-secondary`, the page name in `--label-control`, at `control` size, an overlay that fades in on embed-hover or active edit (opacity-only, no reflow, non-clickable). **Banner on**: the page's real banner image with its in-line title over it. The toggle is a right-click context menu in the heading area, mirroring the view-embed chrome menus. Threads the entry's `banner` / `title` through `PageEmbedBlock → PageEmbed`; it's the page embed's path to view-embed parity and the home for its per-tile lock.
 - **The Insert menu (G-9)** — background right-click offering Page / View / Block through the shipped picker, with the Link-Page search pane + a shared `state.json` recents record (Navigation reuses the same record) behind its Page branch.
 - **The remaining locks** — the host lock (geometry-only) and the view-embed config lock ship; still open are the container view-lock (G-5, locks a Collection/Set's views everywhere) and the page-embed per-tile lock (waits on the ⋮ menu above).
 - **Navigation surfaces for hosts + the contexts resolution** — parked by design.
