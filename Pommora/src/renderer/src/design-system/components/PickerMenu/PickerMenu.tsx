@@ -36,6 +36,7 @@ export function PickerMenu({
   direction = 'down',
   center = false,
   bareSurface = false,
+  accentOutline = false,
   contentClassName,
   style
 }: {
@@ -63,6 +64,9 @@ export function PickerMenu({
   /** Drop the default surface gutter entirely — `contentClassName` is the ONLY surface class, so a
    *  bespoke body (the icon picker) owns 100% of its padding/layout with no `surface` collision. */
   bareSurface?: boolean
+  /** Outline the pane in accent @ tint-secondary (the page-location border signal) — opt-in, used by the
+   *  block-surface pickers so they read as part of that surface. */
+  accentOutline?: boolean
   /** Overrides the surface's content gutter (cx'd after the default) — for a picker that wants its own
    *  inset, e.g. the tight single-field TextPicker. */
   contentClassName?: string
@@ -176,6 +180,7 @@ export function PickerMenu({
       notchInsetRight={pos?.notchInset}
       notchInsetBottom={pos?.notchInsetBottom}
       notchSide={notchSide}
+      accentOutline={accentOutline}
       style={style}
     >
       {children}
