@@ -28,10 +28,12 @@
   padding: calc(16px * var(--mdpm-scale)) calc(14px * var(--mdpm-scale)) calc(16px * var(--mdpm-scale))
     var(--fold-gutter);
 }
-/* The task checkbox rides the shared fixed chip-box geometry (17px), which --mdpm-scale doesn't reach —
-   so in the scaled-down embed it reads oversized against the text. Zoom the whole widget (box + stroke +
-   checkmark) to the embed scale. Scoped to .pgembed: the chipBoxGeometry token and every chip that uses
-   it stay untouched (an atomic widget, so the zoom doesn't disturb CM's caret mapping). */
-.pgembed .md-checkbox {
-  zoom: var(--mdpm-scale);
+/* The task checkbox rides the shared fixed chip-box geometry (17px), which the scale vars don't reach —
+   so in a scaled block it reads oversized against the text. Zoom the whole widget (box + stroke +
+   checkmark) to --glyph-scale so it tracks both the embed's base scale AND the per-block Scale in
+   lockstep with the glyphs. Scoped to the two block contexts: the chipBoxGeometry token and every chip
+   using it stay untouched in the full-page editor (an atomic widget, so zoom doesn't disturb caret
+   mapping). Absent scale ⇒ zoom:1, a no-op. */
+:is(.pgembed, .blk-md) .md-checkbox {
+  zoom: var(--glyph-scale);
 }
