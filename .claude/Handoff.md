@@ -17,15 +17,15 @@ Prior arcs, compressed — the detail lives in `Features/*` + `History.md`.
 
 - **The Table Grouping + Sorting (shipped + merged).** Grouping + Sorting shipped for tables end-to-end — the pane, the pipeline, Location order writing the real filesystem, and the drag surfaces — with the structural-only settings locked view-level beside `group_order`. The tableDnd frozen-closure fix (per-render `cfg` ref) rode along. → [[Views]] `### Grouping` + [[TableView]] + `History.md`.
 
-### Session Summary — Block Surfaces: Certified Spec → Live System
+### Session Summary — Block Surfaces: Certified Spec → Live System → Merged to Main
 
 **Session ID:** abc3bafe-70bc-41e4-adfd-aa052cfee424
-**Dates:** 07-10-2026 → 07-12-2026
+**Dates:** 07-10-2026 → 07-13-2026
 **Model:** Fable 5 → Opus 4.8 (1M)
-**Compactions:** 5
+**Compactions:** 6
 **Connectors:** none
 **Commands:** /clear · /handoff · /compact · /loop
-**Agents:** Explore (1x - census) · general-purpose (5x - research + SurfacePM cleanup/token/DRY audits) · build-breaking-agent (14x - spec rounds + per-task reviews) · code-simplifier (2x - closeout + Task 5) · comment-killer (1x - arc sweep, came back clean)
+**Agents:** Explore (1x - census) · general-purpose (5x - research + SurfacePM cleanup/token/DRY audits) · build-breaking-agent (17x - spec rounds + per-task + Scale Phase-1/2 reviews) · code-simplifier (3x - closeout + Task 5 + Scale) · comment-killer (1x - arc sweep, came back clean)
 **Skills:** studio-brainstorm · superpowers:writing-plans · superpowers:executing-plans · superpowers:systematic-debugging · handoff
 
 One session, the whole arc: the Contexts rethink became a certified spec, the spec became SurfacePM, and SurfacePM became a live block system Nathan drove all evening.
@@ -41,6 +41,8 @@ One session, the whole arc: the Contexts rethink became a certified spec, the sp
 **Continuation (07-12) — Homepage Lock + Settings arc (Tasks 1–5 of the Homepage-Lock plan).** The Task-6 leftovers finally got their surface. A **homepage board lock — geometry-only:** it freezes drag + resize but keeps the grab-menu, content editing, and background-create live (store-synced `homepageLocked`, seeded in `applyTree` off the config readNexus already reads — no extra IPC; the handle menu goes inert + reads a muted "Locked" under it). It first shipped as a FULL freeze; its review found real F1–F3 issues, then Nathan reversed the whole thing: *"locking should NOT disable the grab-menu. It should only disable the resizing."* A **homepage + context identity SettingsPane scaffold** — the host-settings surface 6.1 was blocked on now exists (`SettingsScaffold`, routed by `viewSettingsScope`). The homepage IS the nexus, so its icon is a **photo OR glyph** set from a native `nexus:iconMenu` (Change Icon → the glyph picker · Add/Change Photo → crop), one shared `useNexusIcon` hook reused across ribbon + settings + banner (photo > glyph > house). **Hide/show the banner heading icon** landed for every banner entity (`heading_icon_hidden` via a new `setHeadingIconHidden` op): the homepage banner — icon-less before — now leads its title with the identity icon (house default so the toggle's always there, sliding in/out), and its title gained Rename (→ `renameNexus`) + a borderless inline rename. Fixed a **context-icon regression I introduced** (`8a2505a6` made `ContextRow` honor `node.icon` via raw `||`, so a Swift-era `"rectangle.stack"` sidecar won → dashed square; fixed with `iconNameOr` validate-or-default, root-caused by reading Nathan's real Nexus on disk). Closed with two review-flagged fixes: a board-locked handle menu goes fully inert, and Escape peels one popover at a time (a picker eats its own Escape, the pane it sits in stays). Commits `6a8f6423`…`0074380a`.
 
 **Continuation (07-12, late) — closeout doc-alignment + a low-risk cleanup sweep.** A "make the bed, don't change the mattress" pass ahead of the SurfacePM finalize — no architecture touched. Docs realigned to shipped reality: [[SurfacePM]] now describes view embeds + the geometry-only host lock as built and its Pending lists only genuinely-open work; Structure/Sidebar call the homepage ribbon icon the Nexus **identity icon (photo OR glyph)**, not a profile photo; Contexts says the tiers **default to** the grid icon (a set icon overrides). Homepage's graph-view final-shape direction stays a live consideration (Nathan's call — do NOT strip it). Two read-only finder agents swept the subsystem and it came back remarkably clean: one duplicated view-config id-remint hoisted to `remintConfigIds` (`main/blocks.ts`), a few split CSS rule-blocks merged, a dead `nodeAt` export dropped, and `Banner.css`'s lone `rgba()` + a hardcoded `180ms ease` rerouted to hex + `--duration-fast`/`--ease-standard`; comment-killer found ZERO strippable comments (every one is a spec-ref/hazard/rationale). The real LOC win — a shared debounced-save hook between `MarkdownBlock` ↔ `PageEmbed` (~35 LOC) — was flagged and deliberately NOT done (a refactor across the save/flush boundary, not a tidy). Typecheck + 1486 tests green. Commits `07666190` (docs) + `456b5469` (cleanup).
+
+**Continuation (07-13) — Per-block Scale, shipped across the whole surface, then merged to main.** The "Scale >" Next-Task landed — but built as a **discrete dropdown, not a slider**, and finished view-agnostic. **Phase 1 (markdown/page):** freeze-inset via one inherited `--block-zoom` var driving the `.cm-content` font (linear, no clamp) + a new `--glyph-scale = --mdpm-scale × --block-zoom` (chevron/grips/checkbox), while structural px (gutter width, padding, edge-fade) + the drag handle stay frozen; five discrete steps (`blockZoom.ts`, `zoomStep`), stored on the entry (absent = 1). Nathan then drove a live UIX loop that reshaped it: the **handle must NOT scale** (chrome, like the resize edges); the picker became an **anchored dropdown, not an in-menu pane** (reusing CalendarPicker's document-`pointerdown`-dismiss idiom — a pick keeps it open to scrub, click-out closes, accent-colored check); and Scale changes **animate over `--duration-base`** via `--block-zoom` registered as an animatable `@property`. **Phase 2 (view-agnostic):** the table scales as a unit — `.table-grid zoom: calc(var(--zoom) * var(--block-zoom,1))` compounds the base density with the Scale, one pointer-math read moved from the `--zoom` token to the resolved `zoom`, group-header kept base-only (it's a grid child, so re-applying would double-scale — caught live), and the Scale row un-gated for every tile type. **F1 sanitize:** `zoomStep` snaps off-grid factors to the nearest step. **Block-surface pickers** got an accent tint-secondary outline (`NotchedPane`/`PickerMenu` `accentOutline` opt-in — scoped to the block menu + Scale dropdown, not app-wide). Two build-breaking reviews came back **0 High / 0 Med**; the second's lone Low (animating `--block-zoom` relayouts a non-virtualized table every frame) was fixed — **view tiles snap** via `--block-zoom-anim: 0s` + an `is-view-tile` class. Then [[SurfacePM]] got its finished-surface doc pass, a [[History]] entry for the whole block-surface arc, Nathan's block-surface Planning-doc deletions preserved, and the branch **`--no-ff` merged to main** (main green, 1492 tests). Commits `db33897a`…`8fca70cd` (the merge).
 
 **Lessons Learned**
 
@@ -88,34 +90,23 @@ One session, the whole arc: the Contexts rethink became a certified spec, the sp
 
 ### Next Session
 
-**The arc: finalize SurfacePM → merge to main → move to the Next Focuses.** Tonight's closeout pass cleared most of Nathan's "cleanup / DRY / CSS-duplication / doc-reconcile" preferred actions (see the late-07-12 summary). What remains to call the *system* done is below, then Nathan's post-merge feature queue. **His priority list and the prior roadmap are merged here — both preserved.**
+**SurfacePM is MERGED to main** — the block surface is a finished, stable substrate. The strategic point (Nathan's): lock it down *before* future plans decide what mounts a block surface, then pivot to the **foundational layer**. Per-block Scale was the last feature in the arc; the merge (`8fca70cd`) brought the whole thing to main, green (1492 tests).
 
-#### SurfacePM closeout (must clear before merge)
+#### The pivot — foundational (Nathan's stated next)
 
-Grounded state: view embeds, the PickerMenu block menu, the link graph, the geometry-only host lock, the view-embed config lock, and the identity `SettingsScaffold` all SHIPPED. The gaps that still hold the tile system short of parity:
+**Navigation · Tabs · Agenda.** These are the next focus. Navigation is the Window + Dropdown + Inspector surface (→ [[Navigation]] + [[Inspector]]); it reuses the shared `state.json` recents record (the same plumbing the block Insert/Link-Page flow wants). Start each with the brainstorm → plan → build discipline; they build *against* the now-settled surface rather than a moving target.
 
-- **Embedded-page signal — SHIPPED; page banners still pending.** The hover-breadcrumb idea got built live then dropped for something simpler (Nathan's call, 07-13): a **non-locked page embed now shows an accent border** (accent @ tint-secondary) on hover or while its caret is inside — the ambient "this is an embed" cue, since the handle menu already carries the exact location (`surfacepm.css`, scoped `.spm-tile:has(.pgembed)`, yielding to the resize accent at the edges). Still **pending** (→ [[SurfacePM]] Pending): page **banners** — the banner-on image + in-line title, and the right-click heading toggle (also the home for the page-embed per-tile lock). Not a merge blocker.
-- **6.2 Insert menu (G-9)** — background right-click → Page / View / Block through the shipped picker (its Page branch wants 6.3, or wire the interim drill so it's never a dead entry).
-- **6.3 Link Page search pane + shared recents (G-16)** — the `state.json` recents record is shared plumbing Navigation reuses (locked append-on-open via `serializeOnFile`, `record:false`-guarded); the search PANE is a new UI surface to design.
-- **Interaction foolproofing (Nathan's #1 — his hands)** — view embeds under drag-heavy gestures (column resize, group/row drags, view-switch slide, pill reorder); edge-release scroll on a dense surface (escalate to hover-intent capture only if the simple version bites); the borderless half-step; the picker flows (drill depth, Duplicate landing, Delete confirm, Source). Plus **verify the text-selection edge-zone tail**: at-rest selection is fixed (editable-true/readOnly), but the `.spm-edge` overlap eating a selection-drag near tile borders is unconfirmed — needs his mouse.
+#### SurfacePM post-merge polish (no longer blocking — pull in as they matter)
 
-#### Robustness hardening (Claude's adds — decide in-or-out at merge)
+- **Page banners on embeds** — the banner-on image + in-line title + a right-click heading toggle (also the home for the page-embed per-tile lock). The banner-**off** accent-border signal already ships. → [[SurfacePM]] Pending.
+- **Insert menu (G-9)** + **Link Page search pane + shared recents (G-16)** — background right-click → Page/View/Block; the recents record is shared plumbing Navigation reuses (so this pairs naturally with the Navigation work).
+- **The shared debounced-save hook** — `MarkdownBlock` ↔ `PageEmbed` ~35 LOC save/flush twins; a real refactor across the save boundary (diverge on `suppressFlush` vs path-reset), best designed with the future `![[]]` consumer in hand. Its own scoped task, not a tidy — confirmed still-open 07-13.
+- **Robustness hardening (Claude's adds):** per-tile render error boundary · lazy-mount embeds (a 10–15-embed homepage mounts them all on open) · layout undo (⌘Z) · empty-host create affordance + `.nexus` gitignore. Decide in/out as SurfacePM becomes real hosts.
+- **Interaction foolproofing (Nathan's hands):** view embeds under drag-heavy gestures, edge-release scroll on a dense surface, the borderless half-step, the picker flows. Plus verify the `.spm-edge` overlap doesn't eat a text-selection drag near tile borders (at-rest selection is fixed; the edge-zone tail is unconfirmed).
 
-- **Per-tile error boundary** — make the doc's "repair-not-reject, never crashes the host" true at the RENDER layer, not just the data layer. Cheap; worth doing before this is every context + the homepage.
-- **Lazy-mount embeds** — every embed mounts a live CM6/table; a homepage-proper with 10–15 embeds mounts them all on open (the "expensive on every X" rule). Decide now vs. retrofit after it lags.
-- **Layout undo (⌘Z)** — currently a Prospect; a rearrange-heavy surface misses it day one. Pull in, or defer with eyes open.
-- **Empty-host state + `.nexus` gitignore** — a fresh host renders a blank pane with an undiscoverable create affordance; and the Fix-Log gitignore gap now bites hosts (they write `.nexus/` sidecars).
-- **The shared debounced-save hook (flagged, NOT done)** — `MarkdownBlock` ↔ `PageEmbed` share ~35 LOC of save/flush scaffolding; extracting it is the real LOC win but a deliberate refactor across the save boundary (load-bearing `suppressFlush` + reset-on-path divergence), and the PageEmbed seam grows the `![[]]` consumer. Its own scoped task, not a tidy.
+#### Other consumers (post-foundational)
 
-#### The Scale model → Nathan's "Scale >" slider
-
-Nathan's "Next Task: drag-menu **Scale >** vertical slider (rides a default zoom, zooms the content)" needs the scale model finished first: the spec claims one `--mdpm-scale` drives everything, but the "stragglers" (glyphs, chevrons, gutter spacing) aren't fully unified. **Finish the single-scale-variable unification, THEN add the per-tile scale override + the slider-out-of-menu UI.** Building the slider on an unfinished model is backwards. Post-merge is fine.
-
-#### Post-merge — the Next Focuses (Nathan's queue)
-
-Distinct from SurfacePM-the-system; these CONSUME it (two reuse the embed framework, so the clean framework pays off here):
-
-- **Page/View Previews** · **Filter-pane redesign** · **Navigation** (Window + Dropdown + Inspector → [[Navigation]] + [[Inspector]]) · **Page-Embedding — `![[]]`** (the embed framework's second consumer) · **Gallery / Card view** (a non-Table renderer). Plus the standing **relation/context pickers**.
+**Page/View Previews** · **Filter-pane redesign** · **Page-Embedding — `![[]]`** (the embed framework's second consumer) · **Gallery / Card view** (a non-Table renderer) · the standing **relation/context pickers**. When a new view type lands, it opts into Scale with one line — `zoom: calc(var(--zoom) * var(--block-zoom,1))` in its grid CSS (the gate + var already flow to it).
 
 #### Parked by design
 
