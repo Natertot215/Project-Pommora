@@ -12,6 +12,7 @@ import { findCollection, findCollectionForSet, findSet } from '@renderer/Detail/
 import { mintDefaultView } from '@shared/views'
 import type { CollectionNode, NexusTree, SetNode } from '@shared/types'
 import type { SavedView } from '@shared/views'
+import { zoomStep } from './blockZoom'
 import { MarkdownBlock } from './MarkdownBlock'
 import { BlockHandleMenu } from './BlockHandleMenu'
 import { ViewEmbedBlock } from './ViewEmbedBlock'
@@ -249,7 +250,8 @@ export function BlockSurface({ host }: { host: BlockHostRef }): React.JSX.Elemen
         entries.get(id)?.style === 'borderless' ? 'is-borderless' : null,
         editingId === id ? 'is-editing-tile' : null,
         entries.get(id)?.locked ? 'is-locked' : null, // frozen gestures (SurfaceView) + a resting cursor
-        handleMenu?.id === id ? 'handle-pinned' : null // the open picker's anchor stays shown
+        handleMenu?.id === id ? 'handle-pinned' : null, // the open picker's anchor stays shown
+        zoomStep(entries.get(id)?.zoom).cls || null // per-block Scale (G-10); 1.0 has no class
       ].filter(Boolean)
       return classes.length ? classes.join(' ') : undefined
     },
@@ -266,6 +268,23 @@ export function BlockSurface({ host }: { host: BlockHostRef }): React.JSX.Elemen
           const e = knownBlock(raw)
           if (e?.id !== entryId || e.type !== 'view') return raw
           return fn(raw as Record<string, unknown>)
+        })
+      )
+    },
+    [saveBlocks]
+  )
+
+  // Per-block Scale writer (G-10): patches the RAW entry so foreign keys survive (E-1); clears `zoom`
+  // at 1.0 so the default stays an absent key. Mirrors setStyle/toggleLock.
+  const setBlockZoom = useCallback(
+    (id: string, factor: number) => {
+      saveBlocks((cur) =>
+        cur.map((raw) => {
+          if (knownBlock(raw)?.id !== id) return raw
+          const next = { ...(raw as Record<string, unknown>) }
+          if (factor === 1) delete next.zoom
+          else next.zoom = factor
+          return next
         })
       )
     },
