@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { Icon, icons, type IconName, defaultEntityIcon } from '@renderer/design-system/symbols'
+import { Icon, icons, type IconName, defaultEntityIcon, iconNameOr } from '@renderer/design-system/symbols'
 import { lucideGlyph } from '@renderer/design-system/symbols/AllSymbols'
 import { text } from '@renderer/design-system/tokens'
 import { cx } from '@renderer/design-system/cx'
@@ -341,7 +341,7 @@ function ContextRow({ node }: { node: { id: string; title: string; path: string;
   return (
     <DragRow id={node.id}>
       <Leaf
-        icon={node.icon || defaultEntityIcon(node.kind as EntityIconKind, defaultIcons)}
+        icon={iconNameOr(node.icon, defaultEntityIcon(node.kind as EntityIconKind, defaultIcons))}
         title={node.title}
         depth={1}
         selected={selected}
