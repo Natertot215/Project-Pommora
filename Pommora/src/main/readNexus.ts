@@ -391,6 +391,7 @@ async function walkNexus(root: string): Promise<NexusTree> {
   // Profile image + subtitle live in settings (Swift parity), not nexus.json. profileImage is a
   // nexus-relative asset path the renderer serves via nexus-asset://; subtitle is plain text.
   const profileImage = asString(settings.profile_image) ?? null
+  const profileIcon = asString(settings.profile_icon)
   const profileSubtitle = asString(settings.profile_subtitle) ?? ''
   const state = (await readJsonObject(nexusConfig(root, NEXUS_CONFIG_FILES.state))) ?? {}
   const savedConfig = (await readJsonObject(nexusConfig(root, NEXUS_CONFIG_FILES.savedConfig))) ?? {}
@@ -459,7 +460,7 @@ async function walkNexus(root: string): Promise<NexusTree> {
   const collections = orderedCollections.filter((c) => !claimed.has(c.id))
 
   return {
-    nexus: { id, rootPath: root, name: basename(root), profileImage, profileSubtitle },
+    nexus: { id, rootPath: root, name: basename(root), profileImage, profileIcon, profileSubtitle },
     homepage: { banner: asString(homepageConfig.banner), locked: homepageConfig.blocks_locked === true },
     saved,
     contexts,

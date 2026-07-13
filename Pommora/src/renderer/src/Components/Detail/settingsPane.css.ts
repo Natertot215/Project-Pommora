@@ -95,6 +95,10 @@ export const iconButton = style({
 /** The title interaction-field / input takes the remaining width. */
 export const titleField = style({ flex: '1 1 auto', minWidth: 0 })
 
+/** A profile photo filling the square icon-button slot (homepage identity) — cover-fit, corners
+ *  matched to the button so it reads as the icon's photo rather than a floating thumbnail. */
+export const headerPhotoImg = style({ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '8px', display: 'block' })
+
 /** Placeholder dashed-square menu icon (until Nathan specifies the real symbols). */
 export const dashIcon = style({
   width: `${SIZE.dashIcon}px`,

@@ -43,6 +43,9 @@ export type MutateRequest =
   // into `.nexus/assets/<nexusID>/profile-<token>.<ext>` + record the rel path in
   // `settings.profile_image`; null ⇒ clear the field + delete the file. Matches Swift.
   | { op: 'setProfileImage'; dataUrl: string | null }
+  // Set/clear the nexus glyph icon (the identity fallback when no photo is set) in
+  // `settings.profile_icon`. A symbol-registry name (e.g. "house"); null ⇒ clear the field.
+  | { op: 'setProfileIcon'; icon: string | null }
   // Set the nexus profile subtitle (≤30 chars, enforced) in `settings.profile_subtitle`. Parked: the
   // sidebar NexusHeader that edited it is gone (ribbon rework); the field + op are retained for the
   // eventual homepage/settings surface — NOT dead code.

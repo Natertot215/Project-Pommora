@@ -264,6 +264,18 @@ async function dispatch(req: MutateRequest, deps: MutateDeps, root: string): Pro
       return { ok: true }
     }
 
+    case 'setProfileIcon': {
+      // Glyph identity fallback → `settings.profile_icon` (read-merge-write, other keys preserved);
+      // null clears it. No asset write — it's a symbol name, not an image.
+      await updateSettings(root, (cur) => {
+        const next = { ...cur }
+        if (req.icon) next.profile_icon = req.icon
+        else delete next.profile_icon
+        return next
+      })
+      return { ok: true }
+    }
+
     case 'setBanner': {
       // A page's banner is the Swift-compatible `cover` key in its `.md` frontmatter (not a JSON
       // sidecar); the asset folder is keyed by the page id. Foreign frontmatter + body survive.

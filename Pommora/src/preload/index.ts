@@ -312,8 +312,11 @@ const api = {
   openFile: (path: string): Promise<{ ok: true } | { ok: false; error: string }> =>
     ipcRenderer.invoke('file:open', path),
   systemAccent: (): Promise<string | null> => ipcRenderer.invoke('theme:systemAccent'),
-  // Pop a native "Add Photo" menu → native image picker; resolves the chosen image as a data URL (null if dismissed/canceled).
-  photoMenu: (): Promise<string | null> => ipcRenderer.invoke('nexus:photoMenu'),
+  // Pop the native nexus-identity icon menu (Change Icon / Add·Change Photo / removes) → the chosen action.
+  iconMenu: (opts: {
+    hasPhoto: boolean
+    hasGlyph: boolean
+  }): Promise<'changeIcon' | 'addPhoto' | 'removePhoto' | 'removeIcon' | null> => ipcRenderer.invoke('nexus:iconMenu', opts),
   // Open the native image picker directly → data URL (null if canceled). Banner Add / Change.
   pickImage: (): Promise<string | null> => ipcRenderer.invoke('nexus:pickImage'),
   // Pop the native Change / Remove banner menu → the chosen action (null if dismissed).

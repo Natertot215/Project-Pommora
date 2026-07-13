@@ -1350,13 +1350,22 @@ ipcMain.handle('open-in-menu', async (e, current: unknown): Promise<OpenIn | nul
 
 // Pop a native single-item "Add Photo" menu; on click open the image picker and resolve the
 // chosen file as a data URL. Resolves null if the menu is dismissed or the picker canceled.
-ipcMain.handle('nexus:photoMenu', async (e): Promise<string | null> => {
+// The nexus identity icon menu (Change Icon → the renderer's glyph picker; Add/Change Photo → the native
+// image pick, done renderer-side). Returns the chosen action; the renderer runs the picker/pick + mutate.
+type NexusIconAction = 'changeIcon' | 'addPhoto' | 'removePhoto' | 'removeIcon'
+ipcMain.handle('nexus:iconMenu', async (e, arg: unknown): Promise<NexusIconAction | null> => {
   const win = BrowserWindow.fromWebContents(e.sender)
   if (!win) return null
-  return await new Promise<string | null>((resolve) => {
+  const opts = (arg ?? {}) as { hasPhoto?: boolean; hasGlyph?: boolean }
+  return await new Promise<NexusIconAction | null>((resolve) => {
     let acted = false
+    const pick = (v: NexusIconAction) => () => { acted = true; resolve(v) }
     const menu = Menu.buildFromTemplate([
-      { label: 'Add Photo', click: async () => { acted = true; resolve(await pickImageDataUrl(win)) } }
+      { label: 'Change Icon', click: pick('changeIcon') },
+      { label: opts.hasPhoto ? 'Change Photo' : 'Add Photo', click: pick('addPhoto') },
+      ...(opts.hasPhoto || opts.hasGlyph ? [{ type: 'separator' as const }] : []),
+      ...(opts.hasPhoto ? [{ label: 'Remove Photo', click: pick('removePhoto') }] : []),
+      ...(opts.hasGlyph ? [{ label: 'Remove Icon', click: pick('removeIcon') }] : [])
     ])
     menu.popup({ window: win, callback: () => { if (!acted) resolve(null) } })
   })

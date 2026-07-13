@@ -255,7 +255,7 @@ export interface NexusTree {
   /** `name` is the root folder's basename (filename = title). `profileImage` is a
    *  nexus-relative path into `.nexus/assets/<id>/` (or null) and `profileSubtitle` a
    *  ≤30-char blurb — both from `.nexus/settings.json`, matching Swift (not nexus.json). */
-  nexus: { id: string; rootPath: string; name: string; profileImage: string | null; profileSubtitle: string }
+  nexus: { id: string; rootPath: string; name: string; profileImage: string | null; profileIcon?: string; profileSubtitle: string }
   /** Homepage singleton (`.nexus/homepage.json`) — its optional banner plus the board
    *  lock (G-3): the block doc's heavy layout/blocks stay off the walk (loaded lazily by
    *  useBlockDoc), but the single `blocks_locked` boolean rides here like `banner` so the

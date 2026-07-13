@@ -1,45 +1,43 @@
-import { useState } from 'react'
+import { useRef } from 'react'
 import { Icon } from '@renderer/design-system/symbols'
-import { useSession } from '../store'
+import { IconPicker } from '../Components/IconPicker'
 import { PhotoCropModal } from '../Components/PhotoCropModal'
+import { useNexusIcon } from '../Components/useNexusIcon'
 import { assetUrl } from '../assetUrl'
 import * as s from './nexusHeader.css'
 
 /**
- * The nexus profile photo as the Homepage ribbon icon — the circular avatar (or dashed-square
- * fallback), sized to the ribbon. Right-click opens the native Add/Change Photo menu → crop. Its
- * click (homepage select) is owned by the ribbon button that wraps it. Rename-nexus now lives on
- * the homepage banner title, not here.
+ * The nexus identity as the Homepage ribbon icon — the circular avatar showing the profile photo, else
+ * the chosen glyph, else the dashed-square placeholder. Right-click opens the native icon menu (Change
+ * Icon → glyph picker · Add Photo → crop). Its click (homepage select) is owned by the wrapping ribbon
+ * button. Rename-nexus lives on the homepage banner title, not here.
  */
 export function NexusPhoto({ size }: { size: number }): React.JSX.Element {
-  const profileImage = useSession((st) => st.tree?.nexus.profileImage ?? null)
-  const mutate = useSession((st) => st.mutate)
-  const [cropImage, setCropImage] = useState<string | null>(null)
-
-  const pickPhoto = (e: React.MouseEvent): void => {
-    e.preventDefault()
-    void window.nexus.photoMenu().then((picked) => {
-      if (picked) setCropImage(picked)
-    })
-  }
-  const saveCrop = async (dataUrl: string): Promise<void> => {
-    setCropImage(null)
-    await mutate({ op: 'setProfileImage', dataUrl })
-  }
-
+  const { profileImage, profileIcon, openMenu, cropImage, setCropImage, pickerOpen, setPickerOpen, confirmCrop, selectGlyph } =
+    useNexusIcon()
+  const ref = useRef<HTMLSpanElement>(null)
   const photoUrl = profileImage ? assetUrl(profileImage) : null
   const dim = { width: size, height: size }
   return (
     <>
       <span
+        ref={ref}
         className={photoUrl ? s.photo : `${s.photo} ${s.photoEmpty}`}
         style={dim}
-        onContextMenu={pickPhoto}
-        title="Right-click to add a photo"
+        onContextMenu={(e) => {
+          e.preventDefault()
+          void openMenu()
+        }}
+        title="Right-click to set an icon or photo"
       >
-        {photoUrl ? <img className={s.photoImg} src={photoUrl} alt="" /> : <Icon name="square-dashed" size={Math.round(size * 0.6)} />}
+        {photoUrl ? (
+          <img className={s.photoImg} src={photoUrl} alt="" />
+        ) : (
+          <Icon name={profileIcon ?? 'square-dashed'} size={Math.round(size * 0.6)} />
+        )}
       </span>
-      {cropImage && <PhotoCropModal image={cropImage} onCancel={() => setCropImage(null)} onConfirm={saveCrop} />}
+      <IconPicker open={pickerOpen} onClose={() => setPickerOpen(false)} triggerRef={ref} value={profileIcon} onSelect={selectGlyph} />
+      {cropImage && <PhotoCropModal image={cropImage} onCancel={() => setCropImage(null)} onConfirm={confirmCrop} />}
     </>
   )
 }
