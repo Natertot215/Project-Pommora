@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { BlockEntry, BlockStyle, DrillPickItem, PagePickerItem, ViewPick, ViewPickerItem } from '@shared/blocks'
 import { Icon } from '@renderer/design-system/symbols'
 import { PickerMenu } from '@renderer/design-system/components/PickerMenu'
@@ -150,7 +150,32 @@ export function BlockHandleMenu({
    *  inert "Locked" instead of the Lock/Unlock toggle. */
   containerLocked?: boolean
 }): React.JSX.Element {
-  const [pane, setPane] = useState<'root' | 'style' | 'scale' | 'page' | 'view'>('root')
+  const [pane, setPane] = useState<'root' | 'style' | 'page' | 'view'>('root')
+  // The Scale picker is an anchored dropdown (not an in-menu pane) — it hangs off the row's trailing
+  // value, so the menu stays put while the five steps drop over it. Picking a step keeps it open (scrub
+  // live); dismissal is a document listener (the CalendarPicker idiom) that spares the dropdown + its
+  // trigger and closes on any other pointerdown — so a click anywhere else, incl. the menu, closes it.
+  const [scaleOpen, setScaleOpen] = useState(false)
+  const scaleTriggerRef = useRef<HTMLButtonElement>(null)
+  useEffect(() => {
+    if (!scaleOpen) return
+    const onDown = (e: PointerEvent): void => {
+      const t = e.target as HTMLElement | null
+      if (scaleTriggerRef.current?.contains(t) || t?.closest?.('[data-scale-menu]')) return
+      setScaleOpen(false)
+    }
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key !== 'Escape') return
+      e.stopPropagation() // close the dropdown first, not the whole menu
+      setScaleOpen(false)
+    }
+    document.addEventListener('pointerdown', onDown, true)
+    document.addEventListener('keydown', onKey, true)
+    return () => {
+      document.removeEventListener('pointerdown', onDown, true)
+      document.removeEventListener('keydown', onKey, true)
+    }
+  }, [scaleOpen])
   const style: BlockStyle = entry.style === 'borderless' ? 'borderless' : 'bordered'
   // Content/board lock: a per-tile lock (B-5) OR the host board lock (G-3) dims + inerts every action —
   // the menu still opens (grab-menu stays reachable + reads its lock state), it just can't mutate a locked
@@ -235,12 +260,16 @@ export function BlockHandleMenu({
             className={cx(s.row, rowMute)}
             leading={<Icon name="scaling" size={GLYPH} />}
             trailing={
-              <span className={s.scaleTrailing}>
+              <button
+                type="button"
+                ref={scaleTriggerRef}
+                className={s.scaleTrailing}
+                onClick={locked ? undefined : () => setScaleOpen((o) => !o)}
+              >
                 <span className={s.scaleValue}>{zoomStep(zoom).inline}</span>
                 <Icon name="chevrons-up-down" size={GLYPH} />
-              </span>
+              </button>
             }
-            onClick={locked ? undefined : () => setPane('scale')}
           >
             Scale
           </MenuItem>
@@ -273,28 +302,10 @@ export function BlockHandleMenu({
     </div>
   )
 
-  const scalePane = (
-    <div className={s.pane}>
-      <MenuPaneTopRow label="Menu" current="Scale" onBack={() => setPane('root')} contentClassName={s.barScale} />
-      {ZOOM_STEPS.map((st) => (
-        <MenuItem
-          key={st.label}
-          className={s.row}
-          trailing={zoomStep(zoom).factor === st.factor ? <Icon name="check" size={GLYPH} /> : undefined}
-          onClick={act(() => onSetZoom?.(st.factor))}
-        >
-          {st.label}
-        </MenuItem>
-      ))}
-    </div>
-  )
-
   const drillRootLabel = pane === 'page' ? (entry.type === 'markdown' ? 'Link Page' : 'Source') : 'Link View'
   const detail =
     pane === 'style' ? (
       stylePane
-    ) : pane === 'scale' ? (
-      scalePane
     ) : pane === 'page' || pane === 'view' ? (
       <DrillLevel
         nodes={pane === 'page' ? pageItems : viewItems}
@@ -310,8 +321,33 @@ export function BlockHandleMenu({
     ) : null
 
   return (
-    <PickerMenu open onDismiss={onClose} triggerRef={{ current: anchor }} center>
-      <PaneSlider open={pane !== 'root'} root={root} detail={detail} />
-    </PickerMenu>
+    <>
+      <PickerMenu open onDismiss={onClose} triggerRef={{ current: anchor }} center>
+        <PaneSlider open={pane !== 'root'} root={root} detail={detail} />
+      </PickerMenu>
+      {scaleOpen && (
+        // The Scale dropdown — a nested PickerMenu hung off the row's trailing value (solid, so it reads
+        // opaque over the menu beneath). No onDismiss: the document listener above owns dismissal, so a
+        // pick can leave it open. Picking a step scales the tile live (accent check marks the current).
+        <PickerMenu open triggerRef={scaleTriggerRef} solid>
+          <div className={cx(s.barScale, s.scaleMenu)} data-scale-menu>
+            {ZOOM_STEPS.map((st) => (
+              <MenuItem
+                key={st.label}
+                className={s.row}
+                trailing={
+                  zoomStep(zoom).factor === st.factor ? (
+                    <Icon name="check" size={GLYPH} className={s.scaleCheck} />
+                  ) : undefined
+                }
+                onClick={() => onSetZoom?.(st.factor)}
+              >
+                {st.label}
+              </MenuItem>
+            ))}
+          </div>
+        </PickerMenu>
+      )}
+    </>
   )
 }

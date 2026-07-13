@@ -19,7 +19,8 @@
     width var(--duration-base) var(--ease-standard),
     height var(--duration-base) var(--ease-standard),
     opacity var(--duration-base) var(--ease-standard),
-    border-color var(--duration-base) var(--ease-standard);
+    border-color var(--duration-base) var(--ease-standard),
+    --block-zoom var(--duration-base) var(--ease-standard);
   /* No overflow clip here — the edge zones straddle the border by design; the
      body does the content clipping. */
 }
@@ -93,20 +94,19 @@
    Hover-revealed; drag = move; click/right-click menus ride Task 6. */
 .spm-handle {
   position: absolute;
-  top: 16px; /* position, not size — the chip stays anchored while its dims scale (left derives from --handle-w) */
-  /* Size dims track the per-block Scale (G-10) so the handle shrinks/grows in lockstep with the tile's
-     content. --block-zoom lives on .spm-tile (the handle sits outside .mdpm-shell, so it reads the var
-     directly, not --glyph-scale). Absent ⇒ ×1. */
-  --handle-w: calc(12px * var(--block-zoom, 1));
-  --grip-size: calc(14px * var(--block-zoom, 1)); /* the glyph's size — independent of the chip */
+  top: 16px;
+  /* Fixed size — the handle is tile CHROME (a sibling to the resize edges, which don't scale either),
+     so the per-block Scale never touches it: only the tile's CONTENT zooms, not its manipulation grips. */
+  --handle-w: 12px;
+  --grip-size: 14px; /* the glyph's size — independent of the chip */
   /* Chip center sits EXACTLY on the border's centerline (offsets resolve from the
      padding box, so one border-width folds back out of the shift). */
   left: calc((var(--handle-w) + var(--tile-border)) / -2);
   width: var(--handle-w);
-  height: calc(22px * var(--block-zoom, 1));
+  height: 22px;
   border: var(--tile-border) solid; /* same width as the tile border — the notch reads as one line */
   border-color: inherit;
-  border-radius: calc(4px * var(--block-zoom, 1));
+  border-radius: 4px;
   background: var(--main-bg);
   opacity: 0;
   cursor: grab;

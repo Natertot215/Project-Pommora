@@ -1,3 +1,13 @@
+/* The per-block Scale factor (G-10), registered so it's an ANIMATABLE number: a `.blk-zoom-*` class
+   change interpolates it over --duration-base (transition on .spm-tile), and everything reading it —
+   the .cm-content font, --glyph-scale — follows in lockstep, giving one smooth zoom in/out. inherits so
+   it cascades from the tile into the editor shell. */
+@property --block-zoom {
+  syntax: '<number>';
+  inherits: true;
+  initial-value: 1;
+}
+
 /* The 6-dot drag-grip glyph (lucide grip-vertical) — one source for the editor's rail grips,
    the callout grip, the blockquote widget grip, AND SurfacePM's block handle, so every drag
    grip in the app renders identically. Global on purpose: consumers span surfaces. */

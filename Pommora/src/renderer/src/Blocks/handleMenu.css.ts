@@ -96,9 +96,24 @@ export const titleFieldLoc = style([
 export const titleFieldIcon = style({ selectors: { '&&': { color: c.label.secondary } } })
 export const titleFieldLocIcon = style({ selectors: { '&&': { color: c.label.tertiary } } })
 
-/** The Scale row's trailing value + double-chevron — the current factor in footnote/label-secondary
- *  (mirroring titleFieldLoc), the chevron a step quieter in label-tertiary. */
-export const scaleTrailing = style({ display: 'inline-flex', alignItems: 'center', gap: '2px', color: c.label.tertiary })
+/** The Scale dropdown body — a tight column of the five step rows (narrower than the menu's own pane). */
+export const scaleMenu = style({ minWidth: 58 })
+
+/** The current step's check, in the runtime accent (not the row's label tone). */
+export const scaleCheck = style({ selectors: { '&&': { color: 'var(--accent)' } } })
+
+/** The Scale row's trailing value + double-chevron trigger — a bare button: the current factor in
+ *  footnote/label-secondary (mirroring titleFieldLoc), the chevron a step quieter in label-tertiary. */
+export const scaleTrailing = style({
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: '2px',
+  padding: 0,
+  border: 'none',
+  background: 'none',
+  cursor: 'default',
+  color: c.label.tertiary
+})
 export const scaleValue = style({
   fontSize: font.scale.footnote.size,
   lineHeight: font.scale.footnote.line,
