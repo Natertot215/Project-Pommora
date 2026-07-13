@@ -218,7 +218,8 @@
   background: transparent;
   color: var(--label-secondary);
   cursor: pointer;
-  transition: opacity 120ms ease, color 120ms ease, background 120ms ease;
+  transition: opacity var(--duration-fast) var(--ease-standard), color var(--duration-fast) var(--ease-standard),
+    background var(--duration-fast) var(--ease-standard);
 }
 .sidebar-toggle:hover {
   color: var(--label-primary);

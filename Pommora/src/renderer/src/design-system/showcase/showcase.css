@@ -276,7 +276,7 @@ code {
   background: transparent;
   color: var(--label-secondary);
   cursor: pointer;
-  transition: color 120ms ease, background 120ms ease;
+  transition: color var(--duration-fast) var(--ease-standard), background var(--duration-fast) var(--ease-standard);
 }
 .sc-icon-btn {
   display: flex;
