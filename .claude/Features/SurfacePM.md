@@ -29,7 +29,7 @@ Two framework laws with reach beyond blocks:
 
 ### Surface Interaction
 
-Creation is right-click on the surface background: inside a ragged **wedge** the new block fits flush to the row bottom under the tile above the click; on open background it appends as a full-width band. The **drag handle** is a bordered chip notched into the tile's left border (the border curves around it; MarkdownPM's shared grip glyph inside) — drag moves the block, click or right-click opens the block menu: **Type ▸** (Turn Into) · **Style ▸** (Bordered / Borderless) · **Remove** (main-confirmed, trash-recoverable). While a tile holds the caret its handle reveals by pointer proximity to the top-left corner rather than whole-tile hover.
+Creation is right-click on the surface background: inside a ragged **wedge** the new block fits flush to the row bottom under the tile above the click; on open background it appends as a full-width band. The **drag handle** is a bordered chip notched into the tile's left border (the border curves around it; MarkdownPM's shared grip glyph inside) — drag moves the block, click or right-click opens the block menu — **Type ▸** (Turn Into) · **Style ▸** (Bordered / Borderless) · **Scale ▸** (per-tile zoom, below) · **Remove** (main-confirmed, trash-recoverable) — which, with its sub-pickers, wears the block surface's accent outline (accent at the secondary tint) so it reads as part of the surface. While a tile holds the caret its handle reveals by pointer proximity to the top-left corner rather than whole-tile hover.
 
 **Borderless** is a per-tile style: the chassis hides until you reach for it — border and notch return on border/handle hover, drag, and resize; a locked host will pin it hidden.
 
