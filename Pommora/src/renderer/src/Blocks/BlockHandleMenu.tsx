@@ -5,6 +5,7 @@ import { PickerMenu } from '@renderer/design-system/components/PickerMenu'
 import { MenuBottomRow, MenuItem, MenuPaneTopRow, MenuScrollFrame, MenuSeparator } from '@renderer/design-system/components/menu'
 import { PaneSlider } from '@renderer/Components/Detail/PaneSlider'
 import { cx } from '@renderer/design-system/cx'
+import { ZOOM_STEPS, zoomStep } from './blockZoom'
 import * as s from './handleMenu.css'
 
 // Icon seats follow the SettingsPane ladder at this menu's control-size rows:
@@ -121,6 +122,8 @@ export function BlockHandleMenu({
   onRemove,
   onToggleLock,
   onOpenPage,
+  zoom,
+  onSetZoom,
   containerLocked = false
 }: {
   entry: BlockEntry
@@ -140,11 +143,14 @@ export function BlockHandleMenu({
   onToggleLock: () => void
   /** Open the source page full-view (respects Open In — full-page for now). */
   onOpenPage: () => void
+  /** Per-tile Scale (G-10): the tile's current factor (absent = 1.0) + its setter. Markdown/page only. */
+  zoom?: number
+  onSetZoom?: (factor: number) => void
   /** The host board is locked (G-3): the per-tile lock is subsumed, so the footer reads a muted,
    *  inert "Locked" instead of the Lock/Unlock toggle. */
   containerLocked?: boolean
 }): React.JSX.Element {
-  const [pane, setPane] = useState<'root' | 'style' | 'page' | 'view'>('root')
+  const [pane, setPane] = useState<'root' | 'style' | 'scale' | 'page' | 'view'>('root')
   const style: BlockStyle = entry.style === 'borderless' ? 'borderless' : 'bordered'
   // Content/board lock: a per-tile lock (B-5) OR the host board lock (G-3) dims + inerts every action —
   // the menu still opens (grab-menu stays reachable + reads its lock state), it just can't mutate a locked
@@ -224,6 +230,21 @@ export function BlockHandleMenu({
         <MenuItem className={cx(s.row, rowMute)} leading={<Icon name="palette" size={GLYPH} />} trailing={chevron} onClick={locked ? undefined : () => setPane('style')}>
           Style
         </MenuItem>
+        {entry.type !== 'view' && (
+          <MenuItem
+            className={cx(s.row, rowMute)}
+            leading={<Icon name="scaling" size={GLYPH} />}
+            trailing={
+              <span className={s.scaleTrailing}>
+                <span className={s.scaleValue}>{zoomStep(zoom).inline}</span>
+                <Icon name="chevrons-up-down" size={GLYPH} />
+              </span>
+            }
+            onClick={locked ? undefined : () => setPane('scale')}
+          >
+            Scale
+          </MenuItem>
+        )}
         <MenuSeparator flush />
         <MenuItem className={cx(s.row, rowMute)} leading={<Icon name="copy" size={GLYPH} />} onClick={locked ? undefined : act(onDuplicate)}>
           Duplicate
@@ -252,10 +273,28 @@ export function BlockHandleMenu({
     </div>
   )
 
+  const scalePane = (
+    <div className={s.pane}>
+      <MenuPaneTopRow label="Menu" current="Scale" onBack={() => setPane('root')} contentClassName={s.barScale} />
+      {ZOOM_STEPS.map((st) => (
+        <MenuItem
+          key={st.label}
+          className={s.row}
+          trailing={zoomStep(zoom).factor === st.factor ? <Icon name="check" size={GLYPH} /> : undefined}
+          onClick={act(() => onSetZoom?.(st.factor))}
+        >
+          {st.label}
+        </MenuItem>
+      ))}
+    </div>
+  )
+
   const drillRootLabel = pane === 'page' ? (entry.type === 'markdown' ? 'Link Page' : 'Source') : 'Link View'
   const detail =
     pane === 'style' ? (
       stylePane
+    ) : pane === 'scale' ? (
+      scalePane
     ) : pane === 'page' || pane === 'view' ? (
       <DrillLevel
         nodes={pane === 'page' ? pageItems : viewItems}

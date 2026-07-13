@@ -380,6 +380,8 @@ export function BlockSurface({ host }: { host: BlockHostRef }): React.JSX.Elemen
           onRemove={() => confirmRemove(handleMenu.id)}
           onToggleLock={() => toggleLock(handleMenu.id)}
           onOpenPage={() => menuPage && select({ kind: 'page', id: menuPage.id, path: menuPage.path })}
+          zoom={menuEntry?.zoom}
+          onSetZoom={(factor) => setBlockZoom(handleMenu.id, factor)}
           containerLocked={hostLocked}
         />
       )}
