@@ -47,7 +47,7 @@ Full spec → `Agenda.md`; the property catalog across all kinds → `Properties
 
 #### II. Homepage
 
-One per Nexus at `.nexus/homepage.json` — a block-host singleton (the block system's live dev host, → [[SurfacePM]]; its final surface shape is its own pending design pass), with no `id`, `tier`, or `parents` (the file location is its identity). The **Homepage ribbon icon** (the Nexus's profile photo, pinned at the top of the sidebar ribbon) is its entry point: selecting it opens the Homepage in the main pane, where its title doubles as the nexus rename affordance. Seeded on first launch and not user-deletable.
+One per Nexus at `.nexus/homepage.json` — a block-host singleton (the block system's live dev host, → [[SurfacePM]]; its final surface shape is its own pending design pass), with no `id`, `tier`, or `parents` (the file location is its identity). The **Homepage ribbon icon** (the Nexus's identity icon — a photo or a glyph — pinned at the top of the sidebar ribbon) is its entry point: selecting it opens the Homepage in the main pane, where its title doubles as the nexus rename affordance. Seeded on first launch and not user-deletable.
 
 #### II. Settings
 

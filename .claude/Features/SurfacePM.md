@@ -12,7 +12,7 @@ Robustness is repair-not-reject at every level: unknown or foreign tile entries 
 
 - **Markdown block** — file-backed prose: a ULID-named `.md` in the host's own folder, no frontmatter, no properties, non-searchable. It joins the SQLite link graph as a connection *source* only (nothing links to it; the ULID name is rename-proof by construction). Removing one trashes its file recoverably; the new block default.
 - **Page embed** — a reference (`page_id`) to a real Page, rendered through the **shared embed framework** (below). Removing the tile never touches the page.
-- **View embed** — a reference to a container's saved view (Linked) or block-owned config (Custom). Spec'd (D-5/D-12, H-4..H-7), not yet built.
+- **View embed** — a reference to a container's saved view (**Linked**) or a block-owned config (**Custom**), rendered through the slim view-chrome header (H-4..H-7): an editable title over a drag-reorderable view switcher, its own settings pane, and a footer config lock. The config is copied at pick time — Linked seeds from a saved view, Custom starts blank — never synced back, each bound to one source container.
 
 Tiles convert between types via the handle menu's **Turn Into** — conversions never touch an embedded source; converting away from markdown trashes the backing file recoverably.
 
@@ -35,19 +35,18 @@ Creation is right-click on the surface background: inside a ragged **wedge** the
 
 Resize is window-style on the tile's own edges and corners: south stretches the tile alone (the page flows), north negotiates the stacked pair — including across the seam between two full-width bands — east/west move the row splitter, and boundaries magnetize to other tiles' edges near perfect alignment. A full-width row always spans the surface; interior holes are impossible by construction. Blocks track pane toggles 1:1 (tile transitions gate off while the surface width animates), reflow on the Glide feel, and drops beside a block land flush at its height.
 
+A **host lock** is geometry-only: it freezes every tile's position and size — no drag, no resize — while the grab-menu, content editing, and background-create stay live. It pins borderless chassis hidden and mutes the handle menu's mutating rows to an inert "Locked."
+
 ### Storage + Host Rules
 
 Hosts live under `.nexus/` (shielded from other apps; root-lift is a breaking Prospect). The block document loads per-host on open — never in the tree walk — and layout writes debounce on gesture end; the watcher ignores host content folders so block edits never cost a re-walk. Markdown-block bodies write pure (no frontmatter envelope, no stamp), locked per file.
 
 #### Pending
 
-- View embeds — block-owned config copied at pick time (Linked = seeded from a saved view, Custom = blank; never synced back), each bound to a single source container (a view's + New Page needs a home) — with the H-5 slim header chrome.
-- The block menu component — a PickerMenu shell over the menu family's sliding panes (G-16); the native handle menu + page picker are interim scaffolding until it lands.
-- Page-embed header chrome (banner + in-line title toggles via the ⋮ menu) — parked; fields stay wired.
-- Locks: the host lock (grid-wide static mode), kind-specific tile hover-locks, the container view lock.
-- Link-graph host passes: the connection indexer and rename cascade must each gain a host-folder pass (block links currently neither index nor rename-heal).
-- The full right-click Insert menu (Page search / View source picker / Block); the wired SettingsPane.
-- Navigation surfaces for hosts + the contexts resolution — parked by design.
+- **Page-embed header** — the hover ⋮ menu + in-line title toggle (banner deferred); the entry's `banner`/`title` fields stay wired until it renders them. It's the page embed's remaining path to view-embed parity, and the home for its per-tile lock.
+- **The Insert menu (G-9)** — background right-click offering Page / View / Block through the shipped picker, with the Link-Page search pane + a shared `state.json` recents record (Navigation reuses the same record) behind its Page branch.
+- **The remaining locks** — the host lock (geometry-only) and the view-embed config lock ship; still open are the container view-lock (G-5, locks a Collection/Set's views everywhere) and the page-embed per-tile lock (waits on the ⋮ menu above).
+- **Navigation surfaces for hosts + the contexts resolution** — parked by design.
 
 #### Prospects
 

@@ -8,7 +8,7 @@ Pommora's leading navigation pane in the three-pane shell. It has two regions: a
 
 The icon strip down the left edge — a **surface launcher** where each icon points at a surface, and surfaces live in different panes:
 
-- **Homepage** — pinned at the top, drawn as the Nexus's profile photo. Selecting it opens the Homepage in the main pane; it does **not** change what the content column shows. Right-click the photo to set or change it.
+- **Homepage** — pinned at the top, drawn as the Nexus's identity icon (a photo or a glyph). Selecting it opens the Homepage in the main pane; it does **not** change what the content column shows. Right-click it to change the icon or set a photo.
 - **Navigation · Agenda · Contexts · Collections · Settings** — below Homepage, in that default order, and **drag-to-reorder** (Homepage stays pinned). **Collections · Contexts · Agenda** switch the content column's mode; **Navigation · Settings** are placeholders for future glass-window surfaces and do nothing yet. The mode icons reuse each kind's own entity icon, tracking any personalization override.
 
 The ribbon is vertically pinned — it never scrolls with the content — and it collapses and expands *with* the sidebar. It also toggles on its own inside the open sidebar: the `toggle-ribbon` command (⌘E by default, rebindable via the `commands` map → `Configuration.md`) slides the strip off the panel's left edge with the sidebar's own collapse motion while the content column animates over to reclaim the width. Ribbon visibility is transient window state, like the sidebar's own collapse. The active mode and the ribbon order both persist per-Nexus in `personalization` (→ `Configuration.md`).
