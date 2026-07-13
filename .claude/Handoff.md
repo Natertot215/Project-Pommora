@@ -22,10 +22,10 @@ Prior arcs, compressed — the detail lives in `Features/*` + `History.md`.
 **Session ID:** abc3bafe-70bc-41e4-adfd-aa052cfee424
 **Dates:** 07-10-2026 → 07-12-2026
 **Model:** Fable 5 → Opus 4.8 (1M)
-**Compactions:** 3
+**Compactions:** 4
 **Connectors:** none
 **Commands:** /clear · /handoff · /compact · /loop
-**Agents:** Explore (1x - census) · general-purpose (3x - research + SurfacePM cleanup audit) · build-breaking-agent (9x - spec rounds + per-task reviews) · code-simplifier (2x - closeout + Task 5)
+**Agents:** Explore (1x - census) · general-purpose (3x - research + SurfacePM cleanup audit) · build-breaking-agent (14x - spec rounds + per-task reviews) · code-simplifier (2x - closeout + Task 5)
 **Skills:** studio-brainstorm · superpowers:writing-plans · superpowers:executing-plans · superpowers:systematic-debugging · handoff
 
 One session, the whole arc: the Contexts rethink became a certified spec, the spec became SurfacePM, and SurfacePM became a live block system Nathan drove all evening.
@@ -38,6 +38,8 @@ One session, the whole arc: the Contexts rethink became a certified spec, the sp
 
 **Continuation (07-11 → 12).** The H-5 view-embed chrome + edge-release scroll landed and were live-iterated (title row sized by markdownPM's own `.md-hN`, pill switcher with drag-reorder + create/delete slide, dropdown mode, top+bottom scroll-fade), then the arc closed its plumbing + hardening. A mid-compact **selection bug** (at-rest markdownPM embeds unselectable — `EditorView.editable.of(false)` killed native selection; fix keeps editable true, gates edits through `EditorState.readOnly` alone), the per-nexus **default view scale** (`personalization.defaultViewScale`, applied main-side on open + ⌘0, empty-state + no-flash review folded), view embeds **corner-scoping their handle while busy**, and **Task 5 — the link graph** (block `[[links]]` → first-class edges + rename heal, review-certified after folding read-only-build + mtime-safe findings). Then Nathan's four directives: both stale worktrees removed, the **`[[link]]` bracket bug fixed at source** (`pageLinkPattern` tolerates internal brackets — repairs page + block bodies at once; a trailing `]` is the one irreducible grammar ambiguity, degrades to a phantom), and the **view-embed config lock** in the SettingsPane footer (freezes config via the single `persistConfig` chokepoint, no dim; `setLocked` via unguarded `patchEntry` so you can always unlock). A SurfacePM-wide cleanup audit ran + its safe findings folded (two dead `::after` rules, `getTile` reuse, hygiene).
 
+**Continuation (07-12) — Homepage Lock + Settings arc (Tasks 1–5 of the Homepage-Lock plan).** The Task-6 leftovers finally got their surface. A **homepage board lock — geometry-only:** it freezes drag + resize but keeps the grab-menu, content editing, and background-create live (store-synced `homepageLocked`, seeded in `applyTree` off the config readNexus already reads — no extra IPC; the handle menu goes inert + reads a muted "Locked" under it). It first shipped as a FULL freeze; its review found real F1–F3 issues, then Nathan reversed the whole thing: *"locking should NOT disable the grab-menu. It should only disable the resizing."* A **homepage + context identity SettingsPane scaffold** — the host-settings surface 6.1 was blocked on now exists (`SettingsScaffold`, routed by `viewSettingsScope`). The homepage IS the nexus, so its icon is a **photo OR glyph** set from a native `nexus:iconMenu` (Change Icon → the glyph picker · Add/Change Photo → crop), one shared `useNexusIcon` hook reused across ribbon + settings + banner (photo > glyph > house). **Hide/show the banner heading icon** landed for every banner entity (`heading_icon_hidden` via a new `setHeadingIconHidden` op): the homepage banner — icon-less before — now leads its title with the identity icon (house default so the toggle's always there, sliding in/out), and its title gained Rename (→ `renameNexus`) + a borderless inline rename. Fixed a **context-icon regression I introduced** (`8a2505a6` made `ContextRow` honor `node.icon` via raw `||`, so a Swift-era `"rectangle.stack"` sidecar won → dashed square; fixed with `iconNameOr` validate-or-default, root-caused by reading Nathan's real Nexus on disk). Closed with two review-flagged fixes: a board-locked handle menu goes fully inert, and Escape peels one popover at a time (a picker eats its own Escape, the pane it sits in stays). Commits `6a8f6423`…`0074380a`.
+
 **Lessons Learned**
 
 - **A transformed ancestor breaks `position:fixed`** — SurfacePM tiles ride `translate()`, so ANY fixed-position UI inside a tile subtree misplaces + clips. Popups must portal to body; this will bite every future in-tile surface that forgets.
@@ -47,6 +49,8 @@ One session, the whole arc: the Contexts rethink became a certified spec, the sp
 - **CDP can't drive native reality:** right-click doesn't synthesize `contextmenu` in Electron, native menus block headless, and the earlier chip-melt lesson held — verify those paths with synthetic DOM dispatch + Nathan's hands, never claim them from CDP silence.
 
 - **Dead reviewer agents are recoverable:** two build-breaking agents died silently at delivery; their findings were extracted from the subagent JSONL transcripts (`jq` over assistant text) and folded anyway. Quiet transcript + stale mtime = dead; the work isn't lost.
+
+- **Nathan reverses load-bearing designs live — build to be reversible, hold commits until he's eyeballed.** The board lock shipped a full freeze, then flipped to geometry-only mid-session; the banner inset went 12→8→12→unified. Fold each redirect at once, batch-commit after his look. And the pipefail trap bit AGAIN: `typecheck 2>&1 | tail` returns tail's 0 and hid a red build (Task 1 shipped typecheck-red; only the adversarial review caught it) — capture the real `$?` into a file, never trust a piped exit.
 
 **Key Files & Insights**
 
@@ -76,6 +80,8 @@ One session, the whole arc: the Contexts rethink became a certified spec, the sp
 
 - **main is ahead of origin, unpushed** — Nathan pushes in batches on his own call; merge ≠ push.
 
+- **Detail insets split by surface kind:** block surfaces (homepage, contexts) run the tight `--surface-inset` (8px tile body) + `--surface-banner-inset` (12px banner), driven by an `is-surface` class (`isSurfaceKind` in `Detail/Scope.ts`); page/table views keep `--content-inset` + `--fold-gutter`. Every banner title sits on the 12px inset (Nathan's call).
+
 ### Next Session
 
 **1. Interaction testing + foolproofing (Nathan's #1).** Continue live-hands testing. The H-5 view-embed chrome + scroll model landed and were live-iterated, so the probe list narrows to: (a) **view embeds under real hands** — drag-heavy gestures (column resize, group drags, row drags between groups) + the view-switch slide + pill drag-reorder want his mouse; (b) **edge-release scroll across a dense surface** — the "many embeds each grabbing the wheel" feel Nathan flagged; escalate to the hover-intent capture layer only if the simple version bites (documented but unbuilt); (c) **borderless half-step** — body-hover reveals the grip while the border stays hidden; (d) **the picker flows** — drill depth, Duplicate landing, Delete confirm, Source on page embeds.
@@ -85,7 +91,7 @@ One session, the whole arc: the Contexts rethink became a certified spec, the sp
 **3. Remaining Task 6 — the design-gated UI.** Task 5 (link graph) + the B-5 view-embed config lock shipped; what's left needs Nathan's design calls (the ratified plan under-specified the UI, confirmed by grounding each):
 
 - **6.4 Page-embed header** — do FIRST (unblocks the page-embed lock). Banners are **deferred** (Nathan: "pages don't need banners for embeds for now"); the ⋮ menu mirrors the view-embed's. No `display_title` on page embeds (a page embed's title IS the real page's).
-- **6.1 leftover locks** — Tier A host lock (whole board + pins the borderless chassis) and Tier C container view-lock. Both need a toggle HOME — there's **no host-settings surface** (HomepageView = banner + board), so placement is Nathan's call. The B-5 **page-embed** lock also waits on 6.4's ⋮ menu (page embeds have no config pane). Gating is ready: `blocks_locked` round-trips (host); `useBlockDoc.locked` reaches the renderer unread.
+- **6.1 host lock — SHIPPED (geometry-only)**, plus the homepage/context identity SettingsPane scaffold (`SettingsScaffold`) — the host-settings surface the rest was blocked on now exists. The homepage board lock (freeze drag+resize, keep the grab-menu/content/create) toggles from the SettingsPane footer. **Still open:** Tier C container view-lock (needs its own toggle home); the B-5 **page-embed** lock still waits on 6.4's ⋮ menu (page embeds have no config pane).
 - **6.2 G-9 Insert menu** — background right-click → Page/View/Block through the shipped picker; its Page branch wants 6.3.
 - **6.3 G-16 Link Page search pane + shared recents** — the recents record is pure plumbing (a locked `state.json` MRU, append-on-open through `serializeOnFile`, `record:false`-guarded, shared with Navigation); the search PANE is a new UI surface to design.
 
