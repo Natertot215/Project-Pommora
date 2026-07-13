@@ -36,7 +36,7 @@
   display: flex;
   align-items: center;
   gap: 8px; /* the shared detail-title icon gap */
-  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.55);
+  text-shadow: 0 1px 4px #0000008c;
   pointer-events: none;
   transition: left var(--duration-base) var(--ease-standard);
 }
@@ -165,7 +165,7 @@
   color: var(--text-dim);
   cursor: default;
   opacity: 0;
-  transition: opacity 180ms ease, color 180ms ease;
+  transition: opacity var(--duration-fast) var(--ease-standard), color var(--duration-fast) var(--ease-standard);
 }
 .add-banner-strip:hover .add-banner-btn,
 .add-banner-btn:focus-visible {

@@ -236,17 +236,12 @@
   cursor: nwse-resize;
 }
 
-/* A locked tile freezes drag + resize (SurfaceView gates the gestures) — drop the grab/resize cursors
-   so the frozen edges + handle read inert; the handle still opens the menu on click (to unlock). */
+/* A locked tile OR a locked host (G-3) is a geometry lock, not a full freeze: SurfaceView gates the
+   drag + resize gestures (isTileStatic), so the edges + handle drop their grab/resize cursors and read
+   inert. Everything else stays live — the handle still opens its menu on click (to unlock; Duplicate/
+   Link/…), tile content stays editable, borderless tiles reveal on hover. The lock guards position + size. */
 .spm-tile.is-locked .spm-edge,
-.spm-tile.is-locked .spm-handle {
-  cursor: default;
-}
-
-/* A locked HOST (G-3) is a geometry lock, not a full freeze: SurfaceView gates the drag + resize gestures
-   (isTileStatic), so the edges and the handle drop their grab/resize cursors and read inert. Everything
-   else stays live — the handle still opens its menu on click (Duplicate/Link/…), tile content stays
-   editable, borderless tiles reveal on hover as usual. The lock guards position + size only. */
+.spm-tile.is-locked .spm-handle,
 .blk-surface.is-host-locked .spm-edge,
 .blk-surface.is-host-locked .spm-handle {
   cursor: default;

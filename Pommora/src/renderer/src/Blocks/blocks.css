@@ -14,6 +14,9 @@
   position: relative;
   height: 100%;
   overflow: hidden;
+  /* The tile carries its own fold gutter (the page defines it on .detail-page, out of a
+     tile's scope) — the strip MarkdownPM's grips + chevrons render into. */
+  --fold-gutter: 20px;
 }
 .spm-tile.is-editing-tile .blk-md {
   overflow-y: auto;
@@ -35,11 +38,6 @@
 .blk-md .mdpm-editor {
   padding-left: 0;
   padding-right: 0;
-}
-/* The tile carries its own fold gutter (the page defines it on .detail-page, out
-   of a tile's scope) — the strip MarkdownPM's grips + chevrons render into. */
-.blk-md {
-  --fold-gutter: 20px;
 }
 .blk-md .mdpm-editor .cm-content {
   padding: 16px 14px 16px var(--fold-gutter);

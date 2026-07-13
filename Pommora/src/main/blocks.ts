@@ -146,18 +146,21 @@ export async function convertTileToPage(root: string, host: BlockHostRef, tileId
   await flipTile(root, host, tileId, { type: 'page', page_id: pageId })
 }
 
-/** Link View: the entry becomes a view embed carrying the COPIED config(s) (D-12).
- *  Each config's `id` is re-minted here as a payload-local ULID — the source view's id
- *  and the DEFAULT_VIEW_ID sentinel are both live keys outside the payload, and a
- *  preserved one would silently re-couple the "detached" snapshot to its source. */
-export async function convertTileToView(root: string, host: BlockHostRef, tileId: string, views: unknown[]): Promise<void> {
-  const stamped = views.map((v) => {
+/** Re-mint each view config's payload-local `id` as a fresh ULID. The source view's id and
+ *  the DEFAULT_VIEW_ID sentinel are live keys OUTSIDE the payload — preserving one would
+ *  silently re-couple a copied/"detached" snapshot to its source, so every copy re-mints. */
+function remintConfigIds(views: unknown[]): unknown[] {
+  return views.map((v) => {
     if (typeof v !== 'object' || v === null) return v
     const el = v as Record<string, unknown>
     if (typeof el.config !== 'object' || el.config === null) return el
     return { ...el, config: { ...(el.config as Record<string, unknown>), id: newId() } }
   })
-  await flipTile(root, host, tileId, { type: 'view', views: stamped, active: 0 })
+}
+
+/** Link View: the entry becomes a view embed carrying the COPIED config(s) (D-12), each re-minted. */
+export async function convertTileToView(root: string, host: BlockHostRef, tileId: string, views: unknown[]): Promise<void> {
+  await flipTile(root, host, tileId, { type: 'view', views: remintConfigIds(views), active: 0 })
 }
 
 /** Duplicate a tile: the RAW entry copies under a fresh id (foreign fields + chrome
@@ -177,15 +180,7 @@ export async function duplicateBlockTile(root: string, host: BlockHostRef, tileI
   }
   let copy: Record<string, unknown> = { ...(src as Record<string, unknown>), id }
   if (entry.type === 'view' && Array.isArray(copy.views)) {
-    copy = {
-      ...copy,
-      views: (copy.views as unknown[]).map((v) => {
-        if (typeof v !== 'object' || v === null) return v
-        const el = v as Record<string, unknown>
-        if (typeof el.config !== 'object' || el.config === null) return el
-        return { ...el, config: { ...(el.config as Record<string, unknown>), id: newId() } }
-      })
-    }
+    copy = { ...copy, views: remintConfigIds(copy.views as unknown[]) }
   }
   await mutateDoc(root, host, (cur) => ({
     ...cur,

@@ -60,7 +60,7 @@ export function nodeHeight(node: LayoutNode, gap: number): number {
   return node.children.reduce((a, c) => Math.max(a, nodeHeight(c, gap)), 0)
 }
 
-export function nodeAt(layout: SurfaceLayout, ref: NodePath): LayoutNode | undefined {
+function nodeAt(layout: SurfaceLayout, ref: NodePath): LayoutNode | undefined {
   let node = layout.bands[ref.band]?.node
   for (const i of ref.path) {
     if (!node || node.kind === 'tile') return undefined
