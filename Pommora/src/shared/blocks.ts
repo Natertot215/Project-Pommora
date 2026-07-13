@@ -74,6 +74,8 @@ export interface MarkdownBlockEntry {
   style?: BlockStyle
   /** Per-tile content lock (B-5): frozen prose can't be entered for editing. Absent = unlocked. */
   locked?: boolean
+  /** Per-tile Scale (G-10): a discrete zoom factor over the tile's natural size. Absent = 1.0. */
+  zoom?: number
 }
 
 /** Page embed (H-2): a scrollable, editable window onto the real page. `banner` /
@@ -87,6 +89,8 @@ export interface PageBlockEntry {
   title?: boolean
   /** Per-tile content lock (B-5): a frozen page embed can't be entered for editing. Absent = unlocked. */
   locked?: boolean
+  /** Per-tile Scale (G-10): a discrete zoom factor over the tile's natural size. Absent = 1.0. */
+  zoom?: number
 }
 
 /** One view a view-embed tile carries (D-5a): its own source container + the copied
@@ -118,16 +122,21 @@ export interface ViewBlockEntry {
   /** B-5 per-tile config lock: freezes this embed's view config + view CRUD (data interaction stays
    *  live). The SettingsPane footer lock writes it; absent = unlocked. */
   locked?: boolean
+  /** Per-tile Scale (G-10): keeps the `BlockEntry` union uniform so `.zoom` reads typecheck at
+   *  un-narrowed sites — view tiles don't surface Scale yet (the row is `type !== 'view'` gated). */
+  zoom?: number
 }
 
 export type BlockEntry = MarkdownBlockEntry | PageBlockEntry | ViewBlockEntry
 
 const lockedField = z.boolean().optional().catch(undefined)
+const zoomField = z.number().positive().optional().catch(undefined)
 const markdownEntry = z.looseObject({
   id: z.string().min(1),
   type: z.literal('markdown'),
   style: styleField,
-  locked: lockedField
+  locked: lockedField,
+  zoom: zoomField
 })
 const pageEntry = z.looseObject({
   id: z.string().min(1),
@@ -136,7 +145,8 @@ const pageEntry = z.looseObject({
   style: styleField,
   banner: z.boolean().optional().catch(undefined),
   title: z.boolean().optional().catch(undefined),
-  locked: lockedField
+  locked: lockedField,
+  zoom: zoomField
 })
 // Elements are looseObjects too — a strict element shape would strip nested foreign keys (E-1).
 const embeddedView = z.looseObject({
@@ -155,7 +165,8 @@ const viewEntry = z.looseObject({
   title_level: z.number().int().min(1).max(6).optional().catch(undefined),
   view_button: z.enum(['icon', 'labeled']).optional().catch(undefined),
   view_style: z.enum(['dropdown', 'toolbar']).optional().catch(undefined),
-  locked: lockedField
+  locked: lockedField,
+  zoom: zoomField
 })
 const knownEntry = z.union([markdownEntry, pageEntry, viewEntry])
 

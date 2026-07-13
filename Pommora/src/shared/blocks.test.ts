@@ -96,3 +96,15 @@ describe('coerceBlockHost', () => {
     expect(coerceBlockHost('homepage')).toBeNull()
   })
 })
+
+describe('block entry zoom field', () => {
+  it('round-trips a numeric zoom on a page entry', () => {
+    expect(knownBlock({ id: 'b', type: 'page', page_id: 'p1', zoom: 1.25 })?.zoom).toBe(1.25)
+  })
+
+  it('drops a non-numeric zoom to undefined without failing the entry (E-1 foreign-data guard)', () => {
+    const e = knownBlock({ id: 'c', type: 'markdown', zoom: 'big' })
+    expect(e).not.toBeNull()
+    expect(e?.zoom).toBeUndefined()
+  })
+})
