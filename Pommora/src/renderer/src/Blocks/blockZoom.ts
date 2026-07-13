@@ -25,8 +25,10 @@ const step = (factor: number): ZoomStep => ({
 
 export const ZOOM_STEPS: ZoomStep[] = ZOOM_FACTORS.map(step)
 
-/** Resolve a stored factor to its step; an absent or off-grid value falls to 1.0 (the tile never
- *  renders at a size that isn't a ratified step). */
+/** Resolve a stored factor to its step. Absent → 1.0; any other value SNAPS to the nearest ratified
+ *  step, so an off-grid factor (a hand-edit or foreign import) still renders + reads as its closest
+ *  step and is clearable through the picker — never silently stuck at a scale the picker can't show. */
 export function zoomStep(factor?: number): ZoomStep {
-  return ZOOM_STEPS.find((s) => s.factor === factor) ?? step(DEFAULT_ZOOM)
+  const target = factor ?? DEFAULT_ZOOM
+  return ZOOM_STEPS.reduce((best, s) => (Math.abs(s.factor - target) < Math.abs(best.factor - target) ? s : best))
 }
