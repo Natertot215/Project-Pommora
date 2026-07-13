@@ -20,7 +20,7 @@
     height var(--duration-base) var(--ease-standard),
     opacity var(--duration-base) var(--ease-standard),
     border-color var(--duration-base) var(--ease-standard),
-    --block-zoom var(--duration-base) var(--ease-standard);
+    --block-zoom var(--block-zoom-anim, var(--duration-base) var(--ease-standard));
   /* No overflow clip here — the edge zones straddle the border by design; the
      body does the content clipping. */
 }
@@ -35,6 +35,14 @@
    .cm-content) + the editor glyphs (via --glyph-scale); a view tile's table reads it in its own grid
    `zoom` (base density × --block-zoom). The handle, resize edges, gutter, and padding do NOT read it —
    chrome + structure stay fixed. Five steps; 1.0 needs no class (--block-zoom falls back to 1). */
+/* A view tile SNAPS its Scale rather than animating --block-zoom: the table renders every row to the DOM
+   (no virtualizer) and CSS `zoom` is a layout property, so interpolating it would relayout the whole grid
+   every frame for the transition's duration — the "expensive work on every frame" trap. Markdown/page
+   tiles keep the smooth transition (CM6 virtualizes to the viewport, so only visible lines relayout). */
+.spm-tile.is-view-tile {
+  --block-zoom-anim: 0s;
+}
+
 .spm-tile.blk-zoom-125 {
   --block-zoom: 1.25;
 }

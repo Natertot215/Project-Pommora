@@ -251,7 +251,8 @@ export function BlockSurface({ host }: { host: BlockHostRef }): React.JSX.Elemen
         editingId === id ? 'is-editing-tile' : null,
         entries.get(id)?.locked ? 'is-locked' : null, // frozen gestures (SurfaceView) + a resting cursor
         handleMenu?.id === id ? 'handle-pinned' : null, // the open picker's anchor stays shown
-        zoomStep(entries.get(id)?.zoom).cls || null // per-block Scale (G-10); 1.0 has no class
+        zoomStep(entries.get(id)?.zoom).cls || null, // per-block Scale (G-10); 1.0 has no class
+        entries.get(id)?.type === 'view' ? 'is-view-tile' : null // snaps Scale (non-virtualized grid) — see css
       ].filter(Boolean)
       return classes.length ? classes.join(' ') : undefined
     },
