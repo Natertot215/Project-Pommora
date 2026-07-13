@@ -146,10 +146,11 @@ export function BlockHandleMenu({
 }): React.JSX.Element {
   const [pane, setPane] = useState<'root' | 'style' | 'page' | 'view'>('root')
   const style: BlockStyle = entry.style === 'borderless' ? 'borderless' : 'bordered'
-  // Per-tile content lock (B-5): frozen tiles dim + inert every action but Lock itself, which stays
-  // live to toggle back. The dim is the house rowDisabled (opacity on the row content, so the text +
-  // labels fade, not a full-row veil). Toggling keeps the menu open so the check + dim flip in place.
-  const locked = entry.locked ?? false
+  // Content/board lock: a per-tile lock (B-5) OR the host board lock (G-3) dims + inerts every action —
+  // the menu still opens (grab-menu stays reachable + reads its lock state), it just can't mutate a locked
+  // board/tile. The dim is the house rowDisabled (opacity on the row content, not a full-row veil). The
+  // footer stays live: the per-tile Lock toggles back; a board lock shows the inert "Locked".
+  const locked = (entry.locked ?? false) || containerLocked
   const rowMute = locked ? s.rowDisabled : undefined
   const act = (fn: () => void) => () => {
     onClose()

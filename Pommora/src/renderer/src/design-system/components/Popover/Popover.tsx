@@ -41,7 +41,9 @@ export function useDismiss(
       if (ref.current && !ref.current.contains(target) && !target.closest?.('[data-picker-portal]')) onClose()
     }
     const onKey = (e: KeyboardEvent): void => {
-      if (e.key === 'Escape') onClose()
+      // A marked picker portal owns its own Escape — while one's open, it closes itself and this host
+      // stays put (Escape peels one popover at a time, never the pane out from under the picker in it).
+      if (e.key === 'Escape' && !document.querySelector('[data-picker-portal]')) onClose()
     }
     document.addEventListener('pointerdown', onDown, true)
     document.addEventListener('keydown', onKey)
