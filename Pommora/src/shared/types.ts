@@ -162,6 +162,9 @@ export interface PathNode extends BaseNode {
    *  owners (Collections/Sets + contexts) populate it, surfaced from the sidecar `banner` field
    *  (a page's future banner rides here too — distinct from the page-level `cover`). */
   banner?: string
+  /** The banner-heading icon is hidden (G-4 show/hide chrome), from the sidecar `heading_icon_hidden`.
+   *  Absent/false = shown. */
+  headingIconHidden?: boolean
 }
 
 export interface SavedNode extends BaseNode {
@@ -260,7 +263,7 @@ export interface NexusTree {
    *  lock (G-3): the block doc's heavy layout/blocks stay off the walk (loaded lazily by
    *  useBlockDoc), but the single `blocks_locked` boolean rides here like `banner` so the
    *  store can seed the freeze without a second read. Absent = unlocked. */
-  homepage: { banner?: string; locked: boolean }
+  homepage: { banner?: string; locked: boolean; headingIconHidden: boolean }
   saved: SavedNode[]
   contexts: {
     projects: ProjectNode[]

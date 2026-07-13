@@ -263,6 +263,7 @@ async function readSet(
     icon: asString(meta.icon),
     path: relDir,
     banner: asString(meta.banner),
+    headingIconHidden: meta.heading_icon_hidden === true,
     sets: resolveOrder(sets, asStringArray(meta.set_order), fb),
     pages: resolveOrder(pages, asStringArray(meta.page_order), fb),
     views: parseViews(meta.views),
@@ -306,6 +307,7 @@ async function readPageCollection(
     icon: asString(meta.icon),
     path: relDir,
     banner: asString(meta.banner),
+    headingIconHidden: meta.heading_icon_hidden === true,
     properties: resolveAssignedSchema(meta.properties, registry),
     sets: resolveOrder(sets, asStringArray(meta.set_order), fb),
     pages: resolveOrder(pages, asStringArray(meta.page_order), fb),
@@ -343,7 +345,8 @@ async function readTier<T extends AreaNode | TopicNode | ProjectNode>(
       // Contexts live under .nexus/<tier>/ — the real on-disk path a mutation resolves
       // (distinct from the adoptedId seed above, which is layout-agnostic by design).
       path: `.nexus/${tier}/${e.name}`,
-      banner: asString(sc?.banner)
+      banner: asString(sc?.banner),
+      headingIconHidden: sc?.heading_icon_hidden === true
     } as T
     if (kind === 'area') {
       const c = sc?.color
@@ -461,7 +464,11 @@ async function walkNexus(root: string): Promise<NexusTree> {
 
   return {
     nexus: { id, rootPath: root, name: basename(root), profileImage, profileIcon, profileSubtitle },
-    homepage: { banner: asString(homepageConfig.banner), locked: homepageConfig.blocks_locked === true },
+    homepage: {
+      banner: asString(homepageConfig.banner),
+      locked: homepageConfig.blocks_locked === true,
+      headingIconHidden: homepageConfig.heading_icon_hidden === true
+    },
     saved,
     contexts,
     collections,

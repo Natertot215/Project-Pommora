@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import type { MutableKind } from '@shared/mutate'
-import { defaultEntityIcon, iconNameOr } from '@renderer/design-system/symbols'
+import { Icon, defaultEntityIcon, iconNameOr } from '@renderer/design-system/symbols'
 import { IconPicker } from '@renderer/Components/IconPicker'
 import { useSession } from '../../store'
 import type { BannerOwner } from '../Scope'
@@ -14,9 +14,30 @@ export function Banner({ owner }: { owner: BannerOwner }): React.JSX.Element {
   const submitRename = useSession((s) => s.submitRename)
   const load = useSession((s) => s.load)
   const defaultIcons = useSession((s) => s.personalization.defaultIcons)
+  const nexus = useSession((s) => s.tree?.nexus)
   const [iconPickerOpen, setIconPickerOpen] = useState(false)
   const [editingHome, setEditingHome] = useState(false)
   const iconRef = useRef<SVGSVGElement>(null)
+
+  const iconHidden = owner.headingIconHidden === true
+  const toggleHeadingIcon = (): Promise<boolean> =>
+    mutate({ op: 'setHeadingIconHidden', path: owner.path, kind: owner.kind, hidden: !iconHidden })
+  // The homepage identity in the banner: its profile photo, else the chosen glyph — hidden when the
+  // heading icon is toggled off, absent entirely until one is set (set it from the settings pane / ribbon).
+  const homeIcon = (): React.ReactNode => {
+    if (iconHidden) return null
+    if (nexus?.profileImage) return <img className="banner-home-icon" src={assetUrl(nexus.profileImage)} alt="" />
+    if (nexus?.profileIcon) return <Icon name={nexus.profileIcon} className="banner-home-icon" />
+    return null
+  }
+  const openHomeTitleMenu = async (e: React.MouseEvent): Promise<void> => {
+    // No identity set yet ⇒ nothing to hide/show. Let the right-click fall through to the banner's
+    // Change/Remove-photo menu rather than pop a menu whose only item toggles a non-existent icon.
+    if (!nexus?.profileImage && !nexus?.profileIcon) return
+    e.preventDefault()
+    e.stopPropagation() // the toggle menu, not the banner's Change/Remove-photo menu underneath
+    if ((await window.nexus.titleMenu({ toggleOnly: true, toggleIcon: true, iconHidden })) === 'toggleIcon') await toggleHeadingIcon()
+  }
 
   // The homepage IS the nexus, so its title renames the root folder (renameNexus, a fs rename) — not
   // submitRename. Double-click the homepage title to edit it in place; this is the sole rename-nexus
@@ -73,18 +94,23 @@ export function Banner({ owner }: { owner: BannerOwner }): React.JSX.Element {
     >
       <img className="banner-img" src={assetUrl(owner.banner)} alt="" />
       {owner.kind === 'homepage' ? (
-        // The homepage gets NO icon (its name is the nexus itself); its title double-clicks to
-        // rename the nexus. Right-click still falls through to the banner menu.
-        <span className="banner-title">{homeTitle('banner-title-text')}</span>
+        // The homepage IS the nexus: its identity icon (photo/glyph) leads the title, hidden/shown from the
+        // title's right-click; the title double-clicks to rename the nexus. Right-click the banner (not the
+        // title) still falls through to the Change/Remove-photo menu.
+        <span className="banner-title" onContextMenu={(e) => void openHomeTitleMenu(e)}>
+          {homeIcon()}
+          {homeTitle('banner-title-text')}
+        </span>
       ) : (
         <div className="banner-title">
           <DetailTitleHeader
             title={owner.name}
-            icon={iconNameOr(owner.icon, defaultEntityIcon(owner.kind, defaultIcons))}
+            icon={iconHidden ? undefined : iconNameOr(owner.icon, defaultEntityIcon(owner.kind, defaultIcons))}
             iconRef={iconRef}
             onRename={(newName) => submitRename(owner.path, owner.kind as MutableKind, newName)}
-            requestMenu={() => window.nexus.titleMenu()}
+            requestMenu={() => window.nexus.titleMenu({ toggleIcon: true, iconHidden })}
             onEditIcon={() => setIconPickerOpen(true)}
+            onToggleIcon={() => void toggleHeadingIcon()}
           />
         </div>
       )}

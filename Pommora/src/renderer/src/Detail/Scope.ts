@@ -12,6 +12,8 @@ export interface BannerOwner {
   name: string
   banner?: string
   icon?: string
+  /** The banner-heading icon is hidden (G-4 show/hide). Absent/false = shown. */
+  headingIconHidden?: boolean
 }
 
 /** Every top Collection across ungrouped + user sections. */
@@ -69,16 +71,16 @@ export function isDepth1Set(tree: NexusTree | null, setId: string): boolean {
 export function findContext(tree: NexusTree | null, id: string): BannerOwner | null {
   if (!tree) return null
   const area = tree.contexts.areas.find((n) => n.id === id)
-  if (area) return { path: area.path, kind: 'area', name: area.title, banner: area.banner, icon: area.icon }
+  if (area) return { path: area.path, kind: 'area', name: area.title, banner: area.banner, icon: area.icon, headingIconHidden: area.headingIconHidden }
   const topic = tree.contexts.topics.find((n) => n.id === id)
-  if (topic) return { path: topic.path, kind: 'topic', name: topic.title, banner: topic.banner, icon: topic.icon }
+  if (topic) return { path: topic.path, kind: 'topic', name: topic.title, banner: topic.banner, icon: topic.icon, headingIconHidden: topic.headingIconHidden }
   const project = tree.contexts.projects.find((n) => n.id === id)
   if (project)
-    return { path: project.path, kind: 'project', name: project.title, banner: project.banner, icon: project.icon }
+    return { path: project.path, kind: 'project', name: project.title, banner: project.banner, icon: project.icon, headingIconHidden: project.headingIconHidden }
   return null
 }
 
 /** The banner owner for a page container (Collection or Set) — same shape; kind from the node. */
 export function containerOwner(node: CollectionNode | SetNode): BannerOwner {
-  return { path: node.path, kind: node.kind, name: node.title, banner: node.banner, icon: node.icon }
+  return { path: node.path, kind: node.kind, name: node.title, banner: node.banner, icon: node.icon, headingIconHidden: node.headingIconHidden }
 }

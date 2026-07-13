@@ -66,6 +66,22 @@
   font-weight: var(--weight-semibold);
   color: var(--text);
 }
+/* The homepage identity icon leads its title (photo or glyph), sized to the title glyph. It and the
+   title re-enable pointer hits (the overlay is otherwise inert) so their right-click reaches the
+   Hide/Show-Icon menu and the title's double-click rename fires. */
+.banner-home-icon {
+  width: var(--detail-title-size, 20px);
+  height: var(--detail-title-size, 20px);
+  flex: 0 0 auto;
+  border-radius: 5px;
+  object-fit: cover;
+  color: var(--text);
+  filter: drop-shadow(0 1px 4px #0000008c);
+}
+.banner.is-homepage .banner-home-icon,
+.banner.is-homepage .banner-title-text {
+  pointer-events: auto;
+}
 .shell.is-resizing .banner-title {
   transition: none;
 }

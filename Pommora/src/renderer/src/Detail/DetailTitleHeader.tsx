@@ -14,12 +14,14 @@ interface Props {
   /** Registers the icon glyph as the editable target — the picker's beak anchors to it. */
   iconRef?: Ref<SVGSVGElement>
   onRename: (newName: string) => void | Promise<boolean | void>
-  /** Pops the native Rename / Edit Icon menu and resolves the chosen action. */
-  requestMenu: () => Promise<'rename' | 'editIcon' | null>
+  /** Pops the native title menu and resolves the chosen action (Rename / Change Icon / Hide-Show Icon). */
+  requestMenu: () => Promise<'rename' | 'editIcon' | 'toggleIcon' | null>
   onEditIcon: () => void
+  /** Toggle the banner-heading icon's visibility (G-4). When absent, the menu omits the Hide/Show item. */
+  onToggleIcon?: () => void
 }
 
-export function DetailTitleHeader({ title, icon, iconRef, onRename, requestMenu, onEditIcon }: Props): React.JSX.Element {
+export function DetailTitleHeader({ title, icon, iconRef, onRename, requestMenu, onEditIcon, onToggleIcon }: Props): React.JSX.Element {
   const [editing, setEditing] = useState(false)
   const [value, setValue] = useState(title)
   const reverting = useRef(false) // Escape sets this so the blur it triggers doesn't commit
@@ -50,6 +52,7 @@ export function DetailTitleHeader({ title, icon, iconRef, onRename, requestMenu,
     const action = await requestMenu()
     if (action === 'rename') setEditing(true)
     else if (action === 'editIcon') onEditIcon()
+    else if (action === 'toggleIcon') onToggleIcon?.()
   }
 
   return (

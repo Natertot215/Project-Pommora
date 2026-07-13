@@ -54,6 +54,9 @@ export type MutateRequest =
   // banner.<ext>` + record that path in the owner's config (folder sidecar, homepage.json, or — for
   // a page — the `cover` key in its `.md` frontmatter); null ⇒ clear the field + delete the file.
   | { op: 'setBanner'; path: string; kind: BannerOwnerKind; dataUrl: string | null }
+  // Hide or show an entity's banner-heading icon (G-4 chrome) — a `heading_icon_hidden` boolean in the
+  // owner's config (folder sidecar or homepage.json; absent = shown). `true` hides, `false` clears it.
+  | { op: 'setHeadingIconHidden'; path: string; kind: BannerOwnerKind; hidden: boolean }
   // Set or clear an entity's icon — a bare symbol id (any Lucide id). A page carries it in its `.md`
   // frontmatter `icon`; a container/context in its JSON sidecar. `null` clears the field. The one write
   // for every entity kind that has an icon (pages, collections, sets, and the three context tiers);

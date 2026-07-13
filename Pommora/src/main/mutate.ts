@@ -356,6 +356,36 @@ async function dispatch(req: MutateRequest, deps: MutateDeps, root: string): Pro
       return { ok: true }
     }
 
+    case 'setHeadingIconHidden': {
+      // The banner-heading icon show/hide flag (G-4) → `heading_icon_hidden` in the owner's config
+      // (homepage.json for the singleton, the folder sidecar otherwise). Locked on the config path —
+      // homepage.json is shared with the block-doc writers. Absent = shown.
+      let cfgPath: string
+      let fallback: Record<string, unknown>
+      if (req.kind === 'homepage') {
+        cfgPath = nexusConfig(root, NEXUS_CONFIG_FILES.homepage)
+        fallback = {}
+      } else if (req.kind === 'page') {
+        return fault('A page has no heading icon.')
+      } else {
+        const resolved = await resolveUnderRoot(root, req.path)
+        if (!resolved.ok) return relay(resolved)
+        cfgPath = `${resolved.value}/${SIDECAR_FILENAME[req.kind]}`
+        const id = (await readJsonObject(cfgPath))?.id
+        if (typeof id !== 'string') return fault('That item has no id.')
+        fallback = { id }
+      }
+      await serializeOnFile(cfgPath, () =>
+        mutateJson<Record<string, unknown>>(cfgPath, () => fallback, (cur) => {
+          const next = { ...cur }
+          if (req.hidden) next.heading_icon_hidden = true
+          else delete next.heading_icon_hidden
+          return next
+        })
+      )
+      return { ok: true }
+    }
+
     case 'setIcon': {
       // A bare symbol id. Pages carry it in `.md` frontmatter (`icon`); containers + contexts in their
       // JSON sidecar. `null` clears it. Foreign frontmatter/keys survive (mirrors setBanner, minus the

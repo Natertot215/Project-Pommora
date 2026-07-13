@@ -322,7 +322,11 @@ const api = {
   // Pop the native Change / Remove banner menu → the chosen action (null if dismissed).
   bannerMenu: (): Promise<'change' | 'remove' | null> => ipcRenderer.invoke('nexus:bannerMenu'),
   // Pop the native Rename / Edit Icon menu for a detail title → the chosen action (null if dismissed).
-  titleMenu: (): Promise<'rename' | 'editIcon' | null> => ipcRenderer.invoke('nexus:titleMenu'),
+  titleMenu: (opts?: {
+    toggleIcon?: boolean
+    iconHidden?: boolean
+    toggleOnly?: boolean
+  }): Promise<'rename' | 'editIcon' | 'toggleIcon' | null> => ipcRenderer.invoke('nexus:titleMenu', opts),
   // Pop the table grip's native right-click menu → the chosen action (null if dismissed).
   tableMenu: (ctx: TableMenuContext): Promise<TableMenuAction | null> => ipcRenderer.invoke('table-menu', ctx),
   // Pop the callout grip's native right-click menu → the chosen action (null if dismissed).

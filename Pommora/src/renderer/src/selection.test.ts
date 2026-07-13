@@ -7,7 +7,7 @@ import { reconcileSelection } from './selection'
 function tree(pages: { id: string; path: string }[]): NexusTree {
   return {
     nexus: { id: 'nx', rootPath: '/x', name: 'x', profileImage: null, profileSubtitle: '' },
-    homepage: { locked: false },
+    homepage: { locked: false, headingIconHidden: false },
     saved: [],
     contexts: { projects: [], topics: [], areas: [] },
     collections: [
