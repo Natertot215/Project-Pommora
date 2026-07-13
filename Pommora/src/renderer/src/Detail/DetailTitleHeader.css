@@ -11,7 +11,23 @@
   /* Sizes to the title — the type scale drives both. KNOB: bump to e.g. calc(var(--detail-title-size) * 1.1). */
   width: var(--detail-title-size);
   height: var(--detail-title-size);
+  max-width: var(--detail-title-size);
+  min-width: 0;
+  overflow: hidden;
   color: var(--label-control);
+  /* Hide/show slides the icon in/out on the slide token (--duration-base): max-width collapses the
+     space, the translate carries it, the negative margin swallows the .detail-title gap. */
+  transition:
+    max-width var(--duration-base) var(--ease-standard),
+    opacity var(--duration-base) var(--ease-standard),
+    transform var(--duration-base) var(--ease-standard),
+    margin-right var(--duration-base) var(--ease-standard);
+}
+.detail-title-icon.is-hidden {
+  max-width: 0;
+  opacity: 0;
+  transform: translateX(-6px);
+  margin-right: -8px;
 }
 .detail-title-text,
 .detail-title-input {

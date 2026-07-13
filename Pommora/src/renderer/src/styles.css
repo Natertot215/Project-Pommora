@@ -87,6 +87,15 @@ textarea,
   --content-inset: calc(var(--glass-inset) + var(--sidebar-width) + var(--gutter));
   /* Right inset mirrors the left: bare gutter normally, expanding to clear the inspector when open. */
   --content-inset-right: var(--gutter);
+  /* Surface insets: block-based views (homepage, contexts) drop the content gutter — their tile handles
+     supply the grip/chevron actions a page/table needs the fold-gutter for, so no reserved lane. The
+     gutter PORTION of the content inset swaps for a tight value; the floating sidebar/inspector clearance
+     stays. The tile BODY runs the unique 8px inter-tile lane; the banner title sits a touch looser at
+     12px (its own value, kept from the homepage). */
+  --surface-inset: calc(var(--content-inset) - var(--gutter) + 8px);
+  --surface-inset-right: calc(var(--content-inset-right) - var(--gutter) + 8px);
+  --surface-banner-inset: calc(var(--content-inset) - var(--gutter) + 12px);
+  --surface-banner-inset-right: calc(var(--content-inset-right) - var(--gutter) + 12px);
 }
 .shell.sidebar-hidden {
   --content-inset: var(--gutter);

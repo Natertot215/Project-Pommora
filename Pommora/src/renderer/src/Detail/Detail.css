@@ -63,17 +63,18 @@
   padding-top: 0;
   padding-left: calc(var(--content-inset) - var(--fold-gutter));
 }
-/* A block-enabled surface (Homepage, contexts…): tiles run tight 8px gutters —
-   swapped for the gutter PORTION of the inset only, so the floating sidebar /
-   inspector clearance stays intact. The title/icon header keeps the standard inset. */
-.detail-body:has(.blk-surface) {
-  padding-left: calc(var(--content-inset) - var(--gutter) + 8px);
-  padding-right: calc(var(--content-inset-right) - var(--gutter) + 8px);
+/* A block-based surface (Homepage, contexts): tiles run the tight --surface-inset (8px gutter lane)
+   instead of the content inset + fold-gutter — the tile handles supply the grip/chevron actions, so no
+   reserved lane is needed. Driven by kind (is-surface), so a context with no live block surface still
+   insets tight and its body stays aligned with its banner. */
+.detail-scroll.is-surface .detail-body {
+  padding-left: var(--surface-inset);
+  padding-right: var(--surface-inset-right);
 }
 /* Under a banner the tiles clear it by the SAME tight tile gutter they run on the sides (the 8px
-   inter-tile rhythm) — uniform all around, deliberately tighter than a page's banner inset, and never
-   the container-table flush above. KNOB: the banner→first-tile clearance. */
-.detail-scroll.has-header .detail-body:has(.blk-surface) {
+   inter-tile rhythm) — uniform all around, and never the container-table flush above. KNOB: the
+   banner→first-tile clearance. */
+.detail-scroll.has-header.is-surface .detail-body {
   padding-top: 8px;
 }
 

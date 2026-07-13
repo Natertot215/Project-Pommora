@@ -19,9 +19,11 @@ interface Props {
   onEditIcon: () => void
   /** Toggle the banner-heading icon's visibility (G-4). When absent, the menu omits the Hide/Show item. */
   onToggleIcon?: () => void
+  /** The heading icon is hidden — it stays mounted but collapses/slides out (so hide/show animates). */
+  iconHidden?: boolean
 }
 
-export function DetailTitleHeader({ title, icon, iconRef, onRename, requestMenu, onEditIcon, onToggleIcon }: Props): React.JSX.Element {
+export function DetailTitleHeader({ title, icon, iconRef, onRename, requestMenu, onEditIcon, onToggleIcon, iconHidden }: Props): React.JSX.Element {
   const [editing, setEditing] = useState(false)
   const [value, setValue] = useState(title)
   const reverting = useRef(false) // Escape sets this so the blur it triggers doesn't commit
@@ -58,7 +60,14 @@ export function DetailTitleHeader({ title, icon, iconRef, onRename, requestMenu,
   return (
     // Only the icon glyph + the name text are Rename / Edit-Icon targets — not the full-width row.
     <div className="detail-title">
-      {icon && <Icon ref={iconRef} name={icon} className="detail-title-icon" onContextMenu={editing ? undefined : openMenu} />}
+      {icon && (
+        <Icon
+          ref={iconRef}
+          name={icon}
+          className={iconHidden ? 'detail-title-icon is-hidden' : 'detail-title-icon'}
+          onContextMenu={editing ? undefined : openMenu}
+        />
+      )}
       {editing ? (
         <input
           ref={inputRef}

@@ -1397,19 +1397,19 @@ ipcMain.handle('nexus:bannerMenu', async (e): Promise<'change' | 'remove' | null
   })
 })
 
-// Pop a native detail-title menu. Default: Rename + Change Icon (Swift's DetailTitleHeader). Opts add a
-// Hide/Show Icon toggle (G-4); `toggleOnly` drops Rename + Change Icon (the homepage, which renames by
-// double-click and sets its icon from the settings pane).
+// Pop a native detail-title menu. Rename is always offered; Change Icon unless `noEditIcon` (the homepage
+// sets its icon from the settings pane, not here); `toggleIcon` adds the Hide/Show Icon item (G-4).
 type TitleMenuAction = 'rename' | 'editIcon' | 'toggleIcon'
 ipcMain.handle('nexus:titleMenu', async (e, arg: unknown): Promise<TitleMenuAction | null> => {
   const win = BrowserWindow.fromWebContents(e.sender)
   if (!win) return null
-  const opts = (arg ?? {}) as { toggleIcon?: boolean; iconHidden?: boolean; toggleOnly?: boolean }
+  const opts = (arg ?? {}) as { toggleIcon?: boolean; iconHidden?: boolean; noEditIcon?: boolean }
   return await new Promise<TitleMenuAction | null>((resolve) => {
     let acted = false
     const choose = (action: TitleMenuAction) => () => { acted = true; resolve(action) }
     const menu = Menu.buildFromTemplate([
-      ...(opts.toggleOnly ? [] : [{ label: 'Rename', click: choose('rename') }, { label: 'Change Icon', click: choose('editIcon') }]),
+      { label: 'Rename', click: choose('rename') },
+      ...(opts.noEditIcon ? [] : [{ label: 'Change Icon', click: choose('editIcon') }]),
       ...(opts.toggleIcon ? [{ label: opts.iconHidden ? 'Show Icon' : 'Hide Icon', click: choose('toggleIcon') }] : [])
     ])
     menu.popup({ window: win, callback: () => { if (!acted) resolve(null) } })

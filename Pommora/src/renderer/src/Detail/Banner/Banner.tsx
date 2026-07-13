@@ -3,7 +3,7 @@ import type { MutableKind } from '@shared/mutate'
 import { Icon, defaultEntityIcon, iconNameOr } from '@renderer/design-system/symbols'
 import { IconPicker } from '@renderer/Components/IconPicker'
 import { useSession } from '../../store'
-import type { BannerOwner } from '../Scope'
+import { isSurfaceKind, type BannerOwner } from '../Scope'
 import { DetailTitleHeader } from '../DetailTitleHeader'
 import { EditableInput } from '../../Components/EditableInput'
 import { AddBannerButton } from './AddBannerButton'
@@ -22,21 +22,22 @@ export function Banner({ owner }: { owner: BannerOwner }): React.JSX.Element {
   const iconHidden = owner.headingIconHidden === true
   const toggleHeadingIcon = (): Promise<boolean> =>
     mutate({ op: 'setHeadingIconHidden', path: owner.path, kind: owner.kind, hidden: !iconHidden })
-  // The homepage identity in the banner: its profile photo, else the chosen glyph — hidden when the
-  // heading icon is toggled off, absent entirely until one is set (set it from the settings pane / ribbon).
+  // The homepage identity in the banner: its profile photo, else the chosen glyph, else the default house
+  // glyph — always rendered so hide/show slides it in/out (the `is-hidden` class collapses it) rather
+  // than popping. `banner-home-icon` carries the slide transition.
   const homeIcon = (): React.ReactNode => {
-    if (iconHidden) return null
-    if (nexus?.profileImage) return <img className="banner-home-icon" src={assetUrl(nexus.profileImage)} alt="" />
-    if (nexus?.profileIcon) return <Icon name={nexus.profileIcon} className="banner-home-icon" />
-    return null
+    const cls = iconHidden ? 'banner-home-icon is-hidden' : 'banner-home-icon'
+    if (nexus?.profileImage) return <img className={cls} src={assetUrl(nexus.profileImage)} alt="" />
+    return <Icon name={nexus?.profileIcon ?? 'house'} className={cls} />
   }
   const openHomeTitleMenu = async (e: React.MouseEvent): Promise<void> => {
-    // No identity set yet ⇒ nothing to hide/show. Let the right-click fall through to the banner's
-    // Change/Remove-photo menu rather than pop a menu whose only item toggles a non-existent icon.
-    if (!nexus?.profileImage && !nexus?.profileIcon) return
     e.preventDefault()
-    e.stopPropagation() // the toggle menu, not the banner's Change/Remove-photo menu underneath
-    if ((await window.nexus.titleMenu({ toggleOnly: true, toggleIcon: true, iconHidden })) === 'toggleIcon') await toggleHeadingIcon()
+    e.stopPropagation() // the homepage title menu, not the banner's Change/Remove-photo menu underneath
+    // Rename (→ renameNexus, writes the root folder title) + Hide/Show Icon; no Change Icon (the nexus
+    // icon is set from the settings pane / ribbon). Double-click also enters rename.
+    const action = await window.nexus.titleMenu({ toggleIcon: true, iconHidden, noEditIcon: true })
+    if (action === 'rename') setEditingHome(true)
+    else if (action === 'toggleIcon') await toggleHeadingIcon()
   }
 
   // The homepage IS the nexus, so its title renames the root folder (renameNexus, a fs rename) — not
@@ -72,9 +73,10 @@ export function Banner({ owner }: { owner: BannerOwner }): React.JSX.Element {
   }
 
   const homeClass = owner.kind === 'homepage' ? ' is-homepage' : ''
+  const surfaceClass = isSurfaceKind(owner.kind) ? ' is-surface' : ''
   if (!owner.banner) {
     return (
-      <div className={`banner-empty${homeClass}`}>
+      <div className={`banner-empty${homeClass}${surfaceClass}`}>
         <AddBannerButton onClick={() => void addOrChange()} />
         {owner.kind === 'homepage' ? (
           homeTitle('banner-empty-title')
@@ -86,7 +88,7 @@ export function Banner({ owner }: { owner: BannerOwner }): React.JSX.Element {
   }
   return (
     <div
-      className={`banner${homeClass}`}
+      className={`banner${homeClass}${surfaceClass}`}
       onContextMenu={(e) => {
         e.preventDefault()
         void openMenu()
@@ -105,7 +107,8 @@ export function Banner({ owner }: { owner: BannerOwner }): React.JSX.Element {
         <div className="banner-title">
           <DetailTitleHeader
             title={owner.name}
-            icon={iconHidden ? undefined : iconNameOr(owner.icon, defaultEntityIcon(owner.kind, defaultIcons))}
+            icon={iconNameOr(owner.icon, defaultEntityIcon(owner.kind, defaultIcons))}
+            iconHidden={iconHidden}
             iconRef={iconRef}
             onRename={(newName) => submitRename(owner.path, owner.kind as MutableKind, newName)}
             requestMenu={() => window.nexus.titleMenu({ toggleIcon: true, iconHidden })}

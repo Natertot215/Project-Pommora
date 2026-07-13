@@ -325,7 +325,7 @@ const api = {
   titleMenu: (opts?: {
     toggleIcon?: boolean
     iconHidden?: boolean
-    toggleOnly?: boolean
+    noEditIcon?: boolean
   }): Promise<'rename' | 'editIcon' | 'toggleIcon' | null> => ipcRenderer.invoke('nexus:titleMenu', opts),
   // Pop the table grip's native right-click menu → the chosen action (null if dismissed).
   tableMenu: (ctx: TableMenuContext): Promise<TableMenuAction | null> => ipcRenderer.invoke('table-menu', ctx),

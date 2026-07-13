@@ -59,6 +59,13 @@ export function findCollectionForSet(tree: NexusTree | null, setId: string): Col
   return allCollections(tree).find((c) => has(c.sets))
 }
 
+/** Block-based surface kinds (homepage + the three context tiers): their detail body runs tight tile
+ *  gutters (--surface-inset) instead of the page/table content inset + fold-gutter — the tile handles
+ *  supply the grip/chevron actions, so no reserved lane is needed. Drives the `is-surface` layout class. */
+export function isSurfaceKind(kind: BannerOwnerKind): boolean {
+  return kind === 'homepage' || kind === 'area' || kind === 'topic' || kind === 'project'
+}
+
 /** Whether a Set is depth-1 — a DIRECT child of a Collection (so it carries + renders views). A
  *  deeper Sub-Set is a plain organizing folder; a reparent + Back-nav replay can surface one as a
  *  `set` selection, so the view paths test this rather than trusting "depth-1 by construction". */
