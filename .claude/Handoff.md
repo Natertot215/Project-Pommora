@@ -20,17 +20,21 @@ Prior arcs, compressed — detail lives in `Features/*` + `History.md`.
 ### Session Summary — Block-Surface Arc → Merged, then Post-Merge Table Polish
 
 **Session ID:** abc3bafe-70bc-41e4-adfd-aa052cfee424
-**Dates:** 07-10-2026 → 07-13-2026
+**Dates:** 07-10-2026 → 07-14-2026
 **Model:** Fable 5 → Opus 4.8 (1M)
-**Compactions:** 7
+**Compactions:** 8
 **Connectors:** none
 **Commands:** /clear · /handoff · /compact · /loop
-**Agents:** build-breaking-agent (17x) · general-purpose (5x) · code-simplifier (3x) · Explore (1x) · comment-killer (1x)
+**Agents:** build-breaking-agent (27x) · general-purpose (5x) · code-simplifier (3x) · Explore (1x) · comment-killer (1x)
 **Skills:** studio-brainstorm · superpowers:writing-plans · superpowers:executing-plans · superpowers:systematic-debugging · handoff
 
 One long session: the Contexts rethink became a certified spec, the spec became SurfacePM, SurfacePM became a live block system, and the whole arc merged to main — then a post-merge table-polish tail.
 
 **The block-surface arc (now merged, → Recent Work + `History.md`):** a certified spec (`Planning/7-10 - Block Surfaces — Decision Log.md`, three adversarial rounds) drove SurfacePM built from scratch, its plumbing (Tasks 0–3 + the CM6-portal redirect), the H-5 view-embed chrome + edge-release scroll, the link graph, the geometry-only homepage lock, the homepage/context identity settings, and per-block Scale — closed with a doc pass and a `--no-ff` merge (main green, 1492 tests). The detail is in [[SurfacePM]] + `History.md`; don't re-narrate it.
+
+**App-wide auto-scroll (shipped, `f1586c15` → `3a2e71df`, on main, unpushed):** a ratified decision log (`Planning/Auto-Scroll — Decision Log.md`, two adversarial rounds) + implementation plan (`Planning/Auto-Scroll — Plan.md`, plan-attacked) drove a 10-task inline build with a build-breaking-agent after EACH task. One shared `interactions/autoscroll.ts` singleton rAF loop now drives every drag's edge-scroll: **one fixed scroller resolved once at drag start** (the design reversal — no per-frame `elementsFromPoint`, since no core drag crosses containers), px/sec × dt (ProMotion-safe), sub-pixel, time-dampening + direction-intent, a loop-only termination backstop, an instance-scoped stopper, token surface in `autoscroll.css` read off the drag element. Migrated the 3 existing consumers (engine, SurfacePM, settings pane), **deleted** the block-drag duplicate loop + the migration shim (no second copy remains), retrofitted 3 surfaces that never had it (sidebar, table rows, table bands). The **axis-aware `findScroller`** was the enabler (a vertical table drag skips the x-only `.table-view` for `.detail-scroll`). Reviews caught + folded real bugs: dt-teleport-on-stall, a cross-`<Zone>` global-stop, a table unmount-leak + ungated per-frame measure. Gates green (typecheck · 1509 tests · build). Docs → [[PommoraDND]] §II. Autoscroll + `History.md`. **The one open thing is Nathan's live-drag pass** (below) — jsdom can't drive pointer-capture + rAF scroll, and the unified loop adds a felt dampen+direction-intent profile to every drag that wants his gut-check.
+
+**Inherited red typecheck fixed (`3bf0dd74`):** `main` was type-red on arrival — the date-clear session's `isBlankValue` refactor left `applyPropertyValue` passing `PropertyValue | null` where `encodePropertyValue` wants non-null (the piped-exit trap again). Narrowed the null explicitly; runtime-identical.
 
 **Hide Borders + borderless reveals (`cf03d9fc`):** a per-view table toggle (Layout) that strips the body grid lines — row dividers + vertical column hairlines — while the heading row keeps its seam + segment bars. With borders off, structure surfaces on demand: the vertical dividers fade in while a column is resized or reordered (grid-level `col-resizing-active` / the existing `col-dragging-active`), and the cell being edited wears a rounded accent ring. Landed through a live UIX loop — Nathan corrected the heading (kept), the divider trigger (hover → resize/reorder only), and the accent (a 4px ring, not an inside fill). All reveals ride `--ease-standard`. → [[TableView]].
 
@@ -82,6 +86,8 @@ One long session: the Contexts rethink became a certified spec, the spec became 
 
 **The pivot — Navigation · Tabs · Agenda (Nathan's stated next).** Navigation is the Window + Dropdown + Inspector surface (→ [[Navigation]] + [[Inspector]]); it reuses the shared `state.json` recents record (the same plumbing the block Insert / Link-Page flow wants). Each starts with brainstorm → plan → build, building *against* the now-settled surface.
 
+**Verify auto-scroll live (the deferred hands-on pass — the ONLY open item on the feature).** For each, drag to an edge and HOLD → the container must scroll and the drop line track: sidebar (tall tree) · table rows (needs rows overflowing AND columns overflowing — the B-2 case: must scroll `.detail-scroll`, not the x-only `.table-view`) · table group headers · editor blocks (long page; off-screen blocks become droppable as they scroll in) · SurfacePM tiles (tall surface) · settings-pane property reorder. **Gut-check the feel:** every drag now inherits the 300ms dampen ramp + direction-intent (grab-at-edge won't scroll until the pointer leaves the band once) — the deliberate "Polished" choice, but felt on surfaces that had instant/no auto-scroll before, esp. "grab the last table row, drag down to extend." Cosmetic note: the up-scroll band overlaps the traffic-light/toolbar header padding (sidebar + detail) — functions, engages in a dead-looking zone near the top; inset only if it reads dead.
+
 **Verify the two date-clear fixes live** — click a selected calendar date to clear it, and right-click a filled vs empty date cell (Clear present vs absent). Neither is unit-verifiable.
 
 **SurfacePM post-merge polish (no longer blocking):** page banners on embeds (+ per-tile lock home) · the Insert menu (G-9) + Link-Page search pane + shared recents (G-16, pairs with Navigation) · the shared debounced-save hook (`MarkdownBlock` ↔ `PageEmbed` ~35 LOC, a real save-boundary refactor, best with the future `![[]]` consumer in hand) · robustness adds (per-tile error boundary, lazy-mount embeds, layout undo) · interaction foolproofing under drag-heavy gestures (incl. the `.spm-edge` overlap near tile borders — at-rest selection is fixed, the edge-zone tail unconfirmed).
@@ -103,8 +109,6 @@ One long session: the Contexts rethink became a certified spec, the spec became 
 - **Canvas** — spec at `Planning/6-26 - Canvas Spec.md`, pending adversarial review → plan → build. Free-placement drawing inside Pages; distinct from Block Surfaces.
 
 - **Biome config vs code** — `biome.json` declares double-quote/organizeImports but the code is single-quote/no-semicolon. Settle once, in a tree with no parallel edits.
-
-- **Automatic scrolling** — must-have for views + MarkdownPM.
 
 - **iCloud-sync readiness (future):** `serializeOnFile` can't coordinate with the iCloud daemon (last-writer-wins); `.nexus/index.db` needs sync-exclusion; the walk must skip `.icloud` placeholders.
 
