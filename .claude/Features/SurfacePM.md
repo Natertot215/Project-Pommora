@@ -48,7 +48,7 @@ Hosts live under `.nexus/` (shielded from other apps; root-lift is a breaking Pr
 #### Pending
 
 - **Page banners on embeds** — the banner-**on** state: the page's real banner image with its in-line title over it, toggled by a right-click context menu in the embed's heading area (mirroring the view-embed chrome menus). The banner-**off** default is the plain embed — its accent-border hover signal ships (see Surface Interaction); the entry's `banner` / `title` stay wired. That heading menu is also the home for the page embed's per-tile lock.
-- **The Insert menu (G-9)** — background right-click offering Page / View / Block through the shipped picker, with the Link-Page search pane + a shared `state.json` recents record (Navigation reuses the same record) behind its Page branch.
+- **The Insert menu (G-9)** — background right-click offering Page / View / Block through the shipped picker, with the Link-Page search pane behind its Page branch. **The shared recents system now exists via the Navigation layer** (per-nexus recents/favorites + client-side search — see `Planning/Navigation — Decision Log.md`; the old `state.json` recents record it once pointed at was dead Swift-era data, never a live source). Insert / Link-Page is a confirmed future consumer of that layer — a `page`-kind-filtered recents view behind the Page branch — but the **current disclosure-based picker works for now**, so the swap is deferred, not urgent.
 - **The remaining locks** — the host lock (geometry-only) and the view-embed config lock ship; still open are the container view-lock (G-5, locks a Collection/Set's views everywhere) and the page-embed per-tile lock (waits on the ⋮ menu above).
 - **Navigation surfaces for hosts + the contexts resolution** — parked by design.
 
