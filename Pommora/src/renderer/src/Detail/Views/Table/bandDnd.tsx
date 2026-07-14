@@ -12,6 +12,7 @@ import { createPortal } from 'react-dom'
 import { text } from '@renderer/design-system/tokens'
 import { cx } from '@renderer/design-system/cx'
 import { ACTIVATION, DROP_LINE_INSET, suppressNextClick } from '@renderer/design-system/interactions/shared'
+import { findScroller, startAutoScroll } from '@renderer/design-system/interactions/autoscroll'
 import type { MeasuredRow } from '@renderer/Sidebar/sidebarDndModel'
 import { type Band, type BandIndex, type BandSlot, bandSlot, buildBandIndex } from './bandDndModel'
 
@@ -76,6 +77,8 @@ export function BandDnd({
   type Snapshot = { index: BandIndex; boxTop: number; boxBottom: number }
   const snapshot = useRef<Snapshot | null>(null)
   const snapshotDirty = useRef(false)
+  const lastPoint = useRef({ x: 0, y: 0 })
+  const stopScroll = useRef<(() => void) | null>(null)
   useEffect(() => {
     snapshotDirty.current = true
   }, [bands])
@@ -105,6 +108,8 @@ export function BandDnd({
   }
 
   const detach = (): void => {
+    stopScroll.current?.()
+    stopScroll.current = null
     const g = gesture.current
     if (g.kind === 'idle') return
     window.removeEventListener('pointermove', g.handlers.move)
@@ -155,16 +160,32 @@ export function BandDnd({
       gesture.current = { ...g, kind: 'active' }
       ghostLabel.current = labelForRef.current(g.id)
       window.addEventListener('scroll', markSnapshotDirty, { capture: true, passive: true })
+      // Auto-scroll the vertical scroller. findScroller('y') skips the x-only '.table-view' to reach
+      // '.detail-scroll' (same B-2 case as the rows). Start at activation; onScrolled re-resolves a
+      // held-still drag as the bands scroll.
+      const sc = findScroller(g.el, 'y')
+      if (sc) {
+        stopScroll.current = startAutoScroll({ getPoint: () => lastPoint.current, scroller: sc, dragEl: g.el, axis: 'y', onScrolled: resolveSlot })
+      }
     }
+    lastPoint.current = { x: e.clientX, y: e.clientY }
+    resolveSlot()
+  }
+
+  // Re-snapshot lazily (a scroll dirties it) then hit-test the bands at the last point. Shared by
+  // pointer move and the auto-scroll re-resolve, so a held-still drag keeps tracking as bands scroll.
+  function resolveSlot(): void {
+    const g = gesture.current
+    if (g.kind !== 'active') return
     if (snapshotDirty.current || !snapshot.current) {
       snapshot.current = takeSnapshot()
       snapshotDirty.current = false
     }
     const snap = snapshot.current
     if (!snap) return
-    const slot = bandSlot(snap.index, e.clientY, g.id, snap.boxBottom)
+    const slot = bandSlot(snap.index, lastPoint.current.y, g.id, snap.boxBottom)
     live.current = slot
-    setDrag({ id: g.id, ghostX: e.clientX + 12, ghostY: e.clientY + 8, slot, lineTop: slot ? slot.lineY - snap.boxTop : 0 })
+    setDrag({ id: g.id, ghostX: lastPoint.current.x + 12, ghostY: lastPoint.current.y + 8, slot, lineTop: slot ? slot.lineY - snap.boxTop : 0 })
   }
   function onUp(): void {
     detach()
