@@ -155,7 +155,7 @@ export function applyPropertyValue(
   value: PropertyValue | null
 ): Record<string, unknown> {
   const next: Record<string, unknown> = isPlainObject(current) ? { ...current } : {}
-  if (isBlankValue(value)) delete next[propertyId]
+  if (value === null || isBlankValue(value)) delete next[propertyId]
   else next[propertyId] = encodePropertyValue(value)
   return next
 }
