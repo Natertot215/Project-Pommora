@@ -324,7 +324,7 @@ export function BlockHandleMenu({
 
   return (
     <>
-      <PickerMenu open onDismiss={onClose} triggerRef={{ current: anchor }} center accentOutline>
+      <PickerMenu open onDismiss={onClose} triggerRef={{ current: anchor }} center>
         <PaneSlider open={pane !== 'root'} root={root} detail={detail} />
       </PickerMenu>
       {scaleOpen && (
