@@ -5,153 +5,131 @@
 
 ### Recent Work
 
-Prior arcs, compressed — the detail lives in `Features/*` + `History.md`.
+Prior arcs, compressed — detail lives in `Features/*` + `History.md`.
 
-- **PropertiesV2 — the nexus-wide registry.** Definitions live in `.nexus/properties.json` (`{order, defs}`); a Collection's sidecar holds only its assignment-id array; `readNexus` joins the two so every surface gets a resolved schema. Registry mutations serialize; SQLite mirrors it as a regeneratable accelerator.
+- **Block Surfaces — SurfacePM (shipped + merged to main, `8fca70cd`).** The host-agnostic block/tile system: split-tree layout, window-style edge resize, PommoraDND feel, markdown/page/view tiles behind the BlockHost seam (locked read-merge-writes), CM6-portal page embeds (every prose tile a read-only MarkdownPM view), block `[[links]]` as first-class edges, geometry-only homepage lock, homepage/context identity settings, and per-block Scale (freeze-inset, view-agnostic). → [[SurfacePM]] + `History.md`.
 
-- **Tables cell + group system.** The full cell-gesture matrix, per-view looks/formats in `column_styles`, band drag, and the reusable table-agnostic editing surfaces in `Detail/Views/PropertyEditing/`. → `Features/TableView.md`.
+- **Tables — cell + group system + grouping/sorting.** The cell-gesture matrix, per-view looks/formats in `column_styles`, band drag, the reusable editors in `Detail/Views/PropertyEditing/`, and grouping + sorting end-to-end (pane · pipeline · Location order writing the real filesystem · drag surfaces). → [[TableView]] + [[Views]].
 
-- **Multi-View Scaffolding + per-type property editors.** The view switcher stack (ViewDropdown · ViewPane · two-door ViewSettings), the G-1 invariant (views never empty where visible), and the Date/Checkbox/Number/Status/Link editor panes. Only the relation/context pickers remain. → [[Views]] + [[Properties]].
+- **PropertiesV2 — nexus-wide registry.** Defs in `.nexus/properties.json`; a Collection's sidecar holds only its assignment-id array; `readNexus` joins them so every surface gets a resolved schema. SQLite mirrors it as a regeneratable accelerator.
 
-- **Icon Picker + Sidebar Ribbon.** The full-Lucide picker in the shared PickerMenu; the ribbon + mode-switched sidebar (surface-launcher model, lazy `agenda:list`, creation via right-click). → [[Studio/Pommora/II. Features/Icons]] + [[Sidebar]].
+- **Multi-View scaffolding + per-type editors.** ViewDropdown · ViewPane · two-door ViewSettings, the G-1 invariant (views never empty where visible), and Date/Checkbox/Number/Status/Link editor panes. → [[Views]] + [[Properties]].
 
-- **The Table Grouping + Sorting (shipped + merged).** Grouping + Sorting shipped for tables end-to-end — the pane, the pipeline, Location order writing the real filesystem, and the drag surfaces — with the structural-only settings locked view-level beside `group_order`. The tableDnd frozen-closure fix (per-render `cfg` ref) rode along. → [[Views]] `### Grouping` + [[TableView]] + `History.md`.
+- **Icon Picker + Sidebar Ribbon.** Full-Lucide picker in the shared PickerMenu; ribbon + mode-switched sidebar (surface-launcher model, lazy `agenda:list`, right-click create). → [[Icons]] + [[Sidebar]].
 
-### Session Summary — Block Surfaces: Certified Spec → Live System → Merged to Main
+### Session Summary — Block-Surface Arc → Merged, then Post-Merge Table Polish
 
 **Session ID:** abc3bafe-70bc-41e4-adfd-aa052cfee424
 **Dates:** 07-10-2026 → 07-13-2026
 **Model:** Fable 5 → Opus 4.8 (1M)
-**Compactions:** 6
+**Compactions:** 7
 **Connectors:** none
 **Commands:** /clear · /handoff · /compact · /loop
-**Agents:** Explore (1x - census) · general-purpose (5x - research + SurfacePM cleanup/token/DRY audits) · build-breaking-agent (17x - spec rounds + per-task + Scale Phase-1/2 reviews) · code-simplifier (3x - closeout + Task 5 + Scale) · comment-killer (1x - arc sweep, came back clean)
+**Agents:** build-breaking-agent (17x) · general-purpose (5x) · code-simplifier (3x) · Explore (1x) · comment-killer (1x)
 **Skills:** studio-brainstorm · superpowers:writing-plans · superpowers:executing-plans · superpowers:systematic-debugging · handoff
 
-One session, the whole arc: the Contexts rethink became a certified spec, the spec became SurfacePM, and SurfacePM became a live block system Nathan drove all evening.
+One long session: the Contexts rethink became a certified spec, the spec became SurfacePM, SurfacePM became a live block system, and the whole arc merged to main — then a post-merge table-polish tail.
 
-**The spec:** `Planning/7-10 - Block Surfaces — Decision Log.md` — review-certified through three adversarial rounds, then reopened live for Section H (embed mechanics, all confirmed) and extended through G-15/H-11 as Nathan drip-fed decisions. The capability-fusion diagnosis (block dashboards reserved to tag tiers) drove the host-agnostic BlockHost design; the contexts resolution stays parked. Durable spec now lives at [[SurfacePM]].
+**The block-surface arc (now merged, → Recent Work + `History.md`):** a certified spec (`Planning/7-10 - Block Surfaces — Decision Log.md`, three adversarial rounds) drove SurfacePM built from scratch, its plumbing (Tasks 0–3 + the CM6-portal redirect), the H-5 view-embed chrome + edge-release scroll, the link graph, the geometry-only homepage lock, the homepage/context identity settings, and per-block Scale — closed with a doc pass and a `--no-ff` merge (main green, 1492 tests). The detail is in [[SurfacePM]] + `History.md`; don't re-narrate it.
 
-**SurfacePM shipped from scratch** (the RGL teardown informed patterns; zero code copied — `SurfacePM/README.md` records provenance): the split-tree model (row ratios / independent column stacks / per-tile px heights), window-style edge resize (south stretch · north stack + cross-band pair · e/w splitters · alignment snap), PommoraDND feel (lift-follow-settle on Glide), the notched grip handle with its menu (Type ▸ / Style ▸ / Remove-confirmed), right-click background create with wedge fill, and pane-toggle 1:1 tracking. Consolidated engine review folded (settle interlock, snap dead band, codec salvage).
+**Hide Borders + borderless reveals (`cf03d9fc`):** a per-view table toggle (Layout) that strips the body grid lines — row dividers + vertical column hairlines — while the heading row keeps its seam + segment bars. With borders off, structure surfaces on demand: the vertical dividers fade in while a column is resized or reordered (grid-level `col-resizing-active` / the existing `col-dragging-active`), and the cell being edited wears a rounded accent ring. Landed through a live UIX loop — Nathan corrected the heading (kept), the divider trigger (hover → resize/reorder only), and the accent (a 4px ring, not an inside fill). All reveals ride `--ease-standard`. → [[TableView]].
 
-**The plumbing arc ran Tasks 0–3** of `Planning/Block Surfaces — Plumbing Plan.md` (plan itself plan-attacked; H1/H2 findings pre-empted real corruption): the block document behind the BlockHost seam (locked read-merge-writes on homepage.json, main-side patch validation, watcher ignores host dirs), markdown block tiles (ULID `.md` lifecycle, pure-body writes, trash-recoverable), and the shared page-embed framework — where Nathan redirected the static-render plan into **the CM6 portal**: every prose tile IS a read-only MarkdownPM view, editability flipped by compartment (E-4 rewritten), one `--mdpm-scale` variable sizing the whole editor, popups portaled to body (a transformed tile re-anchors `position:fixed` — H-11), gutter glyphs self-centering, caret-priority scroll.
+**Date-cell clearing fixed — two React port gaps (`9d6e0346` + `cf03d9fc`):** systematic-debugging found every code path intact and unchanged since the rename, so the bugs sat in the interaction layer + one type gate. (1) Clicking a selected calendar date did nothing: arming the drag-reposition pointer-captured the grid, retargeting the day button's click, so the clear was swallowed — now the no-move clear runs on `pointerup`. (2) Date cells had no menu Clear: `datetime` was grouped with the inline-clearable types instead of the picker-based ones — moved in with `status`. And Clear/Remove now shows only on a filled cell, via a shared `isBlankValue` predicate (DRY with `applyPropertyValue`). **Both need Nathan's live eyes** — jsdom stubs `setPointerCapture`, so the calendar path can't be unit-verified.
 
-**Continuation (07-11 → 12).** The H-5 view-embed chrome + edge-release scroll landed and were live-iterated (title row sized by markdownPM's own `.md-hN`, pill switcher with drag-reorder + create/delete slide, dropdown mode, top+bottom scroll-fade), then the arc closed its plumbing + hardening. A mid-compact **selection bug** (at-rest markdownPM embeds unselectable — `EditorView.editable.of(false)` killed native selection; fix keeps editable true, gates edits through `EditorState.readOnly` alone), the per-nexus **default view scale** (`personalization.defaultViewScale`, applied main-side on open + ⌘0, empty-state + no-flash review folded), view embeds **corner-scoping their handle while busy**, and **Task 5 — the link graph** (block `[[links]]` → first-class edges + rename heal, review-certified after folding read-only-build + mtime-safe findings). Then Nathan's four directives: both stale worktrees removed, the **`[[link]]` bracket bug fixed at source** (`pageLinkPattern` tolerates internal brackets — repairs page + block bodies at once; a trailing `]` is the one irreducible grammar ambiguity, degrades to a phantom), and the **view-embed config lock** in the SettingsPane footer (freezes config via the single `persistConfig` chokepoint, no dim; `setLocked` via unguarded `patchEntry` so you can always unlock). A SurfacePM-wide cleanup audit ran + its safe findings folded (two dead `::after` rules, `getTile` reuse, hygiene).
-
-**Continuation (07-12) — Homepage Lock + Settings arc (Tasks 1–5 of the Homepage-Lock plan).** The Task-6 leftovers finally got their surface. A **homepage board lock — geometry-only:** it freezes drag + resize but keeps the grab-menu, content editing, and background-create live (store-synced `homepageLocked`, seeded in `applyTree` off the config readNexus already reads — no extra IPC; the handle menu goes inert + reads a muted "Locked" under it). It first shipped as a FULL freeze; its review found real F1–F3 issues, then Nathan reversed the whole thing: *"locking should NOT disable the grab-menu. It should only disable the resizing."* A **homepage + context identity SettingsPane scaffold** — the host-settings surface 6.1 was blocked on now exists (`SettingsScaffold`, routed by `viewSettingsScope`). The homepage IS the nexus, so its icon is a **photo OR glyph** set from a native `nexus:iconMenu` (Change Icon → the glyph picker · Add/Change Photo → crop), one shared `useNexusIcon` hook reused across ribbon + settings + banner (photo > glyph > house). **Hide/show the banner heading icon** landed for every banner entity (`heading_icon_hidden` via a new `setHeadingIconHidden` op): the homepage banner — icon-less before — now leads its title with the identity icon (house default so the toggle's always there, sliding in/out), and its title gained Rename (→ `renameNexus`) + a borderless inline rename. Fixed a **context-icon regression I introduced** (`8a2505a6` made `ContextRow` honor `node.icon` via raw `||`, so a Swift-era `"rectangle.stack"` sidecar won → dashed square; fixed with `iconNameOr` validate-or-default, root-caused by reading Nathan's real Nexus on disk). Closed with two review-flagged fixes: a board-locked handle menu goes fully inert, and Escape peels one popover at a time (a picker eats its own Escape, the pane it sits in stays). Commits `6a8f6423`…`0074380a`.
-
-**Continuation (07-12, late) — closeout doc-alignment + a low-risk cleanup sweep.** A "make the bed, don't change the mattress" pass ahead of the SurfacePM finalize — no architecture touched. Docs realigned to shipped reality: [[SurfacePM]] now describes view embeds + the geometry-only host lock as built and its Pending lists only genuinely-open work; Structure/Sidebar call the homepage ribbon icon the Nexus **identity icon (photo OR glyph)**, not a profile photo; Contexts says the tiers **default to** the grid icon (a set icon overrides). Homepage's graph-view final-shape direction stays a live consideration (Nathan's call — do NOT strip it). Two read-only finder agents swept the subsystem and it came back remarkably clean: one duplicated view-config id-remint hoisted to `remintConfigIds` (`main/blocks.ts`), a few split CSS rule-blocks merged, a dead `nodeAt` export dropped, and `Banner.css`'s lone `rgba()` + a hardcoded `180ms ease` rerouted to hex + `--duration-fast`/`--ease-standard`; comment-killer found ZERO strippable comments (every one is a spec-ref/hazard/rationale). The real LOC win — a shared debounced-save hook between `MarkdownBlock` ↔ `PageEmbed` (~35 LOC) — was flagged and deliberately NOT done (a refactor across the save/flush boundary, not a tidy). Typecheck + 1486 tests green. Commits `07666190` (docs) + `456b5469` (cleanup).
-
-**Continuation (07-13) — Per-block Scale, shipped across the whole surface, then merged to main.** The "Scale >" Next-Task landed — but built as a **discrete dropdown, not a slider**, and finished view-agnostic. **Phase 1 (markdown/page):** freeze-inset via one inherited `--block-zoom` var driving the `.cm-content` font (linear, no clamp) + a new `--glyph-scale = --mdpm-scale × --block-zoom` (chevron/grips/checkbox), while structural px (gutter width, padding, edge-fade) + the drag handle stay frozen; five discrete steps (`blockZoom.ts`, `zoomStep`), stored on the entry (absent = 1). Nathan then drove a live UIX loop that reshaped it: the **handle must NOT scale** (chrome, like the resize edges); the picker became an **anchored dropdown, not an in-menu pane** (reusing CalendarPicker's document-`pointerdown`-dismiss idiom — a pick keeps it open to scrub, click-out closes, accent-colored check); and Scale changes **animate over `--duration-base`** via `--block-zoom` registered as an animatable `@property`. **Phase 2 (view-agnostic):** the table scales as a unit — `.table-grid zoom: calc(var(--zoom) * var(--block-zoom,1))` compounds the base density with the Scale, one pointer-math read moved from the `--zoom` token to the resolved `zoom`, group-header kept base-only (it's a grid child, so re-applying would double-scale — caught live), and the Scale row un-gated for every tile type. **F1 sanitize:** `zoomStep` snaps off-grid factors to the nearest step. **Block-surface pickers** got an accent tint-secondary outline (`NotchedPane`/`PickerMenu` `accentOutline` opt-in — scoped to the block menu + Scale dropdown, not app-wide). Two build-breaking reviews came back **0 High / 0 Med**; the second's lone Low (animating `--block-zoom` relayouts a non-virtualized table every frame) was fixed — **view tiles snap** via `--block-zoom-anim: 0s` + an `is-view-tile` class. Then [[SurfacePM]] got its finished-surface doc pass, a [[History]] entry for the whole block-surface arc, Nathan's block-surface Planning-doc deletions preserved, and the branch **`--no-ff` merged to main** (main green, 1492 tests). Commits `db33897a`…`8fca70cd` (the merge).
+**Picker outline scope fix (`6e60d514`):** the block handle menu's `accentOutline` ringed the whole menu; scoped it to just the nested Scale dropdown (the input field).
 
 **Lessons Learned**
 
-- **A transformed ancestor breaks `position:fixed`** — SurfacePM tiles ride `translate()`, so ANY fixed-position UI inside a tile subtree misplaces + clips. Popups must portal to body; this will bite every future in-tile surface that forgets.
+- **A transformed ancestor breaks `position:fixed`** — SurfacePM tiles ride `translate()`, so ANY fixed-position UI inside a tile subtree misplaces + clips. Popups must portal to body; bites every future in-tile surface.
 
-- **Reordering keyed DOM nodes mid-drag silently releases pointer capture** — tiles render in stable id order, never tree order (the zombie-gesture class). Same family: React batching guarantees a remove-IPC beats an unmount flush, so removal flows must suppress the flush explicitly.
+- **jsdom can't reproduce real-DOM interaction bugs** — `setPointerCapture` is a no-op stub and `elementFromPoint` is faked, so the calendar click-to-clear stayed green in the suite while broken in the app. Pointer-capture / hit-testing / native-menu paths are verified by Nathan's hands, never by a passing test.
 
-- **CDP can't drive native reality:** right-click doesn't synthesize `contextmenu` in Electron, native menus block headless, and the earlier chip-melt lesson held — verify those paths with synthetic DOM dispatch + Nathan's hands, never claim them from CDP silence.
+- **The pipefail trap keeps biting** — `typecheck 2>&1 | tail` returns tail's `0` and hides a red build. Capture the real `$?` into a file; never trust a piped exit code.
 
-- **Dead reviewer agents are recoverable:** two build-breaking agents died silently at delivery; their findings were extracted from the subagent JSONL transcripts (`jq` over assistant text) and folded anyway. Quiet transcript + stale mtime = dead; the work isn't lost.
-
-- **Nathan reverses load-bearing designs live — build to be reversible, hold commits until he's eyeballed.** The board lock shipped a full freeze, then flipped to geometry-only mid-session; the banner inset went 12→8→12→unified. Fold each redirect at once, batch-commit after his look. And the pipefail trap bit AGAIN: `typecheck 2>&1 | tail` returns tail's 0 and hid a red build (Task 1 shipped typecheck-red; only the adversarial review caught it) — capture the real `$?` into a file, never trust a piped exit.
-
-- **A clean subsystem resists the sweep — that's the signal, not a miss.** The block-surfaces DRY/token/comment sweep netted ~15 LOC and zero comment strips: the code was already tokenized (`var(--…)` everywhere) and every comment load-bearing. When a cleanup pass comes back near-empty, don't manufacture churn to look thorough — the remaining LOC lived in ONE risky refactor (the shared save hook), which is a scoped task, not a tidy.
+- **A clean subsystem resists the sweep — that's the signal, not a miss.** Cleanup passes that come back near-empty mean the code was already disciplined; don't manufacture churn to look thorough.
 
 **Key Files & Insights**
 
-- `SurfacePM/` — the engine (README = module map + invariants); `Blocks/` — the tile family; `Embeds/PageEmbed.tsx` — the shared framework, `EMBED_SCALE` is THE embed knob.
-- `shared/blocks.ts` — the cross-process block contract (entries stay raw; `knownBlock` is the read lens; `blockPatchProblem` gates saves).
-- `main/blocks.ts` — every doc mutation through one locked read-merge-write; `setBanner`'s homepage branch shares the lock (lost-update fix).
-- Knobs Nathan tunes live: `--tile-border` / `--handle-w` / `--grip-size` (surfacepm.css, self-centering) · `HANDLE_REVEAL_PX` (SurfaceView) · `EMBED_SCALE` (PageEmbed) · `--mdpm-scale` at :root.
+- `SurfacePM/` — the engine (README = module map + invariants); `Blocks/` — the tile family; `Embeds/PageEmbed.tsx` — the shared embed framework (`EMBED_SCALE` is THE knob).
+- `shared/blocks.ts` — cross-process block contract; `main/blocks.ts` — every doc mutation through one locked read-merge-write.
+- `shared/propertyValue.ts` — `isBlankValue` is the one set/clear + "is this cell filled" predicate; `Detail/Views/Table/table-tokens.css` — every table number (§G: no raw px in `Table.css`).
+- Knobs Nathan tunes live: `--tile-border` / `--handle-w` / `--grip-size` (surfacepm.css) · `EMBED_SCALE` · `--mdpm-scale` at :root · `--cell-active-radius` (borderless ring).
 
 **User Feedback**
 
-- Nathan live-drives and drip-feeds mid-turn corrections — fold each immediately, commit in batches, bundle his tunes.
-- Empty states get no meta-commentary; token names he says may not exist (state-active → state-selected) — map and flag, don't mint.
+- Nathan live-drives and drip-feeds mid-turn corrections — fold each immediately, batch-commit, bundle his tunes; his effect-words are literal.
+- Confirm the layer before fixing (UIX vs data), and ask before any design/interaction call — don't guess how something looks or behaves.
 
 ---
 
 ### Working Notes
 
-- **UI iteration runs in dev mode (HMR)** — CSS hot-swaps, React Fast-Refreshes, but **CM6 extension code needs ⌘R**, and **`src/main`/preload need a full dev-process restart** (electron-vite builds main ONCE at launch). Nathan runs his own `env -u ELECTRON_RUN_AS_NODE npm run dev`; relaunch with `-- --remote-debugging-port=9222` to keep CDP.
+- **UI iteration runs in dev mode (HMR)** — CSS hot-swaps, React Fast-Refreshes, but **CM6 extension code needs ⌘R**, and **`src/main`/preload need a full dev-process restart**. Nathan runs his own `env -u ELECTRON_RUN_AS_NODE npm run dev`; relaunch with `-- --remote-debugging-port=9222` to keep CDP.
 
-- **HMR is NOT trustworthy for two classes:** (1) vanilla-extract `*.css.ts` — a style edit can serve stale compiled CSS; a plain restart heals it, ⌘R never does. (2) A component's focus effect / handler / attribute change — Fast-Refresh often skips it. (Plain `.css` DOES HMR reliably.)
+- **HMR is NOT trustworthy for two classes:** (1) vanilla-extract `*.css.ts` — a style edit can serve stale CSS; a plain restart heals it, ⌘R never does. (2) A component's focus effect / handler / attribute change — Fast-Refresh often skips it. Plain `.css` DOES HMR reliably.
 
-- **The dev app runs against Nathan's REAL Nexus** (`/Users/nathantaichman/The Nexus`). UI value writes are his data; CDP must open + Esc only, never pick/commit — unless he authorizes a mutating gesture. Native OS menus don't render in the DOM; reach those ops through `window.nexus.*` via `Runtime.evaluate`.
+- **The dev app runs against Nathan's REAL Nexus** (`/Users/nathantaichman/The Nexus`). UI value writes are his data; CDP must open + Esc only, never pick/commit unless he authorizes it. Native OS menus don't render in the DOM; reach those ops through `window.nexus.*` via `Runtime.evaluate`.
 
-- **Gates:** `env -u ELECTRON_RUN_AS_NODE npm run typecheck` (two passes, the ONLY type gate) + `npx vitest run` + `env -u ELECTRON_RUN_AS_NODE npm run build`. Biome auto-formats on write — never run it, never hand-align.
+- **Gates:** `env -u ELECTRON_RUN_AS_NODE npm run typecheck` (the ONLY type gate) + `npx vitest run` + `env -u ELECTRON_RUN_AS_NODE npm run build`. Biome auto-formats on write — never run it, never hand-align.
 
-- **Parallel sessions / edits** — stage explicit paths, never `-A`. Unattributed `M`/`D` files are almost always Nathan's, left uncommitted on purpose.
+- **Parallel sessions / edits** — stage explicit paths, never `-A`. Unattributed `M`/`D` files are almost always Nathan's, left uncommitted on purpose. **main is ahead of origin, unpushed** — Nathan pushes in batches; merge ≠ push.
 
-- **main is ahead of origin, unpushed** — Nathan pushes in batches on his own call; merge ≠ push.
-
-- **Detail insets split by surface kind:** block surfaces (homepage, contexts) run the tight `--surface-inset` (8px tile body) + `--surface-banner-inset` (12px banner), driven by an `is-surface` class (`isSurfaceKind` in `Detail/Scope.ts`); page/table views keep `--content-inset` + `--fold-gutter`. Every banner title sits on the 12px inset (Nathan's call).
+- **Detail insets split by surface kind:** block surfaces run tight `--surface-inset` (8px body) + `--surface-banner-inset` (12px banner) via an `is-surface` class (`isSurfaceKind`, `Detail/Scope.ts`); page/table views keep `--content-inset` + `--fold-gutter`.
 
 ### Next Session
 
-**SurfacePM is MERGED to main** — the block surface is a finished, stable substrate. The strategic point (Nathan's): lock it down *before* future plans decide what mounts a block surface, then pivot to the **foundational layer**. Per-block Scale was the last feature in the arc; the merge (`8fca70cd`) brought the whole thing to main, green (1492 tests).
+**SurfacePM is MERGED — a finished, stable substrate.** The strategic point (Nathan's): lock the surface *before* future plans decide what mounts it, then pivot to the foundational layer.
 
-#### The pivot — foundational (Nathan's stated next)
+**The pivot — Navigation · Tabs · Agenda (Nathan's stated next).** Navigation is the Window + Dropdown + Inspector surface (→ [[Navigation]] + [[Inspector]]); it reuses the shared `state.json` recents record (the same plumbing the block Insert / Link-Page flow wants). Each starts with brainstorm → plan → build, building *against* the now-settled surface.
 
-**Navigation · Tabs · Agenda.** These are the next focus. Navigation is the Window + Dropdown + Inspector surface (→ [[Navigation]] + [[Inspector]]); it reuses the shared `state.json` recents record (the same plumbing the block Insert/Link-Page flow wants). Start each with the brainstorm → plan → build discipline; they build *against* the now-settled surface rather than a moving target.
+**Verify the two date-clear fixes live** — click a selected calendar date to clear it, and right-click a filled vs empty date cell (Clear present vs absent). Neither is unit-verifiable.
 
-#### SurfacePM post-merge polish (no longer blocking — pull in as they matter)
+**SurfacePM post-merge polish (no longer blocking):** page banners on embeds (+ per-tile lock home) · the Insert menu (G-9) + Link-Page search pane + shared recents (G-16, pairs with Navigation) · the shared debounced-save hook (`MarkdownBlock` ↔ `PageEmbed` ~35 LOC, a real save-boundary refactor, best with the future `![[]]` consumer in hand) · robustness adds (per-tile error boundary, lazy-mount embeds, layout undo) · interaction foolproofing under drag-heavy gestures (incl. the `.spm-edge` overlap near tile borders — at-rest selection is fixed, the edge-zone tail unconfirmed).
 
-- **Page banners on embeds** — the banner-on image + in-line title + a right-click heading toggle (also the home for the page-embed per-tile lock). The banner-**off** accent-border signal already ships. → [[SurfacePM]] Pending.
-- **Insert menu (G-9)** + **Link Page search pane + shared recents (G-16)** — background right-click → Page/View/Block; the recents record is shared plumbing Navigation reuses (so this pairs naturally with the Navigation work).
-- **The shared debounced-save hook** — `MarkdownBlock` ↔ `PageEmbed` ~35 LOC save/flush twins; a real refactor across the save boundary (diverge on `suppressFlush` vs path-reset), best designed with the future `![[]]` consumer in hand. Its own scoped task, not a tidy — confirmed still-open 07-13.
-- **Robustness hardening (Claude's adds):** per-tile render error boundary · lazy-mount embeds (a 10–15-embed homepage mounts them all on open) · layout undo (⌘Z) · empty-host create affordance + `.nexus` gitignore. Decide in/out as SurfacePM becomes real hosts.
-- **Interaction foolproofing (Nathan's hands):** view embeds under drag-heavy gestures, edge-release scroll on a dense surface, the borderless half-step, the picker flows. Plus verify the `.spm-edge` overlap doesn't eat a text-selection drag near tile borders (at-rest selection is fixed; the edge-zone tail is unconfirmed).
+**Other consumers (post-foundational):** Page/View Previews · Filter-pane redesign · Page-Embedding `![[]]` · Gallery/Card view · the standing relation/context pickers. A new view type opts into Scale with one line — `zoom: calc(var(--zoom) * var(--block-zoom,1))` in its grid CSS.
 
-#### Other consumers (post-foundational)
-
-**Page/View Previews** · **Filter-pane redesign** · **Page-Embedding — `![[]]`** (the embed framework's second consumer) · **Gallery / Card view** (a non-Table renderer) · the standing **relation/context pickers**. When a new view type lands, it opts into Scale with one line — `zoom: calc(var(--zoom) * var(--block-zoom,1))` in its grid CSS (the gate + var already flow to it).
-
-#### Parked by design
-
-The contexts-resolution brainstorm (sidebar, contexts-as-hosts, Homepage's final shape — the **graph-view host with widgets stays the current direction**).
+**Parked by design:** the contexts-resolution brainstorm (sidebar, contexts-as-hosts, Homepage's final shape — the graph-view host with widgets stays the current direction; do NOT strip it).
 
 ### Pending Focuses
 
-- **User Sections CRUD (the "Add Heading" feature).** Collections can render user-created sections but there's no way to make one (`mutate.ts` has zero section ops). Its own brainstorm→plan→build. → `Sidebar.md` Pending.
+- **User Sections CRUD (the "Add Heading" feature).** Collections render user sections but there's no way to make one (`mutate.ts` has zero section ops). Own brainstorm→plan→build. → `Sidebar.md`.
 
-- **"None"/flat grouping + Flatten + Hide Location** — the flattened-mode bundle, deliberately deferred (→ [[Views]] `### Grouping`; the `flat` GroupConfig kind stays reserved).
+- **"None"/flat grouping + Flatten + Hide Location** — the flattened-mode bundle, deferred (→ [[Views]]; `flat` GroupConfig kind stays reserved).
 
-- **(Perf) Standing debt:** (1) no row virtualization — every row MOUNTS, bites at thousands. (2) External VALUE edits don't live-refresh an open table. Container-surgical reconcile is the designed escalation at real scale.
+- **(Perf) Standing debt:** no row virtualization (every row MOUNTS — bites at thousands); external VALUE edits don't live-refresh an open table. Container-surgical reconcile is the designed escalation at scale.
 
-- **Number editor eyeball items (Nathan may tune, not bugs):** Decimals "Hidden", fraction wording, bar clamp edges, the strokeless bar look, field widths. Knobs in `numberEditor.css.ts` / `textPicker.css.ts` / `formatValue.ts`.
+- **Number editor eyeball items (tune, not bugs):** decimals "Hidden", fraction wording, bar clamp edges, strokeless bar, field widths. Knobs in `numberEditor.css.ts` / `textPicker.css.ts` / `formatValue.ts`.
 
-- **Canvas** — spec at `Planning/6-26 - Canvas Spec.md`, pending adversarial review → plan → build. Distinct from Block Surfaces (free-placement drawing inside Pages); shares the file-per-entity + single-live-editor patterns.
+- **Canvas** — spec at `Planning/6-26 - Canvas Spec.md`, pending adversarial review → plan → build. Free-placement drawing inside Pages; distinct from Block Surfaces.
 
-- **Biome config vs code** — `biome.json` declares double-quote/organizeImports but the codebase is single-quote/no-semicolon. Settle once, in a tree with no parallel edits.
+- **Biome config vs code** — `biome.json` declares double-quote/organizeImports but the code is single-quote/no-semicolon. Settle once, in a tree with no parallel edits.
 
-- **Automatic Scrolling** — must-have for views + MarkdownPM.
+- **Automatic scrolling** — must-have for views + MarkdownPM.
 
-- **iCloud-sync readiness (future):** in-process `serializeOnFile` can't coordinate with the iCloud daemon — cross-device is last-writer-wins. `.nexus/index.db` needs sync-exclusion; the walk must skip `.icloud` placeholders.
+- **iCloud-sync readiness (future):** `serializeOnFile` can't coordinate with the iCloud daemon (last-writer-wins); `.nexus/index.db` needs sync-exclusion; the walk must skip `.icloud` placeholders.
 
-- **Mobile iOS companion (parked):** spec at `.claude/Mobile/MobileSpec.md`; step 1 is a `window.nexus` bridge shim + a native iCloud Swift plugin. No build commitment.
+- **Mobile iOS companion (parked):** spec at `.claude/Mobile/MobileSpec.md`; step 1 a `window.nexus` bridge shim + native iCloud Swift plugin. No build commitment.
 
 ### Fix Log
 
-- **`.nexus/activeViews.json` + per-machine siblings aren't gitignored (live).** Neither it nor `folds`/`viewOrders`/`tableHeadingColumns`/`linkTitles` are ignored — using the switcher on a fresh container creates a would-sync file. Add to the Nexus `.gitignore` (or scaffold it).
+- **`.nexus/activeViews.json` + per-machine siblings aren't gitignored (live).** Neither it nor `folds`/`viewOrders`/`tableHeadingColumns`/`linkTitles` are ignored — using the switcher on a fresh container creates a would-sync file. Add to the Nexus `.gitignore`.
 
 - **The "File" property icon gets clipped** by its vertical row padding on the ViewPane.
 
-- **The link rename field shows a leading empty space (DEPRIORITIZED).** A visual inset, not a stored/typed char. Log it, don't chase it.
+- **The link rename field shows a leading empty space (DEPRIORITIZED)** — a visual inset, not a stored char.
 
 - **Block-math `$$…blank…$$` drag corrupts the doc (open).** A multi-line block-math span with a blank line parses as two halves with orphaned `$$`; block-dragging either corrupts the doc (`MarkdownPM/editor/blockModel.ts`, test-pinned, unguarded).
 
-- **Bullet single-word wrap drops the word below the marker** — only the `line-height` cap shipped. → `Features/MarkdownPM.md`.
+- **Bullet single-word wrap drops the word below the marker** — only the `line-height` cap shipped. → [[MarkdownPM]].
 
 ### Handoff Rules
 
-- **Never record a correction-to-obvious as a discovery.** Write the durable truth as if always so; silently fix what contradicts it. A fresh agent shouldn't be able to tell a mistake was made.
+- **Never record a correction-to-obvious as a discovery.** Write the durable truth as if always so; silently fix what contradicts it — a fresh agent shouldn't be able to tell a mistake was made.
 
 - **Resolve = delete + route, never tag.** When an entry's done, push its outcome to the canonical doc and delete the line — no `(Resolved)` tombstones.
 
-- **One block per session, updated in place.** Compactions bump the count, they don't add sections. Carry still-open Pending + Fix Log to a fresh session; compress the prior session's block into Recent Work.
+- **One block per session, updated in place.** Compactions bump the count; a merged arc compresses into Recent Work. Carry still-open Pending + Fix Log forward.
 
 - **Markdown only, no new folder** (per Nathan) — this stays the single `.claude/Handoff.md`, not a routed `Handoffs/` dir.
 
-- **Parallel sessions share this one doc** — a concurrent session adds its own labeled block; Cornerstone + footer shared; never edit another session's block.
+- **Parallel sessions share this doc** — a concurrent session adds its own labeled block; Cornerstone + footer shared; never edit another's block.
