@@ -91,6 +91,122 @@ export function gateIntent(intent: Intent, vx: number, vy: number): { vx: number
   }
 }
 
+// ---- the singleton loop --------------------------------------------------
+// One drag at a time (pointer capture guarantees it). The loop scrolls every frame off the last
+// recorded point — so holding still at the edge keeps scrolling — and self-owns a termination
+// backstop (blur/visibilitychange/pointercancel → stop) so a focus-steal can't strand it running.
+// It stops the LOOP only; each surface still aborts its OWN gesture on its own up/cancel/blur.
+
+interface StartCfg {
+  getPoint: () => { x: number; y: number }
+  scroller?: HTMLElement | null
+  dragEl?: HTMLElement | null
+  axis?: Axis
+  onScrolled?: () => void
+}
+
+interface Live {
+  raf: number
+  getPoint: () => { x: number; y: number }
+  scroller: HTMLElement
+  axis: Axis
+  params: Params
+  onScrolled?: () => void
+  t0: number | null
+  last: number | null
+  frac: { x: number; y: number }
+  intent: Intent
+  teardown: () => void
+}
+
+let live: Live | null = null
+
+// Upper bound on a single frame's dt. A velocity×dt loop teleports if rAF stalls (a jank spike while
+// the window keeps focus, display sleep/wake with the pointer held) and resumes with a huge gap — cap
+// it so the worst case is one ~50ms step, not a thousand-pixel jump.
+const MAX_FRAME_MS = 50
+
+function readParams(el: HTMLElement): Params {
+  const s = getComputedStyle(el)
+  const num = (name: string, fallback: number): number => {
+    const v = parseFloat(s.getPropertyValue(name))
+    return Number.isFinite(v) ? v : fallback
+  }
+  return {
+    edge: num('--autoscroll-edge', 48),
+    speed: num('--autoscroll-speed', 840),
+    ramp: num('--autoscroll-ramp', 2),
+    dampenMs: num('--autoscroll-dampen-ms', 300)
+  }
+}
+
+export type { StartCfg }
+
+/** Begin auto-scrolling a fixed container. Resolves the scroller ONCE (explicit, else axis-aware
+ *  `findScroller(dragEl, axis)`); reads tuning off `dragEl` once; then drives a singleton rAF loop. */
+export function startAutoScroll(cfg: StartCfg): void {
+  stopAutoScroll() // singleton: replace any running loop
+  const axis = cfg.axis ?? 'xy'
+  const scroller = cfg.scroller ?? findScroller(cfg.dragEl ?? null, axis)
+  if (!scroller) return // no scrollable container — the drag still works, just no auto-scroll
+  const onBackstop = (): void => stopAutoScroll()
+  window.addEventListener('blur', onBackstop)
+  document.addEventListener('visibilitychange', onBackstop)
+  window.addEventListener('pointercancel', onBackstop)
+  live = {
+    raf: 0,
+    getPoint: cfg.getPoint,
+    scroller,
+    axis,
+    params: readParams(cfg.dragEl ?? scroller),
+    onScrolled: cfg.onScrolled,
+    t0: null,
+    last: null,
+    frac: { x: 0, y: 0 },
+    intent: { up: false, down: false, left: false, right: false },
+    teardown: () => {
+      window.removeEventListener('blur', onBackstop)
+      document.removeEventListener('visibilitychange', onBackstop)
+      window.removeEventListener('pointercancel', onBackstop)
+    }
+  }
+  live.raf = requestAnimationFrame(tick)
+}
+
+/** Stop the auto-scroll loop (and only the loop — the surface owns its gesture's own teardown). */
+export function stopAutoScroll(): void {
+  if (!live) return
+  if (live.raf) cancelAnimationFrame(live.raf)
+  live.teardown()
+  live = null
+}
+
+function tick(ts: number): void {
+  const L = live
+  if (!L) return
+  if (L.t0 === null) L.t0 = ts
+  const dt = L.last === null ? 0 : Math.min(ts - L.last, MAX_FRAME_MS)
+  L.last = ts
+  const pt = L.getPoint()
+  const r = L.scroller.getBoundingClientRect()
+  let vx = L.axis === 'y' ? 0 : edgeVelocity(r.left, r.right, pt.x, L.params)
+  let vy = L.axis === 'x' ? 0 : edgeVelocity(r.top, r.bottom, pt.y, L.params)
+  ;({ vx, vy } = gateIntent(L.intent, vx, vy))
+  const damp = dampen(ts - L.t0, L.params.dampenMs)
+  vx = clampToLimit(vx * damp, L.scroller.scrollLeft, L.scroller.scrollWidth - L.scroller.clientWidth)
+  vy = clampToLimit(vy * damp, L.scroller.scrollTop, L.scroller.scrollHeight - L.scroller.clientHeight)
+  const sx = stepPixels(vx, dt, L.frac.x)
+  const sy = stepPixels(vy, dt, L.frac.y)
+  L.frac.x = sx.frac
+  L.frac.y = sy.frac
+  if (sx.px || sy.px) {
+    L.scroller.scrollBy(sx.px, sy.px)
+    L.onScrolled?.()
+  }
+  if (live !== L) return // onScrolled stopped or replaced this loop — don't resurrect the old one
+  L.raf = requestAnimationFrame(tick)
+}
+
 // TEMPORARY back-compat shim during the auto-scroll migration. Reproduces the OLD px/frame behavior
 // (speed 14, no dampen) so the not-yet-migrated inline callers (engine/SurfaceView/paneDnd) compile
 // and behave identically until each moves onto the loop. Deleted once the last caller migrates.

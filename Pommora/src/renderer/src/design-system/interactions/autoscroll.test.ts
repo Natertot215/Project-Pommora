@@ -1,5 +1,6 @@
-import { describe, expect, it, vi } from 'vitest'
-import { autoScroll, clampToLimit, dampen, edgeVelocity, gateIntent, scrollableInAxis, stepPixels, type Intent, type Params } from './autoscroll'
+// @vitest-environment jsdom
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { autoScroll, clampToLimit, dampen, edgeVelocity, gateIntent, scrollableInAxis, startAutoScroll, stepPixels, stopAutoScroll, type Intent, type Params } from './autoscroll'
 
 const P: Params = { edge: 48, speed: 840, ramp: 2, dampenMs: 300 }
 
@@ -127,5 +128,162 @@ describe('scrollableInAxis', () => {
   it('requires actual overflow, not just an overflow style', () => {
     const noOverflow = { scrollWidth: 200, clientWidth: 200, scrollHeight: 200, clientHeight: 200 }
     expect(scrollableInAxis('auto', 'auto', noOverflow, 'xy')).toBe(false)
+  })
+})
+
+describe('startAutoScroll / stopAutoScroll — loop lifecycle', () => {
+  // A faithful rAF fake: ids map to callbacks and cancelAnimationFrame actually removes them (a no-op
+  // cancel would let an abandoned loop keep driving, hiding the one-driver invariant). The clock is
+  // MONOTONIC across every flush so dt is always positive and a real stall can be simulated.
+  let rafMap: Map<number, (ts: number) => void>
+  let rafId: number
+  let clock: number
+
+  const fakeScroller = (): { el: HTMLElement; scrolls: () => number } => {
+    let top = 400
+    const el = {
+      getBoundingClientRect: () => ({ top: 0, bottom: 300, left: 0, right: 300, width: 300, height: 300 }),
+      get scrollTop() {
+        return top
+      },
+      set scrollTop(v: number) {
+        top = v
+      },
+      scrollLeft: 0,
+      scrollHeight: 1000,
+      clientHeight: 300,
+      scrollWidth: 300,
+      clientWidth: 300,
+      scrollBy: (_x: number, y: number) => {
+        top += y
+      }
+    } as unknown as HTMLElement
+    return { el, scrolls: () => top }
+  }
+
+  const flush = (times: number, stepMs = 16): void => {
+    for (let i = 0; i < times; i++) {
+      const pending = [...rafMap.values()]
+      rafMap = new Map()
+      clock += stepMs
+      for (const cb of pending) cb(clock)
+    }
+  }
+
+  beforeEach(() => {
+    rafMap = new Map()
+    rafId = 0
+    clock = 0
+    vi.stubGlobal('requestAnimationFrame', (cb: (ts: number) => void) => {
+      const id = ++rafId
+      rafMap.set(id, cb)
+      return id
+    })
+    vi.stubGlobal('cancelAnimationFrame', (id: number) => {
+      rafMap.delete(id)
+    })
+  })
+  afterEach(() => {
+    stopAutoScroll()
+    vi.unstubAllGlobals()
+  })
+
+  // Direction-intent means a drag that STARTS pinned at the edge never scrolls — the pointer must have
+  // been out of that band once. Every test that needs actual scrolling starts at y=150 (out of the
+  // bottom band, arms `down`), then moves to y=299 (into it) and holds past the dampen window.
+  const doc = document.documentElement
+
+  it('scrolls the fixed scroller toward the edge the point holds near', () => {
+    const { el, scrolls } = fakeScroller()
+    let y = 150
+    startAutoScroll({ getPoint: () => ({ x: 150, y }), scroller: el, dragEl: doc, axis: 'y' })
+    flush(3)
+    const before = scrolls()
+    y = 299
+    flush(40)
+    expect(scrolls()).toBeGreaterThan(before)
+  })
+
+  it('does NOT scroll when the drag starts pinned at the edge (direction-intent anti-rocket)', () => {
+    const { el, scrolls } = fakeScroller()
+    startAutoScroll({ getPoint: () => ({ x: 150, y: 299 }), scroller: el, dragEl: doc, axis: 'y' })
+    flush(40)
+    expect(scrolls()).toBe(400) // never armed `down` → never scrolled
+  })
+
+  it('stopAutoScroll halts the loop — no further scrolling', () => {
+    const { el, scrolls } = fakeScroller()
+    let y = 150
+    startAutoScroll({ getPoint: () => ({ x: 150, y }), scroller: el, dragEl: doc, axis: 'y' })
+    flush(3)
+    y = 299
+    flush(20)
+    expect(scrolls()).toBeGreaterThan(400) // it was actively scrolling
+    stopAutoScroll()
+    const settled = scrolls()
+    flush(30)
+    expect(scrolls()).toBe(settled) // and stopped dead
+  })
+
+  it('a blur event stops the loop (backstop against a leaked rAF)', () => {
+    const { el, scrolls } = fakeScroller()
+    let y = 150
+    startAutoScroll({ getPoint: () => ({ x: 150, y }), scroller: el, dragEl: doc, axis: 'y' })
+    flush(3)
+    y = 299
+    flush(20)
+    expect(scrolls()).toBeGreaterThan(400)
+    window.dispatchEvent(new Event('blur'))
+    const settled = scrolls()
+    flush(30)
+    expect(scrolls()).toBe(settled)
+  })
+
+  it('a second start replaces the first (singleton — one drag at a time)', () => {
+    const a = fakeScroller()
+    const b = fakeScroller()
+    let y = 150
+    startAutoScroll({ getPoint: () => ({ x: 150, y }), scroller: a.el, dragEl: doc, axis: 'y' })
+    flush(3)
+    y = 299
+    flush(20)
+    const aBeforeReplace = a.scrolls()
+    expect(aBeforeReplace).toBeGreaterThan(400) // A was driven
+    // Replace with B — a fresh loop with fresh intent, so re-arm it out of the band, then into it.
+    startAutoScroll({ getPoint: () => ({ x: 150, y }), scroller: b.el, dragEl: doc, axis: 'y' })
+    expect(rafMap.size).toBe(1) // the one-driver invariant: A's rAF was actually cancelled, not orphaned
+    y = 150
+    flush(3)
+    y = 299
+    flush(20)
+    expect(a.scrolls()).toBe(aBeforeReplace) // A is abandoned — frozen since the replace
+    expect(b.scrolls()).toBeGreaterThan(400) // B is now the one being driven
+    expect(rafMap.size).toBe(1) // still exactly one loop in flight
+  })
+
+  it('clamps a huge dt so an rAF stall does not teleport the scroll', () => {
+    const { el, scrolls } = fakeScroller()
+    let y = 150
+    startAutoScroll({ getPoint: () => ({ x: 150, y }), scroller: el, dragEl: doc, axis: 'y' })
+    flush(3)
+    y = 299
+    flush(5) // scrolling at steady state
+    const beforeStall = scrolls()
+    flush(1, 5000) // one frame after a 5-second main-thread stall
+    const jump = scrolls() - beforeStall
+    // Clamped to MAX_FRAME_MS (50ms): well under 100px. Without the clamp it'd be thousands.
+    expect(jump).toBeGreaterThan(0)
+    expect(jump).toBeLessThan(100)
+  })
+
+  it('fires onScrolled after a frame that actually scrolled', () => {
+    const { el } = fakeScroller()
+    const onScrolled = vi.fn()
+    let y = 150
+    startAutoScroll({ getPoint: () => ({ x: 150, y }), scroller: el, dragEl: doc, axis: 'y', onScrolled })
+    flush(3)
+    y = 299
+    flush(40)
+    expect(onScrolled).toHaveBeenCalled()
   })
 })
