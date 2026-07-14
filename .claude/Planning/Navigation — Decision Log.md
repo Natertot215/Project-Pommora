@@ -112,6 +112,7 @@ The overlay, the ribbon, the toolbar, and any future tab bar all read the SAME s
 - **G-4:** [confirmed direction] **NavMenu = the same shared-layer data (E), different presentation** — a compact dropdown form of the recents/favorites/search NavPane renders as a full gallery. Exact dropdown display is pending (Figma/later), but the data contract is settled: layer E serves BOTH surfaces. This is the UI-agnostic payoff — two surfaces, one source. *(Nathan)*
 - **G-5:** [confirmed] Figma design is in progress and wires up to these components (NavPane primarily). Visual is Figma's; routing + data is the spec's. *(Nathan)*
 - **G-6:** Component homes — **NavMenu → `Toolbar/`** [confirmed] (beside `Toolbar.tsx`/`ViewDropdown`). **NavPane** [open] — Nathan suggests "Detail-level" (`Detail/`); but as an app-global overlay mounted in `App.tsx` (sibling to Sidebar/Detail/Inspector, own backdrop over the whole window), a top-level home (`NavPane/` or `Navigation/`) likely fits better than nesting under the detail-pane machinery. Settle in planning; not load-bearing.
+- **G-7:** [confirmed] **NavMenu stub is built now** (alongside the NavPane stub). Reuses the existing toolbar-dropdown surface (the `SettingsDropdown` beak-glass `MenuSurface` pattern). **Fixed height with internal scroll — NOT min/max** (distinct from NavPane's drag-resize, H-1). **Matches SettingsPane's default height + size** — reference `Components/Detail/settingsPane.css.ts`; the plan pins the exact token, not restated here. Content stubbed pending Figma. *(Nathan)*
 
 #### H — NavPane Shell & Behavior (movable panel; stub now, wired pending Figma)
 - **H-1:** [confirmed] NavPane is a **non-modal, movable, resizable floating glass panel** — drag-to-move (reposition anywhere in the window), drag-to-resize (edge/corner), and **reflow on resize** (internal layout responds). Not a centered dimmed modal (refines C-4). *(Nathan)*
@@ -126,6 +127,7 @@ The overlay, the ribbon, the toolbar, and any future tab bar all read the SAME s
 ### Core (must-have)
 - The shared navigation-state layer (E-1…E-4, E-9, E-11): persisted recents, temp-pinning, durable favorites, client-side title search — all UI-agnostic, Agenda-aware, resolved rename/move/delete-safe via `reconcileSelection` (+ the cached `agenda:list` arm), main-side debounced, per-nexus reset.
 - The **NavPane shell stub** (H): a movable/resizable/non-focus-stealing glass panel with `--ease-standard` in/out + ⌘O summon, routed dry to an existing glass surface — content + preview-mode + toggles wired later against Figma.
+- The **NavMenu stub** (G-2, G-7): the toolbar Navigation dropdown, reusing the SettingsDropdown beak-glass surface, **fixed height + scroll** at SettingsPane's default footprint — content stubbed pending Figma.
 - The ribbon-launched in-app overlay that renders that layer (search bar + Favorites sidebar + **virtualized** history gallery with temp-pins on top), Figma-designed, grouping Agenda entries separately. Gallery virtualization via TanStack Virtual (IconPicker precedent).
 
 #### Prospects (allowed later, not now)
