@@ -80,7 +80,7 @@ Every motion-timing value in the app — CSS `ms`/`s` strings (grepped) **and** 
 
 **Engine timing (JS-driven, intentional — keep local, not a DRY gap):**
 - `interactions/shared.ts:28` — `SETTLE_FALLBACK = 80` (ms slack); the drag commit fires on the overlay's `transitionend`, falling back to `feel.duration + SETTLE_FALLBACK` (`engine.tsx:284`, `group.tsx:216`) — decide-then-animate, not a blind timer.
-- `interactions/autoscroll.css` — the auto-scroll tunables (edge band, speed px/sec, ramp exponent, dampen window) as `:root` tokens read off the drag element. Motion *tuning*, not a duration; see [[PommoraDND]] §II. Autoscroll.
+- `interactions/autoscroll.css` — the auto-scroll tunables (edge band, base speed px/sec, proximity-ramp exponent, and the distance-acceleration floor / ceiling / distance) as `:root` tokens read off the drag element. Motion *tuning*, not a duration; see [[PommoraDND]] §II. Autoscroll.
 - `transitionend` commits (no literal duration): `engine.tsx:283`, `group.tsx:201`, and the fold reveal `MarkdownPM/editor/folding.ts:164`.
 - No other WAAPI/spring anywhere (the temporary `DropdownAnimationLab` + ⌘D `GlassTuner` were removed once the Bloom curve was chosen).
 

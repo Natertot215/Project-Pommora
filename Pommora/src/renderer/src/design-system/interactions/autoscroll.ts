@@ -1,16 +1,18 @@
 // App-wide auto-scroll-on-drag. One singleton rAF loop (below) scrolls a FIXED container — resolved
 // once at drag start — toward whichever edge the pointer holds near: frame-synced, proximity-ramped,
-// time-dampened, direction-gated, limit-aware. Every drag surface feeds it a point + a scroller; no
-// surface re-implements the loop. Tuning lives in autoscroll.css, read off the drag element once per
+// distance-accelerated, direction-gated, limit-aware. Every drag surface feeds it a point + a scroller;
+// no surface re-implements the loop. Tuning lives in autoscroll.css, read off the drag element once per
 // drag. The pure math below is unit-tested; the loop's DOM glue is verified live.
 
 export type Axis = 'x' | 'y' | 'xy'
 
 export interface Params {
   edge: number // px band from a container edge where scroll engages
-  speed: number // px/second at the true edge
+  speed: number // px/second at the true edge, at the acceleration floor
   ramp: number // proximity exponent (2 = quadratic)
-  dampenMs: number // time-dampening window from drag start
+  accelStart: number // speed multiplier at the start of a scroll run (>0, eases in)
+  accelMax: number // speed multiplier after a sustained scroll (the acceleration ceiling)
+  accelDist: number // px of accumulated scroll to climb from start → max
 }
 
 export interface Intent {
@@ -48,7 +50,7 @@ export function findScroller(el: HTMLElement | null, axis: Axis = 'xy'): HTMLEle
 
 /** Desired scroll velocity (px/sec, signed) for one axis: negative toward `lo`, positive toward `hi`,
  *  0 outside the edge band. A point past the edge (depth > edge) reads as max ramp — no viewport clamp
- *  needed. Pre-dampening, pre-limit. */
+ *  needed. Pre-acceleration, pre-limit. */
 export function edgeVelocity(lo: number, hi: number, p: number, { edge, speed, ramp }: Params): number {
   const ramped = (depth: number): number => speed * Math.min(1, depth / edge) ** ramp
   if (p < lo + edge) return -ramped(lo + edge - p)
@@ -56,9 +58,12 @@ export function edgeVelocity(lo: number, hi: number, p: number, { edge, speed, r
   return 0
 }
 
-/** Time-dampening factor 0→1 over the first `dampenMs` of a drag. */
-export function dampen(elapsedMs: number, dampenMs: number): number {
-  return dampenMs <= 0 ? 1 : Math.min(1, elapsedMs / dampenMs)
+/** Distance-based acceleration. A sustained scroll eases in from `accelStart` and climbs to `accelMax`
+ *  over `accelDist` px of accumulated scroll — the longer a drag-scroll runs, the faster it goes, to the
+ *  cap. `accelStart` MUST be > 0: at 0 the loop would scroll 0px, accumulate 0 distance, and deadlock. */
+export function accelFactor(scrolled: number, { accelStart, accelMax, accelDist }: Params): number {
+  if (accelDist <= 0) return accelMax
+  return accelStart + (accelMax - accelStart) * Math.min(1, scrolled / accelDist)
 }
 
 /** Zero a velocity that would push past a scroll limit — no render churn while pinned at a maxed edge. */
@@ -112,7 +117,7 @@ interface Live {
   axis: Axis
   params: Params
   onScrolled?: () => void
-  t0: number | null
+  dist: number // accumulated |scroll px| for THIS run — resets when the scroll stops, drives acceleration
   last: number | null
   frac: { x: number; y: number }
   intent: Intent
@@ -136,7 +141,9 @@ function readParams(el: HTMLElement): Params {
     edge: num('--autoscroll-edge', 48),
     speed: num('--autoscroll-speed', 840),
     ramp: num('--autoscroll-ramp', 2),
-    dampenMs: num('--autoscroll-dampen-ms', 300)
+    accelStart: num('--autoscroll-accel-start', 0.5),
+    accelMax: num('--autoscroll-accel-max', 1.5),
+    accelDist: num('--autoscroll-accel-distance', 600)
   }
 }
 
@@ -163,7 +170,7 @@ export function startAutoScroll(cfg: StartCfg): () => void {
     axis,
     params: readParams(cfg.dragEl ?? scroller),
     onScrolled: cfg.onScrolled,
-    t0: null,
+    dist: 0,
     last: null,
     frac: { x: 0, y: 0 },
     intent: { up: false, down: false, left: false, right: false },
@@ -191,7 +198,6 @@ export function stopAutoScroll(): void {
 function tick(ts: number): void {
   const L = live
   if (!L) return
-  if (L.t0 === null) L.t0 = ts
   const dt = L.last === null ? 0 : Math.min(ts - L.last, MAX_FRAME_MS)
   L.last = ts
   const pt = L.getPoint()
@@ -199,15 +205,19 @@ function tick(ts: number): void {
   let vx = L.axis === 'y' ? 0 : edgeVelocity(r.left, r.right, pt.x, L.params)
   let vy = L.axis === 'x' ? 0 : edgeVelocity(r.top, r.bottom, pt.y, L.params)
   ;({ vx, vy } = gateIntent(L.intent, vx, vy))
-  const damp = dampen(ts - L.t0, L.params.dampenMs)
-  vx = clampToLimit(vx * damp, L.scroller.scrollLeft, L.scroller.scrollWidth - L.scroller.clientWidth)
-  vy = clampToLimit(vy * damp, L.scroller.scrollTop, L.scroller.scrollHeight - L.scroller.clientHeight)
+  // Distance-based acceleration: leaving the band (or a gated direction) has no edge velocity → reset
+  // the run so the next scroll eases in fresh; a sustained scroll accelerates with the distance covered.
+  if (vx === 0 && vy === 0) L.dist = 0
+  const accel = accelFactor(L.dist, L.params)
+  vx = clampToLimit(vx * accel, L.scroller.scrollLeft, L.scroller.scrollWidth - L.scroller.clientWidth)
+  vy = clampToLimit(vy * accel, L.scroller.scrollTop, L.scroller.scrollHeight - L.scroller.clientHeight)
   const sx = stepPixels(vx, dt, L.frac.x)
   const sy = stepPixels(vy, dt, L.frac.y)
   L.frac.x = sx.frac
   L.frac.y = sy.frac
   if (sx.px || sy.px) {
     L.scroller.scrollBy(sx.px, sy.px)
+    L.dist += Math.abs(sx.px) + Math.abs(sy.px)
     L.onScrolled?.()
   }
   if (live !== L) return // onScrolled stopped or replaced this loop — don't resurrect the old one

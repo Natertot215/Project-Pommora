@@ -6,7 +6,9 @@
    ============================================================================ */
 :root {
   --autoscroll-edge: 48px; /* band from a container edge where auto-scroll engages */
-  --autoscroll-speed: 840px; /* px/SECOND at the true edge (≈ the old 14px/frame @60fps, now frame-rate-independent) */
+  --autoscroll-speed: 840px; /* px/SECOND at the true edge, at the acceleration floor (frame-rate-independent) */
   --autoscroll-ramp: 2; /* proximity ramp exponent — 2 = quadratic (gentle entry, fast at the edge) */
-  --autoscroll-dampen-ms: 300ms; /* time-dampening: speed eases from 0 over this window from drag start */
+  --autoscroll-accel-start: 0.5; /* speed multiplier when a scroll run begins — eases in (must be > 0) */
+  --autoscroll-accel-max: 1.5; /* speed multiplier after a sustained scroll — the acceleration ceiling */
+  --autoscroll-accel-distance: 600px; /* px of accumulated scroll to climb from start → max */
 }

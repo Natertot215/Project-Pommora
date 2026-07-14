@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { clampToLimit, dampen, edgeVelocity, gateIntent, scrollableInAxis, startAutoScroll, stepPixels, stopAutoScroll, type Intent, type Params } from './autoscroll'
+import { accelFactor, clampToLimit, edgeVelocity, gateIntent, scrollableInAxis, startAutoScroll, stepPixels, stopAutoScroll, type Intent, type Params } from './autoscroll'
 
-const P: Params = { edge: 48, speed: 840, ramp: 2, dampenMs: 300 }
+const P: Params = { edge: 48, speed: 840, ramp: 2, accelStart: 0.5, accelMax: 1.5, accelDist: 600 }
 
 describe('edgeVelocity — proximity ramp', () => {
   it('is 0 away from any edge', () => {
@@ -22,14 +22,20 @@ describe('edgeVelocity — proximity ramp', () => {
   })
 })
 
-describe('dampen — time ramp from drag start', () => {
-  it('is 0 at t=0 and 1 after the window', () => {
-    expect(dampen(0, 300)).toBe(0)
-    expect(dampen(300, 300)).toBe(1)
-    expect(dampen(600, 300)).toBe(1)
+describe('accelFactor — distance-based acceleration', () => {
+  it('starts at the floor — and the floor is > 0 so the loop can move and accumulate (no deadlock)', () => {
+    expect(accelFactor(0, P)).toBe(0.5)
+    expect(accelFactor(0, P)).toBeGreaterThan(0)
   })
-  it('is 1 when the window is 0', () => {
-    expect(dampen(0, 0)).toBe(1)
+  it('climbs toward the ceiling as scroll distance accumulates', () => {
+    expect(accelFactor(300, P)).toBeCloseTo(1.0) // halfway up the ramp distance
+    expect(accelFactor(600, P)).toBe(1.5) // at the ramp distance → the ceiling
+  })
+  it('caps at the ceiling past the ramp distance', () => {
+    expect(accelFactor(5000, P)).toBe(1.5)
+  })
+  it('is the ceiling immediately when the ramp distance is 0', () => {
+    expect(accelFactor(0, { ...P, accelDist: 0 })).toBe(1.5)
   })
 })
 
@@ -227,6 +233,73 @@ describe('startAutoScroll / stopAutoScroll — loop lifecycle', () => {
     y = 299
     flush(20)
     expect(b.scrolls()).toBeGreaterThan(400) // B kept running — stopA didn't touch it
+  })
+
+  it('accelerates over a sustained scroll — a later window covers more distance than an early one', () => {
+    // A tall scroller (no limit reached) so only acceleration, not clamping, moves the delta.
+    let top = 0
+    const el = {
+      getBoundingClientRect: () => ({ top: 0, bottom: 300, left: 0, right: 300, width: 300, height: 300 }),
+      get scrollTop() {
+        return top
+      },
+      set scrollTop(v: number) {
+        top = v
+      },
+      scrollLeft: 0,
+      scrollHeight: 100000,
+      clientHeight: 300,
+      scrollWidth: 300,
+      clientWidth: 300,
+      scrollBy: (_x: number, y: number) => {
+        top += y
+      }
+    } as unknown as HTMLElement
+    let y = 150
+    startAutoScroll({ getPoint: () => ({ x: 150, y }), scroller: el, dragEl: doc, axis: 'y' })
+    flush(3) // arm intent
+    y = 299
+    const s0 = top
+    flush(10)
+    const early = top - s0 // distance covered in the first 10 scrolling frames
+    const s1 = top
+    flush(10)
+    const later = top - s1 // …in the next 10 — more distance accumulated → faster
+    expect(later).toBeGreaterThan(early)
+  })
+
+  it('resets the acceleration run when the pointer leaves the edge band', () => {
+    let top = 0
+    const el = {
+      getBoundingClientRect: () => ({ top: 0, bottom: 300, left: 0, right: 300, width: 300, height: 300 }),
+      get scrollTop() {
+        return top
+      },
+      set scrollTop(v: number) {
+        top = v
+      },
+      scrollLeft: 0,
+      scrollHeight: 100000,
+      clientHeight: 300,
+      scrollWidth: 300,
+      clientWidth: 300,
+      scrollBy: (_x: number, y: number) => {
+        top += y
+      }
+    } as unknown as HTMLElement
+    let y = 150
+    startAutoScroll({ getPoint: () => ({ x: 150, y }), scroller: el, dragEl: doc, axis: 'y' })
+    flush(3)
+    y = 299
+    flush(30) // build up acceleration
+    y = 150 // leave the band → resets the run
+    flush(5)
+    y = 299 // re-enter — should ease in from the floor again
+    const s0 = top
+    flush(3)
+    const afterReset = top - s0
+    // A fresh 3-frame window after re-entry is near the floor, well under the accelerated steady rate.
+    expect(afterReset).toBeLessThan(60)
   })
 
   it('clamps a huge dt so an rAF stall does not teleport the scroll', () => {
