@@ -261,6 +261,20 @@ describe('startAutoScroll / stopAutoScroll — loop lifecycle', () => {
     expect(rafMap.size).toBe(1) // still exactly one loop in flight
   })
 
+  it('the returned stopper is instance-scoped — a stale handle will not stop a loop that replaced it', () => {
+    const a = fakeScroller()
+    const b = fakeScroller()
+    let y = 150
+    const stopA = startAutoScroll({ getPoint: () => ({ x: 150, y }), scroller: a.el, dragEl: doc, axis: 'y' })
+    startAutoScroll({ getPoint: () => ({ x: 150, y }), scroller: b.el, dragEl: doc, axis: 'y' }) // B replaces A
+    stopA() // stale handle from A — must be a no-op, not a stop of B
+    y = 150
+    flush(3)
+    y = 299
+    flush(20)
+    expect(b.scrolls()).toBeGreaterThan(400) // B kept running — stopA didn't touch it
+  })
+
   it('clamps a huge dt so an rAF stall does not teleport the scroll', () => {
     const { el, scrolls } = fakeScroller()
     let y = 150

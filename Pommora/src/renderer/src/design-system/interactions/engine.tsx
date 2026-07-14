@@ -10,7 +10,7 @@ import {
   type ReactNode
 } from 'react'
 import { useFeel, type Feel } from './feel'
-import { autoScroll, findScroller } from './autoscroll'
+import { findScroller, startAutoScroll } from './autoscroll'
 import { announce, ensureInstructions, INSTRUCTIONS_ID } from './a11y'
 import { ARROW_DIRS, keyboardNext } from './keyboard'
 import { ACTIVATION, HYSTERESIS, SETTLE_FALLBACK, px, toBox, type Box, type DragItem, type DragNotify, type DropState, type Modifier } from './shared'
@@ -27,7 +27,8 @@ import { ACTIVATION, HYSTERESIS, SETTLE_FALLBACK, px, toBox, type Box, type Drag
 //   • Decide, THEN animate (shared by pointer + keyboard): run the accept/reject decision first,
 //     then animate the item to its TRUE resting slot. `canReorder` may be async (`pending` hold).
 //   • Constraints are inline options: `axis` lock, `bounds` clamp, plus a `modifiers` escape hatch.
-//   • Auto-scroll: rAF loop scrolls the nearest container at the edges, compensated into the drag.
+//   • Auto-scroll: the shared loop (interactions/autoscroll.ts) scrolls the container at the edges;
+//     each scrolled frame re-runs `track`, so the scroll delta stays compensated into the drag.
 //   • Accessible: focusable handle + assertive live-region announcements + restored focus on drop.
 
 type ZoneValue = {
@@ -126,10 +127,13 @@ export function Zone({
     scroller: null as HTMLElement | null,
     scroll0X: 0,
     scroll0Y: 0,
-    raf: 0,
     handlers: null as null | { move: (e: PointerEvent) => void; up: () => void; cancel: () => void },
     kdown: null as null | ((e: KeyboardEvent) => void)
   })
+
+  // The auto-scroll loop this Zone started (instance-scoped stopper). detach() calls it rather than the
+  // global stop, so a sibling Zone's unmount can't halt THIS Zone's live drag (the loop is a module singleton).
+  const stopScroll = useRef<(() => void) | null>(null)
 
   const labelOf = (id: string): string => labelRef.current?.(id) ?? id
   const register = (id: string, el: HTMLElement | null): void => {
@@ -193,13 +197,6 @@ export function Zone({
     }
   }
 
-  const tick = (): void => {
-    const d = drag.current
-    if (!d.active) return
-    if (d.scroller && autoScroll(d.scroller, d.lastX, d.lastY)) track(d.lastX, d.lastY)
-    d.raf = requestAnimationFrame(tick)
-  }
-
   const onMove = (e: PointerEvent): void => {
     const d = drag.current
     if (!d.active) {
@@ -215,7 +212,7 @@ export function Zone({
       d.rects = measured
       d.over = activeIdx
       d.bounds = resolveBounds(optsRef.current.bounds, measured)
-      d.scroller = findScroller(d.el)
+      d.scroller = findScroller(d.el, 'xy')
       d.scroll0X = d.scroller?.scrollLeft ?? 0
       d.scroll0Y = d.scroller?.scrollTop ?? 0
       setActiveId(d.id)
@@ -223,20 +220,29 @@ export function Zone({
       setOverIndex(activeIdx)
       setDropState('dragging')
       notifyRef.current.onDragStart?.({ activeId: d.id })
-      d.raf = requestAnimationFrame(tick)
+      // The module owns the scroll loop; on each scrolled frame it re-runs `track` off the last point,
+      // exactly as the old inline `tick` did. The engine folds the scroller's delta into `track`'s
+      // collision math (see `comp`), so it passes the SAME scroller explicitly.
+      if (d.scroller) {
+        stopScroll.current = startAutoScroll({
+          getPoint: () => ({ x: drag.current.lastX, y: drag.current.lastY }),
+          scroller: d.scroller,
+          dragEl: d.el,
+          axis: 'xy',
+          onScrolled: () => track(drag.current.lastX, drag.current.lastY)
+        })
+      }
     }
     d.lastX = e.clientX
     d.lastY = e.clientY
     track(e.clientX, e.clientY)
   }
 
-  // Tear down everything a live drag attached: rAF, pointer listeners + capture, the keydown listener.
+  // Tear down everything a live drag attached: the auto-scroll loop, pointer listeners + capture, the keydown listener.
   const detach = (): void => {
+    stopScroll.current?.()
+    stopScroll.current = null
     const d = drag.current
-    if (d.raf) {
-      cancelAnimationFrame(d.raf)
-      d.raf = 0
-    }
     if (d.el && d.handlers) {
       d.el.removeEventListener('pointermove', d.handlers.move)
       d.el.removeEventListener('pointerup', d.handlers.up)
@@ -347,7 +353,6 @@ export function Zone({
       scroller: null,
       scroll0X: 0,
       scroll0Y: 0,
-      raf: 0,
       handlers,
       kdown: null
     }
@@ -417,7 +422,6 @@ export function Zone({
       scroller: null,
       scroll0X: 0,
       scroll0Y: 0,
-      raf: 0,
       handlers: null,
       kdown
     }
@@ -431,7 +435,7 @@ export function Zone({
     announce(`Picked up ${labelOf(id)}. Item ${activeIdx + 1} of ${measured.length}.`)
   }
 
-  // Unmount mid-drag: pull listeners + rAF so nothing dangles on a detached node.
+  // Unmount mid-drag: pull listeners + stop the auto-scroll loop so nothing dangles on a detached node.
   useEffect(() => () => detach(), [])
   useEffect(() => ensureInstructions(), [])
 

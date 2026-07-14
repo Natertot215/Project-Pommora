@@ -143,12 +143,15 @@ function readParams(el: HTMLElement): Params {
 export type { StartCfg }
 
 /** Begin auto-scrolling a fixed container. Resolves the scroller ONCE (explicit, else axis-aware
- *  `findScroller(dragEl, axis)`); reads tuning off `dragEl` once; then drives a singleton rAF loop. */
-export function startAutoScroll(cfg: StartCfg): void {
+ *  `findScroller(dragEl, axis)`); reads tuning off `dragEl` once; then drives a singleton rAF loop.
+ *  Returns an INSTANCE-scoped stopper that halts only THIS loop (a no-op if another drag has since
+ *  replaced it) — so a bystander's unmount teardown can't sabotage a live drag. Use it over the global
+ *  `stopAutoScroll` wherever a stop might fire while a different drag owns the loop (e.g. unmount cleanup). */
+export function startAutoScroll(cfg: StartCfg): () => void {
   stopAutoScroll() // singleton: replace any running loop
   const axis = cfg.axis ?? 'xy'
   const scroller = cfg.scroller ?? findScroller(cfg.dragEl ?? null, axis)
-  if (!scroller) return // no scrollable container — the drag still works, just no auto-scroll
+  if (!scroller) return () => {} // no scrollable container — the drag still works, just no auto-scroll
   const onBackstop = (): void => stopAutoScroll()
   window.addEventListener('blur', onBackstop)
   document.addEventListener('visibilitychange', onBackstop)
@@ -171,6 +174,10 @@ export function startAutoScroll(cfg: StartCfg): void {
     }
   }
   live.raf = requestAnimationFrame(tick)
+  const mine = live
+  return () => {
+    if (live === mine) stopAutoScroll()
+  }
 }
 
 /** Stop the auto-scroll loop (and only the loop — the surface owns its gesture's own teardown). */
