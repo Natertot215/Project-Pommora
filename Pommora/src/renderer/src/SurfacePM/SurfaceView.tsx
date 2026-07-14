@@ -1,5 +1,5 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { autoScroll, findScroller } from '@renderer/design-system/interactions/autoscroll'
+import { findScroller, startAutoScroll } from '@renderer/design-system/interactions/autoscroll'
 import { DEFAULT_FEEL, type Feel } from '@renderer/design-system/interactions/feel'
 import { SETTLE_FALLBACK } from '@renderer/design-system/interactions/shared'
 import { findTile } from './core/model'
@@ -420,26 +420,49 @@ export function SurfaceView({
     // own autoscroll back into the pointer math. A mid-gesture WIDTH change stays
     // deliberately frozen (the origin-snapshot semantics; rare, self-corrects on
     // the next gesture).
-    const scroller = findScroller(host)
+    const scroller = findScroller(host, 'xy')
     const scroll0 = { x: scroller?.scrollLeft ?? 0, y: scroller?.scrollTop ?? 0 }
     let latest: SurfaceLayout = origin
     let target: DropTarget = null
     let moved = false
+    const lastPoint = { x: e.clientX, y: e.clientY }
+    let stopScroll: (() => void) | null = null
+
+    // Resolve the drop target from a viewport point + the scroller's live delta. Called on every
+    // pointer move AND on every auto-scrolled frame (via onScrolled) so a held-still drag near an
+    // edge keeps re-targeting as content flows past.
+    const resolve = (clientX: number, clientY: number): void => {
+      const dsx = (scroller?.scrollLeft ?? 0) - scroll0.x
+      const dsy = (scroller?.scrollTop ?? 0) - scroll0.y
+      const px = clientX - downBox.left + dsx
+      const py = clientY - downBox.top + dsy
+      setTileDrag({ id, lift: { x: px - grab.x, y: py - grab.y, w: rect.w, h: rect.h } })
+      target = hitTest(g, origin, id, px, py, zone, target)
+      latest = applyTarget(origin, id, target)
+      setDraft(latest === origin ? null : latest)
+    }
 
     startPointerDrag(e, {
       onMove: (_dx, _dy, ev) => {
         moved = true
-        if (scroller) autoScroll(scroller, ev.clientX, ev.clientY)
-        const dsx = (scroller?.scrollLeft ?? 0) - scroll0.x
-        const dsy = (scroller?.scrollTop ?? 0) - scroll0.y
-        const px = ev.clientX - downBox.left + dsx
-        const py = ev.clientY - downBox.top + dsy
-        setTileDrag({ id, lift: { x: px - grab.x, y: py - grab.y, w: rect.w, h: rect.h } })
-        target = hitTest(g, origin, id, px, py, zone, target)
-        latest = applyTarget(origin, id, target)
-        setDraft(latest === origin ? null : latest)
+        lastPoint.x = ev.clientX
+        lastPoint.y = ev.clientY
+        // Start the loop at ACTIVATION — onMove only fires once armed — matching the engine: the dampen
+        // ramp measures from the drag, not the press, and a tap never spins the loop. The returned
+        // instance-scoped stopper (not the global) is what onEnd calls, so no teardown can cross drags.
+        if (!stopScroll && scroller) {
+          stopScroll = startAutoScroll({
+            getPoint: () => lastPoint,
+            scroller,
+            dragEl: host,
+            axis: 'xy',
+            onScrolled: () => resolve(lastPoint.x, lastPoint.y)
+          })
+        }
+        resolve(ev.clientX, ev.clientY)
       },
       onEnd: (commitDrag) => {
+        stopScroll?.()
         const decided = commitDrag && target && latest !== origin ? latest : null
         // An unarmed click never moved anything — a settle here would only flash
         // the lifted styling and stall a pointless commit pass on the timer.
