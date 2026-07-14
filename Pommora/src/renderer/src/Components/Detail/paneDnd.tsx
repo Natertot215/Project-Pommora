@@ -12,7 +12,7 @@ import { createPortal } from 'react-dom'
 import { text } from '@renderer/design-system/tokens'
 import { cx } from '@renderer/design-system/cx'
 import { ACTIVATION, DROP_LINE_INSET, suppressNextClick } from '@renderer/design-system/interactions/shared'
-import { autoScroll, findScroller } from '@renderer/design-system/interactions/autoscroll'
+import { findScroller, startAutoScroll } from '@renderer/design-system/interactions/autoscroll'
 import type { MeasuredRow } from '@renderer/Sidebar/sidebarDndModel'
 import { type PaneDrop, type PaneRow, type PaneSlot, type Region, paneSlot } from './paneDndModel'
 import * as s from './settingsPane.css'
@@ -69,6 +69,8 @@ export function PaneDnd({
   const regionEls = useRef<{ assigned: HTMLElement | null; all: HTMLElement | null }>({ assigned: null, all: null })
   const box = useRef<HTMLDivElement | null>(null)
   const scroller = useRef<HTMLElement | null>(null)
+  const lastPoint = useRef({ x: 0, y: 0 })
+  const stopScroll = useRef<(() => void) | null>(null)
   const live = useRef<PaneSlot | null>(null)
   const [drag, setDrag] = useState<DragState>(IDLE)
   const gesture = useRef<Gesture>({ kind: 'idle' })
@@ -125,6 +127,8 @@ export function PaneDnd({
   }
 
   const detach = (): void => {
+    stopScroll.current?.()
+    stopScroll.current = null
     const g = gesture.current
     if (g.kind === 'idle') return
     window.removeEventListener('pointermove', g.handlers.move)
@@ -175,22 +179,37 @@ export function PaneDnd({
       }
       gesture.current = { ...g, kind: 'active' }
       ghostLabel.current = labelForRef.current(g.id)
-      scroller.current = findScroller(box.current)
+      scroller.current = findScroller(box.current, 'y')
       window.addEventListener('scroll', markSnapshotDirty, { capture: true, passive: true })
+      if (scroller.current) {
+        stopScroll.current = startAutoScroll({
+          getPoint: () => lastPoint.current,
+          scroller: scroller.current,
+          dragEl: box.current,
+          axis: 'y',
+          onScrolled: () => resolveSlot(g.id, lastPoint.current.y)
+        })
+      }
     }
-    if (scroller.current) autoScroll(scroller.current, e.clientX, e.clientY)
+    lastPoint.current = { x: e.clientX, y: e.clientY }
+    resolveSlot(g.id, e.clientY)
+  }
+
+  // Snapshot (lazily, when a scroll dirtied it) then hit-test the pane at a Y. Shared by pointer move
+  // and the auto-scroll re-resolve, so a held-still drag near an edge keeps updating as content scrolls.
+  function resolveSlot(id: string, clientY: number): void {
     if (snapshotDirty.current || !snapshot.current) {
       snapshot.current = takeSnapshot()
       snapshotDirty.current = false
     }
     const snap = snapshot.current
     if (!snap) return
-    const liveSlot = slot(snap.rows, snap.byId, snap.regions, e.clientY, g.id)
+    const liveSlot = slot(snap.rows, snap.byId, snap.regions, clientY, id)
     live.current = liveSlot
     setDrag({
-      id: g.id,
-      ghostX: e.clientX + 12,
-      ghostY: e.clientY + 8,
+      id,
+      ghostX: lastPoint.current.x + 12,
+      ghostY: clientY + 8,
       slot: liveSlot,
       lineTop: liveSlot?.lineY != null ? liveSlot.lineY - snap.boxTop : 0
     })
