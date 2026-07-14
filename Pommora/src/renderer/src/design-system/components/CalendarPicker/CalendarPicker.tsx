@@ -277,8 +277,22 @@ export function CalendarPicker({
     } else setEnd(k)
   }
   const onGridPointerUp = (): void => {
-    if (drag.current?.moved) suppressClick.current = true
+    const d = drag.current
     drag.current = null
+    if (!d) return
+    if (d.moved) {
+      suppressClick.current = true
+      return
+    }
+    // A no-move press on a selected endpoint IS the click-to-remove — but arming the drag pointer-captured
+    // this grid on pointerdown, which retargets the day button's `click` onto the grid so its onClick never
+    // fires the pick. Do it here (pointerup always fires on the captured grid), and suppress the click that
+    // may still land so it can't re-add the date.
+    const k = d.which === 'start' ? start : end
+    if (k) {
+      suppressClick.current = true
+      pick(k)
+    }
   }
 
   // Weeks the month occupies (lead blanks + its days, rounded to full weeks) — no trailing
