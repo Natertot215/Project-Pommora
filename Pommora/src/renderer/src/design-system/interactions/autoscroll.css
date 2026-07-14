@@ -1,0 +1,12 @@
+/* ============================================================================
+   AUTO-SCROLL TOKENS — the single tunable source for the app-wide drag
+   auto-scroll loop (design-system/interactions/autoscroll.ts). Read once off
+   the drag element at drag start (never per frame). A surface may override any
+   of these on its own element or an ancestor (e.g. `.sidebar { --autoscroll-speed }`).
+   ============================================================================ */
+:root {
+  --autoscroll-edge: 48px; /* band from a container edge where auto-scroll engages */
+  --autoscroll-speed: 840px; /* px/SECOND at the true edge (≈ the old 14px/frame @60fps, now frame-rate-independent) */
+  --autoscroll-ramp: 2; /* proximity ramp exponent — 2 = quadratic (gentle entry, fast at the edge) */
+  --autoscroll-dampen-ms: 300ms; /* time-dampening: speed eases from 0 over this window from drag start */
+}

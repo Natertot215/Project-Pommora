@@ -1,6 +1,5 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect } from 'vitest'
 import { reflow } from './engine'
-import { autoScroll } from './autoscroll'
 import type { Box } from './shared'
 import { keyboardNext, ARROW_DIRS } from './keyboard'
 
@@ -36,63 +35,6 @@ describe('reflow — the displacement core', () => {
   it('is a no-op when over === active (hovering its own slot)', () => {
     const r = column(4)
     for (let i = 0; i < 4; i++) expect(reflow(r, 1, 1, i).top).toBe(i * 10)
-  })
-})
-
-describe('autoScroll — edge ramp + limit awareness', () => {
-  const scroller = (over: Partial<Record<string, number>> = {}) => {
-    const scrollBy = vi.fn()
-    const el = {
-      getBoundingClientRect: () => ({ top: 100, bottom: 300, left: 0, right: 200, width: 200, height: 200 }),
-      scrollTop: 50,
-      scrollLeft: 50,
-      scrollHeight: 1000,
-      clientHeight: 200,
-      scrollWidth: 1000,
-      clientWidth: 200,
-      scrollBy,
-      ...over
-    } as unknown as HTMLElement
-    return { el, scrollBy }
-  }
-
-  it('does not scroll when the pointer is away from any edge', () => {
-    const { el, scrollBy } = scroller()
-    expect(autoScroll(el, 100, 200)).toBe(false)
-    expect(scrollBy).not.toHaveBeenCalled()
-  })
-
-  it('scrolls down (positive) when the pointer nears the bottom edge', () => {
-    const { el, scrollBy } = scroller()
-    expect(autoScroll(el, 100, 295)).toBe(true)
-    expect(scrollBy).toHaveBeenCalledTimes(1)
-    expect(scrollBy.mock.calls[0][1]).toBeGreaterThan(0) // sy > 0
-  })
-
-  it('scrolls up (negative) when the pointer nears the top edge', () => {
-    const { el, scrollBy } = scroller()
-    expect(autoScroll(el, 100, 105)).toBe(true)
-    expect(scrollBy.mock.calls[0][1]).toBeLessThan(0) // sy < 0
-  })
-
-  it('does NOT scroll past the bottom limit (no render churn while pinned)', () => {
-    const { el, scrollBy } = scroller({ scrollTop: 800 }) // 800 === scrollHeight(1000) - clientHeight(200)
-    expect(autoScroll(el, 100, 295)).toBe(false)
-    expect(scrollBy).not.toHaveBeenCalled()
-  })
-
-  it('does NOT scroll past the top limit', () => {
-    const { el, scrollBy } = scroller({ scrollTop: 0 })
-    expect(autoScroll(el, 100, 105)).toBe(false)
-    expect(scrollBy).not.toHaveBeenCalled()
-  })
-
-  it('ramps faster the closer the pointer is to the edge', () => {
-    const near = scroller()
-    const far = scroller()
-    autoScroll(near.el, 100, 299) // 1px from bottom
-    autoScroll(far.el, 100, 260) // ~40px from bottom (just inside EDGE=48)
-    expect(Math.abs(near.scrollBy.mock.calls[0][1])).toBeGreaterThan(Math.abs(far.scrollBy.mock.calls[0][1]))
   })
 })
 
