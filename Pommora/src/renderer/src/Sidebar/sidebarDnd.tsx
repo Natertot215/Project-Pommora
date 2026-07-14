@@ -12,6 +12,7 @@ import { createPortal } from 'react-dom'
 import { text } from '@renderer/design-system/tokens'
 import { ACTIVATION, suppressNextClick } from '@renderer/design-system/interactions/shared'
 import { announce } from '@renderer/design-system/interactions/a11y'
+import { findScroller, startAutoScroll } from '@renderer/design-system/interactions/autoscroll'
 import type { FolderPlacement, NexusTree } from '@shared/types'
 import type { MutateRequest } from '@shared/mutate'
 import { buildIndex, nextOrder, setContainerOf, isSelfOrDescendant, slotInGroup, type Entry, type Index, type MeasuredRow } from './sidebarDndModel'
@@ -92,6 +93,8 @@ export function SidebarDnd({
   type Snapshot = { contentTop: number; measured: MeasuredRow[] }
   const snapshot = useRef<Snapshot | null>(null)
   const snapshotDirty = useRef(false)
+  const lastPoint = useRef({ x: 0, y: 0 })
+  const stopScroll = useRef<(() => void) | null>(null)
 
   const takeSnapshot = (excludeId: string): Snapshot | null => {
     const content = contentRef.current
@@ -232,6 +235,8 @@ export function SidebarDnd({
   }
 
   const detach = (): void => {
+    stopScroll.current?.()
+    stopScroll.current = null
     const g = gesture.current
     if (g.kind === 'idle') return
     window.removeEventListener('pointermove', g.handlers.move)
@@ -288,11 +293,26 @@ export function SidebarDnd({
       gesture.current = { ...g, kind: 'active' }
       // Any scroll (nav, ancestors) shifts viewport-relative rects → invalidate, re-measure lazily.
       window.addEventListener('scroll', markSnapshotDirty, { capture: true, passive: true })
+      // Auto-scroll the sidebar (the y-scroller — findScroller('y') walks to `.sidebar`). Start at
+      // ACTIVATION so the dampen ramp measures from the drag; onScrolled re-resolves a held-still drag.
+      const sc = findScroller(g.el, 'y')
+      if (sc) {
+        stopScroll.current = startAutoScroll({ getPoint: () => lastPoint.current, scroller: sc, dragEl: g.el, axis: 'y', onScrolled: resolveSlot })
+      }
       announce(`Picked up ${base(indexRef.current.byId.get(g.id)?.path ?? '')}.`)
     }
-    const target = computeTarget(e.clientY)
+    lastPoint.current = { x: e.clientX, y: e.clientY }
+    resolveSlot()
+  }
+
+  // Hit-test the current point → the drop slot + ghost. Shared by pointer move and the auto-scroll
+  // re-resolve, so a held-still drag near an edge keeps re-targeting as the sidebar scrolls.
+  function resolveSlot(): void {
+    const g = gesture.current
+    if (g.kind !== 'active') return
+    const target = computeTarget(lastPoint.current.y)
     live.current = target
-    setDrag({ id: g.id, ghostX: e.clientX - g.grabX, ghostY: e.clientY, target })
+    setDrag({ id: g.id, ghostX: lastPoint.current.x - g.grabX, ghostY: lastPoint.current.y, target })
   }
 
   function onUp(e: PointerEvent): void {
