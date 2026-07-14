@@ -49,13 +49,22 @@ The **Interaction Lab** (`design-system/interactions/`, served via `npm run show
 
 Shared types (`Box` / `DropState` / `DragItem` / `DragNotify` / `Modifier`), the tuning constants, and the pure helpers (`toBox`, `px`) live in `shared.ts`, consumed by both `engine.tsx` and `group.tsx`. The two engines' drag-state and commit machinery stay separate — they model genuinely different interactions (in-place transform vs portal overlay), so only the shared primitives are hoisted.
 
-### Constraints, Auto-Scroll, Accessibility (Built)
+### Constraints & Accessibility (Built)
 
 Each is an inline option or an automatic behavior, exercised in the Lab:
 
 - **Constraints & modifiers** — `axis` lock, `bounds` clamp (window / list-extent), a `modifiers` escape hatch (folded left-to-right like dnd-kit's `applyModifiers`), `swap` mode (exchange active+over, commit with `arraySwap`), and **async drop rejection** (`canReorder` may return a `Promise`; the item holds lifted in the `pending` state until the verdict resolves). The Constraints Lab surface toggles each.
-- **Auto-scroll** (`autoscroll.ts`) — an rAF loop scrolls the nearest scrollable ancestor when the pointer nears an edge, with an ease-in ramp (dnd-kit uses a non-frame-synced `setInterval` + linear) and limit-awareness (no churn at a maxed edge). The container's scroll delta is compensated into the lifted item + collision so the drag stays accurate as content scrolls; non-active items don't double-compensate (their shift is a frozen-rect difference). Scope simplification: nearest ancestor only, not the page/window.
 - **Keyboard + screen-reader** (`keyboard.ts`, `a11y.ts`) — Space/Enter lifts, arrow keys move (a geometric next-slot getter that covers list/row/grid), Space/Enter/Tab drops, Esc cancels; an assertive ARIA live region announces pick-up/move/drop/cancel with position ("item 3 of 8"), a hidden instructions element is wired via `aria-describedby`, and focus is restored to the item on drop. Items are focusable (`tabIndex`); the handle role is `button` by default, settable to `null` so table rows keep `<tr>` semantics.
+
+#### II. Autoscroll
+
+One app-wide primitive drives every drag's edge-scroll — `interactions/autoscroll.ts`, a **singleton rAF loop** each drag source feeds, replacing the per-surface copies that used to drift apart. A drag calls `startAutoScroll` at activation and stops via the **instance-scoped stopper** it returns (so a bystander surface's teardown can't halt a live drag); the loop scrolls **one fixed scroller resolved once at drag start**. That scroller is passed explicitly by the drags that fold the scroll delta into their own pointer math (the engine, SurfacePM) or that scroll a container `findScroller` can't derive (the CM editor's `scrollDOM`); otherwise the **axis-aware `findScroller`** walks to the nearest ancestor that scrolls in the needed axis. Axis-awareness is load-bearing — a vertical table drag must skip the x-only `.table-view` to reach `.detail-scroll`.
+
+The loop reads the last pointer point every frame — so holding still at an edge keeps scrolling, the whole reason a loop owns the scroll rather than the pointer-move — ramps by edge proximity, and advances the scroller in **pixels-per-second × frame-delta** with sub-pixel accumulation, so the speed is identical on 60 Hz and ProMotion. Two feel behaviors ride on top: **time-dampening** eases speed up from rest over a short window so entering the zone never slams to full speed, and **direction-intent** withholds a direction until the pointer has left that edge band once, so grabbing an item already pinned at an edge doesn't rocket the container. The four tunables — edge band, speed, ramp exponent, dampen window — are tokens in `interactions/autoscroll.css`, read off the **drag element** once at drag start and cached; a surface overrides any of them by setting the var on itself or an ancestor.
+
+The module **owns a termination backstop** (blur / visibilitychange / pointercancel) that stops the *loop only* — each surface still aborts its own gesture — so a focus-steal can't strand a running loop, and a single frame's delta is clamped so an rAF stall can't teleport the scroll.
+
+**Consumers** (all on the one loop; no second copy remains): the drag engine, SurfacePM tiles, the settings-pane reorder, the MarkdownPM block drag, the sidebar tree, and table row + band reorder. **Prospects** (not yet wired, each named with its real cost): MarkdownPM list drag (needs its own scroll re-measure path first), table column horizontal reorder, the GFM-table drag, and the grouping pane — plus the cross-list board, which is architecturally distinct: its zone resolves under the pointer per move, so it alone would need per-frame scroller resolution reintroduced, not the fixed-scroller model.
 
 ### Mobile-Readiness Invariants
 

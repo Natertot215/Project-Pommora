@@ -58,7 +58,7 @@ A single registered `@property --io` (`<number>`, 0 = closed → 1 = open, `styl
 
 ### Drag Motion
 
-Owned by the in-house engine — see [[PommoraDND]]. In brief: a live "feel" (duration + easing) shared across every surface via `--ix-dur`/`--ix-ease` (presets Glide / Smooth-default / Snappy, `interactions/feel.tsx`); **decide-then-animate** (the accept/reject is resolved first, then one transition settles the item, committing on `transitionend`); a quadratic edge-proximity **auto-scroll** ramp (`interactions/autoscroll.ts`, rAF). The **sidebar** uses a bespoke insertion-line treatment (muted row in place + a portal-rendered ghost), and the **editor block-drag** has its own chrome (in-place shade decoration + a `position:fixed` accent line/dot + edge auto-scroll, `editor/blockDrag.ts` + `dragChrome.ts`) — all positioned 1:1 with the pointer, not timed.
+Owned by the in-house engine — see [[PommoraDND]]. In brief: a live "feel" (duration + easing) shared across every surface via `--ix-dur`/`--ix-ease` (presets Glide / Smooth-default / Snappy, `interactions/feel.tsx`); **decide-then-animate** (the accept/reject is resolved first, then one transition settles the item, committing on `transitionend`); and the app-wide **auto-scroll** primitive — one token-driven, edge-proximity-ramped, dampened rAF loop that every drag feeds (see [[PommoraDND]] §II. Autoscroll). The **sidebar** uses a bespoke insertion-line treatment (muted row in place + a portal-rendered ghost), and the **editor block-drag** has its own chrome (in-place shade decoration + a `position:fixed` accent line/dot, `editor/blockDrag.ts` + `dragChrome.ts`) — all positioned 1:1 with the pointer, not timed.
 
 ### Per-Surface Catalog
 
@@ -80,7 +80,7 @@ Every motion-timing value in the app — CSS `ms`/`s` strings (grepped) **and** 
 
 **Engine timing (JS-driven, intentional — keep local, not a DRY gap):**
 - `interactions/shared.ts:28` — `SETTLE_FALLBACK = 80` (ms slack); the drag commit fires on the overlay's `transitionend`, falling back to `feel.duration + SETTLE_FALLBACK` (`engine.tsx:284`, `group.tsx:216`) — decide-then-animate, not a blind timer.
-- `interactions/autoscroll.ts:5-6` — `EDGE = 48`px / `MAX = 14`px-per-frame, quadratic proximity ramp (rAF). Motion *tuning*, not a duration.
+- `interactions/autoscroll.css` — the auto-scroll tunables (edge band, speed px/sec, ramp exponent, dampen window) as `:root` tokens read off the drag element. Motion *tuning*, not a duration; see [[PommoraDND]] §II. Autoscroll.
 - `transitionend` commits (no literal duration): `engine.tsx:283`, `group.tsx:201`, and the fold reveal `MarkdownPM/editor/folding.ts:164`.
 - No other WAAPI/spring anywhere (the temporary `DropdownAnimationLab` + ⌘D `GlassTuner` were removed once the Bloom curve was chosen).
 

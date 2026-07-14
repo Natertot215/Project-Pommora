@@ -67,7 +67,8 @@ These are load-bearing; the comments at each site say why. Summarized:
 - **The sensor aborts on Esc, `pointercancel`, and `lostpointercapture`** — capture torn away
   mid-gesture is an abort, never a zombie.
 - **PommoraDND is the interaction vocabulary**: the shared `ACTIVATION` threshold,
-  `suppressNextClick`, `HYSTERESIS` edge-hold, `findScroller`/`autoScroll`, and the shared
+  `suppressNextClick`, `HYSTERESIS` edge-hold, `findScroller` + the shared auto-scroll loop
+  (`startAutoScroll`), and the shared
   `Feel` for reflow/settle. The sensor exists because the surface's free-2D gestures don't
   fit the engine's list-slot Zones — it reuses the discipline, not the machinery.
 - **Handlers are identity-stable**, reading all live values through a per-render ref, so the
