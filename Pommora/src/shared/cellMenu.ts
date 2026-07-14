@@ -11,7 +11,7 @@ export type CellMenuContext =
   | { kind: 'title' }
   | { kind: 'style-only'; type: PropertyType; current: ColumnStyle; clearable?: boolean }
   | { kind: 'style-edit'; type: 'url' | 'file'; current: ColumnStyle }
-  | { kind: 'link' }
+  | { kind: 'link'; filled: boolean }
   | { kind: 'clear-only' }
 
 export type CellMenuAction =
@@ -51,14 +51,17 @@ export function cellMenuModel(ctx: CellMenuContext): CellMenuModel {
         style: styleMenuItems({ type: ctx.type, current: ctx.current })
       }
     case 'link':
-      // A URL / Link cell: Edit the URL inline, Rename to give it an alias, Remove the value. No
-      // per-view Style — a link's look (underline / colour / full-url ⇄ title) is per-property.
+      // A URL / Link cell: Edit the URL inline; a FILLED one adds Rename (give it an alias) + Remove
+      // (clear the value) — both are no-ops on an empty cell, so only Edit shows there. No per-view
+      // Style — a link's look (underline / colour / full-url ⇄ title) is per-property.
       return {
-        items: [
-          { label: 'Edit', action: 'cell:edit' },
-          { label: 'Rename', action: 'cell:rename' },
-          { label: 'Remove', action: 'cell:clear' }
-        ]
+        items: ctx.filled
+          ? [
+              { label: 'Edit', action: 'cell:edit' },
+              { label: 'Rename', action: 'cell:rename' },
+              { label: 'Remove', action: 'cell:clear' }
+            ]
+          : [{ label: 'Edit', action: 'cell:edit' }]
       }
     case 'clear-only':
       return { items: [{ label: 'Clear', action: 'cell:clear' }] }

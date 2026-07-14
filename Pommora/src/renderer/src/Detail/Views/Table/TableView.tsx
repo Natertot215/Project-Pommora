@@ -7,7 +7,7 @@ import type { ColumnStyle } from '@shared/columnStyles'
 import type { CellMenuContext } from '@shared/cellMenu'
 import { parseStyleAction } from '@shared/columnMenu'
 import { type ColumnAlign, type SavedView, mintDefaultView } from '@shared/views'
-import { applyPropertyValue, type PropertyValue } from '@shared/propertyValue'
+import { applyPropertyValue, isBlankValue, type PropertyValue } from '@shared/propertyValue'
 import { isValidLink, normalizeLinkUrl } from '@shared/links'
 import { flattenContainer, groupsStructurally } from '../pipeline/group'
 import { resolveView } from '../pipeline/resolveView'
@@ -98,22 +98,27 @@ export function pickView(source: CollectionNode | SetNode, activeId: string | un
 const sameIds = (a: string[], b: string[]): boolean => a.length === b.length && a.every((x, i) => x === b[i])
 
 /** The right-click menu context for a cell (A-13): title = page meta; url/file = the column's Style
- *  radios + Edit; status = Style + Clear; the other style-bearing types = Style alone; tier and
- *  select/multi/context = Clear alone. Anything else has no menu (null). */
+ *  radios + Edit; status/datetime (picker-based) = Style + Clear; the inline-clearable style types
+ *  (checkbox/number/last_edited_time) = Style alone; tier and select/multi/context = Clear alone.
+ *  Clear is offered ONLY on a `filled` cell — a clear-only cell with no value has no menu at all, and
+ *  a styleable one drops just its Clear. Anything else has no menu (null). */
 function cellMenuContextFor(
   col: ResolvedColumn,
   type: PropertyType | 'title' | 'tier' | undefined,
-  style: ColumnStyle
+  style: ColumnStyle,
+  filled: boolean
 ): CellMenuContext | null {
   if (col.kind === 'title') return { kind: 'title' }
-  if (col.kind === 'tier') return { kind: 'clear-only' }
-  if (type === 'url') return { kind: 'link' }
+  if (col.kind === 'tier') return filled ? { kind: 'clear-only' } : null
+  if (type === 'url') return { kind: 'link', filled }
   if (type === 'file') return { kind: 'style-edit', type: 'file', current: style }
-  if (type === 'status') return { kind: 'style-only', type, current: style, clearable: true }
-  if (type === 'checkbox' || type === 'number' || type === 'datetime' || type === 'last_edited_time') {
+  if (type === 'status' || type === 'datetime') return { kind: 'style-only', type, current: style, clearable: filled }
+  if (type === 'checkbox' || type === 'number' || type === 'last_edited_time') {
     return { kind: 'style-only', type, current: style }
   }
-  if (type === 'select' || type === 'multi_select' || type === 'context') return { kind: 'clear-only' }
+  if (type === 'select' || type === 'multi_select' || type === 'context') {
+    return filled ? { kind: 'clear-only' } : null
+  }
   return null
 }
 
@@ -205,6 +210,9 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
   // The picker/datetime is ONE table-level self-managed pane — it owns its Bloom-out off `open`, so the
   // cell only tracks WHICH cell is editing + captures its element for placement. lastPicker holds the
   // exiting picker's content rendered through the Bloom-out; the inline editor unmounts instantly.
+  // A column resize is in progress (set on grab, cleared on commit) — a grid-level flag so the borderless
+  // table reveals its vertical dividers while you resize (its reorder twin is colDrag → col-dragging-active).
+  const [resizing, setResizing] = useState(false)
   const triggerElRef = useRef<HTMLElement | null>(null)
   const lastPicker = useRef<{ rowId: string; colId: string } | null>(null)
   if (editing?.mode === 'picker') lastPicker.current = { rowId: editing.rowId, colId: editing.colId }
@@ -446,6 +454,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
     return clamped
   }
   const commitResize = (id: string, width: number): void => {
+    setResizing(false)
     persistView({ column_widths: { ...liveView.column_widths, ...widthOverride, [id]: clampWidth(width, id, schema, colStyle(id).look) } })
   }
   // Hide animates the column shut on the disclosure token (E-11): setCollapsing drives its grid track to
@@ -803,7 +812,8 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
     // Captured before the await — the synthetic event is recycled by the time the menu resolves, so
     // the rename popover can't read `e.currentTarget` then (it anchors the TextPicker off this cell).
     const cellEl = e.currentTarget as HTMLElement
-    const ctx = cellMenuContextFor(col, declaredType(col.id, schema), colStyle(col.id))
+    const filled = !isBlankValue(resolveFieldValue(row, col.id, schema))
+    const ctx = cellMenuContextFor(col, declaredType(col.id, schema), colStyle(col.id), filled)
     if (!ctx) return
     const action = await window.nexus.cellMenu(ctx)
     if (!action) return
@@ -886,6 +896,9 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
   // The rename popover leaves its cell in flow (unlike the editor overlay), but flips it to the full URL
   // while open so you see what you're aliasing. Threaded like overlayCol — only the renamed row re-renders.
   const renameTarget = editing?.mode === 'rename' ? editing : null
+  // The cell being edited in ANY mode (picker/editor/rename) — flows to rows as a primitive for the faint
+  // active-cell reveal under Hide Borders; only the editing row re-renders on open/close.
+  const activeCell = editing ? { rowId: editing.rowId, colId: editing.colId } : null
   // Row drag (E-3): the flat data-row order + each row's group key + path, feeding the drop-line DnD
   // (tableDnd). Where you drop disambiguates (D-8) — same group reorders, a different group reassigns.
   // Memoized so a selection / resize / drag-frame render doesn't re-walk every group and rebuild both
@@ -1127,6 +1140,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
             api={cellApi}
             overlayCol={overlayTarget?.rowId === row.id ? overlayTarget.colId : null}
             renameCol={renameTarget?.rowId === row.id ? renameTarget.colId : null}
+            activeCol={activeCell?.rowId === row.id ? activeCell.colId : null}
             hideIcon={liveView.hide_page_icons ?? false}
             selected={selection.kind === 'page' && selection.id === row.id}
             dragDisabled={dragDisabled}
@@ -1196,7 +1210,8 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
             columns.length === 1 && 'single-column',
             collapsing != null && 'col-hiding',
             sliding.size > 0 && 'col-sliding',
-            colDrag != null && 'col-dragging-active'
+            colDrag != null && 'col-dragging-active',
+            resizing && 'col-resizing-active'
           )}
           style={{ minWidth: reflowWidth, ['--cols']: cols } as React.CSSProperties}
         >
@@ -1223,6 +1238,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
                 dragging={colDrag?.from === i}
                 onDragStart={(e) => startColumnDrag(e, i)}
                 onResize={resizeColumn}
+                onResizeStart={() => setResizing(true)}
                 onResizeCommit={commitResize}
                 onContextMenu={(e) => void openHeaderMenu(c.id, c.kind === 'title', e)}
               />
@@ -1257,6 +1273,7 @@ function ColumnHeader({
   dragging,
   onDragStart,
   onResize,
+  onResizeStart,
   onResizeCommit,
   onContextMenu
 }: {
@@ -1269,6 +1286,7 @@ function ColumnHeader({
   dragging: boolean
   onDragStart: (e: React.PointerEvent) => void
   onResize: (id: string, width: number) => number
+  onResizeStart: () => void
   onResizeCommit: (id: string, width: number) => void
   onContextMenu?: (e: React.MouseEvent) => void
 }): React.JSX.Element {
@@ -1281,6 +1299,7 @@ function ColumnHeader({
     const startX = e.clientX
     let last = width
     grip.setPointerCapture(e.pointerId)
+    onResizeStart()
     const move = (ev: PointerEvent): void => {
       last = onResize(id, width + (ev.clientX - startX) / zoom)
     }
@@ -1345,6 +1364,7 @@ const DataRow = memo(function DataRow({
   api,
   overlayCol,
   renameCol,
+  activeCol,
   hideIcon,
   selected,
   dragDisabled,
@@ -1360,6 +1380,8 @@ const DataRow = memo(function DataRow({
   api: RowCellApi
   overlayCol: string | null
   renameCol: string | null
+  /** The cell being edited in this row (any mode) — its data-cell wears the faint accent active ring. */
+  activeCol: string | null
   hideIcon: boolean
   selected: boolean
   dragDisabled: boolean
@@ -1383,6 +1405,8 @@ const DataRow = memo(function DataRow({
         // must NOT get it: the indent eats the narrow cell and shoves the control off-centre / past the
         // fold, so it clips left. Center-aligned lead → no padding, the control centres in the full cell.
         if (i === 0 && alignByCol[i] === 'left') style.paddingLeft = padLeft
+        // Borderless reveal: the edited cell wears the faint accent ring (Table.css, no-borders only).
+        const stateCx = activeCol === c.id && 'cell-active'
         // The inline editor (mode 'editor') REPLACES the cell in flow; the value pickers are the
         // table-level cellPicker (portaled), never in the cell.
         const editor = overlayCol === c.id ? api.overlay(row, c) : null
@@ -1400,7 +1424,7 @@ const DataRow = memo(function DataRow({
         return i === 0 ? (
           <div
             key={c.id}
-            className={cx('data-cell', 'cell-lead', dragShift?.from === i && 'col-dragging')}
+            className={cx('data-cell', 'cell-lead', dragShift?.from === i && 'col-dragging', stateCx)}
             style={style}
             onContextMenu={(e) => api.menu(row, c, e)}
             onClick={(e) => {
@@ -1417,7 +1441,7 @@ const DataRow = memo(function DataRow({
         ) : (
           <div
             key={c.id}
-            className={cx('data-cell', dragShift?.from === i && 'col-dragging')}
+            className={cx('data-cell', dragShift?.from === i && 'col-dragging', stateCx)}
             style={style}
             onContextMenu={(e) => api.menu(row, c, e)}
             onClick={(e) => {

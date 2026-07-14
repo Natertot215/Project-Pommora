@@ -138,6 +138,13 @@ function isEmptyValue(value: PropertyValue): boolean {
   }
 }
 
+/** A value a clear would actually remove — an explicit `null`, the null kind, or an empty
+ *  collection/string. The set/clear write rule and the "is this cell filled (worth offering a Clear
+ *  action)" check share this one predicate; a filled cell is simply `!isBlankValue`. */
+export function isBlankValue(value: PropertyValue | null): boolean {
+  return value === null || value.kind === 'null' || isEmptyValue(value)
+}
+
 /** Set or clear one property on a (possibly malformed) properties record, returning the next
  *  record. A null value (the `null` kind) OR an empty value clears the key — a page without a
  *  value has no key at all, never a null/[]/'' placeholder — anything else encodes via the
@@ -148,7 +155,7 @@ export function applyPropertyValue(
   value: PropertyValue | null
 ): Record<string, unknown> {
   const next: Record<string, unknown> = isPlainObject(current) ? { ...current } : {}
-  if (value === null || value.kind === 'null' || isEmptyValue(value)) delete next[propertyId]
+  if (isBlankValue(value)) delete next[propertyId]
   else next[propertyId] = encodePropertyValue(value)
   return next
 }

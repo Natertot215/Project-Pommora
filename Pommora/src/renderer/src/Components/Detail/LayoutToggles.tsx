@@ -10,11 +10,11 @@ import { useSaveView } from '@renderer/Embeds/ViewEmbedScope'
 import { ICON, switchScale, toggleRow } from './settingsPane.css'
 
 /**
- * The table view's Layout icon toggles — Column Icons (the type-icon in each column header) and Page
- * Icons (the leading icon on every page row). Shared by both Layout surfaces: the ViewSettings
- * full-door Layout leaf (below the visibility list) and the SettingsPane flat-door Layout (below the
- * type grid). Both persist per-view (inverted `hide_*` flags) through the shared adopt-only writer and
- * drive the table live — Page Icons the leading page glyph, Column Icons each header's type glyph.
+ * The table view's Layout toggles — Column Icons (the type-icon in each column header), Hide Borders
+ * (drops every grid line), and Page Icons (the leading icon on every page row). Shared by both Layout
+ * surfaces: the ViewSettings full-door Layout leaf (below the visibility list) and the SettingsPane
+ * flat-door Layout (below the type grid). All persist per-view (`hide_*` flags) through the shared
+ * adopt-only writer and drive the table live.
  */
 export function LayoutToggles({
   source,
@@ -44,6 +44,21 @@ export function LayoutToggles({
         }
       >
         Column Icons
+      </MenuItem>
+      <MenuItem
+        className={cx(flushTrailing, toggleRow)}
+        leading={<Icon name="table" size={ICON.rootEntry} />}
+        trailing={
+          <span className={switchScale}>
+            <Switch
+              checked={view.hide_borders ?? false}
+              onChange={(next) => write({ hide_borders: next })}
+              ariaLabel="Hide Borders"
+            />
+          </span>
+        }
+      >
+        Hide Borders
       </MenuItem>
       <MenuItem
         className={cx(flushTrailing, toggleRow)}

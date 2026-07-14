@@ -23,7 +23,9 @@
 
   /* — Borders — the ONE token for every standard table hairline (vertical column lines + horizontal row
        underlines). The heading row's seams are heavier/different (see Heading below). — */
-  --table-border: 1.25px solid var(--separator-border);
+  --table-border-width: 1.25px;
+  --table-border: var(--table-border-width) solid var(--separator-border);
+  --cell-active-radius: 4px; /* corner radius of the borderless active-cell accent ring */
 
   /* — Heading row — the header band reads distinct from the body: a faint fill, dimmed control text, a
        heavier bottom seam, and short centered segment dividers between columns (vs the data rows'

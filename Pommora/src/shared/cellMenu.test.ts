@@ -38,13 +38,18 @@ describe('cellMenuModel', () => {
     expect(m.style?.map((r) => r.label)).toEqual(['Title', 'Full Link'])
   })
 
-  it('link (a url cell): Edit + Rename + Remove, no Style (its look is per-property)', () => {
-    const m = cellMenuModel({ kind: 'link' })
+  it('link (a filled url cell): Edit + Rename + Remove, no Style (its look is per-property)', () => {
+    const m = cellMenuModel({ kind: 'link', filled: true })
     expect(m.items.map((i) => [i.label, i.action])).toEqual([
       ['Edit', 'cell:edit'],
       ['Rename', 'cell:rename'],
       ['Remove', 'cell:clear']
     ])
     expect(m.style).toBeUndefined()
+  })
+
+  it('link (an empty url cell): Edit alone — Rename/Remove are no-ops with no value', () => {
+    const m = cellMenuModel({ kind: 'link', filled: false })
+    expect(m.items.map((i) => [i.label, i.action])).toEqual([['Edit', 'cell:edit']])
   })
 })

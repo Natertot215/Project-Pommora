@@ -242,13 +242,52 @@
   background: var(--drag-line);
 }
 
-/* Hide Borders toggle — drops the horizontal dividers (vertical column lines stay): the heading seam
-   (head's bottom) and the row dividers (rows' top). */
-.table-grid.no-borders .table-head {
-  border-bottom: none;
-}
+/* Hide Borders toggle — drops the body grid lines for a clean, line-free table: the row dividers (rows'
+   top) and the vertical column hairlines (each cell's right edge). The heading row keeps its borders (the
+   bottom seam + the segment bars) so the header stays structured over a lineless body. */
 .table-grid.no-borders .data-row {
   border-top: none;
+}
+.table-grid.no-borders .data-cell {
+  border-right: none;
+}
+
+/* Borderless structure-on-demand — with the body lines gone, structure surfaces only while you're changing
+   columns: resizing or reordering fades the vertical dividers back in for reference, and the cell you're
+   editing wears a faint rounded accent ring. Both ride --ease-standard so they fade in and close smoothly. */
+.table-grid.no-borders .data-cell {
+  position: relative;
+}
+/* Resize / reorder reveal — every column's vertical hairline (each cell's right edge) fades in while a
+   column is being resized (col-resizing-active) or reordered (col-dragging-active), and fades back out. */
+.table-grid.no-borders .data-cell::after {
+  content: '';
+  position: absolute;
+  inset-block: 0;
+  right: 0;
+  width: var(--table-border-width);
+  background: var(--separator-border);
+  opacity: 0;
+  transition: opacity var(--duration-base) var(--ease-standard);
+  pointer-events: none;
+}
+.table-grid.no-borders.col-resizing-active .data-cell::after,
+.table-grid.no-borders.col-dragging-active .data-cell::after {
+  opacity: 1;
+}
+/* Active-cell accent ring — a rounded accent outline (not an inside fill) around the cell being edited. */
+.table-grid.no-borders .data-cell::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border: var(--table-border-width) solid color-mix(in srgb, var(--accent) var(--tint-secondary), transparent);
+  border-radius: var(--cell-active-radius);
+  opacity: 0;
+  transition: opacity var(--duration-base) var(--ease-standard);
+  pointer-events: none;
+}
+.table-grid.no-borders .data-cell.cell-active::before {
+  opacity: 1;
 }
 
 /* Type-aware cell content (chips, title icon, links). The page icon reads at --label-secondary (the
