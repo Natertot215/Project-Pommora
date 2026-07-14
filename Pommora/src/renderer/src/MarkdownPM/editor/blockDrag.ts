@@ -9,6 +9,7 @@ import { blockAt, blockStarts } from './blockModel'
 import { Overlay, setShade, shadeField } from './dragChrome'
 import { lineElementAt } from './lineDom'
 import { blockMoveChanges } from './listDragModel'
+import { startAutoScroll } from '../../design-system/interactions/autoscroll'
 
 // The OUTER bottom of the content block above a gap (skipping blank lines), so the insertion line reads "the
 // dragged block goes BELOW this" and sits OUTSIDE a box (below a callout's border, not inside it).
@@ -51,10 +52,6 @@ function collectCands(view: EditorView, block: { from: number; to: number }): Ca
   return out.sort((a, b) => a.y - b.y)
 }
 
-// Auto-scroll tuning: the band at the scroller's top/bottom edge where a held drag keeps scrolling, and the
-// per-frame step (ramped by how deep into the band the pointer is, capped).
-const EDGE = 48
-const edgeStep = (depth: number): number => Math.min(Math.ceil((depth / EDGE) * 14), 14)
 function nearest(cands: Cand[], clientY: number): Cand | null {
   let best: Cand | null = null
   let bd = Infinity
@@ -85,7 +82,8 @@ export function startBlockDrag(
   if (e.button !== 0) return // only the left button drags; a right-press falls through to the context menu (e.g. the table grip's Delete Table)
   e.preventDefault()
   const host = view.scrollDOM
-  const g = { active: false, done: false, overlay: new Overlay(), cands: [] as Cand[], slot: null as Cand | null, lastY: e.clientY, raf: 0 }
+  const g = { active: false, done: false, overlay: new Overlay(), cands: [] as Cand[], slot: null as Cand | null, lastY: e.clientY }
+  let stopScroll: (() => void) | null = null
 
   // Re-aim the insertion line at the candidate nearest the last pointer Y — no re-measure.
   const repick = (): void => {
@@ -100,22 +98,6 @@ export function startBlockDrag(
     g.cands = collectCands(view, block)
     repick()
   }
-  // Auto-scroll while the pointer sits in the top/bottom EDGE band, so a block can reach a target that was
-  // off-screen at grab time (CM only renders ~viewport, so far targets aren't candidates until scrolled in).
-  const tick = (): void => {
-    g.raf = 0
-    if (!g.active) return
-    const r = host.getBoundingClientRect()
-    let dy = 0
-    if (g.lastY < r.top + EDGE) dy = -edgeStep(r.top + EDGE - g.lastY)
-    else if (g.lastY > r.bottom - EDGE) dy = edgeStep(g.lastY - (r.bottom - EDGE))
-    if (dy === 0) return
-    const before = host.scrollTop
-    host.scrollTop += dy
-    if (host.scrollTop === before) return // at the scroll limit — wait for the pointer to move again
-    g.raf = requestAnimationFrame(tick) // the scrollTop write fires `scroll` → onScroll → remeasure (one path)
-  }
-
   const onMove = (ev: PointerEvent): void => {
     if (!g.active) {
       if (Math.hypot(ev.clientX - e.clientX, ev.clientY - e.clientY) < ACTIVATION) return
@@ -129,10 +111,14 @@ export function startBlockDrag(
       onDragStart?.(view, block) // e.g. unfold a heading section before it moves — folds can't survive the move
       view.dispatch({ effects: setShade.of({ from: block.from, to: block.to }) })
       g.cands = collectCands(view, block)
+      // The shared loop scrolls CM's viewport (explicit scroller — findScroller can't derive scrollDOM).
+      // No `onScrolled` needed: the loop's `scrollBy` fires CM's native `scroll` → the existing `onScroll`
+      // → `remeasure`, so far candidates (CM only renders ~viewport) become targetable as they scroll in —
+      // the exact single path the old local `tick` relied on.
+      stopScroll = startAutoScroll({ getPoint: () => ({ x: 0, y: g.lastY }), scroller: host, dragEl: host, axis: 'y' })
     }
     g.lastY = ev.clientY
     repick()
-    if (!g.raf) g.raf = requestAnimationFrame(tick) // (re)start auto-scroll if we're near an edge
   }
 
   const onScroll = (): void => {
@@ -146,7 +132,7 @@ export function startBlockDrag(
     if (g.done) return // a drag ends once — guard the window blur/Escape paths from re-entering
     g.done = true
     document.body.style.cursor = ''
-    if (g.raf) cancelAnimationFrame(g.raf)
+    stopScroll?.()
     host.removeEventListener('pointermove', onMove)
     host.removeEventListener('pointerup', onUp)
     host.removeEventListener('pointercancel', onCancel)

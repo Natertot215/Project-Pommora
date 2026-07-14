@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { autoScroll, clampToLimit, dampen, edgeVelocity, gateIntent, scrollableInAxis, startAutoScroll, stepPixels, stopAutoScroll, type Intent, type Params } from './autoscroll'
+import { clampToLimit, dampen, edgeVelocity, gateIntent, scrollableInAxis, startAutoScroll, stepPixels, stopAutoScroll, type Intent, type Params } from './autoscroll'
 
 const P: Params = { edge: 48, speed: 840, ramp: 2, dampenMs: 300 }
 
@@ -65,52 +65,6 @@ describe('gateIntent — direction-intent', () => {
     gateIntent(intent, 0, -10)
     // … now a downward push is allowed.
     expect(gateIntent(intent, 0, 10).vy).toBe(10)
-  })
-})
-
-// The back-compat shim ships to 3 live drag surfaces until they migrate. The helper tests above cover
-// the math in isolation but NOT the shim's wiring (scrollBy arg order + which rect edge maps to which
-// axis) — a bug class isolated tests structurally can't see. These pin it end-to-end.
-describe('autoScroll shim — wiring (arg order + axis mapping)', () => {
-  const mock = (over: Partial<Record<string, number>> = {}): { el: HTMLElement; scrollBy: ReturnType<typeof vi.fn> } => {
-    const scrollBy = vi.fn()
-    const el = {
-      getBoundingClientRect: () => ({ top: 100, bottom: 300, left: 0, right: 200, width: 200, height: 200 }),
-      scrollTop: 50,
-      scrollLeft: 50,
-      scrollHeight: 1000,
-      clientHeight: 200,
-      scrollWidth: 1000,
-      clientWidth: 200,
-      scrollBy,
-      ...over
-    } as unknown as HTMLElement
-    return { el, scrollBy }
-  }
-  it('does not scroll away from any edge', () => {
-    const { el, scrollBy } = mock()
-    expect(autoScroll(el, 100, 200)).toBe(false)
-    expect(scrollBy).not.toHaveBeenCalled()
-  })
-  it('scrolls DOWN (positive y, the 2nd scrollBy arg) near the bottom edge', () => {
-    const { el, scrollBy } = mock()
-    expect(autoScroll(el, 100, 295)).toBe(true)
-    expect(scrollBy.mock.calls[0][1]).toBeGreaterThan(0)
-  })
-  it('scrolls UP (negative y) near the top edge', () => {
-    const { el, scrollBy } = mock()
-    expect(autoScroll(el, 100, 105)).toBe(true)
-    expect(scrollBy.mock.calls[0][1]).toBeLessThan(0)
-  })
-  it('scrolls RIGHT (positive x, the 1st scrollBy arg) near the right edge', () => {
-    const { el, scrollBy } = mock()
-    expect(autoScroll(el, 195, 200)).toBe(true)
-    expect(scrollBy.mock.calls[0][0]).toBeGreaterThan(0)
-  })
-  it('does NOT scroll past the bottom limit', () => {
-    const { el, scrollBy } = mock({ scrollTop: 800 }) // scrollHeight(1000) - clientHeight(200)
-    expect(autoScroll(el, 100, 295)).toBe(false)
-    expect(scrollBy).not.toHaveBeenCalled()
   })
 })
 

@@ -213,16 +213,3 @@ function tick(ts: number): void {
   if (live !== L) return // onScrolled stopped or replaced this loop — don't resurrect the old one
   L.raf = requestAnimationFrame(tick)
 }
-
-// TEMPORARY back-compat shim during the auto-scroll migration. Reproduces the OLD px/frame behavior
-// (speed 14, no dampen) so the not-yet-migrated inline callers (engine/SurfaceView/paneDnd) compile
-// and behave identically until each moves onto the loop. Deleted once the last caller migrates.
-export function autoScroll(scroller: HTMLElement, x: number, y: number): boolean {
-  const r = scroller.getBoundingClientRect()
-  const p: Params = { edge: 48, speed: 14, ramp: 2, dampenMs: 0 }
-  const sx = clampToLimit(edgeVelocity(r.left, r.right, x, p), scroller.scrollLeft, scroller.scrollWidth - scroller.clientWidth)
-  const sy = clampToLimit(edgeVelocity(r.top, r.bottom, y, p), scroller.scrollTop, scroller.scrollHeight - scroller.clientHeight)
-  if (!sx && !sy) return false
-  scroller.scrollBy(sx, sy)
-  return true
-}
