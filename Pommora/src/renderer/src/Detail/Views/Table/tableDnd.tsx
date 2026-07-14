@@ -1,5 +1,6 @@
-import { createContext, useContext, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
 import { ACTIVATION, DROP_LINE_INSET, suppressNextClick } from '@renderer/design-system/interactions/shared'
+import { findScroller, startAutoScroll } from '@renderer/design-system/interactions/autoscroll'
 
 // Table row drag — the sidebar drop-line gesture (B): an accent insertion LINE marks the exact slot,
 // the picked-up row mutes in place (--drag-muted), and NO row displaces. Where you drop disambiguates
@@ -54,7 +55,10 @@ export function TableRowDnd({
   const live = useRef<Slot | null>(null)
   // Cached row geometry for the active drag (measured once at activation, re-measured only on scroll).
   const snapshot = useRef<{ rows: MeasuredRow[]; boxTop: number; boxLeft: number } | null>(null)
-  const onDragScroll = useRef<(() => void) | null>(null)
+  const onDragScroll = useRef<((e: Event) => void) | null>(null)
+  const lastPoint = useRef({ x: 0, y: 0 })
+  const stopScroll = useRef<(() => void) | null>(null)
+  const snapshotDirty = useRef(false)
   const [drag, setDrag] = useState<DragState>(IDLE)
   const gesture = useRef<Gesture>({ kind: 'idle' })
 
@@ -127,6 +131,8 @@ export function TableRowDnd({
   }
 
   const detach = (): void => {
+    stopScroll.current?.()
+    stopScroll.current = null
     const g = gesture.current
     if (g.kind === 'idle') return
     window.removeEventListener('pointermove', g.handlers.move)
@@ -180,11 +186,41 @@ export function TableRowDnd({
       // Snapshot geometry now that the drag is real, then re-snapshot only when a scroll shifts the rects
       // (rows never displace mid-drag, so hit-testing reads the cache — no per-move reflow over every row).
       measure(g.id)
-      const onScroll = (): void => measure(g.id)
+      // A scroll that moves the rows (wheel OR the auto-scroll loop below — its scrollBy fires this same
+      // native event) dirties the snapshot and re-resolves the slot from the last point, so a held-still
+      // drag near an edge keeps tracking. Dirty-gate + a target guard (skip a scroll that doesn't contain
+      // the row content, e.g. an inner cell) so the O(rows) re-measure runs at most once per frame and
+      // never on an unrelated scroll — resolveSlot re-measures lazily off the flag.
+      const onScroll = (e: Event): void => {
+        if (e.target instanceof Element && content.current && !e.target.contains(content.current)) return
+        snapshotDirty.current = true
+        resolveSlot(lastPoint.current.y)
+      }
       onDragScroll.current = onScroll
       window.addEventListener('scroll', onScroll, { capture: true, passive: true })
+      // Auto-scroll the vertical scroller. findScroller('y') is load-bearing: it SKIPS the x-only
+      // '.table-view' to reach '.detail-scroll' (the table row's real y-scroller). No onScrolled — the
+      // native onScroll above already re-resolves off the module's scrollBy.
+      const sc = findScroller(g.el, 'y')
+      if (sc) {
+        stopScroll.current = startAutoScroll({ getPoint: () => lastPoint.current, scroller: sc, dragEl: g.el, axis: 'y' })
+      }
     }
-    const slot = computeSlot(e.clientY)
+    lastPoint.current = { x: e.clientX, y: e.clientY }
+    resolveSlot(e.clientY)
+  }
+
+  // Hit-test at a Y → the slot + line. Shared by pointer move and the scroll re-resolve (wheel +
+  // auto-scroll). Re-measures lazily, only when a scroll dirtied the snapshot — a pointer move reads
+  // the cache (rows don't displace mid-drag), a scroll re-measures once.
+  function resolveSlot(clientY: number): void {
+    const g = gesture.current
+    if (g.kind === 'idle') return
+    if (snapshotDirty.current) {
+      measure(g.id)
+      snapshotDirty.current = false
+    }
+    const slot = computeSlot(clientY)
     live.current = slot
     setDrag({ id: g.id, slot })
   }
@@ -209,6 +245,11 @@ export function TableRowDnd({
   function onKey(e: KeyboardEvent): void {
     if (e.key === 'Escape') onCancel()
   }
+
+  // Unmount mid-drag (a watcher re-walk swaps the collection, a view change): pull window listeners +
+  // stop the auto-scroll loop so neither dangles for the session. lostpointercapture on the removed node
+  // fires no pointerup/blur, so detach is the only guaranteed teardown.
+  useEffect(() => () => detach(), []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const value = useMemo<Value>(() => ({ draggingId: drag.id, registerRow, begin }), [drag.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
