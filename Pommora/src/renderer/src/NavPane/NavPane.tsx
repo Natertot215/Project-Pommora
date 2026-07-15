@@ -75,7 +75,9 @@ function NavPaneBody({ closing }: { closing: boolean }): React.JSX.Element {
   }, [closeNav])
 
   const results = useMemo(() => (query.trim() ? splitSearch(search(query)) : null), [query, search])
-  const goClose = (target: NavTarget): void => go(target, closeNav)
+  // Selecting from the pane closes it, unless `navCloseOnSelect` is explicitly off (keep it open to browse).
+  const closeOnSelect = useSession((s) => s.tree?.personalization.navCloseOnSelect !== false)
+  const goClose = (target: NavTarget): void => go(target, closeOnSelect ? closeNav : undefined)
   // Rail Style toggle — List ⇄ Gallery. The choice persists across opens (module-scoped, like geo).
   const [viewMode, setViewMode] = useState<'list' | 'gallery'>(savedViewMode)
   const toggleViewMode = (): void =>

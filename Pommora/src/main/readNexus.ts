@@ -106,6 +106,7 @@ export function readPersonalization(raw: unknown): Personalization {
       conn === 'accent' || (conn != null && ACCENT_COLOR_SET.has(conn)) ? (conn as ConnectionColorSetting) : undefined,
     hideChevrons: bool(p.hideChevrons),
     outlinerLines: bool(p.outlinerLines),
+    navCloseOnSelect: bool(p.navCloseOnSelect),
     defaultIcons: Object.keys(defaultIcons).length ? defaultIcons : undefined,
     favoriteIcons: favoriteIcons.length ? favoriteIcons : undefined,
     setPlacement: placement(p.setPlacement),
