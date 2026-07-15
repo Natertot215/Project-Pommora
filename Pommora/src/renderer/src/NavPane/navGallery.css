@@ -5,21 +5,25 @@
   --card-min: 150px;
   --card-gap-h: 12px;
   --card-gap-v: 12px;
-  --cover-zoom: 1; /* KNOB — overall zoom of the cover image: 1 = as captured; >1 zooms into the top */
+  --cover-zoom: 1.25; /* KNOB — overall zoom of the cover image: 1 = as captured; >1 zooms into the top */
+  --thumb-share: 74%; /* KNOB — the image's share of the card height; the title-area takes the rest */
   display: flex;
   flex-direction: column;
   gap: var(--card-gap-v);
   padding: 6px var(--navpane-inset, 12px);
 }
 .nav-gallery-grid {
+  /* auto-FIT (not auto-fill): with no empty tracks to pad, the cards STRETCH to fill the width, so a
+     wider window grows the cards rather than shrinking them — they only step down when there's room
+     for another whole column (a layout change), then grow again from there. */
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(var(--card-min), 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(var(--card-min), 1fr));
   gap: var(--card-gap-v) var(--card-gap-h);
 }
 
 .nav-gallery-card {
-  /* Fixed 125:85 landscape card, split image 2/3 : title-area 1/3 of the card height via the flex grow
-     ratio below. align-self:start so a taller row-sibling can't stretch it past its 125:85 height. */
+  /* Fixed 125:85 landscape card; the image takes --thumb-share of the height, the title-area the rest.
+     align-self:start so a taller row-sibling can't stretch it past its 125:85 height. */
   display: flex;
   flex-direction: column;
   aspect-ratio: 125 / 85;
@@ -42,7 +46,7 @@
 
 .nav-gallery-thumb {
   position: relative;
-  flex: 2; /* image = 2/3 of the card height (title-area below is flex:1 = 1/3) */
+  flex: 0 0 var(--thumb-share, 74%); /* image height = --thumb-share of the card; title-area takes the rest */
   min-height: 0;
   overflow: hidden;
   background: var(--fill-tertiary);
