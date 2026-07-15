@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import type { IpcRendererEvent } from 'electron'
-import type { AgendaListResult, NavFavorite, NavStateResult, NavTarget, NexusState, NexusTree, OpenIn, PageResult, Personalization, PinEntry, PinsResult, RecentEntry, SubfieldConfig, ViewButton, ViewStyle } from '@shared/types'
+import type { AgendaListResult, NavChanged, NavFavorite, NavStateResult, NavTarget, NexusState, NexusTree, OpenIn, PageResult, Personalization, PinEntry, PinsResult, RecentEntry, SubfieldConfig, ViewButton, ViewStyle } from '@shared/types'
 import type { MutateRequest, MutateResult, ContextTarget } from '@shared/mutate'
 import type { FormatState } from '@shared/editorMenu'
 import type { TableMenuAction, TableMenuContext } from '@shared/tableMenu'
@@ -373,6 +373,14 @@ const api = {
     ipcRenderer.on('begin-rename', listener)
     return () => {
       ipcRenderer.removeListener('begin-rename', listener)
+    }
+  },
+  // The live watcher pushed fresh nav state (external/synced sidecar or pin change) — no tree walk.
+  onNavChanged: (cb: (nav: NavChanged) => void): (() => void) => {
+    const listener = (_e: IpcRendererEvent, nav: NavChanged): void => cb(nav)
+    ipcRenderer.on('nav:changed', listener)
+    return () => {
+      ipcRenderer.removeListener('nav:changed', listener)
     }
   },
   // The live watcher pushed a fresh tree (external FS change) — swap it in place; returns an unsubscribe.

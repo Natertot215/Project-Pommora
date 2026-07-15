@@ -11,7 +11,7 @@ import { Icon } from '@renderer/design-system/symbols'
 import { matchesCommand } from './Commands'
 
 export function App(): React.JSX.Element {
-  const { status, tree, error, sidebarVisible, sidebarWidth, setSidebarWidth, inspectorWidth, setInspectorWidth, load, applyTree, choose, openDropped, toggleSidebar, ribbonVisible, toggleRibbon, toggleNav, commands, newPage, beginRename } =
+  const { status, tree, error, sidebarVisible, sidebarWidth, setSidebarWidth, inspectorWidth, setInspectorWidth, load, applyTree, applyNavChanged, choose, openDropped, toggleSidebar, ribbonVisible, toggleRibbon, toggleNav, commands, newPage, beginRename } =
     useSession()
 
   // Inspector toggle — window chrome state. Full-height pane that pushes content when open.
@@ -67,6 +67,11 @@ export function App(): React.JSX.Element {
   useEffect(() => {
     return window.nexus.onNexusChanged((next) => void applyTree(next))
   }, [applyTree])
+
+  // A synced-in Nav sidecar / pin change (from another machine) → refresh nav state only, no tree walk.
+  useEffect(() => {
+    return window.nexus.onNavChanged((nav) => applyNavChanged(nav))
+  }, [applyNavChanged])
 
   // Native-menu actions reuse the store's existing behaviors (the menu is a second
   // trigger, not a second implementation).

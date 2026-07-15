@@ -162,6 +162,9 @@ interface SessionState {
   unpinTarget: (key: string) => void
   reorderPin: (activeKey: string, overKey: string) => void
   loadPins: () => Promise<void>
+  /** Apply a live nav refresh from the watcher (an external/synced sidecar or pin change) — swaps the
+   *  nav slices without a tree re-walk. */
+  applyNavChanged: (nav: { recents: RecentEntry[]; favorites: NavFavorite[]; pins: PinEntry[] }) => void
   /** Add a durable favorite (no-op if already present), remove one, or reorder; each persists immediately. */
   addFavorite: (target: NavTarget) => void
   removeFavorite: (key: string) => void
@@ -472,6 +475,7 @@ export const useSession = create<SessionState>((set, get) => {
       const res = await window.nexus.nav.loadPins().catch(() => null)
       if (res?.ok) set({ pins: [...res.pins].sort(byOrder) })
     },
+    applyNavChanged: (nav) => set({ recents: nav.recents, favorites: nav.favorites, pins: [...nav.pins].sort(byOrder) }),
     addFavorite: (target) => {
       // v1 favorites are tree kinds only (R3-F2): an agenda favorite would resolve to null and render
       // as an invisible, un-removable entry until the agenda resolver ships.

@@ -343,6 +343,9 @@ export type PinEntry = NavTarget & { order: number; deleted?: boolean }
 /** The `nav:loadPins` IPC envelope. */
 export type PinsResult = { ok: true; pins: PinEntry[] } | { ok: false; error: string }
 
+/** The `nav:changed` watcher push — full nav state after an external/synced sidecar or pin change. */
+export type NavChanged = NavState & { pins: PinEntry[] }
+
 /** The two Navigation sidecars read together (`.nexus/navRecents.json` + `navFavorites.json`). */
 export interface NavState {
   recents: RecentEntry[]

@@ -10,6 +10,8 @@ import type { BrowserWindow } from 'electron'
 import { asStringArray } from './coerce'
 import { excludedMatcher } from './exclusion'
 import { readJsonObject } from './io/atomicWrite'
+import { readNavState } from './io/navState'
+import { readPins } from './io/pinsState'
 import { isRecentWrite } from './io/writeEcho'
 import { HOMEPAGE_HOST_DIRNAME, nexusConfig, NEXUS_CONFIG_FILES } from './paths'
 import { readNexus } from './readNexus'
@@ -19,6 +21,15 @@ const SETTLE_MS = 200
 
 let watcher: FSWatcher | null = null
 let debounce: ReturnType<typeof setTimeout> | null = null
+let navDebounce: ReturnType<typeof setTimeout> | null = null
+
+/** A Navigation sidecar / pin file — its changes push nav state only, never a tree re-walk (nav data
+ *  isn't in the tree). Matches `.nexus/navRecents.json`, `.nexus/navFavorites.json`, `.nexus/pins/*`. */
+export function isNavPath(root: string, path: string): boolean {
+  const segs = relative(root, path).split(sep)
+  if (segs[0] !== '.nexus') return false
+  return segs[1] === NEXUS_CONFIG_FILES.navRecents || segs[1] === NEXUS_CONFIG_FILES.navFavorites || segs[1] === 'pins'
+}
 
 // Ignore only what ISN'T user-meaningful tree content: the SQLite index (index.db*,
 // which thrashes on every mutation via WAL), the .trash, and OS/editor dotfile cruft.
@@ -68,6 +79,12 @@ export async function startWatcher(root: string, win: BrowserWindow): Promise<vo
     // in-app write refetches explicitly, so the echo only buys a wasted full walk
     // (hot under block gestures + embed typing). External edits still walk.
     if (isRecentWrite(path)) return
+    // Nav sidecars/pins aren't in the tree — a synced-in change refreshes nav state only, never a walk.
+    if (isNavPath(root, path)) {
+      if (navDebounce) clearTimeout(navDebounce)
+      navDebounce = setTimeout(() => void pushNav(root, win), SETTLE_MS)
+      return
+    }
     if (debounce) clearTimeout(debounce)
     debounce = setTimeout(() => void push(root, win), SETTLE_MS)
   }
@@ -89,6 +106,10 @@ export function stopWatcher(): void {
     clearTimeout(debounce)
     debounce = null
   }
+  if (navDebounce) {
+    clearTimeout(navDebounce)
+    navDebounce = null
+  }
   if (watcher) {
     void watcher.close()
     watcher = null
@@ -102,5 +123,17 @@ async function push(root: string, win: BrowserWindow): Promise<void> {
     if (!win.isDestroyed()) win.webContents.send('nexus:changed', tree)
   } catch {
     // Transient FS state mid-write — the next settle re-reads (Reload is the fallback).
+  }
+}
+
+/** Push nav state only (recents + favorites + pins) — no tree walk. Fires when a Nav sidecar / pin
+ *  file changes externally (a cross-device sync), so a pin made on another machine surfaces live. */
+async function pushNav(root: string, win: BrowserWindow): Promise<void> {
+  if (sessionRoot() !== root || win.isDestroyed()) return
+  try {
+    const [nav, pins] = await Promise.all([readNavState(root), readPins(root)])
+    if (!win.isDestroyed()) win.webContents.send('nav:changed', { ...nav, pins })
+  } catch {
+    // Transient FS state mid-sync — the next settle re-reads.
   }
 }
