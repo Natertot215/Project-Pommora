@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import type { PinEntry, RecentEntry } from '@shared/types'
-import { pinFor, reorderTo, migratePinnedRecents, cleanPinTarget } from './navPins'
+import type { PinEntry } from '@shared/types'
+import { pinFor, reorderTo, cleanPinTarget } from './navPins'
 import { navKey } from './navRecents'
 
 const p = (id: string, order: number): PinEntry => ({ kind: 'page', id, path: `/${id}`, order }) as PinEntry
@@ -17,7 +17,7 @@ describe('navPins', () => {
   })
 
   it('reorders to a fractional order between the new neighbors', () => {
-    const moved = reorderTo([p('a', 0), p('b', 1), p('c', 2)], navKey({ kind: 'page', id: 'c' }), navKey({ kind: 'page', id: 'a' }))
+    const moved = reorderTo([p('a', 0), p('b', 1), p('c', 2)], 'page:c', 'page:a')
     expect(moved).not.toBeNull()
     expect(moved!.order).toBeLessThan(0) // dropped before 'a'
     expect(navKey(moved!)).toBe('page:c')
@@ -25,18 +25,6 @@ describe('navPins', () => {
 
   it('returns null when active === over (no-op)', () => {
     expect(reorderTo([p('a', 0)], 'page:a', 'page:a')).toBeNull()
-  })
-
-  it('migrates pinned recents to ordered pins, dropping the flag and unpinned entries', () => {
-    const recents: RecentEntry[] = [
-      { kind: 'page', id: 'a', path: '/a', pinned: true },
-      { kind: 'page', id: 'b', path: '/b' },
-      { kind: 'context', id: 'x', pinned: true }
-    ]
-    const pins = migratePinnedRecents(recents)
-    expect(pins.map((x) => navKey(x))).toEqual(['page:a', 'context:x'])
-    expect(pins[0].order).toBeLessThan(pins[1].order)
-    expect((pins[0] as { pinned?: boolean }).pinned).toBeUndefined()
   })
 
   it('strips order/deleted down to a clean target', () => {

@@ -26,7 +26,7 @@ import { updatePageBody } from './crud/page'
 import { readFolds, writeFolds, type FoldState } from './io/folds'
 import { readActiveViews, writeActiveViews, type ActiveViews } from './io/activeViews'
 import { flushNavWrites, hasPendingNavWrites, readNavState, scheduleRecentsWrite, writeFavorites, writeRecentsNow } from './io/navState'
-import { readPins, removePin, writePin } from './io/pinsState'
+import { loadOrMigratePins, removePin, writePin } from './io/pinsState'
 import { readViewOrders, writeViewOrders, type ViewOrders } from './io/viewOrders'
 import { saveView, reorderViews, deleteView } from './crud/views'
 import { setContainerConfig, type ContainerConfigPatch } from './crud/containerConfig'
@@ -309,7 +309,7 @@ ipcMain.handle('nav:loadPins', async (): Promise<PinsResult> => {
   const root = sessionRoot()
   if (root === null) return { ok: false, error: 'No nexus open' }
   try {
-    return { ok: true, pins: await readPins(root) }
+    return { ok: true, pins: await loadOrMigratePins(root) }
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : String(e) }
   }

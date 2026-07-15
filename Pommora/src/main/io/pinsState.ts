@@ -10,6 +10,7 @@ import type { NavTarget, PinEntry } from '@shared/types'
 import { nexusDir } from '../paths'
 import { readJsonObject, writeJson } from './atomicWrite'
 import { serializeOnFile } from './fileLock'
+import { readNavState } from './navState'
 
 const NAV_KINDS = new Set(['homepage', 'context', 'collection', 'set', 'page', 'task', 'event'])
 const pinsDir = (root: string): string => join(nexusDir(root), 'pins')
@@ -65,4 +66,22 @@ export async function writePin(root: string, pin: PinEntry): Promise<void> {
 /** Unpin = tombstone-write (not unlink), reaped on the next read. */
 export async function removePin(root: string, target: NavTarget, order: number): Promise<void> {
   await writeAt(root, pinFileName(target), { ...target, order, deleted: true } as PinEntry)
+}
+
+/** Load pins, migrating legacy `pinned:true` recents on the FIRST open of a nexus. The pins dir's own
+ *  existence is the migrated-sentinel: once any pin file OR tombstone exists it never re-migrates, so a
+ *  machine that has synced-in an already-migrated nexus can't re-create a since-unpinned pin from its
+ *  own stale flags. Migration is order-preserving (integer-spaced in the recents' order). */
+export async function loadOrMigratePins(root: string): Promise<PinEntry[]> {
+  try {
+    await readdir(pinsDir(root))
+  } catch {
+    const { recents } = await readNavState(root)
+    const migrated = recents
+      .filter((r) => r.pinned)
+      .map(({ pinned: _pinned, ...target }, i) => ({ ...target, order: i }) as PinEntry)
+    for (const pin of migrated) await writePin(root, pin)
+    return migrated
+  }
+  return readPins(root)
 }

@@ -2,7 +2,7 @@
 // by a numeric fractional `order`; membership is keyed by navKey. The in-memory list is the sorted
 // projection of the per-pin files; these helpers compute the single file each mutation rewrites.
 
-import type { NavTarget, PinEntry, RecentEntry } from '@shared/types'
+import type { NavTarget, PinEntry } from '@shared/types'
 import { navKey } from './navRecents'
 import { keyBetween } from './order'
 
@@ -38,12 +38,4 @@ export function reorderTo(pins: PinEntry[], activeKey: string, overKey: string):
   const before = next[idx - 1]?.order ?? null
   const after = next[idx + 1]?.order ?? null
   return { ...sorted[from], order: keyBetween(before, after) }
-}
-
-/** One-time migration: legacy `pinned:true` recents → ordered pins, dropping the flag, integer-spaced
- *  in their current recents order. */
-export function migratePinnedRecents(recents: RecentEntry[]): PinEntry[] {
-  return recents
-    .filter((r) => r.pinned)
-    .map(({ pinned: _pinned, ...target }, i) => ({ ...target, order: i }) as PinEntry)
 }

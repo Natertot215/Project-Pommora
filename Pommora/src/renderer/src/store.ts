@@ -1,8 +1,9 @@
 import { create } from 'zustand'
-import { DEFAULT_COMMANDS, type AgendaEntry, type NavFavorite, type NavTarget, type NexusTree, type PageDetail, type Personalization, type RecentEntry, type SelectionState, type SetNode } from '@shared/types'
+import { DEFAULT_COMMANDS, type AgendaEntry, type NavFavorite, type NavTarget, type NexusTree, type PageDetail, type Personalization, type PinEntry, type RecentEntry, type SelectionState, type SetNode } from '@shared/types'
 import { DEFAULT_NEW_NAME, type MutableKind, type MutateRequest } from '@shared/mutate'
 import { reconcileSelection } from './selection'
-import { navKey, recordRecent, RECENTS_CAP, togglePinned } from './Navigation/navRecents'
+import { navKey, recordRecent, RECENTS_CAP } from './Navigation/navRecents'
+import { byOrder, cleanPinTarget, pinFor, reorderTo } from './Navigation/navPins'
 import { stabilize } from './treeStabilize'
 import { applyAccent, applySystemAccent } from './design-system/accent'
 import { applyPersonalization, applyPersonalizationKey } from './design-system/personalization'
@@ -154,8 +155,13 @@ interface SessionState {
    *  `select`. Entries store only {kind,id,path} — title/icon/location resolve live (navResolve). */
   recents: RecentEntry[]
   favorites: NavFavorite[]
-  /** Toggle the temp-pin on a recents entry (floats it to the top at render); persists immediately. */
-  togglePin: (key: string) => void
+  /** Durable, user-ordered pins — per-pin files under `.nexus/pins/` (synced). pin/unpin/reorder each
+   *  persist a single file immediately; loaded (+ one-time legacy-pinned migration) on nexus open. */
+  pins: PinEntry[]
+  pinTarget: (target: NavTarget) => void
+  unpinTarget: (key: string) => void
+  reorderPin: (activeKey: string, overKey: string) => void
+  loadPins: () => Promise<void>
   /** Add a durable favorite (no-op if already present), remove one, or reorder; each persists immediately. */
   addFavorite: (target: NavTarget) => void
   removeFavorite: (key: string) => void
@@ -288,14 +294,17 @@ export const useSession = create<SessionState>((set, get) => {
             } catch {
               // bridge/handler absent — surfaces fall back to the first saved view
             }
-            // Navigation layer — wholesale per-nexus reset (E-11): replace both slices from disk and
-            // drop the stale agenda snapshot before any record/render happens in the new nexus.
+            // Navigation layer — wholesale per-nexus reset (E-11): replace every slice from disk and
+            // drop the stale agenda snapshot before any record/render happens in the new nexus. Pins
+            // load (+ first-open legacy migration) through their own bridge.
             try {
               const nav = await window.nexus.nav.load()
               set(nav.ok ? { recents: nav.recents, favorites: nav.favorites } : { recents: [], favorites: [] })
             } catch {
               set({ recents: [], favorites: [] })
             }
+            set({ pins: [] })
+            await get().loadPins()
             set({ agendaSnapshot: null })
             break
           case 'empty':
@@ -436,10 +445,32 @@ export const useSession = create<SessionState>((set, get) => {
 
     recents: [],
     favorites: [],
-    togglePin: (key) => {
-      const recents = togglePinned(get().recents, key)
-      set({ recents })
-      void window.nexus.nav.saveRecents(recents, true) // immediate: a deliberate act
+    pins: [],
+    pinTarget: (target) => {
+      // Agenda kinds have no durable resolver yet; adopted ids re-mint on adoption (would orphan the file).
+      if (target.kind === 'task' || target.kind === 'event') return
+      if ('id' in target && target.id.startsWith('adopted-')) return
+      const key = navKey(target)
+      if (get().pins.some((p) => navKey(p) === key)) return
+      const pin = pinFor(target, get().pins)
+      set({ pins: [...get().pins, pin].sort(byOrder) })
+      void window.nexus.nav.addPin(pin)
+    },
+    unpinTarget: (key) => {
+      const pin = get().pins.find((p) => navKey(p) === key)
+      if (!pin) return
+      set({ pins: get().pins.filter((p) => navKey(p) !== key) })
+      void window.nexus.nav.removePin(cleanPinTarget(pin), pin.order)
+    },
+    reorderPin: (activeKey, overKey) => {
+      const moved = reorderTo(get().pins, activeKey, overKey)
+      if (!moved) return
+      set({ pins: get().pins.map((p) => (navKey(p) === activeKey ? moved : p)).sort(byOrder) })
+      void window.nexus.nav.reorderPin(moved)
+    },
+    loadPins: async () => {
+      const res = await window.nexus.nav.loadPins().catch(() => null)
+      if (res?.ok) set({ pins: [...res.pins].sort(byOrder) })
     },
     addFavorite: (target) => {
       // v1 favorites are tree kinds only (R3-F2): an agenda favorite would resolve to null and render
