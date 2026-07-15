@@ -88,7 +88,7 @@
 .nav-gallery-pin {
   position: absolute;
   top: 6px;
-  left: 6px;
+  right: 6px;
   display: flex;
   padding: 3px;
   border: none;
@@ -117,9 +117,9 @@
   gap: 4px;
   padding: 8px 9px;
   min-width: 0;
-  /* The black primitive at 10% over the pane glass — reads as a slightly-darker glass shelf, mirroring
-     the glass's own dimming. (A nested backdrop-filter wouldn't: Chromium doesn't stack frost-in-frost.) */
-  background: color-mix(in srgb, var(--system-black) 10%, transparent);
+  /* The muted dimming veil over the pane glass — reads as a slightly-darker glass shelf, mirroring the
+     glass's own dimming. (A nested backdrop-filter wouldn't: Chromium doesn't stack frost-in-frost.) */
+  background: var(--state-muted);
   border-top: 1.5px solid var(--separator-border);
 }
 .nav-gallery-title,

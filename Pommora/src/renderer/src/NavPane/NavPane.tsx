@@ -159,7 +159,7 @@ function NavPaneBody({ closing }: { closing: boolean }): React.JSX.Element {
         <Icon name="x" size={14} />
       </button>
       <div className="navpane-body">
-        <GlassWindow className="navpane-rail" style={{ background: 'color-mix(in srgb, var(--system-black) 10%, transparent)' }}>
+        <GlassWindow className="navpane-rail" style={{ background: 'var(--state-muted)' }}>
           <div className="navpane-rail-list scroll-edge-fade">
             <NavList items={resolvedFavorites} onSelect={goClose} />
           </div>

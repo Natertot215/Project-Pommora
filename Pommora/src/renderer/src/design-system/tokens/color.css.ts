@@ -67,11 +67,11 @@ const derived = createGlobalTheme(':root', {
       quinary: greyA('4%')
     },
     // Interaction states (Figma "States") — system-grey at hover 2.5% / selected 5%. `muted` is a
-    // system-black 15% de-emphasis veil reserved for future drag/dimming use (defined ahead of a consumer).
+    // system-black 10% de-emphasis veil for dimming a surface a step darker.
     state: {
       hover: greyA('2.5%'),
       selected: greyA('5%'),
-      muted: blackA('15%')
+      muted: blackA('10%')
     },
     // Hairlines (Figma "Separator") — system-grey at line/border 25% / segment 20%.
     separator: {
