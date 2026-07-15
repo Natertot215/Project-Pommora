@@ -1,0 +1,31 @@
+/* TEMPORARY multi-tab preview strip — a throwaway toolbar tabbar. Fills the slack between the toolbar
+   clusters; segments flex to equal width; current tab reads label-secondary, the rest label-tertiary.
+   Delete this file with TabBarPreview when the multi-tab direction is settled. */
+.tabbar-preview {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  height: var(--toolbar-h);
+  margin: 0 12px;
+  pointer-events: auto;
+  -webkit-app-region: no-drag;
+}
+/* Stretch the segmented container across the slack (it's fit-content by default). */
+.tabbar-preview > * {
+  flex: 1;
+  min-width: 0;
+  width: auto !important;
+}
+/* Each tab flexes to an equal share; the label eclipses when it runs out of room. */
+.tabbar-preview button {
+  flex: 1 1 0;
+  min-width: 0;
+}
+/* Current tab vs the rest — attribute selectors outrank the toolbar's blanket `button` color. */
+.tabbar-preview button[aria-pressed='true'] {
+  color: var(--label-secondary);
+}
+.tabbar-preview button[aria-pressed='false'] {
+  color: var(--label-tertiary);
+}
