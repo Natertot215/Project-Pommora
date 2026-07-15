@@ -335,6 +335,14 @@ export type RecentEntry = NavTarget & { pinned?: boolean }
  *  stays permissive so agenda favorites slot in with their resolver later. */
 export type NavFavorite = NavTarget
 
+/** A durable, user-ordered pin. Persisted one file per pin under `.nexus/pins/` so concurrent
+ *  cross-device adds never collide (filesystem-as-merge, no whole-array LWW loss). `order` is a
+ *  numeric fractional key; `deleted` is a tombstone (unpin) reaped from the in-memory set on load. */
+export type PinEntry = NavTarget & { order: number; deleted?: boolean }
+
+/** The `nav:loadPins` IPC envelope. */
+export type PinsResult = { ok: true; pins: PinEntry[] } | { ok: false; error: string }
+
 /** The two Navigation sidecars read together (`.nexus/navRecents.json` + `navFavorites.json`). */
 export interface NavState {
   recents: RecentEntry[]
