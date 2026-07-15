@@ -54,7 +54,7 @@
   object-fit: cover;
   object-position: top; /* the page's inline title banner sits at the top of the shot */
   transform: scale(var(--cover-zoom, 1));
-  transform-origin: top center;
+  transform-origin: top left; /* anchor the zoom at the title / line-starts so it never clips them */
   -webkit-user-drag: none; /* the image never drags on its own — the card owns the drag (or nothing) */
 }
 .nav-gallery-ph {
