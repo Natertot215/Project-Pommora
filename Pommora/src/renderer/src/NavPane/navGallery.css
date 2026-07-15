@@ -109,15 +109,15 @@
 .nav-gallery-text {
   flex: 1;
   min-height: 0;
-  /* Title + location are two fixed rows, centered as a pair so the gap between them lands at the
-     vertical middle of the title-area. */
+  /* Title pinned to the TOP of the title-area (flex-start), never centered — so a card with no location
+     keeps its title in the same fixed top spot as one with a location. Title + location are two rows. */
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 4px;
   padding: 8px 9px;
   min-width: 0;
-  background: var(--surface-primary);
+  background: var(--bg-window);
   border-top: 1.5px solid var(--separator-border);
 }
 .nav-gallery-title,
