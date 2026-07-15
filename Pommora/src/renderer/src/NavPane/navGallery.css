@@ -117,9 +117,9 @@
   gap: 4px;
   padding: 8px 9px;
   min-width: 0;
-  /* The black dimming veil over the pane glass — reads as a slightly-darker glass shelf (a nested
-     backdrop-filter wouldn't: Chromium doesn't stack frost-in-frost). */
-  background: var(--state-muted);
+  /* The black primitive at 10% over the pane glass — reads as a slightly-darker glass shelf, mirroring
+     the glass's own dimming. (A nested backdrop-filter wouldn't: Chromium doesn't stack frost-in-frost.) */
+  background: color-mix(in srgb, var(--system-black) 10%, transparent);
   border-top: 1.5px solid var(--separator-border);
 }
 .nav-gallery-title,
