@@ -56,6 +56,21 @@ textarea,
   display: none;
 }
 
+/* Hover "pop" — a slight scale-up emphasis on hover, ridden on the slow token so it swells rather
+   than flicks. Reusable: add `hover-pop` to any element you want to lift on hover; tune the swell
+   with --pop-scale. A consumer that ALSO transitions another property (a border, say) must co-list
+   transform in its own `transition` (one element resolves to a single transition value). Never put
+   it on a drag-engine surface — that element's inline transform would swallow the scale; put it on
+   an inner layer instead. */
+.hover-pop {
+  position: relative;
+  transition: transform var(--duration-slow) var(--ease-standard);
+}
+.hover-pop:hover {
+  transform: scale(var(--pop-scale, 1.03));
+  z-index: 1;
+}
+
 /* Inspector openness, 0 (closed) → 1 (open) — one registered progress that the inspector slide, the
    trio's ride, and the trio glass-fade all derive from, so they stay frame-perfectly in sync. */
 @property --io {

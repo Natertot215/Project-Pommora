@@ -83,7 +83,8 @@ function GalleryCard({ it, nexusId, onSelect, drag }: { it: ResolvedNav; nexusId
       className={cx('nav-gallery-card', active && 'is-active', drag?.isDragging && 'is-dragging')}
       onClick={open}
     >
-      <div className="nav-gallery-thumb">
+      <div className="nav-gallery-card-body hover-pop">
+        <div className="nav-gallery-thumb">
         {failed ? (
           <div className="nav-gallery-ph">
             <EntityGlyph item={it} size={22} />
@@ -121,6 +122,7 @@ function GalleryCard({ it, nexusId, onSelect, drag }: { it: ResolvedNav; nexusId
             ))}
           </OverflowScroll>
         )}
+      </div>
       </div>
     </div>
   )

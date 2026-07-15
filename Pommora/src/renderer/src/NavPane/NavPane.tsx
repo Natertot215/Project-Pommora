@@ -142,12 +142,12 @@ function NavPaneBody({ closing }: { closing: boolean }): React.JSX.Element {
     el.addEventListener('pointerup', end)
     el.addEventListener('pointercancel', end)
   }
-  // Move from bare chrome only — presses on a control, a resize handle, or the scrollable CONTENT
-  // (list rows + gallery cards, which own their own click + drag-reorder) keep their own behavior. If
-  // the pane grabbed pointer-capture on a content press it would clobber the card's click and the
-  // reorder drag.
+  // The whole window background drags to reposition — but card-aware: a press on a control, a resize
+  // handle, or an actual item (a gallery card or a list row button, which own their click + reorder)
+  // keeps its own behavior; only the bare background between/around them grabs the move. Grabbing
+  // pointer-capture on a card would clobber its click and its reorder drag.
   const onWindowDown = (e: ReactPointerEvent<HTMLElement>): void => {
-    if ((e.target as HTMLElement).closest('button, input, .navpane-rail-resize, [class*="navpane-resize"], .navpane-main-scroll, .navpane-rail-list')) return
+    if ((e.target as HTMLElement).closest('button, input, .navpane-rail-resize, [class*="navpane-resize"], .nav-gallery-card')) return
     startDrag('move', e)
   }
 

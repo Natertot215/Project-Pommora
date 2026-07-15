@@ -82,7 +82,7 @@ export function NavList({
             e.preventDefault()
             setMenu({ item: it, x: e.clientX, y: e.clientY })
           }}>
-            {it.pinned && <Icon name="pin" size={10} className="nav-item-pin" />}
+            {it.pinned && <Icon name="pin" size={12} className="nav-item-pin" />}
             <button type="button" className="nav-item-main" onClick={() => onSelect(it.target)}>
               <EntityGlyph item={it} size={15} className="nav-item-lead" />
               <OverflowScroll className="nav-item-title">{it.title}</OverflowScroll>

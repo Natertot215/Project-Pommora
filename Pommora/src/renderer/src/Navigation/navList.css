@@ -12,13 +12,13 @@
   align-items: center;
   border-radius: 6px;
 }
-/* Pinned marker — an accent pin in the row's left inset gutter (absolute so it never shifts the row
-   content out of alignment with un-pinned rows). */
+/* Pinned marker — an accent pin centered in the row's left inset gutter (absolute so it never shifts
+   the row content out of alignment with un-pinned rows). */
 .nav-item-pin {
   position: absolute;
-  left: 2px;
+  left: calc(var(--navpane-inset, 12px) / 2);
   top: 50%;
-  transform: translateY(-50%);
+  transform: translate(-50%, -50%);
   color: var(--accent);
   pointer-events: none;
 }
