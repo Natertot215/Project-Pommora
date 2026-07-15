@@ -354,6 +354,9 @@ export interface ThumbRect {
   y: number
   width: number
   height: number
+  /** DIP height of the top band (the toolbar strip) to overpaint with the window bg in the captured
+   *  image — keeps the empty top framing minus the toolbar buttons, without hiding them live (which flickers). */
+  maskTop?: number
 }
 
 /** The `capture:thumbnail` envelope — the written thumbnail's `nexus-asset://` URL. */

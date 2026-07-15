@@ -1,20 +1,23 @@
 import { useEffect } from 'react'
+import type { ThumbRect } from '@shared/types'
 import { useSession } from '../store'
 import { navKey } from './navRecents'
 
 // The `.content-pane` fills the whole window; the sidebar, toolbar, and inspector are floating overlays
 // on top of it. Carve off the sidebar (start right of it) and the inspector (end left of it), each skipped
-// when parked off-screen. The toolbar band is KEPT (its vertical space + the content inset below it) so
-// the shot has its top framing and doesn't read too short — only the page's own content area, with its
-// insets, from the window top down. Each overlay edge is clamped inside the pane.
-function contentRect(pane: Element): { x: number; y: number; width: number; height: number } {
+// when parked off-screen. The toolbar band is KEPT in the shot (top framing, so it doesn't read too short),
+// but its buttons are painted over with the window bg in main (maskTop = the toolbar's reach below the top)
+// — nothing is hidden live, so the capture never flickers. Each overlay edge is clamped inside the pane.
+function contentRect(pane: Element): ThumbRect {
   const p = pane.getBoundingClientRect()
   let { left, right } = p
   const sidebar = document.querySelector('.surface-glass')?.getBoundingClientRect()
   if (sidebar && sidebar.right > left && sidebar.right < right) left = sidebar.right
   const inspector = document.querySelector('.inspector-glass')?.getBoundingClientRect()
   if (inspector && inspector.left > left && inspector.left < right) right = inspector.left
-  return { x: left, y: p.top, width: right - left, height: p.bottom - p.top }
+  const toolbar = document.querySelector('.app-toolbar')?.getBoundingClientRect()
+  const maskTop = toolbar ? Math.max(0, toolbar.bottom - p.top) : 0
+  return { x: left, y: p.top, width: right - left, height: p.bottom - p.top, maskTop }
 }
 
 /** Await every image in the pane finishing load (the banner especially) so the shot isn't captured
@@ -30,7 +33,8 @@ async function imagesReady(pane: Element): Promise<void> {
 // is a dep), so a page opened while browsing with the pane open gets its cover the moment the pane
 // closes. Waits for fonts + all images (the banner) so the banner has rendered first; a ~300ms delay
 // clears the pane's close animation and debounces rapid navigation. Only the detail rect (contentRect
-// carves off the sidebar/toolbar/inspector overlays) is captured.
+// carves off the sidebar/inspector overlays; the toolbar's buttons are masked in the captured image, not
+// hidden live) is captured.
 export function useNavThumbnails(): void {
   const selection = useSession((s) => s.selection)
   const pageStatus = useSession((s) => s.pageStatus)
@@ -50,18 +54,7 @@ export function useNavThumbnails(): void {
         await new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())))
         if (cancelled || useSession.getState().navOpen) return
         const key = navKey(selection)
-        // Hide the toolbar for the shot — the cover keeps its top BAND (framing) but not the buttons;
-        // restored the instant the capture returns (a rAF lets the hidden state paint before capture).
-        const toolbar = document.querySelector<HTMLElement>('.app-toolbar')
-        const prevVis = toolbar?.style.visibility ?? ''
-        if (toolbar) toolbar.style.visibility = 'hidden'
-        await new Promise<void>((r) => requestAnimationFrame(() => r()))
-        let res: Awaited<ReturnType<typeof window.nexus.capture.thumbnail>>
-        try {
-          res = await window.nexus.capture.thumbnail(key, contentRect(pane), window.devicePixelRatio)
-        } finally {
-          if (toolbar) toolbar.style.visibility = prevVis
-        }
+        const res = await window.nexus.capture.thumbnail(key, contentRect(pane), window.devicePixelRatio)
         if (!cancelled && res.ok) bumpThumb(key)
       })()
     }, 300)
