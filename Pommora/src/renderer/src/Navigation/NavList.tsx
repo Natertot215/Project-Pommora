@@ -25,6 +25,7 @@ export function NavList({
     <ul className="nav-list">
       {items.map((it) => (
         <li key={it.key} className="nav-item">
+          {it.pinned && <Icon name="pin" size={10} className="nav-item-pin" />}
           <button type="button" className="nav-item-main" onClick={() => onSelect(it.target)}>
             <Icon name={it.icon} size={15} className="nav-item-lead" />
             <OverflowScroll className="nav-item-title">{it.title}</OverflowScroll>

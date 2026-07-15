@@ -8,10 +8,11 @@ import { useExitPresence } from '../design-system/useExitPresence'
 import { useSession } from '../store'
 import { splitSearch, useNavData } from '../Navigation/useNavData'
 import { NavList } from '../Navigation/NavList'
+import { NavGallery } from './NavGallery'
 import './navpane.css'
 
 // KNOB — the pane's default opening size + resize/rail bounds.
-const WIN = { minW: 360, minH: 280, defW: 640, defH: 460 }
+const WIN = { minW: 360, minH: 280, defW: 750, defH: 500 }
 const RAIL = { min: 120, def: 200, max: 320 }
 
 type DragMode = 'move' | 'rail' | 'nw' | 'ne' | 'sw' | 'se'
@@ -38,7 +39,7 @@ export function NavPane(): React.JSX.Element | null {
 }
 
 function NavPaneBody({ closing }: { closing: boolean }): React.JSX.Element {
-  const { resolvedRecents, resolvedFavorites, search, go } = useNavData()
+  const { resolvedRecents, resolvedFavorites, resolvedPins, search, go } = useNavData()
   const closeNav = useSession((s) => s.closeNav)
 
   const [query, setQuery] = useState('')
@@ -153,8 +154,10 @@ function NavPaneBody({ closing }: { closing: boolean }): React.JSX.Element {
           <div className="navpane-main-scroll scroll-edge-fade">
             {results ? (
               <NavList items={results.items} extras={results.extras} onSelect={goClose} />
+            ) : viewMode === 'gallery' ? (
+              <NavGallery pins={resolvedPins} items={resolvedRecents} onSelect={goClose} />
             ) : (
-              <NavList items={resolvedRecents} onSelect={goClose} />
+              <NavList items={[...resolvedPins, ...resolvedRecents]} onSelect={goClose} />
             )}
           </div>
         </div>

@@ -1,0 +1,108 @@
+/* Gallery knobs — Nathan tunes live: --card-min (column width floor, drives how many columns the flow
+   fits), --card-gap-h / --card-gap-v (inter-card spacing). Cards flow into as many columns as the
+   width allows (auto-fill), pinned block first, recents block after — one continuous look, no divider. */
+.nav-gallery {
+  --card-min: 150px;
+  --card-gap-h: 12px;
+  --card-gap-v: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--card-gap-v);
+  padding: 6px var(--navpane-inset, 12px);
+}
+.nav-gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(var(--card-min), 1fr));
+  gap: var(--card-gap-v) var(--card-gap-h);
+}
+
+.nav-gallery-card {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--separator-border);
+  border-radius: 10px;
+  overflow: hidden;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color var(--duration-base) var(--ease-standard);
+}
+/* Open entity — same accent-tint border as an active SurfacePM embed/resize. */
+.nav-gallery-card.is-active {
+  border-color: color-mix(in srgb, var(--accent) var(--tint-secondary), transparent);
+}
+.nav-gallery-card.is-dragging {
+  opacity: 0.85;
+}
+
+.nav-gallery-thumb {
+  position: relative;
+  aspect-ratio: 3 / 2;
+  overflow: hidden;
+  background: var(--fill-tertiary);
+}
+.nav-gallery-thumb img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top; /* the page's inline title banner sits at the top of the shot */
+}
+.nav-gallery-ph {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  color: var(--label-tertiary);
+  background: var(--accent-fill);
+}
+
+/* Accent pin, overlaid top-left ON the thumbnail. Solid when pinned; hover-revealed on the rest. */
+.nav-gallery-pin {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  display: flex;
+  padding: 3px;
+  border: none;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--main-bg) 55%, transparent);
+  color: var(--accent);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--duration-base) var(--ease-standard);
+}
+.nav-gallery-card:hover .nav-gallery-pin,
+.nav-gallery-pin.is-pinned {
+  opacity: 1;
+}
+
+.nav-gallery-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 8px 8px;
+  min-width: 0;
+}
+.nav-gallery-title {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  color: var(--label-primary);
+  --eclipse-fade: 14px;
+  --scroll-fade: 14px;
+}
+.nav-gallery-title-icon {
+  flex: 0 0 auto;
+  color: var(--label-secondary);
+}
+.nav-gallery-loc {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  color: var(--label-secondary);
+  --eclipse-fade: 14px;
+  --scroll-fade: 14px;
+}

@@ -7,9 +7,20 @@
   gap: 1px;
 }
 .nav-item {
+  position: relative;
   display: flex;
   align-items: center;
   border-radius: 6px;
+}
+/* Pinned marker — an accent pin in the row's left inset gutter (absolute so it never shifts the row
+   content out of alignment with un-pinned rows). */
+.nav-item-pin {
+  position: absolute;
+  left: 2px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--accent);
+  pointer-events: none;
 }
 .nav-item:hover {
   background: var(--fill-tertiary);
