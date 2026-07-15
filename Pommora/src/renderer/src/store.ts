@@ -165,6 +165,11 @@ interface SessionState {
   agendaSnapshot: { tasks: AgendaEntry[]; events: AgendaEntry[] } | null
   /** Fetch the agenda snapshot if not already cached (lazy — the search surface calls it on open). */
   ensureAgendaSnapshot: () => Promise<void>
+  /** NavPane (the ribbon-summoned floating mini-shell) open state; opening warms the agenda snapshot. */
+  navOpen: boolean
+  openNav: () => void
+  closeNav: () => void
+  toggleNav: () => void
 
   /** Re-fetch the open page's detail (after a frontmatter write like a page banner/cover). No-op if no page. */
   reloadPage: () => Promise<void>
@@ -468,6 +473,16 @@ export const useSession = create<SessionState>((set, get) => {
       } catch {
         // bridge/handler absent — search runs over the tree alone until the next attempt
       }
+    },
+    navOpen: false,
+    openNav: () => {
+      void get().ensureAgendaSnapshot() // warm the agenda snapshot so search can list Tasks/Events
+      set({ navOpen: true })
+    },
+    closeNav: () => set({ navOpen: false }),
+    toggleNav: () => {
+      if (!get().navOpen) void get().ensureAgendaSnapshot()
+      set((s) => ({ navOpen: !s.navOpen }))
     },
     select: async (target, opts) => {
       // Record into history unless this is a programmatic re-select — a path refetch, Back/Forward,

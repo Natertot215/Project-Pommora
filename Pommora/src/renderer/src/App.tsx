@@ -6,11 +6,12 @@ import { Ribbon } from './Sidebar/Ribbon'
 import { DetailPane } from './Detail/DetailPane'
 import { Toolbar } from './Toolbar/Toolbar'
 import { InspectorPanel } from './Detail/InspectorPanel/InspectorPanel'
+import { NavPane } from './NavPane/NavPane'
 import { Icon } from '@renderer/design-system/symbols'
 import { matchesCommand } from './Commands'
 
 export function App(): React.JSX.Element {
-  const { status, tree, error, sidebarVisible, sidebarWidth, setSidebarWidth, inspectorWidth, setInspectorWidth, load, applyTree, choose, openDropped, toggleSidebar, ribbonVisible, toggleRibbon, commands, newPage, beginRename } =
+  const { status, tree, error, sidebarVisible, sidebarWidth, setSidebarWidth, inspectorWidth, setInspectorWidth, load, applyTree, choose, openDropped, toggleSidebar, ribbonVisible, toggleRibbon, toggleNav, commands, newPage, beginRename } =
     useSession()
 
   // Inspector toggle — window chrome state. Full-height pane that pushes content when open.
@@ -96,11 +97,14 @@ export function App(): React.JSX.Element {
       if (matchesCommand(commands['toggle-ribbon'], e)) {
         e.preventDefault()
         toggleRibbon()
+      } else if (matchesCommand(commands['toggle-nav'], e)) {
+        e.preventDefault()
+        toggleNav()
       }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [commands, toggleRibbon])
+  }, [commands, toggleRibbon, toggleNav])
 
   // The sidebar only "hides" when a nexus is open (its content is the tree). With
   // nothing open, the panel is the Open-Folder prompt — keep it visible so toggling
@@ -185,6 +189,8 @@ export function App(): React.JSX.Element {
       </button>
       {/* Trailing inspector pane — full-height twin of the sidebar; pushes content when open. */}
       {status === 'ready' && <InspectorPanel open={inspectorOpen} />}
+      {/* NavPane — the ribbon/⌘O-summoned floating mini-shell; app-global overlay, own presence. */}
+      {status === 'ready' && <NavPane />}
       {/* Invisible edge-drag resize strip at the inspector's left edge (only while open). */}
       {status === 'ready' && inspectorOpen && (
         <div

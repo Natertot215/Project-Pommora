@@ -42,7 +42,7 @@ export async function installAppMenu(win: BrowserWindow, adopt: AdoptFn): Promis
     {
       label: 'File',
       submenu: [
-        { label: 'Open Nexus…', accelerator: 'CmdOrCtrl+O', click: () => send('open') },
+        { label: 'Open Nexus…', click: () => send('open') },
         { label: 'Open Recent', submenu: recentItems },
         { type: 'separator' },
         // Renderer-driven: the store resolves the target container from the current

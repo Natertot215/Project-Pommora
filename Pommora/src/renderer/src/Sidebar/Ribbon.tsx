@@ -33,6 +33,7 @@ function resolveOrder(persisted: string[] | undefined): RibbonKey[] {
 
 export function Ribbon(): React.JSX.Element {
   const select = useSession((s) => s.select)
+  const openNav = useSession((s) => s.openNav)
   const mode = useSession((s) => s.personalization.sidebarMode ?? 'collections')
   const order = useSession((s) => s.personalization.ribbonOrder)
   const defaultIcons = useSession((s) => s.personalization.defaultIcons)
@@ -49,7 +50,8 @@ export function Ribbon(): React.JSX.Element {
   const onIcon = (k: RibbonKey): void => {
     const m = MODE_FOR[k]
     if (m) setPersonalization('sidebarMode', m)
-    // navigation / settings: future glass windows — no-op for now.
+    else if (k === 'navigation') openNav() // summon NavPane (the floating mini-shell)
+    // settings: future glass window — no-op for now.
   }
 
   // Drag-to-order the launcher icons (Homepage stays pinned, outside the zone). The reordered keys

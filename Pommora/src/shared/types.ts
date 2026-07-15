@@ -136,7 +136,8 @@ export function coerceViewScale(v: unknown): number {
  *  command ids, values are shortcut specs ("cmd+e"); an absent id falls back to its default here.
  *  Every future rebindable shortcut registers as a row in this map. */
 export const DEFAULT_COMMANDS: Record<string, string> = {
-  'toggle-ribbon': 'cmd+e'
+  'toggle-ribbon': 'cmd+e',
+  'toggle-nav': 'cmd+o'
 }
 
 export interface BaseNode {
