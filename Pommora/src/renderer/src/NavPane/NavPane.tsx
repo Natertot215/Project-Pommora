@@ -12,7 +12,7 @@ import { NavGallery } from './NavGallery'
 import './navpane.css'
 
 // KNOB — the pane's default opening size + resize/rail bounds.
-const WIN = { minW: 360, minH: 280, defW: 750, defH: 500 }
+const WIN = { minW: 360, minH: 280, defW: 850, defH: 600 }
 const RAIL = { min: 120, def: 200, max: 320 }
 
 type DragMode = 'move' | 'rail' | 'nw' | 'ne' | 'sw' | 'se'
@@ -132,9 +132,12 @@ function NavPaneBody({ closing }: { closing: boolean }): React.JSX.Element {
     el.addEventListener('pointerup', end)
     el.addEventListener('pointercancel', end)
   }
-  // Move from bare chrome only — presses on a control or a resize handle keep their own behavior.
+  // Move from bare chrome only — presses on a control, a resize handle, or the scrollable CONTENT
+  // (list rows + gallery cards, which own their own click + drag-reorder) keep their own behavior. If
+  // the pane grabbed pointer-capture on a content press it would clobber the card's click and the
+  // reorder drag.
   const onWindowDown = (e: ReactPointerEvent<HTMLElement>): void => {
-    if ((e.target as HTMLElement).closest('button, input, .navpane-rail-resize, [class*="navpane-resize"]')) return
+    if ((e.target as HTMLElement).closest('button, input, .navpane-rail-resize, [class*="navpane-resize"], .navpane-main-scroll, .navpane-rail-list')) return
     startDrag('move', e)
   }
 
