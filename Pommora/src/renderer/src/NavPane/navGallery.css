@@ -117,7 +117,9 @@
   gap: 4px;
   padding: 8px 9px;
   min-width: 0;
-  background: var(--bg-window);
+  /* The black dimming veil over the pane glass — reads as a slightly-darker glass shelf (a nested
+     backdrop-filter wouldn't: Chromium doesn't stack frost-in-frost). */
+  background: var(--state-muted);
   border-top: 1.5px solid var(--separator-border);
 }
 .nav-gallery-title,
