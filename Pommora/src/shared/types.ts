@@ -346,6 +346,17 @@ export type PinsResult = { ok: true; pins: PinEntry[] } | { ok: false; error: st
 /** The `nav:changed` watcher push — full nav state after an external/synced sidecar or pin change. */
 export type NavChanged = NavState & { pins: PinEntry[] }
 
+/** A detail-pane rectangle (DIP, viewport-relative) the renderer measures for a thumbnail capture. */
+export interface ThumbRect {
+  x: number
+  y: number
+  width: number
+  height: number
+}
+
+/** The `capture:thumbnail` envelope — the written thumbnail's `nexus-asset://` URL. */
+export type ThumbResult = { ok: true; url: string } | { ok: false; error: string }
+
 /** The two Navigation sidecars read together (`.nexus/navRecents.json` + `navFavorites.json`). */
 export interface NavState {
   recents: RecentEntry[]

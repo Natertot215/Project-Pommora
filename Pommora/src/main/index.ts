@@ -2,7 +2,7 @@ import { app, BrowserWindow, dialog, ipcMain, Menu, nativeTheme, protocol, shell
 import type { OpenDialogOptions } from 'electron'
 import { basename, dirname, extname, join, sep } from 'node:path'
 import { readFile, rename } from 'node:fs/promises'
-import type { AgendaListResult, NavFavorite, NavStateResult, NavTarget, NexusState, PageResult, PinEntry, PinsResult, RecentEntry, SubfieldConfig } from '@shared/types'
+import type { AgendaListResult, NavFavorite, NavStateResult, NavTarget, NexusState, PageResult, PinEntry, PinsResult, RecentEntry, SubfieldConfig, ThumbRect, ThumbResult } from '@shared/types'
 import { isPlainObject } from '@shared/propertyValue'
 import { collectAgendaEntries } from './agenda/collectAgenda'
 import type { MutateRequest, MutateResult, ContextTarget } from '@shared/mutate'
@@ -27,6 +27,7 @@ import { readFolds, writeFolds, type FoldState } from './io/folds'
 import { readActiveViews, writeActiveViews, type ActiveViews } from './io/activeViews'
 import { flushNavWrites, hasPendingNavWrites, readNavState, scheduleRecentsWrite, writeFavorites, writeRecentsNow } from './io/navState'
 import { loadOrMigratePins, removePin, writePin } from './io/pinsState'
+import { captureThumbnail, evictThumbnails } from './io/thumbnails'
 import { readViewOrders, writeViewOrders, type ViewOrders } from './io/viewOrders'
 import { saveView, reorderViews, deleteView } from './crud/views'
 import { setContainerConfig, type ContainerConfigPatch } from './crud/containerConfig'
@@ -335,6 +336,32 @@ ipcMain.handle('nav:removePin', async (_e, target: unknown, order: unknown): Pro
     if (root === null) return { ok: false, error: 'No nexus is open.' }
     if (!isPlainObject(target) || typeof order !== 'number') return { ok: false, error: 'Bad remove-pin args.' }
     await removePin(root, target as NavTarget, order)
+    return { ok: true }
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) }
+  }
+})
+
+// Gallery thumbnails — capture the detail-pane rect on entity-open, evict on membership roll-off.
+const isRect = (v: unknown): v is ThumbRect => isPlainObject(v) && ['x', 'y', 'width', 'height'].every((k) => typeof v[k] === 'number')
+ipcMain.handle('capture:thumbnail', async (e, navKey: unknown, rect: unknown, scaleFactor: unknown): Promise<ThumbResult> => {
+  try {
+    const root = sessionRoot()
+    if (root === null) return { ok: false, error: 'No nexus is open.' }
+    const win = BrowserWindow.fromWebContents(e.sender)
+    if (!win || typeof navKey !== 'string' || !isRect(rect) || typeof scaleFactor !== 'number') return { ok: false, error: 'Bad capture args.' }
+    const url = await captureThumbnail(win, root, navKey, rect, scaleFactor)
+    return url ? { ok: true, url } : { ok: false, error: 'Capture produced no image.' }
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : String(err) }
+  }
+})
+ipcMain.handle('nav:evictThumbs', async (_e, liveKeys: unknown): Promise<{ ok: true } | { ok: false; error: string }> => {
+  try {
+    const root = sessionRoot()
+    if (root === null) return { ok: false, error: 'No nexus is open.' }
+    if (!Array.isArray(liveKeys)) return { ok: false, error: 'Live keys must be an array.' }
+    await evictThumbnails(root, liveKeys.filter((k): k is string => typeof k === 'string'))
     return { ok: true }
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : String(e) }

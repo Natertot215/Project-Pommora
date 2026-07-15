@@ -165,6 +165,12 @@ interface SessionState {
   /** Apply a live nav refresh from the watcher (an external/synced sidecar or pin change) — swaps the
    *  nav slices without a tree re-walk. */
   applyNavChanged: (nav: { recents: RecentEntry[]; favorites: NavFavorite[]; pins: PinEntry[] }) => void
+  /** Gallery thumbnail cache-bust versions, keyed by navKey — bumped after a successful capture so the
+   *  card `<img>` reloads the overwritten file. */
+  thumbVersions: Record<string, number>
+  bumpThumb: (key: string) => void
+  /** Prune thumbnails outside the live recents∪pins set (fire-and-forget, on nexus open). */
+  evictThumbs: () => void
   /** Add a durable favorite (no-op if already present), remove one, or reorder; each persists immediately. */
   addFavorite: (target: NavTarget) => void
   removeFavorite: (key: string) => void
@@ -308,6 +314,7 @@ export const useSession = create<SessionState>((set, get) => {
             }
             set({ pins: [] })
             await get().loadPins()
+            get().evictThumbs() // prune thumbnails outside the fresh recents∪pins set
             set({ agendaSnapshot: null })
             break
           case 'empty':
@@ -476,6 +483,12 @@ export const useSession = create<SessionState>((set, get) => {
       if (res?.ok) set({ pins: [...res.pins].sort(byOrder) })
     },
     applyNavChanged: (nav) => set({ recents: nav.recents, favorites: nav.favorites, pins: [...nav.pins].sort(byOrder) }),
+    thumbVersions: {},
+    bumpThumb: (key) => set((s) => ({ thumbVersions: { ...s.thumbVersions, [key]: (s.thumbVersions[key] ?? 0) + 1 } })),
+    evictThumbs: () => {
+      const live = [...get().recents.map(navKey), ...get().pins.map(navKey)]
+      void window.nexus.capture.evict(live)
+    },
     addFavorite: (target) => {
       // v1 favorites are tree kinds only (R3-F2): an agenda favorite would resolve to null and render
       // as an invisible, un-removable entry until the agenda resolver ships.

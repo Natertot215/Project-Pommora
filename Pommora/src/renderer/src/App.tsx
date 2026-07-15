@@ -7,12 +7,14 @@ import { DetailPane } from './Detail/DetailPane'
 import { Toolbar } from './Toolbar/Toolbar'
 import { InspectorPanel } from './Detail/InspectorPanel/InspectorPanel'
 import { NavPane } from './NavPane/NavPane'
+import { useNavThumbnails } from './Navigation/useNavThumbnails'
 import { Icon } from '@renderer/design-system/symbols'
 import { matchesCommand } from './Commands'
 
 export function App(): React.JSX.Element {
   const { status, tree, error, sidebarVisible, sidebarWidth, setSidebarWidth, inspectorWidth, setInspectorWidth, load, applyTree, applyNavChanged, choose, openDropped, toggleSidebar, ribbonVisible, toggleRibbon, toggleNav, commands, newPage, beginRename } =
     useSession()
+  useNavThumbnails() // capture-on-open detail-pane thumbnails for the gallery
 
   // Inspector toggle — window chrome state. Full-height pane that pushes content when open.
   const [inspectorOpen, setInspectorOpen] = useState(false)

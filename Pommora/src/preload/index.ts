@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import type { IpcRendererEvent } from 'electron'
-import type { AgendaListResult, NavChanged, NavFavorite, NavStateResult, NavTarget, NexusState, NexusTree, OpenIn, PageResult, Personalization, PinEntry, PinsResult, RecentEntry, SubfieldConfig, ViewButton, ViewStyle } from '@shared/types'
+import type { AgendaListResult, NavChanged, NavFavorite, NavStateResult, NavTarget, NexusState, NexusTree, OpenIn, PageResult, Personalization, PinEntry, PinsResult, RecentEntry, SubfieldConfig, ThumbRect, ThumbResult, ViewButton, ViewStyle } from '@shared/types'
 import type { MutateRequest, MutateResult, ContextTarget } from '@shared/mutate'
 import type { FormatState } from '@shared/editorMenu'
 import type { TableMenuAction, TableMenuContext } from '@shared/tableMenu'
@@ -291,6 +291,12 @@ const api = {
     addPin: (pin: PinEntry): Promise<{ ok: true } | { ok: false; error: string }> => ipcRenderer.invoke('nav:addPin', pin),
     reorderPin: (pin: PinEntry): Promise<{ ok: true } | { ok: false; error: string }> => ipcRenderer.invoke('nav:reorderPin', pin),
     removePin: (target: NavTarget, order: number): Promise<{ ok: true } | { ok: false; error: string }> => ipcRenderer.invoke('nav:removePin', target, order)
+  },
+  // Gallery thumbnails — capture the detail-pane rect (main writes under .nexus/assets and returns the
+  // nexus-asset:// URL); evict prunes thumbnails outside the live recents∪pins set.
+  capture: {
+    thumbnail: (navKey: string, rect: ThumbRect, scaleFactor: number): Promise<ThumbResult> => ipcRenderer.invoke('capture:thumbnail', navKey, rect, scaleFactor),
+    evict: (liveKeys: string[]): Promise<{ ok: true } | { ok: false; error: string }> => ipcRenderer.invoke('nav:evictThumbs', liveKeys)
   },
   // Personalization (accent, connection color, interface toggles) — persist one key; the tree
   // surfaces current values (state → tree.personalization), so there's no get.
