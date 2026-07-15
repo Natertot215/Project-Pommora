@@ -81,3 +81,7 @@
   gap: 7px;
   cursor: default;
 }
+/* Right-click row menu — floor the width so the short action labels read as a menu, not a chip. */
+.nav-row-menu {
+  min-width: 150px;
+}

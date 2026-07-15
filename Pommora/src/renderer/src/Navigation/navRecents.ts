@@ -25,3 +25,10 @@ export function recordRecent(recents: RecentEntry[], target: NavTarget, cap = RE
 function capRecents(recents: RecentEntry[], cap: number): RecentEntry[] {
   return recents.length <= cap ? recents : recents.slice(0, cap)
 }
+
+/** Drop the entry whose navKey matches `key` — the NavList row's Remove action. Returns the same list
+ *  reference when nothing matched, so the caller can skip a needless persist. */
+export function removeRecentByKey(recents: RecentEntry[], key: string): RecentEntry[] {
+  const next = recents.filter((r) => navKey(r) !== key)
+  return next.length === recents.length ? recents : next
+}

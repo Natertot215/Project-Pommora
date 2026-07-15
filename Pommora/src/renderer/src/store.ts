@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import { DEFAULT_COMMANDS, type AgendaEntry, type NavFavorite, type NavTarget, type NexusTree, type PageDetail, type Personalization, type PinEntry, type RecentEntry, type SelectionState, type SetNode } from '@shared/types'
 import { DEFAULT_NEW_NAME, type MutableKind, type MutateRequest } from '@shared/mutate'
 import { reconcileSelection } from './selection'
-import { navKey, recordRecent, RECENTS_CAP } from './Navigation/navRecents'
+import { navKey, recordRecent, removeRecentByKey, RECENTS_CAP } from './Navigation/navRecents'
 import { byOrder, cleanPinTarget, pinFor, reorderTo } from './Navigation/navPins'
 import { stabilize } from './treeStabilize'
 import { applyAccent, applySystemAccent } from './design-system/accent'
@@ -175,6 +175,8 @@ interface SessionState {
   addFavorite: (target: NavTarget) => void
   removeFavorite: (key: string) => void
   reorderFavorites: (from: number, to: number) => void
+  /** Drop a recents-stream entry (the NavList row's Remove action); persists immediately. */
+  removeRecent: (key: string) => void
   /** Cached `agenda:list` snapshot for search — a full disk walk, so it's fetched ONCE and reused
    *  across summons, invalidated on any tree push + nexus switch. Null until first fetched. */
   agendaSnapshot: { tasks: AgendaEntry[]; events: AgendaEntry[] } | null
@@ -513,6 +515,12 @@ export const useSession = create<SessionState>((set, get) => {
       favorites.splice(to, 0, moved)
       set({ favorites })
       void window.nexus.nav.saveFavorites(favorites)
+    },
+    removeRecent: (key) => {
+      const next = removeRecentByKey(get().recents, key)
+      if (next === get().recents) return // nothing matched — no state churn, no write
+      set({ recents: next })
+      void window.nexus.nav.saveRecents(next, true) // immediate, like the pin toggle
     },
     agendaSnapshot: null,
     ensureAgendaSnapshot: async () => {

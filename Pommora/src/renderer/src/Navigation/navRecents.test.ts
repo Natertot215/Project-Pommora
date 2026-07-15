@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import type { RecentEntry } from '@shared/types'
-import { navKey, recordRecent } from './navRecents'
+import { navKey, recordRecent, removeRecentByKey } from './navRecents'
 
 const page = (id: string): RecentEntry => ({ kind: 'page', id, path: `${id}.md` })
 
@@ -33,5 +33,22 @@ describe('recordRecent', () => {
     const start = [page('a'), page('b'), page('c')]
     const r = recordRecent(start, { kind: 'page', id: 'd', path: 'd.md' }, 3)
     expect(r.map((e) => ('id' in e ? e.id : e.kind))).toEqual(['d', 'a', 'b']) // 'c' (oldest) dropped
+  })
+})
+
+describe('removeRecentByKey', () => {
+  it('drops the matching entry, preserving the rest in order', () => {
+    const r = removeRecentByKey([page('a'), page('b'), page('c')], 'page:b')
+    expect(r.map((e) => ('id' in e ? e.id : e.kind))).toEqual(['a', 'c'])
+  })
+
+  it('removes the id-less homepage by bare kind', () => {
+    const r = removeRecentByKey([{ kind: 'homepage' }, page('a')], 'homepage')
+    expect(r.map((e) => ('id' in e ? e.id : e.kind))).toEqual(['a'])
+  })
+
+  it('returns the same reference when nothing matched (no needless persist)', () => {
+    const start = [page('a'), page('b')]
+    expect(removeRecentByKey(start, 'page:z')).toBe(start)
   })
 })
