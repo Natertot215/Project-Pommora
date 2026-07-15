@@ -25,14 +25,25 @@ export function thumbRel(nexusId: string, key: string): string {
 
 const thumbsDir = (root: string, nexusId: string): string => join(root, '.nexus', 'assets', nexusId, 'thumbnails')
 
-/** Capture the detail-pane rect as a downscaled JPEG, overwrite its keyed file, return its asset URL —
- *  or null on a bad/blank capture (the card falls back to a placeholder). `capturePage(rect)` takes the
- *  DIP rect and returns just that region (Electron applies the display scale), so no manual crop math. */
-export async function captureThumbnail(win: BrowserWindow, root: string, navKey: string, rect: ThumbRect): Promise<string | null> {
+/** Capture the content-only rect as a downscaled JPEG, overwrite its keyed file, return its asset URL —
+ *  or null on a bad/blank capture (the card falls back to a placeholder). `capturePage(rect)` returns an
+ *  empty image on HiDPI (the rect-crop bug), so we grab the whole page and crop in device pixels. `rect`
+ *  is DIP; `scaleFactor` (the renderer's devicePixelRatio, which folds in both the display scale and any
+ *  page zoom) maps it onto the captured image's pixels. */
+export async function captureThumbnail(win: BrowserWindow, root: string, navKey: string, rect: ThumbRect, scaleFactor: number): Promise<string | null> {
   if (rect.width < 1 || rect.height < 1) return null
-  const img = await win.webContents.capturePage({ x: Math.round(rect.x), y: Math.round(rect.y), width: Math.round(rect.width), height: Math.round(rect.height) })
+  const img = await win.webContents.capturePage()
   if (img.isEmpty()) return null
-  const buf = img.resize({ width: THUMB_WIDTH, quality: 'best' }).toJPEG(78)
+  const sf = scaleFactor > 0 ? scaleFactor : 1
+  const { width: iw, height: ih } = img.getSize()
+  const x = Math.max(0, Math.round(rect.x * sf))
+  const y = Math.max(0, Math.round(rect.y * sf))
+  const width = Math.min(Math.round(rect.width * sf), iw - x)
+  const height = Math.min(Math.round(rect.height * sf), ih - y)
+  if (width < 1 || height < 1) return null
+  const cropped = img.crop({ x, y, width, height })
+  if (cropped.isEmpty()) return null
+  const buf = cropped.resize({ width: THUMB_WIDTH, quality: 'best' }).toJPEG(78)
   const { id: nexusId } = await ensureIdentity(root)
   const key = thumbKey(navKey)
   const rel = thumbRel(nexusId, key)

@@ -344,13 +344,13 @@ ipcMain.handle('nav:removePin', async (_e, target: unknown, order: unknown): Pro
 
 // Gallery thumbnails — capture the detail-pane rect on entity-open, evict on membership roll-off.
 const isRect = (v: unknown): v is ThumbRect => isPlainObject(v) && ['x', 'y', 'width', 'height'].every((k) => typeof v[k] === 'number')
-ipcMain.handle('capture:thumbnail', async (e, navKey: unknown, rect: unknown): Promise<ThumbResult> => {
+ipcMain.handle('capture:thumbnail', async (e, navKey: unknown, rect: unknown, scaleFactor: unknown): Promise<ThumbResult> => {
   try {
     const root = sessionRoot()
     if (root === null) return { ok: false, error: 'No nexus is open.' }
     const win = BrowserWindow.fromWebContents(e.sender)
-    if (!win || typeof navKey !== 'string' || !isRect(rect)) return { ok: false, error: 'Bad capture args.' }
-    const url = await captureThumbnail(win, root, navKey, rect)
+    if (!win || typeof navKey !== 'string' || !isRect(rect) || typeof scaleFactor !== 'number') return { ok: false, error: 'Bad capture args.' }
+    const url = await captureThumbnail(win, root, navKey, rect, scaleFactor)
     return url ? { ok: true, url } : { ok: false, error: 'Capture produced no image.' }
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : String(err) }

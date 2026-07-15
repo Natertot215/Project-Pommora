@@ -295,7 +295,7 @@ const api = {
   // Gallery thumbnails — capture the detail-pane rect (main writes under .nexus/assets and returns the
   // nexus-asset:// URL); evict prunes thumbnails outside the live recents∪pins set.
   capture: {
-    thumbnail: (navKey: string, rect: ThumbRect): Promise<ThumbResult> => ipcRenderer.invoke('capture:thumbnail', navKey, rect),
+    thumbnail: (navKey: string, rect: ThumbRect, scaleFactor: number): Promise<ThumbResult> => ipcRenderer.invoke('capture:thumbnail', navKey, rect, scaleFactor),
     evict: (liveKeys: string[]): Promise<{ ok: true } | { ok: false; error: string }> => ipcRenderer.invoke('nav:evictThumbs', liveKeys)
   },
   // Personalization (accent, connection color, interface toggles) — persist one key; the tree
