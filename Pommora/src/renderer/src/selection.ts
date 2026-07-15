@@ -2,15 +2,15 @@
 // selection can be stale: the entity was deleted (its id is gone) or renamed/moved (its id
 // survives but its path changed). Pure + dependency-free so it's unit-tested without a DOM.
 
-import type { CollectionNode, NexusTree, PageNode, SelectionState, SetNode } from '@shared/types'
+import type { AreaNode, CollectionNode, NexusTree, PageNode, ProjectNode, SelectionState, SetNode, TopicNode } from '@shared/types'
 
 /** Every top Collection across ungrouped + user sections. */
-function allCollections(tree: NexusTree): CollectionNode[] {
+export function allCollections(tree: NexusTree): CollectionNode[] {
   return [...(tree.collections ?? []), ...tree.userSections.flatMap((s) => s.collections ?? [])]
 }
 
 /** Every Set at any depth under the tree's Collections (the recursive flatten). */
-function allSets(tree: NexusTree): SetNode[] {
+export function allSets(tree: NexusTree): SetNode[] {
   const out: SetNode[] = []
   const walk = (sets: SetNode[] | undefined): void => {
     for (const s of sets ?? []) {
@@ -23,11 +23,16 @@ function allSets(tree: NexusTree): SetNode[] {
 }
 
 /** Every page in the tree (Collection-direct + every nested Set's pages). */
-function allPages(tree: NexusTree): PageNode[] {
+export function allPages(tree: NexusTree): PageNode[] {
   const pages: PageNode[] = []
   for (const c of allCollections(tree)) pages.push(...c.pages)
   for (const s of allSets(tree)) pages.push(...s.pages)
   return pages
+}
+
+/** Every context leaf across the three free-standing tiers (Areas + Topics + Projects). */
+export function allContexts(tree: NexusTree): (AreaNode | TopicNode | ProjectNode)[] {
+  return [...tree.contexts.areas, ...tree.contexts.topics, ...tree.contexts.projects]
 }
 
 /**
@@ -43,9 +48,7 @@ export function reconcileSelection(tree: NexusTree, selection: SelectionState): 
       // Homepage is a singleton (always present) — never reconciled away.
       return selection
     case 'context':
-      return [...tree.contexts.areas, ...tree.contexts.topics, ...tree.contexts.projects].some((c) => c.id === selection.id)
-        ? selection
-        : { kind: 'none' }
+      return allContexts(tree).some((c) => c.id === selection.id) ? selection : { kind: 'none' }
     case 'collection':
       return allCollections(tree).some((c) => c.id === selection.id) ? selection : { kind: 'none' }
     case 'set': {

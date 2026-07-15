@@ -1,7 +1,8 @@
 import { create } from 'zustand'
-import { DEFAULT_COMMANDS, type NexusTree, type PageDetail, type Personalization, type SelectionState, type SetNode } from '@shared/types'
+import { DEFAULT_COMMANDS, type AgendaEntry, type NavFavorite, type NavTarget, type NexusTree, type PageDetail, type Personalization, type RecentEntry, type SelectionState, type SetNode } from '@shared/types'
 import { DEFAULT_NEW_NAME, type MutableKind, type MutateRequest } from '@shared/mutate'
 import { reconcileSelection } from './selection'
+import { navKey, recordRecent, RECENTS_CAP, togglePinned } from './Navigation/navRecents'
 import { stabilize } from './treeStabilize'
 import { applyAccent, applySystemAccent } from './design-system/accent'
 import { applyPersonalization, applyPersonalizationKey } from './design-system/personalization'
@@ -45,9 +46,6 @@ export type SelectTarget =
   | { kind: 'collection'; id: string }
   | { kind: 'set'; id: string; path: string }
   | { kind: 'page'; id: string; path: string }
-
-/** Identity of a nav target for history dedupe — consecutive re-selects of the same view collapse. */
-const navKey = (t: SelectTarget): string => ('id' in t ? `${t.kind}:${t.id}` : t.kind)
 
 /** A breadcrumb ghost crumb's target — the last page visited in a given container. */
 export interface TrailEntry {
@@ -149,6 +147,25 @@ interface SessionState {
   navIndex: number
   goBack: () => void
   goForward: () => void
+
+  /** Navigation layer (recents + favorites) — the shared, UI-agnostic wayfinding state NavPane +
+   *  NavMenu read. Persisted per-nexus (synced) via the `nav` bridge; the store owns the arrays and
+   *  the MRU/pin/cap/prune logic. Loaded + wholesale-reset on every nexus open (E-11), recorded in
+   *  `select`. Entries store only {kind,id,path} — title/icon/location resolve live (navResolve). */
+  recents: RecentEntry[]
+  favorites: NavFavorite[]
+  /** Toggle the temp-pin on a recents entry (floats it to the top at render); persists immediately. */
+  togglePin: (key: string) => void
+  /** Add a durable favorite (no-op if already present), remove one, or reorder; each persists immediately. */
+  addFavorite: (target: NavTarget) => void
+  removeFavorite: (key: string) => void
+  reorderFavorites: (from: number, to: number) => void
+  /** Cached `agenda:list` snapshot for search — a full disk walk, so it's fetched ONCE and reused
+   *  across summons, invalidated on any tree push + nexus switch. Null until first fetched. */
+  agendaSnapshot: { tasks: AgendaEntry[]; events: AgendaEntry[] } | null
+  /** Fetch the agenda snapshot if not already cached (lazy — the search surface calls it on open). */
+  ensureAgendaSnapshot: () => Promise<void>
+
   /** Re-fetch the open page's detail (after a frontmatter write like a page banner/cover). No-op if no page. */
   reloadPage: () => Promise<void>
   /** Create a page in the selected container (or the selected page's parent), then select it. */
@@ -266,6 +283,15 @@ export const useSession = create<SessionState>((set, get) => {
             } catch {
               // bridge/handler absent — surfaces fall back to the first saved view
             }
+            // Navigation layer — wholesale per-nexus reset (E-11): replace both slices from disk and
+            // drop the stale agenda snapshot before any record/render happens in the new nexus.
+            try {
+              const nav = await window.nexus.nav.load()
+              set(nav.ok ? { recents: nav.recents, favorites: nav.favorites } : { recents: [], favorites: [] })
+            } catch {
+              set({ recents: [], favorites: [] })
+            }
+            set({ agendaSnapshot: null })
             break
           case 'empty':
             set({ status: 'empty', tree: null })
@@ -307,6 +333,9 @@ export const useSession = create<SessionState>((set, get) => {
       set({ personalization: tree.personalization, commands: tree.commands ?? DEFAULT_COMMANDS })
       applyPersonalization(tree.personalization)
       if (homepageLockWritesInFlight === 0) set({ homepageLocked: tree.homepage.locked })
+      // A tree push may reflect an agenda-file change — drop the cached snapshot so the next search
+      // re-walks. Lazy: nothing re-fetches until search actually runs.
+      if (get().agendaSnapshot) set({ agendaSnapshot: null })
     },
 
     // Native folder picker; on a pick, the session changed → re-read.
@@ -399,17 +428,64 @@ export const useSession = create<SessionState>((set, get) => {
     navIndex: -1,
     goBack: () => stepHistory(-1),
     goForward: () => stepHistory(1),
+
+    recents: [],
+    favorites: [],
+    togglePin: (key) => {
+      const recents = togglePinned(get().recents, key)
+      set({ recents })
+      void window.nexus.nav.saveRecents(recents, true) // immediate: a deliberate act
+    },
+    addFavorite: (target) => {
+      // v1 favorites are tree kinds only (R3-F2): an agenda favorite would resolve to null and render
+      // as an invisible, un-removable entry until the agenda resolver ships.
+      if (target.kind === 'task' || target.kind === 'event') return
+      const key = navKey(target)
+      if (get().favorites.some((f) => navKey(f) === key)) return
+      const favorites = [...get().favorites, target]
+      set({ favorites })
+      void window.nexus.nav.saveFavorites(favorites)
+    },
+    removeFavorite: (key) => {
+      const favorites = get().favorites.filter((f) => navKey(f) !== key)
+      set({ favorites })
+      void window.nexus.nav.saveFavorites(favorites)
+    },
+    reorderFavorites: (from, to) => {
+      const favorites = [...get().favorites]
+      const [moved] = favorites.splice(from, 1)
+      if (!moved) return
+      favorites.splice(to, 0, moved)
+      set({ favorites })
+      void window.nexus.nav.saveFavorites(favorites)
+    },
+    agendaSnapshot: null,
+    ensureAgendaSnapshot: async () => {
+      if (get().agendaSnapshot) return
+      try {
+        const res = await window.nexus.agenda.list()
+        if (res.ok) set({ agendaSnapshot: { tasks: res.tasks, events: res.events } })
+      } catch {
+        // bridge/handler absent — search runs over the tree alone until the next attempt
+      }
+    },
     select: async (target, opts) => {
       // Record into history unless this is a programmatic re-select — a path refetch, Back/Forward,
       // or (once previews land) a preview open — which pass { record: false } so they don't push.
       if (opts?.record !== false) {
-        set((s) => {
-          const cur = s.navStack[s.navIndex]
-          if (cur && navKey(cur) === navKey(target)) return {} // same view re-selected — no dup entry
-          const stack = s.navStack.slice(0, s.navIndex + 1)
-          stack.push(target)
-          return { navStack: stack, navIndex: stack.length - 1 }
-        })
+        const cur = get().navStack[get().navIndex]
+        if (!cur || navKey(cur) !== navKey(target)) {
+          // A genuine navigation (not a re-select of the current view): push history AND record the
+          // recents stream. Back/Forward + path refetches pass { record: false }, so they never bump.
+          set((s) => {
+            const stack = s.navStack.slice(0, s.navIndex + 1)
+            stack.push(target)
+            return { navStack: stack, navIndex: stack.length - 1 }
+          })
+          const recents = recordRecent(get().recents, target, RECENTS_CAP)
+          set({ recents })
+          void window.nexus.nav.saveRecents(recents)
+        }
       }
       switch (target.kind) {
         case 'homepage':
