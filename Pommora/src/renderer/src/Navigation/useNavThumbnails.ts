@@ -21,10 +21,11 @@ export function useNavThumbnails(): void {
         if (!pane || cancelled) return
         await document.fonts?.ready
         await new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())))
-        if (cancelled) return
+        // Never capture with the NavPane overlay up — it would bake into the (synced) thumbnail.
+        if (cancelled || useSession.getState().navOpen) return
         const rect = pane.getBoundingClientRect()
         const key = navKey(selection)
-        const res = await window.nexus.capture.thumbnail(key, { x: rect.x, y: rect.y, width: rect.width, height: rect.height }, window.devicePixelRatio)
+        const res = await window.nexus.capture.thumbnail(key, { x: rect.x, y: rect.y, width: rect.width, height: rect.height })
         if (!cancelled && res.ok) bumpThumb(key)
       })()
     }, 250)

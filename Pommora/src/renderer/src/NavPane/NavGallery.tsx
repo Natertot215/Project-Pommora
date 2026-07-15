@@ -20,24 +20,20 @@ const thumbFile = (key: string): string => key.replace(':', '-')
 export function NavGallery({ pins, items, onSelect }: { pins: ResolvedNav[]; items: ResolvedNav[]; onSelect: (target: NavTarget) => void }): React.JSX.Element {
   const reorderPin = useSession((s) => s.reorderPin)
   const nexusId = useSession((s) => s.tree?.nexus.id ?? '')
+  // One grid, one flow: pinned cards first (draggable to reorder), recents straight after them. Only
+  // the pins register with the zone, so a drag reorders pins; the recents sit static in the same flow.
   return (
     <div className="nav-gallery">
-      {pins.length > 0 && (
-        <SortableZone items={pins.map((p) => p.key)} layout="grid" onReorder={(a, o) => reorderPin(a, o)}>
-          <div className="nav-gallery-grid">
-            {pins.map((it) => (
-              <PinnedCard key={it.key} it={it} nexusId={nexusId} onSelect={onSelect} />
-            ))}
-          </div>
-        </SortableZone>
-      )}
-      {items.length > 0 && (
+      <SortableZone items={pins.map((p) => p.key)} layout="grid" onReorder={(a, o) => reorderPin(a, o)}>
         <div className="nav-gallery-grid">
+          {pins.map((it) => (
+            <PinnedCard key={it.key} it={it} nexusId={nexusId} onSelect={onSelect} />
+          ))}
           {items.map((it) => (
             <GalleryCard key={it.key} it={it} nexusId={nexusId} onSelect={onSelect} />
           ))}
         </div>
-      )}
+      </SortableZone>
     </div>
   )
 }
@@ -56,6 +52,13 @@ function GalleryCard({ it, nexusId, onSelect, drag }: { it: ResolvedNav; nexusId
 
   const active = selection.kind !== 'none' && navKey(selection) === it.key
   const src = `nexus-asset://nexus/.nexus/assets/${nexusId}/thumbnails/${thumbFile(it.key)}.jpg?v=${version}`
+  // Adopted entities re-mint their id on adoption, so they can't hold a durable pin — hide the affordance.
+  const pinnable = !('id' in it.target && it.target.id.startsWith('adopted-'))
+  // The drag engine fires a synthesized click after a pointer drag — don't treat a reorder-drop as a
+  // navigation (mirrors TableView's `!isDragging` guard).
+  const open = (): void => {
+    if (!drag?.isDragging) onSelect(it.target)
+  }
   const togglePin = (e: React.MouseEvent): void => {
     e.stopPropagation()
     if (it.pinned) unpinTarget(it.key)
@@ -66,9 +69,18 @@ function GalleryCard({ it, nexusId, onSelect, drag }: { it: ResolvedNav; nexusId
     <div
       ref={drag?.setNodeRef}
       style={drag?.style}
-      {...(drag?.handle ?? { role: 'button', tabIndex: 0 })}
+      {...(drag?.handle ?? {
+        role: 'button',
+        tabIndex: 0,
+        onKeyDown: (e: React.KeyboardEvent) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault()
+            onSelect(it.target)
+          }
+        }
+      })}
       className={cx('nav-gallery-card', active && 'is-active', drag?.isDragging && 'is-dragging')}
-      onClick={() => onSelect(it.target)}
+      onClick={open}
     >
       <div className="nav-gallery-thumb">
         {failed ? (
@@ -78,9 +90,19 @@ function GalleryCard({ it, nexusId, onSelect, drag }: { it: ResolvedNav; nexusId
         ) : (
           <img src={src} loading="lazy" alt="" onError={() => setFailed(true)} />
         )}
-        <button type="button" className={cx('nav-gallery-pin', it.pinned && 'is-pinned')} onClick={togglePin} aria-label={it.pinned ? 'Unpin' : 'Pin'}>
-          <Icon name="pin" size={13} />
-        </button>
+        {pinnable && (
+          // stopPropagation on pointerdown too — else the press bubbles to the card's drag handle and
+          // arms a reorder instead of toggling the pin.
+          <button
+            type="button"
+            className={cx('nav-gallery-pin', it.pinned && 'is-pinned')}
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={togglePin}
+            aria-label={it.pinned ? 'Unpin' : 'Pin'}
+          >
+            <Icon name="pin" size={13} />
+          </button>
+        )}
       </div>
       <div className="nav-gallery-text">
         <OverflowScroll className={cx('nav-gallery-title', text.footnote.emphasized)}>

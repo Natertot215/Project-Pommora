@@ -19,6 +19,8 @@ type DragMode = 'move' | 'rail' | 'nw' | 'ne' | 'sw' | 'se'
 
 // Module-scope so geometry survives the useExitPresence unmount (reopen restores last position/size).
 const geo = { x: null as number | null, y: null as number | null, w: WIN.defW, h: WIN.defH, rail: RAIL.def }
+// Persists the List/Gallery choice across opens (the pane remounts each open via useExitPresence).
+let savedViewMode: 'list' | 'gallery' = 'list'
 
 const clamp = (v: number, lo: number, hi: number): number => Math.max(lo, Math.min(hi, v))
 
@@ -74,8 +76,13 @@ function NavPaneBody({ closing }: { closing: boolean }): React.JSX.Element {
 
   const results = useMemo(() => (query.trim() ? splitSearch(search(query)) : null), [query, search])
   const goClose = (target: NavTarget): void => go(target, closeNav)
-  // Rail Style toggle — cycles the recents view; the gallery layout is Figma-pending, so v1 flips the label.
-  const [viewMode, setViewMode] = useState<'list' | 'gallery'>('list')
+  // Rail Style toggle — List ⇄ Gallery. The choice persists across opens (module-scoped, like geo).
+  const [viewMode, setViewMode] = useState<'list' | 'gallery'>(savedViewMode)
+  const toggleViewMode = (): void =>
+    setViewMode((m) => {
+      savedViewMode = m === 'list' ? 'gallery' : 'list'
+      return savedViewMode
+    })
 
   // Capture the pointer on the pressed element (house pattern) so a drag that releases OUTSIDE the
   // window still gets its pointerup/pointercancel — the listeners live on the captured element, so an
@@ -141,7 +148,7 @@ function NavPaneBody({ closing }: { closing: boolean }): React.JSX.Element {
           <div className="navpane-rail-list scroll-edge-fade">
             <NavList items={resolvedFavorites} onSelect={goClose} />
           </div>
-          <button type="button" className={cx('navpane-style-toggle', text.footnote.emphasized)} onClick={() => setViewMode((m) => (m === 'list' ? 'gallery' : 'list'))}>
+          <button type="button" className={cx('navpane-style-toggle', text.footnote.emphasized)} onClick={toggleViewMode}>
             <Icon name="chevrons-up-down" size={12} />
             <span>{viewMode === 'list' ? 'List' : 'Gallery'}</span>
           </button>

@@ -26,14 +26,13 @@ export function thumbRel(nexusId: string, key: string): string {
 const thumbsDir = (root: string, nexusId: string): string => join(root, '.nexus', 'assets', nexusId, 'thumbnails')
 
 /** Capture the detail-pane rect as a downscaled JPEG, overwrite its keyed file, return its asset URL —
- *  or null on a bad/blank capture (the card falls back to a placeholder). */
-export async function captureThumbnail(win: BrowserWindow, root: string, navKey: string, rect: ThumbRect, scaleFactor: number): Promise<string | null> {
+ *  or null on a bad/blank capture (the card falls back to a placeholder). `capturePage(rect)` takes the
+ *  DIP rect and returns just that region (Electron applies the display scale), so no manual crop math. */
+export async function captureThumbnail(win: BrowserWindow, root: string, navKey: string, rect: ThumbRect): Promise<string | null> {
   if (rect.width < 1 || rect.height < 1) return null
-  const img = await win.webContents.capturePage()
-  const sf = scaleFactor > 0 ? scaleFactor : 1
-  const cropped = img.crop({ x: Math.round(rect.x * sf), y: Math.round(rect.y * sf), width: Math.round(rect.width * sf), height: Math.round(rect.height * sf) })
-  if (cropped.isEmpty()) return null
-  const buf = cropped.resize({ width: THUMB_WIDTH, quality: 'best' }).toJPEG(78)
+  const img = await win.webContents.capturePage({ x: Math.round(rect.x), y: Math.round(rect.y), width: Math.round(rect.width), height: Math.round(rect.height) })
+  if (img.isEmpty()) return null
+  const buf = img.resize({ width: THUMB_WIDTH, quality: 'best' }).toJPEG(78)
   const { id: nexusId } = await ensureIdentity(root)
   const key = thumbKey(navKey)
   const rel = thumbRel(nexusId, key)
