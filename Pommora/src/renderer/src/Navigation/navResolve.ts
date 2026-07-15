@@ -9,7 +9,7 @@
 // O(tree + entries), not O(entries × tree) — the gallery must never re-flatten the tree per row.
 
 import { defaultEntityIcon, iconNameOr } from '@renderer/design-system/symbols'
-import type { NavTarget, NexusTree, RecentEntry } from '@shared/types'
+import type { NavTarget, NexusTree, PinEntry, RecentEntry } from '@shared/types'
 import { allCollections } from '../selection'
 import { navKey } from './navRecents'
 
@@ -48,7 +48,7 @@ export function buildResolveIndex(tree: NexusTree): ResolveIndex {
   const colIcon = (n: { icon?: string }): string => iconNameOr(n.icon, defaultEntityIcon('collection', di))
   const setIcon = (n: { icon?: string }): string => iconNameOr(n.icon, defaultEntityIcon('set', di))
 
-  ix.set('homepage', { icon: 'house', title: tree.nexus.name, path: [] })
+  ix.set('homepage', { icon: iconNameOr(tree.nexus.profileIcon, 'house'), title: tree.nexus.name, path: [] })
   for (const tier of ['areas', 'topics', 'projects'] as const) {
     const kind = TIER_KIND[tier]
     const tierCrumb: PathCrumb = { icon: defaultEntityIcon(kind, di), title: tree.labels[kind].singular }
@@ -90,14 +90,24 @@ export function resolveNavEntry(tree: NexusTree, entry: RecentEntry): ResolvedNa
   return resolveWith(buildResolveIndex(tree), entry)
 }
 
-/** Resolve the recents stream for render against a prebuilt index: prune gone entries, then float
- *  pinned to the top while preserving MRU order within each group (the float is render-only). */
+/** Resolve the recents stream for render against a prebuilt index: prune gone entries, preserve MRU
+ *  order. Pins are their own durable list (resolvePins) — recents no longer float. */
 export function resolveRecents(index: ResolveIndex, recents: RecentEntry[]): ResolvedNav[] {
-  const resolved = recents.map((r) => resolveWith(index, r)).filter((r): r is ResolvedNav => r !== null)
-  return [...resolved.filter((r) => r.pinned), ...resolved.filter((r) => !r.pinned)]
+  return recents.map((r) => resolveWith(index, r)).filter((r): r is ResolvedNav => r !== null)
 }
 
 /** Resolve favorites against a prebuilt index: prune gone entries, preserve stored order. */
 export function resolveFavorites(index: ResolveIndex, favorites: RecentEntry[]): ResolvedNav[] {
   return favorites.map((f) => resolveWith(index, f)).filter((r): r is ResolvedNav => r !== null)
+}
+
+/** Resolve durable pins against a prebuilt index: prune gone entries (render-prune, never storage —
+ *  a moved/deleted pin's file stays), preserve the caller's order, mark each `pinned`. */
+export function resolvePins(index: ResolveIndex, pins: PinEntry[]): ResolvedNav[] {
+  const out: ResolvedNav[] = []
+  for (const p of pins) {
+    const r = resolveWith(index, p)
+    if (r) out.push({ ...r, pinned: true })
+  }
+  return out
 }

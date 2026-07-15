@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo } from 'react'
 import type { NavTarget } from '@shared/types'
 import { useSession, type SelectTarget } from '../store'
-import { buildResolveIndex, resolveFavorites, resolveRecents, resolveWith, type ResolvedNav } from './navResolve'
+import { reconcileSelection } from '../selection'
+import { buildResolveIndex, resolveFavorites, resolvePins, resolveRecents, resolveWith, type ResolvedNav } from './navResolve'
 import { buildNavIndex, filterNav, type SearchEntry } from './navSearch'
 
 export interface SearchResult {
@@ -27,12 +28,14 @@ const isTreeTarget = (t: NavTarget): t is SelectTarget => t.kind !== 'task' && t
 export function useNavData(): {
   resolvedRecents: ResolvedNav[]
   resolvedFavorites: ResolvedNav[]
+  resolvedPins: ResolvedNav[]
   search: (query: string) => SearchResult[]
   go: (target: NavTarget, onDone?: () => void) => void
 } {
   const tree = useSession((s) => s.tree)
   const recents = useSession((s) => s.recents)
   const favorites = useSession((s) => s.favorites)
+  const pins = useSession((s) => s.pins)
   const agenda = useSession((s) => s.agendaSnapshot)
   const select = useSession((s) => s.select)
   const ensureAgendaSnapshot = useSession((s) => s.ensureAgendaSnapshot)
@@ -45,7 +48,13 @@ export function useNavData(): {
 
   const resolveIndex = useMemo(() => (tree ? buildResolveIndex(tree) : null), [tree])
   const searchIndex = useMemo(() => (tree ? buildNavIndex(tree, agenda ?? undefined) : []), [tree, agenda])
-  const resolvedRecents = useMemo(() => (resolveIndex ? resolveRecents(resolveIndex, recents) : []), [resolveIndex, recents])
+  const resolvedPins = useMemo(() => (resolveIndex ? resolvePins(resolveIndex, pins) : []), [resolveIndex, pins])
+  const pinnedKeys = useMemo(() => new Set(resolvedPins.map((p) => p.key)), [resolvedPins])
+  // Recents dedupe against pins — a pinned entity shows once, in the pins section, not twice.
+  const resolvedRecents = useMemo(
+    () => (resolveIndex ? resolveRecents(resolveIndex, recents).filter((r) => !pinnedKeys.has(r.key)) : []),
+    [resolveIndex, recents, pinnedKeys]
+  )
   const resolvedFavorites = useMemo(() => (resolveIndex ? resolveFavorites(resolveIndex, favorites) : []), [resolveIndex, favorites])
 
   const search = useCallback(
@@ -59,11 +68,16 @@ export function useNavData(): {
   const go = useCallback(
     (target: NavTarget, onDone?: () => void): void => {
       if (!isTreeTarget(target)) return
-      void select(target)
+      // A durable pin's stored path can be stale (its entity moved/renamed since) — reconcile by id
+      // against the live tree before opening, as Back/Forward do. A target deleted between render and
+      // click reconciles to `none` → bail rather than open a dead path.
+      const fresh = tree ? reconcileSelection(tree, target) : target
+      if (fresh.kind === 'none') return
+      void select(fresh)
       onDone?.()
     },
-    [select]
+    [select, tree]
   )
 
-  return { resolvedRecents, resolvedFavorites, search, go }
+  return { resolvedRecents, resolvedFavorites, resolvedPins, search, go }
 }
