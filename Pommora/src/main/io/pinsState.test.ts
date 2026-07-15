@@ -40,6 +40,6 @@ describe('pinsState', () => {
     await writePin(root, pin({ id: 'b', order: 1 }))
     await writePin(root, pin({ id: 'a', order: 1 }))
     await writePin(root, pin({ id: 'z', order: 0 }))
-    expect((await readPins(root)).map((p) => p.id)).toEqual(['z', 'a', 'b'])
+    expect((await readPins(root)).map((p) => ('id' in p ? p.id : ''))).toEqual(['z', 'a', 'b'])
   })
 })

@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import type { IpcRendererEvent } from 'electron'
-import type { AgendaListResult, NavFavorite, NavStateResult, NexusState, NexusTree, OpenIn, PageResult, Personalization, RecentEntry, SubfieldConfig, ViewButton, ViewStyle } from '@shared/types'
+import type { AgendaListResult, NavFavorite, NavStateResult, NavTarget, NexusState, NexusTree, OpenIn, PageResult, Personalization, PinEntry, PinsResult, RecentEntry, SubfieldConfig, ViewButton, ViewStyle } from '@shared/types'
 import type { MutateRequest, MutateResult, ContextTarget } from '@shared/mutate'
 import type { FormatState } from '@shared/editorMenu'
 import type { TableMenuAction, TableMenuContext } from '@shared/tableMenu'
@@ -286,7 +286,11 @@ const api = {
     load: (): Promise<NavStateResult> => ipcRenderer.invoke('nav:load'),
     saveRecents: (entries: RecentEntry[], immediate?: boolean): Promise<{ ok: true } | { ok: false; error: string }> =>
       ipcRenderer.invoke('nav:saveRecents', entries, immediate),
-    saveFavorites: (entries: NavFavorite[]): Promise<{ ok: true } | { ok: false; error: string }> => ipcRenderer.invoke('nav:saveFavorites', entries)
+    saveFavorites: (entries: NavFavorite[]): Promise<{ ok: true } | { ok: false; error: string }> => ipcRenderer.invoke('nav:saveFavorites', entries),
+    loadPins: (): Promise<PinsResult> => ipcRenderer.invoke('nav:loadPins'),
+    addPin: (pin: PinEntry): Promise<{ ok: true } | { ok: false; error: string }> => ipcRenderer.invoke('nav:addPin', pin),
+    reorderPin: (pin: PinEntry): Promise<{ ok: true } | { ok: false; error: string }> => ipcRenderer.invoke('nav:reorderPin', pin),
+    removePin: (target: NavTarget, order: number): Promise<{ ok: true } | { ok: false; error: string }> => ipcRenderer.invoke('nav:removePin', target, order)
   },
   // Personalization (accent, connection color, interface toggles) — persist one key; the tree
   // surfaces current values (state → tree.personalization), so there's no get.

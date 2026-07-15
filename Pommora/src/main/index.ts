@@ -2,7 +2,8 @@ import { app, BrowserWindow, dialog, ipcMain, Menu, nativeTheme, protocol, shell
 import type { OpenDialogOptions } from 'electron'
 import { basename, dirname, extname, join, sep } from 'node:path'
 import { readFile, rename } from 'node:fs/promises'
-import type { AgendaListResult, NavFavorite, NavStateResult, NexusState, PageResult, RecentEntry, SubfieldConfig } from '@shared/types'
+import type { AgendaListResult, NavFavorite, NavStateResult, NavTarget, NexusState, PageResult, PinEntry, PinsResult, RecentEntry, SubfieldConfig } from '@shared/types'
+import { isPlainObject } from '@shared/propertyValue'
 import { collectAgendaEntries } from './agenda/collectAgenda'
 import type { MutateRequest, MutateResult, ContextTarget } from '@shared/mutate'
 import { WINDOW_BG } from '@shared/theme'
@@ -25,6 +26,7 @@ import { updatePageBody } from './crud/page'
 import { readFolds, writeFolds, type FoldState } from './io/folds'
 import { readActiveViews, writeActiveViews, type ActiveViews } from './io/activeViews'
 import { flushNavWrites, hasPendingNavWrites, readNavState, scheduleRecentsWrite, writeFavorites, writeRecentsNow } from './io/navState'
+import { readPins, removePin, writePin } from './io/pinsState'
 import { readViewOrders, writeViewOrders, type ViewOrders } from './io/viewOrders'
 import { saveView, reorderViews, deleteView } from './crud/views'
 import { setContainerConfig, type ContainerConfigPatch } from './crud/containerConfig'
@@ -295,6 +297,44 @@ ipcMain.handle('nav:saveFavorites', async (_e, entries: unknown): Promise<{ ok: 
     if (root === null) return { ok: false, error: 'No nexus is open.' }
     if (!Array.isArray(entries)) return { ok: false, error: 'Favorites entries must be an array.' }
     await writeFavorites(root, entries as NavFavorite[])
+    return { ok: true }
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) }
+  }
+})
+
+// Durable pins — per-pin files under `.nexus/pins/`. add + reorder are one-file writes; remove is a
+// tombstone-write (pinsState). Each writes immediately (a deliberate act) and lands in the quit gate.
+ipcMain.handle('nav:loadPins', async (): Promise<PinsResult> => {
+  const root = sessionRoot()
+  if (root === null) return { ok: false, error: 'No nexus open' }
+  try {
+    return { ok: true, pins: await readPins(root) }
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) }
+  }
+})
+
+const savePin = async (pin: unknown): Promise<{ ok: true } | { ok: false; error: string }> => {
+  try {
+    const root = sessionRoot()
+    if (root === null) return { ok: false, error: 'No nexus is open.' }
+    if (!isPlainObject(pin)) return { ok: false, error: 'Pin must be an object.' }
+    await writePin(root, pin as PinEntry)
+    return { ok: true }
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) }
+  }
+}
+ipcMain.handle('nav:addPin', (_e, pin: unknown) => savePin(pin))
+ipcMain.handle('nav:reorderPin', (_e, pin: unknown) => savePin(pin))
+
+ipcMain.handle('nav:removePin', async (_e, target: unknown, order: unknown): Promise<{ ok: true } | { ok: false; error: string }> => {
+  try {
+    const root = sessionRoot()
+    if (root === null) return { ok: false, error: 'No nexus is open.' }
+    if (!isPlainObject(target) || typeof order !== 'number') return { ok: false, error: 'Bad remove-pin args.' }
+    await removePin(root, target as NavTarget, order)
     return { ok: true }
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : String(e) }
