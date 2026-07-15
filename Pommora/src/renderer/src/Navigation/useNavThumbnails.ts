@@ -5,9 +5,8 @@ import { navKey } from './navRecents'
 
 // The `.content-pane` fills the whole window; the sidebar, toolbar, and inspector are floating overlays
 // on top of it. Carve off the sidebar (start right of it) and the inspector (end left of it), each skipped
-// when parked off-screen. The toolbar band is KEPT in the shot (top framing, so it doesn't read too short),
-// but its buttons are painted over with the window bg in main (maskTop = the toolbar's reach below the top)
-// — nothing is hidden live, so the capture never flickers. Each overlay edge is clamped inside the pane.
+// when parked off-screen. The toolbar is NOT carved — the banner is full-bleed and runs up under it, so the
+// shot must include that band or the banner's top is lost. Each overlay edge is clamped inside the pane.
 function contentRect(pane: Element): ThumbRect {
   const p = pane.getBoundingClientRect()
   let { left, right } = p
@@ -15,9 +14,7 @@ function contentRect(pane: Element): ThumbRect {
   if (sidebar && sidebar.right > left && sidebar.right < right) left = sidebar.right
   const inspector = document.querySelector('.inspector-glass')?.getBoundingClientRect()
   if (inspector && inspector.left > left && inspector.left < right) right = inspector.left
-  const toolbar = document.querySelector('.app-toolbar')?.getBoundingClientRect()
-  const maskTop = toolbar ? Math.max(0, toolbar.bottom - p.top) : 0
-  return { x: left, y: p.top, width: right - left, height: p.bottom - p.top, maskTop }
+  return { x: left, y: p.top, width: right - left, height: p.bottom - p.top }
 }
 
 /** Await every image in the pane finishing load (the banner especially) so the shot isn't captured
@@ -33,8 +30,7 @@ async function imagesReady(pane: Element): Promise<void> {
 // is a dep), so a page opened while browsing with the pane open gets its cover the moment the pane
 // closes. Waits for fonts + all images (the banner) so the banner has rendered first; a ~300ms delay
 // clears the pane's close animation and debounces rapid navigation. Only the detail rect (contentRect
-// carves off the sidebar/inspector overlays; the toolbar's buttons are masked in the captured image, not
-// hidden live) is captured.
+// carves off the sidebar/inspector overlays) is captured.
 export function useNavThumbnails(): void {
   const selection = useSession((s) => s.selection)
   const pageStatus = useSession((s) => s.pageStatus)

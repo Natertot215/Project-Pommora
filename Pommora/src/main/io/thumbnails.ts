@@ -6,37 +6,12 @@
 
 import { mkdir, readdir, rm } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
-import { nativeImage } from 'electron'
-import type { BrowserWindow, NativeImage } from 'electron'
-import { WINDOW_BG } from '@shared/theme'
+import type { BrowserWindow } from 'electron'
 import type { ThumbRect } from '@shared/types'
 import { ensureIdentity } from '../identity'
 import { atomicWriteBinary } from './atomicWrite'
 
 const THUMB_WIDTH = 480
-
-/** `#RRGGBB` → `[r, g, b]`. */
-function hexToRgb(hex: string): [number, number, number] {
-  const n = Number.parseInt(hex.slice(1), 16)
-  return [(n >> 16) & 255, (n >> 8) & 255, n & 255]
-}
-
-/** Overpaint the top `maskTop` DIP of the shot with the window bg — the toolbar band ends up a clean
- *  empty strip (its buttons gone) with NO live DOM change, so nothing flickers during capture. The
- *  masked image is rebuilt at the same scaleFactor so the downscale that follows is unchanged. */
-function maskTopBand(img: NativeImage, maskTopDip: number, sf: number, width: number, height: number): NativeImage {
-  const rows = Math.min(Math.round(maskTopDip * sf), height)
-  if (rows < 1) return img
-  const bmp = img.toBitmap() // B, G, R, A
-  const [r, g, b] = hexToRgb(WINDOW_BG)
-  for (let i = 0, end = rows * width * 4; i < end; i += 4) {
-    bmp[i] = b
-    bmp[i + 1] = g
-    bmp[i + 2] = r
-    bmp[i + 3] = 255
-  }
-  return nativeImage.createFromBitmap(bmp, { width, height, scaleFactor: sf })
-}
 
 /** navKey → filesystem-safe thumbnail key (the colon is illegal on Windows). */
 export function thumbKey(navKey: string): string {
@@ -68,8 +43,7 @@ export async function captureThumbnail(win: BrowserWindow, root: string, navKey:
   if (width < 1 || height < 1) return null
   const cropped = img.crop({ x, y, width, height })
   if (cropped.isEmpty()) return null
-  const masked = maskTopBand(cropped, rect.maskTop ?? 0, sf, width, height)
-  const buf = masked.resize({ width: THUMB_WIDTH, quality: 'best' }).toJPEG(78)
+  const buf = cropped.resize({ width: THUMB_WIDTH, quality: 'best' }).toJPEG(78)
   const { id: nexusId } = await ensureIdentity(root)
   const key = thumbKey(navKey)
   const rel = thumbRel(nexusId, key)
