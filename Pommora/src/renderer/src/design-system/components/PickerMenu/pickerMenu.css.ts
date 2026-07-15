@@ -21,11 +21,11 @@ export const anchorUp = style({
 })
 /** The self-managed top layer — a fixed body-portal position (set inline from the measured trigger)
  *  so the pane escapes any clipping ancestor (the settings dropdown's frost clip). */
-export const layer = style({ position: 'fixed', zIndex: 100 })
+export const layer = style({ position: 'fixed', zIndex: 1100 })
 
 /** A transparent full-viewport catcher one layer BELOW the pane: any outside pointerdown (including
  *  on the trigger itself) lands here and dismisses, so the trigger's own click can't reopen. */
-export const backdrop = style({ position: 'fixed', inset: 0, zIndex: 99 })
+export const backdrop = style({ position: 'fixed', inset: 0, zIndex: 1099 })
 
 // GlassPane's rect border/shadow are suppressed by NotchedPane (can't trace the beak); the top
 // gutter clears the beak band via the shell's published --notch-h.

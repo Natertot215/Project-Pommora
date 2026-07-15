@@ -17,8 +17,12 @@
 }
 
 .nav-gallery-card {
+  /* Fixed 125:85 landscape card, split image 2/3 : title-area 1/3 of the card height via the flex grow
+     ratio below. align-self:start so a taller row-sibling can't stretch it past its 125:85 height. */
   display: flex;
   flex-direction: column;
+  aspect-ratio: 125 / 85;
+  align-self: start;
   border: 1.5px solid var(--separator-border);
   border-radius: 10px;
   overflow: hidden;
@@ -37,20 +41,18 @@
 
 .nav-gallery-thumb {
   position: relative;
-  aspect-ratio: 125 / 85;
+  flex: 2; /* image = 2/3 of the card height (title-area below is flex:1 = 1/3) */
+  min-height: 0;
   overflow: hidden;
   background: var(--fill-tertiary);
 }
-/* Fill absolutely so the thumb's height comes solely from aspect-ratio off its stretched width — an
-   in-flow img leaks its intrinsic height through the flex item's min-height:auto and beats the ratio. */
 .nav-gallery-thumb img {
-  position: absolute;
-  inset: 0;
   display: block;
   width: 100%;
   height: 100%;
   object-fit: cover;
   object-position: top; /* the page's inline title banner sits at the top of the shot */
+  -webkit-user-drag: none; /* the image never drags on its own — the card owns the drag (or nothing) */
 }
 .nav-gallery-ph {
   position: absolute;
@@ -86,10 +88,13 @@
 }
 
 .nav-gallery-text {
+  flex: 1; /* title-area = 1/3 of the card height (fixed, off the 2:3 card) */
+  min-height: 0;
   display: flex;
   flex-direction: column;
+  justify-content: center;
   gap: 2px;
-  padding: 6px 8px 8px;
+  padding: 6px 8px;
   min-width: 0;
   border-top: 1.5px solid var(--separator-border);
 }
