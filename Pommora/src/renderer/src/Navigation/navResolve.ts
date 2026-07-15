@@ -104,10 +104,8 @@ export function resolveFavorites(index: ResolveIndex, favorites: RecentEntry[]):
 /** Resolve durable pins against a prebuilt index: prune gone entries (render-prune, never storage —
  *  a moved/deleted pin's file stays), preserve the caller's order, mark each `pinned`. */
 export function resolvePins(index: ResolveIndex, pins: PinEntry[]): ResolvedNav[] {
-  const out: ResolvedNav[] = []
-  for (const p of pins) {
-    const r = resolveWith(index, p)
-    if (r) out.push({ ...r, pinned: true })
-  }
-  return out
+  return pins
+    .map((p) => resolveWith(index, p))
+    .filter((r): r is ResolvedNav => r !== null)
+    .map((r) => ({ ...r, pinned: true }))
 }
