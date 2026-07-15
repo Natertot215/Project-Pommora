@@ -2,11 +2,12 @@
    fits), --card-gap-h / --card-gap-v (inter-card spacing). All cards share ONE grid — pinned first,
    recents flowing straight after them (L→R/T→B), no divider. */
 .nav-gallery {
-  --card-min: 150px;
+  --card-min: 190px; /* KNOB — column-width floor: bigger = fewer, larger cards that grow more before a
+                        new column snaps them back; smaller = more, tighter columns */
   --card-gap-h: 12px;
   --card-gap-v: 12px;
   --cover-zoom: 1.25; /* KNOB — overall zoom of the cover image: 1 = as captured; >1 zooms into the top */
-  --thumb-share: 74%; /* KNOB — the image's share of the card height; the title-area takes the rest */
+  --thumb-share: 65%; /* KNOB — the image's share of the card height; the title-area takes the rest */
   display: flex;
   flex-direction: column;
   gap: var(--card-gap-v);
@@ -22,11 +23,13 @@
 }
 
 .nav-gallery-card {
-  /* Fixed 125:85 landscape card; the image takes --thumb-share of the height, the title-area the rest.
-     align-self:start so a taller row-sibling can't stretch it past its 125:85 height. */
+  /* Fixed-aspect landscape card; image takes --thumb-share of the height, title-area the rest.
+     align-self:start so a taller row-sibling can't stretch it past its aspect height. container-type
+     makes the card a query container so its text scales with the card width (cqi units below). */
+  container-type: inline-size;
   display: flex;
   flex-direction: column;
-  aspect-ratio: 125 / 85;
+  aspect-ratio: 125 / 90;
   align-self: start;
   border: 1.5px solid var(--separator-border);
   border-radius: 10px;
@@ -95,21 +98,27 @@
 }
 
 .nav-gallery-text {
-  flex: 1; /* title-area = 1/3 of the card height (fixed, off the 2:3 card) */
+  flex: 1;
   min-height: 0;
+  /* Title pinned to the TOP of the title-area (flex-start), never centered — so a card with no location
+     keeps its title in the same fixed top spot as one with a location. Title + location are two rows. */
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  gap: 2px;
-  padding: 6px 8px;
+  justify-content: flex-start;
+  gap: 4px;
+  padding: 8px 9px;
   min-width: 0;
   border-top: 1.5px solid var(--separator-border);
 }
-.nav-gallery-title {
+.nav-gallery-title,
+.nav-gallery-loc {
+  flex: 0 0 auto; /* each is its own fixed row — the title never grows to fill / recenter */
   display: flex;
   align-items: center;
-  gap: 5px;
   min-width: 0;
+}
+.nav-gallery-title {
+  gap: 5px;
   color: var(--label-primary);
   --eclipse-fade: 14px;
   --scroll-fade: 14px;
@@ -125,4 +134,13 @@
   color: var(--label-secondary);
   --eclipse-fade: 14px;
   --scroll-fade: 14px;
+}
+/* Typography scales with the card: cqi = 1% of the card's width (the card is the query container), so
+   a bigger card reads bigger text. Clamped so tiny/huge cards stay legible. Card-prefixed to outrank
+   the text-ramp class's font-size. */
+.nav-gallery-card .nav-gallery-title {
+  font-size: clamp(11px, 5.5cqi, 18px);
+}
+.nav-gallery-card .nav-gallery-loc {
+  font-size: clamp(9px, 4.3cqi, 14px);
 }
