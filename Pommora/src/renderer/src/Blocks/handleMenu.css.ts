@@ -62,10 +62,11 @@ export const footerLockAction = style([footerAction, { display: 'inline-flex', a
 export const lockIcon = style({ selectors: { '&&': { color: c.label.tertiary } } })
 
 /** The page-embed title field (G-16) — the source page's identity as a bordered "field" reading like an
- *  input but acting as a link: clicking it opens the page full-view. A segment hairline (no divider below
- *  it), a two-tier stack (page title over its location), and tight vertical rhythm. `textAlign: left`
- *  undoes the button's default centering; both labels ride the shared ellipsis-at-rest / scroll-on-hover
- *  mechanic. */
+ *  input but acting as a link: clicking it opens the page full-view. Its border wears the accent tint
+ *  (accent @ tint-secondary), the same signal as the embed's own border on the surface, so the menu's
+ *  "open the page" field reads as the embed it belongs to. A two-tier stack (page title over its
+ *  location) with tight vertical rhythm; `textAlign: left` undoes the button's default centering; both
+ *  labels ride the shared ellipsis-at-rest / scroll-on-hover mechanic. */
 export const titleField = style({
   display: 'flex',
   flexDirection: 'column',
@@ -74,7 +75,7 @@ export const titleField = style({
   boxSizing: 'border-box',
   margin: '0 0 3px',
   padding: '3px 6px',
-  border: `1px solid ${c.separator.segment}`,
+  border: '1px solid color-mix(in srgb, var(--accent) var(--tint-secondary), transparent)',
   borderRadius: '5px',
   background: 'none',
   textAlign: 'left',

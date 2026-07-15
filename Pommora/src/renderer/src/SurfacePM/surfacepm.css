@@ -20,7 +20,7 @@
     height var(--duration-base) var(--ease-standard),
     opacity var(--duration-base) var(--ease-standard),
     border-color var(--duration-base) var(--ease-standard),
-    --block-zoom var(--block-zoom-anim, var(--duration-base) var(--ease-standard));
+    --block-zoom var(--duration-base) var(--ease-standard);
   /* No overflow clip here — the edge zones straddle the border by design; the
      body does the content clipping. */
 }
@@ -34,15 +34,9 @@
 /* Per-block Scale (G-10): one discrete var on the tile. Markdown/page tiles read it for the font (via
    .cm-content) + the editor glyphs (via --glyph-scale); a view tile's table reads it in its own grid
    `zoom` (base density × --block-zoom). The handle, resize edges, gutter, and padding do NOT read it —
-   chrome + structure stay fixed. Five steps; 1.0 needs no class (--block-zoom falls back to 1). */
-/* A view tile SNAPS its Scale rather than animating --block-zoom: the table renders every row to the DOM
-   (no virtualizer) and CSS `zoom` is a layout property, so interpolating it would relayout the whole grid
-   every frame for the transition's duration — the "expensive work on every frame" trap. Markdown/page
-   tiles keep the smooth transition (CM6 virtualizes to the viewport, so only visible lines relayout). */
-.spm-tile.is-view-tile {
-  --block-zoom-anim: 0s;
-}
-
+   chrome + structure stay fixed. Five steps; 1.0 needs no class (--block-zoom falls back to 1). Every
+   tile animates the factor on the standard beat: a view tile's grid `zoom` is a layout property, so its
+   table relayouts each frame OF THE TRANSITION only — a bounded one-shot, not a per-frame trigger. */
 .spm-tile.blk-zoom-125 {
   --block-zoom: 1.25;
 }
@@ -186,18 +180,21 @@
 }
 
 /* Borderless style (G-14): the chassis hides until you reach for it — the border
-   (and the notch with it) returns on border/handle hover and while dragging or
-   resizing. A locked host will pin it hidden (lands with G-3). */
-.spm-tile.is-borderless:not(.is-lifted):not(.is-resizing):not(:has(> .spm-edge:hover)):not(:has(> .spm-handle:hover)) {
+   (and the notch with it) returns on border/handle hover, while dragging or
+   resizing, and while its handle menu is open (handle-pinned) so the menu reads
+   as attached to a visible tile. A locked host will pin it hidden (lands with G-3). */
+.spm-tile.is-borderless:not(.is-lifted):not(.is-resizing):not(.handle-pinned):not(:has(> .spm-edge:hover)):not(:has(> .spm-handle:hover)) {
   border-color: transparent;
 }
 
 /* An embedded PAGE reads as one at a glance: an accent border (accent @ tint-secondary) while the
    pointer is over it OR the caret is inside it — the handle's menu carries the exact location, so the
    border only signals "this is an embed." Non-locked only (a lock, host or per-tile, keeps the
-   separator); it yields to the stronger resize accent (tint-primary) at the edges. */
-.blk-surface:not(.is-host-locked) .spm-tile:not(.is-locked):has(.pgembed):hover:not(.is-resizing):not(:has(> .spm-edge:hover)),
-.blk-surface:not(.is-host-locked) .spm-tile:not(.is-locked):has(.pgembed).is-editing-tile:not(.is-resizing):not(:has(> .spm-edge:hover)) {
+   separator); it yields to the stronger resize accent (tint-primary) at the edges. The doubled
+   .spm-tile outranks the borderless-hide rule (equal base specificity) so a borderless embed still
+   shows the accent on hover, independent of source order. */
+.blk-surface:not(.is-host-locked) .spm-tile.spm-tile:not(.is-locked):has(.pgembed):hover:not(.is-resizing):not(:has(> .spm-edge:hover)),
+.blk-surface:not(.is-host-locked) .spm-tile.spm-tile:not(.is-locked):has(.pgembed).is-editing-tile:not(.is-resizing):not(:has(> .spm-edge:hover)) {
   border-color: color-mix(in srgb, var(--accent) var(--tint-secondary), transparent);
 }
 

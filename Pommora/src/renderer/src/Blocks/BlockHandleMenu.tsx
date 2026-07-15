@@ -331,7 +331,7 @@ export function BlockHandleMenu({
         // The Scale dropdown — a nested PickerMenu hung off the row's trailing value (solid, so it reads
         // opaque over the menu beneath). No onDismiss: the document listener above owns dismissal, so a
         // pick can leave it open. Picking a step scales the tile live (accent check marks the current).
-        <PickerMenu open triggerRef={scaleTriggerRef} solid accentOutline>
+        <PickerMenu open triggerRef={scaleTriggerRef} solid>
           <div className={cx(s.barScale, s.scaleMenu)} data-scale-menu>
             {ZOOM_STEPS.map((st) => (
               <MenuItem
