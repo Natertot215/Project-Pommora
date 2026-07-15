@@ -7,62 +7,51 @@
 
 Prior arcs, compressed — detail lives in `Features/*` + `History.md`.
 
-- **Block Surfaces — SurfacePM (shipped + merged to main, `8fca70cd`).** The host-agnostic block/tile system: split-tree layout, window-style edge resize, PommoraDND feel, markdown/page/view tiles behind the BlockHost seam (locked read-merge-writes), CM6-portal page embeds (every prose tile a read-only MarkdownPM view), block `[[links]]` as first-class edges, geometry-only homepage lock, homepage/context identity settings, and per-block Scale (freeze-inset, view-agnostic). → [[SurfacePM]] + `History.md`.
+- **Block Surfaces — SurfacePM (shipped + merged to main).** The host-agnostic block/tile system: split-tree layout, window-style edge resize, PommoraDND feel, markdown/page/view tiles behind the BlockHost seam (locked read-merge-writes), CM6-portal page embeds (every prose tile a read-only MarkdownPM view), block `[[links]]` as first-class edges, geometry-only homepage lock, homepage/context identity settings, and per-block Scale (view-agnostic). → [[SurfacePM]] + `History.md`.
 
-- **Tables — cell + group system + grouping/sorting.** The cell-gesture matrix, per-view looks/formats in `column_styles`, band drag, the reusable editors in `Detail/Views/PropertyEditing/`, and grouping + sorting end-to-end (pane · pipeline · Location order writing the real filesystem · drag surfaces). → [[TableView]] + [[Views]].
+- **App-wide auto-scroll (shipped, on main).** One shared `interactions/autoscroll.ts` singleton rAF loop drives every drag's edge-scroll — one fixed scroller resolved once at drag start, px/sec × dt (ProMotion-safe), distance-based acceleration + direction-intent, an instance-scoped stopper, tokens read off the drag element. Migrated the 3 existing consumers, deleted the block-drag duplicate loop, retrofitted 3 surfaces that never had it (sidebar, table rows, table bands). The axis-aware `findScroller` was the enabler. → [[PommoraDND]] §II. Autoscroll + `History.md`. Live drag-feel gut-check still open (below).
 
-- **PropertiesV2 — nexus-wide registry.** Defs in `.nexus/properties.json`; a Collection's sidecar holds only its assignment-id array; `readNexus` joins them so every surface gets a resolved schema. SQLite mirrors it as a regeneratable accelerator.
+- **Tables — cell + group system + grouping/sorting + Hide Borders.** The cell-gesture matrix, per-view looks/formats in `column_styles`, band drag, the reusable editors in `Detail/Views/PropertyEditing/`, grouping + sorting end-to-end, and the borderless-table toggle with on-demand structure reveals. → [[TableView]] + [[Views]].
 
-- **Multi-View scaffolding + per-type editors.** ViewDropdown · ViewPane · two-door ViewSettings, the G-1 invariant (views never empty where visible), and Date/Checkbox/Number/Status/Link editor panes. → [[Views]] + [[Properties]].
+- **PropertiesV2 · Multi-View scaffolding · Icon Picker + Sidebar Ribbon.** Nexus-wide property registry (`.nexus/properties.json` + per-collection assignment ids, `readNexus` joins); ViewDropdown · ViewPane · two-door ViewSettings + per-type editor panes; full-Lucide picker in the shared PickerMenu; ribbon + mode-switched sidebar. → [[Views]] · [[Properties]] · [[Icons]] · [[Sidebar]].
 
-- **Icon Picker + Sidebar Ribbon.** Full-Lucide picker in the shared PickerMenu; ribbon + mode-switched sidebar (surface-launcher model, lazy `agenda:list`, right-click create). → [[Icons]] + [[Sidebar]].
+### Session Summary — Navigation Surface: Feature → Redesign, + SurfacePM Polish
 
-### Session Summary — Block-Surface Arc → Merged, then Post-Merge Table Polish
-
-**Session ID:** abc3bafe-70bc-41e4-adfd-aa052cfee424
-**Dates:** 07-10-2026 → 07-14-2026
-**Model:** Fable 5 → Opus 4.8 (1M)
-**Compactions:** 8
+**Session ID:** 1968ae09-ee23-4a88-9c0d-3a665384fd8e
+**Dates:** 07-14-2026
+**Model:** Opus 4.8 (1M)
+**Compactions:** 2
 **Connectors:** none
-**Commands:** /clear · /handoff · /compact · /loop
-**Agents:** build-breaking-agent (27x) · general-purpose (5x) · code-simplifier (3x) · Explore (1x) · comment-killer (1x)
-**Skills:** studio-brainstorm · superpowers:writing-plans · superpowers:executing-plans · superpowers:systematic-debugging · handoff
+**Commands:** /compact · /handoff
+**Agents:** build-breaking-agent (2x - review)
+**Skills:** handoff
 
-One long session: the Contexts rethink became a certified spec, the spec became SurfacePM, SurfacePM became a live block system, and the whole arc merged to main — then a post-merge table-polish tail.
+The Navigation surface came up from persistence plumbing to a live command-palette-shaped NavPane, then a visual redesign, closed out alongside three SurfacePM handle-menu fixes.
 
-**The block-surface arc (now merged, → Recent Work + `History.md`):** a certified spec (`Planning/7-10 - Block Surfaces — Decision Log.md`, three adversarial rounds) drove SurfacePM built from scratch, its plumbing (Tasks 0–3 + the CM6-portal redirect), the H-5 view-embed chrome + edge-release scroll, the link graph, the geometry-only homepage lock, the homepage/context identity settings, and per-block Scale — closed with a doc pass and a `--no-ff` merge (main green, 1492 tests). The detail is in [[SurfacePM]] + `History.md`; don't re-narrate it.
+**Navigation feature (Phases 1–4, committed `9f6e0eed` → `ede4519f`):** the nav-state layer landed in four phases — a per-Nexus synced persistence layer (`navRecents.json` / `navFavorites.json`; recents as MRU + pin flag, favorites, all resolved live against the tree, render-prune-never-storage-prune), a renderer nav-state store + client-side fuzzy search, the NavPane mini-shell (a movable glass surface), and the NavMenu dropdown over a shared `useNavData` read side that both surfaces render from. → [[Navigation]].
 
-**App-wide auto-scroll (shipped, `f1586c15` → `3a2e71df`, on main, unpushed):** a ratified decision log (`Planning/Auto-Scroll — Decision Log.md`, two adversarial rounds) + implementation plan (`Planning/Auto-Scroll — Plan.md`, plan-attacked) drove a 10-task inline build with a build-breaking-agent after EACH task. One shared `interactions/autoscroll.ts` singleton rAF loop now drives every drag's edge-scroll: **one fixed scroller resolved once at drag start** (the design reversal — no per-frame `elementsFromPoint`, since no core drag crosses containers), px/sec × dt (ProMotion-safe), sub-pixel, time-dampening + direction-intent, a loop-only termination backstop, an instance-scoped stopper, token surface in `autoscroll.css` read off the drag element. Migrated the 3 existing consumers (engine, SurfacePM, settings pane), **deleted** the block-drag duplicate loop + the migration shim (no second copy remains), retrofitted 3 surfaces that never had it (sidebar, table rows, table bands). The **axis-aware `findScroller`** was the enabler (a vertical table drag skips the x-only `.table-view` for `.detail-scroll`). Reviews caught + folded real bugs: dt-teleport-on-stall, a cross-`<Zone>` global-stop, a table unmount-leak + ungated per-frame measure. Gates green (typecheck · 1509 tests · build). Docs → [[PommoraDND]] §II. Autoscroll + `History.md`. **The one open thing is Nathan's live-drag pass** (below) — jsdom can't drive pointer-capture + rAF scroll, and the unified loop adds a felt dampen+direction-intent profile to every drag that wants his gut-check.
+**NavPane redesign (`c8f091ec`, approved live + green):** reshaped the NavPane into an always-centered `GlassPane` command surface. Rows read (icon)(title … chevron-joined path), title + path each eclipse-scrolling under the shared `OverflowScroll`; the resolver builds ONE `ResolveIndex` per tree push (icons + container-crumb chains) that recents / favorites / search all read (a review fold — single walk). Search rides the body type token, the pane resizes from four corners + a rail split, and both the rail and main lists carry the shared `scroll-edge-fade` for lists longer than the pane. Row actions (pin / favorite / remove) deferred to future context-menu actions; the NavMenu dropdown is stripped to a blank placeholder pending its content decision. `WIN` / `RAIL` consts (NavPane.tsx:14–15) + `--navpane-inset` / `--navpane-rail` (navpane.css:10, :54) are the live size knobs.
 
-**Inherited red typecheck fixed (`3bf0dd74`):** `main` was type-red on arrival — the date-clear session's `isBlankValue` refactor left `applyPropertyValue` passing `PropertyValue | null` where `encodePropertyValue` wants non-null (the piped-exit trap again). Narrowed the null explicitly; runtime-identical.
-
-**Hide Borders + borderless reveals (`cf03d9fc`):** a per-view table toggle (Layout) that strips the body grid lines — row dividers + vertical column hairlines — while the heading row keeps its seam + segment bars. With borders off, structure surfaces on demand: the vertical dividers fade in while a column is resized or reordered (grid-level `col-resizing-active` / the existing `col-dragging-active`), and the cell being edited wears a rounded accent ring. Landed through a live UIX loop — Nathan corrected the heading (kept), the divider trigger (hover → resize/reorder only), and the accent (a 4px ring, not an inside fill). All reveals ride `--ease-standard`. → [[TableView]].
-
-**Date-cell clearing fixed — two React port gaps (`9d6e0346` + `cf03d9fc`):** systematic-debugging found every code path intact and unchanged since the rename, so the bugs sat in the interaction layer + one type gate. (1) Clicking a selected calendar date did nothing: arming the drag-reposition pointer-captured the grid, retargeting the day button's click, so the clear was swallowed — now the no-move clear runs on `pointerup`. (2) Date cells had no menu Clear: `datetime` was grouped with the inline-clearable types instead of the picker-based ones — moved in with `status`. And Clear/Remove now shows only on a filled cell, via a shared `isBlankValue` predicate (DRY with `applyPropertyValue`). **Both need Nathan's live eyes** — jsdom stubs `setPointerCapture`, so the calendar path can't be unit-verified.
-
-**Picker outline scope fix (`6e60d514`):** the block handle menu's `accentOutline` ringed the whole menu; scoped it to just the nested Scale dropdown (the input field).
+**SurfacePM handle-menu fixes (`4f7b3f55`, all three confirmed — Nathan: "Visuals on animation and picker are great"):** three block-surface corrections. (a) The accent tint moved OFF the Scale dropdown (dropped its `accentOutline`) ONTO the handle menu's page+location "Open In" field — the openable embed identity now wears the same accent-@-tint-secondary border as the embed on the surface (`handleMenu.css.ts` `titleField`). (b) View tiles now animate their per-block Scale on the standard beat like page tiles — the deliberate snap guard (`is-view-tile { --block-zoom-anim: 0s }`) was removed after Nathan confirmed the grid relayout is acceptable BECAUSE it's bounded to the ~200ms one-shot transition, not a per-frame trigger; the dead `--block-zoom-anim` indirection + orphaned `is-view-tile` class went with it. (c) Borderless tiles keep their chassis while the handle menu is open (`:not(.handle-pinned)`), matching reveal-on-hover; the page-embed accent rule was class-doubled to hold above the borderless-hide rule independent of source order (a folded build-breaker Low). → [[SurfacePM]].
 
 **Lessons Learned**
 
-- **A transformed ancestor breaks `position:fixed`** — SurfacePM tiles ride `translate()`, so ANY fixed-position UI inside a tile subtree misplaces + clips. Popups must portal to body; bites every future in-tile surface.
+- **A bounded one-shot relayout is NOT the "expensive work on every X" trap.** The view-scale animation relayouts the non-virtualized grid each frame, but only for the transition's ~200ms — Nathan explicitly accepted it (`> "if it rerenders only on the animation, that's fine"`). The hard rule targets *continuous / high-frequency* triggers (drag, scroll, resize), not a discrete user action's settle. Confirm the trigger's cadence before treating a relayout as forbidden.
 
-- **jsdom can't reproduce real-DOM interaction bugs** — `setPointerCapture` is a no-op stub and `elementFromPoint` is faked, so the calendar click-to-clear stayed green in the suite while broken in the app. Pointer-capture / hit-testing / native-menu paths are verified by Nathan's hands, never by a passing test.
+- **Ground a design-directive's premise before implementing it.** "Move the accent off the scale picker onto the page border + location" only made sense after opening the code: the accent leak was `accentOutline` (identical treatment to the real page-embed border), and the intended new home was the `titleField` — neither obvious from the words alone. The instruction's premise was a hypothesis until `grep accent` proved where it actually lived.
 
-- **The pipefail trap keeps biting** — `typecheck 2>&1 | tail` returns tail's `0` and hides a red build. Capture the real `$?` into a file; never trust a piped exit code.
-
-- **A clean subsystem resists the sweep — that's the signal, not a miss.** Cleanup passes that come back near-empty mean the code was already disciplined; don't manufacture churn to look thorough.
+- **`:not()` additions silently consume specificity margins.** Adding `:not(.handle-pinned)` to the borderless-hide rule lifted it to an exact tie with the page-embed accent rule — correct only by source order until class-doubled. Any `:not()` you bolt onto a rule that competes with another for the same property can flip a tie; re-count both.
 
 **Key Files & Insights**
 
-- `SurfacePM/` — the engine (README = module map + invariants); `Blocks/` — the tile family; `Embeds/PageEmbed.tsx` — the shared embed framework (`EMBED_SCALE` is THE knob).
-- `shared/blocks.ts` — cross-process block contract; `main/blocks.ts` — every doc mutation through one locked read-merge-write.
-- `shared/propertyValue.ts` — `isBlankValue` is the one set/clear + "is this cell filled" predicate; `Detail/Views/Table/table-tokens.css` — every table number (§G: no raw px in `Table.css`).
-- Knobs Nathan tunes live: `--tile-border` / `--handle-w` / `--grip-size` (surfacepm.css) · `EMBED_SCALE` · `--mdpm-scale` at :root · `--cell-active-radius` (borderless ring).
+- `Navigation/` — `navResolve.ts` (the `ResolveIndex` + crumb builder), `useNavData.ts` (the one shared read side), `NavList.tsx` + `navList.css` (the row); `NavPane/` — the glass mini-shell + its knobs; `Toolbar/NavMenu.tsx` — the placeholder dropdown, content TBD.
+- Reuse over hand-roll: `design-system/scroll-edge-fade.css` (the vertical list fade — rides on any `overflow-y:auto` box via the class), `OverflowScroll` (row eclipse), `color-mix(in srgb, var(--accent) var(--tint-secondary), transparent)` (THE canonical accent-tint border — page-embed, table, NotchedPane, now the titleField).
+- Knobs Nathan tunes live: NavPane `WIN`/`RAIL` (NavPane.tsx:14–15) + `--navpane-inset`/`--navpane-rail` (navpane.css) · `--tile-border` / `--grip-size` (surfacepm.css) · `EMBED_SCALE` · per-block Scale animates via the registered `@property --block-zoom`.
 
 **User Feedback**
 
 - Nathan live-drives and drip-feeds mid-turn corrections — fold each immediately, batch-commit, bundle his tunes; his effect-words are literal.
-- Confirm the layer before fixing (UIX vs data), and ask before any design/interaction call — don't guess how something looks or behaves.
+- Confirm the layer before fixing (UIX vs data), and ask before any design / interaction call — but when a directive's premise is checkable in code, ground it first, then confirm.
 
 ---
 
@@ -72,7 +61,7 @@ One long session: the Contexts rethink became a certified spec, the spec became 
 
 - **HMR is NOT trustworthy for two classes:** (1) vanilla-extract `*.css.ts` — a style edit can serve stale CSS; a plain restart heals it, ⌘R never does. (2) A component's focus effect / handler / attribute change — Fast-Refresh often skips it. Plain `.css` DOES HMR reliably.
 
-- **The dev app runs against Nathan's REAL Nexus** (`/Users/nathantaichman/The Nexus`). UI value writes are his data; CDP must open + Esc only, never pick/commit unless he authorizes it. Native OS menus don't render in the DOM; reach those ops through `window.nexus.*` via `Runtime.evaluate`.
+- **The dev app runs against Nathan's REAL Nexus** (`/Users/nathantaichman/The Nexus`). UI value writes are his data; CDP must open + Esc only, never pick/commit unless he authorizes it. Note: block Scale + borderless style are PERSISTED block entries — demoing them mutates his real homepage. Native OS menus don't render in the DOM; reach those ops through `window.nexus.*` via `Runtime.evaluate`.
 
 - **Gates:** `env -u ELECTRON_RUN_AS_NODE npm run typecheck` (the ONLY type gate) + `npx vitest run` + `env -u ELECTRON_RUN_AS_NODE npm run build`. Biome auto-formats on write — never run it, never hand-align.
 
@@ -82,19 +71,19 @@ One long session: the Contexts rethink became a certified spec, the spec became 
 
 ### Next Session
 
-**The pivot — Navigation · Tabs · Agenda (Nathan's stated next).** Navigation is the Window + Dropdown + Inspector surface (→ [[Navigation]] + [[Inspector]]); it reuses the shared `state.json` recents record (the same plumbing the block Insert / Link-Page flow wants). Each starts with brainstorm → plan → build, building *against* the now-settled surface.
+**Finish the NavPane look — the pin / current-item treatment on the inset.** The temp-pin (or the current item) should read as a **pin-icon in the `--navpane-inset` gutter** of its row (the left inset lane the icon + row content align to). It's the visual marker for a pinned recent / the active entity; scope it to the NavList row, reusing the row's existing inset rather than adding a new lane. → [[Navigation]].
 
-**Verify auto-scroll live (the deferred hands-on pass — the ONLY open item on the feature).** For each, drag to an edge and HOLD → the container must scroll and the drop line track: sidebar (tall tree) · table rows (needs rows overflowing AND columns overflowing — the B-2 case: must scroll `.detail-scroll`, not the x-only `.table-view`) · table group headers · editor blocks (long page; off-screen blocks become droppable as they scroll in) · SurfacePM tiles (tall surface) · settings-pane property reorder. **Gut-check the feel:** every drag now inherits distance-based acceleration (a scroll run eases in from a floor and speeds up with the distance it covers, capped) + direction-intent (grab-at-edge won't scroll until the pointer leaves the band once) — the deliberate "Polished" choice, but felt on surfaces that had instant/no auto-scroll before, esp. "grab the last table row, drag down to extend." Six tokens tune it in `autoscroll.css`. Cosmetic note: the up-scroll band overlaps the traffic-light/toolbar header padding (sidebar + detail) — functions, engages in a dead-looking zone near the top; inset only if it reads dead.
+**Decide what the sidebar (rail) and the NavMenu dropdown actually hold.** Both are currently stubs: the rail renders favorites + a List/Gallery Style toggle (viewMode is a local stub — the gallery layout is Figma-pending); the NavMenu dropdown is a blank beak-glass placeholder. Neither's content is settled — figure out what each surface is *for* before building into it (the dropdown especially: is it a compact recents peek, a full nav, something else?).
 
-**Verify the two date-clear fixes live** — click a selected calendar date to clear it, and right-click a filled vs empty date cell (Clear present vs absent). Neither is unit-verifiable.
+**Then: finalize the list layout + look, and move onto the gallery.** The gallery is the Figma-designed card form of the recents (the Style toggle's other mode) — the row list's sibling presentation. Build it against the settled `useNavData` / `NavList` seam once the list look is locked.
 
-**SurfacePM post-merge polish (no longer blocking):** page banners on embeds (+ per-tile lock home) · the Insert menu (G-9) + Link-Page search pane + shared recents (G-16, pairs with Navigation) · the shared debounced-save hook (`MarkdownBlock` ↔ `PageEmbed` ~35 LOC, a real save-boundary refactor, best with the future `![[]]` consumer in hand) · robustness adds (per-tile error boundary, lazy-mount embeds, layout undo) · interaction foolproofing under drag-heavy gestures (incl. the `.spm-edge` overlap near tile borders — at-rest selection is fixed, the edge-zone tail unconfirmed).
-
-**Other consumers (post-foundational):** Page/View Previews · Filter-pane redesign · Page-Embedding `![[]]` · Gallery/Card view · the standing relation/context pickers. A new view type opts into Scale with one line — `zoom: calc(var(--zoom) * var(--block-zoom,1))` in its grid CSS.
-
-**Parked by design:** the contexts-resolution brainstorm (sidebar, contexts-as-hosts, Homepage's final shape — the graph-view host with widgets stays the current direction; do NOT strip it).
+**Still-open live verifications (lower priority, not this arc's work):** auto-scroll drag-feel gut-check across all six surfaces (distance-accel + direction-intent felt on surfaces that had none before — esp. "grab the last table row, drag down to extend"; six tokens in `autoscroll.css`) · the two date-clear fixes (click a selected calendar date to clear; right-click filled vs empty date cell). Neither is unit-verifiable — jsdom stubs pointer-capture.
 
 ### Pending Focuses
+
+- **Navigation continuation** — the pin-on-inset look, the sidebar + NavMenu content decisions, the list finalize, then the gallery (above). This is the active arc.
+
+- **SurfacePM post-merge polish (not blocking):** page banners on embeds (+ per-tile lock home) · the Insert menu (G-9) + Link-Page search pane + shared recents (G-16, pairs with Navigation) · the shared debounced-save hook (`MarkdownBlock` ↔ `PageEmbed`) · robustness adds (per-tile error boundary, lazy-mount embeds, layout undo).
 
 - **User Sections CRUD (the "Add Heading" feature).** Collections render user sections but there's no way to make one (`mutate.ts` has zero section ops). Own brainstorm→plan→build. → `Sidebar.md`.
 

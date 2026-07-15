@@ -30,10 +30,10 @@ The footer carries a breadcrumb of the current entity's container path, plus a d
 
 Two surfaces over the one layer, same data, different presentation:
 
-- **NavPane** — a non-modal, movable, resizable floating glass mini-shell summoned by the sidebar ribbon's Navigation icon or `⌘O` (rebindable via the `commands` map). It reuses the window glass and the shell's own inset/radius, scaffolded as a mini app-shell: a resizable glass rail beside a main frame carrying the search field and the recents gallery. It doesn't steal focus from the page behind it — the search field focuses on open, but nothing behind is blocked. Opening / closing rides the standard motion beat; Escape, `⌘O`, or the ribbon dismiss it.
-- **NavMenu** — the toolbar Navigation button's dropdown: the same recents / favorites / search, rendered on the shared beak-glass menu surface at a fixed height with internal scroll, sized to the Settings dropdown's footprint.
+- **NavPane** — a non-modal, movable, resizable floating glass mini-shell summoned by the sidebar ribbon's Navigation icon or `⌘O` (rebindable via the `commands` map). It's a `GlassPane` (the dimmer picker frost) that always opens centered — its size persists across opens, its position doesn't — with a glass rail beside a main frame: a search field over the recents list, each row reading (icon)(title … container path) with the title and path each eclipse-scrolling when long, and both lists carrying the shared scroll-edge fade for a list longer than the pane. It resizes from four corners plus a rail split, doesn't steal focus (the search field focuses on open, nothing behind is blocked), and dismisses on Escape, `⌘O`, or the ribbon. Per-row actions (pin / favorite / remove) live in a context menu, not the row.
+- **NavMenu** — the toolbar Navigation button's dropdown, rendered on the shared beak-glass menu surface sized to the Settings dropdown's footprint. Its content is undecided — a placeholder pending the call on what a compact dropdown nav holds versus the fuller NavPane.
 
-Both are **stubs pending the Figma design** — the shell, summon, resize, search, and live data are wired; the finished card / row visuals, arrangement, and controls land against the design.
+The NavPane's row list + shell are built and live; the open visual work is its **gallery** form (the recents as Figma cards, behind the rail's Style toggle), the **pin / current-item marker** on the row inset, and the NavMenu's content.
 
 ### Pending
 
