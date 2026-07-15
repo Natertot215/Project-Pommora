@@ -45,8 +45,8 @@ export function useNavData(): {
 
   const resolveIndex = useMemo(() => (tree ? buildResolveIndex(tree) : null), [tree])
   const searchIndex = useMemo(() => (tree ? buildNavIndex(tree, agenda ?? undefined) : []), [tree, agenda])
-  const resolvedRecents = useMemo(() => (tree ? resolveRecents(tree, recents) : []), [tree, recents])
-  const resolvedFavorites = useMemo(() => (tree ? resolveFavorites(tree, favorites) : []), [tree, favorites])
+  const resolvedRecents = useMemo(() => (resolveIndex ? resolveRecents(resolveIndex, recents) : []), [resolveIndex, recents])
+  const resolvedFavorites = useMemo(() => (resolveIndex ? resolveFavorites(resolveIndex, favorites) : []), [resolveIndex, favorites])
 
   const search = useCallback(
     (query: string): SearchResult[] => {

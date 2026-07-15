@@ -78,7 +78,7 @@ export function Toolbar({
             the pane's right edge to its trigger's center — Navigation at 5/6 of the trio's width,
             Settings at dead center (3 equal segments). */}
         {navP.mounted && (
-          <NavMenu closing={navP.closing} notchInsetRight={trioW ? (trioW * 5) / 6 : undefined} onClose={() => setPanel(null)} />
+          <NavMenu closing={navP.closing} notchInsetRight={trioW ? (trioW * 5) / 6 : undefined} />
         )}
         {settingsP.mounted && (
           <SettingsDropdown closing={settingsP.closing} notchInsetRight={trioW ? trioW / 2 : undefined} />

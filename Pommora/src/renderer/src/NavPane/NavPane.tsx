@@ -1,16 +1,20 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react'
-import { GlassWindow } from '@renderer/design-system/materials'
+import { GlassPane, GlassWindow } from '@renderer/design-system/materials'
 import { Icon } from '@renderer/design-system/symbols'
+import { cx } from '@renderer/design-system/cx'
+import { text } from '@renderer/design-system/tokens'
 import type { NavTarget } from '@shared/types'
 import { useExitPresence } from '../design-system/useExitPresence'
 import { useSession } from '../store'
-import { navKey } from '../Navigation/navRecents'
 import { splitSearch, useNavData } from '../Navigation/useNavData'
 import { NavList } from '../Navigation/NavList'
 import './navpane.css'
 
+// KNOB — the pane's default opening size + resize/rail bounds.
 const WIN = { minW: 360, minH: 280, defW: 640, defH: 460 }
 const RAIL = { min: 120, def: 200, max: 320 }
+
+type DragMode = 'move' | 'rail' | 'nw' | 'ne' | 'sw' | 'se'
 
 // Module-scope so geometry survives the useExitPresence unmount (reopen restores last position/size).
 const geo = { x: null as number | null, y: null as number | null, w: WIN.defW, h: WIN.defH, rail: RAIL.def }
@@ -35,27 +39,19 @@ export function NavPane(): React.JSX.Element | null {
 
 function NavPaneBody({ closing }: { closing: boolean }): React.JSX.Element {
   const { resolvedRecents, resolvedFavorites, search, go } = useNavData()
-  const favorites = useSession((s) => s.favorites)
   const closeNav = useSession((s) => s.closeNav)
-  const togglePin = useSession((s) => s.togglePin)
-  const addFavorite = useSession((s) => s.addFavorite)
-  const removeFavorite = useSession((s) => s.removeFavorite)
 
   const [query, setQuery] = useState('')
   const [, force] = useState(0) // re-render on geometry mutation (geo is a module ref)
   const searchRef = useRef<HTMLInputElement>(null)
 
-  // Center on first-ever open; on later opens just re-clamp into the current viewport. Re-clamp on
-  // resize too. H-2: focus the search on open (a command-palette focus, not a modal focus-trap).
+  // Always open centered (Nathan's call) — size persists across opens, position doesn't. Re-clamp on
+  // resize. H-2: focus the search on open (a command-palette focus, not a modal focus-trap).
   useEffect(() => {
-    if (geo.x === null || geo.y === null) {
-      geo.w = Math.min(geo.w, window.innerWidth)
-      geo.h = Math.min(geo.h, window.innerHeight)
-      geo.x = Math.max(0, Math.round((window.innerWidth - geo.w) / 2))
-      geo.y = Math.max(0, Math.round((window.innerHeight - geo.h) / 3))
-    } else {
-      clampGeo()
-    }
+    geo.w = Math.min(geo.w, window.innerWidth)
+    geo.h = Math.min(geo.h, window.innerHeight)
+    geo.x = Math.max(0, Math.round((window.innerWidth - geo.w) / 2))
+    geo.y = Math.max(0, Math.round((window.innerHeight - geo.h) / 3))
     force((n) => n + 1)
     searchRef.current?.focus()
     const onResize = (): void => {
@@ -75,14 +71,15 @@ function NavPaneBody({ closing }: { closing: boolean }): React.JSX.Element {
     return () => window.removeEventListener('keydown', onKey)
   }, [closeNav])
 
-  const favoriteKeys = useMemo(() => new Set(favorites.map(navKey)), [favorites])
   const results = useMemo(() => (query.trim() ? splitSearch(search(query)) : null), [query, search])
   const goClose = (target: NavTarget): void => go(target, closeNav)
+  // Rail Style toggle — cycles the recents view; the gallery layout is Figma-pending, so v1 flips the label.
+  const [viewMode, setViewMode] = useState<'list' | 'gallery'>('list')
 
   // Capture the pointer on the pressed element (house pattern) so a drag that releases OUTSIDE the
   // window still gets its pointerup/pointercancel — the listeners live on the captured element, so an
   // unmount mid-drag frees them with it (no window-level leak).
-  const startDrag = (mode: 'move' | 'se' | 'rail', e: ReactPointerEvent<HTMLElement>): void => {
+  const startDrag = (mode: DragMode, e: ReactPointerEvent<HTMLElement>): void => {
     e.preventDefault()
     const el = e.currentTarget
     const pid = e.pointerId
@@ -94,11 +91,24 @@ function NavPaneBody({ closing }: { closing: boolean }): React.JSX.Element {
       if (mode === 'move') {
         geo.x = clamp(s.gx + dx, 0, window.innerWidth - 80)
         geo.y = clamp(s.gy + dy, 0, window.innerHeight - 40)
-      } else if (mode === 'se') {
-        geo.w = clamp(s.gw + dx, WIN.minW, window.innerWidth)
-        geo.h = clamp(s.gh + dy, WIN.minH, window.innerHeight)
-      } else {
+      } else if (mode === 'rail') {
         geo.rail = clamp(s.rail + dx, RAIL.min, RAIL.max)
+      } else {
+        // Corner resize — a west/north corner drags its own edge, holding the opposite edge fixed.
+        if (mode === 'nw' || mode === 'sw') {
+          const w = clamp(s.gw - dx, WIN.minW, s.gx + s.gw)
+          geo.w = w
+          geo.x = s.gx + (s.gw - w)
+        } else {
+          geo.w = clamp(s.gw + dx, WIN.minW, window.innerWidth - s.gx)
+        }
+        if (mode === 'nw' || mode === 'ne') {
+          const h = clamp(s.gh - dy, WIN.minH, s.gy + s.gh)
+          geo.h = h
+          geo.y = s.gy + (s.gh - h)
+        } else {
+          geo.h = clamp(s.gh + dy, WIN.minH, window.innerHeight - s.gy)
+        }
       }
       force((n) => n + 1)
     }
@@ -112,40 +122,47 @@ function NavPaneBody({ closing }: { closing: boolean }): React.JSX.Element {
     el.addEventListener('pointerup', end)
     el.addEventListener('pointercancel', end)
   }
-  // Move from bare chrome only — presses on a control keep it interactive.
+  // Move from bare chrome only — presses on a control or a resize handle keep their own behavior.
   const onWindowDown = (e: ReactPointerEvent<HTMLElement>): void => {
-    if ((e.target as HTMLElement).closest('button, input, .navpane-rail-resize, .navpane-resize-se')) return
+    if ((e.target as HTMLElement).closest('button, input, .navpane-rail-resize, [class*="navpane-resize"]')) return
     startDrag('move', e)
   }
 
   const style = { left: geo.x ?? 0, top: geo.y ?? 0, width: geo.w, height: geo.h, '--navpane-rail': `${geo.rail}px` } as CSSProperties
 
   return (
-    <GlassWindow className={`navpane${closing ? ' closing' : ''}`} style={style} role="dialog" aria-label="Navigation" onPointerDown={onWindowDown}>
-      <GlassWindow className="navpane-rail">
-        <NavList items={resolvedFavorites} onSelect={goClose} onRemoveFavorite={removeFavorite} />
-      </GlassWindow>
-      <div className="navpane-rail-resize" onPointerDown={(e) => startDrag('rail', e)} role="separator" aria-orientation="vertical" aria-label="Resize favorites" />
-      <div className="navpane-main">
-        <div className="navpane-search">
-          <Icon name="search" size={14} />
-          <input ref={searchRef} value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search…" spellCheck={false} />
-        </div>
-        <div className="navpane-main-scroll">
-          {results ? (
-            <NavList items={results.items} extras={results.extras} onSelect={goClose} empty="No matches" />
-          ) : (
-            <NavList
-              items={resolvedRecents}
-              onSelect={goClose}
-              onTogglePin={togglePin}
-              onToggleFavorite={(t) => (favoriteKeys.has(navKey(t)) ? removeFavorite(navKey(t)) : addFavorite(t))}
-              favoriteKeys={favoriteKeys}
-            />
-          )}
+    <GlassPane className={`navpane${closing ? ' closing' : ''}`} style={style} role="dialog" aria-label="Navigation" onPointerDown={onWindowDown}>
+      <button type="button" className="navpane-close" aria-label="Close" onClick={closeNav}>
+        <Icon name="x" size={14} />
+      </button>
+      <div className="navpane-body">
+        <GlassWindow className="navpane-rail">
+          <div className="navpane-rail-list scroll-edge-fade">
+            <NavList items={resolvedFavorites} onSelect={goClose} />
+          </div>
+          <button type="button" className={cx('navpane-style-toggle', text.footnote.emphasized)} onClick={() => setViewMode((m) => (m === 'list' ? 'gallery' : 'list'))}>
+            <Icon name="chevrons-up-down" size={12} />
+            <span>{viewMode === 'list' ? 'List' : 'Gallery'}</span>
+          </button>
+        </GlassWindow>
+        <div className="navpane-rail-resize" onPointerDown={(e) => startDrag('rail', e)} role="separator" aria-orientation="vertical" aria-label="Resize favorites" />
+        <div className="navpane-main">
+          <div className="navpane-search">
+            <input ref={searchRef} className={text.body.standard} value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search…" spellCheck={false} />
+          </div>
+          <div className="navpane-main-scroll scroll-edge-fade">
+            {results ? (
+              <NavList items={results.items} extras={results.extras} onSelect={goClose} />
+            ) : (
+              <NavList items={resolvedRecents} onSelect={goClose} />
+            )}
+          </div>
         </div>
       </div>
-      <div className="navpane-resize-se" onPointerDown={(e) => startDrag('se', e)} aria-label="Resize" />
-    </GlassWindow>
+      <div className="navpane-resize navpane-resize-nw" onPointerDown={(e) => startDrag('nw', e)} aria-label="Resize" />
+      <div className="navpane-resize navpane-resize-ne" onPointerDown={(e) => startDrag('ne', e)} aria-label="Resize" />
+      <div className="navpane-resize navpane-resize-sw" onPointerDown={(e) => startDrag('sw', e)} aria-label="Resize" />
+      <div className="navpane-resize navpane-resize-se" onPointerDown={(e) => startDrag('se', e)} aria-label="Resize" />
+    </GlassPane>
   )
 }

@@ -17,10 +17,10 @@
 .nav-item-main {
   flex: 1;
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 1px;
-  padding: 5px 8px;
+  align-items: center;
+  gap: 7px;
+  /* Content (icon + path edges) aligns to the pane's shared inset; the highlight spans full-width. */
+  padding: 5px var(--navpane-inset, 8px);
   min-width: 0;
   text-align: left;
   background: none;
@@ -29,52 +29,44 @@
   color: inherit;
   cursor: pointer;
 }
+.nav-item-lead {
+  flex: 0 0 auto;
+  color: var(--label-secondary);
+}
 .nav-item-title {
-  display: flex;
-  align-items: center;
-  gap: 5px;
+  flex: 1 1 auto;
+  min-width: 0;
   font-size: 13px;
   color: var(--label-primary);
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  --eclipse-fade: 16px;
+  --scroll-fade: 16px;
 }
-.nav-item-loc {
-  font-size: 11px;
+.nav-item-path {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 55%;
+  margin-left: auto;
+  color: var(--label-secondary);
+  --eclipse-fade: 16px;
+  --scroll-fade: 16px;
+}
+.nav-path-icon {
   color: var(--label-tertiary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  max-width: 100%;
+  vertical-align: middle;
+  margin-right: 3px;
 }
-.nav-item-act {
-  display: flex;
-  padding: 4px;
-  margin-right: 4px;
-  border-radius: 5px;
+.nav-path-name {
+  color: var(--label-secondary);
+  vertical-align: middle;
+}
+.nav-path-sep {
   color: var(--label-tertiary);
-  opacity: 0;
-  background: none;
-  border: none;
-  cursor: pointer;
-}
-.nav-item:hover .nav-item-act {
-  opacity: 1;
-}
-.nav-item-act:hover {
-  background: var(--fill-quaternary);
-  color: var(--label-primary);
+  margin: 0 4px;
+  vertical-align: middle;
 }
 .nav-item-inert {
   opacity: 0.55;
-  padding: 5px 8px;
-  justify-content: space-between;
+  padding: 5px var(--navpane-inset, 8px);
+  gap: 7px;
   cursor: default;
-}
-.nav-empty {
-  padding: 12px;
-  font-size: 12px;
-  color: var(--label-tertiary);
-  text-align: center;
 }

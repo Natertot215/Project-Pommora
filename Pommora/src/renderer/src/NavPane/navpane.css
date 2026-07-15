@@ -2,9 +2,12 @@
   position: fixed;
   z-index: 1000;
   display: flex;
+  flex-direction: column;
   padding: var(--glass-inset);
   border-radius: var(--glass-radius);
   animation: navpane-in 180ms var(--ease-standard);
+  /* KNOB — the shared content inset (search divider + rows align to this). */
+  --navpane-inset: 12px;
 }
 .navpane.closing {
   animation: navpane-out 180ms var(--ease-standard) forwards;
@@ -23,15 +26,42 @@
   }
 }
 
+.navpane-close {
+  position: absolute;
+  top: calc(var(--glass-inset) + 4px);
+  right: calc(var(--glass-inset) + 4px);
+  z-index: 3;
+  display: flex;
+  padding: 3px;
+  border-radius: 6px;
+  border: none;
+  background: none;
+  color: var(--label-secondary);
+  cursor: pointer;
+}
+.navpane-close:hover {
+  background: var(--fill-tertiary);
+}
+
+.navpane-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
 .navpane-rail {
   display: flex;
   flex-direction: column;
   width: var(--navpane-rail, 200px);
   flex-shrink: 0;
   min-height: 0;
-  overflow-y: auto;
+  overflow: hidden;
   padding: 6px;
   border-radius: var(--glass-radius);
+}
+.navpane-rail-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
 }
 .navpane-rail-resize {
   width: var(--glass-inset);
@@ -46,11 +76,14 @@
   min-height: 0;
 }
 
+/* Everything aligns to --navpane-inset: the divider (via margin, not full-bleed), the magnifier, and
+   the rows' icon + path edges (rows carry the inset on nav-item-main, so the scroll box adds none). */
 .navpane-search {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 9px 12px;
+  margin: 0 var(--navpane-inset);
+  padding: 9px 0;
   color: var(--label-tertiary);
   border-bottom: 1px solid var(--separator-segment);
   flex-shrink: 0;
@@ -60,21 +93,59 @@
   border: none;
   background: transparent;
   outline: none;
-  font-size: 13px;
   color: var(--label-primary);
 }
 .navpane-main-scroll {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  padding: 6px;
+  /* Horizontal inset lives on the rows (nav-item-main) so the highlight spans full-width. */
+  padding: 6px 0;
 }
 
-.navpane-resize-se {
+/* The Style toggle — pinned to the rail's bottom-left; above the resize handles so its corner is clickable. */
+.navpane-style-toggle {
+  position: relative;
+  z-index: 3;
+  align-self: flex-start;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  margin-top: 4px;
+  padding: 3px 5px;
+  border: none;
+  background: none;
+  border-radius: 5px;
+  color: var(--label-secondary);
+  cursor: pointer;
+}
+.navpane-style-toggle:hover {
+  background: var(--fill-tertiary);
+}
+
+.navpane-resize {
   position: absolute;
+  width: 14px;
+  height: 14px;
+  z-index: 2;
+}
+.navpane-resize-nw {
+  top: 0;
+  left: 0;
+  cursor: nwse-resize;
+}
+.navpane-resize-ne {
+  top: 0;
   right: 0;
+  cursor: nesw-resize;
+}
+.navpane-resize-sw {
   bottom: 0;
-  width: 16px;
-  height: 16px;
+  left: 0;
+  cursor: nesw-resize;
+}
+.navpane-resize-se {
+  bottom: 0;
+  right: 0;
   cursor: nwse-resize;
 }

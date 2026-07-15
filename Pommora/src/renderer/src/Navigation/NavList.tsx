@@ -1,63 +1,51 @@
+import { Fragment } from 'react'
 import { Icon } from '@renderer/design-system/symbols'
+import { cx } from '@renderer/design-system/cx'
+import { text } from '@renderer/design-system/tokens'
+import { OverflowScroll } from '@renderer/design-system/components/OverflowScroll'
 import type { NavTarget } from '@shared/types'
 import type { ResolvedNav } from './navResolve'
 import './navList.css'
 
-// The stub row list both NavPane + NavMenu render — resolved entries with per-row pin/favorite/remove
-// affordances. Surface-agnostic (no window/rail chrome). The Figma gallery replaces the NavPane form.
+// The stub row list both NavPane + NavMenu render: (icon)(title) … (path). Title takes the slack and
+// eclipse-scrolls under the path when long; the path is right-aligned, grows left to a max, then
+// eclipse-scrolls itself — both via the shared OverflowScroll. The Figma gallery replaces this.
 export function NavList({
   items,
   extras,
-  onSelect,
-  onTogglePin,
-  onToggleFavorite,
-  onRemoveFavorite,
-  favoriteKeys,
-  empty = 'Nothing here yet'
+  onSelect
 }: {
   items: ResolvedNav[]
   /** Unresolvable hits (agenda kinds) — listed inert until Agenda routing ships. */
   extras?: { key: string; title: string; kind: string }[]
   onSelect: (target: NavTarget) => void
-  onTogglePin?: (key: string) => void
-  onToggleFavorite?: (target: NavTarget) => void
-  onRemoveFavorite?: (key: string) => void
-  favoriteKeys?: Set<string>
-  empty?: string
-}): React.JSX.Element {
-  if (items.length === 0 && !extras?.length) return <div className="nav-empty">{empty}</div>
+}): React.JSX.Element | null {
+  if (items.length === 0 && !extras?.length) return null
   return (
     <ul className="nav-list">
       {items.map((it) => (
         <li key={it.key} className="nav-item">
           <button type="button" className="nav-item-main" onClick={() => onSelect(it.target)}>
-            <span className="nav-item-title">
-              {it.pinned && <Icon name="pin" size={11} />}
-              {it.title}
-            </span>
-            {it.location && <span className="nav-item-loc">{it.location}</span>}
+            <Icon name={it.icon} size={15} className="nav-item-lead" />
+            <OverflowScroll className="nav-item-title">{it.title}</OverflowScroll>
+            {it.path.length > 0 && (
+              <OverflowScroll className={cx('nav-item-path', text.caption.standard)}>
+                {it.path.map((crumb, i) => (
+                  <Fragment key={i}>
+                    {i > 0 && <span className="nav-path-sep">›</span>}
+                    <Icon name={crumb.icon} size={12} className="nav-path-icon" />
+                    <span className="nav-path-name">{crumb.title}</span>
+                  </Fragment>
+                ))}
+              </OverflowScroll>
+            )}
           </button>
-          {onTogglePin && (
-            <button type="button" className="nav-item-act" aria-label="Pin" onClick={() => onTogglePin(it.key)}>
-              <Icon name="pin" size={12} />
-            </button>
-          )}
-          {onToggleFavorite && (
-            <button type="button" className="nav-item-act" aria-label="Favorite" onClick={() => onToggleFavorite(it.target)}>
-              <Icon name={favoriteKeys?.has(it.key) ? 'star' : 'star-off'} size={12} />
-            </button>
-          )}
-          {onRemoveFavorite && (
-            <button type="button" className="nav-item-act" aria-label="Remove favorite" onClick={() => onRemoveFavorite(it.key)}>
-              <Icon name="x" size={12} />
-            </button>
-          )}
         </li>
       ))}
       {extras?.map((e) => (
         <li key={e.key} className="nav-item nav-item-inert" title="Agenda navigation isn't wired yet">
           <span className="nav-item-title">{e.title}</span>
-          <span className="nav-item-loc">{e.kind}</span>
+          <span className={cx('nav-item-path', text.caption.standard)}>{e.kind}</span>
         </li>
       ))}
     </ul>

@@ -4,17 +4,7 @@ How you get from where you are to where you want to be — the single main pane'
 
 The main pane shows one entity at a time — selecting one in the sidebar, a table, or a breadcrumb routes the whole detail view, replacing the previous selection. A session-local history records each selection, and the footer breadcrumb shows the current location. Above that sits the Navigation layer: a per-Nexus, UI-agnostic store of recents, pins, and favorites, plus client-side title search, surfaced through two entry points that read the same data in different shapes.
 
-### Features
-
-#### II. Back and Forward
-
-Back and Forward walk a session history of selections, stepping to the previous or next entity and skipping any deleted along the way. A history step re-selects without re-recording, so stepping doesn't reshuffle the history. The toolbar buttons disable at each end. The history is in-memory and session-local — it isn't persisted.
-
-#### II. Breadcrumb
-
-The footer carries a breadcrumb of the current entity's container path, plus a dimmed forward **ghost crumb** for the last-visited Page within the open container — a one-click way back into where you were. Full footer → `Subfield.md`.
-
-#### II. The Navigation Layer
+### The Navigation Layer
 
 The shared wayfinding store beneath both navigation surfaces — built once, read everywhere. Three things live in it:
 
@@ -25,6 +15,16 @@ The shared wayfinding store beneath both navigation surfaces — built once, rea
 Entries store only their identity (kind + id + path) — every title, icon, and location is resolved **live** against the current tree at render, so a rename or move is always current and never cached stale. An entry that no longer resolves (deleted, or read against a different Nexus after a switch) is hidden at render but never deleted from storage, so a Nexus switch can't silently wipe favorites. Recents and favorites both **sync** (per-Nexus sidecars under `.nexus/`, last-writer-wins) so they follow you across machines; the recents stream persists debounced, pins and favorites immediately, and a durable write is flushed before quit.
 
 **Search** is client-side and title-based: a fuzzy match over a flattened index of every Collection, Set, Page (page titles included), Context, and the Homepage, plus a cached Agenda snapshot so Tasks and Events are findable. The index is memoized per tree, so typing filters without re-walking the tree.
+
+### Features
+
+#### II. Back and Forward
+
+Back and Forward walk a session history of selections, stepping to the previous or next entity and skipping any deleted along the way. A history step re-selects without re-recording, so stepping doesn't reshuffle the history. The toolbar buttons disable at each end. The history is in-memory and session-local — it isn't persisted.
+
+#### II. Breadcrumb
+
+The footer carries a breadcrumb of the current entity's container path, plus a dimmed forward **ghost crumb** for the last-visited Page within the open container — a one-click way back into where you were. Full footer → `Subfield.md`.
 
 #### II. NavPane and NavMenu
 

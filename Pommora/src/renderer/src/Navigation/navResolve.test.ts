@@ -4,25 +4,38 @@ import { buildResolveIndex, resolveFavorites, resolveNavEntry, resolveRecents, r
 import { makeTree } from './testTree'
 
 describe('resolveNavEntry', () => {
-  it('resolves a page to title + container-chain location', () => {
+  const pathTitles = (r: { path: { title: string }[] } | null): string[] => (r?.path ?? []).map((c) => c.title)
+
+  it('resolves a page to title + its container-chain path', () => {
     const r = resolveNavEntry(makeTree(), { kind: 'page', id: 'p2', path: 'Notes/Ideas/Beta.md' })
-    expect(r).toMatchObject({ kind: 'page', title: 'Nested Beta', location: 'Notes / Ideas' })
+    expect(r).toMatchObject({ kind: 'page', title: 'Nested Beta' })
+    expect(pathTitles(r)).toEqual(['Notes', 'Ideas'])
   })
 
   it('resolves a set to its parent chain (excluding itself)', () => {
     const r = resolveNavEntry(makeTree(), { kind: 'set', id: 's1', path: 'Notes/Ideas' })
-    expect(r).toMatchObject({ kind: 'set', title: 'Ideas', location: 'Notes' })
+    expect(r).toMatchObject({ kind: 'set', title: 'Ideas' })
+    expect(pathTitles(r)).toEqual(['Notes'])
   })
 
-  it('resolves a context to its tier label as location', () => {
+  it('resolves a context to its tier label as the path', () => {
     const r = resolveNavEntry(makeTree(), { kind: 'context', id: 't1' })
-    expect(r).toMatchObject({ kind: 'context', title: 'Reading', location: 'Topic' })
+    expect(r).toMatchObject({ kind: 'context', title: 'Reading' })
+    expect(pathTitles(r)).toEqual(['Topic'])
   })
 
-  it('resolves a collection (location = nexus) and homepage', () => {
+  it('resolves a collection (no path) and homepage', () => {
     const t = makeTree()
-    expect(resolveNavEntry(t, { kind: 'collection', id: 'c1' })).toMatchObject({ title: 'Notes', location: 'TestNexus' })
+    const col = resolveNavEntry(t, { kind: 'collection', id: 'c1' })
+    expect(col).toMatchObject({ title: 'Notes' })
+    expect(pathTitles(col)).toEqual([])
     expect(resolveNavEntry(t, { kind: 'homepage' })).toMatchObject({ title: 'TestNexus' })
+  })
+
+  it('resolves an entry icon for each kind', () => {
+    const t = makeTree()
+    expect(resolveNavEntry(t, { kind: 'page', id: 'p1', path: 'Notes/Alpha.md' })?.icon).toBeTruthy()
+    expect(resolveNavEntry(t, { kind: 'collection', id: 'c1' })?.icon).toBeTruthy()
   })
 
   it('render-prunes a gone entry (returns null) — never mutates storage', () => {
@@ -63,7 +76,7 @@ describe('resolveRecents', () => {
       { kind: 'page', id: 'p2', path: 'Notes/Ideas/Beta.md', pinned: true }, // older, pinned
       { kind: 'collection', id: 'c1' } // oldest, un-pinned
     ]
-    expect(resolveRecents(makeTree(), recents).map((r) => r.key)).toEqual(['page:p2', 'page:p1', 'collection:c1'])
+    expect(resolveRecents(buildResolveIndex(makeTree()), recents).map((r) => r.key)).toEqual(['page:p2', 'page:p1', 'collection:c1'])
   })
 
   it('drops gone entries from the render list only', () => {
@@ -71,7 +84,7 @@ describe('resolveRecents', () => {
       { kind: 'page', id: 'p1', path: 'Notes/Alpha.md' },
       { kind: 'page', id: 'ghost', path: 'x.md' }
     ]
-    expect(resolveRecents(makeTree(), recents).map((r) => r.key)).toEqual(['page:p1'])
+    expect(resolveRecents(buildResolveIndex(makeTree()), recents).map((r) => r.key)).toEqual(['page:p1'])
   })
 })
 
@@ -82,6 +95,6 @@ describe('resolveFavorites', () => {
       { kind: 'collection', id: 'ghost' },
       { kind: 'context', id: 'a1' }
     ]
-    expect(resolveFavorites(makeTree(), favorites).map((r) => r.key)).toEqual(['collection:c1', 'context:a1'])
+    expect(resolveFavorites(buildResolveIndex(makeTree()), favorites).map((r) => r.key)).toEqual(['collection:c1', 'context:a1'])
   })
 })
