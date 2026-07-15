@@ -5,6 +5,7 @@
   --card-min: 150px;
   --card-gap-h: 12px;
   --card-gap-v: 12px;
+  --cover-zoom: 1; /* KNOB — overall zoom of the cover image: 1 = as captured; >1 zooms into the top */
   display: flex;
   flex-direction: column;
   gap: var(--card-gap-v);
@@ -52,6 +53,8 @@
   height: 100%;
   object-fit: cover;
   object-position: top; /* the page's inline title banner sits at the top of the shot */
+  transform: scale(var(--cover-zoom, 1));
+  transform-origin: top center;
   -webkit-user-drag: none; /* the image never drags on its own — the card owns the drag (or nothing) */
 }
 .nav-gallery-ph {

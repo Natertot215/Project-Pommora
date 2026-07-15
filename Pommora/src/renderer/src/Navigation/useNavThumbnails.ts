@@ -50,7 +50,18 @@ export function useNavThumbnails(): void {
         await new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())))
         if (cancelled || useSession.getState().navOpen) return
         const key = navKey(selection)
-        const res = await window.nexus.capture.thumbnail(key, contentRect(pane), window.devicePixelRatio)
+        // Hide the toolbar for the shot — the cover keeps its top BAND (framing) but not the buttons;
+        // restored the instant the capture returns (a rAF lets the hidden state paint before capture).
+        const toolbar = document.querySelector<HTMLElement>('.app-toolbar')
+        const prevVis = toolbar?.style.visibility ?? ''
+        if (toolbar) toolbar.style.visibility = 'hidden'
+        await new Promise<void>((r) => requestAnimationFrame(() => r()))
+        let res: Awaited<ReturnType<typeof window.nexus.capture.thumbnail>>
+        try {
+          res = await window.nexus.capture.thumbnail(key, contentRect(pane), window.devicePixelRatio)
+        } finally {
+          if (toolbar) toolbar.style.visibility = prevVis
+        }
         if (!cancelled && res.ok) bumpThumb(key)
       })()
     }, 300)
