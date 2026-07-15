@@ -1,0 +1,15 @@
+.navmenu-search {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 4px 8px;
+  color: var(--label-tertiary);
+}
+.navmenu-search input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  outline: none;
+  font-size: 13px;
+  color: var(--label-primary);
+}

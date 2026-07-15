@@ -3,10 +3,10 @@ import { GlassWindow } from '@renderer/design-system/materials'
 import { Icon } from '@renderer/design-system/symbols'
 import type { NavTarget } from '@shared/types'
 import { useExitPresence } from '../design-system/useExitPresence'
-import { useSession, type SelectTarget } from '../store'
-import { buildResolveIndex, resolveFavorites, resolveRecents, resolveWith, type ResolvedNav } from '../Navigation/navResolve'
-import { buildNavIndex, filterNav } from '../Navigation/navSearch'
+import { useSession } from '../store'
 import { navKey } from '../Navigation/navRecents'
+import { splitSearch, useNavData } from '../Navigation/useNavData'
+import { NavList } from '../Navigation/NavList'
 import './navpane.css'
 
 const WIN = { minW: 360, minH: 280, defW: 640, defH: 460 }
@@ -16,8 +16,15 @@ const RAIL = { min: 120, def: 200, max: 320 }
 const geo = { x: null as number | null, y: null as number | null, w: WIN.defW, h: WIN.defH, rail: RAIL.def }
 
 const clamp = (v: number, lo: number, hi: number): number => Math.max(lo, Math.min(hi, v))
-// Agenda kinds (task/event) route nowhere until Agenda ships (E-9b) — search-listable, not selectable.
-const isTreeTarget = (t: NavTarget): t is SelectTarget => t.kind !== 'task' && t.kind !== 'event'
+
+// Keep the (module-persisted) geometry inside the current viewport — on reopen or a window resize
+// it could otherwise render off-screen with no grabbable chrome.
+function clampGeo(): void {
+  geo.w = Math.min(geo.w, window.innerWidth)
+  geo.h = Math.min(geo.h, window.innerHeight)
+  geo.x = clamp(geo.x ?? 0, 0, Math.max(0, window.innerWidth - 80))
+  geo.y = clamp(geo.y ?? 0, 0, Math.max(0, window.innerHeight - 40))
+}
 
 export function NavPane(): React.JSX.Element | null {
   const navOpen = useSession((s) => s.navOpen)
@@ -27,11 +34,8 @@ export function NavPane(): React.JSX.Element | null {
 }
 
 function NavPaneBody({ closing }: { closing: boolean }): React.JSX.Element {
-  const tree = useSession((s) => s.tree)
-  const recents = useSession((s) => s.recents)
+  const { resolvedRecents, resolvedFavorites, search, go } = useNavData()
   const favorites = useSession((s) => s.favorites)
-  const agenda = useSession((s) => s.agendaSnapshot)
-  const select = useSession((s) => s.select)
   const closeNav = useSession((s) => s.closeNav)
   const togglePin = useSession((s) => s.togglePin)
   const addFavorite = useSession((s) => s.addFavorite)
@@ -41,42 +45,48 @@ function NavPaneBody({ closing }: { closing: boolean }): React.JSX.Element {
   const [, force] = useState(0) // re-render on geometry mutation (geo is a module ref)
   const searchRef = useRef<HTMLInputElement>(null)
 
-  // Center on first-ever open, then persist wherever the user drags it.
+  // Center on first-ever open; on later opens just re-clamp into the current viewport. Re-clamp on
+  // resize too. H-2: focus the search on open (a command-palette focus, not a modal focus-trap).
   useEffect(() => {
     if (geo.x === null || geo.y === null) {
+      geo.w = Math.min(geo.w, window.innerWidth)
+      geo.h = Math.min(geo.h, window.innerHeight)
       geo.x = Math.max(0, Math.round((window.innerWidth - geo.w) / 2))
       geo.y = Math.max(0, Math.round((window.innerHeight - geo.h) / 3))
+    } else {
+      clampGeo()
+    }
+    force((n) => n + 1)
+    searchRef.current?.focus()
+    const onResize = (): void => {
+      clampGeo()
       force((n) => n + 1)
     }
-    searchRef.current?.focus()
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
   }, [])
 
   useEffect(() => {
+    // Skip an Escape a focused surface already handled (mirrors App.tsx's command handler).
     const onKey = (e: KeyboardEvent): void => {
-      if (e.key === 'Escape') closeNav()
+      if (e.key === 'Escape' && !e.defaultPrevented) closeNav()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [closeNav])
 
   const favoriteKeys = useMemo(() => new Set(favorites.map(navKey)), [favorites])
-  const resolvedRecents = useMemo(() => (tree ? resolveRecents(tree, recents) : []), [tree, recents])
-  const resolvedFavorites = useMemo(() => (tree ? resolveFavorites(tree, favorites) : []), [tree, favorites])
-  const results = useMemo(() => {
-    if (!tree || !query.trim()) return null
-    const index = buildNavIndex(tree, agenda ?? undefined)
-    const resolveIx = buildResolveIndex(tree)
-    return filterNav(index, query).map((e) => ({ entry: e, resolved: resolveWith(resolveIx, e.target) }))
-  }, [tree, agenda, query])
+  const results = useMemo(() => (query.trim() ? splitSearch(search(query)) : null), [query, search])
+  const goClose = (target: NavTarget): void => go(target, closeNav)
 
-  const go = (target: NavTarget): void => {
-    if (!isTreeTarget(target)) return
-    void select(target)
-    closeNav()
-  }
-
-  const startDrag = (mode: 'move' | 'se' | 'rail', e: ReactPointerEvent): void => {
+  // Capture the pointer on the pressed element (house pattern) so a drag that releases OUTSIDE the
+  // window still gets its pointerup/pointercancel — the listeners live on the captured element, so an
+  // unmount mid-drag frees them with it (no window-level leak).
+  const startDrag = (mode: 'move' | 'se' | 'rail', e: ReactPointerEvent<HTMLElement>): void => {
     e.preventDefault()
+    const el = e.currentTarget
+    const pid = e.pointerId
+    el.setPointerCapture(pid)
     const s = { x: e.clientX, y: e.clientY, gx: geo.x ?? 0, gy: geo.y ?? 0, gw: geo.w, gh: geo.h, rail: geo.rail }
     const move = (ev: PointerEvent): void => {
       const dx = ev.clientX - s.x
@@ -92,15 +102,18 @@ function NavPaneBody({ closing }: { closing: boolean }): React.JSX.Element {
       }
       force((n) => n + 1)
     }
-    const up = (): void => {
-      window.removeEventListener('pointermove', move)
-      window.removeEventListener('pointerup', up)
+    const end = (): void => {
+      if (el.hasPointerCapture(pid)) el.releasePointerCapture(pid)
+      el.removeEventListener('pointermove', move)
+      el.removeEventListener('pointerup', end)
+      el.removeEventListener('pointercancel', end)
     }
-    window.addEventListener('pointermove', move)
-    window.addEventListener('pointerup', up)
+    el.addEventListener('pointermove', move)
+    el.addEventListener('pointerup', end)
+    el.addEventListener('pointercancel', end)
   }
   // Move from bare chrome only — presses on a control keep it interactive.
-  const onWindowDown = (e: ReactPointerEvent): void => {
+  const onWindowDown = (e: ReactPointerEvent<HTMLElement>): void => {
     if ((e.target as HTMLElement).closest('button, input, .navpane-rail-resize, .navpane-resize-se')) return
     startDrag('move', e)
   }
@@ -110,7 +123,7 @@ function NavPaneBody({ closing }: { closing: boolean }): React.JSX.Element {
   return (
     <GlassWindow className={`navpane${closing ? ' closing' : ''}`} style={style} role="dialog" aria-label="Navigation" onPointerDown={onWindowDown}>
       <GlassWindow className="navpane-rail">
-        <NavList items={resolvedFavorites} onSelect={go} onRemoveFavorite={(k) => removeFavorite(k)} />
+        <NavList items={resolvedFavorites} onSelect={goClose} onRemoveFavorite={removeFavorite} />
       </GlassWindow>
       <div className="navpane-rail-resize" onPointerDown={(e) => startDrag('rail', e)} role="separator" aria-orientation="vertical" aria-label="Resize favorites" />
       <div className="navpane-main">
@@ -120,16 +133,12 @@ function NavPaneBody({ closing }: { closing: boolean }): React.JSX.Element {
         </div>
         <div className="navpane-main-scroll">
           {results ? (
-            <NavList
-              items={results.map((r) => r.resolved).filter((r): r is ResolvedNav => r !== null)}
-              extras={results.filter((r) => r.resolved === null).map((r) => ({ key: r.entry.key, title: r.entry.title, kind: r.entry.target.kind }))}
-              onSelect={go}
-            />
+            <NavList items={results.items} extras={results.extras} onSelect={goClose} empty="No matches" />
           ) : (
             <NavList
               items={resolvedRecents}
-              onSelect={go}
-              onTogglePin={(k) => togglePin(k)}
+              onSelect={goClose}
+              onTogglePin={togglePin}
               onToggleFavorite={(t) => (favoriteKeys.has(navKey(t)) ? removeFavorite(navKey(t)) : addFavorite(t))}
               favoriteKeys={favoriteKeys}
             />
@@ -138,62 +147,5 @@ function NavPaneBody({ closing }: { closing: boolean }): React.JSX.Element {
       </div>
       <div className="navpane-resize-se" onPointerDown={(e) => startDrag('se', e)} aria-label="Resize" />
     </GlassWindow>
-  )
-}
-
-// A flat functional list of resolved entries — the STUB rendering; the Figma gallery replaces it.
-function NavList({
-  items,
-  extras,
-  onSelect,
-  onTogglePin,
-  onToggleFavorite,
-  onRemoveFavorite,
-  favoriteKeys
-}: {
-  items: ResolvedNav[]
-  extras?: { key: string; title: string; kind: string }[]
-  onSelect: (target: NavTarget) => void
-  onTogglePin?: (key: string) => void
-  onToggleFavorite?: (target: NavTarget) => void
-  onRemoveFavorite?: (key: string) => void
-  favoriteKeys?: Set<string>
-}): React.JSX.Element {
-  if (items.length === 0 && !extras?.length) return <div className="navpane-empty">Nothing here yet</div>
-  return (
-    <ul className="navpane-list">
-      {items.map((it) => (
-        <li key={it.key} className="navpane-item">
-          <button type="button" className="navpane-item-main" onClick={() => onSelect(it.target)}>
-            <span className="navpane-item-title">
-              {it.pinned && <Icon name="pin" size={11} />}
-              {it.title}
-            </span>
-            {it.location && <span className="navpane-item-loc">{it.location}</span>}
-          </button>
-          {onTogglePin && (
-            <button type="button" className="navpane-item-act" aria-label="Pin" onClick={() => onTogglePin(it.key)}>
-              <Icon name="pin" size={12} />
-            </button>
-          )}
-          {onToggleFavorite && (
-            <button type="button" className="navpane-item-act" aria-label="Favorite" onClick={() => onToggleFavorite(it.target)}>
-              <Icon name={favoriteKeys?.has(it.key) ? 'star' : 'star-off'} size={12} />
-            </button>
-          )}
-          {onRemoveFavorite && (
-            <button type="button" className="navpane-item-act" aria-label="Remove favorite" onClick={() => onRemoveFavorite(it.key)}>
-              <Icon name="x" size={12} />
-            </button>
-          )}
-        </li>
-      ))}
-      {extras?.map((e) => (
-        <li key={e.key} className="navpane-item navpane-item-inert" title="Agenda navigation isn't wired yet">
-          <span className="navpane-item-title">{e.title}</span>
-          <span className="navpane-item-loc">{e.kind}</span>
-        </li>
-      ))}
-    </ul>
   )
 }

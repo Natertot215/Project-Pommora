@@ -1,11 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { SegmentedSymbol, type Segment } from '@renderer/design-system/components/Segmented-Controls'
 import { useDismiss } from '@renderer/design-system/components/Popover'
-import { MenuSurface } from '@renderer/design-system/components/menu'
 import { ToolbarTrio } from './ToolbarTrio'
 import { ViewDropdown } from './ViewDropdown'
+import { NavMenu } from './NavMenu'
 import { SettingsDropdown } from '../Components/Detail/SettingsDropdown'
-import * as dropdown from '../Components/Detail/settingsPane.css'
 import { useSession } from '../store'
 import { useExitPresence } from '@renderer/design-system/useExitPresence'
 import './toolbar.css'
@@ -79,12 +78,7 @@ export function Toolbar({
             the pane's right edge to its trigger's center — Navigation at 5/6 of the trio's width,
             Settings at dead center (3 equal segments). */}
         {navP.mounted && (
-          <div className={dropdown.anchor}>
-            <MenuSurface closing={navP.closing} notchInsetRight={trioW ? (trioW * 5) / 6 : undefined}>
-              {/* Blank chrome until Navigation ships (no build-status copy — Guidelines/UI-Copy.md). */}
-              <div style={{ minHeight: 24 }} />
-            </MenuSurface>
-          </div>
+          <NavMenu closing={navP.closing} notchInsetRight={trioW ? (trioW * 5) / 6 : undefined} onClose={() => setPanel(null)} />
         )}
         {settingsP.mounted && (
           <SettingsDropdown closing={settingsP.closing} notchInsetRight={trioW ? trioW / 2 : undefined} />
