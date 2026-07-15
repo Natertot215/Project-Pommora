@@ -44,6 +44,16 @@ function NavPaneBody({ closing }: { closing: boolean }): React.JSX.Element {
   const { resolvedRecents, resolvedFavorites, resolvedPins, search, go } = useNavData()
   const closeNav = useSession((s) => s.closeNav)
 
+  // Freeze the recents order at open — navigating while the pane stays open still records into the
+  // store's recents, but the visible list must NOT reshuffle placement under the cursor. Re-snapshots
+  // on reopen (the body remounts). Filtered against the LIVE pins so pinning while open drops a card
+  // without disturbing the others' placement.
+  const [frozenRecents] = useState(resolvedRecents)
+  const shownRecents = useMemo(() => {
+    const pinned = new Set(resolvedPins.map((p) => p.key))
+    return frozenRecents.filter((r) => !pinned.has(r.key))
+  }, [frozenRecents, resolvedPins])
+
   const [query, setQuery] = useState('')
   const [, force] = useState(0) // re-render on geometry mutation (geo is a module ref)
   const searchRef = useRef<HTMLInputElement>(null)
@@ -167,9 +177,9 @@ function NavPaneBody({ closing }: { closing: boolean }): React.JSX.Element {
             {results ? (
               <NavList items={results.items} extras={results.extras} onSelect={goClose} />
             ) : viewMode === 'gallery' ? (
-              <NavGallery pins={resolvedPins} items={resolvedRecents} onSelect={goClose} />
+              <NavGallery pins={resolvedPins} items={shownRecents} onSelect={goClose} />
             ) : (
-              <NavList items={[...resolvedPins, ...resolvedRecents]} onSelect={goClose} />
+              <NavList items={[...resolvedPins, ...shownRecents]} onSelect={goClose} />
             )}
           </div>
         </div>
