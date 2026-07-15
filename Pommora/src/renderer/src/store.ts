@@ -482,7 +482,9 @@ export const useSession = create<SessionState>((set, get) => {
       const res = await window.nexus.nav.loadPins().catch(() => null)
       if (res?.ok) set({ pins: [...res.pins].sort(byOrder) })
     },
-    applyNavChanged: (nav) => set({ recents: nav.recents, favorites: nav.favorites, pins: [...nav.pins].sort(byOrder) }),
+    // Only pins swap on a live refresh — recents are debounce-written so in-memory leads disk; replacing
+    // them from a pin/favorite-triggered push would clobber the user's latest (unsaved) navigations.
+    applyNavChanged: (nav) => set({ pins: [...nav.pins].sort(byOrder) }),
     thumbVersions: {},
     bumpThumb: (key) => set((s) => ({ thumbVersions: { ...s.thumbVersions, [key]: (s.thumbVersions[key] ?? 0) + 1 } })),
     evictThumbs: () => {

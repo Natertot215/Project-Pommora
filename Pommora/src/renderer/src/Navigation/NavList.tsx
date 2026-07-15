@@ -5,6 +5,7 @@ import { text } from '@renderer/design-system/tokens'
 import { OverflowScroll } from '@renderer/design-system/components/OverflowScroll'
 import type { NavTarget } from '@shared/types'
 import type { ResolvedNav } from './navResolve'
+import { EntityGlyph } from './EntityGlyph'
 import './navList.css'
 
 // The stub row list both NavPane + NavMenu render: (icon)(title) … (path). Title takes the slack and
@@ -27,7 +28,7 @@ export function NavList({
         <li key={it.key} className="nav-item">
           {it.pinned && <Icon name="pin" size={10} className="nav-item-pin" />}
           <button type="button" className="nav-item-main" onClick={() => onSelect(it.target)}>
-            <Icon name={it.icon} size={15} className="nav-item-lead" />
+            <EntityGlyph item={it} size={15} className="nav-item-lead" />
             <OverflowScroll className="nav-item-title">{it.title}</OverflowScroll>
             {it.path.length > 0 && (
               <OverflowScroll className={cx('nav-item-path', text.caption.standard)}>

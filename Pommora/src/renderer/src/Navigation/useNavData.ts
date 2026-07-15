@@ -69,11 +69,11 @@ export function useNavData(): {
     (target: NavTarget, onDone?: () => void): void => {
       if (!isTreeTarget(target)) return
       // A durable pin's stored path can be stale (its entity moved/renamed since) — reconcile by id
-      // against the live tree before opening, as Back/Forward do. A target deleted between render and
-      // click reconciles to `none` → bail rather than open a dead path.
-      const fresh = tree ? reconcileSelection(tree, target) : target
-      if (fresh.kind === 'none') return
-      void select(fresh)
+      // against the live tree before opening, as Back/Forward do. If reconcile can't resolve it
+      // (`none` — a genuinely-gone entity, or a reconcile miss), fall back to the original target so
+      // the click still navigates rather than silently doing nothing.
+      const reconciled = tree ? reconcileSelection(tree, target) : target
+      void select(reconciled.kind === 'none' ? target : reconciled)
       onDone?.()
     },
     [select, tree]

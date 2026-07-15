@@ -5,10 +5,10 @@ import { text } from '@renderer/design-system/tokens'
 import { OverflowScroll } from '@renderer/design-system/components/OverflowScroll'
 import { SortableZone, useDragItem, type DragItem } from '@renderer/design-system/interactions/drag'
 import type { NavTarget } from '@shared/types'
-import { assetUrl } from '../assetUrl'
 import { useSession } from '../store'
 import { navKey } from '../Navigation/navRecents'
 import type { ResolvedNav } from '../Navigation/navResolve'
+import { EntityGlyph } from '../Navigation/EntityGlyph'
 import './navGallery.css'
 
 // The gallery view over the same nav data as NavList: pinned cards (reorderable) in one flow above the
@@ -47,18 +47,12 @@ function PinnedCard(props: { it: ResolvedNav; nexusId: string; onSelect: (t: Nav
 function GalleryCard({ it, nexusId, onSelect, drag }: { it: ResolvedNav; nexusId: string; onSelect: (t: NavTarget) => void; drag?: DragItem }): React.JSX.Element {
   const selection = useSession((s) => s.selection)
   const version = useSession((s) => s.thumbVersions[it.key] ?? 0)
-  const profileImage = useSession((s) => s.tree?.nexus.profileImage ?? null)
   const pinTarget = useSession((s) => s.pinTarget)
   const unpinTarget = useSession((s) => s.unpinTarget)
   const [failed, setFailed] = useState(false)
 
   const active = selection.kind !== 'none' && navKey(selection) === it.key
-  // Homepage shows the nexus's assigned photo (its identity), not a captured screenshot; everything
-  // else shows its detail-pane thumbnail.
-  const src =
-    it.kind === 'homepage' && profileImage
-      ? assetUrl(profileImage)
-      : `nexus-asset://nexus/.nexus/assets/${nexusId}/thumbnails/${thumbFile(it.key)}.jpg?v=${version}`
+  const src = `nexus-asset://nexus/.nexus/assets/${nexusId}/thumbnails/${thumbFile(it.key)}.jpg?v=${version}`
   // Adopted entities re-mint their id on adoption, so they can't hold a durable pin — hide the affordance.
   const pinnable = !('id' in it.target && it.target.id.startsWith('adopted-'))
   // The drag engine fires a synthesized click after a pointer drag — don't treat a reorder-drop as a
@@ -92,7 +86,7 @@ function GalleryCard({ it, nexusId, onSelect, drag }: { it: ResolvedNav; nexusId
       <div className="nav-gallery-thumb">
         {failed ? (
           <div className="nav-gallery-ph">
-            <Icon name={it.icon} size={22} />
+            <EntityGlyph item={it} size={22} />
           </div>
         ) : (
           <img src={src} loading="lazy" alt="" onError={() => setFailed(true)} />
@@ -113,7 +107,7 @@ function GalleryCard({ it, nexusId, onSelect, drag }: { it: ResolvedNav; nexusId
       </div>
       <div className="nav-gallery-text">
         <OverflowScroll className={cx('nav-gallery-title', text.footnote.emphasized)}>
-          <Icon name={it.icon} size={13} className="nav-gallery-title-icon" />
+          <EntityGlyph item={it} size={13} className="nav-gallery-title-icon" />
           {it.title}
         </OverflowScroll>
         {it.path.length > 0 && (
