@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import type { IpcRendererEvent } from 'electron'
-import type { AgendaListResult, NexusState, NexusTree, OpenIn, PageResult, Personalization, SubfieldConfig, ViewButton, ViewStyle } from '@shared/types'
+import type { AgendaListResult, NavFavorite, NavStateResult, NexusState, NexusTree, OpenIn, PageResult, Personalization, RecentEntry, SubfieldConfig, ViewButton, ViewStyle } from '@shared/types'
 import type { MutateRequest, MutateResult, ContextTarget } from '@shared/mutate'
 import type { FormatState } from '@shared/editorMenu'
 import type { TableMenuAction, TableMenuContext } from '@shared/tableMenu'
@@ -279,6 +279,14 @@ const api = {
   // Agenda read for the sidebar's Agenda mode — lazy, called only when that mode is active.
   agenda: {
     list: (): Promise<AgendaListResult> => ipcRenderer.invoke('agenda:list')
+  },
+  // Navigation layer — recents/favorites persistence. The renderer owns the arrays; main persists.
+  // saveRecents debounces main-side (immediate=true for the pin toggle); saveFavorites is immediate.
+  nav: {
+    load: (): Promise<NavStateResult> => ipcRenderer.invoke('nav:load'),
+    saveRecents: (entries: RecentEntry[], immediate?: boolean): Promise<{ ok: true } | { ok: false; error: string }> =>
+      ipcRenderer.invoke('nav:saveRecents', entries, immediate),
+    saveFavorites: (entries: NavFavorite[]): Promise<{ ok: true } | { ok: false; error: string }> => ipcRenderer.invoke('nav:saveFavorites', entries)
   },
   // Personalization (accent, connection color, interface toggles) — persist one key; the tree
   // surfaces current values (state → tree.personalization), so there's no get.

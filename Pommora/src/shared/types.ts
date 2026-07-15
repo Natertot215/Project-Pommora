@@ -317,6 +317,32 @@ export type SelectionState =
   | { kind: 'set'; id: string; path: string }
   | { kind: 'page'; id: string; path: string }
 
+/** A navigable target for the Navigation layer: every `SelectionState` except the transient
+ *  `none`, widened with the agenda kinds (`task`/`event` — find-only in v1, no click destination
+ *  yet). Recents and favorites are both stored as these and resolved live against the tree at
+ *  render, so they carry no cached display fields. */
+export type NavTarget =
+  | Exclude<SelectionState, { kind: 'none' }>
+  | { kind: 'task'; id: string }
+  | { kind: 'event'; id: string }
+
+/** A recents-stream entry: a nav target plus a transient `pinned` flag that floats it to the top
+ *  of history (the "open tabs" feel). Absent `pinned` = un-pinned. */
+export type RecentEntry = NavTarget & { pinned?: boolean }
+
+/** A durable favorite. Same shape as a nav target — v1's add path is tree-kinds only, but the type
+ *  stays permissive so agenda favorites slot in with their resolver later. */
+export type NavFavorite = NavTarget
+
+/** The two Navigation sidecars read together (`.nexus/navRecents.json` + `navFavorites.json`). */
+export interface NavState {
+  recents: RecentEntry[]
+  favorites: NavFavorite[]
+}
+
+/** The `nav:load` IPC envelope — never throws across the boundary. */
+export type NavStateResult = ({ ok: true } & NavState) | { ok: false; error: string }
+
 /** Per-nexus Subfield (footer) config — persisted as a foreign `subfield` key in settings.json
  *  (Swift ignores unknown keys, so it round-trips safely). */
 export interface SubfieldConfig {

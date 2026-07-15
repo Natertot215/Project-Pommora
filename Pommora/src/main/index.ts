@@ -2,7 +2,7 @@ import { app, BrowserWindow, dialog, ipcMain, Menu, nativeTheme, protocol, shell
 import type { OpenDialogOptions } from 'electron'
 import { basename, dirname, extname, join, sep } from 'node:path'
 import { readFile, rename } from 'node:fs/promises'
-import type { AgendaListResult, NexusState, PageResult, SubfieldConfig } from '@shared/types'
+import type { AgendaListResult, NavFavorite, NavStateResult, NexusState, PageResult, RecentEntry, SubfieldConfig } from '@shared/types'
 import { collectAgendaEntries } from './agenda/collectAgenda'
 import type { MutateRequest, MutateResult, ContextTarget } from '@shared/mutate'
 import { WINDOW_BG } from '@shared/theme'
@@ -24,6 +24,7 @@ import { resolveUnderRoot } from './pathSafety'
 import { updatePageBody } from './crud/page'
 import { readFolds, writeFolds, type FoldState } from './io/folds'
 import { readActiveViews, writeActiveViews, type ActiveViews } from './io/activeViews'
+import { flushNavWrites, hasPendingNavWrites, readNavState, scheduleRecentsWrite, writeFavorites, writeRecentsNow } from './io/navState'
 import { readViewOrders, writeViewOrders, type ViewOrders } from './io/viewOrders'
 import { saveView, reorderViews, deleteView } from './crud/views'
 import { setContainerConfig, type ContainerConfigPatch } from './crud/containerConfig'
@@ -262,6 +263,44 @@ ipcMain.handle('agenda:list', async (): Promise<AgendaListResult> => {
   }
 })
 
+// Navigation layer (recents + favorites) — the renderer owns the in-memory arrays and all
+// MRU/dedupe/cap/prune logic; main persists. Recents records debounce (fired on every selection);
+// the pin toggle and favorites write immediately.
+ipcMain.handle('nav:load', async (): Promise<NavStateResult> => {
+  const root = sessionRoot()
+  if (root === null) return { ok: false, error: 'No nexus open' }
+  try {
+    return { ok: true, ...(await readNavState(root)) }
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) }
+  }
+})
+
+ipcMain.handle('nav:saveRecents', async (_e, entries: unknown, immediate?: unknown): Promise<{ ok: true } | { ok: false; error: string }> => {
+  try {
+    const root = sessionRoot()
+    if (root === null) return { ok: false, error: 'No nexus is open.' }
+    if (!Array.isArray(entries)) return { ok: false, error: 'Recents entries must be an array.' }
+    if (immediate) await writeRecentsNow(root, entries as RecentEntry[])
+    else scheduleRecentsWrite(root, entries as RecentEntry[])
+    return { ok: true }
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) }
+  }
+})
+
+ipcMain.handle('nav:saveFavorites', async (_e, entries: unknown): Promise<{ ok: true } | { ok: false; error: string }> => {
+  try {
+    const root = sessionRoot()
+    if (root === null) return { ok: false, error: 'No nexus is open.' }
+    if (!Array.isArray(entries)) return { ok: false, error: 'Favorites entries must be an array.' }
+    await writeFavorites(root, entries as NavFavorite[])
+    return { ok: true }
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) }
+  }
+})
+
 // Open-time prep shared by EVERY path that opens a nexus (explicit open + launch-restore),
 // run after openSession and before the index reads anything:
 //   1. Ensure `.nexus/nexus.json` + `settings.json` exist in Swift's shape (matches Swift's
@@ -287,6 +326,9 @@ async function prepareOpenedNexus(path: string): Promise<void> {
 // Open a chosen nexus folder: make it the session, persist it as last-opened, and
 // push it onto the recents (deduped, capped) + the OS Recent Documents list.
 async function adoptNexus(path: string): Promise<void> {
+  // Drain the outgoing nexus's owed nav writes before the session root changes, so a rapid
+  // switch-away-and-back can't let a queued write clobber the freshly-loaded state.
+  await flushNavWrites()
   await openSession(path)
   // openSession canonicalized the root (realpath); thread THAT everywhere below so the watcher's
   // session-match guard (watcher.ts) and the index/persistence key off the same string sessionRoot()
@@ -1538,9 +1580,18 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit()
 })
 
-// Release the index handle on quit (regeneratable, so a clean close isn't required —
-// just tidy + frees the WAL files).
-app.on('before-quit', () => {
+// Quit cleanup. The index handle is regeneratable (a clean close just tidies + frees the WAL
+// files), but any owed nav write — a queued debounce OR an in-flight favorite/pin — is durable
+// user state, so if one is outstanding we defer the quit, drain them all, then re-quit. The guard
+// makes the second pass fall straight through; flushNavWrites loops so a record landing mid-drain
+// is caught before the re-quit.
+let flushingBeforeQuit = false
+app.on('before-quit', (e) => {
+  if (flushingBeforeQuit) return
   stopWatcher()
   closeSessionIndex()
+  if (!hasPendingNavWrites()) return
+  e.preventDefault()
+  flushingBeforeQuit = true
+  void flushNavWrites().then(() => app.quit(), () => app.quit())
 })

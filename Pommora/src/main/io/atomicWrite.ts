@@ -68,6 +68,18 @@ export async function readJsonObject(absPath: string): Promise<Record<string, un
   }
 }
 
+/** Read + JSON-parse a file to a plain array, or `[]` if missing / unreadable / not an array.
+ *  The array-side analog of `readJsonObject` — the lenient reader for sidecars stored as lists
+ *  (the Navigation recents/favorites streams). Element validation is the caller's job. */
+export async function readJsonArray(absPath: string): Promise<unknown[]> {
+  try {
+    const v: unknown = JSON.parse(await readFile(absPath, 'utf8'))
+    return Array.isArray(v) ? v : []
+  } catch {
+    return []
+  }
+}
+
 /** Deterministic JSON: object keys sorted recursively, 2-space indent. Byte-stable
  *  across writes so re-saving unchanged data produces identical bytes. */
 export function stableStringify(value: unknown): string {
