@@ -202,6 +202,19 @@
 .tab.is-dragging {
   opacity: 0.85;
 }
+/* The prototype's inter-tab segment hairline — a pill on the seam before every tab but the first. */
+.tab:not(:first-child)::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: var(--tab-divider-w);
+  height: var(--tab-divider-h);
+  background: var(--separator-segment);
+  border-radius: 999px;
+  pointer-events: none;
+}
 .tab-icon {
   flex: 0 0 auto;
   color: inherit;
@@ -222,13 +235,20 @@
   border: none;
   border-radius: 5px;
   background: none;
-  color: inherit;
+  color: var(--label-secondary);
   cursor: pointer;
   opacity: 0;
-  transition: opacity var(--duration-fast) var(--ease-standard);
+  transition:
+    opacity var(--duration-fast) var(--ease-standard),
+    color var(--duration-fast) var(--ease-standard),
+    background var(--duration-fast) var(--ease-standard);
 }
 .tab:hover .tab-x {
   opacity: 1;
+}
+.tab-x:hover {
+  color: var(--label-primary);
+  background: var(--fill-tertiary);
 }
 .tab:hover .tab-label {
   mask-image: linear-gradient(to right, #000000 calc(100% - 26px), transparent 100%);
@@ -248,11 +268,16 @@
   padding: 0 6px;
   border: none;
   background: none;
-  color: var(--text-dim);
+  color: var(--label-secondary);
   cursor: pointer;
   opacity: 0;
-  transition: opacity var(--duration-fast) var(--ease-standard);
+  transition:
+    opacity var(--duration-fast) var(--ease-standard),
+    color var(--duration-fast) var(--ease-standard);
 }
 .tab-bar:hover .tab-plus {
   opacity: 1;
+}
+.tab-plus:hover {
+  color: var(--label-primary);
 }
