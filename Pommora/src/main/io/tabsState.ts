@@ -41,17 +41,27 @@ function isTabTarget(v: unknown): v is TabTarget {
   return (isPlainObject(v) && v.kind === 'newtab') || isSelectTarget(v)
 }
 
-/** A well-formed persisted tab: id + target + a history of drivable targets with an in-range index.
- *  A malformed history degrades to just the target (the tab survives; Back/Forward starts fresh). */
+/** Identity of a drivable target — kind+id, or bare kind for the id-less homepage (navKey's shape;
+ *  duplicated here because the renderer's helper can't cross into main). */
+const targetKey = (t: SelectTarget): string => ('id' in t ? `${t.kind}:${t.id}` : t.kind)
+
+/** A well-formed persisted tab: id + target + a history of drivable targets whose index points AT the
+ *  target (the lockstep invariant openTab's dedup relies on). A newtab tab always reads with an empty
+ *  history; a desynced or malformed history degrades to just the target (the tab survives;
+ *  Back/Forward starts fresh). This is the sanitizing gate for a synced, cross-version file — the
+ *  store assumes every invariant enforced here. */
 function readTab(v: unknown): Tab | null {
   if (!isPlainObject(v) || typeof v.id !== 'string' || !isTabTarget(v.target)) return null
+  if (v.target.kind === 'newtab') return { id: v.id, target: v.target, navStack: [], navIndex: -1 }
   const stack = Array.isArray(v.navStack) ? v.navStack.filter(isSelectTarget) : []
   const index = typeof v.navIndex === 'number' && Number.isInteger(v.navIndex) ? v.navIndex : -1
-  const sane = stack.length > 0 && index >= 0 && index < stack.length
+  const sane = stack.length > 0 && index >= 0 && index < stack.length && targetKey(stack[index]) === targetKey(v.target)
   if (sane) return { id: v.id, target: v.target, navStack: stack, navIndex: index }
-  return v.target.kind === 'newtab'
-    ? { id: v.id, target: v.target, navStack: [], navIndex: -1 }
-    : { id: v.id, target: v.target, navStack: [v.target], navIndex: 0 }
+  // Target/history desync: re-point the index at the target's entry when the stack holds one
+  // (preserving the history), else degrade to a single-entry stack.
+  const at = stack.findIndex((s) => targetKey(s) === targetKey(v.target as SelectTarget))
+  if (at !== -1) return { id: v.id, target: v.target, navStack: stack, navIndex: at }
+  return { id: v.id, target: v.target, navStack: [v.target], navIndex: 0 }
 }
 
 // --- read -------------------------------------------------------------------
@@ -62,7 +72,11 @@ function readTab(v: unknown): Tab | null {
 export async function readTabsState(root: string): Promise<TabSet | null> {
   const raw = await readJsonObject(tabsPath(root))
   if (!raw || !Array.isArray(raw.tabs)) return null
-  const tabs = raw.tabs.map(readTab).filter((t): t is Tab => t !== null)
+  // Dedupe by id — closeTab drops by-id, so two tabs sharing one would close together.
+  const seen = new Set<string>()
+  const tabs = raw.tabs
+    .map(readTab)
+    .filter((t): t is Tab => t !== null && !seen.has(t.id) && (seen.add(t.id), true))
   return { tabs, activeTabId: typeof raw.activeTabId === 'string' ? raw.activeTabId : '' }
 }
 

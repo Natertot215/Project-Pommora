@@ -405,7 +405,27 @@ export const useSession = create<SessionState>((set, get) => {
                 const seeded = newTabTab(makeTabId())
                 set({ tabs: [seeded], activeTabId: seeded.id, tabMru: [seeded.id] })
               } else {
-                set({ tabs, activeTabId: active, tabMru: [active] })
+                // Reconcile the restored set against the just-loaded tree — the app was closed while
+                // entities moved or vanished: renames refresh in place, and a deleted entity's tab
+                // closes instead of restoring onto an error pane.
+                let restored = { tabs, activeTabId: active, mru: [active] }
+                const tree = get().tree
+                if (tree) {
+                  const index = buildReconcileIndex(tree)
+                  const rec = reconcileTabs(
+                    tabs,
+                    active,
+                    [active],
+                    pinnedTabs.map((t) => t.id),
+                    (t) => {
+                      const r = reconcileWith(index, t)
+                      return r.kind === 'none' ? null : r
+                    },
+                    makeTabId()
+                  )
+                  restored = { tabs: rec.tabs, activeTabId: rec.activeTabId, mru: rec.mru.length ? rec.mru : [rec.activeTabId] }
+                }
+                set({ tabs: restored.tabs, activeTabId: restored.activeTabId, tabMru: restored.mru })
               }
               syncActiveDetail() // restore the active tab's entity (cold — warmth is session-only)
             }

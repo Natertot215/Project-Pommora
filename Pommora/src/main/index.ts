@@ -282,6 +282,7 @@ ipcMain.handle('nav:load', async (): Promise<NavStateResult> => {
 
 ipcMain.handle('nav:saveRecents', async (_e, entries: unknown, immediate?: unknown): Promise<{ ok: true } | { ok: false; error: string }> => {
   try {
+    if (adopting) return { ok: false, error: 'Nexus switching.' }
     const root = sessionRoot()
     if (root === null) return { ok: false, error: 'No nexus is open.' }
     if (!Array.isArray(entries)) return { ok: false, error: 'Recents entries must be an array.' }
@@ -295,6 +296,7 @@ ipcMain.handle('nav:saveRecents', async (_e, entries: unknown, immediate?: unkno
 
 ipcMain.handle('nav:saveFavorites', async (_e, entries: unknown): Promise<{ ok: true } | { ok: false; error: string }> => {
   try {
+    if (adopting) return { ok: false, error: 'Nexus switching.' }
     const root = sessionRoot()
     if (root === null) return { ok: false, error: 'No nexus is open.' }
     if (!Array.isArray(entries)) return { ok: false, error: 'Favorites entries must be an array.' }
@@ -357,6 +359,7 @@ ipcMain.handle('tabs:load', async (): Promise<TabsResult> => {
 })
 
 ipcMain.handle('tabs:save', (_e, set: unknown): { ok: true } | { ok: false; error: string } => {
+  if (adopting) return { ok: false, error: 'Nexus switching.' }
   const root = sessionRoot()
   if (root === null) return { ok: false, error: 'No nexus is open.' }
   if (!isPlainObject(set) || !Array.isArray(set.tabs)) return { ok: false, error: 'Bad tab set.' }
@@ -412,9 +415,24 @@ async function prepareOpenedNexus(path: string): Promise<void> {
   }
 }
 
+// Nexus adoption in flight — renderer-initiated sidecar saves are dropped for the window where the
+// session root swaps, so a mid-adopt save can't land in the NEW nexus's synced sidecars (the drop
+// path is non-modal, so the renderer stays interactive through the adopt). The outgoing state was
+// drained at adopt start; the post-adopt load re-seeds and re-persists.
+let adopting = false
+
 // Open a chosen nexus folder: make it the session, persist it as last-opened, and
 // push it onto the recents (deduped, capped) + the OS Recent Documents list.
 async function adoptNexus(path: string): Promise<void> {
+  adopting = true
+  try {
+    await adoptNexusInner(path)
+  } finally {
+    adopting = false
+  }
+}
+
+async function adoptNexusInner(path: string): Promise<void> {
   // Drain the outgoing nexus's owed nav + tab writes before the session root changes, so a rapid
   // switch-away-and-back can't let a queued write clobber the freshly-loaded state.
   await Promise.all([flushNavWrites(), flushTabsWrites()])
