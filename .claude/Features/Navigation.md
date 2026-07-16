@@ -35,6 +35,8 @@ Two surfaces over the one layer, same data, different presentation:
 
 The NavPane's row list + shell are built and live; the open visual work is its **gallery** form (the recents as Figma cards, behind the rail's Style toggle), the **pin / current-item marker** on the row inset, and the NavMenu's content.
 
+**Reorder drag differs by view mode.** The **gallery** reorders pins by **displacement** — cards reflow to open a slot (`SortableZone`, built and live). The **list** uses the **sidebar's insertion-line drag** — a drop-line indicator between rows, not displacement (pending, when list-mode reorder lands). The general rule: grid/gallery surfaces displace, list/row surfaces show an insertion line.
+
 ### Pending
 
 **Navigation design + advanced modes:** The Figma-designed content for both surfaces (the gallery cards, the dropdown layout, per-row affordances). NavPane's **preview mode** — a toggle tied to the page open-in setting that slides the pane to an in-pane page preview with a chevron-back to the nav view, rather than routing the main pane. Agenda entries are search-listable now but route nowhere: their card resolution and a compact placeholder preview window belong to Agenda's own feature. Whether the non-Page kinds (Collections, Sets, Contexts, Homepage) show as cards or filter out is an open display call. Body / full-text search (today's is title-only) waits on a query layer. The block-surface Insert / Link-Page picker is a future consumer of this layer's page-filtered recents (→ `SurfacePM.md`).
