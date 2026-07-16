@@ -6,9 +6,10 @@
   flex-direction: column;
   height: 100%;
   min-height: 0;
-  /* Zero the gallery's OWN horizontal inset so NavView drives it straight off --surface-inset (below);
-     the cards then land on the EXACT homepage block-surface inset, never the gallery's 12px on top. */
+  /* Zero the gallery's OWN insets (both axes) so NavView drives the edge straight off the surface tokens
+     below; the cards then land on the EXACT homepage block-surface inset, never the gallery's own on top. */
   --navwindow-inset: 0;
+  --navwindow-inset-v: 0;
   --card-min: 220px; /* KNOB — the full-window gallery card floor. */
 }
 
@@ -53,7 +54,6 @@
   min-height: 0;
   overflow-y: auto;
   /* Card edges land on the EXACT homepage block-surface insets (Detail.css): 8px top / 28px bottom /
-     --surface-inset sides. Less the gallery's residual 6px vertical padding (its horizontal is zeroed
-     via --navwindow-inset above) so nothing double-counts. */
-  padding: 2px var(--surface-inset-right) 22px var(--surface-inset);
+     --surface-inset sides. The gallery's own padding is zeroed (both axes, above), so these ARE the edges. */
+  padding: 8px var(--surface-inset-right) 28px var(--surface-inset);
 }

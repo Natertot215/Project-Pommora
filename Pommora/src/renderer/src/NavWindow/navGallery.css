@@ -11,7 +11,9 @@
   display: flex;
   flex-direction: column;
   gap: var(--card-gap-v);
-  padding: 6px var(--navwindow-inset, 12px);
+  /* Both insets are tokens so a host can zero the gallery's OWN padding and drive the edge itself (NavView
+     lands on the surface inset; NavWindow lets its scroll's 6px be the sole gap, not doubled to 12px). */
+  padding: var(--navwindow-inset-v, 6px) var(--navwindow-inset, 12px);
 }
 .nav-gallery-grid {
   /* auto-FIT (not auto-fill): with no empty tracks to pad, the cards STRETCH to fill the width, so a

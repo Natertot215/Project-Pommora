@@ -101,6 +101,9 @@
   overflow-y: auto;
   /* Horizontal inset lives on the rows (nav-item-main) so the highlight spans full-width. */
   padding: 6px 0;
+  /* Zero the gallery's own vertical padding so this scroll's 6px is the SOLE gap below the search divider
+     (the gallery mode matches the list rows' 6px, not a doubled 12px). */
+  --navwindow-inset-v: 0;
 }
 
 /* The Style toggle — pinned to the rail's bottom-left; above the resize handles so its corner is clickable. */

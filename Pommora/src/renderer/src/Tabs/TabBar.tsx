@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import { Icon } from '@renderer/design-system/symbols'
 import { cx } from '@renderer/design-system/cx'
 import { duration, text } from '@renderer/design-system/tokens'
@@ -10,8 +10,10 @@ import { EntityGlyph } from '../Navigation/EntityGlyph'
 import { cycle, derivePinnedTabs } from './tabsModel'
 import './tabBar.css'
 
-/** The tab close/open width animation window — the shared slow token (J-6). */
-const EXIT_MS = Number.parseInt(duration.slow, 10)
+const BASE_MS = Number.parseInt(duration.base, 10)
+/** The tab close/open width window: the standard token plus one fast beat for the segment's delayed
+ *  exit (the ghost stays rendered until the whole sequence lands). */
+const EXIT_MS = BASE_MS + Number.parseInt(duration.fast, 10)
 
 interface TabEntry {
   tab: Tab
@@ -158,20 +160,22 @@ function TabBarBody({ pinnedEntries, unpinnedEntries }: { pinnedEntries: TabEntr
       <div className="tab-scroll" ref={stripRef}>
         <SortableZone items={unpinnedEntries.filter((e) => !ghosts.has(e.tab.id)).map((e) => e.tab.id)} layout="list" axis="x" onReorder={reorderTabs}>
           <div className="tab-strip">
-            {renderEntries.map(({ entry, ghost }) =>
-              ghost ? (
-                <UnpinnedTab key={entry.tab.id} entry={entry} active={false} closing onActivate={() => {}} onClose={() => {}} onMenu={() => {}} />
-              ) : (
-                <DraggableUnpinnedTab
-                  key={entry.tab.id}
-                  entry={entry}
-                  active={entry.tab.id === activeTabId}
-                  onActivate={() => activateTab(entry.tab.id)}
-                  onClose={() => requestClose(entry.tab.id)}
-                  onMenu={runTabMenu(entry.tab.id, false, entry.tab.target.kind === 'newtab')}
-                />
-              )
-            )}
+            {renderEntries.map(({ entry, ghost }, i) => (
+              <Fragment key={entry.tab.id}>
+                {i > 0 && <span className={cx('tab-seg', ghost && 'is-closing')} aria-hidden />}
+                {ghost ? (
+                  <UnpinnedTab entry={entry} active={false} closing onActivate={() => {}} onClose={() => {}} onMenu={() => {}} />
+                ) : (
+                  <DraggableUnpinnedTab
+                    entry={entry}
+                    active={entry.tab.id === activeTabId}
+                    onActivate={() => activateTab(entry.tab.id)}
+                    onClose={() => requestClose(entry.tab.id)}
+                    onMenu={runTabMenu(entry.tab.id, false, entry.tab.target.kind === 'newtab')}
+                  />
+                )}
+              </Fragment>
+            ))}
           </div>
         </SortableZone>
       </div>
