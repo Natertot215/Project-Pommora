@@ -59,7 +59,7 @@ function NavRowMenu({ item, x, y, onClose }: { item: ResolvedNav; x: number; y: 
   )
 }
 
-// The stub row list both NavPane + NavMenu render: (icon)(title) … (path). Title takes the slack and
+// The stub row list both NavWindow + NavPane render: (icon)(title) … (path). Title takes the slack and
 // eclipse-scrolls under the path when long; the path is right-aligned, grows left to a max, then
 // eclipse-scrolls itself — both via the shared OverflowScroll. The Figma gallery replaces this.
 export function NavList({

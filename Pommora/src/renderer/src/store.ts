@@ -149,8 +149,8 @@ interface SessionState {
   goBack: () => void
   goForward: () => void
 
-  /** Navigation layer (recents + favorites) — the shared, UI-agnostic wayfinding state NavPane +
-   *  NavMenu read. Persisted per-nexus (synced) via the `nav` bridge; the store owns the arrays and
+  /** Navigation layer (recents + favorites) — the shared, UI-agnostic wayfinding state NavWindow +
+   *  NavPane read. Persisted per-nexus (synced) via the `nav` bridge; the store owns the arrays and
    *  the MRU/pin/cap/prune logic. Loaded + wholesale-reset on every nexus open (E-11), recorded in
    *  `select`. Entries store only {kind,id,path} — title/icon/location resolve live (navResolve). */
   recents: RecentEntry[]
@@ -182,7 +182,7 @@ interface SessionState {
   agendaSnapshot: { tasks: AgendaEntry[]; events: AgendaEntry[] } | null
   /** Fetch the agenda snapshot if not already cached (lazy — the search surface calls it on open). */
   ensureAgendaSnapshot: () => Promise<void>
-  /** NavPane (the ribbon-summoned floating mini-shell) open state; opening warms the agenda snapshot. */
+  /** NavWindow (the ribbon-summoned floating mini-shell) open state; opening warms the agenda snapshot. */
   navOpen: boolean
   openNav: () => void
   closeNav: () => void

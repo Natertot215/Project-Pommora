@@ -106,7 +106,7 @@ export interface Personalization {
   connectionColor?: ConnectionColorSetting
   hideChevrons?: boolean
   outlinerLines?: boolean
-  /** Whether selecting an entity from the NavPane closes it. Absent = closes (default true). */
+  /** Whether selecting an entity from the NavWindow closes it. Absent = closes (default true). */
   navCloseOnSelect?: boolean
   defaultIcons?: Partial<Record<EntityIconKind, string>>
   /** Icons the user favorited in the Icon Picker — bare Lucide ids (kebab), in display/reorder order. */

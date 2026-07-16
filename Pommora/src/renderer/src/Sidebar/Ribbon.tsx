@@ -50,7 +50,7 @@ export function Ribbon(): React.JSX.Element {
   const onIcon = (k: RibbonKey): void => {
     const m = MODE_FOR[k]
     if (m) setPersonalization('sidebarMode', m)
-    else if (k === 'navigation') openNav() // summon NavPane (the floating mini-shell)
+    else if (k === 'navigation') openNav() // summon NavWindow (the floating mini-shell)
     // settings: future glass window — no-op for now.
   }
 

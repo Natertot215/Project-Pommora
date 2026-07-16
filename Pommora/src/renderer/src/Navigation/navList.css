@@ -16,7 +16,7 @@
    the row content out of alignment with un-pinned rows). */
 .nav-item-pin {
   position: absolute;
-  left: calc(var(--navpane-inset, 12px) / 2);
+  left: calc(var(--navwindow-inset, 12px) / 2);
   top: 50%;
   transform: translate(-50%, -50%);
   color: var(--accent);
@@ -31,7 +31,7 @@
   align-items: center;
   gap: 7px;
   /* Content (icon + path edges) aligns to the pane's shared inset; the highlight spans full-width. */
-  padding: 5px var(--navpane-inset, 8px);
+  padding: 5px var(--navwindow-inset, 8px);
   min-width: 0;
   text-align: left;
   background: none;
@@ -77,7 +77,7 @@
 }
 .nav-item-inert {
   opacity: 0.55;
-  padding: 5px var(--navpane-inset, 8px);
+  padding: 5px var(--navwindow-inset, 8px);
   gap: 7px;
   cursor: default;
 }

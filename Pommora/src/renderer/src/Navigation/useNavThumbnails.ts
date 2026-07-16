@@ -30,7 +30,7 @@ async function imagesReady(pane: Element): Promise<void> {
   )
 }
 
-// Snapshot the detail view as a gallery thumbnail — captured ONLY while the NavPane is closed, so the
+// Snapshot the detail view as a gallery thumbnail — captured ONLY while the NavWindow is closed, so the
 // overlay never bakes into the (synced) shot. Runs on selection settle AND on the pane closing (navOpen
 // is a dep), so a page opened while browsing with the pane open gets its cover the moment the pane
 // closes. Waits for fonts + all images (the banner) so the banner has rendered first; a ~300ms delay

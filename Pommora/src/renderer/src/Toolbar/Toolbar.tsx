@@ -3,7 +3,7 @@ import { SegmentedSymbol, type Segment } from '@renderer/design-system/component
 import { useDismiss } from '@renderer/design-system/components/Popover'
 import { ToolbarTrio } from './ToolbarTrio'
 import { ViewDropdown } from './ViewDropdown'
-import { NavMenu } from './NavMenu'
+import { NavPane } from './NavPane'
 import { TabBarPreview } from './TabBarPreview'
 import { SettingsDropdown } from '../Components/Detail/SettingsDropdown'
 import { useSession } from '../store'
@@ -80,7 +80,7 @@ export function Toolbar({
             the pane's right edge to its trigger's center — Navigation at 5/6 of the trio's width,
             Settings at dead center (3 equal segments). */}
         {navP.mounted && (
-          <NavMenu closing={navP.closing} notchInsetRight={trioW ? (trioW * 5) / 6 : undefined} />
+          <NavPane closing={navP.closing} notchInsetRight={trioW ? (trioW * 5) / 6 : undefined} />
         )}
         {settingsP.mounted && (
           <SettingsDropdown closing={settingsP.closing} notchInsetRight={trioW ? trioW / 2 : undefined} />
