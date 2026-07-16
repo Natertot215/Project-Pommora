@@ -1,31 +1,79 @@
 /* TEMPORARY multi-tab preview strip — a throwaway toolbar tabbar. Fills the slack between the toolbar
-   clusters; segments flex to equal width; current tab reads label-secondary, the rest label-tertiary.
-   Delete this file with TabBarPreview when the multi-tab direction is settled. */
+   clusters, top-aligned + button-height so the tabs center on the button row; tabs hold a fixed order and
+   overflow-scroll; the current tab reads label-control and a selection indicator slides between tabs.
+   Delete this file with TabBarPreview when the multi-tab direction settles. */
 .tabbar-preview {
   flex: 1;
   min-width: 0;
+  align-self: flex-start; /* top-align with the button clusters */
   display: flex;
   align-items: center;
-  height: var(--toolbar-h);
-  margin: 0 12px;
+  height: 32px; /* button-large height — centers the tabs on the buttons */
+  margin: 0 4px; /* KNOB — edge gap to the clusters; smaller = wider strip */
   pointer-events: auto;
   -webkit-app-region: no-drag;
 }
-/* Stretch the segmented container across the slack (it's fit-content by default). */
-.tabbar-preview > * {
-  flex: 1;
-  min-width: 0;
-  width: auto !important;
+.tabbar-preview-scroll {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
 }
-/* Each tab flexes to an equal share; the label eclipses when it runs out of room. */
-.tabbar-preview button {
-  flex: 1 1 0;
-  min-width: 0;
+
+/* The sliding selection — a subtle fill that tracks the active tab; the slide IS the tab-change motion. */
+.tabbar-preview-sel {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  height: 26px;
+  border-radius: 8px;
+  background: var(--fill-tertiary);
+  transition:
+    transform var(--duration-base) var(--ease-standard),
+    width var(--duration-base) var(--ease-standard);
+  pointer-events: none;
 }
-/* Current tab vs the rest — attribute selectors outrank the toolbar's blanket `button` color. */
-.tabbar-preview button[aria-pressed='true'] {
-  color: var(--label-secondary);
+
+.tabbar-preview-tab {
+  position: relative;
+  z-index: 1; /* the label rides above the sliding fill */
+  flex: 0 0 auto; /* natural width — the strip overflow-scrolls, tabs don't shrink */
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 100%;
+  padding: 0 12px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color var(--duration-base) var(--ease-standard);
 }
-.tabbar-preview button[aria-pressed='false'] {
+/* Current tab vs the rest — two-class specificity outranks the toolbar's blanket `button` color. */
+.tabbar-preview .tabbar-preview-tab {
   color: var(--label-tertiary);
+}
+.tabbar-preview .tabbar-preview-tab.is-active {
+  color: var(--label-control);
+}
+.tabbar-preview-tab-icon {
+  flex: 0 0 auto;
+  color: inherit;
+}
+.tabbar-preview-tab-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* Segment hairline between tabs. */
+.tabbar-preview-div {
+  flex: 0 0 auto;
+  align-self: center;
+  width: 2px;
+  height: 16px;
+  background: var(--separator-segment);
+  border-radius: 999px;
 }
