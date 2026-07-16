@@ -28,9 +28,10 @@
   height: var(--tab-height);
   margin: 0 4px;
   pointer-events: auto;
-  /* The bar's EMPTY space is a window-drag surface (the bar owns the old titlebar strip); every
-     interactive piece — the tabs, the pinned icons, the + — opts back out below. */
-  -webkit-app-region: drag;
+  /* NOT an app-region: a native drag region never delivers hover to the renderer, which kills the
+     bar-hover + reveal over the empty space. The bar drags the window via the JS mover instead
+     (TabBar's onPointerDown → win:dragBy), so the same pixels hover AND drag. */
+  -webkit-app-region: no-drag;
 }
 /* F-1 reveal-on-hover: the bar sits invisible until the pointer enters its strip. */
 .tab-bar.reveal-on-hover {
@@ -59,7 +60,6 @@
   flex: 0 0 auto;
   color: var(--label-tertiary);
   cursor: pointer;
-  -webkit-app-region: no-drag;
   transition: color var(--duration-base) var(--ease-standard);
 }
 .tab-pinned:hover {
@@ -120,7 +120,6 @@
   cursor: pointer;
   white-space: nowrap;
   overflow: hidden;
-  -webkit-app-region: no-drag;
   /* Open/close = width motion on the standard token (--duration-base). On OPEN the width is delayed one
      fast beat so the segment (sibling, below) appears FIRST and the tab then slides out beside it; color
      is the active fade. */
@@ -265,7 +264,6 @@
   background: none;
   color: var(--label-secondary);
   cursor: pointer;
-  -webkit-app-region: no-drag;
   opacity: 0;
   transition:
     opacity var(--duration-fast) var(--ease-standard),

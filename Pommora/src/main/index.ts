@@ -1318,6 +1318,20 @@ ipcMain.handle(
 // (built in editorMenu.ts on right-click) can render accurate checkmarks/radios.
 ipcMain.on('editor:format-state', (_e, state: FormatState) => setFormatState(state))
 
+// The JS window mover (hover-bearing chrome can't be a native drag region — it'd lose hover).
+ipcMain.on('win:dragBy', (e, dx: number, dy: number) => {
+  const win = BrowserWindow.fromWebContents(e.sender)
+  if (!win || typeof dx !== 'number' || typeof dy !== 'number') return
+  const [x, y] = win.getPosition()
+  win.setPosition(Math.round(x + dx), Math.round(y + dy))
+})
+ipcMain.on('win:zoom', (e) => {
+  const win = BrowserWindow.fromWebContents(e.sender)
+  if (!win) return
+  if (win.isMaximized()) win.unmaximize()
+  else win.maximize()
+})
+
 // The renderer flags (on hover) when the pointer sits on a callout grip, so the generic editor menu can
 // stand down and the renderer's own Delete Callout menu is the only one that pops on the right-press.
 ipcMain.on('editor:callout-grip', (_e, on: boolean) => setCalloutGrip(on))

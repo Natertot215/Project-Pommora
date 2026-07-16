@@ -3,6 +3,7 @@ import { Icon } from '@renderer/design-system/symbols'
 import { cx } from '@renderer/design-system/cx'
 import { duration, text } from '@renderer/design-system/tokens'
 import { SortableZone, useDragItem, type DragItem } from '@renderer/design-system/interactions/drag'
+import { suppressNextClick } from '@renderer/design-system/interactions/shared'
 import type { Tab } from '@shared/types'
 import { useSession } from '../store'
 import { buildResolveIndex, resolveWith, type ResolvedNav } from '../Navigation/navResolve'
@@ -138,8 +139,41 @@ function TabBarBody({ pinnedEntries, unpinnedEntries }: { pinnedEntries: TabEntr
     else if (action === 'close') requestClose(tabId)
   }
 
+  // JS window mover: a press on the bar's BARE space (not a tab / the + / any button) drags the app
+  // window. A native app-region can't do this — it never delivers hover, killing the + reveal on the
+  // same pixels — so the bar moves the window itself off screen-coordinate deltas (immune to the
+  // window moving under the pointer). Double-click on bare space zooms (the macOS titlebar gesture).
+  const onBarDown = (e: React.PointerEvent<HTMLElement>): void => {
+    if (e.button !== 0 || (e.target as HTMLElement).closest('.tab, .tab-pinned, button')) return
+    const el = e.currentTarget
+    const pid = e.pointerId
+    el.setPointerCapture(pid)
+    let last = { x: e.screenX, y: e.screenY }
+    let travel = 0
+    const move = (ev: PointerEvent): void => {
+      travel += Math.abs(ev.screenX - last.x) + Math.abs(ev.screenY - last.y)
+      window.nexus.winDragBy(ev.screenX - last.x, ev.screenY - last.y)
+      last = { x: ev.screenX, y: ev.screenY }
+    }
+    const end = (): void => {
+      if (el.hasPointerCapture(pid)) el.releasePointerCapture(pid)
+      el.removeEventListener('pointermove', move)
+      el.removeEventListener('pointerup', end)
+      el.removeEventListener('pointercancel', end)
+      // A real drag releasing over a tab must not read as a click on it.
+      if (travel > 3) suppressNextClick()
+    }
+    el.addEventListener('pointermove', move)
+    el.addEventListener('pointerup', end)
+    el.addEventListener('pointercancel', end)
+  }
+  const onBarDoubleClick = (e: React.MouseEvent): void => {
+    if ((e.target as HTMLElement).closest('.tab, .tab-pinned, button')) return
+    window.nexus.winZoom()
+  }
+
   return (
-    <div className={cx('tab-bar', revealOnHover && 'reveal-on-hover')}>
+    <div className={cx('tab-bar', revealOnHover && 'reveal-on-hover')} onPointerDown={onBarDown} onDoubleClick={onBarDoubleClick}>
       {pinnedEntries.length > 0 && (
         <SortableZone items={pinnedEntries.map((e) => e.res?.key ?? '')} layout="list" axis="x" onReorder={reorderPin}>
           <div className="tab-pinned-zone">
@@ -256,10 +290,10 @@ function UnpinnedTab({
 }): React.JSX.Element {
   const isNewTab = entry.tab.target.kind === 'newtab'
   const title = isNewTab ? 'New Tab' : (entry.res?.title ?? '')
-  // Back/Forward swaps this tab's content — the icon + label slide in from the step's direction,
-  // replayed per step via the seq-keyed remount. A plain select or a tab switch changes nothing here
-  // (no key change), so those swap without label motion.
-  const slide = useSession((s) => (s.navSlide && s.navSlide.source === 'history' && s.navSlide.tabId === entry.tab.id ? s.navSlide : null))
+  // A navigation that swaps this tab's CONTENT (Back/Forward, a genuine select replacing in place)
+  // slides the icon + label in from its direction, replayed per step via the seq-keyed remount. A tab
+  // SWITCH changes nothing here, so 'tab' stamps stay motionless on the label.
+  const slide = useSession((s) => (s.navSlide && s.navSlide.source !== 'tab' && s.navSlide.tabId === entry.tab.id ? s.navSlide : null))
   const slideClass = slide ? (slide.dir === 'back' ? 'nav-slide-back' : 'nav-slide-fwd') : undefined
   return (
     <div

@@ -174,9 +174,11 @@ interface SessionState {
   goBack: () => void
   goForward: () => void
   /** Transient direction stamp for a navigation that swaps the shown view: a Back/Forward step
-   *  ('history' — also slides the tab's own label) or a tab switch ('tab', direction by strip order).
-   *  The detail view slides in this direction when the swap commits; seq re-triggers per step. */
-  navSlide: { tabId: string; dir: 'back' | 'forward'; seq: number; source: 'history' | 'tab' } | null
+   *  ('history'), a tab switch ('tab', direction by strip order), or a genuine select from any surface
+   *  ('select' — sidebar, NavWindow, gallery; always forward). The detail view slides in this direction
+   *  when the swap commits; the active tab's label slides for every source but 'tab' (a tab switch
+   *  doesn't change it); seq re-triggers per step. */
+  navSlide: { tabId: string; dir: 'back' | 'forward'; seq: number; source: 'history' | 'tab' | 'select' } | null
 
   /** Navigation layer (recents + favorites) — the shared, UI-agnostic wayfinding state NavWindow +
    *  NavPane read. Persisted per-nexus (synced) via the `nav` bridge; the store owns the arrays and
@@ -247,6 +249,15 @@ interface SessionState {
    *  the new entity is handed to `onCreated` (to select it, begin-renaming it, …). Every sidebar
    *  mutation — drops, renames, creates — routes through here. Resolves the op's success. */
   mutate: (req: MutateRequest, onCreated?: (created: { id: string; path: string }) => void | Promise<void>) => Promise<boolean>
+}
+
+/** Whether a select target IS the currently-shown selection (same entity, same file) — a re-click
+ *  that dedups to a no-op. Gates the select slide: nothing swaps, so nothing moves. */
+function sameShownTarget(sel: SelectionState, t: SelectTarget): boolean {
+  if (sel.kind !== t.kind) return false
+  if (sel.kind === 'homepage') return true
+  if (sel.kind === 'page') return t.kind === 'page' && sel.id === t.id && sel.path === t.path
+  return 'id' in t && 'id' in sel && sel.id === t.id
 }
 
 // Cold page-fetch bookkeeping for the pause-on-change switch: every navigation bumps the seq so an
@@ -697,7 +708,14 @@ export const useSession = create<SessionState>((set, get) => {
       captureOutgoingDetail()
       const s = get()
       const res = openNewTabModel(s.tabs, makeTabId())
-      set({ tabs: res.tabs, activeTabId: res.activeTabId, tabMru: pushMru(s.tabMru, res.activeTabId) })
+      // No stamp when the + merely re-focuses the NavView already on screen — nothing swaps.
+      const swaps = res.activeTabId !== s.activeTabId || s.selection.kind !== 'none'
+      set({
+        tabs: res.tabs,
+        activeTabId: res.activeTabId,
+        tabMru: pushMru(s.tabMru, res.activeTabId),
+        ...(swaps ? { navSlide: { tabId: res.activeTabId, dir: 'forward' as const, seq: (s.navSlide?.seq ?? 0) + 1, source: 'tab' as const } } : {})
+      })
       syncActiveDetail()
       persistTabs()
     },
@@ -885,7 +903,16 @@ export const useSession = create<SessionState>((set, get) => {
         const pinned = derivePinnedTabs(s.pins)
         const res = openTabModel(s.tabs, s.activeTabId, pinned, target, { newTab: opts?.newTab }, makeTabId())
         const opened = res.tabs !== s.tabs
-        set({ tabs: res.tabs, activeTabId: res.activeTabId, tabMru: pushMru(s.tabMru, res.activeTabId) })
+        // A genuine select slides the view in (forward — new ground) — but never on a re-click of the
+        // entity already shown (a dedup no-op swaps nothing, so it must move nothing).
+        set({
+          tabs: res.tabs,
+          activeTabId: res.activeTabId,
+          tabMru: pushMru(s.tabMru, res.activeTabId),
+          ...(sameShownTarget(s.selection, target)
+            ? {}
+            : { navSlide: { tabId: res.activeTabId, dir: 'forward' as const, seq: (s.navSlide?.seq ?? 0) + 1, source: 'select' as const } })
+        })
         if (opened) {
           const recents = recordRecent(s.recents, target, RECENTS_CAP)
           set({ recents })

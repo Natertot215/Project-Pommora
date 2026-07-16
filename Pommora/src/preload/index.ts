@@ -318,6 +318,11 @@ const api = {
   contextMenu: (target: ContextTarget): Promise<void> => ipcRenderer.invoke('context-menu', target),
   // Push the editor's active formatting state so the native right-click menu renders accurate state.
   setEditorFormatState: (state: FormatState): void => ipcRenderer.send('editor:format-state', state),
+  // JS window mover for hover-bearing chrome (the tab bar): a native app-region never delivers hover,
+  // so the bar drives the move itself — per-pointermove screen deltas, fire-and-forget. Double-click
+  // zooms, the macOS titlebar convention.
+  winDragBy: (dx: number, dy: number): void => ipcRenderer.send('win:dragBy', dx, dy),
+  winZoom: (): void => ipcRenderer.send('win:zoom'),
   // Pop a native "New …" menu (e.g. the context tiers) + run the chosen create main-side.
   popCreateMenu: (items: { label: string; req: MutateRequest }[]): Promise<void> =>
     ipcRenderer.invoke('create-menu', items),
