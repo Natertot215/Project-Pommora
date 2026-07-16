@@ -53,7 +53,7 @@ export function TabBarPreview(): React.JSX.Element | null {
         {i > 0 && <span className="tabbar-preview-div" />}
         <button
           type="button"
-          className={cx('tabbar-preview-tab', text.control.standard, t.key === activeKey && 'is-active')}
+          className={cx('tabbar-preview-tab', text.control.standard)}
           onClick={interactive ? () => go(t.target) : undefined}
           tabIndex={interactive ? undefined : -1}
           title={interactive ? t.title : undefined}

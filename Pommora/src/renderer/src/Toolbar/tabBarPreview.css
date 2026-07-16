@@ -103,7 +103,6 @@
   background: none;
   cursor: pointer;
   white-space: nowrap;
-  transition: color var(--duration-base) var(--ease-standard);
 }
 /* Base = dim, bright duplicate = label-control; two-class specificity outranks the toolbar blanket `button`. */
 .tabbar-preview .tabbar-preview-track .tabbar-preview-tab {
@@ -111,11 +110,6 @@
 }
 .tabbar-preview .tabbar-preview-hi .tabbar-preview-tab {
   color: var(--label-control);
-}
-/* Hide the base label exactly under the bright duplicate so the active tab is a single crisp layer (no
-   heavier-than-control stacking, no edge bleed); the fade tracks the slide so it never blanks. */
-.tabbar-preview .tabbar-preview-track:not(.tabbar-preview-hi) .tabbar-preview-tab.is-active {
-  color: transparent;
 }
 .tabbar-preview-tab-icon {
   flex: 0 0 auto;
