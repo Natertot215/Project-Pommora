@@ -294,6 +294,14 @@
 .tab-bar:hover .tab-plus {
   opacity: 1;
 }
+/* The + also reveals when the content's header is hovered — the banner OR the banner-less heading — so
+   it's reachable as you move toward the top of the content, not only on the thin toolbar strip. :has on
+   the EXISTING header (no overlay), so nothing below is blocked; it triggers on the whole banner, not
+   strictly its top half. */
+.shell:has(.detail-scroll .banner:hover) .tab-plus,
+.shell:has(.detail-scroll .banner-empty:hover) .tab-plus {
+  opacity: 1;
+}
 /* The + reveals across the tab bar, but Back/Forward and the right cluster (view dropdown + trio)
    aren't tab chrome — suppress it while one of those is hovered, so reaching for an unrelated
    toolbar button never lights the +. Out-specifies the reveal (its :has arg lifts it past 0,3,0). */

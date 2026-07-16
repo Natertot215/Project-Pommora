@@ -200,6 +200,9 @@ interface SessionState {
   reorderFavorites: (from: number, to: number) => void
   /** Drop a recents-stream entry (the NavList row's Remove action); persists immediately. */
   removeRecent: (key: string) => void
+  /** Reorder within the recents flow (gallery drag) — the nudge becomes the persisted order; a later
+   *  visit only re-fronts the one visited entry (recordRecent). */
+  reorderRecent: (activeKey: string, overKey: string) => void
   /** Cached `agenda:list` snapshot for search — a full disk walk, so it's fetched ONCE and reused
    *  across summons, invalidated on any tree push + nexus switch. Null until first fetched. */
   agendaSnapshot: { tasks: AgendaEntry[]; events: AgendaEntry[] } | null
@@ -775,6 +778,17 @@ export const useSession = create<SessionState>((set, get) => {
     removeRecent: (key) => {
       const next = removeRecentByKey(get().recents, key)
       if (next === get().recents) return // nothing matched — no state churn, no write
+      set({ recents: next })
+      void window.nexus.nav.saveRecents(next, true) // immediate, like the pin toggle
+    },
+    reorderRecent: (activeKey, overKey) => {
+      const recents = get().recents
+      const from = recents.findIndex((r) => navKey(r) === activeKey)
+      const to = recents.findIndex((r) => navKey(r) === overKey)
+      if (from === -1 || to === -1 || from === to) return
+      const next = [...recents]
+      const [moved] = next.splice(from, 1)
+      next.splice(to, 0, moved)
       set({ recents: next })
       void window.nexus.nav.saveRecents(next, true) // immediate, like the pin toggle
     },

@@ -12,15 +12,16 @@ import { EntityGlyph } from '../Navigation/EntityGlyph'
 import { NavRowMenu } from '../Navigation/NavList'
 import './navGallery.css'
 
-// The gallery view over the same nav data as NavList: pinned cards (reorderable) in one flow above the
-// recents cards, no divider. A card is the detail-pane thumbnail (3:2, pin overlaid top-left) over a
-// title/location text block. Thumbnails resolve deterministically from the synced assets tree; a miss
-// falls back to an icon placeholder. Active card (matches the open selection) gets the accent border.
+// The gallery view over the same nav data as NavList: pinned cards then recents in one flow, no divider,
+// each zone drag-reorderable within itself. A card is the detail-pane thumbnail (3:2, pin overlaid
+// top-left) over a title/location text block. Thumbnails resolve deterministically from the synced assets
+// tree; a miss falls back to an icon placeholder. Active card (the open selection) gets the accent border.
 
 const thumbFile = (key: string): string => key.replace(':', '-')
 
 export function NavGallery({ pins, items, frozenLayout, onSelect, onOpenNewTab }: { pins: ResolvedNav[]; items: ResolvedNav[]; frozenLayout?: boolean; onSelect: (target: NavTarget) => void; onOpenNewTab?: (target: NavTarget) => void }): React.JSX.Element {
   const reorderPin = useSession((s) => s.reorderPin)
+  const reorderRecent = useSession((s) => s.reorderRecent)
   const nexusId = useSession((s) => s.tree?.nexus.id ?? '')
   // The cards share NavList's row menu (D-3's gallery point) — same items, same open/pin/favorite state.
   const [menu, setMenu] = useState<{ item: ResolvedNav; x: number; y: number } | null>(null)
@@ -29,26 +30,34 @@ export function NavGallery({ pins, items, frozenLayout, onSelect, onOpenNewTab }
     e.stopPropagation()
     setMenu({ item: it, x: e.clientX, y: e.clientY })
   }
-  // One grid, one flow: pinned cards first (draggable to reorder), recents straight after them. Only
-  // the pins register with the zone, so a drag reorders pins; the recents sit static in the same flow.
+  const card = (it: ResolvedNav): React.JSX.Element => (
+    <DraggableCard key={it.key} it={it} nexusId={nexusId} onSelect={onSelect} onMenu={openMenu} />
+  )
+  // One grid, two independent zones sharing the flow (no divider): pins reorder among pins, recents among
+  // recents — separate zones, so a drag never crosses the boundary. Search results render static (dragging
+  // a filtered view would rewrite the recents order out from under the query).
   return (
     <div className="nav-gallery">
-      <SortableZone items={pins.map((p) => p.key)} layout="grid" onReorder={(a, o) => reorderPin(a, o)}>
-        <div className={cx('nav-gallery-grid', frozenLayout && 'is-fill')}>
-          {pins.map((it) => (
-            <PinnedCard key={it.key} it={it} nexusId={nexusId} onSelect={onSelect} onMenu={openMenu} />
-          ))}
-          {items.map((it) => (
-            <GalleryCard key={it.key} it={it} nexusId={nexusId} onSelect={onSelect} onMenu={openMenu} />
-          ))}
-        </div>
-      </SortableZone>
+      <div className={cx('nav-gallery-grid', frozenLayout && 'is-fill')}>
+        {pins.length > 0 && (
+          <SortableZone items={pins.map((p) => p.key)} layout="grid" onReorder={reorderPin}>
+            {pins.map(card)}
+          </SortableZone>
+        )}
+        {frozenLayout ? (
+          items.map((it) => <GalleryCard key={it.key} it={it} nexusId={nexusId} onSelect={onSelect} onMenu={openMenu} />)
+        ) : (
+          <SortableZone items={items.map((r) => r.key)} layout="grid" onReorder={reorderRecent}>
+            {items.map(card)}
+          </SortableZone>
+        )}
+      </div>
       {menu && <NavRowMenu item={menu.item} x={menu.x} y={menu.y} onClose={() => setMenu(null)} onOpenNewTab={onOpenNewTab} />}
     </div>
   )
 }
 
-function PinnedCard(props: { it: ResolvedNav; nexusId: string; onSelect: (t: NavTarget) => void; onMenu: (it: ResolvedNav, e: React.MouseEvent) => void }): React.JSX.Element {
+function DraggableCard(props: { it: ResolvedNav; nexusId: string; onSelect: (t: NavTarget) => void; onMenu: (it: ResolvedNav, e: React.MouseEvent) => void }): React.JSX.Element {
   const drag = useDragItem(props.it.key)
   return <GalleryCard {...props} drag={drag} />
 }
