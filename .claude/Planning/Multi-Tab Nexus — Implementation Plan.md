@@ -27,26 +27,26 @@
 
 Starting values; sourced from the DRY components and the prototype (`tabBarPreview.css`). At build these become `tabBar.css` `:root` vars so the whole bar tunes in one spot. **The final report discloses this table.**
 
-| Knob | Var | Start | Source |
-|---|---|---|---|
-| Tab height | `--tab-height` | 32px | prototype (button-large) |
-| Tab min width | `--tab-min` | ≈ icon + ~6ch | J-3 |
-| Tab preferred width | `--tab-pref` | ~180px | J-3 (browser-tab feel) |
-| Tab max width | `--tab-max` | ~240px | J-3 |
-| Pinned tab width | `--tab-pinned-w` | ~34px (icon + accent) | I-8, compact |
-| Tab horizontal padding | `--tab-pad-x` | 12px | prototype |
-| Tab inner gap (icon↔label) | `--tab-gap` | 6px | prototype |
-| Entity icon size | `--tab-icon` | 14px | prototype |
-| Close-`×` glyph | `--tab-x` | 11px @ strokeWidth 3 | `Chip.tsx` `ChipRemoveButton` |
-| New-tab `+` glyph | `--tab-plus` | 13px | `GroupHeader.tsx` `.group-add` |
-| Pin accent glyph | `--tab-pin` | ~10px | I-8 (accent on the icon) |
-| Label type | — | `text.control.standard` | prototype |
-| Segment divider | `--tab-divider` | 2px × 16px, `--separator-segment` | prototype |
-| Overflow edge-fade | `--tab-edge-fade` | 20px | prototype |
-| `+` trailing gutter | `--tab-plus-gutter` | ~28px (clears the last tab's `×`) | J-4 |
-| Pinned-zone max before its own overflow | `--tab-pinned-zone-max` | TBD at UIX repass | J-5 |
-| Open/close animation | `--duration-slow` + `--ease-standard` | tokens | J-6 |
-| Active-highlight slide | `--duration-base` + `--ease-standard` | tokens | prototype |
+| Knob                                    | Var                                   | Start                             | Source                         |
+| --------------------------------------- | ------------------------------------- | --------------------------------- | ------------------------------ |
+| Tab height                              | `--tab-height`                        | 32px                              | prototype (button-large)       |
+| Tab min width                           | `--tab-min`                           | ≈ icon + ~6ch                     | J-3                            |
+| Tab preferred width                     | `--tab-pref`                          | ~180px                            | J-3 (browser-tab feel)         |
+| Tab max width                           | `--tab-max`                           | ~240px                            | J-3                            |
+| Pinned tab width                        | `--tab-pinned-w`                      | ~34px (icon + accent)             | I-8, compact                   |
+| Tab horizontal padding                  | `--tab-pad-x`                         | 12px                              | prototype                      |
+| Tab inner gap (icon↔label)              | `--tab-gap`                           | 6px                               | prototype                      |
+| Entity icon size                        | `--tab-icon`                          | 14px                              | prototype                      |
+| Close-`×` glyph                         | `--tab-x`                             | 11px @ strokeWidth 3              | `Chip.tsx` `ChipRemoveButton`  |
+| New-tab `+` glyph                       | `--tab-plus`                          | 13px                              | `GroupHeader.tsx` `.group-add` |
+| Pin accent glyph                        | `--tab-pin`                           | ~10px                             | I-8 (accent on the icon)       |
+| Label type                              | —                                     | `text.control.standard`           | prototype                      |
+| Segment divider                         | `--tab-divider`                       | 2px × 16px, `--separator-segment` | prototype                      |
+| Overflow edge-fade                      | `--tab-edge-fade`                     | 20px                              | prototype                      |
+| `+` trailing gutter                     | `--tab-plus-gutter`                   | ~28px (clears the last tab's `×`) | J-4                            |
+| Pinned-zone max before its own overflow | `--tab-pinned-zone-max`               | TBD at UIX repass                 | J-5                            |
+| Open/close animation                    | `--duration-slow` + `--ease-standard` | tokens                            | J-6                            |
+| Active-highlight slide                  | `--duration-base` + `--ease-standard` | tokens                            | prototype                      |
 
 *The UIX-repass (Phase 4) confirms/adjusts each against the real bar before the sizing is pinned.*
 
