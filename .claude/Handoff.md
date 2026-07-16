@@ -15,56 +15,54 @@ Prior arcs, compressed — detail lives in `Features/*` + `History.md`.
 
 - **Tables · PropertiesV2 · Multi-View · Icon Picker + Sidebar Ribbon.** The cell-gesture matrix + per-view looks + band drag + grouping/sorting + borderless toggle; nexus-wide property registry; ViewDropdown/Pane/Settings; full-Lucide picker; ribbon + mode-switched sidebar. → [[TableView]] · [[Views]] · [[Properties]] · [[Icons]] · [[Sidebar]].
 
-### Session Summary — Multi-Tab Nexus: Brainstormed → Ratified → Build-Ready
+### Session Summary — Multi-Tab Nexus: Brainstormed → Ratified → SHIPPED
 
 **Session ID:** 1968ae09-ee23-4a88-9c0d-3a665384fd8e
-**Dates:** 07-14-2026 → 07-15-2026
+**Dates:** 07-14-2026 → 07-16-2026
 **Model:** Opus 4.8 (1M)
-**Compactions:** 4
+**Compactions:** 5
 **Connectors:** none
 **Commands:** /compact · /handoff
-**Agents:** build-breaking-agent (6x - review) · Explore (3x - grounding) · feature-dev:code-explorer (1x - warm-trace) · general-purpose (1x - simplify)
+**Agents:** build-breaking-agent (11x - review) · code-simplifier (3x - simplify) · Explore (4x - grounding) · feature-dev:code-explorer (1x - warm-trace) · general-purpose (1x - simplify)
 **Skills:** studio-brainstorm · superpowers:writing-plans · handoff
 
-The session's later arc turned the navigation model's long-deferred paradigm fork (**B-1**: single-pane-replace vs tabs) into a **ratified, review-hardened spec + implementation plan** — no code yet; the next session executes it.
+The session ran the full arc: the navigation model's deferred paradigm fork (**B-1**) was brainstormed, ratified, and then **built end-to-end** — all six plan phases shipped green with per-phase review folds, a final full-diff review (two build-breakers + a simplifier), and a live CDP pass against an isolated test nexus. The feature is on `nav-gallery-pins`, pushed to origin; the full morning report (divergences + the dangling sweep + the knob table + screenshots) closed the session.
 
-**Multi-Tab Nexus, brainstormed to ratified:** Warm, state-preserving Toolbar Tabs replace single-pane-replace. Grounded against real code first (three explorers mapped the mount model, context menus, gallery reuse), then built the decision log through live back-and-forth with Nathan on every fork. The load-bearing call: **one view mounted, a per-tab serialized cache** (seed a fresh CM6 mount from a cached `historyField`; folds ride the durable `folds.json`) — N-live-views was rejected on the perf hard-rule (N un-virtualized tables) + a ~15-consumer blast radius. → `Planning/Multi-Tab Nexus — Decision Log.md`.
+**The spec arc (first half):** Warm, state-preserving Toolbar Tabs, grounded against real code, ratified through three review rounds — the phantom `foldField` serialization, the capture-identity race, and the two-drag-engines reality all caught pre-code. **One view mounted, a per-tab serialized cache** (seed a fresh CM6 mount from a cached `historyField`; folds ride `folds.json`); pins ARE the pinned-tab set (`isPinned` derived, never stored); the set persists + syncs (`tabs.json`); per-tab Back/Forward; one `openTab` predicate. → `Planning/Multi-Tab Nexus — Decision Log.md`.
 
-**The pins graduate; the set persists AND syncs:** The shipped `.nexus/pins/` store IS the pinned-tabs set — `isPinned` is *derived* from it, never stored (a second synced copy would re-introduce whole-array-LWW desync). The full tab set persists cross-restart AND syncs cross-device (closing never resets tabs; they reopen cold; warm view-state is session-only). Per-tab Back/Forward won A/B over a single shared history. One `openTab` predicate absorbs replace-vs-spawn (dedup-first, then `newTab = explicit || activeTab.isPinned`).
+**The build arc (second half):** Six phases, each gated (typecheck + full vitest) and review-folded before the next: the surface rename (`NavPane`→NavWindow, `NavMenu`→NavPane) · the pure `tabsModel` + tab-aware `select` (zero caller churn — every genuine nav maintains the set; `record:false` re-selects don't) · the synced `tabs.json` sidecar with lenient sanitize + both drains · the warm seam (a 20-per-tab LRU keyed `(tabId, navKey)`; `pageDetail` captured at switch-initiation, editorState/scroll at unmount under mount-frozen identity; warm-instant renders with no fetch and no flash) · the four stateful "Open in New Tab" points · the tab bar (pinned compact icons + accent pin badge, min/pref/max strip + edge fade, chip-× plain fade, trailing +, within-zone drag per zone, Ctrl+Tab cycling, ghost-based width-collapse close, reveal-on-hover setting) · NavView (the new-tab page = the empty state, full-window gallery + search; a NavView tab reads "New Tab" under the copy glyph) · the thumbnail capture gate.
 
-**Three review rounds hardened it, each verified in code:** a light grounding pass (2 folds: pins are the shipped store, delete render-hides pinned tabs), a 3-agent plan-attack (internals + visuals/interaction + simplification), and a final confirmation pass. The attack caught real holes: the warm seam's fold-serialization was a phantom (`foldField` is unexported/would throw — folds already persist via `folds.json`); the capture-identity races the switch (freeze `(tabId,navKey)` at mount); `applyTree` reconciles only the singular selection so inactive tabs would error on activate; the marquee drag "reuse" is actually two engines (single-zone reflow vs vertical portal-overlay), so cross-divider drag-to-pin is bespoke — deferred to a Prospect, within-zone reorder ships. Every finding was opened in the code before folding.
+**Review folds that earned their keep:** the Back/Forward target-lockstep fence (a stale `tab.target` mis-deduped the next click, destroying the Forward stack); the main-side `adopting` gate (a mid-adopt renderer save could land in the NEW nexus's synced sidecars — recents had the same hole); the stale-fetch fence (warm-instant made an old benign fetch race deterministically clobber the shown page — reproduced against the real store); C-6's live twin (`graduatePinCovered` — pinning an open entity from ANY surface graduates its tab instead of duplicating, synced-in pins included); store-first ghost close (the 350ms animate-then-mutate limbo let a dying tab be dedup-focused and cycled into); the capture-gate markers dying with evicted files.
 
-**Nathan's late calls, folded:** within-zone reorder drag only; plain `×` hover-fade (the chip melt needs a solid fill glass tabs lack); warm-instant switching (short-circuit the refetch — kills the flash, makes `select()` warm-aware, accepted); tab set must sync cross-device; the empty/`'none'` state IS the new-tab page; open/close animation on `--duration-slow` + the sidebar/ribbon easing.
-
-**Traceless clean rewrite + surface rename:** Both planning docs + `Navigation.md` (restructured to §II. NavWindow / Toolbar Tabs / NavPane / NavView) + a `History.md` paradigm entry + the `Framework.md` roadmap slot were rewritten to read as durable truth — every `[rev]`/review-scar removed (Nathan: "correct errors without a trace they were ever made"). **Surface rename (settled):** `NavPane`→**NavWindow** (the floating overlay), `NavMenu`→**NavPane** (the toolbar dropdown), + **NavView** (the new-tab page). The code rename is Phase 0 Task 0.0.
-
-**Also this session (earlier):** committed the gallery `.hover-pop` scale tuning (1.0175) + a `Navigation.md` note that list-mode reorder uses insertion-line drag while galleries displace. The throwaway `TabBarPreview` is the visual seam the real tab bar grows from (deleted in Phase 6).
+**Live verification (isolated):** the built app ran against `~/Test` with Nathan's `pommora.json` backed up and restored byte-identical. Verified live: NavView as the fresh-nexus empty state; the bar blank at one tab (D-6); menu spawns appending right; warm switch with `loading:false`; pin graduation + the divider; ×-close MRU focus; the `+` → NavView; and the D-8 headline — **quit → relaunch restored the pinned tab + both unpinned tabs + the active pointer, cold**. `tabs.json` on disk matches the contract exactly (unpinned only).
 
 **Lessons Learned**
 
-- **Ground a "reuse" claim in the actual mechanism before budgeting it as free.** The plan named three DRY reuses (drag / chip-× / group-+); all three transferred only partially — the drag was two separate engines (one vertical + portal-overlay), the chip melt needs a `--chip-fill` glass lacks, the group-+ gives only glyph+fade. "It's the same component" is a hypothesis until you trace what it actually does.
+- **Ground a "reuse" claim in the actual mechanism before budgeting it as free** — all three named DRY reuses (drag / chip-× / group-+) transferred only partially; the spec's phrasing survived because the reviews traced what each component actually does.
 
-- **Verify every agent finding in the code — even a build-breaker's.** The 3-agent attack produced ~24 findings; opening each `file:line` confirmed the load-bearing ones (foldField unexported at `folding.ts:188`, the synchronous selection-set before the openPage await) AND caught one agent overstating (the simplification agent read cross-zone drag as drop-in; the visuals agent's deeper trace proved it vertical-only). Two agents disagreed; the code adjudicated.
+- **Verify every agent finding in code — and the reviews keep earning it.** Eleven build-breaker dispatches across the session; every fold was self-verified at the cited `file:line` first. The heavy Phase-2 pass reproduced its HIGH against the real store (not a hypothesis); the final pair found the two-writers desyncs (`pinTarget` vs `pinTab`, marker vs file) no single-phase review could see.
 
-- **A summary layer drifts after folds land.** After folding corrections into the decision entries, the log's Core recap still described the pre-fold world (stored `isPinned`, fold-in-cache, cross-zone drag). Sweep the recap/overview sections whenever a decision changes — the "source of truth" is exactly what a shape-building implementer reads.
+- **Two writers for one fact is THE recurring defect class this feature bred:** tab.target vs navStack cursor, the tab set vs the pins set, the capture marker vs the thumbnail file, the store vs the closing animation. Every real MED+ finding reduced to one of these; the fix was always "one writer, or a lockstep rule."
+
+- **CDP synthetic clicks don't fire PickerMenu MenuItems** (they hit the right element per elementFromPoint but the onClick never runs; tab/row/button clicks work fine) — drive menu items via `el.click()` in `Runtime.evaluate`. Same harness-quirk family as the chip-melt CDP lessons.
 
 **Key Files & Insights**
 
-- **The three planning docs:** `Planning/Multi-Tab Nexus — Decision Log.md` (ratified spec, decision IDs) · `— Implementation Plan.md` (6 phases + a consolidated visual-knob block) · `— Implementation Kickoff Prompt.md` (the compact-then-execute prompt).
-- **Warm seam grounding:** `MarkdownPM/index.tsx:109-246` (mount-once, destroy-on-unmount) + `:251-262` (the readOnly compartment-reconfigure — the reconfigure-without-remount precedent) · `folding.ts:188` (`foldField` private, unexported) · `historyField` is the real serializable export.
-- **Persistence template:** `navState.ts` (debounced writer + drain at `before-quit` `index.ts:1656` AND `adoptNexus` `:398`) — the tabs sidecar reuses this shape, synced (in `NEXUS_CONFIG_FILES`, not `DEVICE_LOCAL_NEXUS_FILES`).
-- **Drag reality:** two engines behind `interactions/` — single-zone `engine.tsx` (`SortableZone`, in-place reflow, what the gallery uses) vs cross-list `group.tsx` (`DragGroup`/`GroupZone`, vertical + portal-overlay). Within-zone reorder is the safe reuse.
+- **The feature lives under `Tabs/`:** `tabsModel.ts` (pure, 30+ tests) · `warmCache.ts` (session LRU) · `TabBar.tsx`+`tabBar.css` (every visual knob in the `.tab-bar` block) · `TabContextMenu.tsx` · `NavView.tsx`. Store wiring inline in `store.ts`; the sidecar in `main/io/tabsState.ts`.
+- **`select` is the one nav entry:** the record path maintains the tab set via the pure model; `record:false` (activate/Back/refetch) only refreshes the shown detail. The warm-instant short-circuit + stale-fetch fence live in its page case.
+- **`applyTree` reconciles every tab** off ONE `buildReconcileIndex` (`selection.ts` split into index + `reconcileWith`); deleted entities close unpinned tabs and render-hide pinned ones.
+- **Persistence:** `tabs.json` synced (in `NEXUS_CONFIG_FILES`, deliberately NOT device-local), debounced main-side, drained at `before-quit` + `adoptNexus`, sanitized on read (`readTab` enforces every store invariant for the cross-version file).
 
 **User Feedback**
 
-- Nathan drip-feeds mid-turn design calls — fold each immediately; his effect-words are literal; when he says "let's try both" confirm it's actually free before promising it.
-- Documents must correct errors traceless (durable truth, no scars); Considered & Rejected carries provenance, the decisions read clean.
-- Point to UIX knobs, don't tune — every visual value goes in one knob block + the final report.
+- Nathan drip-feeds mid-turn design calls — fold each immediately; his effect-words are literal. This session's morning drops: the NavView tab wears the lucide `copy` icon; the Homepage tab wears the nexus photo (home glyph only when unset); pinned-tab Back/Forward is simply disabled (ratifying my flag).
+- Documents correct errors traceless; the final report must disclose every divergence + the knob table.
+- Point to UIX knobs, don't tune — all tab-bar values sit in `tabBar.css`'s `.tab-bar` block.
 
 **Uncertain**
 
-- The `NavWindow`/`NavPane`/`NavView` rename table (which surface got which name) — stated confidently but a rename is easy to flip; **Nathan to sanity-check in the morning**.
-- `Compactions: 4` is best-effort from the transcript markers; the exact count may be off by one.
+- Nathan's "'New Tab' uses lucide copy icon" was read as the NavView **tab's** icon (built that way, verified live); if he meant the trailing `+` affordance too, it's a one-line swap in `TabBar.tsx` (the `+` renders `plus`).
+- `Compactions: 5` is best-effort; may be off by one.
 
 ---
 
@@ -76,25 +74,25 @@ The session's later arc turned the navigation model's long-deferred paradigm for
 
 - **The dev app runs against Nathan's REAL Nexus** (`/Users/nathantaichman/The Nexus`). UI value writes are his data; CDP must open + Esc only, never pick/commit unless authorized. Native OS menus don't render in the DOM; reach those ops through `window.nexus.*` via `Runtime.evaluate`.
 
+- **Isolated live runs:** back up `~/Library/Application Support/pommora-react/pommora.json`, point `lastNexusPath` at `~/Test`, launch the BUILT app with `--remote-debugging-port`, restore byte-identical after. CDP synthetic clicks work on tabs/rows/buttons but NOT on PickerMenu MenuItems — drive those via `el.click()` in `Runtime.evaluate`. Native menus BLOCK headless (never pop one via CDP).
+
 - **Gates:** `env -u ELECTRON_RUN_AS_NODE npm run typecheck` (the ONLY type gate) + `npx vitest run` + `env -u ELECTRON_RUN_AS_NODE npm run build`. Read the summary line, never a piped exit code. Biome auto-formats on write — never run it, never hand-align.
 
-- **Parallel sessions / edits** — stage explicit paths, never `-A`. Unattributed `M`/`D` files are almost always Nathan's. **main is ahead of origin, unpushed** — Nathan pushes in batches; merge ≠ push. *(This session pushed the multi-tab planning to origin per explicit instruction — a deliberate exception.)*
+- **Parallel sessions / edits** — stage explicit paths, never `-A`. Unattributed `M`/`D` files are almost always Nathan's. **main is ahead of origin, unpushed** — Nathan pushes in batches; merge ≠ push. *(This session pushed `nav-gallery-pins` to origin per explicit instruction — a deliberate exception.)*
 
 ### Next Session
 
-**Execute the Multi-Tab Nexus plan.** Paste `Planning/Multi-Tab Nexus — Implementation Kickoff Prompt.md` after compacting — it's self-contained (standing directives + the task). Build **phase by phase, in order**, with the mandatory per-phase `build-breaking-agent` + `code-simplifier` review (verify findings in code before folding), gates between each.
+**Multi-Tab Nexus shipped — the next session starts with Nathan's live drive.** He runs the real app against the bar (the session-report screenshots preview it) and tunes the knobs himself: every visual value sits in `tabBar.css`'s `.tab-bar` block (+ `navView.css` for the new-tab page). The §J repass values were built as best-record starting points — expect nudges to `--tab-pref`/`--tab-max`, the pinned width, and the `+` gutter.
 
-- **Start: Phase 0 Task 0.0** — the surface rename (`NavPane`→`NavWindow`, `NavMenu`→`NavPane`), then the pure tab model + inline store wiring (tests-first, headless).
-- **Phase 2 (the warm seam) is highest-risk** — against the `key=`-remount grain, and warm-instant is a deliberate `select()` change; its per-phase review is the heavy one. Ship it staged (flat current-tab warmth → then the ~20-cap back-stack).
-- **Phase 4 (tab bar)** runs the §J UIX-repass *before* building + a post-functional UIX review *after* — screenshot-verify.
+- **Design calls awaiting his eye (all disclosed in the session report):** the active-tab treatment is a color-fade, not the prototype's clip-slide (interactive ×s fight the duplicate-track pattern); pinned name-on-hover is a native tooltip; the `+` parks at the trailing edge even when the strip is sparse; the pinned zone clips (no collapse UI) past its width.
+- **Deferred with eyes open:** a failed mid-adopt leaves a short window where an old-nexus save could land in the new nexus's sidecars (LOW; the error screen blocks most paths); NavWindow's list-mode Remove on a pinned row is a pre-existing no-op quirk.
+- **Prospects unlocked, not built:** cross-divider drag-to-pin, drag-reorder recents, per-window tab sets, tab tear-out, `⌘1–9`/`⌘W`/`⌘T` (need per-shortcut sign-off).
 
-**Nathan's morning to-dos (before or during the build):** (1) sanity-check the `NavWindow`/`NavPane`/`NavView` rename table wasn't flipped; (2) eyeball the visual-knob block's starting values (`Plan` → Visual Knob Block) — tab min/pref/max widths, glyph sizes, the edge-fade, the `+` gutter.
-
-**Nav surface follow-ups (lower priority, not the tab work):** NavPane (the dropdown, formerly NavMenu) content is still an open call — what a compact nav dropdown holds vs the fuller NavWindow. Drag-reorder recents is a logged nav-layer QOL Prospect (genuinely small — reuse the pin `SortableZone` + a `reorderRecent`).
+**Nav surface follow-ups (lower priority):** NavPane (the toolbar dropdown) content is still an open call — what a compact nav dropdown holds vs the fuller NavWindow.
 
 ### Pending Focuses
 
-- **Multi-Tab Nexus build** — the active arc; execute the ratified plan (above). Everything else is subordinate until it ships.
+- **Multi-Tab UIX repass (Nathan-driven)** — the live knob-tuning drive over the shipped bar; fold his nudges, then close the arc.
 
 - **NavPane dropdown content decision** — the toolbar nav dropdown (renamed from NavMenu) is a blank placeholder; settle what it's for before building into it.
 
