@@ -205,4 +205,9 @@ describe('tabsModel — derivePinnedTabs', () => {
     expect(tabs[0].navStack).toEqual([pt('a')])
     expect(tabs[0].navIndex).toBe(0)
   })
+
+  it('skips agenda pins (legacy migration) — select cannot drive them', () => {
+    const agendaPin = { kind: 'task', id: 'tk', order: 0 } as PinEntry
+    expect(derivePinnedTabs([agendaPin, pin('a', 1)]).map((t) => t.id)).toEqual(['pin:page:a'])
+  })
 })

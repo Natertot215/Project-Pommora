@@ -54,6 +54,22 @@ describe('store — tab wiring (Phase 0)', () => {
     expect(s.recents.map((r) => ('id' in r ? r.id : r.kind))).toEqual(['b'])
   })
 
+  it('re-selecting the shown entity after Back is a dedup no-op — Forward preserved', async () => {
+    // target must move in lockstep with navIndex: after Back to b, clicking b in the sidebar must
+    // dedup against the LIVE shown entity (not the pre-Back target) and leave the Forward stack alone.
+    seed({ tabs: [uTab('t1', ctx('c'), [ctx('a'), ctx('b'), ctx('c')], 2)], activeTabId: 't1' })
+    useSession.getState().goBack()
+    expect(useSession.getState().tabs[0].target).toEqual(ctx('b'))
+    await useSession.getState().select(ctx('b'))
+    let s = useSession.getState()
+    expect(s.tabs[0].navStack).toEqual([ctx('a'), ctx('b'), ctx('c')])
+    expect(s.tabs[0].navIndex).toBe(1)
+    expect(s.recents).toEqual([]) // a dedup-focus never records
+    useSession.getState().goForward()
+    s = useSession.getState()
+    expect(s.selection).toEqual({ kind: 'context', id: 'c' })
+  })
+
   it('per-tab Back/Forward walks the active tab own history (D-7)', () => {
     seed({ tabs: [uTab('t1', ctx('c'), [ctx('a'), ctx('b'), ctx('c')], 2)], activeTabId: 't1' })
     useSession.getState().goBack()

@@ -23,22 +23,26 @@ export function pinTabId(target: SelectTarget): string {
   return `pin:${navKey(target)}`
 }
 
-/** The pinned tabs, derived from the pins slice (sorted by fractional order). A pinned tab never
- *  navigates in place — I-6 spawns an unpinned tab instead — so its history is just the pin target. */
+/** The pinned tabs, derived from the pins slice (sorted by fractional order). Agenda pins (a legacy
+ *  migration can hold them) are skipped — `select` can't drive task/event, so they'd be unrenderable
+ *  tabs. A pinned tab never navigates in place (D-2), so its history is just the pin target. */
 export function derivePinnedTabs(pins: PinEntry[]): Tab[] {
-  return [...pins].sort(byOrder).map((pin) => {
-    const target = cleanPinTarget(pin) as SelectTarget
-    return { id: pinTabId(target), target, navStack: [target], navIndex: 0 }
-  })
+  return [...pins]
+    .sort(byOrder)
+    .map(cleanPinTarget)
+    .filter((t): t is SelectTarget => t.kind !== 'task' && t.kind !== 'event')
+    .map((target) => tabFor(pinTabId(target), target))
 }
 
 /** Whether a tab is pinned — derived from the pins set, never stored (C-6). The newtab sentinel is
  *  never pinned. */
 export function isPinned(target: TabTarget, pins: PinEntry[]): boolean {
-  return target.kind !== 'newtab' && pins.some((p) => navKey(p) === navKey(target))
+  if (target.kind === 'newtab') return false
+  const key = navKey(target)
+  return pins.some((p) => navKey(p) === key)
 }
 
-/** A fresh unpinned tab for `target`, seeded with its first history entry. */
+/** A tab seeded with `target` as its sole history entry (pinnedness is derived externally). */
 function tabFor(id: string, target: SelectTarget): Tab {
   return { id, target, navStack: [target], navIndex: 0 }
 }
@@ -66,10 +70,11 @@ export function openTab(
   newId: string,
 ): OpenResult {
   const key = navKey(target)
-  const existing = [...pinned, ...tabs].find((t) => t.target.kind !== 'newtab' && navKey(t.target) === key)
+  const all = [...pinned, ...tabs]
+  const existing = all.find((t) => t.target.kind !== 'newtab' && navKey(t.target) === key)
   if (existing) return { tabs, activeTabId: existing.id }
 
-  const active = [...pinned, ...tabs].find((t) => t.id === activeTabId)
+  const active = all.find((t) => t.id === activeTabId)
   const activeIsPinned = active ? pinned.some((p) => p.id === active.id) : false
   // Spawn when the open is explicit, the active tab is pinned (protected, D-2), or there's no active
   // tab; otherwise reuse the active unpinned tab (D-1) — which includes replacing a NavView scratch (E-2).

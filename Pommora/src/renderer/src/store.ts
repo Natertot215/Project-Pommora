@@ -286,7 +286,9 @@ export const useSession = create<SessionState>((set, get) => {
     for (let i = active.navIndex + delta; i >= 0 && i < active.navStack.length; i += delta) {
       const resolved = s.tree ? reconcileSelection(s.tree, active.navStack[i]) : active.navStack[i]
       if (resolved.kind === 'none') continue // entity gone — skip to the next live entry in this direction
-      set({ tabs: get().tabs.map((t) => (t.id === active.id ? { ...t, navIndex: i } : t)) })
+      // target moves in lockstep with navIndex — openTab's dedup keys off `target`, so a stale one
+      // would mis-dedup the very next click on the shown entity (destroying the Forward stack).
+      set({ tabs: get().tabs.map((t) => (t.id === active.id ? { ...t, navIndex: i, target: resolved } : t)) })
       void get().select(resolved, { record: false })
       return
     }
