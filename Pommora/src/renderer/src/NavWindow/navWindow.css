@@ -5,12 +5,12 @@
   flex-direction: column;
   padding: var(--glass-inset);
   border-radius: var(--glass-radius);
-  animation: navwindow-in 180ms var(--ease-standard);
+  animation: navwindow-in var(--disclosure) var(--ease-standard);
   /* KNOB — the shared content inset (search divider + rows align to this). */
   --navwindow-inset: 12px;
 }
 .navwindow.closing {
-  animation: navwindow-out 180ms var(--ease-standard) forwards;
+  animation: navwindow-out var(--disclosure) var(--ease-standard) forwards;
   pointer-events: none;
 }
 @keyframes navwindow-in {

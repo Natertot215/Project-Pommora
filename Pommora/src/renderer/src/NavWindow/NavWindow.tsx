@@ -48,11 +48,27 @@ function NavWindowBody({ closing }: { closing: boolean }): React.JSX.Element {
   // store's recents, but the visible list must NOT reshuffle placement under the cursor. Re-snapshots
   // on reopen (the body remounts). Filtered against the LIVE pins so pinning while open drops a card
   // without disturbing the others' placement.
-  const [frozenRecents] = useState(resolvedRecents)
+  const [frozenRecents, setFrozenRecents] = useState(resolvedRecents)
   const shownRecents = useMemo(() => {
     const pinned = new Set(resolvedPins.map((p) => p.key))
     return frozenRecents.filter((r) => !pinned.has(r.key))
   }, [frozenRecents, resolvedPins])
+  // A drag is the ONE thing that bypasses the freeze — it's the deliberate reorder, so rewrite the frozen
+  // snapshot alongside the source (the card lands where dropped and matches the store it just wrote).
+  // Opening a page still leaves placement frozen until a reopen re-snapshots (nothing shuffles underfoot).
+  const reorderRecentStore = useSession((s) => s.reorderRecent)
+  const reorderShownRecent = (activeKey: string, overKey: string): void => {
+    setFrozenRecents((prev) => {
+      const from = prev.findIndex((r) => r.key === activeKey)
+      const to = prev.findIndex((r) => r.key === overKey)
+      if (from === -1 || to === -1 || from === to) return prev
+      const next = [...prev]
+      const [moved] = next.splice(from, 1)
+      next.splice(to, 0, moved)
+      return next
+    })
+    reorderRecentStore(activeKey, overKey)
+  }
 
   const [query, setQuery] = useState('')
   const [, force] = useState(0) // re-render on geometry mutation (geo is a module ref)
@@ -179,9 +195,9 @@ function NavWindowBody({ closing }: { closing: boolean }): React.JSX.Element {
             {results ? (
               <NavList items={results.items} extras={results.extras} onSelect={goClose} onOpenNewTab={goNewTab} />
             ) : viewMode === 'gallery' ? (
-              <NavGallery pins={resolvedPins} items={shownRecents} onSelect={goClose} onOpenNewTab={goNewTab} />
+              <NavGallery pins={resolvedPins} items={shownRecents} onReorderRecent={reorderShownRecent} onSelect={goClose} onOpenNewTab={goNewTab} />
             ) : (
-              <NavList items={[...resolvedPins, ...shownRecents]} onSelect={goClose} onOpenNewTab={goNewTab} />
+              <NavList items={[...resolvedPins, ...shownRecents]} reorderable onReorderRecent={reorderShownRecent} onSelect={goClose} onOpenNewTab={goNewTab} />
             )}
           </div>
         </div>

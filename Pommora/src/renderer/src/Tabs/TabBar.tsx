@@ -89,14 +89,18 @@ function TabBarBody({ pinnedEntries, unpinnedEntries }: { pinnedEntries: TabEntr
       })
     }, EXIT_MS)
   }
+  // The live (non-ghost) entries — the zone's reorderable set AND the render base (computed once).
+  const liveEntries = useMemo(() => unpinnedEntries.filter((e) => !ghosts.has(e.tab.id)), [unpinnedEntries, ghosts])
   // The render list: live entries with each ghost spliced back at its remembered slot mid-exit.
   const renderEntries = useMemo<{ entry: TabEntry; ghost: boolean }[]>(() => {
-    const live = unpinnedEntries.filter((e) => !ghosts.has(e.tab.id)).map((entry) => ({ entry, ghost: false }))
+    const live = liveEntries.map((entry) => ({ entry, ghost: false }))
     for (const [, g] of [...ghosts.entries()].sort((a, b) => a[1].index - b[1].index)) {
       live.splice(Math.min(g.index, live.length), 0, { entry: g.entry, ghost: true })
     }
     return live
-  }, [unpinnedEntries, ghosts])
+  }, [liveEntries, ghosts])
+  // Index of the first non-ghost tab — drives the leftmost-close segment handoff (F2).
+  const firstLive = renderEntries.findIndex((e) => !e.ghost)
 
   // Ctrl+Tab / Ctrl+Shift+Tab cycles the full visual order, wrapping (I-11 — the one signed-off
   // binding). Lives in the body, so the combo is intercepted exactly while the bar shows.
@@ -158,11 +162,13 @@ function TabBarBody({ pinnedEntries, unpinnedEntries }: { pinnedEntries: TabEntr
       )}
       {pinnedEntries.length > 0 && unpinnedEntries.length > 0 && <span className="tab-divider" />}
       <div className="tab-scroll" ref={stripRef}>
-        <SortableZone items={unpinnedEntries.filter((e) => !ghosts.has(e.tab.id)).map((e) => e.tab.id)} layout="list" axis="x" onReorder={reorderTabs}>
+        <SortableZone items={liveEntries.map((e) => e.tab.id)} layout="list" axis="x" onReorder={reorderTabs}>
           <div className="tab-strip">
             {renderEntries.map(({ entry, ghost }, i) => (
               <Fragment key={entry.tab.id}>
-                {i > 0 && <span className={cx('tab-seg', ghost && 'is-closing')} aria-hidden />}
+                {/* The segment before this tab closes with it — OR, when the leftmost tab is the ghost (it
+                    has no left segment), the segment before the first LIVE tab closes in its place. */}
+                {i > 0 && <span className={cx('tab-seg', (ghost || i === firstLive) && 'is-closing')} aria-hidden />}
                 {ghost ? (
                   <UnpinnedTab entry={entry} active={false} closing onActivate={() => {}} onClose={() => {}} onMenu={() => {}} />
                 ) : (

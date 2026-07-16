@@ -1,4 +1,4 @@
-import { Fragment, useState } from 'react'
+import { useState } from 'react'
 import { Icon } from '@renderer/design-system/symbols'
 import { cx } from '@renderer/design-system/cx'
 import { text } from '@renderer/design-system/tokens'
@@ -9,7 +9,7 @@ import { useSession } from '../store'
 import { navKey } from '../Navigation/navRecents'
 import type { ResolvedNav } from '../Navigation/navResolve'
 import { EntityGlyph } from '../Navigation/EntityGlyph'
-import { NavRowMenu } from '../Navigation/NavList'
+import { NavCrumbs, NavRowMenu } from '../Navigation/NavList'
 import './navGallery.css'
 
 // The gallery view over the same nav data as NavList: pinned cards then recents in one flow, no divider,
@@ -19,9 +19,11 @@ import './navGallery.css'
 
 const thumbFile = (key: string): string => key.replace(':', '-')
 
-export function NavGallery({ pins, items, frozenLayout, onSelect, onOpenNewTab }: { pins: ResolvedNav[]; items: ResolvedNav[]; frozenLayout?: boolean; onSelect: (target: NavTarget) => void; onOpenNewTab?: (target: NavTarget) => void }): React.JSX.Element {
+export function NavGallery({ pins, items, frozenLayout, onReorderRecent, onSelect, onOpenNewTab }: { pins: ResolvedNav[]; items: ResolvedNav[]; frozenLayout?: boolean; onReorderRecent?: (activeKey: string, overKey: string) => void; onSelect: (target: NavTarget) => void; onOpenNewTab?: (target: NavTarget) => void }): React.JSX.Element {
   const reorderPin = useSession((s) => s.reorderPin)
-  const reorderRecent = useSession((s) => s.reorderRecent)
+  const reorderRecentStore = useSession((s) => s.reorderRecent)
+  // A host (NavWindow) can override to also rewrite its frozen snapshot; NavView uses the store directly.
+  const reorderRecent = onReorderRecent ?? reorderRecentStore
   const nexusId = useSession((s) => s.tree?.nexus.id ?? '')
   // The cards share NavList's row menu (D-3's gallery point) — same items, same open/pin/favorite state.
   const [menu, setMenu] = useState<{ item: ResolvedNav; x: number; y: number } | null>(null)
@@ -130,17 +132,7 @@ function GalleryCard({ it, nexusId, onSelect, onMenu, drag }: { it: ResolvedNav;
           <EntityGlyph item={it} size={13} className="nav-gallery-title-icon" />
           {it.title}
         </OverflowScroll>
-        {it.path.length > 0 && (
-          <OverflowScroll className={cx('nav-gallery-loc', text.caption.standard)}>
-            {it.path.map((crumb, i) => (
-              <Fragment key={i}>
-                {i > 0 && <span className="nav-path-sep">›</span>}
-                <Icon name={crumb.icon} size={11} className="nav-path-icon" />
-                <span className="nav-path-name">{crumb.title}</span>
-              </Fragment>
-            ))}
-          </OverflowScroll>
-        )}
+        <NavCrumbs path={it.path} className="nav-gallery-loc" iconSize={11} />
       </div>
       </div>
     </div>

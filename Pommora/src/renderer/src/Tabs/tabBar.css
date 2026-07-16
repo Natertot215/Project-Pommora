@@ -303,8 +303,9 @@
   opacity: 1;
 }
 /* The + reveals across the tab bar, but Back/Forward and the right cluster (view dropdown + trio)
-   aren't tab chrome — suppress it while one of those is hovered, so reaching for an unrelated
-   toolbar button never lights the +. Out-specifies the reveal (its :has arg lifts it past 0,3,0). */
+   aren't tab chrome — suppress it while one of those is hovered. `.app-toolbar` is pointer-events:none
+   with only the buttons interactive, so a hovered button can't co-occur with a tab-bar OR banner hover
+   (they're separate regions) — this is a belt-and-suspenders guard, not a specificity race. */
 .app-toolbar:has(.app-toolbar-cluster--nav button:hover) .tab-plus,
 .app-toolbar:has(.app-toolbar-right button:hover) .tab-plus {
   opacity: 0;

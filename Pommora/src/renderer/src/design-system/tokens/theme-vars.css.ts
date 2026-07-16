@@ -41,6 +41,9 @@ globalStyle(':root', {
     // heading↔rows, banner↔body, editor heading↔content). One global source so the seam is uniform
     // app-wide; consume as a full border shorthand: `border-bottom: var(--border-heading)`.
     '--border-heading': '1.75px solid var(--separator-border)',
+    // Over-image legibility scrim for a title/search/icon sitting on a banner cover — one source for the
+    // banner title, the NavView search, and the editor's banner overlay (text-shadow / drop-shadow).
+    '--banner-shadow': '#0000008c',
     // Interaction states (Figma "States") — system-grey at hover 2.5% / selected 5%.
     '--state-hover': colorVars.color.state.hover,
     '--state-selected': colorVars.color.state.selected,

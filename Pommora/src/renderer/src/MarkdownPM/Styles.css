@@ -151,7 +151,6 @@
   object-fit: cover;
 }
 .mdpm-banner-overlay {
-  --banner-shadow: #0000008c;
   position: absolute;
   bottom: 12px;
   left: var(--content-inset);

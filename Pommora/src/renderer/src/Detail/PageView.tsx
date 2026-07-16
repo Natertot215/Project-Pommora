@@ -5,6 +5,7 @@ import { buildPageIndex, flattenPages, type ConnectionsApi } from "../MarkdownPM
 import { IconPicker } from "../Components/IconPicker";
 import { navKey } from "../Navigation/navRecents";
 import { captureWarm, readWarm } from "../Tabs/warmCache";
+import { registerPageFlush } from "./pageFlush";
 
 const SAVE_DEBOUNCE_MS = 400;
 // Live stats settle just behind the keystroke so a long page isn't Markdown-scanned on every char.
@@ -51,8 +52,18 @@ export function PageView(): React.JSX.Element {
   useEffect(() => {
     const onUnload = (): void => flushRef.current();
     window.addEventListener("beforeunload", onUnload);
+    // The adopt path flushes the pending write to the OLD root before flipping (registerPageFlush) — the
+    // unmount-flush below then finds nothing to write into the new nexus.
+    registerPageFlush(async () => {
+      const p = pendingSave.current;
+      if (!p) return;
+      clearTimeout(p.timer);
+      pendingSave.current = undefined;
+      await window.nexus.updatePageBody(p.path, p.body);
+    });
     return () => {
       window.removeEventListener("beforeunload", onUnload);
+      registerPageFlush(null);
       flushRef.current();
     };
   }, []);

@@ -46,7 +46,7 @@
 }
 .nav-view-banner .nav-view-search {
   color: var(--text);
-  text-shadow: 0 1px 4px #0000008c;
+  text-shadow: 0 1px 4px var(--banner-shadow);
 }
 
 .nav-view-scroll {

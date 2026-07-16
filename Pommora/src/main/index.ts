@@ -323,6 +323,9 @@ ipcMain.handle('nav:loadPins', async (): Promise<PinsResult> => {
 
 const savePin = async (pin: unknown): Promise<{ ok: true } | { ok: false; error: string }> => {
   try {
+    // Mid-adopt, sessionRoot() is already the NEW nexus — a pin gesture on the old nexus's still-open UI
+    // would write a foreign entity into the new nexus's synced pins. Drop it, like the recents/tabs saves.
+    if (adopting) return { ok: false, error: 'Nexus switching.' }
     const root = sessionRoot()
     if (root === null) return { ok: false, error: 'No nexus is open.' }
     if (!isPlainObject(pin)) return { ok: false, error: 'Pin must be an object.' }
@@ -337,6 +340,7 @@ ipcMain.handle('nav:reorderPin', (_e, pin: unknown) => savePin(pin))
 
 ipcMain.handle('nav:removePin', async (_e, target: unknown, order: unknown): Promise<{ ok: true } | { ok: false; error: string }> => {
   try {
+    if (adopting) return { ok: false, error: 'Nexus switching.' }
     const root = sessionRoot()
     if (root === null) return { ok: false, error: 'No nexus is open.' }
     if (!isPlainObject(target) || typeof order !== 'number') return { ok: false, error: 'Bad remove-pin args.' }

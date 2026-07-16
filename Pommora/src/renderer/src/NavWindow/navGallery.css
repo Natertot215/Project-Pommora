@@ -148,9 +148,6 @@
   color: var(--label-secondary);
 }
 .nav-gallery-loc {
-  display: flex;
-  align-items: center;
-  min-width: 0;
   color: var(--label-secondary);
   --eclipse-fade: 14px;
   --scroll-fade: 14px;

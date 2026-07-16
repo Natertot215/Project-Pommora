@@ -4,6 +4,7 @@ import type { NexusTree, PageDetail, SelectTarget, Tab } from '@shared/types'
 import { DEFAULT_LABELS } from '@shared/types'
 import { useSession } from './store'
 import { newTabTab } from './Tabs/tabsModel'
+import { navKey } from './Navigation/navRecents'
 import { clearWarm, readWarm } from './Tabs/warmCache'
 
 // Stub the narrow window.nexus surface the tab glue reaches (page fetch, recents save, tab persist,
@@ -208,6 +209,54 @@ describe('store — applyTree reconciles EVERY tab (I-2a)', () => {
     // Delete: page b is gone — the inactive unpinned t2 closes; the active tab is untouched.
     await useSession.getState().applyTree(treeWith([]))
     s = useSession.getState()
+    expect(s.tabs.map((t) => t.id)).toEqual(['t1'])
+    expect(s.activeTabId).toBe('t1')
+  })
+})
+
+describe('store — recents reorder + batched close', () => {
+  const savedRecents = (): unknown => (window as unknown as { nexus: { nav: { saveRecents: { mock: { calls: unknown[][] } } } } }).nexus.nav.saveRecents
+
+  it('reorderRecent rewrites the order to the source and persists immediately (drag)', () => {
+    const a = ctx('a')
+    const b = ctx('b')
+    const c = ctx('c')
+    seed({ recents: [a, b, c] })
+    useSession.getState().reorderRecent(navKey(a), navKey(c)) // drop a onto c's slot
+    expect(useSession.getState().recents).toEqual([b, c, a])
+    expect(savedRecents()).toHaveBeenCalledWith([b, c, a], true) // immediate write, like the pin toggle
+  })
+
+  it('reorderRecent is a no-op on same/unknown key (no state churn, no write)', () => {
+    const a = ctx('a')
+    const b = ctx('b')
+    seed({ recents: [a, b] })
+    useSession.getState().reorderRecent(navKey(a), navKey(a))
+    useSession.getState().reorderRecent('missing', navKey(b))
+    expect(useSession.getState().recents).toEqual([a, b])
+    expect(savedRecents()).not.toHaveBeenCalled()
+  })
+
+  it('closeTabsRight batch-closes the range and keeps a surviving active tab', () => {
+    seed({
+      tabs: [uTab('t1', ctx('a'), [ctx('a')], 0), uTab('t2', ctx('b'), [ctx('b')], 0), uTab('t3', ctx('c'), [ctx('c')], 0)],
+      activeTabId: 't1',
+      tabMru: ['t1', 't2', 't3']
+    })
+    useSession.getState().closeTabsRight('t1')
+    const s = useSession.getState()
+    expect(s.tabs.map((t) => t.id)).toEqual(['t1'])
+    expect(s.activeTabId).toBe('t1')
+  })
+
+  it('closeTabsRight refocuses MRU-top when the active tab is inside the closed range', () => {
+    seed({
+      tabs: [uTab('t1', ctx('a'), [ctx('a')], 0), uTab('t2', ctx('b'), [ctx('b')], 0), uTab('t3', ctx('c'), [ctx('c')], 0)],
+      activeTabId: 't3',
+      tabMru: ['t3', 't1', 't2']
+    })
+    useSession.getState().closeTabsRight('t1') // t2 + t3 close; active t3 dies → MRU-top still live = t1
+    const s = useSession.getState()
     expect(s.tabs.map((t) => t.id)).toEqual(['t1'])
     expect(s.activeTabId).toBe('t1')
   })

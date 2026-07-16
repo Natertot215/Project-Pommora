@@ -25,6 +25,9 @@
 .nav-item:hover {
   background: var(--state-hover);
 }
+.nav-item.is-dragging {
+  opacity: 0.85;
+}
 .nav-item-main {
   flex: 1;
   display: flex;

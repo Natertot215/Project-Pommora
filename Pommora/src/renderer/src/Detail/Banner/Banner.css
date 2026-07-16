@@ -36,7 +36,7 @@
   display: flex;
   align-items: center;
   gap: 8px; /* the shared detail-title icon gap */
-  text-shadow: 0 1px 4px #0000008c;
+  text-shadow: 0 1px 4px var(--banner-shadow);
   pointer-events: none;
   transition: left var(--duration-base) var(--ease-standard);
 }
@@ -70,7 +70,7 @@
 }
 .banner-title .detail-title-icon {
   color: var(--text);
-  filter: drop-shadow(0 1px 4px #0000008c);
+  filter: drop-shadow(0 1px 4px var(--banner-shadow));
 }
 .banner-title .detail-title-text,
 .banner-title .detail-title-input {
@@ -90,7 +90,7 @@
   object-fit: cover;
   overflow: hidden;
   color: var(--text);
-  filter: drop-shadow(0 1px 4px #0000008c);
+  filter: drop-shadow(0 1px 4px var(--banner-shadow));
   /* Hide/show slides the icon in/out on the slide token (--duration-base) — max-width collapses the
      space, the translate carries it, and the negative margin swallows the banner-title gap. */
   transition:

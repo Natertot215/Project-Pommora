@@ -91,7 +91,7 @@ function RibbonTab({
   active: boolean
   onClick: () => void
 }): React.JSX.Element {
-  const { setNodeRef, style, handle } = useDragItem(tabKey)
+  const { setNodeRef, style, handle, isDragging } = useDragItem(tabKey)
   return (
     <button
       ref={setNodeRef}
@@ -101,7 +101,9 @@ function RibbonTab({
       className="ribbon-icon"
       aria-label={tabKey}
       aria-selected={active}
-      onClick={onClick}
+      onClick={() => {
+        if (!isDragging) onClick()
+      }}
     >
       <Icon name={icon} size={18} />
     </button>

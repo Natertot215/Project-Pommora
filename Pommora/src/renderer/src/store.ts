@@ -6,6 +6,7 @@ import { navKey, recordRecent, removeRecentByKey, RECENTS_CAP } from './Navigati
 import { byOrder, cleanPinTarget, pinFor, reorderTo } from './Navigation/navPins'
 import { activeUnpinnedTab, closeTab as closeTabModel, derivePinnedTabs, insertUnpinned, isPinned, newTabTab, openNewTab as openNewTabModel, openTab as openTabModel, pinTabId, pushMru, reconcileTabs, reorderWithinZone, tabKey } from './Tabs/tabsModel'
 import { captureWarm, clearWarm, dropWarmTab, readWarm } from './Tabs/warmCache'
+import { flushActivePage } from './Detail/pageFlush'
 import { dropCapturedOutside } from './Navigation/useNavThumbnails'
 import { stabilize } from './treeStabilize'
 import { applyAccent, applySystemAccent } from './design-system/accent'
@@ -252,6 +253,11 @@ export const useSession = create<SessionState>((set, get) => {
   // call routes to the error state instead of an unhandled rejection.
   const openVia = async (attempt: () => Promise<boolean>): Promise<void> => {
     try {
+      // Flush the active page's pending body write to the CURRENT nexus before an adopt flips the root —
+      // else the editor's unmount-flush (fired by the selection-clear below, after the root already moved)
+      // writes the old body into the NEW nexus, overwriting a same-relative-path file there. Awaited so main
+      // binds the OLD root; the flush clears the pending save, so that unmount-flush is then a no-op.
+      await flushActivePage()
       if (await attempt()) {
         // A new nexus was adopted — clear selection/detail from the old one before
         // re-reading, so stale page detail doesn't linger against the new tree.
@@ -302,6 +308,16 @@ export const useSession = create<SessionState>((set, get) => {
   const persistTabs = (): void => {
     const s = get()
     void window.nexus.tabs.save({ tabs: s.tabs, activeTabId: s.activeTabId }).catch(() => undefined)
+  }
+
+  // Commit a tab-model result (close / close-right / tree-reconcile share this tail): only refetch the
+  // detail when the active tab actually changed, and always persist. Warm-drops are per-caller (each
+  // drops a different set) and order-independent of this commit, so they stay at the call site.
+  const applyTabResult = (r: { tabs: Tab[]; activeTabId: string; mru: string[] }): void => {
+    const activeChanged = r.activeTabId !== get().activeTabId
+    set({ tabs: r.tabs, activeTabId: r.activeTabId, tabMru: r.mru })
+    if (activeChanged) syncActiveDetail()
+    persistTabs()
   }
 
   // C-6's live twin (the load-time filter covers only seeding): when an OPEN entity becomes pinned —
@@ -435,11 +451,20 @@ export const useSession = create<SessionState>((set, get) => {
                 return true
               })
               const pinnedTabs = derivePinnedTabs(pins)
+              // A pin whose entity vanished while the app was closed render-hides — it must NOT count as
+              // live, or a stored active pointer at it dangles onto an error pane. The cold restore filters
+              // pins for liveness exactly as the live applyTree path does; `active` is chosen off the live
+              // set (not just handed to reconcileTabs, which short-circuits when no unpinned tab changed).
+              const tree = get().tree
+              const index = tree ? buildReconcileIndex(tree) : null
+              const livePinnedTabs = index
+                ? pinnedTabs.filter((t) => t.target.kind === 'newtab' || reconcileWith(index, t.target).kind !== 'none')
+                : pinnedTabs
               const storedActive = storedSet?.activeTabId ?? ''
-              const liveIds = new Set([...pinnedTabs, ...tabs].map((t) => t.id))
-              const active = liveIds.has(storedActive) ? storedActive : (tabs[0]?.id ?? pinnedTabs[0]?.id ?? '')
+              const liveIds = new Set([...livePinnedTabs, ...tabs].map((t) => t.id))
+              const active = liveIds.has(storedActive) ? storedActive : (tabs[0]?.id ?? livePinnedTabs[0]?.id ?? '')
               if (active === '') {
-                // Nothing persisted and no pins — a fresh nexus opens onto one NavView tab (E-2).
+                // Nothing persisted and no live pins — a fresh nexus opens onto one NavView tab (E-2).
                 const seeded = newTabTab(makeTabId())
                 set({ tabs: [seeded], activeTabId: seeded.id, tabMru: [seeded.id] })
               } else {
@@ -447,14 +472,12 @@ export const useSession = create<SessionState>((set, get) => {
                 // entities moved or vanished: renames refresh in place, and a deleted entity's tab
                 // closes instead of restoring onto an error pane.
                 let restored = { tabs, activeTabId: active, mru: [active] }
-                const tree = get().tree
-                if (tree) {
-                  const index = buildReconcileIndex(tree)
+                if (index) {
                   const rec = reconcileTabs(
                     tabs,
                     active,
                     [active],
-                    pinnedTabs.map((t) => t.id),
+                    livePinnedTabs.map((t) => t.id),
                     (t) => {
                       const r = reconcileWith(index, t)
                       return r.kind === 'none' ? null : r
@@ -525,10 +548,7 @@ export const useSession = create<SessionState>((set, get) => {
         )
         if (rec.changed) {
           for (const t of s.tabs) if (!rec.tabs.some((n) => n.id === t.id)) dropWarmTab(t.id) // deleted-entity closes
-          const activeChanged = rec.activeTabId !== s.activeTabId
-          set({ tabs: rec.tabs, activeTabId: rec.activeTabId, tabMru: rec.mru })
-          if (activeChanged) syncActiveDetail()
-          persistTabs()
+          applyTabResult({ tabs: rec.tabs, activeTabId: rec.activeTabId, mru: rec.mru })
         }
       }
       // Always read the OS accent: it feeds --accent only when the setting is `system`,
@@ -654,11 +674,8 @@ export const useSession = create<SessionState>((set, get) => {
       const s = get()
       const pinnedIds = derivePinnedTabs(s.pins).map((t) => t.id)
       const res = closeTabModel(s.tabs, s.activeTabId, s.tabMru, pinnedIds, id, makeTabId())
-      const activeChanged = res.activeTabId !== s.activeTabId
-      set({ tabs: res.tabs, activeTabId: res.activeTabId, tabMru: res.mru })
       dropWarmTab(id) // a closed tab's warm stack dies with it
-      if (activeChanged) syncActiveDetail()
-      persistTabs()
+      applyTabResult(res)
     },
     // One batched close (I-12) — iterating closeTab would refocus (and re-fetch) once per
     // intermediate MRU hop when the active tab sits inside the closed range.
@@ -673,10 +690,8 @@ export const useSession = create<SessionState>((set, get) => {
       const pinnedIds = derivePinnedTabs(s.pins).map((t) => t.id)
       const live = new Set([...pinnedIds, ...tabs.map((t) => t.id)])
       const active = activeClosed ? (mru.find((m) => live.has(m)) ?? id) : s.activeTabId
-      set({ tabs, activeTabId: active, tabMru: mru })
       for (const cid of closed) dropWarmTab(cid)
-      if (activeClosed) syncActiveDetail()
-      persistTabs()
+      applyTabResult({ tabs, activeTabId: active, mru })
     },
     reorderTabs: (activeId, overId) => {
       const s = get()
@@ -744,6 +759,18 @@ export const useSession = create<SessionState>((set, get) => {
     applyNavChanged: (nav) => {
       set({ pins: [...nav.pins].sort(byOrder) })
       graduatePinCovered() // a synced-in pin covers a locally-open tab exactly like a local pin does
+      // A synced-in UNPIN can orphan the active pointer: the pinned tab it derived vanishes, but nothing
+      // refocuses the pointer (graduatePinCovered only handles the add case). Refocus MRU-top so it
+      // doesn't dangle onto a stale pane (mirror reconcileTabs' focus).
+      const s = get()
+      const live = new Set([...derivePinnedTabs(s.pins).map((t) => t.id), ...s.tabs.map((t) => t.id)])
+      if (!live.has(s.activeTabId)) {
+        const focus = s.tabMru.find((id) => live.has(id)) ?? s.tabs[0]?.id ?? derivePinnedTabs(s.pins)[0]?.id
+        if (focus !== undefined) {
+          set({ activeTabId: focus, tabMru: s.tabMru.filter((id) => live.has(id)) })
+          syncActiveDetail()
+        }
+      }
     },
     thumbVersions: {},
     bumpThumb: (key) => set((s) => ({ thumbVersions: { ...s.thumbVersions, [key]: (s.thumbVersions[key] ?? 0) + 1 } })),
@@ -882,20 +909,19 @@ export const useSession = create<SessionState>((set, get) => {
             pageDetail: null,
             pageError: undefined
           })
+          let res: Awaited<ReturnType<typeof window.nexus.openPage>>
           try {
-            const res = await window.nexus.openPage(target.path)
-            // The stale-response fence: a warm-instant switch can land while this fetch is in flight,
-            // making the earlier response resolve LAST — without this check it would clobber the shown
-            // page with the wrong file under the wrong tab.
-            const cur = get().selection
-            if (cur.kind !== 'page' || cur.path !== target.path) return
-            if (res.ok) set({ pageStatus: 'ready', pageDetail: res.page })
-            else set({ pageStatus: 'error', pageError: res.error })
+            res = await window.nexus.openPage(target.path)
           } catch (e) {
-            const cur = get().selection
-            if (cur.kind !== 'page' || cur.path !== target.path) return
-            set({ pageStatus: 'error', pageError: e instanceof Error ? e.message : String(e) })
+            res = { ok: false, error: e instanceof Error ? e.message : String(e) }
           }
+          // The stale-response fence: a warm-instant switch can land while this fetch is in flight, making
+          // the earlier response resolve LAST — without this check it would clobber the shown page with the
+          // wrong file under the wrong tab. Re-read AFTER the await, once, for both outcomes.
+          const cur = get().selection
+          if (cur.kind !== 'page' || cur.path !== target.path) return
+          if (res.ok) set({ pageStatus: 'ready', pageDetail: res.page })
+          else set({ pageStatus: 'error', pageError: res.error })
           return
         }
       }
