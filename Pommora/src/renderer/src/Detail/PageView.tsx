@@ -3,6 +3,8 @@ import { useSession } from "../store";
 import { MarkdownEditor } from "../MarkdownPM";
 import { buildPageIndex, flattenPages, type ConnectionsApi } from "../MarkdownPM/connections";
 import { IconPicker } from "../Components/IconPicker";
+import { navKey } from "../Navigation/navRecents";
+import { captureWarm, readWarm } from "../Tabs/warmCache";
 
 const SAVE_DEBOUNCE_MS = 400;
 // Live stats settle just behind the keystroke so a long page isn't Markdown-scanned on every char.
@@ -11,6 +13,7 @@ const STATS_DEBOUNCE_MS = 120;
 export function PageView(): React.JSX.Element {
   const pageStatus = useSession((s) => s.pageStatus);
   const pageDetail = useSession((s) => s.pageDetail);
+  const activeTabId = useSession((s) => s.activeTabId);
   const pageError = useSession((s) => s.pageError);
   const submitRename = useSession((s) => s.submitRename);
   const mutate = useSession((s) => s.mutate);
@@ -112,6 +115,14 @@ export function PageView(): React.JSX.Element {
             menu={{
               pushState: (s) => window.nexus.setEditorFormatState(s),
               onAction: (cb) => window.nexus.onMenuAction(cb),
+            }}
+            // The editor freezes this at mount, so the capture lands under the tab that OWNED this
+            // page even though activeTabId moves before the unmount (select switches synchronously).
+            warm={{
+              restore: () =>
+                readWarm(activeTabId, navKey({ kind: "page", id: pageDetail.id, path: pageDetail.path })),
+              capture: (state) =>
+                captureWarm(activeTabId, navKey({ kind: "page", id: pageDetail.id, path: pageDetail.path }), state),
             }}
           />
           <IconPicker

@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 import { docString } from "./editor/docCache";
 import { EditorView, keymap } from "@codemirror/view";
 import { Compartment, EditorState, Prec } from "@codemirror/state";
-import { history, historyKeymap, defaultKeymap } from "@codemirror/commands";
+import { history, historyField, historyKeymap, defaultKeymap } from "@codemirror/commands";
 import { markdown } from "@codemirror/lang-markdown";
 import { markdownDecorations } from "./editor/decorations";
 import { markdownInput } from "./editor/input";
@@ -33,6 +33,15 @@ import { PageHeader } from "./PageHeader";
 import { ZOOM_DEFAULT, zoomFontSize } from "./zoom";
 import "./Styles.css";
 
+/** The warm-tab seam (B-3): `restore` is read once at mount to seed the fresh EditorState (undo via
+ *  the serialized historyField) + scroll; `capture` fires at unmount with the state to keep warm. The
+ *  host binds both to a (tab, entity) identity at mount time — the mount-once effect freezes that
+ *  binding, so a capture can never land under the NEXT tab's identity mid-switch. */
+export interface WarmSeam {
+  restore: () => { editorState?: unknown; scrollTop?: number } | undefined;
+  capture: (state: { editorState: unknown; scrollTop: number }) => void;
+}
+
 interface Props {
   initialBody: string;
   onChange: (body: string) => void;
@@ -55,6 +64,8 @@ interface Props {
   /** Apply the shared scroll-edge fade to the editor's scroller — the embed treatment; the full page
    *  editor leaves it off. */
   edgeFade?: boolean;
+  /** Warm-tab state seam — page editors only; embeds/blocks mount cold. */
+  warm?: WarmSeam;
 }
 
 export function MarkdownEditor({
@@ -73,6 +84,7 @@ export function MarkdownEditor({
   autoFocus = false,
   readOnly = false,
   edgeFade = false,
+  warm,
 }: Props): React.JSX.Element {
   const readOnlyGate = useRef(new Compartment());
   const readOnlyAtMount = useRef(readOnly);
@@ -109,10 +121,7 @@ export function MarkdownEditor({
   useEffect(() => {
     const parent = host.current;
     if (!parent) return;
-    const view = new EditorView({
-      doc: initialBody,
-      parent,
-      extensions: [
+    const extensions = [
         // Editable stays true even in the read-only portal: MarkdownPM renders selection natively (no
         // drawSelection layer), so the at-rest embed must remain a focusable contenteditable to be
         // selectable at all — never blocked by a non-editable DOM.
@@ -217,9 +226,28 @@ export function MarkdownEditor({
 
           if (u.docChanged || u.selectionSet) detectConnectionQuery(u.view, setAc);
         }),
-      ],
-    });
+    ];
+    // Warm rehydration (B-3): seed the fresh mount from the cached serialized state — doc + selection +
+    // undo history (historyField is the only serialized field; folds ride folds.json below). A corrupt
+    // or cross-version payload falls back to a cold mount rather than throwing the editor away.
+    const saved = warm?.restore();
+    let warmState: EditorState | null = null;
+    if (saved?.editorState !== undefined) {
+      try {
+        warmState = EditorState.fromJSON(saved.editorState, { extensions }, { history: historyField });
+      } catch {
+        warmState = null;
+      }
+    }
+    const view = new EditorView(warmState ? { state: warmState, parent } : { doc: initialBody, parent, extensions });
     viewRef.current = view;
+    // Track scroll continuously for the unmount capture — at cleanup time React may have already
+    // detached the DOM, where reading scrollTop yields 0 and would wipe the saved position.
+    let lastScrollTop = saved?.scrollTop ?? 0;
+    const onWarmScroll = (): void => {
+      lastScrollTop = view.scrollDOM.scrollTop;
+    };
+    if (warm) view.scrollDOM.addEventListener("scroll", onWarmScroll, { passive: true });
     // Embed treatment: the shared scroll-edge fade rides the CM scroller (the real scroll element), so
     // top/bottom content dissolves as it scrolls — same mask + scroll-timeline as every other faded box.
     // The top fade is gated to need a full fade-height of real scroll first (edge-fade-top-gated), so a
@@ -228,8 +256,19 @@ export function MarkdownEditor({
     // Click-to-edit surfaces (block tiles) mount THIS editor in response to a click
     // that landed on the at-rest render — without a focus the caret goes nowhere.
     if (autoFocus && !readOnlyAtMount.current) view.focus();
-    // Restore this page's saved folds once the view's lines exist (the widget clones them).
-    void foldsRef.current?.load().then((keys) => applySavedFolds(view, keys));
+    // Restore this page's saved folds once the view's lines exist (the widget clones them). The warm
+    // scroll restores AFTER folds settle — folding changes content height, so restoring first would
+    // land on a pre-fold offset.
+    const restoreScroll = (): void => {
+      if (saved?.scrollTop) view.scrollDOM.scrollTop = saved.scrollTop;
+    };
+    const foldsLoad = foldsRef.current?.load();
+    if (foldsLoad)
+      void foldsLoad.then((keys) => {
+        applySavedFolds(view, keys);
+        restoreScroll();
+      });
+    else requestAnimationFrame(restoreScroll);
     // Restore this page's heading-column tables (rebuilds the affected table widgets).
     void tableHeadingColsRef.current
       ?.load()
@@ -238,6 +277,12 @@ export function MarkdownEditor({
     const unsubMenu = menuRef.current?.onAction((action) => applyEditorAction(view, action));
     return () => {
       unsubMenu?.();
+      if (warm) {
+        view.scrollDOM.removeEventListener("scroll", onWarmScroll);
+        // `warm` is the mount-render prop (deps []), so this capture lands under the identity this
+        // editor mounted with — never the next tab's, even though the switch already updated the store.
+        warm.capture({ editorState: view.state.toJSON({ history: historyField }), scrollTop: lastScrollTop });
+      }
       view.destroy();
       viewRef.current = null;
     };

@@ -1,13 +1,15 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { NexusTree, SelectTarget, Tab } from '@shared/types'
+import type { NexusTree, PageDetail, SelectTarget, Tab } from '@shared/types'
 import { DEFAULT_LABELS } from '@shared/types'
 import { useSession } from './store'
 import { newTabTab } from './Tabs/tabsModel'
+import { clearWarm, readWarm } from './Tabs/warmCache'
 
 // Stub the narrow window.nexus surface the tab glue reaches (page fetch, recents save, tab persist,
 // the applyTree accent read) so it runs in isolation.
 beforeEach(() => {
+  clearWarm() // module state — never leaks across tests
   ;(window as unknown as { nexus: unknown }).nexus = {
     openPage: vi.fn(async () => ({ ok: true, page: {} })),
     nav: { saveRecents: vi.fn(async () => ({ ok: true })) },
@@ -104,6 +106,36 @@ describe('store — tab wiring (Phase 0)', () => {
     expect(s.tabs).toHaveLength(1)
     expect(s.tabs[0].target).toEqual({ kind: 'newtab' })
     expect(s.selection).toEqual({ kind: 'none' })
+  })
+})
+
+describe('store — warm tabs (B-2/B-3)', () => {
+  const pg = (id: string): SelectTarget => ({ kind: 'page', id, path: `/${id}` })
+  const detail = (id: string): PageDetail => ({ id, title: id.toUpperCase(), path: `/${id}`, frontmatter: {}, body: 'x' })
+
+  it('switching away captures the outgoing page detail; switching back is warm-instant — no fetch, no flash', () => {
+    seed({
+      tabs: [uTab('t1', pg('a'), [pg('a')], 0), uTab('t2', pg('b'), [pg('b')], 0)],
+      activeTabId: 't1',
+      selection: pg('a'),
+      pageStatus: 'ready',
+      pageDetail: detail('a'),
+    })
+    useSession.getState().activateTab('t2') // leaves t1 — captures its detail on the way out
+    expect(readWarm('t1', 'page:a')?.pageDetail?.id).toBe('a')
+    ;(window.nexus.openPage as ReturnType<typeof vi.fn>).mockClear()
+    useSession.getState().activateTab('t1') // returns warm
+    const s = useSession.getState()
+    expect(s.pageStatus).toBe('ready') // never passed through 'loading' — no flash
+    expect(s.pageDetail?.id).toBe('a')
+    expect(window.nexus.openPage).not.toHaveBeenCalled()
+  })
+
+  it('a renamed entity misses the warm detail (path check) and falls through to the cold fetch', async () => {
+    seed({ tabs: [uTab('t1', pg('a'), [pg('a')], 0)], activeTabId: 't1', selection: pg('a'), pageStatus: 'ready', pageDetail: detail('a') })
+    useSession.getState().activateTab('t2-nonexistent') // capture fires on the way out
+    await useSession.getState().select({ kind: 'page', id: 'a', path: '/a-renamed' }, { record: false })
+    expect(window.nexus.openPage).toHaveBeenCalledWith('/a-renamed')
   })
 })
 

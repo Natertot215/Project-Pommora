@@ -5,6 +5,7 @@ import { buildReconcileIndex, reconcileSelection, reconcileWith } from './select
 import { navKey, recordRecent, removeRecentByKey, RECENTS_CAP } from './Navigation/navRecents'
 import { byOrder, cleanPinTarget, pinFor, reorderTo } from './Navigation/navPins'
 import { closeTab as closeTabModel, derivePinnedTabs, isPinned, newTabTab, openNewTab as openNewTabModel, openTab as openTabModel, pushMru, reconcileTabs, tabKey } from './Tabs/tabsModel'
+import { captureWarm, clearWarm, dropWarmTab, readWarm } from './Tabs/warmCache'
 import { stabilize } from './treeStabilize'
 import { applyAccent, applySystemAccent } from './design-system/accent'
 import { applyPersonalization, applyPersonalizationKey } from './design-system/personalization'
@@ -244,6 +245,7 @@ export const useSession = create<SessionState>((set, get) => {
         // Clearing activeTabId marks the tab set never-seeded, so load() re-reads the
         // new nexus's sidecar (I-10 wholesale reset; main drained the outgoing writes).
         set({ selection: { kind: 'none' }, pageStatus: 'idle', pageDetail: null, pageError: undefined, liveBody: null, tabs: [], activeTabId: '', tabMru: [] })
+        clearWarm() // warmth is per-nexus AND session-only — never crosses an adoption (I-10)
         await get().load()
       }
     } catch (e) {
@@ -288,6 +290,15 @@ export const useSession = create<SessionState>((set, get) => {
     void window.nexus.tabs.save({ tabs: s.tabs, activeTabId: s.activeTabId }).catch(() => undefined)
   }
 
+  // Capture the outgoing page detail into the warm cache BEFORE a switch mutates selection —
+  // `select` nulls pageDetail synchronously, so a capture any later would read the incoming tab's
+  // state. Runs at the top of every path that changes what's shown; no-op off a ready page.
+  const captureOutgoingDetail = (): void => {
+    const s = get()
+    if (s.selection.kind !== 'page' || s.pageStatus !== 'ready' || !s.pageDetail) return
+    captureWarm(s.activeTabId, navKey(s.selection), { pageDetail: s.pageDetail })
+  }
+
   // Back/Forward replay over the ACTIVE tab's own history (D-7): walk in `delta` direction, resolving
   // each entry by id against the live tree (a renamed/moved entity → its fresh path) and skipping
   // deleted entries. A pinned/newtab active tab has no unpinned back-history, so this is a no-op.
@@ -298,6 +309,7 @@ export const useSession = create<SessionState>((set, get) => {
     for (let i = active.navIndex + delta; i >= 0 && i < active.navStack.length; i += delta) {
       const resolved = s.tree ? reconcileSelection(s.tree, active.navStack[i]) : active.navStack[i]
       if (resolved.kind === 'none') continue // entity gone — skip to the next live entry in this direction
+      captureOutgoingDetail() // the entry being left stays warm for the return trip (I-7)
       // target moves in lockstep with navIndex — openTab's dedup keys off `target`, so a stale one
       // would mis-dedup the very next click on the shown entity (destroying the Forward stack).
       set({ tabs: get().tabs.map((t) => (t.id === active.id ? { ...t, navIndex: i, target: resolved } : t)) })
@@ -372,11 +384,12 @@ export const useSession = create<SessionState>((set, get) => {
             // trails the in-memory set, so a re-read would roll the tabs backward.
             if (get().activeTabId === '') {
               const stored = await window.nexus.tabs.load().catch(() => null)
+              const storedSet = stored?.ok ? stored.set : null
               const pins = get().pins
               const seen = new Set<string>()
               // Drop any stored tab now covered by a pin (C-6 — pinned tabs derive, never dual-store)
               // and dedupe by entity (I-1 — a cross-device merge can't produce duplicate tabs).
-              const tabs = (stored?.ok ? (stored.set?.tabs ?? []) : []).filter((t) => {
+              const tabs = (storedSet?.tabs ?? []).filter((t) => {
                 if (t.target.kind !== 'newtab' && isPinned(t.target, pins)) return false
                 const k = tabKey(t.target)
                 if (seen.has(k)) return false
@@ -384,9 +397,9 @@ export const useSession = create<SessionState>((set, get) => {
                 return true
               })
               const pinnedTabs = derivePinnedTabs(pins)
-              const storedActive = stored?.ok ? (stored.set?.activeTabId ?? '') : ''
+              const storedActive = storedSet?.activeTabId ?? ''
               const liveIds = new Set([...pinnedTabs, ...tabs].map((t) => t.id))
-              let active = liveIds.has(storedActive) ? storedActive : (tabs[0]?.id ?? pinnedTabs[0]?.id ?? '')
+              const active = liveIds.has(storedActive) ? storedActive : (tabs[0]?.id ?? pinnedTabs[0]?.id ?? '')
               if (active === '') {
                 // Nothing persisted and no pins — a fresh nexus opens onto one NavView tab (E-2).
                 const seeded = newTabTab(makeTabId())
@@ -449,6 +462,7 @@ export const useSession = create<SessionState>((set, get) => {
           makeTabId()
         )
         if (rec.changed) {
+          for (const t of s.tabs) if (!rec.tabs.some((n) => n.id === t.id)) dropWarmTab(t.id) // deleted-entity closes
           const activeChanged = rec.activeTabId !== s.activeTabId
           set({ tabs: rec.tabs, activeTabId: rec.activeTabId, tabMru: rec.mru })
           if (activeChanged) syncActiveDetail()
@@ -561,11 +575,13 @@ export const useSession = create<SessionState>((set, get) => {
     goForward: () => stepActiveHistory(1),
     activateTab: (id) => {
       if (get().activeTabId === id) return
+      captureOutgoingDetail()
       set((s) => ({ activeTabId: id, tabMru: pushMru(s.tabMru, id) }))
       syncActiveDetail()
       persistTabs()
     },
     openNewTab: () => {
+      captureOutgoingDetail()
       const s = get()
       const res = openNewTabModel(s.tabs, makeTabId())
       set({ tabs: res.tabs, activeTabId: res.activeTabId, tabMru: pushMru(s.tabMru, res.activeTabId) })
@@ -578,6 +594,7 @@ export const useSession = create<SessionState>((set, get) => {
       const res = closeTabModel(s.tabs, s.activeTabId, s.tabMru, pinnedIds, id, makeTabId())
       const activeChanged = res.activeTabId !== s.activeTabId
       set({ tabs: res.tabs, activeTabId: res.activeTabId, tabMru: res.mru })
+      dropWarmTab(id) // a closed tab's warm stack dies with it
       if (activeChanged) syncActiveDetail()
       persistTabs()
     },
@@ -676,6 +693,7 @@ export const useSession = create<SessionState>((set, get) => {
       // shown detail below. Recents record ONLY when a tab actually opened (a spawn or in-place replace),
       // never on a focus/re-surface of an already-open tab (C-5).
       if (opts?.record !== false) {
+        captureOutgoingDetail()
         const s = get()
         const pinned = derivePinnedTabs(s.pins)
         const res = openTabModel(s.tabs, s.activeTabId, pinned, target, { newTab: opts?.newTab }, makeTabId())
@@ -716,6 +734,14 @@ export const useSession = create<SessionState>((set, get) => {
           return
         }
         case 'page': {
+          // Warm-instant (B-3): a warm entity under the active tab renders its cached detail with no
+          // fetch and no loading flash. The path equality keeps it honest across renames — a stale-path
+          // detail would route saves at the old file — and a miss falls through to the cold fetch.
+          const cached = readWarm(get().activeTabId, navKey(target))?.pageDetail
+          if (cached && cached.path === target.path) {
+            set({ selection: { kind: 'page', id: target.id, path: target.path }, pageStatus: 'ready', pageDetail: cached, pageError: undefined })
+            return
+          }
           set({
             selection: { kind: 'page', id: target.id, path: target.path },
             pageStatus: 'loading',
