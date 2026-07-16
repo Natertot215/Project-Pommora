@@ -97,13 +97,6 @@
 .tab-pinned.is-dragging {
   opacity: 0.85;
 }
-.tab-pin-badge {
-  position: absolute;
-  right: 4px;
-  bottom: 5px;
-  color: var(--accent);
-  pointer-events: none;
-}
 
 /* ---- segment divider between the zones ---- */
 .tab-divider {

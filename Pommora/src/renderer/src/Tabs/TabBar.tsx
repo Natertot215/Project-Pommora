@@ -188,8 +188,9 @@ function TabBarBody({ pinnedEntries, unpinnedEntries }: { pinnedEntries: TabEntr
   )
 }
 
-/** A pinned tab: the entity icon (the nexus photo for Homepage, via EntityGlyph) + an accent pin
- *  badge; the full name reveals on hover (I-8). Not closable (D-10) — unpin first. */
+/** A pinned tab: the compact entity icon (the nexus photo for Homepage, via EntityGlyph); the full
+ *  name reveals on hover (I-8). The pin badge is pulled for now — position (left of the divider) +
+ *  compactness carry the pinned reading. Not closable (D-10) — unpin first. */
 function PinnedTab({
   entry,
   active,
@@ -217,7 +218,6 @@ function PinnedTab({
       onContextMenu={onMenu}
     >
       <EntityGlyph item={entry.res} size={14} className="tab-icon" />
-      <Icon name="pin" size={9} className="tab-pin-badge" />
     </div>
   )
 }

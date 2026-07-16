@@ -80,7 +80,7 @@
   align-items: center;
   justify-content: center;
   color: var(--label-tertiary);
-  background: var(--accent-fill);
+  background: var(--fill-quaternary);
 }
 
 /* Pin overlaid top-left ON the thumbnail — no fill. Hover-revealed in label-secondary on unpinned

@@ -7,17 +7,17 @@
   height: 100%;
   min-height: 0;
   /* KNOB — the full-window gallery card floor (bigger than the NavWindow's 180px). The horizontal
-     insets ride --content-inset like every detail view, so the gallery clears the floating sidebar
-     (and collapses with it) instead of sliding under it. */
+     insets ride the SURFACE-banner inset (12px gutter, block-surface treatment) — still clears the
+     floating sidebar and collapses with it, but tighter than the 24px content gutter. */
   --card-min: 220px;
 }
 
-/* The banner-title slot: a large, chromeless search input. */
+/* The banner-title slot: a chromeless search input in the title position. */
 .nav-view-head {
   flex-shrink: 0;
   padding: 44px 0 10px;
   border-bottom: 1px solid var(--separator-segment);
-  margin: 0 var(--content-inset-right) 0 var(--content-inset);
+  margin: 0 var(--surface-banner-inset-right) 0 var(--surface-banner-inset);
 }
 .nav-view-search {
   width: 100%;
@@ -25,7 +25,7 @@
   background: transparent;
   outline: none;
   color: var(--label-primary);
-  font-size: 22px; /* KNOB — banner-title scale */
+  font-size: 17px; /* KNOB — title2 scale (a step down from the banner-title size) */
   font-weight: 600;
 }
 .nav-view-search::placeholder {
@@ -36,6 +36,6 @@
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  /* Less the gallery's own 12px so the cards land ON --content-inset (aligned with the search bar). */
-  padding: 14px calc(var(--content-inset-right) - 12px) 14px calc(var(--content-inset) - 12px);
+  /* Less the gallery's own 12px so the cards land ON the surface inset (aligned with the search bar). */
+  padding: 14px calc(var(--surface-banner-inset-right) - 12px) 14px calc(var(--surface-banner-inset) - 12px);
 }
