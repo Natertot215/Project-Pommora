@@ -265,6 +265,10 @@ function sameShownTarget(sel: SelectionState, t: SelectTarget): boolean {
 // outgoing view may hold as a frozen frame before the loading view takes over. KNOB.
 let pageFetchSeq = 0
 const COLD_SWAP_DEADLINE = 200
+// The navSlide seq an in-flight cold fetch is carrying — superseding that fetch abandons its
+// navigation, so exactly that stamp (never a newer one, e.g. the superseder's own) must be cleared,
+// or a later stampless selection change (a reconcile refetch) replays the abandoned slide.
+let coldStampSeq = -1
 
 // Homepage-lock writes in flight. applyTree reseeds `homepageLocked` from the canonical tree on
 // every push, but the lock's own write is echo-suppressed (no self-push) — so an UNRELATED push
@@ -891,7 +895,10 @@ export const useSession = create<SessionState>((set, get) => {
       // Every navigation supersedes an in-flight cold page fetch (its response drops on the seq fence
       // below) and releases a pause left by one.
       pageFetchSeq++
-      if (get().pageFrozen) set({ pageFrozen: false })
+      if (get().pageFrozen) {
+        const s = get()
+        set(s.navSlide?.seq === coldStampSeq ? { pageFrozen: false, navSlide: null } : { pageFrozen: false })
+      }
       // A genuine navigation (record !== false) maintains the tab set — dedup/replace/spawn per the
       // active tab's pin state (D-3b) — and records recents. A programmatic re-select (Back/Forward, a
       // path refetch, a tab activation) passes { record: false } and does neither; it only refreshes the
@@ -969,16 +976,12 @@ export const useSession = create<SessionState>((set, get) => {
           // fast fetch. Past the deadline the loading view takes over so a slow read never feels dead.
           // The seq fence drops a stale response (and a stale deadline) after any newer navigation.
           const seq = pageFetchSeq
+          coldStampSeq = get().navSlide?.seq ?? -1
+          const pageSel = { kind: 'page' as const, id: target.id, path: target.path }
           set({ pageFrozen: true })
           const fallback = setTimeout(() => {
             if (seq !== pageFetchSeq) return
-            set({
-              selection: { kind: 'page', id: target.id, path: target.path },
-              pageStatus: 'loading',
-              pageDetail: null,
-              pageError: undefined,
-              pageFrozen: false
-            })
+            set({ selection: pageSel, pageStatus: 'loading', pageDetail: null, pageError: undefined, pageFrozen: false })
           }, COLD_SWAP_DEADLINE)
           let res: Awaited<ReturnType<typeof window.nexus.openPage>>
           try {
@@ -989,21 +992,9 @@ export const useSession = create<SessionState>((set, get) => {
           clearTimeout(fallback)
           if (seq !== pageFetchSeq) return
           if (res.ok) {
-            set({
-              selection: { kind: 'page', id: target.id, path: target.path },
-              pageStatus: 'ready',
-              pageDetail: res.page,
-              pageError: undefined,
-              pageFrozen: false
-            })
+            set({ selection: pageSel, pageStatus: 'ready', pageDetail: res.page, pageError: undefined, pageFrozen: false })
           } else {
-            set({
-              selection: { kind: 'page', id: target.id, path: target.path },
-              pageStatus: 'error',
-              pageDetail: null,
-              pageError: res.error,
-              pageFrozen: false
-            })
+            set({ selection: pageSel, pageStatus: 'error', pageDetail: null, pageError: res.error, pageFrozen: false })
           }
           return
         }

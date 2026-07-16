@@ -14,6 +14,13 @@
   inherits: false;
   initial-value: 0;
 }
+/* The knob is registered non-inheriting (universal syntax keeps var() fallbacks alive): a container
+   tuning its OWN fade (the view-embed body's riser) must not leak that width into descendant
+   eclipses — every consumer sets the knob on the faded element itself. */
+@property --edge-fade {
+  syntax: "*";
+  inherits: false;
+}
 
 /* The leading edge (top/left) eases in over the first tenth of the scroll range; the trailing edge
    (bottom/right) holds until the last tenth and eases out into the end stop. At rest (scroll 0)
