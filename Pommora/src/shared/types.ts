@@ -320,14 +320,14 @@ export type SelectionState =
   | { kind: 'set'; id: string; path: string }
   | { kind: 'page'; id: string; path: string }
 
-/** A navigable target for the Navigation layer: every `SelectionState` except the transient
- *  `none`, widened with the agenda kinds (`task`/`event` — find-only in v1, no click destination
- *  yet). Recents and favorites are both stored as these and resolved live against the tree at
- *  render, so they carry no cached display fields. */
-export type NavTarget =
-  | Exclude<SelectionState, { kind: 'none' }>
-  | { kind: 'task'; id: string }
-  | { kind: 'event'; id: string }
+/** What can be driven into the main pane or a tab — every `SelectionState` except the transient
+ *  `none`. Narrower than `NavTarget`: no agenda kinds (they have no click destination in v1). */
+export type SelectTarget = Exclude<SelectionState, { kind: 'none' }>
+
+/** A navigable target for the Navigation layer: a `SelectTarget` widened with the agenda kinds
+ *  (`task`/`event` — find-only in v1, no click destination yet). Recents and favorites are both stored
+ *  as these and resolved live against the tree at render, so they carry no cached display fields. */
+export type NavTarget = SelectTarget | { kind: 'task'; id: string } | { kind: 'event'; id: string }
 
 /** A recents-stream entry: a nav target plus a transient `pinned` flag that floats it to the top
  *  of history (the "open tabs" feel). Absent `pinned` = un-pinned. */
@@ -341,6 +341,29 @@ export type NavFavorite = NavTarget
  *  cross-device adds never collide (filesystem-as-merge, no whole-array LWW loss). `order` is a
  *  numeric fractional key; `deleted` is a tombstone (unpin) reaped from the in-memory set on load. */
 export type PinEntry = NavTarget & { order: number; deleted?: boolean }
+
+/** The new-tab sentinel — a tab target that maps to NavView (the `'none'` detail branch); it is NOT a
+ *  `SelectionState` kind, so it bypasses `select` entirely. */
+export type NewTabSentinel = { kind: 'newtab' }
+
+/** A tab's target: any drivable selection, or the new-tab sentinel. */
+export type TabTarget = SelectTarget | NewTabSentinel
+
+/** One toolbar tab. Carries its OWN Back/Forward history (`navStack`/`navIndex`, D-7). `isPinned` is
+ *  never stored — it's derived from the pins set (a tab's navKey ∈ pins). Only unpinned tabs are
+ *  persisted; pinned tabs are derived live from `.nexus/pins/`. */
+export interface Tab {
+  id: string
+  target: TabTarget
+  navStack: SelectTarget[]
+  navIndex: number
+}
+
+/** The unpinned tab set + the active-tab pointer (which may reference a derived pinned tab's id). */
+export interface TabSet {
+  tabs: Tab[]
+  activeTabId: string
+}
 
 /** The `nav:loadPins` IPC envelope. */
 export type PinsResult = { ok: true; pins: PinEntry[] } | { ok: false; error: string }

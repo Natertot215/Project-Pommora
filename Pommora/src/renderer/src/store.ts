@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { DEFAULT_COMMANDS, type AgendaEntry, type NavFavorite, type NavTarget, type NexusTree, type PageDetail, type Personalization, type PinEntry, type RecentEntry, type SelectionState, type SetNode } from '@shared/types'
+import { DEFAULT_COMMANDS, type AgendaEntry, type NavFavorite, type NavTarget, type NexusTree, type PageDetail, type Personalization, type PinEntry, type RecentEntry, type SelectionState, type SelectTarget, type SetNode } from '@shared/types'
 import { DEFAULT_NEW_NAME, type MutableKind, type MutateRequest } from '@shared/mutate'
 import { reconcileSelection } from './selection'
 import { navKey, recordRecent, removeRecentByKey, RECENTS_CAP } from './Navigation/navRecents'
@@ -40,13 +40,9 @@ function readStoredInspectorWidth(): number {
   }
 }
 
-/** What a sidebar row hands to `select` — mirrors the selectable SelectionState cases. */
-export type SelectTarget =
-  | { kind: 'homepage' }
-  | { kind: 'context'; id: string }
-  | { kind: 'collection'; id: string }
-  | { kind: 'set'; id: string; path: string }
-  | { kind: 'page'; id: string; path: string }
+// `SelectTarget` (what a sidebar row or tab hands to `select`) is the shared drivable-target type,
+// re-exported so existing `../store` importers keep resolving it.
+export type { SelectTarget }
 
 /** A breadcrumb ghost crumb's target — the last page visited in a given container. */
 export interface TrailEntry {
