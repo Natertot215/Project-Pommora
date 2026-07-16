@@ -1,266 +1,173 @@
-# Multi-Tab Nexus Implementation Plan
+# Multi-Tab Nexus Implementation Plan — V2
 
-> **For agentic workers:** implement task-by-task, gate between phases, re-read the plan against what landed after each green commit (Planning Discipline). Steps use `- [ ]`. **Source of truth:** `Multi-Tab Nexus — Decision Log.md` (decision IDs cited inline, e.g. `[D-8]`). Where this plan names an exact value it's a **starting knob** — ground the literal against real code at build time; docs name, code holds exacts.
+> **V2 (review-hardened).** Rewritten after a 3-agent plan-attack (internals + visuals/interaction + simplification), every finding verified against code. Changes from V1 are tagged `[rev]`. **For agentic workers:** implement task-by-task, gate between phases, re-read the plan against what landed after each green commit. Steps use `- [ ]`. **Source of truth:** `Multi-Tab Nexus — Decision Log.md` (decision IDs cited inline). Where this plan names an exact value it's a starting knob — ground the literal at build time.
 
-**Goal:** Replace single-pane-replace with warm, state-preserving tabs in the toolbar — a persisted working set of open entities, pinned + unpinned, each keeping its own scroll/undo/fold within a session.
+**Goal:** Replace single-pane-replace with warm, state-preserving tabs — a persisted, cross-device-synced working set of open entities, pinned + unpinned, each keeping its own scroll/undo within a session and its own Back/Forward.
 
-**Architecture:** A `tabs` store slice sits *above* the singular `selection` — the active tab's target drives the existing `select()`/detail-pane path unchanged, so ~15 selection consumers don't move `[B-1]`. Only the active tab is mounted; inactive tabs hold serialized warm state, rehydrated on switch by seeding a fresh CM6 mount from a cached `EditorState` `[B-3]`. The tab *set* (structure, no warm state) persists to a **synced** sidecar that travels cross-device `[D-8/D-8a]`; pinned identities ride the existing synced `.nexus/pins/` store `[C-1]`. The empty/no-target state IS the new-tab page — no blank placeholder `[E-2]`. Back/Forward is **per-tab** `[D-7]`.
+**Architecture:** A `tabs` slice sits *above* the singular `selection`; the active tab's target drives the existing `select()`/detail path. One view mounted; inactive tabs hold a serialized `historyField`+scroll cache, rehydrated by seeding a fresh CM6 mount. **The "consumers untouched" claim holds for RENDER consumers only** — tree reconciliation and warm-instant switching each require deliberate `applyTree`/`select` awareness `[rev, I-2a/B-3]`. The tab *set* (unpinned tabs + active; **`isPinned` is derived, not stored** `[rev, C-6]`) syncs; pinned identities ride `.nexus/pins/`.
 
-**Tech Stack:** Electron 42 · React 19 · TypeScript · Zustand (`useSession`) · CodeMirror 6 (MarkdownPM) · the in-house drag engine (`design-system/interactions/drag`) · narrow contextBridge IPC.
+**Tech Stack:** Electron 42 · React 19 · TypeScript · Zustand · CodeMirror 6 · the in-house drag engine · narrow contextBridge IPC.
 
 ## Global Constraints
 
-- **Main owns fs; renderer never touches Node.** New persistence goes through a narrow typed IPC bridge; handlers return `{ ok: true, … } | { ok: false, error }`.
-- **`src/shared/types.ts` is the cross-process contract** — the `Tab`/tab-set types live there.
-- **Never expensive-on-every-X.** Tab switch mounts ONE view; persistence writes are debounced in main; no O(N) re-walk on switch `[B-1]`.
-- **Colors from `design-system/tokens` as hex.** No hand-rolled tokens.
-- **DRY the existing mechanisms, don't re-roll:** chip × = `ChipRemoveButton` `[J-1]`; new-tab + = `.group-add` `[J-2]`; drag = `SortableZone`/`useDragItem` reflow `[D-4b]`; motion = `Interaction.md` primitives; pins = `pinTarget`/`unpinTarget`/`reorderPin`.
-- **No keybindings beyond `Ctrl`+`Tab`/`Ctrl`+`Shift`+`Tab`** (the one signed-off binding, `[I-11]`).
-- **Gate = `env -u ELECTRON_RUN_AS_NODE npm run typecheck` + `npm run test`** green; read the summary line, never a piped exit code. Main-process changes ride the electron restart; renderer HMRs (CM6 extension changes need a full `⌘R`).
+- Main owns fs; renderer never touches Node; IPC returns `{ ok } | { ok:false, error }`; `shared/types.ts` is the contract.
+- Never expensive-on-every-X: a tab switch mounts ONE view and MUST NOT re-shoot a thumbnail `[rev, F7]`; persistence writes debounce in main.
+- DRY the real mechanisms: pins = `pinTarget`/`unpinTarget`/`reorderPin`; within-zone reorder = single-zone `SortableZone` reflow `[rev, I-13]`; motion = `--duration-slow`+`--ease-standard` (the sidebar/ribbon easing) `[rev, J-6]`; `historyField` = `@codemirror/commands`; persistence = `navState`'s debounce+drain.
+- One approved keybinding: `Ctrl`+`Tab`/`Ctrl`+`Shift`+`Tab` (I-11). No others.
+- Gate = `env -u ELECTRON_RUN_AS_NODE npm run typecheck` + `npm run test` green (read the summary line). Main changes ride the electron restart; CM6 extension changes need a full `⌘R`.
 
 ---
 
 ## File Structure
 
-**New:**
-- `src/renderer/src/Tabs/tabsModel.ts` — pure tab-list logic (open/close/activate/reorder/pin/unpin/cycle placement + the MRU stack); unit-tested with no store/DOM.
-- `src/renderer/src/Tabs/tabsSlice.ts` — the Zustand slice wiring `tabsModel` to `select()` + persistence (or fold into `store.ts` if the slice pattern there prefers it — match the existing store shape).
-- `src/renderer/src/Tabs/warmCache.ts` — the per-tab serialized warm-state cache (scroll/undo/fold) + capture/restore helpers; the ~20 cap `[I-7]`.
-- `src/renderer/src/Tabs/TabBar.tsx` + `tabBar.css` — the real tab bar (replaces `TabBarPreview`).
-- `src/renderer/src/Tabs/TabContextMenu.tsx` — the tab's own right-click menu `[I-12]` (in-renderer `PickerMenu`).
-- `src/renderer/src/Tabs/NewTabPage.tsx` + `newTabPage.css` — the full-window gallery start page `[E-1]`.
-- `src/main/io/tabsState.ts` — the device-local tab-set sidecar (mirror `io/activeViews.ts`).
-
-**Modified:**
-- `src/shared/types.ts` — `Tab`, `TabSet`, `NewTabKind`, the `personalization` boolean.
-- `src/renderer/src/store.ts` — mount the tabs slice; active-tab → `select()`; nexus-switch reset; personalization key.
-- `src/renderer/src/Detail/DetailPane.tsx` (`DetailView`) — **replace** the `'none'` placeholder with the `'newtab'` (new-tab page) branch `[E-2]`.
-- `src/renderer/src/MarkdownPM/index.tsx` — the warm rehydration seam (seed from cached `EditorState`, restore scroll).
-- `src/renderer/src/Toolbar/Toolbar.tsx` — render `TabBar` (drop `TabBarPreview`).
-- `src/main/contextMenu.ts` + `src/main/cellMenu.ts` (+ `src/shared/cellMenu.ts`) + `NavList.tsx` + `NavGallery.tsx` — the 4 "Open in New Tab" touch points `[D-3]`.
-- `src/main/index.ts` + `src/preload/index.ts` — IPC for `tabsState` + the `open-in-new-tab` push-back.
-- `src/main/paths.ts` — `NEXUS_CONFIG_FILES += tabs.json` (**synced — NOT in `DEVICE_LOCAL_NEXUS_FILES`** `[D-8a]`).
-- `src/main/readNexus.ts` — coerce `revealTabBarOnHover` `[F-1]`.
-
-**Deleted (Phase 7):** `Toolbar/TabBarPreview.tsx` + `tabBarPreview.css` `[G-2]` (its scroll-edge-fade CSS migrates into `tabBar.css` `[J-5]`).
+**New:** `Tabs/tabsModel.ts` (pure list logic; unit-tested) · `Tabs/warmCache.ts` (session-only `historyField`+scroll cache) · `Tabs/TabBar.tsx`+`tabBar.css` · `Tabs/TabContextMenu.tsx` · `Tabs/NewTabPage.tsx`+`newTabPage.css` · `main/io/tabsState.ts` (synced sidecar).
+**Modified:** `shared/types.ts` (`Tab`, `TabSet`, the personalization bool; **extend `ContextTarget` with `id`** `[rev, F11]`) · `store.ts` (tabs wiring **inline — no `tabsSlice.ts`** `[rev, F4]`; active-tab→`select`; **reconcile every tab in `applyTree`** `[rev, I-2a]`; **warm-tab refetch short-circuit** `[rev, B-3]`) · `Detail/DetailPane.tsx` (**`'none'` branch → new-tab page** `[rev, E-2]`) · `MarkdownPM/index.tsx` (warm seam, `historyField` only) · `Toolbar/Toolbar.tsx` · `main/contextMenu.ts`+`cellMenu.ts`+`shared/cellMenu.ts`+`NavList.tsx`+`NavGallery.tsx` (4 menu points) · `main/index.ts` (IPC + **extend both `before-quit` AND `adoptNexus` drains** `[rev, F6]`) · `preload/index.ts` · `main/paths.ts` (`NEXUS_CONFIG_FILES += tabs.json`, **synced**) · `useNavThumbnails.ts` (**capture gate** `[rev, F7]`).
+**Deleted (Phase 6):** `Toolbar/TabBarPreview.tsx`+`tabBarPreview.css` (its scroll-edge-fade CSS migrates to `tabBar.css`).
 
 ---
 
-## Phase 0 — Tab Model + Store Slice (no UI, tests-first)
+## Phase 0 — Tab Model + Store Wiring (no UI, tests-first)
 
-The data spine. Everything downstream calls into this; it never imports React or fs.
+### Task 0.1 — `Tab` contract + pure model
+**Files:** modify `shared/types.ts`; create `Tabs/tabsModel.ts` + `.test.ts`.
 
-### Task 0.1 — The `Tab` contract + pure model
+**Types `[rev]`:** `Tab = { id; target: NavTarget | NewTabSentinel; navStack; navIndex }` — **no `isPinned` field** (derived, C-6). `NewTabSentinel = { kind: 'newtab' }` is a tab-target sentinel, NOT a `SelectionState` kind. `TabSet = { tabs: Tab[]; activeTabId }`. Derived: `isPinned(tab, pins) = pins.some(p => navKey(p) === navKey(tab.target))`.
 
-**Files:**
-- Modify: `src/shared/types.ts`
-- Create: `src/renderer/src/Tabs/tabsModel.ts`
-- Test: `src/renderer/src/Tabs/tabsModel.test.ts`
+`tabsModel.ts` — pure functions over `(TabSet, pins)`: `openTab`, `closeTab`, `activateTab`, `reorderWithinZone(fromId, toIndex)` `[rev — within a zone only, I-13]`, `cycle(dir)`, an MRU id list for close-focus.
+- `openTab` dedup-first (I-1) → else `newTab = explicit || isPinned(activeTab)` → new unpinned tab appended right (D-12) or replace active target.
+- `closeTab(active)` → MRU top, else **spatial neighbor when MRU empty** `[rev, F10]`; last tab → a lone newtab tab (I-5).
+- Unpin placement = D-11 promote-to-front (affordance/menu only; no drag-to-pin, I-13).
 
-**Interfaces (Produces):**
-```ts
-// shared/types.ts
-export interface Tab {
-  id: string                    // stable tab id (ids.ts)
-  target: NavTarget | { kind: 'newtab' }   // the entity, or the start page [E-2]
-  isPinned: boolean
-  navStack: (NavTarget | { kind: 'newtab' })[]  // per-tab history [D-7]
-  navIndex: number
-}
-export interface TabSet { tabs: Tab[]; activeTabId: string | null }
-```
-`tabsModel.ts` exports **pure** functions over `TabSet` (no store): `openTab(set, target, { newTab, isPinnedActive }) → TabSet`, `closeTab`, `activateTab`, `reorderTab(set, fromId, toIndex, toZone)`, `pin`/`unpin(set, id, { dropIndex? })`, `cycle(set, dir)`. An MRU list (ids, most-recent-first) travels alongside for close-focus `[D-9]`.
+**Steps:** write tests (every rule + dedup-of-pinned-while-on-scratch focuses the pin) → fail → implement → green → commit.
 
-**Placement rules to encode (test each):**
-- `openTab` **dedup-first** `[I-1/D-3b]`: if `navKey(target)` matches an existing tab → return set with that tab active, no new tab.
-- else `newTab = explicitNewTab || isPinnedActive` `[D-3b]`: true → insert a new unpinned tab (append RIGHT of the unpinned zone `[D-12]`); false → replace the active tab's `target` (push old onto its `navStack`).
-- `closeTab(active)` → new active = MRU top `[D-9]`; closing the last tab → a lone `newtab` tab `[I-5]`.
-- `unpin` (click/menu) → promote to unpinned **position 1**, or **position 2** if the active tab is currently position 1 `[D-11]`. `unpin` (drag, `dropIndex` given) → land at `dropIndex` `[I-13]`.
-- `cycle` wraps, spans pinned+unpinned `[I-11]`.
+### Task 0.2 — Wire inline in `store.ts` + newtab routing
+**Files:** `store.ts` (inline, no slice file), test.
+- Store: `tabs`, `activeTabId`, actions calling `tabsModel`. `activateTab`/target-change → `select(target, {record})` — **`record:false` on plain activate** (C-5).
+- **Newtab routing `[rev, F4]`:** `activateTab` on a newtab-sentinel target sets `selection:{kind:'none'}` directly and **does NOT call `select()`** (select has no newtab case).
+- **Per-tab Back/Forward (D-7):** migrate `navStack`/`navIndex` into the active tab; `goBack`/`goForward` walk the active tab's stack; a pinned-tab Back spawns one inheriting tab (I-6).
 
-**Steps:**
-- [ ] Write `tabsModel.test.ts` covering every rule above + edge cases (empty set, single tab, dedup of a pinned target while on a scratch tab → focuses the pin).
-- [ ] Run it — fails (module absent).
-- [ ] Implement `tabsModel.ts` (pure, uses `navKey` from `Navigation/navRecents`).
-- [ ] Run — green. Commit.
+**Steps:** tests (activate sets selection w/ record:false; newtab→'none'; Back/Forward per active tab; pinned-Back spawns) → fail → implement → green → commit.
 
-### Task 0.2 — Slice + active-tab → `select()`
-
-**Files:** `src/renderer/src/Tabs/tabsSlice.ts` (or `store.ts`), `store.ts`, test.
-
-**Interfaces (Produces):** store fields `tabs: Tab[]`, `activeTabId`, actions `openTab(target, opts?)`, `closeTab(id)`, `activateTab(id)`, `reorderTab(...)`, `pinTab(id)`/`unpinTab(id)`, `cycleTab(dir)`. `activateTab` and target-changing ops call the existing `select(activeTab.target, { record })` — **`record:false` on a plain tab-activate** so switching doesn't pollute recents `[C-5]`; `record`-normal on a genuine open/navigate. Per-tab Back/Forward: `goBack`/`goForward` operate on the **active tab's** `navStack`/`navIndex` `[D-7]`; a Back/Forward while the active tab `isPinned` spawns one new inheriting tab `[I-6]`.
-
-**Steps:**
-- [ ] Test: activating a tab sets `selection` to its target with `record:false`; opening a fresh entity records; Back/Forward walks the active tab's stack; pinned-tab Back spawns.
-- [ ] Run — fails.
-- [ ] Implement the slice; migrate `navStack`/`navIndex` off the global store into the active tab (keep `goBack`/`goForward` names for `Toolbar`).
-- [ ] Run — green. Commit.
-
-**Gate 0:** `typecheck` + `test` green. No UI yet — the tab set drives selection headlessly.
+**Gate 0:** typecheck + test green. Headless — the model drives selection with no UI.
 
 ---
 
-## Phase 1 — Persisted Tab-Set Store (device-local sidecar + IPC)
+## Phase 1 — Synced Tab-Set Persistence
 
-Closing NEVER resets tabs `[D-8]`. The *structure* persists; no warm state to disk.
+### Task 1.1 — `tabs.json` synced sidecar (main) `[rev]`
+**Files:** create `main/io/tabsState.ts` — **reuse `navState`'s debounced-writer shape** (`scheduleRecentsWrite`/`flushRecents` pattern, root carried in the pending payload) rather than a fresh copy `[rev, F5]`; `main/paths.ts` (`NEXUS_CONFIG_FILES += tabs.json`, **synced — NOT device-local**); `main/index.ts` handlers; `preload` bridge.
+- **Persisted shape `[rev, C-6]`:** `{ tabs: {id, target, navTargets, navIndex}[], activeTabId }` — **unpinned tabs + active only; no `isPinned`.** Pinned tabs render off the `pins` slice + its `order`.
+- **Drain at BOTH sites `[rev, F6]`:** add `hasPendingTabsWrites`/`flushTabsWrites`; extend the `before-quit` guard (`Promise.all` with `flushNavWrites`) AND `await flushTabsWrites()` at the top of `adoptNexus` (before the root swaps) — else the last change before quit/switch is lost or lands against the wrong nexus.
 
-### Task 1.1 — The `tabs.json` synced sidecar (main)
+**Steps:** test (round-trip; foreign keys; drain), IPC + bridge, commit.
 
-**Files:** `src/main/io/tabsState.ts` (create — lenient read absent→empty, serialized read-merge-write via `serializeOnFile` + `writeJson`), `src/main/paths.ts` (`NEXUS_CONFIG_FILES += tabs: 'tabs.json'`; **synced — do NOT add to `DEVICE_LOCAL_NEXUS_FILES`** `[D-8a]`), `src/main/index.ts` (`tabs:get`/`tabs:set` handlers), `src/preload/index.ts` (bridge). **Write cadence:** tabs are churny (every open/switch/close) + synced → **debounce the write in MAIN + flush on `before-quit`**, mirroring the *recents* pattern (E-1 in the nav log), NOT the un-debounced `activeViews` write.
+### Task 1.2 — Load / merge-pins / persist / switch (renderer)
+**Files:** `store.ts`, test.
+- On nexus open: load `tabs.json`, **drop any tab whose `navKey` ∈ the pins set** (C-6), order pinned-from-`pins`, unpinned-from-stored. Seed one newtab tab if empty (E-2).
+- Persist on change (fire-and-forget; main debounces). Nexus switch = wholesale in-memory reset (E-11/I-10) backed by the synced sidecar.
 
-**Persisted shape:** `{ tabs: {id, target, isPinned, navTargets, navIndex}[], activeTabId }` — **no scroll/undo/fold** `[B-2a]`. Pinned tabs store their target like any tab; the pin *state* is still authoritative in `.nexus/pins/` — on load, reconcile a persisted `isPinned` against the live pins set.
+**Steps:** test (load derives pinned from pins; empty→newtab; switch round-trips), implement, manual quit/relaunch → full set reopens cold, commit.
 
-**Steps:**
-- [ ] Test `tabsState.ts` (absent→empty; write-then-read round-trips; foreign keys preserved).
-- [ ] Run — fails. Implement. Run — green.
-- [ ] Wire IPC + preload bridge; confirm the envelope shape.
-- [ ] Commit (rides the electron restart).
-
-### Task 1.2 — Load / persist / nexus-switch (renderer)
-
-**Files:** `store.ts` (load on nexus open beside `activeViews` at the existing load site; **fire-on-change fire-and-forget — MAIN debounces** per 1.1; **wholesale in-memory reset on nexus switch** `[E-11/I-10]`), test.
-
-**Steps:**
-- [ ] Test: load seeds `tabs`/`activeTabId`; a tab mutation schedules a debounced persist; nexus switch replaces the set from the new nexus's sidecar (returning restores it).
-- [ ] Run — fails. Implement. Run — green.
-- [ ] Manual: open tabs, quit, relaunch → the full set reopens in order, **cold** (scroll top, undo empty). Commit.
-
-**Gate 1:** tab set survives quit/relaunch and nexus round-trips. Still no tab-bar UI — verify via the running app's selection + a temporary debug readout or the store.
+**Gate 1:** the set survives quit/relaunch + nexus round-trips; pinned derived, never dual-stored.
 
 ---
 
-## Phase 2 — Warm State Cache + Rehydration (the load-bearing seam)
+## Phase 2 — Warm State (the load-bearing seam) `[rev — heavily corrected]`
 
-Within a session: scroll + undo + fold restore on switch `[B-2]`. Only the active tab is mounted.
+Ship in two steps to de-risk the highest-risk phase `[rev, simplification-F2]`.
 
-### Task 2.1 — The warm cache
-
-**Files:** `src/renderer/src/Tabs/warmCache.ts` (create), test.
-
-**Interface (Produces):** an in-memory `Map<tabId, Map<navKey, WarmEntry>>` where `WarmEntry = { editorState?: object; scrollTop?: number; mtime?: number }`. `captureWarm(tabId, key, entry)`, `readWarm(tabId, key)`, eviction to the **~20 most-recent back-forth entries per tab** `[I-7]`, drop-on-tab-close, drop-all-on-quit (it's just memory).
-
-**Steps:**
-- [ ] Test capture/read round-trip + the 20-cap eviction (oldest back-forth entry drops).
-- [ ] Run — fails. Implement. Run — green. Commit.
+### Task 2.1 — Flat current-tab warm cache
+**Files:** create `Tabs/warmCache.ts`, test.
+- **`WarmEntry = { editorState?; scrollTop? }`** — **NO `mtime`** `[rev, F3]` (invalidation rides the change bus, not a stamp). Flat `Map<tabId, WarmEntry>` for the active-content warmth first `[rev, F2-stage]`.
 
 ### Task 2.2 — CM6 rehydration seam
+**Files:** `MarkdownPM/index.tsx`, `Detail/PageView.tsx`, `Detail/DetailScaffold.tsx`, manual.
+- **Seed from cached `EditorState` serializing `historyField` ONLY** (`@codemirror/commands`, verified exported/round-trips) + restore scrollTop post-mount. **Do NOT touch `foldField`** (unexported, would throw) — folds already persist via `folds.json`/`applySavedFolds`, free `[rev, F1]`.
+- **Freeze `(tabId, navKey)` at mount** (in the `[]`-effect closure); the unmount cleanup captures under those frozen values, never live `activeTabId` `[rev, F2]`.
+- **Warm-instant `[rev, F8/B-3]`:** `activateTab` on a warm unchanged tab reuses cached `pageDetail` + skips `openPage` and the `loading` placeholder — kills the flash. A change-bus-invalidated tab (I-4) refetches. `select()` gains this warm-awareness deliberately.
+- **Invalidation via the change bus `[rev, I-4]`:** `nav:changed`/tree-refresh for an entity drops its warm cache; no mtime poll.
+- Container/context tabs: warm = `.detail-scroll` scrollTop only (I-14).
 
-**Files:** `src/renderer/src/MarkdownPM/index.tsx` (the mount-once `useEffect`, ~:109-246), `Detail/PageView.tsx`, test where feasible (+ manual).
+**Steps:** confirm `historyField` export; implement freeze + seed + scroll + short-circuit + bus-invalidation; manual on a throwaway page (scroll+undo restore on switch-back; no flash; external edit → fresh); commit (`⌘R` to test).
 
-**Approach `[B-3]`:** keep the `key={pageDetail.path}` remount, but **seed the fresh `EditorState` from the cached serialized state** when present (`EditorState.fromJSON(cached, config, { historyField, foldField })`) instead of `initialBody`; else seed `initialBody` as today. On switch-*away*, before unmount, `captureWarm` the outgoing view's `state.toJSON({ history: historyField, fold: foldField })` + `.cm-scroller` scrollTop. Restore scroll post-mount (a layout effect). Verify `historyField`/`foldField` are the real exported `StateField`s in this build (ground against `MarkdownPM/editor/*`); if folding isn't a serializable field, fold-warmth degrades to Prospect and the plan notes it.
+### Task 2.3 — Warm back-stack (follow-on) `[rev]`
+Once 2.2 is trusted: extend to `Map<tabId, Map<navKey, WarmEntry>>` with **~20-cap per-tab eviction** (I-7). Back/Forward restores each entry warm; beyond the cap → cold.
 
-**Disk-truth invalidation `[I-4]`:** **ride the existing file-change bus** (`nav:changed` / the tree-refresh watcher) — when a change fires for an entity, **drop its warm cache** so the next visit reloads fresh. NOT a separate mtime poll; one change-detection path. (Never restore a stale doc over a divergent undo stack.)
-
-**Container/context tabs `[I-14]`:** warm = `.detail-scroll` scrollTop only (no undo/fold). Capture/restore in `DetailScaffold`.
-
-**Steps:**
-- [ ] Confirm `historyField`/`foldField` exports (ground in `MarkdownPM/editor/`).
-- [ ] Implement capture-on-switch-away + seed-on-mount + scroll restore + mtime invalidation.
-- [ ] Manual (a throwaway test page, per the CDP-editor rule): open A, scroll + type + fold, switch to B, switch back → scroll/undo/fold intact; edit A's file on disk externally, switch back → reloads fresh.
-- [ ] Commit (CM6 extension change → full `⌘R` to test).
-
-**Gate 2:** warm round-trip proven on pages (scroll+undo+fold) and containers (scroll); disk-change invalidates. This is the highest-risk phase — do the `build-breaking-agent` blast-radius check here before moving on.
+**Gate 2:** warm round-trip on pages (scroll+undo) + containers (scroll); no flash on warm switch; disk-change invalidates; the ~20 back-stack cap holds. **Carries its own build-breaking pass** before Phase 3.
 
 ---
 
-## Phase 3 — The Tab Bar UI
+## Phase 3 — The Tab Bar UI (+ the reveal setting)
 
-> **UIX-REPASS GATE (Nathan, `[§J]`):** before building this phase, run a dedicated design repass of `§J` against the *real* toolbar — the sizing knobs (min/pref/max), the `+` overlay behavior at full width, the chip-× melt reveal on a tab label, pinned compact-icon treatment. Confirm the exact treatment (Figma/screenshot) rather than building from prose. Do NOT skip this because the spec reads complete.
+> **UIX-REPASS GATE (Nathan, §J):** before building, repass §J against the real toolbar — sizing (min/pref/max), the `+`-vs-`×` trailing-corner conflict `[rev, F3]`, the pinned-zone overflow rule `[rev, F4]`, the plain-`×`-fade treatment `[rev, F2]`. Confirm treatment (Figma/screenshot), don't build from prose.
 
-### Task 3.1 — Tab bar shell + zones + sizing
+### Task 3.1 — Shell + zones + sizing + reveal setting
+**Files:** create `Tabs/TabBar.tsx`+`tabBar.css` (migrate the prototype's `tabbar-preview-scroll` edge-fade); `Toolbar/Toolbar.tsx`; `shared/types.ts`+`readNexus.ts` (the `revealTabBarOnHover` bool, folded in here `[rev, F6-merge]`).
+- Pinned zone fixed-left = compact icon + pin accent, name-on-hover (I-8); **bound it** (max-width + its own overflow, or "+N" collapse) so uncapped pins don't clip/collide with `ViewDropdown` `[rev, F4]`. Unpinned zone = min/pref/max width, ellipsis, overflow-scroll (J-3/J-5); active tab scrolls into view.
+- Active highlight: the prototype's clipped sliding label. Blank when a single tab (D-6). Reveal-on-hover = `useSession(personalization.revealTabBarOnHover ?? false)`.
 
-**Files:** `src/renderer/src/Tabs/TabBar.tsx` + `tabBar.css` (create, migrate the `tabbar-preview-scroll` inline scroll-edge-fade `[J-5]`), `Toolbar/Toolbar.tsx` (render `TabBar`, keep `TabBarPreview` until 3.x lands then delete).
+### Task 3.2 — Close (×), new-tab (+), open/close animation `[rev]`
+- **× = `ChipRemoveButton` + PLAIN hover-fade** (NOT the chip melt — no `--chip-fill` on glass, F2); only on unpinned tabs (D-10). **Reserve the `+` its own trailing gutter outside the last tab's `×` third** so they don't fight `[rev, F3]`.
+- **+ = the `.group-add` GLYPH + fade token only**; author the absolute trailing-edge placement + strip-scoped reveal + full-width overlay fresh `[rev, F5]` → `openTab(newtab)`.
+- Open/close = **animate tab width open/collapsed on `--duration-slow`+`--ease-standard`** + `useExitPresence` for exit; neighbors reflow. Not a new keyframe `[rev, J-6]`.
 
-**Build:** pinned zone (fixed-left) + unpinned zone (overflow-scroll); pinned = compact **icon + pin accent, name-on-hover** `[I-8]`; unpinned = min/pref/max width, ellipsis title `[J-3]`; active-tab highlight reuses the prototype's clipped sliding label. Blank when a single tab `[D-6]`.
+### Task 3.3 — Within-zone drag + tab menu + cycling `[rev]`
+- **Within-zone reorder only** = single-zone `SortableZone` reflow, run per zone (pinned↔pinned via `reorderPin`, unpinned↔unpinned) `[rev, I-13]`. **No cross-divider drag** (Prospect).
+- `Tabs/TabContextMenu.tsx` (in-renderer `PickerMenu`): Pin/Unpin · Close · Close to the Right (I-12).
+- `Ctrl`+`Tab`/`Shift` → `cycle`, wraps, all tabs (I-11).
 
-- [ ] Build the shell reading `tabs`/`activeTabId`; wire click→`activateTab`. Screenshot-verify against the §J repass. Commit.
-
-### Task 3.2 — Close (×), new-tab (+), open/close animation
-
-**Files:** `TabBar.tsx`, `tabBar.css`.
-
-- Close `X` = reuse **`ChipRemoveButton`** + the chip melt/blur label reveal `[J-1]` (pointerdown-isolated so it never arms the drag); only on unpinned tabs `[D-10]` → `closeTab`.
-- New-tab `+` = reuse **`.group-add`** hover-reveal `[J-2]`; right of the rightmost tab, overlaying the trailing tab at full width `[J-4]` → `openTab({kind:'newtab'})`.
-- Open/close **one DRY'd animation** `[J-6]` mounted to the `Interaction.md` primitive (not a new keyframe).
-
-- [ ] Implement; screenshot-verify the melt reveal + the `+` overlay at full width. Commit.
-
-### Task 3.3 — Zone-aware drag + tab context menu + cycling
-
-**Files:** `TabBar.tsx`, `Tabs/TabContextMenu.tsx` (create, in-renderer `PickerMenu` — `Pin/Unpin · Close · Close to the Right` `[I-12]`), cycling binding.
-
-- Drag = `SortableZone`/`useDragItem` reflow `[D-4b]`, **zone-aware**: cross-divider drag pins/unpins, landing **where dropped** `[I-13]`.
-- `Ctrl`+`Tab`/`Ctrl`+`Shift`+`Tab` → `cycleTab(±1)`, wraps, all tabs `[I-11]`.
-
-- [ ] Implement; verify drag-to-pin (lands where dropped) vs menu-unpin (promotes to front); cycling wraps. Commit.
-
-**Gate 3:** the tab bar is fully interactive; §J repass items verified by screenshot.
+**Gate 3:** interactive tab bar; §J repass items verified; pinned overflow + `+`/`×` collision resolved.
 
 ---
 
-## Phase 4 — "Open in New Tab" Context Menus (4 touch points)
+## Phase 4 — "Open in New Tab" Menus (4 points) `[rev]`
 
-Stateful: already-open → **"Open"** (focus); not-open → **"Open in New Tab"** `[I-1]`.
+Stateful: already-open → "Open" (focus); else "Open in New Tab" (I-1) — **label computed renderer-side** (main can't know the tab set) `[rev, F11]`.
 
-### Task 4.1 — Native menus (Sidebar + TableView) with push-back
+### Task 4.1 — Native (Sidebar + TableView)
+**Files:** `contextMenu.ts` (`webContents.send('open-in-new-tab', target)`), `preload` (`onOpenInNewTab`, mirror `onBeginRename`), `store.ts`/`App.tsx` listener → `openTab(target,{newTab:true})`, `shared/cellMenu.ts`+`cellMenu.ts`+`TableView.tsx` (title action).
+- **Extend `ContextTarget` with `id`** so the push-back forms a real `NavTarget` (dedup keys off `navKey = kind:id`) `[rev, F11]`. Pass tab-membership into the invoke for the label, or always send "Open in New Tab" and let `openTab` dedup focus-if-present.
 
-**Files:** `src/main/contextMenu.ts` (add item near the rename push, `webContents.send('open-in-new-tab', target)`), `src/preload/index.ts` (`onOpenInNewTab`, mirror `onBeginRename`), `store.ts`/`App.tsx` (listener → `openTab(target, { newTab:true })`), `src/shared/cellMenu.ts` + `src/main/cellMenu.ts` (title-branch action `'title:open-new-tab'`) + `TableView.tsx` (apply the returned action).
+### Task 4.2 — In-renderer (NavList + NavGallery)
+`NavList.tsx` (`NavRowMenu` += item), `NavGallery.tsx` (add a `PickerMenu`, reuse `NavRowMenu` if liftable) → `openTab`.
 
-- [ ] Implement both native paths; the item text flips Open/Open-in-New-Tab by whether the target is already a tab. Commit (electron restart).
-
-### Task 4.2 — In-renderer menus (NavList + NavGallery)
-
-**Files:** `NavList.tsx` (`NavRowMenu` += one `MenuItem`), `NavGallery.tsx` (add a `PickerMenu` context menu — reuse `NavRowMenu` if liftable).
-
-- [ ] Implement; both call `openTab`. Commit.
-
-**Gate 4:** all four surfaces open/focus a tab correctly, honoring pin-spawn vs replace.
+**Gate 4:** all four open/focus correctly, honoring pin-spawn vs replace.
 
 ---
 
-## Phase 5 — New-Tab Page (also the empty state)
+## Phase 5 — New-Tab Page `[rev]`
 
-**Files:** `src/renderer/src/Tabs/NewTabPage.tsx` + `newTabPage.css` (create), `Detail/DetailPane.tsx` (`DetailView` — **replace the `'none'` placeholder** with the new-tab page `[E-2]`), `shared/types.ts` (the kind).
+**Files:** create `Tabs/NewTabPage.tsx`+`newTabPage.css`; `Detail/DetailPane.tsx` (**replace the `'none'` branch** with `<NewTabPage/>` — this IS the empty state, E-2).
+- `useNavData()` + a search input (NavPane's `splitSearch(search(query))`) + `<NavGallery>` with bumped `--card-min`; `--main-bg` background. Picking → `openTab(target)` replaces the scratch newtab tab.
+- **Separate from NavPane** — shares `NavGallery`, not a merged shell (E-3).
 
-**Build `[E-1]`:** `useNavData()` + a search input replicating `NavPane`'s `splitSearch(search(query))` + `<NavGallery pins items onSelect>` with a bumped `--card-min` to fill the window; `--main-bg` background (inherited in the detail slot). Picking a result → `openTab(target)` which, on the scratch newtab tab, **replaces** it `[D-1]`. **The new-tab page IS the empty/no-target state `[E-2]`** — a nexus that opens with no persisted tabs defaults to a single new-tab page (Phase 0/1 seed this). **NavPane stays a separate surface `[E-3]`** — it shares the NavGallery component, not a merged shell; do NOT collapse them.
+**Steps:** test the newtab sentinel dedups to one page (I-1); implement; screenshot-verify; commit.
 
-- [ ] Test the `'newtab'` navKey dedups to one start page `[I-1]` and that a no-tabs nexus seeds one. Implement; drop the `'none'` branch. Screenshot-verify. Commit.
-
-**Gate 5:** `+` opens the start page; searching + picking replaces it; a fresh nexus opens onto it; no blank placeholder remains.
-
----
-
-## Phase 6 — Reveal-on-Hover Setting
-
-**Files:** `shared/types.ts` (`revealTabBarOnHover?: boolean` on `Personalization`), `src/main/readNexus.ts` (`bool(p.revealTabBarOnHover)`), `TabBar.tsx` (consume `useSession(s => s.personalization.revealTabBarOnHover ?? false)`). Write path is generic `[F-1]`. Default false. No toggle UI (matches `hideChevrons` — Prospect).
-
-- [ ] Implement; hidden state reveals on toolbar hover without reflowing the full-bleed banner. Commit.
-
-**Gate 6:** toggling the key in `settings.json` shows/hides the bar on hover.
+**Gate 5:** `+` opens it; searching + picking replaces; a fresh/empty nexus opens onto it; no blank placeholder remains.
 
 ---
 
-## Phase 7 — Lifecycle, Edge Cases, Cleanup, Docs
+## Phase 6 — Lifecycle, Cleanup, Docs
 
-### Task 7.1 — Entity mutation + autosave flush
-- Delete `[I-2]`: unpinned tab of a deleted entity **actually closes** (active→MRU); pinned tab **render-hides, keeps the pin file** (never storage-prune — the `.nexus/pins/` render-prune rule). Rename/move re-resolve label+path live.
-- Autosave flush `[I-3]`: replace/close **fires the pending autosave fire-and-forget** (no await, no input delay) before discarding warm state.
-- [ ] Tests for each; implement; verify a delete-while-open doesn't orphan a tab. Commit.
+### Task 6.1 — Entity mutation + capture gate
+- **Delete (I-2):** unpinned tab actually closes (active→MRU); pinned tab render-hides, keeps the pin file. Rename/move re-resolve live — **already covered by the `applyTree` reconcile-every-tab from Task 1.2/I-2a** `[rev]`.
+- **Autosave on switch/close:** verify the shipped `scheduleSave` + `beforeunload` flush already covers it (PageView never remounts; only inner CM6 does) — I-3 is **largely redundant with shipped code** `[rev, killed candidate]`; add an explicit flush only if a gap is proven.
+- **Thumbnail capture gate `[rev, F7]`:** `useNavThumbnails` must NOT re-shoot on a plain tab-activation (record:false, unchanged doc) — dedup against a per-session "captured navKey at this doc version" guard. Load-bearing: warm switching is now the highest-frequency interaction.
 
-### Task 7.2 — Cleanup + docs reconcile
-- Delete `TabBarPreview.tsx` + `tabBarPreview.css` `[G-2]`.
-- Reconcile `Navigation.md` (temp-pin "fake tabs" → superseded by real tabs `[G-1]`), `Framework.md` roadmap (slot multi-tab as the active cluster `[G-6/A-2]`), `History.md` (the locked B-1 paradigm decision), `Handoff.md`.
-- [ ] Sweep + commit docs with the code `[bundle-docs rule]`.
+### Task 6.2 — Cleanup + docs
+- Delete `TabBarPreview.tsx`+`tabBarPreview.css`.
+- Reconcile `Navigation.md` (temp-pins superseded, G-1), `History.md` (the B-1 paradigm decision), `Handoff.md`. (`Framework.md` roadmap slot already committed.)
 
-### Task 7.3 — Post-functional UIX review (mandatory)
-- [ ] After functional-green, a UIX review of the *actual working tab bar* against `§J` — no matter how clean the build `[Review-Discipline]`. Fold findings, re-screenshot, close out.
+### Task 6.3 — Post-functional UIX review (mandatory)
+After functional-green, review the real working tab bar against §J — no matter how clean the build (Review-Discipline). Fold, re-screenshot, close out.
 
-**Gate 7:** edge cases hold; throwaway code gone; docs true; UIX review passed.
+**Gate 6:** edge cases hold; throwaway gone; docs true; UIX review passed.
 
 ---
 
-## Self-Review (spec coverage)
+## Self-Review (V2 coverage)
 
-- **Warm mechanism** (B) → Phase 2. **Persistence** (D-8) → Phase 1. **Tab model/predicate/lifecycle** (D, I-1…I-14) → Phase 0 + 3 + 7. **Pins-graduate** (C) → Phase 0/1 (reconcile `isPinned` against `.nexus/pins/`) + 3 (compact pinned UI). **Context menus** (D-3) → Phase 4. **New-tab page** (E) → Phase 5. **Setting** (F) → Phase 6. **UIX/DRY** (§J) → the Phase 3 repass gate + Tasks 3.1-3.3.
-- **Residuals to resolve before/at their phase:** the `historyField`/`foldField` serializability grounding (Task 2.2). *(Resolved: E-2 = new-tab page subsumes `'none'`; D-8a = synced; D-7 = per-tab history; E-3 = surfaces stay separate.)*
-- **Highest risk:** Phase 2 (against the `key=`-remount grain) — carries its own build-breaking pass. Phase 4 crosses the IPC boundary twice — mirror `begin-rename` exactly.
+- **Warm** (B) → Phase 2 (staged; `historyField`-only; freeze-at-mount; short-circuit; folds via `folds.json`). **Persistence** (D-8) → Phase 1 (synced, `isPinned` derived, both drains). **Model/lifecycle** (D, I) → Phases 0/3/6. **Menus** (D-3) → Phase 4 (`ContextTarget.id`, renderer label). **New-tab page** (E) → Phase 5 (`'none'` branch). **Setting** (F) → merged into Phase 3. **Drag** → within-zone only (I-13); drag-to-pin Prospect. **Motion** → `--duration-slow` (J-6).
+- **Resolved from review:** F1 fold-serialization, F2 capture-race, F3 tab-reconcile, F4 newtab-routing, F5 navState-reuse, F6 both-drains, F7 capture-gate, F8 warm-instant, F11 ContextTarget-id; visuals F1 drag re-scope, F2 chip fade, F3 `+`/`×`, F4 pinned-overflow, F5 group-+, F6 motion.
+- **Highest risk:** Phase 2 (against the `key=`-remount grain, warm-instant is a `select()` change) — its own build-breaking pass. Phase 4 crosses IPC twice — mirror `begin-rename`.
+- **Residual for the UIX repass (Phase 3):** exact sizing knobs, the pinned-overflow behavior (bound vs "+N"), the `+`/`×` gutter geometry.
