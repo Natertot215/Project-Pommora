@@ -7,109 +7,120 @@
 
 Prior arcs, compressed — detail lives in `Features/*` + `History.md`.
 
-- **Block Surfaces — SurfacePM (shipped + merged to main).** The host-agnostic block/tile system: split-tree layout, window-style edge resize, PommoraDND feel, markdown/page/view tiles behind the BlockHost seam (locked read-merge-writes), CM6-portal page embeds (every prose tile a read-only MarkdownPM view), block `[[links]]` as first-class edges, geometry-only homepage lock, homepage/context identity settings, and per-block Scale (view-agnostic). → [[SurfacePM]] + `History.md`.
+- **Navigation Surface + NavPane redesign + gallery (shipped, on `nav-gallery-pins`).** The per-Nexus nav-state layer (recents/pins/favorites in synced sidecars + `.nexus/pins/` per-pin store, resolved live via `navResolve`, render-prune-never-storage-prune), a `useNavData` read side both surfaces share, client-side fuzzy search, the movable `GlassPane` NavPane (now renamed **NavWindow**), and its Figma gallery card form + list rows + inset pin marker + thumbnail-capture pipeline. → [[Navigation]] + `History.md`.
 
-- **App-wide auto-scroll (shipped, on main).** One shared `interactions/autoscroll.ts` singleton rAF loop drives every drag's edge-scroll — one fixed scroller resolved once at drag start, px/sec × dt (ProMotion-safe), distance-based acceleration + direction-intent, an instance-scoped stopper, tokens read off the drag element. Migrated the 3 existing consumers, deleted the block-drag duplicate loop, retrofitted 3 surfaces that never had it (sidebar, table rows, table bands). The axis-aware `findScroller` was the enabler. → [[PommoraDND]] §II. Autoscroll + `History.md`. Live drag-feel gut-check still open (below).
+- **Block Surfaces — SurfacePM (shipped + merged to main).** Host-agnostic block/tile system: split-tree layout, window-style edge resize, PommoraDND feel, markdown/page/view tiles behind the BlockHost seam, CM6-portal page embeds, block `[[links]]` as edges, geometry-only homepage lock, per-block Scale. → [[SurfacePM]] + `History.md`.
 
-- **Tables — cell + group system + grouping/sorting + Hide Borders.** The cell-gesture matrix, per-view looks/formats in `column_styles`, band drag, the reusable editors in `Detail/Views/PropertyEditing/`, grouping + sorting end-to-end, and the borderless-table toggle with on-demand structure reveals. → [[TableView]] + [[Views]].
+- **App-wide auto-scroll (shipped, on main).** One shared `interactions/autoscroll.ts` singleton rAF loop drives every drag's edge-scroll — one fixed scroller resolved once, px/sec × dt (ProMotion-safe), distance-accel + direction-intent. → [[PommoraDND]] §II. Autoscroll.
 
-- **PropertiesV2 · Multi-View scaffolding · Icon Picker + Sidebar Ribbon.** Nexus-wide property registry (`.nexus/properties.json` + per-collection assignment ids, `readNexus` joins); ViewDropdown · ViewPane · two-door ViewSettings + per-type editor panes; full-Lucide picker in the shared PickerMenu; ribbon + mode-switched sidebar. → [[Views]] · [[Properties]] · [[Icons]] · [[Sidebar]].
+- **Tables · PropertiesV2 · Multi-View · Icon Picker + Sidebar Ribbon.** The cell-gesture matrix + per-view looks + band drag + grouping/sorting + borderless toggle; nexus-wide property registry; ViewDropdown/Pane/Settings; full-Lucide picker; ribbon + mode-switched sidebar. → [[TableView]] · [[Views]] · [[Properties]] · [[Icons]] · [[Sidebar]].
 
-### Session Summary — Navigation Surface: Feature → Redesign, + SurfacePM Polish
+### Session Summary — Multi-Tab Nexus: Brainstormed → Ratified → Build-Ready
 
 **Session ID:** 1968ae09-ee23-4a88-9c0d-3a665384fd8e
-**Dates:** 07-14-2026
+**Dates:** 07-14-2026 → 07-15-2026
 **Model:** Opus 4.8 (1M)
-**Compactions:** 2
+**Compactions:** 4
 **Connectors:** none
 **Commands:** /compact · /handoff
-**Agents:** build-breaking-agent (2x - review)
-**Skills:** handoff
+**Agents:** build-breaking-agent (6x - review) · Explore (3x - grounding) · feature-dev:code-explorer (1x - warm-trace) · general-purpose (1x - simplify)
+**Skills:** studio-brainstorm · superpowers:writing-plans · handoff
 
-The Navigation surface came up from persistence plumbing to a live command-palette-shaped NavPane, then a visual redesign, closed out alongside three SurfacePM handle-menu fixes.
+The session's later arc turned the navigation model's long-deferred paradigm fork (**B-1**: single-pane-replace vs tabs) into a **ratified, review-hardened spec + implementation plan** — no code yet; the next session executes it.
 
-**Navigation feature (Phases 1–4, committed `9f6e0eed` → `ede4519f`):** the nav-state layer landed in four phases — a per-Nexus synced persistence layer (`navRecents.json` / `navFavorites.json`; recents as MRU + pin flag, favorites, all resolved live against the tree, render-prune-never-storage-prune), a renderer nav-state store + client-side fuzzy search, the NavPane mini-shell (a movable glass surface), and the NavMenu dropdown over a shared `useNavData` read side that both surfaces render from. → [[Navigation]].
+**Multi-Tab Nexus, brainstormed to ratified:** Warm, state-preserving Toolbar Tabs replace single-pane-replace. Grounded against real code first (three explorers mapped the mount model, context menus, gallery reuse), then built the decision log through live back-and-forth with Nathan on every fork. The load-bearing call: **one view mounted, a per-tab serialized cache** (seed a fresh CM6 mount from a cached `historyField`; folds ride the durable `folds.json`) — N-live-views was rejected on the perf hard-rule (N un-virtualized tables) + a ~15-consumer blast radius. → `Planning/Multi-Tab Nexus — Decision Log.md`.
 
-**NavPane redesign (`c8f091ec`, approved live + green):** reshaped the NavPane into an always-centered `GlassPane` command surface. Rows read (icon)(title … chevron-joined path), title + path each eclipse-scrolling under the shared `OverflowScroll`; the resolver builds ONE `ResolveIndex` per tree push (icons + container-crumb chains) that recents / favorites / search all read (a review fold — single walk). Search rides the body type token, the pane resizes from four corners + a rail split, and both the rail and main lists carry the shared `scroll-edge-fade` for lists longer than the pane. Row actions (pin / favorite / remove) deferred to future context-menu actions; the NavMenu dropdown is stripped to a blank placeholder pending its content decision. `WIN` / `RAIL` consts (NavPane.tsx:14–15) + `--navpane-inset` / `--navpane-rail` (navpane.css:10, :54) are the live size knobs.
+**The pins graduate; the set persists AND syncs:** The shipped `.nexus/pins/` store IS the pinned-tabs set — `isPinned` is *derived* from it, never stored (a second synced copy would re-introduce whole-array-LWW desync). The full tab set persists cross-restart AND syncs cross-device (closing never resets tabs; they reopen cold; warm view-state is session-only). Per-tab Back/Forward won A/B over a single shared history. One `openTab` predicate absorbs replace-vs-spawn (dedup-first, then `newTab = explicit || activeTab.isPinned`).
 
-**SurfacePM handle-menu fixes (`4f7b3f55`, all three confirmed — Nathan: "Visuals on animation and picker are great"):** three block-surface corrections. (a) The accent tint moved OFF the Scale dropdown (dropped its `accentOutline`) ONTO the handle menu's page+location "Open In" field — the openable embed identity now wears the same accent-@-tint-secondary border as the embed on the surface (`handleMenu.css.ts` `titleField`). (b) View tiles now animate their per-block Scale on the standard beat like page tiles — the deliberate snap guard (`is-view-tile { --block-zoom-anim: 0s }`) was removed after Nathan confirmed the grid relayout is acceptable BECAUSE it's bounded to the ~200ms one-shot transition, not a per-frame trigger; the dead `--block-zoom-anim` indirection + orphaned `is-view-tile` class went with it. (c) Borderless tiles keep their chassis while the handle menu is open (`:not(.handle-pinned)`), matching reveal-on-hover; the page-embed accent rule was class-doubled to hold above the borderless-hide rule independent of source order (a folded build-breaker Low). → [[SurfacePM]].
+**Three review rounds hardened it, each verified in code:** a light grounding pass (2 folds: pins are the shipped store, delete render-hides pinned tabs), a 3-agent plan-attack (internals + visuals/interaction + simplification), and a final confirmation pass. The attack caught real holes: the warm seam's fold-serialization was a phantom (`foldField` is unexported/would throw — folds already persist via `folds.json`); the capture-identity races the switch (freeze `(tabId,navKey)` at mount); `applyTree` reconciles only the singular selection so inactive tabs would error on activate; the marquee drag "reuse" is actually two engines (single-zone reflow vs vertical portal-overlay), so cross-divider drag-to-pin is bespoke — deferred to a Prospect, within-zone reorder ships. Every finding was opened in the code before folding.
+
+**Nathan's late calls, folded:** within-zone reorder drag only; plain `×` hover-fade (the chip melt needs a solid fill glass tabs lack); warm-instant switching (short-circuit the refetch — kills the flash, makes `select()` warm-aware, accepted); tab set must sync cross-device; the empty/`'none'` state IS the new-tab page; open/close animation on `--duration-slow` + the sidebar/ribbon easing.
+
+**Traceless clean rewrite + surface rename:** Both planning docs + `Navigation.md` (restructured to §II. NavWindow / Toolbar Tabs / NavPane / NavView) + a `History.md` paradigm entry + the `Framework.md` roadmap slot were rewritten to read as durable truth — every `[rev]`/review-scar removed (Nathan: "correct errors without a trace they were ever made"). **Surface rename (settled):** `NavPane`→**NavWindow** (the floating overlay), `NavMenu`→**NavPane** (the toolbar dropdown), + **NavView** (the new-tab page). The code rename is Phase 0 Task 0.0.
+
+**Also this session (earlier):** committed the gallery `.hover-pop` scale tuning (1.0175) + a `Navigation.md` note that list-mode reorder uses insertion-line drag while galleries displace. The throwaway `TabBarPreview` is the visual seam the real tab bar grows from (deleted in Phase 6).
 
 **Lessons Learned**
 
-- **A bounded one-shot relayout is NOT the "expensive work on every X" trap.** The view-scale animation relayouts the non-virtualized grid each frame, but only for the transition's ~200ms — Nathan explicitly accepted it (`> "if it rerenders only on the animation, that's fine"`). The hard rule targets *continuous / high-frequency* triggers (drag, scroll, resize), not a discrete user action's settle. Confirm the trigger's cadence before treating a relayout as forbidden.
+- **Ground a "reuse" claim in the actual mechanism before budgeting it as free.** The plan named three DRY reuses (drag / chip-× / group-+); all three transferred only partially — the drag was two separate engines (one vertical + portal-overlay), the chip melt needs a `--chip-fill` glass lacks, the group-+ gives only glyph+fade. "It's the same component" is a hypothesis until you trace what it actually does.
 
-- **Ground a design-directive's premise before implementing it.** "Move the accent off the scale picker onto the page border + location" only made sense after opening the code: the accent leak was `accentOutline` (identical treatment to the real page-embed border), and the intended new home was the `titleField` — neither obvious from the words alone. The instruction's premise was a hypothesis until `grep accent` proved where it actually lived.
+- **Verify every agent finding in the code — even a build-breaker's.** The 3-agent attack produced ~24 findings; opening each `file:line` confirmed the load-bearing ones (foldField unexported at `folding.ts:188`, the synchronous selection-set before the openPage await) AND caught one agent overstating (the simplification agent read cross-zone drag as drop-in; the visuals agent's deeper trace proved it vertical-only). Two agents disagreed; the code adjudicated.
 
-- **`:not()` additions silently consume specificity margins.** Adding `:not(.handle-pinned)` to the borderless-hide rule lifted it to an exact tie with the page-embed accent rule — correct only by source order until class-doubled. Any `:not()` you bolt onto a rule that competes with another for the same property can flip a tie; re-count both.
+- **A summary layer drifts after folds land.** After folding corrections into the decision entries, the log's Core recap still described the pre-fold world (stored `isPinned`, fold-in-cache, cross-zone drag). Sweep the recap/overview sections whenever a decision changes — the "source of truth" is exactly what a shape-building implementer reads.
 
 **Key Files & Insights**
 
-- `Navigation/` — `navResolve.ts` (the `ResolveIndex` + crumb builder), `useNavData.ts` (the one shared read side), `NavList.tsx` + `navList.css` (the row); `NavPane/` — the glass mini-shell + its knobs; `Toolbar/NavMenu.tsx` — the placeholder dropdown, content TBD.
-- Reuse over hand-roll: `design-system/scroll-edge-fade.css` (the vertical list fade — rides on any `overflow-y:auto` box via the class), `OverflowScroll` (row eclipse), `color-mix(in srgb, var(--accent) var(--tint-secondary), transparent)` (THE canonical accent-tint border — page-embed, table, NotchedPane, now the titleField).
-- Knobs Nathan tunes live: NavPane `WIN`/`RAIL` (NavPane.tsx:14–15) + `--navpane-inset`/`--navpane-rail` (navpane.css) · `--tile-border` / `--grip-size` (surfacepm.css) · `EMBED_SCALE` · per-block Scale animates via the registered `@property --block-zoom`.
+- **The three planning docs:** `Planning/Multi-Tab Nexus — Decision Log.md` (ratified spec, decision IDs) · `— Implementation Plan.md` (6 phases + a consolidated visual-knob block) · `— Implementation Kickoff Prompt.md` (the compact-then-execute prompt).
+- **Warm seam grounding:** `MarkdownPM/index.tsx:109-246` (mount-once, destroy-on-unmount) + `:251-262` (the readOnly compartment-reconfigure — the reconfigure-without-remount precedent) · `folding.ts:188` (`foldField` private, unexported) · `historyField` is the real serializable export.
+- **Persistence template:** `navState.ts` (debounced writer + drain at `before-quit` `index.ts:1656` AND `adoptNexus` `:398`) — the tabs sidecar reuses this shape, synced (in `NEXUS_CONFIG_FILES`, not `DEVICE_LOCAL_NEXUS_FILES`).
+- **Drag reality:** two engines behind `interactions/` — single-zone `engine.tsx` (`SortableZone`, in-place reflow, what the gallery uses) vs cross-list `group.tsx` (`DragGroup`/`GroupZone`, vertical + portal-overlay). Within-zone reorder is the safe reuse.
 
 **User Feedback**
 
-- Nathan live-drives and drip-feeds mid-turn corrections — fold each immediately, batch-commit, bundle his tunes; his effect-words are literal.
-- Confirm the layer before fixing (UIX vs data), and ask before any design / interaction call — but when a directive's premise is checkable in code, ground it first, then confirm.
+- Nathan drip-feeds mid-turn design calls — fold each immediately; his effect-words are literal; when he says "let's try both" confirm it's actually free before promising it.
+- Documents must correct errors traceless (durable truth, no scars); Considered & Rejected carries provenance, the decisions read clean.
+- Point to UIX knobs, don't tune — every visual value goes in one knob block + the final report.
+
+**Uncertain**
+
+- The `NavWindow`/`NavPane`/`NavView` rename table (which surface got which name) — stated confidently but a rename is easy to flip; **Nathan to sanity-check in the morning**.
+- `Compactions: 4` is best-effort from the transcript markers; the exact count may be off by one.
 
 ---
 
 ### Working Notes
 
-- **UI iteration runs in dev mode (HMR)** — CSS hot-swaps, React Fast-Refreshes, but **CM6 extension code needs ⌘R**, and **`src/main`/preload need a full dev-process restart**. Nathan runs his own `env -u ELECTRON_RUN_AS_NODE npm run dev`; relaunch with `-- --remote-debugging-port=9222` to keep CDP.
+- **UI iteration runs in dev mode (HMR)** — CSS hot-swaps, React Fast-Refreshes, but **CM6 extension code needs ⌘R**, and **`src/main`/preload need a full dev-process restart**. Nathan runs his own `env -u ELECTRON_RUN_AS_NODE npm run dev`.
 
 - **HMR is NOT trustworthy for two classes:** (1) vanilla-extract `*.css.ts` — a style edit can serve stale CSS; a plain restart heals it, ⌘R never does. (2) A component's focus effect / handler / attribute change — Fast-Refresh often skips it. Plain `.css` DOES HMR reliably.
 
-- **The dev app runs against Nathan's REAL Nexus** (`/Users/nathantaichman/The Nexus`). UI value writes are his data; CDP must open + Esc only, never pick/commit unless he authorizes it. Note: block Scale + borderless style are PERSISTED block entries — demoing them mutates his real homepage. Native OS menus don't render in the DOM; reach those ops through `window.nexus.*` via `Runtime.evaluate`.
+- **The dev app runs against Nathan's REAL Nexus** (`/Users/nathantaichman/The Nexus`). UI value writes are his data; CDP must open + Esc only, never pick/commit unless authorized. Native OS menus don't render in the DOM; reach those ops through `window.nexus.*` via `Runtime.evaluate`.
 
-- **Gates:** `env -u ELECTRON_RUN_AS_NODE npm run typecheck` (the ONLY type gate) + `npx vitest run` + `env -u ELECTRON_RUN_AS_NODE npm run build`. Biome auto-formats on write — never run it, never hand-align.
+- **Gates:** `env -u ELECTRON_RUN_AS_NODE npm run typecheck` (the ONLY type gate) + `npx vitest run` + `env -u ELECTRON_RUN_AS_NODE npm run build`. Read the summary line, never a piped exit code. Biome auto-formats on write — never run it, never hand-align.
 
-- **Parallel sessions / edits** — stage explicit paths, never `-A`. Unattributed `M`/`D` files are almost always Nathan's, left uncommitted on purpose. **main is ahead of origin, unpushed** — Nathan pushes in batches; merge ≠ push.
-
-- **Detail insets split by surface kind:** block surfaces run tight `--surface-inset` (8px body) + `--surface-banner-inset` (12px banner) via an `is-surface` class (`isSurfaceKind`, `Detail/Scope.ts`); page/table views keep `--content-inset` + `--fold-gutter`.
+- **Parallel sessions / edits** — stage explicit paths, never `-A`. Unattributed `M`/`D` files are almost always Nathan's. **main is ahead of origin, unpushed** — Nathan pushes in batches; merge ≠ push. *(This session pushed the multi-tab planning to origin per explicit instruction — a deliberate exception.)*
 
 ### Next Session
 
-**Finish the NavPane look — the pin / current-item treatment on the inset.** The temp-pin (or the current item) should read as a **pin-icon in the `--navpane-inset` gutter** of its row (the left inset lane the icon + row content align to). It's the visual marker for a pinned recent / the active entity; scope it to the NavList row, reusing the row's existing inset rather than adding a new lane. → [[Navigation]].
+**Execute the Multi-Tab Nexus plan.** Paste `Planning/Multi-Tab Nexus — Implementation Kickoff Prompt.md` after compacting — it's self-contained (standing directives + the task). Build **phase by phase, in order**, with the mandatory per-phase `build-breaking-agent` + `code-simplifier` review (verify findings in code before folding), gates between each.
 
-**Decide what the sidebar (rail) and the NavMenu dropdown actually hold.** Both are currently stubs: the rail renders favorites + a List/Gallery Style toggle (viewMode is a local stub — the gallery layout is Figma-pending); the NavMenu dropdown is a blank beak-glass placeholder. Neither's content is settled — figure out what each surface is *for* before building into it (the dropdown especially: is it a compact recents peek, a full nav, something else?).
+- **Start: Phase 0 Task 0.0** — the surface rename (`NavPane`→`NavWindow`, `NavMenu`→`NavPane`), then the pure tab model + inline store wiring (tests-first, headless).
+- **Phase 2 (the warm seam) is highest-risk** — against the `key=`-remount grain, and warm-instant is a deliberate `select()` change; its per-phase review is the heavy one. Ship it staged (flat current-tab warmth → then the ~20-cap back-stack).
+- **Phase 4 (tab bar)** runs the §J UIX-repass *before* building + a post-functional UIX review *after* — screenshot-verify.
 
-**Then: finalize the list layout + look, and move onto the gallery.** The gallery is the Figma-designed card form of the recents (the Style toggle's other mode) — the row list's sibling presentation. Build it against the settled `useNavData` / `NavList` seam once the list look is locked.
+**Nathan's morning to-dos (before or during the build):** (1) sanity-check the `NavWindow`/`NavPane`/`NavView` rename table wasn't flipped; (2) eyeball the visual-knob block's starting values (`Plan` → Visual Knob Block) — tab min/pref/max widths, glyph sizes, the edge-fade, the `+` gutter.
 
-**Still-open live verifications (lower priority, not this arc's work):** auto-scroll drag-feel gut-check across all six surfaces (distance-accel + direction-intent felt on surfaces that had none before — esp. "grab the last table row, drag down to extend"; six tokens in `autoscroll.css`) · the two date-clear fixes (click a selected calendar date to clear; right-click filled vs empty date cell). Neither is unit-verifiable — jsdom stubs pointer-capture.
+**Nav surface follow-ups (lower priority, not the tab work):** NavPane (the dropdown, formerly NavMenu) content is still an open call — what a compact nav dropdown holds vs the fuller NavWindow. Drag-reorder recents is a logged nav-layer QOL Prospect (genuinely small — reuse the pin `SortableZone` + a `reorderRecent`).
 
 ### Pending Focuses
 
-- **Navigation continuation** — the pin-on-inset look, the sidebar + NavMenu content decisions, the list finalize, then the gallery (above). This is the active arc.
+- **Multi-Tab Nexus build** — the active arc; execute the ratified plan (above). Everything else is subordinate until it ships.
 
-- **SurfacePM post-merge polish (not blocking):** page banners on embeds (+ per-tile lock home) · the Insert menu (G-9) + Link-Page search pane + shared recents (G-16, pairs with Navigation) · the shared debounced-save hook (`MarkdownBlock` ↔ `PageEmbed`) · robustness adds (per-tile error boundary, lazy-mount embeds, layout undo).
+- **NavPane dropdown content decision** — the toolbar nav dropdown (renamed from NavMenu) is a blank placeholder; settle what it's for before building into it.
 
 - **User Sections CRUD (the "Add Heading" feature).** Collections render user sections but there's no way to make one (`mutate.ts` has zero section ops). Own brainstorm→plan→build. → `Sidebar.md`.
 
 - **"None"/flat grouping + Flatten + Hide Location** — the flattened-mode bundle, deferred (→ [[Views]]; `flat` GroupConfig kind stays reserved).
 
-- **(Perf) Standing debt:** no row virtualization (every row MOUNTS — bites at thousands); external VALUE edits don't live-refresh an open table. Container-surgical reconcile is the designed escalation at scale.
+- **(Perf) Standing debt:** no row virtualization (every row MOUNTS — bites at thousands); external VALUE edits don't live-refresh an open table. (The multi-tab warm-B design deliberately avoids needing table virtualization — one view mounted.)
 
-- **Number editor eyeball items (tune, not bugs):** decimals "Hidden", fraction wording, bar clamp edges, strokeless bar, field widths. Knobs in `numberEditor.css.ts` / `textPicker.css.ts` / `formatValue.ts`.
-
-- **Canvas** — spec at `Planning/6-26 - Canvas Spec.md`, pending adversarial review → plan → build. Free-placement drawing inside Pages; distinct from Block Surfaces.
+- **Canvas** — spec at `Planning/6-26 - Canvas Spec.md`, pending adversarial review → plan → build.
 
 - **Biome config vs code** — `biome.json` declares double-quote/organizeImports but the code is single-quote/no-semicolon. Settle once, in a tree with no parallel edits.
 
-- **iCloud-sync readiness (future):** `serializeOnFile` can't coordinate with the iCloud daemon (last-writer-wins); `.nexus/index.db` needs sync-exclusion; the walk must skip `.icloud` placeholders.
+- **iCloud-sync readiness (future):** `serializeOnFile` can't coordinate with the iCloud daemon (LWW); `.nexus/index.db` needs sync-exclusion; the walk must skip `.icloud` placeholders. *(The multi-tab `tabs.json` is deliberately synced under this same LWW model — single-user, concurrent live edits out of threat model.)*
 
-- **Mobile iOS companion (parked):** spec at `.claude/Mobile/MobileSpec.md`; step 1 a `window.nexus` bridge shim + native iCloud Swift plugin. No build commitment.
+- **Mobile iOS companion (parked):** spec at `.claude/Mobile/MobileSpec.md`; no build commitment.
 
 ### Fix Log
 
-- **`.nexus/activeViews.json` + per-machine siblings aren't gitignored (live).** Neither it nor `folds`/`viewOrders`/`tableHeadingColumns`/`linkTitles` are ignored — using the switcher on a fresh container creates a would-sync file. Add to the Nexus `.gitignore`.
+- **`.nexus/activeViews.json` + per-machine siblings aren't gitignored (live).** Neither it nor `folds`/`viewOrders`/`tableHeadingColumns`/`linkTitles` are ignored — using the switcher on a fresh container creates a would-sync file. Add to the Nexus `.gitignore`. *(Note for the multi-tab build: `tabs.json` is intentionally synced, so it should NOT be added to this ignore list.)*
 
 - **The "File" property icon gets clipped** by its vertical row padding on the ViewPane.
 
 - **The link rename field shows a leading empty space (DEPRIORITIZED)** — a visual inset, not a stored char.
 
-- **Block-math `$$…blank…$$` drag corrupts the doc (open).** A multi-line block-math span with a blank line parses as two halves with orphaned `$$`; block-dragging either corrupts the doc (`MarkdownPM/editor/blockModel.ts`, test-pinned, unguarded).
+- **Block-math `$$…blank…$$` drag corrupts the doc (open).** A multi-line block-math span with a blank line parses as two halves with orphaned `$$`; block-dragging corrupts the doc (`MarkdownPM/editor/blockModel.ts`, test-pinned, unguarded).
 
 - **Bullet single-word wrap drops the word below the marker** — only the `line-height` cap shipped. → [[MarkdownPM]].
 

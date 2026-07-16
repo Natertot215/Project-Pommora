@@ -38,7 +38,7 @@ The table's full interaction layer. First the per-type cell gesture matrix — t
 
 #### Multi-Tab Nexus (active — reprioritized ahead of the remaining Views work)
 
-Warm, state-preserving tabs replace single-pane-replace: a persisted, cross-device-synced working set of open entities — pinned (the existing `.nexus/pins/` set, left-docked) plus unpinned scratch tabs — each keeping its own scroll/undo/fold within a session and its own Back/Forward. One view mounted at a time (a serialized warm cache rehydrated on switch); the empty state becomes a full-window new-tab gallery. Opens the navigation system's deferred paradigm fork (single-pane-replace vs tabs). Ratified spec + implementation plan in `Planning/` (`Multi-Tab Nexus — Decision Log` + `— Implementation Plan`).
+Warm, state-preserving **Toolbar Tabs** replace single-pane-replace: a persisted, cross-device-synced working set of open entities — pinned (the existing `.nexus/pins/` set, left-docked) plus unpinned scratch tabs — each keeping its own scroll + undo within a session and its own Back/Forward. One view mounted at a time (a serialized warm cache rehydrated on switch); the empty state becomes **NavView** (a full-window gallery + search). The nav surfaces are renamed for the model — **NavWindow** (the floating overlay), **NavPane** (the toolbar dropdown), **NavView** (the new-tab page). Opens the navigation system's deferred paradigm fork (single-pane-replace vs tabs). Ratified spec + implementation plan in `Planning/` (`Multi-Tab Nexus — Decision Log` + `— Implementation Plan`).
 
 #### v0.5.0 — Views Complete + Properties UI
 

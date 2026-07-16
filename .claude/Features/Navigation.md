@@ -1,42 +1,58 @@
 ### Navigation
 
-How you get from where you are to where you want to be — the single main pane's history and breadcrumb for local moves, and a shared **Navigation layer** for the cross-tree jumps (recent, pinned, searched, favorited) the sidebar tree alone can't serve.
+How you get from where you are to where you want to be — a **toolbar tab bar** holding your open working set, each tab with its own history and a footer breadcrumb for local moves, over a shared **Navigation layer** for the cross-tree jumps (recent, pinned, searched, favorited) the sidebar tree alone can't serve.
 
-The main pane shows one entity at a time — selecting one in the sidebar, a table, or a breadcrumb routes the whole detail view, replacing the previous selection. A session-local history records each selection, and the footer breadcrumb shows the current location. Above that sits the Navigation layer: a per-Nexus, UI-agnostic store of recents, pins, and favorites, plus client-side title search, surfaced through two entry points that read the same data in different shapes.
+The main pane shows the **active tab's** entity; selecting one in the sidebar, a table, or a breadcrumb drives that tab (replacing its content on an unpinned tab, spawning a new one off a pinned tab). A per-tab history records each selection, and the footer breadcrumb shows the active tab's location. Above the tab bar sits the Navigation layer: a per-Nexus, UI-agnostic store of recents, pins, and favorites, plus client-side title search, surfaced through the surfaces below — all reading the same data in different shapes.
 
 ### The Navigation Layer
 
-The shared wayfinding store beneath both navigation surfaces — built once, read everywhere. Three things live in it:
+The shared wayfinding store beneath every navigation surface — built once, read everywhere. Three things live in it:
 
-- **Recents** — an auto history stream, most-recent-first, deduped, capped by a generous roll-off. Every navigation records into it (all kinds, the Homepage included); Back/Forward steps don't. It records through the same selection path the sidebar uses, so anything you can open lands in recents.
-- **Temp-pins** — a flag that floats a recents entry to the top and holds it there until unpinned. The "open tabs" feel without a tab bar: a working set pinned above the churn of history. Pins live on the recents stream, not a separate list.
+- **Recents** — an auto history stream, most-recent-first, deduped, capped by a generous roll-off. Every navigation records into it (all kinds, the Homepage included); Back/Forward steps and plain tab-switches don't. It records through the same selection path the sidebar uses, so anything you can open lands in recents.
+- **Pins** — the durable, user-ordered working set, stored one file per pin under `.nexus/pins/`. Pins **are** the pinned tabs (left-docked in the tab bar) and also float to the top of the NavWindow gallery — one working set surfaced in two places. Pinning a tab writes a pin; unpinning removes it.
 - **Favorites** — the durable, explicitly-curated list. Mutated only by an explicit add / remove / reorder, never automatically.
 
-Entries store only their identity (kind + id + path) — every title, icon, and location is resolved **live** against the current tree at render, so a rename or move is always current and never cached stale. An entry that no longer resolves (deleted, or read against a different Nexus after a switch) is hidden at render but never deleted from storage, so a Nexus switch can't silently wipe favorites. Recents and favorites both **sync** (per-Nexus sidecars under `.nexus/`, last-writer-wins) so they follow you across machines; the recents stream persists debounced, pins and favorites immediately, and a durable write is flushed before quit.
+Entries store only their identity (kind + id + path) — every title, icon, and location is resolved **live** against the current tree at render, so a rename or move is always current and never cached stale. An entry that no longer resolves is hidden at render but never deleted from storage, so a Nexus switch can't silently wipe pins or favorites. Recents, pins, and favorites all **sync** (per-Nexus, last-writer-wins) so they follow you across machines.
 
-**Search** is client-side and title-based: a fuzzy match over a flattened index of every Collection, Set, Page (page titles included), Context, and the Homepage, plus a cached Agenda snapshot so Tasks and Events are findable. The index is memoized per tree, so typing filters without re-walking the tree.
+**Search** is client-side and title-based: a fuzzy match over a flattened index of every Collection, Set, Page, Context, and the Homepage, plus a cached Agenda snapshot so Tasks and Events are findable. The index is memoized per tree, so typing filters without re-walking the tree.
 
 ### Features
 
+#### II. NavWindow
+
+The summoned wayfinding overlay — a non-modal, movable, resizable floating glass panel (`GlassPane`) that always opens centered; its size persists across opens, its position doesn't. A glass rail (a Favorites sidebar) beside a main frame: a search field over a gallery of Recents cards (pins on top), each card resolving location + icon + title live from the tree. It resizes from four corners plus a rail split, doesn't steal focus (the search field focuses on open, nothing behind is blocked), and dismisses on Escape, its shortcut, or the ribbon. Row/card actions (pin / favorite / remove) live in a context menu. Summoned by the sidebar ribbon's Navigation icon or `⌘O` (rebindable via the `commands` map). A **preview** peek from NavWindow is tab-neutral — it opens no tab and doesn't touch any tab's Back/Forward.
+
+Reorder drag differs by the view mode inside NavWindow: the **gallery** reorders pins by displacement (cards reflow to open a slot); the **list** uses the sidebar's insertion-line drag (a drop-line indicator between rows). The general rule — grid surfaces displace, row surfaces show an insertion line.
+
+#### II. Toolbar Tabs
+
+The navigation model: a tab bar in the toolbar holding your open working set, each tab **warm** — it keeps its own scroll and editor undo while you're away, so flipping back lands you where you left off with only one view mounted at a time.
+
+- **Pinned tabs** dock left as compact icons (the entity icon + a pin accent; the full name reveals on hover); they are the pin set, persist, and are *protected* — navigating while a pinned tab is active opens a new tab rather than replacing it. **Unpinned tabs** sit to the right as scratch tabs — navigating replaces the active one in place unless "Open in New Tab" is used.
+- **The full tab set persists and syncs** — closing Pommora never resets your tabs; they reopen (cold) on relaunch and travel across devices. Warm view-state (scroll, undo) is session-only; heading folds re-fold from their durable per-page store.
+- **Lifecycle:** closing the active tab focuses the most-recently-used tab; the close `×` shows only on unpinned tabs (unpin first to close a pin); a deleted entity's unpinned tab closes while its pinned tab render-hides (the pin file stays); the last tab closing drops to NavView. Opening an entity already in a tab focuses that tab — never a duplicate.
+- **Interaction:** within-zone drag reorders (pinned among pinned, unpinned among unpinned); `Ctrl`+`Tab` / `Ctrl`+`Shift`+`Tab` cycles all tabs; a tab's right-click menu offers Pin/Unpin · Close · Close to the Right. A reveal-on-hover setting can hide the bar when idle.
+
+The model + interaction spec, the warm-state mechanism, and the visual knobs → `Planning/Multi-Tab Nexus — Decision Log.md` + `— Implementation Plan.md`.
+
 #### II. Back and Forward
 
-Back and Forward walk a session history of selections, stepping to the previous or next entity and skipping any deleted along the way. A history step re-selects without re-recording, so stepping doesn't reshuffle the history. The toolbar buttons disable at each end. The history is in-memory and session-local — it isn't persisted.
+Back and Forward walk **per-tab** history — each tab owns its own stack, and the toolbar arrows step the active tab, skipping any deleted entities along the way. A history step re-selects without re-recording. On a pinned tab, a Back/Forward step spawns one new tab that inherits the history and navigates there, leaving the pin untouched. History is in-memory and session-local; a tab's history *targets* persist with the set (so Back still works after relaunch, cold), the warm state does not.
+
+#### II. NavPane
+
+The toolbar Navigation button's dropdown — a compact form of the same nav-layer data (recents / pins / search) on the shared beak-glass menu surface, sized to the Settings dropdown's footprint. Its exact content is a design pass; it's the quick-glance sibling to the fuller NavWindow.
+
+#### II. NavView
+
+The new-tab page — a full-window Recents gallery + search bar (the NavWindow gallery scaled up, on the Homepage-shared background). It is the empty state: a `+` opens it, a nexus with no open tabs defaults to it, and closing the last tab lands on it. Picking a card or a search result opens that entity into the tab. NavView shares the gallery component with NavWindow but stays its own surface.
 
 #### II. Breadcrumb
 
-The footer carries a breadcrumb of the current entity's container path, plus a dimmed forward **ghost crumb** for the last-visited Page within the open container — a one-click way back into where you were. Full footer → `Subfield.md`.
-
-#### II. NavPane and NavMenu
-
-Two surfaces over the one layer, same data, different presentation:
-
-- **NavPane** — a non-modal, movable, resizable floating glass mini-shell summoned by the sidebar ribbon's Navigation icon or `⌘O` (rebindable via the `commands` map). It's a `GlassPane` (the dimmer picker frost) that always opens centered — its size persists across opens, its position doesn't — with a glass rail beside a main frame: a search field over the recents list, each row reading (icon)(title … container path) with the title and path each eclipse-scrolling when long, and both lists carrying the shared scroll-edge fade for a list longer than the pane. It resizes from four corners plus a rail split, doesn't steal focus (the search field focuses on open, nothing behind is blocked), and dismisses on Escape, `⌘O`, or the ribbon. Per-row actions (pin / favorite / remove) live in a context menu, not the row.
-- **NavMenu** — the toolbar Navigation button's dropdown, rendered on the shared beak-glass menu surface sized to the Settings dropdown's footprint. Its content is undecided — a placeholder pending the call on what a compact dropdown nav holds versus the fuller NavPane.
-
-The NavPane's row list + shell are built and live; the open visual work is its **gallery** form (the recents as Figma cards, behind the rail's Style toggle), the **pin / current-item marker** on the row inset, and the NavMenu's content.
-
-**Reorder drag differs by view mode.** The **gallery** reorders pins by **displacement** — cards reflow to open a slot (`SortableZone`, built and live). The **list** uses the **sidebar's insertion-line drag** — a drop-line indicator between rows, not displacement (pending, when list-mode reorder lands). The general rule: grid/gallery surfaces displace, list/row surfaces show an insertion line.
+The footer carries a breadcrumb of the active tab's container path, plus a dimmed forward **ghost crumb** for the last-visited Page within the open container — a one-click way back into where you were. Full footer → `Subfield.md`.
 
 ### Pending
 
-**Navigation design + advanced modes:** The Figma-designed content for both surfaces (the gallery cards, the dropdown layout, per-row affordances). NavPane's **preview mode** — a toggle tied to the page open-in setting that slides the pane to an in-pane page preview with a chevron-back to the nav view, rather than routing the main pane. Agenda entries are search-listable now but route nowhere: their card resolution and a compact placeholder preview window belong to Agenda's own feature. Whether the non-Page kinds (Collections, Sets, Contexts, Homepage) show as cards or filter out is an open display call. Body / full-text search (today's is title-only) waits on a query layer. The block-surface Insert / Link-Page picker is a future consumer of this layer's page-filtered recents (→ `SurfacePM.md`).
+**Surface build state:** NavWindow (the overlay) is shipped; its Figma gallery form, the pin/current-item row marker, and the rail content are the open design work. **Toolbar Tabs + NavView** are ratified and the active build (→ `Planning/`); until they land, the main pane is single-pane-replace and the toolbar carries a throwaway tab-strip prototype. **NavPane** (the dropdown) is a placeholder pending its content call.
+
+**Deferred:** NavWindow's in-pane page **preview mode** (a toggle tied to the page open-in setting). Agenda entries are search-listable but route to a placeholder preview window that belongs to Agenda's feature. Body / full-text search (today's is title-only) waits on a query layer. Drag-to-pin across the tab divider, and dragging a tab out into its own window, are Prospects.
