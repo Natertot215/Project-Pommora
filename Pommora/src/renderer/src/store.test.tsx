@@ -162,6 +162,69 @@ describe('store — warm tabs (B-2/B-3)', () => {
     expect(s.pageDetail?.id).toBe('a') // fence held — B never clobbered the shown page
     expect(s.selection).toEqual(pg('a'))
   })
+
+  it('a cold switch pauses on the outgoing view — no loading intermediate, one-commit swap', async () => {
+    let resolveB!: (v: unknown) => void
+    ;(window.nexus.openPage as ReturnType<typeof vi.fn>).mockImplementation(
+      (path: string) => (path === '/b' ? new Promise((r) => (resolveB = r)) : Promise.resolve({ ok: true, page: detail('a') }))
+    )
+    seed({ tabs: [uTab('t1', pg('a'), [pg('a')], 0)], activeTabId: 't1', selection: pg('a'), pageStatus: 'ready', pageDetail: detail('a'), pageFrozen: false })
+    const p = useSession.getState().select(pg('b'))
+    let s = useSession.getState()
+    expect(s.selection).toEqual(pg('a')) // outgoing view still shown
+    expect(s.pageStatus).toBe('ready') // never passes through 'loading'
+    expect(s.pageFrozen).toBe(true) // ...but it's a held frame, not a live surface
+    resolveB({ ok: true, page: detail('b') })
+    await p
+    s = useSession.getState()
+    expect(s.selection).toEqual(pg('b'))
+    expect(s.pageStatus).toBe('ready')
+    expect(s.pageDetail?.id).toBe('b')
+    expect(s.pageFrozen).toBe(false)
+  })
+
+  it('a navigation mid-pause supersedes the fetch — the stale response never lands', async () => {
+    let resolveB!: (v: unknown) => void
+    ;(window.nexus.openPage as ReturnType<typeof vi.fn>).mockImplementation(
+      (path: string) => (path === '/b' ? new Promise((r) => (resolveB = r)) : Promise.resolve({ ok: true, page: detail('a') }))
+    )
+    seed({ tabs: [uTab('t1', pg('a'), [pg('a')], 0)], activeTabId: 't1', selection: pg('a'), pageStatus: 'ready', pageDetail: detail('a'), pageFrozen: false })
+    const p = useSession.getState().select(pg('b')) // paused on A
+    await useSession.getState().select({ kind: 'homepage' }) // user moves on mid-pause
+    let s = useSession.getState()
+    expect(s.selection).toEqual({ kind: 'homepage' })
+    expect(s.pageFrozen).toBe(false)
+    resolveB({ ok: true, page: detail('b') })
+    await p
+    s = useSession.getState()
+    expect(s.selection).toEqual({ kind: 'homepage' }) // the stale B response was dropped
+    expect(s.pageDetail).toBeNull()
+  })
+
+  it('a slow cold fetch falls back to the loading view at the deadline', async () => {
+    vi.useFakeTimers()
+    try {
+      let resolveB!: (v: unknown) => void
+      ;(window.nexus.openPage as ReturnType<typeof vi.fn>).mockImplementation(
+        (path: string) => (path === '/b' ? new Promise((r) => (resolveB = r)) : Promise.resolve({ ok: true, page: detail('a') }))
+      )
+      seed({ tabs: [uTab('t1', pg('a'), [pg('a')], 0)], activeTabId: 't1', selection: pg('a'), pageStatus: 'ready', pageDetail: detail('a'), pageFrozen: false })
+      const p = useSession.getState().select(pg('b'))
+      expect(useSession.getState().pageFrozen).toBe(true)
+      vi.advanceTimersByTime(300) // past the deadline — the loading view takes over
+      let s = useSession.getState()
+      expect(s.selection).toEqual(pg('b'))
+      expect(s.pageStatus).toBe('loading')
+      expect(s.pageFrozen).toBe(false)
+      resolveB({ ok: true, page: detail('b') })
+      await p
+      s = useSession.getState()
+      expect(s.pageStatus).toBe('ready')
+      expect(s.pageDetail?.id).toBe('b')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
 })
 
 /** A minimal tree with one Collection holding the given top-level pages (selection.test.ts's shape). */

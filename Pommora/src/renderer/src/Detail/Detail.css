@@ -16,6 +16,11 @@
   flex: 1;
   min-height: 0;
 }
+/* Cold-switch pause: the outgoing view is a held frame, not a live surface — input can't land on a
+   page that's already being left. */
+.detail-pane-view.is-frozen {
+  pointer-events: none;
+}
 
 /* --- detail pane (lives inside .content-pane, offset past the glass sidebar) --- */
 .detail {

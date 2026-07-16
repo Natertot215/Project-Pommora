@@ -67,6 +67,9 @@ function DetailView(): React.JSX.Element {
  */
 export function DetailPane(): React.JSX.Element {
   const selectionKind = useSession((s) => s.selection.kind)
+  // Cold-switch pause: the outgoing view holds as its last frame, input-frozen, until the incoming
+  // page's fetch lands (or the deadline drops to the loading view) — see store.select's page case.
+  const frozen = useSession((s) => s.pageFrozen)
   const expanded = useSession((s) => s.subfieldExpanded)
   const setExpanded = useSession((s) => s.setSubfieldExpanded)
   // Cursor in the chevron's general area (a large bottom-right region) → reveal the toggle. Tracked
@@ -94,7 +97,7 @@ export function DetailPane(): React.JSX.Element {
       }}
       onMouseLeave={() => setNear(false)}
     >
-      <div className="detail-pane-view">
+      <div className={frozen ? 'detail-pane-view is-frozen' : 'detail-pane-view'}>
         <DetailView />
       </div>
       {showSubfield && (
