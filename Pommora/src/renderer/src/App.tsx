@@ -7,12 +7,13 @@ import { DetailPane } from './Detail/DetailPane'
 import { Toolbar } from './Toolbar/Toolbar'
 import { InspectorPanel } from './Detail/InspectorPanel/InspectorPanel'
 import { NavWindow } from './NavWindow/NavWindow'
+import { contextTargetToSelect } from './Tabs/tabsModel'
 import { useNavThumbnails } from './Navigation/useNavThumbnails'
 import { Icon } from '@renderer/design-system/symbols'
 import { matchesCommand } from './Commands'
 
 export function App(): React.JSX.Element {
-  const { status, tree, error, sidebarVisible, sidebarWidth, setSidebarWidth, inspectorWidth, setInspectorWidth, load, applyTree, applyNavChanged, choose, openDropped, toggleSidebar, ribbonVisible, toggleRibbon, toggleNav, commands, newPage, beginRename } =
+  const { status, tree, error, sidebarVisible, sidebarWidth, setSidebarWidth, inspectorWidth, setInspectorWidth, load, applyTree, applyNavChanged, choose, openDropped, toggleSidebar, ribbonVisible, toggleRibbon, toggleNav, commands, newPage, beginRename, select } =
     useSession()
   useNavThumbnails() // capture-on-open detail-pane thumbnails for the gallery
 
@@ -62,6 +63,14 @@ export function App(): React.JSX.Element {
   useEffect(() => {
     return window.nexus.onBeginRename((path) => beginRename(path))
   }, [beginRename])
+
+  // Context-menu "Open in New Tab" → open into a new tab (dedup focuses an already-open one, I-1).
+  useEffect(() => {
+    return window.nexus.onOpenInNewTab((target) => {
+      if (!target.id) return
+      void select(contextTargetToSelect({ kind: target.kind, id: target.id, path: target.path }), { newTab: true })
+    })
+  }, [select])
 
   // The live filesystem watcher pushed a fresh tree (external change) → swap it in place.
   // Single-window v1: main guards stale pushes by session root; on an in-window nexus

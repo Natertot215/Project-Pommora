@@ -386,6 +386,15 @@ const api = {
       ipcRenderer.removeListener('begin-rename', listener)
     }
   },
+  // The context-menu "Open in New Tab" push-back — the action runs renderer-side (main can't know
+  // the tab set); returns an unsubscribe.
+  onOpenInNewTab: (cb: (target: ContextTarget) => void): (() => void) => {
+    const listener = (_e: IpcRendererEvent, target: ContextTarget): void => cb(target)
+    ipcRenderer.on('open-in-new-tab', listener)
+    return () => {
+      ipcRenderer.removeListener('open-in-new-tab', listener)
+    }
+  },
   // The live watcher pushed fresh nav state (external/synced sidecar or pin change) — no tree walk.
   onNavChanged: (cb: (nav: NavChanged) => void): (() => void) => {
     const listener = (_e: IpcRendererEvent, nav: NavChanged): void => cb(nav)

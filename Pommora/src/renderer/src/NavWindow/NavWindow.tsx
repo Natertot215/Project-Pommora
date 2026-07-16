@@ -88,6 +88,8 @@ function NavWindowBody({ closing }: { closing: boolean }): React.JSX.Element {
   // Selecting from the pane closes it, unless `navCloseOnSelect` is explicitly off (keep it open to browse).
   const closeOnSelect = useSession((s) => s.tree?.personalization.navCloseOnSelect !== false)
   const goClose = (target: NavTarget): void => go(target, closeOnSelect ? closeNav : undefined)
+  // The row/card menu's "Open in New Tab" (D-3) — same reconcile + close-on-select pipeline as a click.
+  const goNewTab = (target: NavTarget): void => go(target, closeOnSelect ? closeNav : undefined, { newTab: true })
   // Rail Style toggle — List ⇄ Gallery. The choice persists across opens (module-scoped, like geo).
   const [viewMode, setViewMode] = useState<'list' | 'gallery'>(savedViewMode)
   const toggleViewMode = (): void =>
@@ -161,7 +163,7 @@ function NavWindowBody({ closing }: { closing: boolean }): React.JSX.Element {
       <div className="navwindow-body">
         <GlassWindow className="navwindow-rail" style={{ background: 'var(--state-muted)' }}>
           <div className="navwindow-rail-list scroll-edge-fade">
-            <NavList items={resolvedFavorites} onSelect={goClose} />
+            <NavList items={resolvedFavorites} onSelect={goClose} onOpenNewTab={goNewTab} />
           </div>
           <button type="button" className={cx('navwindow-style-toggle', text.footnote.emphasized)} onClick={toggleViewMode}>
             <Icon name="chevrons-up-down" size={12} />
@@ -175,11 +177,11 @@ function NavWindowBody({ closing }: { closing: boolean }): React.JSX.Element {
           </div>
           <div className="navwindow-main-scroll scroll-edge-fade">
             {results ? (
-              <NavList items={results.items} extras={results.extras} onSelect={goClose} />
+              <NavList items={results.items} extras={results.extras} onSelect={goClose} onOpenNewTab={goNewTab} />
             ) : viewMode === 'gallery' ? (
-              <NavGallery pins={resolvedPins} items={shownRecents} onSelect={goClose} />
+              <NavGallery pins={resolvedPins} items={shownRecents} onSelect={goClose} onOpenNewTab={goNewTab} />
             ) : (
-              <NavList items={[...resolvedPins, ...shownRecents]} onSelect={goClose} />
+              <NavList items={[...resolvedPins, ...shownRecents]} onSelect={goClose} onOpenNewTab={goNewTab} />
             )}
           </div>
         </div>

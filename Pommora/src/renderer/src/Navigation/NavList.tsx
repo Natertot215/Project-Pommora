@@ -5,8 +5,9 @@ import { text } from '@renderer/design-system/tokens'
 import { OverflowScroll } from '@renderer/design-system/components/OverflowScroll'
 import { PickerMenu } from '@renderer/design-system/components/PickerMenu'
 import { MenuItem, MenuSeparator } from '@renderer/design-system/components/menu'
-import type { NavTarget } from '@shared/types'
+import type { NavTarget, SelectTarget } from '@shared/types'
 import { useSession } from '../store'
+import { isOpenInTabs } from '../Tabs/tabsModel'
 import { navKey } from './navRecents'
 import type { ResolvedNav } from './navResolve'
 import { EntityGlyph } from './EntityGlyph'
@@ -14,14 +15,16 @@ import './navList.css'
 
 const MENU_GLYPH = 13
 
-/** Per-row context menu (Navigation spec: pin / favorite / remove live in a context menu, not the row).
- *  Reuses the app's floating-menu pattern — a self-managed PickerMenu (portal + Bloom + backdrop/Escape
- *  dismiss) of MenuItem rows, hung off a zero-size anchor pinned at the click point. Pin/Favorite labels
- *  flip on live store membership; Remove drops the recents entry. */
-function NavRowMenu({ item, x, y, onClose }: { item: ResolvedNav; x: number; y: number; onClose: () => void }): React.JSX.Element {
+/** Per-row context menu (Navigation spec: open / pin / favorite / remove live in a context menu, not
+ *  the row). Reuses the app's floating-menu pattern — a self-managed PickerMenu (portal + Bloom +
+ *  backdrop/Escape dismiss) of MenuItem rows, hung off a zero-size anchor pinned at the click point.
+ *  Open/Pin/Favorite labels flip on live store membership; Remove drops the recents entry. Shared by
+ *  the NavWindow list AND gallery (the D-3 in-renderer points). */
+export function NavRowMenu({ item, x, y, onClose, onOpenNewTab }: { item: ResolvedNav; x: number; y: number; onClose: () => void; onOpenNewTab?: (target: NavTarget) => void }): React.JSX.Element {
   const anchorRef = useRef<HTMLSpanElement>(null)
   const isPinned = useSession((s) => s.pins.some((p) => navKey(p) === item.key))
   const isFavorite = useSession((s) => s.favorites.some((f) => navKey(f) === item.key))
+  const alreadyOpen = useSession((s) => isOpenInTabs(s.tabs, s.pins, item.target as SelectTarget))
   const pinTarget = useSession((s) => s.pinTarget)
   const unpinTarget = useSession((s) => s.unpinTarget)
   const addFavorite = useSession((s) => s.addFavorite)
@@ -37,6 +40,14 @@ function NavRowMenu({ item, x, y, onClose }: { item: ResolvedNav; x: number; y: 
       <span ref={anchorRef} aria-hidden style={{ position: 'fixed', left: x, top: y, width: 0, height: 0 }} />
       <PickerMenu open onDismiss={onClose} triggerRef={anchorRef} center>
         <div className="nav-row-menu">
+          {onOpenNewTab && (
+            <>
+              <MenuItem leading={<Icon name="copy" size={MENU_GLYPH} />} onClick={act(() => onOpenNewTab(item.target))}>
+                {alreadyOpen ? 'Open' : 'Open in New Tab'}
+              </MenuItem>
+              <MenuSeparator flush />
+            </>
+          )}
           <MenuItem
             leading={<Icon name={isPinned ? 'pin-off' : 'pin'} size={MENU_GLYPH} />}
             onClick={act(() => (isPinned ? unpinTarget(item.key) : pinTarget(item.target)))}
@@ -65,12 +76,15 @@ function NavRowMenu({ item, x, y, onClose }: { item: ResolvedNav; x: number; y: 
 export function NavList({
   items,
   extras,
-  onSelect
+  onSelect,
+  onOpenNewTab
 }: {
   items: ResolvedNav[]
   /** Unresolvable hits (agenda kinds) — listed inert until Agenda routing ships. */
   extras?: { key: string; title: string; kind: string }[]
   onSelect: (target: NavTarget) => void
+  /** Wires the row menu's "Open in New Tab" (D-3); omitted = the item doesn't render. */
+  onOpenNewTab?: (target: NavTarget) => void
 }): React.JSX.Element | null {
   const [menu, setMenu] = useState<{ item: ResolvedNav; x: number; y: number } | null>(null)
   if (items.length === 0 && !extras?.length) return null
@@ -107,7 +121,7 @@ export function NavList({
           </li>
         ))}
       </ul>
-      {menu && <NavRowMenu item={menu.item} x={menu.x} y={menu.y} onClose={() => setMenu(null)} />}
+      {menu && <NavRowMenu item={menu.item} x={menu.x} y={menu.y} onClose={() => setMenu(null)} onOpenNewTab={onOpenNewTab} />}
     </>
   )
 }

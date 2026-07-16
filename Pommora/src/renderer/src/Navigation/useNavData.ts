@@ -30,7 +30,7 @@ export function useNavData(): {
   resolvedFavorites: ResolvedNav[]
   resolvedPins: ResolvedNav[]
   search: (query: string) => SearchResult[]
-  go: (target: NavTarget, onDone?: () => void) => void
+  go: (target: NavTarget, onDone?: () => void, opts?: { newTab?: boolean }) => void
 } {
   const tree = useSession((s) => s.tree)
   const recents = useSession((s) => s.recents)
@@ -66,14 +66,14 @@ export function useNavData(): {
   )
 
   const go = useCallback(
-    (target: NavTarget, onDone?: () => void): void => {
+    (target: NavTarget, onDone?: () => void, opts?: { newTab?: boolean }): void => {
       if (!isTreeTarget(target)) return
       // A durable pin's stored path can be stale (its entity moved/renamed since) — reconcile by id
       // against the live tree before opening, as Back/Forward do. If reconcile can't resolve it
       // (`none` — a genuinely-gone entity, or a reconcile miss), fall back to the original target so
       // the click still navigates rather than silently doing nothing.
       const reconciled = tree ? reconcileSelection(tree, target) : target
-      void select(reconciled.kind === 'none' ? target : reconciled)
+      void select(reconciled.kind === 'none' ? target : reconciled, opts?.newTab ? { newTab: true } : undefined)
       onDone?.()
     },
     [select, tree]

@@ -5,6 +5,7 @@
 // predicate path (D-3b).
 
 import type { PinEntry, SelectTarget, Tab, TabTarget } from '@shared/types'
+import type { MutableKind } from '@shared/mutate'
 import { navKey } from '../Navigation/navRecents'
 import { byOrder, cleanPinTarget } from '../Navigation/navPins'
 
@@ -32,6 +33,27 @@ export function derivePinnedTabs(pins: PinEntry[]): Tab[] {
     .map(cleanPinTarget)
     .filter((t): t is SelectTarget => t.kind !== 'task' && t.kind !== 'event')
     .map((target) => tabFor(pinTabId(target), target))
+}
+
+/** Whether an entity is already open — as an unpinned tab or a pin (a derived pinned tab). Drives
+ *  the stateful "Open" vs "Open in New Tab" menu labels (I-1). */
+export function isOpenInTabs(tabs: Tab[], pins: PinEntry[], target: SelectTarget): boolean {
+  const key = navKey(target)
+  return tabs.some((t) => t.target.kind !== 'newtab' && navKey(t.target) === key) || pins.some((p) => navKey(p) === key)
+}
+
+/** Map a context-menu target to its drivable selection (area/topic/project collapse to `context`). */
+export function contextTargetToSelect(t: { kind: MutableKind; id: string; path: string }): SelectTarget {
+  switch (t.kind) {
+    case 'page':
+      return { kind: 'page', id: t.id, path: t.path }
+    case 'set':
+      return { kind: 'set', id: t.id, path: t.path }
+    case 'collection':
+      return { kind: 'collection', id: t.id }
+    default:
+      return { kind: 'context', id: t.id }
+  }
 }
 
 /** Whether a tab is pinned — derived from the pins set, never stored (C-6). The newtab sentinel is

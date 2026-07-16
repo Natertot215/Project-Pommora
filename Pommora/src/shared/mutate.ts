@@ -97,4 +97,9 @@ export interface ContextTarget {
   /** Nexus-relative POSIX path (PathNode.path). */
   path: string
   title: string
+  /** Entity id — lets the menu offer "Open in New Tab" (the push-back forms a real tab target).
+   *  Surfaces without one simply don't get the item. */
+  id?: string
+  /** Whether the entity is already open in a tab — flips the item label to "Open" (focus, I-1). */
+  alreadyOpen?: boolean
 }

@@ -9,6 +9,7 @@ import { useSession } from '../store'
 import { navKey } from '../Navigation/navRecents'
 import type { ResolvedNav } from '../Navigation/navResolve'
 import { EntityGlyph } from '../Navigation/EntityGlyph'
+import { NavRowMenu } from '../Navigation/NavList'
 import './navGallery.css'
 
 // The gallery view over the same nav data as NavList: pinned cards (reorderable) in one flow above the
@@ -18,9 +19,16 @@ import './navGallery.css'
 
 const thumbFile = (key: string): string => key.replace(':', '-')
 
-export function NavGallery({ pins, items, onSelect }: { pins: ResolvedNav[]; items: ResolvedNav[]; onSelect: (target: NavTarget) => void }): React.JSX.Element {
+export function NavGallery({ pins, items, onSelect, onOpenNewTab }: { pins: ResolvedNav[]; items: ResolvedNav[]; onSelect: (target: NavTarget) => void; onOpenNewTab?: (target: NavTarget) => void }): React.JSX.Element {
   const reorderPin = useSession((s) => s.reorderPin)
   const nexusId = useSession((s) => s.tree?.nexus.id ?? '')
+  // The cards share NavList's row menu (D-3's gallery point) — same items, same open/pin/favorite state.
+  const [menu, setMenu] = useState<{ item: ResolvedNav; x: number; y: number } | null>(null)
+  const openMenu = (it: ResolvedNav, e: React.MouseEvent): void => {
+    e.preventDefault()
+    e.stopPropagation()
+    setMenu({ item: it, x: e.clientX, y: e.clientY })
+  }
   // One grid, one flow: pinned cards first (draggable to reorder), recents straight after them. Only
   // the pins register with the zone, so a drag reorders pins; the recents sit static in the same flow.
   return (
@@ -28,23 +36,24 @@ export function NavGallery({ pins, items, onSelect }: { pins: ResolvedNav[]; ite
       <SortableZone items={pins.map((p) => p.key)} layout="grid" onReorder={(a, o) => reorderPin(a, o)}>
         <div className="nav-gallery-grid">
           {pins.map((it) => (
-            <PinnedCard key={it.key} it={it} nexusId={nexusId} onSelect={onSelect} />
+            <PinnedCard key={it.key} it={it} nexusId={nexusId} onSelect={onSelect} onMenu={openMenu} />
           ))}
           {items.map((it) => (
-            <GalleryCard key={it.key} it={it} nexusId={nexusId} onSelect={onSelect} />
+            <GalleryCard key={it.key} it={it} nexusId={nexusId} onSelect={onSelect} onMenu={openMenu} />
           ))}
         </div>
       </SortableZone>
+      {menu && <NavRowMenu item={menu.item} x={menu.x} y={menu.y} onClose={() => setMenu(null)} onOpenNewTab={onOpenNewTab} />}
     </div>
   )
 }
 
-function PinnedCard(props: { it: ResolvedNav; nexusId: string; onSelect: (t: NavTarget) => void }): React.JSX.Element {
+function PinnedCard(props: { it: ResolvedNav; nexusId: string; onSelect: (t: NavTarget) => void; onMenu: (it: ResolvedNav, e: React.MouseEvent) => void }): React.JSX.Element {
   const drag = useDragItem(props.it.key)
   return <GalleryCard {...props} drag={drag} />
 }
 
-function GalleryCard({ it, nexusId, onSelect, drag }: { it: ResolvedNav; nexusId: string; onSelect: (t: NavTarget) => void; drag?: DragItem }): React.JSX.Element {
+function GalleryCard({ it, nexusId, onSelect, onMenu, drag }: { it: ResolvedNav; nexusId: string; onSelect: (t: NavTarget) => void; onMenu: (it: ResolvedNav, e: React.MouseEvent) => void; drag?: DragItem }): React.JSX.Element {
   const selection = useSession((s) => s.selection)
   const version = useSession((s) => s.thumbVersions[it.key] ?? 0)
   const pinTarget = useSession((s) => s.pinTarget)
@@ -82,6 +91,7 @@ function GalleryCard({ it, nexusId, onSelect, drag }: { it: ResolvedNav; nexusId
       })}
       className={cx('nav-gallery-card', active && 'is-active', drag?.isDragging && 'is-dragging')}
       onClick={open}
+      onContextMenu={(e) => onMenu(it, e)}
     >
       <div className="nav-gallery-card-body hover-pop">
         <div className="nav-gallery-thumb">
