@@ -34,11 +34,11 @@ Callouts (`> [!callout]` boxes that render nested syntax inside). The Collection
 
 The table's full interaction layer. First the per-type cell gesture matrix — the title navigates, every value cell owns its click through the shared picker/editor surfaces — with per-view column styles, the Apple overflow model (fixed tracks, whole-view h-scroll past the pane, the conditional inspector), and the DRY overflow-scroll mechanism. Then **band drag**: group bands reorder per-view by their glyph (manual-only, view-owned order) and Set bands reparent across the tree as real folder moves; Esc aborts every drag surface.
 
+#### Multi-Tab Nexus (07-15 → 07-16)
+
+Warm, state-preserving **Toolbar Tabs** superseded single-pane-replace: a persisted, cross-device-synced working set of open entities — pinned (the `.nexus/pins/` set, left-docked) plus unpinned scratch tabs — each keeping its own session scroll + undo and its own Back/Forward, with one view mounted at a time (a serialized warm cache rehydrated instantly on switch). The empty state became **NavView** (a full-window gallery + search), "Open in New Tab" landed across four stateful menu points, and the nav surfaces renamed for the model — **NavWindow** (the floating overlay), **NavPane** (the toolbar dropdown), **NavView** (the new-tab page).
+
 ### II. Upcoming (Toward v1.0.0)
-
-#### Multi-Tab Nexus (active — reprioritized ahead of the remaining Views work)
-
-Warm, state-preserving **Toolbar Tabs** replace single-pane-replace: a persisted, cross-device-synced working set of open entities — pinned (the existing `.nexus/pins/` set, left-docked) plus unpinned scratch tabs — each keeping its own scroll + undo within a session and its own Back/Forward. One view mounted at a time (a serialized warm cache rehydrated on switch); the empty state becomes **NavView** (a full-window gallery + search). The nav surfaces are renamed for the model — **NavWindow** (the floating overlay), **NavPane** (the toolbar dropdown), **NavView** (the new-tab page). Opens the navigation system's deferred paradigm fork (single-pane-replace vs tabs). Ratified spec + implementation plan in `Planning/` (`Multi-Tab Nexus — Decision Log` + `— Implementation Plan`).
 
 #### v0.5.0 — Views Complete + Properties UI
 

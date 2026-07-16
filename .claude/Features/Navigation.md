@@ -32,12 +32,13 @@ The navigation model: a tab bar in the toolbar holding your open working set, ea
 - **The full tab set persists and syncs** — closing Pommora never resets your tabs; they reopen (cold) on relaunch and travel across devices. Warm view-state (scroll, undo) is session-only; heading folds re-fold from their durable per-page store.
 - **Lifecycle:** closing the active tab focuses the most-recently-used tab; the close `×` shows only on unpinned tabs (unpin first to close a pin); a deleted entity's unpinned tab closes while its pinned tab render-hides (the pin file stays); the last tab closing drops to NavView. Opening an entity already in a tab focuses that tab — never a duplicate.
 - **Interaction:** within-zone drag reorders (pinned among pinned, unpinned among unpinned); `Ctrl`+`Tab` / `Ctrl`+`Shift`+`Tab` cycles all tabs; a tab's right-click menu offers Pin/Unpin · Close · Close to the Right. A reveal-on-hover setting can hide the bar when idle.
+- **Iconography:** tab icons resolve live like every nav surface — the Homepage tab wears the nexus photo (the home glyph only when none is set), and a NavView tab reads "New Tab" under the copy glyph.
 
 The model + interaction spec, the warm-state mechanism, and the visual knobs → `Planning/Multi-Tab Nexus — Decision Log.md` + `— Implementation Plan.md`.
 
 #### II. Back and Forward
 
-Back and Forward walk **per-tab** history — each tab owns its own stack, and the toolbar arrows step the active tab, skipping any deleted entities along the way. A history step re-selects without re-recording. On a pinned tab, a Back/Forward step spawns one new tab that inherits the history and navigates there, leaving the pin untouched. History is in-memory and session-local; a tab's history *targets* persist with the set (so Back still works after relaunch, cold), the warm state does not.
+Back and Forward walk **per-tab** history — each tab owns its own stack, and the toolbar arrows step the active tab, skipping any deleted entities along the way. A history step re-selects without re-recording. History belongs to the unpinned strip: a pinned tab holds none (its content never changes in place), so the arrows disable there. A tab's history *targets* persist with the set (so Back still works after relaunch, cold); the warm state is session-only.
 
 #### II. NavPane
 
@@ -53,6 +54,6 @@ The footer carries a breadcrumb of the active tab's container path, plus a dimme
 
 ### Pending
 
-**Surface build state:** NavWindow (the overlay) is shipped; its Figma gallery form, the pin/current-item row marker, and the rail content are the open design work. **Toolbar Tabs + NavView** are ratified and the active build (→ `Planning/`); until they land, the main pane is single-pane-replace and the toolbar carries a throwaway tab-strip prototype. **NavPane** (the dropdown) is a placeholder pending its content call.
+**Surface build state:** NavWindow (the overlay), **Toolbar Tabs**, and **NavView** are shipped; NavWindow's Figma gallery form, the pin/current-item row marker, and the rail content are the open design work. **NavPane** (the dropdown) is a placeholder pending its content call.
 
 **Deferred:** NavWindow's in-pane page **preview mode** (a toggle tied to the page open-in setting). Agenda entries are search-listable but route to a placeholder preview window that belongs to Agenda's feature. Body / full-text search (today's is title-only) waits on a query layer. Drag-to-pin across the tab divider, and dragging a tab out into its own window, are Prospects.
