@@ -13,9 +13,9 @@ export const DEFAULT_NEW_NAME = 'Untitled'
 export type MutableKind = 'page' | 'collection' | 'set' | 'area' | 'topic' | 'project'
 
 /** The entities that can own a banner image: Collections + Sets + the three context tiers
- *  (folder sidecars), the homepage singleton (`.nexus/homepage.json`), and a page (whose banner
- *  is the Swift-compatible `cover` field in its `.md` frontmatter). */
-export type BannerOwnerKind = 'collection' | 'set' | 'area' | 'topic' | 'project' | 'homepage' | 'page'
+ *  (folder sidecars), the homepage + NavView singletons (`.nexus/homepage.json` / `.nexus/navview.json`),
+ *  and a page (whose banner is the Swift-compatible `cover` field in its `.md` frontmatter). */
+export type BannerOwnerKind = 'collection' | 'set' | 'area' | 'topic' | 'project' | 'homepage' | 'navview' | 'page'
 
 /** A folder container a page or sub-container can be created inside. These match their
  *  SidecarKind names exactly, so main passes them straight to createFolderEntity. */

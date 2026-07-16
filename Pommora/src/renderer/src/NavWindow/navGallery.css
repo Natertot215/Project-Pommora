@@ -140,7 +140,7 @@
 .nav-gallery-title {
   gap: 5px;
   color: var(--label-primary);
-  --eclipse-fade: 14px;
+  --edge-fade: 14px;
   --scroll-fade: 14px;
 }
 .nav-gallery-title-icon {
@@ -149,7 +149,7 @@
 }
 .nav-gallery-loc {
   color: var(--label-secondary);
-  --eclipse-fade: 14px;
+  --edge-fade: 14px;
   --scroll-fade: 14px;
 }
 /* Typography scales with the card: cqi = 1% of the card's width (the card is the query container), so

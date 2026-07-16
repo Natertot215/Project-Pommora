@@ -159,8 +159,6 @@ interface SessionState {
   openNewTab: () => void
   /** Close a tab — MRU-focus the next (D-9); reseed a NavView when the last closes (I-5). */
   closeTab: (id: string) => void
-  /** Close every unpinned tab right of `id` (I-12). */
-  closeTabsRight: (id: string) => void
   /** Reorder within the unpinned strip (D-4b) — pinned reorder is the pins slice's reorderPin. */
   reorderTabs: (activeId: string, overId: string) => void
   /** Pin an unpinned tab: the entity joins the pins set and the tab graduates to the derived pinned
@@ -172,6 +170,9 @@ interface SessionState {
   /** Step the ACTIVE tab's own Back/Forward history (D-7), skipping deleted entries. */
   goBack: () => void
   goForward: () => void
+  /** Transient Back/Forward stamp — the active tab slides its swapped content in the step's
+   *  direction (seq re-triggers on every step). */
+  navSlide: { tabId: string; dir: 'back' | 'forward'; seq: number } | null
 
   /** Navigation layer (recents + favorites) — the shared, UI-agnostic wayfinding state NavWindow +
    *  NavPane read. Persisted per-nexus (synced) via the `nav` bridge; the store owns the arrays and
@@ -204,6 +205,9 @@ interface SessionState {
   /** Reorder within the recents flow (gallery drag) — the nudge becomes the persisted order; a later
    *  visit only re-fronts the one visited entry (recordRecent). */
   reorderRecent: (activeKey: string, overKey: string) => void
+  /** Persist an explicit recents order (the NavWindow's frozen-view drag): the listed keys take that
+   *  exact relative order; unlisted (newer) entries keep their MRU slots ahead of them. */
+  setRecentsOrder: (keys: string[]) => void
   /** Cached `agenda:list` snapshot for search — a full disk walk, so it's fetched ONCE and reused
    *  across summons, invalidated on any tree push + nexus switch. Null until first fetched. */
   agendaSnapshot: { tasks: AgendaEntry[]; events: AgendaEntry[] } | null
@@ -310,7 +314,7 @@ export const useSession = create<SessionState>((set, get) => {
     void window.nexus.tabs.save({ tabs: s.tabs, activeTabId: s.activeTabId }).catch(() => undefined)
   }
 
-  // Commit a tab-model result (close / close-right / tree-reconcile share this tail): only refetch the
+  // Commit a tab-model result (close / tree-reconcile share this tail): only refetch the
   // detail when the active tab actually changed, and always persist. Warm-drops are per-caller (each
   // drops a different set) and order-independent of this commit, so they stay at the call site.
   const applyTabResult = (r: { tabs: Tab[]; activeTabId: string; mru: string[] }): void => {
@@ -366,7 +370,10 @@ export const useSession = create<SessionState>((set, get) => {
       captureOutgoingDetail() // the entry being left stays warm for the return trip (I-7)
       // target moves in lockstep with navIndex — openTab's dedup keys off `target`, so a stale one
       // would mis-dedup the very next click on the shown entity (destroying the Forward stack).
-      set({ tabs: get().tabs.map((t) => (t.id === active.id ? { ...t, navIndex: i, target: resolved } : t)) })
+      set({
+        tabs: get().tabs.map((t) => (t.id === active.id ? { ...t, navIndex: i, target: resolved } : t)),
+        navSlide: { tabId: active.id, dir: delta < 0 ? 'back' : 'forward', seq: (s.navSlide?.seq ?? 0) + 1 }
+      })
       void get().select(resolved, { record: false })
       persistTabs()
       return
@@ -655,6 +662,7 @@ export const useSession = create<SessionState>((set, get) => {
     tabMru: [],
     goBack: () => stepActiveHistory(-1),
     goForward: () => stepActiveHistory(1),
+    navSlide: null,
     activateTab: (id) => {
       if (get().activeTabId === id) return
       captureOutgoingDetail()
@@ -676,22 +684,6 @@ export const useSession = create<SessionState>((set, get) => {
       const res = closeTabModel(s.tabs, s.activeTabId, s.tabMru, pinnedIds, id, makeTabId())
       dropWarmTab(id) // a closed tab's warm stack dies with it
       applyTabResult(res)
-    },
-    // One batched close (I-12) — iterating closeTab would refocus (and re-fetch) once per
-    // intermediate MRU hop when the active tab sits inside the closed range.
-    closeTabsRight: (id) => {
-      const s = get()
-      const from = s.tabs.findIndex((t) => t.id === id)
-      if (from === -1 || from === s.tabs.length - 1) return
-      const closed = new Set(s.tabs.slice(from + 1).map((t) => t.id))
-      const tabs = s.tabs.filter((t) => !closed.has(t.id))
-      const mru = s.tabMru.filter((m) => !closed.has(m))
-      const activeClosed = closed.has(s.activeTabId)
-      const pinnedIds = derivePinnedTabs(s.pins).map((t) => t.id)
-      const live = new Set([...pinnedIds, ...tabs.map((t) => t.id)])
-      const active = activeClosed ? (mru.find((m) => live.has(m)) ?? id) : s.activeTabId
-      for (const cid of closed) dropWarmTab(cid)
-      applyTabResult({ tabs, activeTabId: active, mru })
     },
     reorderTabs: (activeId, overId) => {
       const s = get()
@@ -767,7 +759,8 @@ export const useSession = create<SessionState>((set, get) => {
       if (!live.has(s.activeTabId)) {
         const focus = s.tabMru.find((id) => live.has(id)) ?? s.tabs[0]?.id ?? derivePinnedTabs(s.pins)[0]?.id
         if (focus !== undefined) {
-          set({ activeTabId: focus, tabMru: s.tabMru.filter((id) => live.has(id)) })
+          // pushMru covers the fallback focus (a tab absent from the MRU) — the top must be the active.
+          set({ activeTabId: focus, tabMru: pushMru(s.tabMru.filter((id) => live.has(id)), focus) })
           syncActiveDetail()
         }
       }
@@ -818,6 +811,20 @@ export const useSession = create<SessionState>((set, get) => {
       next.splice(to, 0, moved)
       set({ recents: next })
       void window.nexus.nav.saveRecents(next, true) // immediate, like the pin toggle
+    },
+    setRecentsOrder: (keys) => {
+      // The frozen NavWindow view can lag the store (a click re-fronts its entry mid-open), so an
+      // (active, over) splice against the LIVE order lands elsewhere than the drop showed. Writing the
+      // shown order wholesale is the faithful commit; entries recorded since the snapshot (unlisted)
+      // keep their newer MRU slots ahead of it.
+      const s = get()
+      const pos = new Map(keys.map((k, i) => [k, i]))
+      const listed = s.recents.filter((r) => pos.has(navKey(r)))
+      listed.sort((a, b) => (pos.get(navKey(a)) ?? 0) - (pos.get(navKey(b)) ?? 0))
+      const next = [...s.recents.filter((r) => !pos.has(navKey(r))), ...listed]
+      if (next.every((r, i) => r === s.recents[i])) return
+      set({ recents: next })
+      void window.nexus.nav.saveRecents(next, true)
     },
     agendaSnapshot: null,
     ensureAgendaSnapshot: async () => {

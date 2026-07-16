@@ -26,7 +26,7 @@
   background: var(--state-hover);
 }
 .nav-item.is-dragging {
-  opacity: 0.85;
+  opacity: var(--drag-muted);
 }
 .nav-item-main {
   flex: 1;
@@ -52,7 +52,7 @@
   min-width: 0;
   font-size: 13px;
   color: var(--label-primary);
-  --eclipse-fade: 16px;
+  --edge-fade: 16px;
   --scroll-fade: 16px;
 }
 .nav-item-path {
@@ -61,7 +61,7 @@
   max-width: 55%;
   margin-left: auto;
   color: var(--label-secondary);
-  --eclipse-fade: 16px;
+  --edge-fade: 16px;
   --scroll-fade: 16px;
 }
 .nav-path-icon {

@@ -105,7 +105,7 @@ Plus **Toolbar Tabs** — the tab bar itself and the multi-tab model this log sp
 - **I-9:** [confirmed] **NavWindow preview-mode coexists** with tabs — an ephemeral peek that opens no tab and doesn't touch Back/Forward.
 - **I-10:** [confirmed] **Nexus switch** — the current nexus's full tab set persists to its synced sidecar, the new nexus's set loads (its pinned tabs from that nexus's `.nexus/pins/`); returning restores its tabs. The in-memory reset mirrors the nav-layer's per-nexus reset, backed by the persisted set.
 - **I-11:** [confirmed] **Keyboard = tab-cycling only** — `Ctrl`+`Tab` / `Ctrl`+`Shift`+`Tab` (the one signed-off binding), wraps, includes all tabs. No `⌘T`/`⌘W`/`⌘1–9`.
-- **I-12:** [confirmed] **The tab's own right-click menu = Pin/Unpin · Close · Close to the Right.** No "Close Others," no "Duplicate" (Duplicate contradicts the no-dupes rule).
+- **I-12:** [confirmed] **The tab's own right-click menu = Pin/Unpin · Close.** No "Close Others," no "Close to the Right," no "Duplicate" (Duplicate contradicts the no-dupes rule).
 - **I-13:** [confirmed] **v1 pins via the affordance + menu only.** Within-zone reorder drag ships (D-4b); cross-divider drag-to-pin is a Prospect — the cross-zone engine is vertical + portal-overlay, so a horizontal pinned│unpinned handoff is bespoke engine work not worth blocking core. Unpin (affordance/menu) follows the D-11 promote-to-front rule.
 - **I-14:** [confirmed] A container/context tab's warm state = scroll only (undo/fold are page-editor-only); close is the hover-`×` (+ tab menu) only, no middle-click.
 

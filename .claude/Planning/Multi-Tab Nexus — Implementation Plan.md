@@ -162,7 +162,7 @@ Stateful: already-open → "Open" (focus); else "Open in New Tab" (I-1) — **la
 
 ### Task 4.3 — Within-zone drag + tab menu + cycling
 - **Within-zone reorder only** = single-zone `SortableZone` reflow, per zone (pinned↔pinned via `reorderPin`, unpinned↔unpinned). No cross-divider drag (Prospect).
-- `Tabs/TabContextMenu.tsx` (in-renderer `PickerMenu`): Pin/Unpin · Close · Close to the Right (I-12).
+- `Tabs/TabContextMenu.tsx` (in-renderer `PickerMenu`): Pin/Unpin · Close (I-12).
 - `Ctrl`+`Tab`/`Shift` → `cycle`, wraps, all tabs (I-11).
 
 **Gate 4:** interactive tab bar; §J repass verified; pinned overflow + `+`/`×` gutter resolved. **Per-phase review:** build-breaker + simplifier + a screenshot pass.

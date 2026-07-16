@@ -3,7 +3,7 @@ import { Icon } from '@renderer/design-system/symbols'
 import { cx } from '@renderer/design-system/cx'
 import { text } from '@renderer/design-system/tokens'
 import { OverflowScroll } from '@renderer/design-system/components/OverflowScroll'
-import { SortableZone, useDragItem, type DragItem } from '@renderer/design-system/interactions/drag'
+import { TableRowDnd, useTableRowDrag } from '../Detail/Views/Table/tableDnd'
 import { PickerMenu } from '@renderer/design-system/components/PickerMenu'
 import { MenuItem, MenuSeparator } from '@renderer/design-system/components/menu'
 import type { NavTarget, SelectTarget } from '@shared/types'
@@ -88,29 +88,27 @@ export function NavRowMenu({ item, x, y, onClose, onOpenNewTab }: { item: Resolv
   )
 }
 
+type RowDrag = ReturnType<typeof useTableRowDrag>
+
 // One row: (icon)(title) … (path). Title takes the slack and eclipse-scrolls under the path when long;
 // the path is right-aligned, grows left to a max, then eclipse-scrolls itself — both via OverflowScroll.
-// The whole row is the drag surface + click target (a real drag is guarded off the click); when not in a
-// zone, `drag` is undefined and it falls back to a button-role focusable row (a11y kept).
-function NavRow({ it, drag, onSelect, onMenu }: { it: ResolvedNav; drag?: DragItem; onSelect: (t: NavTarget) => void; onMenu: (it: ResolvedNav, e: React.MouseEvent) => void }): React.JSX.Element {
+// The whole row is the drag surface + click target (the drop-line gesture suppresses the post-drag
+// click itself); every row is a button-role focusable row, draggable or not.
+function NavRow({ it, drag, onSelect, onMenu }: { it: ResolvedNav; drag?: RowDrag; onSelect: (t: NavTarget) => void; onMenu: (it: ResolvedNav, e: React.MouseEvent) => void }): React.JSX.Element {
   return (
     <li
-      ref={drag?.setNodeRef}
-      style={drag?.style}
-      {...(drag?.handle ?? {
-        role: 'button',
-        tabIndex: 0,
-        onKeyDown: (e: React.KeyboardEvent) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault()
-            onSelect(it.target)
-          }
+      ref={drag?.ref}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e: React.KeyboardEvent) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          onSelect(it.target)
         }
-      })}
-      className={cx('nav-item', drag?.isDragging && 'is-dragging')}
-      onClick={() => {
-        if (!drag?.isDragging) onSelect(it.target)
       }}
+      {...drag?.handle}
+      className={cx('nav-item', drag?.isDragging && 'is-dragging')}
+      onClick={() => onSelect(it.target)}
       onContextMenu={(e) => {
         e.preventDefault()
         onMenu(it, e)
@@ -127,15 +125,17 @@ function NavRow({ it, drag, onSelect, onMenu }: { it: ResolvedNav; drag?: DragIt
 }
 
 function DraggableRow(props: { it: ResolvedNav; onSelect: (t: NavTarget) => void; onMenu: (it: ResolvedNav, e: React.MouseEvent) => void }): React.JSX.Element {
-  const drag = useDragItem(props.it.key)
+  const drag = useTableRowDrag(props.it.key)
   return <NavRow {...props} drag={drag} />
 }
 
-// The row list NavWindow renders. `reorderable` splits pins / recents into two independent SortableZones
-// (a drag never crosses the boundary), mirroring the gallery — otherwise a plain, static list (favorites
-// rail, search results).
+// The row list NavWindow renders. `reorderable` runs the app's drop-line gesture (the table/settings
+// row drag): an accent insertion line marks the slot, the lifted row mutes in place, nothing displaces.
+// Pins and recents are separate groups — reassign is off, so a drag never crosses the boundary. Otherwise
+// a plain, static list (favorites rail, search results).
 export function NavList({
   items,
+  pins,
   extras,
   reorderable,
   onReorderRecent,
@@ -143,9 +143,12 @@ export function NavList({
   onOpenNewTab
 }: {
   items: ResolvedNav[]
+  /** Reorderable only: the durable pins, rendered as their own group above `items` (the recents) —
+   *  membership comes from the caller's pin set, never a flag on the rows (mirrors NavGallery). */
+  pins?: ResolvedNav[]
   /** Unresolvable hits (agenda kinds) — listed inert until Agenda routing ships. */
   extras?: { key: string; title: string; kind: string }[]
-  /** Split pins/recents into drag-reorder zones (pins→reorderPin, recents→reorderRecent). */
+  /** Run the drop-line drag: pins→reorderPin, recents→reorderRecent, never across the boundary. */
   reorderable?: boolean
   /** Host override for the recents reorder (NavWindow rewrites its frozen snapshot too). */
   onReorderRecent?: (activeKey: string, overKey: string) => void
@@ -158,33 +161,54 @@ export function NavList({
   const reorderRecent = onReorderRecent ?? reorderRecentStore
   const [menu, setMenu] = useState<{ item: ResolvedNav; x: number; y: number } | null>(null)
   const openMenu = (it: ResolvedNav, e: React.MouseEvent): void => setMenu({ item: it, x: e.clientX, y: e.clientY })
-  if (items.length === 0 && !extras?.length) return null
-  const pins = reorderable ? items.filter((i) => i.pinned) : []
-  const recents = reorderable ? items.filter((i) => !i.pinned) : []
+  const pinRows = reorderable ? (pins ?? []) : []
+  if (items.length === 0 && pinRows.length === 0 && !extras?.length) return null
+  const recents = reorderable ? items : []
+
+  // Translate the gesture's order-shaped commit into the stores' (active, over) shape: `over` is the
+  // old order's occupant of the index the dragged row landed on — the exact splice the stores perform.
+  const commitReorder = (orderIds: string[], groupKey: string, activeId: string): void => {
+    const group = groupKey === 'pins' ? pinRows : recents
+    const keys = new Set(group.map((g) => g.key))
+    const nextOrder = orderIds.filter((id) => keys.has(id))
+    const over = group[nextOrder.indexOf(activeId)]?.key
+    if (!over || over === activeId) return
+    ;(groupKey === 'pins' ? reorderPin : reorderRecent)(activeId, over)
+  }
+
+  const list = (
+    <ul className="nav-list">
+      {(reorderable ? [...pinRows, ...recents] : items).map((it) =>
+        reorderable ? (
+          <DraggableRow key={it.key} it={it} onSelect={onSelect} onMenu={openMenu} />
+        ) : (
+          <NavRow key={it.key} it={it} onSelect={onSelect} onMenu={openMenu} />
+        )
+      )}
+      {extras?.map((e) => (
+        <li key={e.key} className="nav-item nav-item-inert" title="Agenda navigation isn't wired yet">
+          <span className="nav-item-title">{e.title}</span>
+          <span className={cx('nav-item-path', text.caption.standard)}>{e.kind}</span>
+        </li>
+      ))}
+    </ul>
+  )
   return (
     <>
-      <ul className="nav-list">
-        {reorderable ? (
-          <>
-            {pins.length > 0 && (
-              <SortableZone items={pins.map((p) => p.key)} layout="list" axis="y" onReorder={reorderPin}>
-                {pins.map((it) => <DraggableRow key={it.key} it={it} onSelect={onSelect} onMenu={openMenu} />)}
-              </SortableZone>
-            )}
-            <SortableZone items={recents.map((r) => r.key)} layout="list" axis="y" onReorder={reorderRecent}>
-              {recents.map((it) => <DraggableRow key={it.key} it={it} onSelect={onSelect} onMenu={openMenu} />)}
-            </SortableZone>
-          </>
-        ) : (
-          items.map((it) => <NavRow key={it.key} it={it} onSelect={onSelect} onMenu={openMenu} />)
-        )}
-        {extras?.map((e) => (
-          <li key={e.key} className="nav-item nav-item-inert" title="Agenda navigation isn't wired yet">
-            <span className="nav-item-title">{e.title}</span>
-            <span className={cx('nav-item-path', text.caption.standard)}>{e.kind}</span>
-          </li>
-        ))}
-      </ul>
+      {reorderable ? (
+        <TableRowDnd
+          rows={[...pinRows.map((p) => ({ id: p.key, groupKey: 'pins' })), ...recents.map((r) => ({ id: r.key, groupKey: 'recents' }))]}
+          disabled={false}
+          canReorderWithin
+          canReassign={false}
+          reorderTo={commitReorder}
+          reassign={() => {}}
+        >
+          {list}
+        </TableRowDnd>
+      ) : (
+        list
+      )}
       {menu && <NavRowMenu item={menu.item} x={menu.x} y={menu.y} onClose={() => setMenu(null)} onOpenNewTab={onOpenNewTab} />}
     </>
   )

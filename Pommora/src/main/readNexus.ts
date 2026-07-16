@@ -402,6 +402,7 @@ async function walkNexus(root: string): Promise<NexusTree> {
   const savedConfig = (await readJsonObject(nexusConfig(root, NEXUS_CONFIG_FILES.savedConfig))) ?? {}
   const sectionsConfig = (await readJsonObject(nexusConfig(root, NEXUS_CONFIG_FILES.sidebarSections))) ?? {}
   const homepageConfig = (await readJsonObject(nexusConfig(root, NEXUS_CONFIG_FILES.homepage))) ?? {}
+  const navviewConfig = (await readJsonObject(nexusConfig(root, NEXUS_CONFIG_FILES.navview))) ?? {}
   const registry = await readRegistry(root)
 
   // Saved strip — 3 fixed, code-keyed rows; labels come from saved-config `items[{key,label}]`.
@@ -471,6 +472,7 @@ async function walkNexus(root: string): Promise<NexusTree> {
       locked: homepageConfig.blocks_locked === true,
       headingIconHidden: homepageConfig.heading_icon_hidden === true
     },
+    navView: { banner: asString(navviewConfig.banner) },
     saved,
     contexts,
     collections,

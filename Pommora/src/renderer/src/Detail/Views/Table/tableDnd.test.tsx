@@ -93,7 +93,7 @@ describe('table row drag — Esc abort', () => {
     await act(async () => {
       firePointer(window, 'pointerup')
     })
-    expect(reorderSpy).toHaveBeenCalledExactlyOnceWith(['r2', 'r1', 'r3'], 'g')
+    expect(reorderSpy).toHaveBeenCalledExactlyOnceWith(['r2', 'r1', 'r3'], 'g', 'r1')
   })
 
   it('detaches the keydown listener after the gesture settles', async () => {

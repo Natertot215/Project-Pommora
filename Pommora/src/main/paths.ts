@@ -50,6 +50,7 @@ export const NEXUS_CONFIG_FILES = {
   settings: 'settings.json',
   state: 'state.json',
   homepage: 'homepage.json',
+  navview: 'navview.json',
   savedConfig: 'saved-config.json',
   sidebarSections: 'sidebar-sections.json',
   folds: 'folds.json',

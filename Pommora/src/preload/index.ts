@@ -344,7 +344,8 @@ const api = {
   // Open the native image picker directly → data URL (null if canceled). Banner Add / Change.
   pickImage: (): Promise<string | null> => ipcRenderer.invoke('nexus:pickImage'),
   // Pop the native Change / Remove banner menu → the chosen action (null if dismissed).
-  bannerMenu: (): Promise<'change' | 'remove' | null> => ipcRenderer.invoke('nexus:bannerMenu'),
+  // `noRemove` drops the Remove item (an inherited banner has nothing of its own to remove).
+  bannerMenu: (opts?: { noRemove?: boolean }): Promise<'change' | 'remove' | null> => ipcRenderer.invoke('nexus:bannerMenu', opts),
   // Pop the native Rename / Edit Icon menu for a detail title → the chosen action (null if dismissed).
   titleMenu: (opts?: {
     toggleIcon?: boolean

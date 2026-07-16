@@ -7,8 +7,6 @@ export interface TabMenuContext {
   pinned: boolean
   /** The NavView tab can't be pinned. */
   isNewTab: boolean
-  /** Whether any unpinned tab sits to the right (gates Close to the Right). */
-  hasRight: boolean
 }
 
-export type TabMenuAction = 'pin' | 'unpin' | 'close' | 'close-right'
+export type TabMenuAction = 'pin' | 'unpin' | 'close'

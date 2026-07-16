@@ -53,7 +53,7 @@ describe('PaneSlider', () => {
     await act(async () => {
       root.render(<PaneSlider open={false} root={<div>alpha</div>} detail={<div>beta</div>} />)
     })
-    expect(host.querySelectorAll('.scroll-edge-fade')).toHaveLength(0)
+    expect(host.querySelectorAll('.edge-fade')).toHaveLength(0)
     for (const el of host.querySelectorAll<HTMLElement>('div')) expect(el.style.overflowY).toBe('')
   })
 

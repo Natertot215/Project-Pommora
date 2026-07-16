@@ -169,6 +169,7 @@ function treeWith(pages: { id: string; path: string }[]): NexusTree {
   return {
     nexus: { id: 'nx', rootPath: '/x', name: 'x', profileImage: null, profileSubtitle: '' },
     homepage: { locked: false, headingIconHidden: false },
+    navView: {},
     saved: [],
     contexts: { projects: [], topics: [], areas: [] },
     collections: [
@@ -237,27 +238,4 @@ describe('store — recents reorder + batched close', () => {
     expect(savedRecents()).not.toHaveBeenCalled()
   })
 
-  it('closeTabsRight batch-closes the range and keeps a surviving active tab', () => {
-    seed({
-      tabs: [uTab('t1', ctx('a'), [ctx('a')], 0), uTab('t2', ctx('b'), [ctx('b')], 0), uTab('t3', ctx('c'), [ctx('c')], 0)],
-      activeTabId: 't1',
-      tabMru: ['t1', 't2', 't3']
-    })
-    useSession.getState().closeTabsRight('t1')
-    const s = useSession.getState()
-    expect(s.tabs.map((t) => t.id)).toEqual(['t1'])
-    expect(s.activeTabId).toBe('t1')
-  })
-
-  it('closeTabsRight refocuses MRU-top when the active tab is inside the closed range', () => {
-    seed({
-      tabs: [uTab('t1', ctx('a'), [ctx('a')], 0), uTab('t2', ctx('b'), [ctx('b')], 0), uTab('t3', ctx('c'), [ctx('c')], 0)],
-      activeTabId: 't3',
-      tabMru: ['t3', 't1', 't2']
-    })
-    useSession.getState().closeTabsRight('t1') // t2 + t3 close; active t3 dies → MRU-top still live = t1
-    const s = useSession.getState()
-    expect(s.tabs.map((t) => t.id)).toEqual(['t1'])
-    expect(s.activeTabId).toBe('t1')
-  })
 })

@@ -16,13 +16,13 @@
 @keyframes navwindow-in {
   from {
     opacity: 0;
-    transform: scale(0.97);
+    transform: scale(0.95);
   }
 }
 @keyframes navwindow-out {
   to {
     opacity: 0;
-    transform: scale(0.97);
+    transform: scale(0.95);
   }
 }
 

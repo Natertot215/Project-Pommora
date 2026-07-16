@@ -1,0 +1,103 @@
+/* THE scroll-edge fade — every clipped edge in the app rides this one mechanism; no surface
+   hand-rolls its own mask. Two progress vars animate along the box's own scroll range; a box whose
+   content fits has an inactive timeline, the vars hold their 0 initials, and the mask collapses to
+   a no-op. Any layout or content change re-resolves instantly. --edge-fade is the per-context
+   fade-width knob (consumer-set, always wins over the per-class default). The mask stops cite the
+   system black primitive — a mask only reads alpha, but the color still comes from the tokens. */
+@property --edge-a {
+  syntax: "<number>";
+  inherits: false;
+  initial-value: 0;
+}
+@property --edge-b {
+  syntax: "<number>";
+  inherits: false;
+  initial-value: 0;
+}
+
+/* The leading edge (top/left) eases in over the first tenth of the scroll range; the trailing edge
+   (bottom/right) holds until the last tenth and eases out into the end stop. At rest (scroll 0)
+   that's trailing-fade-only. */
+@keyframes edge-fade-lead {
+  0% {
+    --edge-a: 0;
+  }
+  10%,
+  100% {
+    --edge-a: 1;
+  }
+}
+@keyframes edge-fade-trail {
+  0%,
+  90% {
+    --edge-b: 1;
+  }
+  100% {
+    --edge-b: 0;
+  }
+}
+
+/* One shared mask + animation wiring; each class supplies only its axis (timeline + --edge-dir)
+   and its default fade width (--edge-fade-default, so a consumer's --edge-fade always wins). */
+.edge-fade,
+.edge-fade-x,
+.overflow-eclipse.overflow-eclipse,
+.overflow-eclipse-y.overflow-eclipse-y {
+  animation-name: edge-fade-lead, edge-fade-trail;
+  animation-duration: auto;
+  animation-timing-function: linear;
+  mask-image: linear-gradient(
+    var(--edge-dir, to bottom),
+    transparent 0,
+    var(--system-black) calc(var(--edge-a) * var(--edge-fade, var(--edge-fade-default, 22px))),
+    var(--system-black) calc(100% - var(--edge-b) * var(--edge-fade, var(--edge-fade-default, 22px))),
+    transparent 100%
+  );
+  -webkit-mask-image: linear-gradient(
+    var(--edge-dir, to bottom),
+    transparent 0,
+    var(--system-black) calc(var(--edge-a) * var(--edge-fade, var(--edge-fade-default, 22px))),
+    var(--system-black) calc(100% - var(--edge-b) * var(--edge-fade, var(--edge-fade-default, 22px))),
+    transparent 100%
+  );
+}
+
+/* Vertical scroll container (the Apple scroll-edge fade, hoisted from the sidebar — A-6). */
+.edge-fade {
+  animation-timeline: scroll(self block);
+}
+/* Top-only variant: drop the trailing keyframe so --edge-b holds its 0 initial and the mask stays
+   solid to the bottom edge — the fade eases in at the top as content scrolls under it, nowhere else. */
+.edge-fade.top-only {
+  animation-name: edge-fade-lead;
+}
+/* Opt-in (page/markdown embeds): hold the TOP fade until a full fade-height of scroll has actually
+   passed under it. A first line at rest — or a small autofocus scroll offset — shouldn't fade; it
+   needs real scroll first. The lead animation starts at --edge-fade of scroll (fill-mode both pins
+   --edge-a to its 0 keyframe before then); the trailing edge keeps the full range. */
+.edge-fade.top-gated {
+  animation-fill-mode: both;
+  animation-range: var(--edge-fade, 22px) 100%, normal;
+}
+
+/* Horizontal scroll container (the toolbar tab strip). */
+.edge-fade-x {
+  --edge-dir: to right;
+  animation-timeline: scroll(self inline);
+}
+
+/* Inline-text eclipse (OverflowScroll): the fade IS the truncation signal — an ellipsis would
+   double-signal. Doubled class (0,2,0) outguns the truncate token's :hover mask (0,1,1) so the
+   eclipse holds while hovered. */
+.overflow-eclipse.overflow-eclipse {
+  --edge-dir: to right;
+  --edge-fade-default: 16px;
+  text-overflow: clip;
+  animation-timeline: scroll(self inline);
+}
+
+/* Vertical eclipse twin — a vertically-scrolling grid (the Icon Picker, the grouping panes). */
+.overflow-eclipse-y.overflow-eclipse-y {
+  --edge-fade-default: 16px;
+  animation-timeline: scroll(self block);
+}

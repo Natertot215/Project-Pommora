@@ -22,6 +22,11 @@ const geo = { x: null as number | null, y: null as number | null, w: WIN.defW, h
 // Persists the List/Gallery choice across opens (the pane remounts each open via useExitPresence).
 let savedViewMode: 'list' | 'gallery' = 'list'
 
+// The bare backgrounds a window-move may start from (matched against the press target itself, so any
+// child content — row internals, card bodies, the search input — never arms a move).
+const DRAG_SURFACES =
+  '.navwindow, .navwindow-body, .navwindow-rail, .navwindow-rail-list, .navwindow-main, .navwindow-main-scroll, .navwindow-search, .nav-list, .nav-gallery, .nav-gallery-grid'
+
 const clamp = (v: number, lo: number, hi: number): number => Math.max(lo, Math.min(hi, v))
 
 // Keep the (module-persisted) geometry inside the current viewport — on reopen or a window resize
@@ -46,28 +51,28 @@ function NavWindowBody({ closing }: { closing: boolean }): React.JSX.Element {
 
   // Freeze the recents order at open — navigating while the pane stays open still records into the
   // store's recents, but the visible list must NOT reshuffle placement under the cursor. Re-snapshots
-  // on reopen (the body remounts). Filtered against the LIVE pins so pinning while open drops a card
-  // without disturbing the others' placement.
+  // on reopen (the body remounts). Filtered against the LIVE pin set (pinning while open drops the
+  // card) AND live recents membership (a row-menu Remove drops it) — placement stays frozen either way.
   const [frozenRecents, setFrozenRecents] = useState(resolvedRecents)
   const shownRecents = useMemo(() => {
     const pinned = new Set(resolvedPins.map((p) => p.key))
-    return frozenRecents.filter((r) => !pinned.has(r.key))
-  }, [frozenRecents, resolvedPins])
-  // A drag is the ONE thing that bypasses the freeze — it's the deliberate reorder, so rewrite the frozen
-  // snapshot alongside the source (the card lands where dropped and matches the store it just wrote).
-  // Opening a page still leaves placement frozen until a reopen re-snapshots (nothing shuffles underfoot).
-  const reorderRecentStore = useSession((s) => s.reorderRecent)
+    const live = new Set(resolvedRecents.map((r) => r.key))
+    return frozenRecents.filter((r) => live.has(r.key) && !pinned.has(r.key))
+  }, [frozenRecents, resolvedPins, resolvedRecents])
+  // A drag is the ONE thing that bypasses the freeze — it's the deliberate reorder. The commit writes
+  // the SHOWN order wholesale (setRecentsOrder): the store's live order can lag the frozen view (a
+  // click mid-open re-fronts its entry), so an (active, over) splice against it would land elsewhere
+  // than the drop showed. Opening a page still leaves placement frozen until a reopen re-snapshots.
+  const setRecentsOrder = useSession((s) => s.setRecentsOrder)
   const reorderShownRecent = (activeKey: string, overKey: string): void => {
-    setFrozenRecents((prev) => {
-      const from = prev.findIndex((r) => r.key === activeKey)
-      const to = prev.findIndex((r) => r.key === overKey)
-      if (from === -1 || to === -1 || from === to) return prev
-      const next = [...prev]
-      const [moved] = next.splice(from, 1)
-      next.splice(to, 0, moved)
-      return next
-    })
-    reorderRecentStore(activeKey, overKey)
+    const from = frozenRecents.findIndex((r) => r.key === activeKey)
+    const to = frozenRecents.findIndex((r) => r.key === overKey)
+    if (from === -1 || to === -1 || from === to) return
+    const next = [...frozenRecents]
+    const [moved] = next.splice(from, 1)
+    next.splice(to, 0, moved)
+    setFrozenRecents(next)
+    setRecentsOrder(next.map((r) => r.key))
   }
 
   const [query, setQuery] = useState('')
@@ -160,13 +165,11 @@ function NavWindowBody({ closing }: { closing: boolean }): React.JSX.Element {
     el.addEventListener('pointerup', end)
     el.addEventListener('pointercancel', end)
   }
-  // The whole window background drags to reposition — but card-aware: a press on a control, a resize
-  // handle, or an actual item (a gallery card or a list row button, which own their click + reorder)
-  // keeps its own behavior; only the bare background between/around them grabs the move. Grabbing
-  // pointer-capture on a card would clobber its click and its reorder drag.
+  // Window-move is RESERVED to the bare surfaces — the rail and the empty space around items — via an
+  // allow-list on the press target itself. Anything else (a row, a card, a control) owns its pointer:
+  // capturing here would steal the reorder engine's element-bound capture mid-press and starve its drop.
   const onWindowDown = (e: ReactPointerEvent<HTMLElement>): void => {
-    if ((e.target as HTMLElement).closest('button, input, .navwindow-rail-resize, [class*="navwindow-resize"], .nav-gallery-card')) return
-    startDrag('move', e)
+    if ((e.target as HTMLElement).matches(DRAG_SURFACES)) startDrag('move', e)
   }
 
   const style = { left: geo.x ?? 0, top: geo.y ?? 0, width: geo.w, height: geo.h, '--navwindow-rail': `${geo.rail}px` } as CSSProperties
@@ -178,7 +181,7 @@ function NavWindowBody({ closing }: { closing: boolean }): React.JSX.Element {
       </button>
       <div className="navwindow-body">
         <GlassWindow className="navwindow-rail" style={{ background: 'var(--state-muted)' }}>
-          <div className="navwindow-rail-list scroll-edge-fade">
+          <div className="navwindow-rail-list edge-fade">
             <NavList items={resolvedFavorites} onSelect={goClose} onOpenNewTab={goNewTab} />
           </div>
           <button type="button" className={cx('navwindow-style-toggle', text.footnote.emphasized)} onClick={toggleViewMode}>
@@ -191,13 +194,13 @@ function NavWindowBody({ closing }: { closing: boolean }): React.JSX.Element {
           <div className="navwindow-search">
             <input ref={searchRef} className={text.body.standard} value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search…" spellCheck={false} />
           </div>
-          <div className="navwindow-main-scroll scroll-edge-fade">
+          <div className="navwindow-main-scroll edge-fade">
             {results ? (
               <NavList items={results.items} extras={results.extras} onSelect={goClose} onOpenNewTab={goNewTab} />
             ) : viewMode === 'gallery' ? (
               <NavGallery pins={resolvedPins} items={shownRecents} onReorderRecent={reorderShownRecent} onSelect={goClose} onOpenNewTab={goNewTab} />
             ) : (
-              <NavList items={[...resolvedPins, ...shownRecents]} reorderable onReorderRecent={reorderShownRecent} onSelect={goClose} onOpenNewTab={goNewTab} />
+              <NavList pins={resolvedPins} items={shownRecents} reorderable onReorderRecent={reorderShownRecent} onSelect={goClose} onOpenNewTab={goNewTab} />
             )}
           </div>
         </div>

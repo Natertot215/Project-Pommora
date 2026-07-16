@@ -1535,7 +1535,7 @@ ipcMain.handle('nexus:pickImage', async (e): Promise<string | null> => {
 
 // Pop a native macOS Change / Remove menu for an existing banner (mirrors Swift's .contextMenu).
 // Resolves the chosen action, or null if the menu is dismissed.
-ipcMain.handle('nexus:bannerMenu', async (e): Promise<'change' | 'remove' | null> => {
+ipcMain.handle('nexus:bannerMenu', async (e, opts?: { noRemove?: boolean }): Promise<'change' | 'remove' | null> => {
   const win = BrowserWindow.fromWebContents(e.sender)
   if (!win) return null
   return await new Promise<'change' | 'remove' | null>((resolve) => {
@@ -1546,7 +1546,7 @@ ipcMain.handle('nexus:bannerMenu', async (e): Promise<'change' | 'remove' | null
     }
     const menu = Menu.buildFromTemplate([
       { label: 'Change Banner', click: () => choose('change') },
-      { label: 'Remove Banner', click: () => choose('remove') }
+      ...(opts?.noRemove ? [] : [{ label: 'Remove Banner', click: () => choose('remove') }])
     ])
     menu.popup({ window: win, callback: () => { if (!acted) resolve(null) } })
   })

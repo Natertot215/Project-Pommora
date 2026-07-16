@@ -309,15 +309,16 @@ async function dispatch(req: MutateRequest, deps: MutateDeps, root: string): Pro
         })
       }
       // Resolve the config holding the banner field + the asset-folder key, per owner kind. The
-      // homepage is a singleton (.nexus/homepage.json, keyed 'homepage'); the rest are folder
-      // sidecars keyed by their entity id (matches Swift's per-entity assets/<id>/).
+      // homepage and the NavView are singletons (.nexus/homepage.json / navview.json, keyed by
+      // kind); the rest are folder sidecars keyed by their entity id (matches Swift's per-entity
+      // assets/<id>/).
       let cfgPath: string
       let assetKey: string
       let fallback: Record<string, unknown>
       let existing: Record<string, unknown> | null
-      if (req.kind === 'homepage') {
-        cfgPath = nexusConfig(root, NEXUS_CONFIG_FILES.homepage)
-        assetKey = 'homepage'
+      if (req.kind === 'homepage' || req.kind === 'navview') {
+        cfgPath = nexusConfig(root, NEXUS_CONFIG_FILES[req.kind])
+        assetKey = req.kind
         fallback = {}
         existing = await readJsonObject(cfgPath)
       } else {
@@ -362,8 +363,8 @@ async function dispatch(req: MutateRequest, deps: MutateDeps, root: string): Pro
       // homepage.json is shared with the block-doc writers. Absent = shown.
       let cfgPath: string
       let fallback: Record<string, unknown>
-      if (req.kind === 'homepage') {
-        cfgPath = nexusConfig(root, NEXUS_CONFIG_FILES.homepage)
+      if (req.kind === 'homepage' || req.kind === 'navview') {
+        cfgPath = nexusConfig(root, NEXUS_CONFIG_FILES[req.kind])
         fallback = {}
       } else if (req.kind === 'page') {
         return fault('A page has no heading icon.')

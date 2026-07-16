@@ -62,7 +62,7 @@ export const menuList = style({
   flexDirection: 'column',
   gap: '2px',
   minWidth: '56px', // shrink-wrap to content; the floor only protects the beak's corner clamp
-  maxHeight: '136px', // ≈6 option rows before it over-scrolls (rides the shared scroll-edge-fade)
+  maxHeight: '136px', // ≈6 option rows before it over-scrolls (rides the shared edge-fade)
   overflowY: 'auto',
   scrollbarWidth: 'none',
   selectors: { '&::-webkit-scrollbar': { display: 'none' } }

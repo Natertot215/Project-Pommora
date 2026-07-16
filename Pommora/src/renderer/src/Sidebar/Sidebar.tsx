@@ -553,7 +553,7 @@ export function Sidebar({ tree }: { tree: NexusTree }): React.JSX.Element {
   }, [mode])
 
   return (
-    <nav ref={navRef} className="sidebar scroll-edge-fade">
+    <nav ref={navRef} className="sidebar edge-fade">
       <div className="sidebar-mode-stage">
         {exit && (
           <div

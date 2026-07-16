@@ -13,12 +13,18 @@
   --card-min: 220px; /* KNOB — the full-window gallery card floor. */
 }
 
-/* The banner-title slot: a chromeless search input in the title position. */
+/* The banner-title slot: a chromeless search input in the title position. The top band is the 44px
+   add-banner hover strip (flow content), not padding — same geometry as before it landed. */
 .nav-view-head {
   flex-shrink: 0;
-  padding: 44px 0 10px;
+  padding: 0 0 10px;
   border-bottom: 1px solid var(--separator-segment);
   margin: 0 var(--surface-banner-inset-right) 0 var(--surface-banner-inset);
+  /* Glide with the sidebar/inspector slide, like .detail/.detail-body — the shell swaps the inset
+     vars discretely, so each consumer animates its own derived edge. */
+  transition:
+    margin-left var(--duration-base) var(--ease-standard),
+    margin-right var(--duration-base) var(--ease-standard);
 }
 .nav-view-search {
   width: 100%;
@@ -26,7 +32,7 @@
   background: transparent;
   outline: none;
   color: var(--label-primary);
-  font-size: 17px; /* KNOB — title2 scale (a step down from the banner-title size) */
+  font-size: 16px; /* KNOB — title2 scale (a step down from the banner-title size) */
   font-weight: var(--weight-emphasized);
 }
 .nav-view-search::placeholder {
@@ -56,4 +62,7 @@
   /* Card edges land on the EXACT homepage block-surface insets (Detail.css): 8px top / 28px bottom /
      --surface-inset sides. The gallery's own padding is zeroed (both axes, above), so these ARE the edges. */
   padding: 8px var(--surface-inset-right) 28px var(--surface-inset);
+  transition:
+    padding-left var(--duration-base) var(--ease-standard),
+    padding-right var(--duration-base) var(--ease-standard);
 }

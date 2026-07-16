@@ -269,6 +269,9 @@ export interface NexusTree {
    *  useBlockDoc), but the single `blocks_locked` boolean rides here like `banner` so the
    *  store can seed the freeze without a second read. Absent = unlocked. */
   homepage: { banner?: string; locked: boolean; headingIconHidden: boolean }
+  /** NavView singleton (`.nexus/navview.json`) — its own banner; absent, the NavView inherits
+   *  the homepage's. */
+  navView: { banner?: string }
   saved: SavedNode[]
   contexts: {
     projects: ProjectNode[]

@@ -2,35 +2,6 @@
    no inline magic numbers. The unpinned strip overflow-scrolls with the scroll-driven edge fade
    (inherited from the retired preview strip); tabs open/close by animating width on the slow token. */
 
-@property --tab-edge-l {
-  syntax: '<number>';
-  inherits: false;
-  initial-value: 0;
-}
-@property --tab-edge-r {
-  syntax: '<number>';
-  inherits: false;
-  initial-value: 0;
-}
-@keyframes tab-edge-l {
-  0% {
-    --tab-edge-l: 0;
-  }
-  8%,
-  100% {
-    --tab-edge-l: 1;
-  }
-}
-@keyframes tab-edge-r {
-  0%,
-  92% {
-    --tab-edge-r: 1;
-  }
-  100% {
-    --tab-edge-r: 0;
-  }
-}
-
 .tab-bar {
   /* KNOBS — the whole bar tunes here. */
   --tab-height: 32px; /* bar/tab height (button-large row) */
@@ -47,6 +18,7 @@
   --tab-divider-h: 16px;
   --tab-edge-fade: 20px; /* overflow edge dissolve */
   --tab-plus-gutter: 28px; /* trailing room so the parked + clears the last tab's × (J-4) */
+  --tab-nav-slide: 10px; /* Back/Forward content slide-in distance */
 
   flex: 1;
   min-width: 0;
@@ -56,7 +28,9 @@
   height: var(--tab-height);
   margin: 0 4px;
   pointer-events: auto;
-  -webkit-app-region: no-drag;
+  /* The bar's EMPTY space is a window-drag surface (the bar owns the old titlebar strip); every
+     interactive piece — the tabs, the pinned icons, the + — opts back out below. */
+  -webkit-app-region: drag;
 }
 /* F-1 reveal-on-hover: the bar sits invisible until the pointer enters its strip. */
 .tab-bar.reveal-on-hover {
@@ -85,10 +59,11 @@
   flex: 0 0 auto;
   color: var(--label-tertiary);
   cursor: pointer;
+  -webkit-app-region: no-drag;
   transition: color var(--duration-base) var(--ease-standard);
 }
 .tab-pinned:hover {
-  color: var(--label-secondary);
+  background: var(--state-hover);
 }
 .tab-pinned.is-active {
   color: var(--label-control);
@@ -108,8 +83,9 @@
   border-radius: 999px;
 }
 
-/* ---- unpinned strip: overflow-scroll + the scroll-driven edge fade ---- */
+/* ---- unpinned strip: overflow-scroll + the shared edge-fade (edge-fade-x carries the mask) ---- */
 .tab-scroll {
+  --edge-fade: var(--tab-edge-fade);
   position: relative;
   flex: 1;
   min-width: 0;
@@ -117,24 +93,6 @@
   overflow-x: auto;
   overflow-y: hidden;
   scrollbar-width: none;
-  animation-name: tab-edge-l, tab-edge-r;
-  animation-duration: auto;
-  animation-timing-function: linear;
-  animation-timeline: scroll(self inline);
-  mask-image: linear-gradient(
-    to right,
-    transparent 0,
-    #000000 calc(var(--tab-edge-l) * var(--tab-edge-fade)),
-    #000000 calc(100% - var(--tab-edge-r) * var(--tab-edge-fade)),
-    transparent 100%
-  );
-  -webkit-mask-image: linear-gradient(
-    to right,
-    transparent 0,
-    #000000 calc(var(--tab-edge-l) * var(--tab-edge-fade)),
-    #000000 calc(100% - var(--tab-edge-r) * var(--tab-edge-fade)),
-    transparent 100%
-  );
 }
 .tab-strip {
   display: flex;
@@ -162,6 +120,7 @@
   cursor: pointer;
   white-space: nowrap;
   overflow: hidden;
+  -webkit-app-region: no-drag;
   /* Open/close = width motion on the standard token (--duration-base). On OPEN the width is delayed one
      fast beat so the segment (sibling, below) appears FIRST and the tab then slides out beside it; color
      is the active fade. */
@@ -192,7 +151,7 @@
   transition-delay: 0s;
 }
 .tab:hover {
-  color: var(--label-secondary);
+  background: var(--state-hover);
 }
 /* Active tab: the label switches tertiary → control, fading on the standard token (the color transition
    on .tab above). */
@@ -231,6 +190,26 @@
 .tab-icon {
   flex: 0 0 auto;
   color: inherit;
+}
+/* Back/Forward swap: the tab's content slides in from the step's direction — back ⇐ from the left,
+   forward ⇒ from the right (a keyed remount replays it per step). */
+@keyframes tab-nav-slide-back {
+  from {
+    transform: translateX(calc(-1 * var(--tab-nav-slide)));
+    opacity: 0;
+  }
+}
+@keyframes tab-nav-slide-fwd {
+  from {
+    transform: translateX(var(--tab-nav-slide));
+    opacity: 0;
+  }
+}
+.nav-slide-back {
+  animation: tab-nav-slide-back var(--duration-base) var(--ease-standard);
+}
+.nav-slide-fwd {
+  animation: tab-nav-slide-fwd var(--duration-base) var(--ease-standard);
 }
 .tab-label {
   flex: 1;
@@ -286,6 +265,7 @@
   background: none;
   color: var(--label-secondary);
   cursor: pointer;
+  -webkit-app-region: no-drag;
   opacity: 0;
   transition:
     opacity var(--duration-fast) var(--ease-standard),

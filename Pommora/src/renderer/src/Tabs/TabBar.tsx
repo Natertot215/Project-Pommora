@@ -64,12 +64,10 @@ function TabBarBody({ pinnedEntries, unpinnedEntries }: { pinnedEntries: TabEntr
   const activateTab = useSession((s) => s.activateTab)
   const openNewTab = useSession((s) => s.openNewTab)
   const closeTab = useSession((s) => s.closeTab)
-  const closeTabsRight = useSession((s) => s.closeTabsRight)
   const pinTab = useSession((s) => s.pinTab)
   const unpinTab = useSession((s) => s.unpinTab)
   const reorderTabs = useSession((s) => s.reorderTabs)
   const reorderPin = useSession((s) => s.reorderPin)
-  const tabs = useSession((s) => s.tabs)
 
   // Closing is store-first: the tab leaves the store IMMEDIATELY (content switches, dedup/cycle/MRU
   // all read truth — a re-click of the entity spawns fresh instead of resurrecting a zombie), while a
@@ -130,17 +128,14 @@ function TabBarBody({ pinnedEntries, unpinnedEntries }: { pinnedEntries: TabEntr
   }, [activeTabId])
 
   // A tab's native (Electron) right-click menu (I-12): context out, action back, dispatched against the
-  // tab id. Close animates through the ghost path; Close to the Right is a batched store close.
+  // tab id. Close animates through the ghost path.
   const runTabMenu = (tabId: string, pinned: boolean, isNewTab: boolean) => async (e: React.MouseEvent): Promise<void> => {
     e.preventDefault()
     e.stopPropagation()
-    const i = tabs.findIndex((t) => t.id === tabId)
-    const hasRight = !pinned && i !== -1 && i < tabs.length - 1
-    const action = await window.nexus.tabMenu({ pinned, isNewTab, hasRight })
+    const action = await window.nexus.tabMenu({ pinned, isNewTab })
     if (action === 'pin') pinTab(tabId)
     else if (action === 'unpin') unpinTab(tabId)
     else if (action === 'close') requestClose(tabId)
-    else if (action === 'close-right') closeTabsRight(tabId)
   }
 
   return (
@@ -161,7 +156,7 @@ function TabBarBody({ pinnedEntries, unpinnedEntries }: { pinnedEntries: TabEntr
         </SortableZone>
       )}
       {pinnedEntries.length > 0 && unpinnedEntries.length > 0 && <span className="tab-divider" />}
-      <div className="tab-scroll" ref={stripRef}>
+      <div className="tab-scroll edge-fade-x" ref={stripRef}>
         <SortableZone items={liveEntries.map((e) => e.tab.id)} layout="list" axis="x" onReorder={reorderTabs}>
           <div className="tab-strip">
             {renderEntries.map(({ entry, ghost }, i) => (
@@ -169,17 +164,17 @@ function TabBarBody({ pinnedEntries, unpinnedEntries }: { pinnedEntries: TabEntr
                 {/* The segment before this tab closes with it — OR, when the leftmost tab is the ghost (it
                     has no left segment), the segment before the first LIVE tab closes in its place. */}
                 {i > 0 && <span className={cx('tab-seg', (ghost || i === firstLive) && 'is-closing')} aria-hidden />}
-                {ghost ? (
-                  <UnpinnedTab entry={entry} active={false} closing onActivate={() => {}} onClose={() => {}} onMenu={() => {}} />
-                ) : (
-                  <DraggableUnpinnedTab
-                    entry={entry}
-                    active={entry.tab.id === activeTabId}
-                    onActivate={() => activateTab(entry.tab.id)}
-                    onClose={() => requestClose(entry.tab.id)}
-                    onMenu={runTabMenu(entry.tab.id, false, entry.tab.target.kind === 'newtab')}
-                  />
-                )}
+                {/* The ghost stays the SAME component type as the live tab — a type swap would remount
+                    the DOM node, and a fresh node mounts already-collapsed (no exit slide). is-closing
+                    is pointer-inert, so the live handlers are unreachable on it. */}
+                <DraggableUnpinnedTab
+                  entry={entry}
+                  active={!ghost && entry.tab.id === activeTabId}
+                  closing={ghost}
+                  onActivate={() => activateTab(entry.tab.id)}
+                  onClose={() => requestClose(entry.tab.id)}
+                  onMenu={runTabMenu(entry.tab.id, false, entry.tab.target.kind === 'newtab')}
+                />
               </Fragment>
             ))}
           </div>
@@ -227,16 +222,18 @@ function PinnedTab({
   )
 }
 
-/** The zone-registered live tab (a ghost renders UnpinnedTab bare — same shape, no drag). */
+/** The zone-registered tab. A ghost keeps this same wrapper (its id has left the zone's items, so the
+ *  drag hook is inert on it) — the closing flag is the only difference. */
 function DraggableUnpinnedTab(props: {
   entry: TabEntry
   active: boolean
+  closing: boolean
   onActivate: () => void
   onClose: () => void
   onMenu: (e: React.MouseEvent) => void
 }): React.JSX.Element {
   const drag = useDragItem(props.entry.tab.id)
-  return <UnpinnedTab {...props} closing={false} drag={drag} />
+  return <UnpinnedTab {...props} drag={drag} />
 }
 
 /** An unpinned tab: icon + ellipsizing label, the hover-fade × (D-10), width-animated open/close. */
@@ -259,6 +256,11 @@ function UnpinnedTab({
 }): React.JSX.Element {
   const isNewTab = entry.tab.target.kind === 'newtab'
   const title = isNewTab ? 'New Tab' : (entry.res?.title ?? '')
+  // Back/Forward swaps this tab's content — the icon + label slide in from the step's direction,
+  // replayed per step via the seq-keyed remount. A plain select changes the title with no key change,
+  // so it swaps without motion.
+  const slide = useSession((s) => (s.navSlide && s.navSlide.tabId === entry.tab.id ? s.navSlide : null))
+  const slideClass = slide ? (slide.dir === 'back' ? 'nav-slide-back' : 'nav-slide-fwd') : undefined
   return (
     <div
       ref={drag?.setNodeRef}
@@ -272,12 +274,14 @@ function UnpinnedTab({
       }}
       onContextMenu={onMenu}
     >
-      {isNewTab || !entry.res ? (
-        <Icon name={isNewTab ? 'copy' : 'file'} size={14} className="tab-icon" />
-      ) : (
-        <EntityGlyph item={entry.res} size={14} className="tab-icon" />
-      )}
-      <span className="tab-label">{title}</span>
+      <Fragment key={slide?.seq ?? 0}>
+        {isNewTab || !entry.res ? (
+          <Icon name={isNewTab ? 'copy' : 'file'} size={14} className={cx('tab-icon', slideClass)} />
+        ) : (
+          <EntityGlyph item={entry.res} size={14} className={cx('tab-icon', slideClass)} />
+        )}
+        <span className={cx('tab-label', slideClass)}>{title}</span>
+      </Fragment>
       {/* The chip ×'s glyph + swallow behavior (J-1) with a plain hover-fade — never the melt
           (glass has no solid fill), never on pinned tabs. */}
       <button
