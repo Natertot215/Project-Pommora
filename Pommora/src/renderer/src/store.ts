@@ -1,10 +1,10 @@
 import { create } from 'zustand'
 import { DEFAULT_COMMANDS, type AgendaEntry, type NavFavorite, type NavTarget, type NexusTree, type PageDetail, type Personalization, type PinEntry, type RecentEntry, type SelectionState, type SelectTarget, type SetNode, type Tab } from '@shared/types'
 import { DEFAULT_NEW_NAME, type MutableKind, type MutateRequest } from '@shared/mutate'
-import { reconcileSelection } from './selection'
+import { buildReconcileIndex, reconcileSelection, reconcileWith } from './selection'
 import { navKey, recordRecent, removeRecentByKey, RECENTS_CAP } from './Navigation/navRecents'
 import { byOrder, cleanPinTarget, pinFor, reorderTo } from './Navigation/navPins'
-import { closeTab as closeTabModel, derivePinnedTabs, openNewTab as openNewTabModel, openTab as openTabModel, pushMru } from './Tabs/tabsModel'
+import { closeTab as closeTabModel, derivePinnedTabs, isPinned, newTabTab, openNewTab as openNewTabModel, openTab as openTabModel, pushMru, reconcileTabs, tabKey } from './Tabs/tabsModel'
 import { stabilize } from './treeStabilize'
 import { applyAccent, applySystemAccent } from './design-system/accent'
 import { applyPersonalization, applyPersonalizationKey } from './design-system/personalization'
@@ -241,7 +241,9 @@ export const useSession = create<SessionState>((set, get) => {
         // A new nexus was adopted — clear selection/detail from the old one before
         // re-reading, so stale page detail doesn't linger against the new tree.
         // (Scoped to the adopt path, not load(), which also serves launch + refresh.)
-        set({ selection: { kind: 'none' }, pageStatus: 'idle', pageDetail: null, pageError: undefined, liveBody: null })
+        // Clearing activeTabId marks the tab set never-seeded, so load() re-reads the
+        // new nexus's sidecar (I-10 wholesale reset; main drained the outgoing writes).
+        set({ selection: { kind: 'none' }, pageStatus: 'idle', pageDetail: null, pageError: undefined, liveBody: null, tabs: [], activeTabId: '', tabMru: [] })
         await get().load()
       }
     } catch (e) {
@@ -266,14 +268,24 @@ export const useSession = create<SessionState>((set, get) => {
   }
 
   // Re-surface the active tab into the detail pane (a plain switch): a newtab tab routes to the empty
-  // state; anything else re-selects WITHOUT recording or re-opening (record:false).
+  // state; anything else re-selects WITHOUT recording (record:false). The target reconciles against
+  // the live tree first — a derived pinned tab's stored path can be stale (pins are storage, tabs
+  // reconcile live) — falling back to the raw target on a miss, mirroring the nav layer's click path.
   const syncActiveDetail = (): void => {
     const active = findActiveTab()
     if (!active || active.target.kind === 'newtab') {
       set({ selection: { kind: 'none' }, pageStatus: 'idle', pageDetail: null, pageError: undefined })
       return
     }
-    void get().select(active.target, { record: false })
+    const tree = get().tree
+    const reconciled = tree ? reconcileSelection(tree, active.target) : active.target
+    void get().select(reconciled.kind === 'none' ? active.target : reconciled, { record: false })
+  }
+
+  // Persist the tab set (fire-and-forget; main debounces + drains at quit/switch, D-8).
+  const persistTabs = (): void => {
+    const s = get()
+    void window.nexus.tabs.save({ tabs: s.tabs, activeTabId: s.activeTabId }).catch(() => undefined)
   }
 
   // Back/Forward replay over the ACTIVE tab's own history (D-7): walk in `delta` direction, resolving
@@ -290,6 +302,7 @@ export const useSession = create<SessionState>((set, get) => {
       // would mis-dedup the very next click on the shown entity (destroying the Forward stack).
       set({ tabs: get().tabs.map((t) => (t.id === active.id ? { ...t, navIndex: i, target: resolved } : t)) })
       void get().select(resolved, { record: false })
+      persistTabs()
       return
     }
   }
@@ -354,6 +367,35 @@ export const useSession = create<SessionState>((set, get) => {
             await get().loadPins()
             get().evictThumbs() // prune thumbnails outside the fresh recents∪pins set
             set({ agendaSnapshot: null })
+            // The tab set — loaded ONCE per nexus (an empty activeTabId marks never-seeded; the adopt
+            // path clears it). A mutation refetch must NOT re-read the sidecar: its debounced write
+            // trails the in-memory set, so a re-read would roll the tabs backward.
+            if (get().activeTabId === '') {
+              const stored = await window.nexus.tabs.load().catch(() => null)
+              const pins = get().pins
+              const seen = new Set<string>()
+              // Drop any stored tab now covered by a pin (C-6 — pinned tabs derive, never dual-store)
+              // and dedupe by entity (I-1 — a cross-device merge can't produce duplicate tabs).
+              const tabs = (stored?.ok ? (stored.set?.tabs ?? []) : []).filter((t) => {
+                if (t.target.kind !== 'newtab' && isPinned(t.target, pins)) return false
+                const k = tabKey(t.target)
+                if (seen.has(k)) return false
+                seen.add(k)
+                return true
+              })
+              const pinnedTabs = derivePinnedTabs(pins)
+              const storedActive = stored?.ok ? (stored.set?.activeTabId ?? '') : ''
+              const liveIds = new Set([...pinnedTabs, ...tabs].map((t) => t.id))
+              let active = liveIds.has(storedActive) ? storedActive : (tabs[0]?.id ?? pinnedTabs[0]?.id ?? '')
+              if (active === '') {
+                // Nothing persisted and no pins — a fresh nexus opens onto one NavView tab (E-2).
+                const seeded = newTabTab(makeTabId())
+                set({ tabs: [seeded], activeTabId: seeded.id, tabMru: [seeded.id] })
+              } else {
+                set({ tabs, activeTabId: active, tabMru: [active] })
+              }
+              syncActiveDetail() // restore the active tab's entity (cold — warmth is session-only)
+            }
             break
           case 'empty':
             set({ status: 'empty', tree: null })
@@ -378,13 +420,39 @@ export const useSession = create<SessionState>((set, get) => {
       // an unrelated change keeps the open container's identity and its memoized pipeline.
       const tree = stabilize(incoming, get().tree)
       set({ status: 'ready', tree })
+      // ONE tree flatten serves the selection reconcile AND every tab's (never a per-tab walk).
+      const index = buildReconcileIndex(tree)
       const prev = get().selection
-      const next = reconcileSelection(tree, prev)
+      const next = reconcileWith(index, prev)
       if (next !== prev) {
         if (next.kind === 'none') {
           set({ selection: next, pageStatus: 'idle', pageDetail: null, pageError: undefined })
         } else if (next.kind === 'page') {
           void get().select(next, { record: false }) // refetch the detail at the page's new path — not a nav
+        }
+      }
+      // I-2a: every tab reconciles, not just the active selection — an inactive tab whose entity was
+      // renamed/moved refreshes in place; a deleted entity closes its unpinned tab (pinned tabs derive
+      // from pins, which render-prune, never storage-prune). Reference-preserving: an unchanged set
+      // skips the write entirely.
+      {
+        const s = get()
+        const rec = reconcileTabs(
+          s.tabs,
+          s.activeTabId,
+          s.tabMru,
+          derivePinnedTabs(s.pins).map((t) => t.id),
+          (t) => {
+            const r = reconcileWith(index, t)
+            return r.kind === 'none' ? null : r
+          },
+          makeTabId()
+        )
+        if (rec.changed) {
+          const activeChanged = rec.activeTabId !== s.activeTabId
+          set({ tabs: rec.tabs, activeTabId: rec.activeTabId, tabMru: rec.mru })
+          if (activeChanged) syncActiveDetail()
+          persistTabs()
         }
       }
       // Always read the OS accent: it feeds --accent only when the setting is `system`,
@@ -495,12 +563,14 @@ export const useSession = create<SessionState>((set, get) => {
       if (get().activeTabId === id) return
       set((s) => ({ activeTabId: id, tabMru: pushMru(s.tabMru, id) }))
       syncActiveDetail()
+      persistTabs()
     },
     openNewTab: () => {
       const s = get()
       const res = openNewTabModel(s.tabs, makeTabId())
       set({ tabs: res.tabs, activeTabId: res.activeTabId, tabMru: pushMru(s.tabMru, res.activeTabId) })
       syncActiveDetail()
+      persistTabs()
     },
     closeTab: (id) => {
       const s = get()
@@ -509,6 +579,7 @@ export const useSession = create<SessionState>((set, get) => {
       const activeChanged = res.activeTabId !== s.activeTabId
       set({ tabs: res.tabs, activeTabId: res.activeTabId, tabMru: res.mru })
       if (activeChanged) syncActiveDetail()
+      persistTabs()
     },
 
     recents: [],
@@ -615,6 +686,7 @@ export const useSession = create<SessionState>((set, get) => {
           set({ recents })
           void window.nexus.nav.saveRecents(recents)
         }
+        persistTabs()
       }
       switch (target.kind) {
         case 'homepage':

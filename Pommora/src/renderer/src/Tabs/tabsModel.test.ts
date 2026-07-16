@@ -11,6 +11,7 @@ import {
   openTab,
   pinTabId,
   pushMru,
+  reconcileTabs,
   reorderWithinZone,
 } from './tabsModel'
 
@@ -179,6 +180,68 @@ describe('tabsModel — cycle (I-11)', () => {
 
   it('returns the active id when empty', () => {
     expect(cycle([], 'x', 1)).toBe('x')
+  })
+})
+
+describe('tabsModel — reconcileTabs (I-2a)', () => {
+  // A reconcile stub over a live-path map: absent id = deleted, changed path = renamed/moved.
+  const against = (live: Record<string, string>) => (t: SelectTarget) => {
+    if (!('id' in t)) return t // homepage — the singleton never reconciles away
+    const path = live[t.id]
+    if (path === undefined) return null
+    return 'path' in t && t.path !== path ? ({ ...t, path } as SelectTarget) : t
+  }
+
+  it('returns changed:false with the same references when nothing moved', () => {
+    const tabs = [tab('t1', 'a'), tab('t2', 'b')]
+    const r = reconcileTabs(tabs, 't1', ['t1'], [], against({ a: '/a', b: '/b' }), 'NEW')
+    expect(r.changed).toBe(false)
+    expect(r.tabs).toBe(tabs)
+  })
+
+  it('refreshes an INACTIVE tab target + history on a rename without activating it', () => {
+    const tabs = [tab('t1', 'a'), tab('t2', 'b')]
+    const r = reconcileTabs(tabs, 't1', ['t1', 't2'], [], against({ a: '/a', b: '/renamed' }), 'NEW')
+    expect(r.changed).toBe(true)
+    expect(r.activeTabId).toBe('t1')
+    expect(r.tabs[0]).toBe(tabs[0]) // untouched tab keeps its identity
+    expect(r.tabs[1].target).toEqual({ kind: 'page', id: 'b', path: '/renamed' })
+    expect(r.tabs[1].navStack).toEqual([{ kind: 'page', id: 'b', path: '/renamed' }])
+  })
+
+  it('closes an inactive unpinned tab whose entity was deleted', () => {
+    const tabs = [tab('t1', 'a'), tab('t2', 'b')]
+    const r = reconcileTabs(tabs, 't1', ['t1', 't2'], [], against({ a: '/a' }), 'NEW')
+    expect(r.tabs.map((t) => t.id)).toEqual(['t1'])
+    expect(r.activeTabId).toBe('t1')
+    expect(r.mru).toEqual(['t1'])
+  })
+
+  it('deleting the ACTIVE tab focuses the MRU survivor', () => {
+    const tabs = [tab('t1', 'a'), tab('t2', 'b'), tab('t3', 'c')]
+    const r = reconcileTabs(tabs, 't2', ['t2', 't3', 't1'], [], against({ a: '/a', c: '/c' }), 'NEW')
+    expect(r.activeTabId).toBe('t3')
+  })
+
+  it('drops dead history entries and recomputes navIndex around them', () => {
+    const t: Tab = { id: 't1', target: pt('c'), navStack: [pt('a'), pt('b'), pt('c')], navIndex: 2 }
+    const r = reconcileTabs([t], 't1', ['t1'], [], against({ a: '/a', c: '/c' }), 'NEW')
+    expect(r.tabs[0].navStack).toEqual([pt('a'), pt('c')])
+    expect(r.tabs[0].navIndex).toBe(1)
+  })
+
+  it('everything gone with no pins reseeds a lone NavView (I-5)', () => {
+    const r = reconcileTabs([tab('t1', 'a')], 't1', ['t1'], [], against({}), 'NEW')
+    expect(r.tabs).toHaveLength(1)
+    expect(r.tabs[0].target).toEqual({ kind: 'newtab' })
+    expect(r.activeTabId).toBe('NEW')
+  })
+
+  it('keeps a newtab tab through any reconcile', () => {
+    const tabs = [navTab('n'), tab('t1', 'a')]
+    const r = reconcileTabs(tabs, 'n', ['n'], [], against({}), 'NEW')
+    expect(r.tabs.map((t) => t.id)).toEqual(['n'])
+    expect(r.activeTabId).toBe('n')
   })
 })
 

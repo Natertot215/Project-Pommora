@@ -155,6 +155,72 @@ export function insertUnpinned(tabs: Tab[], activeTabId: string, tab: Tab): Tab[
   return [...tabs.slice(0, at), tab, ...tabs.slice(at)]
 }
 
+export interface ReconcileTabsResult {
+  tabs: Tab[]
+  activeTabId: string
+  mru: string[]
+  changed: boolean
+}
+
+/** I-2a: reconcile EVERY tab against a fresh tree, not just the active selection. A rename/move
+ *  refreshes targets + history entries in place; a deleted entity closes its unpinned tab (active →
+ *  MRU focus, D-9) and drops its dead history entries; everything gone with no pins reseeds a lone
+ *  NavView (I-5). Reference-preserving: untouched tabs keep their identity and `changed: false`
+ *  means the caller can skip the state write entirely. `reconcile` returns the live target
+ *  (possibly re-pathed) or null when the entity is gone — built off a one-shot tree index, never a
+ *  per-tab walk. */
+export function reconcileTabs(
+  tabs: Tab[],
+  activeTabId: string,
+  mru: string[],
+  pinnedIds: string[],
+  reconcile: (t: SelectTarget) => SelectTarget | null,
+  newId: string,
+): ReconcileTabsResult {
+  let changed = false
+  const nextTabs: Tab[] = []
+  for (const t of tabs) {
+    if (t.target.kind === 'newtab') {
+      nextTabs.push(t)
+      continue
+    }
+    const target = reconcile(t.target)
+    if (target === null) {
+      changed = true // deleted entity — the unpinned tab closes (I-2)
+      continue
+    }
+    const stack: SelectTarget[] = []
+    let navIndex = -1
+    let stackChanged = false
+    for (let i = 0; i < t.navStack.length; i++) {
+      const r = reconcile(t.navStack[i])
+      if (r === null) {
+        stackChanged = true
+        continue
+      }
+      if (r !== t.navStack[i]) stackChanged = true
+      stack.push(r)
+      if (i === t.navIndex) navIndex = stack.length - 1
+    }
+    if (navIndex === -1) navIndex = stack.length - 1
+    if (target === t.target && !stackChanged) {
+      nextTabs.push(t)
+      continue
+    }
+    changed = true
+    nextTabs.push({ ...t, target, navStack: stack, navIndex })
+  }
+  if (!changed) return { tabs, activeTabId, mru, changed: false }
+
+  const live = new Set([...pinnedIds, ...nextTabs.map((t) => t.id)])
+  const nextMru = mru.filter((id) => live.has(id))
+  if (live.has(activeTabId)) return { tabs: nextTabs, activeTabId, mru: nextMru, changed: true }
+  const focus = nextMru[0] ?? nextTabs[0]?.id ?? pinnedIds[pinnedIds.length - 1]
+  if (focus !== undefined) return { tabs: nextTabs, activeTabId: focus, mru: nextMru, changed: true }
+  const seeded = newTabTab(newId)
+  return { tabs: [seeded], activeTabId: seeded.id, mru: [seeded.id], changed: true }
+}
+
 /** Ctrl+Tab cycling over the full visual order (pinned then unpinned), wrapping both ways (I-11). */
 export function cycle(orderedIds: string[], activeTabId: string, dir: 1 | -1): string {
   if (orderedIds.length === 0) return activeTabId

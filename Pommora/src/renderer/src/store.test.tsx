@@ -1,15 +1,18 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { SelectTarget, Tab } from '@shared/types'
+import type { NexusTree, SelectTarget, Tab } from '@shared/types'
+import { DEFAULT_LABELS } from '@shared/types'
 import { useSession } from './store'
 import { newTabTab } from './Tabs/tabsModel'
 
-// The store only reaches window.nexus for the page fetch + recents save. Stub both so the tab glue runs
-// in isolation — the tests drive context targets (no fetch) and tree:null (no reconcile).
+// Stub the narrow window.nexus surface the tab glue reaches (page fetch, recents save, tab persist,
+// the applyTree accent read) so it runs in isolation.
 beforeEach(() => {
   ;(window as unknown as { nexus: unknown }).nexus = {
     openPage: vi.fn(async () => ({ ok: true, page: {} })),
-    nav: { saveRecents: vi.fn() },
+    nav: { saveRecents: vi.fn(async () => ({ ok: true })) },
+    tabs: { save: vi.fn(async () => ({ ok: true })), load: vi.fn(async () => ({ ok: true, set: null })) },
+    systemAccent: vi.fn(async () => '#000000'),
   }
 })
 
@@ -101,5 +104,55 @@ describe('store — tab wiring (Phase 0)', () => {
     expect(s.tabs).toHaveLength(1)
     expect(s.tabs[0].target).toEqual({ kind: 'newtab' })
     expect(s.selection).toEqual({ kind: 'none' })
+  })
+})
+
+/** A minimal tree with one Collection holding the given top-level pages (selection.test.ts's shape). */
+function treeWith(pages: { id: string; path: string }[]): NexusTree {
+  return {
+    nexus: { id: 'nx', rootPath: '/x', name: 'x', profileImage: null, profileSubtitle: '' },
+    homepage: { locked: false, headingIconHidden: false },
+    saved: [],
+    contexts: { projects: [], topics: [], areas: [] },
+    collections: [
+      {
+        kind: 'collection',
+        id: 'c1',
+        title: 'Notes',
+        path: 'Notes',
+        sets: [],
+        pages: pages.map((p) => ({ kind: 'page', id: p.id, title: 'P', path: p.path })),
+      },
+    ],
+    userSections: [],
+    labels: DEFAULT_LABELS,
+    accent: 'lavender',
+    timeFormat: 'twelveHour',
+    personalization: {},
+    commands: {},
+    registry: [],
+  }
+}
+
+describe('store — applyTree reconciles EVERY tab (I-2a)', () => {
+  const page = (id: string, path: string): SelectTarget => ({ kind: 'page', id, path })
+
+  it('refreshes an inactive tab on a rename and closes it on a delete, without activating it', async () => {
+    const col: SelectTarget = { kind: 'collection', id: 'c1' }
+    const t1: Tab = { id: 't1', target: col, navStack: [col], navIndex: 0 }
+    const t2: Tab = { id: 't2', target: page('b', 'Notes/B.md'), navStack: [page('b', 'Notes/B.md')], navIndex: 0 }
+    seed({ tabs: [t1, t2], activeTabId: 't1', tabMru: ['t1', 't2'] })
+
+    // Rename: page b moves — the inactive t2 refreshes in place, the active tab stays put.
+    await useSession.getState().applyTree(treeWith([{ id: 'b', path: 'Notes/Renamed.md' }]))
+    let s = useSession.getState()
+    expect(s.activeTabId).toBe('t1')
+    expect(s.tabs.find((t) => t.id === 't2')?.target).toEqual(page('b', 'Notes/Renamed.md'))
+
+    // Delete: page b is gone — the inactive unpinned t2 closes; the active tab is untouched.
+    await useSession.getState().applyTree(treeWith([]))
+    s = useSession.getState()
+    expect(s.tabs.map((t) => t.id)).toEqual(['t1'])
+    expect(s.activeTabId).toBe('t1')
   })
 })
