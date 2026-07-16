@@ -6,6 +6,7 @@ import { ContainerView } from './ContainerView'
 import { HomepageView } from './HomepageView'
 import { ContextView } from './ContextView'
 import { PageView } from './PageView'
+import { NavView } from '../Tabs/NavView'
 import { Subfield } from './Subfield/Subfield'
 
 /**
@@ -18,7 +19,11 @@ function DetailView(): React.JSX.Element {
 
   switch (selection.kind) {
     case 'none':
-      return (
+      // The empty state IS NavView (E-2) — a NavView tab routes here via `selection: none`. With no
+      // nexus open there's nothing to browse, so the pane stays blank (App shows the open prompt).
+      return tree ? (
+        <NavView />
+      ) : (
         <div className="detail detail-empty">
           <span>Select a collection or page</span>
         </div>
