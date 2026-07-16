@@ -31,6 +31,22 @@
 .nav-view-search::placeholder {
   color: var(--label-tertiary);
 }
+/* The app hides native carets to draw its own (nativeCaret.ts), but that overlay doesn't position over
+   this banner-hosted field — so this one search keeps the native caret. Out-specifies Carets.css's
+   `input:not([type])` transparent rule (0,1,1) with (0,2,0). */
+.nav-view .nav-view-search {
+  caret-color: var(--label-primary);
+}
+
+/* When NavView wears the Homepage banner, the search sits in the banner-title slot — re-enable pointer
+   hits (the banner-title is inert) and add over-image legibility. */
+.nav-view-banner .banner-title {
+  pointer-events: auto;
+}
+.nav-view-banner .nav-view-search {
+  color: var(--text);
+  text-shadow: 0 1px 4px #0000008c;
+}
 
 .nav-view-scroll {
   flex: 1;

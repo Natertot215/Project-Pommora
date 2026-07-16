@@ -69,6 +69,8 @@ import type { OptionMenuContext } from '@shared/optionMenu'
 import { popCalloutMenu } from './calloutMenu'
 import { popColumnMenu } from './columnMenu'
 import { popCellMenu } from './cellMenu'
+import { popTabMenu } from './tabMenu'
+import type { TabMenuContext } from '@shared/tabMenu'
 import { popPropertyMenu } from './propertyMenu'
 import { popOptionMenu } from './optionMenu'
 import { popIconFavoriteMenu } from './iconFavoriteMenu'
@@ -1587,6 +1589,12 @@ ipcMain.handle('column-menu', async (e, ctx: ColumnMenuContext) => {
 ipcMain.handle('cell-menu', async (e, ctx: CellMenuContext) => {
   const win = BrowserWindow.fromWebContents(e.sender)
   return win ? popCellMenu(win, ctx) : null
+})
+
+// Pop a tab's native right-click menu (Pin/Unpin · Close · Close to the Right) → the chosen action.
+ipcMain.handle('tab-menu', async (e, ctx: TabMenuContext) => {
+  const win = BrowserWindow.fromWebContents(e.sender)
+  return win && isPlainObject(ctx) ? popTabMenu(win, ctx as unknown as TabMenuContext) : null
 })
 
 ipcMain.handle('property-menu', async (e, ctx: PropertyMenuContext) => {

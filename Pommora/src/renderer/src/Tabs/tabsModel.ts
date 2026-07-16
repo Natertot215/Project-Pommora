@@ -117,7 +117,8 @@ export function openTab(
   return { tabs: nextTabs, activeTabId: active.id }
 }
 
-/** openNewTab (E-1): the `+` — focus the existing NavView if one is open (I-1), else append one. */
+/** openNewTab (E-1): the `+` / ⌘N — focus the existing NavView if one is open (I-1, no duplicate),
+ *  else append one. So pressing ⌘N while already in a new tab is a no-op (you're there). */
 export function openNewTab(tabs: Tab[], newId: string): OpenResult {
   const existing = tabs.find((t) => t.target.kind === 'newtab')
   if (existing) return { tabs, activeTabId: existing.id }

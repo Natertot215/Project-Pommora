@@ -86,7 +86,7 @@ describe('tabsModel — openNewTab', () => {
     expect(r.activeTabId).toBe('NEW')
   })
 
-  it('focuses the existing NavView instead of a second one (I-1)', () => {
+  it('focuses the existing NavView instead of a second one — no duplicate (I-1)', () => {
     const r = openNewTab([navTab('n')], 'NEW')
     expect(r.tabs).toHaveLength(1)
     expect(r.activeTabId).toBe('n')

@@ -6,6 +6,7 @@ import type { FormatState } from '@shared/editorMenu'
 import type { TableMenuAction, TableMenuContext } from '@shared/tableMenu'
 import type { CalloutMenuAction } from '@shared/calloutMenu'
 import type { CellMenuAction, CellMenuContext } from '@shared/cellMenu'
+import type { TabMenuAction, TabMenuContext } from '@shared/tabMenu'
 import type { PropertyMenuAction, PropertyMenuContext } from '@shared/propertyMenu'
 import type { OptionMenuAction, OptionMenuContext } from '@shared/optionMenu'
 import type { ColumnMenuAction, ColumnMenuContext } from '@shared/columnMenu'
@@ -358,6 +359,7 @@ const api = {
   columnMenu: (ctx: ColumnMenuContext): Promise<ColumnMenuAction | null> => ipcRenderer.invoke('column-menu', ctx),
   // Pop a table cell's native right-click menu (title meta / per-type Style / Edit) — same contract.
   cellMenu: (ctx: CellMenuContext): Promise<CellMenuAction | null> => ipcRenderer.invoke('cell-menu', ctx),
+  tabMenu: (ctx: TabMenuContext): Promise<TabMenuAction | null> => ipcRenderer.invoke('tab-menu', ctx),
   // Pop a property's native menu (editor ⋮ / row right-click); Delete confirms in main first.
   propertyMenu: (ctx: PropertyMenuContext): Promise<PropertyMenuAction | null> =>
     ipcRenderer.invoke('property-menu', ctx),

@@ -215,13 +215,16 @@
   color: inherit;
 }
 .tab-label {
+  flex: 1;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
+  /* Reserve the ×'s lane so a long title ellipsizes cleanly BEFORE it — no fuzzy fade under the glyph. */
+  padding-right: 14px;
 }
 
-/* The hover-fade × (J-1: the chip glyph, a plain fade — no melt on glass). It overlays the label's
-   tail, so the label masks out beneath it while the × is present. */
+/* The hover-fade × (J-1: the chip glyph, a plain fade — no melt on glass). It sits in the label's
+   reserved right lane, so the ellipsis clears it without masking the text. */
 .tab-x {
   position: absolute;
   right: calc(var(--tab-pad-x) - 6px);
@@ -245,10 +248,6 @@
   color: var(--label-primary);
   background: var(--fill-tertiary);
 }
-.tab:hover .tab-label {
-  mask-image: linear-gradient(to right, #000000 calc(100% - 26px), transparent 100%);
-  -webkit-mask-image: linear-gradient(to right, #000000 calc(100% - 26px), transparent 100%);
-}
 
 /* ---- the trailing + (J-2/J-4): the .group-add glyph + fade. A SIBLING of the masked scroller —
    inside it, the edge fade would dim the + itself; the strip's --tab-plus-gutter padding keeps the
@@ -256,6 +255,10 @@
 .tab-plus {
   flex: 0 0 auto;
   margin-left: calc(-1 * var(--tab-plus-gutter));
+  /* Lift above .tab-scroll (position:relative → it paints over static siblings): the −gutter tucks the
+     + under the scroll's transparent right edge, and without this the scroll box eats its clicks. */
+  position: relative;
+  z-index: 1;
   display: inline-flex;
   align-items: center;
   justify-content: center;

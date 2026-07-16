@@ -8,7 +8,6 @@ import { useSession } from '../store'
 import { buildResolveIndex, resolveWith, type ResolvedNav } from '../Navigation/navResolve'
 import { EntityGlyph } from '../Navigation/EntityGlyph'
 import { cycle, derivePinnedTabs } from './tabsModel'
-import { TabContextMenu } from './TabContextMenu'
 import './tabBar.css'
 
 /** The tab close/open width animation window — the shared slow token (J-6). */
@@ -51,7 +50,9 @@ export function TabBar(): React.JSX.Element | null {
     [index, tabs]
   )
 
-  if (unpinnedEntries.length < 2 && pinnedEntries.length === 0) return null
+  // Blank ONLY for the pure empty state (a lone NavView, no pins); otherwise the bar shows so the +
+  // stays reachable — even at a single real tab (Nathan's revision of D-6's blank-at-single).
+  if (pinnedEntries.length === 0 && unpinnedEntries.every((e) => e.tab.target.kind === 'newtab')) return null
   return <TabBarBody pinnedEntries={pinnedEntries} unpinnedEntries={unpinnedEntries} />
 }
 
@@ -61,6 +62,9 @@ function TabBarBody({ pinnedEntries, unpinnedEntries }: { pinnedEntries: TabEntr
   const activateTab = useSession((s) => s.activateTab)
   const openNewTab = useSession((s) => s.openNewTab)
   const closeTab = useSession((s) => s.closeTab)
+  const closeTabsRight = useSession((s) => s.closeTabsRight)
+  const pinTab = useSession((s) => s.pinTab)
+  const unpinTab = useSession((s) => s.unpinTab)
   const reorderTabs = useSession((s) => s.reorderTabs)
   const reorderPin = useSession((s) => s.reorderPin)
   const tabs = useSession((s) => s.tabs)
@@ -119,16 +123,18 @@ function TabBarBody({ pinnedEntries, unpinnedEntries }: { pinnedEntries: TabEntr
       ?.scrollIntoView({ inline: 'nearest', block: 'nearest' })
   }, [activeTabId])
 
-  const [menu, setMenu] = useState<{ tabId: string; pinned: boolean; isNewTab: boolean; x: number; y: number } | null>(null)
-  const openMenu = (tabId: string, pinned: boolean, isNewTab: boolean) => (e: React.MouseEvent) => {
+  // A tab's native (Electron) right-click menu (I-12): context out, action back, dispatched against the
+  // tab id. Close animates through the ghost path; Close to the Right is a batched store close.
+  const runTabMenu = (tabId: string, pinned: boolean, isNewTab: boolean) => async (e: React.MouseEvent): Promise<void> => {
     e.preventDefault()
     e.stopPropagation()
-    setMenu({ tabId, pinned, isNewTab, x: e.clientX, y: e.clientY })
-  }
-
-  const hasRight = (id: string): boolean => {
-    const i = tabs.findIndex((t) => t.id === id)
-    return i !== -1 && i < tabs.length - 1
+    const i = tabs.findIndex((t) => t.id === tabId)
+    const hasRight = !pinned && i !== -1 && i < tabs.length - 1
+    const action = await window.nexus.tabMenu({ pinned, isNewTab, hasRight })
+    if (action === 'pin') pinTab(tabId)
+    else if (action === 'unpin') unpinTab(tabId)
+    else if (action === 'close') requestClose(tabId)
+    else if (action === 'close-right') closeTabsRight(tabId)
   }
 
   return (
@@ -142,7 +148,7 @@ function TabBarBody({ pinnedEntries, unpinnedEntries }: { pinnedEntries: TabEntr
                 entry={e}
                 active={e.tab.id === activeTabId}
                 onActivate={() => activateTab(e.tab.id)}
-                onMenu={openMenu(e.tab.id, true, false)}
+                onMenu={runTabMenu(e.tab.id, true, false)}
               />
             ))}
           </div>
@@ -162,7 +168,7 @@ function TabBarBody({ pinnedEntries, unpinnedEntries }: { pinnedEntries: TabEntr
                   active={entry.tab.id === activeTabId}
                   onActivate={() => activateTab(entry.tab.id)}
                   onClose={() => requestClose(entry.tab.id)}
-                  onMenu={openMenu(entry.tab.id, false, entry.tab.target.kind === 'newtab')}
+                  onMenu={runTabMenu(entry.tab.id, false, entry.tab.target.kind === 'newtab')}
                 />
               )
             )}
@@ -173,17 +179,6 @@ function TabBarBody({ pinnedEntries, unpinnedEntries }: { pinnedEntries: TabEntr
       <button type="button" className="tab-plus" aria-label="New Tab" title="New Tab" onClick={openNewTab}>
         <Icon name="plus" size={13} />
       </button>
-      {menu && (
-        <TabContextMenu
-          tabId={menu.tabId}
-          pinned={menu.pinned}
-          isNewTab={menu.isNewTab}
-          hasRight={!menu.pinned && hasRight(menu.tabId)}
-          x={menu.x}
-          y={menu.y}
-          onClose={() => setMenu(null)}
-        />
-      )}
     </div>
   )
 }
