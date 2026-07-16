@@ -1,4 +1,4 @@
-// The page (.md) file engine. Owns the `---\n<yaml>---\n\n<body>` envelope and the
+// The page (.md) file engine. Owns the `---\n<yaml>---\n<body>` envelope and the
 // foreign-preserving write. Foreign frontmatter (plugin/unmodeled keys) AND comments
 // survive a save because we parse the ORIGINAL frontmatter into a yaml Document and
 // only `set`/`delete` the modeled keys — we never reconstruct the object, so anything
@@ -31,10 +31,13 @@ export function readFrontmatterFields(content: string): Record<string, unknown> 
   return obj && typeof obj === 'object' ? (obj as Record<string, unknown>) : {}
 }
 
-/** Assemble canonical envelope bytes: `---\n<fm>---\n\n<body>` (fm must end in \n). */
+/** Assemble canonical envelope bytes: `---\n<fm>---\n<body>` (fm must end in \n).
+ *  No separator blank line — a note must never open with an empty line under
+ *  Obsidian's properties panel. splitEnvelope still strips one legacy separator,
+ *  so a body can't round-trip a leading blank line; that's the intended shape. */
 export function assembleEnvelope(frontmatterYaml: string, body: string): string {
   const fm = frontmatterYaml.endsWith('\n') ? frontmatterYaml : frontmatterYaml + '\n'
-  return `---\n${fm}---\n\n${body}`
+  return `---\n${fm}---\n${body}`
 }
 
 /**

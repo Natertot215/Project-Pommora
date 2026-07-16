@@ -6,9 +6,13 @@ import { splitEnvelope, assembleEnvelope, mergeFrontmatter, writePageFile } from
 
 describe('splitEnvelope / assembleEnvelope', () => {
   it('round-trips a canonical envelope', () => {
-    const content = '---\nid: X\n---\n\nBody text'
+    const content = '---\nid: X\n---\nBody text'
     expect(splitEnvelope(content)).toEqual({ frontmatter: 'id: X', body: 'Body text' })
     expect(assembleEnvelope('id: X\n', 'Body text')).toBe(content)
+  })
+
+  it('reads a legacy envelope (separator blank line) to the same body', () => {
+    expect(splitEnvelope('---\nid: X\n---\n\nBody text')).toEqual({ frontmatter: 'id: X', body: 'Body text' })
   })
 
   it('strips exactly one separator blank line before the body', () => {
