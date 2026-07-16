@@ -36,6 +36,10 @@ The table's full interaction layer. First the per-type cell gesture matrix — t
 
 ### II. Upcoming (Toward v1.0.0)
 
+#### Multi-Tab Nexus (active — reprioritized ahead of the remaining Views work)
+
+Warm, state-preserving tabs replace single-pane-replace: a persisted, cross-device-synced working set of open entities — pinned (the existing `.nexus/pins/` set, left-docked) plus unpinned scratch tabs — each keeping its own scroll/undo/fold within a session and its own Back/Forward. One view mounted at a time (a serialized warm cache rehydrated on switch); the empty state becomes a full-window new-tab gallery. Opens the navigation system's deferred paradigm fork (single-pane-replace vs tabs). Ratified spec + implementation plan in `Planning/` (`Multi-Tab Nexus — Decision Log` + `— Implementation Plan`).
+
 #### v0.5.0 — Views Complete + Properties UI
 
 The Gallery / Board / List / Cards renderers, the toolbar Views switcher, and the full View Settings panes (Filter / Group / Sort / Layout / Visibility) over the shipped pipeline; the chip mechanics (the DRY'd slide + the hover (×) remove); the **assign surface** (the Properties pane grown to the nexus-wide model — assign-existing, Remove vs global Delete); and the page property panel (the data layer is done, registry-backed).
