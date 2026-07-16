@@ -6,12 +6,44 @@
 
 import { mkdir, readdir, rm } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
-import type { BrowserWindow } from 'electron'
+import { nativeImage } from 'electron'
+import type { BrowserWindow, NativeImage } from 'electron'
+import { WINDOW_BG } from '@shared/theme'
 import type { ThumbRect } from '@shared/types'
 import { ensureIdentity } from '../identity'
 import { atomicWriteBinary } from './atomicWrite'
 
 const THUMB_WIDTH = 480
+
+/** `#RRGGBB` → `[r, g, b]`. */
+function hexToRgb(hex: string): [number, number, number] {
+  const n = Number.parseInt(hex.slice(1), 16)
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255]
+}
+
+/** Hide the toolbar chrome overlapping the top of the shot WITHOUT touching the live DOM (no flicker):
+ *  overpaint the top `maskTop` band in the captured bitmap. Over a full-bleed banner the band is back-filled
+ *  by copying the banner block just below it up over the chrome (chrome gone, banner reads continuous); with
+ *  no banner that strip is empty, so it's filled with the window bg. Rebuilt at the same scaleFactor so the
+ *  downscale that follows is unchanged. */
+function maskTopBand(img: NativeImage, maskTopDip: number, fill: 'banner' | 'window', sf: number, width: number, height: number): NativeImage {
+  const rows = Math.min(Math.round(maskTopDip * sf), height)
+  if (rows < 1) return img
+  const bmp = img.toBitmap() // B, G, R, A
+  const rowBytes = width * 4
+  if (fill === 'banner' && rows * 2 <= height) {
+    bmp.copyWithin(0, rows * rowBytes, rows * 2 * rowBytes)
+  } else {
+    const [r, g, b] = hexToRgb(WINDOW_BG)
+    for (let i = 0, end = rows * rowBytes; i < end; i += 4) {
+      bmp[i] = b
+      bmp[i + 1] = g
+      bmp[i + 2] = r
+      bmp[i + 3] = 255
+    }
+  }
+  return nativeImage.createFromBitmap(bmp, { width, height, scaleFactor: sf })
+}
 
 /** navKey → filesystem-safe thumbnail key (the colon is illegal on Windows). */
 export function thumbKey(navKey: string): string {
@@ -43,7 +75,8 @@ export async function captureThumbnail(win: BrowserWindow, root: string, navKey:
   if (width < 1 || height < 1) return null
   const cropped = img.crop({ x, y, width, height })
   if (cropped.isEmpty()) return null
-  const buf = cropped.resize({ width: THUMB_WIDTH, quality: 'best' }).toJPEG(78)
+  const masked = maskTopBand(cropped, rect.maskTop ?? 0, rect.maskFill ?? 'window', sf, width, height)
+  const buf = masked.resize({ width: THUMB_WIDTH, quality: 'good' }).toJPEG(78)
   const { id: nexusId } = await ensureIdentity(root)
   const key = thumbKey(navKey)
   const rel = thumbRel(nexusId, key)

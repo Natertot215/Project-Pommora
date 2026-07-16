@@ -354,6 +354,11 @@ export interface ThumbRect {
   y: number
   width: number
   height: number
+  /** DIP height of the toolbar band overlapping the top of the shot — overpainted so its chrome doesn't
+   *  bake in (no live hide → no flicker). `maskFill` picks the fill: `banner` copies the banner just below
+   *  the band up over it (a full-bleed banner reads continuous); `window` fills the bannerless empty strip. */
+  maskTop?: number
+  maskFill?: 'banner' | 'window'
 }
 
 /** The `capture:thumbnail` envelope — the written thumbnail's `nexus-asset://` URL. */
