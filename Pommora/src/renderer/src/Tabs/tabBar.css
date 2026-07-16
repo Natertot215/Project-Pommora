@@ -1,0 +1,258 @@
+/* The toolbar tab bar. EVERY tunable lives in the .tab-bar knob block below (the plan's knob table) —
+   no inline magic numbers. The unpinned strip overflow-scrolls with the scroll-driven edge fade
+   (inherited from the retired preview strip); tabs open/close by animating width on the slow token. */
+
+@property --tab-edge-l {
+  syntax: '<number>';
+  inherits: false;
+  initial-value: 0;
+}
+@property --tab-edge-r {
+  syntax: '<number>';
+  inherits: false;
+  initial-value: 0;
+}
+@keyframes tab-edge-l {
+  0% {
+    --tab-edge-l: 0;
+  }
+  8%,
+  100% {
+    --tab-edge-l: 1;
+  }
+}
+@keyframes tab-edge-r {
+  0%,
+  92% {
+    --tab-edge-r: 1;
+  }
+  100% {
+    --tab-edge-r: 0;
+  }
+}
+
+.tab-bar {
+  /* KNOBS — the whole bar tunes here. */
+  --tab-height: 32px; /* bar/tab height (button-large row) */
+  --tab-min: 90px; /* unpinned floor ≈ icon + ~6ch */
+  --tab-pref: 180px; /* preferred (browser-tab feel) */
+  --tab-max: 240px; /* growth cap */
+  --tab-pinned-w: 34px; /* compact pinned tab (icon + accent) */
+  --tab-pad-x: 12px; /* tab horizontal padding */
+  --tab-gap: 6px; /* icon ↔ label gap */
+  --tab-icon: 14px; /* entity icon size (TabBar.tsx mirrors it) */
+  --tab-x: 11px; /* close-× glyph (strokeWidth 3, chip spec) */
+  --tab-plus: 13px; /* new-tab + glyph */
+  --tab-pin: 9px; /* pin accent badge on a pinned tab */
+  --tab-divider-w: 2px; /* pinned│unpinned segment divider */
+  --tab-divider-h: 16px;
+  --tab-edge-fade: 20px; /* overflow edge dissolve */
+  --tab-plus-gutter: 28px; /* trailing room so the parked + clears the last tab's × (J-4) */
+
+  flex: 1;
+  min-width: 0;
+  align-self: flex-start;
+  display: flex;
+  align-items: center;
+  height: var(--tab-height);
+  margin: 0 4px;
+  pointer-events: auto;
+  -webkit-app-region: no-drag;
+}
+/* F-1 reveal-on-hover: the bar sits invisible until the pointer enters its strip. */
+.tab-bar.reveal-on-hover {
+  opacity: 0;
+  transition: opacity var(--duration-base) var(--ease-standard);
+}
+.tab-bar.reveal-on-hover:hover {
+  opacity: 1;
+}
+
+/* ---- pinned zone (fixed left, compact icons, I-8) ---- */
+.tab-pinned-zone {
+  display: flex;
+  align-items: center;
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden; /* bounded — uncapped pins never collide with the right cluster (J-5) */
+}
+.tab-pinned {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--tab-pinned-w);
+  height: 100%;
+  flex: 0 0 auto;
+  color: var(--label-tertiary);
+  cursor: pointer;
+  transition: color var(--duration-base) var(--ease-standard);
+}
+.tab-pinned:hover {
+  color: var(--label-secondary);
+}
+.tab-pinned.is-active {
+  color: var(--label-control);
+}
+.tab-pinned.is-dragging {
+  opacity: 0.85;
+}
+.tab-pin-badge {
+  position: absolute;
+  right: 4px;
+  bottom: 5px;
+  color: var(--accent);
+  pointer-events: none;
+}
+
+/* ---- segment divider between the zones ---- */
+.tab-divider {
+  flex: 0 0 auto;
+  align-self: center;
+  width: var(--tab-divider-w);
+  height: var(--tab-divider-h);
+  margin: 0 4px;
+  background: var(--separator-segment);
+  border-radius: 999px;
+}
+
+/* ---- unpinned strip: overflow-scroll + the scroll-driven edge fade ---- */
+.tab-scroll {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  animation-name: tab-edge-l, tab-edge-r;
+  animation-duration: auto;
+  animation-timing-function: linear;
+  animation-timeline: scroll(self inline);
+  mask-image: linear-gradient(
+    to right,
+    transparent 0,
+    #000000 calc(var(--tab-edge-l) * var(--tab-edge-fade)),
+    #000000 calc(100% - var(--tab-edge-r) * var(--tab-edge-fade)),
+    transparent 100%
+  );
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent 0,
+    #000000 calc(var(--tab-edge-l) * var(--tab-edge-fade)),
+    #000000 calc(100% - var(--tab-edge-r) * var(--tab-edge-fade)),
+    transparent 100%
+  );
+}
+.tab-strip {
+  display: flex;
+  align-items: center;
+  width: max-content;
+  min-width: 100%;
+  height: 100%;
+  padding-right: var(--tab-plus-gutter);
+}
+
+/* ---- an unpinned tab ---- */
+.tab {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--tab-gap);
+  height: 100%;
+  flex: 1 1 var(--tab-pref);
+  min-width: var(--tab-min);
+  max-width: var(--tab-max);
+  padding: 0 var(--tab-pad-x);
+  color: var(--label-tertiary);
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  /* Open/close = width motion on the slow token (J-6); color = the active fade. */
+  transition:
+    color var(--duration-base) var(--ease-standard),
+    max-width var(--duration-slow) var(--ease-standard),
+    min-width var(--duration-slow) var(--ease-standard),
+    padding var(--duration-slow) var(--ease-standard),
+    opacity var(--duration-slow) var(--ease-standard);
+}
+/* A tab opens by growing from nothing (the neighbors reflow with it). */
+@starting-style {
+  .tab {
+    min-width: 0;
+    max-width: 0;
+    padding: 0;
+    opacity: 0;
+  }
+}
+/* …and closes the same way (the store drops it when the motion lands). */
+.tab.is-closing {
+  min-width: 0;
+  max-width: 0;
+  padding: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+.tab:hover {
+  color: var(--label-secondary);
+}
+.tab.is-active {
+  color: var(--label-control);
+}
+.tab.is-dragging {
+  opacity: 0.85;
+}
+.tab-icon {
+  flex: 0 0 auto;
+  color: inherit;
+}
+.tab-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* The hover-fade × (J-1: the chip glyph, a plain fade — no melt on glass). It overlays the label's
+   tail, so the label masks out beneath it while the × is present. */
+.tab-x {
+  position: absolute;
+  right: calc(var(--tab-pad-x) - 6px);
+  display: flex;
+  padding: 3px;
+  border: none;
+  border-radius: 5px;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--duration-fast) var(--ease-standard);
+}
+.tab:hover .tab-x {
+  opacity: 1;
+}
+.tab:hover .tab-label {
+  mask-image: linear-gradient(to right, #000000 calc(100% - 26px), transparent 100%);
+  -webkit-mask-image: linear-gradient(to right, #000000 calc(100% - 26px), transparent 100%);
+}
+
+/* ---- the trailing + (J-2/J-4): the .group-add glyph + fade, parked sticky at the strip's end so a
+   full-width strip overlays it on the last tab (its gutter keeps the × clear). ---- */
+.tab-plus {
+  position: sticky;
+  right: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 0 6px;
+  margin-left: calc(-1 * var(--tab-plus-gutter));
+  border: none;
+  background: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--duration-fast) var(--ease-standard);
+}
+.tab-bar:hover .tab-plus {
+  opacity: 1;
+}

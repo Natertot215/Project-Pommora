@@ -4,7 +4,7 @@ import { useDismiss } from '@renderer/design-system/components/Popover'
 import { ToolbarTrio } from './ToolbarTrio'
 import { ViewDropdown } from './ViewDropdown'
 import { NavPane } from './NavPane'
-import { TabBarPreview } from './TabBarPreview'
+import { TabBar } from '../Tabs/TabBar'
 import { SettingsDropdown } from '../Components/Detail/SettingsDropdown'
 import { useSession } from '../store'
 import { useExitPresence } from '@renderer/design-system/useExitPresence'
@@ -79,7 +79,7 @@ export function Toolbar({
       <div className="app-toolbar-cluster app-toolbar-cluster--nav">
         <SegmentedSymbol segments={backForward} paddingX="6px" iconSize="lg" />
       </div>
-      <TabBarPreview />
+      <TabBar />
       <div className="app-toolbar-right">
         <ViewDropdown />
         <div className="app-toolbar-cluster app-toolbar-cluster--trio" ref={trioRef}>

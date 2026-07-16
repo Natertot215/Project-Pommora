@@ -117,6 +117,8 @@ export interface Personalization {
   subSetPlacement?: FolderPlacement
   /** The sidebar ribbon's active mode (which content the column shows). Absent = 'collections'. */
   sidebarMode?: SidebarMode
+  /** Hide the toolbar tab bar until hovered (F-1). Absent = always shown. */
+  revealTabBarOnHover?: boolean
   /** Ribbon icon order below the pinned Homepage — bare icon keys, in display order. */
   ribbonOrder?: string[]
   /** The window zoom the nexus opens at (and ⌘0 resets to). Absent = 1.0. Set by hand in

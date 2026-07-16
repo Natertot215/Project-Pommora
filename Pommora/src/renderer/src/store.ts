@@ -4,7 +4,7 @@ import { DEFAULT_NEW_NAME, type MutableKind, type MutateRequest } from '@shared/
 import { buildReconcileIndex, reconcileSelection, reconcileWith } from './selection'
 import { navKey, recordRecent, removeRecentByKey, RECENTS_CAP } from './Navigation/navRecents'
 import { byOrder, cleanPinTarget, pinFor, reorderTo } from './Navigation/navPins'
-import { closeTab as closeTabModel, derivePinnedTabs, isPinned, newTabTab, openNewTab as openNewTabModel, openTab as openTabModel, pushMru, reconcileTabs, tabKey } from './Tabs/tabsModel'
+import { closeTab as closeTabModel, derivePinnedTabs, insertUnpinned, isPinned, newTabTab, openNewTab as openNewTabModel, openTab as openTabModel, pinTabId, pushMru, reconcileTabs, reorderWithinZone, tabKey } from './Tabs/tabsModel'
 import { captureWarm, clearWarm, dropWarmTab, readWarm } from './Tabs/warmCache'
 import { stabilize } from './treeStabilize'
 import { applyAccent, applySystemAccent } from './design-system/accent'
@@ -157,6 +157,16 @@ interface SessionState {
   openNewTab: () => void
   /** Close a tab — MRU-focus the next (D-9); reseed a NavView when the last closes (I-5). */
   closeTab: (id: string) => void
+  /** Close every unpinned tab right of `id` (I-12). */
+  closeTabsRight: (id: string) => void
+  /** Reorder within the unpinned strip (D-4b) — pinned reorder is the pins slice's reorderPin. */
+  reorderTabs: (activeId: string, overId: string) => void
+  /** Pin an unpinned tab: the entity joins the pins set and the tab graduates to the derived pinned
+   *  zone (C-6 — never dual-stored). */
+  pinTab: (id: string) => void
+  /** Unpin a pinned tab: the pin is removed and the entity re-enters the unpinned strip at the
+   *  front (D-11 promote-to-front). */
+  unpinTab: (pinId: string) => void
   /** Step the ACTIVE tab's own Back/Forward history (D-7), skipping deleted entries. */
   goBack: () => void
   goForward: () => void
@@ -616,6 +626,45 @@ export const useSession = create<SessionState>((set, get) => {
       set({ tabs: res.tabs, activeTabId: res.activeTabId, tabMru: res.mru })
       dropWarmTab(id) // a closed tab's warm stack dies with it
       if (activeChanged) syncActiveDetail()
+      persistTabs()
+    },
+    closeTabsRight: (id) => {
+      const from = get().tabs.findIndex((t) => t.id === id)
+      if (from === -1) return
+      for (const t of get().tabs.slice(from + 1)) get().closeTab(t.id)
+    },
+    reorderTabs: (activeId, overId) => {
+      const s = get()
+      const to = s.tabs.findIndex((t) => t.id === overId)
+      if (to === -1) return
+      const next = reorderWithinZone(s.tabs, activeId, to)
+      if (next === s.tabs) return
+      set({ tabs: next })
+      persistTabs()
+    },
+    pinTab: (id) => {
+      const tab = get().tabs.find((t) => t.id === id)
+      if (!tab || tab.target.kind === 'newtab') return
+      const target = tab.target
+      get().pinTarget(target)
+      // pinTarget refuses some targets (adopted ids) — only graduate the tab if the pin really landed.
+      if (!get().pins.some((p) => navKey(p) === navKey(target))) return
+      const wasActive = get().activeTabId === id
+      set((s) => ({ tabs: s.tabs.filter((t) => t.id !== id), tabMru: s.tabMru.filter((m) => m !== id) }))
+      if (wasActive) set((s) => ({ activeTabId: pinTabId(target), tabMru: pushMru(s.tabMru, pinTabId(target)) }))
+      dropWarmTab(id) // the tab's identity changes — its session warmth doesn't migrate
+      persistTabs()
+    },
+    unpinTab: (pinId) => {
+      const pinnedTab = derivePinnedTabs(get().pins).find((t) => t.id === pinId)
+      if (!pinnedTab || pinnedTab.target.kind === 'newtab') return
+      const target = pinnedTab.target
+      get().unpinTarget(navKey(target))
+      const tab: Tab = { id: makeTabId(), target, navStack: [target], navIndex: 0 }
+      set((s) => ({ tabs: insertUnpinned(s.tabs, s.activeTabId, tab) }))
+      if (get().activeTabId === pinId)
+        set((s) => ({ activeTabId: tab.id, tabMru: pushMru(s.tabMru.filter((m) => m !== pinId), tab.id) }))
+      dropWarmTab(pinId)
       persistTabs()
     },
 

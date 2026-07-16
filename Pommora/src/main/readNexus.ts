@@ -112,6 +112,7 @@ export function readPersonalization(raw: unknown): Personalization {
     setPlacement: placement(p.setPlacement),
     subSetPlacement: placement(p.subSetPlacement),
     sidebarMode: mode(p.sidebarMode),
+    revealTabBarOnHover: bool(p.revealTabBarOnHover),
     ribbonOrder: ribbonOrder.length ? ribbonOrder : undefined,
     defaultViewScale: coerceViewScale(p.defaultViewScale)
   }
