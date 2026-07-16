@@ -25,6 +25,21 @@
   transition: none;
 }
 
+/* The window-drag handle. The toolbar's own drag strip is now spent on tab-dragging, so the sidebar's
+   top band (the traffic-light row, above the ribbon + content) carries the app-window drag. It re-asserts
+   drag over the no-drag ribbon/content that otherwise tile the panel; the collapse toggle (z-3) + native
+   traffic lights sit above it and stay live. Height matches the content's 46px top inset — nothing
+   interactive lives in that band. */
+.sidebar-titlebar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 46px;
+  z-index: 1;
+  -webkit-app-region: drag;
+}
+
 /* --- sidebar ribbon --- */
 /* A fixed icon strip pinned to the panel's left edge, OUTSIDE the scrolling .sidebar so scroll can
    neither move it nor cross its border. Needs its own no-drag (the .surface-glass parent is a

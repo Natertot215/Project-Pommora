@@ -276,6 +276,13 @@
 .tab-bar:hover .tab-plus {
   opacity: 1;
 }
+/* The + reveals across the tab bar, but Back/Forward and the right cluster (view dropdown + trio)
+   aren't tab chrome — suppress it while one of those is hovered, so reaching for an unrelated
+   toolbar button never lights the +. Out-specifies the reveal (its :has arg lifts it past 0,3,0). */
+.app-toolbar:has(.app-toolbar-cluster--nav button:hover) .tab-plus,
+.app-toolbar:has(.app-toolbar-right button:hover) .tab-plus {
+  opacity: 0;
+}
 .tab-plus:hover {
   color: var(--label-primary);
 }

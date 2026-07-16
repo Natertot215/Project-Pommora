@@ -52,6 +52,7 @@
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  /* Less the gallery's own 12px so the cards land ON the surface inset (aligned with the search bar). */
-  padding: 14px calc(var(--surface-banner-inset-right) - 12px) 14px calc(var(--surface-banner-inset) - 12px);
+  /* Top clears the search divider by the block-surface banner→content clearance (Detail.css's 8px,
+     Homepage/contexts); horizontal is less the gallery's own 12px so cards land ON the surface inset. */
+  padding: 8px calc(var(--surface-banner-inset-right) - 12px) 14px calc(var(--surface-banner-inset) - 12px);
 }

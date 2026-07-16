@@ -153,6 +153,8 @@ export function App(): React.JSX.Element {
       {/* Sidebar always mounted so collapse/expand animates (slides) instead of snapping;
           .shell.sidebar-hidden translates it off + reclaims the detail gutter. */}
       <Surface>
+          {/* Window-drag handle across the sidebar's top band (the toolbar's strip is now tab-dragging). */}
+          <div className="sidebar-titlebar" />
           {/* Ribbon: a pinned icon strip left of the scrolling sidebar; switches sidebar modes. */}
           {status === 'ready' && tree && <Ribbon />}
           {/* Collapse — in-line with the traffic lights (sidebar top-right); reveals on hover. */}
