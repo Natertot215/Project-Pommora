@@ -106,7 +106,7 @@
   overflow-x: hidden;
   overflow-y: auto;
   height: 100%;
-  /* The scroll-edge fade rides the shared .scroll-edge-fade class (design-system) — the top fade
+  /* The scroll-edge fade rides the shared .edge-fade class (design-system) — the top fade
      tucks inside the 46px header padding, so the header stays crisp at rest. */
 }
 .shell.ribbon-hidden .sidebar {

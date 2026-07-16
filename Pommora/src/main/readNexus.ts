@@ -106,11 +106,13 @@ export function readPersonalization(raw: unknown): Personalization {
       conn === 'accent' || (conn != null && ACCENT_COLOR_SET.has(conn)) ? (conn as ConnectionColorSetting) : undefined,
     hideChevrons: bool(p.hideChevrons),
     outlinerLines: bool(p.outlinerLines),
+    navCloseOnSelect: bool(p.navCloseOnSelect),
     defaultIcons: Object.keys(defaultIcons).length ? defaultIcons : undefined,
     favoriteIcons: favoriteIcons.length ? favoriteIcons : undefined,
     setPlacement: placement(p.setPlacement),
     subSetPlacement: placement(p.subSetPlacement),
     sidebarMode: mode(p.sidebarMode),
+    revealTabBarOnHover: bool(p.revealTabBarOnHover),
     ribbonOrder: ribbonOrder.length ? ribbonOrder : undefined,
     defaultViewScale: coerceViewScale(p.defaultViewScale)
   }
@@ -400,6 +402,7 @@ async function walkNexus(root: string): Promise<NexusTree> {
   const savedConfig = (await readJsonObject(nexusConfig(root, NEXUS_CONFIG_FILES.savedConfig))) ?? {}
   const sectionsConfig = (await readJsonObject(nexusConfig(root, NEXUS_CONFIG_FILES.sidebarSections))) ?? {}
   const homepageConfig = (await readJsonObject(nexusConfig(root, NEXUS_CONFIG_FILES.homepage))) ?? {}
+  const navviewConfig = (await readJsonObject(nexusConfig(root, NEXUS_CONFIG_FILES.navview))) ?? {}
   const registry = await readRegistry(root)
 
   // Saved strip — 3 fixed, code-keyed rows; labels come from saved-config `items[{key,label}]`.
@@ -469,6 +472,7 @@ async function walkNexus(root: string): Promise<NexusTree> {
       locked: homepageConfig.blocks_locked === true,
       headingIconHidden: homepageConfig.heading_icon_hidden === true
     },
+    navView: { banner: asString(navviewConfig.banner) },
     saved,
     contexts,
     collections,

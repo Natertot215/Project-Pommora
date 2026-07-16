@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import type { RecentEntry } from '@shared/types'
-import { navKey, recordRecent, togglePinned } from './navRecents'
+import { navKey, recordRecent, removeRecentByKey } from './navRecents'
 
-const page = (id: string, pinned?: boolean): RecentEntry => ({ kind: 'page', id, path: `${id}.md`, ...(pinned ? { pinned } : {}) })
+const page = (id: string): RecentEntry => ({ kind: 'page', id, path: `${id}.md` })
 
 describe('navKey', () => {
   it('keys by kind:id, and by bare kind for the id-less homepage', () => {
@@ -29,45 +29,26 @@ describe('recordRecent', () => {
     expect(r[0]).toEqual({ kind: 'homepage' })
   })
 
-  it('preserves a pinned flag across a re-visit (stays floated)', () => {
-    const r = recordRecent([page('a'), page('b', true)], { kind: 'page', id: 'b', path: 'b.md' })
-    expect(r[0]).toEqual({ kind: 'page', id: 'b', path: 'b.md', pinned: true })
-  })
-
-  it('rolls off the oldest un-pinned beyond the cap', () => {
+  it('rolls off the oldest beyond the cap', () => {
     const start = [page('a'), page('b'), page('c')]
     const r = recordRecent(start, { kind: 'page', id: 'd', path: 'd.md' }, 3)
-    expect(r.map((e) => ('id' in e ? e.id : e.kind))).toEqual(['d', 'a', 'b']) // 'c' (oldest un-pinned) dropped
-  })
-
-  it('never rolls off a pinned entry — cap can be exceeded by pins', () => {
-    const start = [page('a', true), page('b', true), page('c', true)]
-    const r = recordRecent(start, { kind: 'page', id: 'd', path: 'd.md' }, 2)
-    expect(r.map((e) => ('id' in e ? e.id : e.kind))).toEqual(['d', 'a', 'b', 'c']) // only 'd' un-pinned; nothing else can drop
-  })
-
-  it('drops the oldest UN-pinned, skipping pinned ones, to hit the cap', () => {
-    const start = [page('a'), page('b', true), page('c')]
-    const r = recordRecent(start, { kind: 'page', id: 'd', path: 'd.md' }, 3)
-    expect(r.map((e) => ('id' in e ? e.id : e.kind))).toEqual(['d', 'a', 'b']) // 'c' dropped (oldest un-pinned), 'b' pinned survives
+    expect(r.map((e) => ('id' in e ? e.id : e.kind))).toEqual(['d', 'a', 'b']) // 'c' (oldest) dropped
   })
 })
 
-describe('togglePinned', () => {
-  it('pins an entry (sets pinned: true)', () => {
-    const r = togglePinned([page('a'), page('b')], 'page:a')
-    expect(r[0]).toEqual({ kind: 'page', id: 'a', path: 'a.md', pinned: true })
+describe('removeRecentByKey', () => {
+  it('drops the matching entry, preserving the rest in order', () => {
+    const r = removeRecentByKey([page('a'), page('b'), page('c')], 'page:b')
+    expect(r.map((e) => ('id' in e ? e.id : e.kind))).toEqual(['a', 'c'])
   })
 
-  it('un-pins by DELETING the key (no pinned: false persisted)', () => {
-    const r = togglePinned([page('a', true)], 'page:a')
-    expect(r[0]).toEqual({ kind: 'page', id: 'a', path: 'a.md' })
-    expect('pinned' in r[0]).toBe(false)
+  it('removes the id-less homepage by bare kind', () => {
+    const r = removeRecentByKey([{ kind: 'homepage' }, page('a')], 'homepage')
+    expect(r.map((e) => ('id' in e ? e.id : e.kind))).toEqual(['a'])
   })
 
-  it('leaves non-matching entries untouched', () => {
+  it('returns the same reference when nothing matched (no needless persist)', () => {
     const start = [page('a'), page('b')]
-    const r = togglePinned(start, 'page:a')
-    expect(r[1]).toBe(start[1])
+    expect(removeRecentByKey(start, 'page:z')).toBe(start)
   })
 })

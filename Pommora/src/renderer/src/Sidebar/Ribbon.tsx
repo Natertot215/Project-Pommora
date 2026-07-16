@@ -50,7 +50,7 @@ export function Ribbon(): React.JSX.Element {
   const onIcon = (k: RibbonKey): void => {
     const m = MODE_FOR[k]
     if (m) setPersonalization('sidebarMode', m)
-    else if (k === 'navigation') openNav() // summon NavPane (the floating mini-shell)
+    else if (k === 'navigation') openNav() // summon NavWindow (the floating mini-shell)
     // settings: future glass window — no-op for now.
   }
 
@@ -91,7 +91,7 @@ function RibbonTab({
   active: boolean
   onClick: () => void
 }): React.JSX.Element {
-  const { setNodeRef, style, handle } = useDragItem(tabKey)
+  const { setNodeRef, style, handle, isDragging } = useDragItem(tabKey)
   return (
     <button
       ref={setNodeRef}
@@ -101,7 +101,9 @@ function RibbonTab({
       className="ribbon-icon"
       aria-label={tabKey}
       aria-selected={active}
-      onClick={onClick}
+      onClick={() => {
+        if (!isDragging) onClick()
+      }}
     >
       <Icon name={icon} size={18} />
     </button>

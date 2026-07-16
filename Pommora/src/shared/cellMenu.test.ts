@@ -2,13 +2,17 @@ import { describe, expect, it } from 'vitest'
 import { cellMenuModel } from './cellMenu'
 
 describe('cellMenuModel', () => {
-  it('title: Rename + Change Icon + separator-gated Delete', () => {
+  it('title: stateful Open lead + Rename + Change Icon + separator-gated Delete', () => {
     const m = cellMenuModel({ kind: 'title' })
     expect(m.items.map((i) => [i.label, i.action])).toEqual([
+      ['Open in New Tab', 'title:newtab'],
       ['Rename', 'title:rename'],
       ['Change Icon', 'title:icon'],
       ['Delete', 'title:delete']
     ])
+    // An already-open page reads "Open" (focus, I-1) — same action either way.
+    expect(cellMenuModel({ kind: 'title', alreadyOpen: true }).items[0].label).toBe('Open')
+    expect(m.items.find((i) => i.action === 'title:rename')?.separatorBefore).toBe(true)
     expect(m.items.find((i) => i.action === 'title:delete')?.separatorBefore).toBe(true)
     expect(m.style).toBeUndefined()
   })

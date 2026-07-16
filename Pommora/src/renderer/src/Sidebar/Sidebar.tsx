@@ -25,13 +25,16 @@ import { SidebarDnd, useSidebarDrag } from './sidebarDnd'
 import { AgendaMode } from './AgendaMode'
 import { loadOpen, saveOpen } from './disclosureState'
 import { useSession } from '../store'
+import { contextTargetToSelect, isOpenInTabs } from '../Tabs/tabsModel'
 import { RenamableTitle } from '../Components/RenamableTitle'
 
 /** Right-click an entity → main pops the native context menu. Every PathNode (page +
- *  container + context) carries kind/path/title; the code-keyed saved rows don't, so they
- *  never wire this. */
-function showContextFor(node: { kind: MutableKind; path: string; title: string }): void {
-  void window.nexus.contextMenu({ kind: node.kind, path: node.path, title: node.title })
+ *  container + context) carries kind/id/path/title; the code-keyed saved rows don't, so they
+ *  never wire this. Tab membership rides along so the menu's open item reads stateful (I-1). */
+function showContextFor(node: { kind: MutableKind; id: string; path: string; title: string }): void {
+  const { tabs, pins } = useSession.getState()
+  const alreadyOpen = isOpenInTabs(tabs, pins, contextTargetToSelect(node))
+  void window.nexus.contextMenu({ kind: node.kind, id: node.id, path: node.path, title: node.title, alreadyOpen })
 }
 
 /** A row's onContextMenu handler — suppress the browser default, then run `cb`. */
@@ -550,7 +553,7 @@ export function Sidebar({ tree }: { tree: NexusTree }): React.JSX.Element {
   }, [mode])
 
   return (
-    <nav ref={navRef} className="sidebar scroll-edge-fade">
+    <nav ref={navRef} className="sidebar edge-fade">
       <div className="sidebar-mode-stage">
         {exit && (
           <div

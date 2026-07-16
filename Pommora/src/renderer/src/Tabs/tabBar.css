@@ -1,0 +1,296 @@
+/* The toolbar tab bar. EVERY tunable lives in the .tab-bar knob block below (the plan's knob table) —
+   no inline magic numbers. The unpinned strip overflow-scrolls with the scroll-driven edge fade
+   (inherited from the retired preview strip); tabs open/close by animating width on the slow token. */
+
+.tab-bar {
+  /* KNOBS — the whole bar tunes here. */
+  --tab-height: 32px; /* bar/tab height (button-large row) */
+  --tab-min: 90px; /* unpinned floor ≈ icon + ~6ch */
+  --tab-pref: 180px; /* preferred (browser-tab feel) */
+  --tab-max: 240px; /* growth cap */
+  --tab-pinned-w: 34px; /* compact pinned tab (icon + accent) */
+  --tab-pad-x: 12px; /* tab horizontal padding */
+  --tab-gap: 6px; /* icon ↔ label gap */
+  --tab-icon: 14px; /* entity icon size (TabBar.tsx mirrors it) */
+  --tab-x: 11px; /* close-× glyph (strokeWidth 3, chip spec) */
+  --tab-plus: 13px; /* new-tab + glyph */
+  --tab-divider-w: 2px; /* pinned│unpinned segment divider */
+  --tab-divider-h: 16px;
+  --tab-edge-fade: 20px; /* overflow edge dissolve */
+  --tab-plus-gutter: 28px; /* trailing room so the parked + clears the last tab's × (J-4) */
+  --tab-nav-slide: 10px; /* Back/Forward content slide-in distance */
+
+  flex: 1;
+  min-width: 0;
+  align-self: flex-start;
+  display: flex;
+  align-items: center;
+  height: var(--tab-height);
+  margin: 0 4px;
+  pointer-events: auto;
+  /* NOT an app-region: a native drag region never delivers hover to the renderer, which kills the
+     bar-hover + reveal over the empty space. The bar drags the window via the JS mover instead
+     (TabBar's onPointerDown → win:dragBy), so the same pixels hover AND drag. */
+  -webkit-app-region: no-drag;
+}
+/* F-1 reveal-on-hover: the bar sits invisible until the pointer enters its strip. */
+.tab-bar.reveal-on-hover {
+  opacity: 0;
+  transition: opacity var(--duration-base) var(--ease-standard);
+}
+.tab-bar.reveal-on-hover:hover {
+  opacity: 1;
+}
+
+/* ---- pinned zone (fixed left, compact icons, I-8) ---- */
+.tab-pinned-zone {
+  display: flex;
+  align-items: center;
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden; /* bounded — uncapped pins never collide with the right cluster (J-5) */
+}
+.tab-pinned {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--tab-pinned-w);
+  height: 100%;
+  flex: 0 0 auto;
+  color: var(--label-tertiary);
+  cursor: pointer;
+  transition: color var(--duration-base) var(--ease-standard);
+}
+.tab-pinned:hover {
+  background: var(--state-hover);
+}
+.tab-pinned.is-active {
+  color: var(--label-control);
+}
+.tab-pinned.is-dragging {
+  opacity: var(--drag-muted);
+}
+
+/* ---- segment divider between the zones ---- */
+.tab-divider {
+  flex: 0 0 auto;
+  align-self: center;
+  width: var(--tab-divider-w);
+  height: var(--tab-divider-h);
+  margin: 0 4px;
+  background: var(--separator-segment);
+  border-radius: 999px;
+}
+
+/* ---- unpinned strip: overflow-scroll + the shared edge-fade (edge-fade-x carries the mask) ---- */
+.tab-scroll {
+  --edge-fade: var(--tab-edge-fade);
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+.tab-strip {
+  display: flex;
+  align-items: center;
+  width: max-content;
+  min-width: 100%;
+  height: 100%;
+  padding-right: var(--tab-plus-gutter);
+}
+
+/* ---- an unpinned tab ---- */
+.tab {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--tab-gap);
+  height: 100%;
+  /* grow:0 packs the tabs LEFT at their preferred width (no stretch-to-fill); they shrink toward
+     --tab-min and then overflow-scroll as the strip fills. */
+  flex: 0 1 var(--tab-pref);
+  min-width: var(--tab-min);
+  max-width: var(--tab-max);
+  padding: 0 var(--tab-pad-x);
+  color: var(--label-tertiary);
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  /* Open/close = width motion on the standard token (--duration-base). On OPEN the width is delayed one
+     fast beat so the segment (sibling, below) appears FIRST and the tab then slides out beside it; color
+     is the active fade. */
+  transition:
+    color var(--duration-base) var(--ease-standard),
+    max-width var(--duration-base) var(--ease-standard) var(--duration-fast),
+    min-width var(--duration-base) var(--ease-standard) var(--duration-fast),
+    padding var(--duration-base) var(--ease-standard) var(--duration-fast),
+    opacity var(--duration-base) var(--ease-standard) var(--duration-fast);
+}
+/* A tab opens by growing from nothing (the neighbors reflow with it). */
+@starting-style {
+  .tab {
+    min-width: 0;
+    max-width: 0;
+    padding: 0;
+    opacity: 0;
+  }
+}
+/* …and closes the same way — but immediately (no open-delay): the tab collapses first, then the segment
+   follows (its own delayed exit). The store drops it when the motion lands. */
+.tab.is-closing {
+  min-width: 0;
+  max-width: 0;
+  padding: 0;
+  opacity: 0;
+  pointer-events: none;
+  transition-delay: 0s;
+}
+.tab:hover {
+  background: var(--state-hover);
+}
+/* Active tab: the label switches tertiary → control, fading on the standard token (the color transition
+   on .tab above). */
+.tab.is-active {
+  color: var(--label-control);
+}
+.tab.is-dragging {
+  opacity: var(--drag-muted);
+}
+/* The inter-tab segment — a SIBLING pill (not a ::before) rendered before every tab but the first, so
+   the tab's overflow:hidden can't clip it as the tab collapses to 0. It RIDES the tab's own motion:
+   the same base duration and the same fast open-delay, so it fades in exactly while the tab slides
+   out, and collapses in step with it on close (is-closing zeroes the delay, like the tab's). */
+.tab-seg {
+  flex: 0 0 auto;
+  align-self: center;
+  width: var(--tab-divider-w);
+  height: var(--tab-divider-h);
+  background: var(--separator-segment);
+  border-radius: 999px;
+  pointer-events: none;
+  transition:
+    opacity var(--duration-base) var(--ease-standard) var(--duration-fast),
+    width var(--duration-base) var(--ease-standard) var(--duration-fast);
+}
+@starting-style {
+  .tab-seg {
+    opacity: 0;
+  }
+}
+.tab-seg.is-closing {
+  width: 0;
+  opacity: 0;
+  transition-delay: 0s;
+}
+.tab-icon {
+  flex: 0 0 auto;
+  color: inherit;
+}
+/* Back/Forward swap: the tab's content slides in from the step's direction — back ⇐ from the left,
+   forward ⇒ from the right (a keyed remount replays it per step). */
+@keyframes tab-nav-slide-back {
+  from {
+    transform: translateX(calc(-1 * var(--tab-nav-slide)));
+    opacity: 0;
+  }
+}
+@keyframes tab-nav-slide-fwd {
+  from {
+    transform: translateX(var(--tab-nav-slide));
+    opacity: 0;
+  }
+}
+.nav-slide-back {
+  animation: tab-nav-slide-back var(--duration-base) var(--ease-standard);
+}
+.nav-slide-fwd {
+  animation: tab-nav-slide-fwd var(--duration-base) var(--ease-standard);
+}
+.tab-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  /* Reserve the ×'s lane so a long title ellipsizes cleanly BEFORE it — no fuzzy fade under the glyph. */
+  padding-right: 14px;
+}
+
+/* The hover-fade × (J-1: the chip glyph, a plain fade — no melt on glass). It sits in the label's
+   reserved right lane, so the ellipsis clears it without masking the text. */
+.tab-x {
+  position: absolute;
+  right: calc(var(--tab-pad-x) - 6px);
+  display: flex;
+  padding: 3px;
+  border: none;
+  border-radius: 5px;
+  background: none;
+  color: var(--label-tertiary);
+  cursor: pointer;
+  opacity: 0;
+  transition:
+    opacity var(--duration-fast) var(--ease-standard),
+    color var(--duration-fast) var(--ease-standard),
+    background var(--duration-fast) var(--ease-standard);
+}
+.tab:hover .tab-x {
+  opacity: 1;
+}
+.tab-x:hover {
+  color: var(--label-primary);
+  background: var(--state-hover);
+}
+
+/* ---- the trailing + (J-2/J-4): the .group-add glyph + fade. A SIBLING of the masked scroller —
+   inside it, the edge fade would dim the + itself; the strip's --tab-plus-gutter padding keeps the
+   last tab's × clear beneath it when the strip runs full-width. ---- */
+.tab-plus {
+  flex: 0 0 auto;
+  margin-left: calc(-1 * var(--tab-plus-gutter));
+  /* Lift above .tab-scroll (position:relative → it paints over static siblings): the −gutter tucks the
+     + under the scroll's transparent right edge, and without this the scroll box eats its clicks. */
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 0 6px;
+  border: none;
+  background: none;
+  color: var(--label-secondary);
+  cursor: pointer;
+  opacity: 0;
+  transition:
+    opacity var(--duration-fast) var(--ease-standard),
+    color var(--duration-fast) var(--ease-standard);
+}
+.tab-bar:hover .tab-plus {
+  opacity: 1;
+}
+/* The + also reveals when the content's header is hovered — the banner OR the banner-less heading — so
+   it's reachable as you move toward the top of the content, not only on the thin toolbar strip. :has on
+   the EXISTING header (no overlay), so nothing below is blocked; it triggers on the whole banner, not
+   strictly its top half. */
+.shell:has(.detail-scroll .banner:hover) .tab-plus,
+.shell:has(.detail-scroll .banner-empty:hover) .tab-plus,
+.shell:has(.mdpm-header:hover) .tab-plus,
+.shell:has(.nav-view-banner:hover) .tab-plus,
+.shell:has(.nav-view-head:hover) .tab-plus {
+  opacity: 1;
+}
+/* The + reveals across the tab bar, but Back/Forward and the right cluster (view dropdown + trio)
+   aren't tab chrome — suppress it while one of those is hovered. `.app-toolbar` is pointer-events:none
+   with only the buttons interactive, so a hovered button can't co-occur with a tab-bar OR banner hover
+   (they're separate regions) — this is a belt-and-suspenders guard, not a specificity race. */
+.app-toolbar:has(.app-toolbar-cluster--nav button:hover) .tab-plus,
+.app-toolbar:has(.app-toolbar-right button:hover) .tab-plus {
+  opacity: 0;
+}
+.tab-plus:hover {
+  color: var(--label-primary);
+}

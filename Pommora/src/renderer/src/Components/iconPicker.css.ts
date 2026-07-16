@@ -77,7 +77,7 @@ export const favScroll = style({
   overflowX: 'auto',
   overflowY: 'hidden',
   scrollbarWidth: 'none',
-  vars: { '--eclipse-fade': '16px' },
+  vars: { '--edge-fade': '16px' },
   selectors: { '&::-webkit-scrollbar': { display: 'none' } }
 })
 
@@ -94,7 +94,7 @@ export const grid = style({
   overflowY: 'auto',
   overflowX: 'hidden',
   scrollbarWidth: 'none',
-  vars: { '--eclipse-fade': '20px' },
+  vars: { '--edge-fade': '20px' },
   selectors: { '&::-webkit-scrollbar': { display: 'none' } }
 })
 

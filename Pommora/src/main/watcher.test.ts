@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { ignoredUnder } from './watcher'
+import { ignoredUnder, isNavPath } from './watcher'
 
 // The watcher's only non-trivial pure logic: which paths it skips. Checks segments
 // BELOW the root, so a dot-segment in the root's own absolute path can't blank it.
@@ -44,5 +44,20 @@ describe('ignoredUnder', () => {
     expect(underDot('/Users/me/.config/nexus/Notes/Page.md')).toBe(false)
     expect(underDot('/Users/me/.config/nexus/.nexus/settings.json')).toBe(false)
     expect(underDot('/Users/me/.config/nexus/.trash/x.md')).toBe(true)
+  })
+})
+
+describe('isNavPath', () => {
+  const root = '/nexus'
+  it('matches the nav sidecars and the pins dir (nav-only refresh, no tree walk)', () => {
+    expect(isNavPath(root, '/nexus/.nexus/navRecents.json')).toBe(true)
+    expect(isNavPath(root, '/nexus/.nexus/navFavorites.json')).toBe(true)
+    expect(isNavPath(root, '/nexus/.nexus/pins/page-abc.json')).toBe(true)
+  })
+
+  it('rejects tree content and other .nexus files', () => {
+    expect(isNavPath(root, '/nexus/Notes/Alpha.md')).toBe(false)
+    expect(isNavPath(root, '/nexus/.nexus/settings.json')).toBe(false)
+    expect(isNavPath(root, '/nexus/.nexus/assets/nx/thumbnails/page-abc.jpg')).toBe(false)
   })
 })

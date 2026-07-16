@@ -106,6 +106,8 @@ export interface Personalization {
   connectionColor?: ConnectionColorSetting
   hideChevrons?: boolean
   outlinerLines?: boolean
+  /** Whether selecting an entity from the NavWindow closes it. Absent = closes (default true). */
+  navCloseOnSelect?: boolean
   defaultIcons?: Partial<Record<EntityIconKind, string>>
   /** Icons the user favorited in the Icon Picker — bare Lucide ids (kebab), in display/reorder order. */
   favoriteIcons?: string[]
@@ -115,6 +117,8 @@ export interface Personalization {
   subSetPlacement?: FolderPlacement
   /** The sidebar ribbon's active mode (which content the column shows). Absent = 'collections'. */
   sidebarMode?: SidebarMode
+  /** Hide the toolbar tab bar until hovered (F-1). Absent = always shown. */
+  revealTabBarOnHover?: boolean
   /** Ribbon icon order below the pinned Homepage — bare icon keys, in display order. */
   ribbonOrder?: string[]
   /** The window zoom the nexus opens at (and ⌘0 resets to). Absent = 1.0. Set by hand in
@@ -265,6 +269,9 @@ export interface NexusTree {
    *  useBlockDoc), but the single `blocks_locked` boolean rides here like `banner` so the
    *  store can seed the freeze without a second read. Absent = unlocked. */
   homepage: { banner?: string; locked: boolean; headingIconHidden: boolean }
+  /** NavView singleton (`.nexus/navview.json`) — its own banner; absent, the NavView inherits
+   *  the homepage's. */
+  navView: { banner?: string }
   saved: SavedNode[]
   contexts: {
     projects: ProjectNode[]
@@ -318,14 +325,14 @@ export type SelectionState =
   | { kind: 'set'; id: string; path: string }
   | { kind: 'page'; id: string; path: string }
 
-/** A navigable target for the Navigation layer: every `SelectionState` except the transient
- *  `none`, widened with the agenda kinds (`task`/`event` — find-only in v1, no click destination
- *  yet). Recents and favorites are both stored as these and resolved live against the tree at
- *  render, so they carry no cached display fields. */
-export type NavTarget =
-  | Exclude<SelectionState, { kind: 'none' }>
-  | { kind: 'task'; id: string }
-  | { kind: 'event'; id: string }
+/** What can be driven into the main pane or a tab — every `SelectionState` except the transient
+ *  `none`. Narrower than `NavTarget`: no agenda kinds (they have no click destination in v1). */
+export type SelectTarget = Exclude<SelectionState, { kind: 'none' }>
+
+/** A navigable target for the Navigation layer: a `SelectTarget` widened with the agenda kinds
+ *  (`task`/`event` — find-only in v1, no click destination yet). Recents and favorites are both stored
+ *  as these and resolved live against the tree at render, so they carry no cached display fields. */
+export type NavTarget = SelectTarget | { kind: 'task'; id: string } | { kind: 'event'; id: string }
 
 /** A recents-stream entry: a nav target plus a transient `pinned` flag that floats it to the top
  *  of history (the "open tabs" feel). Absent `pinned` = un-pinned. */
@@ -334,6 +341,59 @@ export type RecentEntry = NavTarget & { pinned?: boolean }
 /** A durable favorite. Same shape as a nav target — v1's add path is tree-kinds only, but the type
  *  stays permissive so agenda favorites slot in with their resolver later. */
 export type NavFavorite = NavTarget
+
+/** A durable, user-ordered pin. Persisted one file per pin under `.nexus/pins/` so concurrent
+ *  cross-device adds never collide (filesystem-as-merge, no whole-array LWW loss). `order` is a
+ *  numeric fractional key; `deleted` is a tombstone (unpin) reaped from the in-memory set on load. */
+export type PinEntry = NavTarget & { order: number; deleted?: boolean }
+
+/** The new-tab sentinel — a tab target that maps to NavView (the `'none'` detail branch); it is NOT a
+ *  `SelectionState` kind, so it bypasses `select` entirely. */
+export type NewTabSentinel = { kind: 'newtab' }
+
+/** A tab's target: any drivable selection, or the new-tab sentinel. */
+export type TabTarget = SelectTarget | NewTabSentinel
+
+/** One toolbar tab. Carries its OWN Back/Forward history (`navStack`/`navIndex`, D-7). `isPinned` is
+ *  never stored — it's derived from the pins set (a tab's navKey ∈ pins). Only unpinned tabs are
+ *  persisted; pinned tabs are derived live from `.nexus/pins/`. */
+export interface Tab {
+  id: string
+  target: TabTarget
+  navStack: SelectTarget[]
+  navIndex: number
+}
+
+/** The unpinned tab set + the active-tab pointer (which may reference a derived pinned tab's id). */
+export interface TabSet {
+  tabs: Tab[]
+  activeTabId: string
+}
+
+/** The `tabs:load` IPC envelope — `set` is null when no sidecar exists yet (the store seeds fresh). */
+export type TabsResult = { ok: true; set: TabSet | null } | { ok: false; error: string }
+
+/** The `nav:loadPins` IPC envelope. */
+export type PinsResult = { ok: true; pins: PinEntry[] } | { ok: false; error: string }
+
+/** The `nav:changed` watcher push — full nav state after an external/synced sidecar or pin change. */
+export type NavChanged = NavState & { pins: PinEntry[] }
+
+/** A detail-pane rectangle (DIP, viewport-relative) the renderer measures for a thumbnail capture. */
+export interface ThumbRect {
+  x: number
+  y: number
+  width: number
+  height: number
+  /** DIP height of the toolbar band overlapping the top of the shot — overpainted so its chrome doesn't
+   *  bake in (no live hide → no flicker). `maskFill` picks the fill: `banner` copies the banner just below
+   *  the band up over it (a full-bleed banner reads continuous); `window` fills the bannerless empty strip. */
+  maskTop?: number
+  maskFill?: 'banner' | 'window'
+}
+
+/** The `capture:thumbnail` envelope — the written thumbnail's `nexus-asset://` URL. */
+export type ThumbResult = { ok: true; url: string } | { ok: false; error: string }
 
 /** The two Navigation sidecars read together (`.nexus/navRecents.json` + `navFavorites.json`). */
 export interface NavState {

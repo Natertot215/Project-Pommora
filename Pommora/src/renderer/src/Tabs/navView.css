@@ -1,0 +1,68 @@
+/* NavView — the new-tab page / empty state. The NavWindow gallery scaled to the full window on the
+   main background; the search input sits in the banner-title position. */
+
+.nav-view {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  /* Zero the gallery's OWN insets (both axes) so NavView drives the edge straight off the surface tokens
+     below; the cards then land on the EXACT homepage block-surface inset, never the gallery's own on top. */
+  --navwindow-inset: 0;
+  --navwindow-inset-v: 0;
+  --card-min: 220px; /* KNOB — the full-window gallery card floor. */
+}
+
+/* The banner-title slot: a chromeless search input in the title position. The top band is the 44px
+   add-banner hover strip (flow content), not padding — same geometry as before it landed. */
+.nav-view-head {
+  flex-shrink: 0;
+  padding: 0 0 10px;
+  border-bottom: 1px solid var(--separator-segment);
+  margin: 0 var(--surface-banner-inset-right) 0 var(--surface-banner-inset);
+  /* Glide with the sidebar/inspector slide, like .detail/.detail-body — the shell swaps the inset
+     vars discretely, so each consumer animates its own derived edge. */
+  transition:
+    margin-left var(--duration-base) var(--ease-standard),
+    margin-right var(--duration-base) var(--ease-standard);
+}
+.nav-view-search {
+  width: 100%;
+  border: none;
+  background: transparent;
+  outline: none;
+  color: var(--label-primary);
+  font-size: 16px; /* KNOB — title2 scale (a step down from the banner-title size) */
+  font-weight: var(--weight-emphasized);
+}
+.nav-view-search::placeholder {
+  color: var(--label-tertiary);
+}
+/* The app hides native carets to draw its own (nativeCaret.ts), but that overlay doesn't position over
+   this banner-hosted field — so this one search keeps the native caret. Out-specifies Carets.css's
+   `input:not([type])` transparent rule (0,1,1) with (0,2,0). */
+.nav-view .nav-view-search {
+  caret-color: var(--label-primary);
+}
+
+/* When NavView wears the Homepage banner, the search sits in the banner-title slot — re-enable pointer
+   hits (the banner-title is inert) and add over-image legibility. */
+.nav-view-banner .banner-title {
+  pointer-events: auto;
+}
+.nav-view-banner .nav-view-search {
+  color: var(--text);
+  text-shadow: 0 1px 4px var(--banner-shadow);
+}
+
+.nav-view-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  /* Card edges land on the EXACT homepage block-surface insets (Detail.css): 8px top / 28px bottom /
+     --surface-inset sides. The gallery's own padding is zeroed (both axes, above), so these ARE the edges. */
+  padding: 8px var(--surface-inset-right) 28px var(--surface-inset);
+  transition:
+    padding-left var(--duration-base) var(--ease-standard),
+    padding-right var(--duration-base) var(--ease-standard);
+}

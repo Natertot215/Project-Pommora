@@ -34,7 +34,7 @@ Per-page editor UI state lives in per-machine files under `.nexus/`, never in th
 
 #### II. Read + Write
 
-A Page reads through a lenient split of the `---\n<yaml>---\n\n<body>` envelope — a missing or unterminated fence yields an all-body read, so a frontmatter-less Markdown file still opens. Writes go through the same comment-preserving merge and an atomic temp-file-plus-rename. The editor binds to the body and debounces saves; frontmatter is a typed object the editor can't corrupt.
+A Page reads through a lenient split of the `---\n<yaml>---\n<body>` envelope — a missing or unterminated fence yields an all-body read, so a frontmatter-less Markdown file still opens, and one legacy separator blank line after the closing fence is stripped on read (writes never emit one, so a note never opens with an empty line). Writes go through the same comment-preserving merge and an atomic temp-file-plus-rename. The editor binds to the body and debounces saves; frontmatter is a typed object the editor can't corrupt.
 
 #### II. Adoption
 

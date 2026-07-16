@@ -47,7 +47,8 @@ export async function installAppMenu(win: BrowserWindow, adopt: AdoptFn): Promis
         { type: 'separator' },
         // Renderer-driven: the store resolves the target container from the current
         // selection. Enabled only with a nexus open (nothing to create into otherwise).
-        { label: 'New Page', accelerator: 'CmdOrCtrl+N', enabled: hasSession, click: () => send('new-page') },
+        { label: 'New Tab', accelerator: 'CmdOrCtrl+N', enabled: hasSession, click: () => send('new-tab') },
+        { label: 'New Page', accelerator: 'CmdOrCtrl+Shift+N', enabled: hasSession, click: () => send('new-page') },
         { type: 'separator' },
         {
           label: 'Reveal in Finder',

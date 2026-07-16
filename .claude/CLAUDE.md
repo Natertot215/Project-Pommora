@@ -13,8 +13,8 @@ Pommora is a personal management app based on Nathan’s frustration with modern
 - **Collections & Sets:** a **Collection** is a folder that carries a shared property schema and saved views; it nests Sets to any depth as organizing subfolders that inherit that schema.
 - **Pages:** Markdown documents inside a Collection or Set, conforming to its Collection’s properties — the only Content that holds free prose. Pages use MarkdownPM for its editor surface, which includes in-line connections to other pages. 
 - **Agenda:** the calendar layer — **Tasks** (reminder-shaped) and **Events** (calendar-shaped), each with a built-in Status.
-- **Properties:** the nexus-wide typed attributes that collections inherit, and its members fill in — Select, Status, Date, and the rest; the schema is nexus-wide, collections validate properties for their pages to use. 
-- **Connections:** inline `[[Title]]` colored-text links in a Page's body, stored in **SQLite**, connecting to another Page — the Content ←> Content matrix.
+- **Properties:** the nexus-wide typed attributes that collections inherit, and their members fill in — Select, Status, Date, and the rest; the schema is nexus-wide, collections validate properties for their pages to use. 
+- **Connections:** inline `[[Title]]` colored-text links in a Page's body, stored in **SQLite**, connecting to another Page — the Content ↔ Content matrix.
 
 **Files are canonical.** Pages are `.md` (YAML frontmatter + body); Contexts, Agenda, and all config are JSON sidecars; an entity's kind comes from its folder's sidecar, not the extension. Foreign keys are preserved on every write, and the SQLite index is a regeneratable accelerator off the read path. Agent-legibility of a user's Nexes, and future cloud-sync capability are core constructs for all development.
 **FULL SPEC** → `PommoraPRD.md` + `Features/` domain-specific documentation.
@@ -27,7 +27,7 @@ Pommora is an **Electron** desktop app — a **React + TypeScript** renderer ove
 
 **No dependency lock-in.** Every library sits behind a thin seam (SQLite behind `db.ts`, YAML behind `pageFile.ts`, IDs behind `ids.ts`, glass behind `Surface`) so it's swappable without touching callers. Version numbers are compatibility pins, not endorsements.
 
-**Design source:** the Figma library (https://www.figma.com/file/fYZ5oiK7stC3diRhaBHl1r) is canonical for design values — mirror changes into the tokens. The live showcase deploys from `Pommora/` to https://pommora-design-system.vercel.app.
+**The Figma Library** (https://www.figma.com/file/fYZ5oiK7stC3diRhaBHl1r) is canonical for design values — mirror changes into the tokens at `/design-system.` The live showcase deploys from `Pommora/` to https://pommora-design-system.vercel.app.
 
 ### Formatting
 
@@ -43,8 +43,15 @@ Biome (`biome format`) auto-runs on every TS/CSS/JSON write via a PostToolUse ho
 - **Condensed control flow / DRY / simplicity-first** — model finite states as unions + switch; hoist shared logic; don't add unrequested complexity.
 - **Never do expensive work "on every X," never "reload the entire Y."** No O(N) / allocating / layout-reading work on a high-frequency trigger, and no full rebuild / re-walk when an incremental or cached update works — cache, memoize, snapshot, subscribe narrowly. It's THE lag source.
 - **Colors are authored as hex** — `#RRGGBB`, or `#RRGGBBAA` (8-digit) for alpha — never `rgb()` / `rgba()`, and **must** be aliased and pulled from the shared tokens in (`design-system/tokens/`).
+- Design tokens **must** be pulled from their sources in `design-system` — never hand-roll tokens without explicit direction. All colors, label-fills, states, and tokens must come from their design-system source; never hand-rolled.
 - **Docs name; code holds exacts.** These docs describe the *system* and reference the product spec (`PommoraPRD.md` + `Features/`) — they never restate exact code values. Name the token and its treatment ("the red solid at a low opacity"), never the literal `#hex` / `%` / line-for-line code stays in the code itself. 
 - **`Handoff.md` is a lean snapshot maintained via `/handoff`.** Sections: Session Summary + Lessons Learned + Next Session + Pending Focuses + Fix Log. Route locked decisions to `History.md`, spec content to `Features/*`, roadmap detail to `Framework.md`. 
+
+### Working Discipline
+
+- **Ask before designing.** Stop to disclose assumptions and clarify direction before any design or interaction-based decision — don't guess at how something looks or behaves. *Void when Nathan's unreachable:* proceed on the best record of his design wishes and the existing design logic, but disclose every such decision and assumption as you make it.
+- **Test Visuals** against Nathan’s real NexusOS, not a test nexus.
+
 ### Locked Decisions
 
 - **CommonJS main/preload** (package is NOT `type: module`) — Electron's `require('electron')` fails on ESM named imports; CJS also lets the preload stay sandboxed. **`sandbox: true` + `contextIsolation: true` + `nodeIntegration: false`.**
@@ -60,19 +67,15 @@ The GUI only launches with `ELECTRON_RUN_AS_NODE` **unset** (this env has it set
 
 ### Important Information 
 
-- Design tokens **must** be pulled from their sources in `design-system` — never hand-roll tokens without explicit direction.
 - **Connections** are in-line `[[Title]]`, resolved via SQLite, and **aren’t** displayed in any container views *(tables, galleries, lists…)*. **Contexts** are properties resolved via front-matter; content ←> content relational properties **don’t** exist. 
 - If Nathan mistakenly says "label-quaternary" or "label-quinary," he actually means fills → `design-system/tokens.` 
 - **Collections** *used* to be called “Vaults” with what’s now sets being called collections instead before a rename. If Nathan says “Vault,” he means Collection, not as in Obsidian's alternative for Pomona’s Nexus.
 - If Nathan says "double-click" in a context where "right-click" makes more sense, it's almost certainly what he intended to say.
+- The Swift build is archived at `// The Studio // Archive // Pommora` — source, External packages, and `.claude/` docs; its git history lives on the `swift` branch.
 
 #### II. Project Sapphire
 
 **Sapphire** is an Obsidian plugin and parallel sub-project that functions as the interim bridge between what Pommora will bring and what Nathan's current main system (Obsidian) actually offers in the meantime: it brings Pommora-style capabilities to Obsidian natively and keeps NexusOS Pommora-compatible, so Nathan's daily vault stays aligned as Pommora matures — at a light weekly cadence, subordinate to the daily Pommora grind. 
-
-### Working Discipline
-
-- **Ask before designing.** Stop to disclose assumptions and clarify direction before any design or interaction-based decision — don't guess at how something looks or behaves. *Void when Nathan's unreachable:* proceed on the best record of his design wishes and the existing design logic, but disclose every such decision and assumption as you make it.
 
 ### Document Map
 
@@ -98,5 +101,3 @@ Process + reference
   Guidelines/  build gotchas + don't-repeats     Resources/  libraries · distribution · macOS
   Planning/  active plans                         Deployment.md  Vercel showcase deploy
 ```
-
-The Swift build is archived at `// The Studio // Archive // Pommora` — source, External packages, and `.claude/` docs; its git history lives on the `swift` branch.

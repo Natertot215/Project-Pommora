@@ -1,0 +1,163 @@
+/* Gallery knobs — Nathan tunes live: --card-min (column width floor, drives how many columns the flow
+   fits), --card-gap-h / --card-gap-v (inter-card spacing). All cards share ONE grid — pinned first,
+   recents flowing straight after them (L→R/T→B), no divider. */
+.nav-gallery {
+  --card-min: 180px; /* KNOB — column-width floor: bigger = fewer, larger cards that grow more before a
+                        new column snaps them back; smaller = more, tighter columns */
+  --card-gap-h: 10px;
+  --card-gap-v: 10px;
+  --cover-zoom: 1.25; /* KNOB — overall zoom of the cover image: 1 = as captured; >1 zooms into the top */
+  --thumb-share: 65%; /* KNOB — the image's share of the card height; the title-area takes the rest */
+  display: flex;
+  flex-direction: column;
+  gap: var(--card-gap-v);
+  /* Both insets are tokens so a host can zero the gallery's OWN padding and drive the edge itself (NavView
+     lands on the surface inset; NavWindow lets its scroll's 6px be the sole gap, not doubled to 12px). */
+  padding: var(--navwindow-inset-v, 6px) var(--navwindow-inset, 12px);
+}
+.nav-gallery-grid {
+  /* auto-FIT (not auto-fill): with no empty tracks to pad, the cards STRETCH to fill the width, so a
+     wider window grows the cards rather than shrinking them — they only step down when there's room
+     for another whole column (a layout change), then grow again from there. */
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(var(--card-min), 1fr));
+  gap: var(--card-gap-v) var(--card-gap-h);
+}
+/* Search must NOT relayout — filtering to fewer results keeps the column tracks (and card size) the view
+   opened with, unlike a resize. auto-FILL holds the empty tracks so 2 results stay card-sized, never
+   ballooning to fill the row the way auto-fit would. */
+.nav-gallery-grid.is-fill {
+  grid-template-columns: repeat(auto-fill, minmax(var(--card-min), 1fr));
+}
+
+.nav-gallery-card {
+  /* Grid item + drag-transform shell. The drag engine owns THIS element's inline transform/transition,
+     so the visual frame + hover-pop live on the inner body below, where they can't collide with it.
+     align-self:start so a taller row-sibling can't stretch it past its aspect height. */
+  aspect-ratio: 125 / 90;
+  align-self: start;
+  text-align: left;
+  cursor: pointer;
+}
+.nav-gallery-card.is-dragging {
+  opacity: 0.85;
+}
+/* The visual card: bordered frame + the query container for the cqi typography below + the hover-pop
+   surface (its `hover-pop` class scales it on hover — see styles.css). Kept off the drag shell so the
+   pop's scale never fights the drag's translate. */
+.nav-gallery-card-body {
+  container-type: inline-size;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  border: 1.5px solid var(--separator-border);
+  border-radius: 10px;
+  overflow: hidden;
+  background: none;
+  transition:
+    border-color var(--duration-base) var(--ease-standard),
+    transform var(--duration-slow) var(--ease-standard);
+}
+/* Open entity — same accent-tint border as an active SurfacePM embed/resize. */
+.nav-gallery-card.is-active .nav-gallery-card-body {
+  border-color: color-mix(in srgb, var(--accent) var(--tint-secondary), transparent);
+}
+
+.nav-gallery-thumb {
+  position: relative;
+  flex: 0 0 var(--thumb-share, 74%); /* image height = --thumb-share of the card; title-area takes the rest */
+  min-height: 0;
+  overflow: hidden;
+  background: var(--fill-tertiary);
+}
+.nav-gallery-thumb img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top; /* the page's inline title banner sits at the top of the shot */
+  transform: scale(var(--cover-zoom, 1));
+  transform-origin: top left; /* anchor the zoom at the title / line-starts so it never clips them */
+  -webkit-user-drag: none; /* the image never drags on its own — the card owns the drag (or nothing) */
+}
+.nav-gallery-ph {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--label-tertiary);
+  background: var(--fill-quaternary);
+}
+
+/* Pin overlaid top-left ON the thumbnail — no fill. Hover-revealed in label-secondary on unpinned
+   cards; solid accent (still no background) once pinned. */
+.nav-gallery-pin {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: flex;
+  padding: 3px;
+  border: none;
+  background: none;
+  color: var(--label-secondary);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--duration-base) var(--ease-standard);
+}
+.nav-gallery-card:hover .nav-gallery-pin {
+  opacity: 1;
+}
+.nav-gallery-pin.is-pinned {
+  color: var(--accent);
+  opacity: 1;
+}
+
+.nav-gallery-text {
+  flex: 1;
+  min-height: 0;
+  /* Title pinned to the TOP of the title-area (flex-start), never centered — so a card with no location
+     keeps its title in the same fixed top spot as one with a location. Title + location are two rows. */
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  gap: 4px;
+  padding: 8px 9px;
+  min-width: 0;
+  /* The muted dimming veil over the pane glass — reads as a slightly-darker glass shelf, mirroring the
+     glass's own dimming. (A nested backdrop-filter wouldn't: Chromium doesn't stack frost-in-frost.) */
+  background: var(--state-muted);
+  border-top: 1.5px solid var(--separator-border);
+}
+.nav-gallery-title,
+.nav-gallery-loc {
+  flex: 0 0 auto; /* each is its own fixed row — the title never grows to fill / recenter */
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+.nav-gallery-title {
+  gap: 5px;
+  color: var(--label-primary);
+  --edge-fade: 14px;
+  --scroll-fade: 14px;
+}
+.nav-gallery-title-icon {
+  flex: 0 0 auto;
+  color: var(--label-secondary);
+}
+.nav-gallery-loc {
+  color: var(--label-secondary);
+  --edge-fade: 14px;
+  --scroll-fade: 14px;
+}
+/* Typography scales with the card: cqi = 1% of the card's width (the card is the query container), so
+   a bigger card reads bigger text. Clamped so tiny/huge cards stay legible. Card-prefixed to outrank
+   the text-ramp class's font-size. */
+.nav-gallery-card .nav-gallery-title {
+  font-size: clamp(11px, 5.5cqi, 18px);
+}
+.nav-gallery-card .nav-gallery-loc {
+  font-size: clamp(9px, 4.3cqi, 14px);
+}

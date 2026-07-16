@@ -59,7 +59,7 @@ export const suffixInput = style({
   fontSize: font.scale.control.size,
   fontWeight: font.weight.emphasized,
   color: c.label.primary,
-  vars: { '--eclipse-fade': '12px' },
+  vars: { '--edge-fade': '12px' },
   selectors: { '&::-webkit-scrollbar': { display: 'none' } }
 })
 

@@ -1,0 +1,5 @@
+.entity-glyph-photo {
+  flex: 0 0 auto;
+  border-radius: 50%;
+  object-fit: cover;
+}

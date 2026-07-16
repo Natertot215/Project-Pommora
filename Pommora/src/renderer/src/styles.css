@@ -56,6 +56,21 @@ textarea,
   display: none;
 }
 
+/* Hover "pop" — a slight scale-up emphasis on hover, ridden on the slow token so it swells rather
+   than flicks. Reusable: add `hover-pop` to any element you want to lift on hover; tune the swell
+   with --pop-scale. A consumer that ALSO transitions another property (a border, say) must co-list
+   transform in its own `transition` (one element resolves to a single transition value). Never put
+   it on a drag-engine surface — that element's inline transform would swallow the scale; put it on
+   an inner layer instead. */
+.hover-pop {
+  position: relative;
+  transition: transform var(--duration-slow) var(--ease-standard);
+}
+.hover-pop:hover {
+  transform: scale(var(--pop-scale, 1.0175));
+  z-index: 1;
+}
+
 /* Inspector openness, 0 (closed) → 1 (open) — one registered progress that the inspector slide, the
    trio's ride, and the trio glass-fade all derive from, so they stay frame-perfectly in sync. */
 @property --io {
@@ -126,6 +141,20 @@ textarea,
 }
 .shell.sidebar-hidden .titlebar {
   left: 0;
+}
+
+/* The sidebar's own drag strip — the .titlebar deliberately starts past the sidebar, and a drag region
+   can't live inside the frosted Surface, so this shell-level strip covers the sidebar's top band. Spans
+   the traffic-light row over the panel, stopping short of the collapse toggle (top-right) so it stays
+   clickable; the native lights sit above it. Rides the same tier as .titlebar. */
+.sidebar-titlebar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: calc(var(--glass-inset) + var(--sidebar-width) - 48px);
+  height: calc(var(--glass-inset) + var(--toolbar-h));
+  z-index: 2;
+  -webkit-app-region: drag;
 }
 .shell.is-resizing .titlebar {
   transition: none;

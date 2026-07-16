@@ -1,32 +1,32 @@
-.navpane {
+.navwindow {
   position: fixed;
   z-index: 1000;
   display: flex;
   flex-direction: column;
   padding: var(--glass-inset);
   border-radius: var(--glass-radius);
-  animation: navpane-in 180ms var(--ease-standard);
+  animation: navwindow-in var(--disclosure) var(--ease-standard);
   /* KNOB — the shared content inset (search divider + rows align to this). */
-  --navpane-inset: 12px;
+  --navwindow-inset: 12px;
 }
-.navpane.closing {
-  animation: navpane-out 180ms var(--ease-standard) forwards;
+.navwindow.closing {
+  animation: navwindow-out var(--disclosure) var(--ease-standard) forwards;
   pointer-events: none;
 }
-@keyframes navpane-in {
+@keyframes navwindow-in {
   from {
     opacity: 0;
-    transform: scale(0.97);
+    transform: scale(0.95);
   }
 }
-@keyframes navpane-out {
+@keyframes navwindow-out {
   to {
     opacity: 0;
-    transform: scale(0.97);
+    transform: scale(0.95);
   }
 }
 
-.navpane-close {
+.navwindow-close {
   position: absolute;
   top: calc(var(--glass-inset) + 4px);
   right: calc(var(--glass-inset) + 4px);
@@ -39,36 +39,36 @@
   color: var(--label-secondary);
   cursor: pointer;
 }
-.navpane-close:hover {
-  background: var(--fill-tertiary);
+.navwindow-close:hover {
+  background: var(--state-hover);
 }
 
-.navpane-body {
+.navwindow-body {
   display: flex;
   flex: 1;
   min-height: 0;
 }
-.navpane-rail {
+.navwindow-rail {
   display: flex;
   flex-direction: column;
-  width: var(--navpane-rail, 200px);
+  width: var(--navwindow-rail, 200px);
   flex-shrink: 0;
   min-height: 0;
   overflow: hidden;
   padding: 6px;
   border-radius: var(--glass-radius);
 }
-.navpane-rail-list {
+.navwindow-rail-list {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
 }
-.navpane-rail-resize {
+.navwindow-rail-resize {
   width: var(--glass-inset);
   flex-shrink: 0;
   cursor: ew-resize;
 }
-.navpane-main {
+.navwindow-main {
   display: flex;
   flex-direction: column;
   flex: 1;
@@ -76,35 +76,38 @@
   min-height: 0;
 }
 
-/* Everything aligns to --navpane-inset: the divider (via margin, not full-bleed), the magnifier, and
+/* Everything aligns to --navwindow-inset: the divider (via margin, not full-bleed), the magnifier, and
    the rows' icon + path edges (rows carry the inset on nav-item-main, so the scroll box adds none). */
-.navpane-search {
+.navwindow-search {
   display: flex;
   align-items: center;
   gap: 6px;
-  margin: 0 var(--navpane-inset);
+  margin: 0 var(--navwindow-inset);
   padding: 9px 0;
   color: var(--label-tertiary);
   border-bottom: 1px solid var(--separator-segment);
   flex-shrink: 0;
 }
-.navpane-search input {
+.navwindow-search input {
   flex: 1;
   border: none;
   background: transparent;
   outline: none;
   color: var(--label-primary);
 }
-.navpane-main-scroll {
+.navwindow-main-scroll {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
   /* Horizontal inset lives on the rows (nav-item-main) so the highlight spans full-width. */
   padding: 6px 0;
+  /* Zero the gallery's own vertical padding so this scroll's 6px is the SOLE gap below the search divider
+     (the gallery mode matches the list rows' 6px, not a doubled 12px). */
+  --navwindow-inset-v: 0;
 }
 
 /* The Style toggle — pinned to the rail's bottom-left; above the resize handles so its corner is clickable. */
-.navpane-style-toggle {
+.navwindow-style-toggle {
   position: relative;
   z-index: 3;
   align-self: flex-start;
@@ -119,32 +122,32 @@
   color: var(--label-secondary);
   cursor: pointer;
 }
-.navpane-style-toggle:hover {
-  background: var(--fill-tertiary);
+.navwindow-style-toggle:hover {
+  background: var(--state-hover);
 }
 
-.navpane-resize {
+.navwindow-resize {
   position: absolute;
   width: 14px;
   height: 14px;
   z-index: 2;
 }
-.navpane-resize-nw {
+.navwindow-resize-nw {
   top: 0;
   left: 0;
   cursor: nwse-resize;
 }
-.navpane-resize-ne {
+.navwindow-resize-ne {
   top: 0;
   right: 0;
   cursor: nesw-resize;
 }
-.navpane-resize-sw {
+.navwindow-resize-sw {
   bottom: 0;
   left: 0;
   cursor: nesw-resize;
 }
-.navpane-resize-se {
+.navwindow-resize-se {
   bottom: 0;
   right: 0;
   cursor: nwse-resize;

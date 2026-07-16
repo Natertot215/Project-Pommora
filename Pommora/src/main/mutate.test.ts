@@ -319,6 +319,16 @@ describe('handleMutate — review-round hardening', () => {
     expect(cfg.schemaVersion).toBe(2)
   })
 
+  it('navview setBanner writes + clears its own singleton, never homepage.json', async () => {
+    const r = await handleMutate({ op: 'setBanner', kind: 'navview', path: '', dataUrl: 'data:image/png;base64,iVBORw0KGgo=' }, nexusDeps)
+    expect(r.ok).toBe(true)
+    const cfg = JSON.parse(await read('.nexus/navview.json'))
+    expect(cfg.banner).toMatch(/^\.nexus\/assets\/navview\/banner-.+\.png$/)
+    const clear = await handleMutate({ op: 'setBanner', kind: 'navview', path: '', dataUrl: null }, nexusDeps)
+    expect(clear.ok).toBe(true)
+    expect(JSON.parse(await read('.nexus/navview.json')).banner).toBeUndefined()
+  })
+
   it('a malformed op returns a clean fault, not a throw', async () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const r = await handleMutate({ op: 'bogus' } as any, nexusDeps)

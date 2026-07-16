@@ -1,0 +1,95 @@
+import { useEffect } from 'react'
+import type { ThumbRect } from '@shared/types'
+import { useSession } from '../store'
+import { navKey } from './navRecents'
+
+// The `.content-pane` fills the whole window; the sidebar, toolbar, and inspector are floating overlays
+// on top of it. Carve off the sidebar (start right of it) and the inspector (end left of it), each skipped
+// when parked off-screen. The toolbar is NOT carved — the banner is full-bleed and runs up under it — so the
+// band stays in the shot and main overpaints just the chrome band (maskTop): over a banner it's back-filled
+// from the banner just below (maskFill 'banner'); bannerless, that strip is empty (maskFill 'window'). Each
+// overlay edge is clamped inside the pane.
+function contentRect(pane: Element): ThumbRect {
+  const p = pane.getBoundingClientRect()
+  let { left, right } = p
+  const sidebar = document.querySelector('.surface-glass')?.getBoundingClientRect()
+  if (sidebar && sidebar.right > left && sidebar.right < right) left = sidebar.right
+  const inspector = document.querySelector('.inspector-glass')?.getBoundingClientRect()
+  if (inspector && inspector.left > left && inspector.left < right) right = inspector.left
+  const toolbar = document.querySelector('.app-toolbar')?.getBoundingClientRect()
+  const maskTop = toolbar ? Math.max(0, toolbar.bottom - p.top) : 0
+  const maskFill = pane.querySelector('.banner-img') ? 'banner' : 'window'
+  return { x: left, y: p.top, width: right - left, height: p.bottom - p.top, maskTop, maskFill }
+}
+
+/** Await every image in the pane finishing load (the banner especially) so the shot isn't captured
+ *  pre-render. Already-complete images resolve instantly; a failed load is ignored, not awaited forever. */
+async function imagesReady(pane: Element): Promise<void> {
+  await Promise.all(
+    [...pane.querySelectorAll('img')].map((img) => (img.complete ? Promise.resolve() : img.decode().catch(() => undefined)))
+  )
+}
+
+// The capture gate (G-3): a shot is a full-window capture + a SYNCED write, and warm tab-switching is
+// the highest-frequency interaction — so an entity re-shoots only when its shown content actually
+// changed since its last shot. Pages mark on their current body text (the live buffer when it's
+// theirs); containers mark on the tree identity (stabilize keeps it for echoes, structural changes
+// mint a new one). Session-scoped; cleared on a nexus switch so keys can't collide across nexuses.
+const captured = new Map<string, unknown>()
+let capturedNexus: string | null = null
+
+/** Forget markers whose thumbnail files are being evicted (keys outside the live recents∪pins set) —
+ *  a marker outliving its file would block the re-shoot forever, leaving a permanent placeholder. */
+export function dropCapturedOutside(live: ReadonlySet<string>): void {
+  for (const key of captured.keys()) if (!live.has(key)) captured.delete(key)
+}
+
+// Snapshot the detail view as a gallery thumbnail — captured ONLY while the NavWindow is closed, so the
+// overlay never bakes into the (synced) shot. Runs on selection settle AND on the pane closing (navOpen
+// is a dep), so a page opened while browsing with the pane open gets its cover the moment the pane
+// closes. Waits for fonts + all images (the banner) so the banner has rendered first; a ~300ms delay
+// clears the pane's close animation and debounces rapid navigation. Only the detail rect (contentRect
+// carves off the sidebar/inspector overlays) is captured.
+export function useNavThumbnails(): void {
+  const selection = useSession((s) => s.selection)
+  const pageStatus = useSession((s) => s.pageStatus)
+  const navOpen = useSession((s) => s.navOpen)
+  const bumpThumb = useSession((s) => s.bumpThumb)
+
+  useEffect(() => {
+    if (navOpen || selection.kind === 'none') return
+    if (selection.kind === 'page' && pageStatus !== 'ready') return
+    let cancelled = false
+    const timer = setTimeout(() => {
+      void (async () => {
+        const pane = document.querySelector('.content-pane')
+        if (!pane || cancelled) return
+        await document.fonts?.ready
+        await imagesReady(pane)
+        await new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())))
+        if (cancelled || useSession.getState().navOpen) return
+        const key = navKey(selection)
+        // The gate — read at capture time so the marker reflects what the shot will show.
+        const s = useSession.getState()
+        if (capturedNexus !== (s.tree?.nexus.id ?? null)) {
+          captured.clear()
+          capturedNexus = s.tree?.nexus.id ?? null
+        }
+        const marker =
+          selection.kind === 'page'
+            ? (s.liveBody?.path === selection.path ? s.liveBody.body : s.pageDetail?.body)
+            : s.tree
+        if (captured.get(key) === marker) return
+        const res = await window.nexus.capture.thumbnail(key, contentRect(pane), window.devicePixelRatio)
+        if (!cancelled && res.ok) {
+          captured.set(key, marker)
+          bumpThumb(key)
+        }
+      })()
+    }, 300)
+    return () => {
+      cancelled = true
+      clearTimeout(timer)
+    }
+  }, [selection, pageStatus, navOpen, bumpThumb])
+}

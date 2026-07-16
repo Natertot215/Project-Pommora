@@ -5,10 +5,11 @@ import type { BannerOwnerKind } from '@shared/mutate'
 // renderer's analog of Swift's DetailScope — the seam between "what's selected" and "what renders".
 
 /** A banner-capable view's owner: which entity holds the banner + its current image path. `icon`
- *  is the entity's raw stored value — the banner validates it and falls back per kind at render. */
+ *  is the entity's raw stored value — the banner validates it and falls back per kind at render.
+ *  The NavView singleton isn't a Banner-component owner — it wears its own banner treatment. */
 export interface BannerOwner {
   path: string
-  kind: BannerOwnerKind
+  kind: Exclude<BannerOwnerKind, 'navview'>
   name: string
   banner?: string
   icon?: string

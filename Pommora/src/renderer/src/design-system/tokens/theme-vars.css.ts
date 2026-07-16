@@ -41,10 +41,13 @@ globalStyle(':root', {
     // heading↔rows, banner↔body, editor heading↔content). One global source so the seam is uniform
     // app-wide; consume as a full border shorthand: `border-bottom: var(--border-heading)`.
     '--border-heading': '1.75px solid var(--separator-border)',
+    // Over-image legibility scrim for a title/search/icon sitting on a banner cover — one source for the
+    // banner title, the NavView search, and the editor's banner overlay (text-shadow / drop-shadow).
+    '--banner-shadow': '#0000008c',
     // Interaction states (Figma "States") — system-grey at hover 2.5% / selected 5%.
     '--state-hover': colorVars.color.state.hover,
     '--state-selected': colorVars.color.state.selected,
-    '--state-muted': colorVars.color.state.muted, // reserved (no consumer yet) — black 15% de-emphasis veil
+    '--state-muted': colorVars.color.state.muted, // black 10% de-emphasis veil (dimming)
     // Ghost — the de-emphasis applied to a thing being reordered (table rows, editor blocks/list items):
     // a fade to the primary tint opacity, the same treatment MarkdownPM's drag-source uses. An opacity,
     // not a colour — consumed via `opacity: var(--state-ghost)`.
@@ -100,6 +103,7 @@ globalStyle(':root', {
     '--duration-slow': duration.slow,
     '--disclosure': duration.disclosure,
     '--ease-standard': easing.standard,
+    '--ease-in-out': easing.inOut,
     '--ease-out': easing.out
   }
 })

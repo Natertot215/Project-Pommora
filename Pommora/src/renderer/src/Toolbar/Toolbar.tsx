@@ -3,7 +3,9 @@ import { SegmentedSymbol, type Segment } from '@renderer/design-system/component
 import { useDismiss } from '@renderer/design-system/components/Popover'
 import { ToolbarTrio } from './ToolbarTrio'
 import { ViewDropdown } from './ViewDropdown'
-import { NavMenu } from './NavMenu'
+import { NavPane } from './NavPane'
+import { TabBar } from '../Tabs/TabBar'
+import { activeUnpinnedTab } from '../Tabs/tabsModel'
 import { SettingsDropdown } from '../Components/Detail/SettingsDropdown'
 import { useSession } from '../store'
 import { useExitPresence } from '@renderer/design-system/useExitPresence'
@@ -51,8 +53,16 @@ export function Toolbar({
 
   const goBack = useSession((s) => s.goBack)
   const goForward = useSession((s) => s.goForward)
-  const canGoBack = useSession((s) => s.navIndex > 0)
-  const canGoForward = useSession((s) => s.navIndex < s.navStack.length - 1)
+  // Back/Forward act on the ACTIVE tab's own history (D-7); a pinned/newtab active tab (not in `tabs`)
+  // carries none, so both disable.
+  const canGoBack = useSession((s) => {
+    const a = activeUnpinnedTab(s.tabs, s.activeTabId)
+    return !!a && a.navIndex > 0
+  })
+  const canGoForward = useSession((s) => {
+    const a = activeUnpinnedTab(s.tabs, s.activeTabId)
+    return !!a && a.navIndex < a.navStack.length - 1
+  })
 
   // Back/Forward walk the store's navigation history (disabled at each end).
   const backForward: Segment[] = [
@@ -70,6 +80,7 @@ export function Toolbar({
       <div className="app-toolbar-cluster app-toolbar-cluster--nav">
         <SegmentedSymbol segments={backForward} paddingX="6px" iconSize="lg" />
       </div>
+      <TabBar />
       <div className="app-toolbar-right">
         <ViewDropdown />
         <div className="app-toolbar-cluster app-toolbar-cluster--trio" ref={trioRef}>
@@ -78,7 +89,7 @@ export function Toolbar({
             the pane's right edge to its trigger's center — Navigation at 5/6 of the trio's width,
             Settings at dead center (3 equal segments). */}
         {navP.mounted && (
-          <NavMenu closing={navP.closing} notchInsetRight={trioW ? (trioW * 5) / 6 : undefined} />
+          <NavPane closing={navP.closing} notchInsetRight={trioW ? (trioW * 5) / 6 : undefined} />
         )}
         {settingsP.mounted && (
           <SettingsDropdown closing={settingsP.closing} notchInsetRight={trioW ? trioW / 2 : undefined} />

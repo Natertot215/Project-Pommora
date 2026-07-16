@@ -3,6 +3,9 @@ import { useSession } from "../store";
 import { MarkdownEditor } from "../MarkdownPM";
 import { buildPageIndex, flattenPages, type ConnectionsApi } from "../MarkdownPM/connections";
 import { IconPicker } from "../Components/IconPicker";
+import { navKey } from "../Navigation/navRecents";
+import { captureWarm, readWarm } from "../Tabs/warmCache";
+import { registerPageFlush } from "./pageFlush";
 
 const SAVE_DEBOUNCE_MS = 400;
 // Live stats settle just behind the keystroke so a long page isn't Markdown-scanned on every char.
@@ -11,6 +14,7 @@ const STATS_DEBOUNCE_MS = 120;
 export function PageView(): React.JSX.Element {
   const pageStatus = useSession((s) => s.pageStatus);
   const pageDetail = useSession((s) => s.pageDetail);
+  const activeTabId = useSession((s) => s.activeTabId);
   const pageError = useSession((s) => s.pageError);
   const submitRename = useSession((s) => s.submitRename);
   const mutate = useSession((s) => s.mutate);
@@ -48,8 +52,18 @@ export function PageView(): React.JSX.Element {
   useEffect(() => {
     const onUnload = (): void => flushRef.current();
     window.addEventListener("beforeunload", onUnload);
+    // The adopt path flushes the pending write to the OLD root before flipping (registerPageFlush) — the
+    // unmount-flush below then finds nothing to write into the new nexus.
+    registerPageFlush(async () => {
+      const p = pendingSave.current;
+      if (!p) return;
+      clearTimeout(p.timer);
+      pendingSave.current = undefined;
+      await window.nexus.updatePageBody(p.path, p.body);
+    });
     return () => {
       window.removeEventListener("beforeunload", onUnload);
+      registerPageFlush(null);
       flushRef.current();
     };
   }, []);
@@ -112,6 +126,18 @@ export function PageView(): React.JSX.Element {
             menu={{
               pushState: (s) => window.nexus.setEditorFormatState(s),
               onAction: (cb) => window.nexus.onMenuAction(cb),
+            }}
+            // The editor freezes this at mount, so the capture lands under the tab that OWNED this
+            // page even though activeTabId moves before the unmount (select switches synchronously).
+            // restore carries the store's rename fence: a warm entry whose captured path diverges from
+            // the mounting page's mounts cold (id-keyed warmth must never revive a stale-path doc).
+            warm={{
+              restore: () => {
+                const entry = readWarm(activeTabId, navKey({ kind: "page", id: pageDetail.id, path: pageDetail.path }));
+                return entry?.pageDetail?.path === pageDetail.path ? entry : undefined;
+              },
+              capture: (state) =>
+                captureWarm(activeTabId, navKey({ kind: "page", id: pageDetail.id, path: pageDetail.path }), state),
             }}
           />
           <IconPicker

@@ -2,7 +2,8 @@ import { app, BrowserWindow, dialog, ipcMain, Menu, nativeTheme, protocol, shell
 import type { OpenDialogOptions } from 'electron'
 import { basename, dirname, extname, join, sep } from 'node:path'
 import { readFile, rename } from 'node:fs/promises'
-import type { AgendaListResult, NavFavorite, NavStateResult, NexusState, PageResult, RecentEntry, SubfieldConfig } from '@shared/types'
+import type { AgendaListResult, NavFavorite, NavStateResult, NavTarget, NexusState, PageResult, PinEntry, PinsResult, RecentEntry, SubfieldConfig, TabSet, TabsResult, ThumbRect, ThumbResult } from '@shared/types'
+import { isPlainObject } from '@shared/propertyValue'
 import { collectAgendaEntries } from './agenda/collectAgenda'
 import type { MutateRequest, MutateResult, ContextTarget } from '@shared/mutate'
 import { WINDOW_BG } from '@shared/theme'
@@ -25,6 +26,9 @@ import { updatePageBody } from './crud/page'
 import { readFolds, writeFolds, type FoldState } from './io/folds'
 import { readActiveViews, writeActiveViews, type ActiveViews } from './io/activeViews'
 import { flushNavWrites, hasPendingNavWrites, readNavState, scheduleRecentsWrite, writeFavorites, writeRecentsNow } from './io/navState'
+import { flushTabsWrites, hasPendingTabsWrites, readTabsState, scheduleTabsWrite } from './io/tabsState'
+import { loadOrMigratePins, removePin, writePin } from './io/pinsState'
+import { captureThumbnail, evictThumbnails } from './io/thumbnails'
 import { readViewOrders, writeViewOrders, type ViewOrders } from './io/viewOrders'
 import { saveView, reorderViews, deleteView } from './crud/views'
 import { setContainerConfig, type ContainerConfigPatch } from './crud/containerConfig'
@@ -65,6 +69,8 @@ import type { OptionMenuContext } from '@shared/optionMenu'
 import { popCalloutMenu } from './calloutMenu'
 import { popColumnMenu } from './columnMenu'
 import { popCellMenu } from './cellMenu'
+import { popTabMenu } from './tabMenu'
+import type { TabMenuContext } from '@shared/tabMenu'
 import { popPropertyMenu } from './propertyMenu'
 import { popOptionMenu } from './optionMenu'
 import { popIconFavoriteMenu } from './iconFavoriteMenu'
@@ -278,6 +284,7 @@ ipcMain.handle('nav:load', async (): Promise<NavStateResult> => {
 
 ipcMain.handle('nav:saveRecents', async (_e, entries: unknown, immediate?: unknown): Promise<{ ok: true } | { ok: false; error: string }> => {
   try {
+    if (adopting) return { ok: false, error: 'Nexus switching.' }
     const root = sessionRoot()
     if (root === null) return { ok: false, error: 'No nexus is open.' }
     if (!Array.isArray(entries)) return { ok: false, error: 'Recents entries must be an array.' }
@@ -291,10 +298,101 @@ ipcMain.handle('nav:saveRecents', async (_e, entries: unknown, immediate?: unkno
 
 ipcMain.handle('nav:saveFavorites', async (_e, entries: unknown): Promise<{ ok: true } | { ok: false; error: string }> => {
   try {
+    if (adopting) return { ok: false, error: 'Nexus switching.' }
     const root = sessionRoot()
     if (root === null) return { ok: false, error: 'No nexus is open.' }
     if (!Array.isArray(entries)) return { ok: false, error: 'Favorites entries must be an array.' }
     await writeFavorites(root, entries as NavFavorite[])
+    return { ok: true }
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) }
+  }
+})
+
+// Durable pins — per-pin files under `.nexus/pins/`. add + reorder are one-file writes; remove is a
+// tombstone-write (pinsState). Each writes immediately (a deliberate act) and lands in the quit gate.
+ipcMain.handle('nav:loadPins', async (): Promise<PinsResult> => {
+  const root = sessionRoot()
+  if (root === null) return { ok: false, error: 'No nexus open' }
+  try {
+    return { ok: true, pins: await loadOrMigratePins(root) }
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) }
+  }
+})
+
+const savePin = async (pin: unknown): Promise<{ ok: true } | { ok: false; error: string }> => {
+  try {
+    // Mid-adopt, sessionRoot() is already the NEW nexus — a pin gesture on the old nexus's still-open UI
+    // would write a foreign entity into the new nexus's synced pins. Drop it, like the recents/tabs saves.
+    if (adopting) return { ok: false, error: 'Nexus switching.' }
+    const root = sessionRoot()
+    if (root === null) return { ok: false, error: 'No nexus is open.' }
+    if (!isPlainObject(pin)) return { ok: false, error: 'Pin must be an object.' }
+    await writePin(root, pin as PinEntry)
+    return { ok: true }
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) }
+  }
+}
+ipcMain.handle('nav:addPin', (_e, pin: unknown) => savePin(pin))
+ipcMain.handle('nav:reorderPin', (_e, pin: unknown) => savePin(pin))
+
+ipcMain.handle('nav:removePin', async (_e, target: unknown, order: unknown): Promise<{ ok: true } | { ok: false; error: string }> => {
+  try {
+    if (adopting) return { ok: false, error: 'Nexus switching.' }
+    const root = sessionRoot()
+    if (root === null) return { ok: false, error: 'No nexus is open.' }
+    if (!isPlainObject(target) || typeof order !== 'number') return { ok: false, error: 'Bad remove-pin args.' }
+    await removePin(root, target as NavTarget, order)
+    return { ok: true }
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) }
+  }
+})
+
+// The tab set — a synced sidecar (`tabs.json`): the ordered unpinned tabs + the active pointer +
+// per-tab history targets. Saves debounce main-side (every navigation mutates the set); drained at
+// before-quit + nexus switch alongside the nav writes.
+ipcMain.handle('tabs:load', async (): Promise<TabsResult> => {
+  const root = sessionRoot()
+  if (root === null) return { ok: false, error: 'No nexus open' }
+  try {
+    return { ok: true, set: await readTabsState(root) }
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) }
+  }
+})
+
+ipcMain.handle('tabs:save', (_e, set: unknown): { ok: true } | { ok: false; error: string } => {
+  if (adopting) return { ok: false, error: 'Nexus switching.' }
+  const root = sessionRoot()
+  if (root === null) return { ok: false, error: 'No nexus is open.' }
+  if (!isPlainObject(set) || !Array.isArray(set.tabs)) return { ok: false, error: 'Bad tab set.' }
+  scheduleTabsWrite(root, set as unknown as TabSet)
+  return { ok: true }
+})
+
+// Gallery thumbnails — capture the detail-pane rect on entity-open, evict on membership roll-off.
+const isRect = (v: unknown): v is ThumbRect => isPlainObject(v) && ['x', 'y', 'width', 'height'].every((k) => typeof v[k] === 'number')
+ipcMain.handle('capture:thumbnail', async (e, navKey: unknown, rect: unknown, scaleFactor: unknown): Promise<ThumbResult> => {
+  try {
+    const root = sessionRoot()
+    if (root === null) return { ok: false, error: 'No nexus is open.' }
+    const win = BrowserWindow.fromWebContents(e.sender)
+    if (!win || typeof navKey !== 'string' || !isRect(rect) || typeof scaleFactor !== 'number') return { ok: false, error: 'Bad capture args.' }
+    const url = await captureThumbnail(win, root, navKey, rect, scaleFactor)
+    return url ? { ok: true, url } : { ok: false, error: 'Capture produced no image.' }
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : String(err) }
+  }
+})
+ipcMain.handle('nav:evictThumbs', async (_e, liveKeys: unknown): Promise<{ ok: true } | { ok: false; error: string }> => {
+  try {
+    const root = sessionRoot()
+    if (root === null) return { ok: false, error: 'No nexus is open.' }
+    if (!Array.isArray(liveKeys)) return { ok: false, error: 'Live keys must be an array.' }
+    await evictThumbnails(root, liveKeys.filter((k): k is string => typeof k === 'string'))
     return { ok: true }
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : String(e) }
@@ -323,12 +421,27 @@ async function prepareOpenedNexus(path: string): Promise<void> {
   }
 }
 
+// Nexus adoption in flight — renderer-initiated sidecar saves are dropped for the window where the
+// session root swaps, so a mid-adopt save can't land in the NEW nexus's synced sidecars (the drop
+// path is non-modal, so the renderer stays interactive through the adopt). The outgoing state was
+// drained at adopt start; the post-adopt load re-seeds and re-persists.
+let adopting = false
+
 // Open a chosen nexus folder: make it the session, persist it as last-opened, and
 // push it onto the recents (deduped, capped) + the OS Recent Documents list.
 async function adoptNexus(path: string): Promise<void> {
-  // Drain the outgoing nexus's owed nav writes before the session root changes, so a rapid
+  adopting = true
+  try {
+    await adoptNexusInner(path)
+  } finally {
+    adopting = false
+  }
+}
+
+async function adoptNexusInner(path: string): Promise<void> {
+  // Drain the outgoing nexus's owed nav + tab writes before the session root changes, so a rapid
   // switch-away-and-back can't let a queued write clobber the freshly-loaded state.
-  await flushNavWrites()
+  await Promise.all([flushNavWrites(), flushTabsWrites()])
   await openSession(path)
   // openSession canonicalized the root (realpath); thread THAT everywhere below so the watcher's
   // session-match guard (watcher.ts) and the index/persistence key off the same string sessionRoot()
@@ -1205,6 +1318,20 @@ ipcMain.handle(
 // (built in editorMenu.ts on right-click) can render accurate checkmarks/radios.
 ipcMain.on('editor:format-state', (_e, state: FormatState) => setFormatState(state))
 
+// The JS window mover (hover-bearing chrome can't be a native drag region — it'd lose hover).
+ipcMain.on('win:dragBy', (e, dx: number, dy: number) => {
+  const win = BrowserWindow.fromWebContents(e.sender)
+  if (!win || typeof dx !== 'number' || typeof dy !== 'number') return
+  const [x, y] = win.getPosition()
+  win.setPosition(Math.round(x + dx), Math.round(y + dy))
+})
+ipcMain.on('win:zoom', (e) => {
+  const win = BrowserWindow.fromWebContents(e.sender)
+  if (!win) return
+  if (win.isMaximized()) win.unmaximize()
+  else win.maximize()
+})
+
 // The renderer flags (on hover) when the pointer sits on a callout grip, so the generic editor menu can
 // stand down and the renderer's own Delete Callout menu is the only one that pops on the right-press.
 ipcMain.on('editor:callout-grip', (_e, on: boolean) => setCalloutGrip(on))
@@ -1422,7 +1549,7 @@ ipcMain.handle('nexus:pickImage', async (e): Promise<string | null> => {
 
 // Pop a native macOS Change / Remove menu for an existing banner (mirrors Swift's .contextMenu).
 // Resolves the chosen action, or null if the menu is dismissed.
-ipcMain.handle('nexus:bannerMenu', async (e): Promise<'change' | 'remove' | null> => {
+ipcMain.handle('nexus:bannerMenu', async (e, opts?: { noRemove?: boolean }): Promise<'change' | 'remove' | null> => {
   const win = BrowserWindow.fromWebContents(e.sender)
   if (!win) return null
   return await new Promise<'change' | 'remove' | null>((resolve) => {
@@ -1433,7 +1560,7 @@ ipcMain.handle('nexus:bannerMenu', async (e): Promise<'change' | 'remove' | null
     }
     const menu = Menu.buildFromTemplate([
       { label: 'Change Banner', click: () => choose('change') },
-      { label: 'Remove Banner', click: () => choose('remove') }
+      ...(opts?.noRemove ? [] : [{ label: 'Remove Banner', click: () => choose('remove') }])
     ])
     menu.popup({ window: win, callback: () => { if (!acted) resolve(null) } })
   })
@@ -1480,6 +1607,12 @@ ipcMain.handle('column-menu', async (e, ctx: ColumnMenuContext) => {
 ipcMain.handle('cell-menu', async (e, ctx: CellMenuContext) => {
   const win = BrowserWindow.fromWebContents(e.sender)
   return win ? popCellMenu(win, ctx) : null
+})
+
+// Pop a tab's native right-click menu (Pin/Unpin · Close · Close to the Right) → the chosen action.
+ipcMain.handle('tab-menu', async (e, ctx: TabMenuContext) => {
+  const win = BrowserWindow.fromWebContents(e.sender)
+  return win && isPlainObject(ctx) ? popTabMenu(win, ctx as unknown as TabMenuContext) : null
 })
 
 ipcMain.handle('property-menu', async (e, ctx: PropertyMenuContext) => {
@@ -1581,17 +1714,17 @@ app.on('window-all-closed', () => {
 })
 
 // Quit cleanup. The index handle is regeneratable (a clean close just tidies + frees the WAL
-// files), but any owed nav write — a queued debounce OR an in-flight favorite/pin — is durable
-// user state, so if one is outstanding we defer the quit, drain them all, then re-quit. The guard
-// makes the second pass fall straight through; flushNavWrites loops so a record landing mid-drain
+// files), but any owed nav or tab write — a queued debounce OR an in-flight favorite/pin — is
+// durable user state, so if one is outstanding we defer the quit, drain them all, then re-quit. The
+// guard makes the second pass fall straight through; the flushes loop so a record landing mid-drain
 // is caught before the re-quit.
 let flushingBeforeQuit = false
 app.on('before-quit', (e) => {
   if (flushingBeforeQuit) return
   stopWatcher()
   closeSessionIndex()
-  if (!hasPendingNavWrites()) return
+  if (!hasPendingNavWrites() && !hasPendingTabsWrites()) return
   e.preventDefault()
   flushingBeforeQuit = true
-  void flushNavWrites().then(() => app.quit(), () => app.quit())
+  void Promise.all([flushNavWrites(), flushTabsWrites()]).then(() => app.quit(), () => app.quit())
 })

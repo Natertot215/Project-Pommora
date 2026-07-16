@@ -1,11 +1,12 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import type { IpcRendererEvent } from 'electron'
-import type { AgendaListResult, NavFavorite, NavStateResult, NexusState, NexusTree, OpenIn, PageResult, Personalization, RecentEntry, SubfieldConfig, ViewButton, ViewStyle } from '@shared/types'
+import type { AgendaListResult, NavChanged, NavFavorite, NavStateResult, NavTarget, NexusState, NexusTree, OpenIn, PageResult, Personalization, PinEntry, PinsResult, RecentEntry, SubfieldConfig, TabSet, TabsResult, ThumbRect, ThumbResult, ViewButton, ViewStyle } from '@shared/types'
 import type { MutateRequest, MutateResult, ContextTarget } from '@shared/mutate'
 import type { FormatState } from '@shared/editorMenu'
 import type { TableMenuAction, TableMenuContext } from '@shared/tableMenu'
 import type { CalloutMenuAction } from '@shared/calloutMenu'
 import type { CellMenuAction, CellMenuContext } from '@shared/cellMenu'
+import type { TabMenuAction, TabMenuContext } from '@shared/tabMenu'
 import type { PropertyMenuAction, PropertyMenuContext } from '@shared/propertyMenu'
 import type { OptionMenuAction, OptionMenuContext } from '@shared/optionMenu'
 import type { ColumnMenuAction, ColumnMenuContext } from '@shared/columnMenu'
@@ -286,7 +287,22 @@ const api = {
     load: (): Promise<NavStateResult> => ipcRenderer.invoke('nav:load'),
     saveRecents: (entries: RecentEntry[], immediate?: boolean): Promise<{ ok: true } | { ok: false; error: string }> =>
       ipcRenderer.invoke('nav:saveRecents', entries, immediate),
-    saveFavorites: (entries: NavFavorite[]): Promise<{ ok: true } | { ok: false; error: string }> => ipcRenderer.invoke('nav:saveFavorites', entries)
+    saveFavorites: (entries: NavFavorite[]): Promise<{ ok: true } | { ok: false; error: string }> => ipcRenderer.invoke('nav:saveFavorites', entries),
+    loadPins: (): Promise<PinsResult> => ipcRenderer.invoke('nav:loadPins'),
+    addPin: (pin: PinEntry): Promise<{ ok: true } | { ok: false; error: string }> => ipcRenderer.invoke('nav:addPin', pin),
+    reorderPin: (pin: PinEntry): Promise<{ ok: true } | { ok: false; error: string }> => ipcRenderer.invoke('nav:reorderPin', pin),
+    removePin: (target: NavTarget, order: number): Promise<{ ok: true } | { ok: false; error: string }> => ipcRenderer.invoke('nav:removePin', target, order)
+  },
+  // The tab set — synced tabs.json (unpinned tabs + active + per-tab history targets); saves debounce main-side.
+  tabs: {
+    load: (): Promise<TabsResult> => ipcRenderer.invoke('tabs:load'),
+    save: (set: TabSet): Promise<{ ok: true } | { ok: false; error: string }> => ipcRenderer.invoke('tabs:save', set)
+  },
+  // Gallery thumbnails — capture the detail-pane rect (main writes under .nexus/assets and returns the
+  // nexus-asset:// URL); evict prunes thumbnails outside the live recents∪pins set.
+  capture: {
+    thumbnail: (navKey: string, rect: ThumbRect, scaleFactor: number): Promise<ThumbResult> => ipcRenderer.invoke('capture:thumbnail', navKey, rect, scaleFactor),
+    evict: (liveKeys: string[]): Promise<{ ok: true } | { ok: false; error: string }> => ipcRenderer.invoke('nav:evictThumbs', liveKeys)
   },
   // Personalization (accent, connection color, interface toggles) — persist one key; the tree
   // surfaces current values (state → tree.personalization), so there's no get.
@@ -302,6 +318,11 @@ const api = {
   contextMenu: (target: ContextTarget): Promise<void> => ipcRenderer.invoke('context-menu', target),
   // Push the editor's active formatting state so the native right-click menu renders accurate state.
   setEditorFormatState: (state: FormatState): void => ipcRenderer.send('editor:format-state', state),
+  // JS window mover for hover-bearing chrome (the tab bar): a native app-region never delivers hover,
+  // so the bar drives the move itself — per-pointermove screen deltas, fire-and-forget. Double-click
+  // zooms, the macOS titlebar convention.
+  winDragBy: (dx: number, dy: number): void => ipcRenderer.send('win:dragBy', dx, dy),
+  winZoom: (): void => ipcRenderer.send('win:zoom'),
   // Pop a native "New …" menu (e.g. the context tiers) + run the chosen create main-side.
   popCreateMenu: (items: { label: string; req: MutateRequest }[]): Promise<void> =>
     ipcRenderer.invoke('create-menu', items),
@@ -328,7 +349,8 @@ const api = {
   // Open the native image picker directly → data URL (null if canceled). Banner Add / Change.
   pickImage: (): Promise<string | null> => ipcRenderer.invoke('nexus:pickImage'),
   // Pop the native Change / Remove banner menu → the chosen action (null if dismissed).
-  bannerMenu: (): Promise<'change' | 'remove' | null> => ipcRenderer.invoke('nexus:bannerMenu'),
+  // `noRemove` drops the Remove item (an inherited banner has nothing of its own to remove).
+  bannerMenu: (opts?: { noRemove?: boolean }): Promise<'change' | 'remove' | null> => ipcRenderer.invoke('nexus:bannerMenu', opts),
   // Pop the native Rename / Edit Icon menu for a detail title → the chosen action (null if dismissed).
   titleMenu: (opts?: {
     toggleIcon?: boolean
@@ -343,6 +365,7 @@ const api = {
   columnMenu: (ctx: ColumnMenuContext): Promise<ColumnMenuAction | null> => ipcRenderer.invoke('column-menu', ctx),
   // Pop a table cell's native right-click menu (title meta / per-type Style / Edit) — same contract.
   cellMenu: (ctx: CellMenuContext): Promise<CellMenuAction | null> => ipcRenderer.invoke('cell-menu', ctx),
+  tabMenu: (ctx: TabMenuContext): Promise<TabMenuAction | null> => ipcRenderer.invoke('tab-menu', ctx),
   // Pop a property's native menu (editor ⋮ / row right-click); Delete confirms in main first.
   propertyMenu: (ctx: PropertyMenuContext): Promise<PropertyMenuAction | null> =>
     ipcRenderer.invoke('property-menu', ctx),
@@ -369,6 +392,23 @@ const api = {
     ipcRenderer.on('begin-rename', listener)
     return () => {
       ipcRenderer.removeListener('begin-rename', listener)
+    }
+  },
+  // The context-menu "Open in New Tab" push-back — the action runs renderer-side (main can't know
+  // the tab set); returns an unsubscribe.
+  onOpenInNewTab: (cb: (target: ContextTarget) => void): (() => void) => {
+    const listener = (_e: IpcRendererEvent, target: ContextTarget): void => cb(target)
+    ipcRenderer.on('open-in-new-tab', listener)
+    return () => {
+      ipcRenderer.removeListener('open-in-new-tab', listener)
+    }
+  },
+  // The live watcher pushed fresh nav state (external/synced sidecar or pin change) — no tree walk.
+  onNavChanged: (cb: (nav: NavChanged) => void): (() => void) => {
+    const listener = (_e: IpcRendererEvent, nav: NavChanged): void => cb(nav)
+    ipcRenderer.on('nav:changed', listener)
+    return () => {
+      ipcRenderer.removeListener('nav:changed', listener)
     }
   },
   // The live watcher pushed a fresh tree (external FS change) — swap it in place; returns an unsubscribe.

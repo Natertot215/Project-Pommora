@@ -7,12 +7,29 @@
   gap: 1px;
 }
 .nav-item {
+  position: relative;
   display: flex;
   align-items: center;
   border-radius: 6px;
+  /* The hover fill fades in AND out on the pane's own open speed — symmetric (ease-in-out), never
+     a slow linger. */
+  transition: background var(--disclosure) var(--ease-in-out);
+}
+/* Pinned marker — an accent pin centered in the row's left inset gutter (absolute so it never shifts
+   the row content out of alignment with un-pinned rows). */
+.nav-item-pin {
+  position: absolute;
+  left: calc(var(--navwindow-inset, 12px) / 2);
+  top: 50%;
+  transform: translate(-50%, -50%);
+  color: var(--accent);
+  pointer-events: none;
 }
 .nav-item:hover {
-  background: var(--fill-tertiary);
+  background: var(--state-hover);
+}
+.nav-item.is-dragging {
+  opacity: var(--drag-muted);
 }
 .nav-item-main {
   flex: 1;
@@ -20,7 +37,7 @@
   align-items: center;
   gap: 7px;
   /* Content (icon + path edges) aligns to the pane's shared inset; the highlight spans full-width. */
-  padding: 5px var(--navpane-inset, 8px);
+  padding: 5px var(--navwindow-inset, 8px);
   min-width: 0;
   text-align: left;
   background: none;
@@ -38,7 +55,7 @@
   min-width: 0;
   font-size: 13px;
   color: var(--label-primary);
-  --eclipse-fade: 16px;
+  --edge-fade: 16px;
   --scroll-fade: 16px;
 }
 .nav-item-path {
@@ -47,7 +64,7 @@
   max-width: 55%;
   margin-left: auto;
   color: var(--label-secondary);
-  --eclipse-fade: 16px;
+  --edge-fade: 16px;
   --scroll-fade: 16px;
 }
 .nav-path-icon {
@@ -66,7 +83,11 @@
 }
 .nav-item-inert {
   opacity: 0.55;
-  padding: 5px var(--navpane-inset, 8px);
+  padding: 5px var(--navwindow-inset, 8px);
   gap: 7px;
   cursor: default;
+}
+/* Right-click row menu — floor the width so the short action labels read as a menu, not a chip. */
+.nav-row-menu {
+  min-width: 150px;
 }

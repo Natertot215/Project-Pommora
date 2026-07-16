@@ -105,7 +105,7 @@ The index lives at `<nexus>/.nexus/index.db`, travelling with the Nexus so a mov
 
 Every file write goes through one of three atomic paths, all via temp-file + rename (POSIX rename is atomic on the same filesystem, so a crash mid-write leaves either the whole old file or the whole new file — never a half-written one):
 
-- **YAML+Markdown write** — Pages. Composes `---\n<yaml>\n---\n\n<body>`, re-serializing only modeled keys and preserving every foreign frontmatter key by value. The preserving-merge mechanics are canonical in `// Guidelines//CRUD-Patterns.md` § "YAML frontmatter + body".
+- **YAML+Markdown write** — Pages. Composes `---\n<yaml>\n---\n<body>` (the body follows the closing fence directly — no separator blank line, so a note never opens with an empty line under Obsidian's properties panel), re-serializing only modeled keys and preserving every foreign frontmatter key by value. The preserving-merge mechanics are canonical in `// Features//Pages.md` § "Read + Write" and `src//main//io//pageFile.ts`.
 - **JSON write** — sidecars, Tasks / Events, Contexts, Settings, Homepage.
 - **Schema transaction** — multi-file commits that must succeed-or-fail as a unit (e.g. a global property delete that scrubs values across every assigning Collection). Validates the full set, then applies in dependency order with rollback on failure.
 
@@ -151,5 +151,4 @@ Deliberately *not* built:
 - `PommoraPRD.md` — high-altitude product spec; storage model; SQLite DDL.
 - `// Features//Domain-Model.md` — 2-layer model + PARA mapping + linking model.
 - `// Features//Properties.md` — property catalog; tier-relation properties; the nexus-wide registry + assignment model.
-- `// Guidelines//CRUD-Patterns.md` — per-entity CRUD UI patterns.
 - `// rules//MarkdownPM.md` — editor architecture + save pipeline.

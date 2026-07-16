@@ -6,13 +6,16 @@ import { Ribbon } from './Sidebar/Ribbon'
 import { DetailPane } from './Detail/DetailPane'
 import { Toolbar } from './Toolbar/Toolbar'
 import { InspectorPanel } from './Detail/InspectorPanel/InspectorPanel'
-import { NavPane } from './NavPane/NavPane'
+import { NavWindow } from './NavWindow/NavWindow'
+import { contextTargetToSelect } from './Tabs/tabsModel'
+import { useNavThumbnails } from './Navigation/useNavThumbnails'
 import { Icon } from '@renderer/design-system/symbols'
 import { matchesCommand } from './Commands'
 
 export function App(): React.JSX.Element {
-  const { status, tree, error, sidebarVisible, sidebarWidth, setSidebarWidth, inspectorWidth, setInspectorWidth, load, applyTree, choose, openDropped, toggleSidebar, ribbonVisible, toggleRibbon, toggleNav, commands, newPage, beginRename } =
+  const { status, tree, error, sidebarVisible, sidebarWidth, setSidebarWidth, inspectorWidth, setInspectorWidth, load, applyTree, applyNavChanged, choose, openDropped, toggleSidebar, ribbonVisible, toggleRibbon, toggleNav, commands, newPage, openNewTab, beginRename, select } =
     useSession()
+  useNavThumbnails() // capture-on-open detail-pane thumbnails for the gallery
 
   // Inspector toggle — window chrome state. Full-height pane that pushes content when open.
   const [inspectorOpen, setInspectorOpen] = useState(false)
@@ -61,12 +64,25 @@ export function App(): React.JSX.Element {
     return window.nexus.onBeginRename((path) => beginRename(path))
   }, [beginRename])
 
+  // Context-menu "Open in New Tab" → open into a new tab (dedup focuses an already-open one, I-1).
+  useEffect(() => {
+    return window.nexus.onOpenInNewTab((target) => {
+      if (!target.id) return
+      void select(contextTargetToSelect({ kind: target.kind, id: target.id, path: target.path }), { newTab: true })
+    })
+  }, [select])
+
   // The live filesystem watcher pushed a fresh tree (external change) → swap it in place.
   // Single-window v1: main guards stale pushes by session root; on an in-window nexus
   // switch a rare in-flight push self-heals (the switch's own load() applies last).
   useEffect(() => {
     return window.nexus.onNexusChanged((next) => void applyTree(next))
   }, [applyTree])
+
+  // A synced-in Nav sidecar / pin change (from another machine) → refresh nav state only, no tree walk.
+  useEffect(() => {
+    return window.nexus.onNavChanged((nav) => applyNavChanged(nav))
+  }, [applyNavChanged])
 
   // Native-menu actions reuse the store's existing behaviors (the menu is a second
   // trigger, not a second implementation).
@@ -75,6 +91,9 @@ export function App(): React.JSX.Element {
       switch (action) {
         case 'open':
           void choose()
+          break
+        case 'new-tab':
+          openNewTab()
           break
         case 'new-page':
           void newPage()
@@ -87,7 +106,7 @@ export function App(): React.JSX.Element {
           break
       }
     })
-  }, [choose, newPage, toggleSidebar, load])
+  }, [choose, newPage, openNewTab, toggleSidebar, load])
 
   // Nexus-bound keyboard commands (settings.json `commands`) — window chrome shortcuts.
   useEffect(() => {
@@ -163,6 +182,11 @@ export function App(): React.JSX.Element {
           )}
           {status === 'ready' && tree && <Sidebar tree={tree} />}
       </Surface>
+      {/* Drag strip over the sidebar's top band — a child of the frosted Surface can't carry a drag
+          region (its backdrop-filter layer swallows it), and draggable regions resolve in PAINT order
+          (the sidebar's no-drag content punches any earlier drag region), so the handle lives at shell
+          level AFTER the Surface. Clears the collapse toggle; retracts when the sidebar hides. */}
+      {status === 'ready' && !sidebarHidden && <div className="sidebar-titlebar" />}
       {/* Invisible edge-drag resize strip at the sidebar's right edge (only while expanded). */}
       {!sidebarHidden && (
         <div
@@ -189,8 +213,8 @@ export function App(): React.JSX.Element {
       </button>
       {/* Trailing inspector pane — full-height twin of the sidebar; pushes content when open. */}
       {status === 'ready' && <InspectorPanel open={inspectorOpen} />}
-      {/* NavPane — the ribbon/⌘O-summoned floating mini-shell; app-global overlay, own presence. */}
-      {status === 'ready' && <NavPane />}
+      {/* NavWindow — the ribbon/⌘O-summoned floating mini-shell; app-global overlay, own presence. */}
+      {status === 'ready' && <NavWindow />}
       {/* Invisible edge-drag resize strip at the inspector's left edge (only while open). */}
       {status === 'ready' && inspectorOpen && (
         <div

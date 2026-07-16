@@ -8,6 +8,7 @@ function tree(pages: { id: string; path: string }[]): NexusTree {
   return {
     nexus: { id: 'nx', rootPath: '/x', name: 'x', profileImage: null, profileSubtitle: '' },
     homepage: { locked: false, headingIconHidden: false },
+    navView: {},
     saved: [],
     contexts: { projects: [], topics: [], areas: [] },
     collections: [

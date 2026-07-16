@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import type { RecentEntry } from '@shared/types'
-import { buildResolveIndex, resolveFavorites, resolveNavEntry, resolveRecents, resolveWith } from './navResolve'
+import type { PinEntry, RecentEntry } from '@shared/types'
+import { buildResolveIndex, resolveFavorites, resolveNavEntry, resolvePins, resolveRecents, resolveWith } from './navResolve'
 import { makeTree } from './testTree'
 
 describe('resolveNavEntry', () => {
@@ -70,13 +70,13 @@ describe('buildResolveIndex + resolveWith (index built once, O(1) per entry)', (
 })
 
 describe('resolveRecents', () => {
-  it('floats pinned entries to the top, preserving MRU order within each group', () => {
+  it('preserves MRU order (pins are their own list now — no float)', () => {
     const recents: RecentEntry[] = [
-      { kind: 'page', id: 'p1', path: 'Notes/Alpha.md' }, // newest, un-pinned
-      { kind: 'page', id: 'p2', path: 'Notes/Ideas/Beta.md', pinned: true }, // older, pinned
-      { kind: 'collection', id: 'c1' } // oldest, un-pinned
+      { kind: 'page', id: 'p1', path: 'Notes/Alpha.md' },
+      { kind: 'page', id: 'p2', path: 'Notes/Ideas/Beta.md' },
+      { kind: 'collection', id: 'c1' }
     ]
-    expect(resolveRecents(buildResolveIndex(makeTree()), recents).map((r) => r.key)).toEqual(['page:p2', 'page:p1', 'collection:c1'])
+    expect(resolveRecents(buildResolveIndex(makeTree()), recents).map((r) => r.key)).toEqual(['page:p1', 'page:p2', 'collection:c1'])
   })
 
   it('drops gone entries from the render list only', () => {
@@ -96,5 +96,18 @@ describe('resolveFavorites', () => {
       { kind: 'context', id: 'a1' }
     ]
     expect(resolveFavorites(buildResolveIndex(makeTree()), favorites).map((r) => r.key)).toEqual(['collection:c1', 'context:a1'])
+  })
+})
+
+describe('resolvePins', () => {
+  it('marks each pinned, preserves caller order, prunes gone entries', () => {
+    const pins: PinEntry[] = [
+      { kind: 'collection', id: 'c1', order: 0 },
+      { kind: 'collection', id: 'ghost', order: 1 },
+      { kind: 'context', id: 'a1', order: 2 }
+    ]
+    const out = resolvePins(buildResolveIndex(makeTree()), pins)
+    expect(out.map((r) => r.key)).toEqual(['collection:c1', 'context:a1'])
+    expect(out.every((r) => r.pinned === true)).toBe(true)
   })
 })

@@ -18,6 +18,7 @@ import { PropertyEditor } from '../PropertyEditing/PropertyEditor'
 import { PropertyPicker } from '../PropertyEditing/PropertyPicker'
 import { nextCycleValue } from '../PropertyEditing/statusCycle'
 import { useSession } from '../../../store'
+import { isOpenInTabs } from '../../../Tabs/tabsModel'
 import { useActiveView } from '../useActiveView'
 import { useSaveView } from '@renderer/Embeds/ViewEmbedScope'
 import type { SetTreeNode } from '../pipeline/group'
@@ -815,9 +816,15 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
     const filled = !isBlankValue(resolveFieldValue(row, col.id, schema))
     const ctx = cellMenuContextFor(col, declaredType(col.id, schema), colStyle(col.id), filled)
     if (!ctx) return
+    if (ctx.kind === 'title') {
+      const { tabs, pins } = useSession.getState()
+      ctx.alreadyOpen = isOpenInTabs(tabs, pins, { kind: 'page', id: row.id, path: row.path })
+    }
     const action = await window.nexus.cellMenu(ctx)
     if (!action) return
-    if (action === 'title:icon') {
+    if (action === 'title:newtab')
+      void useSession.getState().select({ kind: 'page', id: row.id, path: row.path }, { newTab: true })
+    else if (action === 'title:icon') {
       iconCellRef.current = cellEl
       setIconTarget({ path: row.path, icon: typeof row.icon === 'string' ? row.icon : undefined })
       setIconPickerOpen(true)

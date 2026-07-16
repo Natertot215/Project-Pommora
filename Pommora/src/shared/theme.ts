@@ -5,4 +5,4 @@
 //   color.css.ts  → background.window token = WINDOW_BG → --bg-window bridge var
 //   styles.css    → --main-bg: var(--bg-window)
 // Change it here and all three follow.
-export const WINDOW_BG = '#1B1B1D'
+export const WINDOW_BG = '#1A1A1C'

@@ -500,13 +500,17 @@ export function useZoneItem(id: string): DragItem {
 
   // Transition during a live drag: non-active items ease the gap; the active item eases on drop and
   // on every keyboard arrow step (but follows the pointer with no transition during a pointer drag).
-  // At rest (idle) it's OFF, so the commit reorder snaps into place pixel-identically — no jerk.
+  // At rest (idle) the inline transition clears ENTIRELY — an inline value (even 'none') replaces the
+  // element's whole stylesheet transition list, silently killing its own color/size motion (the tab
+  // bar's open/close slide died this way). The commit still snaps pixel-identically because an engine
+  // item's stylesheet must never transition `transform` (that's the zone contract — hover-pop and
+  // friends live on an inner layer).
   const animate = isDragging ? dropState === 'dropping' || keyboard : dropState !== 'idle'
   return {
     setNodeRef: (el) => register(id, el),
     style: {
       transform,
-      transition: animate ? `transform ${feel.duration}ms ${feel.easing}` : 'none',
+      transition: animate ? `transform ${feel.duration}ms ${feel.easing}` : undefined,
       zIndex: isDragging ? 10 : undefined,
       position: 'relative',
       touchAction: 'none'

@@ -2,7 +2,7 @@ import type { CSSProperties, RefObject } from 'react'
 import { EditableInput } from '@renderer/Components/EditableInput'
 import { cx } from '../../cx'
 import { PickerMenu } from '../PickerMenu/PickerMenu'
-import '../OverflowScroll.css'
+import '../../edge-fade.css'
 import * as s from './textPicker.css'
 
 /**

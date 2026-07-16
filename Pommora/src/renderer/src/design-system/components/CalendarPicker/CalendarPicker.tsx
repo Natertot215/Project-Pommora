@@ -381,7 +381,7 @@ export function CalendarPicker({
       <PortalMenu rect={timeMenu.rect}>
         <span className={s.ddWrap} onClick={(e) => e.stopPropagation()}>
           <PickerMenu solid direction="up">
-            <div className={cx(s.menuList, 'scroll-edge-fade')}>
+            <div className={cx(s.menuList, 'edge-fade')}>
               {(part === 'h' ? (twelve ? HOURS_12 : HOURS_24) : MINUTES).map((v) => (
                 <PickerOption key={v} selected={v === current} onClick={() => choose(v)}>
                   {optionRow(part === 'h' ? hourText(v) : pad(v), v === current)}
@@ -501,7 +501,7 @@ export function CalendarPicker({
       <PortalMenu rect={menu.rect}>
         <span className={s.ddWrap} onClick={(e) => e.stopPropagation()}>
           <PickerMenu solid>
-            <div className={cx(s.menuList, 'scroll-edge-fade')}>
+            <div className={cx(s.menuList, 'edge-fade')}>
               {kind === 'month'
                 ? Array.from({ length: 12 }, (_, m) => (
                     <PickerOption key={m} selected={m === cursor.getMonth()} onClick={() => jump(year, m)}>

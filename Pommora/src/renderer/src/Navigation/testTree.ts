@@ -7,6 +7,7 @@ export function makeTree(): NexusTree {
   return {
     nexus: { id: 'nx', rootPath: '/x', name: 'TestNexus', profileImage: null, profileSubtitle: '' },
     homepage: { locked: false, headingIconHidden: false },
+    navView: {},
     saved: [],
     contexts: {
       areas: [{ kind: 'area', id: 'a1', title: 'Work', path: 'Work' }],
