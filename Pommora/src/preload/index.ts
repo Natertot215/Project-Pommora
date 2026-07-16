@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import type { IpcRendererEvent } from 'electron'
-import type { AgendaListResult, NavChanged, NavFavorite, NavStateResult, NavTarget, NexusState, NexusTree, OpenIn, PageResult, Personalization, PinEntry, PinsResult, RecentEntry, SubfieldConfig, ThumbRect, ThumbResult, ViewButton, ViewStyle } from '@shared/types'
+import type { AgendaListResult, NavChanged, NavFavorite, NavStateResult, NavTarget, NexusState, NexusTree, OpenIn, PageResult, Personalization, PinEntry, PinsResult, RecentEntry, SubfieldConfig, TabSet, TabsResult, ThumbRect, ThumbResult, ViewButton, ViewStyle } from '@shared/types'
 import type { MutateRequest, MutateResult, ContextTarget } from '@shared/mutate'
 import type { FormatState } from '@shared/editorMenu'
 import type { TableMenuAction, TableMenuContext } from '@shared/tableMenu'
@@ -291,6 +291,11 @@ const api = {
     addPin: (pin: PinEntry): Promise<{ ok: true } | { ok: false; error: string }> => ipcRenderer.invoke('nav:addPin', pin),
     reorderPin: (pin: PinEntry): Promise<{ ok: true } | { ok: false; error: string }> => ipcRenderer.invoke('nav:reorderPin', pin),
     removePin: (target: NavTarget, order: number): Promise<{ ok: true } | { ok: false; error: string }> => ipcRenderer.invoke('nav:removePin', target, order)
+  },
+  // The tab set — synced tabs.json (unpinned tabs + active + per-tab history targets); saves debounce main-side.
+  tabs: {
+    load: (): Promise<TabsResult> => ipcRenderer.invoke('tabs:load'),
+    save: (set: TabSet): Promise<{ ok: true } | { ok: false; error: string }> => ipcRenderer.invoke('tabs:save', set)
   },
   // Gallery thumbnails — capture the detail-pane rect (main writes under .nexus/assets and returns the
   // nexus-asset:// URL); evict prunes thumbnails outside the live recents∪pins set.

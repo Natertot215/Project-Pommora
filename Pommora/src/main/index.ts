@@ -2,7 +2,7 @@ import { app, BrowserWindow, dialog, ipcMain, Menu, nativeTheme, protocol, shell
 import type { OpenDialogOptions } from 'electron'
 import { basename, dirname, extname, join, sep } from 'node:path'
 import { readFile, rename } from 'node:fs/promises'
-import type { AgendaListResult, NavFavorite, NavStateResult, NavTarget, NexusState, PageResult, PinEntry, PinsResult, RecentEntry, SubfieldConfig, ThumbRect, ThumbResult } from '@shared/types'
+import type { AgendaListResult, NavFavorite, NavStateResult, NavTarget, NexusState, PageResult, PinEntry, PinsResult, RecentEntry, SubfieldConfig, TabSet, TabsResult, ThumbRect, ThumbResult } from '@shared/types'
 import { isPlainObject } from '@shared/propertyValue'
 import { collectAgendaEntries } from './agenda/collectAgenda'
 import type { MutateRequest, MutateResult, ContextTarget } from '@shared/mutate'
@@ -26,6 +26,7 @@ import { updatePageBody } from './crud/page'
 import { readFolds, writeFolds, type FoldState } from './io/folds'
 import { readActiveViews, writeActiveViews, type ActiveViews } from './io/activeViews'
 import { flushNavWrites, hasPendingNavWrites, readNavState, scheduleRecentsWrite, writeFavorites, writeRecentsNow } from './io/navState'
+import { flushTabsWrites, hasPendingTabsWrites, readTabsState, scheduleTabsWrite } from './io/tabsState'
 import { loadOrMigratePins, removePin, writePin } from './io/pinsState'
 import { captureThumbnail, evictThumbnails } from './io/thumbnails'
 import { readViewOrders, writeViewOrders, type ViewOrders } from './io/viewOrders'
@@ -342,6 +343,27 @@ ipcMain.handle('nav:removePin', async (_e, target: unknown, order: unknown): Pro
   }
 })
 
+// The tab set — a synced sidecar (`tabs.json`): the ordered unpinned tabs + the active pointer +
+// per-tab history targets. Saves debounce main-side (every navigation mutates the set); drained at
+// before-quit + nexus switch alongside the nav writes.
+ipcMain.handle('tabs:load', async (): Promise<TabsResult> => {
+  const root = sessionRoot()
+  if (root === null) return { ok: false, error: 'No nexus open' }
+  try {
+    return { ok: true, set: await readTabsState(root) }
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) }
+  }
+})
+
+ipcMain.handle('tabs:save', (_e, set: unknown): { ok: true } | { ok: false; error: string } => {
+  const root = sessionRoot()
+  if (root === null) return { ok: false, error: 'No nexus is open.' }
+  if (!isPlainObject(set) || !Array.isArray(set.tabs)) return { ok: false, error: 'Bad tab set.' }
+  scheduleTabsWrite(root, set as unknown as TabSet)
+  return { ok: true }
+})
+
 // Gallery thumbnails — capture the detail-pane rect on entity-open, evict on membership roll-off.
 const isRect = (v: unknown): v is ThumbRect => isPlainObject(v) && ['x', 'y', 'width', 'height'].every((k) => typeof v[k] === 'number')
 ipcMain.handle('capture:thumbnail', async (e, navKey: unknown, rect: unknown, scaleFactor: unknown): Promise<ThumbResult> => {
@@ -393,9 +415,9 @@ async function prepareOpenedNexus(path: string): Promise<void> {
 // Open a chosen nexus folder: make it the session, persist it as last-opened, and
 // push it onto the recents (deduped, capped) + the OS Recent Documents list.
 async function adoptNexus(path: string): Promise<void> {
-  // Drain the outgoing nexus's owed nav writes before the session root changes, so a rapid
+  // Drain the outgoing nexus's owed nav + tab writes before the session root changes, so a rapid
   // switch-away-and-back can't let a queued write clobber the freshly-loaded state.
-  await flushNavWrites()
+  await Promise.all([flushNavWrites(), flushTabsWrites()])
   await openSession(path)
   // openSession canonicalized the root (realpath); thread THAT everywhere below so the watcher's
   // session-match guard (watcher.ts) and the index/persistence key off the same string sessionRoot()
@@ -1648,17 +1670,17 @@ app.on('window-all-closed', () => {
 })
 
 // Quit cleanup. The index handle is regeneratable (a clean close just tidies + frees the WAL
-// files), but any owed nav write — a queued debounce OR an in-flight favorite/pin — is durable
-// user state, so if one is outstanding we defer the quit, drain them all, then re-quit. The guard
-// makes the second pass fall straight through; flushNavWrites loops so a record landing mid-drain
+// files), but any owed nav or tab write — a queued debounce OR an in-flight favorite/pin — is
+// durable user state, so if one is outstanding we defer the quit, drain them all, then re-quit. The
+// guard makes the second pass fall straight through; the flushes loop so a record landing mid-drain
 // is caught before the re-quit.
 let flushingBeforeQuit = false
 app.on('before-quit', (e) => {
   if (flushingBeforeQuit) return
   stopWatcher()
   closeSessionIndex()
-  if (!hasPendingNavWrites()) return
+  if (!hasPendingNavWrites() && !hasPendingTabsWrites()) return
   e.preventDefault()
   flushingBeforeQuit = true
-  void flushNavWrites().then(() => app.quit(), () => app.quit())
+  void Promise.all([flushNavWrites(), flushTabsWrites()]).then(() => app.quit(), () => app.quit())
 })

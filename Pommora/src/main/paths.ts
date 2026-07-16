@@ -59,7 +59,8 @@ export const NEXUS_CONFIG_FILES = {
   properties: 'properties.json',
   linkTitles: 'linkTitles.json',
   navRecents: 'navRecents.json',
-  navFavorites: 'navFavorites.json'
+  navFavorites: 'navFavorites.json',
+  tabs: 'tabs.json'
 } as const
 
 /** The `.nexus/` files that are per-machine display state or a regeneratable accelerator, never

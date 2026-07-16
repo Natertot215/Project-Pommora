@@ -365,6 +365,9 @@ export interface TabSet {
   activeTabId: string
 }
 
+/** The `tabs:load` IPC envelope — `set` is null when no sidecar exists yet (the store seeds fresh). */
+export type TabsResult = { ok: true; set: TabSet | null } | { ok: false; error: string }
+
 /** The `nav:loadPins` IPC envelope. */
 export type PinsResult = { ok: true; pins: PinEntry[] } | { ok: false; error: string }
 
