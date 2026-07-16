@@ -1,7 +1,37 @@
 /* TEMPORARY multi-tab preview strip — a throwaway toolbar tabbar. Fills the slack between the toolbar
-   clusters, top-aligned + button-height so the tabs center on the button row; tabs hold a fixed order and
-   overflow-scroll; the current tab reads label-control and a selection indicator slides between tabs.
-   Delete this file with TabBarPreview when the multi-tab direction settles. */
+   clusters, top-aligned + button-height so the tabs center on the button row; fixed order + overflow-scroll
+   with an inline edge fade; the current tab reads label-control via a clipped bright duplicate whose clip
+   slides between tabs (no background fill). Delete this file with TabBarPreview when the direction settles. */
+
+@property --tab-edge-l {
+  syntax: '<number>';
+  inherits: false;
+  initial-value: 0;
+}
+@property --tab-edge-r {
+  syntax: '<number>';
+  inherits: false;
+  initial-value: 0;
+}
+@keyframes tabbar-edge-l {
+  0% {
+    --tab-edge-l: 0;
+  }
+  8%,
+  100% {
+    --tab-edge-l: 1;
+  }
+}
+@keyframes tabbar-edge-r {
+  0%,
+  92% {
+    --tab-edge-r: 1;
+  }
+  100% {
+    --tab-edge-r: 0;
+  }
+}
+
 .tabbar-preview {
   flex: 1;
   min-width: 0;
@@ -13,33 +43,56 @@
   pointer-events: auto;
   -webkit-app-region: no-drag;
 }
+
+/* Overflow-scroll with an inline edge fade — tabs dissolve at the cluster edges instead of hard-cutting as
+   the strip scrolls under the buttons. Scroll-driven (like scroll-edge-fade): a strip that fits leaves the
+   timeline inactive, the vars hold their 0 initials, and the mask collapses to a no-op. Knob: --tab-edge-fade. */
 .tabbar-preview-scroll {
   position: relative;
-  display: flex;
-  align-items: center;
   width: 100%;
   height: 100%;
   overflow-x: auto;
   overflow-y: hidden;
+  animation-name: tabbar-edge-l, tabbar-edge-r;
+  animation-duration: auto;
+  animation-timing-function: linear;
+  animation-timeline: scroll(self inline);
+  mask-image: linear-gradient(
+    to right,
+    transparent 0,
+    #000000 calc(var(--tab-edge-l) * var(--tab-edge-fade, 20px)),
+    #000000 calc(100% - var(--tab-edge-r) * var(--tab-edge-fade, 20px)),
+    transparent 100%
+  );
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent 0,
+    #000000 calc(var(--tab-edge-l) * var(--tab-edge-fade, 20px)),
+    #000000 calc(100% - var(--tab-edge-r) * var(--tab-edge-fade, 20px)),
+    transparent 100%
+  );
 }
 
-/* The sliding selection — a subtle fill that tracks the active tab; the slide IS the tab-change motion. */
-.tabbar-preview-sel {
-  position: absolute;
-  top: 50%;
-  left: 0;
-  height: 26px;
-  border-radius: 8px;
-  background: var(--fill-tertiary);
-  transition:
-    transform var(--duration-base) var(--ease-standard),
-    width var(--duration-base) var(--ease-standard);
+/* Two identical tracks stacked in one grid cell: the dim base (interactive) and the bright duplicate. */
+.tabbar-preview-stack {
+  position: relative;
+  display: grid;
+  width: max-content;
+  height: 100%;
+}
+.tabbar-preview-track {
+  grid-area: 1 / 1;
+  display: flex;
+  align-items: center;
+  height: 100%;
+}
+/* The bright duplicate — clipped to the active tab; sliding the clip IS the selection motion. */
+.tabbar-preview-hi {
   pointer-events: none;
+  transition: clip-path var(--duration-base) var(--ease-standard);
 }
 
 .tabbar-preview-tab {
-  position: relative;
-  z-index: 1; /* the label rides above the sliding fill */
   flex: 0 0 auto; /* natural width — the strip overflow-scrolls, tabs don't shrink */
   display: inline-flex;
   align-items: center;
@@ -50,13 +103,12 @@
   background: none;
   cursor: pointer;
   white-space: nowrap;
-  transition: color var(--duration-base) var(--ease-standard);
 }
-/* Current tab vs the rest — two-class specificity outranks the toolbar's blanket `button` color. */
-.tabbar-preview .tabbar-preview-tab {
+/* Base = dim, bright duplicate = label-control; two-class specificity outranks the toolbar blanket `button`. */
+.tabbar-preview .tabbar-preview-track .tabbar-preview-tab {
   color: var(--label-tertiary);
 }
-.tabbar-preview .tabbar-preview-tab.is-active {
+.tabbar-preview .tabbar-preview-hi .tabbar-preview-tab {
   color: var(--label-control);
 }
 .tabbar-preview-tab-icon {
