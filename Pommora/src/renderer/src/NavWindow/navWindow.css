@@ -40,7 +40,7 @@
   cursor: pointer;
 }
 .navwindow-close:hover {
-  background: var(--fill-tertiary);
+  background: var(--state-hover);
 }
 
 .navwindow-body {
@@ -120,7 +120,7 @@
   cursor: pointer;
 }
 .navwindow-style-toggle:hover {
-  background: var(--fill-tertiary);
+  background: var(--state-hover);
 }
 
 .navwindow-resize {

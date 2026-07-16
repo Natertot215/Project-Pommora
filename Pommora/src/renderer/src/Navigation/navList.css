@@ -23,7 +23,7 @@
   pointer-events: none;
 }
 .nav-item:hover {
-  background: var(--fill-tertiary);
+  background: var(--state-hover);
 }
 .nav-item-main {
   flex: 1;

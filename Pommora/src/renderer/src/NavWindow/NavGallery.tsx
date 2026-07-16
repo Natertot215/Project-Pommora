@@ -19,7 +19,7 @@ import './navGallery.css'
 
 const thumbFile = (key: string): string => key.replace(':', '-')
 
-export function NavGallery({ pins, items, onSelect, onOpenNewTab }: { pins: ResolvedNav[]; items: ResolvedNav[]; onSelect: (target: NavTarget) => void; onOpenNewTab?: (target: NavTarget) => void }): React.JSX.Element {
+export function NavGallery({ pins, items, frozenLayout, onSelect, onOpenNewTab }: { pins: ResolvedNav[]; items: ResolvedNav[]; frozenLayout?: boolean; onSelect: (target: NavTarget) => void; onOpenNewTab?: (target: NavTarget) => void }): React.JSX.Element {
   const reorderPin = useSession((s) => s.reorderPin)
   const nexusId = useSession((s) => s.tree?.nexus.id ?? '')
   // The cards share NavList's row menu (D-3's gallery point) — same items, same open/pin/favorite state.
@@ -34,7 +34,7 @@ export function NavGallery({ pins, items, onSelect, onOpenNewTab }: { pins: Reso
   return (
     <div className="nav-gallery">
       <SortableZone items={pins.map((p) => p.key)} layout="grid" onReorder={(a, o) => reorderPin(a, o)}>
-        <div className="nav-gallery-grid">
+        <div className={cx('nav-gallery-grid', frozenLayout && 'is-fill')}>
           {pins.map((it) => (
             <PinnedCard key={it.key} it={it} nexusId={nexusId} onSelect={onSelect} onMenu={openMenu} />
           ))}

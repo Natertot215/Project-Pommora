@@ -43,7 +43,6 @@
   --tab-icon: 14px; /* entity icon size (TabBar.tsx mirrors it) */
   --tab-x: 11px; /* close-× glyph (strokeWidth 3, chip spec) */
   --tab-plus: 13px; /* new-tab + glyph */
-  --tab-pin: 9px; /* pin accent badge on a pinned tab */
   --tab-divider-w: 2px; /* pinned│unpinned segment divider */
   --tab-divider-h: 16px;
   --tab-edge-fade: 20px; /* overflow edge dissolve */
@@ -233,7 +232,7 @@
   border: none;
   border-radius: 5px;
   background: none;
-  color: var(--label-secondary);
+  color: var(--label-tertiary);
   cursor: pointer;
   opacity: 0;
   transition:
@@ -246,7 +245,7 @@
 }
 .tab-x:hover {
   color: var(--label-primary);
-  background: var(--fill-tertiary);
+  background: var(--state-hover);
 }
 
 /* ---- the trailing + (J-2/J-4): the .group-add glyph + fade. A SIBLING of the masked scroller —

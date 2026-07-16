@@ -142,6 +142,20 @@ textarea,
 .shell.sidebar-hidden .titlebar {
   left: 0;
 }
+
+/* The sidebar's own drag strip — the .titlebar deliberately starts past the sidebar, and a drag region
+   can't live inside the frosted Surface, so this shell-level strip covers the sidebar's top band. Spans
+   the traffic-light row over the panel, stopping short of the collapse toggle (top-right) so it stays
+   clickable; the native lights sit above it. Rides the same tier as .titlebar. */
+.sidebar-titlebar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: calc(var(--glass-inset) + var(--sidebar-width) - 48px);
+  height: calc(var(--glass-inset) + var(--toolbar-h));
+  z-index: 2;
+  -webkit-app-region: drag;
+}
 .shell.is-resizing .titlebar {
   transition: none;
 }

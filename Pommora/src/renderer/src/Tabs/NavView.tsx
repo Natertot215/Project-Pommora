@@ -5,7 +5,6 @@ import type { NavTarget } from '@shared/types'
 import { useSession } from '../store'
 import { assetUrl } from '../assetUrl'
 import { splitSearch, useNavData } from '../Navigation/useNavData'
-import { NavList } from '../Navigation/NavList'
 import { NavGallery } from '../NavWindow/NavGallery'
 import '../Detail/Banner/Banner.css'
 import './navView.css'
@@ -30,7 +29,6 @@ export function NavView(): React.JSX.Element {
       onChange={(e) => setQuery(e.target.value)}
       placeholder="Search…"
       spellCheck={false}
-      autoFocus
     />
   )
 
@@ -46,11 +44,15 @@ export function NavView(): React.JSX.Element {
         <div className="nav-view-head">{searchInput}</div>
       )}
       <div className="nav-view-scroll scroll-edge-fade">
-        {results ? (
-          <NavList items={results.items} extras={results.extras} onSelect={open} onOpenNewTab={openNew} />
-        ) : (
-          <NavGallery pins={resolvedPins} items={resolvedRecents} onSelect={open} onOpenNewTab={openNew} />
-        )}
+        {/* NavView is a gallery, so search stays in gallery cards (never the list) — filtered items only,
+            no pins section; unresolvable agenda matches (extras) can't be cards and drop out. */}
+        <NavGallery
+          pins={results ? [] : resolvedPins}
+          items={results ? results.items : resolvedRecents}
+          frozenLayout={!!results}
+          onSelect={open}
+          onOpenNewTab={openNew}
+        />
       </div>
     </div>
   )

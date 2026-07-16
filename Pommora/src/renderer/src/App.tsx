@@ -143,6 +143,10 @@ export function App(): React.JSX.Element {
     >
       {/* Draggable top strip so the frameless window can be moved from anywhere along the top. */}
       <div className="titlebar" />
+      {/* Sibling drag strip over the sidebar's top band — a child of the frosted Surface can't carry a
+          drag region (its backdrop-filter layer swallows it), so the window-drag handle lives here at
+          shell level like .titlebar. Clears the collapse toggle; retracts when the sidebar hides. */}
+      {status === 'ready' && !sidebarHidden && <div className="sidebar-titlebar" />}
       {/* Persistent toolbar clusters float over the strip (Back/Forward + Navigation·Settings·Inspector). */}
       {status === 'ready' && (
         <Toolbar inspectorOpen={inspectorOpen} onToggleInspector={() => setInspectorOpen((v) => !v)} />
@@ -153,8 +157,6 @@ export function App(): React.JSX.Element {
       {/* Sidebar always mounted so collapse/expand animates (slides) instead of snapping;
           .shell.sidebar-hidden translates it off + reclaims the detail gutter. */}
       <Surface>
-          {/* Window-drag handle across the sidebar's top band (the toolbar's strip is now tab-dragging). */}
-          <div className="sidebar-titlebar" />
           {/* Ribbon: a pinned icon strip left of the scrolling sidebar; switches sidebar modes. */}
           {status === 'ready' && tree && <Ribbon />}
           {/* Collapse — in-line with the traffic lights (sidebar top-right); reveals on hover. */}

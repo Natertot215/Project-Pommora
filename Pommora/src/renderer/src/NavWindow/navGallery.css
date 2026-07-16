@@ -21,6 +21,12 @@
   grid-template-columns: repeat(auto-fit, minmax(var(--card-min), 1fr));
   gap: var(--card-gap-v) var(--card-gap-h);
 }
+/* Search must NOT relayout — filtering to fewer results keeps the column tracks (and card size) the view
+   opened with, unlike a resize. auto-FILL holds the empty tracks so 2 results stay card-sized, never
+   ballooning to fill the row the way auto-fit would. */
+.nav-gallery-grid.is-fill {
+  grid-template-columns: repeat(auto-fill, minmax(var(--card-min), 1fr));
+}
 
 .nav-gallery-card {
   /* Grid item + drag-transform shell. The drag engine owns THIS element's inline transform/transition,
