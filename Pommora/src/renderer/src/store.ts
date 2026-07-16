@@ -173,9 +173,10 @@ interface SessionState {
   /** Step the ACTIVE tab's own Back/Forward history (D-7), skipping deleted entries. */
   goBack: () => void
   goForward: () => void
-  /** Transient Back/Forward stamp — the active tab slides its swapped content in the step's
-   *  direction (seq re-triggers on every step). */
-  navSlide: { tabId: string; dir: 'back' | 'forward'; seq: number } | null
+  /** Transient direction stamp for a navigation that swaps the shown view: a Back/Forward step
+   *  ('history' — also slides the tab's own label) or a tab switch ('tab', direction by strip order).
+   *  The detail view slides in this direction when the swap commits; seq re-triggers per step. */
+  navSlide: { tabId: string; dir: 'back' | 'forward'; seq: number; source: 'history' | 'tab' } | null
 
   /** Navigation layer (recents + favorites) — the shared, UI-agnostic wayfinding state NavWindow +
    *  NavPane read. Persisted per-nexus (synced) via the `nav` bridge; the store owns the arrays and
@@ -383,7 +384,7 @@ export const useSession = create<SessionState>((set, get) => {
       // would mis-dedup the very next click on the shown entity (destroying the Forward stack).
       set({
         tabs: get().tabs.map((t) => (t.id === active.id ? { ...t, navIndex: i, target: resolved } : t)),
-        navSlide: { tabId: active.id, dir: delta < 0 ? 'back' : 'forward', seq: (s.navSlide?.seq ?? 0) + 1 }
+        navSlide: { tabId: active.id, dir: delta < 0 ? 'back' : 'forward', seq: (s.navSlide?.seq ?? 0) + 1, source: 'history' }
       })
       void get().select(resolved, { record: false })
       persistTabs()
@@ -677,9 +678,18 @@ export const useSession = create<SessionState>((set, get) => {
     goForward: () => stepActiveHistory(1),
     navSlide: null,
     activateTab: (id) => {
-      if (get().activeTabId === id) return
+      const s = get()
+      if (s.activeTabId === id) return
       captureOutgoingDetail()
-      set((s) => ({ activeTabId: id, tabMru: pushMru(s.tabMru, id) }))
+      // Direction by the strip's visual order (pinned zone, then the unpinned strip): the view slides
+      // toward the tab you moved to.
+      const order = [...derivePinnedTabs(s.pins).map((t) => t.id), ...s.tabs.map((t) => t.id)]
+      const dir: 'back' | 'forward' = order.indexOf(id) < order.indexOf(s.activeTabId) ? 'back' : 'forward'
+      set((st) => ({
+        activeTabId: id,
+        tabMru: pushMru(st.tabMru, id),
+        navSlide: { tabId: id, dir, seq: (st.navSlide?.seq ?? 0) + 1, source: 'tab' }
+      }))
       syncActiveDetail()
       persistTabs()
     },

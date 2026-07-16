@@ -257,9 +257,9 @@ function UnpinnedTab({
   const isNewTab = entry.tab.target.kind === 'newtab'
   const title = isNewTab ? 'New Tab' : (entry.res?.title ?? '')
   // Back/Forward swaps this tab's content — the icon + label slide in from the step's direction,
-  // replayed per step via the seq-keyed remount. A plain select changes the title with no key change,
-  // so it swaps without motion.
-  const slide = useSession((s) => (s.navSlide && s.navSlide.tabId === entry.tab.id ? s.navSlide : null))
+  // replayed per step via the seq-keyed remount. A plain select or a tab switch changes nothing here
+  // (no key change), so those swap without label motion.
+  const slide = useSession((s) => (s.navSlide && s.navSlide.source === 'history' && s.navSlide.tabId === entry.tab.id ? s.navSlide : null))
   const slideClass = slide ? (slide.dir === 'back' ? 'nav-slide-back' : 'nav-slide-fwd') : undefined
   return (
     <div
