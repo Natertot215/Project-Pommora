@@ -306,7 +306,11 @@ export const useSession = create<SessionState>((set, get) => {
   const captureOutgoingDetail = (): void => {
     const s = get()
     if (s.selection.kind !== 'page' || s.pageStatus !== 'ready' || !s.pageDetail) return
-    captureWarm(s.activeTabId, navKey(s.selection), { pageDetail: s.pageDetail })
+    // Fold the live editing buffer in — pageDetail.body is the LOAD snapshot (autosave never updates
+    // it), so a warm return would otherwise show pre-edit stats in the Subfield.
+    const body = s.liveBody?.path === s.selection.path ? s.liveBody.body : s.pageDetail.body
+    const detail = body === s.pageDetail.body ? s.pageDetail : { ...s.pageDetail, body }
+    captureWarm(s.activeTabId, navKey(s.selection), { pageDetail: detail })
   }
 
   // Back/Forward replay over the ACTIVE tab's own history (D-7): walk in `delta` direction, resolving
@@ -808,7 +812,15 @@ export const useSession = create<SessionState>((set, get) => {
           // detail would route saves at the old file — and a miss falls through to the cold fetch.
           const cached = readWarm(get().activeTabId, navKey(target))?.pageDetail
           if (cached && cached.path === target.path) {
-            set({ selection: { kind: 'page', id: target.id, path: target.path }, pageStatus: 'ready', pageDetail: cached, pageError: undefined })
+            // liveBody repoints with the restore so the Subfield reads the restored page, not the one
+            // last typed in.
+            set({
+              selection: { kind: 'page', id: target.id, path: target.path },
+              pageStatus: 'ready',
+              pageDetail: cached,
+              pageError: undefined,
+              liveBody: { path: cached.path, body: cached.body }
+            })
             return
           }
           set({
@@ -819,9 +831,16 @@ export const useSession = create<SessionState>((set, get) => {
           })
           try {
             const res = await window.nexus.openPage(target.path)
+            // The stale-response fence: a warm-instant switch can land while this fetch is in flight,
+            // making the earlier response resolve LAST — without this check it would clobber the shown
+            // page with the wrong file under the wrong tab.
+            const cur = get().selection
+            if (cur.kind !== 'page' || cur.path !== target.path) return
             if (res.ok) set({ pageStatus: 'ready', pageDetail: res.page })
             else set({ pageStatus: 'error', pageError: res.error })
           } catch (e) {
+            const cur = get().selection
+            if (cur.kind !== 'page' || cur.path !== target.path) return
             set({ pageStatus: 'error', pageError: e instanceof Error ? e.message : String(e) })
           }
           return

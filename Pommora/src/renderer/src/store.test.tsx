@@ -137,6 +137,30 @@ describe('store — warm tabs (B-2/B-3)', () => {
     await useSession.getState().select({ kind: 'page', id: 'a', path: '/a-renamed' }, { record: false })
     expect(window.nexus.openPage).toHaveBeenCalledWith('/a-renamed')
   })
+
+  it('a stale cold fetch resolving after a warm switch-back never clobbers the shown page', async () => {
+    // Warm-instant finishes synchronously, so an earlier in-flight fetch resolves LAST — the fence
+    // must drop it or the wrong file renders (and autosaves) under the wrong tab.
+    let resolveB!: (v: unknown) => void
+    ;(window.nexus.openPage as ReturnType<typeof vi.fn>).mockImplementation(
+      (path: string) => (path === '/b' ? new Promise((r) => (resolveB = r)) : Promise.resolve({ ok: true, page: detail('a') }))
+    )
+    seed({
+      tabs: [uTab('t1', pg('a'), [pg('a')], 0), uTab('t2', pg('b'), [pg('b')], 0)],
+      activeTabId: 't1',
+      selection: pg('a'),
+      pageStatus: 'ready',
+      pageDetail: detail('a'),
+    })
+    useSession.getState().activateTab('t2') // cold fetch of /b now in flight; A captured warm
+    useSession.getState().activateTab('t1') // warm-instant back to A
+    expect(useSession.getState().pageDetail?.id).toBe('a')
+    resolveB({ ok: true, page: detail('b') }) // the stale response lands last
+    await new Promise((r) => setTimeout(r, 0))
+    const s = useSession.getState()
+    expect(s.pageDetail?.id).toBe('a') // fence held — B never clobbered the shown page
+    expect(s.selection).toEqual(pg('a'))
+  })
 })
 
 /** A minimal tree with one Collection holding the given top-level pages (selection.test.ts's shape). */

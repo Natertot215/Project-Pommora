@@ -260,7 +260,8 @@ export function MarkdownEditor({
     // scroll restores AFTER folds settle — folding changes content height, so restoring first would
     // land on a pre-fold offset.
     const restoreScroll = (): void => {
-      if (saved?.scrollTop) view.scrollDOM.scrollTop = saved.scrollTop;
+      // != null, not truthy — a saved top-of-page (0) must still override CM's own restore scroll.
+      if (saved?.scrollTop != null) view.scrollDOM.scrollTop = saved.scrollTop;
     };
     const foldsLoad = foldsRef.current?.load();
     if (foldsLoad)

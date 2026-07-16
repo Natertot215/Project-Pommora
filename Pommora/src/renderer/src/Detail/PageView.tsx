@@ -118,9 +118,13 @@ export function PageView(): React.JSX.Element {
             }}
             // The editor freezes this at mount, so the capture lands under the tab that OWNED this
             // page even though activeTabId moves before the unmount (select switches synchronously).
+            // restore carries the store's rename fence: a warm entry whose captured path diverges from
+            // the mounting page's mounts cold (id-keyed warmth must never revive a stale-path doc).
             warm={{
-              restore: () =>
-                readWarm(activeTabId, navKey({ kind: "page", id: pageDetail.id, path: pageDetail.path })),
+              restore: () => {
+                const entry = readWarm(activeTabId, navKey({ kind: "page", id: pageDetail.id, path: pageDetail.path }));
+                return entry?.pageDetail?.path === pageDetail.path ? entry : undefined;
+              },
               capture: (state) =>
                 captureWarm(activeTabId, navKey({ kind: "page", id: pageDetail.id, path: pageDetail.path }), state),
             }}
