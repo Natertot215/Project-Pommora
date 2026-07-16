@@ -103,6 +103,7 @@ globalStyle(':root', {
     '--duration-slow': duration.slow,
     '--disclosure': duration.disclosure,
     '--ease-standard': easing.standard,
+    '--ease-in-out': easing.inOut,
     '--ease-out': easing.out
   }
 })

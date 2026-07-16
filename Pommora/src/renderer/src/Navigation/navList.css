@@ -11,6 +11,9 @@
   display: flex;
   align-items: center;
   border-radius: 6px;
+  /* The hover fill fades in AND out on the pane's own open speed — symmetric (ease-in-out), never
+     a slow linger. */
+  transition: background var(--disclosure) var(--ease-in-out);
 }
 /* Pinned marker — an accent pin centered in the row's left inset gutter (absolute so it never shifts
    the row content out of alignment with un-pinned rows). */

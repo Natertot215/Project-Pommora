@@ -69,7 +69,7 @@
   color: var(--label-control);
 }
 .tab-pinned.is-dragging {
-  opacity: 0.85;
+  opacity: var(--drag-muted);
 }
 
 /* ---- segment divider between the zones ---- */
@@ -158,12 +158,12 @@
   color: var(--label-control);
 }
 .tab.is-dragging {
-  opacity: 0.85;
+  opacity: var(--drag-muted);
 }
-/* The inter-tab segment — a SIBLING pill (not a ::before) rendered before every tab but the first, so the
-   tab's overflow:hidden can't clip it as the tab collapses to 0. On OPEN it fades in first (fast, no
-   delay) and the tab slides out after it; on CLOSE it collapses a beat AFTER the tab (delayed), so the
-   order reads tab-then-segment out, segment-then-tab in. */
+/* The inter-tab segment — a SIBLING pill (not a ::before) rendered before every tab but the first, so
+   the tab's overflow:hidden can't clip it as the tab collapses to 0. It RIDES the tab's own motion:
+   the same base duration and the same fast open-delay, so it fades in exactly while the tab slides
+   out, and collapses in step with it on close (is-closing zeroes the delay, like the tab's). */
 .tab-seg {
   flex: 0 0 auto;
   align-self: center;
@@ -173,8 +173,8 @@
   border-radius: 999px;
   pointer-events: none;
   transition:
-    opacity var(--duration-fast) var(--ease-standard),
-    width var(--duration-fast) var(--ease-standard);
+    opacity var(--duration-base) var(--ease-standard) var(--duration-fast),
+    width var(--duration-base) var(--ease-standard) var(--duration-fast);
 }
 @starting-style {
   .tab-seg {
@@ -184,7 +184,7 @@
 .tab-seg.is-closing {
   width: 0;
   opacity: 0;
-  transition-delay: var(--duration-base);
+  transition-delay: 0s;
 }
 .tab-icon {
   flex: 0 0 auto;
@@ -277,7 +277,10 @@
    the EXISTING header (no overlay), so nothing below is blocked; it triggers on the whole banner, not
    strictly its top half. */
 .shell:has(.detail-scroll .banner:hover) .tab-plus,
-.shell:has(.detail-scroll .banner-empty:hover) .tab-plus {
+.shell:has(.detail-scroll .banner-empty:hover) .tab-plus,
+.shell:has(.mdpm-header:hover) .tab-plus,
+.shell:has(.nav-view-banner:hover) .tab-plus,
+.shell:has(.nav-view-head:hover) .tab-plus {
   opacity: 1;
 }
 /* The + reveals across the tab bar, but Back/Forward and the right cluster (view dropdown + trio)
