@@ -30,6 +30,14 @@ async function imagesReady(pane: Element): Promise<void> {
   )
 }
 
+// The capture gate (G-3): a shot is a full-window capture + a SYNCED write, and warm tab-switching is
+// the highest-frequency interaction — so an entity re-shoots only when its shown content actually
+// changed since its last shot. Pages mark on their current body text (the live buffer when it's
+// theirs); containers mark on the tree identity (stabilize keeps it for echoes, structural changes
+// mint a new one). Session-scoped; cleared on a nexus switch so keys can't collide across nexuses.
+const captured = new Map<string, unknown>()
+let capturedNexus: string | null = null
+
 // Snapshot the detail view as a gallery thumbnail — captured ONLY while the NavWindow is closed, so the
 // overlay never bakes into the (synced) shot. Runs on selection settle AND on the pane closing (navOpen
 // is a dep), so a page opened while browsing with the pane open gets its cover the moment the pane
@@ -55,8 +63,22 @@ export function useNavThumbnails(): void {
         await new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())))
         if (cancelled || useSession.getState().navOpen) return
         const key = navKey(selection)
+        // The gate — read at capture time so the marker reflects what the shot will show.
+        const s = useSession.getState()
+        if (capturedNexus !== (s.tree?.nexus.id ?? null)) {
+          captured.clear()
+          capturedNexus = s.tree?.nexus.id ?? null
+        }
+        const marker =
+          selection.kind === 'page'
+            ? (s.liveBody?.path === selection.path ? s.liveBody.body : s.pageDetail?.body)
+            : s.tree
+        if (captured.get(key) === marker) return
         const res = await window.nexus.capture.thumbnail(key, contentRect(pane), window.devicePixelRatio)
-        if (!cancelled && res.ok) bumpThumb(key)
+        if (!cancelled && res.ok) {
+          captured.set(key, marker)
+          bumpThumb(key)
+        }
       })()
     }, 300)
     return () => {
