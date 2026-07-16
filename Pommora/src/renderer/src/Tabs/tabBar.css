@@ -153,7 +153,9 @@
   align-items: center;
   gap: var(--tab-gap);
   height: 100%;
-  flex: 1 1 var(--tab-pref);
+  /* grow:0 packs the tabs LEFT at their preferred width (no stretch-to-fill); they shrink toward
+     --tab-min and then overflow-scroll as the strip fills. */
+  flex: 0 1 var(--tab-pref);
   min-width: var(--tab-min);
   max-width: var(--tab-max);
   padding: 0 var(--tab-pad-x);
