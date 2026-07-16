@@ -624,7 +624,7 @@
    KNOBS: --callout-border / --callout-bw / --callout-radius / --callout-pad (gutter) / --callout-gap (separation)
    / --callout-inner-pad (head/foot inner padding past the gap). */
 .mdpm-editor .cm-line.md-callout {
-  --callout-border: var(--label-secondary);
+  --callout-border: var(--label-tertiary);
   --callout-bw: 1.5px;
   --callout-radius: 6px;
   /* Slightly roomier inner gutter + head/foot so a fold chevron has space to live inside the box. */
