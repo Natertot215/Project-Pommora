@@ -52,8 +52,16 @@ export function Toolbar({
 
   const goBack = useSession((s) => s.goBack)
   const goForward = useSession((s) => s.goForward)
-  const canGoBack = useSession((s) => s.navIndex > 0)
-  const canGoForward = useSession((s) => s.navIndex < s.navStack.length - 1)
+  // Back/Forward act on the ACTIVE tab's own history (D-7); a pinned/newtab active tab (not in `tabs`)
+  // carries none, so both disable.
+  const canGoBack = useSession((s) => {
+    const a = s.tabs.find((t) => t.id === s.activeTabId)
+    return !!a && a.navIndex > 0
+  })
+  const canGoForward = useSession((s) => {
+    const a = s.tabs.find((t) => t.id === s.activeTabId)
+    return !!a && a.navIndex < a.navStack.length - 1
+  })
 
   // Back/Forward walk the store's navigation history (disabled at each end).
   const backForward: Segment[] = [

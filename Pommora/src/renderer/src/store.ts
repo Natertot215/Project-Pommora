@@ -1,9 +1,10 @@
 import { create } from 'zustand'
-import { DEFAULT_COMMANDS, type AgendaEntry, type NavFavorite, type NavTarget, type NexusTree, type PageDetail, type Personalization, type PinEntry, type RecentEntry, type SelectionState, type SelectTarget, type SetNode } from '@shared/types'
+import { DEFAULT_COMMANDS, type AgendaEntry, type NavFavorite, type NavTarget, type NexusTree, type PageDetail, type Personalization, type PinEntry, type RecentEntry, type SelectionState, type SelectTarget, type SetNode, type Tab } from '@shared/types'
 import { DEFAULT_NEW_NAME, type MutableKind, type MutateRequest } from '@shared/mutate'
 import { reconcileSelection } from './selection'
 import { navKey, recordRecent, removeRecentByKey, RECENTS_CAP } from './Navigation/navRecents'
 import { byOrder, cleanPinTarget, pinFor, reorderTo } from './Navigation/navPins'
+import { closeTab as closeTabModel, derivePinnedTabs, openNewTab as openNewTabModel, openTab as openTabModel, pushMru } from './Tabs/tabsModel'
 import { stabilize } from './treeStabilize'
 import { applyAccent, applySystemAccent } from './design-system/accent'
 import { applyPersonalization, applyPersonalizationKey } from './design-system/personalization'
@@ -136,12 +137,26 @@ interface SessionState {
    *  ahead of the debounced save. `pageDetail.body` stays the loaded/saved snapshot. */
   liveBody: { path: string; body: string } | null
   setLiveBody: (path: string, body: string) => void
-  /** Navigation history. `select` records by default; pass `{ record: false }` for programmatic
-   *  re-selects (e.g. a path refetch). IMPORTANT: once page previews land, preview opens MUST pass
-   *  `{ record: false }` too, so Back/Forward never lands on a page you only previewed. */
-  select: (target: SelectTarget, opts?: { record?: boolean }) => Promise<void>
-  navStack: SelectTarget[]
-  navIndex: number
+  /** Navigate to a target: maintains the tab set (dedup/replace/spawn per the active tab, D-3b),
+   *  records recents, and fetches the detail. `{ record: false }` is a programmatic re-select — a path
+   *  refetch, Back/Forward, or a tab activation — that refreshes the shown detail WITHOUT touching the
+   *  tab set or recents. `{ newTab: true }` forces a new tab ("Open in New Tab"). Preview opens (once
+   *  they land) also pass `{ record: false }` so Back/Forward never lands on a preview. */
+  select: (target: SelectTarget, opts?: { record?: boolean; newTab?: boolean }) => Promise<void>
+  /** Open tabs — the UNPINNED set (pinned tabs derive from the pins slice). The ACTIVE tab always drives
+   *  the singular `selection`/`pageDetail`. Persisted as the synced tab set (Phase 1). */
+  tabs: Tab[]
+  activeTabId: string
+  /** Tab-activation MRU (ids, most-recent-first) — governs close-focus (D-9). */
+  tabMru: string[]
+  /** Activate an existing tab (a plain switch) — re-surfaces its target without recording (C-5); a
+   *  newtab tab routes to the empty state. */
+  activateTab: (id: string) => void
+  /** Open a fresh NavView tab (the `+`), or focus the existing one (I-1). */
+  openNewTab: () => void
+  /** Close a tab — MRU-focus the next (D-9); reseed a NavView when the last closes (I-5). */
+  closeTab: (id: string) => void
+  /** Step the ACTIVE tab's own Back/Forward history (D-7), skipping deleted entries. */
   goBack: () => void
   goForward: () => void
 
@@ -240,15 +255,38 @@ export const useSession = create<SessionState>((set, get) => {
   const inFlightTitles = new Set<string>()
   const failedTitles = new Set<string>()
 
-  // Back/Forward replay: walk the nav history in `delta` direction, resolving each entry by id against
-  // the live tree (a renamed/moved entity → its fresh path) and skipping entries whose entity was
-  // deleted — the stored path is never trusted blind, mirroring how every other selection reconciles.
-  const stepHistory = (delta: number): void => {
-    const { navStack, navIndex, tree } = get()
-    for (let i = navIndex + delta; i >= 0 && i < navStack.length; i += delta) {
-      const resolved = tree ? reconcileSelection(tree, navStack[i]) : navStack[i]
+  // A unique tab id (session-scoped; persisted tab ids reload from the sidecar). crypto is available in
+  // the renderer's secure context.
+  const makeTabId = (): string => crypto.randomUUID()
+
+  // The active tab — an unpinned tab, or a derived pinned tab (which carries no unpinned back-history).
+  const findActiveTab = (): Tab | undefined => {
+    const s = get()
+    return s.tabs.find((t) => t.id === s.activeTabId) ?? derivePinnedTabs(s.pins).find((t) => t.id === s.activeTabId)
+  }
+
+  // Re-surface the active tab into the detail pane (a plain switch): a newtab tab routes to the empty
+  // state; anything else re-selects WITHOUT recording or re-opening (record:false).
+  const syncActiveDetail = (): void => {
+    const active = findActiveTab()
+    if (!active || active.target.kind === 'newtab') {
+      set({ selection: { kind: 'none' }, pageStatus: 'idle', pageDetail: null, pageError: undefined })
+      return
+    }
+    void get().select(active.target, { record: false })
+  }
+
+  // Back/Forward replay over the ACTIVE tab's own history (D-7): walk in `delta` direction, resolving
+  // each entry by id against the live tree (a renamed/moved entity → its fresh path) and skipping
+  // deleted entries. A pinned/newtab active tab has no unpinned back-history, so this is a no-op.
+  const stepActiveHistory = (delta: number): void => {
+    const s = get()
+    const active = s.tabs.find((t) => t.id === s.activeTabId)
+    if (!active || active.target.kind === 'newtab') return
+    for (let i = active.navIndex + delta; i >= 0 && i < active.navStack.length; i += delta) {
+      const resolved = s.tree ? reconcileSelection(s.tree, active.navStack[i]) : active.navStack[i]
       if (resolved.kind === 'none') continue // entity gone — skip to the next live entry in this direction
-      set({ navIndex: i })
+      set({ tabs: get().tabs.map((t) => (t.id === active.id ? { ...t, navIndex: i } : t)) })
       void get().select(resolved, { record: false })
       return
     }
@@ -446,10 +484,30 @@ export const useSession = create<SessionState>((set, get) => {
     pageError: undefined,
     liveBody: null,
     setLiveBody: (path, body) => set({ liveBody: { path, body } }),
-    navStack: [],
-    navIndex: -1,
-    goBack: () => stepHistory(-1),
-    goForward: () => stepHistory(1),
+    tabs: [],
+    activeTabId: '',
+    tabMru: [],
+    goBack: () => stepActiveHistory(-1),
+    goForward: () => stepActiveHistory(1),
+    activateTab: (id) => {
+      if (get().activeTabId === id) return
+      set((s) => ({ activeTabId: id, tabMru: pushMru(s.tabMru, id) }))
+      syncActiveDetail()
+    },
+    openNewTab: () => {
+      const s = get()
+      const res = openNewTabModel(s.tabs, makeTabId())
+      set({ tabs: res.tabs, activeTabId: res.activeTabId, tabMru: pushMru(s.tabMru, res.activeTabId) })
+      syncActiveDetail()
+    },
+    closeTab: (id) => {
+      const s = get()
+      const pinnedIds = derivePinnedTabs(s.pins).map((t) => t.id)
+      const res = closeTabModel(s.tabs, s.activeTabId, s.tabMru, pinnedIds, id, makeTabId())
+      const activeChanged = res.activeTabId !== s.activeTabId
+      set({ tabs: res.tabs, activeTabId: res.activeTabId, tabMru: res.mru })
+      if (activeChanged) syncActiveDetail()
+    },
 
     recents: [],
     favorites: [],
@@ -539,19 +597,19 @@ export const useSession = create<SessionState>((set, get) => {
       set((s) => ({ navOpen: !s.navOpen }))
     },
     select: async (target, opts) => {
-      // Record into history unless this is a programmatic re-select — a path refetch, Back/Forward,
-      // or (once previews land) a preview open — which pass { record: false } so they don't push.
+      // A genuine navigation (record !== false) maintains the tab set — dedup/replace/spawn per the
+      // active tab's pin state (D-3b) — and records recents. A programmatic re-select (Back/Forward, a
+      // path refetch, a tab activation) passes { record: false } and does neither; it only refreshes the
+      // shown detail below. Recents record ONLY when a tab actually opened (a spawn or in-place replace),
+      // never on a focus/re-surface of an already-open tab (C-5).
       if (opts?.record !== false) {
-        const cur = get().navStack[get().navIndex]
-        if (!cur || navKey(cur) !== navKey(target)) {
-          // A genuine navigation (not a re-select of the current view): push history AND record the
-          // recents stream. Back/Forward + path refetches pass { record: false }, so they never bump.
-          set((s) => {
-            const stack = s.navStack.slice(0, s.navIndex + 1)
-            stack.push(target)
-            return { navStack: stack, navIndex: stack.length - 1 }
-          })
-          const recents = recordRecent(get().recents, target, RECENTS_CAP)
+        const s = get()
+        const pinned = derivePinnedTabs(s.pins)
+        const res = openTabModel(s.tabs, s.activeTabId, pinned, target, { newTab: opts?.newTab }, makeTabId())
+        const opened = res.tabs !== s.tabs
+        set({ tabs: res.tabs, activeTabId: res.activeTabId, tabMru: pushMru(s.tabMru, res.activeTabId) })
+        if (opened) {
+          const recents = recordRecent(s.recents, target, RECENTS_CAP)
           set({ recents })
           void window.nexus.nav.saveRecents(recents)
         }
