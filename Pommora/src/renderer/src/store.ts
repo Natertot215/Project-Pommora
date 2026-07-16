@@ -4,8 +4,9 @@ import { DEFAULT_NEW_NAME, type MutableKind, type MutateRequest } from '@shared/
 import { buildReconcileIndex, reconcileSelection, reconcileWith } from './selection'
 import { navKey, recordRecent, removeRecentByKey, RECENTS_CAP } from './Navigation/navRecents'
 import { byOrder, cleanPinTarget, pinFor, reorderTo } from './Navigation/navPins'
-import { closeTab as closeTabModel, derivePinnedTabs, insertUnpinned, isPinned, newTabTab, openNewTab as openNewTabModel, openTab as openTabModel, pinTabId, pushMru, reconcileTabs, reorderWithinZone, tabKey } from './Tabs/tabsModel'
+import { activeUnpinnedTab, closeTab as closeTabModel, derivePinnedTabs, insertUnpinned, isPinned, newTabTab, openNewTab as openNewTabModel, openTab as openTabModel, pinTabId, pushMru, reconcileTabs, reorderWithinZone, tabKey } from './Tabs/tabsModel'
 import { captureWarm, clearWarm, dropWarmTab, readWarm } from './Tabs/warmCache'
+import { dropCapturedOutside } from './Navigation/useNavThumbnails'
 import { stabilize } from './treeStabilize'
 import { applyAccent, applySystemAccent } from './design-system/accent'
 import { applyPersonalization, applyPersonalizationKey } from './design-system/personalization'
@@ -300,6 +301,26 @@ export const useSession = create<SessionState>((set, get) => {
     void window.nexus.tabs.save({ tabs: s.tabs, activeTabId: s.activeTabId }).catch(() => undefined)
   }
 
+  // C-6's live twin (the load-time filter covers only seeding): when an OPEN entity becomes pinned —
+  // locally (pinTarget from any surface) or via a synced-in pin (applyNavChanged) — its unpinned tab
+  // graduates to the derived pinned zone instead of duplicating beside it. The active pointer follows.
+  const graduatePinCovered = (): void => {
+    const s = get()
+    const covered = s.tabs.filter((t) => t.target.kind !== 'newtab' && isPinned(t.target, s.pins))
+    if (covered.length === 0) return
+    const activeCovered = covered.find((t) => t.id === s.activeTabId)
+    set({
+      tabs: s.tabs.filter((t) => !covered.includes(t)),
+      tabMru: s.tabMru.filter((m) => !covered.some((c) => c.id === m))
+    })
+    for (const t of covered) dropWarmTab(t.id)
+    if (activeCovered && activeCovered.target.kind !== 'newtab') {
+      const pinId = pinTabId(activeCovered.target)
+      set((st) => ({ activeTabId: pinId, tabMru: pushMru(st.tabMru, pinId) }))
+    }
+    persistTabs()
+  }
+
   // Capture the outgoing page detail into the warm cache BEFORE a switch mutates selection —
   // `select` nulls pageDetail synchronously, so a capture any later would read the incoming tab's
   // state. Runs at the top of every path that changes what's shown; no-op off a ready page.
@@ -318,7 +339,7 @@ export const useSession = create<SessionState>((set, get) => {
   // deleted entries. A pinned/newtab active tab has no unpinned back-history, so this is a no-op.
   const stepActiveHistory = (delta: number): void => {
     const s = get()
-    const active = s.tabs.find((t) => t.id === s.activeTabId)
+    const active = activeUnpinnedTab(s.tabs, s.activeTabId)
     if (!active || active.target.kind === 'newtab') return
     for (let i = active.navIndex + delta; i >= 0 && i < active.navStack.length; i += delta) {
       const resolved = s.tree ? reconcileSelection(s.tree, active.navStack[i]) : active.navStack[i]
@@ -488,7 +509,11 @@ export const useSession = create<SessionState>((set, get) => {
           s.tabs,
           s.activeTabId,
           s.tabMru,
-          derivePinnedTabs(s.pins).map((t) => t.id),
+          // A deleted entity's pinned tab render-hides — its id must NOT count as live, or an active
+          // pointer at it would dangle with nothing focused.
+          derivePinnedTabs(s.pins)
+            .filter((t) => t.target.kind === 'newtab' || reconcileWith(index, t.target).kind !== 'none')
+            .map((t) => t.id),
           (t) => {
             const r = reconcileWith(index, t)
             return r.kind === 'none' ? null : r
@@ -632,10 +657,23 @@ export const useSession = create<SessionState>((set, get) => {
       if (activeChanged) syncActiveDetail()
       persistTabs()
     },
+    // One batched close (I-12) — iterating closeTab would refocus (and re-fetch) once per
+    // intermediate MRU hop when the active tab sits inside the closed range.
     closeTabsRight: (id) => {
-      const from = get().tabs.findIndex((t) => t.id === id)
-      if (from === -1) return
-      for (const t of get().tabs.slice(from + 1)) get().closeTab(t.id)
+      const s = get()
+      const from = s.tabs.findIndex((t) => t.id === id)
+      if (from === -1 || from === s.tabs.length - 1) return
+      const closed = new Set(s.tabs.slice(from + 1).map((t) => t.id))
+      const tabs = s.tabs.filter((t) => !closed.has(t.id))
+      const mru = s.tabMru.filter((m) => !closed.has(m))
+      const activeClosed = closed.has(s.activeTabId)
+      const pinnedIds = derivePinnedTabs(s.pins).map((t) => t.id)
+      const live = new Set([...pinnedIds, ...tabs.map((t) => t.id)])
+      const active = activeClosed ? (mru.find((m) => live.has(m)) ?? id) : s.activeTabId
+      set({ tabs, activeTabId: active, tabMru: mru })
+      for (const cid of closed) dropWarmTab(cid)
+      if (activeClosed) syncActiveDetail()
+      persistTabs()
     },
     reorderTabs: (activeId, overId) => {
       const s = get()
@@ -646,26 +684,22 @@ export const useSession = create<SessionState>((set, get) => {
       set({ tabs: next })
       persistTabs()
     },
+    // Pinning graduates the tab (pinTarget's C-6 twin does the tab-side move; pinTarget itself
+    // refuses adopted ids, in which case nothing moves and the tab stays).
     pinTab: (id) => {
       const tab = get().tabs.find((t) => t.id === id)
       if (!tab || tab.target.kind === 'newtab') return
-      const target = tab.target
-      get().pinTarget(target)
-      // pinTarget refuses some targets (adopted ids) — only graduate the tab if the pin really landed.
-      if (!get().pins.some((p) => navKey(p) === navKey(target))) return
-      const wasActive = get().activeTabId === id
-      set((s) => ({ tabs: s.tabs.filter((t) => t.id !== id), tabMru: s.tabMru.filter((m) => m !== id) }))
-      if (wasActive) set((s) => ({ activeTabId: pinTabId(target), tabMru: pushMru(s.tabMru, pinTabId(target)) }))
-      dropWarmTab(id) // the tab's identity changes — its session warmth doesn't migrate
-      persistTabs()
+      get().pinTarget(tab.target)
     },
     unpinTab: (pinId) => {
       const pinnedTab = derivePinnedTabs(get().pins).find((t) => t.id === pinId)
       if (!pinnedTab || pinnedTab.target.kind === 'newtab') return
       const target = pinnedTab.target
       get().unpinTarget(navKey(target))
-      const tab: Tab = { id: makeTabId(), target, navStack: [target], navIndex: 0 }
-      set((s) => ({ tabs: insertUnpinned(s.tabs, s.activeTabId, tab) }))
+      // I-1: if the entity somehow already holds an unpinned tab, focus it instead of duplicating.
+      const existing = get().tabs.find((t) => t.target.kind !== 'newtab' && navKey(t.target) === navKey(target))
+      const tab: Tab = existing ?? { id: makeTabId(), target, navStack: [target], navIndex: 0 }
+      if (!existing) set((s) => ({ tabs: insertUnpinned(s.tabs, s.activeTabId, tab) }))
       if (get().activeTabId === pinId)
         set((s) => ({ activeTabId: tab.id, tabMru: pushMru(s.tabMru.filter((m) => m !== pinId), tab.id) }))
       dropWarmTab(pinId)
@@ -684,6 +718,7 @@ export const useSession = create<SessionState>((set, get) => {
       const pin = pinFor(target, get().pins)
       set({ pins: [...get().pins, pin].sort(byOrder) })
       void window.nexus.nav.addPin(pin)
+      graduatePinCovered()
     },
     unpinTarget: (key) => {
       const pin = get().pins.find((p) => navKey(p) === key)
@@ -703,11 +738,15 @@ export const useSession = create<SessionState>((set, get) => {
     },
     // Only pins swap on a live refresh — recents are debounce-written so in-memory leads disk; replacing
     // them from a pin/favorite-triggered push would clobber the user's latest (unsaved) navigations.
-    applyNavChanged: (nav) => set({ pins: [...nav.pins].sort(byOrder) }),
+    applyNavChanged: (nav) => {
+      set({ pins: [...nav.pins].sort(byOrder) })
+      graduatePinCovered() // a synced-in pin covers a locally-open tab exactly like a local pin does
+    },
     thumbVersions: {},
     bumpThumb: (key) => set((s) => ({ thumbVersions: { ...s.thumbVersions, [key]: (s.thumbVersions[key] ?? 0) + 1 } })),
     evictThumbs: () => {
       const live = [...get().recents.map(navKey), ...get().pins.map(navKey)]
+      dropCapturedOutside(new Set(live)) // the capture gate's markers die with the files they vouch for
       void window.nexus.capture.evict(live)
     },
     addFavorite: (target) => {

@@ -23,18 +23,12 @@ interface TabEntry {
 
 /** The toolbar tab bar: pinned compact icons docked left (the pins set, C-1), the unpinned strip
  *  right of them (overflow-scroll + edge fade), the trailing `+`. Blank until there's a working set
- *  to show — two tabs, or a pin (D-6). One view is ever mounted; a tab click is a plain activation. */
+ *  to show — two tabs, or a pin (D-6). The gate/body split keeps every interaction hook (the Ctrl+Tab
+ *  listener included) mounted exactly when the bar shows. */
 export function TabBar(): React.JSX.Element | null {
   const tabs = useSession((s) => s.tabs)
   const pins = useSession((s) => s.pins)
-  const activeTabId = useSession((s) => s.activeTabId)
   const tree = useSession((s) => s.tree)
-  const revealOnHover = useSession((s) => s.personalization.revealTabBarOnHover ?? false)
-  const activateTab = useSession((s) => s.activateTab)
-  const openNewTab = useSession((s) => s.openNewTab)
-  const closeTab = useSession((s) => s.closeTab)
-  const reorderTabs = useSession((s) => s.reorderTabs)
-  const reorderPin = useSession((s) => s.reorderPin)
 
   // Titles + icons resolve live off the nav layer's index — a rename is current on the next push,
   // never cached stale. Built once per tree (memoized), shared by every tab.
@@ -57,22 +51,49 @@ export function TabBar(): React.JSX.Element | null {
     [index, tabs]
   )
 
-  // Closing tabs animate shut (width → 0 on the slow token) before the store drops them (J-6).
-  const [closing, setClosing] = useState<ReadonlySet<string>>(new Set())
+  if (unpinnedEntries.length < 2 && pinnedEntries.length === 0) return null
+  return <TabBarBody pinnedEntries={pinnedEntries} unpinnedEntries={unpinnedEntries} />
+}
+
+function TabBarBody({ pinnedEntries, unpinnedEntries }: { pinnedEntries: TabEntry[]; unpinnedEntries: TabEntry[] }): React.JSX.Element {
+  const activeTabId = useSession((s) => s.activeTabId)
+  const revealOnHover = useSession((s) => s.personalization.revealTabBarOnHover ?? false)
+  const activateTab = useSession((s) => s.activateTab)
+  const openNewTab = useSession((s) => s.openNewTab)
+  const closeTab = useSession((s) => s.closeTab)
+  const reorderTabs = useSession((s) => s.reorderTabs)
+  const reorderPin = useSession((s) => s.reorderPin)
+  const tabs = useSession((s) => s.tabs)
+
+  // Closing is store-first: the tab leaves the store IMMEDIATELY (content switches, dedup/cycle/MRU
+  // all read truth — a re-click of the entity spawns fresh instead of resurrecting a zombie), while a
+  // GHOST of it stays rendered for the width-collapse exit on the slow token (J-6).
+  const [ghosts, setGhosts] = useState<ReadonlyMap<string, { entry: TabEntry; index: number }>>(new Map())
   const requestClose = (id: string): void => {
-    setClosing((s) => new Set(s).add(id))
+    const index = unpinnedEntries.findIndex((e) => e.tab.id === id)
+    const entry = unpinnedEntries[index]
+    if (!entry) return
+    setGhosts((m) => new Map(m).set(id, { entry, index }))
+    closeTab(id)
     setTimeout(() => {
-      setClosing((s) => {
-        const next = new Set(s)
+      setGhosts((m) => {
+        const next = new Map(m)
         next.delete(id)
         return next
       })
-      closeTab(id)
     }, EXIT_MS)
   }
+  // The render list: live entries with each ghost spliced back at its remembered slot mid-exit.
+  const renderEntries = useMemo<{ entry: TabEntry; ghost: boolean }[]>(() => {
+    const live = unpinnedEntries.filter((e) => !ghosts.has(e.tab.id)).map((entry) => ({ entry, ghost: false }))
+    for (const [, g] of [...ghosts.entries()].sort((a, b) => a[1].index - b[1].index)) {
+      live.splice(Math.min(g.index, live.length), 0, { entry: g.entry, ghost: true })
+    }
+    return live
+  }, [unpinnedEntries, ghosts])
 
   // Ctrl+Tab / Ctrl+Shift+Tab cycles the full visual order, wrapping (I-11 — the one signed-off
-  // binding). Lives here so cycling exists exactly when the bar does.
+  // binding). Lives in the body, so the combo is intercepted exactly while the bar shows.
   const orderedIds = useMemo(
     () => [...pinnedEntries.map((e) => e.tab.id), ...unpinnedEntries.map((e) => e.tab.id)],
     [pinnedEntries, unpinnedEntries]
@@ -105,9 +126,6 @@ export function TabBar(): React.JSX.Element | null {
     setMenu({ tabId, pinned, isNewTab, x: e.clientX, y: e.clientY })
   }
 
-  // Blank until there's a working set: two tabs, or a pin (D-6).
-  if (unpinnedEntries.length < 2 && pinnedEntries.length === 0) return null
-
   const hasRight = (id: string): boolean => {
     const i = tabs.findIndex((t) => t.id === id)
     return i !== -1 && i < tabs.length - 1
@@ -132,25 +150,29 @@ export function TabBar(): React.JSX.Element | null {
       )}
       {pinnedEntries.length > 0 && unpinnedEntries.length > 0 && <span className="tab-divider" />}
       <div className="tab-scroll" ref={stripRef}>
-        <SortableZone items={unpinnedEntries.map((e) => e.tab.id)} layout="list" axis="x" onReorder={reorderTabs}>
+        <SortableZone items={unpinnedEntries.filter((e) => !ghosts.has(e.tab.id)).map((e) => e.tab.id)} layout="list" axis="x" onReorder={reorderTabs}>
           <div className="tab-strip">
-            {unpinnedEntries.map((e) => (
-              <UnpinnedTab
-                key={e.tab.id}
-                entry={e}
-                active={e.tab.id === activeTabId}
-                closing={closing.has(e.tab.id)}
-                onActivate={() => activateTab(e.tab.id)}
-                onClose={() => requestClose(e.tab.id)}
-                onMenu={openMenu(e.tab.id, false, e.tab.target.kind === 'newtab')}
-              />
-            ))}
-            <button type="button" className="tab-plus" aria-label="New Tab" title="New Tab" onClick={openNewTab}>
-              <Icon name="plus" size={13} />
-            </button>
+            {renderEntries.map(({ entry, ghost }) =>
+              ghost ? (
+                <UnpinnedTab key={entry.tab.id} entry={entry} active={false} closing onActivate={() => {}} onClose={() => {}} onMenu={() => {}} />
+              ) : (
+                <DraggableUnpinnedTab
+                  key={entry.tab.id}
+                  entry={entry}
+                  active={entry.tab.id === activeTabId}
+                  onActivate={() => activateTab(entry.tab.id)}
+                  onClose={() => requestClose(entry.tab.id)}
+                  onMenu={openMenu(entry.tab.id, false, entry.tab.target.kind === 'newtab')}
+                />
+              )
+            )}
           </div>
         </SortableZone>
       </div>
+      {/* Outside the masked scroller — inside it, the edge fade would dim the parked + itself. */}
+      <button type="button" className="tab-plus" aria-label="New Tab" title="New Tab" onClick={openNewTab}>
+        <Icon name="plus" size={13} />
+      </button>
       {menu && (
         <TabContextMenu
           tabId={menu.tabId}
@@ -200,11 +222,24 @@ function PinnedTab({
   )
 }
 
+/** The zone-registered live tab (a ghost renders UnpinnedTab bare — same shape, no drag). */
+function DraggableUnpinnedTab(props: {
+  entry: TabEntry
+  active: boolean
+  onActivate: () => void
+  onClose: () => void
+  onMenu: (e: React.MouseEvent) => void
+}): React.JSX.Element {
+  const drag = useDragItem(props.entry.tab.id)
+  return <UnpinnedTab {...props} closing={false} drag={drag} />
+}
+
 /** An unpinned tab: icon + ellipsizing label, the hover-fade × (D-10), width-animated open/close. */
 function UnpinnedTab({
   entry,
   active,
   closing,
+  drag,
   onActivate,
   onClose,
   onMenu
@@ -212,23 +247,23 @@ function UnpinnedTab({
   entry: TabEntry
   active: boolean
   closing: boolean
+  drag?: DragItem
   onActivate: () => void
   onClose: () => void
   onMenu: (e: React.MouseEvent) => void
 }): React.JSX.Element {
-  const drag = useDragItem(entry.tab.id)
   const isNewTab = entry.tab.target.kind === 'newtab'
   const title = isNewTab ? 'New Tab' : (entry.res?.title ?? '')
   return (
     <div
-      ref={drag.setNodeRef}
-      style={drag.style}
-      {...drag.handle}
+      ref={drag?.setNodeRef}
+      style={drag?.style}
+      {...drag?.handle}
       data-tab-id={entry.tab.id}
-      className={cx('tab', text.control.standard, active && 'is-active', closing && 'is-closing', drag.isDragging && 'is-dragging')}
+      className={cx('tab', text.control.standard, active && 'is-active', closing && 'is-closing', drag?.isDragging && 'is-dragging')}
       title={title}
       onClick={() => {
-        if (!drag.isDragging) onActivate()
+        if (!drag?.isDragging) onActivate()
       }}
       onContextMenu={onMenu}
     >

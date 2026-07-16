@@ -14,11 +14,9 @@
 /* The banner-title slot: a large, chromeless search input. */
 .nav-view-head {
   flex-shrink: 0;
-  padding: 44px var(--nav-view-inset) 10px;
+  padding: 44px 0 10px;
   border-bottom: 1px solid var(--separator-segment);
   margin: 0 var(--nav-view-inset);
-  padding-left: 0;
-  padding-right: 0;
 }
 .nav-view-search {
   width: 100%;

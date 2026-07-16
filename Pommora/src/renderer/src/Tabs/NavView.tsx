@@ -12,14 +12,10 @@ import './navView.css'
  *  scratch newtab tab in place (openTab's replace branch). Shares NavGallery with NavWindow — two
  *  surfaces over one component, never a merged shell (E-3). */
 export function NavView(): React.JSX.Element {
+  // resolvedRecents arrives already pin-deduped (useNavData filters against the pin set).
   const { resolvedRecents, resolvedPins, search, go } = useNavData()
   const [query, setQuery] = useState('')
   const results = useMemo(() => (query.trim() ? splitSearch(search(query)) : null), [query, search])
-  // Pins render in their own leading section — recents dedupe against them (one entity, one card).
-  const shownRecents = useMemo(() => {
-    const pinned = new Set(resolvedPins.map((p) => p.key))
-    return resolvedRecents.filter((r) => !pinned.has(r.key))
-  }, [resolvedRecents, resolvedPins])
   const open = (target: NavTarget): void => go(target)
   const openNew = (target: NavTarget): void => go(target, undefined, { newTab: true })
 
@@ -39,7 +35,7 @@ export function NavView(): React.JSX.Element {
         {results ? (
           <NavList items={results.items} extras={results.extras} onSelect={open} onOpenNewTab={openNew} />
         ) : (
-          <NavGallery pins={resolvedPins} items={shownRecents} onSelect={open} onOpenNewTab={openNew} />
+          <NavGallery pins={resolvedPins} items={resolvedRecents} onSelect={open} onOpenNewTab={openNew} />
         )}
       </div>
     </div>

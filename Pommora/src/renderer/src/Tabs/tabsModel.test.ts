@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import type { PinEntry, SelectTarget, Tab } from '@shared/types'
 import {
+  activeUnpinnedTab,
   closeTab,
   cycle,
   derivePinnedTabs,
@@ -249,6 +250,14 @@ describe('tabsModel — pushMru', () => {
   it('moves an id to the front, deduped', () => {
     expect(pushMru(['a', 'b', 'c'], 'c')).toEqual(['c', 'a', 'b'])
     expect(pushMru(['a', 'b'], 'x')).toEqual(['x', 'a', 'b'])
+  })
+})
+
+describe('tabsModel — activeUnpinnedTab', () => {
+  it('finds the active tab in the unpinned set; a pinned/unknown active id reads undefined', () => {
+    const tabs = [tab('t1', 'a')]
+    expect(activeUnpinnedTab(tabs, 't1')?.id).toBe('t1')
+    expect(activeUnpinnedTab(tabs, 'pin:page:p')).toBeUndefined()
   })
 })
 

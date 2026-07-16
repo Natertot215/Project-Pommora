@@ -5,6 +5,7 @@ import { ToolbarTrio } from './ToolbarTrio'
 import { ViewDropdown } from './ViewDropdown'
 import { NavPane } from './NavPane'
 import { TabBar } from '../Tabs/TabBar'
+import { activeUnpinnedTab } from '../Tabs/tabsModel'
 import { SettingsDropdown } from '../Components/Detail/SettingsDropdown'
 import { useSession } from '../store'
 import { useExitPresence } from '@renderer/design-system/useExitPresence'
@@ -55,11 +56,11 @@ export function Toolbar({
   // Back/Forward act on the ACTIVE tab's own history (D-7); a pinned/newtab active tab (not in `tabs`)
   // carries none, so both disable.
   const canGoBack = useSession((s) => {
-    const a = s.tabs.find((t) => t.id === s.activeTabId)
+    const a = activeUnpinnedTab(s.tabs, s.activeTabId)
     return !!a && a.navIndex > 0
   })
   const canGoForward = useSession((s) => {
-    const a = s.tabs.find((t) => t.id === s.activeTabId)
+    const a = activeUnpinnedTab(s.tabs, s.activeTabId)
     return !!a && a.navIndex < a.navStack.length - 1
   })
 

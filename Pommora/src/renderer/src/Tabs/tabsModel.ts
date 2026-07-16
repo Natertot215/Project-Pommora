@@ -56,6 +56,12 @@ export function contextTargetToSelect(t: { kind: MutableKind; id: string; path: 
   }
 }
 
+/** The active tab restricted to the UNPINNED set — the Back/Forward owner (a pinned or newtab active
+ *  tab carries no history, so its consumers read undefined and disable). */
+export function activeUnpinnedTab(tabs: Tab[], activeTabId: string): Tab | undefined {
+  return tabs.find((t) => t.id === activeTabId)
+}
+
 /** Whether a tab is pinned — derived from the pins set, never stored (C-6). The newtab sentinel is
  *  never pinned. */
 export function isPinned(target: TabTarget, pins: PinEntry[]): boolean {

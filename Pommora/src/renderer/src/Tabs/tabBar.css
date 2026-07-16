@@ -235,17 +235,17 @@
   -webkit-mask-image: linear-gradient(to right, #000000 calc(100% - 26px), transparent 100%);
 }
 
-/* ---- the trailing + (J-2/J-4): the .group-add glyph + fade, parked sticky at the strip's end so a
-   full-width strip overlays it on the last tab (its gutter keeps the × clear). ---- */
+/* ---- the trailing + (J-2/J-4): the .group-add glyph + fade. A SIBLING of the masked scroller —
+   inside it, the edge fade would dim the + itself; the strip's --tab-plus-gutter padding keeps the
+   last tab's × clear beneath it when the strip runs full-width. ---- */
 .tab-plus {
-  position: sticky;
-  right: 0;
+  flex: 0 0 auto;
+  margin-left: calc(-1 * var(--tab-plus-gutter));
   display: inline-flex;
   align-items: center;
   justify-content: center;
   height: 100%;
   padding: 0 6px;
-  margin-left: calc(-1 * var(--tab-plus-gutter));
   border: none;
   background: none;
   color: var(--text-dim);
