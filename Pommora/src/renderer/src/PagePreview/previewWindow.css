@@ -1,0 +1,87 @@
+/* The Page Preview floating window (shell). Chrome rides the shared floating-window engine; the
+   material is the window background (a mini-window read, not a see-through pane). */
+
+.pgpreview {
+  position: fixed;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  padding: var(--glass-inset);
+  border-radius: var(--glass-radius);
+  animation: pgpreview-in var(--disclosure) var(--ease-standard);
+}
+.pgpreview.closing {
+  animation: pgpreview-out var(--disclosure) var(--ease-standard) forwards;
+  pointer-events: none;
+}
+@keyframes pgpreview-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+}
+@keyframes pgpreview-out {
+  to {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+}
+
+/* ---- toolbar: centered breadcrumb title (F-2), trailing actions, shared X right-most (F-1) ---- */
+.pgpreview-toolbar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex: 0 0 auto;
+  height: 34px;
+  padding: 0 2px;
+}
+.pgpreview-title {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  max-width: 55%;
+  min-width: 0;
+  /* Inert: presses fall through to the toolbar beneath and arm the window move (I-16). */
+  pointer-events: none;
+}
+.pgpreview-crumbs {
+  min-width: 0;
+  --edge-fade: 16px;
+  --scroll-fade: 16px;
+}
+.pgpreview-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  z-index: 3;
+}
+.pgpreview-action {
+  display: flex;
+  padding: 3px;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  color: var(--label-secondary);
+  cursor: pointer;
+}
+.pgpreview-action:hover {
+  background: var(--state-hover);
+}
+.pgpreview-action:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.pgpreview-action:disabled:hover {
+  background: none;
+}
+
+/* ---- body: the embedded page ---- */
+.pgpreview-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+}

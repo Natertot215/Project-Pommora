@@ -1,0 +1,28 @@
+/* Shared floating-window chrome: the corner resize handles (the NavWindow pattern). */
+
+.fwin-resize {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  z-index: 2;
+}
+.fwin-resize-nw {
+  top: 0;
+  left: 0;
+  cursor: nwse-resize;
+}
+.fwin-resize-ne {
+  top: 0;
+  right: 0;
+  cursor: nesw-resize;
+}
+.fwin-resize-sw {
+  bottom: 0;
+  left: 0;
+  cursor: nesw-resize;
+}
+.fwin-resize-se {
+  bottom: 0;
+  right: 0;
+  cursor: nwse-resize;
+}

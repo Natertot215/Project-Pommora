@@ -103,6 +103,8 @@
 
 - **F-6:** [confirmed] The trio inside the preview renders **bare buttons on the frost (`glass={false}`)** — real liquid glass inside a `position: fixed`, scale-animated ancestor is exactly the case `ToolbarTrio.tsx` documents as rendering soft and re-initing on mount. The glass-swap *animation* (G-1) is unaffected; only the material mode changes.
 
+- **F-7:** [confirmed] In the NavWindow flavor, the search bar's row **nudges down to make room for the tab strip only when more than one tab is open** — a single-tab (NavWindow-only) state keeps today's exact layout. The re-height **animates on `--ease-standard`** like everything else; no snap.
+
 - **F-2:** [confirmed] In-line titles, two states. **With banner:** banner + title heading render as usual — nothing special. **Without banner:** the page body starts with no heading-divider, and the title renders **in the toolbar area** the way tabs render theirs, as a filepath breadcrumb — `Collection > Set > Page Name` — in the same label color the navigation filepaths use, at **caption** size (for now).
 
 - **F-3:** [assumed] Embedded zoom: reuse the existing G-10 knob — `EMBED_SCALE`/`EMBED_ZOOM` in `Embeds/embedScale.ts`, already consumed by PageEmbed. One knob, no new zoom system; whether the preview wants its own value through that knob is a design-stage tune.

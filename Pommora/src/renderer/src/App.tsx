@@ -13,6 +13,7 @@ import { DetailPane } from './Detail/DetailPane'
 import { Toolbar } from './Toolbar/Toolbar'
 import { InspectorPanel } from './Detail/InspectorPanel/InspectorPanel'
 import { NavWindow } from './NavWindow/NavWindow'
+import { PreviewWindow } from './PagePreview/PreviewWindow'
 import { contextTargetToSelect } from './Tabs/tabsModel'
 import { useNavThumbnails } from './Navigation/useNavThumbnails'
 import { Icon } from '@renderer/design-system/symbols'
@@ -259,6 +260,8 @@ export function App(): React.JSX.Element {
       {status === 'ready' && <InspectorPanel open={inspectorOpen} />}
       {/* NavWindow — the ribbon/⌘O-summoned floating mini-shell; app-global overlay, own presence. */}
       {status === 'ready' && <NavWindow />}
+      {/* Page Preview — the B-1-routed floating page window; one floating window total (D-8). */}
+      {status === 'ready' && <PreviewWindow />}
       {/* Invisible edge-drag resize strip at the inspector's left edge (only while open). */}
       {status === 'ready' && inspectorOpen && (
         <div

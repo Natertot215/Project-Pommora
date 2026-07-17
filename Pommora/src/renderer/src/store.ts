@@ -78,6 +78,9 @@ function readStoredInspectorWidth(): number {
 // re-exported so existing `../store` importers keep resolving it.
 export type { SelectTarget }
 
+/** The Page Preview floating window's target page. */
+export type PreviewTarget = { id: string; path: string }
+
 /** A breadcrumb ghost crumb's target — the last page visited in a given container. */
 export interface TrailEntry {
   id: string
@@ -266,6 +269,12 @@ interface SessionState {
   openNav: () => void
   closeNav: () => void
   toggleNav: () => void
+
+  /** The Page Preview floating window's target (B-1 routing); null = closed. One floating window
+   *  total (D-8): opening either the preview or the NavWindow closes the other. */
+  previewTarget: PreviewTarget | null
+  openPreview: (target: PreviewTarget) => void
+  closePreview: () => void
 
   /** Re-fetch the open page's detail (after a frontmatter write like a page banner/cover). No-op if no page. */
   reloadPage: () => Promise<void>
@@ -1019,13 +1028,16 @@ export const useSession = create<SessionState>((set, get) => {
     navOpen: false,
     openNav: () => {
       void get().ensureAgendaSnapshot() // warm the agenda snapshot so search can list Tasks/Events
-      set({ navOpen: true })
+      set({ navOpen: true, previewTarget: null })
     },
     closeNav: () => set({ navOpen: false }),
     toggleNav: () => {
       if (!get().navOpen) void get().ensureAgendaSnapshot()
-      set((s) => ({ navOpen: !s.navOpen }))
+      set((s) => ({ navOpen: !s.navOpen, previewTarget: null }))
     },
+    previewTarget: null,
+    openPreview: (target) => set({ previewTarget: target, navOpen: false }),
+    closePreview: () => set({ previewTarget: null }),
     select: async (target, opts) => {
       // Every navigation supersedes an in-flight cold page fetch (its response drops on the seq fence
       // below) and releases a pause left by one.

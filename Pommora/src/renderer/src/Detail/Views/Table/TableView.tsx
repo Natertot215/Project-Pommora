@@ -29,6 +29,7 @@ import { PropertyEditor } from '../PropertyEditing/PropertyEditor'
 import { PropertyPicker } from '../PropertyEditing/PropertyPicker'
 import { nextCycleValue } from '../PropertyEditing/statusCycle'
 import { useSession } from '../../../store'
+import { findCollectionForSet } from '../../Scope'
 import { isOpenInTabs } from '../../../Tabs/tabsModel'
 import { useActiveView } from '../useActiveView'
 import { useSaveView } from '@renderer/Embeds/ViewEmbedScope'
@@ -670,8 +671,17 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
     triggerElRef.current = e.currentTarget as HTMLElement
     if (col.kind === 'title') {
       // The ONLY navigate (A-7): row-click narrowed to the title cell; row background is a no-op.
+      // A page-preview Collection routes to the floating preview instead (B-1); ⌘-click is always
+      // the explicit full-page bypass, to a new tab (I-19).
       e.stopPropagation()
-      void select({ kind: 'page', id: row.id, path: row.path })
+      const owner =
+        source.kind === 'collection'
+          ? source
+          : findCollectionForSet(useSession.getState().tree, source.id)
+      if (owner?.openIn === 'page-preview') {
+        if (e.metaKey) void select({ kind: 'page', id: row.id, path: row.path }, { newTab: true })
+        else useSession.getState().openPreview({ id: row.id, path: row.path })
+      } else void select({ kind: 'page', id: row.id, path: row.path })
       return
     }
     if (col.kind === 'tier') {
