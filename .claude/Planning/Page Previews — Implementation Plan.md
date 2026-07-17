@@ -247,12 +247,12 @@ Decision ids: G-1, G-2, G-3, F-6, I-13, I-14, E (front-matter writes).
 
 **Files:**
 - Create: `Pommora/src/renderer/src/design-system/components/SidePane/SidePane.tsx` + `sidePane.css`
-- Modify: `PreviewWindow.tsx` + `previewWindow.css` (the shipped `.pgpreview-inspector` + resize strip + `--io` wiring migrate INTO the component; per-window-keyed open/width state — the geometry-store pattern; the module `inspectorW` var retires)
+- Modify: `NavWindow/NavWindow.tsx` + `navWindow.css` (the SOURCE: the `.navwindow-rail` GlassWindow + `.navwindow-rail-resize` strip + rail width state extract INTO the component, and NavWindow rebases onto it here — Nathan's directive: SidePane IS the NavWindow sidebar component, not a parallel build), `PreviewWindow.tsx` + `previewWindow.css` (the shipped `.pgpreview-inspector` + resize strip + `--io` wiring dissolve into a `<SidePane side="right">` mount; the module `inspectorW` var retires)
 
 **Interfaces:**
-- Produces: `<SidePane windowId side="left"|"right" open bounds={{min,def,max}} onIoVar>` — GlassWindow + `state-muted` veil, 6px inner padding, inset ring, `--io` slide (no own transition), edge-drag resize with pause-during-drag, children injected (G-3: shared shell, flavor bodies). The NavWindow rail mounts it in Phase 8.
+- Produces: `<SidePane windowId side="left"|"right" open bounds={{min,def,max}} onIoVar>` — GlassWindow + `state-muted` veil, 6px inner padding, inset ring, `--io` slide (no own transition), edge-drag resize with pause-during-drag, children injected (G-3: ONE component, both windows mount it; flavor bodies injected). Phase 8 then only rebases NavWindow's chrome (FloatingWindow) — its rail is already SidePane after this task.
 
-- [ ] **Steps:** extract mechanically from the shipped css/tsx (no behavior change — CDP screenshot parity before/after) → gates → commit.
+- [ ] **Steps:** extract from the NavWindow rail (both windows re-mount it, no behavior change — CDP screenshot parity on BOTH before/after) → gates → commit.
 
 ### Task 5.2: The front-matter inspector body
 
