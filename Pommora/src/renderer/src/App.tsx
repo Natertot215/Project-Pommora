@@ -131,9 +131,23 @@ export function App(): React.JSX.Element {
         case 'open':
           void choose()
           break
-        case 'new-tab':
-          openNewTab()
+        case 'new-tab': {
+          // I-20: ⌘N is a NATIVE accelerator (menu.ts) — a renderer keydown can't intercept it, so
+          // the promote branch lives here. While a page-flavor preview is open, its active tab
+          // promotes to a new app tab and closes (the window only when it was the last).
+          const s = useSession.getState()
+          const p = s.preview
+          const active =
+            p?.flavor === 'page' ? p.tabs.find((t) => t.id === p.activeTabId) : undefined
+          if (active && active.target.kind === 'page') {
+            void s.select(
+              { kind: 'page', id: active.target.id, path: active.target.path },
+              { newTab: true },
+            )
+            s.closePreviewTab(active.id)
+          } else openNewTab()
           break
+        }
         case 'new-page':
           void newPage()
           break

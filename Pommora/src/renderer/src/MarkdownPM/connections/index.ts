@@ -22,6 +22,10 @@ export interface ConnectionsApi extends PageIndex {
   open: (page: ConnPage) => void
   /** Optional right-click hook — the host pops the native context menu for the link. */
   menu?: (page: ConnPage) => void
+  /** I-19: ⌘-click takes the OTHER route from `open` (preview ⇄ new tab); absent = ⌘ ignored. */
+  bypass?: (page: ConnPage) => void
+  /** B-7: fired after the hover-intent delay on a resolved connection, with the link's rect. */
+  hover?: (page: ConnPage, rect: DOMRect) => void
 }
 
 export function flattenPages(tree: NexusTree): ConnPage[] {

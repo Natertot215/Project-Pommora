@@ -3,6 +3,7 @@ import { useSession } from '../store'
 import { MarkdownEditor } from '../MarkdownPM'
 import { buildPageIndex, flattenPages, type ConnectionsApi } from '../MarkdownPM/connections'
 import { showConnectionMenu } from '../Embeds/connectionMenu'
+import { useConnectionHover } from '../Embeds/ConnectionHoverCard'
 import { IconPicker } from '../Components/IconPicker'
 import { navKey } from '../Navigation/navRecents'
 import { captureWarm, readWarm } from '../Tabs/warmCache'
@@ -21,6 +22,9 @@ export function PageView(): React.JSX.Element {
   const mutate = useSession((s) => s.mutate)
   const tree = useSession((s) => s.tree)
   const select = useSession((s) => s.select)
+  const openPreview = useSession((s) => s.openPreview)
+  // B-6 reads the LIVE personalization slice (setPersonalization updates it before the tree echoes).
+  const openInPreview = useSession((s) => s.personalization.connectionsOpenInPreview ?? false)
   const setLiveBody = useSession((s) => s.setLiveBody)
   const pendingSave = useRef<
     { path: string; body: string; timer: ReturnType<typeof setTimeout> } | undefined
@@ -28,15 +32,22 @@ export function PageView(): React.JSX.Element {
   const liveTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const [iconPickerOpen, setIconPickerOpen] = useState(false)
 
+  const { hover, card: hoverCard } = useConnectionHover()
   const connections = useMemo<ConnectionsApi | undefined>(() => {
     if (!tree) return undefined
     const idx = buildPageIndex(flattenPages(tree))
     return {
       ...idx,
-      open: (page) => void select({ kind: 'page', id: page.id, path: page.path }),
+      open: (page) =>
+        openInPreview
+          ? openPreview({ id: page.id, path: page.path })
+          : void select({ kind: 'page', id: page.id, path: page.path }),
+      bypass: (page) =>
+        void select({ kind: 'page', id: page.id, path: page.path }, { newTab: true }),
+      hover,
       menu: showConnectionMenu,
     }
-  }, [tree, select])
+  }, [tree, select, openPreview, openInPreview, hover])
 
   // The pending save is per-path: rescheduling the SAME page replaces its timer (normal typing debounce),
   // but a different page's schedule FLUSHES the pending write first — clearing it would silently drop the
@@ -103,6 +114,7 @@ export function PageView(): React.JSX.Element {
       if (!pageDetail) return <div className="detail-placeholder">Page render — coming next</div>
       return (
         <>
+          {hoverCard}
           <MarkdownEditor
             key={pageDetail.path}
             initialBody={pageDetail.body}

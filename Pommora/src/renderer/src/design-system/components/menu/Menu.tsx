@@ -15,7 +15,7 @@ type MenuItemProps = {
   selected?: boolean
   /** Tree depth — adds 14px of left inset per level on top of the 8px base. */
   indent?: number
-  onClick?: () => void
+  onClick?: (e: React.MouseEvent) => void
   onContextMenu?: (e: MouseEvent) => void
   className?: string
   /** The title line. */

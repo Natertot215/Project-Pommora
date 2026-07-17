@@ -130,7 +130,8 @@ function Leaf({
   // Reserve the disclosure-chevron column so the icon lines up under expandable
   // rows. Top-level shortcuts (the Saved strip) opt out and sit flush.
   chevronSpace?: boolean
-  onSelect?: () => void
+  /** Receives the click (MenuItem passes it through) — page rows read ⌘ for the I-19 bypass. */
+  onSelect?: (e: React.MouseEvent) => void
   onContextMenu?: () => void
   rename?: RenameTarget
 }): React.JSX.Element {
@@ -259,7 +260,7 @@ function PageRow({
   page: PageNode
   depth: number
   selection: SelectionState
-  onSelectPage: (page: PageNode) => void
+  onSelectPage: (page: PageNode, e?: React.MouseEvent) => void
 }): React.JSX.Element {
   const defaultIcons = useSession((s) => s.personalization.defaultIcons)
   return (
@@ -269,7 +270,7 @@ function PageRow({
         title={page.title}
         depth={depth}
         selected={isPageSelected(selection, page.id)}
-        onSelect={() => onSelectPage(page)}
+        onSelect={(e) => onSelectPage(page, e)}
         onContextMenu={() => showContextFor(page)}
         rename={{ path: page.path, kind: page.kind }}
       />
@@ -543,7 +544,17 @@ export function Sidebar({ tree }: { tree: NexusTree }): React.JSX.Element {
   const onSelectSet = (set: SetNode): void => {
     void select({ kind: 'set', id: set.id, path: set.path })
   }
-  const onSelectPage = (page: PageNode): void => {
+  const onSelectPage = (page: PageNode, e?: React.MouseEvent): void => {
+    // B-2: a page in a page-preview Collection opens the floating preview (the sidebar resolves the
+    // owner by path prefix — it has no source prop); ⌘-click is the explicit full-page bypass (I-19).
+    const owner = [...tree.collections, ...tree.userSections.flatMap((s) => s.collections)].find(
+      (c) => page.path.startsWith(`${c.path}/`),
+    )
+    if (owner?.openIn === 'page-preview') {
+      if (e?.metaKey) void select({ kind: 'page', id: page.id, path: page.path }, { newTab: true })
+      else useSession.getState().openPreview({ id: page.id, path: page.path })
+      return
+    }
     void select({ kind: 'page', id: page.id, path: page.path })
   }
 

@@ -11,6 +11,7 @@ import {
 import { FEEL_PRESETS } from '@renderer/design-system/interactions/feel'
 import { buildPageIndex, flattenPages, type ConnectionsApi } from '@renderer/MarkdownPM/connections'
 import { showConnectionMenu } from '@renderer/Embeds/connectionMenu'
+import { useConnectionHover } from '@renderer/Embeds/ConnectionHoverCard'
 import { attachBelow, insertBand, removeTile as removeLeaf } from '@renderer/SurfacePM/core/ops'
 import { getTile } from '@renderer/SurfacePM/core/model'
 import { SurfaceView, type BackdropTarget } from '@renderer/SurfacePM/SurfaceView'
@@ -146,15 +147,25 @@ export function BlockSurface({ host }: { host: BlockHostRef }): React.JSX.Elemen
 
   // Markdown blocks are link SOURCES (D-8) — the tile editor gets the same
   // [[connection]] autocomplete + click-through the page editor has.
+  const openPreview = useSession((s) => s.openPreview)
+  const { hover, card: hoverCard } = useConnectionHover()
+  // B-6 reads the LIVE personalization slice (setPersonalization updates it before the tree echoes).
+  const openInPreview = useSession((s) => s.personalization.connectionsOpenInPreview ?? false)
   const connections = useMemo<ConnectionsApi | undefined>(() => {
     if (!tree) return undefined
     const idx = buildPageIndex(flatPages)
     return {
       ...idx,
-      open: (page) => void select({ kind: 'page', id: page.id, path: page.path }),
+      open: (page) =>
+        openInPreview
+          ? openPreview({ id: page.id, path: page.path })
+          : void select({ kind: 'page', id: page.id, path: page.path }),
+      bypass: (page) =>
+        void select({ kind: 'page', id: page.id, path: page.path }, { newTab: true }),
+      hover,
       menu: showConnectionMenu,
     }
-  }, [tree, flatPages, select])
+  }, [tree, flatPages, select, openPreview, openInPreview, hover])
 
   useEffect(() => {
     if (!editingId) return
@@ -411,6 +422,7 @@ export function BlockSurface({ host }: { host: BlockHostRef }): React.JSX.Elemen
     <div
       className={`blk-surface${editingId ? ' has-live-editor' : ''}${hostLocked ? ' is-host-locked' : ''}`}
     >
+      {hoverCard}
       {/* Blocks reflow on Glide — the roomier displacement feel for big surfaces. */}
       <SurfaceView
         layout={layout}

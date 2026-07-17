@@ -17,7 +17,16 @@ import {
   footingSymbol,
   side,
 } from '../../design-system/components/menu/menu.css'
-import { crumbRow, footerLock, footerLockActive, ICON } from './settingsPane.css'
+import {
+  crumbRow,
+  footerLock,
+  footerLockActive,
+  ICON,
+  switchScale,
+  toggleRow,
+} from './settingsPane.css'
+import { Switch } from '@renderer/design-system/components/Switches/Switch'
+import { cx } from '../../design-system/cx'
 import { useSession } from '../../store'
 import { findCollection, findSet, findCollectionForSet } from '../../Detail/Scope'
 import { pickView } from '../../Detail/Views/Table/TableView'
@@ -82,6 +91,10 @@ export function SettingsPane(): React.JSX.Element | null {
   const defaultIcons = useSession((st) => st.personalization.defaultIcons)
   const tree = useSession((st) => st.tree)
   const load = useSession((st) => st.load)
+  const setPersonalization = useSession((st) => st.setPersonalization)
+  const connectionsInPreview = useSession(
+    (st) => st.personalization.connectionsOpenInPreview ?? false,
+  )
   const submitRename = useSession((st) => st.submitRename)
   const mutate = useSession((st) => st.mutate)
   const [pane, setPane] = useState<PaneId | 'root'>('root')
@@ -159,6 +172,23 @@ export function SettingsPane(): React.JSX.Element | null {
         onClick={() => void pickOpenIn()}
       >
         Open In
+      </MenuItem>
+      {/* B-6 — nexus-wide (Personalization, not this collection's config): wiki-link clicks
+          route to the Page Preview window instead of navigating; ⌘-click takes the other route. */}
+      <MenuItem
+        className={cx(flushTrailing, toggleRow)}
+        leading={<Icon name="app-window-mac" size={ICON.rootEntry} />}
+        trailing={
+          <span className={switchScale}>
+            <Switch
+              checked={connectionsInPreview}
+              onChange={(next) => setPersonalization('connectionsOpenInPreview', next)}
+              ariaLabel="Connections Open In Preview"
+            />
+          </span>
+        }
+      >
+        Connections Open In Preview
       </MenuItem>
     </>
   )

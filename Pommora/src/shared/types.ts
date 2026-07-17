@@ -112,6 +112,9 @@ export interface Personalization {
   sidebarMode?: SidebarMode
   /** Hide the toolbar tab bar until hovered (F-1). Absent = always shown. */
   revealTabBarOnHover?: boolean
+  /** Wiki-link clicks open the Page Preview window instead of navigating (B-6). ⌘-click takes
+   *  the other route (I-19). Absent = navigate. */
+  connectionsOpenInPreview?: boolean
   /** Ribbon icon order below the pinned Homepage — bare icon keys, in display order. */
   ribbonOrder?: string[]
   /** The window zoom the nexus opens at (and ⌘0 resets to). Absent = 1.0. Set by hand in

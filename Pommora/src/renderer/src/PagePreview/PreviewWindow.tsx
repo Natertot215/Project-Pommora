@@ -11,6 +11,7 @@ import { useExitPresence } from '../design-system/useExitPresence'
 import { PageEmbed } from '../Embeds/PageEmbed'
 import { buildPageIndex, flattenPages, type ConnectionsApi } from '../MarkdownPM/connections'
 import { showConnectionMenu } from '../Embeds/connectionMenu'
+import { useConnectionHover } from '../Embeds/ConnectionHoverCard'
 import { registerPreviewFlush } from '../Detail/pageFlush'
 import { NavCrumbs } from '../Navigation/NavList'
 import { buildResolveIndex, resolveWith } from '../Navigation/navResolve'
@@ -83,16 +84,21 @@ function PreviewWindowBody({
   }, [closePreview, inspectorOpen])
 
   // Wiki-links inside the preview stay inside it — a click opens (or dedup-focuses) a tab (H-1).
+  // ⌘-click is ADDITIVE (I-19): a new app tab opens behind, the preview stays.
   const openPreviewTab = useSession((s) => s.openPreviewTab)
+  const { hover, card: hoverCard } = useConnectionHover()
   const connections = useMemo<ConnectionsApi | undefined>(() => {
     if (!tree) return undefined
     const idx = buildPageIndex(flattenPages(tree))
     return {
       ...idx,
       open: (page) => openPreviewTab({ id: page.id, path: page.path }),
+      bypass: (page) =>
+        void select({ kind: 'page', id: page.id, path: page.path }, { newTab: true }),
+      hover,
       menu: showConnectionMenu,
     }
-  }, [tree, openPreviewTab])
+  }, [tree, openPreviewTab, select, hover])
 
   const resolveIndex = useMemo(() => (tree ? buildResolveIndex(tree) : null), [tree])
 
@@ -268,6 +274,7 @@ function PreviewWindowBody({
           {inspectorOpen && <PreviewInspector target={target} />}
         </div>
       </SidePane>
+      {hoverCard}
       <FloatingResizeCorners startDrag={startDrag} />
     </GlassPane>
   )
