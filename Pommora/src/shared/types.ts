@@ -352,6 +352,10 @@ export type NewTabSentinel = { kind: 'newtab' }
 /** A tab's target: any drivable selection, or the new-tab sentinel. */
 export type TabTarget = SelectTarget | NewTabSentinel
 
+/** A preview tab's target: a page, or the NavWindow flavor's tab-1 sentinel — the gallery itself;
+ *  no id/path, never warmed. */
+export type PreviewTabTarget = SelectTarget | { kind: 'navwindow' }
+
 /** One toolbar tab. Carries its OWN Back/Forward history (`navStack`/`navIndex`, D-7). `isPinned` is
  *  never stored — it's derived from the pins set (a tab's navKey ∈ pins). Only unpinned tabs are
  *  persisted; pinned tabs are derived live from `.nexus/pins/`. */

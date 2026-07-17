@@ -346,14 +346,58 @@ describe('store — applyTree reconciles EVERY tab (I-2a)', () => {
   })
 })
 
-describe('store — applyTree reconciles the preview window (D-6)', () => {
-  it('re-paths the preview on a rename and closes it on a delete', async () => {
-    seed({ previewTarget: { id: 'b', path: 'Notes/B.md' } })
+describe('store — applyTree reconciles the preview tabs (D-6)', () => {
+  it('re-paths a renamed tab, re-parents on a dead origin, closes the window when all tabs die', async () => {
+    useSession.getState().openPreview({ id: 'b', path: 'Notes/B.md' })
+    useSession.getState().openPreviewTab({ id: 'c', path: 'Notes/C.md' })
 
-    await useSession.getState().applyTree(treeWith([{ id: 'b', path: 'Notes/Renamed.md' }]))
-    expect(useSession.getState().previewTarget).toEqual({ id: 'b', path: 'Notes/Renamed.md' })
+    await useSession.getState().applyTree(
+      treeWith([
+        { id: 'b', path: 'Notes/Renamed.md' },
+        { id: 'c', path: 'Notes/C.md' },
+      ]),
+    )
+    let p = useSession.getState().preview
+    expect(p?.tabs[0].target).toMatchObject({ id: 'b', path: 'Notes/Renamed.md' })
+    expect(useSession.getState().previewTarget).toEqual({ id: 'c', path: 'Notes/C.md' })
+
+    await useSession.getState().applyTree(treeWith([{ id: 'c', path: 'Notes/C.md' }]))
+    p = useSession.getState().preview
+    expect(p?.originId).toBe('c')
+    expect(p?.tabs).toHaveLength(1)
 
     await useSession.getState().applyTree(treeWith([]))
+    expect(useSession.getState().preview).toBeNull()
+    expect(useSession.getState().previewTarget).toBeNull()
+  })
+
+  it('folds multiple simultaneous dead tabs: a dead active with a dead left neighbor lands on the survivor', async () => {
+    useSession.getState().openPreview({ id: 'a', path: 'Notes/A.md' })
+    useSession.getState().openPreviewTab({ id: 'b', path: 'Notes/B.md' })
+    useSession.getState().openPreviewTab({ id: 'c', path: 'Notes/C.md' })
+    useSession.getState().openPreviewTab({ id: 'd', path: 'Notes/D.md' })
+
+    // c and d (the active) die in one push — the active walks left past dead c onto b.
+    await useSession.getState().applyTree(
+      treeWith([
+        { id: 'a', path: 'Notes/A.md' },
+        { id: 'b', path: 'Notes/B.md' },
+      ]),
+    )
+    const p = useSession.getState().preview
+    expect(p?.tabs.map((t) => (t.target.kind === 'page' ? t.target.id : ''))).toEqual(['a', 'b'])
+    expect(p?.tabs.find((t) => t.id === p.activeTabId)?.target).toMatchObject({ id: 'b' })
+    expect(p?.originId).toBe('a')
+  })
+
+  it('keeps the nav flavor alive through a reconcile: dead page tabs drop, the map tab stays', async () => {
+    useSession.getState().openNavPreview()
+    useSession.getState().openPreviewTab({ id: 'b', path: 'Notes/B.md' })
+
+    await useSession.getState().applyTree(treeWith([]))
+    const p = useSession.getState().preview
+    expect(p?.flavor).toBe('nav')
+    expect(p?.tabs.map((t) => t.target.kind)).toEqual(['navwindow'])
     expect(useSession.getState().previewTarget).toBeNull()
   })
 })

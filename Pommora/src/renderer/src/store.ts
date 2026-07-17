@@ -16,6 +16,7 @@ import {
 } from '@shared/types'
 import { DEFAULT_NEW_NAME, type MutableKind, type MutateRequest } from '@shared/mutate'
 import { buildReconcileIndex, reconcileSelection, reconcileWith } from './selection'
+import { closeTabIn, deriveTarget, openTabIn, type PreviewState } from './PagePreview/previewTabs'
 import { navKey, recordRecent, removeRecentByKey, RECENTS_CAP } from './Navigation/navRecents'
 import { byOrder, cleanPinTarget, pinFor, reorderTo } from './Navigation/navPins'
 import {
@@ -270,10 +271,19 @@ interface SessionState {
   closeNav: () => void
   toggleNav: () => void
 
-  /** The Page Preview floating window's target (B-1 routing); null = closed. One floating window
+  /** The Page Preview floating window (Decision Log H): null = closed. One floating window
    *  total (D-8): opening either the preview or the NavWindow closes the other. */
+  preview: PreviewState | null
+  /** DERIVED from `preview` (the active page tab) — kept in lockstep by every preview action so
+   *  the window's consumers read one stable shape. */
   previewTarget: PreviewTarget | null
+  /** The preview's own slide stamp (H-11) — the app-wide navSlide is a single slot it can't share. */
+  previewSlide: { dir: 'back' | 'fwd'; seq: number } | null
   openPreview: (target: PreviewTarget) => void
+  openNavPreview: () => void
+  openPreviewTab: (target: PreviewTarget) => void
+  activatePreviewTab: (id: string) => void
+  closePreviewTab: (id: string) => void
   closePreview: () => void
 
   /** Re-fetch the open page's detail (after a frontmatter write like a page banner/cover). No-op if no page. */
@@ -339,7 +349,7 @@ export const useSession = create<SessionState>((set, get) => {
       // Close the preview BEFORE the root can flip (D-9), and AWAIT its registered flush — the
       // exit presence defers the unmount past the adopt, so the unmount flush alone would bind the
       // NEW root. Closed even if the adopt is then cancelled: data safety beats window persistence.
-      set({ previewTarget: null })
+      set({ preview: null, previewTarget: null })
       await flushPreviewPage()
       // Flush the active page's pending body write to the CURRENT nexus before an adopt flips the root —
       // else the editor's unmount-flush (fired by the selection-clear below, after the root already moved)
@@ -363,7 +373,9 @@ export const useSession = create<SessionState>((set, get) => {
           tabs: [],
           activeTabId: '',
           tabMru: [],
+          preview: null,
           previewTarget: null,
+          previewSlide: null,
         })
         clearWarm() // warmth is per-nexus AND session-only — never crosses an adoption (I-10)
         await get().load()
@@ -382,6 +394,24 @@ export const useSession = create<SessionState>((set, get) => {
   // A unique tab id (session-scoped; persisted tab ids reload from the sidecar). crypto is available in
   // the renderer's secure context.
   const makeTabId = (): string => crypto.randomUUID()
+
+  // The preview's slide stamp (H-11): direction = strip order (the app-tab rule), its own counter.
+  let previewSlideSeq = 0
+  const stampByOrder = (
+    cur: PreviewState,
+    nextId: string,
+  ): { dir: 'back' | 'fwd'; seq: number } => {
+    const from = cur.tabs.findIndex((t) => t.id === cur.activeTabId)
+    const to = cur.tabs.findIndex((t) => t.id === nextId)
+    return { dir: to < from ? 'back' : 'fwd', seq: ++previewSlideSeq }
+  }
+
+  // The preview and its derived target move in lockstep (previewTarget is a Phase-2 casualty); commit
+  // both from one place so no action can let them drift.
+  const commitPreview = (
+    next: PreviewState | null,
+    extra?: { previewSlide: ReturnType<typeof stampByOrder> },
+  ): void => set({ preview: next, previewTarget: deriveTarget(next), ...extra })
 
   // The active tab — an unpinned tab, or a derived pinned tab (which carries no unpinned back-history).
   const findActiveTab = (): Tab | undefined => {
@@ -697,16 +727,36 @@ export const useSession = create<SessionState>((set, get) => {
           applyTabResult({ tabs: rec.tabs, activeTabId: rec.activeTabId, mru: rec.mru })
         }
       }
-      // The preview window reconciles like a tab (D-6): re-path on rename/move; a deleted page
-      // closes the preview (the keyed embed unmounts; its flush hits a dead path, which the crud
-      // guard refuses — the stale body is never written anywhere).
+      // The preview's tabs reconcile like app tabs (D-6): re-path on rename/move; a deleted page
+      // closes its tab (the keyed embed unmounts; its flush hits a dead path, which the crud guard
+      // refuses — the stale body is never written anywhere). Dead tabs fold through closeTabIn so
+      // active-falls-left / origin re-parent / window-close-on-empty stay in one place.
       {
-        const pt = get().previewTarget
-        if (pt) {
-          const r = reconcileWith(index, { kind: 'page', id: pt.id, path: pt.path })
-          if (r.kind === 'none') set({ previewTarget: null })
-          else if (r.kind === 'page' && r.path !== pt.path)
-            set({ previewTarget: { id: pt.id, path: r.path } })
+        const cur = get().preview
+        if (cur) {
+          const deadIds: string[] = []
+          const repath = new Map<string, string>()
+          for (const t of cur.tabs) {
+            if (t.target.kind !== 'page') continue
+            const r = reconcileWith(index, t.target)
+            if (r.kind === 'none') deadIds.push(t.id)
+            else if (r.kind === 'page' && r.path !== t.target.path) repath.set(t.id, r.path)
+          }
+          if (deadIds.length > 0 || repath.size > 0) {
+            let next: PreviewState | null = cur
+            for (const id of deadIds) next = next && closeTabIn(next, id)
+            if (next && repath.size > 0)
+              next = {
+                ...next,
+                tabs: next.tabs.map((t) => {
+                  const path = repath.get(t.id)
+                  return path && t.target.kind === 'page'
+                    ? { ...t, target: { ...t.target, path } }
+                    : t
+                }),
+              }
+            commitPreview(next)
+          }
         }
       }
       // Always read the OS accent: it feeds --accent only when the setting is `system`,
@@ -1046,16 +1096,66 @@ export const useSession = create<SessionState>((set, get) => {
     navOpen: false,
     openNav: () => {
       void get().ensureAgendaSnapshot() // warm the agenda snapshot so search can list Tasks/Events
-      set({ navOpen: true, previewTarget: null })
+      set({ navOpen: true, preview: null, previewTarget: null })
     },
     closeNav: () => set({ navOpen: false }),
     toggleNav: () => {
       if (!get().navOpen) void get().ensureAgendaSnapshot()
-      set((s) => ({ navOpen: !s.navOpen, previewTarget: null }))
+      set((s) => ({ navOpen: !s.navOpen, preview: null, previewTarget: null }))
     },
+    preview: null,
     previewTarget: null,
-    openPreview: (target) => set({ previewTarget: target, navOpen: false }),
-    closePreview: () => set({ previewTarget: null }),
+    previewSlide: null,
+    openPreview: (target) => {
+      const cur = get().preview
+      if (cur?.flavor === 'page' && cur.originId === target.id) return // I-1: same-origin no-op
+      const tab = { id: makeTabId(), target: { kind: 'page' as const, ...target } }
+      set({
+        preview: { flavor: 'page', originId: target.id, tabs: [tab], activeTabId: tab.id },
+        previewTarget: target,
+        navOpen: false,
+      })
+    },
+    openNavPreview: () => {
+      if (get().preview?.flavor === 'nav') return
+      const tab = { id: makeTabId(), target: { kind: 'navwindow' as const } }
+      set({
+        preview: { flavor: 'nav', originId: 'navwindow', tabs: [tab], activeTabId: tab.id },
+        previewTarget: null,
+        navOpen: false,
+      })
+    },
+    openPreviewTab: (target) => {
+      const cur = get().preview
+      // H-7 lives at the caller (the behind-the-window gate needs the main selection); here a
+      // tab-less call is a summon.
+      if (!cur) {
+        get().openPreview(target)
+        return
+      }
+      const next = openTabIn(cur, makeTabId, target)
+      if (next === cur) return
+      const spawned = next.tabs.length > cur.tabs.length
+      commitPreview(next, {
+        previewSlide: spawned
+          ? { dir: 'fwd', seq: ++previewSlideSeq }
+          : stampByOrder(cur, next.activeTabId),
+      })
+    },
+    activatePreviewTab: (id) => {
+      const cur = get().preview
+      if (!cur || cur.activeTabId === id || !cur.tabs.some((t) => t.id === id)) return
+      const next = { ...cur, activeTabId: id }
+      commitPreview(next, { previewSlide: stampByOrder(cur, id) })
+    },
+    closePreviewTab: (id) => {
+      const cur = get().preview
+      if (!cur) return
+      const next = closeTabIn(cur, id)
+      if (next === cur) return
+      commitPreview(next)
+    },
+    closePreview: () => set({ preview: null, previewTarget: null }),
     select: async (target, opts) => {
       // Every navigation supersedes an in-flight cold page fetch (its response drops on the seq fence
       // below) and releases a pause left by one.
