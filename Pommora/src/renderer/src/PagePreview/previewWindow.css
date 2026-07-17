@@ -6,7 +6,9 @@
   z-index: 1000;
   display: flex;
   flex-direction: column;
-  padding: var(--glass-inset);
+  /* Truly edge-to-edge: no inset ring — content meets the glass border and clips to its radius. */
+  padding: 0;
+  overflow: hidden;
   border-radius: var(--glass-radius);
   animation: pgpreview-in var(--disclosure) var(--ease-standard);
 }
@@ -36,9 +38,9 @@
 }
 .pgpreview-toolbar {
   position: absolute;
-  top: var(--glass-inset);
-  left: var(--glass-inset);
-  right: var(--glass-inset);
+  top: 0;
+  left: 0;
+  right: 0;
   z-index: 2;
   display: flex;
   align-items: center;

@@ -57,6 +57,39 @@ function PreviewWindowBody({
     return () => window.removeEventListener('keydown', onKey)
   }, [closePreview])
 
+  // TEMP DIAGNOSIS (toolbar clipping) — dumps scroll ownership + mask state after content lands.
+  useEffect(() => {
+    const t = setTimeout(() => {
+      const pick = (sel: string): Record<string, unknown> | null => {
+        const el = document.querySelector(sel)
+        if (!el) return null
+        const cs = getComputedStyle(el)
+        const r = el.getBoundingClientRect()
+        return {
+          rect: { x: r.x, y: r.y, w: r.width, h: r.height },
+          scrolls: el.scrollHeight > el.clientHeight,
+          scrollHeight: el.scrollHeight,
+          clientHeight: el.clientHeight,
+          overflowY: cs.overflowY,
+          maskImage: cs.maskImage.slice(0, 200),
+          animationName: cs.animationName,
+          edgeFade: cs.getPropertyValue('--edge-fade'),
+          paddingTop: cs.paddingTop,
+          background: cs.background.slice(0, 120),
+        }
+      }
+      console.log('[pgpreview-diag]', {
+        pane: pick('.pgpreview'),
+        toolbar: pick('.pgpreview-toolbar'),
+        body: pick('.pgpreview-body'),
+        embed: pick('.pgpreview-body .pgembed'),
+        cmScroller: pick('.pgpreview-body .cm-scroller'),
+        cmEditor: pick('.pgpreview-body .cm-editor'),
+      })
+    }, 1500)
+    return () => clearTimeout(t)
+  }, [target.path])
+
   // Wiki-links inside the preview stay inside it — a click overtakes the shown page (H-1's shell
   // interim until tabs land).
   const openPreview = useSession((s) => s.openPreview)
