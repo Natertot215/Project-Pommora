@@ -252,7 +252,7 @@ Decision ids: G-1, G-2, G-3, F-6, I-13, I-14, E (front-matter writes).
 **Interfaces:**
 - Produces: `<SidePane windowId side="left"|"right" open bounds={{min,def,max}} onIoVar>` — GlassWindow + `state-muted` veil, 6px inner padding, inset ring, `--io` slide (no own transition), edge-drag resize with pause-during-drag, children injected (G-3: ONE component, both windows mount it; flavor bodies injected). Phase 8 then only rebases NavWindow's chrome (FloatingWindow) — its rail is already SidePane after this task.
 
-- [ ] **Steps:** extract from the NavWindow rail (both windows re-mount it, no behavior change — CDP screenshot parity on BOTH before/after) → gates → commit.
+- [x] **Steps:** extract from the NavWindow rail (both windows re-mount it, no behavior change — CDP screenshot parity on BOTH before/after) → gates → commit.
 
 ### Task 5.2: The front-matter inspector body
 
@@ -264,7 +264,7 @@ Decision ids: G-1, G-2, G-3, F-6, I-13, I-14, E (front-matter writes).
 - Consumes: the active preview tab's page — `openPage` detail (frontmatter + the collection schema via `findCollectionForSet`/collection lookup); property writes through the EXISTING live path: **`PropertiesPane.tsx`'s editors + `mutate({ op: 'setProperty', … })`** (the PropertyPanel/PropertiesPulldown stubs stay untouched — zero call sites, not the live wiring).
 - Produces: the Swift front-matter-inspector mechanism — the page's properties listed and editable (typed inputs per PropertyValue kind), title + icon rows (I-13 title edit renames via `mutate rename`, flushing the pending body first — the D-6 self-rename plan item), banner change/remove (I-14, the existing banner mutate).
 
-- [ ] **Steps:** failing store-level test for the write path → implement fields per type (reuse the app's existing pickers/inputs — PickerMenu, checkbox, text — never hand-rolled) → PASS → gates → CDP screenshot the open inspector with real properties (Read for Nathan) → Phase Protocol 2–5. **Layout follows the Swift reference; a Figma pass (G-2) refines later — log every layout call inline.**
+- [x] **Steps:** failing store-level test for the write path → implement fields per type (reuse the app's existing pickers/inputs — PickerMenu, checkbox, text — never hand-rolled) → PASS → gates → CDP screenshot the open inspector with real properties (Read for Nathan) → Phase Protocol 2–5. **Layout follows the Swift reference; a Figma pass (G-2) refines later — log every layout call inline.**
 
 ---
 
