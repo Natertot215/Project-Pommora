@@ -103,6 +103,14 @@ export function App(): React.JSX.Element {
     })
   }, [select])
 
+  // Context-menu "Open in Preview" (page rows) → the floating preview window.
+  const openPreview = useSession((s) => s.openPreview)
+  useEffect(() => {
+    return window.nexus.onOpenInPreview((target) => {
+      if (target.id) openPreview({ id: target.id, path: target.path })
+    })
+  }, [openPreview])
+
   // The live filesystem watcher pushed a fresh tree (external change) → swap it in place.
   // Single-window v1: main guards stale pushes by session root; on an in-window nexus
   // switch a rare in-flight push self-heals (the switch's own load() applies last).

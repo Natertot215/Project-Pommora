@@ -27,6 +27,7 @@ import type { FormatState } from '@shared/editorMenu'
 import type { TableMenuAction, TableMenuContext } from '@shared/tableMenu'
 import type { CalloutMenuAction } from '@shared/calloutMenu'
 import type { CellMenuAction, CellMenuContext } from '@shared/cellMenu'
+import type { ConnMenuAction } from '@shared/connections'
 import type { TabMenuAction, TabMenuContext } from '@shared/tabMenu'
 import type { PropertyMenuAction, PropertyMenuContext } from '@shared/propertyMenu'
 import type { OptionMenuAction, OptionMenuContext } from '@shared/optionMenu'
@@ -460,6 +461,8 @@ const api = {
     ipcRenderer.invoke('cell-menu', ctx),
   tabMenu: (ctx: TabMenuContext): Promise<TabMenuAction | null> =>
     ipcRenderer.invoke('tab-menu', ctx),
+  // Pop a wikilink's native right-click menu (Open in Preview) → the chosen action.
+  connMenu: (): Promise<ConnMenuAction | null> => ipcRenderer.invoke('conn-menu'),
   // Pop a property's native menu (editor ⋮ / row right-click); Delete confirms in main first.
   propertyMenu: (ctx: PropertyMenuContext): Promise<PropertyMenuAction | null> =>
     ipcRenderer.invoke('property-menu', ctx),
@@ -495,6 +498,14 @@ const api = {
     ipcRenderer.on('open-in-new-tab', listener)
     return () => {
       ipcRenderer.removeListener('open-in-new-tab', listener)
+    }
+  },
+  // The context-menu "Open in Preview" push-back — same contract as onOpenInNewTab.
+  onOpenInPreview: (cb: (target: ContextTarget) => void): (() => void) => {
+    const listener = (_e: IpcRendererEvent, target: ContextTarget): void => cb(target)
+    ipcRenderer.on('open-in-preview', listener)
+    return () => {
+      ipcRenderer.removeListener('open-in-preview', listener)
     }
   },
   // The live watcher pushed fresh nav state (external/synced sidecar or pin change) — no tree walk.

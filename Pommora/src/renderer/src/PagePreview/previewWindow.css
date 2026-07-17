@@ -27,14 +27,22 @@
   }
 }
 
-/* ---- toolbar: centered breadcrumb title (F-2), trailing actions, shared X right-most (F-1) ---- */
+/* ---- toolbar: centered breadcrumb title (F-2), trailing actions, shared X right-most (F-1).
+   A floating layer WITHIN the content — the body's solid fill runs the full window and content
+   scrolls beneath this strip; no seam, no bleed. ---- */
+.pgpreview {
+  --pgpreview-toolbar-h: 34px; /* KNOB — toolbar strip height (body top padding mirrors it) */
+}
 .pgpreview-toolbar {
-  position: relative;
+  position: absolute;
+  top: var(--glass-inset);
+  left: var(--glass-inset);
+  right: var(--glass-inset);
+  z-index: 2;
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  flex: 0 0 auto;
-  height: 34px;
+  height: var(--pgpreview-toolbar-h);
   padding: 0 2px;
 }
 .pgpreview-title {
@@ -78,10 +86,14 @@
   background: none;
 }
 
-/* ---- body: the embedded page ---- */
+/* ---- body: the embedded page — carries the solid window fill for the whole window; the top
+   padding clears the floating toolbar at rest, then content scrolls under it. ---- */
 .pgpreview-body {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
   scrollbar-width: none;
+  background: var(--bg-window);
+  border-radius: var(--glass-radius);
+  padding-top: var(--pgpreview-toolbar-h);
 }

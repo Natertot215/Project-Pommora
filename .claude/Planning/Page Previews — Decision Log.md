@@ -171,7 +171,9 @@ The preview is **semi-multi-tabbed — a mini-app**. There are **no back/forward
 - **I-18:** [assumed] Scroll/caret follow the SurfacePM laws: the preview owns its wheel when hovered, caret-priority scrolling inside the editor, text-selection autoscroll near edges stays inside the preview.
 - **I-19:** [confirmed] ⌘-click is the explicit full-page bypass on preview-routed clicks (connections with B-6 on, preview-collection titles) — it opens a **new app tab**.
 
-- **I-25:** [confirmed] **"Open in Preview" is a right-click action** on wikilinks and navigation items (Nathan's directive, shipped in the shell): wikilinks via an optional `menu` hook on `ConnectionsApi` (a CM6 `contextmenu` handler hands the resolved page + click point to the host, which mounts a PickerMenu — the NavRowMenu anchor pattern); nav rows/cards via a page-only item in the shared NavRowMenu. The **sidebar's** context menu is native (main-process `contextMenu`) — adding it there is a main change, pending Nathan's call.
+- **I-25:** [confirmed] **"Open in Preview" is a right-click action** on wikilinks, navigation items, and sidebar page rows. Wikilinks pop a **native** menu (Nathan's call): the CM6 `contextmenu` handler resolves the link and hands it to the host's `ConnectionsApi.menu` hook → `conn-menu` IPC → main pops at the cursor and resolves the action (the popCellMenu contract). Sidebar page rows gained the item in the existing native `contextMenu` (an `open-in-preview` push-back, the open-in-new-tab contract). Nav rows/cards keep their deliberate in-renderer NavRowMenu, with the item added there.
+
+- **I-26:** [confirmed] The preview toolbar is a **floating layer within the content** — the body's solid window fill runs the full window and content scrolls beneath the transparent toolbar strip; no seam between toolbar and body.
 
 **Keyboard & focus**
 

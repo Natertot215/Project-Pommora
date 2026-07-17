@@ -42,7 +42,7 @@ export function connectionClicks(getApi: GetApi): ReturnType<typeof EditorView.d
       const res = api.resolve(hit.title)
       if (res.status !== 'resolved' || !res.page) return false
       event.preventDefault()
-      api.menu(res.page, { x: event.clientX, y: event.clientY })
+      api.menu(res.page)
       return true
     },
   })

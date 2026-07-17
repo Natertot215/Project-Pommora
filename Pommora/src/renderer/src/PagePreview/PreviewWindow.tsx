@@ -8,6 +8,7 @@ import {
 import { useExitPresence } from '../design-system/useExitPresence'
 import { PageEmbed } from '../Embeds/PageEmbed'
 import { buildPageIndex, flattenPages, type ConnectionsApi } from '../MarkdownPM/connections'
+import { showConnectionMenu } from '../Embeds/connectionMenu'
 import { NavCrumbs } from '../Navigation/NavList'
 import { buildResolveIndex, resolveWith } from '../Navigation/navResolve'
 import { useSession, type PreviewTarget } from '../store'
@@ -62,7 +63,11 @@ function PreviewWindowBody({
   const connections = useMemo<ConnectionsApi | undefined>(() => {
     if (!tree) return undefined
     const idx = buildPageIndex(flattenPages(tree))
-    return { ...idx, open: (page) => openPreview({ id: page.id, path: page.path }) }
+    return {
+      ...idx,
+      open: (page) => openPreview({ id: page.id, path: page.path }),
+      menu: showConnectionMenu,
+    }
   }, [tree, openPreview])
 
   // The F-2 breadcrumb: the page's container chain + the page itself as the last crumb.
@@ -85,7 +90,7 @@ function PreviewWindowBody({
   return (
     <GlassPane
       className={`pgpreview${closing ? ' closing' : ''}`}
-      style={{ ...style, background: 'var(--bg-window)' }}
+      style={style}
       role="dialog"
       aria-label="Page Preview"
       onPointerDown={onWindowDown}

@@ -133,6 +133,7 @@ import type { OptionMenuContext } from '@shared/optionMenu'
 import { popCalloutMenu } from './calloutMenu'
 import { popColumnMenu } from './columnMenu'
 import { popCellMenu } from './cellMenu'
+import { popConnMenu } from './connMenu'
 import { popTabMenu } from './tabMenu'
 import type { TabMenuContext } from '@shared/tabMenu'
 import { popPropertyMenu } from './propertyMenu'
@@ -1980,6 +1981,12 @@ ipcMain.handle('cell-menu', async (e, ctx: CellMenuContext) => {
 ipcMain.handle('tab-menu', async (e, ctx: TabMenuContext) => {
   const win = BrowserWindow.fromWebContents(e.sender)
   return win && isPlainObject(ctx) ? popTabMenu(win, ctx as unknown as TabMenuContext) : null
+})
+
+// Pop a wikilink's native right-click menu (Open in Preview) → the chosen action.
+ipcMain.handle('conn-menu', async (e) => {
+  const win = BrowserWindow.fromWebContents(e.sender)
+  return win ? popConnMenu(win) : null
 })
 
 ipcMain.handle('property-menu', async (e, ctx: PropertyMenuContext) => {

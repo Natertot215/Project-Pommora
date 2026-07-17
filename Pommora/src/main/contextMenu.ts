@@ -63,6 +63,15 @@ export async function showContextMenu(
         if (!win.isDestroyed()) win.webContents.send('open-in-new-tab', target)
       },
     })
+    // Open in Preview (page-only) — like Open in New Tab, the action runs renderer-side.
+    if (target.kind === 'page') {
+      items.push({
+        label: 'Open in Preview',
+        click: () => {
+          if (!win.isDestroyed()) win.webContents.send('open-in-preview', target)
+        },
+      })
+    }
     items.push({ type: 'separator' })
   }
 

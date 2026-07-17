@@ -52,3 +52,6 @@ export interface ConnectionEdge {
 /** Nexus-wide resolution index: normalized page title → ids of pages holding it.
  *  Exactly one ⇒ resolved; more than one ⇒ ambiguous; absent ⇒ phantom. */
 export type LinkIndex = Map<string, string[]>
+
+/** The wikilink native context menu's actions (conn-menu IPC). */
+export type ConnMenuAction = 'preview'
