@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { GlassPane } from '@renderer/design-system/materials'
+import { GlassPane, GlassWindow } from '@renderer/design-system/materials'
 import { Icon } from '@renderer/design-system/symbols'
 import {
   FloatingResizeCorners,
@@ -48,47 +48,18 @@ function PreviewWindowBody({
   const [editing, setEditing] = useState(false)
   useEffect(() => setEditing(false), [target.path])
 
+  // Inspector (G-1 shell): a preview-scoped pane; Escape closes it FIRST, then the window (I-21).
+  const [inspectorOpen, setInspectorOpen] = useState(false)
   useEffect(() => {
     // Skip an Escape a focused surface already handled (mirrors NavWindow / App.tsx).
     const onKey = (e: KeyboardEvent): void => {
-      if (e.key === 'Escape' && !e.defaultPrevented) closePreview()
+      if (e.key !== 'Escape' || e.defaultPrevented) return
+      if (inspectorOpen) setInspectorOpen(false)
+      else closePreview()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [closePreview])
-
-  // TEMP DIAGNOSIS (toolbar clipping) — dumps scroll ownership + mask state after content lands.
-  useEffect(() => {
-    const t = setTimeout(() => {
-      const pick = (sel: string): Record<string, unknown> | null => {
-        const el = document.querySelector(sel)
-        if (!el) return null
-        const cs = getComputedStyle(el)
-        const r = el.getBoundingClientRect()
-        return {
-          rect: { x: r.x, y: r.y, w: r.width, h: r.height },
-          scrolls: el.scrollHeight > el.clientHeight,
-          scrollHeight: el.scrollHeight,
-          clientHeight: el.clientHeight,
-          overflowY: cs.overflowY,
-          maskImage: cs.maskImage.slice(0, 200),
-          animationName: cs.animationName,
-          edgeFade: cs.getPropertyValue('--edge-fade'),
-          paddingTop: cs.paddingTop,
-          background: cs.background.slice(0, 120),
-        }
-      }
-      console.log('[pgpreview-diag]', {
-        pane: pick('.pgpreview'),
-        toolbar: pick('.pgpreview-toolbar'),
-        body: pick('.pgpreview-body'),
-        embed: pick('.pgpreview-body .pgembed'),
-        cmScroller: pick('.pgpreview-body .cm-scroller'),
-        cmEditor: pick('.pgpreview-body .cm-editor'),
-      })
-    }, 1500)
-    return () => clearTimeout(t)
-  }, [target.path])
+  }, [closePreview, inspectorOpen])
 
   // Wiki-links inside the preview stay inside it — a click overtakes the shown page (H-1's shell
   // interim until tabs land).
@@ -122,30 +93,41 @@ function PreviewWindowBody({
 
   return (
     <GlassPane
-      className={`pgpreview${closing ? ' closing' : ''}`}
-      style={style}
+      className={`pgpreview${closing ? ' closing' : ''}${inspectorOpen ? ' is-inspector-open' : ''}`}
+      // The glass tint knobs (previewWindow.css) compose here — inline because GlassPane's frost
+      // sets its own background.
+      style={{
+        ...style,
+        background: 'color-mix(in srgb, var(--pgpreview-bg) var(--pgpreview-bg-a), transparent)',
+      }}
       role="dialog"
       aria-label="Page Preview"
       onPointerDown={onWindowDown}
     >
       <div className="pgpreview-toolbar">
         <div className="pgpreview-title">
-          <NavCrumbs path={crumbs} className="pgpreview-crumbs" iconSize={12} />
+          <NavCrumbs path={crumbs} className="pgpreview-crumbs" iconSize={11} />
         </div>
         <div className="pgpreview-actions">
+          <button
+            type="button"
+            className="pgpreview-action"
+            title="Inspector"
+            aria-pressed={inspectorOpen}
+            onClick={() => setInspectorOpen((v) => !v)}
+          >
+            <Icon name="panel-right" size={13} />
+          </button>
+          <button type="button" className="pgpreview-action" title="Settings" disabled>
+            <Icon name="sliders-horizontal" size={13} />
+          </button>
           <button
             type="button"
             className="pgpreview-action"
             title="Open Full Page"
             onClick={promote}
           >
-            <Icon name="maximize-2" size={13} />
-          </button>
-          <button type="button" className="pgpreview-action" title="Inspector" disabled>
-            <Icon name="panel-right" size={13} />
-          </button>
-          <button type="button" className="pgpreview-action" title="Settings" disabled>
-            <Icon name="sliders-horizontal" size={13} />
+            <Icon name="scan" size={13} />
           </button>
           <button type="button" className="pgpreview-action" title="Close" onClick={closePreview}>
             <Icon name="x" size={14} />
@@ -161,6 +143,13 @@ function PreviewWindowBody({
           connections={connections}
         />
       </div>
+      <GlassWindow
+        className="pgpreview-inspector"
+        style={{ background: 'var(--state-muted)' }}
+        aria-hidden={!inspectorOpen}
+      >
+        <div className="pgpreview-inspector-body" />
+      </GlassWindow>
       <FloatingResizeCorners startDrag={startDrag} />
     </GlassPane>
   )

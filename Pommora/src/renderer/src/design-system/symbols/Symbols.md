@@ -22,7 +22,7 @@ Pommora's React icons come from **Lucide** ([lucide.dev/icons](https://lucide.de
 | `sliders-horizontal` | Trio Button, Settings |
 | `chevron-left` / `chevron-right` / `chevron-up` / `chevron-down` | Twisties · menus · disclosure · toolbar Back/Forward |
 | `map` | Trio Button, Navigation |
-| `maximize-2` | Page Preview, Open Full Page |
+| `scan` | Page Preview, Open Full Page |
 | `app-window` | Open in Preview (context menus) |
 | `x` | Chip dismiss |
 | `plus` | Add buttons |

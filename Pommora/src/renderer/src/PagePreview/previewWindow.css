@@ -34,6 +34,10 @@
    scrolls beneath this strip; no seam, no bleed. ---- */
 .pgpreview {
   --pgpreview-toolbar-h: 34px; /* KNOB — toolbar strip height (body top padding mirrors it) */
+  /* KNOBS — the glass tint: color + strength. 0% = pure frost (off); 100% = opaque fill. */
+  --pgpreview-bg: var(--bg-window);
+  --pgpreview-bg-a: 0%;
+  --pgpreview-inspector-w: 260px; /* KNOB — inspector pane width */
 }
 .pgpreview-toolbar {
   position: absolute;
@@ -56,11 +60,24 @@
   min-width: 0;
   /* Inert: presses fall through to the toolbar beneath and arm the window move (I-16). */
   pointer-events: none;
+  /* KNOB — the title/tab area sizes on the caption ramp, independent of the toolbar glyphs
+     (the crumb glyph size is the iconSize prop in PreviewWindow.tsx). */
+  font-size: var(--text-caption-size);
 }
 .pgpreview-crumbs {
   min-width: 0;
   --edge-fade: 16px;
   --scroll-fade: 16px;
+}
+/* The trail reads tertiary; the page itself (the last crumb, icon + name) reads control. */
+.pgpreview-crumbs .nav-path-name {
+  color: var(--label-tertiary);
+}
+.pgpreview-crumbs .nav-path-name:last-of-type {
+  color: var(--label-control);
+}
+.pgpreview-crumbs .nav-path-icon:last-of-type {
+  color: var(--label-control);
 }
 .pgpreview-actions {
   display: flex;
@@ -87,19 +104,58 @@
 .pgpreview-action:disabled:hover {
   background: none;
 }
+.pgpreview-action[aria-pressed="true"] {
+  color: var(--label-control);
+}
+
+/* ---- inspector (G-1 shell): the preview-scoped twin of the shell's InspectorPanel — slides off
+   the right edge when closed; the body squeezes to make room (both on the standard motion). ---- */
+.pgpreview-inspector {
+  position: absolute;
+  top: var(--pgpreview-toolbar-h);
+  right: 0;
+  bottom: 0;
+  width: var(--pgpreview-inspector-w);
+  z-index: 1;
+  border-radius: var(--glass-radius);
+  overflow: hidden;
+  transform: translateX(calc(100% + 14px));
+  transition: transform var(--duration-base) var(--ease-standard);
+  pointer-events: none;
+}
+.pgpreview.is-inspector-open .pgpreview-inspector {
+  transform: translateX(0);
+  pointer-events: auto;
+}
+.pgpreview-inspector-body {
+  padding: 16px;
+}
+.pgpreview-body {
+  transition: padding-right var(--duration-base) var(--ease-standard);
+}
+.pgpreview.is-inspector-open .pgpreview-body {
+  padding-right: var(--pgpreview-inspector-w);
+}
 
 /* The preview inverts the embed's tile scroll model: the editor chain GROWS to its content
    (height:auto down to the CM6 editor) so .pgpreview-body is the ONE scroller — content rides
    under the floating toolbar and drives the body's edge fade. In a tile, the host caps the
    embed and CM6 scrolls internally; here nothing caps it. */
 .pgpreview-body .pgembed,
-.pgpreview-body .mdpm-shell,
+.pgpreview-body .pgembed .mdpm-shell,
 .pgpreview-body .mdpm-editor,
-.pgpreview-body .cm-editor {
+.pgpreview-body .mdpm-editor .cm-editor {
   height: auto;
 }
 .pgpreview-body .pgembed,
-.pgpreview-body .mdpm-shell {
+.pgpreview-body .pgembed .mdpm-shell {
+  overflow: visible;
+}
+/* The editor's scroller keeps `overscroll-behavior: none` app-wide (the parked-header steady rule) —
+   but here it never overflows, and a non-overflowing scroll container with `none` EATS the wheel
+   instead of chaining it to the body scroller. Restore chaining inside the preview only. */
+.pgpreview-body .mdpm-editor .cm-scroller {
+  overscroll-behavior: auto;
   overflow: visible;
 }
 
