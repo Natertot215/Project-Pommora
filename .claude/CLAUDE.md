@@ -29,10 +29,6 @@ Pommora is an **Electron** desktop app — a **React + TypeScript** renderer ove
 
 **The Figma Library** (https://www.figma.com/file/fYZ5oiK7stC3diRhaBHl1r) is canonical for design values — mirror changes into the tokens at `/design-system.` The live showcase deploys from `Pommora/` to https://pommora-design-system.vercel.app.
 
-### Formatting
-
-Biome (`biome format`) auto-runs on every TS/CSS/JSON write via a PostToolUse hook — don't hand-align code, normalize quotes/semicolons/commas, or sort imports; write it correctly and let Biome handle style, and never run Biome yourself. If an Edit fails on a whitespace mismatch, Biome reformatted the file — re-read and retry; it's not a bug. Type-checking is separate and stays: `npm run typecheck` (two `tsc` passes) is the *only* type-safety gate, since the Vite/esbuild build strips types without checking them.
-
 ### Hard Rules
 
 - **Main owns the filesystem.** All fs/Node lives in `src/main`, exposed to the renderer only through a **narrow typed IPC** bridge in `src/preload` (contextBridge). The renderer never touches `fs`/Node.
@@ -67,6 +63,7 @@ The GUI only launches with `ELECTRON_RUN_AS_NODE` **unset** (this env has it set
 
 ### Important Information 
 
+- **Formatting is Biome's** (a PostToolUse hook formats every TS/CSS/JSON write; single-quote, no semicolons): never hand-align or run Biome yourself — an Edit failing on whitespace means Biome reformatted, so re-read and retry. `npm run typecheck` stays the *only* type gate (the build strips types unchecked). 
 - **Connections** are in-line `[[Title]]`, resolved via SQLite, and **aren’t** displayed in any container views *(tables, galleries, lists…)*. **Contexts** are properties resolved via front-matter; content ↔ content relational properties **don’t** exist. 
 - If Nathan mistakenly says "label-quaternary" or "label-quinary," he actually means fills → `design-system/tokens.` 
 - **Collections** *used* to be called “Vaults” with what’s now sets being called collections instead before a rename. If Nathan says “Vault,” he means Collection, not as in Obsidian's alternative for Pomona’s Nexus.
