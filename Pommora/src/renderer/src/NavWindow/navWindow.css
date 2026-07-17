@@ -10,6 +10,10 @@
   animation: navwindow-in var(--disclosure) var(--ease-standard);
   /* KNOB — the shared content inset (search divider + rows align to this). */
   --navwindow-inset: 12px;
+  /* KNOB — list ROWS get a wider leading inset than the chrome so the pin marker has a gutter it
+     doesn't share with the lead glyph (at --navwindow-inset the 12px pin fills the gutter and touches
+     the icon). Only the rows shift; the search + divider stay on --navwindow-inset. */
+  --nav-list-lead: 20px;
   /* The preview window's tint knobs verbatim (previewWindow.css) — both flavors paint ONE
      background, so the nav ⇄ preview swap never jumps opacity. Consumed inline in NavWindow.tsx. */
   --pgpreview-bg: var(--bg-window);
@@ -257,6 +261,16 @@
   flex: 1;
   min-width: 0;
   min-height: 0;
+}
+
+/* List rows take the wider --nav-list-lead (not the chrome's --navwindow-inset) so the pin marker
+   sits in its own gutter, centered, instead of touching the lead glyph. Only the rows shift. */
+.navwindow .nav-item-main,
+.navwindow .nav-item-inert {
+  padding-left: var(--nav-list-lead);
+}
+.navwindow .nav-item-pin {
+  left: calc(var(--nav-list-lead) / 2);
 }
 
 /* Everything aligns to --navwindow-inset: the divider (via margin, not full-bleed), the magnifier, and

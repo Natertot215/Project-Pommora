@@ -20,6 +20,20 @@ export function NavView(): React.JSX.Element {
   const { resolvedRecents, resolvedPins, search, go } = useNavData()
   // The List/Gallery toggle lives in the detail-pane Subfield (the `none` viewType item), driving this.
   const viewMode = useSession((s) => s.navViewMode)
+  // List mode is reorderable (pins + recents drag on the shared drop-line, like NavWindow). Recents
+  // are already pin-deduped, so a drop reorders them directly and commits the order wholesale; pins
+  // reorder through NavList's own store hook. (NavWindow's freeze-at-open is for its persistent pane —
+  // NavView opens fresh each time, so it isn't needed.)
+  const setRecentsOrder = useSession((s) => s.setRecentsOrder)
+  const reorderRecent = (activeKey: string, overKey: string): void => {
+    const from = resolvedRecents.findIndex((r) => r.key === activeKey)
+    const to = resolvedRecents.findIndex((r) => r.key === overKey)
+    if (from === -1 || to === -1 || from === to) return
+    const next = [...resolvedRecents]
+    const [moved] = next.splice(from, 1)
+    next.splice(to, 0, moved)
+    setRecentsOrder(next.map((r) => r.key))
+  }
   const ownBanner = useSession((s) => s.tree?.navView.banner)
   const homeBanner = useSession((s) => s.tree?.homepage.banner)
   const banner = ownBanner ?? homeBanner
@@ -82,6 +96,8 @@ export function NavView(): React.JSX.Element {
           <NavList
             pins={resolvedPins}
             items={resolvedRecents}
+            reorderable
+            onReorderRecent={reorderRecent}
             onSelect={open}
             onOpenNewTab={openNew}
           />

@@ -66,3 +66,10 @@
     padding-left var(--duration-base) var(--ease-standard),
     padding-right var(--duration-base) var(--ease-standard);
 }
+
+/* List rows align their content with the gallery cards (the scroll padding above provides the edge;
+   --navwindow-inset is zeroed). The pin marker therefore rides the surface-inset gutter to the LEFT
+   of the content — otherwise, at the zeroed inset, it lands on the lead glyph. */
+.nav-view .nav-item-pin {
+  left: calc(-1 * var(--nav-list-pin-gutter, 11px)); /* KNOB — pin's reach into the left gutter */
+}
