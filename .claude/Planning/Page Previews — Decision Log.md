@@ -30,9 +30,9 @@ Commits `532b84d7..f327ba4f` + the hardening guards. Files: `PagePreview/Preview
 - `Pommora/src/renderer/src/Components/Detail/SettingsPane.tsx:110` — "Open In has no payload target until the preview surface ships (B-8)" — the config UI exists and writes; nothing routes on it.
 - `Pommora/src/renderer/src/Detail/Views/Table/TableView.tsx` (~:681) — the ONLY navigate (A-7), now carrying the SHIPPED B-1 branch: `openIn === 'page-preview'` → `openPreview`, ⌘-click → new tab. Context-menu `title:newtab` nearby.
 - `Pommora/src/main/crud/containerConfig.ts:39` — a Set-level `open_in` write is refused (Collection-owned; Sets proxy).
-- `Pommora/src/renderer/src/Embeds/PageEmbed.tsx:19` — THE G-11 seam: a real Page as a read-only CM6 portal, in-place edit flip (no remount), 400ms-debounced autosave to the page's own file via `openPage`/`updatePageBody` directly — zero store/nav involvement. Props: `path, editing, onBeginEdit, connections, locked`. Header chrome (banner/title) parked.
+- `Pommora/src/renderer/src/Embeds/PageEmbed.tsx` — THE G-11 seam: a real Page as a read-only CM6 portal, in-place edit flip (no remount), 400ms-debounced autosave to the page's own file via `openPage`/`updatePageBody` directly — zero store/nav involvement. Props: `path, editing, onBeginEdit, connections, locked, registerFlush`. Header chrome (banner/title) parked.
 - `Pommora/src/main/index.ts:619` — `page:open` is a pure read; `store.ts:1199 reloadPage` proves navigation-free reads are established.
-- `Pommora/src/renderer/src/Detail/PageView.tsx:44` + `PageEmbed.tsx:53` — the only two page-body writers; both debounced `updatePageBody`, last-write-wins, no live cross-sync — the existing contract C-3 inherits.
+- `Pommora/src/renderer/src/Detail/PageView.tsx` + `Embeds/PageEmbed.tsx` — the only two page-body writers (each a debounced `updatePageBody`), last-write-wins, no live cross-sync — the existing contract C-3 inherits. Both now expose awaitable flushes via `Detail/pageFlush.ts` (PageView always; PageEmbed via the opt-in `registerFlush` prop the preview uses).
 - `Pommora/src/renderer/src/Embeds/embedScale.ts` — the G-10 zoom knob (`EMBED_SCALE`/`EMBED_ZOOM`), the F-3 seam.
 - `Pommora/src/renderer/src/Toolbar/ToolbarTrio.tsx` — the inspector-toggle glass-swap G-1 reuses: the glass pill voids as the inspector swallows the trio, icons ride onto the inspector's glass, driven by `--io` (toolbar.css).
 - `Pommora/src/main/settings.ts` — `.nexus/settings.json` handling: the serialized read-modify-write primitive (foreign keys preserved) the B-6 config writes through.
@@ -82,9 +82,9 @@ Commits `532b84d7..f327ba4f` + the hardening guards. Files: `PagePreview/Preview
 
 - **C-2:** [confirmed] **Fully editable** — the preview is a working surface, not a glance. Rides the seam's existing edit flip + debounced autosave.
 
-- **C-3:** [confirmed] Same-file double-writer: **non-issue by reachability** (Nathan's call) — the sidebar can't re-open the already-open page, and NavWindow interactions on the current page open nothing new, so the main-pane + preview same-page state doesn't arise through normal triggers. The one residual path (in-preview wiki-nav landing on the main-pane's page) inherits the contract block-surface embeds already live under — `PageView.tsx:44` + `PageEmbed.tsx:53` are both debounced last-write-wins writers, no live cross-sync. No guard built.
+- **C-3:** [confirmed] Same-file double-writer: **non-issue by reachability** (Nathan's call) — the sidebar can't re-open the already-open page, and NavWindow interactions on the current page open nothing new, so the main-pane + preview same-page state doesn't arise through normal triggers. The one residual path (in-preview wiki-nav landing on the main-pane's page) inherits the contract block-surface embeds already live under — PageView + PageEmbed are both debounced last-write-wins writers, no live cross-sync. No guard built.
 
-- **C-4:** [confirmed] **The preview keys PageEmbed by path** (`key={path}` → remount per page). Grounded hazard: PageEmbed's pending autosave flushes to the *current* `path` prop (`PageEmbed.tsx:53`), and block surfaces never swap the path on a mounted embed — but the preview does (overtake, wiki-nav). An in-place swap would aim the outgoing page's unsaved body at the incoming page's file; keying by path makes the unmount flush fire with the outgoing closure, writing to the correct file.
+- **C-4:** [confirmed] **The preview keys PageEmbed by path** (`key={path}` → remount per page). Grounded hazard: PageEmbed's pending autosave flushes to the *current* `path` prop, and block surfaces never swap the path on a mounted embed — but the preview does (overtake, wiki-nav). An in-place swap would aim the outgoing page's unsaved body at the incoming page's file; keying by path makes the unmount flush fire with the outgoing closure, writing to the correct file.
 
 - **C-5:** [assumed] PageEmbed has no watcher subscription — the preview's view of *external* edits (main pane, parallel process) is stale until the page reloads in it. Accepted for the core alongside C-3's last-write-wins; a live-refresh subscription is a Prospect-grade hardening.
 
@@ -178,7 +178,7 @@ The preview is **semi-multi-tabbed — a mini-app**. There are **no back/forward
 - **I-9:** [confirmed] "Open in New Tab" on the previewed page stays allowed and creates the accepted double-editor state (C-3's contract); the preview's stale view of the other editor's writes is C-5's accepted staleness.
 - **I-10:** [assumed] Preview edits are visible when that page's tab activates — tab activation re-fetches (the pause-on-change fetch-then-swap), so the warm cache never paints a pre-edit body for long. Planner-stage verify.
 - **I-11:** [assumed] App-window resize reclamps the preview into bounds (NavWindow parity — verify NavWindow actually reclamps at planning; if it doesn't, both get it or neither).
-- **I-12:** [assumed] Tree push mid-edit composes with D-6: rename/move re-aims the pending autosave at the new path (rename-follow by id); delete closes the preview and *discards* the pending write — a dead path is never written.
+- **I-12:** [confirmed] Tree push mid-edit composes with D-6: rename/move re-paths the **view** only — the outgoing embed's flush hits the now-dead old path and is refused, losing at most the debounce-window keystrokes (never a wrong-file write), same as delete. The **self-rename** path (I-13) closes its own window by flushing the pending body *before* the rename lands — a plan item.
 
 **Gestures inside the preview**
 
