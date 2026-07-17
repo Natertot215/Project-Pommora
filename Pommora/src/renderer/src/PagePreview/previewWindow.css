@@ -34,7 +34,6 @@
    scrolls beneath this strip; no seam, no bleed. ---- */
 .pgpreview {
   --pgpreview-toolbar-h: 34px; /* KNOB — toolbar strip height (body top padding mirrors it) */
-  --pgpreview-tint: 78%; /* KNOB — window-bg share of the glass tint (100% = opaque) */
 }
 .pgpreview-toolbar {
   position: absolute;
@@ -89,8 +88,23 @@
   background: none;
 }
 
-/* ---- body: the embedded page — bare on the window glass (the pane itself carries the tint); the
-   top padding clears the floating toolbar at rest, then content scrolls under it. ---- */
+/* The preview inverts the embed's tile scroll model: the editor chain GROWS to its content
+   (height:auto down to the CM6 editor) so .pgpreview-body is the ONE scroller — content rides
+   under the floating toolbar and drives the body's edge fade. In a tile, the host caps the
+   embed and CM6 scrolls internally; here nothing caps it. */
+.pgpreview-body .pgembed,
+.pgpreview-body .mdpm-shell,
+.pgpreview-body .mdpm-editor,
+.pgpreview-body .cm-editor {
+  height: auto;
+}
+.pgpreview-body .pgembed,
+.pgpreview-body .mdpm-shell {
+  overflow: visible;
+}
+
+/* ---- body: the embedded page — bare on the window glass; the top padding clears the floating
+   toolbar at rest, then content scrolls under it. ---- */
 .pgpreview-body {
   flex: 1;
   min-height: 0;
