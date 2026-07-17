@@ -23,6 +23,7 @@ export function PageEmbed({
   connections,
   locked = false,
   registerFlush,
+  onBody,
   warm,
 }: {
   /** Nexus-relative path to the `.md` — the page's address for load + save. */
@@ -34,6 +35,10 @@ export function PageEmbed({
   locked?: boolean
   /** Opt-in awaitable-flush registration (the pageFlush pattern) for hosts whose close defers unmount. */
   registerFlush?: (fn: (() => Promise<void>) | null) => void
+  /** Opt-in live-body reporting: fires the current editor body on load and on every change. The
+   *  floating preview uses it to drive its own Subfield stats from a LOCAL buffer — never the shared
+   *  `liveBody` slot (single-owner; a second writer would evict the main pane's live count). */
+  onBody?: (body: string) => void
   /** Opt-in warmth (H-8): a restored entry mounts the editor synchronously (its doc IS the body —
    *  no fetch, no blank frame); capture fires at editor unmount. Block tiles mount cold. */
   warm?: WarmSeam
@@ -47,6 +52,13 @@ export function PageEmbed({
   })
   const body = loaded?.path === path ? loaded.body : null
   const pending = useRef<{ timer: ReturnType<typeof setTimeout>; body: string } | null>(null)
+
+  // Seed the consumer with the current body once it's known (warm or fetched); edits report via onChange.
+  const onBodyRef = useRef(onBody)
+  onBodyRef.current = onBody
+  useEffect(() => {
+    if (body !== null) onBodyRef.current?.(body)
+  }, [body])
 
   useEffect(() => {
     if (body !== null) return // already holding this path's body (warm mount or a done fetch)
@@ -99,7 +111,10 @@ export function PageEmbed({
     >
       <MarkdownEditor
         initialBody={body}
-        onChange={scheduleSave}
+        onChange={(next) => {
+          onBodyRef.current?.(next)
+          scheduleSave(next)
+        }}
         connections={connections}
         readOnly={!editing}
         autoFocus

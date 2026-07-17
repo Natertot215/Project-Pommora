@@ -17,6 +17,18 @@ export function isSubfieldItemId(id: string): id is SubfieldItemId {
   return (ALL_ITEM_IDS as string[]).includes(id)
 }
 
+/** An optional per-mount scope. When a host (the floating preview) passes it, the footer describes
+ *  THIS target and counts THIS body instead of the global selection/`liveBody`. The preview's body
+ *  is its own local buffer — never the shared `liveBody` slot, which has a single owner (the active
+ *  main editor); a second writer would evict the main pane's live count to its saved snapshot. */
+export interface SubfieldScope {
+  target: { id: string; path: string }
+  body: string
+}
+export interface SubfieldItemProps {
+  scope?: SubfieldScope
+}
+
 export const DEFAULT_ITEMS: Record<SelectionState['kind'], SubfieldItemId[]> = {
   none: [],
   homepage: [],
@@ -26,13 +38,17 @@ export const DEFAULT_ITEMS: Record<SelectionState['kind'], SubfieldItemId[]> = {
   page: ['pageStats'],
 }
 
-/** Lines · Words · Characters for the open page — live as you type (the editing buffer wins over the
- *  loaded snapshot while it's for this same page; falls back to the loaded body before any edit). */
-function PageStatsItem(): React.JSX.Element {
+/** Lines · Words · Characters for the open page — live as you type. Scoped (the preview), it counts
+ *  the scope's own body. Unscoped (the detail pane), the editing buffer wins over the loaded snapshot
+ *  while it's for this same page; falls back to the loaded body before any edit. */
+function PageStatsItem({ scope }: SubfieldItemProps): React.JSX.Element {
   const pageDetail = useSession((s) => s.pageDetail)
   const liveBody = useSession((s) => s.liveBody)
-  const body =
-    liveBody && liveBody.path === pageDetail?.path ? liveBody.body : (pageDetail?.body ?? '')
+  const body = scope
+    ? scope.body
+    : liveBody && liveBody.path === pageDetail?.path
+      ? liveBody.body
+      : (pageDetail?.body ?? '')
   const stats = useMemo(() => computeStats(body), [body])
   const parts = [stats.lines, stats.words, stats.characters]
   return (
@@ -83,10 +99,13 @@ function AddMenuItem(): React.JSX.Element | null {
   )
 }
 
-export function SubfieldItem({ id }: { id: SubfieldItemId }): React.JSX.Element | null {
+export function SubfieldItem({
+  id,
+  scope,
+}: { id: SubfieldItemId } & SubfieldItemProps): React.JSX.Element | null {
   switch (id) {
     case 'pageStats':
-      return <PageStatsItem />
+      return <PageStatsItem scope={scope} />
     case 'addMenu':
       return <AddMenuItem />
   }

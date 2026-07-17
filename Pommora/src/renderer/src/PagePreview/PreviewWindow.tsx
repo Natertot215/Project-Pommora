@@ -9,6 +9,9 @@ import {
 } from '../design-system/interactions/FloatingWindow'
 import { useExitPresence } from '../design-system/useExitPresence'
 import { PageEmbed } from '../Embeds/PageEmbed'
+import { EMBED_SCALE } from '../Embeds/embedScale'
+import { Subfield } from '../Detail/Subfield/Subfield'
+import type { SubfieldScope } from '../Detail/Subfield/subfieldItems'
 import { buildPageIndex, flattenPages, type ConnectionsApi } from '../MarkdownPM/connections'
 import { showConnectionMenu } from '../Embeds/connectionMenu'
 import { useConnectionHover } from '../Embeds/ConnectionHoverCard'
@@ -37,6 +40,9 @@ const DRAG_SURFACES =
 
 // The tab-switch content slide (H-11): the DetailPane's view-slide values on the preview's own stamp.
 const SLIDE_PX = 14
+
+// The live-stats debounce (mirrors PageView) — edits coalesce before the count recomputes.
+const STATS_DEBOUNCE_MS = 120
 
 export function PreviewWindow(): React.JSX.Element | null {
   // The window's existence keys on the PAGE flavor, not the derived target — the nav flavor renders
@@ -68,6 +74,38 @@ function PreviewWindowBody({
   // Fully editable (C-2) via the seam's edit flip; a new target starts back at the read-only portal.
   const [editing, setEditing] = useState(false)
   useEffect(() => setEditing(false), [target.path])
+
+  // The preview's Subfield counts a LOCAL body — never the shared `liveBody` slot (single-owner; a
+  // second writer would evict the main pane's live count to its saved snapshot). PageEmbed reports
+  // the body via onBody (load-seed + edits): the first body for a path seeds immediately, edits
+  // debounce like PageView's stats buffer. Collapse is session-only (a transient floating surface).
+  const [previewBody, setPreviewBody] = useState('')
+  const statsTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const seededPath = useRef<string | null>(null)
+  useEffect(() => setPreviewBody(''), [target.path])
+  useEffect(
+    () => () => {
+      if (statsTimer.current) clearTimeout(statsTimer.current)
+    },
+    [],
+  )
+  const onPreviewBody = (b: string): void => {
+    if (statsTimer.current) clearTimeout(statsTimer.current)
+    if (seededPath.current !== target.path) {
+      seededPath.current = target.path
+      setPreviewBody(b)
+      return
+    }
+    statsTimer.current = setTimeout(() => setPreviewBody(b), STATS_DEBOUNCE_MS)
+  }
+  const scope = useMemo<SubfieldScope>(
+    () => ({ target: { id: target.id, path: target.path }, body: previewBody }),
+    [target.id, target.path, previewBody],
+  )
+  // Collapse (session-only) + the detail-pane reveal pattern: the chevron hides until the cursor
+  // nears the footer's bottom-right region (tracked here, not a blocking element) or hovers it.
+  const [subfieldOpen, setSubfieldOpen] = useState(true)
+  const [subfieldNear, setSubfieldNear] = useState(false)
 
   // Inspector (G-1/G-3): the shared SidePane shell, overlay-mounted right; Escape closes it FIRST,
   // then the window (I-21).
@@ -183,19 +221,25 @@ function PreviewWindowBody({
 
   return (
     <GlassPane
-      className={`pgpreview${closingClass}${inspectorOpen ? ' is-inspector-open' : ''}${inspResizing ? ' is-inspector-resizing' : ''}`}
+      className={`pgpreview${closingClass}${inspectorOpen ? ' is-inspector-open' : ''}${inspResizing ? ' is-inspector-resizing' : ''}${subfieldOpen ? ' subfield-open' : ''}${subfieldNear ? ' subfield-near' : ''}`}
       // The glass tint knobs (previewWindow.css) compose here — inline because GlassPane's frost
-      // sets its own background.
+      // sets its own background. --mdpm-scale mirrors the embed's so the footer aligns to its column.
       style={
         {
           ...style,
           background: 'color-mix(in srgb, var(--pgpreview-bg) var(--pgpreview-bg-a), transparent)',
           '--pgpreview-inspector-w': `${inspW}px`,
+          '--mdpm-scale': EMBED_SCALE,
         } as React.CSSProperties
       }
       role="dialog"
       aria-label="Page Preview"
       onPointerDown={onWindowDown}
+      onMouseMove={(e) => {
+        const r = e.currentTarget.getBoundingClientRect()
+        setSubfieldNear(e.clientX > r.right - 260 && e.clientY > r.bottom - 120)
+      }}
+      onMouseLeave={() => setSubfieldNear(false)}
     >
       <div className="pgpreview-toolbar">
         <div className="pgpreview-actions">
@@ -247,8 +291,24 @@ function PreviewWindowBody({
           onBeginEdit={() => setEditing(true)}
           connections={connections}
           registerFlush={registerPreviewFlush}
+          onBody={onPreviewBody}
           warm={warmSeam}
         />
+      </div>
+      {/* The preview's own Subfield footer (P1): scoped to THIS page, counting the local body. The
+          reveal collapses via CSS height (mirrors the detail footer); the toggle rides above the bar
+          when open, inset from the corner resize handle. */}
+      <button
+        type="button"
+        className="pgpreview-subfield-toggle"
+        onClick={() => setSubfieldOpen((v) => !v)}
+        aria-label={subfieldOpen ? 'Hide footer' : 'Show footer'}
+        title={subfieldOpen ? 'Hide footer' : 'Show footer'}
+      >
+        <Icon name={subfieldOpen ? 'chevron-down' : 'chevron-up'} size="md" />
+      </button>
+      <div className="pgpreview-subfield">
+        <Subfield scope={scope} />
       </div>
       <SidePane
         windowId="preview-inspector"

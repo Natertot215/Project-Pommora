@@ -20,8 +20,6 @@ import { PropertyEditor } from '../Detail/Views/PropertyEditing/PropertyEditor'
 import { PropertyPicker } from '../Detail/Views/PropertyEditing/PropertyPicker'
 import { formatDate } from '../Detail/Views/PropertyEditing/formatValue'
 import { resolveFieldValue } from '../Detail/Views/pipeline/value'
-import { NavCrumbs } from '../Navigation/NavList'
-import { buildResolveIndex, resolveWith } from '../Navigation/navResolve'
 import { isValidLink } from '@shared/links'
 import { RESERVED_PROPERTY_ID } from '@shared/properties'
 import { useSession, type PreviewTarget } from '../store'
@@ -70,16 +68,6 @@ export function PreviewInspector({ target }: { target: PreviewTarget }): React.J
   }, [target.path])
 
   const schema = useMemo(() => schemaForPage(tree, target.path), [tree, target.path])
-  // The subfield's location breadcrumb — the container chain + the page itself as the last crumb.
-  const location = useMemo(() => {
-    if (!tree) return []
-    const res = resolveWith(buildResolveIndex(tree), {
-      kind: 'page',
-      id: target.id,
-      path: target.path,
-    })
-    return res ? [...res.path, { icon: res.icon, title: res.title }] : []
-  }, [tree, target])
   const ctx = useMemo<ResolveContext | null>(
     () => (tree ? { schema, contextsById: buildContextsById(tree), labels: tree.labels } : null),
     [tree, schema],
@@ -322,9 +310,6 @@ export function PreviewInspector({ target }: { target: PreviewTarget }): React.J
             ))}
         </PickerMenu>
       )}
-      <div className="pgpreview-insp-subfield">
-        <NavCrumbs path={location} className="pgpreview-insp-loc" iconSize={11} />
-      </div>
       {editingDef && editing?.mode === 'picker' && (
         <PropertyPicker
           def={editingDef}

@@ -44,9 +44,12 @@
    scrolls beneath this strip; no seam, no bleed. ---- */
 .pgpreview {
   --pgpreview-toolbar-h: 34px; /* KNOB — toolbar strip height (body top padding mirrors it) */
+  /* The Subfield bar height (its riding toggle chevron reads it too) — mirrors the detail pane's
+     `--subline-h` (Detail.css); the floating window is outside `.detail-pane` so it can't inherit it. */
+  --subline-h: 24px;
   /* KNOBS — the glass tint: color + strength. 0% = pure frost (off); 100% = opaque fill. */
   --pgpreview-bg: var(--bg-window);
-  --pgpreview-bg-a: 90%;
+  --pgpreview-bg-a: 85%;
   --pgpreview-inspector-w: 260px; /* KNOB — inspector pane width */
   --pgpreview-tab-fade: 16px; /* KNOB — the tab strip's overflow edge dissolve */
   --pgpreview-morph-slide: -12px; /* KNOB — the title's collapse-left travel in the H-9 morph */
@@ -106,7 +109,7 @@
   transform: translateX(-50%) translateX(var(--pgpreview-morph-slide));
 }
 
-/* ---- the tab strip (H-9): left-aligned in the toolbar's center, its own scroll + edge fade
+/* ---- the tab strip: left-aligned in the toolbar's center, its own scroll + edge fade
    (the toolbar's .tab-scroll affordance mirrored, never imported). The motion classes come from
    tabStrip.css; geometry re-knobs here at caption scale. ---- */
 .pgpreview-tabwrap {
@@ -226,20 +229,70 @@
   border-radius: 6px;
   background: var(--fill-quaternary);
 }
-/* The bottom subfield: a divider inset from the pane's sides, holding the footnote location
-   breadcrumb (the page's container chain). */
-.pgpreview-insp-subfield {
+/* The preview's Subfield footer (P1): the shared `.subfield` bar pinned at the window bottom,
+   scoped to the preview's page — a collapsible reveal mirroring the detail-pane footer. It squeezes
+   left of the inspector like the body; the bar's own border-top is the flush body/footer divider. */
+.pgpreview-subfield {
   flex-shrink: 0;
-  margin: 0 6px;
-  padding: 6px 2px;
-  border-top: 1px solid var(--separator-segment);
-  display: flex;
-  align-items: center;
+  height: 0;
+  overflow: hidden;
+  transition:
+    height var(--duration-base) var(--ease-standard),
+    padding-right var(--duration-base) var(--ease-standard);
 }
-.pgpreview-insp-subfield .pgpreview-insp-loc {
-  min-width: 0;
-  color: var(--label-tertiary);
-  font-size: var(--text-subline-size);
+.pgpreview.subfield-open .pgpreview-subfield {
+  height: var(--subline-h);
+}
+.pgpreview.is-inspector-open .pgpreview-subfield {
+  padding-right: calc(var(--pgpreview-inspector-w) + var(--pgpreview-inspector-inset));
+}
+.pgpreview.is-inspector-resizing .pgpreview-subfield {
+  transition: none;
+}
+/* Align the footer content with the embed's text column — its left/right insets scale off the same
+   --mdpm-scale the embed uses (embeds.css), so the crumbs sit under the body like the detail footer. */
+.pgpreview-subfield .subfield {
+  padding-left: calc(20px * var(--mdpm-scale));
+  padding-right: calc(14px * var(--mdpm-scale));
+}
+/* The collapse chevron mirrors the detail toggle: bottom-right, hidden until the bottom-right near
+   zone or direct hover, riding above the bar when open — inset past the corner resize handle. */
+.pgpreview-subfield-toggle {
+  position: absolute;
+  right: 16px; /* KNOB — clears the 14px se resize corner */
+  bottom: 0;
+  z-index: 4;
+  width: 40px;
+  height: var(--subline-h);
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  appearance: none;
+  border: 0;
+  background: none;
+  padding: 0 6px 0 0;
+  border-radius: 5px;
+  color: var(--label-secondary);
+  cursor: default;
+  opacity: 0;
+  -webkit-app-region: no-drag;
+  transition:
+    bottom var(--duration-base) var(--ease-standard),
+    opacity var(--duration-fast) var(--ease-standard),
+    background var(--duration-fast) var(--ease-standard);
+}
+.pgpreview.subfield-open .pgpreview-subfield-toggle {
+  bottom: var(--subline-h);
+}
+.pgpreview.subfield-near .pgpreview-subfield-toggle,
+.pgpreview-subfield-toggle:hover {
+  opacity: 1;
+}
+.pgpreview-subfield-toggle:hover {
+  background: var(--state-hover);
+}
+.pgpreview.is-inspector-resizing .pgpreview-subfield-toggle {
+  transition: none;
 }
 .pgpreview-insp-row {
   display: flex;
