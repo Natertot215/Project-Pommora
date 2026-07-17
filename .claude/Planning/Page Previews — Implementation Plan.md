@@ -165,9 +165,9 @@ Decision ids: F-1, F-4, F-5, H-9 (both variants), G-4, I-16, A-2.
 - Create: `Pommora/src/renderer/src/Tabs/tabStrip.css` (the pure motion layer moved out of `tabBar.css`: `.tab`, `.tab-seg`, `.tab-x`, `.tab-icon`, `.tab-label`, `.nav-slide-back/-fwd` keyframes, `@starting-style` blocks — verbatim, store-free)
 - Modify: `Pommora/src/renderer/src/Tabs/tabBar.css` (imports/retains only the toolbar skin: `.tab-bar` app-region/flex, knobs, `.tab-pinned*`, `.tab-scroll/.tab-strip`, the `:has()` reveal chain, `.tab-plus`)
 
-- [ ] **Step 1:** Move the rules; `tabBar.css` keeps its knob block (the moved rules read the same `--tab-*` vars, now defaulted in `tabStrip.css` with `var(--tab-…, fallback)` so a foreign container works without the toolbar's knob block).
-- [ ] **Step 2:** Gates + eyeball the app toolbar via CDP screenshot (Read the PNG): tabs open/close/hover unchanged. No TabBar.tsx restructure (Reconciliation 2 — only as far as the strip needs).
-- [ ] **Step 3:** Commit `refactor(tabs): container-agnostic tab motion layer (F-4) — toolbar skin stays put`.
+- [x] **Step 1:** Move the rules; `tabBar.css` keeps its knob block (the moved rules read the same `--tab-*` vars, now defaulted in `tabStrip.css` with `var(--tab-…, fallback)` so a foreign container works without the toolbar's knob block).
+- [x] **Step 2:** Gates + eyeball the app toolbar via CDP screenshot (Read the PNG): tabs open/close/hover unchanged. No TabBar.tsx restructure (Reconciliation 2 — only as far as the strip needs).
+- [x] **Step 3:** Commit `refactor(tabs): container-agnostic tab motion layer (F-4) — toolbar skin stays put`.
 
 ### Task 2.2: The preview tab strip + title↔tab morph
 
@@ -179,10 +179,10 @@ Decision ids: F-1, F-4, F-5, H-9 (both variants), G-4, I-16, A-2.
 - Consumes: `preview.tabs`/`activeTabId`, `activatePreviewTab`, `closePreviewTab`, `openPreviewTab`, `previewSlide`.
 - Produces: single-tab bannerless state renders the centered breadcrumb (shipped `pgpreview-title`); on tab #2's birth the title collapses left into a standard icon-leading tab in a left-aligned strip (H-9 — the strip mounts, the centered title unmounts, both on the shared tab-open motion; the banner'd origin simply grows its tab, no slide-collapse); per-tab hover ×; labels caption-sized (`--pgpreview-tab-size`).
 
-- [ ] **Step 1:** Build the strip on `tabStrip.css` classes (`.tab`, `.tab-seg`, `.tab-x`) with preview wiring only — no pins, no +, no divider (H-5); the strip gets its **own overflow-x scroll wrapper with the shared edge-fade** (the toolbar's `.tab-scroll` affordance stays toolbar-only — mirror it, don't import it). Tab icons: page's resolved icon; map icon reserved for Phase 8. **Rewire `PreviewWindow.tsx`'s `ConnectionsApi.open` from `openPreview` to `openPreviewTab` (H-1)** — the shipped `open: openPreview` overtakes, which would leave the tab system green-but-dead.
-- [ ] **Step 2:** Morph: `PreviewWindow` renders `tabs.length > 1 ? <PreviewTabStrip/> : <NavCrumbs …/>` inside one container whose swap rides the tab-open transition (the entering tab's `@starting-style` growth is the motion; the title fades/slides left on the same tokens — one clean read, no bespoke keyframes).
-- [ ] **Step 3:** G-4 pane push: when a tab switch lands with the inspector open, the body slide's direction pushes the pane — drive the shipped `.pgpreview-inspector` transform from the same WAAPI moment (translate the pane by the slide delta, settling back — verify `PaneSlider` composes first; if it doesn't read as collide-and-push, animate the pane's transform directly off the same stamp). **Confirm the exact read via CDP screenshots at design; log the choice inline.**
-- [ ] **Step 4:** Gates → CDP-verify against `~/test` (open preview, wiki-click a second tab, screenshot: strip + morph + slide) → Phase Protocol 2–5.
+- [x] **Step 1:** Build the strip on `tabStrip.css` classes (`.tab`, `.tab-seg`, `.tab-x`) with preview wiring only — no pins, no +, no divider (H-5); the strip gets its **own overflow-x scroll wrapper with the shared edge-fade** (the toolbar's `.tab-scroll` affordance stays toolbar-only — mirror it, don't import it). Tab icons: page's resolved icon; map icon reserved for Phase 8. **Rewire `PreviewWindow.tsx`'s `ConnectionsApi.open` from `openPreview` to `openPreviewTab` (H-1)** — the shipped `open: openPreview` overtakes, which would leave the tab system green-but-dead.
+- [x] **Step 2:** Morph: `PreviewWindow` renders `tabs.length > 1 ? <PreviewTabStrip/> : <NavCrumbs …/>` inside one container whose swap rides the tab-open transition (the entering tab's `@starting-style` growth is the motion; the title fades/slides left on the same tokens — one clean read, no bespoke keyframes).
+- [x] **Step 3:** G-4 pane push: when a tab switch lands with the inspector open, the body slide's direction pushes the pane — drive the shipped `.pgpreview-inspector` transform from the same WAAPI moment (translate the pane by the slide delta, settling back — verify `PaneSlider` composes first; if it doesn't read as collide-and-push, animate the pane's transform directly off the same stamp). **Confirm the exact read via CDP screenshots at design; log the choice inline.**
+- [x] **Step 4:** Gates → CDP-verify against `~/test` (open preview, wiki-click a second tab, screenshot: strip + morph + slide) → Phase Protocol 2–5.
 
 ---
 
