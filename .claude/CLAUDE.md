@@ -8,7 +8,7 @@ Pommora is a personal management app based on Nathan’s frustration with modern
 - **Topics:** the subject areas within them — Productivity, Side Projects, Reading List. 
 - **Projects:** specific efforts — CS 161, Pommora, "Atomic Habits." 
 
-**Content:** The operational layer — what you actually make, linked to each other through **Connections** for content ↔ content relations, and with **Front-matter** for content ←> tier relations. 
+**Content:** The operational layer — what you actually make, linked to each other through **Connections** for content ↔ content relations, and with **Front-matter** for content ↔ tier relations. 
 
 - **Collections & Sets:** a **Collection** is a folder that carries a shared property schema and saved views; it nests Sets to any depth as organizing subfolders that inherit that schema.
 - **Pages:** Markdown documents inside a Collection or Set, conforming to its Collection’s properties — the only Content that holds free prose. Pages use MarkdownPM for its editor surface, which includes in-line connections to other pages. 
