@@ -61,7 +61,7 @@ const derived = createGlobalTheme(':root', {
       secondary: '#2A2A2E',
       tertiary: '#3A3A3E',
     },
-    // Overlay fills over a surface — system-grey ramp at 20 / 15 / 10 / 6 / 4%.
+    // Overlay fills over a surface.
     fill: {
       primary: greyA('20%'),
       secondary: greyA('15%'),
@@ -69,14 +69,14 @@ const derived = createGlobalTheme(':root', {
       quaternary: greyA('6%'),
       quinary: greyA('4%'),
     },
-    // Interaction states (Figma "States") — system-grey at hover 2.5% / selected 5%. `muted` is a
-    // system-black 10% de-emphasis veil for dimming a surface a step darker.
+    // Interaction states — system-grey. `muted` is a  de-emphasis veil for dimming a surface a step darker.
+  
     state: {
       hover: greyA('2.5%'),
       selected: greyA('5%'),
       muted: blackA('10%'),
     },
-    // Hairlines (Figma "Separator") — system-grey at line/border 25% / segment 20%.
+    // Hairlines  — system-grey.
     separator: {
       line: greyA('25%'),
       border: greyA('25%'),

@@ -6,12 +6,8 @@ import { duration, easing } from '../../tokens/motion'
 const c = colorVars.color
 
 /**
- * Menu Item row — the menu / sidebar row primitive. ~28px (6px vertical padding),
- * flush (rows touch), 8px sides, 8px icon↔text gap, 8px-radius selection pill —
- * matching the Swift build's sidebar row (SelectableRow). Composes Body/Standard so
- * the title is 13px (the macOS standard content size, NSFont.systemFontSize). Row
- * content icons are set to 16px by consumers — the Swift build sizes row icons
- * larger than their label, so they don't follow the text 1:1.
+ * Menu Item row — the menu / sidebar row primitive.  Composes Body/Standard so
+ * the title is 13px (the macOS standard content size, NSFont.systemFontSize).
  */
 export const item = style([
   text.body.standard,
