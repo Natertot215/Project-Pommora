@@ -162,7 +162,8 @@
   border: none;
   border-radius: 6px;
   background: none;
-  color: var(--label-secondary);
+  /* Always tertiary — active state never brightens the glyph (Nathan's call). */
+  color: var(--label-tertiary);
   cursor: pointer;
 }
 .pgpreview-action:hover {
@@ -174,9 +175,6 @@
 }
 .pgpreview-action:disabled:hover {
   background: none;
-}
-.pgpreview-action[aria-pressed="true"] {
-  color: var(--label-control);
 }
 
 /* ---- inspector (G-1/G-3): the shared SidePane shell, overlay-positioned — full-height on the
@@ -202,44 +200,37 @@
   scrollbar-width: none;
 }
 
-/* ---- the front-matter inspector rows (I-13/I-14): label left, value right; the title field and
-   the banner actions sit above the property list. ---- */
+/* ---- the front-matter inspector rows: property label + icon left, value hugging the right
+   edge (Nathan's call) — properties only, no title/banner rows. ---- */
 .pgpreview-insp {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+.pgpreview-insp-rows {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
   display: flex;
   flex-direction: column;
   gap: 2px;
   padding: 4px;
 }
-.pgpreview-insp > .property-editor,
-.pgpreview-insp-title {
-  width: 100%;
-  border: none;
-  background: none;
-  outline: none;
-  color: var(--label-primary);
-  font-size: var(--text-control-size);
-  font-weight: 600;
-  padding: 4px 2px 6px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  cursor: text;
-}
-.pgpreview-insp-banner {
+/* The bottom subfield: a divider inset from the pane's sides, holding the footnote location
+   breadcrumb (the page's container chain). */
+.pgpreview-insp-subfield {
+  flex-shrink: 0;
+  margin: 0 6px;
+  padding: 6px 2px;
+  border-top: 1px solid var(--separator-segment);
   display: flex;
-  gap: 6px;
-  margin-bottom: 6px;
+  align-items: center;
 }
-.pgpreview-insp-banner button {
-  border: none;
-  background: none;
-  padding: 3px 6px;
-  border-radius: 5px;
-  color: var(--label-secondary);
-  cursor: pointer;
-}
-.pgpreview-insp-banner button:hover {
-  background: var(--state-hover);
+.pgpreview-insp-subfield .pgpreview-insp-loc {
+  min-width: 0;
+  color: var(--label-tertiary);
+  font-size: var(--text-footnote-size);
 }
 .pgpreview-insp-row {
   display: flex;
@@ -263,6 +254,9 @@
   min-width: 0;
   display: flex;
   align-items: center;
+  /* The value fields hug the surface's right edge (Nathan's call). */
+  justify-content: flex-end;
+  text-align: right;
   border-radius: 5px;
   padding: 2px 4px;
   cursor: pointer;

@@ -19,6 +19,8 @@ import { buildResolveIndex } from '../Navigation/navResolve'
 import { useSession } from '../store'
 import { splitSearch, useNavData } from '../Navigation/useNavData'
 import { NavList } from '../Navigation/NavList'
+import { INSPECTOR } from '../PagePreview/PreviewWindow'
+import { PreviewInspector } from '../PagePreview/PreviewInspector'
 import { PreviewTabStrip } from '../PagePreview/PreviewTabStrip'
 import { usePreviewWarm } from '../PagePreview/usePreviewWarm'
 import { NavGallery } from './NavGallery'
@@ -82,17 +84,23 @@ function NavWindowBody({ closing }: { closing: boolean }): React.JSX.Element {
     startDrag,
   } = useFloatingWindow('navwindow', WIN, DRAG_SURFACES)
 
+  // The preview chrome (H-2 shared toolbar): inspector pane state — the same SidePane +
+  // front-matter body as the floating preview, sharing ONE remembered width slot.
+  const [inspectorOpen, setInspectorOpen] = useState(false)
+  const [inspW, setInspW] = useState(INSPECTOR.def)
+  const [inspResizing, setInspResizing] = useState(false)
   useEffect(() => {
     // Skip an Escape a focused surface already handled (mirrors App.tsx's command handler).
     const onKey = (e: KeyboardEvent): void => {
       // Bail unless this is the LIVE surface — during the 380ms flavor-swap exit both windows'
       // handlers coexist, and a stale one must never eat the press (D-4: one press, one layer).
       if (e.key !== 'Escape' || e.defaultPrevented || !useSession.getState().navOpen) return
-      closeNav()
+      if (inspectorOpen) setInspectorOpen(false) // I-21: the pane first, then the window
+      else closeNav()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [closeNav])
+  }, [closeNav, inspectorOpen])
 
   const results = useMemo(() => (query.trim() ? splitSearch(search(query)) : null), [query, search])
   // Selecting from the pane closes it, unless `navCloseOnSelect` is explicitly off (keep it open to browse).
@@ -119,10 +127,22 @@ function NavWindowBody({ closing }: { closing: boolean }): React.JSX.Element {
   const preview = useSession((s) => s.preview)
   const pageTarget = useSession((s) => (s.preview?.flavor === 'nav' ? s.previewTarget : null))
   // H-2: focus the search on open AND on every map-tab return (a command-palette focus — the
-  // input remounts when a page tab swaps the body away).
+  // input remounts when a page tab swaps the body away); the inspector dies with the page tab.
   useEffect(() => {
-    if (!pageTarget) searchRef.current?.focus()
+    if (!pageTarget) {
+      searchRef.current?.focus()
+      setInspectorOpen(false)
+    }
   }, [pageTarget])
+
+  // B-5 promotion from the nav flavor: the page opens for real; the nav window closes on select
+  // (its set stays durable, H-3).
+  const promote = (): void => {
+    if (!pageTarget) return
+    const ref = { kind: 'page' as const, id: pageTarget.id, path: pageTarget.path }
+    closeNav()
+    void select(ref)
+  }
   const hasTabs = preview?.flavor === 'nav' && preview.tabs.length > 1
   const resolveIndex = useMemo(() => (tree ? buildResolveIndex(tree) : null), [tree])
 
@@ -154,11 +174,18 @@ function NavWindowBody({ closing }: { closing: boolean }): React.JSX.Element {
   const style = {
     ...winStyle,
     '--navwindow-rail': `${railW}px`,
+    '--navwindow-inspector-w': `${inspW}px`,
   } as CSSProperties
 
   return (
     <GlassPane
-      className={cx('navwindow', closing && 'closing', pageTarget !== null && 'is-page-tab')}
+      className={cx(
+        'navwindow',
+        closing && 'closing',
+        pageTarget !== null && 'is-page-tab',
+        inspectorOpen && 'is-inspector-open',
+        inspResizing && 'is-inspector-resizing',
+      )}
       style={style}
       role="dialog"
       aria-label="Navigation"
@@ -167,6 +194,29 @@ function NavWindowBody({ closing }: { closing: boolean }): React.JSX.Element {
       <button type="button" className="navwindow-close" aria-label="Close" onClick={closeNav}>
         <Icon name="x" size={14} />
       </button>
+      {/* The preview chrome (H-2 shared toolbar): the buttons slide in with an active page tab and
+          out on the map return; the settings+inspector pair rides the pane edge (the --io swallow). */}
+      <div className="navwindow-actions navwindow-actions-lead">
+        <button type="button" className="pgpreview-action" title="Open Full Page" onClick={promote}>
+          <Icon name="scan" size={13} />
+        </button>
+      </div>
+      <div className="navwindow-actions navwindow-actions-trail">
+        <div className="navwindow-actions-flow">
+          <button type="button" className="pgpreview-action" title="Settings" disabled>
+            <Icon name="sliders-horizontal" size={13} />
+          </button>
+          <button
+            type="button"
+            className="pgpreview-action"
+            title="Inspector"
+            aria-pressed={inspectorOpen}
+            onClick={() => setInspectorOpen((v) => !v)}
+          >
+            <Icon name="panel-right" size={13} />
+          </button>
+        </div>
+      </div>
       {/* F-7: the strip row exists only past one tab — its height grows in, nudging the body down
           on the standard ease; the map tab is the perma-pinned return (H-2/I-4). */}
       <div className={cx('navwindow-tabs', hasTabs && 'has-tabs')}>
@@ -258,6 +308,21 @@ function NavWindowBody({ closing }: { closing: boolean }): React.JSX.Element {
           </div>
         )}
       </div>
+      <SidePane
+        windowId="preview-inspector"
+        side="right"
+        bounds={INSPECTOR}
+        open={inspectorOpen && pageTarget !== null}
+        className="navwindow-inspector"
+        resizeClassName="navwindow-inspector-resize"
+        resizeLabel="Resize inspector"
+        onWidthChange={setInspW}
+        onResizingChange={setInspResizing}
+      >
+        <div className="navwindow-inspector-body">
+          {inspectorOpen && pageTarget && <PreviewInspector target={pageTarget} />}
+        </div>
+      </SidePane>
       {hoverCard}
       <FloatingResizeCorners startDrag={startDrag} />
     </GlassPane>

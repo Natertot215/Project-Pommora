@@ -8,6 +8,14 @@
   animation: navwindow-in var(--disclosure) var(--ease-standard);
   /* KNOB — the shared content inset (search divider + rows align to this). */
   --navwindow-inset: 12px;
+  /* KNOB — the inspector pane's ring from the window edges (the preview's identical treatment). */
+  --navwindow-inspector-inset: var(--glass-inset);
+  /* The inspector open/close driver — the preview's --io contract, shielded to this subtree. */
+  --io: 0;
+  transition: --io var(--duration-base) var(--ease-standard);
+}
+.navwindow.is-inspector-open {
+  --io: 1;
 }
 .navwindow.closing {
   animation: navwindow-out var(--disclosure) var(--ease-standard) forwards;
@@ -41,6 +49,96 @@
 }
 .navwindow-close:hover {
   background: var(--state-hover);
+}
+
+/* ---- the preview chrome (H-2 shared toolbar): the buttons live only in the page-tab state —
+   they slide in as a page tab activates and out on the map return; the X holds home. ---- */
+.navwindow-actions {
+  position: absolute;
+  top: calc(var(--glass-inset) + 4px);
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity var(--duration-base) var(--ease-standard),
+    transform var(--duration-base) var(--ease-standard);
+}
+.navwindow-actions-lead {
+  left: calc(var(--glass-inset) + 4px);
+  transform: translateX(-6px);
+}
+.navwindow-actions-trail {
+  /* Home = left of the holding X (its box + a breath). */
+  right: calc(var(--glass-inset) + 4px + 26px);
+  transform: translateX(6px);
+}
+.navwindow.is-page-tab .navwindow-actions {
+  opacity: 1;
+  transform: translateX(0);
+  pointer-events: auto;
+}
+/* The settings+inspector pair rides the pane's edge (the preview toolbar's swallow): holds at home
+   until the pane's leading edge makes contact (the max() gate), then lands inside its corner. */
+.navwindow-actions-flow {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  --navwindow-flow-w: 46px; /* KNOB — the pair's width (two 19px buttons + gap) */
+  --navwindow-flow-home: calc(var(--navwindow-inspector-inset) + 28px);
+  --navwindow-flow-inset: 4px; /* KNOB — breathing room off the pane's seam after the swallow */
+  transform: translateX(
+    calc(
+      -1 *
+      max(
+        0px,
+        var(--io) *
+        (var(--navwindow-inspector-w, 260px) + var(--navwindow-inspector-inset)) -
+        var(--navwindow-flow-home) -
+        var(--navwindow-flow-w) -
+        var(--navwindow-flow-inset)
+      )
+    )
+  );
+}
+
+/* ---- the inspector (H-2 shared chrome): the preview's pane verbatim — the SidePane shell,
+   overlay-right on the inset ring, slid by --io with no own transition. ---- */
+.navwindow-inspector {
+  position: absolute;
+  top: var(--navwindow-inspector-inset);
+  right: var(--navwindow-inspector-inset);
+  bottom: var(--navwindow-inspector-inset);
+  width: var(--navwindow-inspector-w, 260px);
+  z-index: 2;
+  transform: translateX(calc((1 - var(--io)) * (100% + var(--navwindow-inspector-inset) + 14px)));
+  pointer-events: none;
+}
+.navwindow.is-inspector-open .navwindow-inspector {
+  pointer-events: auto;
+}
+.navwindow-inspector-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+.navwindow-inspector-resize {
+  position: absolute;
+  top: var(--navwindow-inspector-inset);
+  bottom: var(--navwindow-inspector-inset);
+  right: calc(var(--navwindow-inspector-inset) + var(--navwindow-inspector-w, 260px) - 3px);
+  width: 9px;
+  z-index: 4;
+  cursor: col-resize;
+}
+/* Edge-drag resize tracks the cursor 1:1 — no transition lag while dragging (the shell's rule). */
+.navwindow.is-inspector-resizing,
+.navwindow.is-inspector-resizing .navwindow-page,
+.navwindow.is-inspector-resizing .navwindow-actions-flow {
+  transition: none;
 }
 
 /* F-7: the strip row exists only past one tab — height grows in on the standard ease, nudging the
@@ -86,13 +184,18 @@
   display: none;
 }
 
-/* The page tab's content (H-2): the body-owns-scroll model, same as the floating preview. */
+/* The page tab's content (H-2): the body-owns-scroll model, same as the floating preview; the
+   open inspector squeezes it aside like the preview body. */
 .navwindow-page {
   flex: 1;
   min-width: 0;
   min-height: 0;
   overflow-y: auto;
   scrollbar-width: none;
+  transition: padding-right var(--duration-base) var(--ease-standard);
+}
+.navwindow.is-inspector-open .navwindow-page {
+  padding-right: calc(var(--navwindow-inspector-w, 260px) + var(--navwindow-inspector-inset));
 }
 .navwindow-page .pgembed,
 .navwindow-page .pgembed .mdpm-shell,

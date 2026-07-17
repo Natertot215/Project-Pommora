@@ -25,8 +25,9 @@ import './previewWindow.css'
 // KNOB — D-7: the unified floating-chrome opening size (shared with NavWindow's WIN block).
 const WIN = { minW: 360, minH: 280, defW: 850, defH: 600 }
 
-// KNOB — inspector pane resize bounds (width persists per-window inside SidePane).
-const INSPECTOR = { min: 180, def: 260, max: 420 }
+// KNOB — inspector pane resize bounds; the width slot is SHARED across both flavors'
+// inspectors (one pane, one remembered width).
+export const INSPECTOR = { min: 180, def: 260, max: 420 }
 
 // The bare surfaces a window-move may start from. The breadcrumb title is pointer-inert (I-16), so a
 // press on it lands on the toolbar beneath and arms the move; the tab wrap's bare space moves too
@@ -244,7 +245,7 @@ function PreviewWindowBody({
         />
       </div>
       <SidePane
-        windowId="page-preview"
+        windowId="preview-inspector"
         side="right"
         bounds={INSPECTOR}
         open={inspectorOpen}

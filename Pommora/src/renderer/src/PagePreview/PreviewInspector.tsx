@@ -5,7 +5,8 @@ import { applyPropertyValue } from '@shared/propertyValue'
 import type { PageFrontmatter } from '@shared/schemas'
 import type { NexusTree, ResolvedColumn, ViewRow } from '@shared/types'
 import { cx } from '@renderer/design-system/cx'
-import { Icon } from '@renderer/design-system/symbols'
+import { asRenderableIcon, defaultEntityIcon, Icon } from '@renderer/design-system/symbols'
+import { propertyTypeIconName } from '../Components/Detail/PropertyTypes'
 import { text } from '@renderer/design-system/tokens'
 import { CalendarPicker } from '@renderer/design-system/components/CalendarPicker/CalendarPicker'
 import { PickerMenu } from '@renderer/design-system/components/PickerMenu/PickerMenu'
@@ -17,9 +18,10 @@ import { PropertyEditor } from '../Detail/Views/PropertyEditing/PropertyEditor'
 import { PropertyPicker } from '../Detail/Views/PropertyEditing/PropertyPicker'
 import { formatDate } from '../Detail/Views/PropertyEditing/formatValue'
 import { resolveFieldValue } from '../Detail/Views/pipeline/value'
+import { NavCrumbs } from '../Navigation/NavList'
+import { buildResolveIndex, resolveWith } from '../Navigation/navResolve'
 import { isValidLink } from '@shared/links'
 import { RESERVED_PROPERTY_ID } from '@shared/properties'
-import { flushPreviewPage } from '../Detail/pageFlush'
 import { useSession, type PreviewTarget } from '../store'
 
 // The front-matter inspector (G-1/I-13/I-14): the preview page's title, banner, context tiers, and
@@ -41,7 +43,6 @@ export function PreviewInspector({ target }: { target: PreviewTarget }): React.J
   const mutate = useSession((s) => s.mutate)
   const [fm, setFm] = useState<PageFrontmatter | null>(null)
   const [title, setTitle] = useState('')
-  const [editingTitle, setEditingTitle] = useState(false)
   const [editing, setEditing] = useState<Editing>(null)
   const triggerRef = useRef<HTMLElement | null>(null)
 
@@ -60,6 +61,14 @@ export function PreviewInspector({ target }: { target: PreviewTarget }): React.J
   }, [target.path])
 
   const schema = useMemo(() => schemaForPage(tree, target.path), [tree, target.path])
+  // The subfield's location breadcrumb — the page's container chain (no page crumb).
+  const location = useMemo(() => {
+    if (!tree) return []
+    return (
+      resolveWith(buildResolveIndex(tree), { kind: 'page', id: target.id, path: target.path })
+        ?.path ?? []
+    )
+  }, [tree, target])
   const ctx = useMemo<ResolveContext | null>(
     () => (tree ? { schema, contextsById: buildContextsById(tree), labels: tree.labels } : null),
     [tree, schema],
@@ -79,24 +88,6 @@ export function PreviewInspector({ target }: { target: PreviewTarget }): React.J
     const tier = TIER_LEVEL_BY_ID[tierId]
     setFm((prev) => (prev ? ({ ...prev, [`tier${tier}`]: ids } as PageFrontmatter) : prev))
     void mutate({ op: 'setTier', path: target.path, tier, contextIds: ids })
-  }
-  // I-13: the rename must not race the editor's pending body — flush it to the OLD path first
-  // (a self-rename would otherwise refuse at the dead path and drop the edit).
-  const commitTitle = async (raw: string): Promise<void> => {
-    const next = raw.trim()
-    if (next === '' || next === title) return
-    setTitle(next)
-    await flushPreviewPage()
-    void mutate({ op: 'rename', path: target.path, kind: 'page', newName: next })
-  }
-  // I-14: the PageHeader banner mechanism, preview-scoped (cover = the banner field).
-  const setBanner = async (dataUrl: string | null): Promise<void> => {
-    if (await mutate({ op: 'setBanner', path: target.path, kind: 'page', dataUrl }))
-      setFm((prev) => (prev ? { ...prev, cover: dataUrl ?? undefined } : prev))
-  }
-  const changeBanner = async (): Promise<void> => {
-    const dataUrl = await window.nexus.pickImage()
-    if (dataUrl) await setBanner(dataUrl)
   }
 
   const editRow = (def: PropertyDefinition, el: HTMLElement): void => {
@@ -123,6 +114,11 @@ export function PreviewInspector({ target }: { target: PreviewTarget }): React.J
       (TIER_LEVEL_BY_ID[editing.id]
         ? { id: editing.id, name: '', type: 'context' as const }
         : undefined))
+  const TIER_ENTITY: Record<string, 'area' | 'topic' | 'project'> = {
+    [RESERVED_PROPERTY_ID.tier1]: 'area',
+    [RESERVED_PROPERTY_ID.tier2]: 'topic',
+    [RESERVED_PROPERTY_ID.tier3]: 'project',
+  }
   const tierRows: Array<{ id: string; label: string }> = [
     { id: RESERVED_PROPERTY_ID.tier1, label: ctx.labels.area.plural },
     { id: RESERVED_PROPERTY_ID.tier2, label: ctx.labels.topic.plural },
@@ -130,36 +126,9 @@ export function PreviewInspector({ target }: { target: PreviewTarget }): React.J
   ]
 
   return (
-    <div className="pgpreview-insp edge-fade">
-      {editingTitle ? (
-        <PropertyEditor
-          initial={title}
-          onCommit={(raw) => {
-            setEditingTitle(false)
-            void commitTitle(raw)
-          }}
-          onCancel={() => setEditingTitle(false)}
-        />
-      ) : (
-        // biome-ignore lint/a11y/useKeyWithClickEvents: pointer-first edit entry, like cells
-        <span
-          className={cx('pgpreview-insp-title', text.control.emphasized)}
-          onClick={() => setEditingTitle(true)}
-        >
-          {title}
-        </span>
-      )}
-      <div className={cx('pgpreview-insp-banner', text.caption.standard)}>
-        <button type="button" onClick={() => void changeBanner()}>
-          {fm.cover ? 'Change Banner' : 'Add Banner'}
-        </button>
-        {fm.cover && (
-          <button type="button" onClick={() => void setBanner(null)}>
-            Remove
-          </button>
-        )}
-      </div>
-      {[
+    <div className="pgpreview-insp">
+      <div className="pgpreview-insp-rows edge-fade">
+        {[
         ...tierRows.map((t) => ({ def: null, ...t })),
         ...schema.map((d) => ({ def: d, id: d.id, label: d.name })),
       ].map(({ def, id, label }) => {
@@ -167,7 +136,14 @@ export function PreviewInspector({ target }: { target: PreviewTarget }): React.J
         return (
           <div key={id} className="pgpreview-insp-row">
             <span className={cx('pgpreview-insp-label', text.caption.standard)}>
-              {def?.icon ? <Icon name={def.icon as never} size={12} /> : null}
+              <Icon
+                name={
+                  def
+                    ? (asRenderableIcon(def.icon) ?? propertyTypeIconName(def.type) ?? 'tag')
+                    : defaultEntityIcon(TIER_ENTITY[id] ?? 'area')
+                }
+                size={12}
+              />
               {label}
             </span>
             {/* biome-ignore lint/a11y/useKeyWithClickEvents: pointer-first edit entry, like cells */}
@@ -213,7 +189,11 @@ export function PreviewInspector({ target }: { target: PreviewTarget }): React.J
             </span>
           </div>
         )
-      })}
+        })}
+      </div>
+      <div className="pgpreview-insp-subfield">
+        <NavCrumbs path={location} className="pgpreview-insp-loc" iconSize={11} />
+      </div>
       {editingDef && editing?.mode === 'picker' && (
         <PropertyPicker
           def={editingDef}
