@@ -345,6 +345,11 @@
 .md-sym-bidir {
   display: inline-block;
   transform: scaleX(1.5);
+  /* The scale paints wider than the layout box — margin reserves that overflow so the glyph
+     breathes instead of crowding its neighbors. text-indent zeroed like .md-li-marker: an
+     inline-block inherits a list line's hanging indent and would paint over the preceding word. */
+  margin-inline: 0.2em;
+  text-indent: 0;
 }
 
 /* ══ LIST KNOBS — edit these to alter list indentation & spacing ════════════════
